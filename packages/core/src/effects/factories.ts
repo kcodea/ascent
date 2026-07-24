@@ -1886,6 +1886,47 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — Thunderous Sovereign (Start of Combat): trigger your `tribe` minions' Shouts.
+   *
+   *  Mirrors Ryme's trigger convention exactly, and all three parts matter: `drakkoRepeats` so Drakko doubles
+   *  each trigger in combat as it does in the shop, an `sc` narration so the replay can show it, and the
+   *  `battlecryTriggered` bus emit per fire so KARWIND and Bane proc — Karwind is a Dragon in this very tribe,
+   *  so a missing emit would silently break the tribe's own headline combo.
+   *  Economy battlecries are a no-op here by design: `replayCombatBattlecry` defers those to settle. */
+  scTriggerTribeShouts: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const repeats = drakkoRepeats(ctx, self.side) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (!hasBattlecry(m)) continue;
+      if (tribe && !(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
+      for (let r = 0; r < repeats; r++) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${m.name}'s Battlecry` });
+        replayCombatBattlecry(ctx, m);
+        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: m });
+      }
+    }
+  },
+
+  /** Set 2 — Chorus Drake (Rally): trigger your LEFT-MOST OTHER `tribe` minion's Shout when this attacks.
+   *  "Other" is explicit in the text, so the Drake never re-fires itself. Left-most = board order, which is
+   *  deterministic and consumes no RNG. Same trigger convention as `scTriggerTribeShouts` above. */
+  rallyTriggerLeftmostTribeShout: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = str(params.tribe);
+    const target = ctx.living(self.side).find(
+      (m) => m !== self && hasBattlecry(m)
+        && (!tribe || m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe),
+    );
+    if (!target) return;
+    const repeats = drakkoRepeats(ctx, self.side) * mul(self);
+    for (let r = 0; r < repeats; r++) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${target.name}'s Battlecry` });
+      replayCombatBattlecry(ctx, target);
+      ctx.bus.emit('battlecryTriggered', { side: self.side, minion: target });
+    }
+  },
+
   /** Karwind (combat half) — when a Battlecry is triggered on this side (Ryme re-firing an adjacent
    *  Battlecry), buff your minions of `tribe` +atk/+hp. Golden doubles. Mirrors the recruit factory. */
   onBattlecryBuffTribe: (ctx, self, params, payload) => {

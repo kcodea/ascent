@@ -66,6 +66,34 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'After you cast your **second** spell each turn, get **2** copies of the first.',
   },
   {
+    // Rally: every time it attacks, it re-fires a friend's Shout. Left-most OTHER Dragon — "other" is in the
+    // text, and left-most is board order, so no RNG is consumed.
+    id: 'd2_chorus',
+    name: 'Chorus Drake',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyTriggerLeftmostTribeShout', params: { tribe: 'dragon' } }],
+    text: '**Rally:** trigger your left-most other Dragon’s **Shout**.',
+    goldenText: '**Rally:** trigger your left-most other Dragon’s **Shout** twice.',
+  },
+  {
+    // The tribe's combat headline: one Start of Combat that fires the whole board's Shouts. Pairs with
+    // Karwind (also a Dragon) — every trigger procs it, so the two together are the tribe's payoff turn.
+    id: 'd2_sovereign',
+    name: 'Thunderous Sovereign',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 8,
+    health: 8,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }],
+    text: '**Start of Combat:** trigger your Dragons’ **Shouts**.',
+    goldenText: '**Start of Combat:** trigger your Dragons’ **Shouts** twice.',
+  },
+  {
     // Dragon/DEMON, Rise: the tribe's combat payoff — deaths make your SPELLS better for the rest of the run.
     // Routed through `grantSpellPower`, so it emits the `+A/+H Spell Power` narration the replay already rides
     // and the gain reads on the proc rather than at settle.

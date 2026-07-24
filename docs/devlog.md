@@ -2,6 +2,30 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(core/content): Dragon tranche 5 — combat Shout re-triggering (Sovereign + Chorus Drake)
+
+Thunderous Sovereign (T6 8/8, Start of Combat) and Chorus Drake (T3 3/4, Rally) — **14 of 21 Dragons built**.
+
+One primitive unlocked both. `replayCombatBattlecry` already existed for Ryme's Deathrattle but was
+module-private; the two new factories (`scTriggerTribeShouts`, `rallyTriggerLeftmostTribeShout`) drive it for a
+tribe instead of a neighbour. Economy battlecries stay a no-op in combat by design — `replayCombatBattlecry`
+defers those to settle, so nothing double-fires.
+
+Ryme's trigger convention was copied in full rather than just the re-fire call, and each part earns its place:
+`drakkoRepeats` so Drakko doubles a trigger in combat exactly as it does in the shop; an `sc` narration so the
+replay can show it; and the `battlecryTriggered` bus emit per fire so KARWIND and Bane proc. That last one is
+the easy omission — it's invisible without a watcher — and Karwind is a **Dragon in this very tribe**, so
+dropping it would have silently broken the tribe's own headline pairing. There's a test specifically for that
+combo rather than only for the re-fire.
+
+Chorus Drake targets the LEFT-MOST other Dragon: "other" is in the printed text, and left-most is board order,
+so it's deterministic and consumes no RNG.
+
+Two content gotchas: Rally is authored as `on: 'onAttack'` (there is no `'rally'` GameEvent), and the test's
+summon token had to be a real id (`whelpling`) — the schema doesn't validate token ids inside test-only defs, so
+a wrong one only surfaces at runtime as "Unknown card". Suite 1567 + typecheck + lint + build:web + harness
+(determinism, two new combat factories) green.
+
 ### feat(content/sim): Dragon tranche 4 — Scalechanter (improves on a Shout cadence)
 
 Scalechanter (T3 4/3) — **12 of 21 Dragons built** (Karwind included).

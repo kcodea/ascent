@@ -142,6 +142,8 @@ export type EffectFactoryId =
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
+  | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
+  | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
   | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
   | 'onSpellCastFirstBuffSelf' // Ashscribe Whelp: the first spell each turn permanently grows this
   | 'onSpellCastSecondCopyFirst' // Spellkeeper Drake: your 2nd spell each turn copies the 1st

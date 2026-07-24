@@ -2685,6 +2685,39 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
+  it('set 2 — Thunderous Sovereign: Start of Combat triggers your Dragons’ Shouts', () => {
+    // A combat-meaningful Shout (battlecryBuffTribe) so the re-fire is observable as a buff event.
+    const shouter: CardDef = { id: 'tsshout', name: 'SH', tribe: 'dragon', tier: 3, attack: 2, health: 20, keywords: [],
+      effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3, includeSelf: false } }], text: '' };
+    const sov: CardDef = { id: 'tssov', name: 'SOV', tribe: 'dragon', tier: 6, attack: 8, health: 20, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }], text: '' };
+    const r = simulate([
+      { cardId: 'tssov', attack: 8, health: 20, sourceUid: 'SOV' },
+      { cardId: 'tsshout', attack: 2, health: 20, sourceUid: 'SH' },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout: shouter, tssov: sov },
+      combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    // the Shout re-fired: a +3/+3 buff landed, and it was narrated so the replay can show it
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+    expect(r.events.some((e) => e.type === 'sc' && /triggers .*Battlecry/.test(e.text ?? ''))).toBe(true);
+  });
+
+  it('set 2 — a triggered Shout procs KARWIND (the tribe’s own combo)', () => {
+    // The bus emit is easy to forget and invisible without a watcher — Karwind is the watcher, and it's a
+    // Dragon in this same tribe, so a missing emit would silently break the tribe's headline pairing.
+    const shouter: CardDef = { id: 'tsshout2', name: 'SH', tribe: 'dragon', tier: 3, attack: 2, health: 20, keywords: [],
+      effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'whelpling', count: 1 } }], text: '' };
+    const sov: CardDef = { id: 'tssov2', name: 'SOV', tribe: 'dragon', tier: 6, attack: 8, health: 20, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }], text: '' };
+    const r = simulate([
+      { cardId: 'tssov2', attack: 8, health: 20, sourceUid: 'SOV' },
+      { cardId: 'tsshout2', attack: 2, health: 20, sourceUid: 'SH' },
+      { cardId: 'karwind', attack: 4, health: 60, sourceUid: 'KW' },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout2: shouter, tssov2: sov },
+      combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    // Karwind answers a triggered Battlecry with +2/+2 to your Dragons.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+  });
+
   it('set 2 — Ashen Broodlord: Avenge (4) improves your spells and narrates the gain', () => {
     // Four friendly deaths with the Broodlord alive → a +1/+1 spell-power grant, carried back to the run.
     // It must also NARRATE, since the combat replay drives both the flourish and the hand-spell cue off that.

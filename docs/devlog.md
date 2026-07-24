@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
+
+### fix(ui): drop `cardpop` from `.spellbuff` — that was the pop no dial could turn off
+
+Owner: "the values are all at 0 but it is still popping." They were right, and no tuner dial could have fixed
+it — the movement wasn't coming from the wiggle at all.
+
+`.card.spellbuff` led its animation list with `cardpop 0.26s`, copied from `.cardbuff`, whose comment claims
+cardpop is "kept first in the list (matching the base .card) so toggling the class does NOT re-add it." That
+premise is false: the base `.card` has **no** animation — only `.card.popin` / `.row.hand .card.popin` do. So on
+a card that has been sitting in hand, naming cardpop STARTS it: a fresh `opacity 0→1` + `translateY(8px)` +
+`scale(0.96)` entry pop on every single spell buff, driven by nothing in the config.
+
+Removed it; the wiggle now stands alone. Verified with every card dial at its off value (wiggle° 0, pop scale 1,
+wobble 0, spring 0, softness 0): the transform is byte-identical across the whole burst
+(`matrix(1, 0, 0, 1, 0, 33.3856)` — just the hand tuck) and opacity holds at 1. A burst now reports exactly one
+animation, `spellwiggle`, at the tuned duration.
+
+**Known adjacent issue (untouched, pre-existing):** `.card.cardbuff` — the green MINION buff flash — has the
+same construction, so it also fires that entry pop. Left alone deliberately (its look is long-established and
+out of this change's scope); worth its own PR if the pop there is unwanted too.
+
+Full suite (1538) + lint + build:web green.
+
 ## 2026-07-23 (spell-buff tuner — authority pass on every dial)
 
 ### fix(ui): widen the ranges AND the 0-to-1 mappings so the dials actually bite

@@ -1977,7 +1977,13 @@ body.modalup .statusbar .questbadges {
    transform for as long as the class is on, i.e. for the WHOLE burst (which is held for the spark life). That
    made the pop look tied to `spark ms`. Without a fill the override ends exactly at `--sb-wiggle-ms`, so the
    card snaps back into the fan while the sparks keep rising. */
-.card.spellbuff { animation: cardpop 0.26s ease, spellwiggle var(--sb-wiggle-ms, 720ms) var(--sb-wiggle-ease, cubic-bezier(0.45, 0.1, 0.3, 1.12)); z-index: 21; }
+/* NO `cardpop` here. `.cardbuff` leads with it on the claim that it "matches the base .card" so re-adding the
+   class can't restart it — but the base `.card` has NO animation at all (only `.card.popin` / `.row.hand
+   .card.popin` do). On a card that's been sitting in hand, listing cardpop therefore STARTS it: a 0.26s
+   opacity 0→1 + translateY(8px) + scale(0.96) entry pop, fired on every spell buff and controlled by none of
+   the tuner dials. That was the "it still pops with everything at 0" report. The wiggle stands alone now, so
+   zeroing wiggle°/pop scale/wobble really does mean no movement. */
+.card.spellbuff { animation: spellwiggle var(--sb-wiggle-ms, 720ms) var(--sb-wiggle-ease, cubic-bezier(0.45, 0.1, 0.3, 1.12)); z-index: 21; }
 /* NB: `animation-timing-function` inside a @keyframes block does NOT accept `var()` — the browser drops the
    declaration (verified: every keyframe fell back to `ease`). So per-segment curves aren't available, and the
    smoothing is split two ways instead: the tuner's three pop dials shape ONE element-level curve (attack /

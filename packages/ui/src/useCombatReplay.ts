@@ -20,6 +20,7 @@ import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
+import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { isDeathrattleBufferCard } from './deathrattleBuffers';
@@ -429,6 +430,12 @@ export interface CombatReplay {
   enemyDeaths: number;
   /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — drives the live Buffs window. */
   combatBuffs: CombatBuffDelta;
+  /** Combat quest progress landed so far this fight (up to the replayed beat) — quest nodes tick live off it. */
+  questDelta: CombatQuestDelta;
+  /** Badge id → times its combat effect has fired so far this fight; each bump pulses the node once. */
+  triggeredQuests: Record<string, number>;
+  /** Quest ids that COMPLETED mid-replay — QuestBadges renders + lights these before the quest formally settles. */
+  completedQuests: string[];
   skip: () => void;
 }
 

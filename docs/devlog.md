@@ -1,5 +1,20 @@
 # ASCENT — development log
 
+### feat(ui): wire the Set-2 Dragon art (21 minions incl. Karwind)
+
+All 21 Dragon masters wired — 20 `d2_*` cards plus Karwind, whose art slot was empty before (it's a set-1 card
+carried into set 2, so it never had a portrait).
+
+Matched by normalised card name, same as the spell-art pass: 21/23 files matched, the two extras reported and
+deliberately skipped — `ScalefeatherDrake2.png` (a superseded variant) and `Vaeloryx.png` (no card of that
+name). `Orivax.png` needed an explicit hand-confirmed alias, since the card is "Orivax, the Spellchoir" and the
+filename is just the short name.
+
+Optimized only these 21 files (~2.3MB each PNG → WebP), leaving the rest of the art tree untouched to keep the
+diff scoped. Verified after a dev-server restart (an eager glob needs it): a sample across the tier range
+resolves from `/art/minions/`, decodes at full size, and — checked by FULL path, not just filename — none is
+shadowed by a stray PNG, the trap that hid the spell art earlier. build:web green.
+
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
 ### feat(core/sim/content): Dragon tranche 11 — Vault Curator; the Dragon tribe is COMPLETE (21/21)

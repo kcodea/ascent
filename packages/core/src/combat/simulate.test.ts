@@ -498,7 +498,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSpellPower).toBeUndefined(); // defender's retaliation kill is not a Slaughter
   });
 
-  it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
+  it('Spark Capacitor Avenge (4) adds a Waking Rift to hand', () => {
     const p: BoardMinion[] = [
       { cardId: 'sparkcapacitor', attack: 4, health: 40 },
       { cardId: 'stray', attack: 1, health: 1 },
@@ -508,7 +508,7 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 80 }];
     const r = run(p, e, 4);
-    expect(r.playerHandGrants).toContain('sparkplug'); // 4 friendly deaths → Avenge (4) → get a Spark Plug
+    expect(r.playerHandGrants).toContain('sparkplug'); // 4 friendly deaths → Avenge (4) → get a Waking Rift
   });
 
   it('Imp Overseer Echo summons an Imp when it dies in combat', () => {

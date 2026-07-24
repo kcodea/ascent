@@ -614,8 +614,11 @@ export const SPELLS: CardDef[] = [
   {
     // Spark Capacitor's Avenge payoff (also a T6 Tavern spell): buff your entire board +5/+5, twice — two
     // spellBuffAll casts, so each picks up spell power. A board-wide finisher.
+    // Renamed Spark Plug -> Waking Rift (owner 2026-07-24). The ID stays `sparkplug` deliberately: it's
+    // referenced by Spark Capacitor's `avengeGrantSpell` params, by saved runs and by pinned replays, so
+    // changing it would break restores for a display-only rename (same call as the 2026-07-17 vocab pass).
     id: 'sparkplug',
-    name: 'Spark Plug',
+    name: 'Waking Rift',
     tribe: 'neutral',
     tier: 6,
     attack: 0,

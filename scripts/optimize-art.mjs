@@ -2,7 +2,7 @@
 // PNG → WebP at quality 85, preserving alpha. The high-res masters live under `C:\Game Assets\Ascent Art\`;
 // this shrinks the in-repo build copies under packages/ui/src/art/<sub> and deletes the source PNG.
 //
-// Workflow: drop <id>.png into art/{minions,heroes,effects}, then `npm run optimize-art`.
+// Workflow: drop <id>.png into art/{minions,heroes,effects,spells,...}, then `npm run optimize-art`.
 // Idempotent — only .png files are processed, so a re-run on an all-WebP dir is a no-op.
 import sharp from 'sharp';
 import { existsSync, readdirSync, statSync, unlinkSync } from 'node:fs';
@@ -10,7 +10,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIRS = ['minions', 'heroes', 'effects', 'powers', 'quests', 'runes'].map((s) => join(ROOT, 'packages/ui/src/art', s));
+const DIRS = ['minions', 'heroes', 'effects', 'powers', 'quests', 'runes', 'spells'].map((s) => join(ROOT, 'packages/ui/src/art', s));
 const MAX = 512;
 const QUALITY = 85;
 

@@ -1987,10 +1987,10 @@ body.modalup .statusbar .questbadges {
 @keyframes spellwiggle {
   0%   { transform: none; }
   34%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * -1)) scale(var(--sb-scale, 1.06)); }
-  67%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * 0.42 * var(--sb-wobble, 0.3)))
-                    scale(calc(1 + (var(--sb-scale, 1.06) - 1) * 0.34 * var(--sb-wobble, 0.3))); }
-  86%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * -0.15 * var(--sb-wobble, 0.3)))
-                    scale(calc(1 + (var(--sb-scale, 1.06) - 1) * 0.12 * var(--sb-wobble, 0.3))); }
+  67%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * 0.9 * var(--sb-wobble, 0.18)))
+                    scale(calc(1 + (var(--sb-scale, 1.1) - 1) * 0.75 * var(--sb-wobble, 0.18))); }
+  86%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * -0.4 * var(--sb-wobble, 0.18)))
+                    scale(calc(1 + (var(--sb-scale, 1.1) - 1) * 0.32 * var(--sb-wobble, 0.18))); }
   100% { transform: none; }
 }
 /* The spark layer sits over the whole card and is allowed to overflow, so motes can rise past the top edge. */

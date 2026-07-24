@@ -76,6 +76,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onSpellCastOnThisSpreadAdjacent',
   'scTriggerTribeShouts',
   'rallyTriggerLeftmostTribeShout',
+  'avengeCopyLeftmostHandSpell',
   'avengeBuffSpellPower',
   'onSpellCastFirstBuffSelf',
   'onSpellCastSecondCopyFirst',

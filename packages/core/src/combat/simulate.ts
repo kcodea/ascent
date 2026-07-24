@@ -431,6 +431,7 @@ export function simulate(
     enemySpellPower,
     spellPowerFor: (side) => (side === 'player' ? spellPower : enemySpellPower),
     rubyBonusFor: (side) => (side === 'player' ? playerState.rubyBonus : enemyState.rubyBonus),
+    leftmostHandSpellFor: (side) => (side === 'player' ? playerState.handSpellIds : enemyState.handSpellIds)?.[0],
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),

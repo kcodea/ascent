@@ -2727,6 +2727,29 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerNextTurnSpellCopies).toBe(1);
   });
 
+  it('set 2 — Vault Curator: Avenge (4) copies the left-most hand spell (from the combat snapshot)', () => {
+    const vctest: CardDef = { id: 'vctest', name: 'VC', tribe: 'dragon', tier: 4, attack: 4, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'f' + i }));
+    // handSpellIds is the snapshot the reducer builds from the run hand — left-most spell is 'growth'.
+    const r = simulate([...fodder, { cardId: 'vctest', attack: 4, health: 200, sourceUid: 'VC' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, vctest },
+      combatSide({ tier: 4, tribes: ['dragon'], handSpellIds: ['growth', 'spiritfire'] }), combatSide({ tier: 1 }));
+    // the Avenge fired and granted a copy of the LEFT-MOST ('growth'), carried back to hand.
+    expect(r.playerHandGrants).toContain('growth');
+    expect(r.playerHandGrants).not.toContain('spiritfire');
+  });
+
+  it('set 2 — Vault Curator: an empty hand is a clean no-op (no random grant)', () => {
+    const vctest: CardDef = { id: 'vctest2', name: 'VC', tribe: 'dragon', tier: 4, attack: 4, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'g' + i }));
+    const r = simulate([...fodder, { cardId: 'vctest2', attack: 4, health: 200, sourceUid: 'VC' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, vctest2: vctest },
+      combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 })); // no handSpellIds
+    expect(r.playerHandGrants ?? []).toHaveLength(0);
+  });
+
   it('set 2 — Ashen Broodlord: Avenge (4) improves your spells and narrates the gain', () => {
     // Four friendly deaths with the Broodlord alive → a +1/+1 spell-power grant, carried back to the run.
     // It must also NARRATE, since the combat replay drives both the flourish and the hand-spell cue off that.

@@ -8,15 +8,9 @@ import type { CardDef } from '@game/core';
  * by `castSpell` for the Runes, `spellsThisTurn` counts them, and `nextSpellExtraCasts` banks extra casts — so
  * most of the line reads existing state rather than adding bookkeeping.
  *
- * This file fills in as the remaining primitives land. Currently here: the cards that build on effects the
- * engine already supports. Still to come (each needs a genuinely new primitive, so each is its own piece of
- * work):
- *   • per-minion "the first spell cast ON THIS each turn" tracking — Mirrorwing Hatchling, Runefire
- *   • Shout re-triggering inside COMBAT (`replayBattlecry` is recruit-only) — Thunderous Sovereign, Chorus Drake
- *   • a spend-and-reset counter — Living Grimoire
- *   • first/second-spell-this-turn hooks on a minion — Ashscribe Whelp, Spellkeeper Drake
- *   • an on-sell per-turn flag — Voicekeeper; improve-per-N-Shouts — Scalechanter
- *   • the run HAND exposed to combat (`CombatSideState` carries no hand today) — Vault Curator
+ * The full 21-card roster is in (20 here + Karwind, carried from set 1). Every mechanic the tribe needed
+ * is now a real primitive — spell copy/recast, combat Shout re-triggering, the umbrella cast meter, a spend-
+ * and-reset amplifier, cross-turn pending copies, and the two persistent Choose-One modes.
  *
  * (Karwind is a set-1 Dragon carried into this set — see `SET1_DRAGONS_IN_SET2` in `sets.ts`. It was re-spec'd
  * to Tier 6 4/12 for this tribe on the owner's call, which changes it in set 1 too.)
@@ -107,6 +101,20 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }],
     text: '**Start of Combat:** trigger your Dragons’ **Shouts**.',
     goldenText: '**Start of Combat:** trigger your Dragons’ **Shouts** twice.',
+  },
+  {
+    // The combat spell-supply piece: dying allies feed you copies of your best held spell. Reads the hand
+    // snapshot taken at combat start (Vault Curator copies the left-most spell you took INTO the fight).
+    id: 'd2_curator',
+    name: 'Vault Curator',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }],
+    text: '**Avenge (4):** get a copy of the left-most spell in your hand.',
+    goldenText: '**Avenge (4):** get **2** copies of the left-most spell in your hand.',
   },
   {
     // Dragon/BEAST: a delayed spell-copier. Its Echo (dying in combat is the usual path) queues a copy of

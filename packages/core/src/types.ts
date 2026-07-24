@@ -152,6 +152,7 @@ export type EffectFactoryId =
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
+  | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
   | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
   | 'onSpellCastFirstBuffSelf' // Ashscribe Whelp: the first spell each turn permanently grows this
   | 'onSpellCastSecondCopyFirst' // Spellkeeper Drake: your 2nd spell each turn copies the 1st
@@ -1234,6 +1235,10 @@ export interface CombatSideState {
    *  base 1/1, so a combat-cast Ruby (Avenge / Rally / Start-of-Combat "Play a Ruby") applies the same amount
    *  the shop does. Default zero (a Ruby is 1/1). Player-authoritative today. */
   rubyBonus: { attack: number; health: number };
+  /** Set 2 — the card ids of the SPELLS in this side's hand at combat start, in hand order (Vault Curator
+   *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
+   *  the sim never mutates the run hand. */
+  handSpellIds?: readonly string[];
   /** This side's tavern tier. The player's drives token/spell generation; the enemy's drives loss-damage. */
   tier: number;
   /** This side's active tribes — the generation pool filter. */
@@ -1509,6 +1514,8 @@ export interface CombatContext {
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Set 2 — Scalefeather Drake: queue `count` next-turn first-spell copies (player-only; carried back). */
   queueNextTurnSpellCopy(count: number, side: Side): void;
+  /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
+  leftmostHandSpellFor(side: Side): string | undefined;
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;

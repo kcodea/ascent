@@ -615,6 +615,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.queueNextTurnSpellCopy(num(params.count, 1) * mul(self), self.side);
   },
 
+  /** Set 2 — Vault Curator: Avenge (X) copies the LEFT-MOST spell in your hand into your hand again (golden 2).
+   *  Reads the hand snapshot taken at combat start (`ctx.leftmostHandSpellFor`), so it copies what you actually
+   *  held going in; an empty or spell-less hand is a clean no-op — no random grant. */
+  avengeCopyLeftmostHandSpell: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const every = Math.max(1, num(params.count, 4));
+    if (count % every !== 0) return;
+    const id = ctx.leftmostHandSpellFor(self.side);
+    if (!id) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
+  },
+
   /** Set 2 — Ashen Broodlord: Avenge (X) improves your SPELLS by +atk/+hp (spell power), carried back to the
    *  run. Routes through `grantSpellPower` with `self.uid`, so it emits the `+A/+H Spell Power` narration the
    *  combat replay already rides — the flourish and the hand-spell cue both fire on the proc rather than at

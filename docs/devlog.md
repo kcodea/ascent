@@ -2,6 +2,30 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(core/sim/content): Dragon tranche 11 — Vault Curator; the Dragon tribe is COMPLETE (21/21)
+
+Vault Curator (T4 4/6) — the last card. **All 21 Set-2 Dragons are in** (20 authored + Karwind carried from
+set 1).
+
+It needed the one seam I'd deferred: the run's HAND inside combat. `CombatSideState` carried spell/tribe/rune
+aggregates but no hand, so the reducer now snapshots the hand's SPELL ids (in hand order) into a new
+`handSpellIds`, and `ctx.leftmostHandSpellFor(side)` reads it. The Avenge copies that left-most spell via the
+existing `grantToHand` carry-back — a spell-less or empty hand is a clean no-op, never a random grant.
+
+This is the change I'd earlier flagged as "own PR, shared types.ts seam". It landed on the Dragon branch after
+all, because the branch had already been extending that same file throughout the tribe (every factory whitelist,
+the Scalefeather carry-back) — a separate PR would have conflicted on `types.ts` for no isolation benefit. The
+addition is read-only in combat (the sim never touches the run hand), so it can't affect determinism, which the
+harness confirms.
+
+Two tests at the sim boundary where the behaviour actually lives: the Avenge copies the left-most held spell and
+skips the second; an empty hand grants nothing. A reducer-level test was written and then REMOVED rather than
+kept vacuous — `handSpellIds` isn't observable off `CombatResult` (which carries only board snapshots), so the
+only honest reducer assertion was "a fight happened", which implies coverage that isn't there. The plumbing is a
+one-line filter and the behaviour is fully pinned at the simulate boundary.
+
+Roster: 2/1/4/4/4/3/1 across T1–T7 + Karwind. Suite 1583 + typecheck + lint + build:web + harness green.
+
 ### feat(sim/content): Dragon tranche 10 — Orivax, the Spellchoir (the capstone)
 
 Orivax (T7 10/14, Choose One) — **20 of 21 Dragons built**; the whole shop-buildable roster is done, only Vault

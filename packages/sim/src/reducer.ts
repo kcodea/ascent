@@ -1597,6 +1597,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         tier: s.tier,
         tribes: s.tribes,
         cardBuffs: s.cardBuffs ?? {},
+        // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
+        handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
         questMods: questCombatMods(s),
         pendingQuests: buildPendingCombatQuests(s),
       });

@@ -692,7 +692,9 @@ class FxController {
   /** Mount a container on the overlay stage. Returns a disposer. Safe to call before `attach()` resolves —
    *  the container queues and is added once the canvas initialises. The disposer removes the container from
    *  the stage (or the pending queue) but does NOT destroy it — destruction is the caller's responsibility,
-   *  since the caller owns the container's lifecycle. */
+   *  since the caller owns the container's lifecycle. If `init()` fails outright (see the "effects disabled"
+   *  catch in `attach()`), a queued container never mounts; the disposer still cleans up correctly (no leak
+   *  for a caller that disposes on unmount), but a container whose disposer is never called stays referenced. */
   mountLayer(c: Container): () => void {
     if (this.layer) {
       this.layer.addChild(c);
@@ -706,7 +708,9 @@ class FxController {
     };
   }
 
-  /** Register a per-frame callback driven by the overlay ticker. Returns a disposer. */
+  /** Register a per-frame callback driven by the overlay ticker. Returns a disposer. Note: each frame iterates
+   *  a snapshot of the updater list, so if one updater's callback disposes ANOTHER updater during the same
+   *  frame, the disposed one still runs that frame — it drops out starting next frame, not immediately. */
   addUpdater(fn: (dtMs: number) => void): () => void {
     this.extraUpdaters.push(fn);
     this.app?.ticker.start(); // an idled controller must wake while an external updater is live
@@ -3243,11 +3247,22 @@ class FxController {
 
   /** Per-frame: advance every live particle, recycle the dead. Bound method for ticker.add/remove. */
   private update = (ticker: Ticker): void => {
-    if (this.extraUpdaters.length > 0) {
-      const dtMs = ticker.deltaMS;
-      for (const fn of [...this.extraUpdaters]) fn(dtMs);
-    }
     const dtMs = ticker.deltaMS;
+    if (this.extraUpdaters.length > 0) {
+      // Sandboxed: a workbench updater plays hand-authored, frequently-malformed effect data, and PixiJS's
+      // Ticker doesn't catch listener exceptions — an uncaught throw here would skip the rest of this method
+      // (every shipped particle/tendril/aura/shield sim) for this tick and every tick after. Evict the
+      // offender instead so a bad updater only stops the workbench, never the game's own FX.
+      for (const fn of [...this.extraUpdaters]) {
+        try {
+          fn(dtMs);
+        } catch (e) {
+          console.error('[pixiFx] external updater threw — removing it to protect the overlay:', e);
+          const i = this.extraUpdaters.indexOf(fn);
+          if (i >= 0) this.extraUpdaters.splice(i, 1);
+        }
+      }
+    }
     const dt = dtMs / 1000;
     for (let i = this.live.length - 1; i >= 0; i--) {
       const p = this.live[i]!;

@@ -1,5 +1,4 @@
-import { Graphics, Particle, ParticleContainer, Rectangle } from 'pixi.js';
-import type { Renderer, Texture } from 'pixi.js';
+import { Graphics, Particle, ParticleContainer, Rectangle, type Renderer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { palColorBiased, PALETTE_NAMES } from '../palettes';
@@ -16,23 +15,23 @@ import { registerPrimitive } from '../registry';
 /**
  * The shared soft-round-dot texture every emitter instance tints per-particle. Generated once per renderer
  * (a Graphics circle baked via `generateTexture`, not re-inlined per instance) and cached at module scope —
- * instances never destroy it, only their own `ParticleContainer`. Keyed by renderer identity rather than a
- * `Map` because the workbench only ever runs one renderer at a time; if that ever changes, the worst case is
- * a harmless re-bake, not a leak (the old texture just falls out of the cache, still owned by whichever
- * instances hold a reference to it — GPU-side it's freed only if nothing regenerates it, which is fine since
- * nothing explicitly destroys it either).
+ * instances never destroy it, only their own `ParticleContainer`. Keyed in a `WeakMap` by renderer identity
+ * (matching `burst.ts`'s `shardTextureCache`), so a second renderer (a second workbench preview, a test)
+ * gets its own texture instead of silently reusing — and leaking — the first one's, and the entry falls out
+ * on its own once the renderer it belongs to is gone.
  */
-let moteTextureCache: { renderer: Renderer; texture: Texture } | null = null;
+const moteTextureCache = new WeakMap<Renderer, Texture>();
 
 function getMoteTexture(renderer: Renderer): Texture {
-  if (moteTextureCache && moteTextureCache.renderer === renderer) return moteTextureCache.texture;
+  const cached = moteTextureCache.get(renderer);
+  if (cached) return cached;
   const g = new Graphics();
   // Soft edge: a faint wide underlay + a bright core, both plain fills (no per-frame cost — baked once).
   g.circle(0, 0, 16).fill({ color: 0xffffff, alpha: 0.35 });
   g.circle(0, 0, 9).fill({ color: 0xffffff, alpha: 1 });
   const texture = renderer.generateTexture({ target: g, resolution: 2 });
   g.destroy();
-  moteTextureCache = { renderer, texture };
+  moteTextureCache.set(renderer, texture);
   return texture;
 }
 
@@ -123,7 +122,11 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   private readonly motes: Mote[] = [];
   private originX = 0;
   private originY = 0;
-  private emitBudget = 0;
+  private headSet = false;
+  // Reused scratch object for the emit-budget accumulation — `advanceEmitBudget` (kept pure below for the
+  // test suite) would otherwise allocate a fresh `{ budget, spawnCount }` literal every single frame. This
+  // mirrors `ribbon.ts`'s cached `shape` scratch object: same values, written in place instead of returned.
+  private readonly budgetState = { budget: 0, spawnCount: 0 };
 
   constructor(ctx: FxContext, params: EmitterParams) {
     this.params = params;
@@ -142,6 +145,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   setHead(x: number, y: number): void {
     this.originX = x;
     this.originY = y;
+    this.headSet = true;
   }
 
   update(dtMs: number): void {
@@ -172,15 +176,23 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     motes.length = write;
     children.length = write;
 
-    // 2) spawn this frame's share, capped so a pathological rate*life combo can't outgrow MAX_MOTES.
-    const { budget, spawnCount } = advanceEmitBudget(this.emitBudget, p.rate, dtSec);
-    this.emitBudget = budget;
-    const room = MAX_MOTES - motes.length;
-    const toSpawn = spawnCount < room ? spawnCount : Math.max(0, room);
-    for (let i = 0; i < toSpawn; i++) {
-      const mote = this.spawnMote();
-      motes.push(mote);
-      children.push(mote.p);
+    // 2) spawn this frame's share, capped so a pathological rate*life combo can't outgrow MAX_MOTES. Gated
+    //    on `headSet`: `update()` can run before the first `setHead()` call (e.g. the very first tick after
+    //    spawn), and without this guard that would emit a mote or two from the origin default (0,0) —
+    //    a single flickering mote at the wrong spot before self-correcting next frame. Skipping the spawn
+    //    (but still accumulating the budget below) closes that for free.
+    const bs = this.budgetState;
+    const b = bs.budget + p.rate * dtSec;
+    bs.spawnCount = Math.floor(b);
+    bs.budget = b - bs.spawnCount;
+    if (this.headSet) {
+      const room = MAX_MOTES - motes.length;
+      const toSpawn = bs.spawnCount < room ? bs.spawnCount : Math.max(0, room);
+      for (let i = 0; i < toSpawn; i++) {
+        const mote = this.spawnMote();
+        motes.push(mote);
+        children.push(mote.p);
+      }
     }
 
     this.particles.update();

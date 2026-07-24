@@ -5011,6 +5011,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-row input[type='range'] { width: 100%; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
 .fxwb-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
 .fxwb-row input[type='range']::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
+/* Editable palette control: a preset dropdown above a row of four rim→core colour swatches. */
+.fxwb-palette { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.fxwb-palette > select { width: 100%; }
+.fxwb-palette-stops { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.fxwb-palette-stops input[type='color'] { width: 100%; height: 22px; padding: 0; border: 1px solid #3d3752; border-radius: 4px; background: none; cursor: pointer; }
+.fxwb-palette-stops input[type='color']::-webkit-color-swatch { border: none; border-radius: 3px; }
+.fxwb-palette-stops input[type='color']::-moz-color-swatch { border: none; border-radius: 3px; }
 .fxwb-row input[type='checkbox'] { justify-self: start; accent-color: #c936ef; width: 15px; height: 15px; cursor: pointer; }
 .fxwb-row select {
   grid-column: 2 / span 2; background: #2b2739; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;

@@ -3,6 +3,49 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — primitives, scenarios, editable palette)
+
+### feat(fx): three more primitives, richer scenarios, and a fully editable palette
+
+The workbench opened with one primitive (the ribbon) and two scenarios; the owner's feedback — "there has
+to be more than one effect… I want an editor for all types" — drove this expansion.
+
+- **Three new primitives**, each self-registering into the same contract so they appear in the picker for
+  free: **burst** (a one-shot radial shard spray, `ParticleContainer`, re-firing on an interval),
+  **shockwave** (expanding posterized rings — a shader-quad in the ribbon's cel-band language), and
+  **emitter** (a continuous mote stream). A shared **`palettes.ts`** holds the six rim→core palettes so no
+  primitive re-inlines them.
+- **Scenario overhaul**, driven by owner notes: the head-driving contract moved to a single
+  `headAt(ctx: FxHeadContext)` (viewport, live cursor, last click, progress). The circle-shaped bounce is
+  now a **ping-pong** (0→1→2→3→2→1→0, reversing at the ends, arcs bowing oppositely); a new **Pinned to
+  cursor** makes the effect head the live mouse (dragging in real time, not travelling toward it); **Click
+  to place** anchors the effect at the last clicked point; **Stationary** runs the effect in place at centre
+  (a small contained sweep, so even the motion-trail ribbon stays put while still drawing its travelling
+  look). The old travel-to-cursor scenario was removed, superseded by Pinned.
+- **Editable palette.** `palette` is now a first-class param kind (four `0xRRGGBB` colour stops rim→core,
+  with preset seeding), so the generated inspector renders a preset dropdown plus four colour swatches, and
+  every current and future primitive gets per-effect editable colours for free. `ParamsOf` resolves a
+  palette param to a concrete 4-tuple (pinned by a bidirectional `expectTypeOf` test); `coerceParams`
+  validates length-4 / finite / in-range and hands out fresh copies so two effects can't mutate each
+  other's colours.
+
+**Built subagent-driven** (parallel implementers + spec/quality review, reviewers reproducing each fix
+against its bug). The reviews caught, among others: a burst that fired its first wave at (0,0) before
+`setHead` (traced through the real `update`-before-`setHead` call order), an O(n) particle cull, an
+emitter per-frame allocation, and the primitives' self-registration dragging their shaders into the prod
+bundle (fixed with a DEV-gated dynamic `primitives/` barrel import).
+
+**Verified:** `npm run typecheck` + `lint` (0 errors) + `test` (**1673 passing**, 102 files) + `build:web`
+all green; workbench confirmed **absent from the prod JS bundle**. Live browser checks (worktree dev
+server, framebuffer colour-bucketing + centroid probes): all four primitives render with 0 GL errors;
+editing a single palette stop shifts the shader's band live (rim violet→red); Pinned/Click place the
+effect exactly at the cursor/click; Stationary stays centred; the ribbon trails a dragged cursor.
+
+**Follow-ups (owner-requested, queued):** ribbon-level depth (noise/glow/edge shaping) on burst/shockwave/
+emitter; then composition — stacking primitives into one effect (the multi-layer timeline). The shockwave's
+look (dim disc vs crisp rings) is pending the owner's eye. A truly-frozen Stationary for particle/ring
+effects (vs the ribbon's needed sweep) is a possible per-primitive refinement.
+
 ## 2026-07-24 (FX workbench — P1 foundation)
 
 ### feat(fx): a composable, dev-only FX workbench (effects as data)

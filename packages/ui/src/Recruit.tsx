@@ -8,6 +8,7 @@ import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
+import { getSpellBuffFxConfig } from './spellBuffFxConfig';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -1826,6 +1827,11 @@ export function Recruit() {
     prevSpellSigRef.current = next;
     if (inCombat || changed.length === 0) return;
     setSpellBuffedUids((s) => new Set([...s, ...changed]));
+    // Hold the class for the LONGER of the two independent timings — the card's wiggle and the sparks' full
+    // life (their stagger + rise). A fixed hold used to clip the sparks whenever they outlasted the pop, which
+    // is exactly the case the tuner wants to allow: a snappy wiggle with a long, slow rise.
+    const c = getSpellBuffFxConfig();
+    const hold = Math.max(c.wiggleMs, c.sparkMs + c.sparkStagger) + 120;
     // Self-clearing (never cancelled in cleanup — same reasoning as the green buff flash): each timer must be
     // allowed to fire or a quick follow-up change could leave a card stuck mid-wiggle.
     window.setTimeout(() => {
@@ -1835,8 +1841,24 @@ export function Recruit() {
         for (const u of changed) n.delete(u);
         return n;
       });
-    }, 850);
+    }, hold);
   }, [handViews, inCombat]);
+  // DEV: the ✨ Spell Buff tuner's Test button fires the cue on every spell / Ruby currently in hand, so the
+  // effect can be dialed without waiting for a real buff. Clear-then-set so the class remounts and the
+  // animation restarts even if a burst is already running.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    const w = window as { __spellBuffTest?: () => void };
+    w.__spellBuffTest = (): void => {
+      const uids = [...handViews].filter(([, v]) => v.spell || v.ruby).map(([uid]) => uid);
+      if (uids.length === 0) return;
+      const c = getSpellBuffFxConfig();
+      setSpellBuffedUids(new Set());
+      requestAnimationFrame(() => setSpellBuffedUids(new Set(uids)));
+      window.setTimeout(() => setSpellBuffedUids(new Set()), Math.max(c.wiggleMs, c.sparkMs + c.sparkStagger) + 200);
+    };
+    return () => { delete w.__spellBuffTest; };
+  }, [handViews]);
   // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
   // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
   // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.

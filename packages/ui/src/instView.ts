@@ -156,8 +156,11 @@ export function instView(
   // A Ruby renders with the spell look (no stat footer), so its GRANT must live in the text — "+A/+H" where
   // A/H are the stats it was minted with (base 1/1 + the run's rubyBonus). Live by construction: the numbers
   // ARE the card's current stats.
+  // A BUFFED Ruby (minted above its printed 1/1 by the run's `rubyBonus`, or grown in hand) shows its grant in
+  // green via the standard `{{…}}` modified-value marker — the same cue every other scaled number uses.
+  const rubyVal = `+${shownAtk}/+${shownHp}`;
   const shownText = c.ruby
-    ? `Give a minion **+${shownAtk}/+${shownHp}**${c.rubyGrantKeyword === 'DS' ? ' and **Ward**' : ''}.`
+    ? `Give a minion **${shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal}**${c.rubyGrantKeyword === 'DS' ? ' and **Ward**' : ''}.`
     : text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,

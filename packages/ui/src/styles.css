@@ -1969,27 +1969,41 @@ body.modalup .statusbar .questbadges {
 /* SPELL BUFF (owner 2026-07-23) — a hand spell (or Ruby) whose printed value just went UP: a quick wiggle +
    grow/shrink pop on the card, plus pink/gold/purple sparks bursting off it and rising. One-shot (~0.8s), and
    transform/opacity only (no looping paint), so the whole cue composites. `cardpop` stays first in the list —
-   same reason as `.cardbuff`: toggling the class must not replay the card's entry pop. */
-.card.spellbuff { animation: cardpop 0.26s ease, spellwiggle 0.66s ease both; z-index: 21; }
+   same reason as `.cardbuff`: toggling the class must not replay the card's entry pop.
+   Shape/timing come from the ✨ Spell Buff tuner as CSS vars (`--sb-deg` peak rotation, `--sb-scale` peak pop,
+   `--sb-wiggle-ms`, `--sb-ms` spark life); the fallbacks below are the shipped defaults. */
+.card.spellbuff { animation: cardpop 0.26s ease, spellwiggle var(--sb-wiggle-ms, 660ms) ease both; z-index: 21; }
 @keyframes spellwiggle {
   0%   { transform: none; }
-  14%  { transform: rotate(-3.4deg) scale(1.07); }
-  30%  { transform: rotate(3deg) scale(1.09); }
-  48%  { transform: rotate(-2.1deg) scale(1.05); }
-  66%  { transform: rotate(1.5deg) scale(1.03); }
-  84%  { transform: rotate(-0.7deg) scale(1.01); }
+  14%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * -1)) scale(calc(1 + (var(--sb-scale, 1.09) - 1) * 0.78)); }
+  30%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * 0.88)) scale(var(--sb-scale, 1.09)); }
+  48%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * -0.62)) scale(calc(1 + (var(--sb-scale, 1.09) - 1) * 0.55)); }
+  66%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * 0.44)) scale(calc(1 + (var(--sb-scale, 1.09) - 1) * 0.33)); }
+  84%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * -0.2)) scale(calc(1 + (var(--sb-scale, 1.09) - 1) * 0.12)); }
   100% { transform: none; }
 }
 /* The spark layer sits over the whole card and is allowed to overflow, so motes can rise past the top edge. */
 .sbsparks { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 22; }
 .sbspark {
   position: absolute; width: var(--sb-size, 7px); aspect-ratio: 1; border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, var(--sb-hue) 0%, transparent 72%);
-  mix-blend-mode: screen; animation: sbspark 0.8s ease-out both; will-change: transform, opacity;
+  /* A solid hot core out to 30% before the falloff — the old pure-falloff dot read washed out over bright art.
+     The glow halo (`--sb-glow`) is what actually sells it against the card, so it's a tuner dial. */
+  background: radial-gradient(circle at 50% 50%, #fff 0%, var(--sb-hue) 30%, transparent 76%);
+  filter: drop-shadow(0 0 var(--sb-glow, 7px) var(--sb-hue));
+  animation: sbspark var(--sb-ms, 900ms) ease-out both; will-change: transform, opacity;
+}
+/* The TAIL — a tapering streak trailing BELOW the mote as it climbs. Length rides `--sb-tail` (baked per mote
+   as size × the tuner's tail multiple), so bigger motes streak proportionally longer. */
+.sbspark::after {
+  content: ''; position: absolute; left: 50%; top: 45%;
+  width: calc(var(--sb-size, 7px) * 0.5); height: var(--sb-tail, 15px);
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, var(--sb-hue), transparent 92%);
+  border-radius: 50% 50% 46% 46% / 30% 30% 70% 70%;
 }
 @keyframes sbspark {
   0%   { transform: translate(-50%, 0) scale(0.45); opacity: 0; }
-  18%  { opacity: 1; }
+  18%  { opacity: var(--sb-alpha, 1); }
   100% { transform: translate(calc(-50% + var(--sb-wx, 0px)), calc(-1 * var(--sb-rise, 90%))) scale(1.06); opacity: 0; }
 }
 /* Karwind flame flash — a quick, minimal burn along the BOTTOM edge of a Dragon that Karwind's

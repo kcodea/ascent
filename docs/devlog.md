@@ -46,6 +46,13 @@ first-play bug (#635), and duplicating it into a second module would have duplic
 
 New dev tuner **✨ Plate Coalesce** with a "Play here" button.
 
+**Fixed on first play-test:** the card flashed into view before the effect started, then vanished to reform.
+A freshly mounted card carries `.popin`, whose `cardpop` / `handpop` keyframes animate `opacity: 0 → 1`, and
+a RUNNING CSS ANIMATION outranks a plain inline style — so the hide lost for the pop's ~150ms and only
+applied once the animation ended. The hide is now an `!important` author declaration, which outranks
+animations, so the card is hidden from the first frame. Set via `setProperty` rather than the `style` prop
+React renders, so a re-render mid-effect can't clobber it.
+
 **Verified:** typecheck + lint + 1538 tests + `build:web` green. (The one lint warning is pre-existing in
 `SceneBuilder.tsx` from #634, untouched here.)
 

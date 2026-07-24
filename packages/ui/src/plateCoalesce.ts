@@ -141,10 +141,19 @@ interface Mote {
 /**
  * Play the coalesce over a screen rect, resolving into `target` if one is given.
  *
- * `target` is the real card element that is materialising. While the effect runs we hold it at opacity 0
- * and fade it up during the `cardIn` beat, so the card genuinely resolves out of the wireframe instead of
- * being visible underneath it the whole time. The inline style is always cleaned up — including if the
- * element unmounts mid-flight, since we only ever touch a node we still hold a reference to.
+ * `target` is the real card element that is materialising. While the effect runs we hold it hidden and fade
+ * it up during the `cardIn` beat, so the card genuinely resolves out of the wireframe instead of being
+ * visible underneath it the whole time.
+ *
+ * The hide is `!important`, which looks heavy-handed but is load-bearing: a freshly mounted card carries
+ * `.popin`, whose `cardpop` / `handpop` keyframes animate `opacity: 0 -> 1`, and a RUNNING CSS ANIMATION
+ * outranks a plain inline style in the cascade. Without the flag the card flashed into view for the pop's
+ * ~150ms, then vanished when the animation ended and the hide finally applied — the "appears, then
+ * disappears to reform" the owner reported. An `!important` author declaration outranks animations, so the
+ * card stays hidden from the first frame.
+ *
+ * Set via `setProperty` rather than the `style` prop React renders (which only carries `--c`, `--c2`,
+ * `--fan-rot` and `transform`), so a re-render mid-effect can't clobber it. Always cleaned up in `done()`.
  */
 export function playPlateCoalesce(
   rect: { left: number; top: number; width: number; height: number },
@@ -155,9 +164,11 @@ export function playPlateCoalesce(
   const k = rect.width / REF_W;
   if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
 
-  // the card being generated stays hidden until the wireframe resolves into it
-  const prevOpacity = target ? target.style.opacity : '';
-  if (target) target.style.opacity = '0';
+  // the card being generated stays hidden until the wireframe resolves into it (see the note above on why
+  // this has to be `!important`)
+  const hide = (v: string): void => target?.style.setProperty('opacity', v, 'important');
+  const unhide = (): void => target?.style.removeProperty('opacity');
+  hide('0');
 
   const imp = document.createElement('div');
   imp.style.cssText = [
@@ -216,7 +227,7 @@ export function playPlateCoalesce(
   const done = (): void => {
     cancelAnimationFrame(raf);
     imp.remove(); cv.remove();
-    if (target) target.style.opacity = prevOpacity;
+    unhide();
   };
   const frame = (now: number): void => {
     const ms = now - t0;
@@ -253,7 +264,7 @@ export function playPlateCoalesce(
     const cardA = Math.min(1, Math.max(0, (ms - cardStart) / Math.max(1, c.cardIn)));
     imp.style.opacity = String(wireA * (1 - cardA) * c.inten);
     imp.style.transform = `scale(${1 + (c.puff - 1) * (1 - wireA)})`;
-    if (target) target.style.opacity = cardA >= 1 ? prevOpacity : String(cardA);
+    if (cardA >= 1) unhide(); else hide(String(cardA));
 
     if (ms >= c.total + 200) { done(); return; }
     raf = requestAnimationFrame(frame);

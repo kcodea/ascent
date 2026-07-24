@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Placing and rearranging a card slides it home.** Dropping a minion onto the board — or reordering one —
+  now glides it into its slot from where you released it, the same motion a buy uses but 30% faster, instead
+  of snapping into place.
 - **Gilding a card plays out.** Completing a triple now shows the three copies converge centre-screen into
   one, erupt gold, and slide home into the hand — the third of the plate effects, alongside the play-dissolve
   and the generated-card coalesce.

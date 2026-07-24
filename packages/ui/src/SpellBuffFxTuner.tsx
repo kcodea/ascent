@@ -20,8 +20,10 @@ const LABELS: Record<keyof SpellBuffFxConfig, string> = {
   sparkSpread: 'spawn spread %',
   sparkOriginLo: 'spawn low %',
   sparkOriginHi: 'spawn high %',
-  sparkRiseMin: 'rise min %',
-  sparkRiseMax: 'rise max %',
+  sparkRiseMin: 'rise min px',
+  sparkRiseMax: 'rise max px',
+  sparkSpeed: 'launch punch',
+  sparkGravity: 'gravity px',
   sparkDrift: 'drift px',
   sparkAlpha: 'spark α',
   sparkGlow: 'spark glow',
@@ -34,6 +36,8 @@ const LABELS: Record<keyof SpellBuffFxConfig, string> = {
   wiggleDeg: 'wiggle°',
   wiggleScale: 'pop scale',
   wiggleMs: 'wiggle ms',
+  wiggleEase: 'pop softness',
+  wiggleOvershoot: 'pop spring',
 };
 
 export function SpellBuffFxTuner() {

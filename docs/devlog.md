@@ -3,6 +3,32 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell-buff FX — rise in PIXELS, launch/gravity + pop easing dials)
+
+### fix(ui): the spark rise was a % of the MOTE, not the card — plus speed/gravity/ease controls
+
+The real reason the sparks "weren't moving up fast enough": `--sb-rise` was a percentage fed to `translate`,
+and a percentage there resolves against the **element's own box** — a ~7px mote. So the previous 140–280% dial
+was buying ~10–20px of actual travel. Rise is now in **PIXELS** (default 80–170px), which is what the dial
+implied all along.
+
+New dials for the vertical movement the owner asked for:
+- **launch punch** (`sparkSpeed`, 0–1) — builds the climb's cubic-bezier (`sparkEaseCss`): 0 eases up evenly,
+  1 fires off hard and coasts.
+- **gravity px** (`sparkGravity`) — the mote climbs to its full rise by 72%, then SAGS back by this much, so the
+  burst can arc instead of hanging.
+
+And the pop is properly eased instead of snapping:
+- The 6-stop shake (14/30/48/66/84%) read as a jitter — replaced with a swing-out → softer swing-back → settle
+  (32/64/84%).
+- **pop softness** (`wiggleEase`, 0–1) and **pop spring** (`wiggleOvershoot`) build the wiggle's curve
+  (`wiggleEaseCss`), the overshoot riding the second control point past 1 so each leg sails slightly beyond its
+  target and settles — what turns an instant snap into a pop. Default `cubic-bezier(0.374, 0.104, 0.452, 1.28)`.
+
+Tuner is now 24 controls. Verified live: rise resolves to 159px, the wiggle runs the tuned bezier with
+`fill: none` (still decoupled from spark life), and all six new dials render with their defaults. Full suite
+(1538) + lint + build:web green.
+
 ## 2026-07-23 (spell-buff FX — decouple the pop, speed up the rise)
 
 ### fix(ui): the card pop was pinned to the spark life via the wiggle's fill-mode

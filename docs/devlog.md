@@ -3,6 +3,28 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell-buff cue — hand spells + Rubies react when they get stronger)
+
+### feat(ui): a wiggle + spark burst on hand spells whose value just went up
+
+When a spell buff lands, the affected cards in HAND now say so: a quick **wiggle + grow/shrink pop**, plus
+**pink / gold / purple sparks** that burst off the card and rise. Covers Rubies too (previously excluded from
+the green minion flash entirely, so a Ruby growing had no cue at all).
+
+**Detection** — a spell's stats never move (it's a 0/1 card); its printed VALUE is what changes. So the watcher
+diffs each hand card's rendered live text + stats per uid and fires on a change for `spell || ruby` cards. That
+catches every scaling source at once — spell power, Front to Back's escalation, the Ruby stat line, Rune of
+Pillaging's pouch — without enumerating them, and picks up future ones for free. Only cards already in hand can
+fire it, so drawing never flashes; minions keep the existing green buff flash.
+
+**Render** — `Card.spellBuffed` adds a `.spellbuff` class (`cardpop` + a new `spellwiggle`) and spawns 15
+`.sbspark` motes with fixed per-mote jitter (position / delay / size / rise / drift / hue), mirroring the
+`REBORN_WISPS` idiom. One-shot (~0.8s), transform/opacity only, so the burst composites rather than repainting.
+
+Verified live: buffing spell power with a Spirit Fire + Ruby + minion in hand flagged exactly the spell and the
+Ruby (`cardpop, spellwiggle`, 15 sparks each, hues pink/gold/purple) and left the minion untouched. Full suite
+(1538) + lint + build:web green.
+
 ## 2026-07-24 (the shop→hand slide + the top-left ghost card)
 ### fix(ui): the REAL top-left blip — GSAP Flip was grabbing the gild's clones
 

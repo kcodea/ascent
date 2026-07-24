@@ -1966,6 +1966,32 @@ body.modalup .statusbar .questbadges {
   32% { box-shadow: 0 0 0 4px #2bd897, 0 0 30px 8px rgba(43, 216, 151, 0.85); transform: translateY(-7px) scale(1.06); filter: brightness(1.2); animation-timing-function: ease-out; }
   100% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; }
 }
+/* SPELL BUFF (owner 2026-07-23) — a hand spell (or Ruby) whose printed value just went UP: a quick wiggle +
+   grow/shrink pop on the card, plus pink/gold/purple sparks bursting off it and rising. One-shot (~0.8s), and
+   transform/opacity only (no looping paint), so the whole cue composites. `cardpop` stays first in the list —
+   same reason as `.cardbuff`: toggling the class must not replay the card's entry pop. */
+.card.spellbuff { animation: cardpop 0.26s ease, spellwiggle 0.66s ease both; z-index: 21; }
+@keyframes spellwiggle {
+  0%   { transform: none; }
+  14%  { transform: rotate(-3.4deg) scale(1.07); }
+  30%  { transform: rotate(3deg) scale(1.09); }
+  48%  { transform: rotate(-2.1deg) scale(1.05); }
+  66%  { transform: rotate(1.5deg) scale(1.03); }
+  84%  { transform: rotate(-0.7deg) scale(1.01); }
+  100% { transform: none; }
+}
+/* The spark layer sits over the whole card and is allowed to overflow, so motes can rise past the top edge. */
+.sbsparks { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 22; }
+.sbspark {
+  position: absolute; width: var(--sb-size, 7px); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, var(--sb-hue) 0%, transparent 72%);
+  mix-blend-mode: screen; animation: sbspark 0.8s ease-out both; will-change: transform, opacity;
+}
+@keyframes sbspark {
+  0%   { transform: translate(-50%, 0) scale(0.45); opacity: 0; }
+  18%  { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--sb-wx, 0px)), calc(-1 * var(--sb-rise, 90%))) scale(1.06); opacity: 0; }
+}
 /* Karwind flame flash — a quick, minimal burn along the BOTTOM edge of a Dragon that Karwind's
    battlecry trigger just buffed (a small "Karwind is working" indicator, on top of the green buff
    burst). Kept short + uniform so it reads consistently across every buffed Dragon. */

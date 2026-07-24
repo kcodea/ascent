@@ -3,6 +3,28 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell-buff pop — smoothing dials + the keyframe-var limitation)
+
+### fix(ui): the pop sprang on EVERY leg; split shake from smoothness
+
+Owner: still jarring. The cause was that ONE overshoot cubic-bezier was applied across the whole animation, so
+every leg of the wiggle sprang past its target — a shake, not a pop.
+
+Tried per-segment curves first (`animation-timing-function` inside each keyframe, driven by a var). **That does
+not work:** a keyframe's `animation-timing-function` does NOT accept `var()` — the browser drops the declaration
+(verified live: every keyframe reported `ease`). Documented in the CSS so nobody re-attempts it.
+
+So the smoothing is split two ways instead:
+- **One element-level curve, shaped by three dials** (`wiggleEaseCss`): `wiggleEase` owns the head (x1/y1, how
+  gently it leaves rest), `wiggleSettle` owns the tail (x2, how long it glides home), `wiggleOvershoot` owns
+  y2 past 1 (the spring). Element-level `var()` DOES resolve — verified `cubic-bezier(0.45, 0.1, 0.304, 1.12)`.
+- **Oscillation moved into keyframe GEOMETRY** via a new `--sb-wobble`, so shake and smoothness are independent.
+  At **wobble 0** the return stops collapse onto rest — verified: the transform mid-return is exactly
+  `matrix(1,0,0,1,0,0)`, i.e. one clean pop that glides home with no oscillation at all.
+
+Defaults softened too (deg 3.4 → 2.2, scale 1.09 → 1.06, ms 660 → 720, overshoot 0.28 → 0.12, wobble 0.3).
+Tuner is now 26 controls. Full suite (1538) + lint + build:web green.
+
 ## 2026-07-23 (spell-buff FX — rise in PIXELS, launch/gravity + pop easing dials)
 
 ### fix(ui): the spark rise was a % of the MOTE, not the card — plus speed/gravity/ease controls

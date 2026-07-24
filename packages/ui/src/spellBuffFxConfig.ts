@@ -60,9 +60,14 @@ export interface SpellBuffFxConfig {
   wiggleMs: number;
   /** Card — pop softness (0–1). 0 = snappy/linear (jarring); 1 = a slow, cushioned ease in and out. */
   wiggleEase: number;
-  /** Card — springiness. Pushes the pop PAST its target and lets it settle back, which is what makes a pop feel
-   *  alive rather than instant. 0 = none. */
+  /** Card — springiness on the OUT-swing only. Pushes the pop past its target so it feels alive rather than
+   *  instant. Kept off the return legs, which is what used to make every leg jitter. 0 = none. */
   wiggleOvershoot: number;
+  /** Card — how much the card oscillates on the way BACK. 0 = a single clean pop that glides home (the smooth
+   *  end of the dial); 1 = a full wobble. This is the main "stop it feeling shaky" control. */
+  wiggleWobble: number;
+  /** Card — how softly the return glides home (0–1). 0 = abrupt/linear; 1 = a long cushioned settle. */
+  wiggleSettle: number;
 }
 
 /** Shipped starting point (dial in the ✨ tuner, then bake here). Matches the palette the Spell Power FX uses. */
@@ -86,11 +91,13 @@ const DEFAULTS: SpellBuffFxConfig = {
   pinkColor: '#ff8ad8',
   goldColor: '#ffce6e',
   purpleColor: '#ba82ff',
-  wiggleDeg: 3.4,
-  wiggleScale: 1.09,
-  wiggleMs: 660,
-  wiggleEase: 0.7,
-  wiggleOvershoot: 0.28,
+  wiggleDeg: 2.2,
+  wiggleScale: 1.06,
+  wiggleMs: 720,
+  wiggleEase: 0.8,
+  wiggleOvershoot: 0.12,
+  wiggleWobble: 0.3,
+  wiggleSettle: 0.85,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -116,6 +123,8 @@ export const SBF_RANGES: Record<Exclude<keyof SpellBuffFxConfig, 'pinkColor' | '
   wiggleMs: [120, 1600, 10],
   wiggleEase: [0, 1, 0.01],
   wiggleOvershoot: [0, 0.8, 0.01],
+  wiggleWobble: [0, 1, 0.01],
+  wiggleSettle: [0, 1, 0.01],
 };
 
 /** One-line definitions, shown as a hover tooltip on each control's name in the DEV tuner. */
@@ -143,7 +152,9 @@ export const SBF_DESC: Record<keyof SpellBuffFxConfig, string> = {
   wiggleScale: 'Card — peak grow/shrink scale (1 = no pop).',
   wiggleMs: 'Card — wiggle + pop duration (ms).',
   wiggleEase: 'Card — pop softness. 0 = snappy/linear (jarring); 1 = slow, cushioned ease.',
-  wiggleOvershoot: 'Card — springiness: pushes the pop past its target and settles back. 0 = none.',
+  wiggleOvershoot: 'Card — springiness on the OUT-swing only: pushes the pop past its target. 0 = none.',
+  wiggleWobble: 'Card — how much it oscillates coming BACK. 0 = one clean pop that glides home (smoothest).',
+  wiggleSettle: 'Card — how softly the return glides home. 0 = abrupt; 1 = long cushioned settle.',
 };
 
 /** Keys grouped by control type for the tuner UI. */
@@ -151,7 +162,7 @@ export const SBF_NUM_KEYS = [
   'sparkCount', 'sparkSizeMin', 'sparkSizeMax', 'sparkSpread',
   'sparkOriginLo', 'sparkOriginHi', 'sparkRiseMin', 'sparkRiseMax', 'sparkSpeed', 'sparkGravity',
   'sparkDrift', 'sparkAlpha', 'sparkGlow', 'sparkTail', 'sparkMs', 'sparkStagger',
-  'wiggleDeg', 'wiggleScale', 'wiggleMs', 'wiggleEase', 'wiggleOvershoot',
+  'wiggleDeg', 'wiggleScale', 'wiggleMs', 'wiggleEase', 'wiggleOvershoot', 'wiggleWobble', 'wiggleSettle',
 ] as const;
 export const SBF_COLOR_KEYS = ['pinkColor', 'goldColor', 'purpleColor'] as const;
 
@@ -188,15 +199,21 @@ export function sparkEaseCss(c: SpellBuffFxConfig = cfg): string {
   return `cubic-bezier(${x1}, ${y1}, 0.36, 1)`;
 }
 
-/** The card pop's curve, built from `wiggleEase` (softness) + `wiggleOvershoot` (spring). The overshoot rides
- *  the second control point PAST 1, so each leg of the wiggle sails a little beyond its target and settles —
- *  that is what turns an instant snap into a pop. */
+/** The card pop's curve. NOTE: `animation-timing-function` inside a `@keyframes` block does NOT accept `var()`
+ *  — the browser drops it — so per-segment curves aren't available to us. Instead all three pop dials shape
+ *  ONE element-level cubic-bezier, each owning a different part of it:
+ *    • `wiggleEase`      → the head (x1/y1): how gently it leaves rest. Higher = slower, softer attack.
+ *    • `wiggleSettle`    → the tail (x2): how long it glides home. Higher = a longer cushioned settle.
+ *    • `wiggleOvershoot` → y2 past 1: a spring that sails a touch beyond the target before settling.
+ *  The oscillation itself lives in the keyframe GEOMETRY (`--sb-wobble`), not the curve, so the shake and the
+ *  smoothness are independent controls. */
 export function wiggleEaseCss(c: SpellBuffFxConfig = cfg): string {
   const e = Math.min(1, Math.max(0, c.wiggleEase));
+  const s = Math.min(1, Math.max(0, c.wiggleSettle));
   const o = Math.max(0, c.wiggleOvershoot);
-  const x1 = (0.08 + e * 0.42).toFixed(3);
-  const y1 = (0.02 + e * 0.12).toFixed(3);
-  const x2 = (0.62 - e * 0.24).toFixed(3);
+  const x1 = (0.05 + e * 0.5).toFixed(3);
+  const y1 = (0.02 + e * 0.1).toFixed(3);
+  const x2 = (0.78 - s * 0.56).toFixed(3);
   const y2 = (1 + o).toFixed(3);
   return `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
 }

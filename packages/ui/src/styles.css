@@ -1977,15 +1977,20 @@ body.modalup .statusbar .questbadges {
    transform for as long as the class is on, i.e. for the WHOLE burst (which is held for the spark life). That
    made the pop look tied to `spark ms`. Without a fill the override ends exactly at `--sb-wiggle-ms`, so the
    card snaps back into the fan while the sparks keep rising. */
-.card.spellbuff { animation: cardpop 0.26s ease, spellwiggle var(--sb-wiggle-ms, 660ms) var(--sb-wiggle-ease, cubic-bezier(0.38, 0.1, 0.45, 1.28)); z-index: 21; }
-/* Fewer, wider-spaced stops than the original 6-stop shake — that read as a jitter/snap. This is a swing OUT,
-   a softer swing back, then a settle, played on the tuner's curve (`--sb-wiggle-ease`, whose overshoot lets
-   each leg sail slightly past its target). */
+.card.spellbuff { animation: cardpop 0.26s ease, spellwiggle var(--sb-wiggle-ms, 720ms) var(--sb-wiggle-ease, cubic-bezier(0.45, 0.1, 0.3, 1.12)); z-index: 21; }
+/* NB: `animation-timing-function` inside a @keyframes block does NOT accept `var()` — the browser drops the
+   declaration (verified: every keyframe fell back to `ease`). So per-segment curves aren't available, and the
+   smoothing is split two ways instead: the tuner's three pop dials shape ONE element-level curve (attack /
+   settle / spring — see `wiggleEaseCss`), while the oscillation lives in the keyframe GEOMETRY via
+   `--sb-wobble`. At wobble 0 the return stops collapse onto rest, so the card makes ONE clean pop and glides
+   home with no shake at all; raising it reintroduces the counter-swing. Shake and smoothness stay independent. */
 @keyframes spellwiggle {
   0%   { transform: none; }
-  32%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * -1)) scale(var(--sb-scale, 1.09)); }
-  64%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * 0.5)) scale(calc(1 + (var(--sb-scale, 1.09) - 1) * 0.42)); }
-  84%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * -0.18)) scale(calc(1 + (var(--sb-scale, 1.09) - 1) * 0.14)); }
+  34%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * -1)) scale(var(--sb-scale, 1.06)); }
+  67%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * 0.42 * var(--sb-wobble, 0.3)))
+                    scale(calc(1 + (var(--sb-scale, 1.06) - 1) * 0.34 * var(--sb-wobble, 0.3))); }
+  86%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * -0.15 * var(--sb-wobble, 0.3)))
+                    scale(calc(1 + (var(--sb-scale, 1.06) - 1) * 0.12 * var(--sb-wobble, 0.3))); }
   100% { transform: none; }
 }
 /* The spark layer sits over the whole card and is allowed to overflow, so motes can rise past the top edge. */

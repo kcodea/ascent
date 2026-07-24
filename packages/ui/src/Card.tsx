@@ -414,7 +414,7 @@ export const Card = memo(function Card({
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
         // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
-        ...(sbCfg ? { '--sb-deg': `${sbCfg.wiggleDeg}deg`, '--sb-scale': sbCfg.wiggleScale, '--sb-wiggle-ms': `${sbCfg.wiggleMs}ms`, '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-ease': sparkEaseCss(sbCfg), '--sb-wiggle-ease': wiggleEaseCss(sbCfg) } : {}),
+        ...(sbCfg ? { '--sb-deg': `${sbCfg.wiggleDeg}deg`, '--sb-scale': sbCfg.wiggleScale, '--sb-wiggle-ms': `${sbCfg.wiggleMs}ms`, '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-ease': sparkEaseCss(sbCfg), '--sb-wiggle-ease': wiggleEaseCss(sbCfg), '--sb-wobble': sbCfg.wiggleWobble } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}

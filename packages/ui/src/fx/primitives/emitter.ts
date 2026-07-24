@@ -97,6 +97,11 @@ const SPECS = {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5,
     help: '0 = rim colour, 1 = white core.',
   },
+  biasCurve: {
+    kind: 'curve', label: 'Bias / life', group: 'Style',
+    default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
+    help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life.',
+  },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
     help: 'posterization levels — 3-4 is the cel look, higher washes out',
@@ -198,6 +203,7 @@ interface Mote {
   fadeIn: number;
   scaleX0: number;
   scaleY0: number;
+  bias0: number; // spawn core-bias; effectiveBias(t) = bias0 * sampleCurve(biasCurve, t)
 }
 
 class EmitterInstance implements FxInstance<EmitterParams> {
@@ -302,6 +308,9 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       const shrink = sampleCurve(p.sizeCurve, t); // size-over-life multiplier
       m.p.scaleX = m.scaleX0 * shrink;
       m.p.scaleY = m.scaleY0 * shrink;
+      // Colour-over-life: the spawn bias scaled by the bias curve, recomputed every frame (default flat 1 =
+      // exactly the spawn tint — a no-op; the color buffer already re-uploads each frame, so this is free).
+      m.p.tint = biasTint(m.bias0 * sampleCurve(p.biasCurve, t));
       if (write !== i) motes[write] = m;
       children[write] = m.p;
       write++;
@@ -421,6 +430,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       fadeIn: p.fadeIn,
       scaleX0,
       scaleY0,
+      bias0: bias,
     };
   }
 }

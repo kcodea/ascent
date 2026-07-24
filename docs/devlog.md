@@ -3,6 +3,28 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — colour-over-life via a bias curve)
+
+### feat(fx): particles animate rim↔core across their life (the "gradient" wave)
+
+Owner picked the architecture-honest reading of "colour-over-life": rather than a standalone RGB ramp that
+would fight the posterized-palette model (colour is decided in-shader from the shared palette), a particle's
+**core bias** (0 = rim palette colour, 1 = white core) now animates over its life along a curve — reusing the
+`curve` kind and editor shipped earlier. No new param kind.
+
+- **`Bias / life` curve** on burst + emitter. Model: `effectiveBias(lifeT) = spawnBias · sampleCurve(biasCurve,
+  lifeT)` — a [0,1] multiplier on each particle's spawn bias, so it travels between the rim and its coreward
+  ceiling (`Core bias`) over life. The spawn bias is now stored on the particle struct (`bias0`) and the tint
+  recomputed every frame.
+- **Free at rest:** both containers already declare `color` dynamic, so the tint buffer re-uploads every frame
+  regardless — the per-frame recompute adds only a cheap `sampleCurve` + `biasTint` per particle, no new GPU
+  cost. Default `[[0,1],[1,1]]` (flat 1) recomputes the exact spawn tint every frame — a visual no-op.
+- Presets (grow = rim→core, fade out = core→rim, pop = rim→core→rim) read directly as colour journeys.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1760 passing** (108 files; new coverage tests pin
+the flat default so the no-op invariant can't silently break). `build:web` green; still dev-only, absent from
+the prod bundle.
+
 ## 2026-07-24 (FX workbench — motion physics: turbulence, emission shapes, velocity inheritance)
 
 ### feat(fx): a motion-physics layer on the particle primitives (burst + emitter)

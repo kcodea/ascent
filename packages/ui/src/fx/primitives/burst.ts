@@ -136,6 +136,11 @@ const SPECS = {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5,
     help: '0 = rim colour, 1 = white core.',
   },
+  biasCurve: {
+    kind: 'curve', label: 'Bias / life', group: 'Style',
+    default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
+    help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life.',
+  },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
     help: 'posterization levels — 3-4 is the cel look, higher washes out',
@@ -183,6 +188,7 @@ interface LiveParticle {
   maxLife: number; // ms
   scaleX0: number;
   scaleY0: number;
+  bias0: number; // spawn core-bias; effectiveBias(lifeT) = bias0 * sampleCurve(biasCurve, lifeT)
 }
 
 class BurstInstance implements FxInstance<BurstParams> {
@@ -264,7 +270,8 @@ class BurstInstance implements FxInstance<BurstParams> {
       // Greyscale core-bias tint (NOT a resolved palette colour — the shader posterizes into the live
       // uPal/uBands uniforms per-pixel, see particleMaterial.ts). Same distribution as before: uniform in
       // [0, coreBias], so `coreBias` still reads as "how deep toward the white core this burst reaches".
-      const tint = biasTint(p.coreBias * Math.random());
+      const bias0 = p.coreBias * Math.random();
+      const tint = biasTint(bias0);
       // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
       emissionOffset(p.emitShape, p.emitRadius, Math.random(), Math.random(), this.emitScratch);
       const particle = new Particle({
@@ -289,6 +296,7 @@ class BurstInstance implements FxInstance<BurstParams> {
         maxLife: Math.max(1, p.life),
         scaleX0,
         scaleY0,
+        bias0,
       });
       children.push(particle);
     }
@@ -351,6 +359,9 @@ class BurstInstance implements FxInstance<BurstParams> {
       const s = sampleCurve(p.sizeCurve, lifeT);
       particle.scaleX = lp.scaleX0 * s;
       particle.scaleY = lp.scaleY0 * s;
+      // Colour-over-life: the spawn bias scaled by the bias curve, recomputed every frame (default flat 1 =
+      // exactly the spawn tint — a no-op; the color buffer already re-uploads each frame, so this is free).
+      particle.tint = biasTint(lp.bias0 * sampleCurve(p.biasCurve, lifeT));
 
       if (write !== i) live[write] = lp;
       children[write] = particle;

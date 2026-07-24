@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateSpecs } from '../params';
+import { sampleCurve } from '../curve';
 import { advanceEmitBudget, emitterFireComplete, emitterPrimitive, moteAlpha, withinEmitWindow } from './emitter';
 
 describe('emitter param specs', () => {
@@ -27,6 +28,19 @@ describe('emitter param specs', () => {
     const keys = Object.keys(emitterPrimitive.params);
     for (const k of ['turbulence', 'turbScale', 'emitShape', 'emitRadius', 'inheritVel']) {
       expect(keys).toContain(k);
+    }
+  });
+
+  // Colour-over-life bias curve: its flat [[0,1],[1,1]] default guards the no-op invariant — every t samples
+  // to 1, so effectiveBias = bias0 * 1 = bias0, i.e. the exact spawn tint is recomputed each frame.
+  it('exposes a biasCurve curve param defaulting to the flat (no-op) [[0,1],[1,1]]', () => {
+    const spec = emitterPrimitive.params.biasCurve;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('curve');
+    expect(spec.default).toEqual([[0, 1], [1, 1]]);
+    // Flat 1 across life → the multiplier is identity, so bias0 * sampleCurve === bias0 for any t.
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(sampleCurve(spec.default, t)).toBe(1);
     }
   });
 });

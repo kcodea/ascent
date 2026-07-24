@@ -344,6 +344,8 @@ interface ShopViewOpts {
   spellsCast?: number;
   spellsThisTurn?: number;
   soulsmanGold?: number;
+  /** The run's Imp Aura (run-wide "Improve your Imps by +A/+H") — Chef Raag's offer shows its live grant. */
+  impAura?: { attack: number; health: number };
   fodderConsumed?: { attack: number; health: number };
   /** Gold spent this turn — Patch Job's live total. */
   goldSpent?: number;

@@ -2685,13 +2685,44 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
-  it('set 2 — Gemheart Carver: Echo summons a token (its Rubies) on death', () => {
-    const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],
-      effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }], text: '' };
+  // Gemheart Carver's Shard is a 1/1 PLUS the Rubies on the Carver — from the shop AND from mid-combat
+  // (owner 2026-07-24). It used to summon nothing at all with no Rubies, and to copy only the shop Rubies.
+  const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }], text: '' };
+  /** The Gem Shard the Carver's Echo summoned, if any. */
+  const shardOf = (r: { events: CombatEvent[] }) =>
+    r.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'gemheart-shard' ? [e.minion] : []))[0];
+
+  it('set 2 — Gemheart Carver: Echo summons a 1/1 Shard EVEN WITH NO RUBIES on it', () => {
+    const r = simulate([{ cardId: 'ghtest', attack: 5, health: 1, sourceUid: 'GH' }], // no Ruby buff at all
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, ghtest },
+      combatSide({ tier: 4, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    const shard = shardOf(r);
+    expect(shard).toBeDefined(); // it used to bail out and summon nothing
+    expect([shard!.attack, shard!.health]).toEqual([1, 1]);
+  });
+
+  it('set 2 — Gemheart Carver: the Shard is 1/1 PLUS its shop Rubies', () => {
     const r = simulate([{ cardId: 'ghtest', attack: 5, health: 1, sourceUid: 'GH', buffs: [{ source: 'Ruby', attack: 3, health: 3, count: 3 }] }],
       [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, ghtest },
       combatSide({ tier: 4, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    expect(r.events.some((e) => e.type === 'summon')).toBe(true); // the Echo summoned the Gem Shard
+    const shard = shardOf(r);
+    expect([shard!.attack, shard!.health]).toEqual([4, 4]); // 1/1 base + 3/3 of Rubies (was 3/3)
+  });
+
+  it('set 2 — Gemheart Carver: Rubies played DURING combat count toward the Shard', () => {
+    // A Start-of-Combat "play N Rubies on your minions" source puts 3 Rubies (1/1 each, no rubyBonus) onto the
+    // Carver mid-fight. Those are plain `ctx.buff`s, so they were invisible to an Echo reading only `buffs`.
+    const gifter: CardDef = { id: 'ghgift', name: 'GIFT', tribe: 'kobold', tier: 5, attack: 1, health: 100, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scPlayRubies', params: { count: 3 } }], text: '' };
+    const r = simulate([
+      { cardId: 'ghgift', attack: 1, health: 100, sourceUid: 'GIFT' },
+      { cardId: 'ghtest', attack: 5, health: 1, sourceUid: 'GH' }, // dies; no SHOP Rubies
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, ghtest, ghgift: gifter },
+      combatSide({ tier: 5, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    const shard = shardOf(r);
+    expect(shard).toBeDefined();
+    expect([shard!.attack, shard!.health]).toEqual([4, 4]); // 1/1 base + 3 Rubies played in combat
   });
 
   it('set 2 — Deepdelve Paragon: Rubies give 3× stats in combat (adds 2× the Ruby buff)', () => {

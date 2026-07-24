@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-07-24 (Gemheart Carver's Shard: no base, and blind to combat Rubies)
+
+### fix(core/content): the Gem Shard is 1/1 + the Carver's Rubies, counting ones played mid-combat
+
+Owner report, three parts, all in `deathrattleSummonRubyStats`.
+
+**1. No Rubies meant no Shard at all.** The factory opened with `if (a <= 0 && h <= 0) return;`, so a Carver
+that died with nothing on it summoned nothing. The Shard is now always summoned.
+
+**2. The Shard had no base.** Its stats were the Rubies alone; they're now `1/1 + the Rubies`. Golden doubles
+the whole Shard, base included — `(1 + gems) * mul(self)` — which is the ordinary golden rule here rather than
+a special case for the gems.
+
+**3. Rubies played in COMBAT didn't count.** This was the real one. `playRubyOn` applies a plain `ctx.buff`,
+which is indistinguishable from any other combat buff, while the Echo read only the recruit-phase `Ruby` entry
+in `buffs` — so three Rubies gifted mid-fight contributed nothing to the Shard.
+
+The obvious fix — appending a `Ruby` entry to `minion.buffs` in combat — would have been a **purity bug**:
+`combat/minion.ts` sets `buffs: board.buffs`, sharing the array BY REFERENCE with the run's board card, so the
+simulation would have mutated run state (the exact hazard CLAUDE.md's "never mutate shared defs" rule covers,
+and it would have corrupted replays). Instead combat-played Rubies accumulate into a new combat-local
+`Minion.rubyGain`, alongside the existing `permaGain`, and the Echo reads both sources.
+
+Card text updated — it now reads "Summon a **1/1 Gem Shard**, plus this minion's Rubies" (golden: 2/2 plus
+double), since the old wording described neither the base nor the combat half.
+
+Three new tests, each verified to FAIL against the old code with the right symptom: no summon at all
+(`expected undefined to be defined`), `[3, 3]` instead of `[4, 4]` for the missing base, and the combat-Ruby
+case summoning nothing. Suite 1550 (+2 net) + typecheck + lint + build:web + `npm run harness` (determinism)
+green — the harness matters here because the change touches a combat factory.
+
+Known gap, unchanged by this: the printed text names "this minion's Rubies" without folding in the live number,
+which the card-text rule would normally want. Pre-existing, and a live-value helper for a per-instance combat
+buff is its own piece of work.
+
 ## 2026-07-24 (a borrowed minion's Shout never fired)
 
 ### fix(sim): Funeral on Loan's borrowed minion fires its SHOUT as well as its Echo

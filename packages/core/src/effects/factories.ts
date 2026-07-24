@@ -37,6 +37,10 @@ function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: numbe
   const a = (1 + rb.attack) * per;
   const h = (1 + rb.health) * per;
   ctx.buff(target, a, h, self.uid);
+  // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
+  // and a plain `ctx.buff` is indistinguishable from any other combat buff. Combat-local (see `rubyGain`);
+  // the recruit-phase equivalent is the `Ruby` entry in `buffs`.
+  target.rubyGain = { attack: (target.rubyGain?.attack ?? 0) + a, health: (target.rubyGain?.health ?? 0) + h };
   if (!target.keywords.includes('EG')) {
     target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
   }
@@ -944,10 +948,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  (its `Ruby` buff; golden doubles those stats). No Rubies on it → no summon. */
   deathrattleSummonRubyStats: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const ruby = self.buffs?.find((b) => b.source === 'Ruby');
-    const a = (ruby?.attack ?? 0) * mul(self);
-    const h = (ruby?.health ?? 0) * mul(self);
-    if (a <= 0 && h <= 0) return;
+    // The Shard is a 1/1 PLUS the Rubies on this minion (owner 2026-07-24) — so it summons even with none,
+    // where it used to bail out entirely and give you nothing.
+    const shopRuby = self.buffs?.find((b) => b.source === 'Ruby'); // Rubies played in the shop
+    const gemA = (shopRuby?.attack ?? 0) + (self.rubyGain?.attack ?? 0); // + Rubies played mid-combat
+    const gemH = (shopRuby?.health ?? 0) + (self.rubyGain?.health ?? 0);
+    const a = (1 + gemA) * mul(self);
+    const h = (1 + gemH) * mul(self);
     ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h });
   },
 

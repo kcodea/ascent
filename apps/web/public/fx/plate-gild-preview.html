@@ -9,17 +9,18 @@
   /* dims the board so the fusion owns the screen for its moment */
   #scrim { position:absolute; inset:0; background:#05040a; opacity:0; pointer-events:none; z-index:1; }
   /* the three travelling cards; index 2 is the survivor */
-  .card3 { position:absolute; left:0; top:0; transform-origin:50% 50%; will-change:transform,opacity; z-index:2; }
+  .card3 { position:absolute; left:0; top:0; transform-origin:50% 50%; will-change:transform,opacity; z-index:3; }
   .card3 img { display:block; width:100%; }
-  #hero3 { z-index:3; }
+  #hero3 { z-index:4; }
   .imprint { position:absolute; inset:0; opacity:0; will-change:opacity,transform;
              -webkit-mask-size:100% 100%; mask-size:100% 100%;
              -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
   /* the slots: where they start, and where the gilded card lands */
   .ghost { position:absolute; border:1px dashed rgba(255,255,255,.16); border-radius:6px;
            translate:-50% -50%; pointer-events:none; z-index:0; }
-  #fx { position:absolute; inset:0; pointer-events:none; z-index:4; }
-  #flourish { position:absolute; left:0; top:0; pointer-events:none; z-index:5; }
+  #fx { position:absolute; inset:0; pointer-events:none; z-index:5; }
+  /* BEHIND the card plate (owner 2026-07-22) — the flourish is the card's aura, not an overlay on it. */
+  #flourish { position:absolute; left:0; top:0; pointer-events:none; z-index:2; }
   #panel { width:346px; flex:none; background:#1b1b1f; border-left:1px solid #2f2f34; padding:14px 16px 40px;
            overflow-y:auto; max-height:100vh; }
   h1 { font-size:15px; margin:0 0 2px; }

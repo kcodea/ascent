@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (Ruby Power FX — the Ruby-side twin of the Spell Power flourish)
 
+### fix(ui): no second buff cue at end of combat for a mid-combat buff
+
+Owner report: "the cards play an additional buffed animation at the end of combat if they were buffed
+mid-combat."
+
+Exactly what it looked like — the cue played twice for one gain. `settleCombat` applies the combat carry-back
+(spell power, Ruby strength) **while the phase is still `combat`**; the phase only flips in the later
+`resolveCombat`. So the printed text finally changes at settle, and the text-diff watcher fired on it a second
+time — the first having already played on the mid-combat narration beat. The phase-flip guard didn't catch it
+because no flip happens on that render.
+
+Fixed by making the ownership split explicit rather than adding another special case: **the watcher owns
+SHOP-phase buffs only**; End of Turn and mid-combat are owned by their beats (the EoT beat runner, and the `sc`
+handler in `useCombatReplay`), which is where they have to live anyway since run state doesn't move at the
+moment those buffs happen. The watcher now fires only in steady-state recruit, so the settle carry-back — and
+both phase-flip renders — are skipped. Signatures are still recorded on every render, so the baseline stays
+current and a real shop buff on the very next render fires normally. Note this restores something close to the
+old `inCombat` guard, but it is only correct NOW: before the beat-driven paths existed, that guard is what made
+mid-combat show nothing at all.
+
+The Ruby Power FLOURISH had the identical double-fire (beat, then the `rubyPowerFxSeq` bump at settle) and now
+carries the same guard its spell-power twin already had: a SOURCELESS bump outside the shop is the carry-back,
+which the narration beat already showed. A sourced bump — a card you played — still fires in any phase.
+
+Verified with a positive control, using app-internal paths only: in RECRUIT a spell-power rise still pops the
+card (text +2/+3 → +6/+7, burst YES); in COMBAT the carry-back changes the text just as much (+6/+7 → +11/+12)
+and produces NO burst. Suite 1543 + typecheck + lint + build:web green.
+
+Measurement note for next time: a dynamic `import('/@fs/…')` of a UI module in the dev server can resolve to a
+SEPARATE module instance from the app's, so a store written through it looks live (`seq` increments) while no
+component ever re-renders. Verify store-backed behaviour through app-internal paths, not a re-imported module.
+
 ### fix(ui/core): End-of-Turn and mid-combat buffs now cue on the PROC, not at the commit
 
 Owner report: "the spell buffs/ruby buffs end of turn are not triggering the animation, and the mid combats

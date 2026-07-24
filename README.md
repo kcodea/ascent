@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Gild no longer flashes a card in the top-left.** Completing a triple by buying the third copy made the
+  gild's clones inherit the fresh card's mount-pop, which pinned them to the corner for a moment; the clones
+  now suppress it.
 - **Placing and rearranging a card slides it home.** Dropping a minion onto the board — or reordering one —
   now glides it into its slot from where you released it, the same motion a buy uses but 30% faster, instead
   of snapping into place.

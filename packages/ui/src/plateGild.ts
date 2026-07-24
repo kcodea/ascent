@@ -193,6 +193,14 @@ function cloneCard(src: HTMLElement): HTMLElement {
     n.removeAttribute('data-uid');
     n.removeAttribute('id');
   });
+  /* Kill any CSS animation the source card was mid-way through. A triple that just formed mounts the golden
+     card with `.popin`, whose `cardpop` / `handpop` keyframes animate `transform` — and a RUNNING animation
+     outranks a plain inline style. The clone inherits `.popin`, so its `cardpop` transform (`translateY(8px)
+     scale(.96)`) overrode the inline centre transform this module writes every frame, pinning the clone to
+     `left:0` — a card flashing in the TOP-LEFT corner for cardpop's 0.16s, only when the gild opens on a
+     freshly-popped card (i.e. right after buying the third copy). `!important` so it beats the class rule. */
+  el.classList.remove('popin');
+  el.style.setProperty('animation', 'none', 'important');
   // Card sizing is driven by CSS vars set PER ZONE (`.zone[data-zone='hand'] { --ccw: ... }`), not by the
   // element's own width — so a clone appended to <body> loses them, lays out at some unrelated size, and the
   // plate (positioned `left:50%` of the card box) slides out of register with the frame inside it. Copy the

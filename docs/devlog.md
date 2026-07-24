@@ -3,6 +3,31 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (the gild's top-left flash — a THIRD cause)
+
+### fix(ui): a freshly-popped golden made the gild clones inherit `cardpop`
+
+Owner still saw a card flash in the screen's top-left at the *start* of the gild, specifically when completing
+a triple by **buying** the third copy. A third distinct cause of the same symptom, after the `.dragcard` park
+and the `data-flip-id` strip.
+
+Completing a triple mounts the golden card **fresh, with `.popin`** — whose `cardpop` / `handpop` keyframes
+animate `transform` (`translateY(8px) scale(.96)`). `cloneCard` copies that class onto the three flyers, and a
+**running CSS animation outranks a plain inline `transform`**. The gild writes each clone's centre position as
+a plain inline transform every frame, so `cardpop` won: the clones rendered at `translate(0, 8)` — the top-left
+corner — for cardpop's 0.16s. Opacity was still driven by the module's own `!important` writes, so they were
+visible while mispositioned. Only on a freshly-popped card (right after a buy/play completes the triple), which
+is why isolation harnesses that cloned an already-settled card never showed it.
+
+Fix: `cloneCard` now removes `.popin` and sets `animation: none !important` on each clone, so nothing the
+source card was mid-animation fights the gild's positioning.
+
+**Verified live** by driving a real buy-triple in the browser and reading the clones back: pre-fix, computed
+transform was `matrix(.96,0,0,.96,0,8)` while the inline transform was the correct centre (`translate(597,289)`)
+— proof the animation was overriding it; post-fix, `animationName: none`, `.popin` gone, and computed transform
+**equals** the inline centre on all three. Engine typecheck + lint + 1538 tests + `build:web` green; 57
+`typecheck:web` baseline unchanged.
+
 ## 2026-07-24 (placing / rearranging a card slides it home)
 
 ### feat(ui): placing or rearranging a minion slides it into the slot

@@ -3001,6 +3001,21 @@ class FxController {
    */
   spellPower(x: number, y: number, cfg: SpellPowerCfg): void {
     perfMonitor.mark('fx:spellPower');
+    this.powerFlourish(x, y, cfg);
+  }
+  /** RUBY POWER (owner ask 2026-07-24) — the "your Rubies just got stronger" sibling of `spellPower`.
+   *
+   *  It shares the RENDERER on purpose. Every visual property this flourish has — arrow count, rise, spread,
+   *  length, width, head, timing, drift, fade, the whole origin blast, and all five colours — already comes from
+   *  the config object, so the two cues diverge entirely through `rubyPowerFxConfig`'s own persisted values and
+   *  its own tuner. Duplicating the ~55 lines of particle code would buy no extra freedom and would guarantee the
+   *  two copies drift apart on the next fix. If Ruby Power ever needs a structurally different shape (not just
+   *  different numbers), fork `powerFlourish` at that point. */
+  rubyPower(x: number, y: number, cfg: SpellPowerCfg): void {
+    perfMonitor.mark('fx:rubyPower');
+    this.powerFlourish(x, y, cfg);
+  }
+  private powerFlourish(x: number, y: number, cfg: SpellPowerCfg): void {
     if (!this.ready || !this.layer) return;
     const palette = [hexNum(cfg.colorA), hexNum(cfg.colorB), hexNum(cfg.colorC)];
     for (let i = 0; i < cfg.arrowCount; i++) {

@@ -68,13 +68,13 @@ export const DRAGONS: CardDef[] = [
     id: 'karwind',
     name: 'Karwind',
     tribe: 'dragon',
-    tier: 5,
-    attack: 5,
-    health: 10,
+    tier: 6,
+    attack: 4,
+    health: 12,
     keywords: [],
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
     text: 'Whenever a **Battlecry** triggers, give your Dragons **+2/+2**.',
-    goldenText: 'Whenever a **Battlecry** triggers, give your Dragons **+2/+2** twice.',
+    goldenText: 'Whenever a **Battlecry** triggers, give your Dragons **+4/+4**.',
   },
   {
     // Dual-type Dragon/Demon payoff. Every Battlecry *fire* on your board permanently enchants the Fodder

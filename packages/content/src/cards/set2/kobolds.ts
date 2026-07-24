@@ -177,8 +177,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
   },
   {
-    // Echo (combat Deathrattle): summon a Gem Shard whose stats = the Rubies played on THIS minion (its `Ruby`
-    // buff, read in combat; golden doubles).
+    // Echo (combat Deathrattle): summon a Gem Shard that is a 1/1 PLUS the Rubies played on THIS minion —
+    // both the shop-phase ones (its `Ruby` buff entry) and any played mid-fight (`rubyGain`). Golden doubles
+    // the whole Shard, base included. It always summons, even with no Rubies on it (owner 2026-07-24).
     id: 'k_gemheart',
     name: 'Gemheart Carver',
     tribe: 'kobold',
@@ -187,8 +188,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }],
-    text: "**Echo:** Summon a **Gem Shard** with stats equal to this minion's Rubies.",
-    goldenText: "**Echo:** Summon a **Gem Shard** with stats equal to double this minion's Rubies.",
+    text: "**Echo:** Summon a **1/1 Gem Shard**, plus this minion's Rubies.",
+    goldenText: "**Echo:** Summon a **2/2 Gem Shard**, plus double this minion's Rubies.",
   },
   {
     // Start of Combat: your Rubies give 3x stats (adds 2x each minion's `Ruby` buff, combat-only).

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatResult } from '@game/core';
-import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { spellDisplayText } from './recruit';
+import { createRun, maxTierFor, poolOf, reduce, type BoardCard, type RunState } from './index';
+import { offerBuyStats, spellDisplayText } from './recruit';
 
 /**
  * The 2026-07-23 spell batch — tranche A (the straightforward ones). A spell lives in hand as a BoardCard
@@ -169,6 +169,27 @@ describe('spell batch — tranche B2 (shop / economy)', () => {
     // at tier 3 (offers ≤ 3, cap 6) every offer climbs exactly one tier
     after.forEach((t, i) => expect(t).toBe(before[i]! + 1));
   });
+
+  it('Elevation Ritual: an offer AT the tier cap is re-rolled in place, not left untouched', () => {
+    // The bug (owner 2026-07-24): a Tier-6 offer with no Tier 7 available fell through the "can't upgrade"
+    // branch and was pushed back UNCHANGED — so the spell silently did nothing at the top of the curve.
+    const base = createRun(6);
+    const cap = maxTierFor(base.rift); // 6 without the Summit rift
+    const t6 = poolOf(base).buyable.filter((c) => c.tier === cap && (c.tribe === 'neutral' || base.tribes.includes(c.tribe)));
+    expect(t6.length).toBeGreaterThan(1); // needs room to roll something, else the assertion is vacuous
+    let s: RunState = {
+      ...base, tier: cap, hand: [mkSpell('sp', 'elevationritual')],
+      shop: [{ uid: 'o1', cardId: t6[0]!.id }, { uid: 'o2', cardId: t6[1]!.id }],
+    };
+    const beforeUids = s.shop.map((o) => o.uid);
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.shop.length).toBe(2);
+    // Still at the cap — it re-rolls within its own tier rather than climbing past it.
+    expect(s.shop.every((o) => CARD_INDEX[o.cardId]!.tier === cap)).toBe(true);
+    // Every slot REFRESHED: a fresh uid even if the card id happens to repeat (the owner's explicit ruling —
+    // rolling the same minion still counts as a refresh, so uid is the honest signal, not cardId).
+    expect(s.shop.every((o) => !beforeUids.includes(o.uid))).toBe(true);
+  });
 });
 
 describe('spell batch — tranche B3 (offer / minion manipulation)', () => {
@@ -292,6 +313,23 @@ describe('spell batch — tranche C (Discover-based)', () => {
     expect(s.hand.some((c) => c.uid === 'b')).toBe(false); // consumed
   });
 
+  it('Funeral on Loan: a borrowed minion also fires its SHOUT — it is played, then destroyed', () => {
+    // Owner 2026-07-24: only the Echo used to fire, so a Discovered minion carrying BOTH silently lost half
+    // its text. Imp Overseer has both — Shout: your Imps get +2/+2; Echo: summon an Imp.
+    const imp: BoardCard = { uid: 'i1', cardId: 'impscrap', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false };
+    const borrowed: BoardCard = { uid: 'b', cardId: 'impoverseer', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false, borrowed: true };
+    let s: RunState = { ...createRun(1), board: [imp], hand: [borrowed] };
+    const [a0, h0] = [imp.attack, imp.health];
+
+    s = reduce(s, { type: 'play', uid: 'b', targetUid: undefined });
+
+    const survivor = s.board.find((c) => c.uid === 'i1')!;
+    expect([survivor.attack - a0, survivor.health - h0]).toEqual([2, 2]); // the SHOUT fired
+    expect(s.board.filter((c) => c.cardId === 'impscrap').length).toBe(2); // the ECHO fired (one summoned)
+    expect(s.board.some((c) => c.cardId === 'impoverseer')).toBe(false); // still never boarded
+    expect(s.hand.some((c) => c.uid === 'b')).toBe(false); // still consumed
+  });
+
   it('Funeral on Loan: the Discover carries the borrowed flag onto an Echo minion', () => {
     let s: RunState = { ...createRun(4), tier: 4, hand: [mkSpell('sp', 'funeralonloan')] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
@@ -323,12 +361,29 @@ describe('spell batch — tranche C (Discover-based)', () => {
 });
 
 describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
-  it('Veinstorm: buffs every shop offer by your Ruby stats (1/1 + rubyBonus)', () => {
-    let s: RunState = { ...createRun(1), setId: 'set2', rubyBonus: { attack: 2, health: 3 }, hand: [mkSpell('sp', 'veinstorm')] };
+  it('Veinstorm: PERMANENTLY buffs the Shop by your Ruby stats — current offers and future ones', () => {
+    // Owner 2026-07-24: it's a permanent tavern buff, not a one-shot on the offers standing at cast time.
+    // It routes through `tavernBuyBonus`, so a reroll no longer wipes it — the failure mode before this.
+    let s: RunState = { ...createRun(1), setId: 'set2', embers: 99, rubyBonus: { attack: 2, health: 3 }, hand: [mkSpell('sp', 'veinstorm')] };
     const n = s.shop.length;
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
     expect(s.shop.length).toBe(n);
-    expect(s.shop.every((o) => (o.atk ?? 0) === 3 && (o.hp ?? 0) === 4)).toBe(true); // 1+2 / 1+3
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 4 }); // 1+2 / 1+3
+
+    // Every CURRENT offer already reads the buff through `offerBuyStats`…
+    for (const o of s.shop) {
+      const def = CARD_INDEX[o.cardId]!;
+      const st = offerBuyStats(s, o);
+      expect([st.attack - def.attack, st.health - def.health]).toEqual([3, 4]);
+    }
+    // …and so does a shop drawn AFTER a reroll, which used to lose it entirely.
+    s = reduce(s, { type: 'roll' });
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 4 });
+    for (const o of s.shop) {
+      const def = CARD_INDEX[o.cardId]!;
+      const st = offerBuyStats(s, o);
+      expect([st.attack - def.attack, st.health - def.health]).toEqual([3, 4]);
+    }
   });
 
   it('Veinstorm live text greens to the current Ruby value (base when no bonus)', () => {
@@ -349,15 +404,7 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
   });
 });
 
-describe('spell batch — Encore + Open the Gates', () => {
-  it("Encore: re-triggers a friendly minion's Echo (Deathrattle) out of combat", () => {
-    let s: RunState = { ...createRun(1), board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }], hand: [mkSpell('sp', 'encore')] };
-    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'p' });
-    // Mama Pup's Deathrattle summons 2 Pups without destroying it → board grows from 1 to 3.
-    expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2);
-    expect(s.board.some((c) => c.uid === 'p')).toBe(true); // the minion itself survives
-  });
-
+describe('spell batch — Open the Gates', () => {
   it('Open the Gates: banks 3 Imps that enter the next combat', () => {
     let s: RunState = { ...createRun(1), board: [mkMinion('m1', 2, 2)], hand: [mkSpell('sp', 'openthegates')] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });

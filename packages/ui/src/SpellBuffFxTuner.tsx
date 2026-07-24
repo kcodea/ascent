@@ -7,39 +7,38 @@ import { useDraggablePanel } from './useDraggablePanel';
 
 /**
  * DEV-only "Spell Buff FX" tuner — the cue a hand SPELL or Ruby plays when its printed value goes UP
- * (`spellBuffFxConfig` → `Card`'s `.spellbuff` wiggle + `.sbspark` motes): a wiggle + grow/shrink pop and a
- * burst of pink/gold/purple sparks that rise off the card. Slider dials + colour pickers persist to
+ * (`spellBuffFxConfig` → `Card`'s `.spellbuff` grow/shrink + `.sbspark` motes): the card grows then shrinks
+ * back in place (each phase with its own speed + easing) while a burst of coloured sparks blasts outward off it. Slider dials + colour pickers persist to
  * localStorage and apply to the NEXT burst. **Test** fires it on every spell/Ruby currently in hand so it can
  * be dialed without waiting for a real buff. "Copy" grabs the JSON to bake as the shipped defaults; "Reset"
  * clears. Dev-only — stripped from production.
  */
 const LABELS: Record<keyof SpellBuffFxConfig, string> = {
+  growScale: 'grow scale',
+  growMs: 'grow ms',
+  growEase: 'grow ease',
+  shrinkMs: 'shrink ms',
+  shrinkEase: 'shrink ease',
   sparkCount: 'spark count',
   sparkSizeMin: 'spark size min',
   sparkSizeMax: 'spark size max',
-  sparkSpread: 'spawn spread %',
-  sparkOriginLo: 'spawn low %',
-  sparkOriginHi: 'spawn high %',
-  sparkRiseMin: 'rise min px',
-  sparkRiseMax: 'rise max px',
+  blastDistMin: 'blast dist min',
+  blastDistMax: 'blast dist max',
+  blastSpread: 'blast arc°',
+  blastOriginY: 'blast origin Y%',
   sparkSpeed: 'launch punch',
   sparkGravity: 'gravity px',
-  sparkDrift: 'drift px',
   sparkAlpha: 'spark α',
   sparkGlow: 'spark glow',
   sparkTail: 'tail ×size',
   sparkMs: 'spark ms',
   sparkStagger: 'stagger ms',
-  pinkColor: 'pink',
-  goldColor: 'gold',
-  purpleColor: 'purple',
-  wiggleDeg: 'wiggle°',
-  wiggleScale: 'pop scale',
-  wiggleMs: 'wiggle ms',
-  wiggleEase: 'pop softness',
-  wiggleOvershoot: 'pop spring',
-  wiggleWobble: 'wobble (0=smooth)',
-  wiggleSettle: 'settle softness',
+  // Slot labels, not colour names — the owner's palette has already moved off pink/gold/purple once, and a
+  // hard-coded colour name in the UI goes stale the moment the picker changes. The keys stay as-is (they're
+  // the localStorage schema); only the display label is generic.
+  pinkColor: 'spark hue 1',
+  goldColor: 'spark hue 2',
+  purpleColor: 'spark hue 3',
 };
 
 export function SpellBuffFxTuner() {

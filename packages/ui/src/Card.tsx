@@ -1,9 +1,14 @@
-import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
-import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, wiggleEaseCss } from './spellBuffFxConfig';
+import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
+import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
+// Side-effect import: `cardPillsConfig` applies the pill layout vars (`--cpl-*-t`) to :root at module
+// load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
+// without this, any non-identity default baked into that file would silently never apply to players.
+import './cardPillsConfig';
 import { artFor } from './art';
 import { renameTerms } from './terms';
 import { Icon } from './Icon';
@@ -179,7 +184,6 @@ export const Card = memo(function Card({
   targeted,
   dimmed,
   buffed,
-  spellBuffed,
   buffFloat,
   battlecry,
   electrify,
@@ -216,9 +220,8 @@ export const Card = memo(function Card({
   dimmed?: boolean;
   /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
   buffed?: boolean;
-  /** Play the one-shot SPELL-buff cue — a wiggle + grow/shrink pop plus rising pink/gold/purple sparks. Fired
+  /** Play the one-shot SPELL-buff cue — an in-place grow/shrink plus an outward spark blast. Fired
    *  when a hand spell's (or Ruby's) printed value just went UP, so the player sees which cards were affected. */
-  spellBuffed?: boolean;
   /** A recruit-phase stat buff just landed — float its `+atk/+hp` above the card (like combat). `key`
    *  changes per buff so the float remounts and re-runs its rise animation. */
   buffFloat?: { attack: number; health: number; key: number } | null;
@@ -283,8 +286,26 @@ export const Card = memo(function Card({
   // Spell-buff cue: build this burst's motes (and read its timing/shape dials) at FIRE TIME, so a ✨ Spell Buff
   // tuner edit shows on the NEXT burst without a reload. Re-keyed on `spellBuffed` so each burst gets fresh
   // jitter and the same burst never re-randomises mid-animation.
-  const spellSparks = useMemo(() => (spellBuffed ? makeSpellBuffSparks() : []), [spellBuffed]);
+  // The SPELL-buff burst id comes from a module-level store rather than a prop, so ANY surface or phase can
+  // start the cue (end of turn, start of combat, a mid-combat Echo/Avenge) without this card's renderer having
+  // to thread state down — see `spellBuffFx.ts`. `undefined` = not bursting; the number INCREASES on every
+  // retrigger so a buff landing mid-burst restarts the cue instead of being swallowed (owner 2026-07-24: each
+  // trigger must read as its own hit, and cutting the previous one off is fine).
+  const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => getSpellBuffSeq(uid), () => undefined);
+  const spellSparks = useMemo(() => (spellBuffSeq !== undefined ? makeSpellBuffSparks() : []), [spellBuffSeq]);
+  const spellBuffed = spellBuffSeq !== undefined;
   const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;
+  // Restart the card's grow/shrink on EVERY new burst id. Re-applying a class that's already on does not replay
+  // a CSS animation, so without this a second buff landing mid-cue would show sparks but a motionless card.
+  // cancel() + play() rewinds both phases (delay included) — deliberately cutting the previous pop short.
+  const sbRootRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (spellBuffSeq === undefined) return;
+    for (const a of sbRootRef.current?.getAnimations() ?? []) {
+      const name = (a as Animation & { animationName?: string }).animationName;
+      if (name === 'sbgrow' || name === 'sbshrink') { a.cancel(); a.play(); }
+    }
+  }, [spellBuffSeq]);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
   // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.
@@ -409,12 +430,13 @@ export const Card = memo(function Card({
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
     <div
+      ref={sbRootRef}
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
         // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
-        ...(sbCfg ? { '--sb-deg': `${sbCfg.wiggleDeg}deg`, '--sb-scale': sbCfg.wiggleScale, '--sb-wiggle-ms': `${sbCfg.wiggleMs}ms`, '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-ease': sparkEaseCss(sbCfg), '--sb-wiggle-ease': wiggleEaseCss(sbCfg), '--sb-wobble': sbCfg.wiggleWobble } : {}),
+        ...(sbCfg ? { '--sb-grow': sbCfg.growScale, '--sb-grow-ms': `${sbCfg.growMs}ms`, '--sb-grow-ease': growEaseCss(sbCfg), '--sb-shrink-ms': `${sbCfg.shrinkMs}ms`, '--sb-shrink-ease': shrinkEaseCss(sbCfg), '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-oy': `${sbCfg.blastOriginY}%`, '--sb-ease': sparkEaseCss(sbCfg) } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
@@ -738,15 +760,17 @@ export const Card = memo(function Card({
           <span className="bb-spark" style={{ '--a': '320deg' } as CSSProperties} />
         </span>
       )}
-      {/* Spell buff — this hand spell / Ruby just got stronger: pink, gold and purple sparks burst off it and
-          rise. Pairs with the `.spellbuff` wiggle + pop on the card itself. */}
+      {/* Spell buff — this hand spell / Ruby just got stronger: coloured sparks blast outward off it (the three
+          hues are tuner dials). Pairs with the `.spellbuff` grow/shrink on the card itself. */}
       {spellBuffed && (
-        <span className="sbsparks" aria-hidden="true">
+        /* Keyed on the burst id so a retrigger REMOUNTS the motes: new jitter, and every animation restarts
+           from zero rather than continuing the previous burst's flight. */
+        <span className="sbsparks" key={spellBuffSeq} aria-hidden="true">
           {spellSparks.map((s, i) => (
             <span
               key={i}
               className="sbspark"
-              style={{ left: s.left, bottom: s.bottom, animationDelay: s.delay, '--sb-size': s.size, '--sb-rise': s.rise, '--sb-wx': s.wx, '--sb-hue': s.hue, '--sb-tail': s.tail } as CSSProperties}
+              style={{ animationDelay: s.delay, '--sb-size': s.size, '--sb-ang': s.angle, '--sb-dist': s.dist, '--sb-hue': s.hue, '--sb-tail': s.tail } as CSSProperties}
             />
           ))}
         </span>

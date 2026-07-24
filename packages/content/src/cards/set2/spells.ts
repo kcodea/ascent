@@ -69,6 +69,6 @@ export const SET2_SPELLS: CardDef[] = [
     spell: true,
     cost: 1,
     effects: [{ on: 'cast', do: 'spellBuffShopByRuby' }],
-    text: 'Give each minion in the Shop stats equal to your Rubies (**+1/+1**).',
+    text: 'Your Shop minions **permanently** get stats equal to your Rubies (**+1/+1**).',
   },
 ];

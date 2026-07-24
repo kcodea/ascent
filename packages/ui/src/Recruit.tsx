@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
@@ -9,6 +9,7 @@ import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { getSpellBuffFxConfig } from './spellBuffFxConfig';
+import { fireSpellBuff, fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -21,6 +22,7 @@ import { pixiFx, discoverFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
@@ -557,10 +559,17 @@ export function Recruit() {
   // the rAF-coalesced move handlers, so pointer movement no longer re-renders this component.
   const [aimTargetUid, setAimTargetUid] = useState<string | null>(null);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
-  // Hand spells / Rubies whose printed value just went up — they play the wiggle + spark burst (see the
+  // Hand spells / Rubies whose printed value just went up — they play the grow/shrink + spark blast (see the
   // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
-  const [spellBuffedUids, setSpellBuffedUids] = useState<Set<string>>(new Set());
+  // The burst state itself lives in `spellBuffFx.ts`, NOT here — any phase or surface has to be able to start
+  // this cue (end of turn, start of combat, a mid-combat Echo/Avenge), and state owned by Recruit could only
+  // ever be started by Recruit. Cards subscribe to that store directly; this component just detects the buffs
+  // it can see and calls `fireSpellBuff`.
   const prevSpellSigRef = useRef<Map<string, string>>(new Map());
+  // Last phase the spell-buff watcher saw — lets it skip the single render where the phase flips (see below).
+  // Named apart from the stat-diff watcher's own `prevPhaseRef`, which exists lower down for the same class of
+  // reason (suppressing a spurious flash across the combat↔recruit transition) but tracks its own cadence.
+  const spellBuffPhaseRef = useRef(run.phase);
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
   const weldStatSeqRef = useRef<number | undefined>(undefined);
@@ -696,6 +705,41 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.spellPowerFxSeq, run.spellPowerFxAtk, run.spellPowerFxHp, run.spellPowerFxUid]);
+  // RUBY POWER FX (owner ask 2026-07-24) — the Ruby-side twin of the effect above, on the same one-shot seq
+  // contract. `rubyPowerFxSeq` is stamped from the reducer's `rubyBonus` before/after delta, so this one effect
+  // covers the shop, End of Turn AND the combat carry-back (Veinbreaker's Avenge settles onto `rubyBonus`).
+  // Guarded like the spell-power twin: a SOURCELESS bump outside the shop is the combat CARRY-BACK, which the
+  // mid-combat narration beat has already shown — firing it again is the end-of-combat double-play the owner
+  // reported. A sourced bump (a card you played) still fires in any phase.
+  const prevRubyPowerSeq = useRef(run.rubyPowerFxSeq);
+  useEffect(() => {
+    const seq = run.rubyPowerFxSeq;
+    if (seq === undefined || seq === prevRubyPowerSeq.current) return;
+    prevRubyPowerSeq.current = seq;
+    const gainA = run.rubyPowerFxAtk ?? 0;
+    const gainH = run.rubyPowerFxHp ?? 0;
+    const uid = run.rubyPowerFxUid;
+    if (uid === undefined && run.phase !== 'recruit') return;
+    const raf = requestAnimationFrame(() => {
+      // Over the card that caused it when there is one; otherwise over the player's HAND, because that's where
+      // the Rubies that just got stronger actually are (the spell-power twin falls back to the tavern instead,
+      // which is the right anchor for ITS "your spells got stronger" read but the wrong one here).
+      const el = (uid && document.querySelector(`[data-uid="${uid}"]`))
+        ?? document.querySelector('.row.hand .card.rubycard')
+        ?? document.querySelector('.row.hand')
+        ?? document.querySelector('[data-zone="tavern"]');
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
+      floatRubyPowerNumber(x, y - r.height * 0.3, gainA, gainH);
+      // The held Rubies themselves also play the spell-buff cue, so the "these cards got stronger" read is on
+      // the cards and not only in the flourish. Fires through the shared bus, hence any phase.
+      fireSpellBuffOnHandRubies(useGame.getState().run.hand);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.rubyPowerFxSeq, run.rubyPowerFxAtk, run.rubyPowerFxHp, run.rubyPowerFxUid]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -1757,7 +1801,7 @@ export function Recruit() {
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
-    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(
     () => {
@@ -1765,7 +1809,7 @@ export function Recruit() {
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
-    [run.spell, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.goldPouchValue],
+    [run.spell, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
@@ -1814,10 +1858,10 @@ export function Recruit() {
       handViewCache.current = stabilizeViewMap(fresh, handViewCache.current);
       return handViewCache.current;
     }),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellMult],
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
   );
-  // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, wiggle + pop it and burst
-  // pink/gold/purple sparks, so the player sees exactly which cards a spell buff touched. A spell's stats never
+  // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, grow/shrink it and blast
+  // sparks outward, so the player sees exactly which cards a spell buff touched. A spell's stats never
   // change (it's a 0/1 card) — its printed VALUE is the thing that moves — so we diff the rendered live text
   // (plus stats, which is what moves on a Ruby) per uid. That catches every scaling source at once (spell power,
   // Front to Back's escalation, the Ruby stat line, Rune of Pillaging's pouch, …) without enumerating them, and
@@ -1833,37 +1877,33 @@ export function Recruit() {
       if (prev !== undefined && prev !== sig) changed.push(uid);
     }
     prevSpellSigRef.current = next;
-    if (inCombat || changed.length === 0) return;
-    setSpellBuffedUids((s) => new Set([...s, ...changed]));
-    // Hold the class for the LONGER of the two independent timings — the card's wiggle and the sparks' full
-    // life (their stagger + rise). A fixed hold used to clip the sparks whenever they outlasted the pop, which
-    // is exactly the case the tuner wants to allow: a snappy wiggle with a long, slow rise.
-    const c = getSpellBuffFxConfig();
-    const hold = Math.max(c.wiggleMs, c.sparkMs + c.sparkStagger) + 120;
-    // Self-clearing (never cancelled in cleanup — same reasoning as the green buff flash): each timer must be
-    // allowed to fire or a quick follow-up change could leave a card stuck mid-wiggle.
-    window.setTimeout(() => {
-      setSpellBuffedUids((s) => {
-        if (changed.every((u) => !s.has(u))) return s;
-        const n = new Set(s);
-        for (const u of changed) n.delete(u);
-        return n;
-      });
-    }, hold);
-  }, [handViews, inCombat]);
+    // This watcher owns SHOP-PHASE buffs only. End of Turn and mid-combat are driven from their BEATS instead
+    // (the EoT beat runner below, and the `sc` narration handler in `useCombatReplay`), because run state
+    // doesn't move at the moment those buffs happen — it moves at the commit, which is too late to read as
+    // "this card just got stronger".
+    //
+    // That split is what fixes the double-play (owner report 2026-07-24: "cards play an additional buffed
+    // animation at the end of combat if they were buffed mid-combat"). A mid-combat gain is announced once, on
+    // its beat; then `settleCombat` applies the carry-back — while the phase is STILL `combat` — and the
+    // printed text finally changes, which this diff would otherwise fire on a second time.
+    //
+    // So: fire only in steady-state recruit. Skipping the phase-FLIP renders matters too, in both directions —
+    // a card's printed text can legitimately differ between phases, so diffing across a flip would flash the
+    // whole hand for no buff at all. Signatures above are recorded on every render regardless, so the baseline
+    // stays current and a real shop buff on the very next render fires normally.
+    const phaseFlipped = spellBuffPhaseRef.current !== run.phase;
+    spellBuffPhaseRef.current = run.phase;
+    if (phaseFlipped || run.phase !== 'recruit' || changed.length === 0) return;
+    fireSpellBuff(changed);
+  }, [handViews, run.phase]);
   // DEV: the ✨ Spell Buff tuner's Test button fires the cue on every spell / Ruby currently in hand, so the
-  // effect can be dialed without waiting for a real buff. Clear-then-set so the class remounts and the
-  // animation restarts even if a burst is already running.
+  // effect can be dialed without waiting for a real buff. It goes through the SAME `fireSpellBuff` the real
+  // watcher uses, so mashing Test exercises the retrigger/restart path exactly as a rapid buff chain would.
   useEffect(() => {
     if (!import.meta.env.DEV) return undefined;
     const w = window as { __spellBuffTest?: () => void };
     w.__spellBuffTest = (): void => {
-      const uids = [...handViews].filter(([, v]) => v.spell || v.ruby).map(([uid]) => uid);
-      if (uids.length === 0) return;
-      const c = getSpellBuffFxConfig();
-      setSpellBuffedUids(new Set());
-      requestAnimationFrame(() => setSpellBuffedUids(new Set(uids)));
-      window.setTimeout(() => setSpellBuffedUids(new Set()), Math.max(c.wiggleMs, c.sparkMs + c.sparkStagger) + 200);
+      fireSpellBuff([...handViews].filter(([, v]) => v.spell || v.ruby).map(([uid]) => uid));
     };
     return () => { delete w.__spellBuffTest; };
   }, [handViews]);
@@ -3240,6 +3280,26 @@ export function Recruit() {
           const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
           pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
           floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+          // …and pop the held SPELLS, whose printed values this proc just raised. Same reason the flourish is
+          // driven from the beat rather than reducer state: `faceOmen` commits AFTER every beat has played and
+          // flips the phase as it lands, so a state-driven cue arrives at Start of Combat instead of on the
+          // proc — which is why End of Turn showed no card cue at all (owner report 2026-07-24).
+          fireSpellBuffOnHandSpells(run.hand);
+        }
+        // RUBY strength raised at End of Turn — same beat-driven treatment, so it's already wired for whenever
+        // a card grants it on an End of Turn (no shipped card does today; `rubyStatGain` is Shout/cast-only).
+        for (const eff of bd?.effects ?? []) {
+          if (eff.on !== 'endOfTurn' || eff.do !== 'rubyStatGain') continue;
+          const gA = Number(eff.params?.attack ?? 0) * gold;
+          const gH = Number(eff.params?.health ?? 0) * gold;
+          if (gA <= 0 && gH <= 0) continue;
+          const el = document.querySelector(`[data-uid="${b.uid}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
+          floatRubyPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+          fireSpellBuffOnHandRubies(run.hand);
         }
       }
       // QUEST TENDRIL — fired from the BEAT, not from reducer state. The End-of-Turn commit (`faceOmen`)
@@ -3434,7 +3494,7 @@ export function Recruit() {
       if (card) {
         const id = ++sellFloatId.current;
         const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
-        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card, run) }]); // bartering-aware
+        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueWithBonus(card, run) }]); // bartering- AND Quick-Sale-aware
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
       // Sprinkle gold coins out of the Gold counter (the GOLD cell in the info strip up top) to sell the income.
@@ -3822,12 +3882,19 @@ export function Recruit() {
             const goldSpent = run.goldSpent ?? 0;
             const tierLocked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
             const goldLocked = !!m.lockedUntilGoldSpent && goldSpent < m.lockedUntilGoldSpent;
-            const locked = tierLocked || goldLocked;
+            // Hourglass Reserve's pick is "locked in hand until next turn" (`lockedUntilWave`). The reducer
+            // already refuses to play it, but this lock was missing here — so it was functionally locked while
+            // still LOOKING playable (owner 2026-07-24). It now wears the same greyed padlock treatment as
+            // Disco Dan's tier lock and Brackus's gold lock.
+            const waveLocked = !!m.lockedUntilWave && run.wave < m.lockedUntilWave;
+            const locked = tierLocked || goldLocked || waveLocked;
             const lockLabel = tierLocked
               ? `Tier ${m.lockedUntilTier}`
               : goldLocked
                 ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
-                : undefined;
+                : waveLocked
+                  ? 'Next turn'
+                  : undefined;
             return (
               <Card
                 key={m.uid}
@@ -3837,7 +3904,6 @@ export function Recruit() {
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
                 buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
-                spellBuffed={spellBuffedUids.has(m.uid)}
                 buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}
@@ -4136,7 +4202,11 @@ export function Recruit() {
                 return (
                   <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier }}
+                      // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
+                      // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
+                      // 0/1 here). Every other surface passes these through `instView`; this panel builds its
+                      // card view by hand, which is how they got dropped.
+                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby }}
                       onClick={() => dispatch({ type: 'discover', index: i })}
                     />
                   </div>

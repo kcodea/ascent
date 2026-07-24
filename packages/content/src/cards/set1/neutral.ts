@@ -306,9 +306,12 @@ export const NEUTRAL: CardDef[] = [
     goldenText: '**Avenge (3):** your Tavern spells have **+2 Attack** this run.',
   },
   {
-    // Battlecry arms the next Tavern spell you cast to resolve twice (golden: three times) — a spell-value
-    // burst. Sets a run-state charge (`nextSpellMult`) read by spellCasts and spent on the next real cast;
-    // persists across turns until used. Doubles untargeted economy spells too, unlike Yazzus (aimed-only).
+    // Battlecry banks an EXTRA cast for the next Tavern spell (golden: two) — a spell-value burst. Accrues
+    // into `nextSpellExtraCasts`, read by spellCasts and spent on the next real cast; persists across turns
+    // until used. Applies to untargeted economy spells too, unlike Yazzus (aimed-only).
+    // ADDITIVE and accumulating (owner 2026-07-24): each Battlecry FIRE banks its own charge, so Drakko —
+    // which fires Battlecries an extra time — now stacks with it (2 fires → +2 casts). It used to SET a
+    // multiplier, which made every repeat a no-op.
     id: 'nimbus',
     name: 'Nimbus',
     tribe: 'neutral',
@@ -317,8 +320,8 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDoubleNextSpell' }],
-    text: '**Battlecry:** your next spell played from hand casts **twice**.',
-    goldenText: '**Battlecry:** your next spell played from hand casts **three times**.',
+    text: '**Battlecry:** your next spell casts an **additional** time.',
+    goldenText: '**Battlecry:** your next spell casts **2 additional** times.',
   },
   {
     // Echo Warden: a passive presence special-cased in the combat summon path (simulate's summonMinion) — while

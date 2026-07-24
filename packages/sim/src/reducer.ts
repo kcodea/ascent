@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, grimoireMultActive, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -326,6 +326,21 @@ export function reduce(state: RunState, action: Action): RunState {
       // The acting card, when there is one — `play`/`buy`/`sell` all carry the uid, so the UI can anchor the
       // flourish to the minion that caused it. Left undefined for sourceless gains (quest/rune ticks).
       next.spellPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
+    }
+    // RUBY POWER FX: the exact same contract for Ruby strength (owner ask 2026-07-24) — one bump per action in
+    // which `rubyBonus` WENT UP, by any source and any amount. Derived from the before/after delta rather than a
+    // scratch field for the same reason spell power is: React batching can otherwise swallow it. This one delta
+    // covers the shop, End of Turn AND the combat carry-back, because Veinbreaker's mid-fight Avenge lands on
+    // `rubyBonus` when the fight settles and so shows up here like any other source.
+    const rbBefore = state.rubyBonus ?? { attack: 0, health: 0 };
+    const rbAfter = next.rubyBonus ?? { attack: 0, health: 0 };
+    const rpDeltaA = rbAfter.attack - rbBefore.attack;
+    const rpDeltaH = rbAfter.health - rbBefore.health;
+    if (rpDeltaA > 0 || rpDeltaH > 0) {
+      next.rubyPowerFxSeq = (next.rubyPowerFxSeq ?? 0) + 1;
+      next.rubyPowerFxAtk = Math.max(0, rpDeltaA);
+      next.rubyPowerFxHp = Math.max(0, rpDeltaH);
+      next.rubyPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
     }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
@@ -668,7 +683,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (dop.spell) {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def);
           for (let n = 0; n < spellCastsN; n++) queueDiscover(s, { kind: 'spell' });
-          if (!def.singleCast) s.nextSpellMult = undefined;
+          if (!def.singleCast) s.nextSpellExtraCasts = undefined;
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
           return s;
         }
@@ -692,13 +707,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           ...(dop.borrowed ? { borrowed: true } : {}), // Funeral on Loan: play → trigger Echo + destroy
         };
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
-        // queued behind the first. `spellCasts` folds in Nimbus (nextSpellMult), Ancient Runes (spellDoubleAlways)
+        // queued behind the first. `spellCasts` folds in Nimbus (nextSpellExtraCasts), Ancient Runes (spellDoubleAlways)
         // and Spell Thesis (first-spell-each-turn); Yazzus is aimed-only so it's auto-excluded (a Discover spell is
         // untargeted). `singleCast` never multiplies. Bug fix (owner 2026-07-09): the old code read only
-        // `nextSpellMult`, so Ancient Runes' "spells cast twice" silently did nothing for Discover spells.
+        // `nextSpellExtraCasts`, so Ancient Runes' "spells cast twice" silently did nothing for Discover spells.
         const casts = def.singleCast ? 1 : spellCasts(s, def);
         for (let n = 0; n < casts; n++) queueDiscover(s, { ...spec });
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         return s;
       }
@@ -715,7 +730,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         const boardTarget = s.board.find((c) => c.uid === action.targetUid);
         const offer = s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell);
         // Prismcaster: a Ruby played from hand casts `1 + Σ rubyExtraCast` times (× golden per Prismcaster).
-        const casts = 1 + s.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+        // Living Grimoire multiplies a RUBY too — it charges "the first spell", and a Ruby is a spell (owner
+        // 2026-07-24: the card doesn't say "shop spell"). `grimoireMultActive` reads the charge; it's spent
+        // below so the next cast of either kind is single.
+        const gm = grimoireMultActive(s);
+        const casts = (1 + s.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0)) * gm;
         if (boardTarget) {
           for (let n = 0; n < casts; n++) {
             addBuff(boardTarget, 'Ruby', card.attack, card.health);
@@ -729,9 +748,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         else return state;
         s.hand.splice(i, 1);
         const rubyCastsBefore = s.rubyCasts ?? 0;
+        // The trigger meter is the UMBRELLA of Rubies + Shop Spells (see `fireOnRubyCast`), so both paths must
+        // measure the SAME number — counting rubies on their own meter here would let the two drift and a
+        // 3-cast threshold fire early or late depending on the mix.
+        const umbrellaBefore = s.spellsCast + rubyCastsBefore;
         s.rubyCasts = rubyCastsBefore + casts;
         s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
-        fireOnRubyCast(s, rubyCastsBefore, s.rubyCasts); // Gemgorge Fiend: every 3 casts → Consume a Shop minion
+        consumeGrimoireCharge(s); // a Ruby spends the Grimoire charge, same as a Shop Spell
+        fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
 
@@ -786,7 +810,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         } else {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
@@ -972,7 +996,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (offer) castSpellOnOffer(s, synthetic, offer);
           else castSpell(s, synthetic, target);
         }
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(hi, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), co.cardId]; // Choose One spell counts as a card played (Rune of Action)
@@ -998,7 +1022,11 @@ function reduceCore(state: RunState, action: Action): RunState {
           return s;
         }
       }
-      applyChooseOne(s, card, option.effects); // the chosen Battlecry resolves now
+      // Orivax when GOLDEN gains BOTH options (`chooseBothWhenGolden`), not just the one picked. The prompt
+      // still opens and you still click a side — both apply on resolve, which is the honest reading of
+      // "Gilded: Gain both". Applied in option order so the log/FX are deterministic.
+      const chosen = card.golden && def.chooseBothWhenGolden ? def.chooseOne! : [option];
+      for (const opt of chosen) applyChooseOne(s, card, opt.effects); // the chosen Battlecry (or all, if golden) resolves now
       s.chooseOne = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
@@ -1070,11 +1098,19 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Bartering (Shout minions sell for 2) is folded into the shared helper, so the UI coin matches.
       // Quick Sale: the next minion sold this turn gets a one-shot bonus on top, then the bonus is spent.
       if (sold) {
-        s.embers += sellValueOf(sold, s) + (s.nextSellBonus ?? 0);
+        // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
+        // floated can't drift (they did: the bonus used to be added inline here only).
+        s.embers += sellValueWithBonus(sold, s);
         if (s.nextSellBonus) s.nextSellBonus = 0;
       }
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
       if (sold) fireOnSell(s, sold);
+      // Set 2 — record the sale, then tell the BOARD about it (Voicekeeper). Recorded FIRST so a watcher
+      // counting "the first Dragon sold this turn" sees this sale included, the way `playedThisTurn` works.
+      if (sold) {
+        s.soldThisTurn = [...(s.soldThisTurn ?? []), sold.cardId];
+        fireOnMinionSold(s, sold);
+      }
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
       // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
       if (sold && getHero(s.heroId).power.kind === 'sellGold') s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
@@ -1566,6 +1602,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         tier: s.tier,
         tribes: s.tribes,
         cardBuffs: s.cardBuffs ?? {},
+        // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
+        handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
         questMods: questCombatMods(s),
         pendingQuests: buildPendingCombatQuests(s),
       });
@@ -1957,6 +1995,17 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerRubyGrants) mintRubies(s, result.playerRubyGrants);
   // Set 2 — Ruby STRENGTH gained in combat (Veinbreaker's Avenge "buff your Rubies"): raise the run's rubyBonus
   // AND grow every held Ruby — the same effect as the recruit-phase `rubyStatGain`.
+  if (result.playerNextTurnSpellCopies) {
+    // Scalefeather Echoes fired this combat → arm the copy for NEXT turn. `s.wave` is still this combat's wave
+    // at settle (advanceCombat increments it later), so `s.wave + 1` is exactly next turn — the same "next
+    // turn" marker Hourglass Reserve uses. Multiple Scalefeathers sum; the earliest activation wave wins so a
+    // pending copy is never dropped.
+    const prev = s.nextTurnSpellCopies;
+    s.nextTurnSpellCopies = {
+      activateWave: prev ? Math.min(prev.activateWave, s.wave + 1) : s.wave + 1,
+      count: (prev?.count ?? 0) + result.playerNextTurnSpellCopies,
+    };
+  }
   if (result.playerRubyBonusGain && (result.playerRubyBonusGain.attack > 0 || result.playerRubyBonusGain.health > 0)) {
     const g = result.playerRubyBonusGain;
     const b = s.rubyBonus ?? { attack: 0, health: 0 };
@@ -2187,7 +2236,17 @@ function advanceCombat(s: RunState): void {
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
+  // Set 2 — the per-minion "spells cast on this" counter is per TURN too (Mirrorwing / Runefire read "first
+  // spell each turn"), so it clears with the rest. Cleared on hand cards as well: a minion can be bounced back
+  // to hand and replayed, and a stale count would eat its first proc next turn.
+  for (const c of [...s.board, ...s.hand]) {
+    if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
+    // Spellkeeper's per-instance "spells since placed" counter is per-turn too — clear both halves.
+    if (c.boardSpellCount) c.boardSpellCount = 0;
+    if (c.boardFirstSpellId) c.boardFirstSpellId = undefined;
+  }
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
+  s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end

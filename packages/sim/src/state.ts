@@ -198,6 +198,19 @@ export interface BoardCard {
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;
+  /** Set 2 — spells cast ON this minion THIS TURN (Mirrorwing Hatchling / Runefire). Reset each turn with the
+   *  other per-turn counters. Incremented BEFORE a card's `spellCastOnThis` effects run, which is what stops a
+   *  re-cast from re-triggering the same effect forever. Absent = 0. */
+  spellsOnThisTurn?: number;
+  /** Set 2 — Spellkeeper Drake: SHOP SPELLS cast this turn WHILE this minion has been on board, and the id of
+   *  the first such spell. Per-instance (a Spellkeeper played mid-turn counts from its own placement, not turn
+   *  start — owner 2026-07-24). Reset each turn; a fresh card starts at 0/undefined, so placement is the floor. */
+  boardSpellCount?: number;
+  boardFirstSpellId?: string;
+  /** Set 2 — Scalechanter: Shouts triggered since its LAST improvement (a per-instance cadence counter, the
+   *  Shout twin of `eotTick`). Rolls back to 0 each time it improves, so the "every 3" is a cadence rather
+   *  than a running total. Absent = 0. */
+  shoutTick?: number;
   /** Tara: accumulated stat-grants across combats (from `CombatResult.playerAscendCount`). At the card's
    *  `ascendAt` threshold it ascends to `ascendInto` in settleCombat, keeping its stats. */
   ascendProgress?: number;
@@ -303,6 +316,10 @@ export interface RunState {
   /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
+  /** Set 2 — Scalefeather Drake: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
+   *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
+   *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
+  nextTurnSpellCopies?: { activateWave: number; count: number };
   /** Quick Sale: extra Gold added to the NEXT minion sold this turn (added on top of its sell value, then
    *  cleared). Also cleared at turn end if unused ("this turn"). Stacks if cast twice. Absent = 0. */
   nextSellBonus?: number;
@@ -323,10 +340,13 @@ export interface RunState {
   /** Rallying Offensive: your Rally effects trigger twice in the NEXT combat. One-shot — does not stack
    *  (a bool), cleared in `settleCombat`. */
   rallyDoubleNext?: boolean;
-  /** Nimbus: a charge that makes the NEXT Tavern spell cast twice (×3 if Nimbus was golden). Read by
-   *  `spellCasts`, spent by the reducer on the next real (non-singleCast) spell cast; persists across turns
-   *  until used (NOT cleared at settle, unlike the combat one-shots above). */
-  nextSpellMult?: number;
+  /** Nimbus: EXTRA casts banked for the NEXT Tavern spell — +1 per Battlecry fire (+2 if Nimbus was golden).
+   *  ADDITIVE, not a multiplier (owner 2026-07-24), which is what lets it ACCUMULATE: Drakko fires the
+   *  Battlecry twice, so two Nimbus fires bank +2. The old `nextSpellMult` SET a multiplier, so a second fire
+   *  just re-set the same value and Drakko did nothing for it.
+   *  Read by `spellCasts` (added to the multiplied total), spent by the reducer on the next real
+   *  (non-singleCast) spell cast; persists across turns until used (NOT cleared at settle). */
+  nextSpellExtraCasts?: number;
   /** Gold spent during the CURRENT recruit turn (buys, rerolls, tier-ups, hero powers) — Patch Job scales off
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */
@@ -337,6 +357,10 @@ export interface RunState {
   /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
    *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
   playedThisTurn?: string[];
+  /** Set 2 — card ids SOLD this turn, in sell order (the symmetric twin of `playedThisTurn`). Voicekeeper
+   *  reads it to tell "the FIRST Dragon you sell each turn" from later ones. Appended BEFORE the `minionSold`
+   *  notify, so a watcher sees the sale it's reacting to already recorded. Reset each turn. */
+  soldThisTurn?: string[];
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't
@@ -669,6 +693,19 @@ export interface RunState {
    *  (owner ask 2026-07-21). Absent when the source isn't a card the player acted on — a quest reward or a
    *  rune tick — and the UI falls back to the shop row for those. */
   spellPowerFxUid?: string;
+  /** Bumped whenever RUBY POWER (`rubyBonus`) GOES UP this action, by any source and any amount — the Ruby-side
+   *  sibling of `spellPowerFxSeq`, and stamped the same way: from the before/after state delta, so a batch of
+   *  dispatches can't drop it. Covers the shop, End of Turn, and the combat carry-back (Veinbreaker's Avenge
+   *  raises Ruby strength mid-fight and it settles here). One-shot; the UI dedupes against the last-seen seq. */
+  rubyPowerFxSeq?: number;
+  /** The ruby-power INCREASE to print alongside that FX (Attack / Health), captured at stamp time. A pair for
+   *  the same reason spell power is — a source can grant Health only. */
+  rubyPowerFxAtk?: number;
+  rubyPowerFxHp?: number;
+  /** The uid of the card that drove the gain, so the flourish plays OVER it. Absent for sourceless gains (a
+   *  quest/rune tick, or the combat carry-back, whose source unit is gone by settle) — the UI falls back to the
+   *  hand's Rubies for those, which is what actually got stronger. */
+  rubyPowerFxUid?: string;
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too
@@ -753,7 +790,17 @@ export interface RunState {
   freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
   spellFirstDoubleEachTurn?: boolean;
+  /** Set 2 — Orivax (Spellweave): a MULTIPLIER on the turn's first spell (3 = casts 3 times). Permanent,
+   *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than
+   *  clobber, and read gated on `spellsThisTurn === 0` so it stays side-effect-free in the UI's cast preview. */
+  spellFirstMultEachTurn?: number;
   spellFirstUsedThisTurn?: boolean;
+  /** Set 2 — Living Grimoire: the multiplier its charge applies to the FIRST spell of a turn (2 base, 3 golden).
+   *  Absent/0 = discharged. Run-level rather than per-instance because `spellCasts` — which the UI also calls to
+   *  PREVIEW a cast count — reads run state only. Spending it and re-arming it (3 Shouts) both live on the
+   *  Grimoire's own hooks; `spellCasts` additionally requires a live Grimoire on board, so selling the source
+   *  can't leave a free permanent charge behind. */
+  grimoireMult?: number;
   minionCostOverride?: number;
   slaughterFirstEachCombat?: number;
   /** Attachment Issues (Mech capstone): every shop is guaranteed a Magnetic offer (`alwaysAttachmentShop`) and

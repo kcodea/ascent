@@ -8,6 +8,7 @@ import { DEMONS } from './cards/set1/demons';
 import { SPELLS } from './cards/set1/spells';
 import { TIER7 } from './cards/set1/tier7';
 import { SET2_KOBOLDS } from './cards/set2/kobolds';
+import { SET2_DRAGONS } from './cards/set2/dragons';
 import { SET2_SPELLS } from './cards/set2/spells';
 
 /**
@@ -24,6 +25,10 @@ const SET2_DROPPED_SPELLS = new Set<string>([
   'consume', //        "A Demon consumes a Fodder" — no Demon payoff line in Set 2
   'foddertreatment', //"Give a minion's stats to your left-most Demon" — no Demons in Set 2
 ]);
+/** Set 1 Dragons that carry into Set 2. Just Karwind for now — the owner's Set-2 Dragon roster lists it, and
+ *  it was re-spec'd in place (Tier 6 4/12) rather than forked, so BOTH sets draw the same card. Filtered out of
+ *  `DRAGONS` by id for the same reason the spells are: the set manifest opts cards IN, one list per source. */
+const SET1_DRAGONS_IN_SET2: readonly CardDef[] = DRAGONS.filter((d) => d.id === 'karwind');
 /** Set 1's drawable neutral spells that carry over into Set 2 (drops the tribe-locked ones + reward tokens). */
 const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token && !SET2_DROPPED_SPELLS.has(s.id));
 
@@ -115,12 +120,12 @@ export const SETS: Record<SetId, SetDef> = {
     name: 'Set 2',
     blurb: 'In development.',
     enabled: false,
-    tribes: ['kobold'], // WIP — the Kobold set; more tribes join as set 2 grows
+    tribes: ['kobold', 'dragon'], // WIP — Kobolds (Ruby) + Dragons (spell recursion); more join as set 2 grows
     // Starts EMPTY and opts cards IN (owner call 2026-07-19) — set 2 is being authored externally and
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
-    own: [...SET2_KOBOLDS, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS], // → packages/content/src/cards/set2/*.ts (Kobold / Ruby tribe, WIP)
+    own: [...SET2_KOBOLDS, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS], // → packages/content/src/cards/set2/*.ts (WIP)
   },
 };
 

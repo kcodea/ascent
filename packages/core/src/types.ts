@@ -90,6 +90,8 @@ export type GameEvent =
   | 'onKill'
   | 'startOfCombat'
   | 'avenge' // after X friendly minions have died in combat
+  | 'minionSold' // Set 2: another minion was sold (Voicekeeper watches)
+  | 'spellCastOnThis' // Set 2: a targeted spell resolved ON this minion (Mirrorwing / Runefire)
   | 'onBuy'
   | 'endOfTurn' // recruit phase: the turn ends (End Turn / timer hits 0)
   | 'battlecryTriggered' // recruit phase: a Battlecry just resolved (fires per Drakko repeat) — Karwind
@@ -140,6 +142,28 @@ export type EffectFactoryId =
   | 'rallyGrantMagnetic' // Mechanical Jouster — Rally: when this attacks, add a random Magnetic Mech to hand
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
+  | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
+  | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
+  | 'deathrattleQueueNextSpellCopy' // Scalefeather Drake: Echo — copy the first spell you cast next turn
+  | 'battlecryArmGrimoire' // Living Grimoire: Shout — charge the first-spell multiplier
+  | 'onBattlecryRearmGrimoire' // Living Grimoire: every 3 Shouts, recharge it
+  | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
+  | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
+  | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
+  | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
+  | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
+  | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
+  | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
+  | 'onSpellCastFirstBuffSelf' // Ashscribe Whelp: the first spell each turn permanently grows this
+  | 'onSpellCastSecondCopyFirst' // Spellkeeper Drake: your 2nd spell each turn copies the 1st
+  | 'endOfTurnRecastFirstSpell' // Runic Archivist: End of Turn — re-cast this turn's first spell
+  | 'battlecryGrantShoutExtra' // Orivax (Chorus): your Shouts trigger an additional time
+  | 'battlecryGrantFirstSpellMult' // Orivax (Spellweave): first spell each turn casts N times
+  | 'battlecryGrantTribeAndSpell' // Traveling Skald: Shout — a random tribe minion AND a random spell
+  | 'battlecryGrantRandomSpell' // Hoard Chronicler: Shout — add random Tavern spells to hand
+  | 'battlecryCopyCastSpell' // Recaller: Shout — copy the first/last spell you cast this turn
+  | 'endOfTurnCopyCastSpell' // Spellvault Drake: End of Turn — the same copy, on the EoT beat
+  | 'battlecryBuffOtherTribe' // Embermouth Whelp: Shout — buff one OTHER friendly of a tribe
   | 'deathrattleGrantMagnetic' // Deathrattle: add a random Magnetic minion to your hand after combat (Junkyard Titan)
   | 'deathrattleBuffSpellPower' // Deathrattle: permanently raise the run-wide spell power (+atk/+hp to spells), carried back (Skullblade)
   | 'deathrattleBuffCardTypeRunWide' // Deathrattle: permanently buff a card type run-wide (board/hand/future), carried back (Grave Knit)
@@ -233,7 +257,6 @@ export type EffectFactoryId =
   | 'spellReturnToHand' // Second Draft: cast — return a friendly non-Gilded minion to hand
   | 'spellTransformSameTier' // Strange Revision: cast — transform a friendly minion into a random same-tier one, keeping its bonus stats
   | 'spellMarkEnemyTaunt' // Marked Target: cast — the enemy's right-most minion gets Taunt next combat
-  | 'spellEncore' // Encore: cast — re-trigger a friendly minion's Shout and Echo
   | 'spellSummonImpsNextCombat' // Open the Gates: cast — bank Imps to enter the next combat
   | 'spellBuffShopByRuby' // Veinstorm: cast — give every shop offer stats equal to your Rubies
   | 'spellBuffPerDragonPlayed' // Hoardflame: cast — +4/+4 plus +1/+1 per Dragon played this turn
@@ -490,6 +513,9 @@ export interface CardDef {
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; goldenText?: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
+  /** Set 2 — Orivax: when GOLDEN, a Choose-One applies ALL its options instead of the one picked ("Gilded:
+   *  Gain both"). General flag, not Orivax-specific. Only meaningful with `chooseOne`. */
+  chooseBothWhenGolden?: boolean;
   /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
    *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
    *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe
@@ -1061,6 +1087,12 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** Set 2 — stats from RUBIES played onto this minion during COMBAT (`playRubyOn`). Tracked separately from
+   *  the recruit-phase `Ruby` entry in `buffs` because `buffs` is SHARED BY REFERENCE with the run's board card
+   *  (see `combat/minion.ts`) — appending to it from inside the simulation would mutate run state and break the
+   *  pure-function contract. Read alongside that entry by anything that scales off "the Rubies on this minion"
+   *  (Gemheart Carver), so a Ruby counts the same whether it was played in the shop or mid-fight. */
+  rubyGain?: { attack: number; health: number };
   /** Set 2 — Candleback Bulwark: times this minion's on-damage Ruby has fired THIS combat (its per-fight cap).
    *  A fresh Minion per fight, so it resets naturally between combats. */
   rubyRecvTick?: number;
@@ -1203,6 +1235,10 @@ export interface CombatSideState {
    *  base 1/1, so a combat-cast Ruby (Avenge / Rally / Start-of-Combat "Play a Ruby") applies the same amount
    *  the shop does. Default zero (a Ruby is 1/1). Player-authoritative today. */
   rubyBonus: { attack: number; health: number };
+  /** Set 2 — the card ids of the SPELLS in this side's hand at combat start, in hand order (Vault Curator
+   *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
+   *  the sim never mutates the run hand. */
+  handSpellIds?: readonly string[];
   /** This side's tavern tier. The player's drives token/spell generation; the enemy's drives loss-damage. */
   tier: number;
   /** This side's active tribes — the generation pool filter. */
@@ -1336,6 +1372,8 @@ export interface CombatResult {
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
+  /** Set 2 — Scalefeather Drake Echoes that fired this combat: how many next-turn first-spell copies to queue. */
+  playerNextTurnSpellCopies?: number;
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is
    *  conjured to hand in settleCombat ("get a copy of it next Shop"). Absent when no Slaughter fired. */
   playerSlaughterCopy?: string;
@@ -1470,7 +1508,14 @@ export interface CombatContext {
   /** Set 2 — mint `count` Rubies into hand after combat (Rikk / Gemline). Player-only; carried back. */
   grantRubies(count: number, side: Side, sourceUid?: string): void;
   /** Set 2 — raise the run's Ruby strength after combat (Veinbreaker). Player-only; carried back. */
-  gainRubyBonus(attack: number, health: number, side: Side): void;
+  /** Set 2 — raise the run's RUBY strength (player-only; carried back at settle). `sourceUid` is optional and
+   *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
+   *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
+  gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
+  /** Set 2 — Scalefeather Drake: queue `count` next-turn first-spell copies (player-only; carried back). */
+  queueNextTurnSpellCopy(count: number, side: Side): void;
+  /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
+  leftmostHandSpellFor(side: Side): string | undefined;
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;

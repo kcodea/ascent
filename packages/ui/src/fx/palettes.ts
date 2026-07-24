@@ -15,8 +15,9 @@ export const PALETTES: Record<string, readonly [string, string, string, string]>
   acid: ['#2c9612', '#7ade22', '#ecffa8', '#ffffff'],
 };
 
-/** The palette ids, for an `enum` param spec's `options`. Sorted for a stable picker order. */
-export const PALETTE_NAMES: string[] = Object.keys(PALETTES).sort();
+/** The palette ids, for an `enum` param spec's `options`. Insertion order (violet, ember, mint, magenta,
+ *  gold, acid) so the picker lists them the same on every primitive, matching the ribbon's own order. */
+export const PALETTE_NAMES: string[] = Object.keys(PALETTES);
 
 const hexToNum = (hex: string): number => parseInt(hex.slice(1), 16);
 

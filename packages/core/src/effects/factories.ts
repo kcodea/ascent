@@ -2092,6 +2092,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — Lancel (Start of Combat): give your LEFT-MOST `count` friendly `tribe` minions Ward, and each
+   *  attacks immediately (out of turn order, via the immediate-attack queue). Golden covers two instead of one.
+   *  Left-most is board order, so the pick is deterministic and consumes no RNG. */
+  scShieldAttackLeftmostTribe: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    const want = num(params.count, 1) * mul(self);
+    const friends = ctx.living(self.side).filter(
+      (m) => m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe,
+    ).slice(0, want);
+    if (friends.length === 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} sounds the charge` });
+    for (const m of friends) {
+      grantShield(ctx, m);
+      ctx.attackNow?.(m, false); // already shielded above — don't re-grant per strike
+    }
+  },
+
   /** Set 2 — Denkeeper Oona (Start of Combat, passive-reading): register a SUMMON-ONLY `tribe` aura — minions
    *  you summon later in the fight enter with +atk/+hp. Unlike `scBeastAura` it deliberately does NOT buff the
    *  minions already on board: the card reads "Beasts you SUMMON in combat have +5/+5", i.e. it pays the token

@@ -87,3 +87,41 @@ describe('set 2 — Dawnclaw', () => {
     expect(dc.effects).toContainEqual({ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry' });
   });
 });
+
+describe('set 2 — Beast summon + aura cards', () => {
+  it('Groveweaver: buffs a summoned Beast +2/+4, and a spell cast improves that grant', () => {
+    // Summon path: play a Beast while Groveweaver is out → it lands with the grant folded in.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [bm('gw', 'b2_groveweaver', 'beast', 4, 8)],
+      hand: [bm('n1', 'stray', 'beast', 1, 1), spell('sp', 'emberpouch'), bm('n2', 'pup', 'beast', 1, 1)],
+    };
+    s = reduce(s, { type: 'play', uid: 'n1' });
+    const first = s.board.find((c) => c.uid === 'n1')!;
+    expect([first.attack - 1, first.health - 1]).toEqual([2, 4]); // base grant
+
+    s = reduce(s, { type: 'play', uid: 'sp' }); // a cast improves the grant by +1
+    s = reduce(s, { type: 'play', uid: 'n2' });
+    const second = s.board.find((c) => c.uid === 'n2')!;
+    expect([second.attack - 1, second.health - 1]).toEqual([3, 5]); // improved by +1 on each stat
+  });
+
+  it('Denkeeper Oona / Lancel / Solaris / T-Rex are wired with the expected stats + effects', () => {
+    // These reuse combat primitives already covered elsewhere (avengeShieldAttack, addTribeAura, the
+    // fixed+goldenTokens summon shape), so the new surface is the card wiring.
+    const oona = CARD_INDEX['b2_oona']!;
+    expect([oona.tier, oona.attack, oona.health]).toEqual([5, 4, 6]);
+    expect(oona.effects[0]!.do).toBe('scSummonOnlyTribeAura');
+
+    const lancel = CARD_INDEX['b2_lancel']!;
+    expect([lancel.tier, lancel.attack, lancel.health]).toEqual([3, 3, 4]);
+
+    const solaris = CARD_INDEX['b2_solaris']!;
+    expect(solaris.effects[0]!.do).toBe('avengeShieldAttack'); // Solaris Fang's factory, verbatim
+
+    // T-Rex's Echo must keep the count fixed and gild the TOKEN (not summon two) — the Void Panther shape.
+    const trex = CARD_INDEX['b2_trex']!;
+    expect(trex.effects[0]!.params).toMatchObject({ tokenId: 'b2_trexbaby', count: 1, fixed: true, goldenTokens: true });
+    expect(CARD_INDEX['b2_trexbaby']!.token).toBe(true);
+  });
+});

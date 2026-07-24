@@ -1058,6 +1058,29 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
   },
 
+  /** Set 2 — Groveweaver (summon half): a Beast you summon gets +atk/+hp, at the CURRENT magnitude (base +
+   *  this instance's accrued `summonBonus`). Asymmetric on purpose (+2/+4), unlike `summonBuffTribeImprove`'s
+   *  symmetric grant, and it does NOT self-improve here — the improvement rides spell casts instead
+   *  (`onSpellCastImproveSummon`), which is what the card says. Golden doubles the whole magnitude at grant
+   *  time so base and step each double exactly once. */
+  summonBuffTribeAsym: (ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    const tribe = str(params.tribe);
+    if (tribe && !isTribe(minion, tribe as Tribe)) return;
+    const bonus = self.summonBonus ?? 0;
+    const a = (num(params.attack, 2) + bonus) * gold(self);
+    const h = (num(params.health, 4) + bonus) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    addBuff(minion, nameOf(self), a, h);
+  },
+
+  /** Set 2 — Groveweaver (improve half): each spell you cast improves this instance's summon grant by `step`.
+   *  Stored at BASE magnitude (golden is applied when the buff lands) and scaled by `improveReps` for Rune of
+   *  Mastery, matching every other "improve this". */
+  onSpellCastImproveSummon: (ctx, self, params) => {
+    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * improveReps(ctx.state);
+  },
+
   /** Pack Leader (recruit half) — every time a Beast is summoned WHILE Pack Leader is on the board, accrue
    *  `step` into its `summonBonus`. This is a pure counter (no buff here); the Start-of-Combat half
    *  (`scTribeBuffImproving`, step 0) spends the accrual as a +summonBonus/+summonBonus Beast buff (×golden).

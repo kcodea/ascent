@@ -12,6 +12,36 @@ import type { CardDef } from '@game/core';
  */
 export const SET2_BEASTS: CardDef[] = [
   {
+    // The tribe's two halves in one card: it pays your summons, and your SPELLS make that payment bigger.
+    id: 'b2_groveweaver',
+    name: 'Groveweaver',
+    tribe: 'beast',
+    tier: 5,
+    attack: 4,
+    health: 8,
+    keywords: [],
+    effects: [
+      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 2, health: 4 } },
+      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
+    ],
+    text: 'When you summon a Beast, give it **+2/+4**. Improve this when you cast a spell.',
+    goldenText: 'When you summon a Beast, give it **+4/+8**. Improve this when you cast a spell (twice as much).',
+  },
+  {
+    // An opener: your front Beast enters shielded and swings before the turn order starts, so a big left-most
+    // body gets a free hit in. Left-most = board order (deterministic, no RNG).
+    id: 'b2_lancel',
+    name: 'Lancel',
+    tribe: 'beast',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scShieldAttackLeftmostTribe', params: { tribe: 'beast', count: 1 } }],
+    text: '**Start of Combat:** give your left-most Beast **Ward**. It attacks immediately.',
+    goldenText: '**Start of Combat:** give your **2** left-most Beasts **Ward**. They attack immediately.',
+  },
+  {
     // A summon-payoff aura: it does NOT buff the board you already have — it makes everything you summon
     // during the fight enter bigger. Pairs with the Echo-summon line (T-Rex, Mammoth, Void Panther).
     id: 'b2_oona',

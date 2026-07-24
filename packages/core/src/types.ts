@@ -154,6 +154,9 @@ export type EffectFactoryId =
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
   | 'onSpellCastFirstBuffTribe' // Mosswhisker Adept: first spell each turn buffs your tribe board-wide
   | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions
+  | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
+  | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
+  | 'scShieldAttackLeftmostTribe' // Lancel: SC — left-most Beasts gain Ward and attack immediately
   | 'scSummonOnlyTribeAura' // Denkeeper Oona: minions you summon in combat enter buffed
   | 'avengeBuffTribeLasting' // Moonlit Scavenger: Avenge — buff your tribe for the rest of the fight
   | 'rallyProcLeftmostEcho' // Echohorn Stag: Rally — trigger your left-most friendly Echo

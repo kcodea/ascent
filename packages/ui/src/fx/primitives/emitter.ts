@@ -126,6 +126,28 @@ export function advanceEmitBudget(budget: number, rate: number, dtSec: number): 
 }
 
 /**
+ * Whether a one-shot emitter's bounded emission window is still open. The emitter is inherently a
+ * continuous stream, so its "Fire" is a bounded puff: emit for one window, then stop and let whatever's
+ * already live fade out on its own. The window is chosen as the emitter's own `life` param — one lifespan
+ * of continuous emission produces a puff with a natural, self-similar density (motes emitted at the very
+ * start of the window have just died by the time the last ones emitted at the end of the window do), rather
+ * than a magic constant unrelated to the emitter's own timing. Pure + standalone for the same reason as
+ * `advanceEmitBudget`/`moteAlpha` above — unit-testable without a WebGL context.
+ */
+export function withinEmitWindow(elapsedMs: number, windowMs: number): boolean {
+  return elapsedMs < windowMs;
+}
+
+/**
+ * Pure completion predicate for a one-shot Fire: true once the emission window (see `withinEmitWindow`) has
+ * closed AND every mote spawned during it has died. A continuous (non-one-shot) instance is never complete
+ * — the loop preview keeps streaming forever by design. Mirrors `burst.ts`'s `burstFireComplete`.
+ */
+export function emitterFireComplete(oneShot: boolean, elapsedMs: number, windowMs: number, moteCount: number): boolean {
+  return oneShot && !withinEmitWindow(elapsedMs, windowMs) && moteCount === 0;
+}
+
+/**
  * A mote's alpha at life-fraction `t` (0 at birth, 1 at death): ramps 0→1 over the first `fadeIn` fraction
  * of life, holds at 1, then symmetrically ramps 1→0 over the last `fadeIn` fraction. `fadeIn` is floored to
  * a small epsilon to avoid a division by zero at the param's minimum (0) — at that floor the fade is
@@ -161,6 +183,14 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   private originY = 0;
   private headSet = false;
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
+  // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Bounds emission to a
+  // single window (see `withinEmitWindow`) instead of streaming forever.
+  private readonly oneShot: boolean;
+  // ms elapsed since this instance's very first update() call — ticks unconditionally once oneShot (not
+  // gated on headSet: a Fire's setHead typically lands the same frame as its first update anyway, per
+  // burst.ts's constructor comment on call order, so gating here would only ever save a fraction of a
+  // frame at the cost of a second piece of state to reason about).
+  private emitElapsedMs = 0;
   // Reused scratch object for the emit-budget accumulation — `advanceEmitBudget` (kept pure below for the
   // test suite) would otherwise allocate a fresh `{ budget, spawnCount }` literal every single frame. This
   // mirrors `ribbon.ts`'s cached `shape` scratch object: same values, written in place instead of returned.
@@ -169,6 +199,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   constructor(ctx: FxContext, params: EmitterParams) {
     this.params = params;
     this.renderer = ctx.renderer;
+    this.oneShot = ctx.oneShot === true;
     this.texture = getShapeTexture(ctx.renderer, params.shape);
     this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands, shapingOf(params), params.glow);
     this.particles = new ParticleContainer({
@@ -227,11 +258,15 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     //    spawn), and without this guard that would emit a mote or two from the origin default (0,0) —
     //    a single flickering mote at the wrong spot before self-correcting next frame. Skipping the spawn
     //    (but still accumulating the budget below) closes that for free.
+    //    In one-shot mode, ALSO gated on the emission window (`withinEmitWindow`) — once the window closes
+    //    we stop spawning entirely (existing motes just fade out under step 1 above) rather than streaming
+    //    for the whole Fire. `emitElapsedMs` ticks below regardless of whether we actually spawn this frame.
     const bs = this.budgetState;
     const b = bs.budget + p.rate * dtSec;
     bs.spawnCount = Math.floor(b);
     bs.budget = b - bs.spawnCount;
-    if (this.headSet) {
+    const emitting = this.headSet && (!this.oneShot || withinEmitWindow(this.emitElapsedMs, p.life));
+    if (emitting) {
       const room = MAX_MOTES - motes.length;
       const toSpawn = bs.spawnCount < room ? bs.spawnCount : Math.max(0, room);
       for (let i = 0; i < toSpawn; i++) {
@@ -240,8 +275,14 @@ class EmitterInstance implements FxInstance<EmitterParams> {
         children.push(mote.p);
       }
     }
+    if (this.oneShot) this.emitElapsedMs += dtMs;
 
     this.particles.update();
+  }
+
+  /** See `emitterFireComplete`'s header comment for the completion contract. */
+  isComplete(): boolean {
+    return emitterFireComplete(this.oneShot, this.emitElapsedMs, this.params.life, this.motes.length);
   }
 
   setParams(next: EmitterParams): void {

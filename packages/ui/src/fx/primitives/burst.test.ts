@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateSpecs } from '../params';
-import { burstPrimitive, sampleBurstAngle } from './burst';
+import { burstFireComplete, burstPrimitive, sampleBurstAngle } from './burst';
 
 describe('burst param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -51,5 +51,27 @@ describe('sampleBurstAngle', () => {
     expect(sampleBurstAngle(travel, spread, () => 0)).toBeCloseTo(travel - halfWidth);
     expect(sampleBurstAngle(travel, spread, () => 1)).toBeCloseTo(travel + halfWidth);
     expect(sampleBurstAngle(travel, spread, () => 0.5)).toBeCloseTo(travel);
+  });
+});
+
+describe('burstFireComplete', () => {
+  it('is never complete outside one-shot mode, regardless of fired/live state', () => {
+    expect(burstFireComplete(false, true, 0)).toBe(false);
+    expect(burstFireComplete(false, false, 0)).toBe(false);
+    expect(burstFireComplete(false, true, 5)).toBe(false);
+  });
+
+  it('is not complete before the single wave has fired, even with zero live particles', () => {
+    // Guards frame-0: before setHead/emit, live is empty but nothing has fired yet.
+    expect(burstFireComplete(true, false, 0)).toBe(false);
+  });
+
+  it('is not complete while the fired wave still has live particles', () => {
+    expect(burstFireComplete(true, true, 1)).toBe(false);
+    expect(burstFireComplete(true, true, 40)).toBe(false);
+  });
+
+  it('is complete once fired and every particle from the wave has died', () => {
+    expect(burstFireComplete(true, true, 0)).toBe(true);
   });
 });

@@ -49,6 +49,17 @@ export function sampleBurstAngle(travelAngle: number, spread: number, rand: () =
   return travelAngle + (rand() * 2 - 1) * halfWidth;
 }
 
+/**
+ * Pure completion predicate for a one-shot Fire: true once the burst has fired its single wave AND every
+ * particle from it has died. Pulled out of `BurstInstance.isComplete()` so the state machine's core logic
+ * is unit-testable without a WebGL-constructed instance (see `burst.test.ts`'s note on why the rest of the
+ * one-shot state machine can't be exercised headlessly). A continuous (non-one-shot) instance is never
+ * complete — the loop preview keeps re-firing forever by design.
+ */
+export function burstFireComplete(oneShot: boolean, fired: boolean, liveCount: number): boolean {
+  return oneShot && fired && liveCount === 0;
+}
+
 const SPECS = {
   count: {
     kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 120, step: 1, default: 28,
@@ -159,6 +170,10 @@ class BurstInstance implements FxInstance<BurstParams> {
   // constructor comment below for why we can't just emit on construction.
   private headSet = false;
   private firstEmitDone = false;
+  // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Fires exactly the one
+  // wave gated by `firstEmitDone` above and never re-fires on `interval` — the interval only drives re-firing
+  // for the continuous workbench-loop preview.
+  private readonly oneShot: boolean;
   private travelAngle = 0; // radians; last known non-zero travel direction, aims the cone when spread < 1
   private timer = 0; // ms since last emit
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
@@ -166,6 +181,7 @@ class BurstInstance implements FxInstance<BurstParams> {
   constructor(ctx: FxContext, params: BurstParams) {
     this.params = params;
     this.renderer = ctx.renderer;
+    this.oneShot = ctx.oneShot === true;
     this.texture = getShapeTexture(ctx.renderer, params.shape);
     this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands, shapingOf(params), params.glow);
     this.pc = new ParticleContainer({
@@ -279,14 +295,16 @@ class BurstInstance implements FxInstance<BurstParams> {
     children.length = write;
 
     // Fire: the very first wave waits for a real anchor position (see `setHead` / the constructor
-    // comment above); every wave after that follows the fixed interval timer.
+    // comment above); every wave after that follows the fixed interval timer — EXCEPT in one-shot mode,
+    // where the single wave gated by `firstEmitDone` is the whole Fire and `interval` is never consulted
+    // again (that's exclusively what drives the continuous loop preview's re-firing).
     if (!this.firstEmitDone) {
       if (this.headSet) {
         this.emit();
         this.firstEmitDone = true;
         this.timer = 0;
       }
-    } else {
+    } else if (!this.oneShot) {
       this.timer += dtMs;
       if (this.timer >= this.params.interval) {
         // Guard against a runaway re-fire loop if a huge dt (tab was backgrounded) blows past several
@@ -297,6 +315,11 @@ class BurstInstance implements FxInstance<BurstParams> {
     }
 
     this.pc.update();
+  }
+
+  /** See `burstFireComplete`'s header comment for the completion contract. */
+  isComplete(): boolean {
+    return burstFireComplete(this.oneShot, this.firstEmitDone, this.live.length);
   }
 
   setParams(next: BurstParams): void {

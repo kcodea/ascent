@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateSpecs } from '../params';
-import { advanceEmitBudget, emitterPrimitive, moteAlpha } from './emitter';
+import { advanceEmitBudget, emitterFireComplete, emitterPrimitive, moteAlpha, withinEmitWindow } from './emitter';
 
 describe('emitter param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -94,5 +94,40 @@ describe('moteAlpha', () => {
   it('does not divide by zero at fadeIn = 0 (the slider minimum)', () => {
     expect(() => moteAlpha(0.5, 0)).not.toThrow();
     expect(Number.isFinite(moteAlpha(0.5, 0))).toBe(true);
+  });
+});
+
+describe('withinEmitWindow', () => {
+  it('is open at t=0 and stays open strictly before the window closes', () => {
+    expect(withinEmitWindow(0, 700)).toBe(true);
+    expect(withinEmitWindow(699, 700)).toBe(true);
+  });
+
+  it('closes exactly at (and past) the window boundary', () => {
+    expect(withinEmitWindow(700, 700)).toBe(false);
+    expect(withinEmitWindow(701, 700)).toBe(false);
+    expect(withinEmitWindow(10_000, 700)).toBe(false);
+  });
+});
+
+describe('emitterFireComplete', () => {
+  it('is never complete outside one-shot mode, regardless of window/mote state', () => {
+    expect(emitterFireComplete(false, 10_000, 700, 0)).toBe(false);
+    expect(emitterFireComplete(false, 0, 700, 0)).toBe(false);
+  });
+
+  it('is not complete while the emission window is still open, even with zero live motes', () => {
+    // Guards frame-0: window just opened, no motes spawned yet.
+    expect(emitterFireComplete(true, 0, 700, 0)).toBe(false);
+    expect(emitterFireComplete(true, 699, 700, 0)).toBe(false);
+  });
+
+  it('is not complete once the window closes while motes are still alive and fading', () => {
+    expect(emitterFireComplete(true, 700, 700, 3)).toBe(false);
+  });
+
+  it('is complete once the window has closed and every mote has died', () => {
+    expect(emitterFireComplete(true, 700, 700, 0)).toBe(true);
+    expect(emitterFireComplete(true, 5000, 700, 0)).toBe(true);
   });
 });

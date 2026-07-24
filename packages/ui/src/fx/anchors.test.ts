@@ -16,8 +16,19 @@ describe('resolveAnchor', () => {
     expect(resolveAnchor({}, 'target', 0)).toEqual({ x: 0, y: 0 });
   });
 
-  it('interpolates travel from source to target by progress', () => {
-    expect(resolveAnchor(ANCHORS, 'travel', 0.5)).toEqual({ x: 50, y: 0 });
+  it('follows the bowed arc at the default bow', () => {
+    const mid = resolveAnchor(ANCHORS, 'travel', 0.5);
+    expect(mid.x).toBeCloseTo(50);
+    expect(mid.y).toBeCloseTo(-14);
+  });
+
+  it('starts exactly at the source and ends exactly at the target along the arc', () => {
+    expect(resolveAnchor(ANCHORS, 'travel', 0)).toEqual({ x: 0, y: 0 });
+    expect(resolveAnchor(ANCHORS, 'travel', 1)).toEqual({ x: 100, y: 0 });
+  });
+
+  it('overrides the bow to run straight when bow is zero', () => {
+    expect(resolveAnchor(ANCHORS, 'travel', 0.5, 0)).toEqual({ x: 50, y: 0 });
   });
 });
 

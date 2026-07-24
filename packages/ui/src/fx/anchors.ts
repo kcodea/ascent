@@ -10,6 +10,10 @@ export type FxAnchors = Partial<Record<Exclude<FxAnchorId, 'travel'>, FxPoint>>;
 
 const ORIGIN: FxPoint = { x: 0, y: 0 };
 
+/** Default perpendicular bow for a `travel` anchor. A straight line reads as a laser; the arc is what
+ *  makes a trail whip between two units. */
+const TRAVEL_BOW = 0.28;
+
 /** Quadratic arc between two anchors. `bow` is the perpendicular offset as a fraction of the span. */
 export function pointOnTravel(a: FxPoint, b: FxPoint, t: number, bow: number): FxPoint {
   const mx = (a.x + b.x) / 2 + (b.y - a.y) * bow;
@@ -22,14 +26,9 @@ export function pointOnTravel(a: FxPoint, b: FxPoint, t: number, bow: number): F
 }
 
 /** `progress` is the layer's own 0..1 through its life; only `travel` uses it. */
-export function resolveAnchor(anchors: FxAnchors, id: FxAnchorId, progress: number): FxPoint {
+export function resolveAnchor(anchors: FxAnchors, id: FxAnchorId, progress: number, bow = TRAVEL_BOW): FxPoint {
   if (id === 'travel') {
-    const start = anchors.source ?? ORIGIN;
-    const end = anchors.target ?? ORIGIN;
-    return {
-      x: start.x + (end.x - start.x) * progress,
-      y: start.y + (end.y - start.y) * progress,
-    };
+    return pointOnTravel(anchors.source ?? ORIGIN, anchors.target ?? ORIGIN, progress, bow);
   }
   return anchors[id] ?? ORIGIN;
 }

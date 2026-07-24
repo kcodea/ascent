@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (Waking Rift rename + all spell art wired)
 
+### feat(content/ui): wire Beyond the Summit + Hourglass Reserve art, remove the Encore spell
+
+**Two more spell arts.** Both were in the previous pass's UNMATCHED list, because their masters were named for
+older versions of the cards (`RoadToTheSummit.png`, `Timepiece.png`). The owner then supplied correctly-named
+`BeyondTheSummit.png` / `HourglassReserve.png`, which match by name on their own — so the manual aliases I'd
+briefly added were removed rather than kept. That mattered: with both the old and new names mapped to one card
+id, two masters collided on one output file and whichever copied last silently won. The superseded masters now
+simply report as unwired, alongside `SparkPlug.png`. 66 spells wired.
+
+**Encore removed** (owner 2026-07-24). Deleted the card def, the `spellEncore` recruit factory, its
+`EffectFactoryId` union member, its content-schema whitelist entry, and its test. Nothing else referenced the
+card id.
+
+Care was needed on the name: **"Encore" is also Myra's HERO POWER** (kind `replayBattlecry`), and the Chronos
+hero has an "Encore" quest. The two `Recruit.tsx` comments mentioning Encore describe the hero power's targeting
+rules, not the spell, so they were deliberately left untouched — deleting them would have been a silent
+documentation regression for an unrelated feature.
+
+Verified live after a dev-server restart: both cards render their new art under the right names, `encore` is
+absent from `CARD_INDEX`, and no card carries a `spellEncore` effect. Suite 1542 (one fewer — the Encore test) +
+typecheck + lint + build:web green.
+
 ### feat(content/ui): rename Spark Plug -> Waking Rift, and wire spell art
 
 **Rename.** Display name only — the ID stays `sparkplug`. It's referenced by Spark Capacitor's

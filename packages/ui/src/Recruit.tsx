@@ -8,7 +8,8 @@ import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
-import { getSpellBuffFxConfig, spellBuffHoldMs } from './spellBuffFxConfig';
+import { getSpellBuffFxConfig } from './spellBuffFxConfig';
+import { fireSpellBuff } from './spellBuffFx';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -559,39 +560,15 @@ export function Recruit() {
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
   // Hand spells / Rubies whose printed value just went up — they play the grow/shrink + spark blast (see the
   // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
-  // uid → BURST ID, not a boolean set: the id increments on every retrigger so `Card` can restart the cue
-  // rather than swallow a second buff that lands mid-burst (owner 2026-07-24 — each trigger must read as its
-  // own hit, and cutting the previous one off is fine).
-  const [spellBuffSeq, setSpellBuffSeq] = useState<Map<string, number>>(new Map());
-  const spellBuffSeqRef = useRef(0);
-  // Each uid's pending clear, so a retrigger can CANCEL the old one. Without this an earlier burst's timer
-  // fires mid-way through a newer burst and cuts it short (measured: a 1010ms hold clearing after 404ms).
-  const spellBuffTimersRef = useRef<Map<string, number>>(new Map());
+  // The burst state itself lives in `spellBuffFx.ts`, NOT here — any phase or surface has to be able to start
+  // this cue (end of turn, start of combat, a mid-combat Echo/Avenge), and state owned by Recruit could only
+  // ever be started by Recruit. Cards subscribe to that store directly; this component just detects the buffs
+  // it can see and calls `fireSpellBuff`.
   const prevSpellSigRef = useRef<Map<string, string>>(new Map());
-  // Start (or RESTART) the cue on a set of hand uids. Shared by the real buff watcher and the dev Test button —
-  // one code path so the two can never drift apart again.
-  const fireSpellBuff = useCallback((uids: string[]): void => {
-    if (uids.length === 0) return;
-    setSpellBuffSeq((prev) => {
-      const next = new Map(prev);
-      for (const uid of uids) next.set(uid, ++spellBuffSeqRef.current);
-      return next;
-    });
-    const hold = spellBuffHoldMs();
-    for (const uid of uids) {
-      const pending = spellBuffTimersRef.current.get(uid);
-      if (pending !== undefined) window.clearTimeout(pending);
-      spellBuffTimersRef.current.set(uid, window.setTimeout(() => {
-        spellBuffTimersRef.current.delete(uid);
-        setSpellBuffSeq((s) => {
-          if (!s.has(uid)) return s;
-          const n = new Map(s);
-          n.delete(uid);
-          return n;
-        });
-      }, hold));
-    }
-  }, []);
+  // Last phase the spell-buff watcher saw — lets it skip the single render where the phase flips (see below).
+  // Named apart from the stat-diff watcher's own `prevPhaseRef`, which exists lower down for the same class of
+  // reason (suppressing a spurious flash across the combat↔recruit transition) but tracks its own cadence.
+  const spellBuffPhaseRef = useRef(run.phase);
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
   const weldStatSeqRef = useRef<number | undefined>(undefined);
@@ -1864,9 +1841,20 @@ export function Recruit() {
       if (prev !== undefined && prev !== sig) changed.push(uid);
     }
     prevSpellSigRef.current = next;
-    if (inCombat || changed.length === 0) return;
+    // Deliberately NOT gated on `inCombat` any more (owner 2026-07-24). Hand cards stay mounted through the
+    // fight, and a spell/Ruby that gets stronger mid-combat — an Echo, an Avenge, a start-of-combat trigger —
+    // has to show the same cue it would in the shop.
+    //
+    // The one thing that gate WAS buying us: a card's printed text can legitimately differ between phases
+    // (anything the live text folds in that combat changes), so the render where the phase FLIPS would diff
+    // against a shop-phase signature and flash the whole hand at once for no buff. So instead of suppressing
+    // all of combat, suppress exactly that one render — the signatures above are still recorded, so a real buff
+    // on the very next render fires normally.
+    const phaseFlipped = spellBuffPhaseRef.current !== run.phase;
+    spellBuffPhaseRef.current = run.phase;
+    if (phaseFlipped || changed.length === 0) return;
     fireSpellBuff(changed);
-  }, [handViews, inCombat, fireSpellBuff]);
+  }, [handViews, run.phase]);
   // DEV: the ✨ Spell Buff tuner's Test button fires the cue on every spell / Ruby currently in hand, so the
   // effect can be dialed without waiting for a real buff. It goes through the SAME `fireSpellBuff` the real
   // watcher uses, so mashing Test exercises the retrigger/restart path exactly as a rapid buff chain would.
@@ -1877,7 +1865,7 @@ export function Recruit() {
       fireSpellBuff([...handViews].filter(([, v]) => v.spell || v.ruby).map(([uid]) => uid));
     };
     return () => { delete w.__spellBuffTest; };
-  }, [handViews, fireSpellBuff]);
+  }, [handViews]);
   // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
   // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
   // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.
@@ -3848,7 +3836,6 @@ export function Recruit() {
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
                 buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
-                spellBuffSeq={spellBuffSeq.get(m.uid)}
                 buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}

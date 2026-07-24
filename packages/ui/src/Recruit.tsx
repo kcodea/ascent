@@ -1402,25 +1402,25 @@ export function Recruit() {
     prevHandUidsRef.current = new Set(run.hand.map((c) => c.uid));
     /* ---- GILD: three become one ----------------------------------------------------------------
        Fires on the same `triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
-       claim a card. The consumed copies are already unmounted, hence `cardRectsRef` — it still holds last
-       render's rects, which is exactly the frame before they vanished. The new gilded card is normally in
-       hand, but lands on the BOARD when the hand is full, so both are searched. */
+       claim a card. The new gilded card is normally in hand, but lands on the BOARD when the hand is full,
+       so both are searched. */
     if (tripled && run.phase === 'recruit') {
       const goldUid = [...run.hand, ...run.board]
         .find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid))?.uid;
-      const gone = [...prevHand, ...prevBoard].filter(
-        (u) => !run.hand.some((c) => c.uid === u) && !run.board.some((c) => c.uid === u),
-      );
       const el = goldUid
         ? document.querySelector<HTMLElement>(`.row .card[data-uid="${goldUid}"]`)
         : null;
       if (el) {
-        // The effect opens with the copies already gathered centre screen, so all it needs is HOW MANY were
-        // consumed (3 normally, 2 under Twin Gilding) and where the gilded card lives. It used to fly each
-        // copy in from its old slot, which required caching every card's rect every render; the owner cut
-        // that, and the cache went with it.
+        /* The effect opens with the copies already gathered centre screen, so all it needs is HOW MANY were
+           consumed and where the gilded card lives. Take that from the SIM'S OWN RULE — `checkTriples` pulls
+           `runeTwinGilding ? 2 : 3` — rather than counting the uids that disappeared this commit.
+
+           Counting them undercounts by exactly one, every time you complete a triple by BUYING the third
+           copy: that copy arrived and was consumed inside the same commit, so it was never in a previous
+           render's uid set and never shows up as "gone". Three cards became two, and the right-hand flyer
+           was missing (owner report 2026-07-23). */
         const dest = el.getBoundingClientRect();
-        if (dest.width > 0) playPlateGild(dest, el, gone.length || 3);
+        if (dest.width > 0) playPlateGild(dest, el, run.runeTwinGilding ? 2 : 3);
       }
     }
 

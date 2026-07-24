@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (the shop→hand slide + the top-left ghost card)
 
+### fix(ui): the gild converged only two cards when you bought the third copy
+
+The flyer count came from diffing the uids that vanished this commit, which undercounts by exactly one
+whenever the triple is completed by BUYING the third copy: that copy arrives and is consumed inside the same
+commit, so it was never in a previous render's uid set and never registers as "gone". Three cards became
+two and the right-hand flyer was missing.
+
+It now takes the count from the sim's own rule instead of inferring it — `checkTriples` pulls
+`runeTwinGilding ? 2 : 3`, and that single call site covers Gildmaster's two-copy gild too (it goes through
+the same rune flag), so there is nothing left to infer.
+
 ### feat(ui): buying a card slides it into hand from where you released it
 
 The fourth and last of the card transitions, and deliberately the quietest. A bought card was already

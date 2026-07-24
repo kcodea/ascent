@@ -42,6 +42,9 @@
   .note { margin-top:10px; padding:8px 10px; border-left:3px solid #6b5730; background:#202024;
           color:#a5a5a5; font-size:11px; }
   .beat { color:#e8d7ae; font-weight:600; }
+  .total { margin:10px 0 4px; padding:8px 10px; border-radius:7px; background:#241d10;
+           border:1px solid #6b5730; color:#cbbfae; font-size:12px; }
+  .total b { color:#ffd98a; font-size:15px; font-variant-numeric:tabular-nums; }
 </style></head><body>
 
 <div id="stage">
@@ -61,28 +64,30 @@
   <p class="sub"><span class="beat">Fly in → converge → fuse &amp; crown → fly home.</span> The three copies
   leave their slots, meet centre screen, become one gilded card, and it returns to its place.</p>
 
-  <h2>1 · Fly in</h2>
-  <div class="row"><label title="How long the three take to reach centre screen.">fly in</label><input type="range" id="flyInMs" min="80" max="1200" step="10"><span class="val" id="v_flyInMs"></span></div>
-  <div class="row"><label title="Arrival easing. Higher = they rush out then glide in.">ease</label><input type="range" id="flyInEase" min="0.6" max="4" step="0.05"><span class="val" id="v_flyInEase"></span></div>
-  <div class="row"><label title="How much the three are staggered leaving their slots.">stagger</label><input type="range" id="flyStag" min="0" max="0.7" step="0.02"><span class="val" id="v_flyStag"></span></div>
-  <div class="row"><label title="How big the cards get at centre — the hero-moment zoom.">centre scale</label><input type="range" id="centreScale" min="0.6" max="2.4" step="0.02"><span class="val" id="v_centreScale"></span></div>
-  <div class="row"><label title="How far apart the three sit when they arrive, before merging (× card width).">cluster</label><input type="range" id="cluster" min="0" max="1.4" step="0.02"><span class="val" id="v_cluster"></span></div>
-  <div class="row"><label title="Tilt on the two flanking cards as they arrive, deg.">fan tilt</label><input type="range" id="fanTilt" min="0" max="30" step="1"><span class="val" id="v_fanTilt"></span></div>
-  <div class="row"><label title="How much the rest of the screen dims while this owns it. 0 = no dim.">scrim</label><input type="range" id="scrim" min="0" max="0.85" step="0.02"><span class="val" id="v_scrim"></span></div>
+  <div class="total" id="totalBox">total <b id="totalMs">-</b></div>
 
-  <h2>2 · Converge &amp; fuse</h2>
-  <div class="row"><label title="How long the flanking copies take to slide into the survivor.">merge</label><input type="range" id="mergeMs" min="60" max="1000" step="10"><span class="val" id="v_mergeMs"></span></div>
-  <div class="row"><label title="Beat between arriving and starting to merge — lets the trio read as three.">hold</label><input type="range" id="clusterHold" min="0" max="800" step="10"><span class="val" id="v_clusterHold"></span></div>
+  <h2>1 &middot; Fly in</h2>
+  <div class="row"><label title="TOTAL length of this beat, ms. Everything below is a share of it.">duration</label><input type="range" id="inMs" min="60" max="1200" step="10"><span class="val" id="v_inMs"></span></div>
+  <div class="row"><label title="Arrival easing. Higher = they rush out then glide in.">ease</label><input type="range" id="flyInEase" min="0.6" max="4" step="0.05"><span class="val" id="v_flyInEase"></span></div>
+  <div class="row"><label title="Share of the beat spent staggering the three departures.">stagger</label><input type="range" id="flyStag" min="0" max="0.7" step="0.02"><span class="val" id="v_flyStag"></span></div>
+  <div class="row"><label title="How big the cards get at centre - the hero-moment zoom.">centre scale</label><input type="range" id="centreScale" min="0.6" max="2.4" step="0.02"><span class="val" id="v_centreScale"></span></div>
+  <div class="row"><label title="How far apart the three sit on arrival, before merging (x card width).">cluster</label><input type="range" id="cluster" min="0" max="1.4" step="0.02"><span class="val" id="v_cluster"></span></div>
+  <div class="row"><label title="Tilt on the two flanking cards, deg.">fan tilt</label><input type="range" id="fanTilt" min="0" max="30" step="1"><span class="val" id="v_fanTilt"></span></div>
+  <div class="row"><label title="How much the board dims while this owns the screen. 0 = no dim.">scrim</label><input type="range" id="scrim" min="0" max="0.85" step="0.02"><span class="val" id="v_scrim"></span></div>
+
+  <h2>2 &middot; Converge &amp; fuse</h2>
+  <div class="row"><label title="TOTAL length of this beat, ms.">duration</label><input type="range" id="fuseMs" min="60" max="1200" step="10"><span class="val" id="v_fuseMs"></span></div>
+  <div class="row"><label title="Share of the beat the trio HOLDS before merging - lets it read as three. The rest is the merge.">hold share</label><input type="range" id="holdFrac" min="0" max="0.8" step="0.02"><span class="val" id="v_holdFrac"></span></div>
   <div class="row"><label title="Motes drawn out of the copies into the survivor's wireframe.">stream</label><input type="range" id="streamCount" min="0" max="900" step="10"><span class="val" id="v_streamCount"></span></div>
   <div class="row"><label title="How much each stream bows on its way across. 0 = straight.">arc</label><input type="range" id="arc" min="-1.5" max="1.5" step="0.02"><span class="val" id="v_arc"></span></div>
   <div class="row"><label>mote size</label><input type="range" id="fuseSize" min="0.5" max="8" step="0.1"><span class="val" id="v_fuseSize"></span></div>
   <div class="row"><label>trail</label><input type="range" id="trail" min="0" max="0.95" step="0.01"><span class="val" id="v_trail"></span></div>
 
-  <h2>3 · Crown</h2>
-  <div class="row"><label title="When the gold erupts, ms after the merge ends. Negative overlaps it.">crown at</label><input type="range" id="crownAt" min="-500" max="600" step="10"><span class="val" id="v_crownAt"></span></div>
-  <div class="row"><label>wire in</label><input type="range" id="wireIn" min="10" max="600" step="5"><span class="val" id="v_wireIn"></span></div>
-  <div class="row"><label>wire hold</label><input type="range" id="wireHold" min="0" max="1200" step="10"><span class="val" id="v_wireHold"></span></div>
-  <div class="row"><label>wire out</label><input type="range" id="wireOut" min="10" max="900" step="10"><span class="val" id="v_wireOut"></span></div>
+  <h2>3 &middot; Crown</h2>
+  <div class="row"><label title="TOTAL length of this beat, ms.">duration</label><input type="range" id="crownMs" min="60" max="1400" step="10"><span class="val" id="v_crownMs"></span></div>
+  <div class="row"><label title="How much of the crown OVERLAPS the end of the fuse. 0 = strictly after; higher = it fires while the copies are still merging, which SHORTENS the whole effect.">overlap</label><input type="range" id="crownLead" min="0" max="0.9" step="0.02"><span class="val" id="v_crownLead"></span></div>
+  <div class="row"><label title="Share of the crown spent fading the gold wireframe IN.">wire in</label><input type="range" id="wireInFrac" min="0.05" max="0.8" step="0.02"><span class="val" id="v_wireInFrac"></span></div>
+  <div class="row"><label title="Share spent HOLDING it. Whatever is left of the beat is the fade-out.">wire hold</label><input type="range" id="wireHoldFrac" min="0" max="0.8" step="0.02"><span class="val" id="v_wireHoldFrac"></span></div>
   <div class="row"><label>wire intensity</label><input type="range" id="wireInten" min="0" max="2.5" step="0.02"><span class="val" id="v_wireInten"></span></div>
   <div class="row"><label title="How much the card punches out on the crown beat.">punch</label><input type="range" id="punch" min="1" max="1.6" step="0.005"><span class="val" id="v_punch"></span></div>
   <div class="row"><label>glow near</label><input type="range" id="g1v" min="0" max="120" step="1"><span class="val" id="v_g1v"></span></div>
@@ -94,20 +99,20 @@
   <h2>Flourish</h2>
   <div class="row"><label title="The signature only gilding gets.">type</label>
     <select id="flourishType">
-      <option value="rays">rays — a sunburst behind the card</option>
-      <option value="crown">crown — an arc of points above</option>
-      <option value="seal">seal — a rotating rune ring</option>
-      <option value="rings">rings — expanding gold shockwaves</option>
-      <option value="none">none — wireframe only</option>
+      <option value="rays">rays - a sunburst behind the card</option>
+      <option value="crown">crown - an arc of points above</option>
+      <option value="seal">seal - a rotating rune ring</option>
+      <option value="rings">rings - expanding gold shockwaves</option>
+      <option value="none">none - wireframe only</option>
     </select></div>
+  <div class="row"><label title="Flourish length as a share of the crown beat. Over 1 lets it outlast the crown, which extends the effect.">length</label><input type="range" id="flFrac" min="0.2" max="2" step="0.02"><span class="val" id="v_flFrac"></span></div>
   <div class="row"><label>size</label><input type="range" id="flSize" min="0.4" max="3" step="0.02"><span class="val" id="v_flSize"></span></div>
   <div class="row"><label>intensity</label><input type="range" id="flInten" min="0" max="2" step="0.02"><span class="val" id="v_flInten"></span></div>
-  <div class="row"><label>duration</label><input type="range" id="flMs" min="80" max="1800" step="10"><span class="val" id="v_flMs"></span></div>
   <div class="row"><label>spin</label><input type="range" id="flSpin" min="-360" max="360" step="5"><span class="val" id="v_flSpin"></span></div>
 
-  <h2>4 · Fly home</h2>
-  <div class="row"><label title="Beat the gilded card holds at centre before leaving.">savour</label><input type="range" id="savourMs" min="0" max="1400" step="10"><span class="val" id="v_savourMs"></span></div>
-  <div class="row"><label title="How long the gilded card takes to reach its slot.">fly out</label><input type="range" id="flyOutMs" min="80" max="1200" step="10"><span class="val" id="v_flyOutMs"></span></div>
+  <h2>4 &middot; Fly home</h2>
+  <div class="row"><label title="TOTAL length of this beat, ms - the savour plus the flight.">duration</label><input type="range" id="outMs" min="60" max="1400" step="10"><span class="val" id="v_outMs"></span></div>
+  <div class="row"><label title="Share of the beat the gilded card HOLDS at centre before leaving. The rest is the flight.">savour share</label><input type="range" id="savourFrac" min="0" max="0.8" step="0.02"><span class="val" id="v_savourFrac"></span></div>
   <div class="row"><label title="Departure easing. Higher = it lingers then darts home.">ease</label><input type="range" id="flyOutEase" min="0.6" max="4" step="0.05"><span class="val" id="v_flyOutEase"></span></div>
 
   <h2>Gold</h2>
@@ -137,12 +142,15 @@ const PLATE_AR = 1244 / 800;
 const REF_W = 200;
 
 const DEF = {
-  flyInMs: 420, flyInEase: 2.0, flyStag: 0.22, centreScale: 1.5, cluster: 0.62, fanTilt: 12, scrim: 0.55,
-  mergeMs: 300, clusterHold: 180, streamCount: 300, arc: 0.5, fuseSize: 2.6, trail: 0.3,
-  crownAt: -80, wireIn: 90, wireHold: 200, wireOut: 300, wireInten: 1.1, punch: 1.16,
+  // Beat TOTALS (ms). The whole effect is their sum, less the crown's overlap. Everything inside a beat is a
+  // SHARE of its total, so tightening one beat can never silently push another - or the effect - longer.
+  inMs: 420, fuseMs: 400, crownMs: 560, outMs: 520,
+  flyInEase: 2.0, flyStag: 0.22, centreScale: 1.5, cluster: 0.62, fanTilt: 12, scrim: 0.55,
+  holdFrac: 0.35, streamCount: 300, arc: 0.5, fuseSize: 2.6, trail: 0.3,
+  crownLead: 0.2, wireInFrac: 0.18, wireHoldFrac: 0.32, wireInten: 1.1, punch: 1.16,
   g1v: 60, g2v: 90, cardFlash: 1.3, burst: 260, burstSpd: 320,
-  flourishType: 'rays', flSize: 1.6, flInten: 1, flMs: 700, flSpin: 40,
-  savourMs: 260, flyOutMs: 380, flyOutEase: 2.2,
+  flourishType: 'rays', flFrac: 1.1, flSize: 1.6, flInten: 1, flSpin: 40,
+  savourFrac: 0.4, flyOutEase: 2.2,
   cDeep: '#a9700f', cMid: '#f1cb5e', cCore: '#fff6d5', grad: 0.8,
   pw: 150,
 };
@@ -232,13 +240,23 @@ function place(el, x, y, scale, rot, alpha) {
 /* ---------- timeline ---------- */
 function marks() {
   const t = {};
-  t.flyIn = C.flyInMs;
-  t.mergeStart = t.flyIn + C.clusterHold;
-  t.mergeEnd = t.mergeStart + C.mergeMs;
-  t.crown = t.mergeEnd + C.crownAt;
-  t.wireDone = t.crown + C.wireIn + C.wireHold + C.wireOut;
-  t.leave = Math.max(t.wireDone, t.crown + C.flMs) + C.savourMs;
-  t.end = t.leave + C.flyOutMs;
+  t.flyIn = C.inMs;
+  t.hold = C.fuseMs * C.holdFrac;
+  t.mergeStart = t.flyIn + t.hold;
+  t.mergeMs = Math.max(1, C.fuseMs - t.hold);
+  t.mergeEnd = t.flyIn + C.fuseMs;
+  // the crown may fire before the fuse finishes; that overlap SHORTENS the whole effect
+  t.crown = t.mergeEnd - C.crownMs * C.crownLead;
+  t.wireIn = Math.max(10, C.crownMs * C.wireInFrac);
+  t.wireHold = C.crownMs * C.wireHoldFrac;
+  t.wireOut = Math.max(10, C.crownMs - t.wireIn - t.wireHold);   // whatever is left of the beat
+  t.flMs = C.crownMs * C.flFrac;
+  t.crownEnd = t.crown + C.crownMs;
+  t.savour = C.outMs * C.savourFrac;
+  // the flourish may outlast the crown - don't fly home while it is still going
+  t.leave = Math.max(t.crownEnd, t.crown + t.flMs) + t.savour;
+  t.flyOutMs = Math.max(1, C.outMs - t.savour);
+  t.end = t.leave + t.flyOutMs;
   return t;
 }
 
@@ -269,7 +287,7 @@ function blit(c, spr, x, y, r, a) {
   c.drawImage(spr, x-r, y-r, r*2, r*2);
 }
 
-function drawFlourish(p, k, cx, cy) {
+function drawFlourish(p, k, cx, cy, flMs) {
   flx.clearRect(0,0,fl.width,fl.height);
   if (C.flourishType === 'none' || p <= 0 || p >= 1) return;
   const grow = 1 - Math.pow(1-p, 2.2);
@@ -277,7 +295,7 @@ function drawFlourish(p, k, cx, cy) {
   const R = CW * C.flSize * grow;
   flx.save();
   flx.translate(cx, cy);
-  flx.rotate((p * C.flMs/1000) * C.flSpin * Math.PI/180);
+  flx.rotate((p * flMs/1000) * C.flSpin * Math.PI/180);
   flx.globalAlpha = Math.max(0, fade) * C.flInten;
   flx.strokeStyle = C.cCore; flx.fillStyle = C.cMid;
   flx.shadowColor = C.cMid; flx.shadowBlur = 24 * k;
@@ -331,8 +349,8 @@ function frame(now) {
   // 1 fly in (staggered) → 2 cluster → 3 flanks merge into the survivor → 4 survivor flies home
   const pos = [];
   for (let i = 0; i < 3; i++) {
-    const born = (i / 2) * C.flyStag * C.flyInMs;
-    const inT = Math.max(0, Math.min(1, (ms - born) / Math.max(1, C.flyInMs * (1 - C.flyStag))));
+    const born = (i / 2) * C.flyStag * C.inMs;
+    const inT = Math.max(0, Math.min(1, (ms - born) / Math.max(1, C.inMs * (1 - C.flyStag))));
     const a = easeOut(inT, C.flyInEase);
     // cluster offsets: flanks left/right of the survivor
     const off = (i === 2) ? 0 : (i === 0 ? -1 : 1) * C.cluster * CW;
@@ -342,7 +360,7 @@ function frame(now) {
     pos.push({ x: SRC[i].x + (cx - SRC[i].x) * a, y: SRC[i].y + (cy - SRC[i].y) * a, sc, rot, al: 1 });
   }
   // flanks merge in
-  const mg = Math.max(0, Math.min(1, (ms - T.mergeStart) / Math.max(1, C.mergeMs)));
+  const mg = Math.max(0, Math.min(1, (ms - T.mergeStart) / Math.max(1, T.mergeMs)));
   for (let i = 0; i < 2; i++) {
     const e = easeOut(mg, 1.8);
     pos[i].x += (CENTRE.x - pos[i].x) * e;
@@ -352,8 +370,8 @@ function frame(now) {
     pos[i].sc *= (1 - 0.18*mg);
   }
   // survivor: crown punch, then flies home
-  const crownP = Math.max(0, Math.min(1, (ms - T.crown) / Math.max(1, C.wireIn)));
-  const outT = Math.max(0, Math.min(1, (ms - T.leave) / Math.max(1, C.flyOutMs)));
+  const crownP = Math.max(0, Math.min(1, (ms - T.crown) / Math.max(1, T.wireIn)));
+  const outT = Math.max(0, Math.min(1, (ms - T.leave) / Math.max(1, T.flyOutMs)));
   const oa = easeOut(outT, C.flyOutEase);
   const punchNow = 1 + (C.punch - 1) * Math.sin(Math.min(1, crownP) * Math.PI);
   pos[2].x += (DEST.x - pos[2].x) * oa;
@@ -362,7 +380,7 @@ function frame(now) {
   cards.forEach((el, i) => place(el, pos[i].x, pos[i].y, pos[i].sc, pos[i].rot, pos[i].al));
 
   // ---- scrim: up as they gather, down as the card leaves ----
-  const inAll = Math.max(0, Math.min(1, ms / Math.max(1, C.flyInMs)));
+  const inAll = Math.max(0, Math.min(1, ms / Math.max(1, C.inMs)));
   scrimEl.style.opacity = String(C.scrim * inAll * (1 - oa));
 
   // ---- fuse streams + crown burst ----
@@ -371,9 +389,9 @@ function frame(now) {
   ctx.fillRect(0, 0, fx.width, fx.height);
   ctx.globalCompositeOperation = 'lighter';
   if (ms >= T.mergeStart) {
-    const span = Math.max(1, C.mergeMs * 0.5);
+    const span = Math.max(1, T.mergeMs * 0.5);
     for (const p of streams) {
-      const t = (ms - T.mergeStart - p.born*C.mergeMs) / span;
+      const t = (ms - T.mergeStart - p.born*T.mergeMs) / span;
       if (t < 0 || t > 1) continue;
       const from = pos[p.ci], to = pos[2];
       const sx = from.x + (p.su-0.5)*CW*from.sc, sy = from.y + (p.sv-0.5)*CH*from.sc;
@@ -400,13 +418,13 @@ function frame(now) {
   ctx.globalAlpha = 1;
 
   // ---- crown: gold wireframe + card flash + flourish ----
-  const wOut = Math.max(0, Math.min(1, (ms - (T.crown + C.wireIn + C.wireHold)) / Math.max(1, C.wireOut)));
+  const wOut = Math.max(0, Math.min(1, (ms - (T.crown + T.wireIn + T.wireHold)) / Math.max(1, T.wireOut)));
   imprint.style.opacity = String(crownP * (1 - wOut) * C.wireInten);
   const flash = crownP * (1 - wOut) * C.cardFlash;
   heroImg.style.filter = flash > 0
     ? `brightness(${1 + flash*0.55}) saturate(${1 + flash*0.5}) drop-shadow(0 0 ${18*k*flash}px ${rgba(C.cMid,0.9)})`
     : 'none';
-  drawFlourish((ms - T.crown) / Math.max(1, C.flMs), k, pos[2].x, pos[2].y);
+  drawFlourish((ms - T.crown) / Math.max(1, T.flMs), k, pos[2].x, pos[2].y, T.flMs);
 
   if (ms >= T.end + 200) {
     running = false;
@@ -436,6 +454,14 @@ function syncUI() {
     const v = $('v_'+k); if (v) v.textContent = C[k];
   }
   $('out').value = JSON.stringify(C, null, 2);
+  showTotal();
+}
+// The number the owner is actually steering by. Derived from the timeline, so the crown's overlap and a
+// flourish that outlasts its beat are both reflected rather than silently changing the real length.
+function showTotal() {
+  const T = marks();
+  const el = $('totalMs');
+  if (el) el.textContent = Math.round(T.end) + ' ms';
 }
 for (const k of KEYS) {
   const el = $(k); if (!el) continue;
@@ -443,6 +469,7 @@ for (const k of KEYS) {
     C[k] = (el.tagName === 'SELECT' || el.type === 'color') ? el.value : parseFloat(el.value);
     const v = $('v_'+k); if (v) v.textContent = C[k];
     $('out').value = JSON.stringify(C, null, 2);
+    showTotal();
     if (k === 'pw') layout(); else paintLook();
     if (k === 'cCore' || k === 'cMid') bake();
   });

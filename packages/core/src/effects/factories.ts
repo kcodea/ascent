@@ -792,6 +792,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Rally — when *this* minion attacks, buff friendly minions (+atk/+hp). With no extra params it buffs
    *  every other living friend; `tribe` restricts to that tribe (dual-types count) and `count` caps how many
    *  are hit (a random pick when there are more eligible) — Supporter: 2 friendly Dragons. */
+  /** Set 2 — Packstrider (Rally): on its own attack, buff ITSELF by `attack`/`health` for every friendly
+   *  `tribe` minion you control (including itself). Golden doubles the per-Beast rate. Scales with the board,
+   *  so it rewards going wide. */
+  rallyBuffSelfPerTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = str(params.tribe);
+    const count = ctx.living(self.side).filter(
+      (m) => !tribe || m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe,
+    ).length;
+    if (count <= 0) return;
+    ctx.buff(self, num(params.attack, 1) * mul(self) * count, num(params.health, 1) * mul(self) * count, self.uid);
+  },
+
   rallyBuff: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // only on this minion's own attack

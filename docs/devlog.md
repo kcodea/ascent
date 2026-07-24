@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-07-24 (Set 2's Beast tribe — foundation + Packstrider)
+
+### feat(content/sim): open the Set-2 Beast tribe (carry-over + Packstrider)
+
+Owner handed over a 21-card Beast roster. Unlike the Dragons (a new identity), these are the SET-1 Beasts
+brought into set 2 with a spell/summon tilt: 6 of the 21 already exist in set 1, the rest are new or re-spec'd.
+
+Wired the tribe in — `beast` joins set 2's `tribes`, `SET2_BEASTS` joins its `own` manifest, and the set-1
+Beasts whose table spec matches their existing card carry over via `SET1_BEASTS_IN_SET2` (Badgington, Sea
+Urchin, Sporebat, Void Panther) — the same opt-in-by-id pattern Karwind uses.
+
+Built Packstrider (T1 2/2, the one fully-specified NEW card): a go-wide Rally finisher that buffs ITSELF by
++1/+1 (golden +2/+2) per Beast you control, via a new `rallyBuffSelfPerTribe` combat factory. Tested against a
+3-Beast board (+3/+3), with a note that a BoardMinion tribe override doesn't reach the combat minion (it reads
+the CardDef tribe) — so the test uses real Strays, not tribe-cast sandbags. Suite 1588 + typecheck + lint +
+build:web + harness green.
+
+**Blocked on owner input — the bulk of the roster:**
+* 14 of 21 cards list NO Attack/Health in the table (T-Rex, Mosswhisker Adept, Lancel, Echohorn Stag, Dawnclaw,
+  Sunmane Herald, Denkeeper Oona, Groveweaver, Moonlit Scavenger, Solaris, Runebloom Matriarch, Menagerie
+  Mammoth, Moonhowl Mentor, Elderhorn) — can't be authored without stats.
+* Two existing cards are RE-SPEC'd vs their set-1 versions and need the same "re-spec the shared card vs a set-2
+  variant" call Karwind got: Kennelmaster (base +2→+1 Attack, adds Avenge 3) and Runic Beetle (its Choose-One
+  now also grants +1/+1 or +3 Attack). Left at their set-1 spec for now.
+* New tokens (T-Rex Baby, Mage-Pup) and a genuinely novel mechanic — Moonhowl Mentor's "when you buy a Shop
+  spell, teach it to a Mage-Pup; End of Turn, get that Mage-Pup" — need rulings before they're built.
+
 ## 2026-07-24 (Dragon fixes — Grimoire/Spellkeeper count from placement, Grimoire hits Rubies)
 
 ### fix(sim/content): Living Grimoire + Spellkeeper count from when they hit the board, not turn start

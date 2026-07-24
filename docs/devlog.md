@@ -3,6 +3,79 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — P1 foundation)
+
+### feat(fx): a composable, dev-only FX workbench (effects as data)
+
+The first working slice of the FX workbench designed on 2026-07-23
+([spec](superpowers/specs/2026-07-23-fx-workbench-design.md),
+[plan](superpowers/plans/2026-07-23-fx-workbench-p1.md)). It ends the panel-per-effect tax: the repo had
+34 hand-written `*Tuner.tsx` panels and ~30 `*Config.ts` files (7,724 lines) built on four parallel lists
+per effect (`DEFAULTS`/`RANGES`/`KEYS`/`LABELS`) that nothing forced to agree — and had already drifted
+(`TrailTuner` rendered two blank-labelled sliders). Now an effect is **data played by a runtime player**,
+and a primitive declares its parameters **once**.
+
+Everything new lives under `packages/ui/src/fx/`:
+
+- **`params.ts`** — one `FxParamSpec` record per primitive derives BOTH the params type (`ParamsOf<S>`)
+  and the editor UI. Enum params resolve to a union of their own `options` (a bidirectional
+  `expectTypeOf` test pins this — it fails against the naive `S[K]['default']` definition). `coerceParams`
+  clamps/drops invalid values so a bad saved def degrades to defaults rather than throwing; `validateSpecs`
+  catches a self-contradictory spec (default outside its own range, enum default not in options) at
+  registration.
+- **`primitive.ts` / `registry.ts`** — the `FxPrimitive<S>` / `FxInstance<P>` contract (generic, so
+  `setParams` stays type-checked even at the erased registry boundary, where `ParamsOf<FxParamSpecs>`
+  resolves to `Record<string, string|number|boolean>`, not `unknown`) and a self-registering primitive
+  registry. Invalid-spec warnings are gated to `import.meta.env.DEV`.
+- **`def.ts`** — an effect is `{ duration, layers: [{ primitive, anchor, at, life?, params }] }`;
+  `layerStateAt` is pure timeline arithmetic (clamped so a layer starting past the duration reports
+  `done`/`localMs:0` rather than a negative time), which is what makes frame-accurate scrubbing testable
+  without a renderer. Deliberately not a scripting language — no expressions or conditionals.
+- **`player.ts`** — `createPlayer(def, ctx)` owns layer lifetimes, the clock, loop, scrub, speed, and
+  live param edits (routed through `coerceParams`, never mutating the caller's `def`). Loop-wrap kills and
+  respawns layers; replay-after-finish resets, but a mid-playback pause/resume does not.
+- **`ribbonGeometry.ts`** — pure arc-length resample + extrude into a triangle strip, with neighbour-based
+  (not per-segment) tangents so the ribbon doesn't facet on the curved travel arc, and a parameterised
+  head-pinch / tail-feather silhouette. Reuses module-level scratch buffers — zero per-frame allocation.
+- **`primitives/ribbon.ts`** — the first real primitive: a posterized cel-band trail shader (GLSL ES 3.0).
+  The look is hard-edged band quantisation (`floor(q*uBands)`), not soft particles; a plateau width profile
+  gives the fat white-hot core (a linear falloff never lets the top band fire). 18 tunable params in
+  Style/Noise/Shape groups; six palettes. `destroy()` frees its geometry+shader (Pixi's `Mesh.destroy()`
+  deliberately doesn't cascade to those).
+- **`anchors.ts` / `scenarios.ts`** — anchors resolve to screen space (`travel` bows into an arc, since a
+  straight line reads as a laser); scenarios (`Two units`, `Follow cursor`) stage those anchors so an
+  effect can be tuned without playing the game to the moment it fires.
+- **`pixiFx.ts` seam** — `mountLayer` / `addUpdater` / `renderer` let the workbench draw through the real
+  overlay pipeline (so what you tune is what ships) rather than a parallel one. A throwing workbench
+  updater is caught and evicted, so dev tooling can't freeze shipped combat FX. Pre-attach mounts queue.
+- **`fx/ui/` shell** — a dev-only, full-screen workbench (launched from the DevMenu): a stage on the real
+  overlay, transport (play/pause/scrub/speed), and an inspector **generated entirely from the primitive's
+  param specs** — no hand-written labels/ranges. Behind `import.meta.env.DEV` with a DEV-gated dynamic
+  import of the primitive, so the whole thing (shader source included) tree-shakes out of production.
+
+**Built via subagent-driven development** — a fresh implementer per task, each followed by a spec-compliance
+review and a code-quality review, with the reviewers reproducing every claimed fix against its bug. The
+reviews caught a string of real defects, several of them in the plan's own reference code: an unsound enum
+type, a vacuous type assertion, a missing `end` clamp, a loop-wrap that never restarted layers,
+`setLayerParams` mutating the caller's state, a straightened travel arc, per-frame allocations, a throwing
+updater that could freeze combat FX, a GPU geometry/shader leak on ribbon teardown, and — caught by the
+implementer — the primitive's self-registration dragging the whole shader into the prod bundle.
+
+**Verified:** `npm run typecheck` + `lint` (0 errors) + `test` (1617 passing, 100 files) + `build:web` all
+green; the workbench confirmed **absent from the prod JS bundle**; `npm run perf` all within budget (no
+engine change — baseline). Live browser check on a worktree dev server: the shell mounts (18 generated
+slider rows in 3 groups), the ribbon renders with the posterized bands and white core proven by
+framebuffer colour-bucketing, switching palette (→ ember) and dropping bands to 1 drive the shader live
+through the generated inspector, and closing the workbench releases its updater + container and leaves the
+shared overlay healthy (GL error 0).
+
+**Follow-ups:** P2 (timeline UI, more primitives — burst/shockwave/shaderQuad/emitter, save-to-file via a
+dev Vite middleware, anchors in real combat moments), P3 (A/B compare, preset/palette library, perf HUD),
+P4 (opportunistically migrate the 34 existing tuners onto the schema). Also tracked separately: wiring
+`typecheck:web` into CI, without which these type-level tests aren't enforced there (and the ~50
+pre-existing `packages/ui` type errors stay invisible). Swapping the shipped `pixiFx.trail` wisps for the
+ribbon is a deliberate later PR, once the owner has tuned the look.
+
 ## 2026-07-22 (plate coalesce — cards being generated)
 
 ### fix(ui): the inspect buff breakdown rendered behind the card plate

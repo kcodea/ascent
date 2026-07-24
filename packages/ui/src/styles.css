@@ -5010,6 +5010,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-row label { font-size: 12px; font-weight: 700; color: #d9d3ea; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fxwb-row input[type='range'] { width: 100%; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
 .fxwb-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-row input[type='range']::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
 .fxwb-row input[type='checkbox'] { justify-self: start; accent-color: #c936ef; width: 15px; height: 15px; cursor: pointer; }
 .fxwb-row select {
   grid-column: 2 / span 2; background: #2b2739; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;
@@ -5035,10 +5036,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-play:hover { border-color: #c936ef; color: #f0a0ff; }
 .fxwb-scrub { flex: 1 1 220px; min-width: 120px; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
 .fxwb-scrub::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-scrub::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
 .fxwb-time { flex: none; font-size: 11px; font-weight: 700; color: #b9b1cf; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fxwb-speedlabel { flex: none; font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em; }
 .fxwb-speed { flex: none; width: 90px; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
 .fxwb-speed::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-speed::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
 .fxwb-speedval { flex: none; font-size: 11px; font-weight: 800; color: #f0a0ff; font-variant-numeric: tabular-nums; }
 .fxwb-hint { flex: 1 1 100%; font-size: 11px; color: #8a7fa8; line-height: 1.3; }
 @media (min-width: 900px) {

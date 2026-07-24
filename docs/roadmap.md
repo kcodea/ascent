@@ -130,6 +130,18 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **FX Workbench — P2 (composition).** P1 shipped 2026-07-24 (see devlog): effects are data played by a
+  runtime player, primitives declare their params once, and a dev-only shell generates its inspector from
+  that. P2 builds on it: a timeline UI (multi-layer defs — the def format + `layerStateAt` scheduler already
+  support them, the shell just edits one layer today); more primitives (burst, shockwave, shaderQuad,
+  emitter); anchors staged from real combat moments, not just scenarios; and save-to-file for defs via a
+  dev-only Vite middleware (clipboard-copy is the P1 stand-in). P3 = A/B compare, preset/palette library,
+  perf HUD. P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
+  regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
+  A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests
+  aren't enforced there and the ~50 pre-existing `packages/ui` type errors stay invisible. Swapping the
+  shipped `pixiFx.trail` wisps for the new ribbon is its own later PR once the owner has tuned the look.
+
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own
   for that move, used *instead of* the coalesce, not alongside it. The exclusion is already wired

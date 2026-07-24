@@ -125,6 +125,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           // canvas origin with no transform, and the overlay canvas itself is a full-viewport element at
           // (0,0) — so these page/screen coordinates map directly onto the container's local space with
           // no conversion needed, matching what the ribbon primitive's `setHead` assumes.
+          // Layer 0 is the def's only layer (P1 stages a single-layer effect); revisit when the
+          // workbench can stage multiple layers at once.
           p.setHead(0, pt.x, pt.y);
         }
 

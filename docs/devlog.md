@@ -43,6 +43,13 @@ Divine Shield aura gold (a persistent keyword state).
 
 New dev tuner **👑 Plate Gild** with a "Play here" button and the live total in its header.
 
+**Then the fly-in was cut entirely (owner, same session).** Rather than reconstruct where each copy had
+been, the effect now OPENS with the three already gathered centre screen, fading in at their cluster seats.
+That deleted `cardRectsRef`, the per-render layout reads that fed it, the DEV warning that guarded it, and
+the whole class of bug that comes with reconstructing positions after the fact — all the call site needs now
+is how many copies were consumed (3, or 2 under Twin Gilding) and where the gilded card lives. The rig was
+updated to match, so what's tuned is what ships.
+
 **Two bugs on the owner's first play-test, both one root cause.** The flyers came in from the top-left
 corner rather than their slots, and the frame sat off-centre inside the plate — before AND after they
 converged.

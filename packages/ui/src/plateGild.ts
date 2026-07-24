@@ -2,19 +2,24 @@
  * PLATE GILD — what plays when three copies combine into a gilded card.
  *
  * The third of the plate effects, and the loudest: this is a run highlight, not a state change. The copies
- * leave their slots, meet centre screen, merge into one, the survivor erupts gold — the plate wireframe in
- * gold plus a flourish only gilding gets — and the gilded card flies home to its slot.
+ * are ALREADY gathered centre screen when it opens; they converge into one, the survivor erupts gold — the
+ * plate wireframe in gold plus a flourish only gilding gets — and the gilded card flies home to its slot.
  *
- * Owner's shape (2026-07-22): fuse then crown, wireframe family plus a signature, and the three MEET IN THE
- * MIDDLE rather than fusing in place. Authored on `fx/plate-gild-preview.html`.
+ * Owner's shape (2026-07-22): fuse then crown, wireframe family plus a signature.
+ * Authored on `fx/plate-gild-preview.html`.
+ *
+ * ## They do not fly in from their old slots
+ *
+ * An earlier pass flew each copy from wherever it had been sitting, which needed a cache of every card's
+ * last-known rect (the copies are unmounted before the UI can see the triple). The owner cut it: the effect
+ * now OPENS with the three already met in the middle. That deleted the cache, the per-render layout reads
+ * that fed it, and the whole class of bug that came with reconstructing positions after the fact.
  *
  * ## The cards you see are clones
  *
- * By the time the UI can detect a triple, the sim has already spliced the consumed copies out and React has
- * unmounted them — their DOM is gone and their positions are unrecoverable (hence the rect cache in
- * `Recruit.tsx` that feeds `sources` here). So the three cards that fly are CLONES of the surviving gilded
- * card, with `.golden` stripped so they render as the plain minion they were, and re-added on the survivor
- * at the crown so the transformation is something you actually watch happen.
+ * The consumed copies are gone from the DOM by the time this runs, so the cards you see are CLONES of the
+ * surviving gilded card, with `.golden` stripped so they render as the plain minion they were, and re-added
+ * on the survivor at the crown so the transformation is something you actually watch happen.
  *
  * `cloneNode` gives a BLANK canvas, and sprite-art cards (those without illustrated art) draw into one — so
  * every canvas in a clone is repainted from its original. Without that, those cards would fly as empty
@@ -30,7 +35,7 @@ import { WIRE_SRC, REF_W, sprite, rgba, arcaneGradient } from './plateFx';
 export type Rect = { left: number; top: number; width: number; height: number };
 
 export interface PlateGildConfig {
-  /** Beat 1 — the three leave their slots and reach centre screen, ms. */
+  /** Beat 1 — the three fade in at centre, already gathered, ms. */
   inMs: number;
   /** Beat 2 — hold as a trio, then merge, ms. */
   fuseMs: number;
@@ -39,7 +44,7 @@ export interface PlateGildConfig {
   /** Beat 4 — savour, then fly home, ms. */
   outMs: number;
   flyInEase: number;
-  /** Share of beat 1 spent staggering the three departures. */
+  /** Share of beat 1 spent staggering the three arrivals. */
   flyStag: number;
   /** How big the cards get at centre — the hero zoom. */
   centreScale: number;
@@ -106,12 +111,12 @@ export const PG_RANGES: Record<string, [number, number, number]> = {
   savourFrac: [0, 0.8, 0.02], flyOutEase: [0.6, 4, 0.05], grad: [0, 1, 0.02],
 };
 export const PG_DESC: Record<string, string> = {
-  inMs: 'Beat 1 TOTAL — the three leave their slots and reach centre screen.',
+  inMs: 'Beat 1 TOTAL — the three fade in at centre, already gathered.',
   fuseMs: 'Beat 2 TOTAL — hold as a trio, then merge.',
   crownMs: 'Beat 3 TOTAL — the gold erupts.',
   outMs: 'Beat 4 TOTAL — savour, then fly home.',
-  flyInEase: 'Arrival easing. Higher = rush out then glide in.',
-  flyStag: 'Share of beat 1 staggering the three departures.',
+  flyInEase: 'Appear easing.',
+  flyStag: 'Share of beat 1 staggering the three appearances.',
   centreScale: 'How big the cards get at centre — the hero zoom.',
   cluster: 'How far apart the three sit on arrival (× card width).',
   fanTilt: 'Tilt on the two flanking cards, deg.',
@@ -221,12 +226,12 @@ export const plateGildDuration = (): number => beats(cfg).end + 160;
 /**
  * Play the gild.
  *
- * @param sources  Where the consumed copies were, from the rect cache. May be short (1–2) if a rect
- *                 couldn't be resolved; the effect simply flies fewer cards rather than faking positions.
- * @param dest     Where the gilded card lives now.
- * @param card     The real gilded card element — hidden until it lands, so the clone is what you watch.
+ * @param dest   The gilded card's own rect — where it flies home to.
+ * @param card   The real gilded card element; hidden until it lands, so the clone is what you watch.
+ * @param copies How many cards were consumed (3 normally, 2 under Twin Gilding). The last flyer is the
+ *               survivor; the rest flank it.
  */
-export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): void {
+export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
   if (typeof document === 'undefined') return;
   const c = cfg;
   const T = beats(c);
@@ -239,8 +244,7 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
   const vw = window.innerWidth, vh = window.innerHeight;
   const CENTRE = { x: vw / 2, y: vh * 0.46 };
   const DEST = centreOf(dest);
-  // the survivor starts from its own slot; the copies from wherever they were
-  const starts = [...sources.slice(0, 2).map(centreOf), DEST];
+  const n = Math.max(2, Math.min(4, Math.round(copies)));   // last one is the survivor
 
   // hide the real card — `!important` because a fresh card carries `.popin`, whose keyframes animate
   // opacity and would otherwise outrank a plain inline style (the bug fixed for the coalesce in #671)
@@ -262,14 +266,14 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
 
   // three flying clones, all plain — the survivor regains `.golden` at the crown so you watch it turn
   const flyers: HTMLElement[] = [];
-  for (let i = 0; i < starts.length; i++) {
+  for (let i = 0; i < n; i++) {
     const el = cloneCard(card);
     el.classList.remove('golden');
     // NO width/height: the clone sizes itself from the vars copied in `cloneCard`, exactly as it did in its
     // row. And the opening transform is set BEFORE append, so there is never a frame painted at (0,0).
     el.style.cssText += `position:fixed;left:0;top:0;margin:0;pointer-events:none;`
-      + `z-index:${i === starts.length - 1 ? 304 : 303};transform-origin:50% 50%;`;
-    el.style.transform = `translate(${starts[i].x - W / 2}px, ${starts[i].y - H / 2}px) scale(1)`;
+      + `z-index:${i === n - 1 ? 304 : 303};transform-origin:50% 50%;`;
+    el.style.setProperty('opacity', '0', 'important');   // faded in by beat 1
     el.style.setProperty('opacity', '1', 'important');
     document.body.appendChild(el);
     flyers.push(el);
@@ -381,18 +385,24 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
 
   const frame = (now: number): void => {
     const ms = now - t0;
-    const n = starts.length;
 
     // ---- where each card is ----
-    const pos = starts.map((s, i) => {
+    // They open ALREADY gathered: beat 1 fades them in at their cluster seats with a small scale-up, rather
+    // than flying them from anywhere (owner call — see the module note).
+    const pos = Array.from({ length: n }, (_, i) => {
       const born = (i / Math.max(1, n - 1)) * c.flyStag * c.inMs;
       const inT = Math.max(0, Math.min(1, (ms - born) / Math.max(1, c.inMs * (1 - c.flyStag))));
       const a = easeOut(inT, c.flyInEase);
       const isHero = i === n - 1;
-      const side = isHero ? 0 : (i === 0 ? -1 : 1);
-      const cx = CENTRE.x + side * c.cluster * plateW * a;
-      return { x: s.x + (cx - s.x) * a, y: s.y + (CENTRE.y - s.y) * a,
-        sc: 1 + (c.centreScale - 1) * a, rot: side * c.fanTilt * a, al: 1 };
+      // flanks spread evenly either side of the survivor
+      const side = isHero ? 0 : (n <= 2 ? -1 : (i - (n - 2) / 2) * 2 / Math.max(1, n - 2));
+      return {
+        x: CENTRE.x + side * c.cluster * plateW,
+        y: CENTRE.y,
+        sc: c.centreScale * (0.88 + 0.12 * a),
+        rot: side * c.fanTilt,
+        al: a,
+      };
     });
     const mg = Math.max(0, Math.min(1, (ms - T.mergeStart) / T.mergeMs));
     for (let i = 0; i < n - 1; i++) {
@@ -408,6 +418,7 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
     hero.x += (DEST.x - hero.x) * oa;
     hero.y += (DEST.y - hero.y) * oa;
     hero.sc = hero.sc * (1 + (c.punch - 1) * Math.sin(crownP * Math.PI)) * (1 - oa) + oa;
+    hero.al = Math.max(hero.al, oa);          // fully solid by the time it lands
     flyers.forEach((el, i) => {
       const p = pos[i];
       el.style.transform = `translate(${p.x - W / 2}px, ${p.y - H / 2}px) scale(${p.sc}) rotate(${p.rot}deg)`;
@@ -430,7 +441,7 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
         for (const p of streams) {
           const t = (ms - T.mergeStart - p.born * T.mergeMs) / span;
           if (t < 0 || t > 1) continue;
-          const from = pos[Math.min(p.ci, n - 2 < 0 ? 0 : n - 2)], to = hero;
+          const from = pos[Math.min(p.ci, Math.max(0, n - 2))], to = hero;
           const sx = from.x + (p.su - 0.5) * W * from.sc, sy = from.y + (p.sv - 0.5) * H * from.sc;
           const tx = to.x + (p.tu - 0.5) * W * to.sc, ty = to.y + (p.tv - 0.5) * H * to.sc;
           const a = easeOut(t, 1.6);

@@ -14,13 +14,14 @@ import { useDraggablePanel } from './useDraggablePanel';
  * bend it: `crownLead` overlaps the crown into the fuse and SHORTENS the run, and a flourish longer than
  * its beat EXTENDS it.
  *
- * "Play here" fires a mock gild beside the panel — three source rects and a destination — so it can be
- * dialed without assembling a real triple.
+ * "Play here" fires a mock gild over a real card on screen, so it can be dialed without assembling a real
+ * triple. The effect opens with the copies already gathered centre screen, so it only needs that card's
+ * rect and how many copies were consumed.
  */
 const LABELS: Record<string, string> = {
-  inMs: '1 · fly in (ms)', fuseMs: '2 · fuse (ms)', crownMs: '3 · crown (ms)', outMs: '4 · fly home (ms)',
-  flyInEase: 'in · ease', flyStag: 'in · stagger', centreScale: 'in · centre scale',
-  cluster: 'in · cluster', fanTilt: 'in · fan tilt', scrim: 'in · scrim',
+  inMs: '1 · appear (ms)', fuseMs: '2 · fuse (ms)', crownMs: '3 · crown (ms)', outMs: '4 · fly home (ms)',
+  flyInEase: 'appear · ease', flyStag: 'appear · stagger', centreScale: 'appear · scale',
+  cluster: 'appear · cluster', fanTilt: 'appear · fan tilt', scrim: 'appear · scrim',
   holdFrac: 'fuse · hold share', streamCount: 'fuse · stream', arc: 'fuse · arc',
   fuseSize: 'fuse · mote size', trail: 'fuse · trail',
   crownLead: 'crown · overlap', wireInFrac: 'crown · wire in', wireHoldFrac: 'crown · wire hold',
@@ -47,20 +48,14 @@ export function PlateGildTuner() {
     window.setTimeout(() => setCopied(false), 1400);
   };
   const reset = (): void => { resetPlateGildConfig(); setCfg({ ...getPlateGildConfig() }); };
-  // A mock gild: three scattered sources and a destination, using a real hand card if one is on screen so
-  // the clone has something to look like.
+  // A mock gild against a real card on screen, so the clone has something to look like. The effect opens
+  // with the copies already gathered, so all it needs is that card's rect and how many were consumed.
   const demo = (): void => {
-    const w = 150, h = w * 1.555;
     const real = document.querySelector<HTMLElement>('.row.hand .card[data-uid]')
       ?? document.querySelector<HTMLElement>('.row .card[data-uid]');
     if (!real) return;
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const mk = (x: number, y: number) => ({ left: x, top: y, width: w, height: h });
-    playPlateGild(
-      [mk(vw * 0.18, vh * 0.72), mk(vw * 0.34, vh * 0.72)],
-      mk(vw * 0.26, vh * 0.72),
-      real,
-    );
+    const r = real.getBoundingClientRect();
+    if (r.width > 0) playPlateGild(r, real, 3);
   };
 
   return (

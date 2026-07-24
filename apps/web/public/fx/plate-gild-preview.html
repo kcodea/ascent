@@ -50,7 +50,6 @@
 <div id="stage">
   <div id="hint">click the stage (or SPACE) to replay · three fly in, become one, fly home</div>
   <div id="scrim"></div>
-  <div class="ghost" id="g0"></div><div class="ghost" id="g1"></div><div class="ghost" id="g2"></div>
   <div class="ghost" id="gDest"></div>
   <div class="card3" id="c0"><img alt=""></div>
   <div class="card3" id="c1"><img alt=""></div>
@@ -66,10 +65,10 @@
 
   <div class="total" id="totalBox">total <b id="totalMs">-</b></div>
 
-  <h2>1 &middot; Fly in</h2>
-  <div class="row"><label title="TOTAL length of this beat, ms. Everything below is a share of it.">duration</label><input type="range" id="inMs" min="60" max="1200" step="10"><span class="val" id="v_inMs"></span></div>
-  <div class="row"><label title="Arrival easing. Higher = they rush out then glide in.">ease</label><input type="range" id="flyInEase" min="0.6" max="4" step="0.05"><span class="val" id="v_flyInEase"></span></div>
-  <div class="row"><label title="Share of the beat spent staggering the three departures.">stagger</label><input type="range" id="flyStag" min="0" max="0.7" step="0.02"><span class="val" id="v_flyStag"></span></div>
+  <h2>1 &middot; Appear</h2>
+  <div class="row"><label title="TOTAL length of this beat, ms. The three fade in at centre, already gathered. Everything below is a share of it.">duration</label><input type="range" id="inMs" min="60" max="1200" step="10"><span class="val" id="v_inMs"></span></div>
+  <div class="row"><label title="Appear easing.">ease</label><input type="range" id="flyInEase" min="0.6" max="4" step="0.05"><span class="val" id="v_flyInEase"></span></div>
+  <div class="row"><label title="Share of the beat spent staggering the three appearances.">stagger</label><input type="range" id="flyStag" min="0" max="0.7" step="0.02"><span class="val" id="v_flyStag"></span></div>
   <div class="row"><label title="How big the cards get at centre - the hero-moment zoom.">centre scale</label><input type="range" id="centreScale" min="0.6" max="2.4" step="0.02"><span class="val" id="v_centreScale"></span></div>
   <div class="row"><label title="How far apart the three sit on arrival, before merging (x card width).">cluster</label><input type="range" id="cluster" min="0" max="1.4" step="0.02"><span class="val" id="v_cluster"></span></div>
   <div class="row"><label title="Tilt on the two flanking cards, deg.">fan tilt</label><input type="range" id="fanTilt" min="0" max="30" step="1"><span class="val" id="v_fanTilt"></span></div>
@@ -131,8 +130,9 @@
     <button id="reset">Reset</button>
   </div>
   <textarea id="out" readonly></textarea>
-  <div class="note">Dashed boxes are the slots: three sources (hand / board / shop, scattered like a real
-  game) and the destination the gilded card flies home to. In game those come from the real card rects.</div>
+  <div class="note">The dashed box is the destination the gilded card flies home to; in game that is the
+  real card's slot. The three copies open already gathered at centre — they no longer fly in from their old
+  positions.</div>
 </div>
 
 <script>
@@ -162,7 +162,7 @@ const stage = $('stage'), fx = $('fx'), ctx = fx.getContext('2d');
 const fl = $('flourish'), flx = fl.getContext('2d');
 const scrimEl = $('scrim'), imprint = $('imprint'), heroImg = $('heroImg');
 const cards = [$('c0'), $('c1'), $('hero3')];          // [copy, copy, survivor]
-const ghosts = [$('g0'), $('g1'), $('g2')], gDest = $('gDest');
+const gDest = $('gDest');
 
 let LINE_PTS = [];
 (() => {
@@ -210,10 +210,6 @@ function layout() {
   ];
   DEST = { x: r.width*0.33, y: r.height*0.84 };
   for (const el of cards) { el.style.width = CW+'px'; el.style.height = CH+'px'; }
-  ghosts.forEach((g, i) => {
-    g.style.width = CW+'px'; g.style.height = CH+'px';
-    g.style.left = SRC[i].x+'px'; g.style.top = SRC[i].y+'px';
-  });
   gDest.style.width = CW+'px'; gDest.style.height = CH+'px';
   gDest.style.left = DEST.x+'px'; gDest.style.top = DEST.y+'px';
   paintLook();
@@ -348,17 +344,16 @@ function frame(now) {
 
   // ---- where each card is, this frame ----
   // 1 fly in (staggered) → 2 cluster → 3 flanks merge into the survivor → 4 survivor flies home
+  // They open ALREADY gathered (owner call): beat 1 fades them in at their cluster seats with a small
+  // scale-up, rather than flying them from anywhere. Matches the shipped effect exactly.
   const pos = [];
   for (let i = 0; i < 3; i++) {
     const born = (i / 2) * C.flyStag * C.inMs;
     const inT = Math.max(0, Math.min(1, (ms - born) / Math.max(1, C.inMs * (1 - C.flyStag))));
     const a = easeOut(inT, C.flyInEase);
-    // cluster offsets: flanks left/right of the survivor
-    const off = (i === 2) ? 0 : (i === 0 ? -1 : 1) * C.cluster * CW;
-    const cx = CENTRE.x + off * a, cy = CENTRE.y;
-    const sc = 1 + (C.centreScale - 1) * a;
-    const rot = (i === 2 ? 0 : (i === 0 ? -1 : 1) * C.fanTilt) * a;
-    pos.push({ x: SRC[i].x + (cx - SRC[i].x) * a, y: SRC[i].y + (cy - SRC[i].y) * a, sc, rot, al: 1 });
+    const side = (i === 2) ? 0 : (i === 0 ? -1 : 1);
+    pos.push({ x: CENTRE.x + side * C.cluster * CW, y: CENTRE.y,
+      sc: C.centreScale * (0.88 + 0.12 * a), rot: side * C.fanTilt, al: a });
   }
   // flanks merge in
   const mg = Math.max(0, Math.min(1, (ms - T.mergeStart) / Math.max(1, T.mergeMs)));
@@ -378,6 +373,7 @@ function frame(now) {
   pos[2].x += (DEST.x - pos[2].x) * oa;
   pos[2].y += (DEST.y - pos[2].y) * oa;
   pos[2].sc = (pos[2].sc * punchNow) * (1 - oa) + 1 * oa;      // settles back to slot size
+  pos[2].al = Math.max(pos[2].al, oa);                         // fully solid by the time it lands
   cards.forEach((el, i) => place(el, pos[i].x, pos[i].y, pos[i].sc, pos[i].rot, pos[i].al));
 
   // ---- scrim: up as they gather, down as the card leaves ----
@@ -436,7 +432,7 @@ function frame(now) {
   raf = requestAnimationFrame(frame);
 }
 function reset0() {
-  cards.forEach((el, i) => place(el, SRC[i].x, SRC[i].y, 1, 0, 1));
+  cards.forEach((el) => place(el, CENTRE.x, CENTRE.y, C.centreScale * 0.88, 0, 0));
   imprint.style.opacity = '0'; heroImg.style.filter = 'none'; scrimEl.style.opacity = '0';
   ctx.clearRect(0,0,fx.width,fx.height); flx.clearRect(0,0,fl.width,fl.height);
 }

@@ -29,7 +29,7 @@ import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { playPlateDissolve } from './plateDissolve';
 import { playPlateCoalesce } from './plateCoalesce';
-import { playPlateGild, type Rect as GildRect } from './plateGild';
+import { playPlateGild } from './plateGild';
 import { fireBuffFx } from './buffFxRender';
 import { buffPreset, wavePalette } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -854,14 +854,6 @@ export function Recruit() {
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
   const prevHandUidsRef = useRef<Set<string>>(new Set(run.hand.map((c) => c.uid)));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
-  /* Last-known screen rect of every hand / board / shop card, keyed by uid.
-     A gild consumes three cards and creates one, all in a single commit — by the time the UI can see it
-     happened, React has already unmounted the copies and their positions are gone for good. So the cache
-     always holds the PREVIOUS render's rects, and the gild watcher reads it before refreshing it.
-     Refresh is guarded: only when the visible uid set changes, or every 250ms, so this can't become a
-     layout read on every hover render. ~20 rects, recruit phase only. */
-  const cardRectsRef = useRef<Map<string, GildRect>>(new Map());
-  const rectStampRef = useRef<{ key: string; at: number }>({ key: '', at: 0 });
   // Set immediately before a `buy` dispatch: a bought card was already visible in the tavern, so it is
   // acquired rather than conjured and gets its own shop→hand transition instead (owner ruling 2026-07-22).
   const buyPendingRef = useRef(false);
@@ -1393,16 +1385,12 @@ export function Recruit() {
         ? document.querySelector<HTMLElement>(`.row .card[data-uid="${goldUid}"]`)
         : null;
       if (el) {
-        // CARD rects, not plate rects — the flyers are cards, and sizing them to the plate put the frame
-        // off-centre inside an oversized box.
+        // The effect opens with the copies already gathered centre screen, so all it needs is HOW MANY were
+        // consumed (3 normally, 2 under Twin Gilding) and where the gilded card lives. It used to fly each
+        // copy in from its old slot, which required caching every card's rect every render; the owner cut
+        // that, and the cache went with it.
         const dest = el.getBoundingClientRect();
-        const sources = gone.map((u) => cardRectsRef.current.get(u)).filter(Boolean) as GildRect[];
-        if (import.meta.env.DEV && sources.length < gone.length) {
-          // eslint-disable-next-line no-console
-          console.warn('[gild] no cached rect for', gone.length - sources.length, 'of', gone.length,
-            'consumed copies — they will not fly in from their slots');
-        }
-        if (dest.width > 0) playPlateGild(sources, dest, el);
+        if (dest.width > 0) playPlateGild(dest, el, gone.length || 3);
       }
     }
 
@@ -1418,27 +1406,6 @@ export function Recruit() {
       const r = (plate ?? card).getBoundingClientRect();
       if (r.width > 0) playPlateCoalesce(r, card);
     }
-  });
-
-  /* Refresh the gild rect cache. Declared AFTER the watcher above so that watcher always reads the previous
-     render's positions — the frame before the consumed copies vanished. Guarded on the uid set plus a 250ms
-     floor, so hover-driven re-renders don't turn this into a per-render layout read. */
-  useLayoutEffect(() => {
-    if (run.phase !== 'recruit') return;
-    const uids = [...run.hand, ...run.board, ...run.shop].map((c) => c.uid);
-    const key = uids.join('|');
-    const now = performance.now();
-    const stamp = rectStampRef.current;
-    if (key === stamp.key && now - stamp.at < 250) return;
-    rectStampRef.current = { key, at: now };
-    const next = new Map<string, GildRect>();
-    for (const el of document.querySelectorAll<HTMLElement>('.row .card[data-uid]')) {
-      const uid = el.dataset.uid;
-      if (!uid) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width > 0) next.set(uid, { left: r.left, top: r.top, width: r.width, height: r.height });
-    }
-    cardRectsRef.current = next;
   });
 
   /* In-combat grants (Deathrattle / Rally / Avenge / quest). The replay already flies a "To your hand" card

@@ -1905,7 +1905,14 @@ body.modalup .statusbar .questbadges {
 /* z115: above the FX overlay (.pixifx z110) so the dragged card always rides ON TOP of other units' auras
    (divine-shield bubbles, reborn wisps) as it passes over them. Its own aura sits on the FX canvas behind it —
    the bubble still reads around the card's edges. Below discover (z160) / inspect (z500). */
-.dragcard { position: fixed; left: 0; top: 0; z-index: 115; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
+/* PARKED OFF-SCREEN BY DEFAULT. The floating card is pinned at left/top 0 and placed entirely by an inline
+   transform — written per frame by the drag rAF, or by React during a snap/magnet-slide. Any frame where
+   neither has written one yet (a remount the rAF's deps didn't anticipate; React clearing a transform IT set
+   during a snap) paints a full-size card in the screen's top-left corner: the "ghost card" blip, most visible
+   at the drop that completes a triple, right before the gild. The rAF/React inline transform always outranks
+   this, so parking it here costs nothing and makes that whole class of flash impossible rather than
+   whack-a-mole per remount path. */
+.dragcard { position: fixed; left: 0; top: 0; transform: translate(-9999px, -9999px); z-index: 115; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
 .dragcard.snap { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
 /* a Magnetic card shrinking straight into its Mech before it merges — snappy, so it reads as an
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
@@ -2981,14 +2988,16 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
 /* A combat-granted card (Arcane Weaver → Spirit Fire) pops in centre-screen, then flies down + fades
    toward the hand, so the player sees it being added. */
-.handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; animation: tohandfly 1.15s cubic-bezier(0.4, 0, 0.5, 1) forwards; }
+/* The in-combat grant. It used to POP in at centre and fly 52vh down the screen, shrinking as it went
+   (`tohandfly`) — which competed with the arcane coalesce that now plays on this same card, two different
+   stories about one event (owner 2026-07-22). The travel is gone: the card materialises here via the
+   coalesce, holds, and fades. Transform is static on the rule so the animation is opacity-only, and the
+   coalesce's `!important` fade-in outranks it for the first beat. */
+.handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; transform: translate(-50%, -50%); animation: tohandhold 1.15s ease forwards; }
 .hg-label { font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: calc(4 * var(--u)) calc(13 * var(--u)); border-radius: 999px; border: 2px solid var(--acc); white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.5); }
-@keyframes tohandfly {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
-  16% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
-  34% { transform: translate(-50%, -50%) scale(1); }
-  72% { opacity: 1; transform: translate(-50%, calc(-50% + 22vh)) scale(0.78); }
-  100% { opacity: 0; transform: translate(-50%, calc(-50% + 52vh)) scale(0.42); }
+@keyframes tohandhold {
+  0%, 78% { opacity: 1; }
+  100% { opacity: 0; }
 }
 /* NOTE: we intentionally do NOT gate animations on `prefers-reduced-motion`. ASCENT's animations carry
    essential gameplay INFORMATION — damage numbers, death pops, the Fodder-consume swirl, buff flashes — not

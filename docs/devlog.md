@@ -3,6 +3,229 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (the shop→hand slide + the top-left ghost card)
+### fix(ui): the REAL top-left blip — GSAP Flip was grabbing the gild's clones
+
+The `.dragcard` park (above) fixed one origin blip; this was a second, different one, only ever visible on a
+triple. `cloneNode` copies **every** attribute, including GSAP Flip's identity stamp `data-flip-id`. So all
+three gild clones carried the same `data-flip-id` as the real gilded card. The instant the triple re-rendered
+the hand row, `Flip.from` matched the clones by that id, cleared their transform and set opacity to 1 —
+dropping a `position:fixed; left:0; top:0` clone onto the screen's top-left corner, full opacity, for the
+length of the Flip.
+
+It was invisible to four separate isolation harnesses (append probe, WAAPI trajectory sampling, virtual-clock
+frame stepping, all-element origin scan) because none of them triggered a Flip. It only reproduced by driving
+a REAL triple in-page and freezing the DOM: three `body > .card` clones sitting at `(-28, 0)` at opacity 1,
+each stamped `data-flip-id=auto-1`. `cloneCard` now strips `data-flip-id`, `data-uid` and `id` from the clone
+and its descendants, so nothing outside the module can address them. Re-verified through the same real-triple
+path: clones back at centre (`translate(828, 393) scale(1.32)`), no flip-id, nothing visible at the origin.
+
+
+### feat(ui): the gild hands off to the buy slide
+
+The gilded card no longer flies home on the gild's own clock. At the end of the crown the survivor clone is
+dropped and the REAL card takes over with `playBuySlide` — the same motion a card bought from the tavern
+makes on its way into a slot (owner call 2026-07-23). One vocabulary for "a card is entering your hand"
+however it got there, and the slide lands on the real element, so there is no clone-to-card swap to get
+wrong. `DEST`, the fly-home interpolation and the reveal-on-landing all went with it.
+
+### fix(ui): the buy slide was eating the gild's ending
+
+Completing a triple by BUYING the third copy ran both effects over the same card. `checkTriples` runs inside
+the `buy` action, so the copy you bought is consumed on the spot and the only new hand card is the gilded
+one — which the buy handler then took for a normal purchase. The slide's `opacity: 1 !important` cancelled
+the gild's hide, so the gilded card sat in its hand slot from the first frame and the flight home had
+nothing left to deliver: the owner saw the converge, then the card was simply there.
+
+The buy handler now compares `triplesMade` across the dispatch and stands down when the buy completed a
+triple — that moment belongs to the gild, which hands off to the slide itself.
+
+### fix(ui): the gild converged only two cards when you bought the third copy
+
+The flyer count came from diffing the uids that vanished this commit, which undercounts by exactly one
+whenever the triple is completed by BUYING the third copy: that copy arrives and is consumed inside the same
+commit, so it was never in a previous render's uid set and never registers as "gone". Three cards became
+two and the right-hand flyer was missing.
+
+It now takes the count from the sim's own rule instead of inferring it — `checkTriples` pulls
+`runeTwinGilding ? 2 : 3`, and that single call site covers Gildmaster's two-copy gild too (it goes through
+the same rune flag), so there is nothing left to infer.
+
+### feat(ui): buying a card slides it into hand from where you released it
+
+The fourth and last of the card transitions, and deliberately the quietest. A bought card was already
+sitting in the tavern in front of you — it is **acquired, not conjured** — so it gets no arcane dust (owner
+ruling 2026-07-22). `buySlide.ts` is a single compositor-only transform tween on the real card element:
+170ms, `cubic-bezier(.22,.9,.28,1)`, no clone, no canvas, no per-frame layout read.
+
+Two things it has to work around. A hand card carries a resting transform (the tuck, plus fan rotation), so
+animating `transform` outright would drop that for the length of the slide and the card would visibly jump
+to an untucked pose — the current computed matrix is read once and every keyframe is written *outside* it
+(`translate(…) scale(…) <base>`). And a freshly bought card mounts with `.popin`, whose `handpop` keyframes
+animate the same property; a running CSS animation outranks a plain inline style, so the slide suppresses it
+with `animation: none !important` for its duration and the card slides in solid instead of fading.
+
+### fix(ui): every bought card was still coalescing
+
+The exclusion added in #674 never matched anything. A buy **mints a fresh `b<n>` uid** for the hand copy
+(`reducer.ts` `case 'buy'`), so `buyPendingRef`, which held the *shop* uid that was dragged, could never
+match the card that actually landed in hand. It now reads the new uid back off the store immediately after
+the dispatch (the same synchronous pattern `playWithSummonDelay` uses) and carries the release point with
+it, so the same ref both suppresses the coalesce and feeds the slide.
+
+### fix(ui): the "ghost card" blip in the screen's top-left corner
+
+Owner reported a card blipping in the top-left corner just before the gild — twice, the second time after a
+fix that turned out to address a different instance of the same class of bug.
+
+`.dragcard` is pinned at `left/top: 0` and placed **entirely** by an inline transform, written per frame by
+the drag rAF or by React during a snap/magnet-slide. Any frame where neither has written one yet paints a
+full-size card at the screen origin. The rAF's effect deps (`[drag?.active, castingSpell]`) covered the
+remount paths we knew about; the comment on that effect has warned about "the top-left ghost card bug" since
+it was written, which is the tell that patching remount paths one at a time wasn't converging.
+
+Fixed at the root instead: `.dragcard` now has a default `transform: translate(-9999px, -9999px)`. Any
+inline transform outranks it, so the rAF and React are unaffected and the drag feel is untouched — but an
+unpositioned frame parks off-screen instead of at the origin, and the entire class of flash becomes
+impossible rather than one-remount-path-at-a-time.
+
+**Verified live in a browser rather than by reasoning**, since the previous fix had missed. A wrapped
+`appendChild` recorded computed opacity/transform/rect for everything added to `<body>`. It caught the drag
+card red-handed — appended with **no inline transform**, resolving to the new park — and confirmed the gild's
+own clones now append at `opacity: 0`, centred (`matrix(1.32,0,0,1.32,592.8,284.0)`), never at the origin. A
+synthesised pointer drag from tavern to hand then bought a card: hand uid `b4` (≠ the dragged `s0`, proving
+the uid fix), one 170ms animation on it, and no dust canvas appended.
+
+## 2026-07-22 (coalesce coverage + a hole in our verification)
+
+### fix(ui): the coalesce was missing whole classes of generated card
+
+Owner reported end-of-turn grants never materialising, and deathrattle grants playing a *competing*
+animation. An audit of all 25 `hand.push` sites turned up four real bugs.
+
+**1. End-of-turn grants never fired.** `faceOmen` is a single reducer action that runs the EoT effects AND
+flips `phase = 'combat'` ~200 lines later, so the store only ever publishes the final state: the granted
+cards are in hand and the phase is already combat. There is no intermediate commit — the UI never once
+renders them at `phase === 'recruit'`. The watcher's `if (run.phase !== 'recruit') return;` therefore
+dropped every one.
+
+Worse, that early return sat *after* the `prevHandUidsRef` write, so the uids were consumed as "seen" while
+playback was suppressed — by the time the phase was recruit again they were no longer new, so the trip back
+didn't catch them either. They fell through both paths. Guard removed; the real gate is whether the card is
+on screen, which the element lookup already does.
+
+**2. A buy or a triple discarded the WHOLE batch.** `if (!fresh.length || tripled || bought) return;` threw
+away every fresh card in that commit, not just the excluded one. So anything conjured alongside a buy lost
+its effect: **Dupes**, Gorr's Four Peat, the Drakko and Chronos quest rewards, the Spellslinging gold drip.
+Exclusions are per-card now — `buyPendingRef` carries the bought UID rather than a boolean, and a triple
+excludes only the golden card the gild owns.
+
+**3. Skipped replays left combat grants with nothing.** `coalesceSkipRef` was built from
+`lastCombat.playerHandGrants`, i.e. every grant the combat produced — but on a skipped replay nothing plays
+mid-fight, so the skip suppressed the settle-side effect and the grant got no effect at all. The skip is now
+built from `grantPlayedRef`: what the in-combat watcher *actually* fired.
+
+**4. The competing flight is gone.** `tohandfly` flew the granted card 52vh down the screen while shrinking
+it to 0.42 — a second story about the same event the coalesce was already telling. Replaced with an
+opacity-only hold-and-fade on a static transform, so the card materialises where it appears and the coalesce
+is the whole animation. The "To your hand" label stays; it carries information the effect doesn't.
+
+### The verification hole
+
+`npm run typecheck` **excludes `packages/ui`** (`tsconfig.json`: `"exclude": ["packages/ui"]`) — React/DOM is
+checked by `npm run typecheck:web`, which **CI does not run**. So every "typecheck green" reported on this
+UI work checked none of it, and `build:web` doesn't catch type errors either (Vite strips types via esbuild).
+That is how a `ReferenceError: starts is not defined` — a variable removed in a refactor but still
+referenced — reached the owner's browser.
+
+Two type errors from the *already-merged* coalesce PR were found this way: `hide`/`unhide` returning a value
+where `void` was declared, and `PlateCoalesceTuner`'s demo button reading `panelRef.current` when
+`useDraggablePanel` returns a **callback ref** — so that button had been silently doing nothing since it
+shipped. Both fixed; the repo's `typecheck:web` error count went 58 → 57.
+
+**Follow-up worth taking seriously:** `typecheck:web` has 57 pre-existing errors and no gate, so it will keep
+rotting and will keep letting UI type errors ship. Getting it to zero and adding it to CI is its own PR.
+
+### Known gaps, deliberately not fixed here
+
+- **Hand-full conjures land on the BOARD** (`recruit.ts:676`) and the watcher only diffs `run.hand`, so they
+  never coalesce. Distinguishing a board-overflow conjure from a played minion or a summoned token needs
+  more signal than the UI currently has.
+- **The run-start Chaos token** doesn't coalesce — `prevHandUidsRef` is seeded from the initial hand.
+  Arguably correct: run start isn't a generation moment.
+- **The flip skip matches by `cardId`, not uid**, so a start-of-turn grant of the same card as a combat grant
+  is theoretically indistinguishable. Ordering makes it resolve correctly today.
+
+## 2026-07-22 (plate gild)
+
+### feat(ui): three become one — the gild is a run highlight now
+
+A triple had **no visual feedback at all**: three cards blinked out, one gold card popped in. It now plays
+the loudest of the three plate effects. The copies leave their slots, meet centre screen, merge into one,
+the survivor erupts gold — the plate wireframe in gold plus a flourish only gilding gets — and the gilded
+card flies home to its slot. ~936ms. Owner's shape: *fuse then crown*, wireframe family plus a signature,
+and the three **meet in the middle** rather than fusing in place. Authored on
+`fx/plate-gild-preview.html`.
+
+**The three cards you see are clones.** By the time the UI can detect a triple, the sim has spliced the
+consumed copies out and React has unmounted them — their DOM is gone and their positions are unrecoverable.
+So the flyers are clones of the surviving gilded card with `.golden` stripped, so they render as the plain
+minion they were; the survivor regains it at the crown, which makes the transformation something you watch
+rather than infer. `cloneNode` yields a BLANK canvas and sprite-art cards draw into one, so every canvas in
+a clone is repainted from its original — without that, those cards fly as empty frames.
+
+**Where the copies WERE needed a cache.** `cardRectsRef` holds the last-known rect of every hand / board /
+shop card by uid; the gild watcher reads it *before* refreshing it, so it always sees the frame before the
+copies vanished. The refresh is guarded on the visible uid set plus a 250ms floor and is recruit-phase only,
+so hover-driven re-renders can't turn it into a per-render layout read (~20 rects).
+
+**Timing is expressed as beats, not sub-steps.** Each of the four beats has ONE total and its internals are
+shares of it, so tightening a beat can never silently lengthen the effect — the rig's earlier eight
+independent ms sliders made hitting a duration target guesswork. `crownLead` overlaps the crown into the
+fuse and genuinely SHORTENS the run; a flourish longer than its beat extends it. Both are reflected in the
+derived total shown in the tuner header.
+
+Fires off the same `run.triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
+claim a card. The gilded card is normally in hand but lands on the BOARD when the hand is full, so both are
+searched.
+
+The owner's dial: the **seal** flourish spinning at 150°/s, the crown burst switched off entirely, and the
+fuse reduced to 90 tiny motes on a strong reverse arc — a thin bright thread rather than a cloud. Palette
+deliberately avoids two neighbours the codebase map turned up: the sell **coins** (reads as money) and the
+Divine Shield aura gold (a persistent keyword state).
+
+New dev tuner **👑 Plate Gild** with a "Play here" button and the live total in its header.
+
+**Then the fly-in was cut entirely (owner, same session).** Rather than reconstruct where each copy had
+been, the effect now OPENS with the three already gathered centre screen, fading in at their cluster seats.
+That deleted `cardRectsRef`, the per-render layout reads that fed it, the DEV warning that guarded it, and
+the whole class of bug that comes with reconstructing positions after the fact — all the call site needs now
+is how many copies were consumed (3, or 2 under Twin Gilding) and where the gilded card lives. The rig was
+updated to match, so what's tuned is what ships.
+
+**Two bugs on the owner's first play-test, both one root cause.** The flyers came in from the top-left
+corner rather than their slots, and the frame sat off-centre inside the plate — before AND after they
+converged.
+
+Card sizing is driven by CSS vars set **per zone** (`.zone[data-zone='hand'] { --ccw: … }`), not by the
+element's own width. A clone appended to `<body>` loses them, so it laid out at some unrelated size; and the
+plate, positioned `left: 50%` of the card box, slid out of register with the frame inside it. On top of
+that the clone was being forced to *plate* dimensions while being a *card*, which widened the box further.
+
+Fixed by copying the resolved sizing vars onto the clone, dropping the forced width/height so it sizes
+itself exactly as it did in its row, measuring CARD rects (not plate rects) for both the cache and the
+destination, and giving the gold wireframe `class="cardplate"` so it inherits the plate's own geometry
+inside the clone instead of stretching over the whole card box. The effect's px quantities still scale off
+plate width, measured from the clone, since that's what the rig was dialed against.
+
+Also set the opening transform BEFORE the clone is appended, so there is no frame painted at (0,0), and
+added a DEV warning when a consumed copy has no cached rect — that path degrades to flying fewer cards, and
+it should be loud rather than silent.
+
+**Verified:** typecheck + lint + 1538 tests + `build:web` green. Timeline verified numerically against the
+rig. **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
+owner-eyeballed.
+
 ## 2026-07-23 (Front to Back — improve each cast)
 
 ### balance(content): Front to Back escalates every cast, not every other

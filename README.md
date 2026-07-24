@@ -42,6 +42,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Gilding a card plays out.** Completing a triple now shows the three copies converge centre-screen into
+  one, erupt gold, and slide home into the hand — the third of the plate effects, alongside the play-dissolve
+  and the generated-card coalesce.
+- **Buying a card slides it into hand.** A bought card was already in front of you in the tavern, so it is
+  acquired rather than conjured: it slides into its slot from the point you released it (170ms) instead of
+  materialising out of arcane dust the way a *generated* card does. Also fixes the "ghost card" that could
+  blip in the screen's top-left corner.
 - **The buff breakdown sits in front of the card again.** Inspecting a unit drew its buffs panel behind the
   card plate — the plate is wider than the card and reached back over the panel's edge.
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),
@@ -71,6 +78,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **Djinni's Cadence now triggers your quest and rune End of Turns too.** It read "trigger all friendly End of
   Turn effects" but only ever fired the board half, skipping quest/rune rewards like Echoing Roar, The Hoard
   Wakes and Rune of Spending — and did nothing at all on an empty board.
+- **Gilding is a moment now.** Combining three copies used to be silent — they blinked out and a gold card
+  appeared. The three now fly to centre screen, merge into one, erupt gold with a spinning rune seal, and
+  the gilded card returns to your hand.
 - **Generated cards materialise out of arcane dust.** When a card comes from nowhere — a Deathrattle grant
   mid-combat, a Discover pick, a spell conjure, a quest reward — dust rushes in, forms the card plate's
   glowing wireframe, and resolves into the card. The mirror of the dissolve, sharing its palette.

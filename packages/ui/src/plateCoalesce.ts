@@ -166,8 +166,8 @@ export function playPlateCoalesce(
 
   // the card being generated stays hidden until the wireframe resolves into it (see the note above on why
   // this has to be `!important`)
-  const hide = (v: string): void => target?.style.setProperty('opacity', v, 'important');
-  const unhide = (): void => target?.style.removeProperty('opacity');
+  const hide = (v: string): void => { target?.style.setProperty('opacity', v, 'important'); };
+  const unhide = (): void => { target?.style.removeProperty('opacity'); };
   hide('0');
 
   const imp = document.createElement('div');

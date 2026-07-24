@@ -3,6 +3,16 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (Front to Back — improve each cast)
+
+### balance(content): Front to Back escalates every cast, not every other
+
+Owner tuning: Front to Back's +2/+2 improvement now lands on EVERY cast instead of every other — so casts go
++2/+2, +4/+4, +6/+6, … (× spell power on both stats, still independent per stat). Dropped the `frontToBackCasts`
+`% 2` gate in `spellBuffTargetEscalating`; text now reads "Improve this by +2/+2 each cast." Live text unchanged
+(reads the running `frontToBackBonus`). Updated 4 `run.test.ts` cases + the display-text assertions. Full suite
+(1538) + lint + build green.
+
 ## 2026-07-22 (plate coalesce — cards being generated)
 
 ### fix(ui): the inspect buff breakdown rendered behind the card plate

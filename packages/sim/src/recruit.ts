@@ -1994,13 +1994,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack, 2) + ctx.state.frontToBackBonus + spellAttackBonus(ctx.state);
     const h = num(params.health, 2) + ctx.state.frontToBackBonusH + spellHealthBonus(ctx.state);
     addBuff(self, str(params._source) || 'Front to Back', a, h);
-    // Improve only every OTHER cast (owner 2026-07-13): the escalation step lands on the 2nd, 4th, … cast.
-    ctx.state.frontToBackCasts = (ctx.state.frontToBackCasts ?? 0) + 1;
-    if (ctx.state.frontToBackCasts % 2 === 0) {
-      const reps = improveReps(ctx.state); // "Improve this every other cast" — the step lands twice under Mastery
-      ctx.state.frontToBackBonus += (num(params.attack, 2) + spellAttackBonus(ctx.state)) * reps;
-      ctx.state.frontToBackBonusH += (num(params.health, 2) + spellHealthBonus(ctx.state)) * reps;
-    }
+    // Improve on EVERY cast (owner 2026-07-23): each cast's step raises the next cast's grant (the step lands
+    // twice under Rune of Mastery). So cast 1 = +2/+2, cast 2 = +4/+4, cast 3 = +6/+6, …
+    const reps = improveReps(ctx.state);
+    ctx.state.frontToBackBonus += (num(params.attack, 2) + spellAttackBonus(ctx.state)) * reps;
+    ctx.state.frontToBackBonusH += (num(params.health, 2) + spellHealthBonus(ctx.state)) * reps;
   },
 
   /** Eyes of Aresmar — cast: make the targeted minion Golden (like Oner's Gild), but only if its

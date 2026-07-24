@@ -323,10 +323,13 @@ export interface RunState {
   /** Rallying Offensive: your Rally effects trigger twice in the NEXT combat. One-shot — does not stack
    *  (a bool), cleared in `settleCombat`. */
   rallyDoubleNext?: boolean;
-  /** Nimbus: a charge that makes the NEXT Tavern spell cast twice (×3 if Nimbus was golden). Read by
-   *  `spellCasts`, spent by the reducer on the next real (non-singleCast) spell cast; persists across turns
-   *  until used (NOT cleared at settle, unlike the combat one-shots above). */
-  nextSpellMult?: number;
+  /** Nimbus: EXTRA casts banked for the NEXT Tavern spell — +1 per Battlecry fire (+2 if Nimbus was golden).
+   *  ADDITIVE, not a multiplier (owner 2026-07-24), which is what lets it ACCUMULATE: Drakko fires the
+   *  Battlecry twice, so two Nimbus fires bank +2. The old `nextSpellMult` SET a multiplier, so a second fire
+   *  just re-set the same value and Drakko did nothing for it.
+   *  Read by `spellCasts` (added to the multiplied total), spent by the reducer on the next real
+   *  (non-singleCast) spell cast; persists across turns until used (NOT cleared at settle). */
+  nextSpellExtraCasts?: number;
   /** Gold spent during the CURRENT recruit turn (buys, rerolls, tier-ups, hero powers) — Patch Job scales off
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */

@@ -491,12 +491,14 @@ function spellCastMult(state: RunState): number {
 export function spellCasts(state: RunState, def: CardDef): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
-  mult *= state.nextSpellMult ?? 1; // Nimbus: a pending charge makes the next spell cast twice (×3 golden)
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
-  return mult;
+  // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
+  // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
+  // whatever the spell would otherwise do.
+  return mult + (state.nextSpellExtraCasts ?? 0);
 }
 
 /** Implosion's cast count: once by default, plus one more per Demon you control (so 1 + your Demons). Shared by
@@ -1667,11 +1669,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Nimbus — Battlecry: your NEXT Tavern spell casts twice (golden: three times). Arms a run-state charge
-   *  (`nextSpellMult`) that `spellCasts` reads and the reducer spends on the next real (non-singleCast) spell
+   *  (`nextSpellExtraCasts`) that `spellCasts` reads and the reducer spends on the next real (non-singleCast) spell
    *  cast; persists across turns until used. Doubles untargeted economy spells too, unlike Yazzus (aimed-only).
    *  Re-casting overwrites rather than deeply stacking (a rare corner). */
   battlecryDoubleNextSpell: (ctx, self) => {
-    ctx.state.nextSpellMult = 1 + gold(self);
+    // += , not = : Drakko (and Warm Embers / Hoardwake) fire this Battlecry more than once, and each fire has
+    // to bank its own extra cast. Setting a value made every repeat a no-op.
+    ctx.state.nextSpellExtraCasts = (ctx.state.nextSpellExtraCasts ?? 0) + gold(self);
   },
 
   /** Field Mechanic — Battlecry: add `count` copies of a specific spell (Patch Job) to your hand. Golden

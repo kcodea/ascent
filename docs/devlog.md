@@ -3,6 +3,39 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — Fire truly decoupled, transport dials, preview backdrop)
+
+### feat(fx): Fire is a clean one-shot, Loop is opt-in, + Duration/gap dials + a compositing backdrop
+
+Follow-up to the depth pass. The Fire button *engine* was one-shot, but the Workbench still built its player
+with `loop:true` and called `play()` on open, so "Fire" visibly kicked off the repeat loop — the owner's
+"fire button still isn't decoupled" report. This wave makes the decoupling real end-to-end and adds the
+transport control the loop was missing.
+
+- **No auto-loop on open.** The Workbench now builds the player with `{loop:false}` and calls `fireOnce()`
+  once on build, so an effect previews itself and *stops*. Looping is an explicit **🔁 Loop** toggle
+  (`player.setLoop` live, no rebuild); Fire is always a single non-looping pass regardless of the toggle.
+- **Fire plays to *true* completion.** `fireOnce()` spawns every layer immediately (not gated on the def's
+  `at`/`life` schedule) and holds them until each reports genuine completion via a new optional
+  `FxInstance.isComplete()` — implemented on all four primitives (ribbon/shockwave grace after their tail;
+  burst/emitter when their live particle count hits zero). A `FIRE_TIMEOUT_MS = 10s` safety cap force-stops a
+  primitive that never reports done, so a buggy effect can't hang the workbench.
+- **Transport dials.** A **Duration** slider (200–4000 ms, drives `def.duration` + scenario progress) and a
+  **Loop gap** slider (hold the effect fully cleared for N ms between loop cycles, via `setLoopGap`) — the
+  loop was previously a fixed immediate wrap.
+- **Preview backdrop.** A selectable solid-colour backdrop (`createBackdrop`, mounted *behind* the effect via
+  `pixiFx.mountLayer`) so blend modes have something to composite against in the workbench — multiply/overlay
+  are invisible over the transparent overlay otherwise. (Per-effect blend against the *game board* in-game
+  stays out of scope: the FX layer is a transparent Pixi canvas over a separate DOM board, so board pixels
+  aren't in its compositing pipeline; per-effect blend remains meaningful FX-over-FX. Owner ruling: leave the
+  shipped layer as-is rather than take a global-canvas `mix-blend-mode` that would reshuffle every combat FX.)
+
+**Verified:** live browser (framebuffer + control probes) — on-open trace shows one expansion then 0 (no
+loop); Fire trace = one expansion then 0, repeatable; burst Fire = a single wave decaying to 0; the Loop
+toggle flips Off→On and starts continuous looping; Duration + Loop-gap dials present and live; a Mid backdrop
+makes `multiply` visibly non-black. `typecheck` + `lint` + `test` + `build:web` green; workbench still absent
+from the prod bundle.
+
 ## 2026-07-24 (FX workbench — depth: material, shapes, blend, glow, fire)
 
 ### feat(fx): the ribbon's tuning depth on every effect + shapes, blend modes, glow, a Fire trigger

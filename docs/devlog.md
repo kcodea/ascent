@@ -276,23 +276,26 @@ only to call it — including a **per-frame `requestAnimationFrame` loop that re
 for the whole of combat and every drag**. `AURA_CFGS` shrinks to `AURA_MARKERS`, the marker list its one
 surviving reader needs (landing-dust z-order). No behaviour change: none of it had a visible effect.
 
-**Consequences worth knowing** (all PRE-EXISTING — they were already true before this PR, since the pass was
-already inert; nothing here regressed):
-- `pixiFx`'s bubble registry now has no writer at all, so `hasAura()` is permanently false. That makes the
-  reborn branch of `burstDeathAuras` (`choreo/channels/aura.ts:17`) unreachable — **a reborn unit's death no
-  longer plays its spirit-release burst + `rebornShatter` sfx.** The Ward branch is fine (it reads the DOM
-  marker and fires `shatterAt`). Worth an owner call: restore it off the `.reborncard` marker the same way, or
-  drop it.
-- `shieldConfig.ts` + `ShieldTuner.tsx` now tune a value nothing reads (`recruitDy` was only used by the
-  deleted `auraDy`), and `pixiFx.setShield` / `clearShield` / `setShieldsVisible` / the `shieldLayer` container
-  have no callers. Left in place — that's a wider dead-code purge (already on the roadmap), not this PR.
+**Reborn death burst — repaired in the same PR.** Removing the tracker surfaced that `burstDeathAuras`'s reborn
+branch gated on `pixiFx.hasAura(uid, 'reborn')`, whose only writer was the tracker — so a reborn unit's death
+had stopped playing its spirit-release burst + `rebornShatter` sfx (a PRE-EXISTING regression from when Reborn
+went CSS, not caused here). Owner confirmed it should burst, so the branch now mirrors the Ward branch beside
+it: read the dying unit's `.reborncard` DOM marker and fire `pixiFx.shatterAt(rect, 'reborn')` (which delegates
+to the wispy `rebornShatter`, not gold shards) + the sound. `burstDeathAuras` now reads both markers off one
+`.card` query and no longer touches `hasAura`. Rewrote `aura.test.ts` to match — it stubs `document` via
+`vi.stubGlobal` (the suite runs in bare Node, no jsdom) and covers Reborn-only, Ward-only, both-at-once, no
+marker, and the no-rect early-out (9 tests, +3).
+
+**Left for the wider dead-code purge** (tracked on the roadmap, not this PR): `shieldConfig.ts` +
+`ShieldTuner.tsx` now tune a `recruitDy` nothing reads (it was only used by the deleted `auraDy`), and
+`pixiFx.setShield` / `clearShield` / `setShieldsVisible` / `shieldLayer` / `hasAura` have no callers.
 
 **Also:** `ErrorBoundary`'s three missing `override`s, the aura `Mesh<MeshGeometry, Shader>` generic (Pixi defaults
 SHADER to `TextureShader`), `plateCoalesce`'s `unhide` returning `removeProperty`'s value from a `: void`
 arrow, a documented `unknown` hop for supabase's runtime-built select, and two test fixtures.
 
 Verified: `typecheck` (both projects) + `typecheck:web` + `lint` (0 errors; 1 pre-existing unused-import
-warning in `SceneBuilder.tsx`) + `test` (1538 pass / 92 files) + `build:web` all green.
+warning in `SceneBuilder.tsx`) + `test` (1541 pass / 92 files) + `build:web` all green.
 
 ## 2026-07-23 (Front to Back — improve each cast)
 

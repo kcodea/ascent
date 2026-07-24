@@ -46,7 +46,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   was never gated, so the whole presentation layer had no type gate (the production build transpiles without
   checking). Cleared all 59 errors and turned the gate on. Several were real: the mixer's gain-reduction meter
   read NaN, kobold-tribe quests printed `undefined` in their text, and the two plate tuners' "demo" buttons did
-  nothing.
+  nothing. Also deleted a dead per-frame aura-tracking loop it exposed — and, while there, restored the reborn
+  unit's spirit-release burst on death (it had quietly stopped firing when Reborn became a CSS effect).
 - **Gilding a card plays out.** Completing a triple now shows the three copies converge centre-screen into
   one, erupt gold, and slide home into the hand — the third of the plate effects, alongside the play-dissolve
   and the generated-card coalesce.

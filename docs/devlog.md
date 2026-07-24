@@ -3,6 +3,44 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (Ruby Power FX — the Ruby-side twin of the Spell Power flourish)
+
+### feat(ui/sim/core): Ruby Power FX, on the same ruleset as Spell Power FX
+
+Owner ask: copy the Spell Power FX into a "Ruby Power FX" that can be modified separately, procing on the same
+ruleset but for RUBIES getting buffed — across shop, combat and End of Turn.
+
+**The ruleset.** Spell Power FX bumps once per ACTION in which spell power went up, by any source and any
+amount, derived from a before/after state delta rather than a per-effect scratch field (so React batching can't
+swallow it, and new sources are picked up for free). Ruby Power FX is the same contract keyed on `rubyBonus`:
+`rubyPowerFxSeq` / `Atk` / `Hp` / `Uid` stamped from the delta in `reduce`. That single delta covers the shop,
+End of Turn AND the combat carry-back, since Veinbreaker's Avenge settles onto `rubyBonus` like any other source.
+
+**Mid-combat needed a new signal in core.** `grantSpellPower` emits an `sc` narration the replay parses to fire
+the flourish at the moment it happens; `gainRubyBonus` emitted nothing at all — it accumulated silently and only
+surfaced at settle. It now takes an optional `sourceUid` and emits `+A/+H Ruby Power` in the same channel and
+text shape, so the replay reads both identically (player-side gated for the same reason: `sc` carries no `side`,
+so an enemy source would otherwise draw the flourish on the opponent's half of the board). All four
+`ctx.gainRubyBonus` call sites now pass `self.uid`. The `sourceUid` is presentation-only — omit it and the gain
+still applies, just silently.
+
+**What's cloned vs shared.** `rubyPowerFxConfig.ts` and `RubyPowerFxTuner.tsx` are full copies with their own
+defaults, their own localStorage key (`ascent.rubyPowerFx`) and their own 36 dials — that's the point of the ask.
+The Pixi RENDERER is shared via `powerFlourish`, because every visual property (arrow count/rise/spread/length/
+width/head/timing/drift/fade, the whole origin blast, all five colours) already comes from the config object, so
+the two cues diverge entirely through values. Duplicating the ~55 lines of particle code would buy no extra
+freedom and would guarantee the copies drift apart on the next fix; if Ruby Power ever needs a structurally
+different shape rather than different numbers, fork `powerFlourish` then.
+
+The held Rubies also play the spell-buff cue when their strength rises, on both the shop and mid-combat paths —
+possible only because that cue now lives on a bus rather than in Recruit's state.
+
+Three new reducer tests (`rubyPowerFx.test.ts`) pin the ruleset: the delta is reported rather than the running
+total, an unchanged action does NOT bump, and the undefined→value transition counts. Verified live: the tuner
+registers in the dev menu with 36 dials, its Test FX fires and renders `.rubypower-float` (0 `.spellpower-float`,
+so the DOM path is genuinely separate), and editing a Ruby dial left the Spell Power config untouched. Suite
+1541 (+3) + typecheck + lint + build:web green.
+
 ## 2026-07-24 (spell-buff cue — fire it from anywhere)
 
 ### feat(ui): move the spell-buff burst into a module bus so any phase/surface can play it

@@ -4922,7 +4922,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    One-shot element appended to <body> for a single cast, animated by WAAPI (transform + opacity only) and
    removed on finish — so there is never a persistent node or a looping animation here. `position: fixed`
    because the caller passes VIEWPORT coords straight from getBoundingClientRect. */
-.spellpower-float {
+/* `.rubypower-float` shares this block: the Ruby Power float is the same one-shot element with the same inline
+   `--spf-*` colour vars set from its OWN tuner, so the two diverge through those values, not through CSS. */
+.spellpower-float,
+.rubypower-float {
   position: fixed;
   z-index: 120;
   pointer-events: none;
@@ -4940,7 +4943,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   will-change: transform, opacity;
 }
 @media (prefers-reduced-motion: reduce) {
-  .spellpower-float { transition: none; }
+  .spellpower-float, .rubypower-float { transition: none; }
 }
 
 /* ---- HERO-PORTRAIT BUFF FLASH (`.herobuff-blast`, StatusBar.tsx) — a shard/blast pop with a small eased

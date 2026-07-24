@@ -3,6 +3,8 @@ import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
+import { fireSpellBuff } from './spellBuffFx';
 import { pixiFx } from './pixiFx';
 import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
@@ -862,6 +864,28 @@ export function useCombatReplay(
       const { cx, cy, h } = layoutRectOf(el); // SLOT — the source can be mid-lunge when its spell power rises
       pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
       floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
+    }
+    // RUBY POWER gained mid-combat (owner ask 2026-07-24) — Veinbreaker's Avenge and friends. `gainRubyBonus`
+    // used to accumulate silently and only surface at settle, so there was nothing to hang a cue on at the
+    // moment it fired; it now emits the same `sc` narration shape spell power does, which is what this reads.
+    // Player-side gating is identical and for the same reason: `sc` carries no `side`, so an enemy source would
+    // otherwise draw the flourish on the opponent's half of the board.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'sc' || !e.source || !e.text) continue;
+      const m = /^\+(-?\d+)\/\+(-?\d+) Ruby Power$/.exec(e.text);
+      if (!m) continue;
+      const gA = Number(m[1]), gH = Number(m[2]);
+      if (gA <= 0 && gH <= 0) continue;
+      if (!playerUids.has(e.source)) continue;
+      const el = findEl(e.source);
+      if (!el) continue;
+      const { cx, cy, h } = layoutRectOf(el);
+      pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
+      floatRubyPowerNumber(cx, cy - h * 0.3, gA, gH);
+      // …and pop the held Rubies themselves, so the player sees WHICH cards the gain lands on. The spell-buff
+      // bus is callable from here precisely because it no longer lives in Recruit's state.
+      fireSpellBuff(useGame.getState().run.hand.filter((c) => c.cardId === 'ruby').map((c) => c.uid));
     }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
     // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a

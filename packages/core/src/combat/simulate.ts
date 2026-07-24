@@ -562,12 +562,16 @@ export function simulate(
       rubyGrants.n += count;
       for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
     },
-    gainRubyBonus: (attack, health, side) => {
+    gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
       // `playerRubyBonusGain`; grows held + future Rubies at settle).
       if (side !== 'player') return;
       rubyBonusGain.attack += attack;
       rubyBonusGain.health += health;
+      // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain, and so the
+      // UI has something to hang the Ruby Power FX on at the moment the Echo/Avenge fires rather than at settle.
+      // Same channel + text shape as `grantSpellPower` above, so the replay parses both the same way.
+      if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Ruby Power` });
     },
     grantCardBuff: (cardId, attack, health, side) => {
       // Player-only — accumulate per cardId and carry back via playerCardBuffs.

@@ -3909,8 +3909,14 @@ export function Recruit() {
         </div>
       )}
 
-      {/* Farseer's Report — a read-only Discover-style reveal of the next opponent's scouted minions (shown at
-          their captured stats). No pick; a Close button dismisses it. Reuses the `.discover-ov` chrome. */}
+      {/* Farseer's Report — a read-only Discover-style reveal of the next opponent's scouted minions, at their
+          actual stats (green above the printed base; golden treatment for a triple). No pick; the Close button
+          sits where the Discover MINIMIZE toggle usually is (`.disc-toggle`, fixed). Reuses the `.discover-ov` chrome. */}
+      {run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
+        <button className="disc-toggle" onClick={() => dispatch({ type: 'closeScout' })} title="Close the scout">
+          <Icon name="eye" /> Close
+        </button>
+      )}
       {run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
         <div className="discover-ov" role="dialog" aria-label="Scouted minions">
           <div className="disc-panel">
@@ -3920,17 +3926,16 @@ export function Recruit() {
               {run.scoutedNextOpponent.map((m, i) => {
                 const c = CARD_INDEX[m.cardId];
                 if (!c) return null;
+                // Effective base = the CardDef stats, doubled for a golden — so a plain golden reads gold (not
+                // green), while any minion buffed ABOVE its base reads green.
+                const mul = m.golden ? 2 : 1;
                 return (
                   <div className="disc-slot" key={`${m.cardId}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
-                    <Card card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: m.attack, health: m.health, keywords: c.keywords, text: c.text, goldenText: c.goldenText, tier: c.tier }} />
+                    <Card card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, golden: !!m.golden, attack: m.attack, health: m.health, baseAttack: c.attack * mul, baseHealth: c.health * mul, keywords: c.keywords, text: c.text, goldenText: c.goldenText, tier: c.tier }} />
                   </div>
                 );
               })}
             </div>
-            <button className="scout-close" onClick={() => dispatch({ type: 'closeScout' })}
-              style={{ margin: '10px auto 0', padding: '7px 22px', fontWeight: 600, fontSize: '0.95em', color: 'var(--ink, #fff)', background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.28)', borderRadius: 8, cursor: 'pointer' }}>
-              Close
-            </button>
             <span className="disc-gem disc-gem-bot" aria-hidden="true" />
           </div>
         </div>

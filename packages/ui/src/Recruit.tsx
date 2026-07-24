@@ -9,7 +9,7 @@ import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { getSpellBuffFxConfig } from './spellBuffFxConfig';
-import { fireSpellBuff } from './spellBuffFx';
+import { fireSpellBuff, fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -734,8 +734,7 @@ export function Recruit() {
       floatRubyPowerNumber(x, y - r.height * 0.3, gainA, gainH);
       // The held Rubies themselves also play the spell-buff cue, so the "these cards got stronger" read is on
       // the cards and not only in the flourish. Fires through the shared bus, hence any phase.
-      const rubyUids = useGame.getState().run.hand.filter((c) => c.cardId === 'ruby').map((c) => c.uid);
-      fireSpellBuff(rubyUids);
+      fireSpellBuffOnHandRubies(useGame.getState().run.hand);
     });
     return () => cancelAnimationFrame(raf);
   }, [run.rubyPowerFxSeq, run.rubyPowerFxAtk, run.rubyPowerFxHp, run.rubyPowerFxUid]);
@@ -3274,6 +3273,26 @@ export function Recruit() {
           const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
           pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
           floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+          // …and pop the held SPELLS, whose printed values this proc just raised. Same reason the flourish is
+          // driven from the beat rather than reducer state: `faceOmen` commits AFTER every beat has played and
+          // flips the phase as it lands, so a state-driven cue arrives at Start of Combat instead of on the
+          // proc — which is why End of Turn showed no card cue at all (owner report 2026-07-24).
+          fireSpellBuffOnHandSpells(run.hand);
+        }
+        // RUBY strength raised at End of Turn — same beat-driven treatment, so it's already wired for whenever
+        // a card grants it on an End of Turn (no shipped card does today; `rubyStatGain` is Shout/cast-only).
+        for (const eff of bd?.effects ?? []) {
+          if (eff.on !== 'endOfTurn' || eff.do !== 'rubyStatGain') continue;
+          const gA = Number(eff.params?.attack ?? 0) * gold;
+          const gH = Number(eff.params?.health ?? 0) * gold;
+          if (gA <= 0 && gH <= 0) continue;
+          const el = document.querySelector(`[data-uid="${b.uid}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
+          floatRubyPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+          fireSpellBuffOnHandRubies(run.hand);
         }
       }
       // QUEST TENDRIL — fired from the BEAT, not from reducer state. The End-of-Turn commit (`faceOmen`)

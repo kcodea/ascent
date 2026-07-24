@@ -42,10 +42,15 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Gilding a card plays out.** Completing a triple now shows the three copies converge centre-screen into
+  one, erupt gold, and slide home into the hand — the third of the plate effects, alongside the play-dissolve
+  and the generated-card coalesce.
 - **Buying a card slides it into hand.** A bought card was already in front of you in the tavern, so it is
   acquired rather than conjured: it slides into its slot from the point you released it (170ms) instead of
   materialising out of arcane dust the way a *generated* card does. Also fixes the "ghost card" that could
-  blip in the screen's top-left corner at the end of a drag.
+  blip in the screen's top-left corner.
+- **The buff breakdown sits in front of the card again.** Inspecting a unit drew its buffs panel behind the
+  card plate — the plate is wider than the card and reached back over the panel's edge.
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),
   Turnabout (swap Attack/Health), Insurance Policy (comeback Gold after a loss), Rift-Sunk Codex (Discover a
   Shop spell), Beyond the Summit (Discover one tier higher, up to Tier 7), Invitation Above (Discover a Tier 6

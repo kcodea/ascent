@@ -1883,7 +1883,14 @@ body.modalup .statusbar .questbadges {
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
 /* Buffs breakdown beside the inspected card — same dark pill/glass as the detached text drawer. */
-.inspect-buffs { align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 8px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
+/* MUST stay POSITIONED with a z-index (owner report 2026-07-22: the panel rendered behind the card).
+   It's a flex sibling laid out to the LEFT of the card, but the card's PLATE is 1.5x the card width and
+   centre-anchored, so it overhangs its own layout box by ~19px — more than the 10px flex gap — and reaches
+   back over the panel's right edge. DOM order doesn't save us: `.card` is `position: relative`, so it paints
+   in the positioned layer, which is ABOVE a static in-flow sibling no matter who comes first in the tree.
+   z-index 30 clears every z a card can take internally (`.cardbuff` is the highest at 21), so the panel also
+   stays in front of the frame, badges and any keyword aura. */
+.inspect-buffs { position: relative; z-index: 30; align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 8px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
 .ib-title { font-family: var(--font-ui); font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #b7a98f; text-align: center; margin-bottom: 2px; }
 .ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */

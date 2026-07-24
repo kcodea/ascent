@@ -226,7 +226,46 @@ it should be loud rather than silent.
 rig. **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
 owner-eyeballed.
 
+## 2026-07-23 (Front to Back — improve each cast)
+
+### balance(content): Front to Back escalates every cast, not every other
+
+Owner tuning: Front to Back's +2/+2 improvement now lands on EVERY cast instead of every other — so casts go
++2/+2, +4/+4, +6/+6, … (× spell power on both stats, still independent per stat). Dropped the `frontToBackCasts`
+`% 2` gate in `spellBuffTargetEscalating`; text now reads "Improve this by +2/+2 each cast." Live text unchanged
+(reads the running `frontToBackBonus`). Updated 4 `run.test.ts` cases + the display-text assertions. Full suite
+(1538) + lint + build green.
+
 ## 2026-07-22 (plate coalesce — cards being generated)
+
+### fix(ui): the inspect buff breakdown rendered behind the card plate
+
+Owner report: inspecting a unit drew the buffs panel *behind* the card; it should always be in front of the
+plate and the frame.
+
+**Why it happened.** `.inspect-buffs` is a flex sibling laid out to the LEFT of the card, so in layout terms
+they don't overlap — but the card PLATE is 1.5× the card width and centre-anchored, so it overhangs its own
+layout box by ~19px, more than the 10px flex gap. That reaches ~4px back over the panel's right edge, which is
+exactly where its gold border and rounded corner live.
+
+DOM order doesn't help: the panel renders *first*, but `.card` is `position: relative`, so it paints in the
+positioned-descendants layer — above a **static** in-flow sibling regardless of tree order. The panel was
+`position: static; z-index: auto`, so it could never win. Fix: `position: relative; z-index: 30`. 30 clears
+every z a card takes internally (`.cardbuff` is the highest at 21), so the panel now also stays in front of
+the frame, badges and keyword auras — not just the plate.
+
+Note this only became visible with the hand-card plate (#671): before it, nothing on the card overhung far
+enough to cross the gap.
+
+**Verification note worth keeping.** The obvious probe — `document.elementFromPoint` over the overlap — is
+USELESS here: `.cardplate` is `pointer-events: none`, so hit-testing skips it and the panel looked like it was
+already on top. Paint order ≠ hit order. The reliable probe is to set the plate `pointer-events: auto` for the
+duration of the test, since hit order then follows paint order; that reproduced the bug, confirmed the fix, and
+confirmed it still holds with the card forced to z-index 21. (Screenshots weren't available — the preview pane
+wasn't compositing.)
+
+Verified: typecheck · lint (0 errors; the one warning is pre-existing in `SceneBuilder.tsx`) · 1538 tests ·
+build:web.
 
 ### feat(ui): a generated card materialises out of arcane dust
 

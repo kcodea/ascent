@@ -199,7 +199,7 @@ export const SPELLS: CardDef[] = [
     text: 'Get a random **Tier 1** minion.',
   },
   {
-    // Escalation: +2/+2, improving by +2/+2 every OTHER cast this run (owner 2026-07-13; plus spell power).
+    // Escalation: +2/+2, improving by +2/+2 EACH cast this run (owner 2026-07-23; plus spell power).
     id: 'fronttoback',
     name: 'Front to Back',
     tribe: 'neutral',
@@ -211,7 +211,7 @@ export const SPELLS: CardDef[] = [
     cost: 1,
     target: 'any',
     effects: [{ on: 'cast', do: 'spellBuffTargetEscalating' }],
-    text: 'Give a minion **+2/+2**. Improve this by **+2/+2** every other cast.',
+    text: 'Give a minion **+2/+2**. Improve this by **+2/+2** each cast.',
   },
   {
     // Discover a Battlecry minion (filtered Discover via the reducer's play path).

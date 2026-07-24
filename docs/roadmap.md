@@ -365,14 +365,23 @@ effects (the `.dr` collapse hold can trail them) — tune live against the skull
   unify aggregate auras into the `cardBuffs` map + an "Aura" inspect line; Reborn carries the prior-fight
   Eternal-Knight enchant; Cassen grant fly-to-hand; vendor Build Handoff v2 into `docs/handoff.md`.
 
+### Reborn deaths no longer burst (found 2026-07-24 — owner call needed)
+`burstDeathAuras` gates the reborn spirit-release burst + `rebornShatter` sfx on `pixiFx.hasAura(uid,
+'reborn')`, but nothing has written to that bubble registry since Reborn became a CSS stack — so it never
+fires. (Long-standing; surfaced while deleting the dead Pixi aura tracker, not caused by it.) The Ward branch
+right above it already does the right thing: read the `.dscard` DOM marker and `shatterAt`. Either mirror that
+for `.reborncard` or drop the branch.
+
 ### Tech-debt watch (fold into whichever PR touches it)
-Split `Recruit.tsx` (~2.7k — proposed seams: `recruitViews` / `useCardDrag` / `useAuraTracker` /
-`useLossSequence` / overlays) and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
+Split `Recruit.tsx` (~2.5k — proposed seams: `recruitViews` / `useCardDrag` / `useLossSequence` / overlays)
+and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
 `recruit.ts` (2k); consider sub-reducers in `reducer.ts` as actions grow. **Dead-code purge:** ~17 dead
 effect-factory ids (`factories.ts` + `types.ts` union + `schema.ts` enum, 3-place sweep each) +
 `battlecryGrantKeyword` chain + `reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache`; Card renders removed
-Reborn-tears DOM; a confirmed dead-CSS list (OMEN block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt/.zh/
-.hint`, `.disc-gem`).
+Reborn-tears DOM; **the orphaned Pixi aura-bubble system** (`shieldConfig.ts` + `ShieldTuner.tsx` tune a
+`recruitDy` nothing reads; `pixiFx.setShield`/`clearShield`/`setShieldsVisible`/`shieldLayer` have no callers
+now the tracker is gone — settle the reborn-burst question above first); a confirmed dead-CSS list (OMEN
+block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).
 
 ---
 

@@ -266,10 +266,28 @@ re-exported the core types (→ `@game/core`); that error type also made every `
 implicitly `any`. `CombatReplay` never declared `questDelta` / `triggeredQuests` / `completedQuests` despite
 the hook returning all three. `CardView.cardId` was optional though nothing constructs a view without one.
 
-**Also:** `AURA_CFGS` rows now carry a `cssOwned` flag instead of `syncShields` skipping shield + reborn by
-name — those were the only two rows, so TS narrowed `cfg` to `never` and the whole registration pass
-typechecked as dead code (7 errors). Behaviour unchanged; the pass stays generic for a future Pixi-drawn aura.
-Plus `ErrorBoundary`'s three missing `override`s, the aura `Mesh<MeshGeometry, Shader>` generic (Pixi defaults
+**The Pixi aura tracker is gone (−197 lines in `Recruit.tsx`).** `syncShields`' PASS 1 skipped shield + reborn
+by name, and those were the only two rows in `AURA_CFGS` — so TS narrowed `cfg` to `never` and the entire
+registration pass was dead code (7 of the errors). It had been inert since Ward and Reborn both became CSS
+(`Card.tsx` `.ward` / `.reborn` stacks): with nothing calling `pixiFx.setShield`, `seen` was always empty, so
+PASS 2/4 and the whole bookkeeping around them (`shieldUidsRef`, `pendingClearRef`, `settleUntilRef`,
+`deployGraceRef`, `SHIELD_CLEAR_GRACE`) did nothing either. Deleted the block and the five effects that existed
+only to call it — including a **per-frame `requestAnimationFrame` loop that re-measured every aura card's rect
+for the whole of combat and every drag**. `AURA_CFGS` shrinks to `AURA_MARKERS`, the marker list its one
+surviving reader needs (landing-dust z-order). No behaviour change: none of it had a visible effect.
+
+**Consequences worth knowing** (all PRE-EXISTING — they were already true before this PR, since the pass was
+already inert; nothing here regressed):
+- `pixiFx`'s bubble registry now has no writer at all, so `hasAura()` is permanently false. That makes the
+  reborn branch of `burstDeathAuras` (`choreo/channels/aura.ts:17`) unreachable — **a reborn unit's death no
+  longer plays its spirit-release burst + `rebornShatter` sfx.** The Ward branch is fine (it reads the DOM
+  marker and fires `shatterAt`). Worth an owner call: restore it off the `.reborncard` marker the same way, or
+  drop it.
+- `shieldConfig.ts` + `ShieldTuner.tsx` now tune a value nothing reads (`recruitDy` was only used by the
+  deleted `auraDy`), and `pixiFx.setShield` / `clearShield` / `setShieldsVisible` / the `shieldLayer` container
+  have no callers. Left in place — that's a wider dead-code purge (already on the roadmap), not this PR.
+
+**Also:** `ErrorBoundary`'s three missing `override`s, the aura `Mesh<MeshGeometry, Shader>` generic (Pixi defaults
 SHADER to `TextureShader`), `plateCoalesce`'s `unhide` returning `removeProperty`'s value from a `: void`
 arrow, a documented `unknown` hop for supabase's runtime-built select, and two test fixtures.
 

@@ -1,5 +1,4 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import type { Keyword } from '@game/core';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
@@ -39,7 +38,6 @@ import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
-import { getShieldConfig } from './shieldConfig';
 import { getTrailConfig } from './trailConfig';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
@@ -56,31 +54,11 @@ gsap.registerPlugin(Flip);
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
 const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]';
 
-// ms to keep a vanished shield bubble alive before fading it — covers a hand→board PLAY (the card unmounts
-// from hand then remounts on the board under the same uid), so the bubble resumes INSTANTLY, no fade+regrow.
-// MUST also OUTLAST the choreographer's shield-BREAK cue (`auraBreak`, +300ms scaled — score.ts): when a Divine
-// Shield is consumed the card loses `.dscard` immediately, but the gold-shatter fires 300ms later. If the grace
-// expires first the bubble quietly FADES before the burst can read it (the "shield-break burst not showing" bug).
-const SHIELD_CLEAR_GRACE = 420;
-// The persistent auras the tracker POSITIONS (bubbles that ride each card), each marked by a CSS class on the
-// card and a keyword on the drag view. Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts,
-// fired off the event log) — the tracker here only keeps each aura riding its card and clears it when the card
-// leaves. Divine Shield (gold), Reborn (blue wisp). (Taunt is signified by a static grey card border, not a
-// Pixi aura — see `.card.taunt` in styles.css — so it's not tracked here.)
-type AuraK = 'shield' | 'reborn';
-// `cssOwned`: the aura's persistent bubble is drawn by CSS (Card.tsx `.ward` / `.reborn` stacks), so
-// syncShields must NOT register a Pixi bubble for it — Pixi only fires its combat break/re-form FX + drag
-// sparkles. Both current kinds are CSS-owned; the flag (rather than a `kind === …` test) keeps syncShields'
-// registration pass generic so a future Pixi-drawn aura kind works by adding a row here.
-const AURA_CFGS: readonly { kind: AuraK; marker: string; dragKw: Keyword; cssOwned: boolean }[] = [
-  { kind: 'shield', marker: 'dscard', dragKw: 'DS', cssOwned: true },
-  { kind: 'reborn', marker: 'reborncard', dragKw: 'R', cssOwned: true },
-];
-const ckey = (kind: string, uid: string): string => `${kind}|${uid}`;
-const unkey = (k: string): { kind: AuraK; uid: string } => {
-  const i = k.indexOf('|');
-  return { kind: k.slice(0, i) as AuraK, uid: k.slice(i + 1) };
-};
+// The card-marker classes for a persistent aura — Ward (gold dome) and Reborn (blue wisps), both drawn by CSS
+// (Card.tsx `.ward` / `.reborn` stacks). Used to spot an aura-wearing card so its landing dust tucks behind it.
+// Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts, fired off the event log). (Taunt is
+// signified by a static grey card border, not an aura — see `.card.taunt` in styles.css — so it's not here.)
+const AURA_MARKERS = ['dscard', 'reborncard'] as const;
 
 type DragSource = 'shop' | 'hand' | 'board';
 
@@ -958,168 +936,10 @@ export function Recruit() {
   );
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen });
 
-  // --- Divine-shield bubbles (Pixi) ------------------------------------------------------------------
-  // A persistent golden bubble tracks every shielded card via its `.card.dscard` DOM marker, so the
-  // recruit board (shop / hand / warband) and combat share ONE path. When a shield is consumed in combat
-  // the card keeps its element but loses `.dscard` → we fire the break burst; a card that simply leaves
-  // (sold / dead / unmounted) clears quietly. Positions re-measure on a rAF loop ONLY while something is
-  // animating (combat lunges or a drag) — idle shielded units cost nothing (no per-frame layout reads).
-  const shieldUidsRef = useRef<Set<string>>(new Set());
-  const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
-  const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
-  const fightingRef = useRef(fighting); fightingRef.current = fighting;
-  const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
-  // A brief window after a combat↔recruit swap where an aura (shield/reborn) that re-registers appears fully-
-  // formed (no form-in snap). Combat re-uids the board, so surviving auras are "new" keys on return and would
-  // otherwise replay their grow-in as the shop fades in. A genuine recruit gain falls outside this window.
-  // Set in the RENDER BODY (not an effect) so it's live before syncShields' layout effect reads it this render.
-  const deployGraceRef = useRef(0);
-  const prevInCombatRef = useRef(inCombat);
-  if (prevInCombatRef.current !== inCombat) { deployGraceRef.current = performance.now() + 1600; prevInCombatRef.current = inCombat; }
-  const prevDragActiveRef = useRef(false);
-  // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
-  const syncShields = useCallback((): void => {
-    const seen = new Set<string>(); // composite keys `${kind} ${uid}` (a unit can carry both auras)
-    const now = performance.now();
-    // Mid-animation (combat / a live drag / post-drop settle)? Only THEN is a vanished aura possibly
-    // mid-remount and worth a grace; otherwise it's gone for good and must clear NOW (no rAF will expire a timer).
-    const animating = (): boolean =>
-      fightingRef.current || (dragRef.current?.active ?? false) || performance.now() < settleUntilRef.current;
-    const d = dragRef.current;
-    const dragUid = d?.uid;
-    // Shield/reborn auras render on the front canvas, fixed to the viewport, so they take raw viewport coords.
-    const set = (
-      uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK,
-      track?: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null),
-    ): void => pixiFx.setShield(uid, cx, cy, w, h, mini, kind, track, performance.now() < deployGraceRef.current);
-    // A live position source for a COMBAT front-aura (shield/reborn): re-measures the card's art square each FX
-    // frame so the bubble rides the lunge/recoil transform EXACTLY (no cross-rAF trailing). Combat-only, where
-    // auraDy is 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
-    // (dying → the burst owns it; mid-remount → keep the last spot).
-    const makeTrack = (uid: string, marker: string) =>
-      (): { cx: number; cy: number; w: number; h: number; rot: number } | null => {
-        const unit = document.querySelector<HTMLElement>(`.unit[data-uid="${uid}"]`);
-        const card = unit?.querySelector<HTMLElement>(`.card.${marker}`);
-        if (!unit || !card || unit.classList.contains('dying')) return null;
-        const el = card.querySelector<HTMLElement>('.archbox') ?? card;
-        const r = el.getBoundingClientRect();
-        if (r.width === 0) return null;
-        // The lunge transform lives on `.unit` (translate + tilt + windup scale). getBoundingClientRect gives the
-        // rotated element's AABB (centre stays true, but w/h inflate), so take the UNROTATED size (offsetWidth ×
-        // the transform's scale) and read the rotation off the matrix so the aura rides the card's tilt exactly.
-        const t = getComputedStyle(unit).transform;
-        let rot = 0, sc = 1;
-        if (t && t !== 'none') { const m = new DOMMatrixReadOnly(t); rot = Math.atan2(m.b, m.a); sc = Math.hypot(m.a, m.b) || 1; }
-        return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: el.offsetWidth * sc, h: el.offsetHeight * sc, rot };
-      };
-    // Recruit cards hang their stat badges BELOW the square art tile, so an aura centred on the art alone reads
-    // a touch high vs the full card silhouette. Nudge shield/reborn (recruit only; combat units are a clean
-    // square) — the amount is live-tunable via the DEV Shield tuner.
-    const auraDy = (h: number): number =>
-      inCombatRef.current ? 0 : h * getShieldConfig().recruitDy;
-    // PASS 1 — for each aura kind, register + position every marked card; the dragged card follows from drag
-    // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
-    // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.
-    for (const cfg of AURA_CFGS) {
-      if (cfg.cssOwned) continue; // Ward + Reborn are CSS now (Card.tsx `.ward` / `.reborn` stacks); Pixi only fires their combat break/re-form FX + drag sparkles
-      const els = document.querySelectorAll<HTMLElement>(
-        inCombatRef.current
-          ? `.unit .card.${cfg.marker}`
-          : `[data-zone] .card.${cfg.marker}, .unit .card.${cfg.marker}`,
-      );
-      const draggedHas = !!(d?.active && d.view?.keywords?.includes(cfg.dragKw));
-      for (const card of els) {
-        const uid = card.closest<HTMLElement>('[data-uid]')?.dataset.uid;
-        if (!uid || uid === dragUid) continue; // the dragged card is driven from drag state below
-        // Measure the square ART region (`.archbox`), not the height:auto `.card`: in the shop a card is taller
-        // than its art (centre sits low → the aura looked low); the archbox is the same `--ccw` square everywhere.
-        const r = (card.querySelector<HTMLElement>('.archbox') ?? card).getBoundingClientRect();
-        if (r.width === 0) continue; // not laid out yet (mid-transition)
-        // A DYING combat unit's aura burst is the choreographer's now (channels/aura.ts, off the event log) —
-        // don't re-register/re-grow its bubble here or the position-tracker would flicker a fresh bubble back in
-        // after the burst destroys it. Skipping drops it from `seen` → PASS 2 (a burst one is already gone, so
-        // clearShield no-ops; a non-bursting leaver fades). The burst reads the bubble's last-tracked spot.
-        if (inCombatRef.current && card.closest<HTMLElement>('.unit')?.classList.contains('dying')) continue;
-        const key = ckey(cfg.kind, uid);
-        seen.add(key);
-        // In combat, hand the FRONT auras (shield/reborn) a live tracker so they ride the lunge/recoil exactly;
-        // recruit keeps the per-render push (no fast transforms to chase there).
-        const track = inCombatRef.current ? makeTrack(uid, cfg.marker) : undefined;
-        set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height), r.width, r.height, false, cfg.kind, track);
-      }
-      if (d?.active && dragUid && draggedHas) {
-        seen.add(ckey(cfg.kind, dragUid));
-        set(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2 + auraDy(d.h), d.w, d.h, /* mini */ true, cfg.kind);
-      }
-    }
-    // PASS 2 — an aura that vanished from `seen` fades out. Combat BURSTS/BREAKS are the choreographer's now
-    // (channels/aura.ts, fired off the event log) — here we only handle a bubble whose CARD LEFT (sold, played
-    // hand→board, frozen, unmounted): a brief grace covers a remount under the same uid, else it clears.
-    for (const key of shieldUidsRef.current) {
-      if (seen.has(key) || pendingClearRef.current.has(key)) continue;
-      const { kind, uid } = unkey(key);
-      if (animating()) pendingClearRef.current.set(key, now + SHIELD_CLEAR_GRACE); // might remount → brief grace
-      else pixiFx.clearShield(uid, kind);
-    }
-    // PASS 4 — pending clears: resume if the card came back; else hold during the grace, FLUSH when animation ends.
-    for (const [key, deadline] of pendingClearRef.current) {
-      const { kind, uid } = unkey(key);
-      if (seen.has(key)) { pendingClearRef.current.delete(key); continue; }
-      if (now >= deadline || !animating()) { pixiFx.clearShield(uid, kind); pendingClearRef.current.delete(key); }
-      else seen.add(key);
-    }
-    shieldUidsRef.current = seen;
-  }, []);
-  // Reconcile after any render that can change the shielded set or card positions.
-  useLayoutEffect(() => {
-    syncShields();
-    // The first measure can catch a freshly-mounted card mid `cardpop` (scale/translate) — placing its aura
-    // slightly askew until the next interaction re-syncs it (the "shield off in shop until you click it" bug).
-    // A delayed pass after the pop settles re-measures the resting rect and corrects it.
-    const t = window.setTimeout(syncShields, 240);
-    return () => window.clearTimeout(t);
-  }, [syncShields, run.board, run.hand, run.shop, replay.frame, inCombat, fighting, compactCards]);
-  // DEV shield tuner: re-sync live when its slider changes so the bubble moves as you drag (see ShieldTuner).
+  // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
-    const h = (): void => syncShields();
-    window.addEventListener('ascent:shieldcfg', h);
-    return () => window.removeEventListener('ascent:shieldcfg', h);
-  }, [syncShields]);
-  // A drop opens a brief settle window so the bubble keeps tracking the card through its Flip animation.
-  useEffect(() => {
-    const active = drag?.active ?? false;
-    if (prevDragActiveRef.current && !active) settleUntilRef.current = performance.now() + 450; // ≥ clear-grace + Flip
-    prevDragActiveRef.current = active;
-  }, [drag?.active]);
-  // Follow moving units (combat lunges / an active drag / the post-drop settle) frame-by-frame; idle at rest.
-  useEffect(() => {
-    let raf = 0;
-    const tick = (): void => {
-      syncShields();
-      if (fighting || dragRef.current?.active || performance.now() < settleUntilRef.current) {
-        raf = requestAnimationFrame(tick);
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [fighting, drag?.active, syncShields]);
-  // Re-measure on resize; clear every bubble when the screen unmounts.
-  useEffect(() => {
-    const onResize = (): void => syncShields();
-    window.addEventListener('resize', onResize);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      for (const key of shieldUidsRef.current) { const { kind, uid } = unkey(key); pixiFx.clearShield(uid, kind); }
-      shieldUidsRef.current = new Set();
-    };
-  }, [syncShields]);
-  // Hide every bubble while a board-covering modal is open. Discover / Choose One render at z50 with a
-  // translucent backdrop (BELOW the z110 FX canvas), so bubbles for the dimmed board behind would otherwise
-  // float in front of the overlay. (Inspect / hero-select / end-of-run sit above the FX canvas already.)
-  useEffect(() => {
-    // A minimized Discover / Quest overlay leaves the board visible, so keep the behind-card shields showing then.
+    // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
     const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0;
-    pixiFx.setShieldsVisible(!modalCovering);
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
     // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
@@ -1224,15 +1044,10 @@ export function Recruit() {
     setSkipFade((s) => {
       if (s) return s; // already skipping
       const FADE = 260, HOLD = 900, IN = 300;
-      // Open the aura deploy-grace for the WHOLE skip: the replay jumps to the end, so any reborn / summoned
-      // aura on the resolved board appears at once and would replay its form-in snap as the board resolves.
-      // While the grace is open, syncShields registers those auras fully-formed (see deployGraceRef → `instant`).
-      deployGraceRef.current = performance.now() + FADE + HOLD + IN + 600;
       // Just fade the FX canvas out, jump to the resolved board under cover of opacity 0, then fade the canvas
-      // back in. We DON'T touch the aura bubbles: `syncShields` reconciles them on its own throughout — a dead
-      // unit's aura clears on its normal grace (which expires DURING the hold, so no orphan lingers to the
-      // fade-in), and survivors' auras stay put (no re-register, no re-bloom). Tickers stay live (a paused ticker
-      // stalls a bubble's alpha → a pop). GSAP freezes the unit lunges; audio is killed (replacement one-shot TBD).
+      // back in. Auras are CSS (Card.tsx `.ward` / `.reborn`), so they come and go with their cards — nothing to
+      // reconcile here. Tickers stay live (a paused ticker stalls a particle's alpha → a pop). GSAP freezes the
+      // unit lunges; audio is killed (replacement one-shot TBD).
       stopAllAudio();
       gsap.globalTimeline.pause();
       pixiFx.clearParticles();
@@ -3282,8 +3097,8 @@ export function Recruit() {
       // we DON'T raise it above the FX canvas — doing so would hide the aura + its coalesce/pop behind the
       // card for the dust's lifetime (the "effect flickers behind the card on placement" bug). The dust just
       // renders over the card instead (subtle tan puffs; barely noticeable). Aura-free cards raise as before
-      // so their landing dust tucks behind them. Driven off AURA_CFGS so any future aura kind is covered.
-      const hasAura = AURA_CFGS.some((c) => el.classList.contains(c.marker));
+      // so their landing dust tucks behind them. Driven off AURA_MARKERS so any future aura kind is covered.
+      const hasAura = AURA_MARKERS.some((m) => el.classList.contains(m));
       if (!hasAura) {
         const prevPos = el.style.position;
         const prevZ = el.style.zIndex;

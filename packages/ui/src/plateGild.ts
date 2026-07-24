@@ -300,7 +300,7 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
 
   interface Stream { ci: number; su: number; sv: number; tu: number; tv: number; bow: number; born: number; r: number }
   const streams: Stream[] = [];
-  const nCopies = Math.max(1, starts.length - 1);
+  const nCopies = Math.max(1, n - 1);   // flankers feeding the survivor
   for (let ci = 0; ci < nCopies; ci++) {
     for (let i = 0; i < Math.round(c.streamCount / nCopies); i++) {
       streams.push({ ci, su: Math.random(), sv: Math.random(), tu: Math.random(), tv: Math.random(),

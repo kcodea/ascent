@@ -48,12 +48,16 @@ export function PlateCoalesceTuner() {
     window.setTimeout(() => setCopied(false), 1400);
   };
   const reset = (): void => { resetPlateCoalesceConfig(); setCfg({ ...getPlateCoalesceConfig() }); };
+  // Anchored on a real card rather than the panel: `useDraggablePanel` hands back a CALLBACK ref, so
+  // `panelRef.current` was always undefined and this button silently did nothing (caught by typecheck:web,
+  // which CI doesn't run — see the devlog).
   const demo = (): void => {
-    const el = panelRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const w = 240, h = w * 1.555;
-    playPlateCoalesce({ left: r.left - w - 24, top: r.top + 40, width: w, height: h });
+    const real = document.querySelector<HTMLElement>('.row.hand .card[data-uid]')
+      ?? document.querySelector<HTMLElement>('.row .card[data-uid]');
+    if (!real) return;
+    const plate = real.querySelector<HTMLElement>('.cardplate');
+    const r = (plate ?? real).getBoundingClientRect();
+    if (r.width > 0) playPlateCoalesce(r, real);
   };
 
   return (

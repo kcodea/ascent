@@ -856,7 +856,14 @@ export function Recruit() {
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
   // Set immediately before a `buy` dispatch: a bought card was already visible in the tavern, so it is
   // acquired rather than conjured and gets its own shop→hand transition instead (owner ruling 2026-07-22).
-  const buyPendingRef = useRef(false);
+  // Carries the UID rather than a flag — as a flag it discarded every fresh card in the commit, so anything
+  // a buy ALSO conjures in the same tick lost its coalesce: Dupes, Gorr's Four Peat, the Drakko and Chronos
+  // quest rewards, the Spellslinging gold drip.
+  const buyPendingRef = useRef<string | null>(null);
+  // cardIds whose in-combat coalesce actually played, so the settle-side skip only suppresses a genuine
+  // double-fire. On a SKIPPED replay nothing plays mid-fight, and a blanket skip left those grants with no
+  // effect at all.
+  const grantPlayedRef = useRef<string[]>([]);
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
@@ -1330,7 +1337,11 @@ export function Recruit() {
       // delayed quest repeats — never had one, so it still coalesces. `lastCombat.playerHandGrants` is a
       // cardId list, so match is consumed one-per-card to stay correct when the same card is granted twice.
       const before = handBeforeCombatRef.current;
-      const pending = [...(run.lastCombat?.playerHandGrants ?? [])];
+      // Only skip grants whose mid-fight coalesce ACTUALLY PLAYED. Skipping everything in
+      // `lastCombat.playerHandGrants` was wrong for a skipped replay: nothing renders mid-fight there, so
+      // those grants got no effect at all. `grantPlayedRef` is what the in-combat watcher really fired.
+      const pending = [...grantPlayedRef.current];
+      grantPlayedRef.current = [];
       const skip = new Set<string>();
       for (const c of run.hand) {
         if (before.has(c.uid)) continue;
@@ -1362,11 +1373,18 @@ export function Recruit() {
     const prevHand = prevHandUidsRef.current;
     const prevBoard = prevBoardUidsRef.current;
     const tripled = (run.triplesMade ?? 0) > prevTriplesRef.current;
-    const bought = buyPendingRef.current;
+    const boughtUid = buyPendingRef.current;
     prevTriplesRef.current = run.triplesMade ?? 0;
-    buyPendingRef.current = false;
+    buyPendingRef.current = null;
     const skip = coalesceSkipRef.current;
-    const fresh = run.hand.filter((c) => !prevHand.has(c.uid) && !prevBoard.has(c.uid) && !skip.has(c.uid));
+    /* Exclusions are PER CARD, not per commit. A blanket `bought`/`tripled` return threw away every fresh
+       card in that tick, so anything conjured alongside a buy or a triple silently lost its effect. */
+    const fresh = run.hand.filter((c) => {
+      if (prevHand.has(c.uid) || prevBoard.has(c.uid) || skip.has(c.uid)) return false;
+      if (boughtUid && c.uid === boughtUid) return false;          // the card you bought
+      if (tripled && c.golden) return false;                       // the gild owns its own card
+      return true;
+    });
     // consumed exactly once — the flip effect is declared above this one, so it always populates first
     if (skip.size) coalesceSkipRef.current = new Set();
     prevHandUidsRef.current = new Set(run.hand.map((c) => c.uid));
@@ -1394,11 +1412,14 @@ export function Recruit() {
       }
     }
 
-    // Nothing new, or the new card came from a route that isn't a generation.
-    if (!fresh.length || tripled || bought) return;
-    // Not during combat — the in-flight grant has its own beat (see below), and the hand row is showing
-    // view-only placeholders at that point anyway.
-    if (run.phase !== 'recruit') return;
+    if (!fresh.length) return;
+    /* Deliberately NOT gated on `run.phase`. END-OF-TURN grants (Money Maker, Crypt Scribe, Steward of
+       Spells, the Chaos token) land while the phase has ALREADY flipped to combat — see the sibling comment
+       on the Maw stamp effect above — so a `phase === 'recruit'` guard silently dropped every one of them
+       (owner report 2026-07-22). They were then invisible on the way back too, because the pre-combat hand
+       snapshot is taken after they land, so the flip doesn't see them as granted either.
+       The real gate is whether the card is actually on screen, which the element lookup below does. Combat
+       grants can't double-fire here: they're in `coalesceSkipRef`. */
     for (const c of fresh) {
       const card = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${c.uid}"]`);
       if (!card) continue;
@@ -1420,7 +1441,10 @@ export function Recruit() {
     const el = document.querySelector<HTMLElement>('.handgrant .card');
     if (!el) return;
     const r = el.getBoundingClientRect();
-    if (r.width > 0) playPlateCoalesce(r, el);
+    if (r.width > 0) {
+      playPlateCoalesce(r, el);
+      grantPlayedRef.current.push(g.cardId);   // so the settle-side skip suppresses exactly this one
+    }
   }, [replay.handGrant]);
 
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
@@ -3273,7 +3297,7 @@ export function Recruit() {
     // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
     const cx = x - d.ox + d.w / 2;
     if (d.source === 'shop' && zone === 'hand') {
-      buyPendingRef.current = true; // not a generation — see the coalesce watcher
+      buyPendingRef.current = d.uid; // not a generation — see the coalesce watcher
       dispatch({ type: 'buy', uid: d.uid });
       return true;
     }

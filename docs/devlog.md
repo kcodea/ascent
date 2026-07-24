@@ -3,6 +3,66 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (coalesce coverage + a hole in our verification)
+
+### fix(ui): the coalesce was missing whole classes of generated card
+
+Owner reported end-of-turn grants never materialising, and deathrattle grants playing a *competing*
+animation. An audit of all 25 `hand.push` sites turned up four real bugs.
+
+**1. End-of-turn grants never fired.** `faceOmen` is a single reducer action that runs the EoT effects AND
+flips `phase = 'combat'` ~200 lines later, so the store only ever publishes the final state: the granted
+cards are in hand and the phase is already combat. There is no intermediate commit — the UI never once
+renders them at `phase === 'recruit'`. The watcher's `if (run.phase !== 'recruit') return;` therefore
+dropped every one.
+
+Worse, that early return sat *after* the `prevHandUidsRef` write, so the uids were consumed as "seen" while
+playback was suppressed — by the time the phase was recruit again they were no longer new, so the trip back
+didn't catch them either. They fell through both paths. Guard removed; the real gate is whether the card is
+on screen, which the element lookup already does.
+
+**2. A buy or a triple discarded the WHOLE batch.** `if (!fresh.length || tripled || bought) return;` threw
+away every fresh card in that commit, not just the excluded one. So anything conjured alongside a buy lost
+its effect: **Dupes**, Gorr's Four Peat, the Drakko and Chronos quest rewards, the Spellslinging gold drip.
+Exclusions are per-card now — `buyPendingRef` carries the bought UID rather than a boolean, and a triple
+excludes only the golden card the gild owns.
+
+**3. Skipped replays left combat grants with nothing.** `coalesceSkipRef` was built from
+`lastCombat.playerHandGrants`, i.e. every grant the combat produced — but on a skipped replay nothing plays
+mid-fight, so the skip suppressed the settle-side effect and the grant got no effect at all. The skip is now
+built from `grantPlayedRef`: what the in-combat watcher *actually* fired.
+
+**4. The competing flight is gone.** `tohandfly` flew the granted card 52vh down the screen while shrinking
+it to 0.42 — a second story about the same event the coalesce was already telling. Replaced with an
+opacity-only hold-and-fade on a static transform, so the card materialises where it appears and the coalesce
+is the whole animation. The "To your hand" label stays; it carries information the effect doesn't.
+
+### The verification hole
+
+`npm run typecheck` **excludes `packages/ui`** (`tsconfig.json`: `"exclude": ["packages/ui"]`) — React/DOM is
+checked by `npm run typecheck:web`, which **CI does not run**. So every "typecheck green" reported on this
+UI work checked none of it, and `build:web` doesn't catch type errors either (Vite strips types via esbuild).
+That is how a `ReferenceError: starts is not defined` — a variable removed in a refactor but still
+referenced — reached the owner's browser.
+
+Two type errors from the *already-merged* coalesce PR were found this way: `hide`/`unhide` returning a value
+where `void` was declared, and `PlateCoalesceTuner`'s demo button reading `panelRef.current` when
+`useDraggablePanel` returns a **callback ref** — so that button had been silently doing nothing since it
+shipped. Both fixed; the repo's `typecheck:web` error count went 58 → 57.
+
+**Follow-up worth taking seriously:** `typecheck:web` has 57 pre-existing errors and no gate, so it will keep
+rotting and will keep letting UI type errors ship. Getting it to zero and adding it to CI is its own PR.
+
+### Known gaps, deliberately not fixed here
+
+- **Hand-full conjures land on the BOARD** (`recruit.ts:676`) and the watcher only diffs `run.hand`, so they
+  never coalesce. Distinguishing a board-overflow conjure from a played minion or a summoned token needs
+  more signal than the UI currently has.
+- **The run-start Chaos token** doesn't coalesce — `prevHandUidsRef` is seeded from the initial hand.
+  Arguably correct: run start isn't a generation moment.
+- **The flip skip matches by `cardId`, not uid**, so a start-of-turn grant of the same card as a combat grant
+  is theoretically indistinguishable. Ordering makes it resolve correctly today.
+
 ## 2026-07-22 (plate gild)
 
 ### feat(ui): three become one — the gild is a run highlight now

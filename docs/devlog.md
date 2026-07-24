@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (Spell Buff FX tuner + Ruby green value)
+
+### feat(ui): a ✨ Spell Buff tuner, spark tails, and green Ruby values
+
+**Tuner.** The spell-buff cue now follows the house FX contract instead of hardcoded numbers: `spellBuffFxConfig.ts`
+(localStorage-backed, dev-only persistence, production renders the shipped DEFAULTS) + `SpellBuffFxTuner.tsx`
+registered in `DevMenu` as **✨ Spell Buff FX**. 17 controls — spark count / size range / spawn spread + band /
+rise range / drift / alpha / glow / tail / life / stagger, the three hues, and the card's wiggle°, pop scale and
+duration — with **Test** (fires the cue on every spell + Ruby in hand), **Copy values** and **Reset**. Because
+this cue is CSS rather than Pixi, `Card.tsx` reads the config at FIRE TIME to bake the per-mote jitter and
+pushes the timing/shape dials down as `--sb-*` custom properties, so an edit applies to the NEXT burst.
+
+**Visibility + tails (owner: "too hard to see").** Dropped `mix-blend-mode: screen` — the main culprit, it
+washed the motes out over bright card art — and gave each mote a white-hot core, a tunable glow halo, a tunable
+peak alpha, and a **tapering tail** that trails below it as it climbs (length = mote size × the tail dial, so
+bigger motes streak longer).
+
+**Independent timing.** The card pop and the spark life were already separate dials, but the class was held for
+a hardcoded 850ms, which silently CLIPPED any spark life longer than that. The hold now derives from
+`max(wiggleMs, sparkMs + stagger)`, so a snappy wiggle with a long slow rise works as intended.
+
+**Ruby green value.** A Ruby minted or grown above its printed 1/1 now shows its grant in green via the standard
+`{{…}}` modified-value marker — the same cue every other scaled number uses.
+
+Verified live: buffed Ruby renders a green `+4/+4` while a base Ruby stays plain; the tuner renders 17 controls
+and a slider change (count 5, wiggle 12°) applied to the very next burst; tails measured 23.6px with the hue
+gradient; the flash now holds 1282ms against a 900ms spark life (no clipping). Full suite (1538) + lint +
+build:web green.
+
 ## 2026-07-23 (spell-buff cue — hand spells + Rubies react when they get stronger)
 
 ### feat(ui): a wiggle + spark burst on hand spells whose value just went up

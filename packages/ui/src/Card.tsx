@@ -1,8 +1,9 @@
-import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
+import { getSpellBuffFxConfig, makeSpellBuffSparks } from './spellBuffFxConfig';
 import { artFor } from './art';
 import { renameTerms } from './terms';
 import { Icon } from './Icon';
@@ -279,6 +280,11 @@ export const Card = memo(function Card({
   plated?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
+  // Spell-buff cue: build this burst's motes (and read its timing/shape dials) at FIRE TIME, so a ✨ Spell Buff
+  // tuner edit shows on the NEXT burst without a reload. Re-keyed on `spellBuffed` so each burst gets fresh
+  // jitter and the same burst never re-randomises mid-animation.
+  const spellSparks = useMemo(() => (spellBuffed ? makeSpellBuffSparks() : []), [spellBuffed]);
+  const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
   // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.
@@ -407,6 +413,8 @@ export const Card = memo(function Card({
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
+        // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
+        ...(sbCfg ? { '--sb-deg': `${sbCfg.wiggleDeg}deg`, '--sb-scale': sbCfg.wiggleScale, '--sb-wiggle-ms': `${sbCfg.wiggleMs}ms`, '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px` } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
@@ -734,11 +742,11 @@ export const Card = memo(function Card({
           rise. Pairs with the `.spellbuff` wiggle + pop on the card itself. */}
       {spellBuffed && (
         <span className="sbsparks" aria-hidden="true">
-          {SPELL_SPARKS.map((s, i) => (
+          {spellSparks.map((s, i) => (
             <span
               key={i}
               className="sbspark"
-              style={{ left: s.left, bottom: s.bottom, animationDelay: s.delay, '--sb-size': s.size, '--sb-rise': s.rise, '--sb-wx': s.wx, '--sb-hue': s.hue } as CSSProperties}
+              style={{ left: s.left, bottom: s.bottom, animationDelay: s.delay, '--sb-size': s.size, '--sb-rise': s.rise, '--sb-wx': s.wx, '--sb-hue': s.hue, '--sb-tail': s.tail } as CSSProperties}
             />
           ))}
         </span>
@@ -834,21 +842,6 @@ const ExecuteAura = memo(function ExecuteAura() {
  *  carries its own position / size / rise / sideways-drift so they read as an organic cloud, not a line. Count +
  *  ranges mirror the tuner (fx/reborn-css-preview.html): count 27, spread 38%, size 27%±35%, rise 320%±, wx ±22px.
  *  Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
-/** Spell-buff sparks — the pink / gold / purple motes that burst off a hand SPELL (or Ruby) the instant its
- *  value goes up, then rise and fade. Fixed per-mote jitter (position, delay, size, rise, drift, hue) generated
- *  once at module load, exactly like REBORN_WISPS. One-shot (~0.8s) and transform/opacity only, so the burst
- *  composites rather than repainting. Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
-const SPARK_HUES = ['rgba(255,138,216,0.95)', 'rgba(255,206,110,0.95)', 'rgba(186,130,255,0.95)']; // pink · gold · purple
-const SPELL_SPARKS = Array.from({ length: 15 }, (_, i) => ({
-  left: (50 + (Math.random() - 0.5) * 78).toFixed(1) + '%',
-  bottom: (8 + Math.random() * 46).toFixed(1) + '%',
-  delay: (Math.random() * 0.16).toFixed(2) + 's',
-  size: (5 + Math.random() * 6).toFixed(1) + 'px',
-  rise: (55 + Math.random() * 75).toFixed(0) + '%',
-  wx: ((Math.random() - 0.5) * 30).toFixed(0) + 'px',
-  hue: SPARK_HUES[i % SPARK_HUES.length]!,
-}));
-
 const REBORN_WISPS = Array.from({ length: 27 }, () => ({
   left: (50 + (Math.random() - 0.5) * 38).toFixed(1) + '%',
   bottom: (Math.random() * 16).toFixed(1) + '%',

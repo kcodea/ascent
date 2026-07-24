@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type BoardMinion, type LineStatus } from '@game/sim';
+import type { BoardMinion } from '@game/core';
+import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type LineStatus } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { liveBoardView } from './instView';
 import { heroArt } from './art';

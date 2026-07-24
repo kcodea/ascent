@@ -2097,10 +2097,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!next || next.minions.length === 0) return;
     const rng = makeRng(state.rngCursor);
     const avail = [...next.minions];
-    const picks: { cardId: string; attack: number; health: number; golden?: boolean }[] = [];
+    const picks: NonNullable<RunState['scoutedNextOpponent']> = [];
     for (let i = 0; i < num(params.count, 3) && avail.length > 0; i++) {
       const m = avail.splice(rng.int(avail.length), 1)[0]!;
-      picks.push({ cardId: m.cardId, attack: m.attack, health: m.health, ...(m.golden ? { golden: true } : {}) });
+      picks.push({ cardId: m.cardId, attack: m.attack, health: m.health, ...(m.golden ? { golden: true } : {}), ...(m.buffs?.length ? { buffs: m.buffs } : {}) });
     }
     state.rngCursor = rng.state();
     state.scoutedNextOpponent = picks;

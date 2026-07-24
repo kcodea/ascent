@@ -313,8 +313,9 @@ export interface RunState {
   pendingSCImps?: number;
   /** Farseer's Report: 3 scouted minions from the NEXT opponent's warband, shown in a read-only Discover-style
    *  reveal. Set on cast, cleared on close / at turn start. Stats are the opponent's actual (final, doubled-for-
-   *  golden) values; `golden` marks a triple so the reveal shows the golden treatment. */
-  scoutedNextOpponent?: { cardId: string; attack: number; health: number; golden?: boolean }[];
+   *  golden) values; `golden` marks a triple; `buffs` is the opponent's per-source buff breakdown (captured in
+   *  the snapshot) so right-click inspect reveals HOW they buffed it. */
+  scoutedNextOpponent?: { cardId: string; attack: number; health: number; golden?: boolean; buffs?: CardBuff[] }[];
   /** Pre-emptive Assault: the player's board attacks first in the NEXT combat, overriding the
    *  more-minions initiative rule (ties included). One-shot — cleared in `settleCombat`. */
   attackFirstNext?: boolean;

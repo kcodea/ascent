@@ -3931,7 +3931,7 @@ export function Recruit() {
                 const mul = m.golden ? 2 : 1;
                 return (
                   <div className="disc-slot" key={`${m.cardId}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
-                    <Card card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, golden: !!m.golden, attack: m.attack, health: m.health, baseAttack: c.attack * mul, baseHealth: c.health * mul, keywords: c.keywords, text: c.text, goldenText: c.goldenText, tier: c.tier }} />
+                    <Card card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, golden: !!m.golden, attack: m.attack, health: m.health, baseAttack: c.attack * mul, baseHealth: c.health * mul, keywords: c.keywords, text: c.text, goldenText: c.goldenText, tier: c.tier, buffs: m.buffs }} />
                   </div>
                 );
               })}

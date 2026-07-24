@@ -89,7 +89,7 @@ const doubleNums = (s: string): string =>
 export interface CardView {
   name: string;
   /** Card id — used to look up illustrated art (falls back to the tribe sprite). */
-  cardId?: string;
+  cardId: string;
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;

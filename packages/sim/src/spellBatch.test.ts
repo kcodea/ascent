@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatResult } from '@game/core';
-import { createRun, reduce, type BoardCard, type RunState } from './index';
+import { createRun, maxTierFor, poolOf, reduce, type BoardCard, type RunState } from './index';
 import { spellDisplayText } from './recruit';
 
 /**
@@ -168,6 +168,27 @@ describe('spell batch — tranche B2 (shop / economy)', () => {
     expect(after.length).toBe(before.length);
     // at tier 3 (offers ≤ 3, cap 6) every offer climbs exactly one tier
     after.forEach((t, i) => expect(t).toBe(before[i]! + 1));
+  });
+
+  it('Elevation Ritual: an offer AT the tier cap is re-rolled in place, not left untouched', () => {
+    // The bug (owner 2026-07-24): a Tier-6 offer with no Tier 7 available fell through the "can't upgrade"
+    // branch and was pushed back UNCHANGED — so the spell silently did nothing at the top of the curve.
+    const base = createRun(6);
+    const cap = maxTierFor(base.rift); // 6 without the Summit rift
+    const t6 = poolOf(base).buyable.filter((c) => c.tier === cap && (c.tribe === 'neutral' || base.tribes.includes(c.tribe)));
+    expect(t6.length).toBeGreaterThan(1); // needs room to roll something, else the assertion is vacuous
+    let s: RunState = {
+      ...base, tier: cap, hand: [mkSpell('sp', 'elevationritual')],
+      shop: [{ uid: 'o1', cardId: t6[0]!.id }, { uid: 'o2', cardId: t6[1]!.id }],
+    };
+    const beforeUids = s.shop.map((o) => o.uid);
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.shop.length).toBe(2);
+    // Still at the cap — it re-rolls within its own tier rather than climbing past it.
+    expect(s.shop.every((o) => CARD_INDEX[o.cardId]!.tier === cap)).toBe(true);
+    // Every slot REFRESHED: a fresh uid even if the card id happens to repeat (the owner's explicit ruling —
+    // rolling the same minion still counts as a refresh, so uid is the honest signal, not cardId).
+    expect(s.shop.every((o) => !beforeUids.includes(o.uid))).toBe(true);
   });
 });
 

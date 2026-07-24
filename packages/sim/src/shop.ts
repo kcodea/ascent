@@ -162,9 +162,20 @@ export function refillShopFiltered(state: RunState, filter: (c: CardDef) => bool
 
 /**
  * Elevation Ritual: upgrade EACH minion offer to a random minion ONE tier higher than ITSELF (a Tier-1 offer
- * becomes a random Tier-2, a Tier-3 → Tier-4, …), drawn from your active tribes + neutral. Capped at the rift's
- * max tier — a Tier-7 result needs the Summit rift; an offer already at the cap (or with no upgrade available in
- * the pool) is left untouched. Per-offer pool accounting: the replaced copy returns, the new copy is taken.
+ * becomes a random Tier-2, a Tier-3 → Tier-4, …), drawn from your active tribes + neutral.
+ *
+ * AT THE TIER CAP the offer is REFRESHED IN PLACE instead — a Tier-6 offer becomes a random Tier-6 (owner
+ * 2026-07-24: it used to be left untouched, so the spell silently did nothing to the very offers it mattered
+ * most for). `Math.min(tier + 1, cap)` expresses both cases: below the cap it steps up, at the cap it re-rolls
+ * its own tier. The cap is `maxTierFor(state.rift)` — Tier 7 only with the Summit rift. No HERO raises it:
+ * Brackus's `summitLock` grants a single turn-1 Tier-7 Discover, not a higher shop tier.
+ *
+ * A cap re-roll may legitimately land on the SAME minion, and that still counts as a refresh (owner ruling) —
+ * which is why the outgoing copy is counted as an available candidate below, and why every slot gets a FRESH
+ * uid even when the card id is unchanged, so the UI re-renders it as a new offer.
+ *
+ * Per-offer pool accounting: the replaced copy returns and the new copy is taken. When the pick IS the outgoing
+ * card those two cancel out, which is exactly right.
  */
 export function elevateShop(state: RunState): void {
   const cap = maxTierFor(state.rift);
@@ -172,11 +183,15 @@ export function elevateShop(state: RunState): void {
   const next: RunState['shop'] = [];
   for (const offer of state.shop) {
     const def = CARD_INDEX[offer.cardId];
-    const target = (def?.tier ?? 0) + 1;
-    const pool = def && target <= cap
-      ? poolOf(state).buyable.filter((c) => c.tier === target && (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) && (state.pool[c.id] ?? 0) > 0)
-      : [];
-    if (pool.length === 0) { next.push(offer); continue; } // can't upgrade (at the cap / dry pool) → keep the offer
+    if (!def) { next.push(offer); continue; }
+    const target = Math.min(def.tier + 1, cap);
+    // The outgoing copy counts as available: it's still held by this offer, so `state.pool` doesn't list it,
+    // but a same-tier re-roll is allowed to pick it again.
+    const avail = (id: string): number => (state.pool[id] ?? 0) + (id === offer.cardId ? 1 : 0);
+    const pool = poolOf(state).buyable.filter(
+      (c) => c.tier === target && (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) && avail(c.id) > 0,
+    );
+    if (pool.length === 0) { next.push(offer); continue; } // genuinely dry pool → keep the offer
     returnToPool(state, offer.cardId);
     const pick = pool[rng.int(pool.length)]!;
     state.pool[pick.id] -= 1;

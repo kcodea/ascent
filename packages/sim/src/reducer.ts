@@ -1420,6 +1420,10 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'faceOmen': {
+      // Layaway: its "keep through refreshes" is a THIS-SHOP-PHASE effect, not a permanent one — clear the
+      // `kept` marks now, going into combat, so the first refresh AFTER combat sweeps the offer (the discount
+      // rides the offer while it lasts). Recast Layaway next turn to keep it again (owner ruling 2026-07-23).
+      for (const o of s.shop) if (o.kept) o.kept = false;
       // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
       // carry — never strand a played Toxin Tender without its grant.
       if (s.pendingTarget) {

@@ -3,6 +3,16 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (Layaway — the keep is shop-phase only)
+
+### fix(sim): Layaway's "keep through refreshes" no longer persists through combat
+
+Owner ruling: Layaway keeps a shop offer through rerolls only for the CURRENT shop phase, not forever. `faceOmen`
+now clears every offer's `kept` mark going into combat, so the first refresh after combat sweeps the minion
+(recast Layaway to keep it again). The cost reduction still rides the offer while it lasts. Within the turn the
+keep works as before (survives manual rerolls). Verified: new `spellBatch.test.ts` case (kept is cleared by
+`faceOmen`) + the existing within-turn reroll test. Full suite (1538) + lint + build green.
+
 ## 2026-07-23 (Farseer's Report — Discover-style scout modal)
 
 ### feat(ui): Farseer's Report shows a read-only Discover-style reveal with a Close button

@@ -59,7 +59,15 @@ export const artFor = (cardId?: string, uid?: string): string | undefined => {
   }
   const alias = ART_ALIAS[cardId];
   if (alias && MINION_ART[alias]) return MINION_ART[alias];
-  // Minions first, then spells/Rubies. Ids are globally unique so the order is arbitrary, not a precedence.
+  // Minions first, then spells/Rubies. Ids are globally unique, so a card should only ever live in ONE of the
+  // two directories and the order shouldn't matter. When it does matter, something is misfiled — a spell's art
+  // sitting in `minions/` silently wins and the spells/ copy never renders. That's exactly what happened when
+  // spell art was first wired (2026-07-24): 38 spells already had an older master misfiled under minions/, so
+  // most of the new art was shadowed. The dev-only warning below turns that from an invisible bug into a
+  // console message; the fix is always to delete the misfiled copy, not to reorder these.
+  if (import.meta.env.DEV && MINION_ART[cardId] && SPELL_ART[cardId]) {
+    console.warn(`[art] "${cardId}" has art in BOTH minions/ and spells/ — the minions/ copy wins and the spells/ one is dead. Delete whichever is misfiled.`);
+  }
   return MINION_ART[cardId] ?? SPELL_ART[cardId];
 };
 

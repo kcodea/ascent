@@ -144,6 +144,8 @@ export type EffectFactoryId =
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
+  | 'battlecryArmGrimoire' // Living Grimoire: Shout — charge the first-spell multiplier
+  | 'onBattlecryRearmGrimoire' // Living Grimoire: every 3 Shouts, recharge it
   | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons

@@ -152,6 +152,65 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
   });
 });
 
+describe('set 2 — Living Grimoire charges, spends and re-arms', () => {
+  const play = (s: RunState, uid: string): RunState => reduce(s, { type: 'play', uid });
+
+  it('doubles the turn’s FIRST spell, then goes quiet until 3 Shouts recharge it', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 60,
+      board: [minion('tgt', 'd2_chronicler', 'dragon', 3, 5)],
+      hand: [minion('lg', 'd2_grimoire', 'dragon', 7, 9), spellInHand('s1', 'spiritfire'), spellInHand('s2', 'spiritfire')],
+    };
+    s = play(s, 'lg');
+    expect(s.grimoireMult).toBe(2); // charged by its Shout
+
+    const t0 = s.board.find((c) => c.uid === 'tgt')!;
+    const [a0, h0] = [t0.attack, t0.health];
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'tgt' });
+    const t1 = s.board.find((c) => c.uid === 'tgt')!;
+    expect([t1.attack - a0, t1.health - h0]).toEqual([4, 6]); // Spirit Fire +2/+3, cast TWICE
+    expect(s.grimoireMult).toBe(0); // spent
+
+    // the next spell this turn is single, and it stays discharged
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 'tgt' });
+    const t2 = s.board.find((c) => c.uid === 'tgt')!;
+    expect([t2.attack - t1.attack, t2.health - t1.health]).toEqual([2, 3]);
+    expect(s.grimoireMult).toBe(0);
+  });
+
+  it('re-arms after 3 Shouts, and does not bank Shouts while still charged', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 60,
+      board: [minion('lg', 'd2_grimoire', 'dragon', 7, 9)],
+      hand: [
+        minion('a1', 'd2_chronicler', 'dragon', 3, 5),
+        minion('a2', 'd2_embermouth', 'dragon', 2, 2),
+        minion('a3', 'd2_skald', 'dragon', 4, 5), // three DISTINCT Shouts — identical ones would triple-combine
+      ],
+      grimoireMult: 2, // already charged
+    };
+    s = play(s, 'a1'); s = play(s, 'a2'); s = play(s, 'a3');
+    const lg = s.board.find((c) => c.uid === 'lg')!;
+    expect(lg.shoutTick ?? 0).toBe(0); // charged the whole time → nothing was counted
+    expect(s.grimoireMult).toBe(2);
+  });
+
+  it('selling the Grimoire cannot leave a free permanent multiplier behind', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 60,
+      board: [minion('lg', 'd2_grimoire', 'dragon', 7, 9), minion('tgt', 'd2_chronicler', 'dragon', 3, 5)],
+      hand: [spellInHand('s1', 'spiritfire')],
+      grimoireMult: 2,
+    };
+    s = reduce(s, { type: 'sell', uid: 'lg' }); // the charge flag survives, but the source is gone
+    const t0 = s.board.find((c) => c.uid === 'tgt')!;
+    const [a0, h0] = [t0.attack, t0.health];
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'tgt' });
+    const t1 = s.board.find((c) => c.uid === 'tgt')!;
+    expect([t1.attack - a0, t1.health - h0]).toEqual([2, 3]); // single cast — no orphaned multiplier
+  });
+});
+
 describe('set 2 — Voicekeeper copies the first Dragon sold each turn', () => {
   it('copies the FIRST Dragon sold, and not the second', () => {
     let s: RunState = {

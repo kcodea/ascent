@@ -2,6 +2,32 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(sim/content): Dragon tranche 8 — Living Grimoire (charge, spend, re-arm)
+
+Living Grimoire (T6 7/9) — **18 of 21 Dragons built**.
+
+A rechargeable spell amplifier: it multiplies the turn's FIRST spell, discharges, and needs 3 Shouts to come
+back. Three details decided the shape:
+
+**The charge is run-level, not per-instance.** `spellCasts` is what applies a multiplier, and the UI also calls
+it to PREVIEW a cast count — so it can only read run state. Hence `grimoireMult` (2 base, 3 golden, via
+`1 + gold(self)`), rather than a flag on the card.
+
+**It's spent in `castSpell`, not in `spellCasts`.** `spellCasts` must stay side-effect free precisely BECAUSE
+the UI previews with it — discharging there would consume the charge every time a tooltip rendered. The spend
+happens at the real cast, keyed on the turn's first.
+
+**`spellCasts` additionally requires a live Grimoire on board.** Without that, selling the Grimoire while
+charged leaves a permanent free multiplier on every future first-spell — a run-level flag with no owner. The
+board is ≤7 cards so the scan is free, and there's a test that sells it mid-charge and asserts the next spell
+casts once.
+
+Re-arm counting is skipped while already charged, so Shouts aren't banked toward a charge you haven't spent —
+"once USED, trigger 3 Shouts to reset this". Tested both ways: 3 Shouts while charged leaves `shoutTick` at 0.
+
+(The re-arm test again uses three DISTINCT Shout Dragons — three copies of one card would triple-combine and
+fail for an unrelated reason, the trap recorded in tranche 4.) Suite 1575 + typecheck + lint + build:web green.
+
 ### feat(sim/content): Dragon tranche 7 — Voicekeeper (board-wide on-sell watcher)
 
 Voicekeeper (T5 5/9) — **17 of 21 Dragons built**.

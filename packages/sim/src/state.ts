@@ -782,6 +782,12 @@ export interface RunState {
   spellDoubleAlways?: boolean;
   spellFirstDoubleEachTurn?: boolean;
   spellFirstUsedThisTurn?: boolean;
+  /** Set 2 — Living Grimoire: the multiplier its charge applies to the FIRST spell of a turn (2 base, 3 golden).
+   *  Absent/0 = discharged. Run-level rather than per-instance because `spellCasts` — which the UI also calls to
+   *  PREVIEW a cast count — reads run state only. Spending it and re-arming it (3 Shouts) both live on the
+   *  Grimoire's own hooks; `spellCasts` additionally requires a live Grimoire on board, so selling the source
+   *  can't leave a free permanent charge behind. */
+  grimoireMult?: number;
   minionCostOverride?: number;
   slaughterFirstEachCombat?: number;
   /** Attachment Issues (Mech capstone): every shop is guaranteed a Magnetic offer (`alwaysAttachmentShop`) and

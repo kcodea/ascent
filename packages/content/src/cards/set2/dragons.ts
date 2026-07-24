@@ -80,6 +80,23 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Rally:** trigger your left-most other Dragon’s **Shout** twice.',
   },
   {
+    // A rechargeable spell amplifier: it doubles your opening spell, then goes quiet until you trigger 3
+    // Shouts — so it pulls the tribe's two halves (spells and Shouts) into one card.
+    id: 'd2_grimoire',
+    name: 'Living Grimoire',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 7,
+    health: 9,
+    keywords: [],
+    effects: [
+      { on: 'onPlay', do: 'battlecryArmGrimoire' },
+      { on: 'battlecryTriggered', do: 'onBattlecryRearmGrimoire', params: { every: 3 } },
+    ],
+    text: 'The first spell you cast each turn **casts twice**. Once used, trigger **3 Shouts** to reset this.',
+    goldenText: 'The first spell you cast each turn **casts 3 times**. Once used, trigger **3 Shouts** to reset this.',
+  },
+  {
     // The tribe's combat headline: one Start of Combat that fires the whole board's Shouts. Pairs with
     // Karwind (also a Dragon) — every trigger procs it, so the two together are the tribe's payoff turn.
     id: 'd2_sovereign',

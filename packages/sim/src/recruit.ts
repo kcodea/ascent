@@ -495,6 +495,13 @@ export function spellCasts(state: RunState, def: CardDef): number {
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
+  // Living Grimoire: while CHARGED, the first spell of the turn multiplies. Gated on a live Grimoire being on
+  // board — the charge is run-level so the UI can preview the count, and without this check selling the
+  // Grimoire would leave the multiplier running forever. The board is ≤7 cards, so the scan is free.
+  if (state.grimoireMult && state.spellsThisTurn === 0
+      && state.board.some((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'battlecryArmGrimoire'))) {
+    mult *= state.grimoireMult;
+  }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
@@ -1944,6 +1951,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  twin of `deathrattleGrantRandomSpell`; same pool + hand-cap handling via `conjureToHand`. */
   battlecryGrantRandomSpell: (ctx, self, params) => {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Living Grimoire (Shout): charge it. Magnitude rides golden — base doubles the turn's first
+   *  spell, golden triples it (`1 + gold(self)`). */
+  battlecryArmGrimoire: (ctx, self) => {
+    ctx.state.grimoireMult = 1 + gold(self);
+  },
+
+  /** Set 2 — Living Grimoire's re-arm: every `every` Shouts you trigger, recharge it. Counting is skipped
+   *  while it's already charged, so Shouts aren't banked toward a charge you haven't spent — "once USED,
+   *  trigger 3 Shouts to reset this". */
+  onBattlecryRearmGrimoire: (ctx, self, params) => {
+    if (ctx.state.grimoireMult) return;
+    const every = Math.max(1, num(params.every, 3));
+    const tick = (self.shoutTick ?? 0) + 1;
+    if (tick < every) { self.shoutTick = tick; return; }
+    self.shoutTick = 0;
+    ctx.state.grimoireMult = 1 + gold(self);
   },
 
   /** Set 2 — Voicekeeper: the FIRST `tribe` minion you sell each turn hands you a PLAIN copy of it.
@@ -3861,8 +3886,12 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // `spellsCast + rubyCasts` contract documented on `RunState.rubyCasts` — so Gemgorge Fiend's "every 3"
   // counts a Shop Spell exactly like a Ruby. Fired here so EVERY cast path routes through it once per cast.
   const castUmbrellaBefore = state.spellsCast + (state.rubyCasts ?? 0);
+  const wasFirstThisTurn = state.spellsThisTurn === 0;
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
+  // Living Grimoire's charge is spent by the turn's FIRST cast. Consumed here, at the real cast, rather than in
+  // `spellCasts` — that function is also called by the UI to preview a count and must stay side-effect free.
+  if (wasFirstThisTurn && state.grimoireMult) state.grimoireMult = 0;
   fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —

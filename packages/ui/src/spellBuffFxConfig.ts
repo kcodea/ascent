@@ -96,33 +96,33 @@ const DEFAULTS: SpellBuffFxConfig = {
   wiggleMs: 720,
   wiggleEase: 0.8,
   wiggleOvershoot: 0.12,
-  wiggleWobble: 0.3,
+  wiggleWobble: 0.18,
   wiggleSettle: 0.85,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
 export const SBF_RANGES: Record<Exclude<keyof SpellBuffFxConfig, 'pinkColor' | 'goldColor' | 'purpleColor'>, [number, number, number]> = {
-  sparkCount: [0, 40, 1],
-  sparkSizeMin: [1, 20, 0.5],
-  sparkSizeMax: [1, 30, 0.5],
-  sparkSpread: [0, 140, 1],
-  sparkOriginLo: [0, 90, 1],
-  sparkOriginHi: [0, 100, 1],
-  sparkRiseMin: [0, 400, 5],
-  sparkRiseMax: [0, 500, 5],
+  sparkCount: [0, 80, 1],
+  sparkSizeMin: [0.5, 30, 0.5],
+  sparkSizeMax: [0.5, 48, 0.5],
+  sparkSpread: [0, 240, 1],
+  sparkOriginLo: [0, 100, 1],
+  sparkOriginHi: [0, 120, 1],
+  sparkRiseMin: [0, 600, 5],
+  sparkRiseMax: [0, 900, 5],
   sparkSpeed: [0, 1, 0.01],
-  sparkGravity: [0, 200, 1],
-  sparkDrift: [0, 120, 1],
+  sparkGravity: [0, 600, 5],
+  sparkDrift: [0, 300, 1],
   sparkAlpha: [0, 1, 0.01],
-  sparkGlow: [0, 30, 0.5],
-  sparkTail: [0, 8, 0.1],
-  sparkMs: [150, 2500, 10],
-  sparkStagger: [0, 600, 10],
-  wiggleDeg: [0, 15, 0.1],
-  wiggleScale: [1, 1.4, 0.01],
-  wiggleMs: [120, 1600, 10],
+  sparkGlow: [0, 60, 0.5],
+  sparkTail: [0, 20, 0.1],
+  sparkMs: [80, 3000, 10],
+  sparkStagger: [0, 1200, 10],
+  wiggleDeg: [0, 30, 0.1],
+  wiggleScale: [1, 2, 0.01],
+  wiggleMs: [80, 2500, 10],
   wiggleEase: [0, 1, 0.01],
-  wiggleOvershoot: [0, 0.8, 0.01],
+  wiggleOvershoot: [0, 2, 0.01],
   wiggleWobble: [0, 1, 0.01],
   wiggleSettle: [0, 1, 0.01],
 };
@@ -194,8 +194,9 @@ export function resetSpellBuffFxConfig(): void {
  *  and coasts (the y1 control point carries most of the travel into the first fraction of the life). */
 export function sparkEaseCss(c: SpellBuffFxConfig = cfg): string {
   const s = Math.min(1, Math.max(0, c.sparkSpeed));
-  const x1 = (0.34 - s * 0.31).toFixed(3);
-  const y1 = (0.12 + s * 0.82).toFixed(3);
+  // Full swing: at 0 the climb crawls off the card, at 1 nearly all the travel is spent in the first instant.
+  const x1 = (0.55 - s * 0.54).toFixed(3);
+  const y1 = (0.04 + s * 0.94).toFixed(3);
   return `cubic-bezier(${x1}, ${y1}, 0.36, 1)`;
 }
 
@@ -215,9 +216,11 @@ export function wiggleEaseCss(c: SpellBuffFxConfig = cfg): string {
   // leaves rest almost vertically (y1 high = an instant leap), at 1 it crawls out flat (x1 high / y1 ~0 = a long
   // gentle ramp). The previous mapping only moved y1 between 0.02 and 0.12, so every setting started slow and
   // the dial read as doing nothing.
-  const x1 = (0.02 + e * 0.78).toFixed(3);
-  const y1 = (0.7 - e * 0.69).toFixed(3);
-  const x2 = (0.95 - s * 0.8).toFixed(3);
+  const x1 = (0.01 + e * 0.88).toFixed(3);
+  const y1 = (0.92 - e * 0.91).toFixed(3);
+  // The settle owns the TAIL across its whole range: at 0 the curve holds low and slams into the target
+  // (abrupt arrival), at 1 it reaches the target very early and glides the rest of the way in.
+  const x2 = (0.98 - s * 0.93).toFixed(3);
   const y2 = (1 + o).toFixed(3);
   return `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
 }

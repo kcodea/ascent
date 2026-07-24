@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell-buff tuner — authority pass on every dial)
+
+### fix(ui): widen the ranges AND the 0-to-1 mappings so the dials actually bite
+
+Owner: "it's really not giving a strong enough control." Two separate ceilings were capping every dial long
+before the effect got interesting, so this widens both:
+
+**Slider ranges** — pop scale 1.4 → **2.0**, wiggle° 15 → **30**, pop spring 0.8 → **2.0**, wiggle ms → 80–2500,
+spark count 40 → **80**, spark size max 30 → **48**, rise max 500 → **900px**, gravity 200 → **600**, drift 120 →
+**300**, glow 30 → **60**, tail 8 → **20**, stagger 600 → **1200**, spread 140 → **240**, spark ms → 80–3000.
+
+**Normalized mappings** — the 0–1 dials now swing their curve control points across the FULL range instead of a
+narrow slice:
+- pop softness: `y1` 0.92 → 0.01 (instant leap ↔ flat crawl), `x1` 0.01 → 0.89
+- settle softness: `x2` 0.98 → 0.05 (slams into the target ↔ arrives early and glides)
+- launch punch: `y1` 0.04 → 0.98 (crawls off the card ↔ nearly all travel in the first instant)
+
+**Wobble geometry** — the counter-swing legs topped out at 42% of the peak, so wobble 1 was still mild; now 90%
+/ 40%, a genuine oscillation. Default trimmed 0.3 → 0.18 to keep the shipped feel roughly where it was.
+
+Verified at the extremes: `cubic-bezier(0.01, 0.92, 0.98, 1)` (snap) vs `cubic-bezier(0.89, 0.01, 0.05, 3)`
+(slow crawl + big spring). Full suite (1538) + lint + build:web green.
+
 ## 2026-07-23 (spell-buff pop — the softness dial had no authority)
 
 ### fix(ui): widen the pop-softness curve mapping (triage)

@@ -13,6 +13,8 @@ export interface FxInstance {
   update(dtMs: number): void;
   /** Apply edited parameters without a respawn — this is what makes live tuning feel instant. */
   setParams(next: Record<string, unknown>): void;
+  /** Optional: primitives that follow a path (ribbons, trails) receive their head position each frame. */
+  setHead?(x: number, y: number): void;
   destroy(): void;
 }
 

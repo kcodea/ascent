@@ -27,6 +27,15 @@ const DEF: FxDef = {
   ],
 };
 
+// A layer spanning the ENTIRE duration never naturally passes through a 'done' state as the clock
+// advances, so it's the case that exposes whether a loop wrap actually tears down and restarts a layer,
+// or just lets the original instance silently carry across the boundary.
+const FULLSPAN_DEF: FxDef = {
+  id: 'fullspan',
+  duration: 500,
+  layers: [{ primitive: 'a', anchor: 'target', at: 0, life: 500, params: {} }],
+};
+
 describe('createPlayer', () => {
   beforeEach(() => {
     spawned.length = 0;
@@ -123,5 +132,68 @@ describe('createPlayer', () => {
     p.play();
     expect(() => p.setHead(0, 10, 20)).not.toThrow();
     expect(() => p.setHead(99, 10, 20)).not.toThrow();
+  });
+
+  // Regression tests for the three bugs found in self-review of the first cut of this player. Each was
+  // confirmed to fail against the buggy version of player.ts before being folded in here — see the PR
+  // description / devlog for the revert-check results.
+
+  it('regression: a loop wrap destroys and respawns a full-duration layer instead of carrying the same instance across the boundary', () => {
+    const p = createPlayer(FULLSPAN_DEF, CTX, { loop: true });
+    p.play();
+    expect(spawned).toHaveLength(1);
+    const first = spawned[0].inst;
+
+    // Step up close to the boundary first...
+    p.update(490);
+    expect(p.timeMs()).toBe(490);
+    expect(first.destroy).not.toHaveBeenCalled();
+
+    // ...then cross it in one step that does NOT land exactly on the boundary (490 + 40 = 530 -> wraps to
+    // 30). layerStateAt alone can't see this crossing -- only a clock jump from 490 straight to 30 -- so
+    // if the wrap doesn't force a teardown, `first` would simply still be live at t=30 with a stale
+    // instance from the previous cycle.
+    p.update(40);
+    expect(p.timeMs()).toBe(30);
+
+    expect(first.destroy).toHaveBeenCalledTimes(1);
+    expect(spawned).toHaveLength(2);
+  });
+
+  it('regression: play() after natural completion (non-looping) restarts the clock at 0 and respawns layers', () => {
+    const p = createPlayer(DEF, CTX);
+    p.play();
+    p.update(520); // runs past duration -> clamps to 500 and stops
+    expect(p.timeMs()).toBe(500);
+    expect(p.isPlaying()).toBe(false);
+    const spawnCountAtFinish = spawned.length;
+
+    p.play(); // press play again after finishing
+    expect(p.timeMs()).toBe(0);
+    expect(p.isPlaying()).toBe(true);
+    expect(spawned.length).toBeGreaterThan(spawnCountAtFinish);
+  });
+
+  it('regression: play() after a mid-playback pause resumes without resetting the clock', () => {
+    const p = createPlayer(DEF, CTX);
+    p.play();
+    p.update(150); // well short of duration (500) -- not finished
+    expect(p.timeMs()).toBe(150);
+    p.pause();
+    expect(p.isPlaying()).toBe(false);
+
+    p.play();
+    // This is a RESUME, not a restart -- unlike the "finished" case above, the clock must be untouched.
+    expect(p.timeMs()).toBe(150);
+    expect(p.isPlaying()).toBe(true);
+  });
+
+  it('regression: setLayerParams never mutates the caller-owned def object', () => {
+    const originalParamsRef = DEF.layers[0].params;
+    const p = createPlayer(DEF, CTX);
+    p.play();
+    p.setLayerParams(0, { size: 9 });
+    expect(DEF.layers[0].params).toBe(originalParamsRef);
+    expect(DEF.layers[0].params).toEqual({});
   });
 });

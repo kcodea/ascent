@@ -12,6 +12,44 @@ import type { CardDef } from '@game/core';
  */
 export const SET2_BEASTS: CardDef[] = [
   {
+    // The tribe capstone: a Choose-One that permanently multiplies one HALF of the Beast trigger suite. Hunt
+    // pumps the aggressive line (Rally + Slaughter), Ritual the Echo line — so it rewards whichever build you
+    // actually assembled. Gilded doubles the chosen mode (2 additional triggers), NOT gain-both (owner
+    // 2026-07-24) — which is why it does not set `chooseBothWhenGolden` the way Orivax does.
+    id: 'b2_elderhorn',
+    name: 'Elderhorn, the First Roar',
+    tribe: 'beast',
+    tier: 7,
+    attack: 8,
+    health: 10,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: '**Hunt:** your Beast **Rallies** and **Slaughters** trigger an additional time.',
+        goldenText: '**Hunt:** your Beast **Rallies** and **Slaughters** trigger **2 additional** times.',
+        effects: [{ on: 'onPlay', do: 'battlecryGrantBeastHunt', params: { extra: 1 } }] },
+      { text: '**Ritual:** your Beast **Echoes** trigger an additional time.',
+        goldenText: '**Ritual:** your Beast **Echoes** trigger **2 additional** times.',
+        effects: [{ on: 'onPlay', do: 'battlecryGrantBeastRitual', params: { extra: 1 } }] },
+    ],
+    text: '**Choose One — Hunt:** your Beast Rallies and Slaughters trigger an additional time. **Ritual:** your Beast Echoes trigger an additional time.',
+    goldenText: '**Choose One — Hunt / Ritual:** that trigger fires **2 additional** times.',
+  },
+  {
+    // A viral Rally: every Beast it buffs also LEARNS this rally, so the effect spreads across the board as
+    // your Beasts attack. Each body only ever picks it up once (no exponential re-granting).
+    id: 'b2_sunmane',
+    name: 'Sunmane Herald',
+    tribe: 'beast',
+    tier: 5,
+    attack: 3,
+    health: 3,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe: 'beast', attack: 3 } }],
+    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**.',
+    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**.',
+  },
+  {
     // The tribe's two halves in one card: it pays your summons, and your SPELLS make that payment bigger.
     id: 'b2_groveweaver',
     name: 'Groveweaver',

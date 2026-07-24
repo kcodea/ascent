@@ -1,4 +1,4 @@
-import type { CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import type { CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -2089,6 +2089,33 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) {
       if (m === self || m.cardId !== targetId) continue;
       m.summonBonus += step;
+    }
+  },
+
+  /** Set 2 — Sunmane Herald (Rally): on its own attack, give your `tribe` +atk Attack AND graft THIS rally
+   *  onto each of them — so every Beast it touches becomes another Herald, and the effect spreads as they
+   *  attack. Uses `ctx.grantDeathrattle`, which despite the name grafts + registers ANY effect (it's the same
+   *  path Grave Body uses to copy Echoes).
+   *
+   *  Guarded against re-granting to a minion that already carries this rally: without the check, every Herald's
+   *  attack would stack another copy of the effect onto the same body, and the grants would grow exponentially
+   *  with attack count rather than spreading once per Beast. */
+  rallySpreadTribeBuff: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    const a = num(params.attack, 3) * mul(self);
+    if (a <= 0) return;
+    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}) } };
+    for (const m of ctx.living(self.side)) {
+      if (m === self) continue;
+      if (!(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
+      ctx.buff(m, a, 0, self.uid);
+      const hasRally = m.effects.some((e) => e.on === 'onAttack' && e.do === 'rallySpreadTribeBuff');
+      if (!hasRally) {
+        if (!m.keywords.includes('RL')) m.keywords.push('RL'); // so the UI reads it as a Rally minion
+        ctx.grantDeathrattle(m, [graft]); // grafts + registers any effect, not just Echoes
+      }
     }
   },
 

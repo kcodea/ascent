@@ -1604,6 +1604,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         cardBuffs: s.cardBuffs ?? {},
         // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
         handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
+        // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
+        beastHuntExtra: s.beastHuntExtra ?? 0,
+        beastRitualExtra: s.beastRitualExtra ?? 0,
         questMods: questCombatMods(s),
         pendingQuests: buildPendingCombatQuests(s),
       });

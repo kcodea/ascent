@@ -125,3 +125,61 @@ describe('set 2 — Beast summon + aura cards', () => {
     expect(CARD_INDEX['b2_trexbaby']!.token).toBe(true);
   });
 });
+
+describe('set 2 — Sunmane Herald spreads its Rally', () => {
+  it('buffs Beasts +3 Attack and grafts the rally onto them (once each, no runaway)', () => {
+    const r = simulate([
+      { cardId: 'b2_sunmane', attack: 3, health: 60, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 60, sourceUid: 'B1' },
+      { cardId: 'pup', attack: 1, health: 60, sourceUid: 'B2' },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    // The Herald's attack buffs both Beasts +3/+0…
+    const buffs = r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 0);
+    expect(buffs.length).toBeGreaterThanOrEqual(2);
+    // …and they picked up the rally, so THEY buff too as they attack — more +3/+0 events than the Herald
+    // alone could produce in its own attacks. The dedupe guard keeps this linear, not exponential: the fight
+    // resolves (the harness/suite would hang otherwise).
+    expect(buffs.length).toBeGreaterThan(2);
+  });
+});
+
+describe('set 2 — Elderhorn multiplies BEAST triggers only', () => {
+  // A Deathrattle that summons, so extra Echo fires are countable as extra summons.
+  const echoBeast: CardDef = { id: 'ehbeast', name: 'EB', tribe: 'beast', tier: 2, attack: 1, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'stray', count: 1 } }], text: '' };
+  const echoDragon: CardDef = { ...echoBeast, id: 'ehdragon', name: 'ED', tribe: 'dragon' };
+
+  const summonsWith = (mode: { beastRitualExtra?: number }, deadCardId: string): number => {
+    const r = simulate(
+      [{ cardId: deadCardId, attack: 1, health: 1, sourceUid: 'D' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, ehbeast: echoBeast, ehdragon: echoDragon },
+      combatSide({ tier: 5, tribes: ['beast'], ...mode }), combatSide({ tier: 1 }));
+    return r.events.filter((e) => e.type === 'summon').length;
+  };
+
+  it('Ritual makes a BEAST Echo fire an extra time', () => {
+    expect(summonsWith({}, 'ehbeast')).toBe(1);
+    expect(summonsWith({ beastRitualExtra: 1 }, 'ehbeast')).toBe(2); // the extra fire
+  });
+
+  it('Ritual does NOT touch a non-Beast Echo (tribe-scoped, unlike Drakko/Uron)', () => {
+    expect(summonsWith({}, 'ehdragon')).toBe(1);
+    expect(summonsWith({ beastRitualExtra: 1 }, 'ehdragon')).toBe(1); // unchanged
+  });
+
+  it('the Choose-One installs the run-level mode (Hunt vs Ritual)', () => {
+    const eh = (uid: string): BoardCard => ({ uid, cardId: 'b2_elderhorn', tribe: 'beast', attack: 8, health: 10, keywords: [], golden: false });
+    let s: RunState = { ...createRun(7), tier: 7, phase: 'recruit', embers: 60, board: [], hand: [eh('e1')] };
+    s = reduce(s, { type: 'play', uid: 'e1' });
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // Hunt
+    expect(s.beastHuntExtra).toBe(1);
+    expect(s.beastRitualExtra ?? 0).toBe(0); // only the chosen mode installs
+
+    let s2: RunState = { ...createRun(7), tier: 7, phase: 'recruit', embers: 60, board: [], hand: [eh('e2')] };
+    s2 = reduce(s2, { type: 'play', uid: 'e2' });
+    s2 = reduce(s2, { type: 'chooseOne', index: 1 }); // Ritual
+    expect(s2.beastRitualExtra).toBe(1);
+    expect(s2.beastHuntExtra ?? 0).toBe(0);
+  });
+});

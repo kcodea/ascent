@@ -1058,6 +1058,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
   },
 
+  /** Set 2 — Elderhorn "Hunt": your BEAST Rallies and Slaughters trigger `extra` more times, permanently.
+   *  Run-level (survives combats) and passed into the fight via `CombatSideState.beastHuntExtra`. Golden
+   *  grants 2 instead of 1, per the owner's Gilded text ("trigger 2 additional times"). */
+  battlecryGrantBeastHunt: (ctx, self, params) => {
+    ctx.state.beastHuntExtra = (ctx.state.beastHuntExtra ?? 0) + num(params.extra, 1) * gold(self);
+  },
+
+  /** Set 2 — Elderhorn "Ritual": your BEAST Echoes trigger `extra` more times, permanently. */
+  battlecryGrantBeastRitual: (ctx, self, params) => {
+    ctx.state.beastRitualExtra = (ctx.state.beastRitualExtra ?? 0) + num(params.extra, 1) * gold(self);
+  },
+
   /** Set 2 — Groveweaver (summon half): a Beast you summon gets +atk/+hp, at the CURRENT magnitude (base +
    *  this instance's accrued `summonBonus`). Asymmetric on purpose (+2/+4), unlike `summonBuffTribeImprove`'s
    *  symmetric grant, and it does NOT self-improve here — the improvement rides spell casts instead

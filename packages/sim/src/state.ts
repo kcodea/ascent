@@ -734,6 +734,12 @@ export interface RunState {
    *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
   shoutExtraAlways?: number;
+  /** Set 2 — Elderhorn, the First Roar (Choose One). Extra fires its chosen mode grants to BEAST triggers:
+   *  `beastHuntExtra` covers Rallies + Slaughters (Hunt), `beastRitualExtra` covers Echoes (Ritual). Golden
+   *  grants 2 instead of 1 per mode. Run-level so they survive combats, passed into the fight via
+   *  `CombatSideState` (the same route `handSpellIds` takes). Absent = 0. */
+  beastHuntExtra?: number;
+  beastRitualExtra?: number;
   shoutFirstDoubleEachRound?: boolean;
   shoutFirstUsedThisTurn?: boolean;
   /** Transient: how many times the LAST played Battlecry fired (Drakko + shout-repeat rewards + charges) — set

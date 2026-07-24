@@ -3599,9 +3599,39 @@ export function consumeTavernFodder(state: RunState): void {
  * Cast a spell from the hand (handoff: spells). Resolves its `cast` effects on the
  * chosen target, tallies the cast, and notifies spell-tracking minions (`spellCast`).
  */
-/** Funeral on Loan: trigger a BORROWED minion's Echo (Deathrattle) out of combat — same path as Ossuary Rite,
- *  but the caller (the reducer's borrowed-play branch) has already removed the card from hand and won't board it. */
+/**
+ * Funeral on Loan: resolve a BORROWED minion's play — its SHOUT, then its ECHO — out of combat. The caller
+ * (the reducer's borrowed-play branch) has already removed the card from hand and won't board it.
+ *
+ * Order matters and mirrors the card's own wording: it is PLAYED (Shout fires), then destroyed (Echo fires).
+ * The Shout used to be skipped entirely — only the Deathrattle ran — so a Discovered minion carrying both
+ * silently lost half its text (owner 2026-07-24).
+ *
+ * The Shout goes through `playedShoutRepeats`, the same helper a real play uses, so it behaves like one
+ * rather than like a re-trigger: Drakko's repeats apply, a Warm Embers charge is SPENT, and `lastShoutFires`
+ * is stamped so Shout objectives (Echoing Roar, Tooth and Tempo, The Author's Hand) advance. Using
+ * `drummerRepeats` here instead — as `replayBattlecry` does — would quietly make it a free re-trigger.
+ *
+ * A TARGETED Battlecry fires with no explicit target, so its factory's auto-pick fallback chooses. That's the
+ * same contract `replayBattlecry` already documents, and it's forced here: the normal play path defers a
+ * targeted Shout to a `pendingTarget` prompt, which needs the card to still exist to resolve against — and a
+ * borrowed card is gone from hand and never reaches the board.
+ */
 export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
+  const def = CARD_INDEX[card.cardId];
+  const onPlay = def?.effects.filter((e) => e.on === 'onPlay') ?? [];
+  if (def && onPlay.length > 0) {
+    state.karwindFlash = [];
+    const ctx = makeContext(state);
+    const repeats = playedShoutRepeats(state, def);
+    for (const effect of onPlay) {
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (!fn) continue;
+      captureBuffFx(ctx.state, card, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card }); });
+    }
+    for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // each Battlecry fire procs Karwind
+    if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
+  }
   fireRecruitDeathrattles(makeContext(state), card);
 }
 

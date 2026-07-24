@@ -313,6 +313,23 @@ describe('spell batch — tranche C (Discover-based)', () => {
     expect(s.hand.some((c) => c.uid === 'b')).toBe(false); // consumed
   });
 
+  it('Funeral on Loan: a borrowed minion also fires its SHOUT — it is played, then destroyed', () => {
+    // Owner 2026-07-24: only the Echo used to fire, so a Discovered minion carrying BOTH silently lost half
+    // its text. Imp Overseer has both — Shout: your Imps get +2/+2; Echo: summon an Imp.
+    const imp: BoardCard = { uid: 'i1', cardId: 'impscrap', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false };
+    const borrowed: BoardCard = { uid: 'b', cardId: 'impoverseer', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false, borrowed: true };
+    let s: RunState = { ...createRun(1), board: [imp], hand: [borrowed] };
+    const [a0, h0] = [imp.attack, imp.health];
+
+    s = reduce(s, { type: 'play', uid: 'b', targetUid: undefined });
+
+    const survivor = s.board.find((c) => c.uid === 'i1')!;
+    expect([survivor.attack - a0, survivor.health - h0]).toEqual([2, 2]); // the SHOUT fired
+    expect(s.board.filter((c) => c.cardId === 'impscrap').length).toBe(2); // the ECHO fired (one summoned)
+    expect(s.board.some((c) => c.cardId === 'impoverseer')).toBe(false); // still never boarded
+    expect(s.hand.some((c) => c.uid === 'b')).toBe(false); // still consumed
+  });
+
   it('Funeral on Loan: the Discover carries the borrowed flag onto an Echo minion', () => {
     let s: RunState = { ...createRun(4), tier: 4, hand: [mkSpell('sp', 'funeralonloan')] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });

@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-07-24 (a borrowed minion's Shout never fired)
+
+### fix(sim): Funeral on Loan's borrowed minion fires its SHOUT as well as its Echo
+
+Owner report: "the card is played and then destroyed, so any on-play effects should also trigger."
+
+`triggerBorrowedEcho` did exactly one thing — `fireRecruitDeathrattles`. A borrowed minion carrying BOTH a
+Shout and an Echo therefore lost half its printed text on play. Only three cards in the pool have both (Imp
+Overseer, Lab Experiment, Alchemist Brisbane), which is presumably why it went unnoticed.
+
+Now the Shout fires FIRST, then the Echo — matching the card's own wording: it is PLAYED, then destroyed.
+
+Two details make it behave like a real play rather than a re-trigger:
+
+* It routes through **`playedShoutRepeats`**, the helper the normal play path uses — so Drakko's repeats apply,
+  a Warm Embers charge is SPENT, and `lastShoutFires` is stamped so Shout objectives (Echoing Roar, Tooth and
+  Tempo, The Author's Hand) advance. Reaching for `replayBattlecry` instead would have been the easy mistake:
+  it uses the non-consuming `drummerRepeats`, which would have quietly made this a free re-trigger.
+* Each fire notifies the Battlecry-triggered watchers (Karwind), with the flash seq bumped, exactly as
+  `playCard` does.
+
+A TARGETED Battlecry fires with no explicit target, so its factory's auto-pick fallback chooses. That's forced
+rather than chosen: the normal play path defers a targeted Shout to a `pendingTarget` prompt, which needs the
+card to still exist to resolve against — and a borrowed card is already out of hand and never reaches the board.
+It's the same contract `replayBattlecry` documents.
+
+The new test uses Imp Overseer (Shout: Imps +2/+2; Echo: summon an Imp) and was verified to FAIL against the old
+behaviour — `expected [ +0, +0 ] to deeply equal [ 2, 2 ]` — before passing. The existing borrowed tests still
+pass unchanged, so the never-boarded / consumed-from-hand contract is intact. Suite 1548 (+1) + typecheck + lint
++ build:web green.
+
 ## 2026-07-24 (Nimbus banks ADDITIONAL casts, and now stacks with Drakko)
 
 ### feat(content/sim): Nimbus grants +1 extra cast per Battlecry fire (golden +2)

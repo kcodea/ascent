@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (Ruby Power FX — the Ruby-side twin of the Spell Power flourish)
 
+### chore(ui): bake the owner's tuned Ruby Power / Spell Power / Spell Buff values
+
+Three tuner passes taken verbatim from Copy values (48 keys, all matched — no stale or renamed dials).
+
+**Ruby Power** diverges hard from its Spell Power parent, which is the whole point of cloning the config rather
+than sharing one: a SINGLE arrow instead of seven, a much heavier and slower blast (60 motes, 1100ms life, spin
+120, stagger 3) against Spell Power's 36 fast light ones, and its own red/violet/white palette with a pink
+number on a near-black outline. Sharing the Pixi renderer costs nothing here precisely because all of that lives
+in values.
+
+**Spell Power** got a punchier, sparser blast (36 motes at 430 speed, size 2, gravity 470) and a longer-held,
+larger number.
+
+**Spell Buff** grew its pop (1.18) and slowed the return (630ms), thinned the blast to 25 motes over a shorter
+30–240px throw with the glow off and a light 1.1 tail, and moved to an amber/blue/teal palette — the THIRD
+palette this cue has had, which is why its colour keys are treated as hue slots rather than colour names.
+
+Verified with all three saved configs cleared, which is what production renders: every asserted key resolves
+from DEFAULTS with zero mismatches, and Ruby vs Spell confirmed diverging live (arrows 1 vs 7, blast 60 vs 36,
+spin 120 vs 0). Suite 1541 + typecheck + lint + build:web green.
+
 ### feat(ui/sim/core): Ruby Power FX, on the same ruleset as Spell Power FX
 
 Owner ask: copy the Spell Power FX into a "Ruby Power FX" that can be modified separately, procing on the same

@@ -3,6 +3,39 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (spell-buff cue — fire it from anywhere)
+
+### feat(ui): move the spell-buff burst into a module bus so any phase/surface can play it
+
+Owner ask: the cue has to play at END OF TURN, START OF COMBAT and MID-COMBAT off an Echo/Avenge — not just
+from Recruit's hand watcher.
+
+The blocker was ownership, not timing: the burst was React state inside `Recruit`, so only Recruit could ever
+start it, and the watcher additionally bailed out with `if (inCombat) return`. Both are gone. The burst state now
+lives in `packages/ui/src/spellBuffFx.ts`, a ~40-line module store with one public verb —
+**`fireSpellBuff([uid])`, callable from anywhere**: a React effect, a combat-replay beat, an imperative store
+callback, the dev tuner. Cards subscribe to it directly through `useSyncExternalStore`, so a NEW surface that
+renders cards costs zero plumbing, and unknown/unmounted uids are a harmless no-op that expires on its own.
+
+Re-render cost stays per-card despite the shared store: every subscriber is notified, but `useSyncExternalStore`
+only re-renders the ones whose own snapshot changed, so the other cards bail on an unchanged number.
+
+Removing the `inCombat` guard needed one piece of care. A card's printed text can legitimately differ between
+phases, so the render where the phase FLIPS would diff against a shop-phase signature and flash the whole hand
+for no buff. Rather than suppress all of combat, the watcher now suppresses exactly that one render (signatures
+are still recorded, so a real buff on the very next render fires normally). Notably the stat-diff watcher already
+carries its own `prevPhaseRef` for the same class of reason — this hazard is real and pre-existing, not
+hypothetical.
+
+Verified live by importing the bus module directly in the browser (the same entry any caller uses): firing
+`['RB']` burst ONLY the Ruby, then `['SF']` brought the second card in — per-uid targeting from outside Recruit
+entirely. With `phase: 'combat'` both hand cards stayed mounted and both burst, which the old guard made
+impossible. Flipping combat→recruit produced zero bursts across six samples, confirming the flash guard. Full
+suite (1538) + typecheck + lint + build:web green.
+
+Follow-up: Ruby Power FX (a Spell-Power-FX sibling keyed on `rubyBonus`) is the other half of the owner's ask and
+lands separately — `gainRubyBonus` currently emits no combat narration, so mid-combat it has no signal to ride.
+
 ## 2026-07-24 (spell-buff FX — grow/shrink in place + an outward spark blast)
 
 ### chore(ui): bake the owner's tuned spell-buff values as the shipped defaults

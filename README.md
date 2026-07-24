@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Buying a card slides it into hand.** A bought card was already in front of you in the tavern, so it is
+  acquired rather than conjured: it slides into its slot from the point you released it (170ms) instead of
+  materialising out of arcane dust the way a *generated* card does. Also fixes the "ghost card" that could
+  blip in the screen's top-left corner at the end of a drag.
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),
   Turnabout (swap Attack/Health), Insurance Policy (comeback Gold after a loss), Rift-Sunk Codex (Discover a
   Shop spell), Beyond the Summit (Discover one tier higher, up to Tier 7), Invitation Above (Discover a Tier 6

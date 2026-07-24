@@ -130,11 +130,6 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
-- **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
-  was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own
-  for that move, used *instead of* the coalesce, not alongside it. The exclusion is already wired
-  (`buyPendingRef` at the `buy` dispatch), so this is purely the new effect.
-
 - **Re-tune the hand row for the plated card.** The backplate makes hand cards taller than they were, so
   `handY` / `handGap` (📐 Scale & Layout) and probably `handPop` (🎴 Drag Feel) want dialing by eye. Shipped
   with reasonable starting values. When baking the export, update **both** the TS defaults and the CSS

@@ -30,6 +30,7 @@ import { getInfuseFxConfig } from './infuseFxConfig';
 import { playPlateDissolve } from './plateDissolve';
 import { playPlateCoalesce } from './plateCoalesce';
 import { playPlateGild } from './plateGild';
+import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
 import { buffPreset, wavePalette } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -854,12 +855,18 @@ export function Recruit() {
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
   const prevHandUidsRef = useRef<Set<string>>(new Set(run.hand.map((c) => c.uid)));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
-  // Set immediately before a `buy` dispatch: a bought card was already visible in the tavern, so it is
-  // acquired rather than conjured and gets its own shop→hand transition instead (owner ruling 2026-07-22).
-  // Carries the UID rather than a flag — as a flag it discarded every fresh card in the commit, so anything
-  // a buy ALSO conjures in the same tick lost its coalesce: Dupes, Gorr's Four Peat, the Drakko and Chronos
-  // quest rewards, the Spellslinging gold drip.
-  const buyPendingRef = useRef<string | null>(null);
+  /* Set at the `buy` dispatch: a bought card was already visible in the tavern, so it is acquired rather
+     than conjured. It gets its own shop→hand slide (`buySlide`) instead of the arcane coalesce, so this
+     carries the release point the slide starts from (owner ruling 2026-07-22).
+
+     It holds the HAND uid, resolved from the store right after the dispatch — NOT the shop uid that was
+     dragged. A buy mints a fresh `b<n>` uid for the hand copy (`reducer.ts` `case 'buy'`), so matching on
+     the shop uid never matched anything and every bought card still coalesced (owner report 2026-07-23).
+
+     A uid rather than a bare flag, too: as a flag it discarded every fresh card in the commit, so anything
+     a buy ALSO conjures in the same tick lost its coalesce — Dupes, Gorr's Four Peat, the Drakko and
+     Chronos quest rewards, the Spellslinging gold drip. */
+  const buyPendingRef = useRef<{ uid: string; from: BuyFrom } | null>(null);
   // cardIds whose in-combat coalesce actually played, so the settle-side skip only suppresses a genuine
   // double-fire. On a SKIPPED replay nothing plays mid-fight, and a blanket skip left those grants with no
   // effect at all.
@@ -1373,7 +1380,7 @@ export function Recruit() {
     const prevHand = prevHandUidsRef.current;
     const prevBoard = prevBoardUidsRef.current;
     const tripled = (run.triplesMade ?? 0) > prevTriplesRef.current;
-    const boughtUid = buyPendingRef.current;
+    const bought = buyPendingRef.current;
     prevTriplesRef.current = run.triplesMade ?? 0;
     buyPendingRef.current = null;
     const skip = coalesceSkipRef.current;
@@ -1381,10 +1388,15 @@ export function Recruit() {
        card in that tick, so anything conjured alongside a buy or a triple silently lost its effect. */
     const fresh = run.hand.filter((c) => {
       if (prevHand.has(c.uid) || prevBoard.has(c.uid) || skip.has(c.uid)) return false;
-      if (boughtUid && c.uid === boughtUid) return false;          // the card you bought
-      if (tripled && c.golden) return false;                       // the gild owns its own card
+      if (bought && c.uid === bought.uid) return false;             // the card you bought — it slides in
+      if (tripled && c.golden) return false;                        // the gild owns its own card
       return true;
     });
+    // The bought card slides into its slot from where you released it, instead of materialising.
+    if (bought) {
+      const el = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${bought.uid}"]`);
+      if (el) playBuySlide(bought.from, el);
+    }
     // consumed exactly once — the flip effect is declared above this one, so it always populates first
     if (skip.size) coalesceSkipRef.current = new Set();
     prevHandUidsRef.current = new Set(run.hand.map((c) => c.uid));
@@ -3297,8 +3309,16 @@ export function Recruit() {
     // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
     const cx = x - d.ox + d.w / 2;
     if (d.source === 'shop' && zone === 'hand') {
-      buyPendingRef.current = d.uid; // not a generation — see the coalesce watcher
+      // The hand copy is a NEW uid, so read it back off the store rather than assuming the shop one carries
+      // over. Synchronous, like `playWithSummonDelay` above — the dispatch has already reduced by here, and
+      // the card's own layout effect (which plays the slide) runs after this commit.
+      const before = new Set(useGame.getState().run.hand.map((c) => c.uid));
       dispatch({ type: 'buy', uid: d.uid });
+      const added = useGame.getState().run.hand.find((c) => !before.has(c.uid));
+      // Nothing added = the buy was refused (Gold, hand full); leave it alone.
+      if (added) {
+        buyPendingRef.current = { uid: added.uid, from: { x: x - d.ox, y: y - d.oy, w: d.w, h: d.h } };
+      }
       return true;
     }
     // A shop offer dropped back in the tavern reorders it (so it lands where you drop it,

@@ -1898,7 +1898,14 @@ body.modalup .statusbar .questbadges {
 /* z115: above the FX overlay (.pixifx z110) so the dragged card always rides ON TOP of other units' auras
    (divine-shield bubbles, reborn wisps) as it passes over them. Its own aura sits on the FX canvas behind it —
    the bubble still reads around the card's edges. Below discover (z160) / inspect (z500). */
-.dragcard { position: fixed; left: 0; top: 0; z-index: 115; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
+/* PARKED OFF-SCREEN BY DEFAULT. The floating card is pinned at left/top 0 and placed entirely by an inline
+   transform — written per frame by the drag rAF, or by React during a snap/magnet-slide. Any frame where
+   neither has written one yet (a remount the rAF's deps didn't anticipate; React clearing a transform IT set
+   during a snap) paints a full-size card in the screen's top-left corner: the "ghost card" blip, most visible
+   at the drop that completes a triple, right before the gild. The rAF/React inline transform always outranks
+   this, so parking it here costs nothing and makes that whole class of flash impossible rather than
+   whack-a-mole per remount path. */
+.dragcard { position: fixed; left: 0; top: 0; transform: translate(-9999px, -9999px); z-index: 115; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
 .dragcard.snap { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
 /* a Magnetic card shrinking straight into its Mech before it merges — snappy, so it reads as an
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */

@@ -3,6 +3,53 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (the shop→hand slide + the top-left ghost card)
+
+### feat(ui): buying a card slides it into hand from where you released it
+
+The fourth and last of the card transitions, and deliberately the quietest. A bought card was already
+sitting in the tavern in front of you — it is **acquired, not conjured** — so it gets no arcane dust (owner
+ruling 2026-07-22). `buySlide.ts` is a single compositor-only transform tween on the real card element:
+170ms, `cubic-bezier(.22,.9,.28,1)`, no clone, no canvas, no per-frame layout read.
+
+Two things it has to work around. A hand card carries a resting transform (the tuck, plus fan rotation), so
+animating `transform` outright would drop that for the length of the slide and the card would visibly jump
+to an untucked pose — the current computed matrix is read once and every keyframe is written *outside* it
+(`translate(…) scale(…) <base>`). And a freshly bought card mounts with `.popin`, whose `handpop` keyframes
+animate the same property; a running CSS animation outranks a plain inline style, so the slide suppresses it
+with `animation: none !important` for its duration and the card slides in solid instead of fading.
+
+### fix(ui): every bought card was still coalescing
+
+The exclusion added in #674 never matched anything. A buy **mints a fresh `b<n>` uid** for the hand copy
+(`reducer.ts` `case 'buy'`), so `buyPendingRef`, which held the *shop* uid that was dragged, could never
+match the card that actually landed in hand. It now reads the new uid back off the store immediately after
+the dispatch (the same synchronous pattern `playWithSummonDelay` uses) and carries the release point with
+it, so the same ref both suppresses the coalesce and feeds the slide.
+
+### fix(ui): the "ghost card" blip in the screen's top-left corner
+
+Owner reported a card blipping in the top-left corner just before the gild — twice, the second time after a
+fix that turned out to address a different instance of the same class of bug.
+
+`.dragcard` is pinned at `left/top: 0` and placed **entirely** by an inline transform, written per frame by
+the drag rAF or by React during a snap/magnet-slide. Any frame where neither has written one yet paints a
+full-size card at the screen origin. The rAF's effect deps (`[drag?.active, castingSpell]`) covered the
+remount paths we knew about; the comment on that effect has warned about "the top-left ghost card bug" since
+it was written, which is the tell that patching remount paths one at a time wasn't converging.
+
+Fixed at the root instead: `.dragcard` now has a default `transform: translate(-9999px, -9999px)`. Any
+inline transform outranks it, so the rAF and React are unaffected and the drag feel is untouched — but an
+unpositioned frame parks off-screen instead of at the origin, and the entire class of flash becomes
+impossible rather than one-remount-path-at-a-time.
+
+**Verified live in a browser rather than by reasoning**, since the previous fix had missed. A wrapped
+`appendChild` recorded computed opacity/transform/rect for everything added to `<body>`. It caught the drag
+card red-handed — appended with **no inline transform**, resolving to the new park — and confirmed the gild's
+own clones now append at `opacity: 0`, centred (`matrix(1.32,0,0,1.32,592.8,284.0)`), never at the origin. A
+synthesised pointer drag from tavern to hand then bought a card: hand uid `b4` (≠ the dragged `s0`, proving
+the uid fix), one 170ms animation on it, and no dust canvas appended.
+
 ## 2026-07-22 (coalesce coverage + a hole in our verification)
 
 ### fix(ui): the coalesce was missing whole classes of generated card

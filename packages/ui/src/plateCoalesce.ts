@@ -130,6 +130,13 @@ export function resetPlateCoalesceConfig(): void {
 
 let sprites: { core: HTMLCanvasElement; mid: HTMLCanvasElement } | null = null;
 
+/* A GILDED card forms in GOLD, not the arcane blue. Same palette the gild itself uses, so a triple reward
+   materialising reads as "gold from nothing" however it arrived (owner 2026-07-24). Fixed (never tuned), with
+   its own sprite cache so it doesn't fight the blue one. The blue `cfg.c*` still drives every non-golden
+   generation. */
+const GOLD = { cDeep: '#a9700f', cMid: '#f1cb5e', cCore: '#fff6d5' } as const;
+let goldSprites: { core: HTMLCanvasElement; mid: HTMLCanvasElement } | null = null;
+
 /** A mote flying home: it knows where it LANDS first, then where it started. */
 interface Mote {
   tx: number; ty: number;      // landing point on the shape
@@ -162,7 +169,16 @@ export function playPlateCoalesce(
   if (typeof document === 'undefined') return;
   const c = cfg;
   const k = rect.width / REF_W;
-  if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
+  // Gilded cards form in gold; everything else in the arcane blue. Only the colours differ — geometry, motes
+  // and timing are identical.
+  // Gold when the arriving card is itself Gilded/golden, OR when it's the "Triple Reward" token
+  // (`discoverspell`, rendered `.triplecard`) — a triple reward materialising should read gold even though the
+  // token isn't a golden minion (owner 2026-07-24).
+  const gold = !!target && (target.classList.contains('golden') || target.classList.contains('triplecard'));
+  const pal = gold ? GOLD : { cDeep: c.cDeep, cMid: c.cMid, cCore: c.cCore };
+  if (gold) { if (!goldSprites) goldSprites = { core: sprite(GOLD.cCore, 32), mid: sprite(GOLD.cMid, 32) }; }
+  else if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
+  const spr = (gold ? goldSprites : sprites)!;
 
   // the card being generated stays hidden until the wireframe resolves into it (see the note above on why
   // this has to be `!important`)
@@ -175,10 +191,10 @@ export function playPlateCoalesce(
     'position:fixed', `left:${rect.left}px`, `top:${rect.top}px`,
     `width:${rect.width}px`, `height:${rect.height}px`,
     'pointer-events:none', 'z-index:114', 'opacity:0',
-    `background:${arcaneGradient(c.cDeep, c.cMid, c.cCore, c.grad)}`,
+    `background:${arcaneGradient(pal.cDeep, pal.cMid, pal.cCore, c.grad)}`,
     `-webkit-mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
-    `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(c.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(c.cDeep, 1)})`,
+    `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(pal.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(pal.cDeep, 1)})`,
   ].join(';');
   document.body.appendChild(imp);
 
@@ -250,10 +266,10 @@ export function playPlateCoalesce(
         const rr = p.r * (0.7 + 0.3 * e);
         if (rr > 0 && alpha > 0) {
           ctx.globalAlpha = Math.min(1, alpha * 0.9);
-          ctx.drawImage(sprites!.core, x - rr, y - rr, rr * 2, rr * 2);
+          ctx.drawImage(spr.core, x - rr, y - rr, rr * 2, rr * 2);
           const r2 = rr * 1.7;
           ctx.globalAlpha = Math.min(1, alpha * 0.5);
-          ctx.drawImage(sprites!.mid, x - r2, y - r2, r2 * 2, r2 * 2);
+          ctx.drawImage(spr.mid, x - r2, y - r2, r2 * 2, r2 * 2);
         }
       }
       ctx.globalAlpha = 1;

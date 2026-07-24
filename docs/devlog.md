@@ -27,6 +27,52 @@ tests in those two suites). typecheck + lint + build:web green.
 
 Process note to self: my gate check grepped `× ` for failures, which misses FAILED SUITES (collection errors) —
 those need an exit-code check. That's how a 1586→1575 drop nearly slipped by.
+## 2026-07-24 (bake the owner's tuned Refresh button)
+
+### chore(ui): commit the tuned Refresh FX defaults
+
+Owner's values from the 🔄 Refresh tuner, baked into `refreshConfig.ts` DEFAULTS and mirrored into the
+styles.css `--rfb-*` fallbacks (double-source discipline). Changed vs the prior defaults: a bigger cost coin
+(`costS 1.42 → 1.6`), the label pill higher and larger (`labelY -46 → -64`, `labelS 1 → 1.42`), a fuller,
+faster, blue-tinted hover glow (`glowAlpha 0.57 → 1`, `glowStrength 6 → 7`, `glowPulse 4 → 1.5`,
+`glowPulseDepth 0.43 → 0.25`, `glowColor #ffffff → #52bdff`), a snappier tighter click shine (`shineMs 1050 →
+280`, `shineAlpha 0.7 → 1`, `shineSize 1.9 → 3`, `shineBlur 24 → 7`), no click dust (`dustCount 0.1 → 0`), and
+longer, smaller blast shards (`blastLife 660 → 880`, `blastSize 0.7 → 0.45`). Position/scale unchanged.
+typecheck + lint + 1586 tests + build:web green.
+
+
+## 2026-07-24 (triple-reward cards coalesce in gold + a plate mask A/B)
+
+### feat(ui): the Triple Reward token materialises in gold
+
+The gold coalesce keyed only off `.golden`; the "Triple Reward" token (`discoverspell`, granted to hand when
+you play a Gilded minion) isn't a golden minion, so it still coalesced blue. It's rendered with the
+`.triplecard` class, so `plateCoalesce` now reads gold for `.golden` OR `.triplecard` — a triple reward
+materialises in the gild's gold (dust + wireframe) however it lands. Verified live: the token carries
+`.triplecard` and its imprint gradient came back gold (`rgb(169,112,15)…`).
+
+### feat(ui): golden plate stays the colour filter (mask prototype dropped)
+
+The plate gold has been a colour FILTER; the owner wanted the literal MASK approach compared, so both were
+wired behind a `goldMode` A/B toggle on the 🂠 Card Plate tuner — filter (the five-knob colour filter) vs a
+gold gradient masked to the plate silhouette with `mix-blend-mode: color`. The owner chose the FILTER, so the
+mask overlay, the toggle and their scaffolding were removed; the plate keeps `--plate-gold-tone` (sepia 0,
+saturate 2.6, brightness 1.13, contrast 0.95, hue 3), unchanged from what shipped in #690.
+
+Engine typecheck + lint + 1586 tests + `build:web` green (the 3 `typecheck:web` errors are pre-existing on
+main from the Set 2 Kobold/Dragon work, not this change).
+
+## 2026-07-24 (bake the owner's tuned Card Pills layout)
+
+### chore(ui): commit the tuned Card Pills defaults (cost coin + type pill)
+
+Owner's values from the 🏷️ Card Pills tuner, baked into `cardPillsConfig.ts` DEFAULTS: the cost coin nudged up
+and in toward the corner and shrunk (`costX -9`, `costY -13`, `costScale 0.81`); the type pill dropped to the
+bottom of the art icon and slightly smaller (`spellY 34`, `spellScale 0.91`). Tier badge stays identity.
+
+Verified from a CLEARED saved config (what production renders): all three `--cpl-*-t` vars resolve from DEFAULTS
+alone, with the type pill's centring `translateX(-50%)` preserved under the offset. typecheck + lint + build:web
+green.
 
 ## 2026-07-24 (Dragon fixes — Grimoire/Spellkeeper count from placement, Grimoire hits Rubies)
 
@@ -642,6 +688,70 @@ under `/art/spells/`, all decode at 512x512, and the new duplicate warning stays
 
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
+
+## 2026-07-24 (gilded cards materialise in gold)
+### feat(ui): the golden plate tint is on the Card Plate tuner
+### tweak(ui): lock in the owner's golden plate tone
+
+Baked the dialed values as defaults: `sepia 0, saturate 2.6, brightness 1.13, contrast 0.95, hue 3` — in
+`cardPlateConfig.ts` DEFAULTS and mirrored into the styles.css `--plate-gold-tone` fallback.
+
+
+Rather than trade "more/less orange" over chat, the golden plate's filter is now five live sliders on the
+existing 🂠 Card Plate tuner (`gold · sepia / saturate / brightness / contrast / hue`). They compose into
+`--plate-gold-tone` on :root via `applyCardPlateVars`, so a gilded card recolours in real time as you drag;
+"Copy values" grabs the JSON to bake as defaults. Hue is signed and labelled (+ = yellow-gold, − = orange).
+Config in `cardPlateConfig.ts` (ships in prod, so DEFAULTS drive the var there too); the CSS fallback mirrors
+the composed default. Verified live: the five keys render, and dragging hue 12→30 updated the root var.
+
+
+### feat(ui): a triple reward coalesces in gold + its plate reads gold
+
+Two changes so a gilded card looks gold however it arrives:
+
+- **Gold coalesce.** When the card being generated is `.golden`, `plateCoalesce` swaps the arcane-blue palette
+  (and its mote sprites) for the gild's gold — `#a9700f / #f1cb5e / #fff6d5` — so the dust → wireframe →
+  reveal reads as "gold from nothing". Detected off the target card's `.golden` class; geometry, motes and
+  timing are identical, only the colours differ. Non-golden generations still coalesce blue. Verified live: a
+  golden card's imprint gradient came back gold (`rgb(169,112,15)…`), a normal one blue (`rgb(117,214,255)…`).
+- **Gold plate.** A gilded card's stone backplate now reads gold, mirroring the frame's silver→gold. The frame
+  un-grays a gold PNG via `--frame-tone`; the plate art is stone, so `.card.plated.golden .cardplate` pushes it
+  gold with a colour filter (`--plate-gold-tone`, keeps the relief, just recolours). Covers hand, the drag copy
+  and the inspect overlay. Verified live: golden plate computed `sepia(.78) saturate(2.3)…`, normal `none`.
+
+Both tint values are dialable (`GOLD` palette in `plateCoalesce`, `--plate-gold-tone` var) if the gold wants
+warming/cooling. Engine typecheck + lint + 1538 tests + `build:web` green.
+
+## 2026-07-24 (the gild's top-left flash — a THIRD cause)
+
+### tweak(ui): the gild sigil sits lower and smaller
+
+Owner: the seal flourish behind the card read a touch too high and too large. Dropped the default `flSize`
+1.66 → 1.35 and added a `flY` knob (vertical offset, × plate width, + = lower; default 0.12) wired into
+`drawFlourish`, the tuner, and the config schema so it can be dialed further.
+
+### fix(ui): a freshly-popped golden made the gild clones inherit `cardpop`
+
+Owner still saw a card flash in the screen's top-left at the *start* of the gild, specifically when completing
+a triple by **buying** the third copy. A third distinct cause of the same symptom, after the `.dragcard` park
+and the `data-flip-id` strip.
+
+Completing a triple mounts the golden card **fresh, with `.popin`** — whose `cardpop` / `handpop` keyframes
+animate `transform` (`translateY(8px) scale(.96)`). `cloneCard` copies that class onto the three flyers, and a
+**running CSS animation outranks a plain inline `transform`**. The gild writes each clone's centre position as
+a plain inline transform every frame, so `cardpop` won: the clones rendered at `translate(0, 8)` — the top-left
+corner — for cardpop's 0.16s. Opacity was still driven by the module's own `!important` writes, so they were
+visible while mispositioned. Only on a freshly-popped card (right after a buy/play completes the triple), which
+is why isolation harnesses that cloned an already-settled card never showed it.
+
+Fix: `cloneCard` now removes `.popin` and sets `animation: none !important` on each clone, so nothing the
+source card was mid-animation fights the gild's positioning.
+
+**Verified live** by driving a real buy-triple in the browser and reading the clones back: pre-fix, computed
+transform was `matrix(.96,0,0,.96,0,8)` while the inline transform was the correct centre (`translate(597,289)`)
+— proof the animation was overriding it; post-fix, `animationName: none`, `.popin` gone, and computed transform
+**equals** the inline centre on all three. Engine typecheck + lint + 1538 tests + `build:web` green; 57
+`typecheck:web` baseline unchanged.
 
 ## 2026-07-24 (Waking Rift rename + all spell art wired)
 

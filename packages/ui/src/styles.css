@@ -2953,6 +2953,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   user-select: none;
 }
 .card.plated .cardplate { border-radius: var(--plate-radius, 10px); }
+/* GOLDEN PLATE — a gilded card's stone body reads GOLD, mirroring the frame's silver→gold. The frame does it
+   by un-graying a gold PNG (`--frame-tone`); the plate art is stone, so we push it gold with a colour filter
+   instead (keeps the relief/engraving, just recolours it). Tunable via `--plate-gold-tone` (🂠 Card Plate
+   tuner, gold · … rows). The fallback here MUST mirror the composed default in cardPlateConfig.ts. Covers
+   hand, the drag copy and the inspect overlay — all `.plated`. (A masked-overlay alternative was prototyped
+   and the owner chose this filter, 2026-07-24.) */
+.card.plated.golden .cardplate {
+  filter: var(--plate-gold-tone, sepia(0) saturate(2.6) brightness(1.13) contrast(0.95) hue-rotate(3deg));
+}
 
 /* HOVER GLOW, plate edition. On a plated card the white highlight rings the PLATE, not the oval frame —
    the plate is the card's outer edge now, so glowing the frame inside it read as a halo floating in the
@@ -4667,17 +4676,17 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
   width: calc(100% * var(--rfb-glow-w, 0.85)); height: calc(100% * var(--rfb-glow-h, 0.85));
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  box-shadow: var(--rfb-glow-shadow, 0 0 22px rgba(255, 255, 255, 1));
+  box-shadow: var(--rfb-glow-shadow, 0 0 22px rgba(82, 189, 255, 1));
   opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
 }
 .rfbwrap:hover:not(:disabled) .rfb-glow,
 body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one pointer can't hover AND drag a slider */
-  animation: rfbbreath var(--rfb-glow-pulse, 4s) ease-in-out infinite;
-  opacity: var(--rfb-glow-alpha, 0.57);
+  animation: rfbbreath var(--rfb-glow-pulse, 1.5s) ease-in-out infinite;
+  opacity: var(--rfb-glow-alpha, 1);
 }
 @keyframes rfbbreath {
-  0%, 100% { opacity: var(--rfb-glow-alpha, 0.57); }
-  50% { opacity: var(--rfb-glow-dim, 0.32); }
+  0%, 100% { opacity: var(--rfb-glow-alpha, 1); }
+  50% { opacity: var(--rfb-glow-dim, 0.75); }
 }
 
 /* Ambient sheen — a glare bar sweeping the crystal, clipped to its box. Transform-only. */
@@ -4702,13 +4711,13 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
     var(--rfb-shine-color, #ffffff) 0%,
     color-mix(in srgb, var(--rfb-shine-color, #ffffff) 55%, transparent) 42%,
     transparent 70%);
-  filter: blur(var(--rfb-shine-blur, 24px));
-  animation: rfbshine var(--rfb-shine-ms, 1050ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
+  filter: blur(var(--rfb-shine-blur, 7px));
+  animation: rfbshine var(--rfb-shine-ms, 280ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
 }
 @keyframes rfbshine {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
-  22% { opacity: var(--rfb-shine-alpha, 0.7); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--rfb-shine-size, 1.9)); }
+  22% { opacity: var(--rfb-shine-alpha, 1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--rfb-shine-size, 3)); }
 }
 
 /* Live Gold cost — the SAME gold coin pill the Tavern stone wears (owner request), so the two board
@@ -4716,7 +4725,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
    mid-stop, so the picker still recolours the whole pill rather than just the text. */
 .rfb-cost {
   position: absolute; left: 50%; top: 100%; z-index: 4;
-  transform: translate(calc(-50% + var(--rfb-cost-x, 87) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 1.42));
+  transform: translate(calc(-50% + var(--rfb-cost-x, 87) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 1.6));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
   padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
   background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 55%, #fff),
@@ -4753,7 +4762,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
    Discover banner and the Rift button use, so the board's chrome stays one family. */
 .rfb-label {
   position: absolute; left: 50%; top: 0;
-  transform: translate(-50%, calc(var(--rfb-label-y, -46) * var(--u))) scale(var(--rfb-label-s, 1));
+  transform: translate(-50%, calc(var(--rfb-label-y, -64) * var(--u))) scale(var(--rfb-label-s, 1.42));
   white-space: nowrap; pointer-events: none;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.08em;
   text-transform: uppercase; color: #f4ecdb;

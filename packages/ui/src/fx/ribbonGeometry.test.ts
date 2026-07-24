@@ -104,4 +104,17 @@ describe('writeRibbonPositions', () => {
     const width2 = Math.abs(pos2[idx * 4 + 1] - pos2[idx * 4 + 3]);
     expect(width2).toBeLessThan(width1);
   });
+
+  it('applies parameterized tail-feather to feather the tail away sooner', () => {
+    const pos1 = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const pos2 = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(pos1, straight, 40, { tailFeather: 0.20 });
+    writeRibbonPositions(pos2, straight, 40, { tailFeather: 0.50 });
+
+    // At a late index, the larger tailFeather should have smaller width (feathered sooner)
+    const idx = Math.floor(RIBBON_SEGMENTS * 0.85); // Check at 85% along the trail
+    const width1 = Math.abs(pos1[idx * 4 + 1] - pos1[idx * 4 + 3]);
+    const width2 = Math.abs(pos2[idx * 4 + 1] - pos2[idx * 4 + 3]);
+    expect(width2).toBeLessThan(width1);
+  });
 });

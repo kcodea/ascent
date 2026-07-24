@@ -35,6 +35,12 @@ export function buildRibbonIndices(): Uint32Array {
   return indices;
 }
 
+// Scratch for the resample pass, reused across calls. This runs once per frame per live trail, and the
+// repo treats per-frame allocation as a defect — see CLAUDE.md. Safe to share: the function is synchronous
+// and never yields, so two trails can never interleave inside it.
+const resampledX = new Float32Array(RIBBON_SEGMENTS + 1);
+const resampledY = new Float32Array(RIBBON_SEGMENTS + 1);
+
 /**
  * Lay the ribbon along `spine` (head first) and extrude it to `width`.
  *
@@ -60,8 +66,7 @@ export function writeRibbonPositions(
   const total = cum[cum.length - 1];
   if (total < 1) return false;
 
-  // First pass: compute resampled positions along the spine
-  const resampled: { x: number; y: number }[] = [];
+  // First pass: compute resampled positions along the spine into scratch buffers
   let seek = 1;
   for (let i = 0; i <= RIBBON_SEGMENTS; i++) {
     const t = i / RIBBON_SEGMENTS;
@@ -71,34 +76,30 @@ export function writeRibbonPositions(
     const f = (target - cum[seek - 1]) / span;
     const a = spine[seek - 1];
     const b = spine[seek];
-    const x = a.x + (b.x - a.x) * f;
-    const y = a.y + (b.y - a.y) * f;
-    resampled.push({ x, y });
+    resampledX[i] = a.x + (b.x - a.x) * f;
+    resampledY[i] = a.y + (b.y - a.y) * f;
   }
 
   // Second pass: compute extrusions using neighbor-based tangents
   for (let i = 0; i <= RIBBON_SEGMENTS; i++) {
     const t = i / RIBBON_SEGMENTS;
-    const curr = resampled[i];
+    const x = resampledX[i];
+    const y = resampledY[i];
 
     // Compute tangent using resampled neighbors
-    let tx, ty;
+    let tx: number, ty: number;
     if (i === 0) {
       // Forward difference at head
-      const next = resampled[1];
-      tx = next.x - curr.x;
-      ty = next.y - curr.y;
+      tx = resampledX[1] - x;
+      ty = resampledY[1] - y;
     } else if (i === RIBBON_SEGMENTS) {
       // Backward difference at tail
-      const prev = resampled[i - 1];
-      tx = curr.x - prev.x;
-      ty = curr.y - prev.y;
+      tx = x - resampledX[i - 1];
+      ty = y - resampledY[i - 1];
     } else {
       // Central difference in the middle
-      const prev = resampled[i - 1];
-      const next = resampled[i + 1];
-      tx = next.x - prev.x;
-      ty = next.y - prev.y;
+      tx = resampledX[i + 1] - resampledX[i - 1];
+      ty = resampledY[i + 1] - resampledY[i - 1];
     }
 
     const m = Math.hypot(tx, ty) || 1;
@@ -107,10 +108,10 @@ export function writeRibbonPositions(
 
     // Pinched at the head, full through the body, feathered at the tail.
     const w = width * 0.5 * Math.min(1, t / headPinch) * Math.pow(1 - t, tailFeather);
-    out[i * 4] = curr.x - ty * w;
-    out[i * 4 + 1] = curr.y + tx * w;
-    out[i * 4 + 2] = curr.x + ty * w;
-    out[i * 4 + 3] = curr.y - tx * w;
+    out[i * 4] = x - ty * w;
+    out[i * 4 + 1] = y + tx * w;
+    out[i * 4 + 2] = x + ty * w;
+    out[i * 4 + 3] = y - tx * w;
   }
   return true;
 }

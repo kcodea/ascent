@@ -646,7 +646,9 @@ if (typeof window !== 'undefined') {
 }
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
-// Discover / game-over / End-of-Turn UI). Stripped from production builds.
-if (import.meta.env.DEV) {
+// Discover / game-over / End-of-Turn UI). Stripped from production builds. The `typeof window` guard matters:
+// vitest runs with `DEV` true but in a Node (no-window) environment, so any test that transitively imports
+// this module would otherwise crash here with `window is not defined`.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { useGame?: typeof useGame }).useGame = useGame;
 }

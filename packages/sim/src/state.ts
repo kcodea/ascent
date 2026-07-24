@@ -848,6 +848,7 @@ export type Action =
   | { type: 'rerollRuneforge' } // Runeforge: re-roll the offered runes once, for 2 Gold
   | { type: 'chooseOne'; index: number }
   | { type: 'battlecryTarget'; targetUid: string }
+  | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   | { type: 'faceOmen' }
   | { type: 'settleCombat' }
   | { type: 'resolveCombat' }

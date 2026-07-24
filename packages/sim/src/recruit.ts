@@ -2846,7 +2846,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
  * already owned"; the reducer's action gate reads it too.
  */
 export function modalOpen(state: RunState): boolean {
-  return !!(state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer);
+  return !!(state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer || state.scoutedNextOpponent?.length);
 }
 
 /**

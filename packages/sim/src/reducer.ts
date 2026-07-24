@@ -485,7 +485,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // stay clickable under `timeUp` (so it can always be resolved and needs no escape), and letting End Turn fire
   // over an open Discover / Choose One / quest / Runeforge would strand it going into combat.
   const endTurnEscapesAim = action.type === 'faceOmen' && !!state.pendingTarget;
-  if (modalOpen(state) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && !endTurnEscapesAim) {
+  if (modalOpen(state) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
     return state;
   }
 
@@ -1003,6 +1003,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
       openNextStartOfTurnModal(s); // this modal owned the screen — open whatever queued behind it
+      return s;
+    }
+
+    case 'closeScout': {
+      // Farseer's Report: dismiss the read-only scout reveal.
+      s.scoutedNextOpponent = undefined;
       return s;
     }
 

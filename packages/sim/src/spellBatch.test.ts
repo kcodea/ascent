@@ -298,6 +298,9 @@ describe('spell batch — tranche C (Discover-based)', () => {
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
     expect(s.scoutedNextOpponent?.length).toBe(2); // board has 2 minions (< the 3 requested)
     expect(s.scoutedNextOpponent!.map((m) => m.cardId).sort()).toEqual(['alley', 'sandbag']);
+    // the scout reveal is a modal (blocks the board) until dismissed via closeScout
+    s = reduce(s, { type: 'closeScout' });
+    expect(s.scoutedNextOpponent).toBeUndefined();
   });
 
   it("Rival's Reflection: Discovers a plain copy from the last opponent's board", () => {

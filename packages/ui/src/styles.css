@@ -1727,7 +1727,7 @@ body.modalup .statusbar .questbadges {
    the treatment the quest overlay already used, promoted to the base rule so Discover, the quest shop and the
    Runeforge share one look instead of maintaining two. */
 .disc-banner {
-  position: absolute; top: calc(-22 * var(--u)); left: 50%; transform: translateX(-50%);
+  position: absolute; top: calc(-40 * var(--u)); left: 50%; transform: translateX(-50%);
   background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 58%, #000);
   border-radius: calc(15 * var(--u));
   padding: calc(8 * var(--u)) calc(46 * var(--u)); white-space: nowrap;

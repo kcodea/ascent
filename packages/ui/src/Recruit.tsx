@@ -556,6 +556,10 @@ export function Recruit() {
   // the rAF-coalesced move handlers, so pointer movement no longer re-renders this component.
   const [aimTargetUid, setAimTargetUid] = useState<string | null>(null);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
+  // Hand spells / Rubies whose printed value just went up — they play the wiggle + spark burst (see the
+  // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
+  const [spellBuffedUids, setSpellBuffedUids] = useState<Set<string>>(new Set());
+  const prevSpellSigRef = useRef<Map<string, string>>(new Map());
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
   const weldStatSeqRef = useRef<number | undefined>(undefined);
@@ -1803,6 +1807,36 @@ export function Recruit() {
     }),
     [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellMult],
   );
+  // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, wiggle + pop it and burst
+  // pink/gold/purple sparks, so the player sees exactly which cards a spell buff touched. A spell's stats never
+  // change (it's a 0/1 card) — its printed VALUE is the thing that moves — so we diff the rendered live text
+  // (plus stats, which is what moves on a Ruby) per uid. That catches every scaling source at once (spell power,
+  // Front to Back's escalation, the Ruby stat line, Rune of Pillaging's pouch, …) without enumerating them, and
+  // picks up future ones for free. Only cards ALREADY in hand can fire it, so drawing a card never flashes.
+  useEffect(() => {
+    const next = new Map<string, string>();
+    const changed: string[] = [];
+    for (const [uid, v] of handViews) {
+      if (!v.spell && !v.ruby) continue; // minions keep the existing green buff flash
+      const sig = `${v.text}|${v.attack}/${v.health}`;
+      next.set(uid, sig);
+      const prev = prevSpellSigRef.current.get(uid);
+      if (prev !== undefined && prev !== sig) changed.push(uid);
+    }
+    prevSpellSigRef.current = next;
+    if (inCombat || changed.length === 0) return;
+    setSpellBuffedUids((s) => new Set([...s, ...changed]));
+    // Self-clearing (never cancelled in cleanup — same reasoning as the green buff flash): each timer must be
+    // allowed to fire or a quick follow-up change could leave a card stuck mid-wiggle.
+    window.setTimeout(() => {
+      setSpellBuffedUids((s) => {
+        if (changed.every((u) => !s.has(u))) return s;
+        const n = new Set(s);
+        for (const u of changed) n.delete(u);
+        return n;
+      });
+    }, 850);
+  }, [handViews, inCombat]);
   // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
   // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
   // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.
@@ -3750,6 +3784,7 @@ export function Recruit() {
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
                 buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
+                spellBuffed={spellBuffedUids.has(m.uid)}
                 buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}

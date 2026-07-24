@@ -178,6 +178,7 @@ export const Card = memo(function Card({
   targeted,
   dimmed,
   buffed,
+  spellBuffed,
   buffFloat,
   battlecry,
   electrify,
@@ -214,6 +215,9 @@ export const Card = memo(function Card({
   dimmed?: boolean;
   /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
   buffed?: boolean;
+  /** Play the one-shot SPELL-buff cue — a wiggle + grow/shrink pop plus rising pink/gold/purple sparks. Fired
+   *  when a hand spell's (or Ruby's) printed value just went UP, so the player sees which cards were affected. */
+  spellBuffed?: boolean;
   /** A recruit-phase stat buff just landed — float its `+atk/+hp` above the card (like combat). `key`
    *  changes per buff so the float remounts and re-runs its rise animation. */
   buffFloat?: { attack: number; health: number; key: number } | null;
@@ -399,7 +403,7 @@ export const Card = memo(function Card({
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -726,6 +730,19 @@ export const Card = memo(function Card({
           <span className="bb-spark" style={{ '--a': '320deg' } as CSSProperties} />
         </span>
       )}
+      {/* Spell buff — this hand spell / Ruby just got stronger: pink, gold and purple sparks burst off it and
+          rise. Pairs with the `.spellbuff` wiggle + pop on the card itself. */}
+      {spellBuffed && (
+        <span className="sbsparks" aria-hidden="true">
+          {SPELL_SPARKS.map((s, i) => (
+            <span
+              key={i}
+              className="sbspark"
+              style={{ left: s.left, bottom: s.bottom, animationDelay: s.delay, '--sb-size': s.size, '--sb-rise': s.rise, '--sb-wx': s.wx, '--sb-hue': s.hue } as CSSProperties}
+            />
+          ))}
+        </span>
+      )}
       {/* Karwind — a Dragon just got Karwind's battlecry-triggered buff: flames sweep up the card
           (on top of the normal green buff flash), marking it as Karwind's doing. */}
       {karwind === 'flame' && (
@@ -817,6 +834,21 @@ const ExecuteAura = memo(function ExecuteAura() {
  *  carries its own position / size / rise / sideways-drift so they read as an organic cloud, not a line. Count +
  *  ranges mirror the tuner (fx/reborn-css-preview.html): count 27, spread 38%, size 27%±35%, rise 320%±, wx ±22px.
  *  Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
+/** Spell-buff sparks — the pink / gold / purple motes that burst off a hand SPELL (or Ruby) the instant its
+ *  value goes up, then rise and fade. Fixed per-mote jitter (position, delay, size, rise, drift, hue) generated
+ *  once at module load, exactly like REBORN_WISPS. One-shot (~0.8s) and transform/opacity only, so the burst
+ *  composites rather than repainting. Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
+const SPARK_HUES = ['rgba(255,138,216,0.95)', 'rgba(255,206,110,0.95)', 'rgba(186,130,255,0.95)']; // pink · gold · purple
+const SPELL_SPARKS = Array.from({ length: 15 }, (_, i) => ({
+  left: (50 + (Math.random() - 0.5) * 78).toFixed(1) + '%',
+  bottom: (8 + Math.random() * 46).toFixed(1) + '%',
+  delay: (Math.random() * 0.16).toFixed(2) + 's',
+  size: (5 + Math.random() * 6).toFixed(1) + 'px',
+  rise: (55 + Math.random() * 75).toFixed(0) + '%',
+  wx: ((Math.random() - 0.5) * 30).toFixed(0) + 'px',
+  hue: SPARK_HUES[i % SPARK_HUES.length]!,
+}));
+
 const REBORN_WISPS = Array.from({ length: 27 }, () => ({
   left: (50 + (Math.random() - 0.5) * 38).toFixed(1) + '%',
   bottom: (Math.random() * 16).toFixed(1) + '%',

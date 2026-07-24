@@ -89,7 +89,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
   });
 
-  it('Kennelmaster Start of Combat: buffs your minions +2 Attack, and a minion summoned later inherits the aura', () => {
+  it('Kennelmaster Start of Combat: buffs your Beasts +1 Attack, and a Beast summoned later inherits the aura', () => {
     // The SoC aura buffs the living Beasts now (Kennelmaster + Mama Pup), then Mama Pup dies and its Pups —
     // summoned AFTER the aura registered — pick it up too ("wherever they are, incl. combat summons").
     const p: BoardMinion[] = [
@@ -101,27 +101,28 @@ describe('simulate (handoff A.3)', () => {
     const summonEvents = r.events.filter((ev) => ev.type === 'summon');
     expect(summonEvents.length).toBeGreaterThanOrEqual(1); // Mama Pup's Pups spawned
     const summonedUids = new Set(summonEvents.flatMap((ev) => (ev.type === 'summon' ? [ev.minion.uid] : [])));
-    // A minion summoned after Kennelmaster's SoC still receives the +2/+0 aura.
-    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 0 && summonedUids.has(ev.target));
+    // A Beast summoned after Kennelmaster's SoC still receives the +1/+0 aura.
+    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 0 && summonedUids.has(ev.target));
     expect(summonAura).toBe(true);
   });
 
-  it('Kennelmaster aura is board-wide Attack — a NON-Beast gets it too, and Health is untouched', () => {
-    // The 2026-07-21 balance pass moved it from a Beast +1/+1 aura to `tribe: 'any'` +2 Attack. The load-bearing
-    // change is the scope: a Mech/Dragon on the board must now receive it, and nothing should gain Health.
+  it('Kennelmaster aura is BEAST-only Attack — a non-Beast does not get it, and Health is untouched', () => {
+    // Re-spec (owner 2026-07-24): back to a Beast aura, now +1 Attack ("give your Beasts wherever they are").
+    // The load-bearing scope check: a Dragon on the board must NOT receive it, and nothing gains Health.
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 1, health: 40 },
-      { cardId: 'cleric', attack: 3, health: 30 }, // a Dragon — would NOT have been buffed before
+      { cardId: 'alley', attack: 3, health: 30 },  // a Beast — DOES get the aura
+      { cardId: 'cleric', attack: 3, health: 30 }, // a Dragon — must NOT
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }];
     const r = run(p, e, 1);
-    const dragonUid = r.initial.player[1]!.uid;
-    const auraOnDragon = r.events.filter((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 2 && ev.health === 0);
-    expect(auraOnDragon.length).toBeGreaterThanOrEqual(1); // the non-Beast inherits the board-wide aura
+    const beastUid = r.initial.player[1]!.uid;
+    const dragonUid = r.initial.player[2]!.uid;
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === beastUid && ev.attack === 1 && ev.health === 0)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 1 && ev.health === 0)).toBe(false);
     // No Kennelmaster buff ever grants Health (stepHealth 0 keeps the Avenge accrual off Health too).
     const kennelUid = r.initial.player[0]!.uid;
-    const anyHealth = r.events.some((ev) => ev.type === 'buff' && ev.source === kennelUid && ev.health !== 0);
-    expect(anyHealth).toBe(false);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === kennelUid && ev.health !== 0)).toBe(false);
   });
 
   it('Kennelmaster aura buffs EVERY Deathrattle summon, not just the first (repro: both Pups)', () => {
@@ -133,8 +134,8 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 1);
     const pupUids = r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : []));
     expect(pupUids.length).toBe(2); // both Pups summoned
-    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 2 && ev.health === 0));
-    expect(buffed.length).toBe(2); // BOTH inherit the +2/+0 aura, not only the first
+    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 1 && ev.health === 0));
+    expect(buffed.length).toBe(2); // BOTH inherit the +1/+0 aura, not only the first
   });
 
   it('Pack Mentality grows the Beast aura LIVE in combat — a per-N summon buffs living Beasts immediately + carries back', () => {
@@ -662,9 +663,9 @@ describe('simulate (handoff A.3)', () => {
     const rebornIdx = r.events.findIndex((ev) => ev.type === 'reborn');
     expect(rebornIdx).toBeGreaterThanOrEqual(0); // the Gryphon Rose
     const gUid = (r.events[rebornIdx] as { target: string }).target;
-    // A +2/+0 aura buff lands on the Gryphon AFTER it Rises (the bug: reborn bodies were skipped).
+    // A +1/+0 aura buff lands on the Gryphon (a Beast) AFTER it Rises (the bug: reborn bodies were skipped).
     const auraAfterRise = r.events.slice(rebornIdx + 1).some(
-      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 2 && ev.health === 0,
+      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 1 && ev.health === 0,
     );
     expect(auraAfterRise).toBe(true);
   });

@@ -34,7 +34,7 @@ const SET1_DRAGONS_IN_SET2: readonly CardDef[] = DRAGONS.filter((d) => d.id === 
  *  (2026-07-24). The re-spec'd ones (Kennelmaster, Runic Beetle) and the 15 new Beasts land as their stats /
  *  rulings are confirmed. Same opt-in-by-id pattern as Karwind + the neutral spells. */
 const SET1_BEASTS_IN_SET2: readonly CardDef[] = BEASTS.filter((b) =>
-  ['badgington', 'seaurchin', 'sporebat', 'manasaber'].includes(b.id),
+  ['badgington', 'seaurchin', 'sporebat', 'manasaber', 'kennel', 'beetle'].includes(b.id),
 );
 /** Set 1's drawable neutral spells that carry over into Set 2 (drops the tribe-locked ones + reward tokens). */
 const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token && !SET2_DROPPED_SPELLS.has(s.id));

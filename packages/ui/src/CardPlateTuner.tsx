@@ -38,6 +38,11 @@ const LABELS: Record<keyof CardPlateConfig, string> = {
   bucketM: 'text · shrink at (m)',
   bucketL: 'text · shrink at (l)',
   bucketXl: 'text · shrink at (xl)',
+  goldSepia: 'gold · sepia',
+  goldSat: 'gold · saturate',
+  goldBright: 'gold · brightness',
+  goldContrast: 'gold · contrast',
+  goldHue: 'gold · hue (+ = yellow)',
 };
 
 export function CardPlateTuner() {

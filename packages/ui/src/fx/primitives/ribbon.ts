@@ -245,9 +245,14 @@ class RibbonInstance implements FxInstance<RibbonParams> {
   private readonly spine: RibbonPoint[] = [];
   private params: RibbonParams;
   private clockSec = 0;
+  // Cached scratch object for writeRibbonPositions' `shape` arg — kept off the per-frame hot path
+  // (update()) per the no-per-frame-allocation discipline established right next to it in
+  // ribbonGeometry.ts. Mutated in place by setParams(); never reallocated.
+  private readonly shape: { headPinch: number; tailFeather: number };
 
   constructor(ctx: FxContext, params: RibbonParams) {
     this.params = params;
+    this.shape = { headPinch: params.headPinch, tailFeather: params.tailFeather };
     this.positions = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
     this.geometry = new MeshGeometry({
       positions: this.positions,
@@ -298,10 +303,7 @@ class RibbonInstance implements FxInstance<RibbonParams> {
   update(dtMs: number): void {
     this.clockSec += dtMs / 1000;
     this.uniforms.uTime = this.clockSec;
-    const ok = writeRibbonPositions(this.positions, this.spine, this.params.width, {
-      headPinch: this.params.headPinch,
-      tailFeather: this.params.tailFeather,
-    });
+    const ok = writeRibbonPositions(this.positions, this.spine, this.params.width, this.shape);
     this.mesh.visible = ok;
     if (ok) this.geometry.getBuffer('aPosition').update();
   }
@@ -323,10 +325,21 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     u.uAlpha = next.alpha;
     if (paletteChanged) u.uPal = buildPalette(next.palette);
     this.mesh.blendMode = next.additive ? 'add' : 'normal';
+    this.shape.headPinch = next.headPinch;
+    this.shape.tailFeather = next.tailFeather;
   }
 
   destroy(): void {
+    // `Mesh.destroy()` deliberately does NOT cascade to `geometry`/`shader` (it only conditionally
+    // destroys a `texture`) because those are commonly shared across meshes. Ours never are — both are
+    // built fresh in the constructor and held exclusively by this instance — so we must free them
+    // ourselves or every spawn/destroy cycle (one per attack, several live at once) leaks GPU buffers and
+    // a compiled program. Verified safe to call after mesh.destroy(): reading Mesh.destroy()'s source, it
+    // only unhooks its own "update" listener and nulls its internal refs — it never touches
+    // geometry.destroy()/shader.destroy() itself, so there is no double-free here.
     this.mesh.destroy();
+    this.geometry.destroy(true); // true = also free the position/UV/index buffers; we own them exclusively
+    this.shader.destroy(true); // true = also free the compiled GL program; not shared
   }
 }
 

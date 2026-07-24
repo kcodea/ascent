@@ -3,6 +3,51 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (FX workbench — design)
+
+### docs(fx): spec for a composable FX workbench, to end the panel-per-effect tax
+
+Design only — no runtime code. Approved by the owner on 2026-07-23; the P1 implementation plan follows.
+
+**The problem, measured.** Every new effect currently costs a bespoke tuner: `xxxConfig.ts` (interface +
+`DEFAULTS` + `RANGES` + `KEYS` + a localStorage triple), `XxxTuner.tsx` (a `LABELS` map + slider loop +
+copy/reset + panel wiring), and a `DevMenu.tsx` entry. That is **34 panels and ~30 config files, 7,724
+lines**, built on four parallel lists per effect that nothing forces to agree. They have already drifted:
+`TrailTuner.tsx` derives rows from `TRAIL_KEYS` (11 keys, from `DEFAULTS`) but its hand-written `LABELS`
+map has 9, so the Trail tuner renders two sliders with blank labels (`TS2739`, missing `count` and
+`width`). Today's tuners also can't scrub a frame or compare two variants, and require playing the game to
+the moment an effect fires.
+
+**The design.** Effects become **data played by a runtime player**, mirroring how cards already work
+(data + effect subscriptions, never bespoke classes). A primitive declares its params **once** — a zod
+schema plus UI hints, side by side in one file — and the inspector panel is generated from that, which is
+the structural fix for the drift above. An effect def is a list of `{ at, primitive, anchor, params }`
+layers on a timeline, deliberately with no expressions or conditionals; anything needing logic stays
+hand-written code registered into the same system. A scenario driver stages anchors so any effect can be
+looped, scrubbed and A/B compared without playing to it. It mounts in the real web app (real cards, real
+backdrop, no port step) behind a dev-only guard, but with its own purpose-built UI shell rather than
+another `.sfxmix` box.
+
+Rejected along the way: a node graph (months of work rebuilding Unity's VFX Graph for a one-person
+pipeline); codegen (rebuild per tweak, generated files rot when hand-edited, no round-trip); and a
+dev-data/prod-baked hybrid — two code paths for one effect is how a dev↔prod divergence returns, the class
+of bug fixed in `35796425`.
+
+Existing tuners migrate **opportunistically**, never in a big-bang PR: an adapter regenerates the panel
+while leaving effect code and `DEFAULTS` untouched, so no shipped value moves.
+
+**Verified:** the boilerplate counts and the `TrailTuner` drift were measured against the tree, not
+estimated. A standalone prototype of the ribbon primitive (posterized cel-band trail shader, shard layer,
+baked haze, six palettes, six preview scenarios) was built and validated in-browser — it is the reference
+implementation for P1, and it surfaced one finding now baked into the spec: a linear width falloff never
+lets the top colour band fire, so the ribbon needs a **plateau** core-width parameter.
+
+**Follow-ups:** (1) `packages/ui` is excluded from the root `typecheck` and CI never runs `typecheck:web`
+(`build:web` is a Vite/esbuild build and does not typecheck), so the whole presentation layer has no type
+gate — it currently has **50 errors** across 14 files, including the `TrailTuner` drift, a doubled `bus`/
+`gain` key in `sfx.ts`, and a `store.ts` import of `BoardMinion` that `@game/sim` no longer exports.
+Tracked separately. (2) P2–P4 get their own plans once P1 proves the contract.
+
 ## 2026-07-22 (plate coalesce — cards being generated)
 
 ### feat(ui): a generated card materialises out of arcane dust

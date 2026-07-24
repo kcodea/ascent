@@ -42,6 +42,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **An FX workbench is designed and queued.** Every new visual effect currently costs a hand-written tuner
+  panel — 34 of them, ~30 config files, 7,724 lines, built on four parallel lists per effect that nothing
+  forces to agree (and which have already drifted). The approved design makes effects **data played by a
+  runtime player**: a primitive declares its parameters once, the editing UI is generated from that
+  declaration, and effects can be looped, scrubbed to a frame, and A/B compared without playing the game to
+  the moment they fire. Spec:
+  [`docs/superpowers/specs/2026-07-23-fx-workbench-design.md`](docs/superpowers/specs/2026-07-23-fx-workbench-design.md).
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),
   Turnabout (swap Attack/Health), Insurance Policy (comeback Gold after a loss), Rift-Sunk Codex (Discover a
   Shop spell), Beyond the Summit (Discover one tier higher, up to Tier 7), Invitation Above (Discover a Tier 6

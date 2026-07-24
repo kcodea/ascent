@@ -130,6 +130,15 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **FX Workbench — P1 foundation.** Spec approved 2026-07-23:
+  [`docs/superpowers/specs/2026-07-23-fx-workbench-design.md`](superpowers/specs/2026-07-23-fx-workbench-design.md).
+  Ends the panel-per-effect tax (34 tuners / ~30 configs / 7,724 lines, built on four parallel lists per
+  effect that nothing keeps in sync). Effects become data played by a runtime player; a primitive declares
+  its params once (zod schema + UI hints) and the inspector is generated from it. P1 = the `FxPrimitive`
+  contract, the schema→UI generator, the player, the ribbon primitive (ported from the 2026-07-23
+  prototype), and a minimal shell with transport + two scenarios. P2 composition / P3 product polish /
+  P4 opportunistic tuner migration each get their own plan.
+
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own
   for that move, used *instead of* the coalesce, not alongside it. The exclusion is already wired

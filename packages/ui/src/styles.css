@@ -2933,7 +2933,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    instead (keeps the relief/engraving, just recolours it). Tunable via `--plate-gold-tone`. Covers hand, the
    drag copy and the inspect overlay — all `.plated`. */
 .card.plated.golden .cardplate {
-  filter: var(--plate-gold-tone, sepia(0.9) saturate(3.4) brightness(1.08) contrast(1.05) hue-rotate(-9deg));
+  filter: var(--plate-gold-tone, sepia(0.9) saturate(3.1) brightness(1.08) contrast(1.05) hue-rotate(12deg));
 }
 
 /* HOVER GLOW, plate edition. On a plated card the white highlight rings the PLATE, not the oval frame —

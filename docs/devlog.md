@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-07-24 (triple-reward cards coalesce in gold + a plate mask A/B)
+
+### feat(ui): the Triple Reward token materialises in gold
+
+The gold coalesce keyed only off `.golden`; the "Triple Reward" token (`discoverspell`, granted to hand when
+you play a Gilded minion) isn't a golden minion, so it still coalesced blue. It's rendered with the
+`.triplecard` class, so `plateCoalesce` now reads gold for `.golden` OR `.triplecard` — a triple reward
+materialises in the gild's gold (dust + wireframe) however it lands. Verified live: the token carries
+`.triplecard` and its imprint gradient came back gold (`rgb(169,112,15)…`).
+
+### feat(ui): golden plate stays the colour filter (mask prototype dropped)
+
+The plate gold has been a colour FILTER; the owner wanted the literal MASK approach compared, so both were
+wired behind a `goldMode` A/B toggle on the 🂠 Card Plate tuner — filter (the five-knob colour filter) vs a
+gold gradient masked to the plate silhouette with `mix-blend-mode: color`. The owner chose the FILTER, so the
+mask overlay, the toggle and their scaffolding were removed; the plate keeps `--plate-gold-tone` (sepia 0,
+saturate 2.6, brightness 1.13, contrast 0.95, hue 3), unchanged from what shipped in #690.
+
+Engine typecheck + lint + 1586 tests + `build:web` green (the 3 `typecheck:web` errors are pre-existing on
+main from the Set 2 Kobold/Dragon work, not this change).
+
 ## 2026-07-24 (bake the owner's tuned Card Pills layout)
 
 ### chore(ui): commit the tuned Card Pills defaults (cost coin + type pill)

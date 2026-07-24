@@ -4,6 +4,22 @@ Newest first. Each entry records **what changed and why**, plus how it was verif
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
 ## 2026-07-24 (the shop→hand slide + the top-left ghost card)
+### fix(ui): the REAL top-left blip — GSAP Flip was grabbing the gild's clones
+
+The `.dragcard` park (above) fixed one origin blip; this was a second, different one, only ever visible on a
+triple. `cloneNode` copies **every** attribute, including GSAP Flip's identity stamp `data-flip-id`. So all
+three gild clones carried the same `data-flip-id` as the real gilded card. The instant the triple re-rendered
+the hand row, `Flip.from` matched the clones by that id, cleared their transform and set opacity to 1 —
+dropping a `position:fixed; left:0; top:0` clone onto the screen's top-left corner, full opacity, for the
+length of the Flip.
+
+It was invisible to four separate isolation harnesses (append probe, WAAPI trajectory sampling, virtual-clock
+frame stepping, all-element origin scan) because none of them triggered a Flip. It only reproduced by driving
+a REAL triple in-page and freezing the DOM: three `body > .card` clones sitting at `(-28, 0)` at opacity 1,
+each stamped `data-flip-id=auto-1`. `cloneCard` now strips `data-flip-id`, `data-uid` and `id` from the clone
+and its descendants, so nothing outside the module can address them. Re-verified through the same real-triple
+path: clones back at centre (`translate(828, 393) scale(1.32)`), no flip-id, nothing visible at the origin.
+
 
 ### feat(ui): the gild hands off to the buy slide
 

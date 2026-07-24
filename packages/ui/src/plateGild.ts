@@ -178,6 +178,21 @@ const SIZE_VARS = ['--cw', '--ch', '--ccw', '--scale', '--u', '--c', '--c2', '--
 
 function cloneCard(src: HTMLElement): HTMLElement {
   const el = src.cloneNode(true) as HTMLElement;
+  /* `cloneNode` copies EVERY attribute, and two of them make other machinery grab the clone as if it were a
+     real card. `data-flip-id` is GSAP Flip's identity stamp: the moment the triple re-renders the hand,
+     `Flip.from` matches the clone by that id and clears its transform — dropping a `position:fixed; left:0;
+     top:0` clone onto the screen's TOP-LEFT corner at full opacity (the "blip" the owner saw, invisible in
+     isolation because nothing triggers a Flip there). `data-uid` / `id` would likewise let a stray
+     `querySelector` reach into the effect. Strip all three off the clone and its descendants so nothing
+     outside this module can ever address it. */
+  el.removeAttribute('data-flip-id');
+  el.removeAttribute('data-uid');
+  el.removeAttribute('id');
+  el.querySelectorAll('[data-flip-id], [data-uid], [id]').forEach((n) => {
+    n.removeAttribute('data-flip-id');
+    n.removeAttribute('data-uid');
+    n.removeAttribute('id');
+  });
   // Card sizing is driven by CSS vars set PER ZONE (`.zone[data-zone='hand'] { --ccw: ... }`), not by the
   // element's own width — so a clone appended to <body> loses them, lays out at some unrelated size, and the
   // plate (positioned `left:50%` of the card box) slides out of register with the frame inside it. Copy the

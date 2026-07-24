@@ -615,6 +615,70 @@ under `/art/spells/`, all decode at 512x512, and the new duplicate warning stays
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (gilded cards materialise in gold)
+### feat(ui): the golden plate tint is on the Card Plate tuner
+### tweak(ui): lock in the owner's golden plate tone
+
+Baked the dialed values as defaults: `sepia 0, saturate 2.6, brightness 1.13, contrast 0.95, hue 3` — in
+`cardPlateConfig.ts` DEFAULTS and mirrored into the styles.css `--plate-gold-tone` fallback.
+
+
+Rather than trade "more/less orange" over chat, the golden plate's filter is now five live sliders on the
+existing 🂠 Card Plate tuner (`gold · sepia / saturate / brightness / contrast / hue`). They compose into
+`--plate-gold-tone` on :root via `applyCardPlateVars`, so a gilded card recolours in real time as you drag;
+"Copy values" grabs the JSON to bake as defaults. Hue is signed and labelled (+ = yellow-gold, − = orange).
+Config in `cardPlateConfig.ts` (ships in prod, so DEFAULTS drive the var there too); the CSS fallback mirrors
+the composed default. Verified live: the five keys render, and dragging hue 12→30 updated the root var.
+
+
+### feat(ui): a triple reward coalesces in gold + its plate reads gold
+
+Two changes so a gilded card looks gold however it arrives:
+
+- **Gold coalesce.** When the card being generated is `.golden`, `plateCoalesce` swaps the arcane-blue palette
+  (and its mote sprites) for the gild's gold — `#a9700f / #f1cb5e / #fff6d5` — so the dust → wireframe →
+  reveal reads as "gold from nothing". Detected off the target card's `.golden` class; geometry, motes and
+  timing are identical, only the colours differ. Non-golden generations still coalesce blue. Verified live: a
+  golden card's imprint gradient came back gold (`rgb(169,112,15)…`), a normal one blue (`rgb(117,214,255)…`).
+- **Gold plate.** A gilded card's stone backplate now reads gold, mirroring the frame's silver→gold. The frame
+  un-grays a gold PNG via `--frame-tone`; the plate art is stone, so `.card.plated.golden .cardplate` pushes it
+  gold with a colour filter (`--plate-gold-tone`, keeps the relief, just recolours). Covers hand, the drag copy
+  and the inspect overlay. Verified live: golden plate computed `sepia(.78) saturate(2.3)…`, normal `none`.
+
+Both tint values are dialable (`GOLD` palette in `plateCoalesce`, `--plate-gold-tone` var) if the gold wants
+warming/cooling. Engine typecheck + lint + 1538 tests + `build:web` green.
+
+## 2026-07-24 (the gild's top-left flash — a THIRD cause)
+
+### tweak(ui): the gild sigil sits lower and smaller
+
+Owner: the seal flourish behind the card read a touch too high and too large. Dropped the default `flSize`
+1.66 → 1.35 and added a `flY` knob (vertical offset, × plate width, + = lower; default 0.12) wired into
+`drawFlourish`, the tuner, and the config schema so it can be dialed further.
+
+### fix(ui): a freshly-popped golden made the gild clones inherit `cardpop`
+
+Owner still saw a card flash in the screen's top-left at the *start* of the gild, specifically when completing
+a triple by **buying** the third copy. A third distinct cause of the same symptom, after the `.dragcard` park
+and the `data-flip-id` strip.
+
+Completing a triple mounts the golden card **fresh, with `.popin`** — whose `cardpop` / `handpop` keyframes
+animate `transform` (`translateY(8px) scale(.96)`). `cloneCard` copies that class onto the three flyers, and a
+**running CSS animation outranks a plain inline `transform`**. The gild writes each clone's centre position as
+a plain inline transform every frame, so `cardpop` won: the clones rendered at `translate(0, 8)` — the top-left
+corner — for cardpop's 0.16s. Opacity was still driven by the module's own `!important` writes, so they were
+visible while mispositioned. Only on a freshly-popped card (right after a buy/play completes the triple), which
+is why isolation harnesses that cloned an already-settled card never showed it.
+
+Fix: `cloneCard` now removes `.popin` and sets `animation: none !important` on each clone, so nothing the
+source card was mid-animation fights the gild's positioning.
+
+**Verified live** by driving a real buy-triple in the browser and reading the clones back: pre-fix, computed
+transform was `matrix(.96,0,0,.96,0,8)` while the inline transform was the correct centre (`translate(597,289)`)
+— proof the animation was overriding it; post-fix, `animationName: none`, `.popin` gone, and computed transform
+**equals** the inline centre on all three. Engine typecheck + lint + 1538 tests + `build:web` green; 57
+`typecheck:web` baseline unchanged.
+
 ## 2026-07-24 (Waking Rift rename + all spell art wired)
 
 ### feat(content/ui): wire Beyond the Summit + Hourglass Reserve art, remove the Encore spell

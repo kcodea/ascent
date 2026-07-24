@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { getHero, metLine, TAG_INFO, type BoardMinion, type LineStatus, type Tribe } from '@game/sim';
+import type { BoardMinion, Tribe } from '@game/core';
+import { getHero, metLine, TAG_INFO, type LineStatus } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { RunTrophies } from './RunTrophies';
 import { avatarSrc, heroArt } from './art';

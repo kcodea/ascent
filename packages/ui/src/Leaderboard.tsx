@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { getHero, isCalibrationRound, type BoardMinion } from '@game/sim';
+import type { BoardMinion } from '@game/core';
+import { getHero, isCalibrationRound } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { RunTrophies } from './RunTrophies';
 import { heroArt } from './art';

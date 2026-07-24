@@ -226,6 +226,77 @@ it should be loud rather than silent.
 rig. **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
 owner-eyeballed.
 
+## 2026-07-24 (the UI type gate)
+
+### chore(ci): clear the 59 UI type errors and gate `typecheck:web`
+
+`packages/ui` was excluded from the root `tsconfig.json` and `typecheck:web` was never run in CI, so the
+**entire presentation layer had no type gate at all** — `build:web` is a Vite/esbuild transpile, which strips
+types without checking them. This clears the backlog (59 errors across 20 files on `main` @ f4a65372; the
+"~50" figure in the old CI comment predated set 2) and turns the gate on.
+
+**CI + scripts.** `npm run typecheck` now composes `typecheck:pkgs` (engine: core/content/sim/tools, the old
+root project) and `typecheck:web` (presentation: `@game/ui` + `apps/web`). CI runs the two halves as separate
+steps so a red build names the layer that broke; together they equal the single command CLAUDE.md tells a
+human to run, so the documented "prove the checks ran" line is now honest. CLAUDE.md's Commands entry and the
+root `tsconfig.json` comment were updated to match, and the stale "NOT gated yet" note is gone from ci.yml.
+
+**Real defects the gate was hiding** (each was invisible at runtime or silently wrong):
+- `sfx.ts` — `gainReduction()` read `master.reduction.value`, but `DynamicsCompressorNode.reduction` is a
+  plain readonly number, not an AudioParam. The mixer's gain-reduction meter computed `-undefined / 20` = NaN
+  and never moved.
+- `questText.ts` / `QuestCard.tsx` / `RunTrophies.tsx` — three `Record<Tribe, string>` maps were never
+  extended when set 2 added `kobold`, so a kobold quest printed `undefined` in its objective/reward text and
+  showed no emblem. Filled from the canonical set in `Card.tsx` (`crown`, "Kobold"/"Kobolds").
+- `PlateCoalesceTuner` / `PlateDissolveTuner` — both "demo" buttons read `panelRef.current`, but
+  `useDraggablePanel` returns `panelRef` as a **callback** ref (no `.current`), so the handler hit its
+  `if (!el) return` guard every time and the button did nothing. The hook now also returns `panelElRef`.
+- `TrailTuner.tsx` — `LABELS` was missing `count` and `width`, so those two slider rows rendered with an
+  undefined label.
+- `Card.tsx` — `CardView.target` was `'friendly'` only, but `CardDef.target` is `'friendly' | 'any'` and
+  dozens of set-1 spells target a shop minion. Every `=== 'any'` test in Recruit/dragDecision/instView was
+  therefore a "no overlap" comparison — TS considered the shop-targeting branches dead, one step from being
+  deleted by a refactor.
+- `Recruit.tsx` — `ShopViewOpts` never declared `impAura` even though the call site passes it and
+  `offerLiveTextParams` forwards it; Chef Raag's offer depends on it for its live Imp-Aura text (guarded by
+  `instView.test.ts`).
+
+**Stale contracts, now caught:** five modules imported `BoardMinion` / `Tribe` from `@game/sim`, which never
+re-exported the core types (→ `@game/core`); that error type also made every `.addedTribes` callback param
+implicitly `any`. `CombatReplay` never declared `questDelta` / `triggeredQuests` / `completedQuests` despite
+the hook returning all three. `CardView.cardId` was optional though nothing constructs a view without one.
+
+**The Pixi aura tracker is gone (−197 lines in `Recruit.tsx`).** `syncShields`' PASS 1 skipped shield + reborn
+by name, and those were the only two rows in `AURA_CFGS` — so TS narrowed `cfg` to `never` and the entire
+registration pass was dead code (7 of the errors). It had been inert since Ward and Reborn both became CSS
+(`Card.tsx` `.ward` / `.reborn` stacks): with nothing calling `pixiFx.setShield`, `seen` was always empty, so
+PASS 2/4 and the whole bookkeeping around them (`shieldUidsRef`, `pendingClearRef`, `settleUntilRef`,
+`deployGraceRef`, `SHIELD_CLEAR_GRACE`) did nothing either. Deleted the block and the five effects that existed
+only to call it — including a **per-frame `requestAnimationFrame` loop that re-measured every aura card's rect
+for the whole of combat and every drag**. `AURA_CFGS` shrinks to `AURA_MARKERS`, the marker list its one
+surviving reader needs (landing-dust z-order). No behaviour change: none of it had a visible effect.
+
+**Reborn death burst — repaired in the same PR.** Removing the tracker surfaced that `burstDeathAuras`'s reborn
+branch gated on `pixiFx.hasAura(uid, 'reborn')`, whose only writer was the tracker — so a reborn unit's death
+had stopped playing its spirit-release burst + `rebornShatter` sfx (a PRE-EXISTING regression from when Reborn
+went CSS, not caused here). Owner confirmed it should burst, so the branch now mirrors the Ward branch beside
+it: read the dying unit's `.reborncard` DOM marker and fire `pixiFx.shatterAt(rect, 'reborn')` (which delegates
+to the wispy `rebornShatter`, not gold shards) + the sound. `burstDeathAuras` now reads both markers off one
+`.card` query and no longer touches `hasAura`. Rewrote `aura.test.ts` to match — it stubs `document` via
+`vi.stubGlobal` (the suite runs in bare Node, no jsdom) and covers Reborn-only, Ward-only, both-at-once, no
+marker, and the no-rect early-out (9 tests, +3).
+
+**Left for the wider dead-code purge** (tracked on the roadmap, not this PR): `shieldConfig.ts` +
+`ShieldTuner.tsx` now tune a `recruitDy` nothing reads (it was only used by the deleted `auraDy`), and
+`pixiFx.setShield` / `clearShield` / `setShieldsVisible` / `shieldLayer` / `hasAura` have no callers.
+
+**Also:** `ErrorBoundary`'s three missing `override`s, the aura `Mesh<MeshGeometry, Shader>` generic (Pixi defaults
+SHADER to `TextureShader`), `plateCoalesce`'s `unhide` returning `removeProperty`'s value from a `: void`
+arrow, a documented `unknown` hop for supabase's runtime-built select, and two test fixtures.
+
+Verified: `typecheck` (both projects) + `typecheck:web` + `lint` (0 errors; 1 pre-existing unused-import
+warning in `SceneBuilder.tsx`) + `test` (1541 pass / 92 files) + `build:web` all green.
+
 ## 2026-07-23 (Front to Back — improve each cast)
 
 ### balance(content): Front to Back escalates every cast, not every other

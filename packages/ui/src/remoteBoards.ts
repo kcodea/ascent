@@ -252,7 +252,9 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
     if (result && result.error) result = await Promise.race([query(cols.replace(', buy_events', '')), timeout]);
     if (result && result.error) result = await Promise.race([query(cols.replace(', discover_offered_cards, discover_bought_cards', '').replace(', buy_events', '')), timeout]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Array<Record<string, unknown>>).map((r) => ({
+    // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
+    // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
+    return (result.data as unknown as Array<Record<string, unknown>>).map((r) => ({
       heroId: (r.hero_id as string) ?? '',
       heroOffer: (r.hero_offer as string[]) ?? [],
       won: !!r.won,

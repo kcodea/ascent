@@ -17,7 +17,7 @@ npm test             # vitest: determinism, effects, run loop, content
 npm run balance      # headless: probe the tribe counter matrix with mono-tribe boards
 npm run bot          # headless: a greedy bot plays full runs
 npm run harness      # headless: narrated combat event log + determinism proof
-npm run typecheck && npm run lint
+npm run typecheck && npm run lint   # typecheck = engine (typecheck:pkgs) + UI (typecheck:web); both gated in CI
 npm run build:web    # production build (the CI gate + what players run)
 npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in browser")
 npm run desktop      # build + run the game in an Electron window (fast desktop iteration)
@@ -42,6 +42,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **The UI is typechecked in CI now.** `packages/ui` was excluded from the root typecheck and `typecheck:web`
+  was never gated, so the whole presentation layer had no type gate (the production build transpiles without
+  checking). Cleared all 59 errors and turned the gate on. Several were real: the mixer's gain-reduction meter
+  read NaN, kobold-tribe quests printed `undefined` in their text, and the two plate tuners' "demo" buttons did
+  nothing. Also deleted a dead per-frame aura-tracking loop it exposed — and, while there, restored the reborn
+  unit's spirit-release burst on death (it had quietly stopped firing when Reborn became a CSS effect).
 - **Gilding a card plays out.** Completing a triple now shows the three copies converge centre-screen into
   one, erupt gold, and slide home into the hand — the third of the plate effects, alongside the play-dissolve
   and the generated-card coalesce.

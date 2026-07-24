@@ -3,26 +3,62 @@ import { pixiFx } from '../../pixiFx';
 import { sfx } from '../../sfx';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './aura';
 
-afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+// The suite runs in bare Node (no jsdom — see vitest.config.ts), so stub the single `document.querySelector`
+// call the aura channel makes: return a card whose classList carries the given marker classes, or null.
+const stubCard = (...classes: string[]): void => {
+  const card = { classList: { contains: (c: string) => classes.includes(c) } };
+  vi.stubGlobal('document', { querySelector: () => card });
+};
+const stubNoCard = (): void => { vi.stubGlobal('document', { querySelector: () => null }); };
+const RECT = { cx: 200, cy: 150, w: 80, h: 100 };
 
 describe('burstDeathAuras', () => {
-  it('bursts each aura kind the unit carries (per pixiFx.hasAura) with its sound; skips absent ones', () => {
-    vi.spyOn(pixiFx, 'hasAura').mockImplementation((_uid, kind) => kind === 'reborn'); // carries only a reborn aura
-    const brk = vi.spyOn(pixiFx, 'breakShield').mockImplementation(() => {});
-    const shatter = vi.spyOn(sfx, 'rebornShatter').mockImplementation(() => {});
+  it('a Reborn unit releases its spirit (wispy shatter at the rect) + rebornShatter sound', () => {
+    stubCard('reborncard');
+    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
+    const reborn = vi.spyOn(sfx, 'rebornShatter').mockImplementation(() => {});
     const shieldSfx = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
-    burstDeathAuras('u1');
-    expect(brk).toHaveBeenCalledWith('u1', 'reborn');
-    expect(shatter).toHaveBeenCalledTimes(1);
-    expect(shieldSfx).not.toHaveBeenCalled(); // no shield aura → no gold-break sound
+    burstDeathAuras('u1', RECT);
+    expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'reborn');
+    expect(reborn).toHaveBeenCalledTimes(1);
+    expect(shieldSfx).not.toHaveBeenCalled(); // no ward marker → no gold-break sound
   });
 
-  it('a unit carrying no aura bursts nothing (no .dscard marker → no ward shatter; no reborn bubble)', () => {
-    vi.spyOn(pixiFx, 'hasAura').mockReturnValue(false);
-    const brk = vi.spyOn(pixiFx, 'breakShield').mockImplementation(() => {});
+  it('a Warded unit shatters gold (shield) at the rect + shieldBreak sound', () => {
+    stubCard('dscard');
     const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
-    burstDeathAuras('u2', { cx: 1, cy: 2, w: 3, h: 4 });
-    expect(brk).not.toHaveBeenCalled();
+    const shieldSfx = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
+    const reborn = vi.spyOn(sfx, 'rebornShatter').mockImplementation(() => {});
+    burstDeathAuras('u1', RECT);
+    expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'shield');
+    expect(shieldSfx).toHaveBeenCalledTimes(1);
+    expect(reborn).not.toHaveBeenCalled();
+  });
+
+  it('a unit carrying BOTH auras bursts each once', () => {
+    stubCard('dscard', 'reborncard');
+    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
+    vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
+    vi.spyOn(sfx, 'rebornShatter').mockImplementation(() => {});
+    burstDeathAuras('u1', RECT);
+    expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'shield');
+    expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'reborn');
+    expect(shatter).toHaveBeenCalledTimes(2);
+  });
+
+  it('a unit carrying no aura marker bursts nothing', () => {
+    stubNoCard();
+    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
+    burstDeathAuras('u2', RECT);
+    expect(shatter).not.toHaveBeenCalled();
+  });
+
+  it('with no rect (unit not measurable) bursts nothing', () => {
+    stubCard('reborncard'); // marker present, but no rect to anchor the burst
+    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
+    burstDeathAuras('u1', null);
     expect(shatter).not.toHaveBeenCalled();
   });
 });

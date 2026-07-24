@@ -89,7 +89,7 @@ const doubleNums = (s: string): string =>
 export interface CardView {
   name: string;
   /** Card id — used to look up illustrated art (falls back to the tribe sprite). */
-  cardId?: string;
+  cardId: string;
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
@@ -119,8 +119,9 @@ export interface CardView {
   /** A **Ruby** (set 2): a spell-LIKE token — plays from hand by dragging onto a minion (same targeted-aim as
    *  a spell) to buff it, but it is NOT a Shop Spell. Renders with a stat footer (it carries Attack/Health). */
   ruby?: boolean;
-  /** Requires a friendly target when cast (drives the cast-by-drag targeting). */
-  target?: 'friendly';
+  /** Requires a target when cast (drives the cast-by-drag targeting) — `'friendly'` = a board minion only,
+   *  `'any'` = a board OR shop minion. Mirrors `CardDef.target`. */
+  target?: 'friendly' | 'any';
   /** Base (printed) stats — stats above base render green, below base render red. */
   baseAttack?: number;
   baseHealth?: number;

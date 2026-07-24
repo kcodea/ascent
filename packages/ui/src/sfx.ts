@@ -672,7 +672,8 @@ export function setMasterComp(k: keyof CompConfig, v: number): void {
 }
 /** Patch a category's routing/gain (creating it with sane defaults if new) — persists. */
 export function setCategory(cat: string, patch: Partial<CategoryConfig>): void {
-  cfg.categories[cat] = { bus: 'ui', gain: 0.6, ...(cfg.categories[cat] ?? {}), ...patch };
+  const prev: CategoryConfig = cfg.categories[cat] ?? { bus: 'ui', gain: 0.6 };
+  cfg.categories[cat] = { ...prev, ...patch };
   persistConfig();
 }
 /** Peak level 0..1 for a meter key ('master' | bus name). */
@@ -687,7 +688,8 @@ export function meterLevel(key: string): number {
 }
 /** Master limiter gain-reduction as a 0..~1 bar value. */
 export function gainReduction(): number {
-  return master ? -master.reduction.value / 20 : 0;
+  // `reduction` is a plain readonly number (dB, ≤ 0) on the modern node — NOT an AudioParam.
+  return master ? -master.reduction / 20 : 0;
 }
 /** The current config serialized (for the desk's export/copy button). */
 export function exportConfig(): string {

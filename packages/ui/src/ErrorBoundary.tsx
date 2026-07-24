@@ -16,20 +16,20 @@ interface State {
  * crash can re-render cleanly, and "Reload" is the hard reset.
  */
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { error: null, componentStack: null };
+  override state: State = { error: null, componentStack: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { error, componentStack: null };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     // Surface it for debugging; the fallback owns the user-facing recovery.
     console.error('Game crashed during render:', error, info.componentStack);
     // Stash the component stack so the crash screen can show WHERE it broke — self-diagnosing without devtools.
     this.setState({ componentStack: info.componentStack ?? null });
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     const { error, componentStack } = this.state;
     if (!error) return this.props.children;
     // The full detail — JS stack (file:line) + the React component stack — for reporting a crash. Minified in a

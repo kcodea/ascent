@@ -92,7 +92,7 @@ const DEFAULTS: SpellBuffFxConfig = {
   goldColor: '#ffce6e',
   purpleColor: '#ba82ff',
   wiggleDeg: 2.2,
-  wiggleScale: 1.06,
+  wiggleScale: 1.1,
   wiggleMs: 720,
   wiggleEase: 0.8,
   wiggleOvershoot: 0.12,
@@ -151,7 +151,7 @@ export const SBF_DESC: Record<keyof SpellBuffFxConfig, string> = {
   wiggleDeg: 'Card — peak wiggle rotation (deg). 0 = no wiggle.',
   wiggleScale: 'Card — peak grow/shrink scale (1 = no pop).',
   wiggleMs: 'Card — wiggle + pop duration (ms).',
-  wiggleEase: 'Card — pop softness. 0 = snappy/linear (jarring); 1 = slow, cushioned ease.',
+  wiggleEase: 'Card — pop softness: 0 leaps out instantly, 1 ramps out slowly. Most visible with a larger pop scale.',
   wiggleOvershoot: 'Card — springiness on the OUT-swing only: pushes the pop past its target. 0 = none.',
   wiggleWobble: 'Card — how much it oscillates coming BACK. 0 = one clean pop that glides home (smoothest).',
   wiggleSettle: 'Card — how softly the return glides home. 0 = abrupt; 1 = long cushioned settle.',
@@ -211,9 +211,13 @@ export function wiggleEaseCss(c: SpellBuffFxConfig = cfg): string {
   const e = Math.min(1, Math.max(0, c.wiggleEase));
   const s = Math.min(1, Math.max(0, c.wiggleSettle));
   const o = Math.max(0, c.wiggleOvershoot);
-  const x1 = (0.05 + e * 0.5).toFixed(3);
-  const y1 = (0.02 + e * 0.1).toFixed(3);
-  const x2 = (0.78 - s * 0.56).toFixed(3);
+  // The head control point swings across its FULL range, which is what gives the dial authority: at 0 the curve
+  // leaves rest almost vertically (y1 high = an instant leap), at 1 it crawls out flat (x1 high / y1 ~0 = a long
+  // gentle ramp). The previous mapping only moved y1 between 0.02 and 0.12, so every setting started slow and
+  // the dial read as doing nothing.
+  const x1 = (0.02 + e * 0.78).toFixed(3);
+  const y1 = (0.7 - e * 0.69).toFixed(3);
+  const x2 = (0.95 - s * 0.8).toFixed(3);
   const y2 = (1 + o).toFixed(3);
   return `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
 }

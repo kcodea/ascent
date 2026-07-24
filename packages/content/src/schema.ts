@@ -68,6 +68,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleGrantSpell',
   'battlecryBuffTribeImproving',
   'onBattlecryImproveSelf',
+  'deathrattleQueueNextSpellCopy',
   'battlecryArmGrimoire',
   'onBattlecryRearmGrimoire',
   'onMinionSoldCopyFirstOfTribe',

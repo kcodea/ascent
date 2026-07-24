@@ -311,6 +311,10 @@ export interface RunState {
   /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
+  /** Set 2 — Scalefeather Drake: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
+   *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
+   *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
+  nextTurnSpellCopies?: { activateWave: number; count: number };
   /** Quick Sale: extra Gold added to the NEXT minion sold this turn (added on top of its sell value, then
    *  cleared). Also cleared at turn end if unused ("this turn"). Stacks if cast twice. Absent = 0. */
   nextSellBonus?: number;

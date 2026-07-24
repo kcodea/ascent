@@ -2,6 +2,32 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(core/sim/content): Dragon tranche 9 — Scalefeather Drake (cross-turn spell copy)
+
+Scalefeather Drake (T4 4/6, Dragon/Beast) — **19 of 21 Dragons built**. The most plumbing of the tribe, because
+its Echo fires in one turn's COMBAT but pays out on the NEXT turn's first spell.
+
+Full carry-back chain: a new combat ctx method `queueNextTurnSpellCopy` accumulates per combat, surfaces as
+`CombatResult.playerNextTurnSpellCopies`, and settle arms `RunState.nextTurnSpellCopies`. `castSpell` then copies
+the turn's first spell to hand while a charge is active, and clears it.
+
+"Next turn" is made EXACT with an activation wave rather than a bare flag: the charge stores `wave + 1` (the
+same marker Hourglass Reserve uses), and the watcher gates on `state.wave >= activateWave`. So a charge armed in
+this turn's combat can't pay out until the following turn — verified by deleting the gate, which makes the copy
+fire a turn early (`expected 1 to be 0`). Multiple Scalefeathers sum, keeping the earliest activation wave so no
+copy is dropped.
+
+Registered in BOTH factory tables under one `do` id — the combat half (carry-back) and a recruit half that arms
+the run charge directly — so Ryme re-firing the Echo in the shop works too, and still means the FOLLOWING turn,
+never the current one.
+
+Three tests: the copy fires on/after the activation wave and is spent; a charge armed for next turn does NOT
+fire this turn; and the Echo carries `playerNextTurnSpellCopies` back from a real `simulate()`. Suite 1578 +
+typecheck + lint + build:web + harness (determinism — new combat factory + CombatResult field) green.
+
+Remaining: Orivax (two persistent Choose-One global modes), and Vault Curator (needs the run hand exposed to
+combat — its own PR on the shared `CombatSideState` seam).
+
 ### feat(sim/content): Dragon tranche 8 — Living Grimoire (charge, spend, re-arm)
 
 Living Grimoire (T6 7/9) — **18 of 21 Dragons built**.

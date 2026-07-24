@@ -96,6 +96,7 @@ export function simulate(
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
   const rubyBonusGain = { attack: 0, health: 0 }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
+  const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
@@ -561,6 +562,12 @@ export function simulate(
       if (side !== 'player' || count <= 0) return;
       rubyGrants.n += count;
       for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
+    },
+    queueNextTurnSpellCopy: (count, side) => {
+      // Player-only (enemies have no run state to arm) — accumulated and carried back via
+      // `playerNextTurnSpellCopies`, applied to the run at settle.
+      if (side !== 'player' || count <= 0) return;
+      nextTurnSpellCopies.n += count;
     },
     gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
@@ -2068,6 +2075,7 @@ export function simulate(
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
+    playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.attack > 0 || rubyBonusGain.health > 0) ? { ...rubyBonusGain } : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,

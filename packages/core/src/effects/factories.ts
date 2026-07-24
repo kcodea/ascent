@@ -607,6 +607,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
+  /** Set 2 — Scalefeather Drake (Echo): queue `count` copies of the FIRST spell you cast next turn (golden 2).
+   *  Payload-guarded like every Deathrattle. The copy itself is granted in the RECRUIT phase (a spell id isn't
+   *  known until you cast it), so this only banks the count — carried back via `playerNextTurnSpellCopies`. */
+  deathrattleQueueNextSpellCopy: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.queueNextTurnSpellCopy(num(params.count, 1) * mul(self), self.side);
+  },
+
   /** Set 2 — Ashen Broodlord: Avenge (X) improves your SPELLS by +atk/+hp (spell power), carried back to the
    *  run. Routes through `grantSpellPower` with `self.uid`, so it emits the `+A/+H Spell Power` narration the
    *  combat replay already rides — the flourish and the hand-spell cue both fire on the proc rather than at

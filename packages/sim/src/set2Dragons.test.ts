@@ -152,6 +152,36 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
   });
 });
 
+describe('set 2 — Scalefeather Drake queues NEXT turn’s first spell', () => {
+  it('an armed charge copies the first spell of a turn on/after its activation wave', () => {
+    let s: RunState = {
+      ...createRun(3), wave: 3, phase: 'recruit', embers: 40,
+      board: [minion('t', 'd2_chronicler', 'dragon', 3, 5)],
+      hand: [spellInHand('s1', 'spiritfire'), spellInHand('s2', 'spiritfire')],
+      nextTurnSpellCopies: { activateWave: 3, count: 1 }, // active THIS wave
+    };
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 't' });
+    expect(s.hand.filter((c) => c.cardId === 'spiritfire').length).toBe(2); // s2 still in hand + the copy
+    expect(s.nextTurnSpellCopies).toBeUndefined(); // spent
+    // the SECOND spell doesn’t re-trigger it
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 't' });
+    expect(s.hand.filter((c) => c.cardId === 'spiritfire').length).toBe(1); // just the leftover copy
+  });
+
+  it('a charge armed for NEXT turn does not fire on THIS turn’s first spell', () => {
+    // This is the "next turn" guarantee: armed on wave 3 → activateWave 4, so a wave-3 cast must not pay out.
+    let s: RunState = {
+      ...createRun(3), wave: 3, phase: 'recruit', embers: 40,
+      board: [minion('t', 'd2_chronicler', 'dragon', 3, 5)],
+      hand: [spellInHand('s1', 'spiritfire')],
+      nextTurnSpellCopies: { activateWave: 4, count: 1 },
+    };
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 't' });
+    expect(s.hand.filter((c) => c.cardId === 'spiritfire').length).toBe(0); // no copy this turn
+    expect(s.nextTurnSpellCopies).toEqual({ activateWave: 4, count: 1 }); // still pending
+  });
+});
+
 describe('set 2 — Living Grimoire charges, spends and re-arms', () => {
   const play = (s: RunState, uid: string): RunState => reduce(s, { type: 'play', uid });
 

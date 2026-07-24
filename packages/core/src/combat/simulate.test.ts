@@ -2718,6 +2718,15 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
   });
 
+  it('set 2 — Scalefeather Drake: its Echo carries back a next-turn spell-copy count', () => {
+    const sftest: CardDef = { id: 'sftest', name: 'SF', tribe: 'dragon', tier: 4, attack: 4, health: 1, keywords: [],
+      effects: [{ on: 'onDeath', do: 'deathrattleQueueNextSpellCopy', params: { count: 1 } }], text: '' };
+    const r = simulate([{ cardId: 'sftest', attack: 4, health: 1, sourceUid: 'SF' }], // 1 HP → dies, Echo fires
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, sftest },
+      combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    expect(r.playerNextTurnSpellCopies).toBe(1);
+  });
+
   it('set 2 — Ashen Broodlord: Avenge (4) improves your spells and narrates the gain', () => {
     // Four friendly deaths with the Broodlord alive → a +1/+1 spell-power grant, carried back to the run.
     // It must also NARRATE, since the combat replay drives both the flourish and the hand-spell cue off that.

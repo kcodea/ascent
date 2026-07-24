@@ -1984,6 +1984,17 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerRubyGrants) mintRubies(s, result.playerRubyGrants);
   // Set 2 — Ruby STRENGTH gained in combat (Veinbreaker's Avenge "buff your Rubies"): raise the run's rubyBonus
   // AND grow every held Ruby — the same effect as the recruit-phase `rubyStatGain`.
+  if (result.playerNextTurnSpellCopies) {
+    // Scalefeather Echoes fired this combat → arm the copy for NEXT turn. `s.wave` is still this combat's wave
+    // at settle (advanceCombat increments it later), so `s.wave + 1` is exactly next turn — the same "next
+    // turn" marker Hourglass Reserve uses. Multiple Scalefeathers sum; the earliest activation wave wins so a
+    // pending copy is never dropped.
+    const prev = s.nextTurnSpellCopies;
+    s.nextTurnSpellCopies = {
+      activateWave: prev ? Math.min(prev.activateWave, s.wave + 1) : s.wave + 1,
+      count: (prev?.count ?? 0) + result.playerNextTurnSpellCopies,
+    };
+  }
   if (result.playerRubyBonusGain && (result.playerRubyBonusGain.attack > 0 || result.playerRubyBonusGain.health > 0)) {
     const g = result.playerRubyBonusGain;
     const b = s.rubyBonus ?? { attack: 0, health: 0 };

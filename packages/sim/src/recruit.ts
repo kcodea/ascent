@@ -1953,6 +1953,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Scalefeather Drake (Echo), recruit half: Ryme (or another re-trigger) can fire this in the shop.
+   *  Arms the same run charge the combat factory carries back — activating NEXT turn (`wave + 1`), never the
+   *  current one, which is what "next turn" means even when it died mid-recruit. */
+  deathrattleQueueNextSpellCopy: (ctx, self, params) => {
+    const add = num(params.count, 1) * gold(self);
+    const prev = ctx.state.nextTurnSpellCopies;
+    ctx.state.nextTurnSpellCopies = {
+      activateWave: prev ? Math.min(prev.activateWave, ctx.state.wave + 1) : ctx.state.wave + 1,
+      count: (prev?.count ?? 0) + add,
+    };
+  },
+
   /** Set 2 — Living Grimoire (Shout): charge it. Magnitude rides golden — base doubles the turn's first
    *  spell, golden triples it (`1 + gold(self)`). */
   battlecryArmGrimoire: (ctx, self) => {
@@ -3882,6 +3894,14 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
   // re-record (spellsThisTurn is nonzero by then).
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
+  // Scalefeather Drake: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it
+  // catches every cast path once; the wave gate makes "next turn" exact — a charge armed in this turn's combat
+  // has `activateWave = wave + 1`, so it can't pay out until the following turn.
+  const sfCharge = state.nextTurnSpellCopies;
+  if (state.spellsThisTurn === 0 && sfCharge && state.wave >= sfCharge.activateWave && sfCharge.count > 0) {
+    conjureToHand(state, [spellDef], sfCharge.count);
+    state.nextTurnSpellCopies = undefined;
+  }
   // The `rubyCast` trigger is the UMBRELLA of Rubies + Shop Spells (owner 2026-07-24), matching the
   // `spellsCast + rubyCasts` contract documented on `RunState.rubyCasts` — so Gemgorge Fiend's "every 3"
   // counts a Shop Spell exactly like a Ruby. Fired here so EVERY cast path routes through it once per cast.

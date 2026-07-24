@@ -144,6 +144,7 @@ export type EffectFactoryId =
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
+  | 'deathrattleQueueNextSpellCopy' // Scalefeather Drake: Echo — copy the first spell you cast next turn
   | 'battlecryArmGrimoire' // Living Grimoire: Shout — charge the first-spell multiplier
   | 'onBattlecryRearmGrimoire' // Living Grimoire: every 3 Shouts, recharge it
   | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
@@ -1361,6 +1362,8 @@ export interface CombatResult {
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
+  /** Set 2 — Scalefeather Drake Echoes that fired this combat: how many next-turn first-spell copies to queue. */
+  playerNextTurnSpellCopies?: number;
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is
    *  conjured to hand in settleCombat ("get a copy of it next Shop"). Absent when no Slaughter fired. */
   playerSlaughterCopy?: string;
@@ -1499,6 +1502,8 @@ export interface CombatContext {
    *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
    *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
+  /** Set 2 — Scalefeather Drake: queue `count` next-turn first-spell copies (player-only; carried back). */
+  queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;

@@ -13,7 +13,6 @@ import type { CardDef } from '@game/core';
  * work):
  *   • per-minion "the first spell cast ON THIS each turn" tracking — Mirrorwing Hatchling, Runefire
  *   • Shout re-triggering inside COMBAT (`replayBattlecry` is recruit-only) — Thunderous Sovereign, Chorus Drake
- *   • cross-turn pending effects — Scalefeather Drake ("next turn")
  *   • a spend-and-reset counter — Living Grimoire
  *   • persistent Choose-One global modes — Orivax
  *   • first/second-spell-this-turn hooks on a minion — Ashscribe Whelp, Spellkeeper Drake
@@ -109,6 +108,21 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }],
     text: '**Start of Combat:** trigger your Dragons’ **Shouts**.',
     goldenText: '**Start of Combat:** trigger your Dragons’ **Shouts** twice.',
+  },
+  {
+    // Dragon/BEAST: a delayed spell-copier. Its Echo (dying in combat is the usual path) queues a copy of
+    // NEXT turn's opening spell — so it pays off after the fight rather than before, unlike the recall line.
+    id: 'd2_scalefeather',
+    name: 'Scalefeather Drake',
+    tribe: 'dragon',
+    tribe2: 'beast',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleQueueNextSpellCopy', params: { count: 1 } }],
+    text: '**Echo:** get a copy of the first spell you cast next turn.',
+    goldenText: '**Echo:** get **2** copies of the first spell you cast next turn.',
   },
   {
     // Dragon/DEMON, Rise: the tribe's combat payoff — deaths make your SPELLS better for the rest of the run.

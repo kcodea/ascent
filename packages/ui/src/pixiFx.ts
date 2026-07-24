@@ -529,7 +529,9 @@ type AuraKind = 'shield' | 'reborn';
 interface ShieldBubble {
   kind: AuraKind;        // picks the shader + break/pop colour
   container: Container;
-  mesh: Mesh;            // a quad mesh the aura shader draws onto (clean 0..1 UVs)
+  // A quad mesh the aura shader draws onto (clean 0..1 UVs). Explicit SHADER param: Mesh defaults to
+  // `TextureShader`, but the aura shader is a bare `Shader` (it samples nothing — it draws the bubble).
+  mesh: Mesh<MeshGeometry, Shader>;
   shader: Shader;        // the per-bubble aura shader (its uTime/uAspect animate each frame)
   cx: number; cy: number; // target center (viewport px)
   w: number; h: number;   // target footprint (the card's size)

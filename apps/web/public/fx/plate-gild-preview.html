@@ -5,28 +5,29 @@
   body { margin:0; background:#141416; color:#e6e6e6; font:13px/1.5 system-ui,sans-serif; display:flex; min-height:100vh; }
   #stage { flex:1; position:relative; overflow:hidden;
            background:radial-gradient(ellipse at 50% 45%, #4a3f33 0%, #2a2119 55%, #171310 100%); }
-  #hint { position:absolute; top:14px; left:0; right:0; text-align:center; color:#7d7d7d; font-size:12px; z-index:5; }
-  .slot { position:absolute; translate:-50% -50%; }
-  .slot img { display:block; width:100%; }
-  /* the two consumed copies */
-  .copy { opacity:1; will-change:opacity,transform; }
-  /* the survivor that becomes golden */
-  #hero { z-index:2; }
-  #heroImg { will-change:filter; }
+  #hint { position:absolute; top:14px; left:0; right:0; text-align:center; color:#7d7d7d; font-size:12px; z-index:9; }
+  /* dims the board so the fusion owns the screen for its moment */
+  #scrim { position:absolute; inset:0; background:#05040a; opacity:0; pointer-events:none; z-index:1; }
+  /* the three travelling cards; index 2 is the survivor */
+  .card3 { position:absolute; left:0; top:0; transform-origin:50% 50%; will-change:transform,opacity; z-index:2; }
+  .card3 img { display:block; width:100%; }
+  #hero3 { z-index:3; }
   .imprint { position:absolute; inset:0; opacity:0; will-change:opacity,transform;
              -webkit-mask-size:100% 100%; mask-size:100% 100%;
              -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
-  #fx { position:absolute; inset:0; pointer-events:none; z-index:3; }
-  #flourish { position:absolute; translate:-50% -50%; pointer-events:none; z-index:4; opacity:0;
-              will-change:opacity,transform; }
-  #panel { width:344px; flex:none; background:#1b1b1f; border-left:1px solid #2f2f34; padding:14px 16px 40px;
+  /* the slots: where they start, and where the gilded card lands */
+  .ghost { position:absolute; border:1px dashed rgba(255,255,255,.16); border-radius:6px;
+           translate:-50% -50%; pointer-events:none; z-index:0; }
+  #fx { position:absolute; inset:0; pointer-events:none; z-index:4; }
+  #flourish { position:absolute; left:0; top:0; pointer-events:none; z-index:5; }
+  #panel { width:346px; flex:none; background:#1b1b1f; border-left:1px solid #2f2f34; padding:14px 16px 40px;
            overflow-y:auto; max-height:100vh; }
   h1 { font-size:15px; margin:0 0 2px; }
   .sub { color:#8f8f8f; font-size:11.5px; margin:0 0 14px; }
   h2 { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#8a7a5a; margin:18px 0 7px;
        border-bottom:1px solid #2f2f34; padding-bottom:4px; }
   .row { display:flex; align-items:center; gap:8px; margin:5px 0; }
-  .row label { flex:0 0 122px; font-size:11.5px; color:#b9b9b9; }
+  .row label { flex:0 0 124px; font-size:11.5px; color:#b9b9b9; }
   .row input[type=range] { flex:1; min-width:0; }
   .row input[type=color] { width:34px; height:20px; padding:0; border:1px solid #3a3a40; background:none; }
   .row select { flex:1; background:#26262b; color:#e6e6e6; border:1px solid #3a3a40; border-radius:5px; padding:3px 6px; font:inherit; }
@@ -35,31 +36,62 @@
   button { flex:1; padding:8px 10px; border-radius:7px; border:1px solid #3a3a40; background:#26262b;
            color:#e6e6e6; font:inherit; cursor:pointer; }
   button:hover { border-color:#6b5730; }
-  #out { width:100%; height:150px; margin-top:10px; background:#101013; color:#9fd0a0; border:1px solid #2f2f34;
+  #out { width:100%; height:140px; margin-top:10px; background:#101013; color:#9fd0a0; border:1px solid #2f2f34;
          border-radius:6px; font:11px/1.45 ui-monospace,monospace; padding:8px; }
   .note { margin-top:10px; padding:8px 10px; border-left:3px solid #6b5730; background:#202024;
           color:#a5a5a5; font-size:11px; }
+  .beat { color:#e8d7ae; font-weight:600; }
 </style></head><body>
 
 <div id="stage">
-  <div id="hint">click the stage (or SPACE) to replay · three become one</div>
-  <div class="slot copy" id="c1"><img alt=""></div>
-  <div class="slot copy" id="c2"><img alt=""></div>
-  <div class="slot" id="hero">
-    <img id="heroImg" alt="">
-    <div class="imprint" id="imprint"></div>
-  </div>
+  <div id="hint">click the stage (or SPACE) to replay · three fly in, become one, fly home</div>
+  <div id="scrim"></div>
+  <div class="ghost" id="g0"></div><div class="ghost" id="g1"></div><div class="ghost" id="g2"></div>
+  <div class="ghost" id="gDest"></div>
+  <div class="card3" id="c0"><img alt=""></div>
+  <div class="card3" id="c1"><img alt=""></div>
+  <div class="card3" id="hero3"><img id="heroImg" alt=""><div class="imprint" id="imprint"></div></div>
   <canvas id="fx"></canvas>
   <canvas id="flourish"></canvas>
 </div>
 
 <div id="panel">
   <h1>Plate gild</h1>
-  <p class="sub"><b>Fuse, then crown.</b> The copies you collected give up their essence to the survivor,
-  which then erupts gold — the plate wireframe in gold, plus a flourish only gilding gets.</p>
+  <p class="sub"><span class="beat">Fly in → converge → fuse &amp; crown → fly home.</span> The three copies
+  leave their slots, meet centre screen, become one gilded card, and it returns to its place.</p>
+
+  <h2>1 · Fly in</h2>
+  <div class="row"><label title="How long the three take to reach centre screen.">fly in</label><input type="range" id="flyInMs" min="80" max="1200" step="10"><span class="val" id="v_flyInMs"></span></div>
+  <div class="row"><label title="Arrival easing. Higher = they rush out then glide in.">ease</label><input type="range" id="flyInEase" min="0.6" max="4" step="0.05"><span class="val" id="v_flyInEase"></span></div>
+  <div class="row"><label title="How much the three are staggered leaving their slots.">stagger</label><input type="range" id="flyStag" min="0" max="0.7" step="0.02"><span class="val" id="v_flyStag"></span></div>
+  <div class="row"><label title="How big the cards get at centre — the hero-moment zoom.">centre scale</label><input type="range" id="centreScale" min="0.6" max="2.4" step="0.02"><span class="val" id="v_centreScale"></span></div>
+  <div class="row"><label title="How far apart the three sit when they arrive, before merging (× card width).">cluster</label><input type="range" id="cluster" min="0" max="1.4" step="0.02"><span class="val" id="v_cluster"></span></div>
+  <div class="row"><label title="Tilt on the two flanking cards as they arrive, deg.">fan tilt</label><input type="range" id="fanTilt" min="0" max="30" step="1"><span class="val" id="v_fanTilt"></span></div>
+  <div class="row"><label title="How much the rest of the screen dims while this owns it. 0 = no dim.">scrim</label><input type="range" id="scrim" min="0" max="0.85" step="0.02"><span class="val" id="v_scrim"></span></div>
+
+  <h2>2 · Converge &amp; fuse</h2>
+  <div class="row"><label title="How long the flanking copies take to slide into the survivor.">merge</label><input type="range" id="mergeMs" min="60" max="1000" step="10"><span class="val" id="v_mergeMs"></span></div>
+  <div class="row"><label title="Beat between arriving and starting to merge — lets the trio read as three.">hold</label><input type="range" id="clusterHold" min="0" max="800" step="10"><span class="val" id="v_clusterHold"></span></div>
+  <div class="row"><label title="Motes drawn out of the copies into the survivor's wireframe.">stream</label><input type="range" id="streamCount" min="0" max="900" step="10"><span class="val" id="v_streamCount"></span></div>
+  <div class="row"><label title="How much each stream bows on its way across. 0 = straight.">arc</label><input type="range" id="arc" min="-1.5" max="1.5" step="0.02"><span class="val" id="v_arc"></span></div>
+  <div class="row"><label>mote size</label><input type="range" id="fuseSize" min="0.5" max="8" step="0.1"><span class="val" id="v_fuseSize"></span></div>
+  <div class="row"><label>trail</label><input type="range" id="trail" min="0" max="0.95" step="0.01"><span class="val" id="v_trail"></span></div>
+
+  <h2>3 · Crown</h2>
+  <div class="row"><label title="When the gold erupts, ms after the merge ends. Negative overlaps it.">crown at</label><input type="range" id="crownAt" min="-500" max="600" step="10"><span class="val" id="v_crownAt"></span></div>
+  <div class="row"><label>wire in</label><input type="range" id="wireIn" min="10" max="600" step="5"><span class="val" id="v_wireIn"></span></div>
+  <div class="row"><label>wire hold</label><input type="range" id="wireHold" min="0" max="1200" step="10"><span class="val" id="v_wireHold"></span></div>
+  <div class="row"><label>wire out</label><input type="range" id="wireOut" min="10" max="900" step="10"><span class="val" id="v_wireOut"></span></div>
+  <div class="row"><label>wire intensity</label><input type="range" id="wireInten" min="0" max="2.5" step="0.02"><span class="val" id="v_wireInten"></span></div>
+  <div class="row"><label title="How much the card punches out on the crown beat.">punch</label><input type="range" id="punch" min="1" max="1.6" step="0.005"><span class="val" id="v_punch"></span></div>
+  <div class="row"><label>glow near</label><input type="range" id="g1v" min="0" max="120" step="1"><span class="val" id="v_g1v"></span></div>
+  <div class="row"><label>glow far</label><input type="range" id="g2v" min="0" max="260" step="2"><span class="val" id="v_g2v"></span></div>
+  <div class="row"><label title="Gold flash pushed through the card art itself.">card flash</label><input type="range" id="cardFlash" min="0" max="3" step="0.05"><span class="val" id="v_cardFlash"></span></div>
+  <div class="row"><label>burst</label><input type="range" id="burst" min="0" max="900" step="10"><span class="val" id="v_burst"></span></div>
+  <div class="row"><label>burst speed</label><input type="range" id="burstSpd" min="0" max="900" step="10"><span class="val" id="v_burstSpd"></span></div>
 
   <h2>Flourish</h2>
-  <div class="row"><label title="The signature only gilding has. Try them — this is the thing that makes a gild feel different from a generate.">type</label>
+  <div class="row"><label title="The signature only gilding gets.">type</label>
     <select id="flourishType">
       <option value="rays">rays — a sunburst behind the card</option>
       <option value="crown">crown — an arc of points above</option>
@@ -69,32 +101,13 @@
     </select></div>
   <div class="row"><label>size</label><input type="range" id="flSize" min="0.4" max="3" step="0.02"><span class="val" id="v_flSize"></span></div>
   <div class="row"><label>intensity</label><input type="range" id="flInten" min="0" max="2" step="0.02"><span class="val" id="v_flInten"></span></div>
-  <div class="row"><label title="How long the flourish lives, ms.">duration</label><input type="range" id="flMs" min="80" max="1600" step="10"><span class="val" id="v_flMs"></span></div>
-  <div class="row"><label title="Spin, deg/s. Negative reverses.">spin</label><input type="range" id="flSpin" min="-360" max="360" step="5"><span class="val" id="v_flSpin"></span></div>
+  <div class="row"><label>duration</label><input type="range" id="flMs" min="80" max="1800" step="10"><span class="val" id="v_flMs"></span></div>
+  <div class="row"><label>spin</label><input type="range" id="flSpin" min="-360" max="360" step="5"><span class="val" id="v_flSpin"></span></div>
 
-  <h2>1 · Fuse</h2>
-  <div class="row"><label title="How long the copies feed the survivor, ms.">fuse</label><input type="range" id="fuseMs" min="60" max="1400" step="10"><span class="val" id="v_fuseMs"></span></div>
-  <div class="row"><label title="Motes drawn out of each consumed copy.">stream</label><input type="range" id="streamCount" min="0" max="900" step="10"><span class="val" id="v_streamCount"></span></div>
-  <div class="row"><label title="How much each stream bows outward on its way across. 0 = straight.">arc</label><input type="range" id="arc" min="-1.5" max="1.5" step="0.02"><span class="val" id="v_arc"></span></div>
-  <div class="row"><label title="Easing of the crossing. Higher = they linger then rush home.">ease</label><input type="range" id="fuseEase" min="0.4" max="4" step="0.05"><span class="val" id="v_fuseEase"></span></div>
-  <div class="row"><label title="Spread in departure times.">spread</label><input type="range" id="fuseStag" min="0" max="0.9" step="0.02"><span class="val" id="v_fuseStag"></span></div>
-  <div class="row"><label>mote size</label><input type="range" id="fuseSize" min="0.5" max="8" step="0.1"><span class="val" id="v_fuseSize"></span></div>
-  <div class="row"><label>trail</label><input type="range" id="trail" min="0" max="0.95" step="0.01"><span class="val" id="v_trail"></span></div>
-  <div class="row"><label title="How fast a consumed copy fades out as it gives itself up, ms.">copies fade</label><input type="range" id="copyFade" min="40" max="1200" step="10"><span class="val" id="v_copyFade"></span></div>
-  <div class="row"><label title="How far a consumed copy drifts toward the survivor as it goes.">copies pull</label><input type="range" id="copyPull" min="0" max="1" step="0.02"><span class="val" id="v_copyPull"></span></div>
-
-  <h2>2 · Crown</h2>
-  <div class="row"><label title="When the gold erupts, ms after the fuse ends. Negative overlaps the fuse.">crown at</label><input type="range" id="crownAt" min="-400" max="600" step="10"><span class="val" id="v_crownAt"></span></div>
-  <div class="row"><label title="Gold wireframe fade-in, ms.">wire in</label><input type="range" id="wireIn" min="10" max="600" step="5"><span class="val" id="v_wireIn"></span></div>
-  <div class="row"><label title="How long the gold wireframe holds before releasing the card, ms.">wire hold</label><input type="range" id="wireHold" min="0" max="900" step="10"><span class="val" id="v_wireHold"></span></div>
-  <div class="row"><label title="Wireframe fade-out, ms.">wire out</label><input type="range" id="wireOut" min="10" max="900" step="10"><span class="val" id="v_wireOut"></span></div>
-  <div class="row"><label>wire intensity</label><input type="range" id="wireInten" min="0" max="2.5" step="0.02"><span class="val" id="v_wireInten"></span></div>
-  <div class="row"><label title="How much the wireframe swells on the crown beat.">wire punch</label><input type="range" id="punch" min="1" max="1.5" step="0.005"><span class="val" id="v_punch"></span></div>
-  <div class="row"><label>glow near</label><input type="range" id="g1" min="0" max="120" step="1"><span class="val" id="v_g1"></span></div>
-  <div class="row"><label>glow far</label><input type="range" id="g2" min="0" max="260" step="2"><span class="val" id="v_g2"></span></div>
-  <div class="row"><label title="A gold flash pushed through the CARD itself on the crown beat.">card flash</label><input type="range" id="cardFlash" min="0" max="3" step="0.05"><span class="val" id="v_cardFlash"></span></div>
-  <div class="row"><label title="Motes thrown outward on the crown beat.">burst</label><input type="range" id="burst" min="0" max="900" step="10"><span class="val" id="v_burst"></span></div>
-  <div class="row"><label>burst speed</label><input type="range" id="burstSpd" min="0" max="600" step="10"><span class="val" id="v_burstSpd"></span></div>
+  <h2>4 · Fly home</h2>
+  <div class="row"><label title="Beat the gilded card holds at centre before leaving.">savour</label><input type="range" id="savourMs" min="0" max="1400" step="10"><span class="val" id="v_savourMs"></span></div>
+  <div class="row"><label title="How long the gilded card takes to reach its slot.">fly out</label><input type="range" id="flyOutMs" min="80" max="1200" step="10"><span class="val" id="v_flyOutMs"></span></div>
+  <div class="row"><label title="Departure easing. Higher = it lingers then darts home.">ease</label><input type="range" id="flyOutEase" min="0.6" max="4" step="0.05"><span class="val" id="v_flyOutEase"></span></div>
 
   <h2>Gold</h2>
   <div class="row"><label>deep</label><input type="color" id="cDeep"><span class="val" id="v_cDeep"></span></div>
@@ -102,9 +115,8 @@
   <div class="row"><label>core</label><input type="color" id="cCore"><span class="val" id="v_cCore"></span></div>
   <div class="row"><label>gradient</label><input type="range" id="grad" min="0" max="1" step="0.02"><span class="val" id="v_grad"></span></div>
 
-  <h2>Stage</h2>
-  <div class="row"><label>card width</label><input type="range" id="pw" min="100" max="360" step="4"><span class="val" id="v_pw"></span></div>
-  <div class="row"><label title="How far apart the three copies sit — only affects the preview, not the game.">spread</label><input type="range" id="stageGap" min="0.6" max="3" step="0.05"><span class="val" id="v_stageGap"></span></div>
+  <h2>Stage (preview only)</h2>
+  <div class="row"><label>card width</label><input type="range" id="pw" min="80" max="260" step="4"><span class="val" id="v_pw"></span></div>
   <div class="row"><label>auto-loop</label><input type="checkbox" id="loop" checked><span class="val"></span></div>
 
   <div class="btns">
@@ -113,35 +125,35 @@
     <button id="reset">Reset</button>
   </div>
   <textarea id="out" readonly></textarea>
-  <div class="note">The wireframe is the same baked mask the dissolve and coalesce use — this is the card's own
-  structure lighting up, in gold. In game the copies can be anywhere (hand, board, shop); the stage just puts
-  two beside the survivor so the fuse is legible.</div>
+  <div class="note">Dashed boxes are the slots: three sources (hand / board / shop, scattered like a real
+  game) and the destination the gilded card flies home to. In game those come from the real card rects.</div>
 </div>
 
 <script>
 const WIRE_SRC = '../frames/cardplate-wire.webp';
 const PLATE_SRC = '../frames/cardplate.webp';
 const PLATE_AR = 1244 / 800;
-const REF_W = 240;
+const REF_W = 200;
 
 const DEF = {
-  flourishType: 'rays', flSize: 1.5, flInten: 1, flMs: 620, flSpin: 40,
-  fuseMs: 460, streamCount: 260, arc: 0.45, fuseEase: 1.8, fuseStag: 0.4, fuseSize: 2.6, trail: 0.3,
-  copyFade: 300, copyPull: 0.35,
-  crownAt: -60, wireIn: 90, wireHold: 120, wireOut: 260, wireInten: 1.1, punch: 1.14, g1: 60, g2: 90,
-  cardFlash: 1.2, burst: 220, burstSpd: 260,
+  flyInMs: 420, flyInEase: 2.0, flyStag: 0.22, centreScale: 1.5, cluster: 0.62, fanTilt: 12, scrim: 0.55,
+  mergeMs: 300, clusterHold: 180, streamCount: 300, arc: 0.5, fuseSize: 2.6, trail: 0.3,
+  crownAt: -80, wireIn: 90, wireHold: 200, wireOut: 300, wireInten: 1.1, punch: 1.16,
+  g1v: 60, g2v: 90, cardFlash: 1.3, burst: 260, burstSpd: 320,
+  flourishType: 'rays', flSize: 1.6, flInten: 1, flMs: 700, flSpin: 40,
+  savourMs: 260, flyOutMs: 380, flyOutEase: 2.2,
   cDeep: '#a9700f', cMid: '#f1cb5e', cCore: '#fff6d5', grad: 0.8,
-  pw: 200, stageGap: 1.5,
+  pw: 150,
 };
 let C = { ...DEF };
 const $ = id => document.getElementById(id);
 const KEYS = Object.keys(DEF);
 const stage = $('stage'), fx = $('fx'), ctx = fx.getContext('2d');
 const fl = $('flourish'), flx = fl.getContext('2d');
-const hero = $('hero'), heroImg = $('heroImg'), imprint = $('imprint');
-const copies = [$('c1'), $('c2')];
+const scrimEl = $('scrim'), imprint = $('imprint'), heroImg = $('heroImg');
+const cards = [$('c0'), $('c1'), $('hero3')];          // [copy, copy, survivor]
+const ghosts = [$('g0'), $('g1'), $('g2')], gDest = $('gDest');
 
-/* ---------- spawn points on the wireframe ---------- */
 let LINE_PTS = [];
 (() => {
   const img = new Image();
@@ -171,23 +183,29 @@ const rgba = (hex, a) => {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n>>16)&255}, ${(n>>8)&255}, ${n&255}, ${a})`;
 };
+const easeOut = (t, e) => 1 - Math.pow(1 - t, e);
 
-/* ---------- layout ---------- */
-let HERO = { x: 0, y: 0 }, COPY = [];
+/* ---------- stage geometry ---------- */
+let SRC = [], CENTRE = { x:0, y:0 }, DEST = { x:0, y:0 }, CW = 0, CH = 0;
 function layout() {
   const r = stage.getBoundingClientRect();
-  const w = C.pw, h = Math.round(w * PLATE_AR);
   fx.width = fl.width = r.width; fx.height = fl.height = r.height;
-  fl.style.width = r.width+'px'; fl.style.height = r.height+'px';
-  fl.style.left = '50%'; fl.style.top = '50%';
-  HERO = { x: r.width/2, y: r.height/2 };
-  // Clamp so the copies can't sit off-stage on a narrow window — preview-only concern (in game the copies
-  // are wherever the player's cards actually are), but a rig you can't see is a rig you can't tune.
-  const gap = Math.min(w * C.stageGap, Math.max(w * 0.55, r.width / 2 - w * 0.62));
-  COPY = [{ x: HERO.x - gap, y: HERO.y }, { x: HERO.x + gap, y: HERO.y }];
-  for (const el of [hero, ...copies]) { el.style.width = w+'px'; el.style.height = h+'px'; }
-  hero.style.left = HERO.x+'px'; hero.style.top = HERO.y+'px';
-  copies.forEach((el, i) => { el.style.left = COPY[i].x+'px'; el.style.top = COPY[i].y+'px'; });
+  CW = C.pw; CH = Math.round(CW * PLATE_AR);
+  CENTRE = { x: r.width/2, y: r.height*0.46 };
+  // scattered like a real game: two in the hand row, one on the board / in the shop
+  SRC = [
+    { x: r.width*0.22, y: r.height*0.84 },
+    { x: r.width*0.44, y: r.height*0.84 },
+    { x: r.width*0.72, y: r.height*0.24 },
+  ];
+  DEST = { x: r.width*0.33, y: r.height*0.84 };
+  for (const el of cards) { el.style.width = CW+'px'; el.style.height = CH+'px'; }
+  ghosts.forEach((g, i) => {
+    g.style.width = CW+'px'; g.style.height = CH+'px';
+    g.style.left = SRC[i].x+'px'; g.style.top = SRC[i].y+'px';
+  });
+  gDest.style.width = CW+'px'; gDest.style.height = CH+'px';
+  gDest.style.left = DEST.x+'px'; gDest.style.top = DEST.y+'px';
   paintLook();
 }
 function paintLook() {
@@ -200,34 +218,48 @@ function paintLook() {
   imprint.style.maskImage = `url(${WIRE_SRC})`;
   const k = C.pw / REF_W;
   imprint.style.filter =
-    `drop-shadow(0 0 ${C.g1*k}px ${rgba(C.cMid,0.9)}) drop-shadow(0 0 ${C.g2*k}px ${rgba(C.cDeep,1)})`;
+    `drop-shadow(0 0 ${C.g1v*k}px ${rgba(C.cMid,0.9)}) drop-shadow(0 0 ${C.g2v*k}px ${rgba(C.cDeep,1)})`;
 }
 
-/* ---------- the run ---------- */
+/* place a card by its CENTRE, so scaling reads from the middle */
+function place(el, x, y, scale, rot, alpha) {
+  el.style.transform =
+    `translate(${x - CW/2}px, ${y - CH/2}px) scale(${scale}) rotate(${rot}deg)`;
+  el.style.opacity = String(alpha);
+}
+
+/* ---------- timeline ---------- */
+function marks() {
+  const t = {};
+  t.flyIn = C.flyInMs;
+  t.mergeStart = t.flyIn + C.clusterHold;
+  t.mergeEnd = t.mergeStart + C.mergeMs;
+  t.crown = t.mergeEnd + C.crownAt;
+  t.wireDone = t.crown + C.wireIn + C.wireHold + C.wireOut;
+  t.leave = Math.max(t.wireDone, t.crown + C.flMs) + C.savourMs;
+  t.end = t.leave + C.flyOutMs;
+  return t;
+}
+
 let streams = [], bursts = [], t0 = 0, running = false, raf = 0;
 function spawn() {
   streams = []; bursts = [];
-  const w = C.pw, h = w*PLATE_AR, k = w/REF_W;
+  const k = CW / REF_W;
   const per = Math.round(C.streamCount / 2);
-  for (const src of COPY) {
+  for (let ci = 0; ci < 2; ci++) {
     for (let i = 0; i < per; i++) {
-      // start anywhere on the consumed copy, land on the survivor's wireframe
       const sp = { u: Math.random(), v: Math.random() };
       const tp = LINE_PTS.length ? LINE_PTS[(Math.random()*LINE_PTS.length)|0] : { u:.5, v:.5 };
-      const sx = src.x + (sp.u-0.5)*w, sy = src.y + (sp.v-0.5)*h;
-      const tx = HERO.x + (tp.u-0.5)*w, ty = HERO.y + (tp.v-0.5)*h;
-      // perpendicular bow, so the streams read as arcs rather than a straight wipe
-      const dx = tx-sx, dy = ty-sy, m = Math.hypot(dx,dy)||1;
-      streams.push({ sx, sy, tx, ty, nx: -dy/m, ny: dx/m,
-        bow: (Math.random()*0.6+0.7) * C.arc * w * 0.5 * (Math.random()<0.5?-1:1),
-        born: Math.random()*C.fuseStag,
+      streams.push({ ci, su: sp.u, sv: sp.v, tu: tp.u, tv: tp.v,
+        bow: (Math.random()*0.6+0.7) * C.arc * CW * 0.5 * (Math.random()<0.5?-1:1),
+        born: Math.random()*0.5,
         r: C.fuseSize * k * (1 + (Math.random()-0.5)*1.4) });
     }
   }
   for (let i = 0; i < C.burst; i++) {
     const a = Math.random()*Math.PI*2, sp = C.burstSpd * k * (0.4 + Math.random()*0.8);
-    bursts.push({ x: HERO.x, y: HERO.y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
-      r: C.fuseSize * k * (0.6 + Math.random()) , life: 0.4 + Math.random()*0.6 });
+    bursts.push({ vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
+      r: C.fuseSize * k * (0.6 + Math.random()), life: 0.4 + Math.random()*0.6 });
   }
 }
 function blit(c, spr, x, y, r, a) {
@@ -236,21 +268,18 @@ function blit(c, spr, x, y, r, a) {
   c.drawImage(spr, x-r, y-r, r*2, r*2);
 }
 
-function drawFlourish(p, k) {
-  // p = 0..1 across the flourish's life
-  const w = fl.width, h = fl.height, cx = w/2, cy = h/2;
-  flx.clearRect(0,0,w,h);
+function drawFlourish(p, k, cx, cy) {
+  flx.clearRect(0,0,fl.width,fl.height);
   if (C.flourishType === 'none' || p <= 0 || p >= 1) return;
   const grow = 1 - Math.pow(1-p, 2.2);
   const fade = p < 0.25 ? p/0.25 : 1 - (p-0.25)/0.75;
-  const R = C.pw * C.flSize * grow;
+  const R = CW * C.flSize * grow;
   flx.save();
   flx.translate(cx, cy);
   flx.rotate((p * C.flMs/1000) * C.flSpin * Math.PI/180);
   flx.globalAlpha = Math.max(0, fade) * C.flInten;
   flx.strokeStyle = C.cCore; flx.fillStyle = C.cMid;
   flx.shadowColor = C.cMid; flx.shadowBlur = 24 * k;
-
   if (C.flourishType === 'rays') {
     const n = 16;
     for (let i = 0; i < n; i++) {
@@ -263,34 +292,31 @@ function drawFlourish(p, k) {
       flx.fill(); flx.restore();
     }
   } else if (C.flourishType === 'crown') {
-    const n = 5, span = Math.PI * 0.62, top = -C.pw * PLATE_AR * 0.5;
+    const n = 5, span = Math.PI*0.62, top = -CH*0.5*C.centreScale - R*0.05;
     for (let i = 0; i < n; i++) {
-      const t = n === 1 ? 0.5 : i/(n-1);
-      const a = -span/2 + t*span;
-      const px = Math.sin(a) * R * 0.62, base = top - R*0.06, tip = base - R*0.30*(i===2?1.35:1);
-      flx.beginPath(); flx.moveTo(px - R*0.055, base); flx.lineTo(px, tip); flx.lineTo(px + R*0.055, base);
+      const t = i/(n-1), a = -span/2 + t*span;
+      const px = Math.sin(a)*R*0.62, tip = top - R*0.30*(i===2?1.35:1);
+      flx.beginPath(); flx.moveTo(px - R*0.055, top); flx.lineTo(px, tip); flx.lineTo(px + R*0.055, top);
       flx.closePath(); flx.fill();
     }
     flx.lineWidth = Math.max(1, R*0.022);
-    flx.beginPath(); flx.moveTo(-R*0.42, top - R*0.06); flx.lineTo(R*0.42, top - R*0.06); flx.stroke();
+    flx.beginPath(); flx.moveTo(-R*0.42, top); flx.lineTo(R*0.42, top); flx.stroke();
   } else if (C.flourishType === 'seal') {
     flx.lineWidth = Math.max(1, R*0.02);
-    flx.beginPath(); flx.arc(0, 0, R*0.72, 0, Math.PI*2); flx.stroke();
-    flx.beginPath(); flx.arc(0, 0, R*0.58, 0, Math.PI*2); flx.stroke();
-    const n = 12;
-    for (let i = 0; i < n; i++) {
-      const a = (i/n)*Math.PI*2;
-      flx.save(); flx.rotate(a); flx.translate(0, -R*0.65);
-      flx.beginPath(); flx.moveTo(0, -R*0.05); flx.lineTo(R*0.035, 0); flx.lineTo(0, R*0.05);
-      flx.lineTo(-R*0.035, 0); flx.closePath(); flx.fill(); flx.restore();
+    flx.beginPath(); flx.arc(0,0,R*0.72,0,Math.PI*2); flx.stroke();
+    flx.beginPath(); flx.arc(0,0,R*0.58,0,Math.PI*2); flx.stroke();
+    for (let i = 0; i < 12; i++) {
+      flx.save(); flx.rotate((i/12)*Math.PI*2); flx.translate(0, -R*0.65);
+      flx.beginPath(); flx.moveTo(0,-R*0.05); flx.lineTo(R*0.035,0); flx.lineTo(0,R*0.05);
+      flx.lineTo(-R*0.035,0); flx.closePath(); flx.fill(); flx.restore();
     }
   } else if (C.flourishType === 'rings') {
     for (let i = 0; i < 3; i++) {
       const rp = Math.max(0, Math.min(1, p*1.5 - i*0.18));
       if (rp <= 0 || rp >= 1) continue;
-      flx.globalAlpha = (1-rp) * C.flInten;
+      flx.globalAlpha = (1-rp)*C.flInten;
       flx.lineWidth = Math.max(1, R*0.03*(1-rp)+1);
-      flx.beginPath(); flx.arc(0, 0, R*0.25 + R*0.8*rp, 0, Math.PI*2); flx.stroke();
+      flx.beginPath(); flx.arc(0,0,R*0.25 + R*0.8*rp, 0, Math.PI*2); flx.stroke();
     }
   }
   flx.restore();
@@ -298,72 +324,100 @@ function drawFlourish(p, k) {
 
 function frame(now) {
   if (!running) return;
-  const ms = now - t0;
-  const k = C.pw / REF_W;
-  const crownStart = C.fuseMs + C.crownAt;
-  const total = crownStart + C.wireIn + C.wireHold + C.wireOut;
+  const ms = now - t0, T = marks(), k = CW / REF_W;
 
-  // --- consumed copies give themselves up ---
-  const cf = Math.min(1, ms / Math.max(1, C.copyFade));
-  copies.forEach((el, i) => {
-    el.style.opacity = String(Math.max(0, 1 - cf));
-    const px = (HERO.x - COPY[i].x) * C.copyPull * cf, py = (HERO.y - COPY[i].y) * C.copyPull * cf;
-    el.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px)) scale(${1 - 0.12*cf})`;
-  });
+  // ---- where each card is, this frame ----
+  // 1 fly in (staggered) → 2 cluster → 3 flanks merge into the survivor → 4 survivor flies home
+  const pos = [];
+  for (let i = 0; i < 3; i++) {
+    const born = (i / 2) * C.flyStag * C.flyInMs;
+    const inT = Math.max(0, Math.min(1, (ms - born) / Math.max(1, C.flyInMs * (1 - C.flyStag))));
+    const a = easeOut(inT, C.flyInEase);
+    // cluster offsets: flanks left/right of the survivor
+    const off = (i === 2) ? 0 : (i === 0 ? -1 : 1) * C.cluster * CW;
+    const cx = CENTRE.x + off * a, cy = CENTRE.y;
+    const sc = 1 + (C.centreScale - 1) * a;
+    const rot = (i === 2 ? 0 : (i === 0 ? -1 : 1) * C.fanTilt) * a;
+    pos.push({ x: SRC[i].x + (cx - SRC[i].x) * a, y: SRC[i].y + (cy - SRC[i].y) * a, sc, rot, al: 1 });
+  }
+  // flanks merge in
+  const mg = Math.max(0, Math.min(1, (ms - T.mergeStart) / Math.max(1, C.mergeMs)));
+  for (let i = 0; i < 2; i++) {
+    const e = easeOut(mg, 1.8);
+    pos[i].x += (CENTRE.x - pos[i].x) * e;
+    pos[i].y += (CENTRE.y - pos[i].y) * e;
+    pos[i].rot *= (1 - e);
+    pos[i].al = 1 - mg;
+    pos[i].sc *= (1 - 0.18*mg);
+  }
+  // survivor: crown punch, then flies home
+  const crownP = Math.max(0, Math.min(1, (ms - T.crown) / Math.max(1, C.wireIn)));
+  const outT = Math.max(0, Math.min(1, (ms - T.leave) / Math.max(1, C.flyOutMs)));
+  const oa = easeOut(outT, C.flyOutEase);
+  const punchNow = 1 + (C.punch - 1) * Math.sin(Math.min(1, crownP) * Math.PI);
+  pos[2].x += (DEST.x - pos[2].x) * oa;
+  pos[2].y += (DEST.y - pos[2].y) * oa;
+  pos[2].sc = (pos[2].sc * punchNow) * (1 - oa) + 1 * oa;      // settles back to slot size
+  cards.forEach((el, i) => place(el, pos[i].x, pos[i].y, pos[i].sc, pos[i].rot, pos[i].al));
 
-  // --- streams + burst ---
+  // ---- scrim: up as they gather, down as the card leaves ----
+  const inAll = Math.max(0, Math.min(1, ms / Math.max(1, C.flyInMs)));
+  scrimEl.style.opacity = String(C.scrim * inAll * (1 - oa));
+
+  // ---- fuse streams + crown burst ----
   ctx.globalCompositeOperation = 'destination-out';
   ctx.fillStyle = `rgba(0,0,0,${1 - C.trail})`;
   ctx.fillRect(0, 0, fx.width, fx.height);
   ctx.globalCompositeOperation = 'lighter';
-  const span = Math.max(1, C.fuseMs * (1 - C.fuseStag));
-  for (const p of streams) {
-    const t = (ms - p.born*C.fuseMs) / span;
-    if (t < 0 || t > 1) continue;
-    const a = 1 - Math.pow(1-t, C.fuseEase);
-    const bow = Math.sin(t*Math.PI) * p.bow;
-    const x = p.sx + (p.tx-p.sx)*a + p.nx*bow;
-    const y = p.sy + (p.ty-p.sy)*a + p.ny*bow;
-    const al = t < 0.15 ? t/0.15 : 1;
-    blit(ctx, SPR_CORE, x, y, p.r, al*0.9);
-    blit(ctx, SPR_MID, x, y, p.r*1.8, al*0.45);
+  if (ms >= T.mergeStart) {
+    const span = Math.max(1, C.mergeMs * 0.5);
+    for (const p of streams) {
+      const t = (ms - T.mergeStart - p.born*C.mergeMs) / span;
+      if (t < 0 || t > 1) continue;
+      const from = pos[p.ci], to = pos[2];
+      const sx = from.x + (p.su-0.5)*CW*from.sc, sy = from.y + (p.sv-0.5)*CH*from.sc;
+      const tx = to.x + (p.tu-0.5)*CW*to.sc,     ty = to.y + (p.tv-0.5)*CH*to.sc;
+      const a = easeOut(t, 1.6);
+      const dx = tx-sx, dy = ty-sy, m = Math.hypot(dx,dy)||1;
+      const bow = Math.sin(t*Math.PI) * p.bow;
+      const x = sx + dx*a + (-dy/m)*bow, y = sy + dy*a + (dx/m)*bow;
+      const al = t < 0.15 ? t/0.15 : 1;
+      blit(ctx, SPR_CORE, x, y, p.r, al*0.9);
+      blit(ctx, SPR_MID, x, y, p.r*1.8, al*0.45);
+    }
   }
-  if (ms >= crownStart) {
-    const bt = (ms - crownStart)/1000;
+  if (ms >= T.crown) {
+    const bt = (ms - T.crown)/1000;
     for (const b of bursts) {
       const age = bt / b.life;
       if (age >= 1) continue;
-      const x = b.x + b.vx*bt, y = b.y + b.vy*bt;
       const f = 1-age;
-      blit(ctx, SPR_CORE, x, y, b.r*f, f*f*0.9);
-      blit(ctx, SPR_MID, x, y, b.r*1.8*f, f*0.4);
+      blit(ctx, SPR_CORE, pos[2].x + b.vx*bt, pos[2].y + b.vy*bt, b.r*f, f*f*0.9);
+      blit(ctx, SPR_MID, pos[2].x + b.vx*bt, pos[2].y + b.vy*bt, b.r*1.8*f, f*0.4);
     }
   }
   ctx.globalAlpha = 1;
 
-  // --- crown: gold wireframe + card flash + flourish ---
-  const wIn = Math.min(1, Math.max(0, (ms - crownStart) / Math.max(1, C.wireIn)));
-  const outStart = crownStart + C.wireIn + C.wireHold;
-  const wOut = Math.min(1, Math.max(0, (ms - outStart) / Math.max(1, C.wireOut)));
-  imprint.style.opacity = String(wIn * (1 - wOut) * C.wireInten);
-  imprint.style.transform = `scale(${1 + (C.punch - 1) * wIn * (1 - wOut)})`;
-  const flash = Math.max(0, wIn * (1 - wOut)) * C.cardFlash;
+  // ---- crown: gold wireframe + card flash + flourish ----
+  const wOut = Math.max(0, Math.min(1, (ms - (T.crown + C.wireIn + C.wireHold)) / Math.max(1, C.wireOut)));
+  imprint.style.opacity = String(crownP * (1 - wOut) * C.wireInten);
+  const flash = crownP * (1 - wOut) * C.cardFlash;
   heroImg.style.filter = flash > 0
-    ? `brightness(${1 + flash*0.55}) saturate(${1 + flash*0.5}) drop-shadow(0 0 ${18*k*flash}px ${rgba(C.cMid, 0.9)})`
+    ? `brightness(${1 + flash*0.55}) saturate(${1 + flash*0.5}) drop-shadow(0 0 ${18*k*flash}px ${rgba(C.cMid,0.9)})`
     : 'none';
-  drawFlourish((ms - crownStart) / Math.max(1, C.flMs), k);
+  drawFlourish((ms - T.crown) / Math.max(1, C.flMs), k, pos[2].x, pos[2].y);
 
-  if (ms >= total + 260) {
+  if (ms >= T.end + 200) {
     running = false;
     ctx.clearRect(0,0,fx.width,fx.height); flx.clearRect(0,0,fl.width,fl.height);
-    if ($('loop').checked) setTimeout(play, 620); else reset0();
+    if ($('loop').checked) setTimeout(play, 700); else reset0();
     return;
   }
   raf = requestAnimationFrame(frame);
 }
 function reset0() {
-  imprint.style.opacity = '0'; heroImg.style.filter = 'none';
-  copies.forEach(el => { el.style.opacity = '1'; el.style.transform = 'translate(-50%,-50%)'; });
+  cards.forEach((el, i) => place(el, SRC[i].x, SRC[i].y, 1, 0, 1));
+  imprint.style.opacity = '0'; heroImg.style.filter = 'none'; scrimEl.style.opacity = '0';
   ctx.clearRect(0,0,fx.width,fx.height); flx.clearRect(0,0,fl.width,fl.height);
 }
 function play() {
@@ -388,7 +442,7 @@ for (const k of KEYS) {
     C[k] = (el.tagName === 'SELECT' || el.type === 'color') ? el.value : parseFloat(el.value);
     const v = $('v_'+k); if (v) v.textContent = C[k];
     $('out').value = JSON.stringify(C, null, 2);
-    if (k === 'pw' || k === 'stageGap') layout(); else paintLook();
+    if (k === 'pw') layout(); else paintLook();
     if (k === 'cCore' || k === 'cMid') bake();
   });
 }
@@ -397,10 +451,10 @@ $('reset').onclick = () => { C = {...DEF}; syncUI(); layout(); bake(); play(); }
 $('copy').onclick = () => { $('out').select(); navigator.clipboard?.writeText($('out').value); };
 stage.onclick = play;
 addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); play(); } });
-addEventListener('resize', layout);
+addEventListener('resize', () => { layout(); });
 
 heroImg.src = PLATE_SRC;
-copies.forEach(el => { el.querySelector('img').src = PLATE_SRC; });
+[$('c0'), $('c1')].forEach(el => { el.querySelector('img').src = PLATE_SRC; });
 heroImg.onload = () => { layout(); bake(); syncUI(); play(); };
 </script>
 </body></html>

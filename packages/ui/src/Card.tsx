@@ -484,6 +484,17 @@ export const Card = memo(function Card({
             draggable={false}
             onError={() => { cardPlateAvailable = false; setPlateOk(false); }}
           />
+          {/* GOLDEN plate, MASK edition (A/B against the colour filter — `goldMode`). A gold gradient masked to
+              the plate silhouette, `mix-blend-mode: color` recolouring the stone below to gold while keeping
+              its relief. Rendered only for golden cards; its opacity is 0 in filter mode. mask-image is set
+              inline (same src as the plate) so it honours BASE_URL without a CSS path. */}
+          {card.golden && (
+            <div
+              className="plate-gold-mask"
+              aria-hidden="true"
+              style={{ WebkitMaskImage: `url(${CARD_PLATE_SRC})`, maskImage: `url(${CARD_PLATE_SRC})` }}
+            />
+          )}
         </>
       )}
       {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).

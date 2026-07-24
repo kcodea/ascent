@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-07-24 (triple-reward cards coalesce in gold + a plate mask A/B)
+
+### feat(ui): the Triple Reward token materialises in gold
+
+The gold coalesce keyed only off `.golden`; the "Triple Reward" token (`discoverspell`, granted to hand when
+you play a Gilded minion) isn't a golden minion, so it still coalesced blue. It's rendered with the
+`.triplecard` class, so `plateCoalesce` now reads gold for `.golden` OR `.triplecard` — a triple reward
+materialises in the gild's gold (dust + wireframe) however it lands. Verified live: the token carries
+`.triplecard` and its imprint gradient came back gold (`rgb(169,112,15)…`).
+
+### feat(ui): golden plate — filter vs mask, A/B on the tuner
+
+The plate gold has been a colour FILTER; the owner wanted the literal MASK approach compared. Added a
+`goldMode` toggle to the 🂠 Card Plate tuner (0 = filter, 1 = mask):
+- FILTER — the existing five-knob colour filter (`--plate-gold-filter`).
+- MASK — a gold gradient masked to the plate silhouette (`.plate-gold-mask`, mask-image set inline off the
+  same plate src so it honours BASE_URL), `mix-blend-mode: color` recolouring the stone's luminance to gold
+  while keeping every engraved highlight. Contained by `.card.plated`'s isolation so it recolours only the
+  plate, not the board behind.
+`applyCardPlateVars` drives one var per technique (filter → `none` in mask mode, mask opacity → 0 in filter
+mode), so the toggle is instant. Verified live: mode 0 → filter on / mask opacity 0; mode 1 → filter none /
+mask opacity 1 with the plate silhouette loaded. Owner to pick the winner, then we drop the loser.
+
+Engine typecheck + lint + 1586 tests + `build:web` green (the 3 `typecheck:web` errors are pre-existing on
+main from the Set 2 Kobold/Dragon work, not this change).
+
+
 ## 2026-07-24 (Dragon fixes — Grimoire/Spellkeeper count from placement, Grimoire hits Rubies)
 
 ### fix(sim/content): Living Grimoire + Spellkeeper count from when they hit the board, not turn start

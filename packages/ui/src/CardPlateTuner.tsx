@@ -43,6 +43,7 @@ const LABELS: Record<keyof CardPlateConfig, string> = {
   goldBright: 'gold · brightness',
   goldContrast: 'gold · contrast',
   goldHue: 'gold · hue (+ = yellow)',
+  goldMode: 'gold · mode (0 filt / 1 mask)',
 };
 
 export function CardPlateTuner() {

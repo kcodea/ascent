@@ -36,9 +36,6 @@ export interface CardPlateConfig {
   goldContrast: number;
   /** Hue rotation, degrees. POSITIVE = toward yellow-gold, NEGATIVE = toward orange-red. */
   goldHue: number;
-  /** Which golden-plate technique renders: 0 = colour FILTER (the five knobs above), 1 = a gold MASK overlay
-   *  (a gold gradient masked to the plate, `mix-blend-mode: color` recolouring the stone). A/B toggle. */
-  goldMode: number;
 }
 
 const DEFAULTS: CardPlateConfig = {
@@ -56,7 +53,6 @@ const DEFAULTS: CardPlateConfig = {
   goldBright: 1.13,
   goldContrast: 0.95,
   goldHue: 3,
-  goldMode: 0,
 };
 
 /** Font-size buckets, LARGEST first. `id` is appended to a `.plate-txt-` class on the card. */
@@ -81,7 +77,6 @@ export const PLATE_RANGES: Record<keyof CardPlateConfig, [number, number, number
   goldBright: [0.7, 1.5, 0.01],
   goldContrast: [0.7, 1.5, 0.01],
   goldHue: [-40, 60, 1],
-  goldMode: [0, 1, 1],
 };
 
 export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
@@ -100,7 +95,6 @@ export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
   goldBright: 'Golden plate tint — brightness.',
   goldContrast: 'Golden plate tint — contrast.',
   goldHue: 'Golden plate tint — hue rotation (deg). POSITIVE = toward yellow-gold, NEGATIVE = toward orange-red.',
-  goldMode: 'Golden plate technique: 0 = colour FILTER (five knobs above), 1 = gold MASK overlay. A/B compare.',
 };
 
 export const PLATE_KEYS = Object.keys(DEFAULTS) as (keyof CardPlateConfig)[];
@@ -147,15 +141,11 @@ export function applyCardPlateVars(): void {
   root.setProperty('--plate-scale', String(cfg.scale));
   root.setProperty('--plate-top', `${cfg.top}px`);
   root.setProperty('--plate-radius', `${cfg.radius}px`);
-  const tone =
+  root.setProperty(
+    '--plate-gold-tone',
     `sepia(${cfg.goldSepia}) saturate(${cfg.goldSat}) brightness(${cfg.goldBright}) ` +
-    `contrast(${cfg.goldContrast}) hue-rotate(${cfg.goldHue}deg)`;
-  const mask = cfg.goldMode >= 1;
-  // Mode picks which technique is live: FILTER mode applies `tone` to the plate and hides the overlay; MASK
-  // mode drops the filter to none and shows the gold overlay. One var each, so the A/B toggle is instant.
-  root.setProperty('--plate-gold-tone', tone);                       // kept for reference / the CSS fallback
-  root.setProperty('--plate-gold-filter', mask ? 'none' : tone);     // what the plate img actually gets
-  root.setProperty('--plate-gold-mask-opacity', mask ? '1' : '0');   // the overlay's visibility
+      `contrast(${cfg.goldContrast}) hue-rotate(${cfg.goldHue}deg)`,
+  );
 }
 
 export function setCardPlateValue(key: keyof CardPlateConfig, value: number): void {

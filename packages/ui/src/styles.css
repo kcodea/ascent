@@ -2953,36 +2953,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   user-select: none;
 }
 .card.plated .cardplate { border-radius: var(--plate-radius, 10px); }
-/* GOLDEN PLATE — a gilded card's stone body reads GOLD, mirroring the frame's silver→gold. Two techniques,
-   A/B-toggled by the 🂠 Card Plate tuner's `gold · mode` (0 = filter, 1 = mask):
-   • FILTER (`--plate-gold-filter`) — push the stone gold with a colour filter (five gold · knobs). Keeps the
-     relief, recolours in place. Fallback mirrors the composed default in cardPlateConfig.ts.
-   • MASK (`.plate-gold-mask` below) — a gold gradient masked to the plate silhouette, `mix-blend-mode: color`.
-   In filter mode the mask's opacity is 0; in mask mode the filter is `none`. Covers hand, drag copy, inspect. */
+/* GOLDEN PLATE — a gilded card's stone body reads GOLD, mirroring the frame's silver→gold. The frame does it
+   by un-graying a gold PNG (`--frame-tone`); the plate art is stone, so we push it gold with a colour filter
+   instead (keeps the relief/engraving, just recolours it). Tunable via `--plate-gold-tone` (🂠 Card Plate
+   tuner, gold · … rows). The fallback here MUST mirror the composed default in cardPlateConfig.ts. Covers
+   hand, the drag copy and the inspect overlay — all `.plated`. (A masked-overlay alternative was prototyped
+   and the owner chose this filter, 2026-07-24.) */
 .card.plated.golden .cardplate {
-  filter: var(--plate-gold-filter, sepia(0) saturate(2.6) brightness(1.13) contrast(0.95) hue-rotate(3deg));
-}
-/* MASK edition — same geometry as the plate, seated just above it (z0, painted after the plate in tree order).
-   `mix-blend-mode: color` takes the gold's hue+saturation and the plate's luminance → a gold plate that keeps
-   every engraved highlight/shadow. Contained by `.card.plated`'s isolation, so it only recolours the plate,
-   not the board behind. Opacity is driven by the mode var (0 in filter mode). */
-.card.plated.golden .plate-gold-mask {
-  position: absolute;
-  z-index: 0;
-  left: 50%;
-  top: var(--plate-top, -37px);
-  width: calc(var(--ccw) * var(--plate-scale, 1.5));
-  height: calc(var(--ccw) * var(--plate-scale, 1.5) * 1.5550);
-  transform: translateX(-50%);
-  pointer-events: none;
-  user-select: none;
-  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  -webkit-mask-position: center; mask-position: center;
-  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
-  background: var(--plate-gold-mask-fill,
-    linear-gradient(160deg, #ffe9a6 0%, #f1cb5e 34%, #d99a1f 68%, #a9700f 100%));
-  mix-blend-mode: color;
-  opacity: var(--plate-gold-mask-opacity, 0);
+  filter: var(--plate-gold-tone, sepia(0) saturate(2.6) brightness(1.13) contrast(0.95) hue-rotate(3deg));
 }
 
 /* HOVER GLOW, plate edition. On a plated card the white highlight rings the PLATE, not the oval frame —

@@ -10,18 +10,13 @@ you play a Gilded minion) isn't a golden minion, so it still coalesced blue. It'
 materialises in the gild's gold (dust + wireframe) however it lands. Verified live: the token carries
 `.triplecard` and its imprint gradient came back gold (`rgb(169,112,15)…`).
 
-### feat(ui): golden plate — filter vs mask, A/B on the tuner
+### feat(ui): golden plate stays the colour filter (mask prototype dropped)
 
-The plate gold has been a colour FILTER; the owner wanted the literal MASK approach compared. Added a
-`goldMode` toggle to the 🂠 Card Plate tuner (0 = filter, 1 = mask):
-- FILTER — the existing five-knob colour filter (`--plate-gold-filter`).
-- MASK — a gold gradient masked to the plate silhouette (`.plate-gold-mask`, mask-image set inline off the
-  same plate src so it honours BASE_URL), `mix-blend-mode: color` recolouring the stone's luminance to gold
-  while keeping every engraved highlight. Contained by `.card.plated`'s isolation so it recolours only the
-  plate, not the board behind.
-`applyCardPlateVars` drives one var per technique (filter → `none` in mask mode, mask opacity → 0 in filter
-mode), so the toggle is instant. Verified live: mode 0 → filter on / mask opacity 0; mode 1 → filter none /
-mask opacity 1 with the plate silhouette loaded. Owner to pick the winner, then we drop the loser.
+The plate gold has been a colour FILTER; the owner wanted the literal MASK approach compared, so both were
+wired behind a `goldMode` A/B toggle on the 🂠 Card Plate tuner — filter (the five-knob colour filter) vs a
+gold gradient masked to the plate silhouette with `mix-blend-mode: color`. The owner chose the FILTER, so the
+mask overlay, the toggle and their scaffolding were removed; the plate keeps `--plate-gold-tone` (sepia 0,
+saturate 2.6, brightness 1.13, contrast 0.95, hue 3), unchanged from what shipped in #690.
 
 Engine typecheck + lint + 1586 tests + `build:web` green (the 3 `typecheck:web` errors are pre-existing on
 main from the Set 2 Kobold/Dragon work, not this change).

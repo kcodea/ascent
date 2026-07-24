@@ -13,6 +13,7 @@ import {
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
 import { SHAPE_NAMES, getShapeTexture, resolveParticleScale } from '../shapeTextures';
+import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -89,6 +90,27 @@ const SPECS = {
     help: 'px/sec² downward.',
   },
   life: { kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, help: 'Particle lifetime ms.' },
+
+  turbulence: {
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0,
+    help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
+  },
+  turbScale: {
+    kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
+    help: 'Spatial frequency of the turbulence field — higher = tighter swirls.',
+  },
+  emitShape: {
+    kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'point',
+    help: 'Where particles spawn relative to the anchor.',
+  },
+  emitRadius: {
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
+    help: 'Size of the emission shape in px (ignored for point).',
+  },
+  inheritVel: {
+    kind: 'slider', label: 'Inherit vel', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
+    help: 'Fraction of the anchor\'s own movement velocity added to each new particle.',
+  },
 
   shape: {
     kind: 'enum', label: 'Shape', group: 'Shape', options: SHAPE_NAMES, default: 'shard',
@@ -172,6 +194,16 @@ class BurstInstance implements FxInstance<BurstParams> {
   private readonly live: LiveParticle[] = [];
   private headX = 0;
   private headY = 0;
+  // Previous frame's head position + the anchor velocity derived from it (px/sec), recomputed at the top of
+  // each update() and read by emit() for velocity inheritance. Zero until we have two real head samples.
+  private lastHeadX = 0;
+  private lastHeadY = 0;
+  private lastHeadSet = false;
+  private headVx = 0;
+  private headVy = 0;
+  // Reused scratch for `emissionOffset` so a shaped spawn allocates nothing per particle (mirrors the
+  // emitter's `budgetState` discipline).
+  private readonly emitScratch = { ox: 0, oy: 0 };
   // `setHead` has landed at least once with a real anchor position. Gates the very first wave — see the
   // constructor comment below for why we can't just emit on construction.
   private headSet = false;
@@ -233,10 +265,12 @@ class BurstInstance implements FxInstance<BurstParams> {
       // uPal/uBands uniforms per-pixel, see particleMaterial.ts). Same distribution as before: uniform in
       // [0, coreBias], so `coreBias` still reads as "how deep toward the white core this burst reaches".
       const tint = biasTint(p.coreBias * Math.random());
+      // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
+      emissionOffset(p.emitShape, p.emitRadius, Math.random(), Math.random(), this.emitScratch);
       const particle = new Particle({
         texture: this.texture,
-        x: this.headX,
-        y: this.headY,
+        x: this.headX + this.emitScratch.ox,
+        y: this.headY + this.emitScratch.oy,
         anchorX: 0.5,
         anchorY: 0.5,
         rotation: angle,
@@ -247,8 +281,9 @@ class BurstInstance implements FxInstance<BurstParams> {
       });
       this.live.push({
         particle,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        // Base radial velocity plus a fraction of the anchor's own movement (inheritVel 0 → no change).
+        vx: Math.cos(angle) * speed + p.inheritVel * this.headVx,
+        vy: Math.sin(angle) * speed + p.inheritVel * this.headVy,
         spin: (Math.random() * 2 - 1) * 6,
         age: 0,
         maxLife: Math.max(1, p.life),
@@ -267,8 +302,23 @@ class BurstInstance implements FxInstance<BurstParams> {
 
     const dtSec = dtMs / 1000;
     const p = this.params;
+    // Anchor velocity (px/sec) for velocity inheritance, from the head's frame-over-frame delta. The ticker
+    // calls update() BEFORE setHead() each frame, so headX/headY here are last frame's anchor position;
+    // lastHeadX/Y are the frame before. Zero until we have two real head samples (guards the spurious spike
+    // that diffing against the (0,0) default would produce on the very first wave). With inheritVel = 0 this
+    // is never read, so it can't affect the default look.
+    if (this.lastHeadSet && dtSec > 0) {
+      this.headVx = (this.headX - this.lastHeadX) / dtSec;
+      this.headVy = (this.headY - this.lastHeadY) / dtSec;
+    } else {
+      this.headVx = 0;
+      this.headVy = 0;
+    }
     const dragF = Math.pow(p.drag, dtMs / DRAG_REF_MS);
     const gravity = p.gravity;
+    const turbulence = p.turbulence;
+    const turbScale = p.turbScale;
+    const clockSec = this.clockSec;
     const live = this.live;
     const children = this.pc.particleChildren;
 
@@ -287,6 +337,12 @@ class BurstInstance implements FxInstance<BurstParams> {
       lp.vy += gravity * dtSec;
       lp.vx *= dragF;
       lp.vy *= dragF;
+      // Pseudo-turbulence: a swirling lateral acceleration folded into velocity (turbulence 0 → adds 0, so
+      // the default is a byte-identical no-op). Uses the particle's current position + the instance clock.
+      if (turbulence !== 0) {
+        lp.vx += turbulence * turbulenceX(particle.x, particle.y, clockSec, turbScale) * dtSec;
+        lp.vy += turbulence * turbulenceY(particle.x, particle.y, clockSec, turbScale) * dtSec;
+      }
       particle.rotation += lp.spin * dtSec;
 
       const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
@@ -321,6 +377,15 @@ class BurstInstance implements FxInstance<BurstParams> {
         this.timer = this.timer % this.params.interval;
         this.emit();
       }
+    }
+
+    // Snapshot this frame's head so next frame can derive the anchor velocity from the delta. Only once we
+    // hold a real anchor position (headSet), so the first velocity sample diffs two real heads, never the
+    // (0,0) default.
+    if (this.headSet) {
+      this.lastHeadX = this.headX;
+      this.lastHeadY = this.headY;
+      this.lastHeadSet = true;
     }
 
     this.pc.update();

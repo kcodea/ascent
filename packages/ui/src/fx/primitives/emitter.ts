@@ -13,6 +13,7 @@ import {
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
 import { SHAPE_NAMES, getShapeTexture, resolveParticleScale } from '../shapeTextures';
+import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -49,6 +50,27 @@ const SPECS = {
   gravity: {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30,
     help: 'px/sec² (negative = rise, like embers).',
+  },
+
+  turbulence: {
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0,
+    help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
+  },
+  turbScale: {
+    kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
+    help: 'Spatial frequency of the turbulence field — higher = tighter swirls.',
+  },
+  emitShape: {
+    kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'point',
+    help: 'Where particles spawn relative to the anchor.',
+  },
+  emitRadius: {
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
+    help: 'Size of the emission shape in px (ignored for point).',
+  },
+  inheritVel: {
+    kind: 'slider', label: 'Inherit vel', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
+    help: 'Fraction of the anchor\'s own movement velocity added to each new particle.',
   },
 
   shape: {
@@ -188,6 +210,15 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   private originX = 0;
   private originY = 0;
   private headSet = false;
+  // Previous frame's anchor position + the velocity derived from it (px/sec), for velocity inheritance.
+  // Recomputed at the top of update(), read by spawnMote(). Zero until we have two real anchor samples.
+  private lastOriginX = 0;
+  private lastOriginY = 0;
+  private lastOriginSet = false;
+  private headVx = 0;
+  private headVy = 0;
+  // Reused scratch for `emissionOffset` so a shaped spawn allocates nothing (mirrors `budgetState` below).
+  private readonly emitScratch = { ox: 0, oy: 0 };
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
   // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Bounds emission to a
   // single window (see `withinEmitWindow`) instead of streaming forever.
@@ -234,6 +265,19 @@ class EmitterInstance implements FxInstance<EmitterParams> {
 
     const dtSec = dtMs / 1000;
     const p = this.params;
+    // Anchor velocity (px/sec) for velocity inheritance, from the origin's frame-over-frame delta. Zero
+    // until we hold two real anchor samples (guards a spurious spike from diffing the (0,0) default). With
+    // inheritVel = 0 this is never read, so it can't affect the default look.
+    if (this.lastOriginSet && dtSec > 0) {
+      this.headVx = (this.originX - this.lastOriginX) / dtSec;
+      this.headVy = (this.originY - this.lastOriginY) / dtSec;
+    } else {
+      this.headVx = 0;
+      this.headVy = 0;
+    }
+    const turbulence = p.turbulence;
+    const turbScale = p.turbScale;
+    const clockSec = this.clockSec;
     const motes = this.motes;
     const children = this.particles.particleChildren;
 
@@ -245,6 +289,12 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       m.age += dtMs;
       if (m.age >= m.maxLife) continue;
       m.vy += p.gravity * dtSec;
+      // Pseudo-turbulence: a swirling lateral acceleration folded into velocity (turbulence 0 → adds 0, so
+      // the default is a byte-identical no-op). Uses the mote's current position + the instance clock.
+      if (turbulence !== 0) {
+        m.vx += turbulence * turbulenceX(m.p.x, m.p.y, clockSec, turbScale) * dtSec;
+        m.vy += turbulence * turbulenceY(m.p.x, m.p.y, clockSec, turbScale) * dtSec;
+      }
       m.p.x += m.vx * dtSec;
       m.p.y += m.vy * dtSec;
       const t = m.age / m.maxLife;
@@ -282,6 +332,14 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       }
     }
     if (this.oneShot) this.emitElapsedMs += dtMs;
+
+    // Snapshot this frame's anchor so next frame can derive its velocity from the delta. Only once we hold a
+    // real anchor position (headSet), so the first velocity sample diffs two real anchors, not the default.
+    if (this.headSet) {
+      this.lastOriginX = this.originX;
+      this.lastOriginY = this.originY;
+      this.lastOriginSet = true;
+    }
 
     this.particles.update();
   }
@@ -338,10 +396,12 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     // palette colour (that was `tupleBiased`) — so a live palette/band edit repaints every live mote.
     const bias = Math.min(1, Math.max(0, p.coreBias + (rand - 0.5) * 0.12));
 
+    // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
+    emissionOffset(p.emitShape, p.emitRadius, Math.random(), Math.random(), this.emitScratch);
     const particle = new Particle({
       texture: this.texture,
-      x: this.originX,
-      y: this.originY,
+      x: this.originX + this.emitScratch.ox,
+      y: this.originY + this.emitScratch.oy,
       anchorX: 0.5,
       anchorY: 0.5,
       tint: biasTint(bias),
@@ -353,8 +413,9 @@ class EmitterInstance implements FxInstance<EmitterParams> {
 
     return {
       p: particle,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
+      // Base emission velocity plus a fraction of the anchor's own movement (inheritVel 0 → no change).
+      vx: Math.cos(angle) * speed + p.inheritVel * this.headVx,
+      vy: Math.sin(angle) * speed + p.inheritVel * this.headVy,
       age: 0,
       maxLife: p.life,
       fadeIn: p.fadeIn,

@@ -135,8 +135,8 @@ The career surface exists; deepen what a finished run *remembers*.
   inspector from that; burst/shockwave/emitter primitives, an editable palette, a decoupled Fire trigger, and
   **value-over-life curves** (the `curve` param kind, first wired as particle size-over-life) have since
   landed. Remaining richer-param work: a `gradient` (colour-over-life) kind reusing the curve editor with
-  colour stops; motion physics (turbulence, velocity inheritance, emission shapes); a **smoke** primitive;
-  optional alpha-over-life curves. Composition proper: a timeline UI (multi-layer defs — the def format +
+  colour stops; a **smoke** primitive; optional alpha-over-life curves. (Motion physics — turbulence,
+  emission shapes, velocity inheritance — shipped 2026-07-24.) Composition proper: a timeline UI (multi-layer defs — the def format +
   `layerStateAt` scheduler already support them, the shell just edits one layer today); anchors staged from
   real combat moments, not just scenarios; and save-to-file for defs via a dev-only Vite middleware
   (clipboard-copy is the P1 stand-in). P3 = A/B compare, preset/palette library,

@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — motion physics: turbulence, emission shapes, velocity inheritance)
+
+### feat(fx): a motion-physics layer on the particle primitives (burst + emitter)
+
+Second richer-param wave. Adds three additive motion controls to burst + emitter under a new `Physics` param
+group, all driven by a new pure, renderer-free helper module so the logic is unit-testable headlessly (the
+`sampleBurstAngle`/`advanceEmitBudget`/`moteAlpha` precedent). **Every new param defaults to a byte-identical
+no-op** — the current look is untouched until a knob turns.
+
+- **Turbulence** — a cheap layered-sine pseudo-turbulence field (`turbulenceX/Y` in `motion.ts`; no noise
+  lib, no hashing, bounded ~[-1.5,1.5], the two axes decorrelated so particles swirl rather than slide). Folded
+  into each particle's velocity as a lateral acceleration. `Turbulence` (strength px/s²) + `Turb scale` (spatial
+  frequency). Guarded by `strength !== 0`, so default 0 never even calls the field.
+- **Emission shape** — where particles spawn relative to the anchor: `point` / `ring` / `disc` (area-uniform
+  via √rand) / `box`, sized by `Emit radius`. `emissionOffset` writes into a reused scratch (zero per-spawn
+  alloc). `point`/radius 0 → (0,0), the no-op default.
+- **Velocity inheritance** — `Inherit vel` (0–1) adds that fraction of the anchor's own movement velocity to
+  each new particle, so a burst fired off a moving unit trails correctly. The anchor velocity is derived from
+  the head's frame-over-frame delta, gated on a "two real samples seen" flag so the first wave never inherits
+  the spurious spike that diffing against the (0,0) default would produce (the ticker calls `update()` before
+  `setHead()`). `inheritVel = 0` → adds exactly 0.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1758 passing** (108 files) — new `motion.test.ts`
+(turbulence bounded/finite/varies; ring points on radius, disc within radius, box within bounds, radius 0 →
+origin) plus Physics-param coverage tests on both primitives. `build:web` green; the primitives (and thus the
+motion layer) stay dev-only — absent from the prod bundle. Behavior-preservation invariant walked through per
+addition and confirmed.
+
 ## 2026-07-24 (FX workbench — `curve` param kind: value-over-life)
 
 ### feat(fx): a value-over-life curve kind + a draggable curve editor, wired as particle size-over-life

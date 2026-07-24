@@ -21,6 +21,15 @@ describe('burst param specs', () => {
     }
     expect(keys).not.toContain('additive');
   });
+
+  // The motion-physics group (turbulence / emit shape / velocity inheritance) must be present alongside the
+  // sibling emitter's identical set.
+  it('exposes the motion-physics params', () => {
+    const keys = Object.keys(burstPrimitive.params);
+    for (const k of ['turbulence', 'turbScale', 'emitShape', 'emitRadius', 'inheritVel']) {
+      expect(keys).toContain(k);
+    }
+  });
 });
 
 // Note: the "first wave waits for a real setHead() before emitting" fix (see BurstInstance.update /

@@ -3,6 +3,55 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (plate coalesce — cards being generated)
+
+### feat(ui): a generated card materialises out of arcane dust
+
+The mirror of the plate dissolve. When a card comes from nowhere, arcane dust rushes inward, lands on the
+plate's wireframe lines, the wireframe forms, and then resolves into the card you acquired. Shares the
+wireframe mask, palette and spawn points with the dissolve (extracted to `plateFx.ts`), so a card arriving
+and a card leaving read as one magic system. Authored on `fx/plate-coalesce-preview.html` and dialed by the
+owner before wiring.
+
+Not a reversed playback of the dissolve — the mote motion is genuinely different code. Each mote picks its
+LANDING point on the wireframe first, then starts pushed outward from centre along its own angle and eases
+home, with a tangential curl that peaks mid-flight and resolves to zero on arrival. The owner's dial has
+`ease` at 0.4 (an ease-IN, so they drift then accelerate home), `onLines: 1` so they land only on the
+linework, and a wide `stag` for a rolling arrival.
+
+**Two triggers, because "generated" isn't one moment:**
+
+- **In combat**, at the beat the effect procs. The replay already flies a "To your hand" card at that moment,
+  so we materialise THAT card rather than announcing it a second time when it settles into hand after the
+  fight (owner ruling).
+- **In the shop**, via a per-render diff of the hand's uid set. This is what makes it universal: there are
+  **25** `hand.push` sites across the sim, and hooking each one would guarantee we miss some. One diff catches
+  them all.
+
+**What the diff subtracts, and why each is not a generation:**
+
+- **Buys** — flagged at the single `buy` dispatch. A bought card was already visible in the tavern; it's
+  acquired, not conjured. The owner wants its own shop→hand transition instead, as a separate effect.
+- **Gilds / triples** — detected by `run.triplesMade` ticking in the same commit. Note `card.golden` is NOT a
+  valid discriminator: a gilded Discover pick and quest `grantGolden` rewards both arrive golden and ARE
+  generations, so filtering on it would have wrongly suppressed them.
+- **Rune of Refrain bounces** — the uid was on the BOARD last render, so it's a return, not something new.
+
+The effect holds the real card at opacity 0 and fades it up during the `cardIn` beat, so it genuinely
+resolves out of the wireframe instead of sitting visible underneath it the whole time.
+
+`plateFx.ts` exists so the warm-on-load has exactly ONE implementation — that logic was the subject of the
+first-play bug (#635), and duplicating it into a second module would have duplicated the bug's blast radius.
+`plateDissolve.ts` was refactored onto it in the same change.
+
+New dev tuner **✨ Plate Coalesce** with a "Play here" button.
+
+**Verified:** typecheck + lint + 1538 tests + `build:web` green. (The one lint warning is pre-existing in
+`SceneBuilder.tsx` from #634, untouched here.)
+
+**Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
+owner-eyeballed. Values are the owner's rig export applied verbatim.
+
 ## 2026-07-23 (Layaway — the keep is shop-phase only)
 
 ### fix(sim): Layaway's "keep through refreshes" no longer persists through combat

@@ -69,6 +69,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **Djinni's Cadence now triggers your quest and rune End of Turns too.** It read "trigger all friendly End of
   Turn effects" but only ever fired the board half, skipping quest/rune rewards like Echoing Roar, The Hoard
   Wakes and Rune of Spending — and did nothing at all on an empty board.
+- **Generated cards materialise out of arcane dust.** When a card comes from nowhere — a Deathrattle grant
+  mid-combat, a Discover pick, a spell conjure, a quest reward — dust rushes in, forms the card plate's
+  glowing wireframe, and resolves into the card. The mirror of the dissolve, sharing its palette.
 - **Played cards dissolve into arcane dust.** When you play a minion, its card body imprints as a glowing
   blue **wireframe of itself** — the stone joints, gold rails and gem picked out in light — then burns off
   into drifting dust. The linework is edge-detected from the plate art and baked to a 42 KB asset, so nothing

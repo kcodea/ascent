@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+### fix(ui/sim): discovered spells drop their stats, Hourglass picks show locked, Quick Sale floats its real value
+
+Three follow-ups in the same PR.
+
+**Discovered spells no longer show Attack/Health.** The Discover panel builds its card view BY HAND rather than
+through `instView`, and never passed `spell`/`ruby` — so a discovered spell fell through to the minion treatment
+and printed a meaningless 0/1. Passing the flags routes it down the existing `spellLike` path, which swaps the
+stat badges for the type pill and applies the spell frame, exactly as every other surface already does.
+
+**An Hourglass Reserve pick now looks locked.** `lockedUntilWave` was fully wired in the sim — the reducer
+refuses to play the card (`reducer.ts:658`) and Hourglass stamps it on the pick — but the UI's lock computation
+only tested `lockedUntilTier` and `lockedUntilGoldSpent`. The card was therefore functionally locked while
+LOOKING playable. It now wears the same greyed padlock treatment as Disco Dan's tier lock and Brackus's gold
+lock, captioned "Next turn".
+
+**Quick Sale's sell float shows the real number.** `sellValueOf` is documented as the shared helper "so the two
+never drift" — but Quick Sale's `nextSellBonus` was added INLINE in the reducer, outside it, so they drifted:
+selling under Quick Sale paid 3 Gold while floating a plain-gold "+1". Since the float already styles itself off
+the amount (`> 1` renders green), the wrong number also meant the wrong colour. Added `sellValueWithBonus`, the
+one helper the reducer's payout and the UI's float both read.
+
+That helper is deliberately SEPARATE from `sellValueOf` rather than folded into it: two Consume-style
+self-sacrifice paths ("counts as a sell") also call `sellValueOf` and neither apply nor CLEAR the one-shot bonus,
+so folding it in would silently make them consume Quick Sale — a rules change, not the display fix this is.
+
+Verified live: a Discover holding two spells + one minion renders the spells with no stat badges and a "✦ Spell"
+pill while the minion keeps its 1/1; an Hourglass pick lands in hand with `lockedUntilWave: 2` at wave 1, the
+`locked` class, a "🔒 Next turn" caption and `grayscale(0.72) brightness(0.82)`. Three new sim tests pin the
+Quick Sale value: the display equals the Gold banked (3), it crosses the >1 green threshold, and it's unchanged
+without the bonus. Suite 1545 (+3) + typecheck + lint + build:web green.
+
+Noted in passing, NOT fixed (pre-existing, out of scope): an unknown card id in `run.discover` hard-crashes the
+Discover map on `CARD_INDEX[id].id` and the ErrorBoundary then keeps Recruit dead. Only reachable from bad
+dev/test data today, but a `.filter(Boolean)` there would be cheap insurance.
+
 ## 2026-07-24 (spell card UI — minted cost coin, seated type pill, a pills tuner)
 
 ### feat(ui): cost coin adopts the hero-power coin skin, type pill seats at the art's bottom, + 🏷️ Card Pills tuner

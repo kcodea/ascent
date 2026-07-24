@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
@@ -3494,7 +3494,7 @@ export function Recruit() {
       if (card) {
         const id = ++sellFloatId.current;
         const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
-        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card, run) }]); // bartering-aware
+        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueWithBonus(card, run) }]); // bartering- AND Quick-Sale-aware
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
       // Sprinkle gold coins out of the Gold counter (the GOLD cell in the info strip up top) to sell the income.
@@ -3882,12 +3882,19 @@ export function Recruit() {
             const goldSpent = run.goldSpent ?? 0;
             const tierLocked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
             const goldLocked = !!m.lockedUntilGoldSpent && goldSpent < m.lockedUntilGoldSpent;
-            const locked = tierLocked || goldLocked;
+            // Hourglass Reserve's pick is "locked in hand until next turn" (`lockedUntilWave`). The reducer
+            // already refuses to play it, but this lock was missing here — so it was functionally locked while
+            // still LOOKING playable (owner 2026-07-24). It now wears the same greyed padlock treatment as
+            // Disco Dan's tier lock and Brackus's gold lock.
+            const waveLocked = !!m.lockedUntilWave && run.wave < m.lockedUntilWave;
+            const locked = tierLocked || goldLocked || waveLocked;
             const lockLabel = tierLocked
               ? `Tier ${m.lockedUntilTier}`
               : goldLocked
                 ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
-                : undefined;
+                : waveLocked
+                  ? 'Next turn'
+                  : undefined;
             return (
               <Card
                 key={m.uid}
@@ -4195,7 +4202,11 @@ export function Recruit() {
                 return (
                   <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier }}
+                      // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
+                      // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
+                      // 0/1 here). Every other surface passes these through `instView`; this panel builds its
+                      // card view by hand, which is how they got dropped.
+                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby }}
                       onClick={() => dispatch({ type: 'discover', index: i })}
                     />
                   </div>

@@ -271,6 +271,22 @@ export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBarteri
 }
 
 /**
+ * What the PLAYER-initiated sell actually pays: `sellValueOf` plus Quick Sale's one-shot `nextSellBonus`.
+ *
+ * Split from `sellValueOf` rather than folded into it on purpose. Two effect paths (Consume-style
+ * self-sacrifices that "count as a sell") also call `sellValueOf`, and they neither apply nor CLEAR the
+ * one-shot bonus — folding it in would silently make them consume Quick Sale, which is a rules change rather
+ * than the display fix this is. So the bonus lives here, in the helper the player's sell button and the UI's
+ * sell float both read, keeping those two in lockstep without touching the effect paths.
+ *
+ * (The drift this fixes: the reducer added `nextSellBonus` inline while the UI's float called `sellValueOf`
+ * alone, so selling under Quick Sale paid 3 Gold but floated "+1" in the plain gold style — owner 2026-07-24.)
+ */
+export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeBartering' | 'nextSellBonus'>): number {
+  return sellValueOf(card, state) + (state.nextSellBonus ?? 0);
+}
+
+/**
  * Turn a board minion Golden by doubling its **BASE** stats only — accrued buffs are NOT doubled. A buffed
  * 10/10 built from a 3/4 base gilds to 6/8 + its +7/+6 buffs = 13/14, NOT 20/20. This matches a natural triple,
  * whose golden keeps "the two highest copies' stats" (= two copies of base + the buffs). The 'Gild' buff records

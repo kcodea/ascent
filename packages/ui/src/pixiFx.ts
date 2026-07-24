@@ -686,12 +686,23 @@ class FxController {
   /** Externally-mounted per-frame updaters (the FX workbench player). Kept deliberately small: this is the
    *  only seam through which code outside this file draws on the overlay canvas. */
   private extraUpdaters: ((dtMs: number) => void)[] = [];
+  /** Containers passed to `mountLayer` before `init()` has created `this.layer`; flushed once it exists. */
+  private pendingMounts: Container[] = [];
 
-  /** Mount a container on the overlay stage. Returns a disposer. */
+  /** Mount a container on the overlay stage. Returns a disposer. Safe to call before `attach()` resolves —
+   *  the container queues and is added once the canvas initialises. The disposer removes the container from
+   *  the stage (or the pending queue) but does NOT destroy it — destruction is the caller's responsibility,
+   *  since the caller owns the container's lifecycle. */
   mountLayer(c: Container): () => void {
-    this.layer?.addChild(c);
+    if (this.layer) {
+      this.layer.addChild(c);
+    } else {
+      this.pendingMounts.push(c);
+    }
     return () => {
       this.layer?.removeChild(c);
+      const i = this.pendingMounts.indexOf(c);
+      if (i >= 0) this.pendingMounts.splice(i, 1);
     };
   }
 
@@ -791,6 +802,10 @@ class FxController {
 
     this.app = app;
     this.layer = layer;
+    if (this.pendingMounts.length > 0) {
+      for (const c of this.pendingMounts) this.layer.addChild(c);
+      this.pendingMounts.length = 0;
+    }
     this.shieldLayer = shieldLayer;
     // shared centred quad (−R..R) with 0..1 UVs — every bubble mesh reuses it; the container scales it per-unit
     this.shieldGeo = new MeshGeometry({

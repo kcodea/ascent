@@ -1,3 +1,4 @@
+import { CARD_INDEX } from '@game/content';
 import { spellBuffHoldMs } from './spellBuffFxConfig';
 
 /**
@@ -75,4 +76,19 @@ export function clearAllSpellBuffs(): void {
   timerByUid.clear();
   seqByUid.clear();
   emit();
+}
+
+/** A hand card, reduced to what these helpers need. */
+interface HandLike { uid: string; cardId: string }
+
+/** Pop every SPELL in hand — the cards whose printed value moves when SPELL POWER rises. */
+export function fireSpellBuffOnHandSpells(hand: readonly HandLike[]): void {
+  fireSpellBuff(hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.uid));
+}
+
+/** Pop every RUBY in hand — the cards whose printed value moves when RUBY STRENGTH rises.
+ *  Matched on the card def's `ruby` FLAG, never on a card id: there is more than one Ruby (`ruby`,
+ *  `warding-ruby`, and any future one), so an id check silently skips the others. */
+export function fireSpellBuffOnHandRubies(hand: readonly HandLike[]): void {
+  fireSpellBuff(hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).map((c) => c.uid));
 }

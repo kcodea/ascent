@@ -4,7 +4,7 @@ import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tr
 import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
-import { fireSpellBuff } from './spellBuffFx';
+import { fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
 import { pixiFx } from './pixiFx';
 import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
@@ -864,6 +864,11 @@ export function useCombatReplay(
       const { cx, cy, h } = layoutRectOf(el); // SLOT — the source can be mid-lunge when its spell power rises
       pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
       floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
+      // …and pop the held SPELLS, whose printed values just moved. Without this the cards themselves only
+      // reacted at combat RESOLUTION (owner report): the hand-card cue is driven by a diff of the rendered live
+      // text, and run state doesn't change until settle — so mid-fight there is nothing for that diff to see.
+      // Firing from the narration beat puts it on the moment the gain actually happens.
+      fireSpellBuffOnHandSpells(useGame.getState().run.hand);
     }
     // RUBY POWER gained mid-combat (owner ask 2026-07-24) — Veinbreaker's Avenge and friends. `gainRubyBonus`
     // used to accumulate silently and only surface at settle, so there was nothing to hang a cue on at the
@@ -885,7 +890,7 @@ export function useCombatReplay(
       floatRubyPowerNumber(cx, cy - h * 0.3, gA, gH);
       // …and pop the held Rubies themselves, so the player sees WHICH cards the gain lands on. The spell-buff
       // bus is callable from here precisely because it no longer lives in Recruit's state.
-      fireSpellBuff(useGame.getState().run.hand.filter((c) => c.cardId === 'ruby').map((c) => c.uid));
+      fireSpellBuffOnHandRubies(useGame.getState().run.hand);
     }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
     // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a

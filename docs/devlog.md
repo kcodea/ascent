@@ -5,6 +5,45 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (Ruby Power FX — the Ruby-side twin of the Spell Power flourish)
 
+### fix(ui/core): End-of-Turn and mid-combat buffs now cue on the PROC, not at the commit
+
+Owner report: "the spell buffs/ruby buffs end of turn are not triggering the animation, and the mid combats
+don't trigger until combat resolution." Both are the same root cause wearing two hats — the cue was driven by a
+diff of the rendered live text, and RUN STATE doesn't change at the moment the buff happens.
+
+**End of Turn.** `faceOmen` (the real commit) only dispatches after every EoT beat has played, and it flips the
+phase as it lands. So a state-driven cue can't arrive on the proc — it arrives at Start of Combat. This trap is
+already documented in this file for the spell-power FLOURISH (owner report 2026-07-21, Aeon Guard), which is why
+that one is fired from the BEAT. The card cue now rides the same beat: when a beat's card has an `endOfTurn`
+effect that raises spell power, the held spells pop right there. Ruby strength is wired the same way and is
+ready for whenever a card grants it at End of Turn (none does today — `rubyStatGain` is Shout/cast-only).
+Compounding it, the phase-flip guard added earlier also suppressed the `faceOmen` render, so End of Turn was
+blocked twice over; that guard is now correct rather than harmful, because it's what stops the beat-driven cue
+double-firing at Start of Combat.
+
+**Mid-combat.** Same shape: run state doesn't move until settle, so the text diff had nothing to see until the
+fight ended. The spell-power path now pops the held spells from the `sc` narration beat — the exact moment the
+existing flourish fires. The Ruby path already did, and `gainRubyBonus`'s narration (added in the Ruby Power FX
+work) is what makes it possible at all.
+
+**A real bug found while fixing this:** the Ruby cue matched on `cardId === 'ruby'`, but there are TWO Ruby card
+ids (`ruby` and `warding-ruby`, both carrying the def's `ruby: true` flag), so Warding Rubies never popped.
+Replaced with flag-based helpers (`fireSpellBuffOnHandSpells` / `fireSpellBuffOnHandRubies`) that can't drift as
+Ruby variants are added.
+
+Verified End of Turn live with an Aeon Guard on board and a spell in hand: the spell bursts at **1064ms while
+still `phase=recruit`** (mid-beats), then the phase flips at 3059ms and the text updates +2/+3 → +3/+4 with NO
+second burst — on the proc, once. Mid-combat is pinned by two new core tests (`rubyPowerNarration.test.ts`)
+rather than a browser timing test, because a backgrounded preview tab throttles timers to ~1Hz: they assert the
+`sc` event fires DURING the fight, in the exact `+A/+H Ruby Power` format and with the source uid the replay's
+handler matches on, and that the narrated total equals the strength carried back. Suite 1543 (+2) + typecheck +
+lint + build:web green.
+
+Known gap (inherent to the beat architecture, not new): at End of Turn the card POPS on the proc while its
+printed number only updates at the commit a beat or two later, because the hand's live text reads run state
+rather than the projected per-beat totals the board uses (`eotAnimStats`). The existing spell-power float has
+the same property. Closing it means projecting spell/ruby power through the beats into `handViews`.
+
 ### chore(ui): bake the owner's tuned Ruby Power / Spell Power / Spell Buff values
 
 Three tuner passes taken verbatim from Copy values (48 keys, all matched — no stale or renamed dials).

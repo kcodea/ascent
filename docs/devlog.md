@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+### fix(content/sim): every Ruby-excluding Dragon says "Shop spell"; Runefire gains its Ruby half
+
+Owner ruling 2026-07-24: "every Dragon effect intended to exclude Rubies must explicitly say **Shop spell**."
+Living Grimoire and Runefire are the two deliberate exceptions — they work with all spells, Shop and Ruby alike.
+
+**The behaviour was already correct on all ten excluding cards.** I audited each rather than assuming: a Ruby
+never routes through `castSpell`, so it fires no `spellCast` hook (Ashscribe, Spellkeeper, Rune of Scales),
+records no `firstSpellThisTurnId` / `lastSpellCastId` (Spellvault, Runic Archivist, Recaller, and Scalefeather's
+armed charge, which is consumed inside `castSpell`), never reaches `spellCastOnThis` (Mirrorwing), and draws its
+stats from `rubyBonus` rather than spell power (Ashen Broodlord). Orivax's Spellweave sets
+`spellFirstMultEachTurn`, which the Ruby branch doesn't read — it computes its own count from `rubyExtraCast`.
+So this half is **text only**: nine card texts (each with its golden variant) plus Rune of Scales and Orivax's
+Spellweave option now say "Shop spell".
+
+Because nothing needed fixing there, the new tests exist to **lock it in** — "already correct by accident of
+plumbing" is exactly the property a later refactor breaks silently, and the printed text is now a promise. A
+text-audit test asserts every excluding card carries the wording in both its text and goldenText, plus the
+INVERSE for Grimoire and Runefire, so a well-meaning consistency sweep can't quietly restrict them later.
+
+**Runefire, on the other hand, genuinely didn't work with Rubies** — the same reason: no `castSpell`, so its
+`spellCastOnThis` hook was unreachable. It now has a second effect on `onRubyPlayed`, so a Ruby played on it
+also lands on its adjacent Dragons (including firing those neighbours' own `onRubyPlayed` watchers — a spread
+Ruby is a Ruby landing on them). Its text says "the first spell or **Ruby**".
+
+*The design decision worth flagging:* Rubies get their OWN per-instance counter (`rubiesOnThisTurn`) rather
+than sharing `spellsOnThisTurn`. Runefire reads the sum, so a Ruby and then a Shop spell pay out once; but
+Mirrorwing keeps reading spells only. Sharing one counter looks simpler and is a trap — a Ruby landing on
+Mirrorwing would consume its once-per-turn slot without triggering it, so playing a Ruby would effectively
+DISABLE the card for the turn. That's worse than either intended behaviour, and it's now a test.
+
+Verified: typecheck / lint / test (1626, +9) / build:web / harness green. Both halves confirmed to bite:
+removing Runefire's Ruby effect fails its two tests, and implementing the naive shared-counter version fails
+the Mirrorwing slot test. Two of my own initial expectations were wrong and worth recording — Spirit Fire is
++2/+3 (not +2/+2), and my first Runefire test used Ashscribe as the neighbour, whose own spell reaction moved
+its stats for reasons unrelated to the spread; the inert Guardian Drake is the right control body.
+
 ### fix(sim): Ashscribe Whelp counts its "first spell" from PLACEMENT, like Grimoire and Spellkeeper
 
 Applying an existing owner ruling to the one card that still had the old shape. Living Grimoire and Spellkeeper

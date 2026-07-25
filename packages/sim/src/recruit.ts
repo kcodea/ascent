@@ -2159,7 +2159,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Same first-per-turn guard. Neighbours are board-adjacent (left/right), so it rewards seating it between
    *  two Dragons — and it never re-casts on ITSELF, which would double-dip the original cast. */
   onSpellCastOnThisSpreadAdjacent: (ctx, self, params, payload) => {
-    if (self.spellsOnThisTurn !== 1) return;
+    // The SUM, because Runefire counts Rubies too — a Ruby then a spell on the same body pays out once.
+    if ((self.spellsOnThisTurn ?? 0) + (self.rubiesOnThisTurn ?? 0) !== 1) return;
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef) return;
     const tribe = str(params.tribe);
@@ -2170,6 +2171,36 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     );
     for (const n of neighbours) {
       for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, n);
+    }
+  },
+
+  /** Set 2 — Runefire, the RUBY half of "the first spell you cast on this each turn also casts on adjacent
+   *  Dragons". Runefire is one of the two spell-reactive Dragons that deliberately works with Rubies too
+   *  (owner 2026-07-24: only the cards that say "Shop spell" exclude them), and a Ruby doesn't route through
+   *  `castSpell`, so it can't reach the `spellCastOnThis` factory — it needs its own hook.
+   *
+   *  "First each turn" is the SUM of Shop spells and Rubies landed on this body, so casting a spell and then a
+   *  Ruby on Runefire pays out once, not twice. Spreading a Ruby means giving each adjacent `tribe` neighbour
+   *  the same permanent stat buff the Ruby just gave — the Ruby's own resolution, repeated on the neighbour,
+   *  including that neighbour's own `onRubyPlayed` watchers (Ruby Broker's Gold), because a spread Ruby is a
+   *  Ruby landing on it. */
+  onRubyPlayedSpreadAdjacent: (ctx, self, params, payload) => {
+    const landed = (self.spellsOnThisTurn ?? 0) + (self.rubiesOnThisTurn ?? 0);
+    if (landed !== 1) return; // only the first spell-or-Ruby on this body each turn
+    const a = num(payload.rubyAttack, 0);
+    const h = num(payload.rubyHealth, 0);
+    if (a <= 0 && h <= 0) return;
+    const tribe = str(params.tribe);
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    const neighbours = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter(
+      (c): c is BoardCard => !!c && (!tribe || isTribe(c, tribe as never)),
+    );
+    for (const n of neighbours) {
+      for (let r = 0; r < num(params.count, 1) * gold(self); r++) {
+        addBuff(n, 'Ruby', a, h);
+        fireOnRubyPlayed(ctx.state, n, a, h);
+      }
     }
   },
 
@@ -3575,6 +3606,9 @@ export function fireOnRubyCast(state: RunState, before: number, after: number): 
  *  Resonance Idol → bounce). The played Ruby's stats ride in the payload so a bounce can re-apply the same
  *  buff. The bounce uses `addBuff` directly (not this path) so it can't cascade into an infinite loop. */
 export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number): void {
+  // Counted BEFORE the effects run, mirroring `fireOnSpellCastOnThis` — a spread/recast that lands another Ruby
+  // on this body must see a count past 1 or a "first each turn" card recurses.
+  card.rubiesOnThisTurn = (card.rubiesOnThisTurn ?? 0) + 1;
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onRubyPlayed')) return;
   const ctx = makeContext(state);

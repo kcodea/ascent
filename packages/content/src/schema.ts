@@ -75,6 +75,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onMinionSoldCopyFirstOfTribe',
   'onSpellCastOnThisRecast',
   'onSpellCastOnThisSpreadAdjacent',
+  'onRubyPlayedSpreadAdjacent',
   'scTriggerTribeShouts',
   'rallyTriggerLeftmostTribeShout',
   'onSpellCastFirstBuffTribe',

@@ -2253,6 +2253,7 @@ function advanceCombat(s: RunState): void {
   // to hand and replayed, and a stale count would eat its first proc next turn.
   for (const c of [...s.board, ...s.hand]) {
     if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
+    if (c.rubiesOnThisTurn) c.rubiesOnThisTurn = 0; // Runefire counts Rubies landed on it per TURN too
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;

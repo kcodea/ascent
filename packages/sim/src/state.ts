@@ -208,6 +208,11 @@ export interface BoardCard {
    *  other per-turn counters. Incremented BEFORE a card's `spellCastOnThis` effects run, which is what stops a
    *  re-cast from re-triggering the same effect forever. Absent = 0. */
   spellsOnThisTurn?: number;
+  /** Set 2 — RUBIES played on this minion this turn. Kept separate from `spellsOnThisTurn` on purpose: Runefire
+   *  works with Rubies as well as Shop spells and reads the SUM, while Mirrorwing Hatchling is Shop-spell-only
+   *  (owner 2026-07-24) and must stay blind to Rubies. One shared counter would let a Ruby silently eat
+   *  Mirrorwing's once-per-turn slot without triggering it — worse than either behaviour. Absent = 0. */
+  rubiesOnThisTurn?: number;
   /** Set 2 — Spellkeeper Drake: SHOP SPELLS cast this turn WHILE this minion has been on board, and the id of
    *  the first such spell. Per-instance (a Spellkeeper played mid-turn counts from its own placement, not turn
    *  start — owner 2026-07-24). Reset each turn; a fresh card starts at 0/undefined, so placement is the floor. */

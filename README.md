@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Set 2's Demon tribe is complete** — all 23 cards, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.
+
 - **Set 2's Demon tribe is underway** — 20 of 23 cards in, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.
 
 - **Beast cards have their own plate.** Beast-primary minions now render on a green-gem variant of the card

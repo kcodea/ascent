@@ -2300,6 +2300,38 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(minion, (num(params.attack, 2) + bonus) * mul(self), (num(params.health, 2) + bonus) * mul(self), self.uid);
   },
 
+  /** Set 2 — Endless Overseer (Start of Combat): your Imps gain "Echo: summon `count` Imps" for this combat.
+   *  Grafted onto each living Imp via `grantDeathrattle` (which registers ANY effect, not just Echoes — the same
+   *  path Grave Body and Sunmane use), so the granted Echo fires on their deaths like a printed one.
+   *
+   *  Only the Imps ALIVE at Start of Combat are granted — Imps summoned later by the chain do NOT inherit it.
+   *  That bound is deliberate and load-bearing: a self-granting Echo that summons more of itself would recur
+   *  until the board cap and the stack both gave out. */
+  scGrantImpsEcho: (ctx, self, params) => {
+    const imps = ctx.living(self.side).filter((m) => m.cardId === 'impscrap');
+    if (imps.length === 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} opens the endless gate` });
+    const echo: EffectDef = { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: num(params.count, 1) * mul(self) } };
+    for (const imp of imps) {
+      if (imp.effects.some((e) => e.on === 'onDeath' && e.do === 'deathrattleSummon')) continue; // already has one
+      ctx.grantDeathrattle(imp, [echo]);
+    }
+  },
+
+  /** Set 2 — Malphas "Legion": when an Imp attacks, summon a COPY of it if there's room. Copies the attacker's
+   *  card, so a buffed Imp still yields a base-stat body — a copy of the card, not of the creature, matching how
+   *  every other "summon a copy" in the game reads. */
+  onImpAttackSummonCopy: (ctx, self, params, payload) => {
+    // Gated on the Choose One pick — see the note on Malphas's Feast half. A persistent option can't live in
+    // `chooseOne[].effects`, which fire once at pick time, so both halves are printed and branch-checked.
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side || minion.cardId !== 'impscrap') return;
+    const imp = ctx.getCard('impscrap');
+    if (!imp) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, imp, minion.uid);
+  },
+
   /** Set 2 — Broodwright's Avenge half: every X friendly deaths, improve this minion's own summon-grant by
    *  `step` (`summonBonus`, the standard per-instance accrual, so it carries back to the run and shows in the
    *  inspect breakdown). Pairs with `onSummonImpBuff`, which reads the same field. */

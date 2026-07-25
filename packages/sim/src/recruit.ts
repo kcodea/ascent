@@ -1677,6 +1677,47 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), perA * played * g, perH * played * g);
   },
 
+  /** Set 2 — Malphas "Feast": at End of Turn your LEFT-most and RIGHT-most Demons each Consume the `count` Shop
+   *  minions on their own side of the row — left-most eats from the front, right-most from the back. Splitting
+   *  the row is what makes seating matter; both eating the same tail would collapse the two halves into one. */
+  endOfTurnEndDemonsConsumeSides: (ctx, self, params) => {
+    // Gated on the Choose One pick. `applyChooseOne` fires an option's effects ONCE, as a battlecry, so a
+    // PERSISTENT option (this one, and Legion) can't live in `chooseOne[].effects` — it would fire at pick time
+    // and never again. Both halves are printed effects instead, each checking the branch this body became.
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
+    const demons = ctx.state.board.filter((c) => isTribe(c, 'demon'));
+    if (demons.length === 0) return;
+    const each = num(params.count, 2) * gold(self);
+    const left = demons[0]!;
+    const right = demons[demons.length - 1]!;
+    // FRONT of the row for the left-most Demon.
+    for (let k = 0; k < each; k++) {
+      const i = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (i < 0) break;
+      consumeShopMinion(ctx.state, left, i, 1);
+    }
+    // BACK of the row for the right-most — skipped when they're the same body, so a lone Demon doesn't eat twice.
+    if (right.uid === left.uid) return;
+    for (let k = 0; k < each; k++) {
+      const i = rightmostShopMinion(ctx.state);
+      if (i < 0) break;
+      consumeShopMinion(ctx.state, right, i, 1);
+    }
+  },
+
+  /** Set 2 — Revolving Maw: every `every` refreshes, consume the RIGHT-most Shop minion. The count is
+   *  per-instance (`eotTick`, already reset-safe and carried on the card), so it means "four refreshes since
+   *  this arrived" rather than four since the run began. Golden doubles the stats gained, not the frequency. */
+  onShopRefreshConsume: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 4));
+    const tick = (self.eotTick ?? 0) + 1;
+    self.eotTick = tick;
+    if (tick % every !== 0) return;
+    const i = rightmostShopMinion(ctx.state);
+    if (i < 0) return;
+    consumeShopMinion(ctx.state, self, i, num(params.times, 1) * gold(self));
+  },
+
   /** Set 2 — Selective Glutton: whenever you PLAY a `tribe` minion, a friendly of that tribe Consumes a Shop
    *  minion. Hooked on `onSummon` (the recruit-phase "a minion entered play" event), guarded to the tribe.
    *
@@ -4224,6 +4265,25 @@ export function applySpellBought(state: RunState, spellId: string): void {
     for (const eff of def.effects) {
       if (eff.on !== 'spellBought') continue;
       RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, spellId });
+    }
+  }
+}
+
+/**
+ * Set 2 — the tavern was REFRESHED. Fires `shopRefreshed` so a watcher can count rolls (Revolving Maw: every 4).
+ *
+ * The tally deliberately lives PER-INSTANCE on the watching card, not as a run-wide counter: "every 4 refreshes"
+ * should mean four since that body arrived, so a Maw bought on turn 8 doesn't immediately fire off refreshes it
+ * was never present for. A dedicated loop rather than the generic `fire`, whose payload is minion-shaped.
+ */
+export function applyShopRefreshed(state: RunState): void {
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def?.effects.some((e) => e.on === 'shopRefreshed')) continue;
+    const ctx = makeContext(state);
+    for (const eff of def.effects) {
+      if (eff.on !== 'shopRefreshed') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
     }
   }
 }

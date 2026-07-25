@@ -104,6 +104,7 @@ export type GameEvent =
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
   | 'rubyCast' // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
+  | 'shopRefreshed' // set 2 recruit phase: the tavern was rolled (Revolving Maw counts refreshes)
   | 'spellBought'; // set 2 recruit phase: a Shop Spell was PURCHASED (Moonhowl Mentor teaches it to a Mage-Pup).
   //  Distinct from `onBuy`, which is minions only ("a spell isn't a minion") — widening onBuy would have
   //  changed what every existing buy-trigger sees.
@@ -177,6 +178,10 @@ export type EffectFactoryId =
   | 'rallyImpsAttackNow' // Set 2 — Riot Caller (Rally): your N left-most Imps attack immediately
   | 'onSummonImpWard' // Set 2 — Cinderwall Captain: the first N Imps summoned this combat gain Ward
   | 'onTribePlayedConsumeShop' // Set 2 — Selective Glutton: playing a Demon makes a friendly Demon eat a Shop minion
+  | 'scGrantImpsEcho' // Set 2 — Endless Overseer: your Imps gain an Echo for this combat
+  | 'onImpAttackSummonCopy' // Set 2 — Malphas (Legion): an attacking Imp summons a copy
+  | 'endOfTurnEndDemonsConsumeSides' // Set 2 — Malphas (Feast): the end Demons eat their side of the row
+  | 'onShopRefreshConsume' // Set 2 — Revolving Maw: every N refreshes, eat the right-most Shop minion
   | 'avengeImproveSummonBuff' // Set 2 — Broodwright: Avenge improves its own summon grant
   | 'onSummonImpBuff' // Set 2 — Broodwright: an Imp you summon gains +X/+Y (improvable via summonBonus)
   | 'scFillWithImpsAndBuff' // Set 2 — Legion Shepherd: fill the warband with Imps, then buff Imps per one summoned

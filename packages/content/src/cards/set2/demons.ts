@@ -263,4 +263,59 @@ export const SET2_DEMONS: CardDef[] = [
     text: 'Whenever an **Imp** attacks, give your Imps **+3/+3** this combat. Improves by **+1/+1** every **3** Imp attacks.',
     goldenText: 'Whenever an **Imp** attacks, give your Imps **+6/+6** this combat. Improves by **+2/+2** every **3** Imp attacks.',
   },
+  {
+    // Bounded on purpose: only the Imps alive at Start of Combat get the Echo, so the summoned ones can't
+    // recur forever (see `scGrantImpsEcho`).
+    id: 'dm_overseer',
+    name: 'Endless Overseer',
+    tribe: 'demon',
+    tier: 6,
+    attack: 5,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scGrantImpsEcho', params: { count: 1 } }],
+    text: '**Start of Combat:** your **Imps** have "**Echo:** summon an **Imp**" this combat.',
+    goldenText: '**Start of Combat:** your **Imps** have "**Echo:** summon **2 Imps**" this combat.',
+  },
+  {
+    id: 'dm_maw',
+    name: 'Revolving Maw',
+    tribe: 'demon',
+    tier: 6,
+    attack: 8,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshConsume', params: { every: 4, times: 1 } }],
+    text: 'Every **4 refreshes**, Consume the **right-most** minion in the Shop.',
+    goldenText: 'Every **4 refreshes**, Consume the **right-most** minion in the Shop and gain **double** its stats.',
+  },
+  {
+    // The tribe capstone: a Choose One splitting the two halves of the tribe — Feast is the Consume line,
+    // Legion is the Imp line. Gilded doubles whichever you picked.
+    id: 'dm_malphas',
+    name: 'Malphas, Lord of Want',
+    tribe: 'demon',
+    tier: 7,
+    attack: 10,
+    health: 6,
+    keywords: [],
+    // Both halves are PRINTED effects gated on `option`, not `chooseOne[].effects`. A Choose One's option
+    // effects fire ONCE at pick time (they're battlecries), which works for Elderhorn's permanent grants but
+    // not for a persistent trigger — Feast has to fire every End of Turn and Legion on every Imp attack. The
+    // pick is recorded per-instance as `chosenOption` and already rides into combat, so each printed effect
+    // simply checks which branch this body became.
+    effects: [
+      { on: 'endOfTurn', do: 'endOfTurnEndDemonsConsumeSides', params: { count: 2, option: 0 } },
+      { on: 'onAttack', do: 'onImpAttackSummonCopy', params: { count: 1, option: 1 } },
+    ],
+    chooseOne: [
+      { text: '**Feast:** at **End of Turn**, your left and right-most Demons each Consume the **2** Shop minions on their side.',
+        goldenText: '**Feast:** at **End of Turn**, your left and right-most Demons each Consume the **4** Shop minions on their side.',
+        effects: [] },
+      { text: '**Legion:** when an **Imp** attacks, summon a copy if you have room.',
+        goldenText: '**Legion:** when an **Imp** attacks, summon **2** copies if you have room.',
+        effects: [] },
+    ],
+    text: '**Choose One — Feast:** your end Demons Consume the Shop. **Legion:** an attacking **Imp** summons a copy.',
+  },
 ];

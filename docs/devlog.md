@@ -1,6 +1,6 @@
 # ASCENT — development log
 
-### feat(content/sim/core/ui): set 2's DEMON tribe — tranche 1 (20 of 23), art wired
+### feat(content/sim/core/ui): set 2's DEMON tribe is COMPLETE (23/23), art wired
 
 Owner roster 2026-07-25. The tribe's identity is **Consume from the Shop** — eight cards eat a tavern minion for
 its stats — braided with an **Imp** swarm line. `demon` is now a playable set-2 tribe.
@@ -17,7 +17,7 @@ code path.
 Avarice Incarnate — which pays Gold equal to the eaten minion's tier — read an empty list and paid nothing. The
 record is now written first, since a watcher has to be able to see WHAT was eaten.
 
-**20 cards** land in this tranche, needing 17 new factories. Two design notes:
+**23 cards**, needing 21 new factories. Two design notes:
 * **Cinderwall Captain** ("Start of Combat: the first 2 Imps you summon gain Ward") is implemented as an
   `onSummon` watcher with a per-instance cap, NOT a Start-of-Combat pre-pass — at Start of Combat the Imps don't
   exist yet, so a pre-pass would have nothing to shield. Per-instance means the cap resets each fight, which is
@@ -26,19 +26,34 @@ record is now written first, since a watcher has to be able to see WHAT was eate
   leaves it in the tavern, so no `onConsume` fires and the minion is still buyable. That's the whole difference
   from Hungerling, and it has a test asserting the offer survives.
 
-**Still to build (3):** Endless Overseer (grants a whole tribe a temporary Echo), Revolving Maw (counts
-REFRESHES — needs new run state, nothing tracks that yet), and Malphas (a Choose One whose halves are both
-novel). Their art is in the folder, unwired, waiting.
+**The last three landed in the same PR.**
 
-**Art.** 18 of the 20 wired and verified. Broodwright and Feastmaster Vhal have no master in the folder yet. Four
+* **Revolving Maw** counts refreshes. Rather than a run-wide counter, a new `shopRefreshed` event fires after
+  `refreshTavern` and the tally lives PER-INSTANCE — "every 4 refreshes" should mean four since that body
+  arrived, so a Maw bought on turn 8 doesn't immediately fire off rolls it was never present for. Fired after the
+  refresh so a watcher that eats sees the NEW row, not the one that just rolled away.
+* **Endless Overseer** grafts "Echo: summon an Imp" onto each Imp ALIVE at Start of Combat, via the same
+  `grantDeathrattle` path Grave Body and Sunmane use. Imps summoned later deliberately do NOT inherit it — a
+  self-granting Echo that summons more of itself would recur until the board cap and the stack both gave out.
+  There's a test asserting the fight terminates and the summons stay bounded.
+* **Malphas** exposed a real design limit worth recording. `applyChooseOne` fires an option's effects ONCE, as a
+  battlecry — fine for Elderhorn's permanent grants, but Malphas's halves are PERSISTENT (Feast every End of
+  Turn, Legion on every Imp attack), so putting them in `chooseOne[].effects` meant they fired at pick time and
+  never again. Both halves are now PRINTED effects gated on `chosenOption`, the per-instance pick I added
+  earlier this session — which already rides into combat, so one mechanism covers both phases with no new
+  plumbing. My first Malphas test passed vacuously (a Hungerling on the fixture board was eating the shop, not
+  Malphas); it now has Malphas on the board and a CONTROL with no pick recorded, proving the shrink is his.
+
+**Art.** 21 of the 23 wired and verified (Malphas needed an alias — the file drops his epithet, like Orivax).
+Broodwright and Feastmaster Vhal have no master in the folder yet. Four
 `2` variants (CinderChancellor2, ErrandFiend2, LegionShepherd2, VelvetRopeFiend2) are skipped under the standing
 rule — each has an un-suffixed sibling, and mtime is not a safe tiebreak after Sunmane.
 
-Verified: typecheck / lint / test (1691, +16) / build:web / harness green. The primitive carries the heaviest
+Verified: typecheck / lint / test (1698, +23) / build:web / harness green. The primitive carries the heaviest
 coverage — leaves-the-shop, golden doubling, current-buffed-stats, never eats a spell, empty-shop no-op — since
 a bug there is a bug in eight cards at once. Live-checked after a dev-server RESTART (new art files need more
 than a reload): 20 Demons in the pool, `demon` in set 2's tribes, 18/18 arts resolving at 512x512, none leaked
-into set 1.
+into set 1: 23 Demons, 21/21 arts resolving at 512x512, and a sane tier curve (2/2/5/4/4/5/1 across T1-T7).
 
 ### feat(ui): tribe-name size dial
 

@@ -36,6 +36,7 @@ export const GameEventSchema = z.enum([
   'onGetRuby',
   'rubyCast',
   'spellBought',
+  'shopRefreshed',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -100,6 +101,10 @@ export const EffectFactoryIdSchema = z.enum([
   'onSummonImpWard',
   'onTribePlayedConsumeShop',
   'avengeImproveSummonBuff',
+  'scGrantImpsEcho',
+  'onImpAttackSummonCopy',
+  'endOfTurnEndDemonsConsumeSides',
+  'onShopRefreshConsume',
   'onSummonImpBuff',
   'scFillWithImpsAndBuff',
   'onImpAttackBuffImps',

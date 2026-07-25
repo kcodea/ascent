@@ -203,3 +203,90 @@ describe('set 2 — the Imp line (combat)', () => {
     expect(buffs.length).toBeGreaterThan(0);
   });
 });
+
+describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
+  it('all 23 roster cards are in the set', () => {
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(23);
+  });
+
+  it('Revolving Maw eats on every 4th REFRESH, counting from its own arrival', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 99, freeRolls: 99,
+      board: [minion('m', 'dm_maw', 8, 8)], hand: [],
+      shop: shop('sandbag', 'alley', 'stray'),
+    };
+    for (let i = 0; i < 3; i++) s = reduce(s, { type: 'roll' });
+    const m3 = s.board.find((c) => c.uid === 'm')!;
+    expect([m3.attack, m3.health]).toEqual([8, 8]); // nothing yet — three refreshes
+    s = reduce(s, { type: 'roll' });                // the fourth
+    const m4 = s.board.find((c) => c.uid === 'm')!;
+    expect(m4.attack + m4.health).toBeGreaterThan(16); // ate something
+  });
+
+  it('Endless Overseer grants its Echo only to Imps ALIVE at Start of Combat', () => {
+    // The bound that stops an infinite chain: a granted Echo summoning more Imps must not grant to those too.
+    const r = simulate(
+      [bm('dm_overseer', 'O', 5, 40), bm('impscrap', 'I1', 1, 1), bm('impscrap', 'I2', 1, 1)],
+      [{ cardId: 'sandbag', attack: 20, health: 400 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    expect(r.result).toBeTruthy();                 // it terminated (no runaway)
+    expect(r.events.length).toBeLessThan(5000);
+    const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
+    expect(imps.length).toBeGreaterThan(0);        // the granted Echo did fire
+    expect(imps.length).toBeLessThanOrEqual(4);    // …but only from the two originals (x2 golden headroom)
+  });
+
+  it('Malphas offers a Choose One with both halves', () => {
+    const malphas = CARD_INDEX['dm_malphas']!;
+    expect(malphas.chooseOne?.length).toBe(2);
+    expect(malphas.chooseOne![0]!.text).toMatch(/Feast/);
+    expect(malphas.chooseOne![1]!.text).toMatch(/Legion/);
+  });
+
+  it('Malphas FEAST fires every turn, and only when Feast was the pick', () => {
+    // Malphas must be ON the board and be the only End-of-Turn eater — an earlier version of this test used a
+    // Hungerling as filler, which ate the shop by itself and made the assertion pass vacuously.
+    const build = (pick: number | undefined): RunState => {
+      const st: RunState = {
+        ...createRun(1), phase: 'recruit',
+        board: [minion('L', 'dm_clerk', 1, 1), minion('M', 'dm_malphas', 10, 6), minion('R', 'dm_butcher', 2, 3)],
+        hand: [], shop: shop('sandbag', 'alley', 'stray', 'pup'),
+      };
+      st.board[1]!.chosenOption = pick;
+      return st;
+    };
+    // CONTROL: no pick recorded → nothing eats, proving the shrink below is Malphas and not something else.
+    const none = build(undefined);
+    applyEndOfTurn(none);
+    expect(none.shop.length).toBe(4);
+
+    const feast = build(0);
+    applyEndOfTurn(feast);
+    expect(feast.shop.length).toBeLessThan(4); // the end Demons ate their sides
+    // …and it PERSISTS. Refill first: Feast eats 2 per end, which cleared the whole 4-card row, and a real turn
+    // rolls a fresh shop anyway. Without a refill this asserts nothing — there'd be nothing left to eat.
+    feast.shop = shop('sandbag', 'alley', 'stray', 'pup');
+    applyEndOfTurn(feast);
+    expect(feast.shop.length).toBeLessThan(4); // ate AGAIN on the second End of Turn
+  });
+
+  it('Malphas LEGION does not fire when Feast was the pick', () => {
+    // The other half of the gate: picking Feast must not also grant Legion.
+    const r = simulate(
+      [{ cardId: 'dm_malphas', attack: 10, health: 40, sourceUid: 'M', keywords: [], chosenOption: 0 },
+       { cardId: 'impscrap', attack: 1, health: 20, sourceUid: 'I' }],
+      [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 7 }), combatSide({ tier: 1 }));
+    expect(r.events.filter((e) => e.type === 'summon')).toEqual([]); // no copies — Legion wasn't chosen
+  });
+
+  it('Malphas LEGION summons a copy when an Imp attacks', () => {
+    const r = simulate(
+      [{ cardId: 'dm_malphas', attack: 10, health: 40, sourceUid: 'M', keywords: [], chosenOption: 1 },
+       { cardId: 'impscrap', attack: 1, health: 20, sourceUid: 'I' }],
+      [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 7 }), combatSide({ tier: 1 }));
+    const copies = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
+    expect(copies.length).toBeGreaterThan(0);
+  });
+});

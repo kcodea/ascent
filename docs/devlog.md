@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+### feat(content/sim/ui): the Work Orders — five Set-2-only utility spells, art wired
+
+A five-card cycle on one template (owner batch 2026-07-25): Tier 3, cost 2, each paying a different axis.
+Authored in `cards/set2/spells.ts`, so they're in `SET2_SPELLS` and unreachable from a set-1 run.
+
+| Card | Effect |
+| --- | --- |
+| Work Order: Mine | Gain 2 Gold |
+| Work Order: Reinforcement | Get a minion of your most common type |
+| Work Order: Champion | Give your left-most minion +6/+6 |
+| Work Order: Health | Give 3 random friendly minions +4 Health |
+| Work Order: Attack | Give 3 random friendly minions +4 Attack |
+
+Mine reuses the existing `gainEmbers`; the other four needed three new factories (Health and Attack share one,
+differing only in params).
+
+Two decisions worth recording:
+* **Reinforcement routes through the existing `grantTopTypeMinion`** rather than re-deriving "most common type".
+  That helper already resolves dominant tribe, caps at the tavern tier and respects the shared pool, so the
+  phrase means one thing everywhere instead of two implementations drifting.
+* **"3 random friendly minions" picks 3 DISTINCT bodies**, not three rolls that can land twice on the same
+  minion. With-replacement would let a 2-minion board put +8 on one and nothing on the other, which isn't what
+  the card says. A board smaller than 3 simply buffs everyone. Seeded off the run cursor, so a reload or replay
+  picks identically.
+
+Champion is deliberately untargeted: you choose the recipient by ARRANGING your line, which also keeps it
+deterministic (board order, no RNG).
+
+**Art.** Five masters, five cards. Three match by name; the other two are the art's own wording for the same
+cards — `WorkOrderAssault` → Attack and `WorkOrderFortitude` → Health — unambiguous both semantically and by
+elimination. Both are recorded as explicit aliases in the matcher rather than resolved by guesswork, so a future
+full re-wire keeps them. **Flagging in case the ART names are the intended card names** — trivial to flip.
+
+Verified: typecheck / lint / test (1660, +12) / build:web / harness green. Live-checked in a throwaway run:
+Champion took the left-most 1/1 to 7/7 and left the rest alone; Attack buffed three DISTINCT bodies (+4 each,
+the fourth untouched); Mine paid 20 → 22 Gold; all five arts resolve from `art/spells/` at 512x512. Console clean.
+
+*Two traps hit on the way, both already-known ones:* three identical `stray`s on a test board TRIPLE-COMBINE into
+a golden and vanish, which produced four false failures until the fixtures used distinct bodies; and the
+`sets.test.ts` manifest has an explicit `SET2_OWN_SPELLS` allowlist that correctly rejected the new ids until
+they were declared — exactly the guard it exists to be, so it was extended rather than loosened.
+
 ### fix(core/ui): Sunmane's rally ACCUMULATES (not doubles); buff badges no longer flash up-down-up
 
 Two things from the owner's screen capture and the correction that followed.

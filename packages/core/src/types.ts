@@ -343,6 +343,9 @@ export type EffectFactoryId =
   | 'spellReplayBattlecry' // Resonance: cast — re-trigger a friendly Battlecry minion's Battlecry (recruit)
   | 'spellExtraEndOfTurn' // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
   | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
+  | 'spellBuffLeftmost' // Set 2 — Work Order: Champion: buff your left-most board minion
+  | 'spellBuffRandomFriendlies' // Set 2 — Work Order: Health / Attack: buff N distinct random friendly minions
+  | 'spellGrantTopTypeMinion' // Set 2 — Work Order: Reinforcement: get a minion of your most common tribe
   | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)
   | 'spellCopyRecent' // Steward of Spells: End of Turn — copy the most recent spell cast to hand (recruit)
   | 'spellRefreshToSpells' // Spell Cart: cast — refresh the tavern full of spells (recruit)

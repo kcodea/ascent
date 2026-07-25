@@ -81,8 +81,14 @@ describe('card sets — set 2 carries set 1 spells', () => {
       if (DROPPED.includes(id)) expect(s2.has(id), `${id} should be dropped from set 2`).toBe(false);
       else expect(s2.has(id), `${id} should carry into set 2`).toBe(true);
     }
-    // ...and every set-2 spell is EITHER carried from set 1 or one of set 2's own Ruby spells (no leaks).
-    const SET2_OWN_SPELLS = ['rubyshipment', 'facetwright', 'openthegates', 'veinstorm'];
+    // ...and every set-2 spell is EITHER carried from set 1 or one of set 2's OWN spells (no leaks). This list
+    // is deliberately explicit: adding a set-2 spell should have to be declared here, so a card that leaks in
+    // from the wrong file is caught rather than silently absorbed.
+    const SET2_OWN_SPELLS = [
+      'rubyshipment', 'facetwright', 'openthegates', 'veinstorm',
+      // Work Orders (owner batch 2026-07-25) — a set-2-only cycle of five Tier-3 utility spells.
+      'wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack',
+    ];
     for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });
 

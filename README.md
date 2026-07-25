@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Set 2 gains a 28-card neutral roster** — 21 carried from Set 1 unchanged, plus 7 new cards (Tamer, Coppercoat Spellsword, Gravelight Acolyte, Oathbound Avenger, Bellringer Voss, Lastlight Marshal, Fatecarver).
 - **The Work Orders** — five Set-2-only Tier-3 spells (Mine, Reinforcement, Champion, Health, Attack), art wired.
 - **Sunmane Herald's rally accumulates properly** — a carrier passes on what it was given (so the growth compounds as it spreads), and Sunmane keeps granting its own +3. Buff badges no longer flash the new number, snap back, then tick up.
 - **Sunmane Herald's rally really escalates now** — the granted Attack doubles on every rally attack (3 -> 6 -> 12 -> 24 …) instead of stalling, and the card shows its live value. Dawnclaw has Taunt.

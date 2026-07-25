@@ -24,7 +24,7 @@ index the primitive then refuses.
 confirmed to FAIL against the pre-fix code and pass after. Added a sweep asserting every `params.cardId` in
 Set 2 names an id the index knows, so this class of typo can't reach the UI again.
 
-## refactor(sim/ui): Shop-consume gets its OWN channel; full audit of the Demon consume line
+### refactor(sim/ui): Shop-consume gets its OWN channel; full audit of the Demon consume line
 
 **Separated from Fodder consume** (owner 2026-07-25: "they are very different mechanics and will have different
 animations"). Shop-minion consumes now write `shopEaten` / `shopEatenSeq` instead of borrowing `fodderEaten`,

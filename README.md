@@ -42,10 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Fixed a crash on the combat hand-grant** — a card passing the wrong effect param granted an unknown card id;
+  the render now degrades instead of white-screening, and a test sweep blocks the whole class of typo.
 - **Practice mode gets a timer dial** — pick 1–4x beside the clock (1x matches a scored run).
 - **Set 2's Demon tribe is complete** — all 23 cards, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.
-
-- **Set 2's Demon tribe is underway** — 20 of 23 cards in, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.
 
 - **Beast cards have their own plate.** Beast-primary minions now render on a green-gem variant of the card
   backplate; other tribes keep the neutral one.

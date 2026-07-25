@@ -373,6 +373,7 @@ export const CardDefSchema = z.object({
   }).strict().optional(),
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
+  noTriple: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
   attackImmuneTurns: z.number().int().positive().optional(),
   ascendInto: z.string().optional(),

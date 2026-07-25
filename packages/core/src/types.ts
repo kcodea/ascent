@@ -452,6 +452,11 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** This card NEVER combines into a golden, however many copies you hold. For cards whose identity lives on
+   *  the INSTANCE rather than the def: a Mage-Pup carries the spell it was taught (`taughtSpellId`), so three
+   *  of them are three different cards wearing one id, and a triple would have to silently pick one spell and
+   *  bin the other two (owner ruling 2026-07-24: Mage-Pups cannot be tripled in any circumstance). */
+  noTriple?: boolean;
   /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
    *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
   ascendAt?: number;

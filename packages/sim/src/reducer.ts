@@ -1731,8 +1731,11 @@ function checkTriples(s: RunState): void {
     for (const c of [...s.board, ...s.hand]) {
       // Spells + Rubies are never minions — they don't triple (they're cast for their effect; owner: Rubies
       // are spells for this purpose). Both play from hand for an effect, never combine into a golden.
+      // `noTriple` opts a MINION out too (Mage-Pup): its identity is per-instance, so copies aren't
+      // interchangeable and a combine would destroy information. Excluded from the COUNT, not just from the
+      // combine, so three Pups don't sit at a permanent phantom 3/3 triple that never fires.
       const cd = CARD_INDEX[c.cardId];
-      if (!c.golden && !cd?.spell && !cd?.ruby) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      if (!c.golden && !cd?.spell && !cd?.ruby && !cd?.noTriple) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     const need = s.runeTwinGilding ? 2 : 3; // Rune of Twin Gilding: Gild at 2 copies
     let tripleId: string | undefined;

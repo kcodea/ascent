@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+### fix(content/sim/ui): Mage-Pups can never be tripled
+
+Owner ruling 2026-07-24: "mage pups cannot be tripled in any circumstance." A Pup's identity lives on the
+INSTANCE — `taughtSpellId` is the spell it will cast — so three Pups are three different cards wearing one id,
+and a combine would have to silently pick one taught spell and bin the other two.
+
+Expressed as data, not a hard-coded id check: a new `CardDef.noTriple` flag (schema-validated), set on
+`b2_magepup`. `checkTriples` excludes such cards from the COUNT rather than just from the combine, so three
+Pups don't sit at a permanent phantom "3/3 triple" that never resolves. The UI's shop pip mirrors the same
+eligibility rule (it was already missing the Ruby exclusion the reducer has), so nothing can light up a
+"completes a triple" hint for a combine that will never happen.
+
+*Testing note worth recording.* The first version of these tests fired a `roll` to trigger the check and all
+four passed — including a CONTROL that should have gilded three Strays. `checkTriples` runs on buy / play /
+grant and **never on a roll**, so those assertions proved nothing: they'd have passed with no guard at all.
+The tests now buy a shop minion (the realistic trigger — you're holding Pups and buy something else) and the
+control gilds, which is what makes the other three meaningful. The control is deliberately kept as the
+tripwire against exactly this class of fake pass.
+
+Verified: typecheck / lint / test (1611, +4) / build:web / harness green. Confirmed the guard tests bite by
+removing the `noTriple` check and watching all three Pup cases fail while the control still passed. Covers
+three-in-hand, split across hand and board, and **Rune of Twin Gilding** (which Gilds at 2 — the case most
+likely to slip past a fix written against 3).
+
 ### fix(content/sim/ui): Moonhowl Mentor's taught spells behave like real casts; Sunmane stacks multiplicatively
 
 Two Set-2 Beast fixes from the owner's 2026-07-24 batch.

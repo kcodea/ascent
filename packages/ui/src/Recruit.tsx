@@ -1916,11 +1916,15 @@ export function Recruit() {
   const tripleReadyUids = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of [...run.board, ...run.hand]) {
-      if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      // Mirrors the reducer's `checkTriples` eligibility (spells/Rubies/`noTriple` never combine) so the shop
+      // can't light up a "this completes a triple" pip for a combine that will never happen.
+      const cd = CARD_INDEX[c.cardId];
+      if (!c.golden && !cd?.spell && !cd?.ruby && !cd?.noTriple) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     const out = new Set<string>();
     for (const o of run.shop) {
-      if (!CARD_INDEX[o.cardId]?.spell && (counts.get(o.cardId) ?? 0) >= 2) out.add(o.uid);
+      const cd = CARD_INDEX[o.cardId];
+      if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= 2) out.add(o.uid);
     }
     return out;
   }, [run.board, run.hand, run.shop]);

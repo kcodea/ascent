@@ -216,6 +216,67 @@ describe('set 2 — Elderhorn multiplies BEAST triggers only', () => {
   });
 });
 
+describe('set 2 — Mage-Pups never triple', () => {
+  // Owner ruling 2026-07-24: "mage pups cannot be tripled in any circumstance". Each Pup's identity is the
+  // spell on its instance, so a combine would have to pick one taught spell and bin the other two.
+  const pup = (uid: string, spellId: string): BoardCard => ({
+    uid, cardId: 'b2_magepup', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false,
+    taughtSpellId: spellId,
+  });
+  const stray = (uid: string): BoardCard =>
+    ({ uid, cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+
+  /** Buying a shop minion is the realistic trigger: `checkTriples` runs on BUY (and play/grant), never on a
+   *  roll — asserting after a roll would pass without the guard, i.e. prove nothing. */
+  const buyToTriggerCheck = (s: RunState): RunState =>
+    reduce({ ...s, embers: 60, shop: [{ uid: 'shopbuy', cardId: 'alley' }] }, { type: 'buy', uid: 'shopbuy' });
+
+  it('three Pups do not combine — and each keeps its own taught spell', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', board: [],
+      hand: [pup('p1', 'spiritfire'), pup('p2', 'growth'), pup('p3', 'mend')],
+    };
+    s = buyToTriggerCheck(s);
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'b2_magepup');
+    expect(pups.length).toBe(3);                       // all three survive
+    expect(pups.some((c) => c.golden)).toBe(false);    // nothing gilded
+    expect(pups.map((c) => c.taughtSpellId).sort()).toEqual(['growth', 'mend', 'spiritfire']);
+  });
+
+  it('does not combine across hand and board either', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit',
+      board: [pup('p1', 'spiritfire'), pup('p2', 'growth')],
+      hand: [pup('p3', 'mend')],
+    };
+    s = buyToTriggerCheck(s);
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'b2_magepup');
+    expect(pups.length).toBe(3);
+    expect(pups.some((c) => c.golden)).toBe(false);
+  });
+
+  it('Rune of Twin Gilding (Gild at 2) still cannot gild them', () => {
+    // The rune lowers the threshold, so it's the case most likely to slip past a fix written against 3.
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', runeTwinGilding: true, board: [],
+      hand: [pup('p1', 'spiritfire'), pup('p2', 'growth')],
+    };
+    s = buyToTriggerCheck(s);
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'b2_magepup');
+    expect(pups.length).toBe(2);
+    expect(pups.some((c) => c.golden)).toBe(false);
+  });
+
+  it('CONTROL: a normal minion still triples at 3 — the guard is Pup-specific, not a blanket break', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', board: [],
+      hand: [stray('a'), stray('b'), stray('c')],
+    };
+    s = buyToTriggerCheck(s);
+    expect([...s.board, ...s.hand].some((c) => c.cardId === 'stray' && c.golden)).toBe(true);
+  });
+});
+
 describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
   it('buying a Shop spell mints the taught Mage-Pup IMMEDIATELY (not at End of Turn)', () => {
     // Owner 2026-07-24: the payoff used to queue and mint at End of Turn, so the turn you invested in the

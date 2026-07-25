@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **The Set-2 Beast tribe has its art.** All 21 Beasts are wired to their masters; six of them are carried-over
+  cards, so their Set-1 portraits update too.
 - **Gilded cards materialise in gold.** A triple reward now coalesces in gold (not the arcane blue) and its
   backplate reads gold to match the golden frame.
 - **Gild no longer flashes a card in the top-left.** Completing a triple by buying the third copy made the

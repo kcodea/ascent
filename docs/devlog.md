@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+### chore(ui): wire the Set-2 Beast art — all 21 cards
+
+Art pass for the Beast tribe. 21 masters from `Ascent Art/Set 2 Minions/Beasts` copied into
+`packages/ui/src/art/minions/<id>.webp` and resized/encoded to the house 512x512 / q82 WebP, so the
+eager `import.meta.glob` in `art.ts` picks them up by card id with no code change.
+
+Matching was done by NORMALISED CARD NAME against every `id`/`name` pair parsed out of `packages/content`,
+not by eye — the script reports anything it can't match rather than guessing (the standing art rule). Two
+files needed a hand-confirmed decision, both recorded explicitly in the matcher:
+* **`VoidPanther2.png` -> `manasaber`** — the card is "Void Panther"; the id is historical.
+* **`SunmaneHerald2.png` -> `b2_sunmane`**, and `SunmaneHerald.png` deliberately NOT wired. Two masters exist
+  for the same card and the "2" is the NEWER of the pair (Jul 24 14:22 vs Jul 23 23:40), so it's the
+  replacement — the same call we made for Scalefeather Drake.
+
+**Six of the 21 replace existing Set-1 art**: `badgington`, `beetle`, `kennel`, `manasaber`, `seaurchin`,
+`sporebat`. These are carried-over cards sharing one id across both sets, so there's one art slot — the new
+master shows up in Set 1 too. That's consistent with how their re-specs were handled; flagging it because it
+changes Set-1 visuals as a side effect.
+
+The two Beast tokens (`b2_trexbaby`, `b2_magepup`) have no master in the folder and keep their fallback.
+
+Verified: `build:web` green; the dev server restarted (an eager glob needs a restart, not a reload) and each
+of the 21 ids checked through `artFor()` — asserting the **full** resolved path lands in `art/minions/`, not
+just the basename (the check that missed 38 spell arts shadowed by same-named minion files), and that every
+one fetches 200 and decodes at 512x512. `git status` shows exactly 21 changed files.
+
 ### feat(content/sim/core): Beast tranche 6 — Moonhowl Mentor; the Beast tribe is COMPLETE (21/21)
 
 Moonhowl Mentor (T6 4/9) — the last card. **All 21 Set-2 Beasts are in**: 15 authored + 6 carried from set 1

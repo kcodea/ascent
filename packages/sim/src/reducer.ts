@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, grimoireMultActive, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, teachSpellToMagePup, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, grimoireMultActive, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -546,7 +546,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         });
         s.spell = null; // bought — the slot stays empty until the next roll
         tiffBuyDiscount(s, spellDef); // Tiff: a spell buy banks a Dragon Tamer discount
-        teachSpellToMagePup(s, spellDef.id); // Set 2 — Moonhowl Mentor learns this spell for a Mage-Pup
+        applySpellBought(s, spellDef.id); // Set 2 — fires `spellBought` (Moonhowl Mentor mints a Mage-Pup taught this spell)
         return s;
       }
       const i = s.shop.findIndex((c) => c.uid === action.uid);
@@ -688,25 +688,12 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
           return s;
         }
-        // `exactCurrentTier` (Key Findings) locks the pool to the live tavern tier; `exactTier` is a fixed tier
-        // (Sprout); otherwise the offer tier is current + `tierOffset`.
-        const exactTier = dop.exactCurrentTier ? s.tier : dop.exactTier;
         // A triple-reward Discover carries the tier it was GRANTED at (`grantedTier`) so its "one tier up" is
         // frozen — taverning up with it in hand no longer bumps the offer. Other Discovers read the live tier.
-        const baseTier = card.grantedTier ?? s.tier;
-        const tier = exactTier ?? baseTier + (dop.tierOffset ?? 0);
-        const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(s) ?? undefined) : dop.tribe;
-        const spec = {
-          kind: 'minion' as const,
-          tier,
-          ...(exactTier !== undefined ? { exactTier } : {}),
-          ...(dop.filter ? { filter: dop.filter } : {}),
-          ...(tribe ? { tribe } : {}),
-          ...(dop.topTierFirst ? { topTierFirst: true } : {}),
-          ...(dop.maxTier !== undefined ? { maxTier: dop.maxTier } : {}),
-          ...(dop.lockUntilNextTurn ? { lockWave: s.wave + 1 } : {}), // Hourglass Reserve: locked until next turn
-          ...(dop.borrowed ? { borrowed: true } : {}), // Funeral on Loan: play → trigger Echo + destroy
-        };
+        // The spec itself is built by the shared `discoverSpecFor` so a taught (Mage-Pup) cast of the same
+        // spell offers exactly the same thing.
+        const spec = discoverSpecFor(s, def, card.grantedTier);
+        if (!spec) return s;
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
         // queued behind the first. `spellCasts` folds in Nimbus (nextSpellExtraCasts), Ancient Runes (spellDoubleAlways)
         // and Spell Thesis (first-spell-each-turn); Yazzus is aimed-only so it's auto-excluded (a Discover spell is
@@ -1517,6 +1504,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(b.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a Start-of-Combat immune out-of-turn strike — was dropped, so it never fired
         ...(b.bloodlustRally ? { bloodlustRally: true } : {}), // Bloodlust's welded Rally (give a friendly minion this minion's Attack)
         ...(b.chosenOption !== undefined ? { chosenOption: b.chosenOption } : {}), // Choose One: display-only, so the combat card prints the same single branch
+        ...(b.taughtSpellId ? { taughtSpellId: b.taughtSpellId } : {}), // Mage-Pup: display-only, so the combat card names the spell it cast
         summonBonus: b.summonBonus ?? 0,
         overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat

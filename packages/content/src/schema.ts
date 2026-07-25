@@ -35,6 +35,7 @@ export const GameEventSchema = z.enum([
   'spellCastOnThis',
   'onGetRuby',
   'rubyCast',
+  'spellBought',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -81,7 +82,7 @@ export const EffectFactoryIdSchema = z.enum([
   'summonBuffTribeAsym',
   'onSpellCastImproveSummon',
   'battlecryCastTaughtSpell',
-  'endOfTurnGrantMagePups',
+  'grantMagePupTaught',
   'battlecryGrantBeastHunt',
   'battlecryGrantBeastRitual',
   'rallySpreadTribeBuff',

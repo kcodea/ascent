@@ -749,9 +749,6 @@ export interface RunState {
    *  `CombatSideState` (the same route `handSpellIds` takes). Absent = 0. */
   beastHuntExtra?: number;
   beastRitualExtra?: number;
-  /** Set 2 — Moonhowl Mentor: shop spells taught to a Mage-Pup THIS TURN (one per Mentor proc, capped by its
-   *  per-turn limit). End of Turn mints one Mage-Pup per entry into hand, then this clears. */
-  taughtSpellsThisTurn?: string[];
   /** Set 2 — Moonhowl Mentor: how many spell-buys it has taught this turn, against its once/twice-per-turn
    *  cap. Reset each turn alongside the other per-turn counters. */
   moonhowlTeachesThisTurn?: number;

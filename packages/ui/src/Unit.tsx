@@ -75,6 +75,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
         impAura: foe ? undefined : run.impBuff, // enemyScalers carries no Imp Aura → an enemy Raag reads its printed text
         cardBuffs: foe ? undefined : run.cardBuffs,
         chosenOption: u.chosenOption, // a resolved Choose One prints only the branch it became
+        taughtSpellId: u.taughtSpellId, // a Mage-Pup names the spell it was taught
         spellProgress: u.spellProgress, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,
         sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,

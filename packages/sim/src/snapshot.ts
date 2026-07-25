@@ -170,6 +170,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.addedTribes && c.addedTribes.length ? { addedTribes: [...c.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (combat folds it into tribe2; the display badge reads it)
     ...(c.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a pending Start-of-Combat immune out-of-turn strike
     ...(c.chosenOption !== undefined ? { chosenOption: c.chosenOption } : {}), // Choose One: which branch this body became, so a served/restored board reads the same single branch
+    ...(c.taughtSpellId ? { taughtSpellId: c.taughtSpellId } : {}), // Mage-Pup: the spell it learned, so a restored/served Pup still names it
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
     ...(c.eotBonus ? { eotBonus: c.eotBonus } : {}), // Ritualist: carry the accrued per-tick grant so a served board reads + plays true
     ...(c.sellBonus ? { sellBonus: c.sellBonus } : {}), // Trail Forager: carry the sell bonus so a served board reads its live sell value

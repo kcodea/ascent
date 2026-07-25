@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Mage-Pups cast what they were taught, properly.** Moonhowl Mentor hands you the Pup the moment you buy the
+  spell, the Pup's text names the spell it learned, and taught Discover spells now actually Discover.
+- **Sunmane Herald's Rally doubles as it spreads** (+3 → +6 → +12) instead of handing out a flat +3.
 - **Choose One cards stop advertising the option they didn't take.** Once resolved, the card on your board
   prints only the branch it became — and the prompt itself is now two real cards, so you pick the version of
   the card you want instead of reading two paragraphs.

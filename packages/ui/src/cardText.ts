@@ -582,3 +582,22 @@ export function stepProgress(
   if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }
   return null;
 }
+
+/**
+ * Mage-Pup: its Shout casts whatever spell Moonhowl Mentor TAUGHT it, so the printed line must name that
+ * spell's actual rule rather than the placeholder "cast the spell this was taught" — which tells the player
+ * nothing about what clicking it will do (owner 2026-07-24). The spell id rides on the instance
+ * (`taughtSpellId`), so this can only resolve for a real Pup in hand / on the board; an untaught token (or a
+ * Compendium preview, which has no instance) falls back to the printed text.
+ *
+ * `spellText` is the taught spell's OWN live text, passed in already resolved — the Pup inherits the spell's
+ * scaling (spell power, per-turn escalation, …) rather than restating a stale base, per the live-text rule.
+ */
+export function taughtSpellText(cardId: string, taughtSpellId: string | undefined, spellText: string): string | null {
+  if (cardId !== 'b2_magepup' || !taughtSpellId) return null;
+  const spell = CARD_INDEX[taughtSpellId];
+  if (!spell?.spell) return null;
+  // Name the spell as well as its rule: the name is how the player recognises what they bought, and the rule
+  // is what it does. Mirrors how the shop reads a spell.
+  return `**Shout:** cast **${spell.name}** — ${spellText}`;
+}

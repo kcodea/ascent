@@ -396,6 +396,7 @@ export function simulate(
     summonBonus: m.summonBonus,
     eotBonus: m.eotBonus,
     chosenOption: m.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
+    taughtSpellId: m.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: m.sellBonus,
     eotTick: m.eotTick,
     overflowBonus: m.overflowBonus,

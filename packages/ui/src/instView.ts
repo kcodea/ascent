@@ -5,7 +5,7 @@ import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
-  trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
+  taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -48,6 +48,9 @@ export interface LiveTextParams {
   maxTier?: number;
   /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line (1/1 + this) it grants the shop. */
   rubyBonus?: { attack: number; health: number };
+  /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
+   *  rule instead of "the spell this was taught". Absent on every other card. */
+  taughtSpellId?: string;
   /** Choose One: the branch this INSTANCE picked (`BoardCard.chosenOption`). Once chosen, the card only does
    *  that one thing, so it prints only that branch — listing the road not taken is a lie about what the body
    *  on your board now does (owner 2026-07-24). Absent for a shop/Discover preview, which still shows both. */
@@ -67,6 +70,16 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   // currently carries a live-scaling value; when one does, its helper must be threaded through here too.
   const picked = p.chosenOption !== undefined ? c.chooseOne?.[p.chosenOption] : undefined;
   if (picked) return { text: picked.text, goldenText: picked.goldenText ?? picked.text };
+  // A taught Mage-Pup prints the spell it will cast, resolved through the SAME live spell-text chain the shop
+  // uses — so a taught Spirit Fire shows its spell-power-boosted numbers, not the printed base.
+  if (p.taughtSpellId) {
+    const taught = taughtSpellText(c.id, p.taughtSpellId, spellDisplayText(
+      p.taughtSpellId, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0,
+      p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0,
+      { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined },
+    ));
+    if (taught) return { text: taught, goldenText: taught };
+  }
   const text =
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
@@ -154,6 +167,7 @@ export function instView(
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rubyBonus: live?.rubyBonus,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
+    taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

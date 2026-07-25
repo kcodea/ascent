@@ -1,5 +1,64 @@
 # ASCENT — development log
 
+### fix(content/sim/ui): Moonhowl Mentor's taught spells behave like real casts; Sunmane stacks multiplicatively
+
+Two Set-2 Beast fixes from the owner's 2026-07-24 batch.
+
+**Moonhowl Mentor — a full pass on the taught-spell mechanic** ("this will be extremely important for the set").
+
+*Timing.* The Pup now appears the instant a Shop Spell is bought, not at End of Turn. It used to queue into
+`taughtSpellsThisTurn` and mint later, so the turn you spent Gold on the spell you got nothing back. The teach
+is now a first-class event: **`spellBought`** (new `GameEvent`, fired from the reducer's spell-buy branch) with
+Moonhowl watching it via `grantMagePupTaught`. Deliberately its own event rather than widening `onBuy` to
+include spells — `onBuy` is minions-only on purpose ("a spell isn't a minion"), and widening it would change
+what every existing buy-trigger sees. The dead `taughtSpellsThisTurn` queue and the End-of-Turn mint are gone.
+
+*Fidelity — the actual bug.* The Pup's Shout called `castSpell` directly, which only ever runs a spell's
+`effects[]`. That silently did NOTHING for a whole class of spells whose behaviour lives elsewhere in the play
+path. **Beyond the Summit** (the reported failure) has `effects: []` and works entirely through
+`discoverOnPlay`, so a taught copy was a blank. The Shout now mirrors the reducer's own spell resolution:
+
+* **Discover spells** open the real Discover. The spec builder was extracted out of the reducer into a shared
+  `discoverSpecFor`, so the hand path and the taught path resolve the same offer by construction — they can't
+  drift, which is what would have re-broken this later. A taught Beyond the Summit now peeks a tier up, and
+  Hourglass Reserve's lock / Funeral on Loan's borrow ride along for free.
+* **Cast count** comes from `spellCasts`, so a taught spell respects Nimbus, Ancient Runes, Spell Thesis and
+  Yazzus, and spends those one-shot charges exactly once. Previously it ignored all of them.
+* **Aimed spells** re-target a seeded-random friendly (the Rune of Recurrence / Runic Archivist rule) and
+  fizzle cleanly on an empty board rather than half-casting.
+
+Shout-modifying cards needed nothing: the Shout is a real `onPlay` effect, so anything that re-fires Shouts
+already re-fires the whole cast. One deliberate divergence, called out in the code: a taught **Choose One**
+spell casts its first option, because resolving one properly means opening a modal and waiting for a decision
+that a Battlecry mid-resolution can't wait for. Better than doing nothing; flagging it as a judgement call.
+
+*Text.* A Mage-Pup printed "cast the spell this was taught", which tells the player nothing about what clicking
+it does. It now reads **"Shout: cast <Spell> — <that spell's live text>"**, resolved through the same
+`spellDisplayText` chain the shop uses, so a taught Spirit Fire shows its spell-power-boosted numbers rather
+than a stale base — the live-text rule applies to the borrowed line too. `taughtSpellId` rides the same five
+paths `chosenOption` does (board→combat, instantiate, snapshot, opponents, `Unit`) so the Pup names its spell
+everywhere, including a restored or served board.
+
+**Sunmane Herald now stacks multiplicatively.** Owner: each generation of the spreading Rally should be worth
+more, "to scale with the right build". It was flat — every Beast that learned the rally granted the same +3.
+The copy a recipient learns is now worth **double** what it was handed: +3 → +6 → +12 as it travels. The
+existing "each body learns it only once" guard is what keeps that bounded — without it the magnitude would
+compound with ATTACK COUNT rather than spread depth and diverge, and with it the ceiling is `atk × 2^6` on a
+full board. Both properties are now spelled out in the factory, because dropping either overflows a long
+fight. The card text says "doubling each time it spreads" so the mechanic is visible.
+
+*Worth knowing for balance:* one Sunmane attack converts every Beast already on board at once, so depth beyond
+generation 1 comes from Beasts that arrive LATER (summons, token floods) — the tribe's own summon package is
+what turns this from +6 into the escalation the ruling describes.
+
+Verified: typecheck / lint / test (1607) / build:web / harness all green. New tests pin the doubling sequence,
+the once-each bound (a 12 with two bodies is the runaway signature), the immediate mint, the taught cast being
+a real tallied cast, and the Discover case. Each was confirmed to genuinely bite by reverting the fix and
+watching it fail — flat spreading fails 2, disabling the Discover branch fails the Beyond the Summit test.
+Live-checked in a throwaway run: buying Beyond the Summit with Moonhowl out puts a Pup in hand immediately
+reading "Shout: cast Beyond the Summit — Discover a minion from one tier higher", and playing it opens a real
+Tier-5 Discover.
+
 ### feat(sim/ui): a resolved Choose One shows only the branch it became; the prompt is two real cards
 
 Three owner reports (2026-07-24), one theme — a Choose One card was lying about what it does.

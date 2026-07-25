@@ -5,6 +5,14 @@
 Added a `tribe name · size` slider (`--plate-tribe-sf`, font size × card width, default 0.062) to the 🂠 Card
 Plate tuner, next to the X/Y position dials. Verified live: 0.062 → 0.1 grew the label 5.9 → 9.4px.
 
+### feat(ui): Demon + Undead tribe plates (all five tribes now plated)
+
+Added Demon and Undead to `TRIBE_PLATES` and refreshed Mech from the owner's final v2 art — so every
+non-neutral tribe now has its own plate (beast/dragon/mech/demon/undead); neutral keeps `cardplate.webp`.
+Demon, Undead and Mech-v2 sources were all 945×1469 (ratio 1.5545 ≈ the plate's 1.5550), so they convert
+pixel-clean; Dragon remains the 1.5113 export (~3% fill-stretch, unchanged). Verified live: each tribe's
+`.cardplate` src resolves to its own webp, neutral to the default.
+
 ### feat(ui): Dragon + Mech tribe plates
 
 Wired the Dragon and Mech plates into the `TRIBE_PLATES` map — each a one-line entry plus a webp, exactly as

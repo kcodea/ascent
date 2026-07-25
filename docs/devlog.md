@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-07-25 (reward previews get the card plate)
+
+### feat(ui): quest + rune reward previews render on the card plate
+
+The hover preview in the Quest Shop showed its reward card bare — no backplate — while the card's own hover
+reference (`Card.tsx`) and the inspect overlay had been plated for a while. Added `plated` to the reward
+preview in `QuestCard.tsx`, and to the identical preview in `RuneCard.tsx` (same `.cardref questref` portal,
+same reward-card `.map`) so the Runeforge matches rather than becoming the new odd one out.
+
+No CSS was needed: `.cardref .card.plated` already reserves the plate's horizontal overhang as margin — a rule
+written for exactly this multi-card case — and `.cardref` has no overflow clip.
+
+Verified live on the real Quest Shop: seeded a 3-quest offer, hovered "Forager's Trail", and the portal's card
+carries `.plated` with the plate img rendered at 100×156 — resolving to `cardplate-beast.webp`, so the
+per-tribe plate selection flows through the preview too.
+
+### fix(ui): QuestCard's tribe-icon map was missing Kobold
+
+`TRIBE_ICON` in `QuestCard.tsx` still had the six pre-Set-2 tribes, so a Kobold-tribe quest would look up
+`undefined` and render no emblem (and it was a live `typecheck:web` error). Added `kobold: 'crown'`, matching
+`Card.tsx` / `QuestBadges.tsx` / `OpponentFrame.tsx`. Repo `typecheck:web` count 63 → 62.
+
+
 ## 2026-07-25 (coalesce 20% faster; Triple Reward files into the hand fan)
 
 ### tweak(ui): the coalesce runs 20% faster

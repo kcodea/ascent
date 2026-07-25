@@ -87,7 +87,7 @@ export function RuneCard({ rune, affordable, onBuy }: { rune: RuneDef; affordabl
         <div className="cardref questref" style={{ left: tip.left, top: tip.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${tip.origin} center` } as CSSProperties}>
             {rewardCards.map((rv, i) => (
-              <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop />
+              <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop plated />
             ))}
           </div>
         </div>,

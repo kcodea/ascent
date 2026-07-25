@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+### feat(ui): the ×N multicast badge joins the Card Pills tuner (position, scale + two colours)
+
+The ×N badge is now the fourth pill in 🏷️ Card Pills, with its own x/y/scale like the other three, plus two
+COLOUR pickers — the badge fill and the numeral. It's the one pill whose hue is a live design question (the
+others are fixed by tribe or tier), which is why it gets pickers at all.
+
+**The fill is ONE colour, not three.** The badge is a minted coin — a radial gradient with a highlight, a base
+and a shade — so a naive single-colour picker would have flattened it to a solid disc. The CSS instead mixes the
+outer stops out of the picked colour with `color-mix` (`42% white` for the highlight, `62% black` for the shade),
+so any hue keeps the coin's shading. Var fallbacks are the shipped orange, so nothing changes if the vars are
+absent.
+
+Structurally this splits the config's key list in two: `CARD_PILLS_KEYS` (sliders) and `CARD_PILLS_COLOR_KEYS`
+(pickers), with `setCardPillsColor` alongside `setCardPillsValue` — the existing setter was typed to `number`,
+and widening it to `number | string` would have let a colour be dropped into a scale with no complaint.
+
+**Owner's tuned values baked as the shipped defaults** (2026-07-24): `multX: 9, multY: -13, multScale: 0.81` —
+the exact MIRROR of the cost coin (`costX: -9`, same y and scale), so the two badges sit symmetrically in the
+card's top corners. Colours unchanged from the shipped orange.
+
+Small fix on the way: the tuner's value readout is `flex: 0 0 26px`, which truncates a 7-character hex, so
+colour rows use a wider `.hex` variant.
+
+Verified: typecheck / lint / test (1634) / build:web / harness green. Checked in the browser through the real
+tuner API — moving the sliders applies `scale(1.4)` + the expected translate, the pickers recolour both the
+gradient (mixed from `#3355ff`) and the numeral, and Reset restores the shipped values. The panel renders all
+14 rows with the ×N block as 3 sliders + 2 swatches showing their hex. Then cleared the localStorage override
+and reloaded to confirm the BAKED defaults apply to a fresh player: `matrix(0.81, 0, 0, 0.81, 6.92, -10.0)`.
+
 ### fix(sim/ui): Rubies show their ×N badge; the Grimoire meter hides while charged; ×N wears the coin skin
 
 Three owner asks (2026-07-24), all on the same corner of the card.

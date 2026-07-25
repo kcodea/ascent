@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Beast cards have their own plate.** Beast-primary minions now render on a green-gem variant of the card
+  backplate; other tribes keep the neutral one.
 - **Set 2 gains a 28-card neutral roster** — 21 carried from Set 1 unchanged, plus 7 new cards (Tamer, Coppercoat Spellsword, Gravelight Acolyte, Oathbound Avenger, Bellringer Voss, Lastlight Marshal, Fatecarver).
 - **The Work Orders** — five Set-2-only Tier-3 spells (Mine, Reinforcement, Champion, Health, Attack), art wired.
 - **Sunmane Herald's rally accumulates properly** — a carrier passes on what it was given (so the growth compounds as it spreads), and Sunmane keeps granting its own +3. Buff badges no longer flash the new number, snap back, then tick up.

@@ -43,6 +43,9 @@ const LABELS: Record<keyof CardPlateConfig, string> = {
   goldBright: 'gold · brightness',
   goldContrast: 'gold · contrast',
   goldHue: 'gold · hue (+ = yellow)',
+  tribeNameY: 'tribe name · y',
+  tribeNameX: 'tribe name · x',
+  tribeNameSize: 'tribe name · size',
 };
 
 export function CardPlateTuner() {

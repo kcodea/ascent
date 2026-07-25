@@ -38,6 +38,7 @@ import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
 import { CardPlateTuner } from './CardPlateTuner';
+import { CardTextTuner } from './CardTextTuner';
 import { PlateDissolveTuner } from './PlateDissolveTuner';
 import { PlateCoalesceTuner } from './PlateCoalesceTuner';
 import { PlateGildTuner } from './PlateGildTuner';
@@ -63,6 +64,7 @@ const TUNERS = [
   { key: 'buffdrawer', label: '🧪 Buffs Drawer', C: BuffDrawerTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
   { key: 'cardplate', label: '🂠 Card Plate', C: CardPlateTuner },
+  { key: 'cardtext', label: '🔤 Card Text', C: CardTextTuner },
   { key: 'platedissolve', label: '🌀 Plate Dissolve', C: PlateDissolveTuner },
   { key: 'platecoalesce', label: '✨ Plate Coalesce', C: PlateCoalesceTuner },
   { key: 'plategild', label: '👑 Plate Gild', C: PlateGildTuner },

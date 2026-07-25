@@ -1,5 +1,89 @@
 # ASCENT — development log
 
+### feat(ui): tribe-name size dial
+
+Added a `tribe name · size` slider (`--plate-tribe-sf`, font size × card width, default 0.062) to the 🂠 Card
+Plate tuner, next to the X/Y position dials. Verified live: 0.062 → 0.1 grew the label 5.9 → 9.4px.
+
+### tweak(ui): bake tribe-name defaults + Dragon tribe colour → white
+
+Owner-dialed: tribe-name defaults baked to Y 1.015 / X 0 / size 0.072 (`cardPlateConfig.ts` + the
+`--plate-tribe-*` CSS fallbacks). Dragon's tribe colour changed from red-orange `#ff6a3c` to white `#ffffff`
+(`--t-dragon`, single source — flows to its borders, icons, bold keywords and tribe-name label).
+
+### feat(ui): Neutral tribe plate + dragon re-exported clean (all SIX plated)
+
+Added Neutral to `TRIBE_PLATES` (`cardplate-neutral.webp`, 945×1469 native) — so every tribe including
+neutral now has its own plate; the default `cardplate.webp` remains only as the safety fallback. Neutral gets
+the same treatment as the others: its name ("NEUTRAL") on the plate gem, drawer label suppressed. Also
+re-exported Dragon from the owner's fresh 945×1469 export (ratio 1.5545), so it's now pixel-clean like the
+rest — the earlier ~3% fill-stretch is gone. Verified live: neutral → `cardplate-neutral.webp` with "Neutral"
+on the gem.
+
+### feat(ui): Demon + Undead tribe plates (all five tribes now plated)
+
+Added Demon and Undead to `TRIBE_PLATES` and refreshed Mech from the owner's final v2 art — so every
+non-neutral tribe now has its own plate (beast/dragon/mech/demon/undead); neutral keeps `cardplate.webp`.
+Demon, Undead and Mech-v2 sources were all 945×1469 (ratio 1.5545 ≈ the plate's 1.5550), so they convert
+pixel-clean; Dragon remains the 1.5113 export (~3% fill-stretch, unchanged). Verified live: each tribe's
+`.cardplate` src resolves to its own webp, neutral to the default.
+
+### feat(ui): Dragon + Mech tribe plates
+
+Wired the Dragon and Mech plates into the `TRIBE_PLATES` map — each a one-line entry plus a webp, exactly as
+the map was set up for. Both converted from the owner's PNGs to `frames/cardplate-{dragon,mech}.webp` at
+800×1244 (sharp q92). Verified live: a Dragon-primary card → `cardplate-dragon.webp`, Mech → `cardplate-mech.webp`,
+each with the drawer tribe label suppressed and the tribe NAME on the plate gem; Undead still shows the neutral
+plate. typecheck + lint + 1649 tests + build:web green.
+
+NB the Dragon source was 972×1469 (ratio 1.5113) vs the plate's 1.5550 — fill-resized to 800×1244, so it took a
+~3% vertical stretch to share the frame geometry. Eyeball the window/gem alignment; re-export at ~945×1469 if it
+reads off.
+
+## 2026-07-25 (tribe-plate cards: name on the gem, white body text, tribe-coloured keywords, a text-box tuner)
+
+### feat(ui): relocate the tribe name, recolour the body text, add a Card Text tuner
+
+- **Tribe-name X dial + Undead → teal.** Added a `tribe name · x` slider (horizontal offset, `--plate-tribe-xf`)
+  alongside the existing Y on the 🂠 Card Plate tuner. Changed the Undead tribe colour from slate `#5c6f8c` to
+  teal `#22b8a8` (the single `--t-undead` source, so it flows to borders, icons, and now the tribe-coloured
+  bold keywords). Verified live: undead bold reads `rgb(34,184,168)`, the X slider shifts the label right.
+
+Follow-ups on the per-tribe plates:
+
+- **Tribe name on the plate gem.** A tribe-plated card (Beast today) drops its in-drawer tribe icon+label and
+  prints the tribe NAME on the plate's bottom diamond instead (`.plate-tribe`, no icon). Positioned by the
+  same geometry the plate uses so it tracks the gem at any size; `--plate-tribe-yf` (a new `tribe name · y`
+  dial on the 🂠 Card Plate tuner) nudges it onto the gem. Unplated board cards keep the normal drawer label.
+- **Body text pure white, keywords tribe-coloured.** The rules text was a tan `#d8ccb6`; it's now pure white
+  (`--card-desc-color`, default `#fff`) so it stands out, and bold keywords/numbers take the card's tribe
+  hue (`var(--c)`) instead of white — Beast keywords read green, Mech blue, etc. Verified live: white body,
+  `rgb(78,168,59)` bold on a Beast, `rgb(39,169,221)` on a Mech.
+- **🔤 Card Text tuner.** A new DEV tuner for the rules-text BOX boundaries (not the title): box top offset,
+  side inset (column width), top/bottom padding, and line height — live via `--ctx-*` vars, `cardTextConfig.ts`
+  DEFAULTS mirrored into the styles.css fallbacks. Verified live: dragging `top` moved the box 103→118px,
+  `padX` widened the inset 7.6→15.1px, `line` opened 9→10.9px.
+
+Engine typecheck + lint + 1649 tests + `build:web` green.
+
+## 2026-07-25 (Beast tribe gets its own card plate)
+
+### feat(ui): Beast-primary cards use a green-gem plate
+
+Beast tribe now renders on its own backplate — the same ornate stone/gold body as the neutral plate but with
+GREEN gem accents (side runes + the bottom diamond). Keyed on the PRIMARY tribe only (owner call): a
+Beast-primary card gets it; a Beast/Dragon or Dragon/Beast keeps the neutral plate. `Card.tsx` picks the src
+via `plateSrcFor(card.tribe)` for both the plate and its hover-glow copy; everything else (geometry, text
+buckets, gold tint, dissolve/coalesce) is unchanged because the art is the same 800×1244 dims.
+
+Asset: `frames/cardplate-beast.webp`, converted from the owner's 945×1469 PNG (ratio 1.5545 ≈ the plate's
+1.5550) down to 800×1244 via sharp, quality 92 (263 KB). Verified live: a Beast-primary card's `.cardplate`
+src is `cardplate-beast.webp`, a Mech's and a Dragon/Beast's are `cardplate.webp`; the asset serves (200) and
+bundles into `dist/`.
+
+Follow-up (owner to decide): a golden Beast card gets this plate PLUS the gold tint filter, which pushes the
+green gems toward gold — leave as-is, or author a bespoke gold-beast plate.
+
 ### feat(content/sim/ui): set 2 gains the owner's 28-card NEUTRAL roster
 
 Owner roster 2026-07-25. 21 of the 28 names already existed as set-1 neutrals; 7 are new.

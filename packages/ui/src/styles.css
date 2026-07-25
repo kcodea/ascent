@@ -7,7 +7,7 @@
   /* tribe hues (drive each card's accent --c): Beast green · Dragon red/orange · Mech blue ·
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
-  --t-beast: #4ea83b; --t-dragon: #ff6a3c; --t-mech: #27a9dd; --t-undead: #5c6f8c; --t-demon: #b15cf0; --t-neutral: #9a8d79;
+  --t-beast: #4ea83b; --t-dragon: #ffffff; --t-mech: #27a9dd; --t-undead: #22b8a8; --t-demon: #b15cf0; --t-neutral: #9a8d79;
   --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;
@@ -1607,8 +1607,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
      would make a stacking context and put the panel back on top of the FRAME, whose oval art overflows the
      archbox down past the panel's top edge. Painting by tree order instead lets `.archbox` (z1) lap over the
      panel and the hand hover-bridge (z-1) sit under it. */
-  position: absolute; top: calc(var(--ccw) * 1.09); left: 0; right: 0;
-  padding: calc(var(--ccw) * 0.065) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
+  /* Box boundaries are tunable via the 🔤 Card Text tuner (`--ctx-*`); fallbacks MUST mirror
+     cardTextConfig.ts DEFAULTS. */
+  position: absolute; top: calc(var(--ccw) * var(--ctx-top, 1.09)); left: 0; right: 0;
+  padding: calc(var(--ccw) * var(--ctx-pad-top, 0.065)) calc(var(--ccw) * var(--ctx-pad-x, 0.08)) calc(var(--ccw) * var(--ctx-pad-bottom, 0.07));
 }
 /* With the backing removed entirely, this shadow is the ONLY thing separating the panel's text from the
    plate's stone — it's load-bearing for legibility, not decoration (owner 2026-07-21). Tuned dark and TIGHT:
@@ -1640,8 +1642,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    Unset the clip and the radius too — on the full card the name wraps instead of ellipsing, so neither the
    overflow nor the ellipsis has anything left to do. */
 .card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1056); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; overflow: visible; text-overflow: clip; border-radius: 0; }
-.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: #d8ccb6; text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
-.card.compact.showtext .drawer .desc b { color: #fff; } /* bold numbers/keywords pop white on the dark glass (base .desc b is dark ink) */
+.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: var(--ctx-line, 1.32); color: var(--card-desc-color, #fff); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
+/* Bold keywords/numbers take the card's TRIBE colour so they pop off the pure-white body text (owner
+   2026-07-25). `--c` is the primary tribe hue the card already sets inline. */
+.card.compact.showtext .drawer .desc b { color: var(--c); }
 .card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #f4ecdb); }
 .card.compact.showtext .drawer .dtribe svg { width: calc(var(--ccw) * 0.075); height: calc(var(--ccw) * 0.075); color: var(--c); }
 .card.compact.showtext .drawer .dtribe svg:last-of-type { color: var(--c2); }   /* 2nd tribe in its own hue */
@@ -2968,6 +2972,28 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   user-select: none;
 }
 .card.plated .cardplate { border-radius: var(--plate-radius, 10px); }
+/* TRIBE NAME on the plate's bottom gem (tribe-plated cards only — the drawer label is suppressed for them).
+   Positioned down the plate by the SAME geometry the plate uses, so it tracks the bottom diamond at any size;
+   `--plate-tribe-yf` (fraction of plate height) nudges it onto the gem. No icon; text only. Above the plate
+   (z0) so it reads over the diamond. */
+.card.plated .plate-tribe {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * var(--plate-tribe-yf, 1.015));
+  transform: translate(calc(-50% + var(--ccw) * var(--plate-tribe-xf, 0)), -50%);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: calc(var(--ccw) * var(--plate-tribe-sf, 0.072));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c) 55%, #f4ecdb);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.75);
+}
+.card.plated .plate-tribe .ctype-sep { opacity: 0.6; margin: 0 0.1em; }
 /* GOLDEN PLATE — a gilded card's stone body reads GOLD, mirroring the frame's silver→gold. The frame does it
    by un-graying a gold PNG (`--frame-tone`); the plate art is stone, so we push it gold with a colour filter
    instead (keeps the relief/engraving, just recolours it). Tunable via `--plate-gold-tone` (🂠 Card Plate

@@ -200,6 +200,34 @@ describe('coerceParams', () => {
       expect(result.c).not.toBe(input);
       expect(result.c[0]).not.toBe(input[0]);
     });
+
+    describe('vMax (raised value ceiling)', () => {
+      const raisedSpecs = {
+        c: { kind: 'curve' as const, label: 'Curve', vMax: 2, default: [[0, 1], [1, 0]] as const },
+      } satisfies FxParamSpecs;
+
+      // The backward-compatibility guarantee: a spec that omits vMax must behave EXACTLY as it did before
+      // the option existed — v still clamps at 1.
+      it('omitting vMax still clamps v to 1 (unchanged behaviour)', () => {
+        expect(coerceParams(curveSpecs, { c: [[0, 1.8], [1, 5]] }).c).toEqual([[0, 1], [1, 1]]);
+      });
+
+      it('keeps a value above 1 when vMax allows it', () => {
+        expect(coerceParams(raisedSpecs, { c: [[0, 1.8], [1, 0.5]] }).c).toEqual([[0, 1.8], [1, 0.5]]);
+      });
+
+      it('clamps a value above vMax down to vMax', () => {
+        expect(coerceParams(raisedSpecs, { c: [[0, 2.5], [1, 0]] }).c).toEqual([[0, 2], [1, 0]]);
+      });
+
+      it('still clamps v below 0 regardless of vMax', () => {
+        expect(coerceParams(raisedSpecs, { c: [[0, -3], [1, 1.2]] }).c).toEqual([[0, 0], [1, 1.2]]);
+      });
+
+      it('still clamps t to [0,1] regardless of vMax (the horizontal axis is always normalized)', () => {
+        expect(coerceParams(raisedSpecs, { c: [[-1, 1.5], [4, 2]] }).c).toEqual([[0, 1.5], [1, 2]]);
+      });
+    });
   });
 });
 
@@ -364,5 +392,38 @@ describe('validateSpecs', () => {
       c: { kind: 'curve' as const, label: 'Curve', default: [[0, 1], [0.5, 0.5], [1, 0]] as const },
     } satisfies FxParamSpecs;
     expect(validateSpecs(okCurve)).toEqual([]);
+  });
+
+  it('accepts a curve default above 1 when vMax raises the ceiling', () => {
+    const okCurve = {
+      c: { kind: 'curve' as const, label: 'Curve', vMax: 2, default: [[0, 0.5], [0.5, 1.5], [1, 0]] as const },
+    } satisfies FxParamSpecs;
+    expect(validateSpecs(okCurve)).toEqual([]);
+  });
+
+  it('rejects that same default when vMax is omitted (the [0,1] default is unchanged)', () => {
+    const badCurve = {
+      c: { kind: 'curve' as const, label: 'Curve', default: [[0, 0.5], [0.5, 1.5], [1, 0]] as const },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badCurve);
+    expect(problems.some((p) => p.includes('outside [0, 1]'))).toBe(true);
+  });
+
+  it('catches a curve default above its own raised vMax', () => {
+    const badCurve = {
+      c: { kind: 'curve' as const, label: 'Curve', vMax: 2, default: [[0, 1], [1, 2.5]] as const },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badCurve);
+    expect(problems.some((p) => p.includes('outside [0, 2]'))).toBe(true);
+  });
+
+  it('flags a degenerate vMax (0, negative, or NaN)', () => {
+    for (const vMax of [0, -1, Number.NaN]) {
+      const badCurve = {
+        c: { kind: 'curve' as const, label: 'Curve', vMax, default: [[0, 1], [1, 0]] as const },
+      } satisfies FxParamSpecs;
+      const problems = validateSpecs(badCurve);
+      expect(problems.some((p) => p.includes('vMax must be a finite number greater than 0'))).toBe(true);
+    }
   });
 });

@@ -6,9 +6,11 @@ import { SHAPE_NAMES, SHAPE_UNIT, getShapeTexture, type ShapeName } from './shap
  * `shapeTextures.ts` PLUS whatever art the owner has imported (PNG / SVG), persisted to localStorage so an
  * import survives a reload. One selectable list, one id space.
  *
- * ── The one thing that makes this non-obvious: the particle shader reads ONLY the texture's ALPHA channel.
- * `particleMaterial.ts`'s PARTICLE_FRAG does `float shape = texture(uTexture, vUV).a;` and derives every
- * colour from `uPal` + the particle's core-bias tint — the imported art's RGB is never sampled. So:
+ * ── The one thing that makes this non-obvious: the texture's ALPHA channel is the SILHOUETTE, and that is
+ * all it is. `particleMaterial.ts`'s PARTICLE_FRAG uses `tex.a` purely as a mask (a hard discard below 0.04
+ * plus a final alpha multiply); the posterized cel bands come from a procedural radial field, not from the
+ * alpha. Colour comes from `uPal` + the particle's core-bias tint by default — the imported art's RGB is
+ * sampled only in `tintMode: 'texture'` (where it is quantised into `uBands` levels). So:
  *   • art with a real alpha channel is a silhouette already and imports as-is (`alphaFrom: 'alpha'`);
  *   • art that is fully opaque (a white/coloured shape on a solid black background, anything flattened like
  *     a JPEG) has alpha = 1 everywhere and would render as a SOLID RECTANGLE — the #1 expected frustration.

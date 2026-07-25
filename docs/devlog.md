@@ -3,6 +3,73 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-25 (FX workbench — the ribbon's cel look on EVERY primitive, + depth everywhere)
+
+### fix(fx): particles and shockwaves posterize a real gradient, not a flat alpha
+
+The owner asked three times for the ribbon's cartoon-posterized style on the other effects. Earlier passes gave
+those primitives the ribbon's *controls* (noise/warp/scroll/erode/gain) but never the mechanism that makes cel
+bands, so the ask kept coming back. This wave fixes the mechanism.
+
+**The bug.** `RIBBON_FRAG` posterizes a smooth across-the-width distance field remapped by a **plateau**
+(`1.0 - smoothstep(uPlateau, 1.0, across)`) — that gradient is what `posterizePal` slices into fat concentric
+bands with a hot core. `PARTICLE_FRAG` instead posterized the **texture's alpha** (`texture(uTexture, vUV).a`),
+which for any hard-edged silhouette (square/triangle/diamond/shard, and most imported art) is a flat `1.0`
+across the whole interior — a constant into the quantiser, i.e. **one flat colour per particle**. The soft
+`circle` texture is a 2-step ramp, so: two flat blobs. There was no plateau at all. `shockwave.ts` was further
+still: **no fbm, no noise uniforms, no plateau** — a clean analytic ring.
+
+- **Particles now band a procedural radial field.** `across = length(vUV - 0.5) * 2` → the ribbon's exact
+  plateau remap → the existing bias/erode/gain/posterize chain. Alpha is demoted to what it should always have
+  been: the **silhouette mask** (a hard discard plus a final alpha multiply), so imported art still cuts its own
+  outline — and now gains cel bands *inside* it. New `plateau` (range matched to ribbon's own `0…0.9 / 0.3`)
+  and `fieldMix` (0 = radial field, the ribbon look on any silhouette; 1 = the texture's own alpha ramp, for
+  soft hand-painted art).
+- **`tintMode`, owner-requested.** `palette` recolours into the four stops (unchanged default); `texture` keeps
+  imported art's own RGB but still quantises it to `uBands` levels using `posterizePal`'s own convention, so it
+  reads as cel art rather than a photo pasted in. Both modes share the identical erode cutoff and alpha, so
+  silhouette and tattered edge behave the same either way.
+- **Shockwave gets the whole ribbon material in ring space** — plateau, noise along/across, warp, scroll,
+  erode, gain. The noise coordinate is built from the fragment's **unit direction vector**, never `atan`, so it
+  is continuous around the circle: an angle-based coordinate would tear a visible seam where it wraps at ±π (a
+  regression test asserts `atan` never appears in the shader). Plus `squash` (an ellipse, for a ring lying on
+  the ground), `ringDelay` (stagger), and `ease` (punch out and settle) — all three exact no-ops at default.
+
+### feat(fx): shaping depth on the ribbon, motion depth on the particles, curves that can exceed 1×
+
+- **Ribbon** — a `widthCurve` (width along the *length*, so it can bulge or taper anywhere, not just at the two
+  ends), a travelling `wave` (amp/freq/speed) applied to the spine so the trail genuinely snakes (displaced into
+  a second scratch buffer so the extrude's tangents follow the *wavy* centreline rather than shearing), and a
+  `segments` resolution knob. CPU scratch grows monotonically (never per frame); GPU buffers are allocated once
+  at max capacity and rewritten in place, with surplus indices collapsed to degenerate triangles.
+- **Particles** — `orientToVelocity` (a shard/arrow/imported directional sprite points where it flies, with a
+  zero-velocity guard so a stalled particle holds its heading instead of snapping to 0 rad) and an `alphaCurve`
+  multiplying on top of each primitive's built-in fade. The emitter's container needed `rotation: true` to make
+  per-frame rotation reach the GPU; its buffer was already re-uploaded every frame, so the net cost is ~zero.
+- **`curve` gained an optional `vMax`** (default 1 ⇒ every existing curve is byte-identical). Curve values had
+  been hard-clamped to `[0,1]`, making every curve a multiplier that could only ever *reduce* — which had
+  already bitten twice: smoke's billow had to fake growth by inflating the base `Size`, and the ribbon's new
+  width curve could only taper. Now smoke's default genuinely grows past base size (`[[0,0.3],[1,1.6]]`,
+  `vMax 2`), and burst/emitter/ribbon opt into `vMax 2` as a pure range unlock (defaults unchanged). The editor
+  maps its vertical axis to `vMax` and draws a reference line at the neutral 1× level.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1919 passing** (111 files), `build:web` green, and
+the workbench still absent from the prod bundle. **Crucially, none of that can prove a shader compiles** — GLSL
+only compiles at runtime — so all five primitives were driven in a real WebGL context (framebuffer probe,
+synthetic frames pumped through the fx updaters): every one compiles and draws with **0 GL errors and 0 console
+errors** — ribbon 4058 lit px, smoke 508 (growing, confirming the >1 size curve), burst 59, shockwave 34.
+
+**Behaviour changes to be aware of (intended, but real):** default burst/emitter/smoke now render as cel bands
+rather than flat chips; glow is radially soft (brightest at the core) instead of a flat slab, so it is dimmer
+and tighter at the same value; the built-in `circle`'s outer ring is now genuinely 35% opaque (edges antialias
+instead of stair-stepping); the shockwave's `fwidth` antialiasing is replaced by the plateau ramp; and the
+shockwave's material defaults deliberately change its look.
+
+**Note for future debugging:** the hidden preview pane reports `window.innerWidth/innerHeight === 0`, which
+makes the two-unit scenario collapse both anchors onto one point — the ribbon then correctly refuses to build
+(`total < 1` in `writeRibbonPositions`) and renders nothing. That is an artefact of the harness, NOT a ribbon
+bug; resize the pane before concluding anything about path-following primitives.
+
 ## 2026-07-25 (FX workbench — import custom particle art, PNG/SVG)
 
 ### feat(fx): a runtime shape library — bring your own art as a particle silhouette

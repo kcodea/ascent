@@ -9,7 +9,9 @@ import {
   updateParticleMaterialShaping,
   setParticleTime,
   biasTint,
+  PARTICLE_TINT_MODES,
   type ParticleShaping,
+  type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
 import { resolveParticleScale } from '../shapeTextures';
@@ -52,6 +54,10 @@ const SPECS = {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30,
     help: 'px/sec² (negative = rise, like embers).',
   },
+  orientToVelocity: {
+    kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
+    help: 'Point each particle along its direction of travel (good for shards, arrows, and imported directional art). Overrides spin/rotation while on.',
+  },
 
   turbulence: {
     kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0,
@@ -90,7 +96,10 @@ const SPECS = {
   },
   sizeCurve: {
     kind: 'curve', label: 'Size / life', group: 'Shape',
-    default: [[0, 1], [1, 0.75]], presets: CURVE_PRESETS,
+    // vMax 2 lets a mote GROW past its base size over life (the smoke-style billow) rather than only shrinking
+    // toward it. The default is unchanged (the original 1 -> 0.75 gentle shrink), so this only widens the
+    // range the editor offers.
+    default: [[0, 1], [1, 0.75]], vMax: 2, presets: CURVE_PRESETS,
     help: 'Size multiplier over each mote\'s life (0 = birth, 1 = death).',
   },
 
@@ -103,9 +112,26 @@ const SPECS = {
     default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
     help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life.',
   },
+  alphaCurve: {
+    kind: 'curve', label: 'Alpha / life', group: 'Style',
+    default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
+    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade.',
+  },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
     help: 'posterization levels — 3-4 is the cel look, higher washes out',
+  },
+  plateau: {
+    kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
+    help: 'Width of the flat core before the falloff starts — this is what gives fat cel bands and a hot core (0 = a thin centre line). Same knob, same range, as the ribbon\'s own Plateau.',
+  },
+  fieldMix: {
+    kind: 'slider', label: 'Field mix', group: 'Style', min: 0, max: 1, step: 0.01, default: 0,
+    help: '0 = band the particle by its distance from centre (the ribbon look, works on any silhouette); 1 = band it by the texture\'s own alpha gradient (better for soft hand-painted art).',
+  },
+  tintMode: {
+    kind: 'enum', label: 'Tint mode', group: 'Style', options: PARTICLE_TINT_MODES, default: 'palette',
+    help: 'palette = recolour into the palette stops; texture = keep imported art\'s own colours, still posterized into Bands levels.',
   },
   fadeIn: {
     kind: 'slider', label: 'Fade in', group: 'Style', min: 0, max: 0.5, step: 0.01, default: 0.1,
@@ -141,6 +167,19 @@ type EmitterParams = ParamsOf<typeof SPECS>;
  *  on which fields map to `noise.x` vs `noise.y`. */
 function shapingOf(p: EmitterParams): ParticleShaping {
   return { noise: [p.noiseScale, p.noiseScale], warp: p.warp, scroll: p.scroll, erode: p.erode, gain: p.gain };
+}
+
+/** The Style-group half of the same mapping (see `shapingOf` above for why these are helpers rather than
+ *  inlined at the constructor + `setParams` call sites). Mirrors `burst.ts`'s own `styleOf`. */
+function styleOf(p: EmitterParams): ParticleStyle {
+  return {
+    palette: p.palette,
+    bands: p.bands,
+    glow: p.glow,
+    plateau: p.plateau,
+    fieldMix: p.fieldMix,
+    tintMode: p.tintMode,
+  };
 }
 
 /** Hard cap on live motes regardless of rate/life, so a pathological param combo can't grow unbounded. */
@@ -194,6 +233,37 @@ export function moteAlpha(t: number, fadeIn: number): number {
   return Math.min(1, t / f);
 }
 
+/**
+ * The rotation a mote should hold THIS frame. Two mutually exclusive modes, matching the `orientToVelocity`
+ * param:
+ *  - OFF (the default): `prevRot + spinRad * dtSec`. The emitter has no spin channel of its own (unlike
+ *    burst/smoke), so it always passes `spinRad = 0` and this reduces to `prevRot + 0` — the mote keeps the
+ *    spawn rotation it has always had, an exact no-op. The parameter exists so the three primitives' copies
+ *    stay literally identical, and so an emitter spin channel could be added later without touching this.
+ *  - ON: point the mote along its direction of travel (`atan2(vy, vx)`), for shards/arrows/imported
+ *    directional art.
+ *
+ * Zero-length velocity has no direction: `Math.atan2(0, 0)` is 0, which would SNAP a stalled mote to pointing
+ * right (+x). Below the epsilon we keep the previous rotation instead. Pure + allocation-free so it can run
+ * per-mote per-frame, and standalone so it's unit-testable without a WebGL context (same reason as
+ * `advanceEmitBudget`). Deliberately this module's OWN copy of burst.ts/smoke.ts's identical helper, for the
+ * same reason `advanceEmitBudget`/`advanceSmokeBudget` and `moteAlpha`/`smokeMoteAlpha` are duplicated:
+ * importing across primitive modules would drag another primitive's `registerPrimitive` side effect into
+ * this module's graph.
+ */
+export function resolveEmitterRotation(
+  prevRot: number,
+  vx: number,
+  vy: number,
+  orient: boolean,
+  spinRad: number,
+  dtSec: number,
+): number {
+  if (!orient) return prevRot + spinRad * dtSec;
+  if (vx * vx + vy * vy < 1e-8) return prevRot;
+  return Math.atan2(vy, vx);
+}
+
 /** A live mote: its rendered `Particle` plus the simulation state driving it. */
 interface Mote {
   p: Particle;
@@ -245,14 +315,21 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     this.renderer = ctx.renderer;
     this.oneShot = ctx.oneShot === true;
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
-    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands, shapingOf(params), params.glow);
+    this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
     this.particles = new ParticleContainer({
       texture: this.texture,
       shader: this.shader,
       // Generous fixed bounds: motes drift, so a tight box would get them culled as they leave it. Matches
       // the ribbon/burst house convention of a large static boundsArea rather than per-frame recomputation.
       boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
-      dynamicProperties: { position: true, rotation: false, color: true, vertex: true },
+      // rotation ENABLED (it used to be `false` here — the emitter had no per-frame rotation at all). The
+      // `orientToVelocity` toggle rewrites each mote's `rotation` every frame, and a STATIC attribute is
+      // only re-uploaded when the pipe is told the children changed, so leaving it false would risk pinning
+      // every mote at its spawn rotation. Effectively free here: this instance calls `particles.update()`
+      // every frame, which sets `_childrenDirty`, which makes `ParticleContainerPipe` re-upload the static
+      // buffer every frame anyway — so `aRotation` (1 float × 4 verts per mote) just moves from the static
+      // buffer to the dynamic one rather than becoming a new per-frame cost.
+      dynamicProperties: { position: true, rotation: true, color: true, vertex: true },
     });
     this.particles.blendMode = params.blendMode;
     ctx.container.addChild(this.particles);
@@ -284,6 +361,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     }
     const turbulence = p.turbulence;
     const turbScale = p.turbScale;
+    const orient = p.orientToVelocity;
     const clockSec = this.clockSec;
     const motes = this.motes;
     const children = this.particles.particleChildren;
@@ -304,8 +382,14 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       }
       m.p.x += m.vx * dtSec;
       m.p.y += m.vy * dtSec;
+      // Point along the direction of travel when `orientToVelocity` is on. The emitter has no spin channel,
+      // so the off-branch is `rotation + 0 * dtSec` — the mote's untouched spawn rotation, an exact no-op
+      // (see `resolveEmitterRotation`). Reads m.vx/m.vy AFTER this frame's gravity + turbulence.
+      m.p.rotation = resolveEmitterRotation(m.p.rotation, m.vx, m.vy, orient, 0, dtSec);
       const t = m.age / m.maxLife;
-      m.p.alpha = moteAlpha(t, m.fadeIn);
+      // Built-in fade-in/out, times the explicit alpha-over-life curve (default flat 1 → sampleCurve returns
+      // exactly 1 and `x * 1 === x`, so the default is a byte-identical no-op).
+      m.p.alpha = moteAlpha(t, m.fadeIn) * sampleCurve(p.alphaCurve, t);
       const shrink = sampleCurve(p.sizeCurve, t); // size-over-life multiplier
       m.p.scaleX = m.scaleX0 * shrink;
       m.p.scaleY = m.scaleY0 * shrink;
@@ -363,7 +447,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     const shapeChanged = next.shape !== this.params.shape;
     this.params = next;
     this.particles.blendMode = next.blendMode;
-    updateParticleMaterial(this.shader, next.palette, next.bands, next.glow);
+    updateParticleMaterial(this.shader, styleOf(next));
     updateParticleMaterialShaping(this.shader, shapingOf(next));
     if (shapeChanged) {
       // A ParticleContainer shares exactly ONE base texture across every live particle (see

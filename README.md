@@ -52,8 +52,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   timing), a **Fire** button that plays an effect once to true completion decoupled from the loop, and staged
   **scenarios** (two units, pinned-to-cursor, click-to-place, ping-pong bounce, stationary) so an effect can be
   tuned without playing to the moment it fires. Five primitives so far — a posterized cel-band **trail**, a
-  radial **burst**, an expanding **shockwave**, a continuous **emitter**, and rising cel **smoke**. The whole
-  workbench tree-shakes out of the production build. See the [devlog](docs/devlog.md).
+  radial **burst**, an expanding **shockwave**, a continuous **emitter**, and rising cel **smoke** — and they
+  now all share the trail's cartoon-posterized look (they used to posterize a flat value and come out as solid
+  chips). You can **import your own PNG/SVG art** as a particle shape and either recolour it into the palette
+  or keep its own colours, still posterized. The whole workbench tree-shakes out of the production build. See
+  the [devlog](docs/devlog.md).
 - **The buff breakdown sits in front of the card again.** Inspecting a unit drew its buffs panel behind the
   card plate — the plate is wider than the card and reached back over the panel's edge.
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),

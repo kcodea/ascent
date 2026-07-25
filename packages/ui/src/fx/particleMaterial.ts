@@ -89,22 +89,43 @@ void main(void) {
 `;
 
 /**
- * Fragment: sample the shared shape texture (a soft dot for the emitter's motes, a hard-edged shard for the
- * burst) and treat its alpha as the particle's local intensity falloff (`shape`). Combine that with a
- * per-particle "core bias" recovered from `vColor`'s (un-premultiplied) luminance — burst/emitter bake this
- * bias into each particle's tint as a greyscale value (see `biasTint()` below) instead of pre-resolving a
- * palette colour, so the SAME palette/band uniforms drive every particle in the container and a param edit
- * (palette swap, band count) repaints every live particle instantly without touching per-particle data.
- * `vColor.a` carries the particle's own life-alpha (its fade in/out), applied as a final multiply so a
- * fading particle dims through the same posterized bands rather than just going transparent uniformly.
+ * Fragment: give each particle the ribbon's posterized cel-band look — concentric bands with a fat, hot
+ * core — rather than one flat chip of colour.
+ *
+ * The load-bearing distinction (this is what an earlier pass got wrong, and why particles rendered flat):
+ *  - the shape texture's ALPHA is the **silhouette mask**, and only that. It is what makes a square/shard/
+ *    imported PNG cut to the right outline. It is NOT the thing that gets posterized: a hard-edged shape's
+ *    interior alpha is a flat 1.0 everywhere, so quantising it yields a single constant band — one flat
+ *    colour per particle, no cel look at all.
+ *  - the **quantisation field** is procedural and separate: `across`/`wfall`, a radial distance from the
+ *    particle's own centre pushed through `uPlateau`, exactly parallel to `RIBBON_FRAG`'s width falloff.
+ *    That smooth gradient is what `posterizePal` slices into fat bands, and `uPlateau` is the same
+ *    "do not simplify" plateau remap `ribbon.ts` documents — without it the top (white-hot) stop only ever
+ *    fires on a hairline at the exact centre.
+ *  - `uFieldMix` blends between the two field sources: 0 = the procedural radial falloff (works on ANY
+ *    silhouette), 1 = the texture's own alpha ramp (better for soft hand-painted art that already carries a
+ *    gradient of its own).
+ *
+ * Colour comes from a per-particle "core bias" recovered from `vColor`'s (un-premultiplied) luminance —
+ * burst/emitter/smoke bake this bias into each particle's tint as a greyscale value (see `biasTint()` below)
+ * instead of pre-resolving a palette colour, so the SAME palette/band uniforms drive every particle in the
+ * container and a param edit (palette swap, band count) repaints every live particle instantly without
+ * touching per-particle data. `vColor.a` carries the particle's own life-alpha (its fade in/out), applied as
+ * a final multiply so a fading particle dims through the same posterized bands rather than just going
+ * transparent uniformly.
+ *
+ * `uTintMode` picks where the colour comes from: 0 (`palette`, the default) recolours into the `uPal` stops;
+ * 1 (`texture`) keeps imported art's OWN rgb but still band-quantises it into `uBands` levels, so custom art
+ * reads as cel art rather than a photo pasted into the scene. Both modes share the same field, the same
+ * erode cutoff and the same alpha mask, so switching only changes hue — never the silhouette or the
+ * tattered edge.
  *
  * The `uNoise`/`uWarp`/`uScroll`/`uErode`/`uGain`/`uTime` block below is the ribbon's own domain-warped fbm
  * shaping (see `ribbon.ts`'s `RIBBON_FRAG` header comment), ported onto each particle so shards/motes get
- * the same animated tattered-energy erosion instead of a flat cel silhouette — this is the "I don't see any
- * of the ribbon's options applied to burst/emitter" gap this module exists to close. `uGlow` adds a soft
- * additive halo (see the comment on the `glow` term below for exactly what it does and doesn't do).
+ * the same animated tattered-energy erosion instead of a flat cel silhouette. `uGlow` adds a soft additive
+ * halo (see the comment on the `glow` term below for exactly what it does and doesn't do).
  */
-const PARTICLE_FRAG = /* glsl */ `#version 300 es
+export const PARTICLE_FRAG = /* glsl */ `#version 300 es
 precision highp float;
 in vec2 vUV;
 in vec4 vColor;
@@ -120,6 +141,9 @@ uniform float uErode;
 uniform float uGain;
 uniform float uTime;
 uniform float uGlow;
+uniform float uPlateau;
+uniform float uFieldMix;
+uniform float uTintMode;
 
 ${NOISE_GLSL}
 ${POSTERIZE_PAL_GLSL}
@@ -128,19 +152,33 @@ void main(void) {
   float lifeAlpha = vColor.a;
   if (lifeAlpha < 0.003) discard;
 
-  float shape = texture(uTexture, vUV).a;
-  // Hard cel edge: below this the particle contributes nothing, matching the ribbon's discard-on-shape
-  // convention (RIBBON_FRAG's "if (d <= 0.0) discard;") instead of a soft alpha taper to zero.
-  if (shape < 0.04) discard;
+  vec4 tex = texture(uTexture, vUV);
+  // Silhouette mask. Below this the particle contributes nothing — the hard cel edge, matching the ribbon's
+  // discard-on-shape convention (RIBBON_FRAG's "if (d <= 0.0) discard;"). This early-out plus the alpha
+  // multiply further down is the WHOLE role tex.a plays now: cutting the outline of the built-in shapes and
+  // of any imported PNG/SVG art. It is deliberately not the posterized field (see the header comment).
+  if (tex.a < 0.04) discard;
 
   // Recover the tint's own (straight, un-premultiplied) luminance as the 0..1 core-bias signal baked in by
   // biasTint() — dividing back out the premultiply from the vertex shader above.
   vec3 straightRgb = vColor.rgb / max(lifeAlpha, 0.0001);
   float bias = clamp(dot(straightRgb, vec3(0.299, 0.587, 0.114)), 0.0, 1.0);
 
-  // Bias reshapes how deep into the palette this particle's shape falloff reaches: a low-bias particle caps
-  // out in the rim bands even at full shape strength, a high-bias one can reach the white-hot core stop.
-  float baseShape = shape * mix(0.32, 1.05, bias);
+  // THE QUANTISATION FIELD — the smooth interior gradient posterizePal slices into concentric cel bands.
+  // Exactly RIBBON_FRAG's "across"/"wfall" pair, with a radial distance from the particle's own centre
+  // standing in for the ribbon's distance across its width: "across" is 0 at the quad centre and 1 at the
+  // quad edge (clamped, so the corners saturate at 1 instead of overshooting to 1.41), and uPlateau is the
+  // same flat-core remap — the width of the plateau is what gives the fat white-hot core instead of a thin
+  // centre line, which is why ribbon.ts's header says not to simplify it.
+  float across = clamp(length(vUV - 0.5) * 2.0, 0.0, 1.0);
+  float wfall = 1.0 - smoothstep(uPlateau, 1.0, across);
+  // uFieldMix picks the field source: 0 = the procedural radial falloff above (the ribbon look, and the only
+  // option that can band a flat-alpha silhouette at all), 1 = the texture's own alpha ramp.
+  float field = mix(wfall, tex.a, uFieldMix);
+
+  // Bias reshapes how deep into the palette this particle's falloff reaches: a low-bias particle caps out in
+  // the rim bands even at the field's peak, a high-bias one can reach the white-hot core stop.
+  float baseShape = field * mix(0.32, 1.05, bias);
 
   // Domain-warped scrolling fbm, exactly RIBBON_FRAG's recipe (uNoise/uScroll/uWarp/uErode over fbm(p)),
   // just reading vUV (the particle's own local 0..1 quad UV) in place of the ribbon's spine-length UV.
@@ -152,22 +190,38 @@ void main(void) {
   float n = fbm(p);
 
   // Same erode/gain math as RIBBON_FRAG's "d = shape - n * uErode" / "q = clamp(d / gain, 0, 1)": the noise
-  // eats into the shape before it's posterized, giving the tattered edge instead of a clean silhouette.
+  // eats into the field before it's posterized, giving the tattered edge instead of a clean silhouette.
   // Unlike the ribbon, a fully-eroded pixel here does NOT discard — it falls through to the glow term below
   // instead of cutting to nothing, so an eroded particle fades through its own halo rather than vanishing.
   float d = baseShape * uGain - n * uErode;
   float coreQ = clamp(d / max(uGain, 0.001), 0.0, 1.0);
-  vec4 c = d > 0.0 ? posterizePal(coreQ, uBands, uPal) : vec4(0.0);
 
-  // Soft additive halo: the RAW (pre-erosion) shape alpha, tinted toward the palette's hottest stop and
-  // added under the hard posterized core -- "a soft additive halo behind each particle" (the glow param's
-  // own help text). Deliberately computed from shape, not d, so it survives exactly where erosion just
-  // discarded the hard core above, and deliberately confined to the particle's own texture footprint (no
-  // second, larger draw pass) -- see burst.ts/emitter.ts's glow param spec for why that tradeoff was made.
-  vec3 glow = uPal[3].rgb * shape * uGlow;
-  float glowAlpha = clamp(shape * uGlow, 0.0, 1.0);
+  // Tint source. palette (uTintMode 0, the default): recolour the quantised field into the uPal stops.
+  // texture (uTintMode 1): keep the ART's own rgb, but still POSTERIZE it into uBands levels using
+  // posterizePal's own quantisation convention (shaderChunks.ts: "floor(q * bands) / max(bands - 1.0, 1.0)")
+  // so it reads as cel art, not a photo. The clamp mirrors posterizePal's own "clamp(b, 0.0, 1.0)": at a
+  // channel value of exactly 1.0 that expression lands above 1 and has to be pulled back.
+  vec4 palCol = posterizePal(coreQ, uBands, uPal);
+  vec3 texQ = clamp(floor(tex.rgb * uBands) / max(uBands - 1.0, 1.0), 0.0, 1.0);
+  vec4 src = uTintMode > 0.5 ? vec4(texQ, 1.0) : palCol;
+  // Both modes go through the SAME eroded cutoff, so erosion/noise behave identically either way.
+  vec4 c = d > 0.0 ? src : vec4(0.0);
 
-  float alpha = clamp((d > 0.0 ? c.a : 0.0) + glowAlpha, 0.0, 1.0);
+  // Soft additive halo: the RAW (pre-erosion) mask times the radial plateau falloff, tinted toward the
+  // palette's hottest stop and added under the hard posterized core -- "a soft additive halo behind each
+  // particle" (the glow param's own help text). Deliberately computed from tex.a/wfall, not d, so it
+  // survives exactly where erosion just discarded the hard core above; multiplied by tex.a so it still hugs
+  // the silhouette (an imported PNG's halo never bleeds outside its own art), and by wfall rather than by
+  // "field" so it stays a soft radial bloom even at uFieldMix 1, where the field can be a flat slab inside
+  // hard-edged art. Confined to the particle's own texture footprint (no second, larger draw pass) -- see
+  // burst.ts/emitter.ts's glow param spec for why that tradeoff was made. uGlow 0 still zeroes both terms.
+  float haloShape = tex.a * wfall;
+  vec3 glow = uPal[3].rgb * haloShape * uGlow;
+  float glowAlpha = clamp(haloShape * uGlow, 0.0, 1.0);
+
+  // tex.a multiplies the body's alpha in BOTH tint modes: that is the silhouette mask doing its one job, and
+  // it is what antialiases an imported sprite's edge instead of stair-stepping it at the 0.04 discard.
+  float alpha = clamp((d > 0.0 ? c.a * tex.a : 0.0) + glowAlpha, 0.0, 1.0);
   if (alpha < 0.003) discard;
 
   finalColor = vec4(c.rgb + glow, 1.0) * (alpha * lifeAlpha);
@@ -183,6 +237,9 @@ interface FxUniformsResource {
     uBands: number;
     uPal: Float32Array;
     uGlow: number;
+    uPlateau: number;
+    uFieldMix: number;
+    uTintMode: number;
     uNoise: Float32Array;
     uWarp: number;
     uScroll: number;
@@ -190,6 +247,38 @@ interface FxUniformsResource {
     uGain: number;
     uTime: number;
   };
+}
+
+/** The two tint sources `PARTICLE_FRAG`'s `uTintMode` selects between. Declared here (rather than inline in
+ *  each primitive's SPECS) for the same reason `FX_BLEND_MODES` lives in `blendModes.ts`: the shader and the
+ *  three primitives that drive it can't drift on the spelling, and `ParamsOf` narrows the param to this
+ *  union instead of bare `string`. */
+export const PARTICLE_TINT_MODES = ['palette', 'texture'] as const;
+export type ParticleTintMode = (typeof PARTICLE_TINT_MODES)[number];
+
+/** Map a `tintMode` param onto the shader's float `uTintMode` (`PARTICLE_FRAG` branches on `> 0.5`). Pure,
+ *  so the mapping is unit-testable without a GL context — see `particleMaterial.test.ts`. */
+export function tintModeValue(mode: ParticleTintMode): number {
+  return mode === 'texture' ? 1 : 0;
+}
+
+/**
+ * The Style-group params that drive the posterize/colour half of the material — everything
+ * `updateParticleMaterial` writes. Grouped into one object rather than passed as six positional arguments:
+ * `palette`/`bands`/`glow`/`plateau`/`fieldMix` are all bare numbers, so a positional list of them is a
+ * silent-mis-order footgun at three call sites × two functions. Mirrors `ParticleShaping` below, which
+ * groups the Texture-group params for exactly the same reason.
+ */
+export interface ParticleStyle {
+  /** Four 0xRRGGBB stops, rim → core. */
+  palette: readonly number[];
+  bands: number;
+  glow: number;
+  /** Width of the flat core of the radial quantisation field — the ribbon's own `uPlateau`. */
+  plateau: number;
+  /** 0 = band by the procedural radial field, 1 = band by the texture's own alpha gradient. */
+  fieldMix: number;
+  tintMode: ParticleTintMode;
 }
 
 /** The ribbon-derived shaping uniforms (see `ribbon.ts`'s `uNoise`/`uWarp`/`uScroll`/`uErode`/`uGain`),
@@ -211,16 +300,14 @@ export interface ParticleShaping {
  * matching `ribbon.ts`'s own `Shader.from({ gl: {...} })` convention — the FX workbench doesn't target
  * WebGPU.
  *
- * `initialPal`/`initialBands`/`initialGlow` and `initialShaping` are all re-set on every live param edit via
+ * `initialStyle` and `initialShaping` are both re-set on every live param edit via
  * `updateParticleMaterial`/`updateParticleMaterialShaping`, so what's passed here only matters for the first
  * frame before any edit.
  */
 export function createParticleMaterial(
   _renderer: Renderer,
-  initialPal: readonly number[],
-  initialBands: number,
+  initialStyle: ParticleStyle,
   initialShaping: ParticleShaping,
-  initialGlow: number,
 ): Shader {
   // Placeholder texture/sampler: `uTexture` is unconditionally replaced with the ParticleContainer's real
   // shared texture before every draw (see header comment), and `uSampler` is never read by the WebGL sync
@@ -241,9 +328,12 @@ export function createParticleMaterial(
         uResolution: { value: new Float32Array(2), type: 'vec2<f32>' },
       },
       [FX_UNIFORMS_KEY]: {
-        uBands: { value: initialBands, type: 'f32' },
-        uPal: { value: tupleFloats(initialPal), type: 'vec4<f32>', size: 4 },
-        uGlow: { value: initialGlow, type: 'f32' },
+        uBands: { value: initialStyle.bands, type: 'f32' },
+        uPal: { value: tupleFloats(initialStyle.palette), type: 'vec4<f32>', size: 4 },
+        uGlow: { value: initialStyle.glow, type: 'f32' },
+        uPlateau: { value: initialStyle.plateau, type: 'f32' },
+        uFieldMix: { value: initialStyle.fieldMix, type: 'f32' },
+        uTintMode: { value: tintModeValue(initialStyle.tintMode), type: 'f32' },
         uNoise: { value: new Float32Array(initialShaping.noise), type: 'vec2<f32>' },
         uWarp: { value: initialShaping.warp, type: 'f32' },
         uScroll: { value: initialShaping.scroll, type: 'f32' },
@@ -255,13 +345,17 @@ export function createParticleMaterial(
   });
 }
 
-/** Push a live param edit (palette swap, band-count change, glow) onto an already-built particle material.
- *  Cheap and instant, same role as `ribbon.ts`'s `setParams` → `u.uPal = tupleFloats(next.palette)`. */
-export function updateParticleMaterial(shader: Shader, pal: readonly number[], bands: number, glow: number): void {
+/** Push a live Style-group param edit (palette swap, band count, glow, plateau, field mix, tint mode) onto an
+ *  already-built particle material. Cheap and instant, same role as `ribbon.ts`'s `setParams` →
+ *  `u.uPal = tupleFloats(next.palette)`. */
+export function updateParticleMaterial(shader: Shader, style: ParticleStyle): void {
   const res = shader.resources[FX_UNIFORMS_KEY] as FxUniformsResource;
-  res.uniforms.uBands = bands;
-  res.uniforms.uPal = tupleFloats(pal);
-  res.uniforms.uGlow = glow;
+  res.uniforms.uBands = style.bands;
+  res.uniforms.uPal = tupleFloats(style.palette);
+  res.uniforms.uGlow = style.glow;
+  res.uniforms.uPlateau = style.plateau;
+  res.uniforms.uFieldMix = style.fieldMix;
+  res.uniforms.uTintMode = tintModeValue(style.tintMode);
 }
 
 /** Push a live edit of the ribbon-derived shaping uniforms (noise/warp/scroll/erode/gain) — kept as its own

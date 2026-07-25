@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { validateSpecs } from '../params';
-import { shockwaveOneShotDurationSec, shockwavePrimitive } from './shockwave';
+import { defaultsOf, validateSpecs, type FxParamSpec, type FxParamSpecs } from '../params';
+import { SHOCKWAVE_FRAG, shockwaveOneShotDurationSec, shockwavePrimitive } from './shockwave';
 
 describe('shockwave param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -9,6 +9,71 @@ describe('shockwave param specs', () => {
 
   it('registers under the id "shockwave"', () => {
     expect(shockwavePrimitive.id).toBe('shockwave');
+  });
+
+  it('defaults the three shaping extras to an exact no-op (the pre-existing look)', () => {
+    // squash 1 divides y by exactly 1, ringDelay 0 subtracts exactly 0 from the ring clock, and ease 1
+    // takes the shader's `uEase == 1.0` early-out straight to the linear phase. Anything else here would
+    // silently change every saved shockwave def's appearance/timing.
+    const d = defaultsOf(shockwavePrimitive.params);
+    expect(d.squash).toBe(1);
+    expect(d.ringDelay).toBe(0);
+    expect(d.ease).toBe(1);
+  });
+
+  it('carries the ribbon material knobs, in the Noise group', () => {
+    const specs: FxParamSpecs = shockwavePrimitive.params;
+    for (const key of ['plateau', 'noiseAlong', 'noiseAcross', 'warp', 'scroll', 'erode', 'gain']) {
+      const spec: FxParamSpec | undefined = specs[key];
+      expect(spec, `missing material param '${key}'`).toBeDefined();
+      expect(spec?.group).toBe('Noise');
+    }
+  });
+
+  it('matches ribbon.ts\'s plateau spec exactly (the fat-hot-core knob is the same knob)', () => {
+    expect(shockwavePrimitive.params.plateau).toMatchObject({
+      kind: 'slider', min: 0, max: 0.9, step: 0.01, default: 0.3,
+    });
+  });
+});
+
+/**
+ * GLSL can't be typechecked or compiled here (no WebGL context in vitest), so these guard the failure
+ * modes that HAVE bitten this file: a stray backtick inside a shader comment silently terminating the
+ * template literal, an undeclared uniform, unbalanced braces, and — new with the ribbon material — an
+ * `atan()`-derived noise coordinate, which tears a visible seam down one side of every ring.
+ */
+describe('SHOCKWAVE_FRAG source', () => {
+  it('contains no backtick (which would truncate the template literal)', () => {
+    expect(SHOCKWAVE_FRAG).not.toContain('`');
+  });
+
+  it('has balanced braces and parentheses', () => {
+    const count = (ch: string): number => SHOCKWAVE_FRAG.split(ch).length - 1;
+    expect(count('{')).toBe(count('}'));
+    expect(count('(')).toBe(count(')'));
+  });
+
+  it('declares every u-prefixed uniform it references', () => {
+    const declared = new Set(
+      [...SHOCKWAVE_FRAG.matchAll(/uniform\s+\w+\s+(u[A-Z]\w*)/g)].map((m) => m[1]),
+    );
+    const used = new Set([...SHOCKWAVE_FRAG.matchAll(/\bu[A-Z]\w*/g)].map((m) => m[0]));
+    expect([...used].filter((name) => !declared.has(name))).toEqual([]);
+  });
+
+  it('samples the noise seamlessly — from a normalized direction, never from atan()', () => {
+    expect(SHOCKWAVE_FRAG).not.toContain('atan');
+    expect(SHOCKWAVE_FRAG).toContain('vec2 dir = p / max(d, 0.00001);');
+  });
+
+  it('runs the ribbon chain: plateau remap → domain-warped fbm erosion → posterizePal', () => {
+    expect(SHOCKWAVE_FRAG).toContain('1.0 - smoothstep(uPlateau, 1.0, across)');
+    expect(SHOCKWAVE_FRAG).toContain('np += (vec2(fbm(np * 1.7), fbm(np * 1.7 + 19.3)) - 0.5) * uWarp;');
+    expect(SHOCKWAVE_FRAG).toContain('posterizePal(e, uBands, uPal)');
+    // The shared chunks must actually be spliced in, or none of the above would compile.
+    expect(SHOCKWAVE_FRAG).toMatch(/float fbm\(vec2 p\)/);
+    expect(SHOCKWAVE_FRAG).toMatch(/vec4 posterizePal\(/);
   });
 });
 
@@ -38,5 +103,22 @@ describe('shockwaveOneShotDurationSec', () => {
 
   it('never divides by zero for a degenerate speed', () => {
     expect(Number.isFinite(shockwaveOneShotDurationSec(2, 0))).toBe(true);
+  });
+
+  it('is unchanged by the default ringDelay of 0 (an exact no-op, not an approximation)', () => {
+    for (const [rings, speed] of [[1, 1], [2, 0.9], [3, 2], [5, 0.35]]) {
+      expect(shockwaveOneShotDurationSec(rings, speed, 0)).toBe(shockwaveOneShotDurationSec(rings, speed));
+    }
+  });
+
+  it('lengthens by (rings - 1) * ringDelay / speed when the rings are staggered', () => {
+    // rings=3, speed=1, delay=0.5: the last ring starts 2 * 0.5s later than it otherwise would.
+    expect(shockwaveOneShotDurationSec(3, 1, 0.5)).toBeCloseTo(shockwaveOneShotDurationSec(3, 1) + 1);
+    // A single ring has nothing to stagger against, so the delay can't move its finish.
+    expect(shockwaveOneShotDurationSec(1, 1, 0.9)).toBeCloseTo(shockwaveOneShotDurationSec(1, 1));
+  });
+
+  it('clamps a negative ringDelay rather than shortening the cycle below the shader truth', () => {
+    expect(shockwaveOneShotDurationSec(3, 1, -5)).toBe(shockwaveOneShotDurationSec(3, 1));
   });
 });

@@ -4,6 +4,7 @@ import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
 import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
+import { NOISE_GLSL, POSTERIZE_PAL_GLSL } from '../shaderChunks';
 
 /**
  * An expanding posterized shockwave ring — several concentric rings expanding outward from an anchor
@@ -31,12 +32,22 @@ void main() {
 
 /**
  * The ring field: `uRings` concentric rings, each cycling outward 0→1 on its own evenly-spaced phase
- * offset (`k / uRings`), a thin band around `d == phase` (width `uThickness`, antialiased via `fwidth`
- * on the band distance rather than a hard cutoff), fading out as it expands via `pow(1 - phase, uFade)`.
- * Posterized the same way as the ribbon (`floor(q * uBands) / (uBands - 1)` into `pal()`) for the hard
- * cel-band look rather than a soft gradient — do not soften this into a smooth glow.
+ * offset (`k / uRings`), a band around `d == radius` of half-width `uThickness`, fading out as it expands
+ * via `pow(1 - phase, uFade)`.
+ *
+ * Each ring's CROSS-SECTION is shaded with `ribbon.ts`'s validated material, ported into ring space: the
+ * band distance is normalized to the ribbon's across-coordinate, run through the same plateau remap
+ * (`1.0 - smoothstep(uPlateau, 1.0, across)` — the fat hot core, without which the top colour band never
+ * fires), eroded by a domain-warped scrolling fbm, and posterized through the shared `posterizePal`
+ * (`shaderChunks.ts`) so the ring reads as tattered cel-banded energy rather than a flat cartoon circle.
+ * Do not soften either the plateau or the band quantisation — both are the style.
+ *
+ * SEAM: the noise coordinate is built from the fragment's *unit direction* (`p / length(p)`), never from
+ * `atan(y, x)`. An angle jumps by 2π across the -x axis and would tear a visible seam down one side of
+ * every ring; a normalized direction is a continuous function of position, so the field is seam-free by
+ * construction. Scroll is applied as a *rotation* of that direction (periodic, so it stays seam-free).
  */
-const SHOCKWAVE_FRAG = /* glsl */ `#version 300 es
+export const SHOCKWAVE_FRAG = /* glsl */ `#version 300 es
 precision highp float;
 in vec2 vUV;
 out vec4 finalColor;
@@ -50,14 +61,20 @@ uniform float uBands;
 uniform float uAlpha;
 uniform float uGlow;
 uniform float uOneShot; // 0 = continuous repeating rings, 1 = a single expansion cycle (one-shot Fire)
+uniform float uPlateau;
+uniform float uNoiseAlong;
+uniform float uNoiseAcross;
+uniform float uWarp;
+uniform float uScroll;
+uniform float uErode;
+uniform float uGain;
+uniform float uSquash;
+uniform float uRingDelay;
+uniform float uEase;
 uniform vec4  uPal[4];
 
-vec4 pal(float t) {
-  float s = clamp(t, 0.0, 1.0) * 3.0;
-  int i = int(floor(s));
-  if (i >= 3) return uPal[3];
-  return mix(uPal[i], uPal[i + 1], fract(s));
-}
+${NOISE_GLSL}
+${POSTERIZE_PAL_GLSL}
 
 // Constant loop bound (GLSL ES 3.0 fragment loops want a compile-time trip count to unroll cleanly);
 // matches the 'rings' param spec's max of 5. The k >= n break makes the effective count the live uRings.
@@ -65,7 +82,19 @@ const int MAX_RINGS = 5;
 
 void main() {
   vec2 p = vUV * 2.0 - 1.0;
+  // Vertical squash: scaling y BEFORE the length() turns the ring into an ellipse flattened along y, so
+  // it reads as a circle lying on a ground plane seen at an angle. At uSquash 1.0 this divides by exactly
+  // 1.0 - an exact IEEE no-op - so the default is the original true circle.
+  p.y /= max(uSquash, 0.0001);
   float d = length(p);
+
+  // Unit direction of this fragment: the seam-free basis for the noise coordinate (see the header).
+  vec2 dir = p / max(d, 0.00001);
+  // Scroll rotates that direction, i.e. the noise flows AROUND the ring (its 'along' axis is the angle),
+  // which is inherently periodic and therefore still seam-free.
+  float cs = cos(uTime * uScroll);
+  float sn = sin(uTime * uScroll);
+  vec2 sdir = vec2(dir.x * cs - dir.y * sn, dir.x * sn + dir.y * cs);
 
   int n = int(uRings);
   float e = 0.0;
@@ -78,24 +107,46 @@ void main() {
   float halo = 0.0;
   for (int k = 0; k < MAX_RINGS; k++) {
     if (k >= n) break;
+    // Extra per-ring stagger on top of the even k / uRings phasing. At uRingDelay 0.0 this term is
+    // exactly 0.0 and the subtraction is an exact no-op, so the default timing is the original.
+    float clock = uTime * uSpeed - float(k) * uRingDelay;
     float phase;
     if (uOneShot > 0.5) {
       // One-shot: ring k expands ONCE from the centre (phase 0 -> 1) then is done — no fract wrap. Rings
       // are staggered so ring k starts at t = (k / uRings) / uSpeed, giving a single sweep that reads as
       // "from centre to full radius, then gone". Skip a ring before it has started or after it has passed
       // phase 1 (fully faded). The branch is on uniforms only (uOneShot/uTime/uSpeed/uRings/k), so every
-      // fragment in the draw takes the same path — the fwidth() below stays in uniform control flow.
-      phase = uTime * uSpeed - float(k) / uRings;
+      // fragment in the draw takes the same path.
+      phase = clock - float(k) / uRings;
       if (phase < 0.0 || phase > 1.0) continue;
     } else {
       // Continuous: the original repeating expansion, unchanged.
-      phase = fract(uTime * uSpeed + float(k) / uRings);
+      phase = fract(clock + float(k) / uRings);
     }
-    float bandDist = abs(d - phase);
-    float aa = fwidth(bandDist);
-    float ring = 1.0 - smoothstep(uThickness - aa, uThickness + aa, bandDist);
+    // Expansion easing: the ring's RADIUS is pow(phase, uEase), so below 1 it punches out and settles.
+    // Guarded by an exact compare on the uniform (uniform control flow — every fragment takes the same
+    // branch) because pow(x, 1.0) is not guaranteed bit-exact; at uEase 1.0 the radius is literally the
+    // linear phase, exactly as before. The FADE stays on the linear phase, so a ring's lifetime — and the
+    // one-shot completion time — is unaffected by easing.
+    float rad = uEase == 1.0 ? phase : pow(max(phase, 0.0), uEase);
+    float bandDist = abs(d - rad);
     float fadeAmt = pow(1.0 - phase, uFade);
-    e = max(e, ring * fadeAmt);
+
+    // --- ribbon.ts's material, in ring space ---
+    // 0 at the ring crest, 1 at the edge of its band: the ribbon's across-the-width coordinate.
+    float across = clamp(bandDist / max(uThickness, 0.0001), 0.0, 1.0);
+    float wfall = 1.0 - smoothstep(uPlateau, 1.0, across);
+    // Noise coordinate: a point on a circle of radius (uNoiseAlong + across * uNoiseAcross) in noise
+    // space — periodic around the ring, and the across term shifts the sample radially so the band's
+    // outer fringe tatters differently from its core. The per-ring offset keeps concentric rings from
+    // wearing an identical pattern.
+    vec2 np = sdir * (uNoiseAlong + across * uNoiseAcross) + float(k) * 17.3;
+    np += (vec2(fbm(np * 1.7), fbm(np * 1.7 + 19.3)) - 0.5) * uWarp;
+    float nz = fbm(np);
+    float shape = wfall * uGain - nz * uErode;
+    // clamp() takes an eroded-away fragment (shape <= 0) to exactly 0, so it contributes nothing.
+    float q = clamp(shape / max(uGain, 0.001), 0.0, 1.0);
+    e = max(e, q * fadeAmt);
 
     float haloRing = pow(1.0 - smoothstep(0.0, uThickness * 3.0, bandDist), 0.5);
     halo = max(halo, haloRing * fadeAmt);
@@ -104,8 +155,9 @@ void main() {
 
   if (e <= 0.0 && halo <= 0.001) discard;
 
-  float b = floor(clamp(e, 0.0, 1.0) * uBands) / max(uBands - 1.0, 1.0);
-  vec4 col = pal(b);
+  // Colour is band-quantised (the cel look); the ALPHA stays on the raw, smooth e, which is what keeps
+  // the silhouette antialiased now that the plateau ramp — not a fwidth() step — shapes the edge.
+  vec4 col = posterizePal(e, uBands, uPal);
   float bodyA = col.a * e * uAlpha;
 
   vec4 glowCol = uPal[3];
@@ -119,8 +171,10 @@ void main() {
 `;
 
 /**
- * The param specs, declared once (see `params.ts`). Grouped for the inspector: Ring / Style. Values
- * mirror the spec handed down for this primitive.
+ * The param specs, declared once (see `params.ts`). Grouped for the inspector: Ring / Style / Noise. The
+ * Noise group is the ribbon's material ported into ring space — its ranges/defaults mirror `ribbon.ts`'s
+ * equivalents so the two effects tune the same way (ribbon files `plateau` under Style and `gain` under
+ * Shape; here they sit with the rest of the material knobs, since this primitive has no Shape group).
  */
 const SPECS = {
   rings: {
@@ -143,6 +197,18 @@ const SPECS = {
     kind: 'slider', label: 'Radius', group: 'Ring', min: 40, max: 400, step: 5, default: 160,
     help: 'Max ring radius, px.',
   },
+  squash: {
+    kind: 'slider', label: 'Squash', group: 'Ring', min: 0.2, max: 1, step: 0.01, default: 1,
+    help: 'Vertical squash — 1 is a true circle, lower reads as a ring lying on the ground.',
+  },
+  ringDelay: {
+    kind: 'slider', label: 'Ring delay', group: 'Ring', min: 0, max: 1, step: 0.01, default: 0,
+    help: 'Extra stagger between successive rings; 0 keeps them evenly phased (the default cadence).',
+  },
+  ease: {
+    kind: 'slider', label: 'Ease', group: 'Ring', min: 0.3, max: 3, step: 0.05, default: 1,
+    help: 'Expansion curve — below 1 punches out fast then settles, above 1 accelerates; 1 is linear.',
+  },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
     help: 'Posterization levels (the cel look).',
@@ -159,6 +225,29 @@ const SPECS = {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.3,
     help: 'soft outer halo',
   },
+
+  plateau: {
+    kind: 'slider', label: 'Plateau', group: 'Noise', min: 0, max: 0.9, step: 0.01, default: 0.3,
+    help: 'Width of the flat hot core across the ring band — what gives the fat cel bands; at 0 the top colour band never fires.',
+  },
+  noiseAlong: {
+    kind: 'slider', label: 'Noise (along)', group: 'Noise', min: 0.5, max: 12, step: 0.1, default: 3,
+    help: 'Noise frequency around the ring.',
+  },
+  noiseAcross: {
+    kind: 'slider', label: 'Noise (across)', group: 'Noise', min: 1, max: 20, step: 0.1, default: 7,
+    help: 'Noise frequency across the ring band (crest → edge).',
+  },
+  warp: { kind: 'slider', label: 'Warp', group: 'Noise', min: 0, max: 1.5, step: 0.01, default: 0.35 },
+  scroll: {
+    kind: 'slider', label: 'Scroll', group: 'Noise', min: 0, max: 6, step: 0.05, default: 1.4,
+    help: 'How fast the noise swirls around the ring, rad/sec.',
+  },
+  erode: {
+    kind: 'slider', label: 'Erode', group: 'Noise', min: 0, max: 1.2, step: 0.01, default: 0.5,
+    help: 'How much the noise eats into the ring — higher gives a more tattered band.',
+  },
+  gain: { kind: 'slider', label: 'Gain', group: 'Noise', min: 0.3, max: 2, step: 0.01, default: 1.5 },
 } satisfies FxParamSpecs;
 
 type ShockwaveParams = ParamsOf<typeof SPECS>;
@@ -172,17 +261,23 @@ const QUAD_INDICES = new Uint32Array([0, 1, 2, 0, 2, 3]);
 
 /**
  * Wall-clock length (seconds) of a single one-shot expansion, matching the shader's staggered one-shot
- * phase: ring k runs `phase = uTime * uSpeed - k / rings` over [0, 1], so the last ring (k = rings - 1)
- * reaches phase 1 — fully faded, contributing nothing — at `uTime = (2*rings - 1) / (rings * uSpeed)`.
- * That instant is when the whole effect is done. Pulled out as a pure function (no Pixi dependency) so
- * the completion timing is unit-testable without a WebGL context — this is the one piece of the
- * one-shot logic that isn't rendering. `speed` is in expansions/sec (the `speed` param); `rings` is
- * rounded to a whole ring count to mirror the shader's `int(uRings)`.
+ * phase: ring k runs `phase = uTime * uSpeed - k * ringDelay - k / rings` over [0, 1], so the last ring
+ * (k = rings - 1) reaches phase 1 — fully faded, contributing nothing — at
+ * `uTime = (2*rings - 1) / (rings * speed) + (rings - 1) * ringDelay / speed`. That instant is when the
+ * whole effect is done. Pulled out as a pure function (no Pixi dependency) so the completion timing is
+ * unit-testable without a WebGL context — this is the one piece of the one-shot logic that isn't
+ * rendering. `speed` is in expansions/sec (the `speed` param); `rings` is rounded to a whole ring count
+ * to mirror the shader's `int(uRings)`. `ringDelay` (the `ringDelay` param) defaults to 0, which is
+ * exactly the original closed form — the extra stagger only ever lengthens the cycle.
+ *
+ * Note the shader's expansion `ease` deliberately does NOT appear here: easing reshapes a ring's radius
+ * over its life, not its phase, so the ring still starts and finishes at the same instants.
  */
-export function shockwaveOneShotDurationSec(rings: number, speed: number): number {
+export function shockwaveOneShotDurationSec(rings: number, speed: number, ringDelay = 0): number {
   const n = Math.max(1, Math.round(rings));
   const s = Math.max(1e-4, speed);
-  return (2 * n - 1) / (n * s);
+  const delay = Math.max(0, ringDelay);
+  return (2 * n - 1) / (n * s) + ((n - 1) * delay) / s;
 }
 
 class ShockwaveInstance implements FxInstance<ShockwaveParams> {
@@ -218,6 +313,16 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
           uAlpha: { value: params.alpha, type: 'f32' },
           uGlow: { value: params.glow, type: 'f32' },
           uOneShot: { value: this.oneShot ? 1 : 0, type: 'f32' },
+          uPlateau: { value: params.plateau, type: 'f32' },
+          uNoiseAlong: { value: params.noiseAlong, type: 'f32' },
+          uNoiseAcross: { value: params.noiseAcross, type: 'f32' },
+          uWarp: { value: params.warp, type: 'f32' },
+          uScroll: { value: params.scroll, type: 'f32' },
+          uErode: { value: params.erode, type: 'f32' },
+          uGain: { value: params.gain, type: 'f32' },
+          uSquash: { value: params.squash, type: 'f32' },
+          uRingDelay: { value: params.ringDelay, type: 'f32' },
+          uEase: { value: params.ease, type: 'f32' },
           uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
         },
       },
@@ -252,7 +357,11 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
    *  the single-cycle duration). Continuous instances always return false — their rings never stop. */
   isComplete(): boolean {
     if (!this.oneShot) return false;
-    return this.clockSec >= shockwaveOneShotDurationSec(this.params.rings, this.params.speed);
+    return this.clockSec >= shockwaveOneShotDurationSec(
+      this.params.rings,
+      this.params.speed,
+      this.params.ringDelay,
+    );
   }
 
   setParams(next: ShockwaveParams): void {
@@ -266,6 +375,16 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
     u.uBands = next.bands;
     u.uAlpha = next.alpha;
     u.uGlow = next.glow;
+    u.uPlateau = next.plateau;
+    u.uNoiseAlong = next.noiseAlong;
+    u.uNoiseAcross = next.noiseAcross;
+    u.uWarp = next.warp;
+    u.uScroll = next.scroll;
+    u.uErode = next.erode;
+    u.uGain = next.gain;
+    u.uSquash = next.squash;
+    u.uRingDelay = next.ringDelay;
+    u.uEase = next.ease;
     // setParams is not on the per-frame hot path (only fires on an inspector edit), so rebuilding uPal
     // unconditionally is cheap and sidesteps any reference-equality bugs from how the caller assembles
     // `next`.

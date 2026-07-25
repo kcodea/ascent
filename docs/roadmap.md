@@ -143,8 +143,11 @@ The career surface exists; deepen what a finished run *remembers*.
   draggable timeline-*track* visualization; per-layer anchors staged from real combat moments (not just the
   shared scenario head); and save-to-file for defs via a dev-only Vite middleware (Copy-def clipboard is the
   stand-in). A **smoke** primitive (posterized/cel, the emitter's rising billowing cousin) shipped 2026-07-24.
-  Small follow-up surfaced by smoke: give the `curve` param an optional `vMax` so a size-over-life curve can
-  grow a particle *beyond* its base size (today curve multipliers clamp at 1×). P3 = A/B compare, preset/palette library,
+  Shipped 2026-07-25: **custom PNG/SVG art import** (a runtime shape library with luminance auto-tracing), the
+  **ribbon's cel look on every primitive** (particles and shockwaves now posterize a real gradient + plateau
+  instead of a flat alpha — the fix for the repeated "same cartoon posterized look" ask), a `tintMode` toggle
+  (palette vs the art's own colours, both posterized), ribbon **width-over-length / wave / segments**, particle
+  **orient-to-velocity + alpha-over-life**, and the `curve` **`vMax`** (curves can now exceed 1×). P3 = A/B compare, preset/palette library,
   perf HUD. P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
   regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests

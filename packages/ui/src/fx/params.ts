@@ -23,9 +23,14 @@ export type FxParamSpec =
       label: string;
       group?: string;
       help?: string;
-      /** Control points [t, v], t & v in [0,1], sorted ascending by t. Sampled at normalized life
-       *  (0 = birth, 1 = death) to yield a multiplier. At least 2 points. */
+      /** Control points [t, v], t in [0,1] and v in [0, vMax], sorted ascending by t. Sampled at normalized
+       *  life (0 = birth, 1 = death) to yield a multiplier. At least 2 points. */
       default: readonly (readonly [number, number])[];
+      /** Upper bound for a control point's value (default 1). Above 1 lets the curve act as a multiplier
+       *  that can EXCEED the base value — e.g. a smoke billow that grows past its base size, or a ribbon
+       *  that bulges in the middle — instead of one that can only ever reduce it. Omitted ⇒ 1, so every
+       *  existing curve param is unaffected. The HORIZONTAL axis (t) is always normalized to [0,1]. */
+      vMax?: number;
       presets?: Record<string, readonly (readonly [number, number])[]>;
     }
   | {
@@ -136,11 +141,16 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
               Number.isFinite(pt[1]),
           )
         ) {
-          // Fresh normalized copy — clamp t & v to [0,1], sort ascending by t. Never alias the caller's
-          // arrays (mirrors the palette case's discipline); the sampler relies on sorted-by-t input.
+          // Fresh normalized copy — clamp t to [0,1] and v to [0, vMax], sort ascending by t. Never alias
+          // the caller's arrays (mirrors the palette case's discipline); the sampler relies on sorted-by-t
+          // input. `vMax` defaults to 1, so a spec that omits it clamps exactly as it always has; a spec
+          // that opts in (e.g. 2) lets the curve exceed the base value instead of only reducing it. The
+          // t axis is normalized-by-definition and is NOT affected by vMax.
+          const vMax = spec.vMax ?? 1;
           const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
+          const clampV = (n: number): number => (n < 0 ? 0 : n > vMax ? vMax : n);
           out[key] = (v as [number, number][])
-            .map((pt) => [clamp01(pt[0]), clamp01(pt[1])] as [number, number])
+            .map((pt) => [clamp01(pt[0]), clampV(pt[1])] as [number, number])
             .sort((a, b) => a[0] - b[0]);
         }
         break;
@@ -179,6 +189,13 @@ export function validateSpecs(specs: FxParamSpecs): string[] {
     }
     if (spec.kind === 'curve') {
       const pts = spec.default;
+      // An omitted vMax means 1 — the historical bound, so every pre-existing curve spec validates
+      // identically. A declared vMax must be a usable upper bound: non-finite or <= 0 would make the
+      // whole value axis degenerate (nothing but 0 could ever be stored).
+      if (spec.vMax !== undefined && (!Number.isFinite(spec.vMax) || spec.vMax <= 0)) {
+        problems.push(`'${key}': curve vMax must be a finite number greater than 0 (got ${spec.vMax})`);
+      }
+      const vMax = spec.vMax !== undefined && Number.isFinite(spec.vMax) && spec.vMax > 0 ? spec.vMax : 1;
       if (pts.length < 2) {
         problems.push(`'${key}': curve default must have at least 2 points (got ${pts.length})`);
       } else {
@@ -191,10 +208,10 @@ export function validateSpecs(specs: FxParamSpecs): string[] {
             pt[0] < 0 ||
             pt[0] > 1 ||
             pt[1] < 0 ||
-            pt[1] > 1,
+            pt[1] > vMax,
         );
         if (badPoint) {
-          problems.push(`'${key}': curve default has a point with t or v outside [0, 1]`);
+          problems.push(`'${key}': curve default has a point with t outside [0, 1] or v outside [0, ${vMax}]`);
         }
         let sorted = true;
         for (let i = 1; i < pts.length; i++) {

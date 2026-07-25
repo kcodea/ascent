@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { validateSpecs } from '../params';
 import { sampleCurve } from '../curve';
-import { advanceEmitBudget, emitterFireComplete, emitterPrimitive, moteAlpha, withinEmitWindow } from './emitter';
+import {
+  advanceEmitBudget,
+  emitterFireComplete,
+  emitterPrimitive,
+  moteAlpha,
+  resolveEmitterRotation,
+  withinEmitWindow,
+} from './emitter';
 
 describe('emitter param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -42,6 +49,56 @@ describe('emitter param specs', () => {
     for (const t of [0, 0.25, 0.5, 0.75, 1]) {
       expect(sampleCurve(spec.default, t)).toBe(1);
     }
+  });
+
+  // Alpha-over-life curve: same flat-default no-op invariant as biasCurve above. The advance loop multiplies
+  // it into `moteAlpha(t, fadeIn)`, so a flat 1 leaves the built-in fade byte-identical (x * 1 === x).
+  it('exposes an alphaCurve curve param defaulting to the flat (no-op) [[0,1],[1,1]]', () => {
+    const spec = emitterPrimitive.params.alphaCurve;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('curve');
+    expect(spec.default).toEqual([[0, 1], [1, 1]]);
+    expect(spec.group).toBe('Style');
+    for (const t of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      expect(sampleCurve(spec.default, t)).toBe(1);
+    }
+  });
+
+  // Orient-to-velocity must default OFF, so an existing def keeps its (spawn-fixed) rotation as before.
+  it('exposes an orientToVelocity toggle defaulting to false (an exact no-op)', () => {
+    const spec = emitterPrimitive.params.orientToVelocity;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('toggle');
+    expect(spec.default).toBe(false);
+    expect(spec.group).toBe('Motion');
+  });
+});
+
+describe('resolveEmitterRotation', () => {
+  // The emitter always passes spinRad = 0 (it has no spin channel), so the toggle-off branch must be an
+  // exact identity on the mote's spawn rotation — that's what makes the `false` default a byte-identical
+  // no-op against the old loop, which never wrote `rotation` at all.
+  it('with the toggle off and the emitter\'s spin of 0, returns the previous rotation exactly', () => {
+    expect(resolveEmitterRotation(0, 40, -10, false, 0, 0.016)).toBe(0);
+    expect(resolveEmitterRotation(2.5, 0, 0, false, 0, 0.5)).toBe(2.5);
+    expect(resolveEmitterRotation(-1.75, 999, 999, false, 0, 1)).toBe(-1.75);
+  });
+
+  it('with the toggle off and a non-zero spin, advances it (kept for parity with burst/smoke)', () => {
+    expect(resolveEmitterRotation(0, 0, 0, false, 2, 0.5)).toBeCloseTo(1);
+  });
+
+  it('with the toggle on, points along the velocity and ignores spin', () => {
+    expect(resolveEmitterRotation(9, 1, 0, true, 100, 0.5)).toBeCloseTo(0); // +x
+    expect(resolveEmitterRotation(9, 0, 1, true, 100, 0.5)).toBeCloseTo(Math.PI / 2); // +y (screen: down)
+    expect(resolveEmitterRotation(9, -1, 0, true, 100, 0.5)).toBeCloseTo(Math.PI); // -x
+    expect(resolveEmitterRotation(0, 300, 300, true, 0, 0.016)).toBeCloseTo(Math.PI / 4);
+  });
+
+  it('keeps the previous rotation for a stalled mote instead of snapping to 0 rad', () => {
+    expect(resolveEmitterRotation(1.5, 0, 0, true, 0, 0.5)).toBe(1.5);
+    expect(resolveEmitterRotation(-2.25, 1e-9, -1e-9, true, 0, 0.5)).toBe(-2.25);
+    expect(resolveEmitterRotation(1.5, 0.01, 0, true, 0, 0.5)).toBeCloseTo(0);
   });
 });
 

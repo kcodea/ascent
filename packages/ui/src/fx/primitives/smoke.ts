@@ -9,7 +9,9 @@ import {
   updateParticleMaterialShaping,
   setParticleTime,
   biasTint,
+  PARTICLE_TINT_MODES,
   type ParticleShaping,
+  type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
 import { resolveParticleScale } from '../shapeTextures';
@@ -73,6 +75,10 @@ const SPECS = {
     kind: 'slider', label: 'Spin var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.6,
     help: 'Per-mote randomisation of the spin rate; direction is randomised regardless.',
   },
+  orientToVelocity: {
+    kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
+    help: 'Point each particle along its direction of travel (good for shards, arrows, and imported directional art). Overrides spin/rotation while on.',
+  },
 
   turbulence: {
     kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 40,
@@ -111,10 +117,12 @@ const SPECS = {
   },
   sizeCurve: {
     kind: 'curve', label: 'Size / life', group: 'Shape',
-    // Grows from small at birth to full `size` over life, so puffs billow out as they rise. Values stay
-    // within the curve kind's [0,1] multiplier range (a >1 multiplier — growing past the base size — needs
-    // the `vMax` curve-param follow-up); set the base `Size` for the overall scale, this shapes the ramp to it.
-    default: [[0, 0.3], [1, 1]], presets: CURVE_PRESETS,
+    // Grows from small at birth to HALF AGAIN its base size by death, so puffs genuinely billow out as they
+    // rise rather than merely ramping up to their base size. This needs `vMax` (2 here): the curve kind
+    // otherwise clamps every control point at 1x, which is what forced the earlier workaround of capping the
+    // ramp at 1 and inflating the base `Size` to compensate (that scaled the whole column, not just the tail
+    // of each puff's life).
+    default: [[0, 0.3], [1, 1.6]], vMax: 2, presets: CURVE_PRESETS,
     help: 'Size multiplier over each mote\'s life (0 = birth, 1 = death) — grows, so puffs billow out.',
   },
 
@@ -127,9 +135,26 @@ const SPECS = {
     default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
     help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life.',
   },
+  alphaCurve: {
+    kind: 'curve', label: 'Alpha / life', group: 'Style',
+    default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
+    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade.',
+  },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
     help: 'posterization levels — 3-4 is the cel look, higher washes out',
+  },
+  plateau: {
+    kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
+    help: 'Width of the flat core before the falloff starts — this is what gives fat cel bands and a hot core (0 = a thin centre line). Same knob, same range, as the ribbon\'s own Plateau.',
+  },
+  fieldMix: {
+    kind: 'slider', label: 'Field mix', group: 'Style', min: 0, max: 1, step: 0.01, default: 0,
+    help: '0 = band the particle by its distance from centre (the ribbon look, works on any silhouette); 1 = band it by the texture\'s own alpha gradient (better for soft hand-painted art).',
+  },
+  tintMode: {
+    kind: 'enum', label: 'Tint mode', group: 'Style', options: PARTICLE_TINT_MODES, default: 'palette',
+    help: 'palette = recolour into the palette stops; texture = keep imported art\'s own colours, still posterized into Bands levels.',
   },
   fadeIn: {
     kind: 'slider', label: 'Fade in', group: 'Style', min: 0, max: 0.5, step: 0.01, default: 0.2,
@@ -165,6 +190,19 @@ type SmokeParams = ParamsOf<typeof SPECS>;
  *  drift on which fields map to `noise.x` vs `noise.y`. */
 function shapingOf(p: SmokeParams): ParticleShaping {
   return { noise: [p.noiseScale, p.noiseScale], warp: p.warp, scroll: p.scroll, erode: p.erode, gain: p.gain };
+}
+
+/** The Style-group half of the same mapping (see `shapingOf` above for why these are helpers rather than
+ *  inlined at the constructor + `setParams` call sites). Mirrors `emitter.ts`'s own `styleOf`. */
+function styleOf(p: SmokeParams): ParticleStyle {
+  return {
+    palette: p.palette,
+    bands: p.bands,
+    glow: p.glow,
+    plateau: p.plateau,
+    fieldMix: p.fieldMix,
+    tintMode: p.tintMode,
+  };
 }
 
 /** Hard cap on live motes regardless of rate/life, so a pathological param combo can't grow unbounded. */
@@ -214,6 +252,33 @@ export function smokeMoteAlpha(t: number, fadeIn: number): number {
   const f = fadeIn > 0.0001 ? fadeIn : 0.0001;
   if (t > 1 - f) return Math.max(0, (1 - t) / f);
   return Math.min(1, t / f);
+}
+
+/**
+ * The rotation a mote should hold THIS frame. Two mutually exclusive modes, matching the `orientToVelocity`
+ * param:
+ *  - OFF (the default): advance the mote's own tumble — `prevRot + spinRad * dtSec`, byte-for-byte the
+ *    expression this loop always used inline, so the toggle's `false` default is an exact no-op.
+ *  - ON: point the mote along its direction of travel (`atan2(vy, vx)`), for shards/arrows/imported
+ *    directional art. The tumble is deliberately ignored while on — you can't both spin and track a heading.
+ *
+ * Zero-length velocity has no direction: `Math.atan2(0, 0)` is 0, which would SNAP a stalled mote to pointing
+ * right (+x). Below the epsilon we keep the previous rotation instead. Pure + allocation-free so it can run
+ * per-mote per-frame, and standalone (smoke's own copy — see `advanceSmokeBudget` on staying self-contained;
+ * importing burst.ts/emitter.ts's identical helper would drag their `registerPrimitive` side effect into this
+ * module's graph) so it's unit-testable without a WebGL context.
+ */
+export function resolveSmokeRotation(
+  prevRot: number,
+  vx: number,
+  vy: number,
+  orient: boolean,
+  spinRad: number,
+  dtSec: number,
+): number {
+  if (!orient) return prevRot + spinRad * dtSec;
+  if (vx * vx + vy * vy < 1e-8) return prevRot;
+  return Math.atan2(vy, vx);
 }
 
 /** A live mote: its rendered `Particle` plus the simulation state driving it. */
@@ -266,7 +331,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     this.renderer = ctx.renderer;
     this.oneShot = ctx.oneShot === true;
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
-    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands, shapingOf(params), params.glow);
+    this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
     this.particles = new ParticleContainer({
       texture: this.texture,
       shader: this.shader,
@@ -307,6 +372,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     }
     const turbulence = p.turbulence;
     const turbScale = p.turbScale;
+    const orient = p.orientToVelocity;
     const clockSec = this.clockSec;
     const motes = this.motes;
     const children = this.particles.particleChildren;
@@ -328,10 +394,15 @@ class SmokeInstance implements FxInstance<SmokeParams> {
       m.p.x += m.vx * dtSec;
       m.p.y += m.vy * dtSec;
       // Slow tumble — the smoke-defining extra channel over the emitter. spinRad is signed (random direction
-      // per mote), so a puff rotates steadily either way.
-      m.p.rotation += m.spinRad * dtSec;
+      // per mote), so a puff rotates steadily either way. When `orientToVelocity` is on the mote points along
+      // its direction of travel instead (see `resolveSmokeRotation` — with the toggle off this is exactly
+      // `rotation += spinRad * dtSec`, the expression that used to be inlined here). Reads m.vx/m.vy AFTER
+      // this frame's gravity + turbulence, so the sprite tracks the heading it is actually drifting on.
+      m.p.rotation = resolveSmokeRotation(m.p.rotation, m.vx, m.vy, orient, m.spinRad, dtSec);
       const t = m.age / m.maxLife;
-      m.p.alpha = smokeMoteAlpha(t, m.fadeIn);
+      // Built-in fade-in/out, times the explicit alpha-over-life curve (default flat 1 → sampleCurve returns
+      // exactly 1 and `x * 1 === x`, so the default is a byte-identical no-op).
+      m.p.alpha = smokeMoteAlpha(t, m.fadeIn) * sampleCurve(p.alphaCurve, t);
       const sizeMul = sampleCurve(p.sizeCurve, t); // size-over-life multiplier (grows for smoke)
       m.p.scaleX = m.scaleX0 * sizeMul;
       m.p.scaleY = m.scaleY0 * sizeMul;
@@ -387,7 +458,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     const shapeChanged = next.shape !== this.params.shape;
     this.params = next;
     this.particles.blendMode = next.blendMode;
-    updateParticleMaterial(this.shader, next.palette, next.bands, next.glow);
+    updateParticleMaterial(this.shader, styleOf(next));
     updateParticleMaterialShaping(this.shader, shapingOf(next));
     if (shapeChanged) {
       // A ParticleContainer shares exactly ONE base texture across every live particle (see

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { validateSpecs } from '../params';
 import { sampleCurve } from '../curve';
-import { burstFireComplete, burstPrimitive, sampleBurstAngle } from './burst';
+import { burstFireComplete, burstPrimitive, resolveParticleRotation, sampleBurstAngle } from './burst';
 
 describe('burst param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -43,6 +43,58 @@ describe('burst param specs', () => {
     for (const t of [0, 0.25, 0.5, 0.75, 1]) {
       expect(sampleCurve(spec.default, t)).toBe(1);
     }
+  });
+
+  // Alpha-over-life curve: same flat-default no-op invariant as biasCurve above. The advance loop multiplies
+  // it into the built-in `frac * frac` fade, so a flat 1 leaves that fade byte-identical (x * 1 === x).
+  it('exposes an alphaCurve curve param defaulting to the flat (no-op) [[0,1],[1,1]]', () => {
+    const spec = burstPrimitive.params.alphaCurve;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('curve');
+    expect(spec.default).toEqual([[0, 1], [1, 1]]);
+    expect(spec.group).toBe('Style');
+    for (const t of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      expect(sampleCurve(spec.default, t)).toBe(1);
+    }
+  });
+
+  // Orient-to-velocity must default OFF, so an existing def keeps its spin exactly as before.
+  it('exposes an orientToVelocity toggle defaulting to false (an exact no-op)', () => {
+    const spec = burstPrimitive.params.orientToVelocity;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('toggle');
+    expect(spec.default).toBe(false);
+    expect(spec.group).toBe('Motion');
+  });
+});
+
+describe('resolveParticleRotation', () => {
+  it('with the toggle off, advances the spin exactly as the old inline expression did', () => {
+    expect(resolveParticleRotation(0, 100, 0, false, 2, 0.5)).toBeCloseTo(1);
+    expect(resolveParticleRotation(0.25, 0, 0, false, -4, 0.25)).toBeCloseTo(-0.75);
+    // Velocity is irrelevant while off — same prevRot/spin/dt, wildly different velocity, same result.
+    expect(resolveParticleRotation(1, 999, -999, false, 3, 0.1)).toBe(resolveParticleRotation(1, 0, 0, false, 3, 0.1));
+  });
+
+  it('with spin 0 and the toggle off, is an exact identity on the previous rotation', () => {
+    expect(resolveParticleRotation(1.234, 50, 50, false, 0, 0.016)).toBe(1.234);
+  });
+
+  it('with the toggle on, points along the velocity and ignores spin', () => {
+    expect(resolveParticleRotation(9, 1, 0, true, 100, 0.5)).toBeCloseTo(0); // +x
+    expect(resolveParticleRotation(9, 0, 1, true, 100, 0.5)).toBeCloseTo(Math.PI / 2); // +y (screen: down)
+    expect(resolveParticleRotation(9, -1, 0, true, 100, 0.5)).toBeCloseTo(Math.PI); // -x
+    expect(resolveParticleRotation(9, 1, 1, true, 100, 0.5)).toBeCloseTo(Math.PI / 4);
+    // Magnitude doesn't matter, only direction.
+    expect(resolveParticleRotation(0, 300, 300, true, 0, 0.016)).toBeCloseTo(Math.PI / 4);
+  });
+
+  it('keeps the previous rotation for a stalled particle instead of snapping to 0 rad', () => {
+    // The guard: atan2(0, 0) is 0, which would flick a stopped particle to pointing right.
+    expect(resolveParticleRotation(1.5, 0, 0, true, 5, 0.5)).toBe(1.5);
+    expect(resolveParticleRotation(-2.25, 1e-9, -1e-9, true, 5, 0.5)).toBe(-2.25);
+    // Just above the epsilon it does track the heading again.
+    expect(resolveParticleRotation(1.5, 0.01, 0, true, 5, 0.5)).toBeCloseTo(0);
   });
 });
 

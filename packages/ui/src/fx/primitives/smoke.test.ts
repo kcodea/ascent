@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleCurve } from '../curve';
 import {
   advanceSmokeBudget,
+  resolveSmokeRotation,
   smokeFireComplete,
   smokeMoteAlpha,
   smokePrimitive,
@@ -21,15 +22,20 @@ describe('smoke param specs', () => {
   // The smoke-defining defaults (vs the emitter template): motes RISE, BILLOW OUT, are grey, and composite as
   // opaque-ish haze rather than additive glow. Each of these flipping back to an emitter-style default would
   // silently turn smoke into a grey emitter.
-  it('bills out over life: sizeCurve default is the GROW curve [[0,0.3],[1,1]]', () => {
+  it('bills out over life: sizeCurve default is the GROW curve [[0,0.3],[1,1.6]] with vMax 2', () => {
     const spec = smokePrimitive.params.sizeCurve;
     expect(spec.kind).toBe('curve');
-    expect(spec.default).toEqual([[0, 0.3], [1, 1]]);
+    expect(spec.default).toEqual([[0, 0.3], [1, 1.6]]);
     // Grows: the multiplier at death exceeds the multiplier at birth (the opposite of the emitter's shrink).
     expect(sampleCurve(spec.default, 1)).toBeGreaterThan(sampleCurve(spec.default, 0));
-    // Stays within the curve kind's [0,1] multiplier range, so coerceParams doesn't clamp it and
-    // validateSpecs stays quiet (a >1 grow needs the vMax follow-up).
-    if (spec.kind === 'curve') for (const [, v] of spec.default) expect(v).toBeLessThanOrEqual(1);
+    // Grows PAST the base size — the whole point of opting into vMax. A default above 1 is only legal (and
+    // only survives coerceParams unclamped) because the spec declares a vMax above it; without that this
+    // would silently clamp back to 1x and the billow would flatten into a plain ramp-to-base-size.
+    if (spec.kind === 'curve') {
+      expect(spec.vMax).toBe(2);
+      expect(sampleCurve(spec.default, 1)).toBeGreaterThan(1);
+      for (const [, v] of spec.default) expect(v).toBeLessThanOrEqual(spec.vMax ?? 1);
+    }
   });
 
   it('composites as haze, not glow: blendMode default is "normal"', () => {
@@ -79,6 +85,55 @@ describe('smoke param specs', () => {
     for (const t of [0, 0.25, 0.5, 0.75, 1]) {
       expect(sampleCurve(spec.default, t)).toBe(1);
     }
+  });
+
+  // Alpha-over-life curve: same flat-default no-op invariant as biasCurve above. The advance loop multiplies
+  // it into `smokeMoteAlpha(t, fadeIn)`, so a flat 1 leaves the built-in fade byte-identical (x * 1 === x).
+  it('exposes an alphaCurve curve param defaulting to the flat (no-op) [[0,1],[1,1]]', () => {
+    const spec = smokePrimitive.params.alphaCurve;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('curve');
+    expect(spec.default).toEqual([[0, 1], [1, 1]]);
+    expect(spec.group).toBe('Style');
+    for (const t of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      expect(sampleCurve(spec.default, t)).toBe(1);
+    }
+  });
+
+  // Orient-to-velocity must default OFF, so smoke keeps its defining slow tumble untouched.
+  it('exposes an orientToVelocity toggle defaulting to false (an exact no-op)', () => {
+    const spec = smokePrimitive.params.orientToVelocity;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('toggle');
+    expect(spec.default).toBe(false);
+    expect(spec.group).toBe('Motion');
+  });
+});
+
+describe('resolveSmokeRotation', () => {
+  it('with the toggle off, advances the tumble exactly as the old inline expression did', () => {
+    expect(resolveSmokeRotation(0, 30, -10, false, 2, 0.5)).toBeCloseTo(1);
+    expect(resolveSmokeRotation(0.25, 0, 0, false, -4, 0.25)).toBeCloseTo(-0.75);
+    // Velocity is irrelevant while off — same prevRot/spin/dt, wildly different velocity, same result.
+    expect(resolveSmokeRotation(1, 999, -999, false, 3, 0.1)).toBe(resolveSmokeRotation(1, 0, 0, false, 3, 0.1));
+  });
+
+  it('with spin 0 and the toggle off, is an exact identity on the previous rotation', () => {
+    expect(resolveSmokeRotation(1.234, 50, 50, false, 0, 0.016)).toBe(1.234);
+  });
+
+  it('with the toggle on, points along the velocity and ignores the tumble', () => {
+    expect(resolveSmokeRotation(9, 1, 0, true, 100, 0.5)).toBeCloseTo(0); // +x
+    expect(resolveSmokeRotation(9, 0, 1, true, 100, 0.5)).toBeCloseTo(Math.PI / 2); // +y (screen: down)
+    expect(resolveSmokeRotation(9, -1, 0, true, 100, 0.5)).toBeCloseTo(Math.PI); // -x
+    expect(resolveSmokeRotation(9, 0, -1, true, 100, 0.5)).toBeCloseTo(-Math.PI / 2); // rising smoke
+    expect(resolveSmokeRotation(0, 300, 300, true, 0, 0.016)).toBeCloseTo(Math.PI / 4);
+  });
+
+  it('keeps the previous rotation for a stalled mote instead of snapping to 0 rad', () => {
+    expect(resolveSmokeRotation(1.5, 0, 0, true, 5, 0.5)).toBe(1.5);
+    expect(resolveSmokeRotation(-2.25, 1e-9, -1e-9, true, 5, 0.5)).toBe(-2.25);
+    expect(resolveSmokeRotation(1.5, 0.01, 0, true, 5, 0.5)).toBeCloseTo(0);
   });
 });
 

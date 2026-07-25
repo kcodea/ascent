@@ -114,6 +114,7 @@ export function Inspector({
                     value={(values[key] as [number, number][] | undefined) ?? spec.default.map((p) => [p[0], p[1]])}
                     label={spec.label}
                     presets={spec.presets}
+                    vMax={spec.vMax}
                     onChange={(next) => onChange(key, next)}
                   />
                 )}
@@ -226,21 +227,25 @@ function ShapeField({
   );
 }
 
-/** SVG dimensions for the compact curve editor (px). Curve-space is t∈[0,1] left→right, v∈[0,1] bottom→top;
- *  SVG y is flipped (0 at the top). A small inset keeps the edge handles fully inside the drawable box. */
+/** SVG dimensions for the compact curve editor (px). Curve-space is t∈[0,1] left→right, v∈[0,vMax]
+ *  bottom→top; SVG y is flipped (0 at the top). A small inset keeps the edge handles fully inside the
+ *  drawable box. */
 const CURVE_W = 160;
 const CURVE_H = 80;
 const CURVE_PAD = 8;
 
 const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
+/** Clamp a control-point value into its spec's [0, vMax] band. */
+const clampV = (n: number, vMax: number): number => (n < 0 ? 0 : n > vMax ? vMax : n);
 /** Curve-space t (0→1) → SVG x. */
 const tToX = (t: number): number => CURVE_PAD + t * (CURVE_W - 2 * CURVE_PAD);
-/** Curve-space v (0→1) → SVG y (flipped: v=1 at the top). */
-const vToY = (v: number): number => CURVE_H - CURVE_PAD - v * (CURVE_H - 2 * CURVE_PAD);
+/** Curve-space v (0→vMax) → SVG y (flipped: v = vMax at the top). `vMax` defaults to 1, so a spec that
+ *  omits it maps exactly as before. */
+const vToY = (v: number, vMax = 1): number => CURVE_H - CURVE_PAD - (v / vMax) * (CURVE_H - 2 * CURVE_PAD);
 /** SVG x → curve-space t. */
 const xToT = (x: number): number => (x - CURVE_PAD) / (CURVE_W - 2 * CURVE_PAD);
-/** SVG y → curve-space v (flipped). */
-const yToV = (y: number): number => (CURVE_H - CURVE_PAD - y) / (CURVE_H - 2 * CURVE_PAD);
+/** SVG y → curve-space v (flipped, scaled to [0, vMax]). */
+const yToV = (y: number, vMax = 1): number => ((CURVE_H - CURVE_PAD - y) / (CURVE_H - 2 * CURVE_PAD)) * vMax;
 
 /**
  * A self-contained SVG editor for a `curve` param — a draggable control-point polyline over a normalized
@@ -252,11 +257,14 @@ function CurveEditor({
   value,
   label,
   presets,
+  vMax = 1,
   onChange,
 }: {
   value: number[][];
   label: string;
   presets?: Record<string, readonly (readonly [number, number])[]>;
+  /** The spec's value ceiling — the top of the box. 1 (the default) is the historical behaviour. */
+  vMax?: number;
   onChange: (next: number[][]) => void;
 }): React.ReactElement {
   const points = value;
@@ -271,7 +279,7 @@ function CurveEditor({
     // Map pointer px → the SVG's own viewBox units (the element may be laid out at a different CSS size).
     const px = ((e.clientX - rect.left) / rect.width) * CURVE_W;
     const py = ((e.clientY - rect.top) / rect.height) * CURVE_H;
-    const v = clamp01(yToV(py));
+    const v = clampV(yToV(py, vMax), vMax);
     let t: number;
     if (i === 0) {
       t = 0; // first point pinned to birth
@@ -288,7 +296,7 @@ function CurveEditor({
     onChange(next);
   };
 
-  const polyline = points.map((p) => `${tToX(p[0])},${vToY(p[1])}`).join(' ');
+  const polyline = points.map((p) => `${tToX(p[0])},${vToY(p[1], vMax)}`).join(' ');
 
   return (
     <div className="fxwb-curve">
@@ -309,7 +317,7 @@ function CurveEditor({
         className="fxwb-curve-svg"
         viewBox={`0 0 ${CURVE_W} ${CURVE_H}`}
         role="img"
-        aria-label={`${label} curve`}
+        aria-label={vMax === 1 ? `${label} curve` : `${label} curve (max ${vMax}×)`}
         onPointerMove={(e) => {
           if (dragIndex.current !== null) moveHandle(e);
         }}
@@ -321,14 +329,48 @@ function CurveEditor({
         }}
       >
         <rect x={0} y={0} width={CURVE_W} height={CURVE_H} className="fxwb-curve-bg" />
-        <line x1={tToX(0)} y1={vToY(0.5)} x2={tToX(1)} y2={vToY(0.5)} className="fxwb-curve-grid" />
-        <line x1={tToX(0.5)} y1={vToY(0)} x2={tToX(0.5)} y2={vToY(1)} className="fxwb-curve-grid" />
+        {vMax === 1 ? (
+          // Plain half-height guide — the historical grid.
+          <line x1={tToX(0)} y1={vToY(0.5)} x2={tToX(1)} y2={vToY(0.5)} className="fxwb-curve-grid" />
+        ) : (
+          // With a raised ceiling the interesting level is no longer the middle of the box but v = 1: the
+          // "unchanged / 1×" line, above which the curve AMPLIFIES the base value. Draw it dashed (and skip
+          // the plain mid-line, which at vMax = 2 would land in exactly the same place) plus a tiny label,
+          // so it is obvious at a glance where neutral sits and how high the top is.
+          <>
+            <line
+              x1={tToX(0)}
+              y1={vToY(1, vMax)}
+              x2={tToX(1)}
+              y2={vToY(1, vMax)}
+              className="fxwb-curve-grid"
+              style={{ strokeDasharray: '3 3' }}
+            />
+            <text
+              x={CURVE_W - CURVE_PAD}
+              y={vToY(1, vMax) - 3}
+              textAnchor="end"
+              style={{ fill: 'currentColor', opacity: 0.5, fontSize: 8, pointerEvents: 'none' }}
+            >
+              1×
+            </text>
+            <text
+              x={CURVE_W - CURVE_PAD}
+              y={CURVE_PAD + 2}
+              textAnchor="end"
+              style={{ fill: 'currentColor', opacity: 0.35, fontSize: 8, pointerEvents: 'none' }}
+            >
+              {vMax}×
+            </text>
+          </>
+        )}
+        <line x1={tToX(0.5)} y1={vToY(0, vMax)} x2={tToX(0.5)} y2={vToY(vMax, vMax)} className="fxwb-curve-grid" />
         <polyline points={polyline} className="fxwb-curve-line" fill="none" />
         {points.map((p, i) => (
           <circle
             key={i}
             cx={tToX(p[0])}
-            cy={vToY(p[1])}
+            cy={vToY(p[1], vMax)}
             r={5}
             className="fxwb-curve-handle"
             onPointerDown={(e) => {

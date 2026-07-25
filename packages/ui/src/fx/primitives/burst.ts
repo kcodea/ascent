@@ -9,7 +9,9 @@ import {
   updateParticleMaterialShaping,
   setParticleTime,
   biasTint,
+  PARTICLE_TINT_MODES,
   type ParticleShaping,
+  type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
 import { resolveParticleScale } from '../shapeTextures';
@@ -53,6 +55,36 @@ export function sampleBurstAngle(travelAngle: number, spread: number, rand: () =
 }
 
 /**
+ * The rotation a particle should hold THIS frame. Two mutually exclusive modes, matching the
+ * `orientToVelocity` param:
+ *  - OFF (the default): advance the particle's own spin — `prevRot + spinRad * dtSec`, byte-for-byte the
+ *    expression this loop always used inline, so the toggle's `false` default is an exact no-op.
+ *  - ON: point the sprite along its direction of travel (`atan2(vy, vx)`), which is what makes an imported
+ *    shard/arrow/directional sprite read correctly. Spin is deliberately ignored while on — you can't both
+ *    tumble and track a heading.
+ *
+ * Zero-length velocity has no direction: `Math.atan2(0, 0)` is 0, which would SNAP a stalled particle to
+ * pointing right (+x). Below the epsilon we keep the previous rotation instead, so a particle dragged to a
+ * halt holds its last heading rather than flicking. Pure + allocation-free so it can run per-particle
+ * per-frame, and standalone so it's unit-testable without a WebGL context (same reason as `sampleBurstAngle`
+ * above). Deliberately NOT shared with emitter.ts/smoke.ts's identical copies: importing across primitive
+ * modules would drag this module's `registerPrimitive` side effect into their module graphs, and these files
+ * already keep primitive-local pure helpers self-contained (see `advanceEmitBudget` vs `advanceSmokeBudget`).
+ */
+export function resolveParticleRotation(
+  prevRot: number,
+  vx: number,
+  vy: number,
+  orient: boolean,
+  spinRad: number,
+  dtSec: number,
+): number {
+  if (!orient) return prevRot + spinRad * dtSec;
+  if (vx * vx + vy * vy < 1e-8) return prevRot;
+  return Math.atan2(vy, vx);
+}
+
+/**
  * Pure completion predicate for a one-shot Fire: true once the burst has fired its single wave AND every
  * particle from it has died. Pulled out of `BurstInstance.isComplete()` so the state machine's core logic
  * is unit-testable without a WebGL-constructed instance (see `burst.test.ts`'s note on why the rest of the
@@ -91,6 +123,10 @@ const SPECS = {
     help: 'px/sec² downward.',
   },
   life: { kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, help: 'Particle lifetime ms.' },
+  orientToVelocity: {
+    kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
+    help: 'Point each particle along its direction of travel (good for shards, arrows, and imported directional art). Overrides spin/rotation while on.',
+  },
 
   turbulence: {
     kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0,
@@ -129,7 +165,10 @@ const SPECS = {
   },
   sizeCurve: {
     kind: 'curve', label: 'Size / life', group: 'Shape',
-    default: [[0, 1], [1, 0]], presets: CURVE_PRESETS,
+    // vMax 2 lets a shard OVERSHOOT its base size mid-life (a pop/flash) rather than only decaying from it.
+    // The default is unchanged (1 -> 0, the original linear shrink), so this widens the editor's range without
+    // altering the look until a point is dragged above the 1x line.
+    default: [[0, 1], [1, 0]], vMax: 2, presets: CURVE_PRESETS,
     help: 'Size multiplier over each particle\'s life (0 = birth, 1 = death).',
   },
 
@@ -142,9 +181,26 @@ const SPECS = {
     default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
     help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life.',
   },
+  alphaCurve: {
+    kind: 'curve', label: 'Alpha / life', group: 'Style',
+    default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
+    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade.',
+  },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
     help: 'posterization levels — 3-4 is the cel look, higher washes out',
+  },
+  plateau: {
+    kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
+    help: 'Width of the flat core before the falloff starts — this is what gives fat cel bands and a hot core (0 = a thin centre line). Same knob, same range, as the ribbon\'s own Plateau.',
+  },
+  fieldMix: {
+    kind: 'slider', label: 'Field mix', group: 'Style', min: 0, max: 1, step: 0.01, default: 0,
+    help: '0 = band the particle by its distance from centre (the ribbon look, works on any silhouette); 1 = band it by the texture\'s own alpha gradient (better for soft hand-painted art).',
+  },
+  tintMode: {
+    kind: 'enum', label: 'Tint mode', group: 'Style', options: PARTICLE_TINT_MODES, default: 'palette',
+    help: 'palette = recolour into the palette stops; texture = keep imported art\'s own colours, still posterized into Bands levels.',
   },
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style',
@@ -176,6 +232,19 @@ type BurstParams = ParamsOf<typeof SPECS>;
  *  so the two call sites can't drift on which fields map to `noise.x` vs `noise.y`. */
 function shapingOf(p: BurstParams): ParticleShaping {
   return { noise: [p.noiseScale, p.noiseScale], warp: p.warp, scroll: p.scroll, erode: p.erode, gain: p.gain };
+}
+
+/** The Style-group half of the same mapping (see `shapingOf` above for why these are helpers rather than
+ *  inlined at the constructor + `setParams` call sites). */
+function styleOf(p: BurstParams): ParticleStyle {
+  return {
+    palette: p.palette,
+    bands: p.bands,
+    glow: p.glow,
+    plateau: p.plateau,
+    fieldMix: p.fieldMix,
+    tintMode: p.tintMode,
+  };
 }
 
 /** Per-particle bookkeeping the `Particle` struct itself doesn't carry (velocity, spin, age/life). Kept as
@@ -228,7 +297,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.renderer = ctx.renderer;
     this.oneShot = ctx.oneShot === true;
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
-    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands, shapingOf(params), params.glow);
+    this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
     this.pc = new ParticleContainer({
       texture: this.texture,
       shader: this.shader,
@@ -327,6 +396,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     const gravity = p.gravity;
     const turbulence = p.turbulence;
     const turbScale = p.turbScale;
+    const orient = p.orientToVelocity;
     const clockSec = this.clockSec;
     const live = this.live;
     const children = this.pc.particleChildren;
@@ -352,11 +422,17 @@ class BurstInstance implements FxInstance<BurstParams> {
         lp.vx += turbulence * turbulenceX(particle.x, particle.y, clockSec, turbScale) * dtSec;
         lp.vy += turbulence * turbulenceY(particle.x, particle.y, clockSec, turbScale) * dtSec;
       }
-      particle.rotation += lp.spin * dtSec;
+      // Spin, or point along the direction of travel when `orientToVelocity` is on (see
+      // `resolveParticleRotation` — with the toggle off this is exactly `rotation += spin * dtSec`, the
+      // expression that used to be inlined here). Reads lp.vx/lp.vy AFTER this frame's gravity/drag/
+      // turbulence, so the sprite tracks the heading it is actually flying on right now.
+      particle.rotation = resolveParticleRotation(particle.rotation, lp.vx, lp.vy, orient, lp.spin, dtSec);
 
       const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
       const lifeT = lp.age / lp.maxLife; // 0 -> 1 over life
-      particle.alpha = frac * frac;
+      // Built-in quadratic fade, times the explicit alpha-over-life curve (default flat 1 → sampleCurve
+      // returns exactly 1 and `x * 1 === x`, so the default is a byte-identical no-op).
+      particle.alpha = frac * frac * sampleCurve(p.alphaCurve, lifeT);
       const s = sampleCurve(p.sizeCurve, lifeT);
       particle.scaleX = lp.scaleX0 * s;
       particle.scaleY = lp.scaleY0 * s;
@@ -412,7 +488,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     const shapeChanged = next.shape !== this.params.shape;
     this.params = next;
     this.pc.blendMode = next.blendMode;
-    updateParticleMaterial(this.shader, next.palette, next.bands, next.glow);
+    updateParticleMaterial(this.shader, styleOf(next));
     updateParticleMaterialShaping(this.shader, shapingOf(next));
     if (shapeChanged) {
       // A ParticleContainer shares exactly ONE base texture across every live particle (see

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { validateSpecs } from '../params';
+import { defaultsOf, validateSpecs } from '../params';
 import { RIBBON_FIRE_GRACE_MS, pushSpineHead, ribbonOneShotComplete, ribbonPrimitive } from './ribbon';
-import type { RibbonPoint } from '../ribbonGeometry';
+import {
+  RIBBON_MAX_SEGMENTS,
+  RIBBON_MIN_SEGMENTS,
+  RIBBON_SEGMENTS,
+  type RibbonPoint,
+} from '../ribbonGeometry';
 
 describe('ribbon param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -10,6 +15,45 @@ describe('ribbon param specs', () => {
 
   it('registers under the id "ribbon"', () => {
     expect(ribbonPrimitive.id).toBe('ribbon');
+  });
+});
+
+describe('ribbon shaping params', () => {
+  const specs = ribbonPrimitive.params;
+
+  it('exposes a width-over-length curve that defaults to a flat 1 (a no-op multiplier)', () => {
+    const spec = specs.widthCurve;
+    expect(spec.kind).toBe('curve');
+    expect(spec.group).toBe('Shape');
+    // Flat 1 across the whole length: sampleCurve returns exactly 1 everywhere, and `x * 1` is exact.
+    expect(spec.default).toEqual([[0, 1], [1, 1]]);
+  });
+
+  it('exposes the wave triple, with amplitude 0 so the wave is off by default', () => {
+    expect(specs.waveAmp).toMatchObject({ kind: 'slider', group: 'Shape', min: 0, max: 40, step: 0.5, default: 0 });
+    expect(specs.waveFreq).toMatchObject({ kind: 'slider', group: 'Shape', min: 0.2, max: 8, step: 0.1, default: 2 });
+    expect(specs.waveSpeed).toMatchObject({ kind: 'slider', group: 'Shape', min: 0, max: 12, step: 0.1, default: 3 });
+  });
+
+  it('exposes segments, defaulting to the geometry\'s own resample count', () => {
+    expect(specs.segments).toMatchObject({
+      kind: 'slider',
+      group: 'Shape',
+      min: RIBBON_MIN_SEGMENTS,
+      max: RIBBON_MAX_SEGMENTS,
+      step: 4,
+      default: RIBBON_SEGMENTS,
+    });
+  });
+
+  it('resolves defaults that are collectively an exact no-op on the existing look', () => {
+    const d = defaultsOf(ribbonPrimitive.params);
+    expect(d.widthCurve).toEqual([[0, 1], [1, 1]]);
+    expect(d.waveAmp).toBe(0);
+    expect(d.segments).toBe(RIBBON_SEGMENTS);
+    // The pre-existing end-controls are untouched by this wave.
+    expect(d.headPinch).toBe(0.12);
+    expect(d.tailFeather).toBe(0.35);
   });
 });
 

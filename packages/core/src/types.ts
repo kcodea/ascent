@@ -1087,6 +1087,12 @@ export interface Minion {
   /** Choose One: the branch this body picked in the shop — display-only in combat (the effects already baked
    *  in during recruit), carried so the combat card prints that single branch, not both options. */
   chosenOption?: number;
+  /** Sunmane Herald's escalating rally: the Attack this body grants on its NEXT rally attack. Doubles for every
+   *  carrier each time any of them attacks. Per-INSTANCE and combat-only, deliberately: a body that dies loses
+   *  its stacks (a Rise/resummon re-enters at the printed base), and one summoned mid-fight has none until a
+   *  carrier attacks — both owner rules (2026-07-25), and both fall out of living on the instance.
+   *  Absent = "use the printed base". Never carried back to the run. */
+  rallySpreadAtk?: number;
   /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
    *  instead of the "the spell this was taught" placeholder. */
   taughtSpellId?: string;
@@ -1178,6 +1184,9 @@ export interface MinionSnapshot {
   /** Choose One: the branch this body picked in the shop — display-only in combat (the effects already baked
    *  in during recruit), carried so the combat card prints that single branch, not both options. */
   chosenOption?: number;
+  /** Sunmane Herald's escalating rally — the Attack it grants on its next rally attack, so the combat card can
+   *  print its CURRENT value rather than the printed base. Display-only. */
+  rallySpreadAtk?: number;
   /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
    *  instead of the "the spell this was taught" placeholder. */
   taughtSpellId?: string;

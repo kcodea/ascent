@@ -51,10 +51,10 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Choose One — Hunt / Ritual:** that trigger fires **2 additional** times.',
   },
   {
-    // A viral Rally: every Beast it buffs also LEARNS this rally, so the effect spreads across the board as
-    // your Beasts attack — and the copy each one learns is worth DOUBLE (owner 2026-07-24: it stacks
-    // multiplicatively). Each body only ever picks it up once, which is what bounds the doubling to the board
-    // size instead of compounding with attack count. See `rallySpreadTribeBuff`.
+    // A viral, ESCALATING Rally: every Beast it buffs also learns this rally, and the granted Attack DOUBLES on
+    // every rally attack board-wide — 3, 6, 12, 24, … (owner spec 2026-07-25: "the value continuously stacks").
+    // Compounding with attack count is the point, so Flurry and extra-attack effects are the payoff. The
+    // magnitude lives on the combat INSTANCE, so death loses the stacks. See `rallySpreadTribeBuff`.
     id: 'b2_sunmane',
     name: 'Sunmane Herald',
     tribe: 'beast',
@@ -63,8 +63,8 @@ export const SET2_BEASTS: CardDef[] = [
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe: 'beast', attack: 3 } }],
-    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**, **doubling** each time it spreads.',
-    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**, **doubling** each time it spreads.',
+    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**. Each **Rally doubles** the Attack.',
+    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**. Each **Rally doubles** the Attack.',
   },
   {
     // The tribe's two halves in one card: it pays your summons, and your SPELLS make that payment bigger.
@@ -216,10 +216,12 @@ export const SET2_BEASTS: CardDef[] = [
     tier: 4,
     attack: 5,
     health: 3,
-    keywords: [],
+    // Taunt (owner 2026-07-25): it has to be attacked INTO for its Echo to pay, so guarding the line is what
+    // makes the card do its own job.
+    keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry' }],
-    text: "**Echo:** trigger adjacent minions' **Shouts**.",
-    goldenText: "**Echo:** trigger adjacent minions' **Shouts** twice.",
+    text: "**Taunt. Echo:** trigger adjacent minions' **Shouts**.",
+    goldenText: "**Taunt. Echo:** trigger adjacent minions' **Shouts** twice.",
   },
   {
     // A go-wide Rally payoff: the more Beasts you field, the harder it hits. Buffs ITSELF (not the board) so

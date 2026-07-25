@@ -31,6 +31,11 @@ const mul = (self: Minion): number => (self.golden ? 2 : 1);
  *  is PERMANENT — recorded as `permaGain` for EVERY recipient (not just Engraved ones; owner: Ruby buffs are
  *  always permanent) so it carries back to the run board via `playerPermaBuffs`. Shared by every "play Rubies"
  *  combat trigger (Start-of-Combat / Avenge / Rally). */
+/** Ceiling for Sunmane Herald's doubling rally (`rallySpreadTribeBuff`). The escalation is deliberately
+ *  unbounded as a design, but the arithmetic is not: ~50 rally attacks in one fight would reach Infinity and
+ *  turn every downstream stat into NaN. Set far past any reachable board strength so it never binds in play. */
+const RALLY_SPREAD_CAP = 1_000_000_000;
+
 function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
   if (per <= 0) return;
   const rb = ctx.rubyBonusFor(self.side);
@@ -2129,45 +2134,54 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Set 2 — Sunmane Herald (Rally): on its own attack, give your `tribe` +atk Attack AND graft THIS rally
-   *  onto each of them — so every Beast it touches becomes another Herald, and the effect spreads as they
-   *  attack. Uses `ctx.grantDeathrattle`, which despite the name grafts + registers ANY effect (it's the same
-   *  path Grave Body uses to copy Echoes).
+  /** Set 2 — Sunmane Herald (Rally): on its own attack, give your `tribe` minions +Attack AND graft THIS rally
+   *  onto them, so every Beast it touches becomes another Herald and the effect spreads as they attack.
    *
-   *  The spread **DOUBLES each generation** (owner ruling 2026-07-24: "this stacks multiplicatively to scale
-   *  with the right build"). The copy a recipient learns is worth twice what it was just handed, so the rally
-   *  escalates as it travels: Sunmane grants +3, the Beasts it touched grant +6, the ones they touch grant
-   *  +12, and so on. Flat spreading was the bug — every generation granted the same +3.
+   *  **The value ESCALATES, board-wide, on every rally attack** (owner spec 2026-07-25): 3 → 6 → 12 → 24 → …
+   *  Each rally attack grants the current value, then DOUBLES it for everyone carrying the rally — including the
+   *  attacker, so a Flurry body escalates twice in one turn and Solaris-style extra attacks compound hard. That
+   *  is the intent, not a bug: "the value continuously stacks."
    *
-   *  Two properties keep that bounded rather than runaway. (1) A minion that already carries this rally is
-   *  never re-granted — otherwise each Herald's attack would weld another copy onto the same body and the
-   *  magnitude would compound with ATTACK COUNT instead of spread depth, which diverges. (2) Because each body
-   *  acquires the rally exactly once, the number of doublings can't exceed the board size — the ceiling is
-   *  `atk × 2^6` on a full board, not an unbounded escalation. Both are load-bearing; drop either and a long
-   *  fight overflows.
+   *  The magnitude lives on the INSTANCE (`rallySpreadAtk`), which is what makes the owner's two edge rules fall
+   *  out for free:
+   *   - **Death loses the stacks.** A Rise/resummon is a fresh body with no `rallySpreadAtk`, so it re-enters at
+   *     the printed base — it does not inherit the chain.
+   *   - **A minion summoned MID-COMBAT joins at full strength.** It has no magnitude until a rally-carrying Beast
+   *     attacks, at which point it takes the current value like everyone else and can carry the chain onward.
    *
-   *  A recipient that already has the rally at a LOWER generation deliberately keeps its own value rather than
-   *  upgrading. Upgrading would re-open the compound-with-attack-count path (1), and "each Beast becomes a
-   *  Herald once" is the simpler rule to read off the board. */
+   *  Superseded the previous "each recipient learns a copy worth 2× what it was handed" reading, which needed new
+   *  BODIES to escalate and so stalled on a static board — the opposite of what the card is for.
+   *
+   *  The effect is grafted only once per body (a second copy would double-fire the same attack); the MAGNITUDE is
+   *  refreshed every time, which is the actual carrier of the escalation. */
   rallySpreadTribeBuff: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
     const tribe = (str(params.tribe) || 'beast') as Tribe;
-    const base = num(params.attack, 3);
-    const a = base * mul(self);
-    if (a <= 0) return;
-    // The next generation is worth double. Derived from the PRE-golden base so the escalation stays a property
-    // of the chain (deterministic, same on both sides) rather than of who happened to be golden.
-    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}), attack: base * 2 } };
+    // This body's CURRENT rally value: whatever the chain has escalated to on this instance, or its printed base
+    // the first time it attacks. Golden is folded in ONCE here (a golden Herald opens at +6) rather than
+    // multiplying every later grant, which would compound with the doubling and diverge from the printed text.
+    const value = self.rallySpreadAtk ?? num(params.attack, 3) * mul(self);
+    if (value <= 0) return;
+    // Doubling is unbounded by design, so clamp to keep the sim finite: a long fight with Flurry + extra attacks
+    // would otherwise reach Infinity and poison every downstream stat as NaN. The cap is far past any reachable
+    // board strength, so it never binds in real play — it only stops the arithmetic from breaking.
+    const next = Math.min(value * 2, RALLY_SPREAD_CAP);
+    const inTribe = (m: Minion): boolean =>
+      m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe;
+    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}) } };
     for (const m of ctx.living(self.side)) {
-      if (m === self) continue;
-      if (!(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
-      ctx.buff(m, a, 0, self.uid);
-      const hasRally = m.effects.some((e) => e.on === 'onAttack' && e.do === 'rallySpreadTribeBuff');
-      if (!hasRally) {
-        if (!m.keywords.includes('RL')) m.keywords.push('RL'); // so the UI reads it as a Rally minion
-        ctx.grantDeathrattle(m, [graft]); // grafts + registers any effect, not just Echoes
+      if (!inTribe(m)) continue;
+      if (m !== self) {
+        ctx.buff(m, value, 0, self.uid);
+        const hasRally = m.effects.some((e) => e.on === 'onAttack' && e.do === 'rallySpreadTribeBuff');
+        if (!hasRally) {
+          if (!m.keywords.includes('RL')) m.keywords.push('RL'); // so the UI reads it as a Rally minion
+          ctx.grantDeathrattle(m, [graft]); // grafts + registers any effect, not just Echoes
+        }
       }
+      // Every carrier — the attacker included — moves to the next rung.
+      m.rallySpreadAtk = next;
     }
   },
 

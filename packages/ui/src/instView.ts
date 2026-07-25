@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
+  rallySpreadText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -48,6 +48,8 @@ export interface LiveTextParams {
   maxTier?: number;
   /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line (1/1 + this) it grants the shop. */
   rubyBonus?: { attack: number; health: number };
+  /** Sunmane Herald's live escalating rally value (combat-only) — its printed "+3" is only the opening rung. */
+  rallySpreadAtk?: number;
   /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
    *  rule instead of "the spell this was taught". Absent on every other card. */
   taughtSpellId?: string;
@@ -88,6 +90,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
+            rallySpreadText(c.id, p.golden, p.rallySpreadAtk) ?? // Sunmane: the rally's CURRENT (doubled) grant
             karthusText(c.id, p.golden, p.summonBonus ?? 0) ?? // Karthus: live per-Slaughter grant
             engraveTallyText(c.id, p.permaGain) ?? // combat-only: null in the shop (no permaGain)
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)

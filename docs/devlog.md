@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+### fix(sim): Ashscribe Whelp counts its "first spell" from PLACEMENT, like Grimoire and Spellkeeper
+
+Applying an existing owner ruling to the one card that still had the old shape. Living Grimoire and Spellkeeper
+Drake were corrected on 2026-07-24 to count "the first spell cast **while this is on your board**" rather than
+the first of the turn; Ashscribe Whelp kept reading the turn-global `spellsThisTurn === 1`. So a Whelp bought
+and played after you'd already cast that turn did nothing until next turn — which reads as the card being
+broken rather than as a cost of sequencing, and is inconsistent with its two tribe-mates doing the same thing.
+
+It now uses the same per-instance `boardSpellCount` Spellkeeper does (reset each turn, undefined on a fresh
+body, so placement is the natural floor). No new state, no reducer change — the reset already clears it for
+every card that carries it.
+
+**Flagging this as a judgement call**, since the owner ruled on Grimoire/Spellkeeper specifically and not on
+this card: I read it as the same defect rather than three separate decisions, and it's a two-line revert if the
+per-turn reading was deliberate for a Tier 1.
+
+Also corrected a comment the immediate-mint change made stale (`moonhowlTeachesThisTurn` no longer resets
+"the queued Pups already minted at EoT" — they mint on the buy).
+
+Verified: typecheck / lint / test (1617, +1) / build:web / harness green. The new test mirrors the existing
+Spellkeeper placement test — cast a spell, THEN play the Whelp, and it still grows on the next cast. Confirmed
+it bites by restoring the turn-global gate. The pre-existing "first but not the second spell" test passes both
+before and after, so the per-turn once-only property is intact.
+
 ### fix(sim): Moonhowl fires from BOTH spell-buy paths; a taught aimed spell lets you pick the target
 
 Two owner reports on the Mage-Pup mechanic (2026-07-24).

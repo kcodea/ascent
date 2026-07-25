@@ -2243,12 +2243,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * improveReps(ctx.state);
   },
 
-  /** Set 2 — Ashscribe Whelp: the FIRST spell you cast each turn permanently grows this minion.
-   *  Hooked on `spellCast`, which fires once per cast AFTER the tally — so `spellsThisTurn === 1` is exactly
-   *  "this was the first". Permanent (owner ruling 2026-07-24): a plain `addBuff`, so it accumulates every turn
-   *  and shows in the inspect breakdown like any other growth. */
+  /** Set 2 — Ashscribe Whelp: the FIRST spell you cast each turn permanently grows this minion. Permanent
+   *  (owner ruling 2026-07-24): a plain `addBuff`, so it accumulates every turn and shows in the inspect
+   *  breakdown like any other growth.
+   *
+   *  Counts from when THIS Whelp was PLACED, not from turn start — the same correction the owner made for
+   *  Living Grimoire and Spellkeeper Drake, applied here for consistency. Reading the turn-global
+   *  `spellsThisTurn === 1` meant a Whelp bought and played after you'd already cast that turn was dead until
+   *  next turn, which reads as the card being broken rather than as a cost of sequencing. The per-instance
+   *  `boardSpellCount` is reset each turn and undefined on a fresh body, so placement is the natural floor. */
   onSpellCastFirstBuffSelf: (ctx, self, params) => {
-    if (ctx.state.spellsThisTurn !== 1) return;
+    const n = (self.boardSpellCount ?? 0) + 1;
+    self.boardSpellCount = n;
+    if (n !== 1) return; // only the first since this Whelp hit the board
     addBuff(self, nameOf(self), num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self));
   },
 

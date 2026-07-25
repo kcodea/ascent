@@ -113,6 +113,23 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
     expect(afterFirst).toEqual([1 + 1 + 2, 3 + 1 + 2]);
   });
 
+  it('Ashscribe Whelp: counts from PLACEMENT too — a spell cast before it does not eat its proc', () => {
+    // Same correction the owner made for Living Grimoire / Spellkeeper (applied here for consistency): reading
+    // the turn-global "spellsThisTurn === 1" left a Whelp bought and played after an earlier cast dead until
+    // next turn. Untargeted spells so each really casts.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80, board: [],
+      hand: [spellInHand('pre', 'emberpouch'), minion('aw', 'd2_ashscribe', 'dragon', 1, 3), spellInHand('a', 'emberpouch')],
+    };
+    s = reduce(s, { type: 'play', uid: 'pre' }); // a spell BEFORE the Whelp — must not consume its trigger
+    s = reduce(s, { type: 'play', uid: 'aw' });
+    const before = s.board.find((c) => c.uid === 'aw')!;
+    expect([before.attack, before.health]).toEqual([1, 3]); // nothing yet
+    s = reduce(s, { type: 'play', uid: 'a' }); // the first spell SINCE it was placed
+    const after = s.board.find((c) => c.uid === 'aw')!;
+    expect([after.attack, after.health]).toEqual([1 + 2, 3 + 2]); // it grew
+  });
+
   it('Spellkeeper Drake: counts from PLACEMENT — a mid-turn play treats the next spell as its first', () => {
     // Owner 2026-07-24. Cast a spell, THEN play the Spellkeeper; the spell before it must not count, so the
     // copy only lands after two MORE spells (the first + second since it hit the board).

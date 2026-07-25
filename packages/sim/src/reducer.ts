@@ -2253,13 +2253,14 @@ function advanceCombat(s: RunState): void {
   // to hand and replayed, and a stale count would eat its first proc next turn.
   for (const c of [...s.board, ...s.hand]) {
     if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
-    // Spellkeeper's per-instance "spells since placed" counter is per-turn too — clear both halves.
+    // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
+    // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;
     if (c.boardFirstSpellId) c.boardFirstSpellId = undefined;
   }
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)
-  s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (the queued Pups already minted at EoT)
+  s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end

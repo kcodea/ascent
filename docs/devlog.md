@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+### chore(ui): re-wire the Beast + spell art (owner refreshed the masters)
+
+Second art pass over the same two folders. **Beasts: 24 files** (was 21) — the 21 minions plus three tokens
+the owner has since drawn: Mage-Pup, T-Rex Baby, and Void Cub (`sabercub`, a Set-1 id). **Spells: 66 files**,
+of which Gold Font, Spirit Fire and Marked Target are freshly redrawn.
+
+**Corrects the Sunmane Herald call from earlier in this branch.** That pass wired `SunmaneHerald2.png` over the
+original because the "2" had the newer mtime. The owner has since renamed that file to `extra.png` — an explicit
+signal it's the reject — so `SunmaneHerald.png` is the keeper and `extra.png` is skipped. Newer mtime alone was
+the wrong tiebreak; a rename is the real signal.
+
+Same matcher discipline: normalised card name against every id/name pair in `packages/content`, unmatched files
+reported rather than guessed. Two hand-confirmed aliases — `VoidPanther.png -> manasaber` (historical id) and
+`BabyRex.png -> b2_trexbaby` (the card is "T-Rex Baby"). The 7 unchanged spell files with no card (Cupcakes,
+Deepdelve Writ, Ironclad Requisition, Preemptive Attack, Road to the Summit, Spark Plug, Timepiece) stay
+unwired — same list as before, so nothing new drifted.
+
+*Near-miss worth recording:* the first attempt ran the WebP optimizer over the whole `art/minions` directory,
+which swept up 22 tracked-as-`.png` Kobold arts that aren't part of this task. Reverting that with a blanket
+`git checkout -- art/minions/` then also threw away the fresh Beast copies. The optimizer now iterates **only
+the ids the matcher copied**, and the Kobold PNGs are verified byte-intact.
+
+Verified: `build:web` green; dev server restarted (eager glob) and all **90** ids checked through `artFor()` —
+asserting the full resolved path lands in the right subdirectory (`art/minions/` vs `art/spells/`, the check
+that once missed 38 shadowed spell arts), that each fetches 200, and that none decode above 512px. 90/90 OK.
+
 ### chore(ui): wire the Set-2 Beast art — all 21 cards
 
 Art pass for the Beast tribe. 21 masters from `Ascent Art/Set 2 Minions/Beasts` copied into

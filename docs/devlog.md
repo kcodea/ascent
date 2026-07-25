@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+### fix(core): a Ruby played in COMBAT fires the target's onRubyPlayed; rename Gem Shard → Gemheart Golem
+
+**"Geode Guardian rubies played on Resonance Idol do not bounce to adjacent minions" — confirmed NOT fixed, now
+fixed.** The cause was a clean split across the recruit/combat seam: Geode Guardian's Echo is a **combat**
+factory (`deathrattlePlayRubiesAdjacent` in `core/effects/factories.ts`), while Resonance Idol's bounce existed
+only as a **recruit** factory (`rubyPlayedBounce` in `sim/recruit.ts`). So a Ruby played mid-fight had nobody
+listening — combat's `playRubyOn` applied stats and returned, and no `onRubyPlayed` equivalent was ever fired.
+
+Two halves to the fix. Combat's `playRubyOn` now notifies the target, running its own `onRubyPlayed` effects the
+way recruit's `fireOnRubyPlayed` does; and Resonance Idol gained a combat implementation so there's something to
+run. This fixes the bounce for **every** combat Ruby source, not just Geode Guardian — Frenzied Excavator's
+per-buy Rubies and Candle Conduit's casts route through the same helper.
+
+The stat application was split out as `applyRubyStats`, and the bounce deliberately calls THAT rather than
+`playRubyOn`. That guard is load-bearing: a bounced Ruby must not itself count as "a Ruby played on" the
+neighbour, or two adjacent Idols ping-pong until the stack blows. It's the same property the recruit half gets by
+calling `addBuff` directly, and it now has a test whose passing at all is the assertion.
+
+Only factories with a combat implementation respond to the new notification — Ruby Broker's Gold, for instance,
+is meaningless mid-fight and simply has no combat entry, so it no-ops rather than needing a guard.
+
+**Gem Shard → Gemheart Golem** (owner rename). DISPLAY name only: the id stays `gemheart-shard`, which is what
+the art file, the summon reference and any captured opponent board key off — the same rule the vocabulary rename
+followed, since renaming ids would invalidate saved runs for a cosmetic change. Gemheart Carver's text and
+goldenText updated to match.
+
+Verified: typecheck / lint / test (1636, +2) / build:web / harness green. The new tests assert the exact event
+chain — a +1/+1 Ruby buff on the Idol sourced from Geode, then a second on the Idol's *other* neighbour sourced
+from the Idol — and that two adjacent Idols terminate. Confirmed the first bites by removing the notification.
+Live-checked the rename in the browser: the token reads "Gemheart Golem", the Carver's text follows, and the art
+still resolves from `minions/gemheart-shard.webp` at 512x512.
+
 ## 2026-07-24 (buy slide no longer blinks the card out and back in)
 
 ### fix(ui): the buy/place slide re-armed the card's mount-pop

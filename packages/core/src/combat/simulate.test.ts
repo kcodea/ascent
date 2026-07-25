@@ -2768,7 +2768,7 @@ describe('simulate (handoff A.3)', () => {
   // (owner 2026-07-24). It used to summon nothing at all with no Rubies, and to copy only the shop Rubies.
   const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }], text: '' };
-  /** The Gem Shard the Carver's Echo summoned, if any. */
+  /** The Gemheart Golem the Carver's Echo summoned, if any. */
   const shardOf = (r: { events: CombatEvent[] }) =>
     r.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'gemheart-shard' ? [e.minion] : []))[0];
 

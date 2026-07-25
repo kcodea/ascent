@@ -36,6 +36,21 @@ function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: numbe
   const rb = ctx.rubyBonusFor(self.side);
   const a = (1 + rb.attack) * per;
   const h = (1 + rb.health) * per;
+  applyRubyStats(ctx, self, target, a, h);
+  // Tell the TARGET a Ruby landed on it, so its own `onRubyPlayed` effects fire — the combat half of the recruit
+  // `fireOnRubyPlayed`. Without this, a Geode Guardian Echo playing Rubies onto a Resonance Idol did nothing
+  // (owner report 2026-07-25): the Idol's bounce existed only as a RECRUIT factory, so mid-combat Rubies had no
+  // one listening. Only factories with a combat implementation respond; Ruby Broker's Gold, for instance, is
+  // meaningless mid-fight and simply has no combat entry.
+  for (const effect of target.effects) {
+    if (effect.on !== 'onRubyPlayed') continue;
+    FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side, rubyAttack: a, rubyHealth: h });
+  }
+}
+/** The stat half of playing a Ruby — no `onRubyPlayed` notification, so a BOUNCE can't re-trigger the bounce.
+ *  That guard is load-bearing: two adjacent Resonance Idols would otherwise ping a Ruby between each other
+ *  forever. (The recruit factory gets the same property by calling `addBuff` directly.) */
+function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number): void {
   ctx.buff(target, a, h, self.uid);
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
   // and a plain `ctx.buff` is indistinguishable from any other combat buff. Combat-local (see `rubyGain`);
@@ -1019,6 +1034,28 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleRubyStatGain: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
+  },
+
+  /** Set 2 — Resonance Idol, the COMBAT half: a Ruby played on this bounces the same stats to BOTH adjacent
+   *  minions (golden: twice each). Mirrors the recruit factory of the same name, so the card reads the same in
+   *  the shop and mid-fight — it previously existed only in recruit, which is why a combat Ruby (Geode Guardian's
+   *  Echo, Frenzied Excavator, Candle Conduit) never bounced (owner report 2026-07-25).
+   *
+   *  Bounces via `applyRubyStats`, NOT `playRubyOn`, so the bounced Ruby does not itself count as "a Ruby played
+   *  on" the neighbour — two adjacent Idols would otherwise bounce forever. Same reasoning as the recruit half. */
+  rubyPlayedBounce: (ctx, self, params, payload) => {
+    const { rubyAttack, rubyHealth } = payload as { rubyAttack?: number; rubyHealth?: number };
+    const a = rubyAttack ?? 0;
+    const h = rubyHealth ?? 0;
+    if (a <= 0 && h <= 0) return;
+    const arr = ctx.boards[self.side];
+    const i = arr.indexOf(self);
+    if (i < 0) return;
+    const reps = self.golden ? num(params.goldenReps, 2) : 1;
+    for (const adj of [arr[i - 1], arr[i + 1]]) {
+      if (!adj || adj.dead || adj.health <= 0) continue;
+      for (let r = 0; r < reps; r++) applyRubyStats(ctx, self, adj, a, h);
+    }
   },
 
   /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */

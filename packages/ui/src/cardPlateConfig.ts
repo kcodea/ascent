@@ -58,7 +58,7 @@ const DEFAULTS: CardPlateConfig = {
   goldBright: 1.13,
   goldContrast: 0.95,
   goldHue: 3,
-  tribeNameY: 0.9,
+  tribeNameY: 1.01,
   tribeNameX: 0,
 };
 

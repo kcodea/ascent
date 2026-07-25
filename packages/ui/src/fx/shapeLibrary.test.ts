@@ -75,7 +75,10 @@ describe('listShapeOptions', () => {
   });
 
   it('lists exactly the built-ins when nothing has been imported', () => {
-    expect(listShapeOptions().map((o) => o.id)).toEqual([...SHAPE_NAMES]);
+    // Committed art (`fx/defs/art/*.png`, ids prefixed `art:`) is a THIRD category this assertion isn't
+    // about: it comes from the repo, not from an import, so committing a PNG must not fail this test.
+    const local = listShapeOptions().filter((o) => !o.id.startsWith('art:'));
+    expect(local.map((o) => o.id)).toEqual([...SHAPE_NAMES]);
   });
 });
 
@@ -292,7 +295,8 @@ describe('persistence', () => {
     // Seeded AFTER the beforeEach reset (which clears storage as well as memory); the first read below
     // hydrates from it.
     stub.setItem(STORAGE_KEY, JSON.stringify([shape('custom:ember', 'Ember')]));
-    const options = listShapeOptions();
+    // Committed art (`art:` ids) is appended after the imports and is not what this case is about.
+    const options = listShapeOptions().filter((o) => !o.id.startsWith('art:'));
     expect(options.map((o) => o.id)).toEqual([...SHAPE_NAMES, 'custom:ember']);
     expect(options.at(-1)).toEqual({ id: 'custom:ember', label: 'Ember', builtin: false });
     expect(listImportedShapes()).toEqual([shape('custom:ember', 'Ember')]);

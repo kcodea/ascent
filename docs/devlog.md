@@ -3,6 +3,53 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-25 (FX workbench — durable defs: an effect is now a committed file)
+
+### feat(fx): Save/Load/Library — the authoring loop finally has an exit
+
+An audit of the authoring loop found the workbench terminated at `copyDef` → clipboard: the **identical dead
+end all 41 legacy tuner panels have**, stated outright in `lungeConfig.ts` — *"Shipping a new feel is still a
+code change: dial it, Copy, paste into DEFAULTS above, commit."* We had rebuilt the authoring UI and kept the
+worst part of the pipeline. Worse, a tuned effect was **unrecoverable state**: layers/params/curves are plain
+`useState`, so it died on reload, on closing the panel, and on HMR — which editing any primitive *forces*,
+since primitives self-register. Design: [`specs/2026-07-25-fx-durable-defs-design.md`](superpowers/specs/2026-07-25-fx-durable-defs-design.md).
+
+- **Defs are committed files.** A dev-only Vite plugin (`apply: 'serve'`, so it cannot exist in a production
+  build) exposes `POST /__fx/def` and `POST /__fx/art`, writing `packages/ui/src/fx/defs/<id>.json` and
+  `defs/art/<slug>.png`. `fxDefs.ts` loads them via `import.meta.glob`. That single change makes an effect
+  durable, shareable by pushing a branch, and — later — referenceable by the game by id.
+- **Write safety is real, not assumed.** The decision logic is a pure `planWrite(kind, body, root)` so the
+  whole surface is unit-testable with no server and no fs: slug grammar, `path.resolve` containment (tested
+  directly via an exported `isInside`, because the slug regex would otherwise make that guard unreachable —
+  an untested guard is not a guard), size caps, PNG magic bytes on top of the data-URL prefix check.
+- **Imported art travels.** On save, any `custom:` shape is uploaded and the def rewritten to `art:<slug>`.
+  Previously a shared def silently rendered a fallback on the other machine, because the PNG lived only in the
+  author's `localStorage`. `shapeLibrary.ts` gained the `art:` namespace, resolving through the same texture
+  cache and fallback rule as local imports.
+- **Library, Duplicate, Paste, autosave.** Load any committed def; Duplicate pre-fills `<id>-copy` without
+  writing a file (the template workflow); Paste def is the missing counterpart to Copy; and a debounced
+  `localStorage` autosave restores unsaved work with a visible, dismissible notice — deliberately *armed on
+  first edit*, so merely opening the workbench never manufactures a "restored" banner.
+
+**A defect this wave's own browser verification caught.** After saving, the library stayed **empty** — the def
+only appeared after a full dev-server restart. Cause: `import.meta.glob(eager)` is expanded at *transform*
+time, and a plain `fs` write from middleware is not a graph event, so Vite never invalidated the module. The
+code carried a comment asserting the opposite ("writing into `defs/` invalidates this module… so the page
+reloads"), which was an untested assumption. Fixed with `registerSavedDef`, an in-session overlay merged over
+the globbed set, plus regression tests — without it a designer hits Save and their def is missing from the
+library they just saved it into.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **2002 passing** (115 files), `build:web` green, and
+the write endpoints confirmed absent from the production bundle. End-to-end in a real browser: the endpoint
+accepts a valid write and **rejects `../../../evil` with a 400 and no file**; saving from the UI wrote a real
+1,470-byte file with the full param set; the library updated *without* a restart; and clicking the saved def
+restored the editor (smoke → burst, duration 1000, name field populated).
+
+**Deliberately next, not now:** the game playing defs (registry flip + anchor provider + a `fxDef` Score
+channel — the registry is a real module already, so that flip is one line); preview fidelity against a real
+board; and three known defects — `fireOnce` bypassing `at`/`life` (so the timing sliders do nothing under the
+headline Fire button), timing edits respawning mid-drag and re-rolling the ribbon's seed, and no seed lock.
+
 ## 2026-07-25 (FX workbench — the ribbon's cel look on EVERY primitive, + depth everywhere)
 
 ### fix(fx): particles and shockwaves posterize a real gradient, not a flat alpha

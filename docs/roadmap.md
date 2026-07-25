@@ -147,7 +147,25 @@ The career surface exists; deepen what a finished run *remembers*.
   **ribbon's cel look on every primitive** (particles and shockwaves now posterize a real gradient + plateau
   instead of a flat alpha — the fix for the repeated "same cartoon posterized look" ask), a `tintMode` toggle
   (palette vs the art's own colours, both posterized), ribbon **width-over-length / wave / segments**, particle
-  **orient-to-velocity + alpha-over-life**, and the `curve` **`vMax`** (curves can now exceed 1×). P3 = A/B compare, preset/palette library,
+  **orient-to-velocity + alpha-over-life**, and the `curve` **`vMax`** (curves can now exceed 1×). Also
+  shipped 2026-07-25: **durable defs** — Save writes a committed `fx/defs/<id>.json` via a dev-only Vite
+  plugin, with a library / Duplicate / Paste / autosave, and imported art promoted to committed `art:` files
+  so a shared def renders what its author saw.
+
+- **FX — bridge defs into the game (the next sub-project).** Durable defs landed; nothing in real gameplay
+  plays one yet. Needs: flipping the `fxDefs` registry out of DEV-only, an anchor provider mapping a combat
+  uid → screen points (copy the pattern in `fxTestFire.ts`, which already reads real DOM rects), a
+  fire-and-forget `playDef(id, anchors)` that self-retires, and a `fxDef` Score channel whose `Cue` carries a
+  def id — which would make "what plays when" data, inheriting the existing live cue-timing overrides. An
+  audit found **~15 combat events with no visual effect at all** (Ward *gained*, Stealth breaking, keyword
+  granted/stripped, Venom spent, Rally's source→target link, quest trigger/complete, enemy-side tribe auras, a
+  plain minion death) — that's the content backlog this unlocks.
+
+- **FX workbench — known defects (fix before tuning seriously).** `fireOnce` spawns every layer immediately
+  and bypasses the `at`/`life` schedule, so the per-layer timing sliders do nothing under Fire (the headline
+  button every build auto-triggers) — you only see timing with Loop on. Timing edits are in `structureKey`, so
+  each slider step tears down and rebuilds the player, and the ribbon re-rolls its noise seed on every rebuild
+  — the look changes while you're trying to judge timing. No seed lock, so a good random roll can't be held. P3 = A/B compare, preset/palette library,
   perf HUD. P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
   regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests

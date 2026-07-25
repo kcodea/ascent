@@ -6,7 +6,21 @@ import { getPrimitive, listPrimitives } from '../registry';
 import { resolveAnchor } from '../anchors';
 import { SCENARIOS } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
+import {
+  clearSession,
+  isValidSlug,
+  loadSession,
+  saveArt,
+  saveDef,
+  saveSession,
+  slugify,
+  toStoredDef,
+  type StoredFxDef,
+} from '../defStore';
+import { listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
+import { getImportedDataUrl } from '../shapeLibrary';
 import { Inspector } from './Inspector';
+import { DefLibrary } from './DefLibrary';
 import { createBackdrop, type FxBackdrop } from './backdrop';
 import {
   addLayer,
@@ -20,6 +34,17 @@ import {
   toDef,
   type EditorLayer,
 } from './layerModel';
+import {
+  ART_SHAPE_REF_PREFIX,
+  artSlugOf,
+  clampDuration,
+  collectCustomShapeRefs,
+  editorLayersFromDef,
+  normalizeSession,
+  pruneUnknownPrimitives,
+  toStoredLayers,
+  type DurationBounds,
+} from './sessionState';
 
 /** Swatches for the preview backdrop control (see `createBackdrop`). `hex: null` is "None" — transparent,
  *  matching the in-game overlay. Multiply against black is always black, so Mid/Light are what actually let
@@ -54,6 +79,22 @@ const DURATION_STEP_MS = 50;
 const MAX_LOOP_GAP_MS = 2000;
 const LOOP_GAP_STEP_MS = 50;
 
+/** The duration band a restored session / loaded def is clamped into — the dial's own bounds, handed to the
+ *  pure helpers in `sessionState.ts` so that module never has to know about this file's constants. */
+const DURATION_BOUNDS: DurationBounds = {
+  min: MIN_DURATION_MS,
+  max: MAX_DURATION_MS,
+  fallback: DEFAULT_DURATION_MS,
+};
+
+/** Autosave debounce. Long enough that a slider drag writes once at the end of the gesture, short enough
+ *  that an HMR reload (which editing any primitive forces) never loses more than half a second of work. */
+const AUTOSAVE_DEBOUNCE_MS = 500;
+/** How long the transient "Saved →" confirmation stays up. */
+const SAVE_NOTE_MS = 2500;
+/** Poll interval for "have the primitives self-registered yet?", matching the build effect's own retry. */
+const REGISTRY_POLL_MS = 50;
+
 /**
  * Full-screen dev overlay for live-tuning FX primitives. Deliberately NOT a `.sfxmix` draggable panel —
  * the whole point of this tool is its own purpose-built transport + a generated inspector, not another
@@ -61,13 +102,20 @@ const LOOP_GAP_STEP_MS = 50;
  * production bundle (see the DEV-gated import above for the one subtlety that requires).
  */
 export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactElement {
+  // Autosaved work from the last session, read ONCE (lazy initializer) so the initial layers/selected/duration
+  // below can all seed from it — no post-mount "restore" pass that would respawn the effect a second time.
+  // Deliberately registry-BLIND (see `normalizeSession`): the primitives arrive via a dynamic import that has
+  // not resolved on first render, so the "does this primitive still exist?" pass runs separately, below.
+  const [restoredSession] = useState(() => normalizeSession(loadSession(), DURATION_BOUNDS));
+
   // The workbench now stages a LIST of layers (a composition), not a single primitive. `layers[selected]` is
   // the one the top primitive row / Inspector / timing controls edit; every layer is played together.
   const [layers, setLayers] = useState<EditorLayer[]>(() => {
+    if (restoredSession !== null) return restoredSession.layers;
     const first = listPrimitives()[0]?.id ?? 'ribbon';
     return [createEditorLayer(first, defaultsOf(getPrimitive(first)?.params ?? {}))];
   });
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(restoredSession?.selected ?? 0);
   // The "Add layer" picker's own selection (defaults to the first registered primitive). Independent of the
   // selected layer — it only feeds `addNewLayer`.
   const [addPrimitiveId, setAddPrimitiveId] = useState<string>(() => listPrimitives()[0]?.id ?? 'ribbon');
@@ -80,7 +128,21 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [fps, setFps] = useState(0);
   const [copied, setCopied] = useState(false);
   const [backdropColor, setBackdropColor] = useState<number | null>(null);
-  const [durationMs, setDurationMs] = useState(DEFAULT_DURATION_MS);
+  const [durationMs, setDurationMs] = useState(restoredSession?.durationMs ?? DEFAULT_DURATION_MS);
+
+  // ── durable defs (see `defStore.ts` / `fxDefs.ts`) ──────────────────────────────────────────────────
+  // The name the next Save writes under; `saving` is the double-click guard, `saveNote` the transient
+  // confirmation, `saveError` the inline failure line (a bad slug, a rejected write, art that didn't travel).
+  const [defName, setDefName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveNote, setSaveNote] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // The committed def library. Held in state (rather than calling `listDefs()` inline) so a Save can refresh
+  // it explicitly — the registry behind it is module-level and React knows nothing about it.
+  const [defs, setDefs] = useState<StoredFxDef[]>(() => listDefs());
+  // "Restored unsaved work" is VISIBLE and dismissible — restoring must never silently clobber what the
+  // author expected to see (a blank default composition).
+  const [restoredNotice, setRestoredNotice] = useState(restoredSession !== null);
   // Loop is opt-in and OFF by default (see file-level rework note above `build()`): the workbench must
   // never auto-start a continuous loop just because an effect opened. Only `toggleLoop` turns this on.
   const [loopOn, setLoopOn] = useState(false);
@@ -97,6 +159,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const loopGapRef = useRef(loopGapMs);
   const cursorRef = useRef({ x: 0, y: 0 });
   const clickRef = useRef<{ x: number; y: number } | null>(null);
+  // Autosave stays DISARMED until the composition is actually touched, so merely opening the workbench (or
+  // React 18's StrictMode double-mounting it) never writes a session — otherwise every open would hand the
+  // next one a "Restored unsaved work" banner over a pristine default. `discardRestored` disarms it again so
+  // the discarded work can't immediately re-save itself.
+  const autosaveArmedRef = useRef(false);
+  const noteTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Live pointer position (for cursor-driven scenarios) and last click point (for `clickPlace`) —
   // independent of build/rebuild, tracked once.
@@ -284,6 +352,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // param (a list of [t, v] control points). Every value flows unchanged through setLayerParams'
   // `Record<string, unknown>`, then coerceParams validates it per the primitive's spec.
   const change = (key: string, value: number | boolean | string | number[] | number[][]): void => {
+    autosaveArmedRef.current = true;
     setLayers((prev) => {
       const next = setLayerParam(prev, selected, key, value);
       layersRef.current = next;
@@ -294,10 +363,63 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   };
 
   // Commit a new layers array to both the state and the ref mirror the build/updater closures read.
+  // Arms the autosave: every caller (add/delete/reorder/primitive-swap/timing/load/prune) is real work.
   const commitLayers = (next: EditorLayer[]): void => {
     layersRef.current = next;
+    autosaveArmedRef.current = true;
     setLayers(next);
   };
+
+  // A restored session can name a primitive that no longer exists (renamed, deleted, or simply not part of
+  // this branch). The build effect POLLS while any layer's primitive is unregistered — forever, if it never
+  // arrives — so something has to drop it. Runs once on mount, waiting for the DEV-gated dynamic import that
+  // registers the primitives to resolve (same 50ms poll as `build()`), then prunes. `pruneUnknownPrimitives`
+  // returns null when nothing needs dropping, which is the overwhelmingly common case: no commit, no
+  // structKey change, no rebuild.
+  useEffect(() => {
+    if (restoredSession === null) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const prune = (): void => {
+      if (cancelled) return;
+      if (listPrimitives().length === 0) {
+        timer = setTimeout(prune, REGISTRY_POLL_MS);
+        return;
+      }
+      const kept = pruneUnknownPrimitives(layersRef.current, (id) => getPrimitive(id) !== undefined);
+      if (kept === null) return;
+      if (kept.length > 0) {
+        commitLayers(kept);
+        setSelected((s) => Math.min(s, kept.length - 1));
+      } else {
+        // Nothing survived — degrade to a fresh default layer rather than an empty composition (the whole
+        // workbench assumes at least one layer, see `removeLayer`).
+        const first = listPrimitives()[0]?.id ?? 'ribbon';
+        const prim = getPrimitive(first);
+        commitLayers([createEditorLayer(first, prim ? defaultsOf(prim.params) : {})]);
+        setSelected(0);
+      }
+    };
+    prune();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) clearTimeout(timer);
+    };
+    // Mount-only: `restoredSession` is a one-shot snapshot and `commitLayers` writes through refs.
+  }, []);
+
+  // Autosave the whole composition (debounced) so a reload / HMR / panel close can't take the work with it.
+  // Deliberately NOT the def file: a git-tracked write on every slider drag is exactly what Save is for.
+  useEffect(() => {
+    if (!autosaveArmedRef.current) return;
+    const timer = setTimeout(() => saveSession({ layers, selected, durationMs }), AUTOSAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [layers, selected, durationMs]);
+
+  // The transient "Saved" confirmation's timer, cleared on unmount.
+  useEffect(() => () => {
+    if (noteTimerRef.current !== undefined) clearTimeout(noteTimerRef.current);
+  }, []);
 
   const selectLayer = (i: number): void => setSelected(i);
 
@@ -411,6 +533,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Duration dial: deliberately just a `setState` -- the actual rebuild is driven by `durationMs` sitting
   // in the build effect's dependency array (see above), same as primitive/scenario changes.
   const changeDuration = (ms: number): void => {
+    autosaveArmedRef.current = true;
     setDurationMs(ms);
   };
 
@@ -421,6 +544,130 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });
+  };
+
+  /** Flash a transient confirmation under the Save row. */
+  const flashNote = (text: string): void => {
+    setSaveNote(text);
+    if (noteTimerRef.current !== undefined) clearTimeout(noteTimerRef.current);
+    noteTimerRef.current = setTimeout(() => setSaveNote(null), SAVE_NOTE_MS);
+  };
+
+  /** Re-read the committed def registry (a module-level glob React knows nothing about) after a write. */
+  const refreshLibrary = (): void => {
+    refreshDefs();
+    setDefs(listDefs());
+  };
+
+  /**
+   * Save the composition as a committed def.
+   *
+   * The subtle half is ART PORTABILITY: a `custom:<slug>` shape param names a PNG that lives only in THIS
+   * browser's localStorage, so a def carrying that id renders a fallback silhouette on anyone else's machine.
+   * Each one is therefore uploaded to `defs/art/<slug>.png` first and the reference rewritten to
+   * `art:<slug>` — in a COPY (`toStoredLayers`), never in the live editor state, so a save can never alter
+   * what the author is looking at. An art upload that fails is reported inline and does NOT block the def:
+   * the def still saves, that one layer just falls back to a built-in shape elsewhere (exactly today's
+   * behaviour for an unknown shape id).
+   *
+   * Fully async and total: every failure lands in `saveError`, nothing throws into render, and `saving`
+   * guards against a double-click writing twice.
+   */
+  const save = async (): Promise<void> => {
+    if (saving) return;
+    const id = slugify(defName);
+    if (!isValidSlug(id)) {
+      setSaveNote(null);
+      setSaveError('Name it first — lowercase letters, digits and dashes (max 64 chars).');
+      return;
+    }
+    setSaving(true);
+    setSaveNote(null);
+    setSaveError(null);
+    try {
+      const artRefs = new Map<string, string>();
+      const artFailures: string[] = [];
+      for (const ref of collectCustomShapeRefs(layers)) {
+        const dataUrl = getImportedDataUrl(ref);
+        if (dataUrl === null) {
+          artFailures.push(`${ref} isn't in this browser's shape library`);
+          continue;
+        }
+        const slug = artSlugOf(ref);
+        const art = await saveArt(slug, dataUrl);
+        if (art.ok) artRefs.set(ref, `${ART_SHAPE_REF_PREFIX}${slug}`);
+        else artFailures.push(`${ref}: ${art.error}`);
+      }
+      const stored = toStoredDef(id, durationMs, toStoredLayers(layers, artRefs));
+      const result = await saveDef(stored);
+      if (!result.ok) {
+        setSaveError(result.error);
+        return;
+      }
+      // Hand the def we just wrote to the registry BEFORE refreshing: the eager glob behind `listDefs()`
+      // cannot see a file created after this module was transformed (verified in the browser — the library
+      // stayed empty until a full dev-server restart), so without this the def you just saved is missing from
+      // the library you saved it into.
+      registerSavedDef(stored);
+      refreshLibrary();
+      setDefName(id); // show the slug that actually got written
+      setSaveError(
+        artFailures.length > 0 ? `Saved, but art didn't travel: ${artFailures.join('; ')}` : null,
+      );
+      flashNote(`Saved → ${result.path}`);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Save failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * Replace the editor state with a def — the ONE path every load goes through (library click, Duplicate,
+   * Paste). All three `setState`s are batched into a single render, so `structKey` and `durationMs` both
+   * settle once and the build effect respawns the player EXACTLY once (a load is a structural change, so it
+   * must respawn — but only once).
+   *
+   * `nameForField` is what lands in the Save box: the def's own id for a plain load, `<id>-copy` for a
+   * Duplicate — which is why Duplicate writes no file: it's a template until you hit Save.
+   */
+  const loadDef = (def: StoredFxDef, nameForField: string): void => {
+    const fromDef = editorLayersFromDef(def.layers);
+    let next = fromDef;
+    if (next.length === 0) {
+      const first = listPrimitives()[0]?.id ?? 'ribbon';
+      const prim = getPrimitive(first);
+      next = [createEditorLayer(first, prim ? defaultsOf(prim.params) : {})];
+    }
+    const nextDuration = clampDuration(def.duration, DURATION_BOUNDS);
+    // A def that differs from the current composition ONLY in params leaves structKey and durationMs
+    // untouched — so the build effect (correctly) doesn't re-run and the live player would keep the old
+    // params. Push them the same way `change` does. Detected BEFORE committing, off the outgoing state.
+    const paramsOnly = structureKey(next) === structureKey(layers) && nextDuration === durationMs;
+    commitLayers(next);
+    setSelected(0);
+    setDurationMs(nextDuration);
+    setDefName(nameForField);
+    setSaveNote(null);
+    setSaveError(null);
+    setRestoredNotice(false); // the restored work has just been replaced — the banner would be a lie
+    if (paramsOnly) {
+      const p = playerRef.current;
+      if (p) next.forEach((l, i) => p.setLayerParams(i, l.params));
+    }
+  };
+
+  /** Throw the restored work away and start from a fresh default composition. Disarms the autosave so the
+   *  reset doesn't immediately write itself straight back into storage. */
+  const discardRestored = (): void => {
+    clearSession();
+    const first = listPrimitives()[0]?.id ?? 'ribbon';
+    const prim = getPrimitive(first);
+    commitLayers([createEditorLayer(first, prim ? defaultsOf(prim.params) : {})]);
+    setSelected(0);
+    setDurationMs(DEFAULT_DURATION_MS);
+    setRestoredNotice(false);
+    autosaveArmedRef.current = false; // AFTER commitLayers, which arms it
   };
 
   // The selected layer drives the top primitive row, the Inspector, and the timing controls. Fallback to the
@@ -479,6 +726,28 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       </div>
 
       <div className="fxwb-side">
+        {restoredNotice && (
+          <div className="fxwb-def-restore">
+            <span className="fxwb-def-restore-txt">Restored unsaved work.</span>
+            <button
+              type="button"
+              className="fxwb-def-restore-discard"
+              title="Throw the restored work away and start from a fresh default composition"
+              onClick={discardRestored}
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              className="fxwb-def-restore-x"
+              title="Keep it — just hide this"
+              aria-label="Dismiss"
+              onClick={() => setRestoredNotice(false)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="fxwb-layers">
           {layers.map((l, i) => (
             <div
@@ -558,6 +827,41 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
         {activePrimitive && <Inspector specs={activePrimitive.params} values={selLayer.params} onChange={change} />}
         <button className="fxwb-copy" onClick={copyDef}>{copied ? 'Copied!' : 'Copy def'}</button>
+
+        {/* Durable defs: name + Save writes a committed `defs/<id>.json` (and any imported art alongside it);
+            the library below loads / duplicates / pastes one back into the editor. */}
+        <div className="fxwb-def">
+          <div className="fxwb-def-saverow">
+            <input
+              className="fxwb-def-nameinput"
+              type="text"
+              placeholder="def-name"
+              aria-label="Def name"
+              spellCheck={false}
+              value={defName}
+              onChange={(e) => setDefName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void save();
+              }}
+            />
+            <button
+              type="button"
+              className="fxwb-def-save"
+              disabled={saving}
+              title="Write this composition to packages/ui/src/fx/defs/<name>.json"
+              onClick={() => void save()}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+          {saveNote !== null && <div className="fxwb-def-note">{saveNote}</div>}
+          {saveError !== null && <div className="fxwb-def-err">{saveError}</div>}
+          <DefLibrary
+            defs={defs}
+            onLoad={(def) => loadDef(def, def.id)}
+            onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
+          />
+        </div>
       </div>
 
       <div className="fxwb-transport">

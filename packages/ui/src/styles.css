@@ -5160,3 +5160,93 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-shape-import input[type='file'] { display: none; }
 .fxwb-shape-hint { font-size: 10px; line-height: 1.3; color: #8a7fa8; }
 .fxwb-shape-err { font-size: 10px; line-height: 1.3; font-weight: 700; color: #ff8a8a; }
+
+/* ---- DURABLE DEFS (save / library / restore) ---- */
+/* The bottom cluster of the side rail: a name + Save row (writes a committed defs/<id>.json via the dev-only
+   middleware), then the def library (load / duplicate / paste). Sits under `.fxwb-copy`, whose `margin-top:
+   auto` pushes the whole cluster to the bottom of the rail. Same dark-panel language as .fxwb-layer* above;
+   deliberately compact — this is a utility strip, not the main editing surface. */
+.fxwb-def { display: flex; flex-direction: column; gap: 6px; }
+.fxwb-def-saverow { display: flex; align-items: center; gap: 5px; }
+.fxwb-def-nameinput {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 5px 7px; border-radius: 6px;
+  border: 1px solid #3d3752; background: #2b2739; color: #d9d3ea; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 700;
+}
+.fxwb-def-nameinput::placeholder { color: #8a7fa8; font-weight: 400; }
+.fxwb-def-nameinput:focus { outline: none; border-color: #c936ef; }
+.fxwb-def-save {
+  flex: 0 0 auto; padding: 6px 12px; border-radius: 6px; border: 2px solid #c936ef;
+  background: color-mix(in srgb, #c936ef 16%, #2b2739); color: #f0a0ff; font-family: var(--font-ui);
+  font-weight: 800; font-size: 12px; cursor: pointer;
+}
+.fxwb-def-save:hover:not(:disabled) { background: color-mix(in srgb, #c936ef 28%, #2b2739); }
+.fxwb-def-save:disabled { opacity: 0.5; cursor: default; }
+.fxwb-def-note { font-size: 10px; line-height: 1.3; font-weight: 700; color: #f0a0ff; word-break: break-all; }
+.fxwb-def-err { font-size: 10px; line-height: 1.3; font-weight: 700; color: #ff8a8a; }
+
+.fxwb-deflib { display: flex; flex-direction: column; gap: 4px; }
+.fxwb-def-head {
+  margin: 2px 0 2px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #8a7fa8; border-bottom: 1px solid #3d3752; padding-bottom: 4px;
+}
+.fxwb-def-empty { font-size: 10px; line-height: 1.3; color: #8a7fa8; }
+.fxwb-def-list { display: flex; flex-direction: column; gap: 3px; max-height: 148px; overflow-y: auto; }
+.fxwb-def-row {
+  display: flex; align-items: center; gap: 4px; padding: 0; border-radius: 7px; background: #2b2739;
+  border: 1px solid #3d3752;
+}
+.fxwb-def-row:hover { border-color: color-mix(in srgb, #c936ef 45%, #3d3752); }
+.fxwb-def-load {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 5px 7px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.fxwb-def-name {
+  max-width: 100%; font-size: 12px; font-weight: 800; color: #d9d3ea; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.fxwb-def-row:hover .fxwb-def-name { color: #f0a0ff; }
+.fxwb-def-meta { font-size: 10px; font-weight: 700; color: #8a7fa8; font-variant-numeric: tabular-nums; }
+.fxwb-def-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; padding-right: 5px; }
+.fxwb-def-actions button {
+  width: 20px; height: 20px; padding: 0; border-radius: 4px; border: 1px solid #3d3752; background: #211d2c;
+  color: #8a7fa8; font-family: var(--font-ui); font-size: 11px; font-weight: 800; line-height: 1; cursor: pointer;
+}
+.fxwb-def-actions button:hover { border-color: #c936ef; color: #f0a0ff; }
+
+.fxwb-def-pasterow { display: flex; align-items: center; gap: 4px; }
+.fxwb-def-paste {
+  flex: 1 1 auto; padding: 5px 8px; border-radius: 6px; border: 1px solid #3d3752; background: #2b2739;
+  color: #d9d3ea; font-family: var(--font-ui); font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.fxwb-def-paste:hover:not(:disabled) { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-def-paste:disabled { opacity: 0.45; cursor: default; }
+.fxwb-def-paste-toggle {
+  flex: 0 0 auto; width: 22px; height: 24px; padding: 0; border-radius: 6px; border: 1px solid #3d3752;
+  background: #2b2739; color: #8a7fa8; font-family: var(--font-ui); font-size: 10px; line-height: 1; cursor: pointer;
+}
+.fxwb-def-paste-toggle:hover { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-def-pastebox { display: flex; flex-direction: column; gap: 4px; }
+.fxwb-def-pastearea {
+  width: 100%; box-sizing: border-box; min-height: 68px; resize: vertical; padding: 5px 7px; border-radius: 6px;
+  border: 1px solid #3d3752; background: #211d2c; color: #d9d3ea; font-family: monospace;
+  font-size: 10px; line-height: 1.35;
+}
+.fxwb-def-pastearea:focus { outline: none; border-color: #c936ef; }
+
+/* Restore affordance: pinned at the top of the side rail so a restored session is never a silent clobber. */
+.fxwb-def-restore {
+  display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: 7px;
+  background: color-mix(in srgb, #c936ef 14%, #2b2739); border: 1px solid #c936ef;
+}
+.fxwb-def-restore-txt { flex: 1 1 auto; min-width: 0; font-size: 11px; font-weight: 700; color: #f0a0ff; }
+.fxwb-def-restore-discard {
+  flex: 0 0 auto; padding: 3px 8px; border-radius: 5px; border: 1px solid #3d3752; background: #211d2c;
+  color: #d9d3ea; font-family: var(--font-ui); font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.fxwb-def-restore-discard:hover { border-color: #f0a0ff; color: #f0a0ff; }
+.fxwb-def-restore-x {
+  flex: 0 0 auto; width: 20px; height: 20px; padding: 0; border-radius: 5px; border: 1px solid #3d3752;
+  background: #211d2c; color: #8a7fa8; font-family: var(--font-ui); font-size: 10px; line-height: 1; cursor: pointer;
+}
+.fxwb-def-restore-x:hover { border-color: #f0a0ff; color: #f0a0ff; }

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { Texture, type Renderer } from 'pixi.js';
 import { SHAPE_NAMES, SHAPE_UNIT, getShapeTexture, type ShapeName } from './shapeTextures';
 
@@ -26,6 +27,14 @@ import { SHAPE_NAMES, SHAPE_UNIT, getShapeTexture, type ShapeName } from './shap
  * lands. A shape id that this browser has never imported (a def shared from another machine) resolves to the
  * same fallback rather than blowing up.
  *
+ * ── There are therefore TWO namespaces of non-builtin art, and the difference is where the bytes live:
+ *   • `custom:<slug>` — imported on THIS machine, PNG bytes in localStorage. Doesn't travel.
+ *   • `art:<slug>`    — COMMITTED to `fx/defs/art/<slug>.png` and loaded by a build-time glob. Travels with
+ *     the repo, so a def shared with the other developer renders what its author saw. The workbench's Save
+ *     flow is what promotes a `custom:` import to an `art:` reference (it uploads the data URL — see
+ *     `getImportedDataUrl` — via `defStore.saveArt`).
+ * Both resolve through the same texture cache and the same "fall back to a built-in until ready" rule.
+ *
  * Nothing here touches the DOM or localStorage at module scope — every access is inside a function and
  * guarded — so the module stays importable in the headless (node) test environment.
  */
@@ -41,7 +50,9 @@ export interface ImportedShape {
   dataUrl: string;
 }
 
-/** One row of the `shape` param's picker. */
+/** One row of the `shape` param's picker. A row's KIND is readable from its id — a bare `SHAPE_NAMES` entry
+ *  is a built-in, `custom:` is a local-only import, `art:` is committed (see `isArtShapeId`) — so this stays
+ *  the same three fields it always was. */
 export interface ShapeOption {
   id: string;
   label: string;
@@ -53,6 +64,9 @@ export type AlphaSource = 'alpha' | 'luminance';
 
 /** The namespace prefix every imported id carries. */
 export const CUSTOM_SHAPE_PREFIX = 'custom:';
+
+/** The namespace prefix every COMMITTED (`fx/defs/art/<slug>.png`) id carries. */
+export const ART_SHAPE_PREFIX = 'art:';
 
 /** localStorage key — ONE key holding the whole `ImportedShape[]`. Versioned so a future schema change is a
  *  key bump (old imports simply stop loading) rather than a migration. */
@@ -116,6 +130,21 @@ export function slugifyShapeName(filename: string): string {
 /** Namespace a slug into a full shape id. */
 export function customShapeId(slug: string): string {
   return `${CUSTOM_SHAPE_PREFIX}${slug}`;
+}
+
+/** Namespace a slug into a full COMMITTED shape id. */
+export function artShapeId(slug: string): string {
+  return `${ART_SHAPE_PREFIX}${slug}`;
+}
+
+/** Is `id` a committed-art reference? */
+export function isArtShapeId(id: string): boolean {
+  return id.startsWith(ART_SHAPE_PREFIX);
+}
+
+/** `art:ember` → `ember`. Returns `''` for anything that isn't an `art:` id. */
+export function artSlugOf(id: string): string {
+  return isArtShapeId(id) ? id.slice(ART_SHAPE_PREFIX.length) : '';
 }
 
 /** Filename → display label (the stem, extension dropped, whitespace tidied). */
@@ -259,6 +288,61 @@ function ensureTexture(shape: ImportedShape): Promise<Texture | null> {
   return job;
 }
 
+// ─── committed art (`fx/defs/art/*.png`, resolved by an `art:<slug>` id) ──────────────────────────────
+
+/**
+ * slug → bundled URL for every committed PNG. DEV-gated at the glob so no art is pulled into a production
+ * bundle (nothing in prod plays a def yet).
+ *
+ * `import.meta.glob` is a Vite TRANSFORM, not a runtime function — the call is replaced at transform time,
+ * which is why its options must be an inline literal. That also holds under Vitest (it runs source through
+ * Vite), so the committed-art path is exercised by the test suite. The `try` covers any OTHER loader (a
+ * plain node/tsx import), where the untransformed call would throw: there it degrades to "no committed art",
+ * i.e. exactly the existing fallback behaviour.
+ */
+function artModules(): Record<string, string> {
+  if (!import.meta.env.DEV) return {};
+  try {
+    return import.meta.glob('./defs/art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<
+      string,
+      string
+    >;
+  } catch {
+    return {};
+  }
+}
+
+let artIndexCache: Map<string, string> | null = null;
+
+function artIndex(): Map<string, string> {
+  if (artIndexCache) return artIndexCache;
+  const out = new Map<string, string>();
+  for (const [p, url] of Object.entries(artModules())) {
+    const slug = p.split('/').pop()?.replace(/\.png$/, '') ?? '';
+    if (slug !== '') out.set(slug, url);
+  }
+  artIndexCache = out;
+  return out;
+}
+
+/** Kick off (once) the decode for a committed `art:<slug>` id. A slug with no committed file is a no-op —
+ *  the render path keeps using the built-in fallback, which is exactly what a def referencing art that was
+ *  never committed should do. */
+function ensureArtTexture(id: string): void {
+  if (textureCache.has(id) || decoding.has(id)) return;
+  const slug = artSlugOf(id);
+  const url = artIndex().get(slug);
+  if (url === undefined) return;
+  // Reuses the import decode path verbatim — an `<img>` doesn't care whether its src is a data URL or a
+  // bundled file URL, so one cache and one fallback rule serve both namespaces.
+  void ensureTexture({ id, label: slug, dataUrl: url });
+}
+
+/** Every committed art slug, sorted. */
+export function listCommittedArt(): string[] {
+  return [...artIndex().keys()].sort((a, b) => a.localeCompare(b));
+}
+
 // ─── normalization + alpha bake (the key UX fix — see the module header) ──────────────────────────────
 
 /**
@@ -353,14 +437,20 @@ export function initShapeLibrary(): void {
   hydrated = true; // set BEFORE the decodes so a re-entrant lookup can't loop
   imported = readStore();
   for (const shape of imported) void ensureTexture(shape);
+  // Committed art is decoded up front too (there are only ever a handful of files, and they're already in
+  // the bundle) so a def that references `art:<slug>` doesn't render one frame of the fallback circle.
+  for (const slug of artIndex().keys()) ensureArtTexture(artShapeId(slug));
 }
 
-/** Every selectable shape right now: the built-ins, then the imports (in import order). */
+/** Every selectable shape right now: the built-ins, then this machine's imports (in import order), then the
+ *  committed art. Committed rows are labelled so they're distinguishable from a local-only import — the
+ *  difference matters (only a committed one travels to the other developer). */
 export function listShapeOptions(): ShapeOption[] {
   initShapeLibrary();
   return [
     ...SHAPE_NAMES.map((name) => ({ id: name, label: name, builtin: true })),
     ...imported.map((s) => ({ id: s.id, label: s.label, builtin: false })),
+    ...listCommittedArt().map((slug) => ({ id: artShapeId(slug), label: `${slug} (committed)`, builtin: false })),
   ];
 }
 
@@ -368,6 +458,16 @@ export function listShapeOptions(): ShapeOption[] {
 export function listImportedShapes(): ImportedShape[] {
   initShapeLibrary();
   return imported.slice();
+}
+
+/**
+ * The stored PNG data URL behind a `custom:` id, or `null` for anything else (a built-in, an `art:` id, an
+ * id this machine never imported). This is the seam the Save flow needs: to promote a def's local-only
+ * `custom:<slug>` shape into a committed `art:<slug>`, it has to get the actual bytes out of the library.
+ */
+export function getImportedDataUrl(id: string): string | null {
+  initShapeLibrary();
+  return imported.find((s) => s.id === id)?.dataUrl ?? null;
 }
 
 /**
@@ -383,6 +483,9 @@ export function listImportedShapes(): ImportedShape[] {
  */
 export function getShapeTextureById(renderer: Renderer, id: string): Texture {
   initShapeLibrary();
+  // A committed id may be referenced by a def that was loaded after init (or after a `refreshDefs`), so its
+  // decode is kicked off here as well as at init. Idempotent — two Map lookups once the texture is cached.
+  if (isArtShapeId(id)) ensureArtTexture(id);
   const cached = textureCache.get(id);
   const source = resolveShapeSource(id, cached !== undefined);
   if (source.kind === 'imported') return cached as Texture;
@@ -438,6 +541,7 @@ export function resetShapeLibrary(): void {
   imported = [];
   textureCache.clear();
   decoding.clear();
+  artIndexCache = null;
   hydrated = false;
   try {
     storage()?.removeItem(STORAGE_KEY);

@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+### fix(core): Sunmane's rally buffs the ATTACKER too — the board was drifting apart
+
+Owner screen capture ("weird stats going up down"). Read off the video frame by frame: the player's Beast row sat
+at `49, 97, 48, 96, 96, 96, 96` — two bodies stuck a full rung behind the rest, persistently, not as an animation
+transient.
+
+The cause was the self-exclusion I flagged when the escalation landed and deliberately left alone: the rally
+buffed every Beast EXCEPT the attacker. That was harmless when the grant was a flat +3, but with doubling rungs a
+missed grant is a permanent gap the size of everything before it — and every Beast that attacks misses its own
+rung. Traced with four near-identical Beasts off one opening line: **36045 / 22936 / 45874 / 42598**. Unrelated
+numbers, which is exactly what "going up and down" looks like on screen when the cards are re-sorted or a body
+dies and the row shifts.
+
+The attacker now buffs itself — it is plainly one of "your Beasts", which is what the card says. Every carrier
+stays in lockstep, and the same four-Beast fight ends with a spread of **2** (just their differing printed base
+Attack) instead of tens of thousands.
+
+Worth recording as a lesson about the flag itself: I *did* surface this in the PR as an open question, but filed
+it as pre-existing cosmetic behaviour rather than reasoning about how it interacted with the change I was making
+in the same commit. Flat grants tolerate an excluded attacker; exponential ones don't. A flag is not a substitute
+for checking whether the thing being flagged is load-bearing for the new mechanic.
+
+Verified: typecheck / lint / test (1642, +1) / build:web / harness green. The new test asserts the SPREAD across
+the board rather than exact values — every Beast should hold the same total, so the only legitimate difference is
+base Attack. Confirmed it bites by restoring the exclusion: the spread reads 22938 against a ceiling of 2.
+
+*Tooling note:* to read the clip I installed `ffmpeg-static` into the scratchpad (NOT the repo — `package.json`
+untouched) and pulled frames, cropping to the stat badges and tiling them into filmstrips so the per-frame values
+were legible. Worth remembering as the way to act on a video bug report.
+
 ### fix(content/core/ui): Sunmane Herald's rally escalates board-wide; Dawnclaw gains Taunt
 
 **Sunmane Herald, reworked to the owner's actual model (2026-07-25).** My previous pass read "stacks

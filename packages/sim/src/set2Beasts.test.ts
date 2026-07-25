@@ -186,6 +186,33 @@ describe('set 2 — Sunmane Herald’s rally escalates', () => {
     for (const m of r.initial.player) expect(Number.isFinite(m.attack)).toBe(true);
   });
 
+  it('the ATTACKER buffs itself too, so the board never drifts apart', () => {
+    // Owner report 2026-07-25 (screen capture: "weird stats going up down"). Excluding the attacker from its own
+    // grant meant every Beast that attacked missed that rung — and because the rungs DOUBLE, one missed grant is
+    // a permanent gap the size of everything before it. Four identical-ish Beasts ended a long fight at
+    // 36045 / 22936 / 45874 / 42598: unrelated numbers that read on screen as stats jumping around.
+    //
+    // Asserting the SPREAD rather than exact values: every Beast should hold the same total, so the only
+    // difference left is their differing printed base Attack.
+    const board: BoardMinion[] = [
+      { cardId: 'b2_sunmane', attack: 3, health: 500, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 500, sourceUid: 'B1' },
+      { cardId: 'pup', attack: 1, health: 500, sourceUid: 'B2' },
+      { cardId: 'babycub', attack: 1, health: 500, sourceUid: 'B3' },
+    ];
+    const r = simulate(board, [{ cardId: 'sandbag', attack: 0, health: 100000 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const atk: Record<string, number> = { m0: 3, m1: 1, m2: 1, m3: 1 }; // printed bases
+    for (const e of r.events) {
+      const b = e as { type: string; target?: string; attack?: number };
+      if (b.type === 'buff' && b.target && b.target in atk) atk[b.target] += b.attack ?? 0;
+    }
+    const vals = Object.values(atk);
+    const spread = Math.max(...vals) - Math.min(...vals);
+    expect(vals.every((v) => v > 100)).toBe(true); // the chain really did escalate
+    expect(spread).toBeLessThanOrEqual(2);          // …and stayed in lockstep (2 = the base-Attack difference)
+  });
+
   it('still grants the Rally itself, so the spread reaches every Beast', () => {
     const g = grants([
       { cardId: 'b2_sunmane', attack: 3, health: 200, keywords: ['RL'], sourceUid: 'SH' },

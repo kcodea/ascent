@@ -2172,8 +2172,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}) } };
     for (const m of ctx.living(self.side)) {
       if (!inTribe(m)) continue;
+      // The attacker buffs ITSELF too — it is one of "your Beasts" (owner report 2026-07-25). Excluding it made
+      // every Beast that attacked miss that rung's grant, and because the rungs DOUBLE, one missed grant is a
+      // permanent gap the size of everything before it. The board drifted into ragged, unrelated numbers
+      // (traced: 36045 / 22936 / 45874 / 42598 from one opening line) which reads on screen as stats jumping
+      // up and down. Including the attacker keeps every carrier in lockstep.
+      ctx.buff(m, value, 0, self.uid);
       if (m !== self) {
-        ctx.buff(m, value, 0, self.uid);
         const hasRally = m.effects.some((e) => e.on === 'onAttack' && e.do === 'rallySpreadTribeBuff');
         if (!hasRally) {
           if (!m.keywords.includes('RL')) m.keywords.push('RL'); // so the UI reads it as a Rally minion

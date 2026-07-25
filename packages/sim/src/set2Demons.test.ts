@@ -248,10 +248,26 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
   });
 
   it('Malphas offers a Choose One with both halves', () => {
+    // Asserted on the MECHANIC, not the flavour name: the options used to read "Feast:" / "Legion:" and the
+    // owner had those stripped (2026-07-25) because the label read as an extra rule to decode. Matching on the
+    // mechanic keeps this test meaningful across wording changes — and option ORDER is what the gates key on.
     const malphas = CARD_INDEX['dm_malphas']!;
     expect(malphas.chooseOne?.length).toBe(2);
-    expect(malphas.chooseOne![0]!.text).toMatch(/Feast/);
-    expect(malphas.chooseOne![1]!.text).toMatch(/Legion/);
+    expect(malphas.chooseOne![0]!.text).toMatch(/Consume/);   // option 0 = the shop-eating half
+    expect(malphas.chooseOne![1]!.text).toMatch(/Imp/);       // option 1 = the Imp-copy half
+  });
+
+  it('no set-2 Choose One option carries a flavour NAME', () => {
+    // Owner 2026-07-25: options print the mechanic only. Guards the whole set at once, so a future Choose One
+    // can't quietly reintroduce the pattern. The heuristic is a leading "**Word:**" label — which is exactly
+    // what Hunt / Ritual / Feast / Legion looked like.
+    const FLAVOUR = /^\*\*[A-Z][a-z]+:\*\*/;
+    for (const c of poolFor('set2').all) {
+      for (const opt of c.chooseOne ?? []) {
+        expect(opt.text, `${c.id} option`).not.toMatch(FLAVOUR);
+        if (opt.goldenText) expect(opt.goldenText, `${c.id} golden option`).not.toMatch(FLAVOUR);
+      }
+    }
   });
 
   it('Malphas FEAST fires every turn, and only when Feast was the pick', () => {

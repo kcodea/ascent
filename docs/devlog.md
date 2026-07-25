@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+### tweak(content): Choose One options print the MECHANIC, not a flavour name
+
+Owner 2026-07-25: the flavour labels on set-2 Choose One options read as extra rules to decode. Two cards
+carried them — Elderhorn ("**Hunt:**" / "**Ritual:**") and Malphas ("**Feast:**" / "**Legion:**") — and both now
+print the effect alone. Their combined card text is reworded to match, since it named the branches too.
+
+Audited the rest rather than assuming: Orivax, Coppercoat Spellsword and Facetwright's Choice were already clean.
+
+The FACTORY ids keep the names (`battlecryGrantBeastHunt`, and Malphas's `option: 0`/`option: 1` gates). Those
+are internal, and renaming them would churn the run-state fields — `beastHuntExtra` / `beastRitualExtra` — for a
+display-only change, the same rule the Gem Shard rename followed.
+
+A set-wide guard came with it: a test walking every set-2 Choose One option and rejecting a leading `**Word:**`
+label, so a future card can't quietly reintroduce the pattern. Verified it bites by putting "Hunt:" back.
+
+Also retargeted the Malphas Choose One test, which had asserted on the words "Feast" and "Legion" and so broke on
+a pure wording change. It now matches the MECHANIC ("Consume" / "Imp") — which is what actually distinguishes the
+two options, and what the `option:` gates key on by ORDER.
+
+Verified: typecheck / lint / test (1700) / build:web / harness green. Live-checked the prompt in a throwaway run:
+Elderhorn's two options read "Your Beast Rallies and Slaughters trigger an additional time." and "Your Beast
+Echoes trigger an additional time.", and the picked branch carries through to the board card unchanged.
+
 ### tweak(content/core/sim): Avarice pays flat Gold; Endless Overseer is a capped death trigger
 
 Three owner items on the Demon tribe (2026-07-25).

@@ -311,14 +311,16 @@ export const SET2_DEMONS: CardDef[] = [
       { on: 'endOfTurn', do: 'endOfTurnEndDemonsConsumeSides', params: { count: 2, option: 0 } },
       { on: 'onAttack', do: 'onImpAttackSummonCopy', params: { count: 1, option: 1 } },
     ],
+    // No flavour names on the options (owner 2026-07-25) — see the note on Elderhorn. `option: 0` is still Feast
+    // and `option: 1` still Legion in the gates above; only the printed wording changed.
     chooseOne: [
-      { text: '**Feast:** at **End of Turn**, your left and right-most Demons each Consume the **2** Shop minions on their side.',
-        goldenText: '**Feast:** at **End of Turn**, your left and right-most Demons each Consume the **4** Shop minions on their side.',
+      { text: '**End of Turn:** your left and right-most Demons each Consume the **2** Shop minions on their side.',
+        goldenText: '**End of Turn:** your left and right-most Demons each Consume the **4** Shop minions on their side.',
         effects: [] },
-      { text: '**Legion:** when an **Imp** attacks, summon a copy if you have room.',
-        goldenText: '**Legion:** when an **Imp** attacks, summon **2** copies if you have room.',
+      { text: 'When an **Imp** attacks, summon a copy if you have room.',
+        goldenText: 'When an **Imp** attacks, summon **2** copies if you have room.',
         effects: [] },
     ],
-    text: '**Choose One — Feast:** your end Demons Consume the Shop. **Legion:** an attacking **Imp** summons a copy.',
+    text: '**Choose One:** your end Demons Consume the Shop at **End of Turn**, or an attacking **Imp** summons a copy.',
   },
 ];

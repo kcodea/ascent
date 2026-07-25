@@ -141,7 +141,7 @@ describe('set 2 — Contract Butcher / Display Curator buff the shop', () => {
 });
 
 describe('set 2 — Avarice Incarnate', () => {
-  it('pays Gold equal to the eaten minion’s tier, capped once per turn', () => {
+  it('pays a flat 3 Gold on the first consume each turn, and only the first', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 0,
       board: [minion('av', 'dm_avarice', 6, 7)],
@@ -149,10 +149,9 @@ describe('set 2 — Avarice Incarnate', () => {
       shop: shop('sandbag', 'alley'),
     };
     s = reduce(s, { type: 'play', uid: 'c1' });
-    const afterFirst = s.embers;
-    expect(afterFirst).toBeGreaterThan(0); // paid the tier of whatever was eaten
+    expect(s.embers).toBe(3);          // flat 3, regardless of what was eaten (was: the eaten minion's tier)
     s = reduce(s, { type: 'play', uid: 'c2' });
-    expect(s.embers).toBe(afterFirst);     // the second consume is over the per-turn cap
+    expect(s.embers).toBe(3);          // the second consume pays nothing — "the first time" each turn
   });
 });
 
@@ -223,17 +222,29 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect(m4.attack + m4.health).toBeGreaterThan(16); // ate something
   });
 
-  it('Endless Overseer grants its Echo only to Imps ALIVE at Start of Combat', () => {
-    // The bound that stops an infinite chain: a granted Echo summoning more Imps must not grant to those too.
+  it('Endless Overseer: the first 3 IMP deaths each summon an Imp, then it stops', () => {
+    // Owner change 2026-07-25. The budget is what bounds the chain — a replacement Imp dying can itself pay out,
+    // but only while the budget lasts, so the fight must terminate with at most 3 summons.
+    // The Overseer must SURVIVE long enough to spend its budget — an earlier fixture gave it 60 HP against a
+    // 20-attack enemy and it died on the second death, so only one summon landed and the test read as a bug in
+    // the card rather than in the setup.
     const r = simulate(
-      [bm('dm_overseer', 'O', 5, 40), bm('impscrap', 'I1', 1, 1), bm('impscrap', 'I2', 1, 1)],
-      [{ cardId: 'sandbag', attack: 20, health: 400 }], makeRng(3), CARD_INDEX,
+      [bm('dm_overseer', 'O', 1, 400),
+       bm('impscrap', 'I1', 1, 1), bm('impscrap', 'I2', 1, 1), bm('impscrap', 'I3', 1, 1), bm('impscrap', 'I4', 1, 1)],
+      [{ cardId: 'sandbag', attack: 2, health: 9999 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-    expect(r.result).toBeTruthy();                 // it terminated (no runaway)
-    expect(r.events.length).toBeLessThan(5000);
-    const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length).toBeGreaterThan(0);        // the granted Echo did fire
-    expect(imps.length).toBeLessThanOrEqual(4);    // …but only from the two originals (x2 golden headroom)
+    expect(r.result).toBeTruthy();               // terminated
+    const summons = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
+    expect(summons.length).toBe(3);              // exactly the budget — not 4, not unbounded
+  });
+
+  it('Endless Overseer ignores a NON-Imp death', () => {
+    // It reads the victim from the avenge payload, so a Stray dying must not pay out.
+    const r = simulate(
+      [bm('dm_overseer', 'O', 1, 400), bm('stray', 'S1', 1, 1), bm('pup', 'S2', 1, 1)],
+      [{ cardId: 'sandbag', attack: 2, health: 9999 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    expect(r.events.filter((e) => e.type === 'summon')).toEqual([]);
   });
 
   it('Malphas offers a Choose One with both halves', () => {

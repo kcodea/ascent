@@ -178,7 +178,7 @@ export type EffectFactoryId =
   | 'rallyImpsAttackNow' // Set 2 — Riot Caller (Rally): your N left-most Imps attack immediately
   | 'onSummonImpWard' // Set 2 — Cinderwall Captain: the first N Imps summoned this combat gain Ward
   | 'onTribePlayedConsumeShop' // Set 2 — Selective Glutton: playing a Demon makes a friendly Demon eat a Shop minion
-  | 'scGrantImpsEcho' // Set 2 — Endless Overseer: your Imps gain an Echo for this combat
+  | 'onImpDeathSummonImp' // Set 2 — Endless Overseer: your first N Imp deaths each summon an Imp
   | 'onImpAttackSummonCopy' // Set 2 — Malphas (Legion): an attacking Imp summons a copy
   | 'endOfTurnEndDemonsConsumeSides' // Set 2 — Malphas (Feast): the end Demons eat their side of the row
   | 'onShopRefreshConsume' // Set 2 — Revolving Maw: every N refreshes, eat the right-most Shop minion
@@ -193,7 +193,7 @@ export type EffectFactoryId =
   | 'battlecryBuffRightmostShopPermanent' // Set 2 — Market Tormentor: permanently buff the right-most shop minion
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Grand Gourmand: gain the right-most shop minion's stats (no consume)
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Tallymonger: buff your spells and Imps
-  | 'onConsumeGoldByTier' // Set 2 — Avarice Incarnate: the first N consumes each turn pay Gold equal to the tier
+  | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
   | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
   | 'scGrantEndsFlurryWard' // Set 2 — Lastlight Marshal: Start of Combat — left-most gains Flurry, right-most Ward

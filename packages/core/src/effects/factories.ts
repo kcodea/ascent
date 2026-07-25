@@ -2300,22 +2300,29 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(minion, (num(params.attack, 2) + bonus) * mul(self), (num(params.health, 2) + bonus) * mul(self), self.uid);
   },
 
-  /** Set 2 — Endless Overseer (Start of Combat): your Imps gain "Echo: summon `count` Imps" for this combat.
-   *  Grafted onto each living Imp via `grantDeathrattle` (which registers ANY effect, not just Echoes — the same
-   *  path Grave Body and Sunmane use), so the granted Echo fires on their deaths like a printed one.
+  /** Set 2 — Endless Overseer: your first `count` IMPS that die each combat summon an Imp (owner change
+   *  2026-07-25, replacing a version that grafted an Echo onto every living Imp).
    *
-   *  Only the Imps ALIVE at Start of Combat are granted — Imps summoned later by the chain do NOT inherit it.
-   *  That bound is deliberate and load-bearing: a self-granting Echo that summons more of itself would recur
-   *  until the board cap and the stack both gave out. */
-  scGrantImpsEcho: (ctx, self, params) => {
-    const imps = ctx.living(self.side).filter((m) => m.cardId === 'impscrap');
-    if (imps.length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} opens the endless gate` });
-    const echo: EffectDef = { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: num(params.count, 1) * mul(self) } };
-    for (const imp of imps) {
-      if (imp.effects.some((e) => e.on === 'onDeath' && e.do === 'deathrattleSummon')) continue; // already has one
-      ctx.grantDeathrattle(imp, [echo]);
-    }
+   *  Hooked on `avenge` — the per-friendly-death signal — reading the VICTIM from the payload so it fires only
+   *  for Imps. Its own `count` budget lives per-instance (`attackSeen`), so it resets each fight, which is what
+   *  "each combat" means, and the cap is what stops the chain: a replacement Imp dying can itself pay out, but
+   *  only while the budget lasts.
+   *
+   *  Better than the graft it replaces on two counts: it catches Imps summoned MID-combat (a graft can only
+   *  reach bodies that already exist), and the budget is explicit rather than relying on "don't grant to the
+   *  ones you just made" to avoid recursion. */
+  onImpDeathSummonImp: (ctx, self, params, payload) => {
+    const { side, victim } = payload as { side: Side; count: number; victim?: Minion };
+    if (self.dead || side !== self.side) return;
+    if (!victim || victim.cardId !== 'impscrap') return;
+    // `imps`, NOT `count`: by convention an avenge factory's `params.count` is the every-N THRESHOLD (see
+    // `avengeShieldAttack`), and this card has no threshold — it pays out on EVERY Imp death until its budget is
+    // spent, which is what "your first 3 Imps that die" says. Reusing `count` here would read as "every 3rd".
+    const budget = num(params.imps, 3) * mul(self);
+    if ((self.attackSeen ?? 0) >= budget) return;
+    self.attackSeen = (self.attackSeen ?? 0) + 1;
+    const imp = ctx.getCard('impscrap');
+    if (imp) ctx.summon(self.side, imp, self.uid);
   },
 
   /** Set 2 — Malphas "Legion": when an Imp attacks, summon a COPY of it if there's room. Copies the attacker's

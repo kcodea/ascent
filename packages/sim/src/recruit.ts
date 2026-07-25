@@ -1824,18 +1824,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffImpsRunWide(ctx.state, a, h, nameOf(self));
   },
 
-  /** Set 2 — Avarice Incarnate: the first `cap` Shop-minion Consumes each turn pay Gold equal to the eaten
-   *  minion's TIER. Hooked on `onConsume`, so it counts any source — its own tribe's eight consumers, a Fodder
-   *  eat, Feastmaster's neighbours. `rubyRecvTick` is reused as the per-turn counter (already reset each wave);
-   *  the tier comes from the consume record the primitive just appended. */
-  onConsumeGoldByTier: (ctx, self, params) => {
-    const cap = num(params.cap, 1) * gold(self);
-    if ((self.rubyRecvTick ?? 0) >= cap) return;
-    const last = (ctx.state.fodderEaten ?? []).at(-1);
-    const tier = last ? (CARD_INDEX[last.fodderId]?.tier ?? 0) : 0;
-    if (tier <= 0) return;
+  /** Set 2 — Avarice Incarnate: the FIRST Shop-minion Consume each turn pays a flat `gold` (golden doubles).
+   *
+   *  Was "Gold equal to its tier" (owner change 2026-07-25). That version worked, but paid 1 Gold off a Tier-1
+   *  offer — negligible on a Tier-6 card, and swingy on the way up since the payout depended on whatever the
+   *  shop happened to be showing. A flat 3 (6 golden) is both stronger and predictable.
+   *
+   *  Hooked on `onConsume`, so it counts any source — the tribe's eight consumers, a Fodder eat, Feastmaster's
+   *  neighbours. `rubyRecvTick` is the per-turn counter (already reset each wave with the other per-turn state). */
+  onConsumeGoldFlat: (ctx, self, params) => {
+    if ((self.rubyRecvTick ?? 0) >= 1) return; // "the first time" each turn
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
-    ctx.state.embers += tier;
+    ctx.state.embers += num(params.gold, 3) * gold(self);
   },
 
   /** Set 2 — Feastmaster Vhal (End of Turn): each ADJACENT minion consumes `count` random Shop minions. The

@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+### tweak(content/core/sim): Avarice pays flat Gold; Endless Overseer is a capped death trigger
+
+Three owner items on the Demon tribe (2026-07-25).
+
+**Avarice Incarnate WAS working** — verified before changing anything: it paid 1 Gold for a Tier-1 consume and
+correctly capped once per turn. But that's the problem, not a bug: 1 Gold off a Tier-1 offer is negligible on a
+Tier-6 card, and the payout swung with whatever the shop happened to be showing. Now a flat **3 Gold (6 golden)**,
+which is both stronger and predictable. Golden doubles the GOLD rather than raising the cap, matching the new text.
+
+**Endless Overseer is now "your first 3 Imps that die summon an Imp"** (6 golden), replacing the version that
+grafted an Echo onto every living Imp. The new shape is better on two counts beyond reading more simply: it
+catches Imps summoned MID-combat (a graft can only reach bodies that already exist), and the budget is an
+explicit cap rather than relying on "don't grant to the ones you just made" to avoid recursion. Without the cap
+the same fixture produces **48** summons instead of 3, so it's load-bearing and has a test.
+
+It hooks `avenge` — the per-friendly-death signal — which previously carried only `{ side, count }`. The payload
+now also carries the **victim**, so a watcher can ask WHAT died. Additive: every existing Avenge consumer reads
+side/count only. Its budget param is named `imps`, NOT `count`, deliberately: by convention an avenge factory's
+`params.count` is the every-N threshold (see `avengeShieldAttack`), and this card has no threshold — it pays on
+every Imp death until the budget is spent.
+
+*Also found:* `onFriendDeathBuffRandom` is dead code — registered in the union and the schema, implemented in
+factories, used by no card and dispatched by nothing. Left alone (out of scope), noted for a future sweep.
+
+**Malphas needed no change.** The owner's clarification — "if they choose the Imp one, that version is on their
+board and active while it's alive" — is exactly what the printed-effects-gated-on-`chosenOption` implementation
+already does. Verified rather than assumed: Feast fired on three consecutive End of Turns while he was on the
+board, and stopped the moment he was removed.
+
+Verified: typecheck / lint / test (1699) / build:web / harness green. The Overseer's new tests cover the exact
+budget (3, not 4, not unbounded), that a NON-Imp death pays nothing, and that the cap bites when removed.
+
+*Fixture lesson:* the first Overseer test gave it 60 HP against a 20-attack enemy, so it died on the second death
+and only one summon landed — the test read as a bug in the card when it was a bug in the setup. A card that pays
+out over several deaths needs a body that survives them.
+
 ### feat(content/sim/core/ui): set 2's DEMON tribe is COMPLETE (23/23), art wired
 
 Owner roster 2026-07-25. The tribe's identity is **Consume from the Shop** — eight cards eat a tavern minion for

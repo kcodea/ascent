@@ -234,9 +234,11 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 6,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onConsume', do: 'onConsumeGoldByTier', params: { cap: 1 } }],
-    text: 'The **first time** you Consume a Shop minion each turn, gain **Gold equal to its Tier**.',
-    goldenText: 'The **first 2 times** you Consume a Shop minion each turn, gain **Gold equal to its Tier**.',
+    // Flat Gold rather than the eaten minion's tier (owner change 2026-07-25): the tier version paid 1 Gold off
+    // a Tier-1 offer, which is negligible on a Tier-6 card and swingy depending on what the shop showed.
+    effects: [{ on: 'onConsume', do: 'onConsumeGoldFlat', params: { gold: 3 } }],
+    text: 'The **first time** you Consume a Shop minion each turn, gain **3 Gold**.',
+    goldenText: 'The **first time** you Consume a Shop minion each turn, gain **6 Gold**.',
   },
   {
     // Its NEIGHBOURS eat, so the stats land on them — seating is the card.
@@ -264,8 +266,9 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'Whenever an **Imp** attacks, give your Imps **+6/+6** this combat. Improves by **+2/+2** every **3** Imp attacks.',
   },
   {
-    // Bounded on purpose: only the Imps alive at Start of Combat get the Echo, so the summoned ones can't
-    // recur forever (see `scGrantImpsEcho`).
+    // Owner change 2026-07-25. Was "your Imps have an Echo this combat"; now a capped death trigger, which also
+    // catches Imps summoned MID-combat (a graft can only reach bodies that already exist). The budget is what
+    // bounds the chain — a replacement Imp dying can pay out, but only while it lasts.
     id: 'dm_overseer',
     name: 'Endless Overseer',
     tribe: 'demon',
@@ -273,9 +276,9 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 5,
     health: 9,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scGrantImpsEcho', params: { count: 1 } }],
-    text: '**Start of Combat:** your **Imps** have "**Echo:** summon an **Imp**" this combat.',
-    goldenText: '**Start of Combat:** your **Imps** have "**Echo:** summon **2 Imps**" this combat.',
+    effects: [{ on: 'avenge', do: 'onImpDeathSummonImp', params: { imps: 3 } }],
+    text: '**Start of Combat:** your first **3 Imps** that die summon an **Imp**.',
+    goldenText: '**Start of Combat:** your first **6 Imps** that die summon an **Imp**.',
   },
   {
     id: 'dm_maw',

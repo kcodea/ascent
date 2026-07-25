@@ -98,6 +98,12 @@ export interface BoardCard {
   /** Anomaly Reactor's "All" mode: this instance counts as EVERY tribe for the rest of the run — `isTribe`
    *  short-circuits true, and combat seeds `universalTribe` from it. */
   allTribes?: boolean;
+  /** Choose One: the index into the def's `chooseOne` that the player PICKED for this instance. Purely a record
+   *  of the decision — the chosen effects resolve once, at pick time — but the card must keep showing only the
+   *  branch it became, so the printed text stops listing options it can no longer do (owner 2026-07-24). A
+   *  golden `chooseBothWhenGolden` card gains both, so it records none and keeps its combined text. Absent on
+   *  every card without a Choose One, and on one that somehow reached the board without resolving. */
+  chosenOption?: number;
   /** Triple-reward Discover spell: the shop tier CAPTURED when it was granted to hand, so its "peek one tier up"
    *  is frozen at grant time — taverning up afterwards no longer inflates the Discover's tier (owner 2026-07-15).
    *  Read by the `discoverOnPlay` resolution + the live card text; absent on non-granted cards. */
@@ -202,6 +208,11 @@ export interface BoardCard {
    *  other per-turn counters. Incremented BEFORE a card's `spellCastOnThis` effects run, which is what stops a
    *  re-cast from re-triggering the same effect forever. Absent = 0. */
   spellsOnThisTurn?: number;
+  /** Set 2 — RUBIES played on this minion this turn. Kept separate from `spellsOnThisTurn` on purpose: Runefire
+   *  works with Rubies as well as Shop spells and reads the SUM, while Mirrorwing Hatchling is Shop-spell-only
+   *  (owner 2026-07-24) and must stay blind to Rubies. One shared counter would let a Ruby silently eat
+   *  Mirrorwing's once-per-turn slot without triggering it — worse than either behaviour. Absent = 0. */
+  rubiesOnThisTurn?: number;
   /** Set 2 — Spellkeeper Drake: SHOP SPELLS cast this turn WHILE this minion has been on board, and the id of
    *  the first such spell. Per-instance (a Spellkeeper played mid-turn counts from its own placement, not turn
    *  start — owner 2026-07-24). Reset each turn; a fresh card starts at 0/undefined, so placement is the floor. */
@@ -743,9 +754,6 @@ export interface RunState {
    *  `CombatSideState` (the same route `handSpellIds` takes). Absent = 0. */
   beastHuntExtra?: number;
   beastRitualExtra?: number;
-  /** Set 2 — Moonhowl Mentor: shop spells taught to a Mage-Pup THIS TURN (one per Mentor proc, capped by its
-   *  per-turn limit). End of Turn mints one Mage-Pup per entry into hand, then this clears. */
-  taughtSpellsThisTurn?: string[];
   /** Set 2 — Moonhowl Mentor: how many spell-buys it has taught this turn, against its once/twice-per-turn
    *  cap. Reset each turn alongside the other per-turn counters. */
   moonhowlTeachesThisTurn?: number;

@@ -18,12 +18,15 @@
  * would visibly jump to an untucked pose. So the current computed matrix is read once and every keyframe is
  * written OUTSIDE it: `translate(…) scale(…) <base>`. The base is a resolved matrix, so this is exact.
  *
- * ## Why the mount-pop is suppressed
+ * ## Why the mount-pop is finished up front
  *
- * A freshly bought card mounts with `.popin`, whose `handpop` keyframes animate transform and opacity. The
- * slide would be fighting it for the same property, and a running CSS animation outranks a plain inline
- * style. `animation: none !important` for the duration takes it out of the running; the card slides in
- * solid instead of fading in.
+ * A freshly bought (or placed) card mounts with `.popin`, whose `handpop`/`cardpop` keyframes animate
+ * transform and opacity — the card's default entrance. The slide IS the entrance now, so that pop is
+ * finished immediately via the Web Animations API. NB do NOT suppress it with `animation: none !important`
+ * and clear that later: `.popin` persists on the card, so clearing the override re-applies `handpop` from
+ * zero — a fresh fade that blinks the card out and back in as the slide ends (owner report 2026-07-24).
+ * Finishing settles the card (so `base` below reads the true resting transform, not a mid-pop frame) and
+ * leaves the pop done for good.
  */
 
 /** Where the card was when you let go of it — the floating drag card's box, in viewport px. */

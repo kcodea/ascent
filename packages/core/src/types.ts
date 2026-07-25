@@ -103,7 +103,10 @@ export type GameEvent =
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
-  | 'rubyCast'; // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
+  | 'rubyCast' // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
+  | 'spellBought'; // set 2 recruit phase: a Shop Spell was PURCHASED (Moonhowl Mentor teaches it to a Mage-Pup).
+  //  Distinct from `onBuy`, which is minions only ("a spell isn't a minion") — widening onBuy would have
+  //  changed what every existing buy-trigger sees.
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -150,6 +153,7 @@ export type EffectFactoryId =
   | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
+  | 'onRubyPlayedSpreadAdjacent' // Runefire: a RUBY played on it also lands on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
   | 'onSpellCastFirstBuffTribe' // Mosswhisker Adept: first spell each turn buffs your tribe board-wide
@@ -157,7 +161,7 @@ export type EffectFactoryId =
   | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
   | 'battlecryCastTaughtSpell' // Mage-Pup: Shout — cast the spell this token was taught
-  | 'endOfTurnGrantMagePups' // Moonhowl Mentor: End of Turn — mint the taught Mage-Pups into hand
+  | 'grantMagePupTaught' // Moonhowl Mentor: a Shop Spell was bought — mint a Mage-Pup taught that spell, NOW
   | 'battlecryGrantBeastHunt' // Elderhorn (Hunt): your Beast Rallies + Slaughters fire an extra time
   | 'battlecryGrantBeastRitual' // Elderhorn (Ritual): your Beast Echoes fire an extra time
   | 'rallySpreadTribeBuff' // Sunmane Herald: Rally — buff your tribe AND graft this rally onto them
@@ -449,6 +453,11 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** This card NEVER combines into a golden, however many copies you hold. For cards whose identity lives on
+   *  the INSTANCE rather than the def: a Mage-Pup carries the spell it was taught (`taughtSpellId`), so three
+   *  of them are three different cards wearing one id, and a triple would have to silently pick one spell and
+   *  bin the other two (owner ruling 2026-07-24: Mage-Pups cannot be tripled in any circumstance). */
+  noTriple?: boolean;
   /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
    *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
   ascendAt?: number;
@@ -1001,6 +1010,13 @@ export interface BoardMinion {
   /** Bloodlust weld: the Bloodlust spell also grants its target a Rally — on each of its own attacks, give a
    *  random friendly minion Attack equal to this minion's Attack. One-fight, like `bloodlust` (stripped at settle). */
   bloodlustRally?: boolean;
+  /** Choose One: the branch this instance picked in the shop (`BoardCard.chosenOption`). Display-only in
+   *  combat — the chosen effects were already baked in during recruit — but carried so the combat card reads
+   *  the SAME single branch the board showed, instead of reverting to the both-options printed text. */
+  chosenOption?: number;
+  /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
+   *  instead of the "the spell this was taught" placeholder. */
+  taughtSpellId?: string;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -1068,6 +1084,12 @@ export interface Minion {
   summonBonus: number;
   /** Ritualist: accrued End-of-Turn grant seeded from the run board — read (not changed) in combat for live text. */
   eotBonus?: number;
+  /** Choose One: the branch this body picked in the shop — display-only in combat (the effects already baked
+   *  in during recruit), carried so the combat card prints that single branch, not both options. */
+  chosenOption?: number;
+  /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
+   *  instead of the "the spell this was taught" placeholder. */
+  taughtSpellId?: string;
   /** Trail Forager sell bonus / cadence End-of-Turn counter — seeded from the run board, read (not changed) in
    *  combat, purely for the live card text. */
   sellBonus?: number;
@@ -1153,6 +1175,12 @@ export interface MinionSnapshot {
   summonBonus?: number;
   /** Ritualist: current End-of-Turn grant step (seeded) — for the live combat card text (per-tick Fodder/Imp value). */
   eotBonus?: number;
+  /** Choose One: the branch this body picked in the shop — display-only in combat (the effects already baked
+   *  in during recruit), carried so the combat card prints that single branch, not both options. */
+  chosenOption?: number;
+  /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
+   *  instead of the "the spell this was taught" placeholder. */
+  taughtSpellId?: string;
   /** Trail Forager sell bonus / cadence End-of-Turn counter (seeded) — for the live combat card text. */
   sellBonus?: number;
   eotTick?: number;

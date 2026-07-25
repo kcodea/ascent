@@ -535,12 +535,26 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; shoutTick?: number; grimoireCharged?: boolean },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
   const n = (v: unknown, d: number): number => (typeof v === 'number' ? v : d);
   const cyc = (v: number, total: number): StepProgress => ({ current: v <= 0 ? 0 : ((v - 1) % total) + 1, total });
+
+  // Living Grimoire: the Shout meter toward its next charge (owner ask 2026-07-24 — 0/3 once SPENT, counting up
+  // to 3). While CHARGED there is no counter at all (owner correction: a 3/3 read as a meter you still had to
+  // fill, when in fact the card was ready) — the meter appears only once the charge is used, which is exactly
+  // when it carries information.
+  //
+  // Because the counter now UNMOUNTS on recharge rather than landing on `total`, it can't drive Card's built-in
+  // step-proc burst; the "ready again" flourish is fired separately in `Card` off the counter disappearing.
+  const rearm = def.effects.find((e) => e.do === 'onBattlecryRearmGrimoire');
+  if (rearm) {
+    if (p.grimoireCharged) return null; // charged = ready = nothing to show
+    const total = Math.max(1, n((rearm.params as { every?: number })?.every, 3));
+    return { current: Math.min(p.shoutTick ?? 0, total), total };
+  }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
   const monk = def.effects.find((e) => e.do === 'overflowBuffRandom');
@@ -581,4 +595,23 @@ export function stepProgress(
   if (pup) { const at = Math.max(1, n((pup.params as { at?: number })?.at, 10)); return { current: Math.min(p.spellProgress ?? 0, at), total: at }; }
   if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }
   return null;
+}
+
+/**
+ * Mage-Pup: its Shout casts whatever spell Moonhowl Mentor TAUGHT it, so the printed line must name that
+ * spell's actual rule rather than the placeholder "cast the spell this was taught" — which tells the player
+ * nothing about what clicking it will do (owner 2026-07-24). The spell id rides on the instance
+ * (`taughtSpellId`), so this can only resolve for a real Pup in hand / on the board; an untaught token (or a
+ * Compendium preview, which has no instance) falls back to the printed text.
+ *
+ * `spellText` is the taught spell's OWN live text, passed in already resolved — the Pup inherits the spell's
+ * scaling (spell power, per-turn escalation, …) rather than restating a stale base, per the live-text rule.
+ */
+export function taughtSpellText(cardId: string, taughtSpellId: string | undefined, spellText: string): string | null {
+  if (cardId !== 'b2_magepup' || !taughtSpellId) return null;
+  const spell = CARD_INDEX[taughtSpellId];
+  if (!spell?.spell) return null;
+  // Name the spell as well as its rule: the name is how the player recognises what they bought, and the rule
+  // is what it does. Mirrors how the shop reads a spell.
+  return `**Shout:** cast **${spell.name}** — ${spellText}`;
 }

@@ -18,6 +18,10 @@ export const SET2_TOKENS: CardDef[] = [
     effects: [{ on: 'onPlay', do: 'battlecryCastTaughtSpell' }],
     text: '**Shout:** cast the spell this was taught.',
     token: true,
+    // Never combines, however many you hold (owner ruling 2026-07-24). Each Pup's identity is the spell on its
+    // INSTANCE, so three of them are three different cards sharing one id — a triple would have to pick one
+    // taught spell and silently bin the other two.
+    noTriple: true,
   },
   {
     // T-Rex's Echo summon. Taunt is granted by the summoning effect (`keyword: 'T'`), not baked here, so the

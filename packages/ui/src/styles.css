@@ -1349,8 +1349,28 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    same minted coin, so "this is cheaper" reads at a glance without changing the badge's language. */
 .cost.discount { background: radial-gradient(circle at 38% 30%, #c8f7d5, #35b06a 58%, #17703f); box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -3px 4px rgba(10, 80, 40, 0.45); }
 .cost.discount .costn { color: #0d3a20; }
-/* Spell cast multiplier (Nimbus / Yazzus): a bold "×N" pill top-right of the spell card. */
-.castmult { position: absolute; top: -14px; right: -14px; min-width: 46px; height: 46px; padding: 0 8px; border-radius: 23px; background: var(--acc); border: 3px solid var(--card); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 24px; display: grid; place-items: center; z-index: 9; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+/* Cast multiplier (Nimbus / Yazzus / a Prismcaster'd Ruby): the ×N badge top-RIGHT. Wears the same minted-coin
+   skin as the hero-power cost + the `.cost` coin (owner ask 2026-07-24) but in ORANGE, so it reads as the same
+   family of badge while staying instantly distinguishable from the gold cost coin on the opposite corner.
+   Circular like its siblings — `min-width` + a pill radius let a two-digit ×N stretch without going lozenge. */
+.castmult {
+  position: absolute; top: calc(-20 * var(--u)); right: calc(-16 * var(--u));
+  min-width: calc(60 * var(--u)); height: calc(60 * var(--u)); padding: 0 calc(6 * var(--u));
+  border-radius: calc(30 * var(--u)); z-index: 9;
+  /* The coin's three stops are MIXED from one tunable colour (`--cpl-mult-bg`, 🏷️ Card Pills tuner), so picking
+     a hue keeps the minted highlight + shade instead of flattening it to a solid disc. Fallbacks are the
+     shipped orange, so production renders identically with no vars set. */
+  background: radial-gradient(circle at 38% 30%,
+    color-mix(in srgb, var(--cpl-mult-bg, #f08a2c) 42%, #fff),
+    var(--cpl-mult-bg, #f08a2c) 58%,
+    color-mix(in srgb, var(--cpl-mult-bg, #f08a2c) 62%, #000));
+  border: calc(3 * var(--u)) solid #1b1d22;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -3px 4px rgba(120, 55, 10, 0.42);
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(29 * var(--u)); line-height: 1;
+  color: var(--cpl-mult-fg, #4a2708); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  display: grid; place-items: center;
+  transform: var(--cpl-mult-t, none); transform-origin: center;
+}
 .tierbadge { position: absolute; top: -11px; left: 50%; transform: var(--cpl-tier-t, translateX(-50%)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
 .tierbadge[data-tier="1"] { background: var(--tier-1); }
@@ -1693,9 +1713,6 @@ body.modalup .statusbar .questbadges {
   pointer-events: none;
 }
 .statusbar .hero, .statusbar .heropanel, .statusbar .questbadges { transition: filter 0.2s ease; }
-.discover-box { background: var(--card); border: 3px solid var(--acc); border-radius: calc(20 * var(--u)); padding: calc(22 * var(--u)) calc(26 * var(--u)); box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.4); }
-.discover-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); text-align: center; margin-bottom: calc(16 * var(--u)); color: var(--ink); }
-.discover-title b { color: var(--acc-dk); }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 /* Runeforge: the current-Gold chip under the banner — the runes charge Gold, so the purse must be visible. */
 .forge-gold {
@@ -1882,10 +1899,8 @@ body.modalup .statusbar .questbadges {
   50% { transform: translateY(-4px); }
 }
 /* Choose One — two big option buttons */
-.chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
-.chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
-.chooseopt:hover { border-color: var(--acc); transform: translateY(-3px); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35); }
-.chooseopt b { color: var(--acc-dk); font-weight: 800; }
+/* (`.chooseone-opts` / `.chooseopt` — the old cream text-button Choose One prompt — removed 2026-07-24 when
+   the prompt became two real cards on the Discover chrome. `.discover-box`/`.discover-title` went with it.) */
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */
@@ -3808,6 +3823,10 @@ svg { width: 18px; height: 18px; }
 .sfxmix-row input[type='range'] { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; outline: none; cursor: pointer; }
 .sfxmix-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--acc); cursor: pointer; }
 .sfxmix-val { flex: 0 0 26px; text-align: right; font-size: 12px; font-weight: 800; color: var(--acc-dk); font-variant-numeric: tabular-nums; }
+/* Colour-picker rows (Card Pills' ×N badge): the swatch takes the slider's slot, and the readout needs room for
+   a 7-char hex — the numeric 26px basis truncates it. */
+.sfxmix-row input[type='color'] { flex: 1; height: 20px; min-width: 0; padding: 0; border: 1px solid var(--line); border-radius: 5px; background: none; cursor: pointer; }
+.sfxmix-val.hex { flex: 0 0 62px; font-variant-numeric: normal; text-transform: uppercase; }
 .sfxmix-play { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 10px; color: var(--ink); }
 .sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
 .sfxmix.lunge .sfxmix-name { flex-basis: 96px; }

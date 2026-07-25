@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
-import { Card, mdBold, type CardView } from './Card';
+import { rubyCastCount, CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { Card, type CardView } from './Card';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
 import { QuestCard } from './QuestCard';
@@ -99,6 +99,10 @@ const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / tim
  *  implosionCasts). Every other spell just uses the run-wide `spellCasts` multiplier. `spellCasts` is side-effect
  *  free, so calling it here to preview the count is safe. */
 const spellCastCount = (run: Parameters<typeof spellCasts>[0], def: Parameters<typeof spellCasts>[1]): number =>
+  // A RUBY has its own count (Prismcaster's per-Ruby recasts × a live Grimoire charge) and does NOT route
+  // through `spellCasts` — it isn't a Shop Spell. Reading `spellCasts` for one showed no badge at all, which is
+  // what the owner reported (2026-07-24). `rubyCastCount` is the same helper the reducer casts with.
+  def.ruby ? rubyCastCount(run) :
   def.id === 'implosion' ? spellCasts(run, def) * implosionCasts(run) : spellCasts(run, def);
 
 /** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
@@ -1797,7 +1801,7 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
@@ -1805,7 +1809,7 @@ export function Recruit() {
   );
   const spellView = useMemo(
     () => {
-      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: run.rubyBonus, playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
+      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: run.rubyBonus, playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
@@ -1838,8 +1842,8 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus }),
-    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery, run.rubyBonus],
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, grimoireCharged: (run.grimoireMult ?? 0) > 1 }),
+    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -1854,7 +1858,7 @@ export function Recruit() {
   );
   const handViews = useMemo(
     () => perfMonitor.measure('view:hand', () => {
-      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
+      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
       handViewCache.current = stabilizeViewMap(fresh, handViewCache.current);
       return handViewCache.current;
     }),
@@ -1916,11 +1920,15 @@ export function Recruit() {
   const tripleReadyUids = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of [...run.board, ...run.hand]) {
-      if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      // Mirrors the reducer's `checkTriples` eligibility (spells/Rubies/`noTriple` never combine) so the shop
+      // can't light up a "this completes a triple" pip for a combine that will never happen.
+      const cd = CARD_INDEX[c.cardId];
+      if (!c.golden && !cd?.spell && !cd?.ruby && !cd?.noTriple) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     const out = new Set<string>();
     for (const o of run.shop) {
-      if (!CARD_INDEX[o.cardId]?.spell && (counts.get(o.cardId) ?? 0) >= 2) out.add(o.uid);
+      const cd = CARD_INDEX[o.cardId];
+      if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= 2) out.add(o.uid);
     }
     return out;
   }, [run.board, run.hand, run.shop]);
@@ -4141,24 +4149,43 @@ export function Recruit() {
 
       {run.chooseOne && (
         <div className="discover-ov" role="dialog" aria-label="Choose One">
-          <div className="discover-box">
-            <div className="discover-title">
-              <b>Choose One</b> — {CARD_INDEX[run.chooseOne.cardId]?.name}
-            </div>
-            <div className="chooseone-opts">
+          {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
+              bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the
+              player picks a CARD, not a paragraph (owner 2026-07-24). Each option renders the real card with
+              only that branch's text printed, so what you click is exactly what lands on your board. */}
+          <div className="disc-panel">
+            <div className="disc-banner"><span className="disp">Choose One</span></div>
+            <div className="disc-sub">{CARD_INDEX[run.chooseOne.cardId]?.name}</div>
+            <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
                 // option's `goldenText` (Wildwood Shaper: +2/+6 / two Strays). The card is on the board (Battlecry
                 // Choose One) or in hand (spell Choose One).
                 const co = run.chooseOne!;
-                const golden = !!(run.board.find((c) => c.uid === co.uid)?.golden ?? run.hand.find((c) => c.uid === co.uid)?.golden);
-                return (CARD_INDEX[co.cardId]?.chooseOne ?? []).map((opt, i) => (
-                  <button
-                    className="chooseopt"
-                    key={i}
-                    onClick={() => dispatch({ type: 'chooseOne', index: i })}
-                    dangerouslySetInnerHTML={{ __html: mdBold(golden ? (opt.goldenText ?? opt.text) : opt.text) }}
-                  />
+                const c = CARD_INDEX[co.cardId];
+                if (!c) return null;
+                const inst = run.board.find((x) => x.uid === co.uid) ?? run.hand.find((x) => x.uid === co.uid);
+                const golden = !!inst?.golden;
+                return (c.chooseOne ?? []).map((opt, i) => (
+                  <div className="disc-slot" key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                    <Card
+                      // The option's own text IS the card's text here — the whole point of showing two cards is
+                      // that each reads as the thing it would become. Stats come from the live instance when
+                      // there is one (a played minion may already be buffed), else the printed base.
+                      card={{
+                        name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+                        golden, attack: inst?.attack ?? c.attack, health: inst?.health ?? c.health,
+                        keywords: inst?.keywords ?? c.keywords, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+                        text: golden ? (opt.goldenText ?? opt.text) : opt.text,
+                        goldenText: opt.goldenText ?? opt.text,
+                      }}
+                      // `forceFull` regardless of the compact-cards preference: on every other surface the text
+                      // drawer is optional detail you can hover for, but here the two texts ARE the decision —
+                      // a Choose One with both drawers collapsed is two identical portraits.
+                      forceFull
+                      onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                    />
+                  </div>
                 ));
               })()}
             </div>

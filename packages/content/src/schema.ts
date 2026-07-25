@@ -35,6 +35,7 @@ export const GameEventSchema = z.enum([
   'spellCastOnThis',
   'onGetRuby',
   'rubyCast',
+  'spellBought',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -74,6 +75,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onMinionSoldCopyFirstOfTribe',
   'onSpellCastOnThisRecast',
   'onSpellCastOnThisSpreadAdjacent',
+  'onRubyPlayedSpreadAdjacent',
   'scTriggerTribeShouts',
   'rallyTriggerLeftmostTribeShout',
   'onSpellCastFirstBuffTribe',
@@ -81,7 +83,7 @@ export const EffectFactoryIdSchema = z.enum([
   'summonBuffTribeAsym',
   'onSpellCastImproveSummon',
   'battlecryCastTaughtSpell',
-  'endOfTurnGrantMagePups',
+  'grantMagePupTaught',
   'battlecryGrantBeastHunt',
   'battlecryGrantBeastRitual',
   'rallySpreadTribeBuff',
@@ -372,6 +374,7 @@ export const CardDefSchema = z.object({
   }).strict().optional(),
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
+  noTriple: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
   attackImmuneTurns: z.number().int().positive().optional(),
   ascendInto: z.string().optional(),

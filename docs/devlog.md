@@ -18,6 +18,377 @@ nothing re-arms when the slide ends; the slide is the card's entrance. `done()` 
 override. Verified in-DOM: post-slide, no re-armed `handpop`, no stray inline `animation`. Motion itself is
 owner-eyeballed — the preview pane freezes the animation clock.
 
+### feat(ui): the ×N multicast badge joins the Card Pills tuner (position, scale + two colours)
+
+The ×N badge is now the fourth pill in 🏷️ Card Pills, with its own x/y/scale like the other three, plus two
+COLOUR pickers — the badge fill and the numeral. It's the one pill whose hue is a live design question (the
+others are fixed by tribe or tier), which is why it gets pickers at all.
+
+**The fill is ONE colour, not three.** The badge is a minted coin — a radial gradient with a highlight, a base
+and a shade — so a naive single-colour picker would have flattened it to a solid disc. The CSS instead mixes the
+outer stops out of the picked colour with `color-mix` (`42% white` for the highlight, `62% black` for the shade),
+so any hue keeps the coin's shading. Var fallbacks are the shipped orange, so nothing changes if the vars are
+absent.
+
+Structurally this splits the config's key list in two: `CARD_PILLS_KEYS` (sliders) and `CARD_PILLS_COLOR_KEYS`
+(pickers), with `setCardPillsColor` alongside `setCardPillsValue` — the existing setter was typed to `number`,
+and widening it to `number | string` would have let a colour be dropped into a scale with no complaint.
+
+**Owner's tuned values baked as the shipped defaults** (2026-07-24): `multX: 9, multY: -13, multScale: 0.81` —
+the exact MIRROR of the cost coin (`costX: -9`, same y and scale), so the two badges sit symmetrically in the
+card's top corners. Colours unchanged from the shipped orange.
+
+Small fix on the way: the tuner's value readout is `flex: 0 0 26px`, which truncates a 7-character hex, so
+colour rows use a wider `.hex` variant.
+
+Verified: typecheck / lint / test (1634) / build:web / harness green. Checked in the browser through the real
+tuner API — moving the sliders applies `scale(1.4)` + the expected translate, the pickers recolour both the
+gradient (mixed from `#3355ff`) and the numeral, and Reset restores the shipped values. The panel renders all
+14 rows with the ×N block as 3 sliders + 2 swatches showing their hex. Then cleared the localStorage override
+and reloaded to confirm the BAKED defaults apply to a fresh player: `matrix(0.81, 0, 0, 0.81, 6.92, -10.0)`.
+
+### fix(sim/ui): Rubies show their ×N badge; the Grimoire meter hides while charged; ×N wears the coin skin
+
+Three owner asks (2026-07-24), all on the same corner of the card.
+
+**Rubies had no multicast badge.** Two independent reasons, both needed fixing. (1) The Ruby cast count only
+existed INLINE at the reducer's cast site, so there was no side-effect-free way for the UI to preview it — now
+extracted as `rubyCastCount` and used by both, so the number shown and the number resolved can't drift. (2) All
+four `castMult` gates tested `def.spell`, and a Ruby carries `ruby: true` **without** `spell: true` (it isn't a
+Shop Spell), so even a correct count would have been thrown away. A Prismcaster'd Ruby under a live Grimoire
+charge now reads ×4.
+
+**The Grimoire meter no longer shows 3/3 while charged.** The previous pass showed a full meter as the "ready"
+state; the owner's correction is that a 3/3 reads as a meter you still have to fill, when the card is in fact
+ready. There is now no counter at all while charged — it appears as 0/3 the moment the charge is spent, which is
+when it carries information, and climbs 1/3 → 2/3 as Shouts land.
+
+That cost the free animation. Showing 3/3 made recharging LAND on `total`, which is what `Card`'s built-in
+step-proc burst fires on; with the counter unmounting instead, that signal is gone. So the flourish is now fired
+explicitly off the counter DISAPPEARING, from the position it last occupied (cached per render — by the time it
+vanishes the element has no rect to read). Guarded on having had a previous value, so a card that mounts already
+charged doesn't burst.
+
+**The ×N badge wears the minted-coin skin** of the hero-power cost and the `.cost` coin, in ORANGE — same badge
+family as the gold cost coin on the opposite corner, instantly distinguishable from it. Kept circular like its
+siblings, with `min-width` + a pill radius so a two-digit ×N stretches without going lozenge.
+
+*Process note:* the new test file first failed to COLLECT (an unescaped apostrophe in a describe name), and
+`Tests: no tests` is not something a grep for failures would surface — this is the same trap that once hid an
+11-test drop. Checking exit codes and the Test Files line is what caught it.
+
+Verified: typecheck / lint / test (1634, +4) / build:web green, console clean. New tests pin `rubyCastCount` at
+1 on a bare board, +1 per Prismcaster (doubled golden, additive across two), ×2 under a Grimoire charge, and —
+the one that matters — that the predicted count EQUALS the buff the reducer actually applies, so the badge can't
+promise a number the cast doesn't deliver. Live-checked in a throwaway run: the Ruby badge reads ×4 with the
+orange coin styling, and the Grimoire cycles none → 0/3 → 1/3 → 2/3 → none across a spend and three Shouts.
+
+### fix(sim/ui): Living Grimoire re-arms each turn; its Shout meter reads 0/3 while spent
+
+**The "only targeted spells" report was a misdiagnosis on my side worth writing down.** I probed it before
+changing anything: `spellCasts` already applies the Grimoire multiplier to every spell, and both the sim and
+the ×N badge doubled an untargeted Ember Pouch (1 Gold → 2) exactly like an aimed Spirit Fire. So the
+multiplier was never targeted-only.
+
+The real defect is WHEN it's armed. It armed on play and via the 3-Shout reset — and nowhere else. So on any
+later turn where you hadn't triggered 3 Shouts, the card did nothing at all. The turn it was played happened to
+be a targeted cast, which is why it read as "targeted works, untargeted doesn't". Its printed rule — "the first
+spell you cast **each turn** casts twice" — was simply false from turn 2 onward.
+
+It now **re-arms at the start of every turn**, which makes the printed rule true; the 3-Shout reset still gives
+a SECOND charge within the same turn. Re-armed to the strongest Grimoire on board (golden = ×3) so two copies
+don't compound, and to nothing if you've sold them all.
+
+**The Shout meter is now visible** (owner ask): the card shows a 0/3 counter while spent, climbing 1/3 → 2/3 as
+you trigger Shouts. It reads FULL (3/3) while charged rather than hiding, and that choice is load-bearing
+rather than cosmetic: recharging then LANDS on `total`, which is exactly the signal `Card`'s existing
+step-counter proc burst fires on — so "animate showing it's ready again" needed no new animation, just the
+right numbers. Dropping back to 0/3 when spent is a wrap FROM full, which that burst's `prev !== total` guard
+already ignores, so it can't double-fire.
+
+This also required an explicit exception to the "hide a fresh 0/N counter as noise" rule: for the Grimoire, 0/3
+is the whole point — it's how you see the card is spent and how far the recharge has come.
+
+Verified: typecheck / lint / test (1630, +4) / build:web / harness green. Tests cover the untargeted doubling
+(Ember Pouch's Gold is directly countable), the per-turn re-arm across a real combat cycle, a golden re-arming
+to 3 with two copies NOT compounding, and no arming with no Grimoire on board. Confirmed the re-arm tests bite
+by deleting the block. Live-checked in a throwaway run: an untargeted spell paid double, and the counter walked
+0/3 → 1/3 → 2/3 → 3/3 with the charge back to ×2 on the third Shout.
+
+### fix(content/sim): every Ruby-excluding Dragon says "Shop spell"; Runefire gains its Ruby half
+
+Owner ruling 2026-07-24: "every Dragon effect intended to exclude Rubies must explicitly say **Shop spell**."
+Living Grimoire and Runefire are the two deliberate exceptions — they work with all spells, Shop and Ruby alike.
+
+**The behaviour was already correct on all ten excluding cards.** I audited each rather than assuming: a Ruby
+never routes through `castSpell`, so it fires no `spellCast` hook (Ashscribe, Spellkeeper, Rune of Scales),
+records no `firstSpellThisTurnId` / `lastSpellCastId` (Spellvault, Runic Archivist, Recaller, and Scalefeather's
+armed charge, which is consumed inside `castSpell`), never reaches `spellCastOnThis` (Mirrorwing), and draws its
+stats from `rubyBonus` rather than spell power (Ashen Broodlord). Orivax's Spellweave sets
+`spellFirstMultEachTurn`, which the Ruby branch doesn't read — it computes its own count from `rubyExtraCast`.
+So this half is **text only**: nine card texts (each with its golden variant) plus Rune of Scales and Orivax's
+Spellweave option now say "Shop spell".
+
+Because nothing needed fixing there, the new tests exist to **lock it in** — "already correct by accident of
+plumbing" is exactly the property a later refactor breaks silently, and the printed text is now a promise. A
+text-audit test asserts every excluding card carries the wording in both its text and goldenText, plus the
+INVERSE for Grimoire and Runefire, so a well-meaning consistency sweep can't quietly restrict them later.
+
+**Runefire, on the other hand, genuinely didn't work with Rubies** — the same reason: no `castSpell`, so its
+`spellCastOnThis` hook was unreachable. It now has a second effect on `onRubyPlayed`, so a Ruby played on it
+also lands on its adjacent Dragons (including firing those neighbours' own `onRubyPlayed` watchers — a spread
+Ruby is a Ruby landing on them). Its text says "the first spell or **Ruby**".
+
+*The design decision worth flagging:* Rubies get their OWN per-instance counter (`rubiesOnThisTurn`) rather
+than sharing `spellsOnThisTurn`. Runefire reads the sum, so a Ruby and then a Shop spell pay out once; but
+Mirrorwing keeps reading spells only. Sharing one counter looks simpler and is a trap — a Ruby landing on
+Mirrorwing would consume its once-per-turn slot without triggering it, so playing a Ruby would effectively
+DISABLE the card for the turn. That's worse than either intended behaviour, and it's now a test.
+
+Verified: typecheck / lint / test (1626, +9) / build:web / harness green. Both halves confirmed to bite:
+removing Runefire's Ruby effect fails its two tests, and implementing the naive shared-counter version fails
+the Mirrorwing slot test. Two of my own initial expectations were wrong and worth recording — Spirit Fire is
++2/+3 (not +2/+2), and my first Runefire test used Ashscribe as the neighbour, whose own spell reaction moved
+its stats for reasons unrelated to the spread; the inert Guardian Drake is the right control body.
+
+### fix(sim): Ashscribe Whelp counts its "first spell" from PLACEMENT, like Grimoire and Spellkeeper
+
+Applying an existing owner ruling to the one card that still had the old shape. Living Grimoire and Spellkeeper
+Drake were corrected on 2026-07-24 to count "the first spell cast **while this is on your board**" rather than
+the first of the turn; Ashscribe Whelp kept reading the turn-global `spellsThisTurn === 1`. So a Whelp bought
+and played after you'd already cast that turn did nothing until next turn — which reads as the card being
+broken rather than as a cost of sequencing, and is inconsistent with its two tribe-mates doing the same thing.
+
+It now uses the same per-instance `boardSpellCount` Spellkeeper does (reset each turn, undefined on a fresh
+body, so placement is the natural floor). No new state, no reducer change — the reset already clears it for
+every card that carries it.
+
+**Flagging this as a judgement call**, since the owner ruled on Grimoire/Spellkeeper specifically and not on
+this card: I read it as the same defect rather than three separate decisions, and it's a two-line revert if the
+per-turn reading was deliberate for a Tier 1.
+
+Also corrected a comment the immediate-mint change made stale (`moonhowlTeachesThisTurn` no longer resets
+"the queued Pups already minted at EoT" — they mint on the buy).
+
+Verified: typecheck / lint / test (1617, +1) / build:web / harness green. The new test mirrors the existing
+Spellkeeper placement test — cast a spell, THEN play the Whelp, and it still grows on the next cast. Confirmed
+it bites by restoring the turn-global gate. The pre-existing "first but not the second spell" test passes both
+before and after, so the per-turn once-only property is intact.
+
+### fix(sim): Moonhowl fires from BOTH spell-buy paths; a taught aimed spell lets you pick the target
+
+Two owner reports on the Mage-Pup mechanic (2026-07-24).
+
+**"Moonhowl isn't proccing when I buy Spirit Fire."** There are *two* ways to buy a spell — the right-hand
+spell SLOT and a spell offer sitting in the minion ROW (the Spell Cart / set-2 shop path) — and the new
+`spellBought` event only fired from the slot. Any spell bought from the row taught nothing. Both paths fire it
+now. Worth noting for future buy-triggers: the two branches sit ~15 lines apart in the same `case 'buy'` and
+each maintains its own list of post-buy hooks, so anything added to one needs a conscious look at the other.
+
+**A taught AIMED spell now opens the target picker.** Playing a Pup that learned Spirit Fire used to
+seeded-random the target; you now aim it like any targeted Shout, and the spell lands on the minion you pick.
+
+The wrinkle is that this is a **per-instance** property. Every existing deferral reads `def.target ===
+'friendly'`, but the Mage-Pup CardDef is untargeted — whether a given Pup needs an aim depends on the spell
+stamped on its instance. So it needed its own predicate (`taughtAimSpell`), checked in the reducer's play case
+*before* the def-level test, with `playCard` skipping the Shout the same way it does for a real targeted
+Battlecry so it isn't fired twice. `applyBattlecryTarget` then fires it with the chosen target, and the factory
+prefers `payload.target` while keeping the seeded-random fallback for paths that can't prompt (a Shout-repeater
+re-firing the Pup). An untargeted taught spell is unaffected — no stray prompt.
+
+One narrowing, called out in the code rather than hidden: a taught `'any'` spell aims at your BOARD. Cast from
+hand an `'any'` spell can also hit a tavern offer, but the deferred-Battlecry path resolves to a `BoardCard`;
+widening it means teaching `pendingTarget` about shop offers, which is a bigger change than this fix warrants.
+
+Verified: typecheck / lint / test (1616, +5) / build:web / harness green. Tests cover both buy paths, the
+picker opening (and NOT resolving early), the picked minion being the only one buffed, and an untargeted
+taught spell still resolving immediately. Confirmed the row-buy test bites by reverting just that call — it
+fails alone, which is what isolates the bug to the row path. Live-checked in a throwaway run: buying Spirit
+Fire from the minion row mints a Pup taught `spiritfire`; playing it opens the picker with aim highlights, and
+aiming at one of two identical 1/1 Strays buffs that one to 3/4 and leaves the other untouched.
+
+### fix(content/sim/ui): Mage-Pups can never be tripled
+
+Owner ruling 2026-07-24: "mage pups cannot be tripled in any circumstance." A Pup's identity lives on the
+INSTANCE — `taughtSpellId` is the spell it will cast — so three Pups are three different cards wearing one id,
+and a combine would have to silently pick one taught spell and bin the other two.
+
+Expressed as data, not a hard-coded id check: a new `CardDef.noTriple` flag (schema-validated), set on
+`b2_magepup`. `checkTriples` excludes such cards from the COUNT rather than just from the combine, so three
+Pups don't sit at a permanent phantom "3/3 triple" that never resolves. The UI's shop pip mirrors the same
+eligibility rule (it was already missing the Ruby exclusion the reducer has), so nothing can light up a
+"completes a triple" hint for a combine that will never happen.
+
+*Testing note worth recording.* The first version of these tests fired a `roll` to trigger the check and all
+four passed — including a CONTROL that should have gilded three Strays. `checkTriples` runs on buy / play /
+grant and **never on a roll**, so those assertions proved nothing: they'd have passed with no guard at all.
+The tests now buy a shop minion (the realistic trigger — you're holding Pups and buy something else) and the
+control gilds, which is what makes the other three meaningful. The control is deliberately kept as the
+tripwire against exactly this class of fake pass.
+
+Verified: typecheck / lint / test (1611, +4) / build:web / harness green. Confirmed the guard tests bite by
+removing the `noTriple` check and watching all three Pup cases fail while the control still passed. Covers
+three-in-hand, split across hand and board, and **Rune of Twin Gilding** (which Gilds at 2 — the case most
+likely to slip past a fix written against 3).
+
+### fix(content/sim/ui): Moonhowl Mentor's taught spells behave like real casts; Sunmane stacks multiplicatively
+
+Two Set-2 Beast fixes from the owner's 2026-07-24 batch.
+
+**Moonhowl Mentor — a full pass on the taught-spell mechanic** ("this will be extremely important for the set").
+
+*Timing.* The Pup now appears the instant a Shop Spell is bought, not at End of Turn. It used to queue into
+`taughtSpellsThisTurn` and mint later, so the turn you spent Gold on the spell you got nothing back. The teach
+is now a first-class event: **`spellBought`** (new `GameEvent`, fired from the reducer's spell-buy branch) with
+Moonhowl watching it via `grantMagePupTaught`. Deliberately its own event rather than widening `onBuy` to
+include spells — `onBuy` is minions-only on purpose ("a spell isn't a minion"), and widening it would change
+what every existing buy-trigger sees. The dead `taughtSpellsThisTurn` queue and the End-of-Turn mint are gone.
+
+*Fidelity — the actual bug.* The Pup's Shout called `castSpell` directly, which only ever runs a spell's
+`effects[]`. That silently did NOTHING for a whole class of spells whose behaviour lives elsewhere in the play
+path. **Beyond the Summit** (the reported failure) has `effects: []` and works entirely through
+`discoverOnPlay`, so a taught copy was a blank. The Shout now mirrors the reducer's own spell resolution:
+
+* **Discover spells** open the real Discover. The spec builder was extracted out of the reducer into a shared
+  `discoverSpecFor`, so the hand path and the taught path resolve the same offer by construction — they can't
+  drift, which is what would have re-broken this later. A taught Beyond the Summit now peeks a tier up, and
+  Hourglass Reserve's lock / Funeral on Loan's borrow ride along for free.
+* **Cast count** comes from `spellCasts`, so a taught spell respects Nimbus, Ancient Runes, Spell Thesis and
+  Yazzus, and spends those one-shot charges exactly once. Previously it ignored all of them.
+* **Aimed spells** re-target a seeded-random friendly (the Rune of Recurrence / Runic Archivist rule) and
+  fizzle cleanly on an empty board rather than half-casting.
+
+Shout-modifying cards needed nothing: the Shout is a real `onPlay` effect, so anything that re-fires Shouts
+already re-fires the whole cast. One deliberate divergence, called out in the code: a taught **Choose One**
+spell casts its first option, because resolving one properly means opening a modal and waiting for a decision
+that a Battlecry mid-resolution can't wait for. Better than doing nothing; flagging it as a judgement call.
+
+*Text.* A Mage-Pup printed "cast the spell this was taught", which tells the player nothing about what clicking
+it does. It now reads **"Shout: cast <Spell> — <that spell's live text>"**, resolved through the same
+`spellDisplayText` chain the shop uses, so a taught Spirit Fire shows its spell-power-boosted numbers rather
+than a stale base — the live-text rule applies to the borrowed line too. `taughtSpellId` rides the same five
+paths `chosenOption` does (board→combat, instantiate, snapshot, opponents, `Unit`) so the Pup names its spell
+everywhere, including a restored or served board.
+
+**Sunmane Herald now stacks multiplicatively.** Owner: each generation of the spreading Rally should be worth
+more, "to scale with the right build". It was flat — every Beast that learned the rally granted the same +3.
+The copy a recipient learns is now worth **double** what it was handed: +3 → +6 → +12 as it travels. The
+existing "each body learns it only once" guard is what keeps that bounded — without it the magnitude would
+compound with ATTACK COUNT rather than spread depth and diverge, and with it the ceiling is `atk × 2^6` on a
+full board. Both properties are now spelled out in the factory, because dropping either overflows a long
+fight. The card text says "doubling each time it spreads" so the mechanic is visible.
+
+*Worth knowing for balance:* one Sunmane attack converts every Beast already on board at once, so depth beyond
+generation 1 comes from Beasts that arrive LATER (summons, token floods) — the tribe's own summon package is
+what turns this from +6 into the escalation the ruling describes.
+
+Verified: typecheck / lint / test (1607) / build:web / harness all green. New tests pin the doubling sequence,
+the once-each bound (a 12 with two bodies is the runaway signature), the immediate mint, the taught cast being
+a real tallied cast, and the Discover case. Each was confirmed to genuinely bite by reverting the fix and
+watching it fail — flat spreading fails 2, disabling the Discover branch fails the Beyond the Summit test.
+Live-checked in a throwaway run: buying Beyond the Summit with Moonhowl out puts a Pup in hand immediately
+reading "Shout: cast Beyond the Summit — Discover a minion from one tier higher", and playing it opens a real
+Tier-5 Discover.
+
+### feat(sim/ui): a resolved Choose One shows only the branch it became; the prompt is two real cards
+
+Three owner reports (2026-07-24), one theme — a Choose One card was lying about what it does.
+
+**1. On board, a resolved Choose One now prints only the option it picked.** It used to keep listing both, so
+an Elderhorn that took Hunt still advertised Ritual. The pick is recorded per-instance as
+`BoardCard.chosenOption` (the reducer stamps it at pick time, including on the TARGETED path — Runic Beetle
+decides its branch before it aims, so waiting for the target would leave it showing both mid-pick), and
+`liveCardText` narrows to `chooseOne[i]` when it's set. Applies to every Choose One card, not just Elderhorn.
+A `chooseBothWhenGolden` golden (Orivax) genuinely gained both, so it records nothing and keeps its combined
+text — the honest read there.
+
+The field rides all four instance paths so the card reads the same everywhere: board→combat (`reducer`),
+combat instantiate (`minion.ts`), the combat snapshot the UI renders (`simulate.ts` → `Unit.tsx`), and BOTH
+persistence paths — `snapshot.ts` (so a restored run doesn't revert to both-options) and `opponents.ts` (so a
+board served as someone's opponent reads true). Dropping it from the snapshot pair is exactly the fidelity bug
+class PR #453 cleaned up, so it went in with them rather than after another audit.
+
+**2. The Choose One prompt is now two CARDS.** It was two cream text-buttons; a Choose One is the same kind of
+decision as a Discover, so it now reuses the Discover chrome (dark-glass banner, transparent panel, card row)
+and renders the real card twice, each printing only its own branch — you pick the version of the card you want.
+Cards are `forceFull` regardless of the compact-tiles preference: everywhere else the text drawer is optional
+detail you hover for, but here the two texts ARE the decision, and two collapsed drawers is two identical
+portraits. The dead `.chooseopt` / `.chooseone-opts` / `.discover-box` / `.discover-title` rules are deleted.
+
+*Found on the way:* `Card.tsx` had a **conditionally-called hook** — `forceFull || !useGame(…)` short-circuits
+the `useGame` subscription whenever `forceFull` is set. Harmless while every call site passed a constant, but
+the new force-full cards render at a tree position that previously held non-force-full ones, which shifts the
+hook order and crashes the render with React's "Should have a queue". Now read unconditionally. This was a live
+landmine for any future force-full call site, not something my change introduced.
+
+**3. Spirit Worgen no longer shows in a Set-2 Compendium.** `EVOLUTION_CARDS` walked the global `CARD_INDEX` to
+find ascend/transform targets. `CARD_INDEX` is deliberately set-agnostic (id→def needs no set), so that leaked
+every set's evolution forms into every other set. It's now derived from the SOURCE cards in the set's own pool:
+an evolution form is in scope exactly when the card that evolves into it is. Spirit Pup isn't in Set 2, so
+Spirit Worgen isn't either.
+
+Verified: typecheck / lint / test (1603, +4) / build:web / harness all green. The new
+`chooseOneMemory.test.ts` covers the untargeted pick, the deferred-target pick, a `chooseOption: 0` guard (a
+truthiness test would silently drop the first branch — the common pick), and asserts every Choose One option in
+the pool has non-empty text so a narrowed card can never render an empty rule box. Confirmed the tests really
+bite by removing the recording and watching 2 fail. Live-checked in a throwaway run: the prompt renders both
+branch texts on-screen with no overflow, and picking Ritual leaves the board card reading only
+"Ritual: your Beast Echoes trigger an additional time."
+
+Follow-ups: the remaining owner items from this batch (Moonhowl Mentor's taught-spell fidelity, Sunmane
+Herald's multiplicative Rally stacking) are their own change and not in here.
+
+### chore(ui): re-wire the Beast + spell art (owner refreshed the masters)
+
+Second art pass over the same two folders. **Beasts: 24 files** (was 21) — the 21 minions plus three tokens
+the owner has since drawn: Mage-Pup, T-Rex Baby, and Void Cub (`sabercub`, a Set-1 id). **Spells: 66 files**,
+of which Gold Font, Spirit Fire and Marked Target are freshly redrawn.
+
+**Corrects the Sunmane Herald call from earlier in this branch.** That pass wired `SunmaneHerald2.png` over the
+original because the "2" had the newer mtime. The owner has since renamed that file to `extra.png` — an explicit
+signal it's the reject — so `SunmaneHerald.png` is the keeper and `extra.png` is skipped. Newer mtime alone was
+the wrong tiebreak; a rename is the real signal.
+
+Same matcher discipline: normalised card name against every id/name pair in `packages/content`, unmatched files
+reported rather than guessed. Two hand-confirmed aliases — `VoidPanther.png -> manasaber` (historical id) and
+`BabyRex.png -> b2_trexbaby` (the card is "T-Rex Baby"). The 7 unchanged spell files with no card (Cupcakes,
+Deepdelve Writ, Ironclad Requisition, Preemptive Attack, Road to the Summit, Spark Plug, Timepiece) stay
+unwired — same list as before, so nothing new drifted.
+
+*Near-miss worth recording:* the first attempt ran the WebP optimizer over the whole `art/minions` directory,
+which swept up 22 tracked-as-`.png` Kobold arts that aren't part of this task. Reverting that with a blanket
+`git checkout -- art/minions/` then also threw away the fresh Beast copies. The optimizer now iterates **only
+the ids the matcher copied**, and the Kobold PNGs are verified byte-intact.
+
+Verified: `build:web` green; dev server restarted (eager glob) and all **90** ids checked through `artFor()` —
+asserting the full resolved path lands in the right subdirectory (`art/minions/` vs `art/spells/`, the check
+that once missed 38 shadowed spell arts), that each fetches 200, and that none decode above 512px. 90/90 OK.
+
+### chore(ui): wire the Set-2 Beast art — all 21 cards
+
+Art pass for the Beast tribe. 21 masters from `Ascent Art/Set 2 Minions/Beasts` copied into
+`packages/ui/src/art/minions/<id>.webp` and resized/encoded to the house 512x512 / q82 WebP, so the
+eager `import.meta.glob` in `art.ts` picks them up by card id with no code change.
+
+Matching was done by NORMALISED CARD NAME against every `id`/`name` pair parsed out of `packages/content`,
+not by eye — the script reports anything it can't match rather than guessing (the standing art rule). Two
+files needed a hand-confirmed decision, both recorded explicitly in the matcher:
+* **`VoidPanther2.png` -> `manasaber`** — the card is "Void Panther"; the id is historical.
+* **`SunmaneHerald2.png` -> `b2_sunmane`**, and `SunmaneHerald.png` deliberately NOT wired. Two masters exist
+  for the same card and the "2" is the NEWER of the pair (Jul 24 14:22 vs Jul 23 23:40), so it's the
+  replacement — the same call we made for Scalefeather Drake.
+
+**Six of the 21 replace existing Set-1 art**: `badgington`, `beetle`, `kennel`, `manasaber`, `seaurchin`,
+`sporebat`. These are carried-over cards sharing one id across both sets, so there's one art slot — the new
+master shows up in Set 1 too. That's consistent with how their re-specs were handled; flagging it because it
+changes Set-1 visuals as a side effect.
+
+The two Beast tokens (`b2_trexbaby`, `b2_magepup`) have no master in the folder and keep their fallback.
+
+Verified: `build:web` green; the dev server restarted (an eager glob needs a restart, not a reload) and each
+of the 21 ids checked through `artFor()` — asserting the **full** resolved path lands in `art/minions/`, not
+just the basename (the check that missed 38 spell arts shadowed by same-named minion files), and that every
+one fetches 200 and decodes at 512x512. `git status` shows exactly 21 changed files.
 
 ### feat(content/sim/core): Beast tranche 6 — Moonhowl Mentor; the Beast tribe is COMPLETE (21/21)
 

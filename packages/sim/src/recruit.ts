@@ -929,13 +929,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const state = ctx.state;
     const rng = makeRng(state.rngCursor);
     for (let n = 0; n < gold(self); n++) {
-      const idxs = state.shop.map((o, i) => (CARD_INDEX[o.cardId]?.spell ? -1 : i)).filter((i) => i >= 0);
+      // Eligibility must MATCH the primitive's own (minion, not spell, not Ruby) or we'd pick an index it
+      // then refuses, silently wasting the trigger. The old hand-rolled body only excluded spells, so this
+      // could eat a Ruby offer.
+      const idxs = state.shop
+        .map((o, i) => {
+          const d = CARD_INDEX[o.cardId];
+          return !d || d.spell || d.ruby ? -1 : i;
+        })
+        .filter((i) => i >= 0);
       if (idxs.length === 0) break;
-      const idx = idxs[rng.int(idxs.length)]!;
-      const offer = state.shop[idx]!;
-      state.shop.splice(idx, 1);
-      const { attack: fa, health: fh } = offerBuyStats(state, offer);
-      addBuff(self, 'Consume', fa, fh);
+      consumeShopMinion(state, self, idxs[rng.int(idxs.length)]!);
     }
     state.rngCursor = rng.state();
   },

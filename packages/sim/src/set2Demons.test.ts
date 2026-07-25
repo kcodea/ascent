@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyEndOfTurn } from './recruit';
+import { applyEndOfTurn, fireOnRubyCast } from './recruit';
 
 /**
  * Set 2's DEMON tribe. Its identity is Consume-from-the-Shop (eight cards) braided with an Imp swarm line.
@@ -395,5 +395,63 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
       combatSide({ tier: 7 }), combatSide({ tier: 1 }));
     const copies = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
     expect(copies.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Two bugs found by auditing every Set-2 card's effect params against what its factory actually READS —
+ * a mismatch is silent, so neither showed up as a failing test.
+ */
+describe('set 2 — regressions from the effect-param audit', () => {
+  it('Velvet Rope Fiend grants a REAL card id (it passed `spellId`; the factory reads `cardId`)', () => {
+    const eff = CARD_INDEX['dm_velvet']!.effects.find((e) => e.do === 'deathrattleGrantSpell')!;
+    const granted = eff.params?.cardId as string;
+    // The wrong key meant `str(params.cardId)` → '' → a hand-grant of the empty id, which crashed the
+    // Recruit render on `CARD_INDEX[''].spell`.
+    expect(granted).toBeTruthy();
+    expect(CARD_INDEX[granted], `grants an id the index knows: ${granted}`).toBeDefined();
+  });
+
+  it('every hand-granting effect in set 2 names an id that exists', () => {
+    for (const def of Object.values(CARD_INDEX).filter((d) => d.id.startsWith('dm_') || d.id.startsWith('k_') || d.id.startsWith('n2_'))) {
+      for (const e of def.effects ?? []) {
+        const id = e.params?.cardId;
+        if (typeof id !== 'string' || !id) continue;
+        expect(CARD_INDEX[id], `${def.name} → params.cardId '${id}'`).toBeDefined();
+      }
+    }
+  });
+
+  it('Gemgorge Fiend consumes through the shared primitive — pool return, FX record and onConsume', () => {
+    const s: RunState = { ...createRun(7), phase: 'recruit' };
+    s.board = [minion('g', 'k_gemgorge', 6, 6)];
+    s.shop = shop('dm_clerk', 'dm_hungerling');
+    const eaten = s.shop.length;
+    // Stock both ids explicitly: a run only stocks the tribes it rolled, and `returnToPool` no-ops on an id
+    // that isn't already a key — so without this the assertion would pass vacuously at 0 → 0.
+    s.pool['dm_clerk'] = 3;
+    s.pool['dm_hungerling'] = 3;
+    const poolBefore = s.pool['dm_clerk']! + s.pool['dm_hungerling']!;
+
+    fireOnRubyCast(s, 2, 3); // cross the "every 3" step
+
+    expect(s.shop.length, 'the offer really leaves the shop').toBe(eaten - 1);
+    expect(s.board[0]!.attack, 'and its stats land on the eater').toBeGreaterThan(6);
+    // The three things the hand-rolled body used to skip:
+    expect(s.shopEaten?.length, 'a consume record drives the animation').toBe(1);
+    const poolAfter = s.pool['dm_clerk']! + s.pool['dm_hungerling']!;
+    expect(poolAfter, 'the eaten card returns to the shared pool (no permanent drain)').toBe(poolBefore + 1);
+  });
+
+  it('Gemgorge never eats a Ruby offer', () => {
+    const s: RunState = { ...createRun(9), phase: 'recruit' };
+    s.board = [minion('g', 'k_gemgorge', 6, 6)];
+    const ruby = Object.values(CARD_INDEX).find((d) => d.ruby)!;
+    s.shop = [{ uid: 'r0', cardId: ruby.id }];
+
+    fireOnRubyCast(s, 2, 3);
+
+    expect(s.shop.length, 'the Ruby is still there — it is not food').toBe(1);
+    expect(s.board[0]!.attack).toBe(6);
   });
 });

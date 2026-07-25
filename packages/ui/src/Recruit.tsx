@@ -3962,7 +3962,10 @@ export function Recruit() {
           })}
           {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
               committed to the real hand at `resolveCombat`). */}
-          {inCombat && !run.combatSettled && replay.handGrantsShown.map((cardId, i) => (
+          {/* Filtered against CARD_INDEX: a grant of an id the index doesn't know (a card-data typo — Velvet Rope
+              Fiend once passed the wrong param name and granted the empty string) used to throw inside the map
+              and white-screen the whole Recruit tree. A bad grant should show nothing, not take down the game. */}
+          {inCombat && !run.combatSettled && replay.handGrantsShown.filter((id) => CARD_INDEX[id]).map((cardId, i) => (
             <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff)} suppressPop forceFull />
           ))}
         </div>

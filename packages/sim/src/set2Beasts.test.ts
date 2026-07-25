@@ -216,6 +216,82 @@ describe('set 2 — Elderhorn multiplies BEAST triggers only', () => {
   });
 });
 
+describe('set 2 — Moonhowl fires from BOTH spell-buy paths', () => {
+  // Owner report 2026-07-24: "moonhowl isnt proccing when i buy spirit fire". There are two ways to buy a
+  // spell — the right-hand spell SLOT and a spell offer sitting in the minion ROW (Spell Cart / set 2) — and
+  // `spellBought` only fired from the slot, so a row buy silently taught nothing.
+  const mentor = (): BoardCard =>
+    ({ uid: 'mh', cardId: 'b2_moonhowl', tribe: 'beast', attack: 4, health: 9, keywords: [], golden: false });
+
+  it('the right-hand spell SLOT teaches', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 60, board: [mentor()], hand: [],
+      spell: { uid: 'sp', cardId: 'spiritfire' },
+    };
+    s = reduce(s, { type: 'buy', uid: 'sp' });
+    expect(s.hand.find((c) => c.cardId === 'b2_magepup')?.taughtSpellId).toBe('spiritfire');
+  });
+
+  it('a spell offer in the minion ROW teaches too (the reported miss)', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 60, board: [mentor()], hand: [],
+      shop: [{ uid: 'row', cardId: 'spiritfire' }], spell: null,
+    };
+    s = reduce(s, { type: 'buy', uid: 'row' });
+    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // the spell itself bought
+    expect(s.hand.find((c) => c.cardId === 'b2_magepup')?.taughtSpellId).toBe('spiritfire');
+  });
+});
+
+describe('set 2 — a Mage-Pup taught an AIMED spell lets you pick the target', () => {
+  // Owner 2026-07-24. The aim is a PER-INSTANCE property: the Mage-Pup CardDef is untargeted, so the usual
+  // `def.target === 'friendly'` deferral can't see it — the taught spell on the instance is what needs an aim.
+  const pup = (uid: string, spellId: string): BoardCard => ({
+    uid, cardId: 'b2_magepup', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false,
+    taughtSpellId: spellId,
+  });
+  const body = (uid: string): BoardCard =>
+    ({ uid, cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+
+  it('playing it opens the aim picker instead of auto-casting', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', board: [body('a'), body('b')],
+      hand: [pup('p', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 'p' });
+    expect(s.pendingTarget?.uid).toBe('p'); // waiting on the player
+    // Nothing cast yet — the Shout is deferred, not fired-then-corrected.
+    expect(s.spellsCast).toBe(0);
+  });
+
+  it('the chosen minion is the one that gets the spell', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', board: [body('a'), body('b')],
+      hand: [pup('p', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 'p' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'b' });
+    expect(s.pendingTarget).toBeUndefined();
+    expect(s.spellsCast).toBe(1);
+    const a = s.board.find((c) => c.uid === 'a')!;
+    const b = s.board.find((c) => c.uid === 'b')!;
+    // Spirit Fire buffed the PICKED body, and only it — the whole point of aiming.
+    expect(b.attack + b.health).toBeGreaterThan(2);
+    expect(a.attack + a.health).toBe(2);
+  });
+
+  it('an UNtargeted taught spell still resolves immediately (no stray prompt)', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 4, phase: 'recruit', board: [body('a')],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      hand: [pup('p', 'beyondsummit')], shop: [],
+    };
+    s = reduce(s, { type: 'play', uid: 'p' });
+    expect(s.pendingTarget).toBeUndefined();          // no aim for a Discover spell
+    expect(s.discover?.length ?? 0).toBeGreaterThan(0); // it just resolved
+  });
+});
+
 describe('set 2 — Mage-Pups never triple', () => {
   // Owner ruling 2026-07-24: "mage pups cannot be tripled in any circumstance". Each Pup's identity is the
   // spell on its instance, so a combine would have to pick one taught spell and bin the other two.
@@ -305,9 +381,10 @@ describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
     const before = s.spellsCast;
     const boardBefore = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     s = reduce(s, { type: 'play', uid: pup.uid });
+    // Spirit Fire is AIMED, so playing the Pup opens the picker (owner 2026-07-24) — complete the aim.
+    expect(s.pendingTarget?.uid).toBe(pup.uid);
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 't1' });
     expect(s.spellsCast).toBe(before + 1); // it went through castSpell, so spell-watchers see it
-    // Spirit Fire is aimed; the taught cast auto-picks a friendly, so SOME body gained stats. Asserting the
-    // board SUM keeps this independent of which minion the seeded pick landed on.
     expect(s.board.reduce((n, c) => n + c.attack + c.health, 0)).toBeGreaterThan(boardBefore);
   });
 

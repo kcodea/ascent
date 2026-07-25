@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **A Mage-Pup taught a targeted spell lets you aim it**, and Moonhowl now procs on spells bought from the minion row as well as the spell slot.
 - **Mage-Pups never combine into a golden** — each one carries the spell it was taught, so a triple would throw two of them away.
 - **Mage-Pups cast what they were taught, properly.** Moonhowl Mentor hands you the Pup the moment you buy the
   spell, the Pup's text names the spell it learned, and taught Discover spells now actually Discover.

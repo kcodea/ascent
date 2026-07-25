@@ -1080,7 +1080,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the hand path, not an oversight.
    *
    *  Untaught (or an unknown id) is a clean no-op. */
-  battlecryCastTaughtSpell: (ctx, self) => {
+  battlecryCastTaughtSpell: (ctx, self, _params, payload) => {
     const def = self.taughtSpellId ? CARD_INDEX[self.taughtSpellId] : undefined;
     if (!def?.spell) return;
     const st = ctx.state;
@@ -1099,7 +1099,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         for (let n = 0; n < casts; n++) castSpell(st, synthetic, pickTaughtTarget(st, def));
       } else {
         for (let n = 0; n < casts; n++) {
-          const target = pickTaughtTarget(st, def);
+          // The PLAYER's pick when the Pup was played through the aim picker; otherwise a seeded-random
+          // friendly (the Pup was re-fired by something that can't prompt, e.g. a Shout-repeater).
+          const target = payload.target ?? pickTaughtTarget(st, def);
           if (def.target && !target) break; // aimed with nothing to aim at → fizzle, like the hand path
           castSpell(st, def, target);
         }
@@ -3265,6 +3267,25 @@ export function modalOpen(state: RunState): boolean {
  * however it's cast — the Pup used to bypass this entirely and a taught Beyond the Summit did nothing at all
  * (owner report 2026-07-24). `grantedTier` freezes a triple-reward Discover at the tier it was granted.
  */
+/**
+ * The spell a Mage-Pup was taught, when that spell needs a TARGET — i.e. when playing this Pup should open the
+ * aim picker rather than resolving immediately (owner 2026-07-24: "when a mage pup is taught a spell that
+ * targets a minion, they should be able to target a minion when played").
+ *
+ * This is a PER-INSTANCE question, which is why it can't ride the usual `def.target === 'friendly'` check: the
+ * Mage-Pup CardDef is untargeted, and whether a given Pup needs an aim depends on the spell on its instance.
+ * Returns undefined for every other card, an untaught Pup, or a taught spell that needs no target.
+ */
+export function taughtAimSpell(card: BoardCard): CardDef | undefined {
+  if (card.cardId !== 'b2_magepup' || !card.taughtSpellId) return undefined;
+  const spell = CARD_INDEX[card.taughtSpellId];
+  if (!spell?.spell) return undefined;
+  // 'any' spells can also hit a TAVERN OFFER when cast from hand; a deferred Battlecry aim resolves against the
+  // board only (`applyBattlecryTarget` takes a BoardCard), so a taught 'any' spell aims at your board. Called
+  // out rather than silently narrowed — widening it means teaching the pendingTarget path about shop offers.
+  return spell.target === 'friendly' || spell.target === 'any' ? spell : undefined;
+}
+
 /** The friendly a TAUGHT aimed spell lands on: a seeded-random board minion (deterministic — it advances the
  *  run's RNG cursor), or `undefined` when the board is empty so the caller can fizzle. Untargeted spells get
  *  `undefined` and cast normally. Same rule as Rune of Recurrence / Runic Archivist. */
@@ -4512,6 +4533,11 @@ export function playCard(state: RunState, played: BoardCard): void {
   // Targeted Battlecry (Toxin Tender): the player picks the friendly target next — deferred to
   // `applyBattlecryTarget` (the reducer sets `pendingTarget`). onSummon already fired above.
   if (def.target === 'friendly') return;
+  // A Mage-Pup taught an AIMED spell defers the same way, but the check is per-instance (its CardDef is
+  // untargeted — the taught spell is what needs a target). The Pup is already on the board by the time this
+  // runs and a friendly spell may target the Pup itself, so a legal target always exists; the reducer opens
+  // the picker unconditionally for this case.
+  if (taughtAimSpell(played)) return;
   // Drakko the Drummer makes Battlecries fire extra times; Warm Embers doubles the next few played Shouts.
   const repeats = playedShoutRepeats(state, def);
   const hasBattlecry = def.effects.some((e) => e.on === 'onPlay');

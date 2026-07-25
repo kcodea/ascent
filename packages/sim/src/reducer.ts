@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, grimoireMultActive, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, grimoireMultActive, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -563,6 +563,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.shop.splice(i, 1);
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount
+        // There are TWO ways to buy a spell — the right-hand spell slot and a spell offer in the minion row —
+        // and `spellBought` must fire from both. It only fired from the slot, so Moonhowl Mentor silently did
+        // nothing for any spell bought from the row (owner report 2026-07-24: buying Spirit Fire didn't proc).
+        applySpellBought(s, card.id);
         return s;
       }
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
@@ -942,6 +946,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       // (resolved in `battlecryTarget`) — but only if a *viable* target exists. The tribe-restricted pick
       // needs another matching friend; with none, the Battlecry simply doesn't fire and the minion plays
       // as-is (no prompt).
+      // A Mage-Pup taught an AIMED spell opens the picker too (owner 2026-07-24). Checked BEFORE the def-level
+      // test because the Pup's own CardDef is untargeted — the taught spell on the INSTANCE is what needs an
+      // aim, so the usual `def.target` route can't see it. `playCard` skips its Shout for the same reason, and
+      // `applyBattlecryTarget` fires it with the chosen target.
+      if (taughtAimSpell(card)) {
+        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
+        return s;
+      }
       const playedDef = CARD_INDEX[card.cardId];
       if (playedDef?.target === 'friendly') {
         const hasTarget = playedDef.targetTribe

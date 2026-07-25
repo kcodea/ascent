@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+### fix(sim): Moonhowl fires from BOTH spell-buy paths; a taught aimed spell lets you pick the target
+
+Two owner reports on the Mage-Pup mechanic (2026-07-24).
+
+**"Moonhowl isn't proccing when I buy Spirit Fire."** There are *two* ways to buy a spell — the right-hand
+spell SLOT and a spell offer sitting in the minion ROW (the Spell Cart / set-2 shop path) — and the new
+`spellBought` event only fired from the slot. Any spell bought from the row taught nothing. Both paths fire it
+now. Worth noting for future buy-triggers: the two branches sit ~15 lines apart in the same `case 'buy'` and
+each maintains its own list of post-buy hooks, so anything added to one needs a conscious look at the other.
+
+**A taught AIMED spell now opens the target picker.** Playing a Pup that learned Spirit Fire used to
+seeded-random the target; you now aim it like any targeted Shout, and the spell lands on the minion you pick.
+
+The wrinkle is that this is a **per-instance** property. Every existing deferral reads `def.target ===
+'friendly'`, but the Mage-Pup CardDef is untargeted — whether a given Pup needs an aim depends on the spell
+stamped on its instance. So it needed its own predicate (`taughtAimSpell`), checked in the reducer's play case
+*before* the def-level test, with `playCard` skipping the Shout the same way it does for a real targeted
+Battlecry so it isn't fired twice. `applyBattlecryTarget` then fires it with the chosen target, and the factory
+prefers `payload.target` while keeping the seeded-random fallback for paths that can't prompt (a Shout-repeater
+re-firing the Pup). An untargeted taught spell is unaffected — no stray prompt.
+
+One narrowing, called out in the code rather than hidden: a taught `'any'` spell aims at your BOARD. Cast from
+hand an `'any'` spell can also hit a tavern offer, but the deferred-Battlecry path resolves to a `BoardCard`;
+widening it means teaching `pendingTarget` about shop offers, which is a bigger change than this fix warrants.
+
+Verified: typecheck / lint / test (1616, +5) / build:web / harness green. Tests cover both buy paths, the
+picker opening (and NOT resolving early), the picked minion being the only one buffed, and an untargeted
+taught spell still resolving immediately. Confirmed the row-buy test bites by reverting just that call — it
+fails alone, which is what isolates the bug to the row path. Live-checked in a throwaway run: buying Spirit
+Fire from the minion row mints a Pup taught `spiritfire`; playing it opens the picker with aim highlights, and
+aiming at one of two identical 1/1 Strays buffs that one to 3/4 and leaves the other untouched.
+
 ### fix(content/sim/ui): Mage-Pups can never be tripled
 
 Owner ruling 2026-07-24: "mage pups cannot be tripled in any circumstance." A Pup's identity lives on the

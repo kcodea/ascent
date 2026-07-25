@@ -50,12 +50,17 @@ let spellFrameAvailable = true;
 // Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
 // module-level availability flag flipped on the first 404, so a missing asset degrades to today's look.
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
-// Beast tribe gets its own plate — same stone/gold body, GREEN gem accents. Keyed on the PRIMARY tribe only
-// (owner 2026-07-25): a Beast/Dragon shows the neutral plate, only a Beast-primary card gets this one.
-// Same 800×1244 art dims, so the geometry vars are unchanged. (Per-tribe plates can grow from here.)
-const CARD_PLATE_BEAST_SRC = `${import.meta.env.BASE_URL}frames/cardplate-beast.webp`;
+// Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
+// dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
+// shows the neutral plate, only a Beast-PRIMARY card gets the beast one. Add a tribe here + drop its webp in
+// `frames/` to give it a plate (dragon / mech pending art). A tribe-plated card also relocates its tribe
+// LABEL to the plate's bottom gem (no icon) — see `TRIBE_PLATE_SET` / `.plate-tribe`.
+const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
+  beast: `${import.meta.env.BASE_URL}frames/cardplate-beast.webp`,
+};
 const plateSrcFor = (tribe: Tribe | undefined): string =>
-  tribe === 'beast' ? CARD_PLATE_BEAST_SRC : CARD_PLATE_SRC;
+  (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;
+const isTribePlated = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_PLATES[tribe]);
 let cardPlateAvailable = true;
 
 // (KW_LABEL — the keyword→display-name map — was removed with the pill row it fed, owner 2026-07-21.
@@ -455,6 +460,10 @@ export const Card = memo(function Card({
   // A Ruby (set 2) is a spell-LIKE card: it wears the SPELL treatment (purple square frame, spell pill, no
   // stat footer / tribe line) even though it's its own class mechanically. `spellLike` gates the visual only.
   const spellLike = !!card.spell || !!card.ruby;
+  // A plated card whose PRIMARY tribe has its own plate: drop the in-drawer tribe icon+label and print the
+  // tribe name on the plate's bottom gem instead (owner 2026-07-25). Only on the plate itself (hand / drag),
+  // never on an unplated board card, a spell, or the "All"-tribe case.
+  const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike && !card.universalTribe;
   const useSpellFrame = spellLike && card.cardId !== 'discoverspell' && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
@@ -513,6 +522,14 @@ export const Card = memo(function Card({
             draggable={false}
             onError={() => { cardPlateAvailable = false; setPlateOk(false); }}
           />
+          {/* Tribe NAME on the plate's bottom gem — the tribe-plated card's tribe label lives here (no icon)
+              instead of in the drawer (owner 2026-07-25). Positioned over the plate's bottom diamond. */}
+          {tribePlated && (
+            <div className="plate-tribe" aria-hidden="true">
+              {TRIBE_LABEL[card.tribe]}
+              {card.tribe2 && <> <span className="ctype-sep">/</span> {TRIBE_LABEL[card.tribe2]}</>}
+            </div>
+          )}
         </>
       )}
       {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).
@@ -760,7 +777,7 @@ export const Card = memo(function Card({
             <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
           </div>
         )}
-        {!spellLike && (
+        {!spellLike && !tribePlated && (
           <div className="dtribe">
             {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data
                 but counts as every tribe, and showing NEUTRAL made it look like it took no tribal buffs. */}

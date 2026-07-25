@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-07-25 (tribe-plate cards: name on the gem, white body text, tribe-coloured keywords, a text-box tuner)
+
+### feat(ui): relocate the tribe name, recolour the body text, add a Card Text tuner
+
+Follow-ups on the per-tribe plates:
+
+- **Tribe name on the plate gem.** A tribe-plated card (Beast today) drops its in-drawer tribe icon+label and
+  prints the tribe NAME on the plate's bottom diamond instead (`.plate-tribe`, no icon). Positioned by the
+  same geometry the plate uses so it tracks the gem at any size; `--plate-tribe-yf` (a new `tribe name · y`
+  dial on the 🂠 Card Plate tuner) nudges it onto the gem. Unplated board cards keep the normal drawer label.
+- **Body text pure white, keywords tribe-coloured.** The rules text was a tan `#d8ccb6`; it's now pure white
+  (`--card-desc-color`, default `#fff`) so it stands out, and bold keywords/numbers take the card's tribe
+  hue (`var(--c)`) instead of white — Beast keywords read green, Mech blue, etc. Verified live: white body,
+  `rgb(78,168,59)` bold on a Beast, `rgb(39,169,221)` on a Mech.
+- **🔤 Card Text tuner.** A new DEV tuner for the rules-text BOX boundaries (not the title): box top offset,
+  side inset (column width), top/bottom padding, and line height — live via `--ctx-*` vars, `cardTextConfig.ts`
+  DEFAULTS mirrored into the styles.css fallbacks. Verified live: dragging `top` moved the box 103→118px,
+  `padX` widened the inset 7.6→15.1px, `line` opened 9→10.9px.
+
+Engine typecheck + lint + 1649 tests + `build:web` green.
+
 ## 2026-07-25 (Beast tribe gets its own card plate)
 
 ### feat(ui): Beast-primary cards use a green-gem plate

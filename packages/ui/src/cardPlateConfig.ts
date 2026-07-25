@@ -36,6 +36,9 @@ export interface CardPlateConfig {
   goldContrast: number;
   /** Hue rotation, degrees. POSITIVE = toward yellow-gold, NEGATIVE = toward orange-red. */
   goldHue: number;
+  /** Tribe-name label position on a tribe-plate's bottom gem — fraction DOWN the plate height. 1 = very
+   *  bottom. Only affects tribe-plated cards (see `.plate-tribe`). */
+  tribeNameY: number;
 }
 
 const DEFAULTS: CardPlateConfig = {
@@ -53,6 +56,7 @@ const DEFAULTS: CardPlateConfig = {
   goldBright: 1.13,
   goldContrast: 0.95,
   goldHue: 3,
+  tribeNameY: 0.9,
 };
 
 /** Font-size buckets, LARGEST first. `id` is appended to a `.plate-txt-` class on the card. */
@@ -77,6 +81,7 @@ export const PLATE_RANGES: Record<keyof CardPlateConfig, [number, number, number
   goldBright: [0.7, 1.5, 0.01],
   goldContrast: [0.7, 1.5, 0.01],
   goldHue: [-40, 60, 1],
+  tribeNameY: [0.7, 1.05, 0.005],
 };
 
 export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
@@ -95,6 +100,7 @@ export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
   goldBright: 'Golden plate tint — brightness.',
   goldContrast: 'Golden plate tint — contrast.',
   goldHue: 'Golden plate tint — hue rotation (deg). POSITIVE = toward yellow-gold, NEGATIVE = toward orange-red.',
+  tribeNameY: 'Tribe-name label — how far DOWN a tribe plate it sits (fraction; 1 = the very bottom gem).',
 };
 
 export const PLATE_KEYS = Object.keys(DEFAULTS) as (keyof CardPlateConfig)[];
@@ -146,6 +152,7 @@ export function applyCardPlateVars(): void {
     `sepia(${cfg.goldSepia}) saturate(${cfg.goldSat}) brightness(${cfg.goldBright}) ` +
       `contrast(${cfg.goldContrast}) hue-rotate(${cfg.goldHue}deg)`,
   );
+  root.setProperty('--plate-tribe-yf', String(cfg.tribeNameY));
 }
 
 export function setCardPlateValue(key: keyof CardPlateConfig, value: number): void {

@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-07-24 (buy slide no longer blinks the card out and back in)
+
+### fix(ui): the buy/place slide re-armed the card's mount-pop
+
+A bought (or placed/reordered) card briefly blinked, faded out, then back in as it settled into hand — a
+regression owner spotted on main. `buySlide` suppressed the card's mount-pop with `animation: none !important`
+for the slide, then removed that override in `done()`. Because `.popin` persists on a hand card
+(`animation: handpop`, frozen at mount), clearing the inline override re-applied `handpop` FROM ZERO — a fresh
+0→1 fade firing right as the slide ended. Proven in-DOM: after the old cleanup, `getAnimations()` showed
+`handpop, running, currentTime 0`.
+
+Fix: `buySlide` now FINISHES the mount-pop (`handpop` / `cardpop`) up front via the Web Animations API instead
+of toggling the `animation` property. That (1) settles the card so `base` reads the true resting transform —
+the slide was previously ending on a mid-pop frame (scale 0.9) — and (2) leaves the pop done for good, so
+nothing re-arms when the slide ends; the slide is the card's entrance. `done()` now only clears the opacity
+override. Verified in-DOM: post-slide, no re-armed `handpop`, no stray inline `animation`. Motion itself is
+owner-eyeballed — the preview pane freezes the animation clock.
+
 ### feat(ui): the ×N multicast badge joins the Card Pills tuner (position, scale + two colours)
 
 The ×N badge is now the fourth pill in 🏷️ Card Pills, with its own x/y/scale like the other three, plus two

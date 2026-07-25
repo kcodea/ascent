@@ -18,12 +18,15 @@
  * would visibly jump to an untucked pose. So the current computed matrix is read once and every keyframe is
  * written OUTSIDE it: `translate(…) scale(…) <base>`. The base is a resolved matrix, so this is exact.
  *
- * ## Why the mount-pop is suppressed
+ * ## Why the mount-pop is finished up front
  *
- * A freshly bought card mounts with `.popin`, whose `handpop` keyframes animate transform and opacity. The
- * slide would be fighting it for the same property, and a running CSS animation outranks a plain inline
- * style. `animation: none !important` for the duration takes it out of the running; the card slides in
- * solid instead of fading in.
+ * A freshly bought (or placed) card mounts with `.popin`, whose `handpop`/`cardpop` keyframes animate
+ * transform and opacity — the card's default entrance. The slide IS the entrance now, so that pop is
+ * finished immediately via the Web Animations API. NB do NOT suppress it with `animation: none !important`
+ * and clear that later: `.popin` persists on the card, so clearing the override re-applies `handpop` from
+ * zero — a fresh fade that blinks the card out and back in as the slide ends (owner report 2026-07-24).
+ * Finishing settles the card (so `base` below reads the true resting transform, not a mid-pop frame) and
+ * leaves the pop done for good.
  */
 
 /** Where the card was when you let go of it — the floating drag card's box, in viewport px. */
@@ -55,10 +58,22 @@ export function playBuySlide(from: BuyFrom, card: HTMLElement, durationScale = 1
   // a compositor layer for 170ms.
   if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sc - 1) < 0.02) return;
 
+  // The card may still be running its mount-pop (`handpop` on a hand card, `cardpop` elsewhere). FINISH it up
+  // front rather than suppressing it. Two reasons:
+  //   1. Reading `base` (below) while the pop animates captures a MID-pop transform (scale 0.9, part-way tuck),
+  //      so the slide would settle to the wrong pose. Finished → `base` is the true resting transform.
+  //   2. THE BUG THIS FIXES: the old code set `animation: none !important` and removed it in `done()`. Because
+  //      `.popin` persists on the card, clearing that override re-applied `animation: handpop` from zero — a
+  //      fresh fade that blinked the card OUT then back IN as the slide ended (owner report 2026-07-24).
+  // Finishing leaves the pop done for good (we never touch the `animation` property), and the slide is the
+  // card's entrance — no fade needed.
+  for (const a of card.getAnimations()) {
+    const name = (a as { animationName?: string }).animationName;
+    if (name === 'handpop' || name === 'cardpop') a.finish();
+  }
   const cs = getComputedStyle(card);
   const base = cs.transform && cs.transform !== 'none' ? cs.transform : '';
-  card.style.setProperty('animation', 'none', 'important');   // take `handpop` out of the running
-  card.style.setProperty('opacity', '1', 'important');        // …including its 0 → 1 fade
+  card.style.setProperty('opacity', '1', 'important');   // solid through the slide (belt-and-suspenders)
 
   const anim = card.animate(
     [
@@ -68,7 +83,6 @@ export function playBuySlide(from: BuyFrom, card: HTMLElement, durationScale = 1
     { duration: Math.max(1, MS * durationScale), easing: EASE },
   );
   const done = (): void => {
-    card.style.removeProperty('animation');
     card.style.removeProperty('opacity');
   };
   anim.addEventListener('finish', done);

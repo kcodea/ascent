@@ -170,6 +170,12 @@ export type EffectFactoryId =
   | 'avengeBuffTribeLasting' // Moonlit Scavenger: Avenge — buff your tribe for the rest of the fight
   | 'rallyProcLeftmostEcho' // Echohorn Stag: Rally — trigger your left-most friendly Echo
   | 'deathrattleSummonRandomTribe' // Menagerie Mammoth: Echo — summon N random minions of a tribe
+  | 'battlecryGrantSpellPowerRun' // Set 2 — Coppercoat Spellsword (Choose One): permanently raise run-wide spell power
+  | 'endOfTurnCopyNeighbour' // Set 2 — Bellringer Voss: every N turns, a plain copy of the board neighbour(s) to hand
+  | 'deathrattleSummonRandomTier' // Set 2 — Gravelight Acolyte (Echo): summon N random minions of an exact tier
+  | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
+  | 'scGrantEndsFlurryWard' // Set 2 — Lastlight Marshal: Start of Combat — left-most gains Flurry, right-most Ward
+  | 'onSummonDoubleStats' // Set 2 — Fatecarver: a minion you summon in combat has its stats doubled
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
   | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
@@ -343,6 +349,9 @@ export type EffectFactoryId =
   | 'spellReplayBattlecry' // Resonance: cast — re-trigger a friendly Battlecry minion's Battlecry (recruit)
   | 'spellExtraEndOfTurn' // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
   | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
+  | 'spellBuffLeftmost' // Set 2 — Work Order: Champion: buff your left-most board minion
+  | 'spellBuffRandomFriendlies' // Set 2 — Work Order: Health / Attack: buff N distinct random friendly minions
+  | 'spellGrantTopTypeMinion' // Set 2 — Work Order: Reinforcement: get a minion of your most common tribe
   | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)
   | 'spellCopyRecent' // Steward of Spells: End of Turn — copy the most recent spell cast to hand (recruit)
   | 'spellRefreshToSpells' // Spell Cart: cast — refresh the tavern full of spells (recruit)

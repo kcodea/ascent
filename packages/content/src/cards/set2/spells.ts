@@ -71,4 +71,77 @@ export const SET2_SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellBuffShopByRuby' }],
     text: 'Your Shop minions **permanently** get stats equal to your Rubies (**+1/+1**).',
   },
+  // ── Work Orders (owner batch 2026-07-25) ─────────────────────────────────────────────────────────────
+  // A cycle of five cheap Tier-3 utility spells on one template: same tier, same cost, each paying a different
+  // axis (economy / bodies / a spike / spread health / spread attack). SET 2 ONLY — they live in this file, so
+  // they're in `SET2_SPELLS` and never reachable from a set-1 run.
+  {
+    id: 'wo_mine',
+    name: 'Work Order: Mine',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'gainEmbers', params: { amount: 2 } }],
+    text: 'Gain **2 Gold**.',
+  },
+  {
+    // "Most common type" resolves through the shared `grantTopTypeMinion`, so it means the same thing here as
+    // everywhere else: your dominant board tribe, capped at your tavern tier, drawn from the shared pool.
+    id: 'wo_reinforcement',
+    name: 'Work Order: Reinforcement',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellGrantTopTypeMinion' }],
+    text: 'Get a minion of your **most common type**.',
+  },
+  {
+    // Untargeted by design: you pick the recipient by ARRANGING your line, which also keeps the spell
+    // deterministic (board order, no RNG).
+    id: 'wo_champion',
+    name: 'Work Order: Champion',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellBuffLeftmost', params: { attack: 6, health: 6 } }],
+    text: 'Give your **left-most** minion **+6/+6**.',
+  },
+  {
+    id: 'wo_health',
+    name: 'Work Order: Health',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 0, health: 4 } }],
+    text: 'Give **3 random** friendly minions **+4 Health**.',
+  },
+  {
+    id: 'wo_attack',
+    name: 'Work Order: Attack',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 4, health: 0 } }],
+    text: 'Give **3 random** friendly minions **+4 Attack**.',
+  },
 ];

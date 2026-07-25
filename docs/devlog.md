@@ -84,6 +84,104 @@ bundles into `dist/`.
 Follow-up (owner to decide): a golden Beast card gets this plate PLUS the gold tint filter, which pushes the
 green gems toward gold — leave as-is, or author a bespoke gold-beast plate.
 
+### feat(content/sim/ui): set 2 gains the owner's 28-card NEUTRAL roster
+
+Owner roster 2026-07-25. 21 of the 28 names already existed as set-1 neutrals; 7 are new.
+
+**The 21 carry over UNCHANGED** (owner decision). Their table listed different tier/stats for seven — Buddy Buddy
+3/3, Nimbus T4 5/4, Rope Wrangler T5 5/6, Yazzus T7 9/9, Lazarus T7 8/8, Zyff 12/10, and "Jenkins" vs the card's
+"Jensen & Fi" — but these are SHARED definitions, so re-speccing would have rebalanced set 1 too. Opted in via
+`SET1_NEUTRALS_IN_SET2` + `SET1_TIER7_IN_SET2` (separate so the Tier 7s stay appended last, matching set 1's
+ordering rule). A test pins that those seven are still at their set-1 stats, so a later edit can't drift them
+silently. The deltas are listed in the PR to apply deliberately if wanted.
+
+Nimbus also keeps the "additional time" wording from the 2026-07-24 ruling (it stacks with Drakko) rather than
+the roster table's older "casts twice" — the table predates that change.
+
+`lazarus` is a quest reward (`token: true`), so it joins the set but not the shop. That matches the blank Source
+column it and the Tier 7s carry on the roster.
+
+**The 7 new cards** live in `cards/set2/neutral.ts`, so they're set-2-only by construction. Six needed a new
+effect primitive:
+
+| Card | | Primitive |
+| --- | --- | --- |
+| Tamer | T1 1/1 | reuses `deathrattleSummon` + a new 3/3 `n2_whelp` token (`attackOnSummon`) |
+| Coppercoat Spellsword | T2 3/4 | `battlecryGrantSpellPowerRun` — Choose One, mirrored params |
+| Gravelight Acolyte | T2 2/2 | `deathrattleSummonRandomTier` |
+| Oathbound Avenger | T3 2/5 | `avengeBuffRandomFriendlyShield` |
+| Bellringer Voss | T4 4/6 | `endOfTurnCopyNeighbour` |
+| Lastlight Marshal | T5 5/7 | `scGrantEndsFlurryWard` |
+| Fatecarver | T6 5/10 | `onSummonDoubleStats` |
+
+Notes on the two with real subtlety. **Bellringer** follows Frontdrake's cadence contract exactly (`eotTick`
+advances once per turn on proc 0), so a Chronos repeat fires an extra copy on the cadence turn without advancing
+the count and a Djinn replay pays on the turn it would naturally land — getting that wrong is how a cadence card
+ends up firing every turn. **Fatecarver** hooks the SUMMONED body's `onSummon`, so it catches every source (Echo
+tokens, spell summons, Rise) rather than enumerating them, and is guarded against the other side and itself.
+
+A new 3/3 Whelp token rather than reusing set 1's 3/2 `whelpling`, because the roster's stat line differs. Kept a
+DRAGON like every other Whelp, which matters in set 2 where Dragons are playable.
+
+**Art.** The Neutral art folder — empty earlier today — now holds 21 masters; 20 wired, 16 by name and 4 by
+hand-confirmed alias (`JenkinsAndFi` → `jenkins`, `SalvatoreMcKluskey` → `salvatore`, `ZyffBetrayer` → `zyff`,
+`Whelpling` → the ID, since TWO cards are now named "Whelp"). `TaurusTheAncient.png` is **not** wired: it matches
+neither "Taurus" nor "Taurus the Truth Bringer", both of which already have art, so guessing would overwrite one.
+Five of the seven new cards still await art (Coppercoat, Gravelight, Oathbound, Bellringer, Lastlight) and fall
+back cleanly.
+
+Verified: typecheck / lint / test (1675, +13) / build:web / harness green. Live-checked: all 28 present in set 2,
+none leaked into set 1, set-1 stats untouched, and all 20 arts resolve from `art/minions/` at 512x512.
+
+*Three test traps worth recording.* (1) The set-2 Discover test asserted "Kobolds only", which the roster makes
+false — rewritten to the real invariant (only EXPLICITLY opted-in set-1 cards appear), asserted by ID because
+several set-2 cards legitimately carry a set-1 SECONDARY tribe (Gemgorge Fiend is Kobold/Demon) and a tribe check
+flagged those as leaks. (2) My Gravelight test asserted exactly one summon; the roll legitimately CHAINS (it drew
+Tamer, whose own Echo summons a Whelp), so it now asserts the FIRST summon's tier. (3) My Fatecarver
+"doesn't double itself" test passed with the guard REMOVED — initial-board minions fire no `onSummon`, so it was
+vacuous. Replaced with the reachable side-guard case (an enemy summon), confirmed to fail when broken.
+
+### feat(content/sim/ui): the Work Orders — five Set-2-only utility spells, art wired
+
+A five-card cycle on one template (owner batch 2026-07-25): Tier 3, cost 2, each paying a different axis.
+Authored in `cards/set2/spells.ts`, so they're in `SET2_SPELLS` and unreachable from a set-1 run.
+
+| Card | Effect |
+| --- | --- |
+| Work Order: Mine | Gain 2 Gold |
+| Work Order: Reinforcement | Get a minion of your most common type |
+| Work Order: Champion | Give your left-most minion +6/+6 |
+| Work Order: Health | Give 3 random friendly minions +4 Health |
+| Work Order: Attack | Give 3 random friendly minions +4 Attack |
+
+Mine reuses the existing `gainEmbers`; the other four needed three new factories (Health and Attack share one,
+differing only in params).
+
+Two decisions worth recording:
+* **Reinforcement routes through the existing `grantTopTypeMinion`** rather than re-deriving "most common type".
+  That helper already resolves dominant tribe, caps at the tavern tier and respects the shared pool, so the
+  phrase means one thing everywhere instead of two implementations drifting.
+* **"3 random friendly minions" picks 3 DISTINCT bodies**, not three rolls that can land twice on the same
+  minion. With-replacement would let a 2-minion board put +8 on one and nothing on the other, which isn't what
+  the card says. A board smaller than 3 simply buffs everyone. Seeded off the run cursor, so a reload or replay
+  picks identically.
+
+Champion is deliberately untargeted: you choose the recipient by ARRANGING your line, which also keeps it
+deterministic (board order, no RNG).
+
+**Art.** Five masters, five cards. Three match by name; the other two are the art's own wording for the same
+cards — `WorkOrderAssault` → Attack and `WorkOrderFortitude` → Health — unambiguous both semantically and by
+elimination. Both are recorded as explicit aliases in the matcher rather than resolved by guesswork, so a future
+full re-wire keeps them. **Flagging in case the ART names are the intended card names** — trivial to flip.
+
+Verified: typecheck / lint / test (1660, +12) / build:web / harness green. Live-checked in a throwaway run:
+Champion took the left-most 1/1 to 7/7 and left the rest alone; Attack buffed three DISTINCT bodies (+4 each,
+the fourth untouched); Mine paid 20 → 22 Gold; all five arts resolve from `art/spells/` at 512x512. Console clean.
+
+*Two traps hit on the way, both already-known ones:* three identical `stray`s on a test board TRIPLE-COMBINE into
+a golden and vanish, which produced four false failures until the fixtures used distinct bodies; and the
+`sets.test.ts` manifest has an explicit `SET2_OWN_SPELLS` allowlist that correctly rejected the new ids until
+they were declared — exactly the guard it exists to be, so it was extended rather than loosened.
 
 ### fix(core/ui): Sunmane's rally ACCUMULATES (not doubles); buff badges no longer flash up-down-up
 

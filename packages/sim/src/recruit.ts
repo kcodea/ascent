@@ -1677,6 +1677,42 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), perA * played * g, perH * played * g);
   },
 
+  /** Set 2 — Coppercoat Spellsword (Choose One Shout): permanently raise run-wide SPELL POWER by +atk/+hp.
+   *  The two options are the same factory with different params (one all-Attack, one all-Health), which is why
+   *  this takes both rather than being two factories. Golden doubles, matching the printed Gilded text. */
+  battlecryGrantSpellPowerRun: (ctx, self, params) => {
+    const cur = ctx.state.spellBonus ?? { attack: 0, health: 0 };
+    ctx.state.spellBonus = {
+      attack: cur.attack + num(params.attack, 0) * gold(self),
+      health: cur.health + num(params.health, 0) * gold(self),
+    };
+  },
+
+  /** Set 2 — Bellringer Voss (End of Turn): every `every` turns, conjure a PLAIN copy of the board minion to
+   *  this one's LEFT into hand (golden: both neighbours). "Plain" = a fresh card from the index, so buffs,
+   *  welds and golden are deliberately NOT copied — the same rule Re-Pete's Second Hand uses.
+   *
+   *  Cadence follows Frontdrake exactly: `eotTick` advances ONCE per turn (on proc 0), so a Chronos repeat
+   *  fires an extra copy on the cadence turn without advancing the count, and a Djinn replay pays off on the
+   *  turn it would naturally land. Getting this wrong is how a cadence card ends up firing every turn. */
+  endOfTurnCopyNeighbour: (ctx, self, params, payload) => {
+    const every = Math.max(1, num(params.every, 2));
+    const replay = payload.replay === true;
+    if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1;
+    const tick = self.eotTick ?? 0;
+    const due = replay ? (tick + 1) % every === 0 : tick % every === 0;
+    if (!due) return;
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    // Left neighbour always; the right one too when golden ("adjacent minions").
+    const picks = [ctx.state.board[i - 1], ...(self.golden ? [ctx.state.board[i + 1]] : [])];
+    const defs = picks
+      .map((c) => (c ? CARD_INDEX[c.cardId] : undefined))
+      .filter((d): d is CardDef => !!d && !d.spell && !d.ruby);
+    if (defs.length === 0) return;
+    for (const d of defs) conjureToHand(ctx.state, [d], 1);
+  },
+
   /** Frontdrake — End of Turn: every `every` turns on the board, conjure `count` random minions of
    *  `tribe` into the hand (tier ≤ tavern tier, active tribes, copies left — "abides by tavern rules").
    *  Golden doubles the count. The per-card `eotTick` advances ONCE per turn (on proc 0), so Chronos
@@ -2896,6 +2932,36 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Golden Touch — make a random (non-golden) tavern minion offer Golden; the buy bakes the golden in
    *  (goldens store base stats, ×2 at combat, like Indy's gild). Untargeted — the game picks the minion. */
+  /** Set 2 — Work Order: Champion. Give your LEFT-MOST board minion +atk/+hp. Board order, so the pick is
+   *  deterministic and consumes no RNG — the player chooses by arranging their line, which is the point. */
+  spellBuffLeftmost: (ctx, _self, params) => {
+    const target = ctx.state.board[0];
+    if (!target) return; // empty board → fizzles (the spell is still spent, like every untargeted cast)
+    addBuff(target, 'Work Order', num(params.attack, 0), num(params.health, 0));
+  },
+
+  /** Set 2 — Work Order: Health / Attack. Buff `count` DISTINCT random friendly minions by +atk/+hp.
+   *  Distinct because "3 random friendly minions" means three bodies, not three rolls that can land twice on
+   *  the same one; a board smaller than `count` simply buffs everyone. Seeded off the run cursor so a reload or
+   *  replay picks identically. */
+  spellBuffRandomFriendlies: (ctx, _self, params) => {
+    const want = num(params.count, 3);
+    const pool = [...ctx.state.board];
+    if (pool.length === 0 || want <= 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const picks: BoardCard[] = [];
+    for (let i = 0; i < want && pool.length > 0; i++) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+    ctx.state.rngCursor = rng.state();
+    for (const t of picks) addBuff(t, 'Work Order', num(params.attack, 0), num(params.health, 0));
+  },
+
+  /** Set 2 — Work Order: Reinforcement. Get a minion of your most common tribe, into hand. Reuses the same
+   *  `grantTopTypeMinion` the hero power path uses, so "most common type" is resolved one way everywhere
+   *  (dominant tribe, capped at your tavern tier, respecting the shared pool). No-op with no dominant tribe. */
+  spellGrantTopTypeMinion: (ctx) => {
+    grantTopTypeMinion(ctx.state);
+  },
+
   spellGildRandomTavern: (ctx) => {
     const offers = ctx.state.shop.filter((o) => !o.golden);
     if (offers.length === 0) return;

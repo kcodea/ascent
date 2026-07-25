@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Rubies show their ×N multicast badge**, now an orange minted coin matching the hero-power cost. Living Grimoire's Shout meter stays hidden while it's charged and appears at 0/3 once spent.
 - **Living Grimoire recharges every turn** (its rule always said "each turn" — now it's true), and shows a 0/3 Shout meter while spent that fills and flashes when it's ready again.
 - **Dragons that ignore Rubies now say so.** Every spell-reactive Dragon meant to exclude Rubies prints "Shop spell"; Living Grimoire and Runefire still take both, and Runefire finally spreads a Ruby to its neighbours.
 - **A Mage-Pup taught a targeted spell lets you aim it**, and Moonhowl now procs on spells bought from the minion row as well as the spell slot.

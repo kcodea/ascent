@@ -505,6 +505,20 @@ export function consumeGrimoireCharge(state: RunState): void {
   if (grimoireMultActive(state) > 1) state.grimoireMult = 0;
 }
 
+/**
+ * How many times a RUBY played from hand resolves: 1, plus `rubyExtraCast` per Prismcaster on board (doubled per
+ * golden Prismcaster), all multiplied by a live Living Grimoire charge (a Ruby is a spell for the Grimoire — it
+ * doesn't say "Shop spell").
+ *
+ * Extracted from the reducer so the UI can PREVIEW the count for the ×N badge (owner ask 2026-07-24: Rubies had
+ * no multicast badge at all, because the count only existed inline at the cast site). Side-effect free, like
+ * `spellCasts` — the charge is spent by the real cast path, not by reading it here.
+ */
+export function rubyCastCount(state: RunState): number {
+  const extra = state.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+  return (1 + extra) * grimoireMultActive(state);
+}
+
 export function spellCasts(state: RunState, def: CardDef): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1

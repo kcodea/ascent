@@ -542,17 +542,18 @@ export function stepProgress(
   const n = (v: unknown, d: number): number => (typeof v === 'number' ? v : d);
   const cyc = (v: number, total: number): StepProgress => ({ current: v <= 0 ? 0 : ((v - 1) % total) + 1, total });
 
-  // Living Grimoire: the Shout meter toward its next charge (owner ask 2026-07-24 — "add the avenge counter
-  // below it when it is spent showing 0/3, count up to 3, and animate showing it's ready again").
+  // Living Grimoire: the Shout meter toward its next charge (owner ask 2026-07-24 — 0/3 once SPENT, counting up
+  // to 3). While CHARGED there is no counter at all (owner correction: a 3/3 read as a meter you still had to
+  // fill, when in fact the card was ready) — the meter appears only once the charge is used, which is exactly
+  // when it carries information.
   //
-  // Reads FULL (3/3) while charged rather than hiding: that makes recharging LAND on `total`, which is exactly
-  // the signal Card's existing step-proc burst fires on — so "animate when ready" needs no new animation. And a
-  // full meter is the clearest read of "ready" on a card whose whole state is charged-or-not. Going back to 0/3
-  // when spent is a wrap FROM full, which the burst's `prev !== total` guard correctly ignores.
+  // Because the counter now UNMOUNTS on recharge rather than landing on `total`, it can't drive Card's built-in
+  // step-proc burst; the "ready again" flourish is fired separately in `Card` off the counter disappearing.
   const rearm = def.effects.find((e) => e.do === 'onBattlecryRearmGrimoire');
   if (rearm) {
+    if (p.grimoireCharged) return null; // charged = ready = nothing to show
     const total = Math.max(1, n((rearm.params as { every?: number })?.every, 3));
-    return p.grimoireCharged ? { current: total, total } : { current: Math.min(p.shoutTick ?? 0, total), total };
+    return { current: Math.min(p.shoutTick ?? 0, total), total };
   }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel

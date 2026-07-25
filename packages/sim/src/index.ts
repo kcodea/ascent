@@ -18,4 +18,4 @@ export { BOTS, BOT_BY_ID, DEFAULT_BOT, type BotPolicy, type BotWeights } from '.
 export * from './runTelemetry';
 export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';
-export { addBuff, boardManaBonus, cardBuff, conjuredStats, dragonTamerCostOf, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, sellValueWithBonus, spellCasts, spellCostReduction, implosionCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus, type EotStepFx } from './recruit';
+export { addBuff, boardManaBonus, cardBuff, conjuredStats, dragonTamerCostOf, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, sellValueWithBonus, spellCasts, rubyCastCount, spellCostReduction, implosionCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus, type EotStepFx } from './recruit';

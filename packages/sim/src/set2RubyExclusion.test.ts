@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
-import { createRun, reduce, type BoardCard, type RunState } from './index';
+import { createRun, reduce, rubyCastCount, type BoardCard, type RunState } from './index';
 
 /**
  * Owner ruling 2026-07-24: "Every Dragon effect intended to exclude Rubies must explicitly say Shop spell."
@@ -150,5 +150,53 @@ describe('set 2 — Runefire works with Rubies as well as Shop spells', () => {
     s = reduce(s, { type: 'play', uid: 'rb', targetUid: 'rf' });
     const K = s.board.find((c) => c.uid === 'K')!;
     expect([K.attack, K.health]).toEqual([1, 2]); // Kobold neighbour untouched
+  });
+});
+
+/**
+ * `rubyCastCount` is the number a Ruby actually resolves — extracted from the reducer so the UI's ×N badge can
+ * preview it (owner 2026-07-24: Rubies had no multicast badge, because the count only existed inline at the cast
+ * site). These pin that the shared helper agrees with what the reducer does.
+ */
+describe('set 2 — a Ruby cast count is previewable and matches what resolves', () => {
+  it('is 1 with a bare board', () => {
+    const s: RunState = { ...createRun(1), phase: 'recruit', board: [], hand: [] };
+    expect(rubyCastCount(s)).toBe(1);
+  });
+
+  it('adds one per Prismcaster, doubled for a golden one', () => {
+    const base: RunState = { ...createRun(1), phase: 'recruit', hand: [] };
+    expect(rubyCastCount({ ...base, board: [minion('p', 'k_prismcaster', 'kobold', 3, 3)] })).toBe(2);
+    expect(rubyCastCount({ ...base, board: [{ ...minion('p', 'k_prismcaster', 'kobold', 6, 6), golden: true }] })).toBe(3);
+    expect(rubyCastCount({
+      ...base,
+      board: [minion('p1', 'k_prismcaster', 'kobold', 3, 3), minion('p2', 'k_prismcaster', 'kobold', 3, 3)],
+    })).toBe(3); // 1 + 1 + 1
+  });
+
+  it('multiplies by a live Living Grimoire charge', () => {
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', hand: [],
+      board: [minion('p', 'k_prismcaster', 'kobold', 3, 3), minion('lg', 'd2_grimoire', 'dragon', 7, 9)],
+      grimoireMult: 2,
+    };
+    expect(rubyCastCount(s)).toBe(4); // (1 + 1) x 2
+  });
+
+  it('agrees with what the reducer actually resolves', () => {
+    // The whole point of sharing the helper: the badge can't promise a number the cast doesn't deliver. A 1/1
+    // Ruby buffs its target by its stats per cast, so the delta IS the count.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80,
+      board: [minion('p', 'k_prismcaster', 'kobold', 3, 3), minion('tgt', 'k_chipwick', 'kobold', 1, 2)],
+      hand: [ruby('rb')],
+    };
+    const predicted = rubyCastCount(s);
+    const t0 = s.board.find((c) => c.uid === 'tgt')!;
+    const [a0, h0] = [t0.attack, t0.health];
+    s = reduce(s, { type: 'play', uid: 'rb', targetUid: 'tgt' });
+    const t1 = s.board.find((c) => c.uid === 'tgt')!;
+    expect(t1.attack - a0).toBe(predicted); // a 1/1 Ruby x `predicted` casts
+    expect(t1.health - h0).toBe(predicted);
   });
 });

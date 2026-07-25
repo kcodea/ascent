@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+### fix(sim/ui): Rubies show their ×N badge; the Grimoire meter hides while charged; ×N wears the coin skin
+
+Three owner asks (2026-07-24), all on the same corner of the card.
+
+**Rubies had no multicast badge.** Two independent reasons, both needed fixing. (1) The Ruby cast count only
+existed INLINE at the reducer's cast site, so there was no side-effect-free way for the UI to preview it — now
+extracted as `rubyCastCount` and used by both, so the number shown and the number resolved can't drift. (2) All
+four `castMult` gates tested `def.spell`, and a Ruby carries `ruby: true` **without** `spell: true` (it isn't a
+Shop Spell), so even a correct count would have been thrown away. A Prismcaster'd Ruby under a live Grimoire
+charge now reads ×4.
+
+**The Grimoire meter no longer shows 3/3 while charged.** The previous pass showed a full meter as the "ready"
+state; the owner's correction is that a 3/3 reads as a meter you still have to fill, when the card is in fact
+ready. There is now no counter at all while charged — it appears as 0/3 the moment the charge is spent, which is
+when it carries information, and climbs 1/3 → 2/3 as Shouts land.
+
+That cost the free animation. Showing 3/3 made recharging LAND on `total`, which is what `Card`'s built-in
+step-proc burst fires on; with the counter unmounting instead, that signal is gone. So the flourish is now fired
+explicitly off the counter DISAPPEARING, from the position it last occupied (cached per render — by the time it
+vanishes the element has no rect to read). Guarded on having had a previous value, so a card that mounts already
+charged doesn't burst.
+
+**The ×N badge wears the minted-coin skin** of the hero-power cost and the `.cost` coin, in ORANGE — same badge
+family as the gold cost coin on the opposite corner, instantly distinguishable from it. Kept circular like its
+siblings, with `min-width` + a pill radius so a two-digit ×N stretches without going lozenge.
+
+*Process note:* the new test file first failed to COLLECT (an unescaped apostrophe in a describe name), and
+`Tests: no tests` is not something a grep for failures would surface — this is the same trap that once hid an
+11-test drop. Checking exit codes and the Test Files line is what caught it.
+
+Verified: typecheck / lint / test (1634, +4) / build:web green, console clean. New tests pin `rubyCastCount` at
+1 on a bare board, +1 per Prismcaster (doubled golden, additive across two), ×2 under a Grimoire charge, and —
+the one that matters — that the predicted count EQUALS the buff the reducer actually applies, so the badge can't
+promise a number the cast doesn't deliver. Live-checked in a throwaway run: the Ruby badge reads ×4 with the
+orange coin styling, and the Grimoire cycles none → 0/3 → 1/3 → 2/3 → none across a spend and three Shouts.
+
 ### fix(sim/ui): Living Grimoire re-arms each turn; its Shout meter reads 0/3 while spent
 
 **The "only targeted spells" report was a misdiagnosis on my side worth writing down.** I probed it before

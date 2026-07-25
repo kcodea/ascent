@@ -194,7 +194,10 @@ export function instView(
     keywords: inst.keywords, text: shownText,
     goldenText,
     golden: inst.golden,
-    tier: c.tier, spell, ruby: c.ruby, target: c.target, castMult: spell ? live?.castMult : undefined,
+    tier: c.tier, spell, ruby: c.ruby, target: c.target,
+    // Rubies show the ×N badge too (owner 2026-07-24) — this gate dropped it for anything not flagged `spell`,
+    // and a Ruby carries `ruby: true` WITHOUT `spell: true`, so a multi-cast Ruby showed no badge at all.
+    castMult: spell || c.ruby ? live?.castMult : undefined,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,

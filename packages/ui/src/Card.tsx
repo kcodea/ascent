@@ -350,14 +350,32 @@ export const Card = memo(function Card({
   // Its own config (`stepProcFxConfig`), NOT the spell-power one — same primitive, independently tunable.
   const stepCounterRef = useRef<HTMLSpanElement>(null);
   const prevStepRef = useRef<number | null>(null);
+  // The counter's last laid-out CENTRE. Kept because one card fires its flourish as the counter DISAPPEARS
+  // (see below), by which point the element is unmounted and has no rect of its own to read.
+  const lastStepPtRef = useRef<{ x: number; y: number } | null>(null);
   const stepCur = card.stepProgress?.current;
   const stepTotal = card.stepProgress?.total;
   useEffect(() => {
     const prev = prevStepRef.current;
     prevStepRef.current = stepCur ?? null;
-    if (stepCur === undefined || stepTotal === undefined) return;
-    if (!isStepProcTick(prev, stepCur, stepTotal)) return;      // see the rule (+ its tests) in stepProcFxConfig
     const el = stepCounterRef.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width || r.height) lastStepPtRef.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    // Living Grimoire: its meter is hidden while CHARGED, so "recharged" shows up as the counter vanishing
+    // rather than as a tick landing on `total` (owner correction 2026-07-24 — a 3/3 read as still-to-fill).
+    // Fire the same flourish from where the counter just was, so becoming ready still reads as an event.
+    // Guarded on `prev !== null` so a card that mounts already charged doesn't burst.
+    if (stepCur === undefined) {
+      if (prev !== null && lastStepPtRef.current) {
+        const { x, y } = lastStepPtRef.current;
+        pixiFx.spellPower(x, y, getStepProcFxConfig());
+      }
+      return;
+    }
+    if (stepTotal === undefined) return;
+    if (!isStepProcTick(prev, stepCur, stepTotal)) return;      // see the rule (+ its tests) in stepProcFxConfig
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (!r.width && !r.height) return;             // not laid out (hidden/unmounted) — nothing to fire from

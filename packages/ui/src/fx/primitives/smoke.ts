@@ -17,6 +17,7 @@ import { FX_BLEND_MODES } from '../blendModes';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
+import { makeRng, randomSeed, type FxRandom } from '../rng';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -318,6 +319,11 @@ class SmokeInstance implements FxInstance<SmokeParams> {
   // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Bounds emission to a
   // single window (see `smokeWithinEmitWindow`) instead of streaming forever.
   private readonly oneShot: boolean;
+  // This instance's ONE random source, seeded once in the constructor and drawn from by `spawnMote()` in a
+  // fixed order (see there). With `ctx.seed` set the whole column replays identically, which is what makes a
+  // tuning holdable/screenshot-able; without one we roll a fresh seed per instance, i.e. exactly the previous
+  // `Math.random()` behaviour. See `fx/rng.ts`.
+  private readonly rand: FxRandom;
   // ms elapsed since this instance's very first update() call — ticks unconditionally once oneShot (not gated
   // on headSet, matching emitter.ts's reasoning: a Fire's setHead typically lands the same frame anyway).
   private emitElapsedMs = 0;
@@ -330,6 +336,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     this.params = params;
     this.renderer = ctx.renderer;
     this.oneShot = ctx.oneShot === true;
+    this.rand = makeRng(ctx.seed ?? randomSeed());
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
     this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
     this.particles = new ParticleContainer({
@@ -484,17 +491,25 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     this.particles.destroy({ children: true });
   }
 
+  /**
+   * Build one puff. Every draw below comes from `this.rand` (this instance's seeded stream) rather than
+   * `Math.random`. The distributions and the ORDER of the draws are byte-for-byte what they were — 9 per
+   * mote: bias jitter, spread, speed jitter, size jitter, spin jitter, spin sign, the two emission-shape
+   * offsets, then the spawn rotation — so the statistical look is unchanged and only its reproducibility is
+   * new. Reordering or adding a draw here changes what every saved seed replays, so treat the sequence as
+   * part of the contract.
+   */
   private spawnMote(): Mote {
     const p = this.params;
-    const rand = Math.random();
-    const spreadRand = Math.random() * 2 - 1;
+    const rand = this.rand();
+    const spreadRand = this.rand() * 2 - 1;
     // A cone of half-width `spread * PI` centred on "up" (-PI/2, screen convention: +y is down). At spread = 1
     // the half-width is PI, so the range covers a full 2*PI uniformly regardless of centre — one formula
     // naturally degenerates to "all directions" without a branch.
     const angle = -Math.PI / 2 + spreadRand * p.spread * Math.PI;
-    const speedJitter = 1 + (Math.random() * 2 - 1) * p.speedVar;
+    const speedJitter = 1 + (this.rand() * 2 - 1) * p.speedVar;
     const speed = Math.max(0, p.speed * speedJitter);
-    const sizeJitter = 1 + (Math.random() * 2 - 1) * p.sizeVar;
+    const sizeJitter = 1 + (this.rand() * 2 - 1) * p.sizeVar;
     const size = Math.max(0.5, p.size * sizeJitter);
     // Small per-mote core-bias jitter for organic variety in the tint, not just a flat colour per palette. As
     // with emitter.ts, this is a greyscale bias signal for the shader to posterize — NOT a resolved palette
@@ -502,12 +517,12 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     const bias = Math.min(1, Math.max(0, p.coreBias + (rand - 0.5) * 0.12));
     // Per-mote spin rate (rad/sec): the base `spin` (deg→rad) jittered by ±spinVar and given a random sign so
     // puffs tumble both ways. spin 0 → 0 regardless (no tumble).
-    const spinJitter = 1 + (Math.random() * 2 - 1) * p.spinVar;
-    const spinSign = Math.random() < 0.5 ? -1 : 1;
+    const spinJitter = 1 + (this.rand() * 2 - 1) * p.spinVar;
+    const spinSign = this.rand() < 0.5 ? -1 : 1;
     const spinRad = p.spin * DEG_TO_RAD * spinJitter * spinSign;
 
     // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
-    emissionOffset(p.emitShape, p.emitRadius, Math.random(), Math.random(), this.emitScratch);
+    emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch);
     const particle = new Particle({
       texture: this.texture,
       x: this.originX + this.emitScratch.ox,
@@ -517,7 +532,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
       tint: biasTint(bias),
       alpha: 0,
       // A random starting rotation so newly spawned puffs don't all share one orientation; `spin` advances it.
-      rotation: Math.random() * Math.PI * 2,
+      rotation: this.rand() * Math.PI * 2,
     });
     const { scaleX: scaleX0, scaleY: scaleY0 } = resolveParticleScale(size, p.stretchX, p.stretchY);
     particle.scaleX = scaleX0;

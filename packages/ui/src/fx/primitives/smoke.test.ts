@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { sampleCurve } from '../curve';
+import { makeRng, type FxRandom } from '../rng';
 import {
   advanceSmokeBudget,
   resolveSmokeRotation,
@@ -240,5 +242,75 @@ describe('smokeFireComplete', () => {
   it('is complete once the window has closed and every mote has died', () => {
     expect(smokeFireComplete(true, 1500, 1500, 0)).toBe(true);
     expect(smokeFireComplete(true, 5000, 1500, 0)).toBe(true);
+  });
+});
+
+/**
+ * Seeded randomness. As noted at the top of this file, `SmokeInstance` can't be built headlessly, so the
+ * seeding is covered through a pure mirror of `spawnMote`'s draw sequence plus structural assertions over
+ * the module source for the parts that live only inside the instance.
+ */
+const SMOKE_SRC = readFileSync(new URL('./smoke.ts', import.meta.url), 'utf8');
+
+/** The module source with its comments stripped. The prose in these files legitimately NAMES
+ *  `Math.random()` (explaining what the seeding replaced), so the regression assertion below has to look at
+ *  CODE only or it would fail on its own documentation. */
+function codeOf(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+
+/** The exact draws `SmokeInstance.spawnMote()` makes, in order — 9 per puff (the emitter's 6 plus spin
+ *  jitter, spin sign, and the spawn rotation). The executable statement of the contract in smoke.ts. */
+function puffDraws(rand: FxRandom): number[] {
+  const bias = rand();
+  const spread = rand() * 2 - 1;
+  const speedJitter = rand();
+  const sizeJitter = rand();
+  const spinJitter = rand();
+  const spinSign = rand() < 0.5 ? -1 : 1;
+  const offsetU = rand();
+  const offsetV = rand();
+  const rotation = rand() * Math.PI * 2;
+  return [bias, spread, speedJitter, sizeJitter, spinJitter, spinSign, offsetU, offsetV, rotation];
+}
+
+describe('smoke seeded randomness', () => {
+  it('two instances seeded the same draw an identical puff sequence', () => {
+    const a = makeRng(31337);
+    const b = makeRng(31337);
+    const streamA = Array.from({ length: 30 }, () => puffDraws(a));
+    const streamB = Array.from({ length: 30 }, () => puffDraws(b));
+    expect(streamA).toEqual(streamB);
+  });
+
+  it('two instances seeded differently draw a different puff sequence', () => {
+    const a = makeRng(1);
+    const b = makeRng(2);
+    expect(Array.from({ length: 30 }, () => puffDraws(a)))
+      .not.toEqual(Array.from({ length: 30 }, () => puffDraws(b)));
+  });
+
+  it('tumbles both ways off a seeded source (the spin sign is still a coin flip, not a constant)', () => {
+    const r = makeRng(5);
+    const signs = Array.from({ length: 200 }, () => puffDraws(r)[5]);
+    expect(signs).toContain(-1);
+    expect(signs).toContain(1);
+  });
+
+  it('builds exactly one seeded source per instance, falling back to a fresh seed when none is given', () => {
+    expect(SMOKE_SRC).toContain('this.rand = makeRng(ctx.seed ?? randomSeed())');
+    expect(codeOf(SMOKE_SRC).match(/makeRng\(/g)).toHaveLength(1);
+  });
+
+  it('has no Math.random() left in the spawn path', () => {
+    expect(codeOf(SMOKE_SRC)).not.toContain('Math.random(');
+  });
+
+  it('still draws exactly 9 values per puff, in the original order', () => {
+    // If this count moves, every previously saved seed replays a different column.
+    expect(codeOf(SMOKE_SRC).match(/this\.rand\(\)/g)).toHaveLength(9);
+    expect(SMOKE_SRC).toContain('emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch)');
+    expect(SMOKE_SRC).toContain('rotation: this.rand() * Math.PI * 2,');
   });
 });

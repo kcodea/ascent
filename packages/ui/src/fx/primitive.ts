@@ -9,6 +9,11 @@ export interface FxContext {
    *  the continuous preview loop. A primitive uses it to do a single discrete play — one burst wave, one
    *  shockwave ring cycle, a bounded emitter window — instead of its continuous/re-firing behaviour. */
   oneShot?: boolean;
+  /** Deterministic seed for this instance's randomness. When omitted, the primitive rolls a fresh one — so
+   *  behaviour is unchanged for any caller that doesn't set it. Supplying one makes a tuning reproducible:
+   *  the same seed replays the same roll, so a good-looking variant can be held still while you tune around
+   *  it, screenshotted, or A/B'd against another tuning with the randomness controlled. See `fx/rng.ts`. */
+  seed?: number;
 }
 
 /**

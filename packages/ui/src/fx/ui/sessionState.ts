@@ -1,4 +1,7 @@
 import type { FxAnchorId, FxLayer } from '../def';
+// TYPE-ONLY (erased at build time): this module stays free of `defStore`'s storage/fetch machinery, it just
+// borrows the stored-layer shape so "what a save writes" has exactly one definition.
+import type { StoredFxLayer } from '../defStore';
 import type { EditorLayer } from './layerModel';
 
 /**
@@ -20,6 +23,12 @@ export interface WorkbenchSession {
   layers: EditorLayer[];
   selected: number;
   durationMs: number;
+  /** The seed the composition replays from while `seedLocked` — see the workbench's seed control. Restored
+   *  together with the lock so reopening the workbench shows the exact roll you left, not a fresh one.
+   *  `null` = the snapshot recorded no seed (it predates the control, or storage was mangled); the caller
+   *  substitutes a fresh `randomSeed()`, which is why this module never rolls one itself and stays pure. */
+  seed: number | null;
+  seedLocked: boolean;
 }
 
 /** Duration clamp bounds, injected so this module never has to know the workbench's slider constants. */
@@ -64,6 +73,9 @@ export function toEditorLayer(raw: unknown): EditorLayer | null {
     anchor: coerceAnchor(l.anchor),
     at: coerceAt(l.at),
     life: coerceLife(l.life),
+    // Kept only when literally `true`, and OMITTED otherwise (never `muted: false`) so an untouched
+    // composition is byte-for-byte what it was before mute existed — the default is an exact no-op.
+    ...(l.muted === true ? { muted: true as const } : {}),
     params: coerceParams(l.params),
   };
 }
@@ -107,6 +119,10 @@ export function normalizeSession(raw: unknown, bounds: DurationBounds): Workbenc
     layers,
     selected: Math.min(layers.length - 1, Math.max(0, rawSelected)),
     durationMs: clampDuration(s.durationMs, bounds),
+    seed: typeof s.seed === 'number' && Number.isFinite(s.seed) ? s.seed : null,
+    // Locked only on an explicit `true`: a snapshot that predates the seed control (or a mangled one) must
+    // restore UNLOCKED, i.e. today's fresh-roll-per-spawn behaviour.
+    seedLocked: s.seedLocked === true,
   };
 }
 
@@ -161,7 +177,7 @@ export function artSlugOf(customRef: string): string {
 export function toStoredLayers(
   layers: readonly EditorLayer[],
   artRefs: ReadonlyMap<string, string>,
-): FxLayer[] {
+): StoredFxLayer[] {
   return layers.map((l) => {
     const params: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(l.params)) {
@@ -172,6 +188,10 @@ export function toStoredLayers(
       anchor: l.anchor,
       at: l.at,
       ...(l.life === null ? {} : { life: l.life }),
+      // A muted layer is PERSISTED as muted rather than dropped or silently un-muted: the author's working
+      // state (which layer they had isolated) is more useful to round-trip than either alternative, and a
+      // dropped layer would lose its tuning outright. Omitted unless muted — the default stays an omission.
+      ...(l.muted === true ? { muted: true } : {}),
       params,
     };
   });

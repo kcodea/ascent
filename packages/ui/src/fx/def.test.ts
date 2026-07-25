@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { layerStateAt, type FxDef } from './def';
+import { layerStateAt, layerStateOf, type FxDef } from './def';
 
 const DEF: FxDef = {
   id: 'test',
@@ -65,5 +65,31 @@ describe('layerStateAt', () => {
     expect(layerStateAt(early, 0)[0].state).toBe('active');
     expect(layerStateAt(early, 0)[0].localMs).toBe(100);
     expect(layerStateAt(early, 100)[0].state).toBe('done');
+  });
+});
+
+// The scalar, allocation-free form the PLAYER calls once per layer per frame (it must be able to pass a live
+// timing OVERRIDE rather than the layer's own `at`/`life` — see FxPlayer.setLayerTiming). `layerStateAt` is
+// built on it, so these lock in the arithmetic the player depends on directly.
+describe('layerStateOf', () => {
+  it('agrees with layerStateAt for every layer of a def', () => {
+    for (const ms of [0, 100, 180, 379, 380, 400, 599, 600, 900]) {
+      const viaArray = layerStateAt(DEF, ms).map((l) => l.state);
+      const viaScalar = DEF.layers.map((l) => layerStateOf(l.at, l.life, DEF.duration, ms));
+      expect(viaScalar).toEqual(viaArray);
+    }
+  });
+
+  it('runs an undefined life to the def duration', () => {
+    expect(layerStateOf(0, undefined, 600, 599)).toBe('active');
+    expect(layerStateOf(0, undefined, 600, 600)).toBe('done');
+  });
+
+  it('respects an override that differs from any def timing', () => {
+    // at pushed later than the def's duration: pending right up to its own start, never mid-window.
+    expect(layerStateOf(700, undefined, 600, 699)).toBe('pending');
+    expect(layerStateOf(700, undefined, 600, 700)).toBe('done');
+    // a life longer than the def's duration keeps the layer active past it
+    expect(layerStateOf(0, 900, 600, 800)).toBe('active');
   });
 });

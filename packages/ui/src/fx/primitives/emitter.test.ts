@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validateSpecs } from '../params';
 import { sampleCurve } from '../curve';
+import { makeRng, type FxRandom } from '../rng';
 import {
   advanceEmitBudget,
   emitterFireComplete,
@@ -209,5 +211,65 @@ describe('emitterFireComplete', () => {
   it('is complete once the window has closed and every mote has died', () => {
     expect(emitterFireComplete(true, 700, 700, 0)).toBe(true);
     expect(emitterFireComplete(true, 5000, 700, 0)).toBe(true);
+  });
+});
+
+/**
+ * Seeded randomness. `EmitterInstance` can't be constructed headlessly (it needs a real Pixi `Renderer` +
+ * GL context — see this file's sibling note in smoke.test.ts), so this covers the seeding the way the rest
+ * of the file covers the instance: through a pure mirror of `spawnMote`'s draw sequence, plus structural
+ * assertions over the module source for the parts that only exist inside the instance.
+ */
+const EMITTER_SRC = readFileSync(new URL('./emitter.ts', import.meta.url), 'utf8');
+
+/** The module source with its comments stripped. The prose in these files legitimately NAMES
+ *  `Math.random()` (explaining what the seeding replaced), so the regression assertion below has to look at
+ *  CODE only or it would fail on its own documentation. */
+function codeOf(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+
+/** The exact draws `EmitterInstance.spawnMote()` makes, in order — 6 per mote. Kept here as the executable
+ *  statement of the contract that comment in emitter.ts describes. */
+function moteDraws(rand: FxRandom): number[] {
+  const bias = rand();
+  const spread = rand() * 2 - 1;
+  const speedJitter = rand();
+  const sizeJitter = rand();
+  const offsetU = rand();
+  const offsetV = rand();
+  return [bias, spread, speedJitter, sizeJitter, offsetU, offsetV];
+}
+
+describe('emitter seeded randomness', () => {
+  it('two instances seeded the same draw an identical mote sequence', () => {
+    const a = makeRng(2024);
+    const b = makeRng(2024);
+    const streamA = Array.from({ length: 30 }, () => moteDraws(a));
+    const streamB = Array.from({ length: 30 }, () => moteDraws(b));
+    expect(streamA).toEqual(streamB);
+  });
+
+  it('two instances seeded differently draw a different mote sequence', () => {
+    const a = makeRng(1);
+    const b = makeRng(2);
+    expect(Array.from({ length: 30 }, () => moteDraws(a)))
+      .not.toEqual(Array.from({ length: 30 }, () => moteDraws(b)));
+  });
+
+  it('builds exactly one seeded source per instance, falling back to a fresh seed when none is given', () => {
+    expect(EMITTER_SRC).toContain('this.rand = makeRng(ctx.seed ?? randomSeed())');
+    expect(codeOf(EMITTER_SRC).match(/makeRng\(/g)).toHaveLength(1);
+  });
+
+  it('has no Math.random() left in the spawn path', () => {
+    expect(codeOf(EMITTER_SRC)).not.toContain('Math.random(');
+  });
+
+  it('still draws exactly 6 values per mote, in the original order', () => {
+    // If this count moves, every previously saved seed replays a different stream.
+    expect(codeOf(EMITTER_SRC).match(/this\.rand\(\)/g)).toHaveLength(6);
+    expect(EMITTER_SRC).toContain('emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch)');
   });
 });

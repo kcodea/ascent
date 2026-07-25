@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validateSpecs } from '../params';
 import { sampleCurve } from '../curve';
+import { makeRng } from '../rng';
 import { burstFireComplete, burstPrimitive, resolveParticleRotation, sampleBurstAngle } from './burst';
 
 describe('burst param specs', () => {
@@ -148,5 +150,70 @@ describe('burstFireComplete', () => {
 
   it('is complete once fired and every particle from the wave has died', () => {
     expect(burstFireComplete(true, true, 0)).toBe(true);
+  });
+});
+
+/**
+ * Seeded randomness. `BurstInstance` itself can't be constructed headlessly (see the note above — its
+ * constructor needs a real Renderer), so the seeding is covered from two sides:
+ *   - behaviourally, through `sampleBurstAngle`, the one draw site that IS a pure exported helper: a seeded
+ *     source must reproduce its angles exactly, and two different seeds must not;
+ *   - structurally, over the module source, for the parts that only exist inside the instance — that ONE
+ *     `FxRandom` is built per instance from `ctx.seed ?? randomSeed()`, that no `Math.random()` survives in
+ *     the spawn path, and that the number of draws per particle is unchanged (so the distributions, and
+ *     therefore the statistical look, are the same as before seeding).
+ */
+const BURST_SRC = readFileSync(new URL('./burst.ts', import.meta.url), 'utf8');
+
+/** The module source with its comments stripped. The prose in these files legitimately NAMES
+ *  `Math.random()` (explaining what the seeding replaced), so the regression assertion below has to look at
+ *  CODE only or it would fail on its own documentation. */
+function codeOf(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+
+describe('burst seeded randomness', () => {
+  it('reproduces an identical angle sequence for the same seed', () => {
+    const a = makeRng(4242);
+    const b = makeRng(4242);
+    const anglesA = Array.from({ length: 40 }, () => sampleBurstAngle(0.3, 0.6, a));
+    const anglesB = Array.from({ length: 40 }, () => sampleBurstAngle(0.3, 0.6, b));
+    expect(anglesA).toEqual(anglesB);
+  });
+
+  it('gives a genuinely different spray for a different seed', () => {
+    const a = makeRng(1);
+    const b = makeRng(2);
+    const anglesA = Array.from({ length: 40 }, () => sampleBurstAngle(0.3, 0.6, a));
+    const anglesB = Array.from({ length: 40 }, () => sampleBurstAngle(0.3, 0.6, b));
+    expect(anglesA.filter((v, i) => v === anglesB[i])).toEqual([]);
+  });
+
+  it('stays inside the cone whatever the seed feeds it (the seeding changed the source, not the shape)', () => {
+    const r = makeRng(77);
+    const travel = 1.1;
+    const spread = 0.25;
+    for (let i = 0; i < 500; i++) {
+      const angle = sampleBurstAngle(travel, spread, r);
+      expect(Math.abs(angle - travel)).toBeLessThanOrEqual(spread * Math.PI + 1e-12);
+    }
+  });
+
+  it('builds exactly one seeded source per instance, falling back to a fresh seed when none is given', () => {
+    expect(BURST_SRC).toContain('this.rand = makeRng(ctx.seed ?? randomSeed())');
+    expect(codeOf(BURST_SRC).match(/makeRng\(/g)).toHaveLength(1);
+  });
+
+  it('has no Math.random() left in the spawn path', () => {
+    expect(codeOf(BURST_SRC)).not.toContain('Math.random(');
+  });
+
+  it('still draws exactly 7 values per particle, in the original order', () => {
+    // 6 explicit `this.rand()` draws (speed, size, bias, two emission offsets, spin) plus the source passed
+    // BY REFERENCE into sampleBurstAngle (the angle draw) = the same 7 draws the Math.random version made.
+    // If this count moves, every previously saved seed replays a different burst.
+    expect(codeOf(BURST_SRC).match(/this\.rand\(\)/g)).toHaveLength(6);
+    expect(BURST_SRC).toContain('sampleBurstAngle(this.travelAngle, p.spread, this.rand)');
   });
 });

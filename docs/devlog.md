@@ -3,6 +3,53 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-25 (FX workbench — the three trust defects, + seed lock, duplicate, mute)
+
+### fix(fx): the timing sliders work, timing edits stop restarting the effect, and randomness is holdable
+
+Three defects made the tool untrustworthy to tune with. All three were introduced by earlier waves in this
+branch and were found by auditing/verifying our own work, not by a user report.
+
+- **`fireOnce` ignored `at`/`life`.** It bulk-spawned every layer, deliberately bypassing the schedule — so
+  the per-layer timing sliders did **nothing** under Fire, the headline button every build auto-triggers. Fire
+  now drives the same schedule ordinary playback uses (still passing `oneShot`, which changes primitive
+  emission), while a layer with no explicit `life` still persists past `duration` until its own `isComplete()`
+  — preserving the owner's "play until it's truly done" ruling. `FIRE_TIMEOUT_MS` still caps a runaway.
+- **Editing `at`/`life` respawned the whole effect per slider step.** They were part of `structureKey`, the
+  build effect's dependency, so each drag step tore down and rebuilt the player — and the ribbon re-rolled its
+  noise seed on every spawn, changing the look while you were trying to judge timing. Timing now pushes live
+  via `setLayerTiming`, mirroring the override discipline `setLayerParams` already had. A bonus: the scheduler
+  moved from `layerStateAt` (which allocated an array + an object per layer **every frame**) to a scalar
+  `layerStateOf`, so this is a net *reduction* in per-frame allocation.
+- **Randomness wasn't holdable.** Every particle primitive called `Math.random()` directly. That's legal here
+  (the UI layer is explicitly exempt from the engine's ban — nothing in `fx/` feeds the simulation) but hostile
+  to authoring: you couldn't hold a good roll while tuning around it, or A/B two tunings fairly, or reproduce a
+  screenshot. Added `fx/rng.ts` — **mulberry32, deliberately the same algorithm as `packages/core/src/rng.ts`**
+  so the codebase has one PRNG — threaded per instance via a new optional `FxContext.seed`.
+
+### feat(fx): Seed + Lock + Reroll, duplicate layer, per-layer mute
+
+- **Seed control** in the transport. Unlocked = today's behaviour (fresh roll per spawn); locked = frozen, so
+  only the param you're dragging changes. Per-layer seeds are derived as `base + index * 7919` — a pure
+  function of (base, index) with no per-spawn counter, which is exactly what makes a *respawn* reproduce the
+  same roll. A locked seed is re-applied before every rebuild's auto-Fire, and is saved into the def (an
+  optional field — no version bump), so a saved def reproduces its exact look, not just its parameters.
+- **Duplicate layer (⧉)** — Add previously only made a defaults-only layer, so copying a tuned layer meant
+  re-dialling every slider. Params are deep-copied, including the nested arrays palette/curve params hold, so
+  the copy can't alias its source.
+- **Per-layer mute (👁)** — isolating one layer used to mean deleting the others (destroying their tuning,
+  with no undo). Implemented on the *live* path rather than through `structureKey`, for the same reason as the
+  timing fix: isolating one layer must not restart — and so re-roll — every other layer, which is precisely
+  what you're trying to look at.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **2074 passing** (116 files), `build:web` green,
+workbench absent from prod. Live in a browser: Lock toggles 🔓→🔒, Reroll changes the seed and keeps it locked,
+Duplicate turns one layer into two, Mute marks one layer `· muted` and leaves the other alone — 0 console errors.
+
+**Contract for the game-side bridge (next sub-project):** a saved def round-trips `muted` on its layers, and
+only the workbench currently honours it. Whatever plays a def in-game must skip muted layers too, or a def
+authored with a layer muted will render that layer in the game.
+
 ## 2026-07-25 (FX workbench — durable defs: an effect is now a committed file)
 
 ### feat(fx): Save/Load/Library — the authoring loop finally has an exit

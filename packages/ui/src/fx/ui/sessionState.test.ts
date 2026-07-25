@@ -59,6 +59,14 @@ describe('toEditorLayer', () => {
     });
   });
 
+  it('keeps `muted` only when it is literally true', () => {
+    expect(toEditorLayer({ primitive: 'ribbon', muted: true })?.muted).toBe(true);
+    for (const muted of [false, 'yes', 1, null, undefined]) {
+      const out = toEditorLayer({ primitive: 'ribbon', muted });
+      expect('muted' in out!, `muted: ${String(muted)}`).toBe(false);
+    }
+  });
+
   it('copies params rather than aliasing them', () => {
     const params = { a: 1 };
     const out = toEditorLayer({ primitive: 'ribbon', params });
@@ -93,8 +101,48 @@ describe('clampDuration', () => {
 
 describe('normalizeSession', () => {
   it('round-trips a saved composition', () => {
-    const saved = { layers: [layer('ribbon'), layer('burst', { at: 100, life: 200 })], selected: 1, durationMs: 1500 };
+    const saved = {
+      layers: [layer('ribbon'), layer('burst', { at: 100, life: 200 })],
+      selected: 1,
+      durationMs: 1500,
+      seed: 4242,
+      seedLocked: true,
+    };
     expect(normalizeSession(JSON.parse(JSON.stringify(saved)), BOUNDS)).toEqual(saved);
+  });
+
+  // The seed + lock must survive a reload for the same reason the layers do: reopening the workbench on a
+  // frozen look that silently re-rolled itself is exactly the authoring failure the seed control exists to
+  // stop. A muted layer likewise comes back muted — the author's working state, not a rendering bug.
+  it('round-trips the seed, its lock, and a muted layer', () => {
+    const saved = {
+      layers: [layer('ribbon', { muted: true }), layer('burst')],
+      selected: 0,
+      durationMs: 900,
+      seed: 7,
+      seedLocked: true,
+    };
+    const out = normalizeSession(JSON.parse(JSON.stringify(saved)), BOUNDS);
+    expect(out?.seed).toBe(7);
+    expect(out?.seedLocked).toBe(true);
+    expect(out?.layers[0].muted).toBe(true);
+    expect('muted' in out!.layers[1]).toBe(false); // the default stays an OMISSION
+  });
+
+  it('a snapshot with no seed restores UNLOCKED (today\'s fresh-roll behaviour), with no seed of its own', () => {
+    const out = normalizeSession({ layers: [layer('ribbon')], selected: 0, durationMs: 900 }, BOUNDS);
+    expect(out?.seed).toBeNull(); // the caller substitutes a fresh randomSeed()
+    expect(out?.seedLocked).toBe(false);
+  });
+
+  it('drops an unusable seed / lock rather than restoring a broken one', () => {
+    const bad = normalizeSession(
+      { layers: [layer('ribbon')], seed: 'lots', seedLocked: 'yes' },
+      BOUNDS,
+    );
+    expect(bad?.seed).toBeNull();
+    expect(bad?.seedLocked).toBe(false);
+    expect(normalizeSession({ layers: [layer('ribbon')], seed: Number.NaN }, BOUNDS)?.seed).toBeNull();
   });
 
   it('returns null when there is nothing usable to restore', () => {
@@ -182,5 +230,12 @@ describe('toStoredLayers', () => {
     const out = toStoredLayers([layer('a'), layer('b', { life: 250 })], new Map());
     expect('life' in out[0]).toBe(false);
     expect(out[1].life).toBe(250);
+  });
+
+  it('PERSISTS a muted layer as muted (rather than dropping it or silently un-muting it)', () => {
+    const out = toStoredLayers([layer('a', { muted: true }), layer('b')], new Map());
+    expect(out).toHaveLength(2); // the layer is kept, tuning and all
+    expect(out[0].muted).toBe(true);
+    expect('muted' in out[1]).toBe(false); // and the default is still an omission
   });
 });

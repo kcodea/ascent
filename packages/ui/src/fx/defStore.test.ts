@@ -223,6 +223,51 @@ describe('coerceDef / toStoredDef', () => {
     const def = toStoredDef('x', 500, []);
     expect(def).toEqual({ version: FX_DEF_VERSION, id: 'x', duration: 500, layers: [] });
   });
+
+  // `seed` is OPTIONAL on purpose — that optionality is why the schema version is NOT bumped: every def
+  // written before the seed control still loads, and "no seed" keeps meaning "roll fresh every time",
+  // exactly what an unlocked composition means in the workbench.
+
+  it('toStoredDef writes a seed only when one is supplied', () => {
+    expect(toStoredDef('x', 500, [], 4242).seed).toBe(4242);
+    expect('seed' in toStoredDef('x', 500, [])).toBe(false);
+    expect('seed' in toStoredDef('x', 500, [], Number.NaN)).toBe(false);
+  });
+
+  it('coerceDef keeps a finite seed', () => {
+    expect(coerceDef({ duration: 100, layers: [], seed: 12345 })?.seed).toBe(12345);
+    expect(coerceDef({ duration: 100, layers: [], seed: 0 })?.seed).toBe(0);
+    expect(coerceDef({ duration: 100, layers: [], seed: -7 })?.seed).toBe(-7);
+  });
+
+  it('coerceDef DROPS an unusable seed rather than repairing it into a wrong one', () => {
+    for (const seed of [Number.NaN, '5', null, Infinity, {}, [1]]) {
+      const def = coerceDef({ duration: 100, layers: [], seed });
+      expect('seed' in def!, `seed: ${JSON.stringify(seed)}`).toBe(false);
+    }
+  });
+
+  it('a def with NO seed still loads (every pre-seed def stays valid)', () => {
+    const def = parseDef(defJson());
+    expect(def).not.toBeNull();
+    expect('seed' in def!).toBe(false);
+    expect(def?.version).toBe(FX_DEF_VERSION); // NOT bumped — optionality is the whole migration
+  });
+
+  it('round-trips a layer\'s authoring-only `muted` flag, keeping it only when literally true', () => {
+    const def = parseDef(
+      defJson({
+        layers: [
+          { primitive: 'test-prim', at: 0, muted: true },
+          { primitive: 'test-prim', at: 0, muted: 'yes' },
+          { primitive: 'test-prim', at: 0 },
+        ],
+      }),
+    );
+    expect(def?.layers[0].muted).toBe(true);
+    expect('muted' in def!.layers[1]).toBe(false);
+    expect('muted' in def!.layers[2]).toBe(false);
+  });
 });
 
 describe('saveDef / saveArt', () => {

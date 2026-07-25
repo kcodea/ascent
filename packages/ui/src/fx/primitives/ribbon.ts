@@ -4,6 +4,7 @@ import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
 import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
+import { makeRng } from '../rng';
 import { CURVE_PRESETS } from '../curve';
 import {
   RIBBON_MAX_SEGMENTS,
@@ -376,10 +377,14 @@ class RibbonInstance implements FxInstance<RibbonParams> {
           uPlateau: { value: params.plateau, type: 'f32' },
           uSoft: { value: params.soft, type: 'f32' },
           uAlpha: { value: params.alpha, type: 'f32' },
-          // Math.random is fine here: the UI layer is explicitly exempt from the core/content/sim
-          // determinism ban (see eslint.config.mjs) — this is a cosmetic per-instance phase offset only,
-          // same role as pixiFx.ts's shield-bubble `uSeed`.
-          uSeed: { value: Math.random() * 1000, type: 'f32' },
+          // A cosmetic per-instance phase offset into the noise field (same role as pixiFx.ts's
+          // shield-bubble `uSeed`) — but it is what made the ribbon visibly re-roll its noise on EVERY
+          // spawn, so a rebuild changed the look mid-tune. With a `ctx.seed` it is now DERIVED from that
+          // seed (one draw off a seeded stream — stable for the instance, still well spread across
+          // seeds), so the same tuning replays the same ribbon. Without one we keep the historical fresh
+          // roll: `Math.random` is fine here, the UI layer being explicitly exempt from the
+          // core/content/sim determinism ban (see eslint.config.mjs).
+          uSeed: { value: (ctx.seed === undefined ? Math.random() : makeRng(ctx.seed)()) * 1000, type: 'f32' },
           uGlow: { value: params.glow, type: 'f32' },
           uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
         },

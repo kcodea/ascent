@@ -5250,3 +5250,28 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: #211d2c; color: #8a7fa8; font-family: var(--font-ui); font-size: 10px; line-height: 1; cursor: pointer;
 }
 .fxwb-def-restore-x:hover { border-color: #f0a0ff; color: #f0a0ff; }
+
+/* ── FX workbench: seed transport + per-layer mute ──────────────────────────────────────────────────────
+   The seed group mirrors `.fxwb-loopgroup`'s bordered-cluster treatment so the transport bar reads as
+   "Loop cluster | Seed cluster | Speed" rather than one undifferentiated row of controls. */
+.fxwb-seedgroup {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 9px;
+  background: #2b2739; border: 1px solid #3d3752;
+}
+.fxwb-seedinput {
+  flex: none; width: 104px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px;
+  border: 1px solid #3d3752; background: #211d2c; color: #d9d3ea; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.fxwb-seedinput:focus { outline: none; border-color: #c936ef; }
+.fxwb-seed-lock, .fxwb-seed-reroll {
+  flex: none; width: 26px; height: 26px; padding: 0; border-radius: 7px; border: 1px solid #3d3752;
+  background: transparent; color: #b9b1cf; font-size: 13px; line-height: 1; cursor: pointer;
+}
+.fxwb-seed-lock:hover, .fxwb-seed-reroll:hover { background: #3d3752; }
+/* Locked is the state worth spotting from across the room: it means the look you're looking at is frozen. */
+.fxwb-seed-lock.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; }
+/* A muted layer must be unmistakable in the list — otherwise "why is nothing rendering?" is a real trap. */
+.fxwb-layer-row.muted { opacity: 0.55; border-style: dashed; }
+.fxwb-layer-row.muted .fxwb-layer-name { text-decoration: line-through; }
+.fxwb-layer-btns button.fxwb-layer-mute.on { border-color: #c936ef; color: #f0a0ff; }

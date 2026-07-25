@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   addLayer,
   createEditorLayer,
+  duplicateLayer,
   moveLayer,
   removeLayer,
+  setLayerMuted,
   setLayerParam,
   setLayerPrimitive,
   setLayerTiming,
@@ -41,6 +43,84 @@ describe('addLayer', () => {
     expect(out[1].primitive).toBe('burst');
     expect(input).toHaveLength(1); // input unchanged
     expect(out).not.toBe(input);
+  });
+});
+
+describe('duplicateLayer', () => {
+  it('inserts the copy directly AFTER the source, immutably', () => {
+    const input = [layer('ribbon'), layer('burst'), layer('smoke')];
+    const out = duplicateLayer(input, 1);
+    expect(out.map((l) => l.primitive)).toEqual(['ribbon', 'burst', 'burst', 'smoke']);
+    expect(input).toHaveLength(3); // input untouched
+    expect(out).not.toBe(input);
+  });
+
+  it('carries the whole layer over — primitive, anchor, timing, muted', () => {
+    const input = [layer('burst', { anchor: 'source', at: 120, life: 300, muted: true, params: { n: 4 } })];
+    const copy = duplicateLayer(input, 0)[1];
+    expect(copy).toEqual({
+      primitive: 'burst',
+      anchor: 'source',
+      at: 120,
+      life: 300,
+      muted: true,
+      params: { n: 4 },
+    });
+    expect(copy).not.toBe(input[0]);
+  });
+
+  // THE load-bearing property. A shallow `{ ...layer }` (or `{ ...params }`) leaves the copy's palette /
+  // curve arrays ALIASING the original's, so dragging one control point on the duplicate would silently
+  // edit the layer it was duplicated from — the exact bug duplication exists to avoid.
+  it('DEEP-copies params: mutating a nested palette / curve array on the copy cannot touch the original', () => {
+    const palette = [0x112233, 0x445566, 0x778899, 0xaabbcc];
+    const curve = [
+      [0, 0],
+      [0.5, 1],
+      [1, 0],
+    ];
+    const input = [layer('ribbon', { params: { palette, curve, size: 4 } })];
+    const out = duplicateLayer(input, 0);
+    const copyParams = out[1].params as { palette: number[]; curve: number[][] };
+
+    expect(copyParams.palette).toEqual(palette);
+    expect(copyParams.palette).not.toBe(palette);
+    expect(copyParams.curve).not.toBe(curve);
+    expect(copyParams.curve[1]).not.toBe(curve[1]); // the NESTED row too, not just the outer array
+
+    copyParams.palette[0] = 0xff0000;
+    copyParams.curve[1][1] = 0.25;
+    copyParams.curve.push([2, 2]);
+
+    expect(palette[0]).toBe(0x112233);
+    expect(curve[1][1]).toBe(1);
+    expect(curve).toHaveLength(3);
+    expect(input[0].params.palette).toBe(palette); // and the source layer still points at the original
+  });
+
+  it('is a no-op for an out-of-range index, but still returns a fresh array', () => {
+    const input = [layer('ribbon')];
+    expect(duplicateLayer(input, 5)).toHaveLength(1);
+    expect(duplicateLayer(input, -1)).toHaveLength(1);
+    expect(duplicateLayer(input, 5)).not.toBe(input);
+  });
+});
+
+describe('setLayerMuted', () => {
+  it('mutes one layer immutably and leaves the others alone', () => {
+    const input = [layer('ribbon'), layer('burst')];
+    const out = setLayerMuted(input, 1, true);
+    expect(out[1].muted).toBe(true);
+    expect(out[0].muted).toBeUndefined();
+    expect(input[1].muted).toBeUndefined();
+    expect(out).not.toBe(input);
+  });
+
+  it('unmuting OMITS the flag rather than storing `muted: false` (the default is an exact no-op)', () => {
+    const muted = setLayerMuted([layer('ribbon')], 0, true);
+    const out = setLayerMuted(muted, 0, false);
+    expect('muted' in out[0]).toBe(false);
+    expect(out[0]).toEqual(layer('ribbon'));
   });
 });
 
@@ -131,10 +211,34 @@ describe('structureKey', () => {
     expect(structureKey(b)).not.toBe(structureKey(a));
   });
 
-  it('CHANGES on an `at` / `life` change', () => {
+  // REGRESSION (defect 2): `at`/`life` used to be part of this key, so every step of the workbench's At /
+  // Life sliders rebuilt the player and re-fired -- the effect restarted mid-drag (impossible to judge the
+  // change) and a ribbon re-rolled its noise seed on each respawn (the LOOK changed while tuning TIMING).
+  // Timing is now pushed live via FxPlayer.setLayerTiming and must NOT move this key.
+  it('regression: is STABLE across an `at` / `life` change', () => {
     const a = [layer('ribbon')];
-    expect(structureKey(setLayerTiming(a, 0, 100, null))).not.toBe(structureKey(a));
-    expect(structureKey(setLayerTiming(a, 0, 0, 500))).not.toBe(structureKey(a));
+    expect(structureKey(setLayerTiming(a, 0, 100, null))).toBe(structureKey(a));
+    expect(structureKey(setLayerTiming(a, 0, 0, 500))).toBe(structureKey(a));
+    expect(structureKey(setLayerTiming(a, 0, 250, 120))).toBe(structureKey(a));
+  });
+
+  // Mute takes the same live path timing does (`FxPlayer.setLayerMuted`), for the same reason: muting one
+  // layer to isolate another must not rebuild — and therefore re-roll — every layer in the composition.
+  it('is STABLE across a mute toggle', () => {
+    const a = [layer('ribbon'), layer('burst')];
+    expect(structureKey(setLayerMuted(a, 1, true))).toBe(structureKey(a));
+    expect(structureKey(setLayerMuted(setLayerMuted(a, 1, true), 1, false))).toBe(structureKey(a));
+  });
+
+  it('CHANGES on a duplicate (a new layer IS structural)', () => {
+    const a = [layer('ribbon')];
+    expect(structureKey(duplicateLayer(a, 0))).not.toBe(structureKey(a));
+  });
+
+  it('CHANGES on an anchor swap', () => {
+    const a = [layer('ribbon', { anchor: 'travel' })];
+    const b = [layer('ribbon', { anchor: 'target' })];
+    expect(structureKey(b)).not.toBe(structureKey(a));
   });
 
   it('CHANGES on a reorder', () => {

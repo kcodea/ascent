@@ -161,11 +161,12 @@ The career surface exists; deepen what a finished run *remembers*.
   granted/stripped, Venom spent, Rally's source→target link, quest trigger/complete, enemy-side tribe auras, a
   plain minion death) — that's the content backlog this unlocks.
 
-- **FX workbench — known defects (fix before tuning seriously).** `fireOnce` spawns every layer immediately
-  and bypasses the `at`/`life` schedule, so the per-layer timing sliders do nothing under Fire (the headline
-  button every build auto-triggers) — you only see timing with Loop on. Timing edits are in `structureKey`, so
-  each slider step tears down and rebuilds the player, and the ribbon re-rolls its noise seed on every rebuild
-  — the look changes while you're trying to judge timing. No seed lock, so a good random roll can't be held. P3 = A/B compare, preset/palette library,
+- **FX workbench — remaining authoring gaps.** (The three trust defects — Fire ignoring `at`/`life`, timing
+  edits respawning mid-drag, no seed lock — were fixed 2026-07-25, along with duplicate-layer and per-layer
+  mute.) Still missing: **undo/redo** (no history stack at all; switching a layer's primitive irreversibly
+  resets its params); **A/B compare** of two tunings (now genuinely meaningful, since a locked seed makes the
+  randomness controlled); a **perf readout** beyond fps (the primitives already track live particle counts
+  internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare, preset/palette library,
   perf HUD. P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
   regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests

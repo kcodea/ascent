@@ -1,7 +1,7 @@
 import { Container } from 'pixi.js';
 import { coerceParams } from './params';
 import type { FxParamSpecs, ParamsOf } from './params';
-import { layerStateAt, type FxDef } from './def';
+import { layerStateOf, type FxDef, type FxLayerState } from './def';
 import { getPrimitive } from './registry';
 import type { FxContext, FxInstance } from './primitive';
 
@@ -25,7 +25,27 @@ export interface FxPlayer {
    *  is always a single non-looping pass regardless of this. */
   setLoop(on: boolean): void;
   setLoopGap(ms: number): void;
+  /** Set the base seed every subsequently-spawned layer derives its randomness from (see
+   *  `LAYER_SEED_STRIDE`), or `null` for UNSEEDED — the historical behaviour, where each spawned instance
+   *  rolls a fresh seed of its own and therefore looks slightly different every time.
+   *
+   *  Takes effect on the NEXT spawn, deliberately: changing the seed must not tear down and restart a live
+   *  effect mid-tune, the same discipline `setLayerParams`/`setLayerTiming` follow. The payoff is stability
+   *  ACROSS respawns — with a seed set, a primitive swap, a def load or another Fire reproduces the same
+   *  roll instead of re-rolling the look under you. */
+  setSeed(seed: number | null): void;
+  /** Mute/unmute one layer LIVE: a muted layer is killed if live and is not spawned while muted; unmuting
+   *  respawns it if the clock says it's due. Isolating one layer of a composition therefore no longer means
+   *  deleting (and losing the tuning of) the others. Like `setLayerTiming`, this is a live edit rather than
+   *  a structural rebuild — the surviving layers keep ticking untouched. */
+  setLayerMuted(index: number, muted: boolean): void;
   setLayerParams(index: number, next: Record<string, unknown>): void;
+  /** Live-edit a layer's SCHEDULE (the workbench's At / Life sliders). Stored as an override the scheduler
+   *  consults instead of `def.layers[index].at/life` — the def itself is never touched — and applied to the
+   *  running effect immediately: a layer that just became due spawns, one whose window just closed dies, and
+   *  every other layer's instance keeps ticking untouched. `life = null` means "runs to the def's duration".
+   *  This is the timing counterpart of `setLayerParams`: no respawn, no rebuild. */
+  setLayerTiming(index: number, at: number, life: number | null): void;
   setHead(index: number, x: number, y: number): void;
   timeMs(): number;
   isPlaying(): boolean;
@@ -46,6 +66,21 @@ interface Live {
 export const FIRE_TIMEOUT_MS = 10_000;
 
 /**
+ * How far apart two layers' derived seeds sit when the player is seeded (see `FxPlayer.setSeed`).
+ *
+ * A composition is ONE number to the author, but its layers must not all draw the identical random stream —
+ * a burst and a smoke plume seeded the same way emit in lockstep, which looks like a bug and defeats the
+ * point of layering. So layer `i` gets `base + i * LAYER_SEED_STRIDE`: one number still reproduces the whole
+ * composition, while each layer's stream is distinct.
+ *
+ * The stride is a large prime (7919) rather than a small offset because mulberry32 seeds that differ by 1
+ * are not guaranteed to diverge interestingly in their first few draws — and the first few draws are exactly
+ * what a short burst uses. Exported so tests can assert the derivation is a real function of the base and
+ * the index rather than an accident.
+ */
+export const LAYER_SEED_STRIDE = 7919;
+
+/**
  * Drives an `FxDef`. Owns layer lifetimes, the clock, and scrubbing. Deliberately has no idea how any
  * primitive renders — that indirection is why one player can be optimised on behalf of every effect.
  *
@@ -58,6 +93,15 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   // Live param edits, keyed by layer index. Kept here instead of writing into `def.layers[i].params` so the
   // player never mutates a def object the caller may hold in its own state (e.g. React) — see self-review.
   const overrides = new Map<number, Record<string, unknown>>();
+  // Live TIMING edits, keyed by layer index — the same "never write into the caller's def" treatment
+  // `overrides` gives params (see `setLayerTiming`). `life: undefined` = runs to the def's duration.
+  const timing = new Map<number, { at: number; life: number | undefined }>();
+  // Layers the author has muted (see `setLayerMuted`). Held here for the same reason as `overrides`/`timing`:
+  // it is live editor state, not something the player may write back into the caller's def.
+  const muted = new Set<number>();
+  // The base seed every spawn derives from, or null = unseeded (each instance rolls its own — the historical
+  // behaviour). See `setSeed` / `seedFor`.
+  let baseSeed: number | null = null;
   let clock = 0;
   let speed = 1;
   let playing = false;
@@ -65,11 +109,13 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   // Mutable so the workbench's Loop toggle can flip it live (via setLoop) without rebuilding the player.
   let loopEnabled = opts.loop ?? false;
 
-  // Set only while a fireOnce() pass is in flight. A fire is a fundamentally different lifecycle from
-  // ordinary play: every layer spawns immediately (not gated on the def's per-layer `at`/`life` schedule)
-  // and stays alive until it reports genuine completion, wholly decoupled from `def.duration`. Cleared the
-  // moment the pass stops (naturally, via the safety cap, or because play()/stop() was called), so it never
-  // leaks into ordinary playback once the one-shot preview is done.
+  // Set only while a fireOnce() pass is in flight. A fire runs the SAME per-layer `at`/`life` schedule as
+  // ordinary playback (so the At/Life sliders a designer just dragged are visible in the headline "Fire"
+  // without having to turn Loop on) but differs at the END of the pass: it never wraps, and a layer with no
+  // explicit `life` is NOT torn down at `def.duration` — it persists until its own `isComplete()` reports
+  // true, so a fire plays to genuine completion rather than to the def's nominal length. Cleared the moment
+  // the pass stops (naturally, via the safety cap, or because play()/stop() was called), so it never leaks
+  // into ordinary playback once the one-shot preview is done.
   let firing = false;
 
   // Set while a looping player is holding at `def.duration` between cycles (see `loopGapMs`). The clock
@@ -77,6 +123,13 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   // how far into the gap we are, so `timeMs()` reads as "held at the end" rather than ticking past it.
   let inGap = false;
   let gapElapsed = 0;
+
+  /** The seed layer `index` spawns with: `undefined` while unseeded (the primitive rolls its own, exactly as
+   *  before seeding existed), else a value derived from the base seed and the layer index. Purely a function
+   *  of `(baseSeed, index)` — no counter, nothing that advances per spawn — which is precisely what makes a
+   *  respawn (primitive swap, def load, another Fire) reproduce the same roll instead of a new one. */
+  const seedFor = (index: number): number | undefined =>
+    baseSeed === null ? undefined : (baseSeed + index * LAYER_SEED_STRIDE) | 0;
 
   const spawn = (index: number, oneShot = false): void => {
     if (live.has(index)) return;
@@ -89,7 +142,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     const container = new Container();
     ctx.container.addChild(container);
     const merged = { ...layer.params, ...overrides.get(index) };
-    const primCtx: FxContext = { container, renderer: ctx.renderer, oneShot };
+    const primCtx: FxContext = { container, renderer: ctx.renderer, oneShot, seed: seedFor(index) };
     const inst = prim.spawn(primCtx, coerceParams(prim.params, merged));
     live.set(index, { inst, container });
   };
@@ -106,15 +159,44 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     for (const i of [...live.keys()]) kill(i);
   };
 
-  /** Bring live layers in line with the clock, then tick the survivors. Only used for ordinary (non-firing)
-   *  playback — a fireOnce() pass bypasses this entirely (see `update`'s `firing` branch), since fire-once
-   *  layers must NOT be despawned by the def's nominal schedule. */
-  const reconcile = (dtMs: number): void => {
-    const states = layerStateAt(def, clock);
-    states.forEach((s, i) => {
-      if (s.state === 'active') spawn(i);
-      else kill(i);
-    });
+  // A layer's EFFECTIVE timing: the live override if one has been set (see `setLayerTiming`), else the def's
+  // own. Two `Map.get`s per layer per frame and nothing else — deliberately no "effective layers" array,
+  // which would allocate on every tick of every effect.
+  const lifeOf = (index: number): number | undefined => {
+    const t = timing.get(index);
+    return t !== undefined ? t.life : def.layers[index].life;
+  };
+  const stateOf = (index: number): FxLayerState => {
+    const t = timing.get(index);
+    const layer = def.layers[index];
+    return layerStateOf(t !== undefined ? t.at : layer.at, t !== undefined ? t.life : layer.life, def.duration, clock);
+  };
+
+  /** Bring ONE layer in line with the clock. `oneShot` marks a fireOnce() pass, which differs in exactly one
+   *  place: a layer with no explicit `life` nominally ends at `def.duration`, but a fire must play to TRUE
+   *  completion, so it is left alive past that point and torn down only once `isComplete()` says so (see
+   *  `allFiringLayersDone`). A layer that DOES declare a `life` is bounded by that window in both modes. */
+  const syncLayer = (index: number, oneShot: boolean): void => {
+    // Mute is checked BEFORE the schedule: a muted layer is never spawned and is torn down if it is live,
+    // whatever its `at`/`life` window says. Its timing/params state is untouched, so unmuting restores it.
+    if (muted.has(index)) {
+      kill(index);
+      return;
+    }
+    const state = stateOf(index);
+    if (state === 'active') {
+      spawn(index, oneShot);
+      return;
+    }
+    if (oneShot && state === 'done' && lifeOf(index) === undefined) return;
+    kill(index);
+  };
+
+  /** Bring every live layer in line with the clock, then tick the survivors. Drives BOTH ordinary playback
+   *  and a fireOnce() pass (`oneShot`) — the schedule is the same one in either case, which is the whole
+   *  point: the At/Life sliders must be visible in a Fire, not only in a loop. */
+  const reconcile = (dtMs: number, oneShot = false): void => {
+    for (let i = 0; i < def.layers.length; i++) syncLayer(i, oneShot);
     if (dtMs > 0) for (const l of live.values()) l.inst.update(dtMs);
   };
 
@@ -159,15 +241,16 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       // Always restarts from t=0 for a single pass, regardless of the player's current state
       // (playing/paused/stopped) or how it was constructed -- the workbench's "Fire" trigger for a
       // discrete, one-off preview (e.g. one combat proc) distinct from the continuous play/stop loop.
-      // Every layer spawns immediately (not gated on its `at`/`life` window) and stays alive until it
-      // genuinely finishes -- see `update`'s `firing` branch and `allFiringLayersDone`.
+      // The pass honours each layer's `at`/`life` window exactly as ordinary playback does (only what's
+      // due at t=0 spawns now; the rest arrive as the clock reaches them) and then runs on until every
+      // layer genuinely finishes -- see `update`'s `firing` branch, `syncLayer` and `allFiringLayersDone`.
       clock = 0;
       inGap = false;
       gapElapsed = 0;
       killAllLive();
       firing = true;
       playing = true;
-      for (let i = 0; i < def.layers.length; i++) spawn(i, true);
+      reconcile(0, true);
     },
     stop(): void {
       // Distinct from destroy(): stop() is a playback control that resets the clock and leaves the
@@ -186,7 +269,10 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
 
       if (firing) {
         clock += dt;
-        if (dt > 0) for (const l of live.values()) l.inst.update(dt);
+        // Same schedule as ordinary playback: layers arrive at their `at` and bounded ones die when their
+        // `life` window closes. Only the END of the pass differs (below) -- no wrap, and an unbounded layer
+        // outlives `def.duration` until it reports completion.
+        reconcile(dt, true);
         if (clock >= FIRE_TIMEOUT_MS) {
           console.warn(
             `[fx] fireOnce for def '${def.id}' exceeded the ${FIRE_TIMEOUT_MS}ms safety cap without ` +
@@ -197,7 +283,11 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           firing = false;
           return;
         }
-        if (allFiringLayersDone()) {
+        // A fire is over only once the def's nominal window has elapsed AND nothing live has anything left
+        // to render. The `clock >= def.duration` half is load-bearing: without it a pass whose first layer
+        // is short (say `life: 100` on a 500ms def) would report "all live layers done" the instant that
+        // layer's window closed and stop before a later layer ever reached its `at`.
+        if (clock >= def.duration && allFiringLayersDone()) {
           killAllLive();
           playing = false;
           firing = false;
@@ -235,7 +325,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           }
           // Wrapping starts a NEW cycle: every layer must die and respawn fresh, even one whose life
           // spans the entire duration and would otherwise never pass through a 'done' state to trigger
-          // a natural kill (layerStateAt only sees the post-wrap clock, not the crossing). Without this,
+          // a natural kill (the schedule only sees the post-wrap clock, not the crossing). Without this,
           // a full-duration layer's original instance silently survives across the loop boundary and
           // never restarts its own internal animation/state for the new cycle.
           while (clock >= def.duration) clock -= def.duration;
@@ -260,6 +350,23 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     setLoopGap(ms: number): void {
       loopGapMs = Math.max(0, ms);
     },
+    setSeed(seed: number | null): void {
+      // Deliberately does NOT touch anything live: the new seed is picked up by the next spawn (a Fire, a
+      // loop wrap, a layer becoming due, a rebuild). Forcing a respawn here would restart the effect out
+      // from under a designer who is mid-gesture on some other control.
+      baseSeed = seed === null || !Number.isFinite(seed) ? null : seed | 0;
+    },
+    setLayerMuted(index: number, on: boolean): void {
+      if (index < 0 || index >= def.layers.length) return;
+      if (on === muted.has(index)) return;
+      if (on) muted.add(index);
+      else muted.delete(index);
+      // Apply to the RUNNING effect immediately and to THIS layer only — the live path, chosen over folding
+      // `muted` into the workbench's `structureKey` precisely so isolating a layer doesn't restart (and
+      // re-roll) every other layer, which is the whole reason you're isolating it. Skipped when nothing is
+      // engaged (a stopped player), where spawning off the back of a toggle would be wrong.
+      if (playing || live.size > 0) syncLayer(index, firing);
+    },
     setLayerParams(index: number, next: Record<string, unknown>): void {
       const merged = { ...overrides.get(index), ...next };
       overrides.set(index, merged);
@@ -271,6 +378,17 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       // Route the edit through the same coerce step spawn() uses, so `setParams` receives a real
       // `ParamsOf<S>` (defaults filled, out-of-range values clamped/dropped) instead of an untyped patch.
       l.inst.setParams(coerceParams(prim.params, { ...layer.params, ...merged }));
+    },
+    setLayerTiming(index: number, at: number, life: number | null): void {
+      if (index < 0 || index >= def.layers.length) return;
+      // Kept here rather than written into `def.layers[index]` for exactly the reason `setLayerParams` keeps
+      // `overrides`: the caller (the workbench's React state) owns that def object and the player must never
+      // fight it for ownership.
+      timing.set(index, { at, life: life ?? undefined });
+      // Apply to the RUNNING effect right away -- and to this layer ONLY, so a timing drag never disturbs
+      // any other layer's live instance. Skipped when nothing is engaged (a stopped player with no live
+      // layers), where spawning off the back of a slider would be wrong.
+      if (playing || live.size > 0) syncLayer(index, firing);
     },
     setHead(index: number, x: number, y: number): void {
       live.get(index)?.inst.setHead?.(x, y);

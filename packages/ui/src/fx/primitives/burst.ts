@@ -17,6 +17,7 @@ import { FX_BLEND_MODES } from '../blendModes';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
+import { makeRng, randomSeed, type FxRandom } from '../rng';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -288,6 +289,11 @@ class BurstInstance implements FxInstance<BurstParams> {
   // wave gated by `firstEmitDone` above and never re-fires on `interval` — the interval only drives re-firing
   // for the continuous workbench-loop preview.
   private readonly oneShot: boolean;
+  // This instance's ONE random source, seeded once in the constructor and drawn from by `emit()` in a fixed
+  // order (see there). With `ctx.seed` set the whole burst — every angle, speed, size, bias, offset and spin
+  // — replays identically, which is what makes a tuning holdable/screenshot-able; without one we roll a
+  // fresh seed per instance, i.e. exactly the previous `Math.random()` behaviour. See `fx/rng.ts`.
+  private readonly rand: FxRandom;
   private travelAngle = 0; // radians; last known non-zero travel direction, aims the cone when spread < 1
   private timer = 0; // ms since last emit
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
@@ -296,6 +302,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.params = params;
     this.renderer = ctx.renderer;
     this.oneShot = ctx.oneShot === true;
+    this.rand = makeRng(ctx.seed ?? randomSeed());
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
     this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
     this.pc = new ParticleContainer({
@@ -326,24 +333,30 @@ class BurstInstance implements FxInstance<BurstParams> {
   }
 
   /** Push `count` fresh particles into both `live` and the container's `particleChildren` at the current
-   *  head position. Called only from `update()` (never the constructor — see there). */
+   *  head position. Called only from `update()` (never the constructor — see there).
+   *
+   *  Every draw below comes from `this.rand` (this instance's seeded stream) rather than `Math.random`. The
+   *  distributions and the ORDER of the draws are byte-for-byte what they were — 7 per particle: angle,
+   *  speed, size, bias, the two emission-shape offsets, then spin — so the statistical look is unchanged and
+   *  only its reproducibility is new. Reordering or adding a draw here changes what every saved seed
+   *  replays, so treat the sequence as part of the contract. */
   private emit(): void {
     const p = this.params;
     const room = MAX_LIVE - this.live.length;
     const n = Math.min(p.count, room);
     const children = this.pc.particleChildren;
     for (let i = 0; i < n; i++) {
-      const angle = sampleBurstAngle(this.travelAngle, p.spread, Math.random);
-      const speed = p.speed * (1 + (Math.random() * 2 - 1) * p.speedVar);
-      const size = Math.max(0.5, p.size * (1 + (Math.random() * 2 - 1) * p.sizeVar));
+      const angle = sampleBurstAngle(this.travelAngle, p.spread, this.rand);
+      const speed = p.speed * (1 + (this.rand() * 2 - 1) * p.speedVar);
+      const size = Math.max(0.5, p.size * (1 + (this.rand() * 2 - 1) * p.sizeVar));
       const { scaleX: scaleX0, scaleY: scaleY0 } = resolveParticleScale(size, p.stretchX, p.stretchY);
       // Greyscale core-bias tint (NOT a resolved palette colour — the shader posterizes into the live
       // uPal/uBands uniforms per-pixel, see particleMaterial.ts). Same distribution as before: uniform in
       // [0, coreBias], so `coreBias` still reads as "how deep toward the white core this burst reaches".
-      const bias0 = p.coreBias * Math.random();
+      const bias0 = p.coreBias * this.rand();
       const tint = biasTint(bias0);
       // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
-      emissionOffset(p.emitShape, p.emitRadius, Math.random(), Math.random(), this.emitScratch);
+      emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch);
       const particle = new Particle({
         texture: this.texture,
         x: this.headX + this.emitScratch.ox,
@@ -361,7 +374,7 @@ class BurstInstance implements FxInstance<BurstParams> {
         // Base radial velocity plus a fraction of the anchor's own movement (inheritVel 0 → no change).
         vx: Math.cos(angle) * speed + p.inheritVel * this.headVx,
         vy: Math.sin(angle) * speed + p.inheritVel * this.headVy,
-        spin: (Math.random() * 2 - 1) * 6,
+        spin: (this.rand() * 2 - 1) * 6,
         age: 0,
         maxLife: Math.max(1, p.life),
         scaleX0,

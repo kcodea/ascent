@@ -14,7 +14,35 @@ export interface EditorLayer {
   anchor: FxLayer['anchor']; // reuse def.ts's anchor type
   at: number; // ms from effect start at which this layer spawns
   life: number | null; // ms this layer lives, or null = "runs to the def's full duration"
+  /** Authoring-only: a muted layer is not spawned (and is killed if live) so ONE layer of a composition can
+   *  be isolated without deleting — and therefore losing the tuning of — the others. Absent/`false` is the
+   *  default and an exact no-op. Pushed to the running effect live via `FxPlayer.setLayerMuted`, so it is
+   *  deliberately NOT part of `structureKey`. */
+  muted?: boolean;
   params: Record<string, unknown>;
+}
+
+/**
+ * Deep-copy one param value. Params are plain JSON-ish data (`string | number | boolean`, plus the palette's
+ * `number[]` and the curve's `number[][]`), and the nested ARRAYS are the reason this exists: a shallow
+ * `{ ...params }` would leave the copy's palette/curve aliasing the original's, so editing one control point
+ * on a duplicated layer would silently edit the layer it was duplicated from.
+ */
+function cloneParamValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(cloneParamValue);
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = cloneParamValue(v);
+    return out;
+  }
+  return value; // primitives (and undefined/null) copy by value
+}
+
+/** A params object with every nested array/object copied — see `cloneParamValue`. */
+function cloneParams(params: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(params)) out[k] = cloneParamValue(v);
+  return out;
 }
 
 /** Build a fresh editor layer for a primitive id. `defaultParams` is the primitive's defaulted params
@@ -27,6 +55,23 @@ export function createEditorLayer(primitive: string, defaultParams: Record<strin
 /** Append a layer. Returns a NEW array. */
 export function addLayer(layers: EditorLayer[], layer: EditorLayer): EditorLayer[] {
   return [...layers, layer];
+}
+
+/**
+ * Insert a COPY of the layer at `index` directly after it, so a tuned layer can be varied without
+ * re-dialling every slider (which is what "Add layer" — always a defaults-only layer — forces).
+ *
+ * The copy is DEEP: `params` goes through `cloneParams`, so a palette or curve edited on the copy can never
+ * write through to the original. Everything else (primitive, anchor, timing, muted) carries over, which is
+ * the point — the copy is the same layer until you change it. Returns a NEW array; an out-of-range index is
+ * a no-op that still returns a fresh array (matching `moveLayer`/`removeLayer`).
+ */
+export function duplicateLayer(layers: EditorLayer[], index: number): EditorLayer[] {
+  const next = layers.slice();
+  if (index < 0 || index >= layers.length) return next;
+  const src = layers[index];
+  next.splice(index + 1, 0, { ...src, params: cloneParams(src.params) });
+  return next;
 }
 
 /** Remove the layer at `index`. Returns a NEW array. No-op (returns an equal-length new array) if it would
@@ -70,12 +115,32 @@ export function setLayerTiming(layers: EditorLayer[], index: number, at: number,
   return layers.map((l, i) => (i === index ? { ...l, at, life } : l));
 }
 
-/** A signature of the STRUCTURE only — primitive, anchor, at, life, and order — NOT params. The workbench
- *  keys its player-rebuild effect off this, so a param-only edit (which shares the def object live via
- *  `setLayerParams`) never respawns the effect, while any structural change (add/remove/reorder/
- *  primitive-swap/timing) does. */
+/** Set the mute flag of the layer at `index`. Returns a NEW array. `false` is stored as an ABSENT `muted`
+ *  rather than `muted: false`, so an untouched composition serialises byte-for-byte as it did before mute
+ *  existed. */
+export function setLayerMuted(layers: EditorLayer[], index: number, muted: boolean): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    if (!muted) {
+      const next = { ...l };
+      delete next.muted;
+      return next;
+    }
+    return { ...l, muted: true };
+  });
+}
+
+/** A signature of the STRUCTURE only — primitive, anchor and order — NOT params, and deliberately NOT
+ *  timing, and deliberately NOT `muted` (which is pushed live via `FxPlayer.setLayerMuted` — muting one
+ *  layer must not restart, and therefore re-roll, all the others). The workbench keys its player-rebuild effect off this, so only a change the player genuinely
+ *  cannot absorb live (add/remove/reorder/primitive-swap/anchor-swap) respawns the effect.
+ *
+ *  `at`/`life` used to live here and were the reason every step of the At/Life sliders tore the whole
+ *  effect down and re-fired it — restarting the effect mid-drag (so you can't judge the change) and
+ *  re-rolling a ribbon's noise seed on each respawn (so the LOOK changed while you were tuning TIMING).
+ *  They're now pushed live via `FxPlayer.setLayerTiming`, exactly as params go via `setLayerParams`. */
 export function structureKey(layers: EditorLayer[]): string {
-  return layers.map((l) => `${l.primitive}:${l.anchor}:${l.at}:${l.life ?? 'full'}`).join('|');
+  return layers.map((l) => `${l.primitive}:${l.anchor}`).join('|');
 }
 
 /** Build the `FxDef` the player consumes from the editor layers. `life = null` maps to `FxLayer.life`

@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { defaultsOf, validateSpecs } from '../params';
+import { makeRng } from '../rng';
 import { RIBBON_FIRE_GRACE_MS, pushSpineHead, ribbonOneShotComplete, ribbonPrimitive } from './ribbon';
 import {
   RIBBON_MAX_SEGMENTS,
@@ -118,5 +120,44 @@ describe('ribbonOneShotComplete', () => {
   it('honours a custom grace period', () => {
     expect(ribbonOneShotComplete(true, true, 40, 50)).toBe(false);
     expect(ribbonOneShotComplete(true, true, 50, 50)).toBe(true);
+  });
+});
+
+/**
+ * `uSeed` — the ribbon's per-instance noise phase offset. It used to be a bare `Math.random() * 1000`
+ * re-rolled on EVERY spawn, so any rebuild (a param edit that respawns, a Fire) visibly changed the noise
+ * mid-tune. It is now derived from `ctx.seed` when one is supplied, and only falls back to a fresh roll
+ * when it isn't. `RibbonInstance` needs a real WebGL context to construct, so the wiring is asserted over
+ * the module source and the derivation itself is exercised directly through `makeRng`.
+ */
+const RIBBON_SRC = readFileSync(new URL('./ribbon.ts', import.meta.url), 'utf8');
+
+/** The module source with its comments stripped. The prose in these files legitimately NAMES
+ *  `Math.random()` (explaining what the seeding replaced), so the regression assertion below has to look at
+ *  CODE only or it would fail on its own documentation. */
+function codeOf(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+
+describe('ribbon uSeed', () => {
+  it('derives from ctx.seed when given, and keeps the fresh roll when not', () => {
+    expect(RIBBON_SRC).toContain(
+      "uSeed: { value: (ctx.seed === undefined ? Math.random() : makeRng(ctx.seed)()) * 1000, type: 'f32' },",
+    );
+    // Exactly one Math.random left in this module, and it is that documented no-seed fallback.
+    expect(codeOf(RIBBON_SRC).match(/Math\.random\(/g)).toHaveLength(1);
+  });
+
+  it('is stable for a given seed and spread across seeds (what stops the look re-rolling mid-tune)', () => {
+    const derive = (seed: number): number => makeRng(seed)() * 1000;
+    expect(derive(9)).toBe(derive(9));
+    expect(derive(9)).not.toBe(derive(10));
+    const values = Array.from({ length: 200 }, (_, i) => derive(i));
+    expect(new Set(values).size).toBe(values.length);
+    for (const v of values) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1000);
+    }
   });
 });

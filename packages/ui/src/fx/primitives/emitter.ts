@@ -17,6 +17,7 @@ import { FX_BLEND_MODES } from '../blendModes';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
+import { makeRng, randomSeed, type FxRandom } from '../rng';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -300,6 +301,11 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Bounds emission to a
   // single window (see `withinEmitWindow`) instead of streaming forever.
   private readonly oneShot: boolean;
+  // This instance's ONE random source, seeded once in the constructor and drawn from by `spawnMote()` in a
+  // fixed order (see there). With `ctx.seed` set the whole stream replays identically, which is what makes a
+  // tuning holdable/screenshot-able; without one we roll a fresh seed per instance, i.e. exactly the previous
+  // `Math.random()` behaviour. See `fx/rng.ts`.
+  private readonly rand: FxRandom;
   // ms elapsed since this instance's very first update() call — ticks unconditionally once oneShot (not
   // gated on headSet: a Fire's setHead typically lands the same frame as its first update anyway, per
   // burst.ts's constructor comment on call order, so gating here would only ever save a fraction of a
@@ -314,6 +320,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     this.params = params;
     this.renderer = ctx.renderer;
     this.oneShot = ctx.oneShot === true;
+    this.rand = makeRng(ctx.seed ?? randomSeed());
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
     this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
     this.particles = new ParticleContainer({
@@ -473,17 +480,24 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     this.particles.destroy({ children: true });
   }
 
+  /**
+   * Build one mote. Every draw below comes from `this.rand` (this instance's seeded stream) rather than
+   * `Math.random`. The distributions and the ORDER of the draws are byte-for-byte what they were — 6 per
+   * mote: bias jitter, spread, speed jitter, size jitter, then the two emission-shape offsets — so the
+   * statistical look is unchanged and only its reproducibility is new. Reordering or adding a draw here
+   * changes what every saved seed replays, so treat the sequence as part of the contract.
+   */
   private spawnMote(): Mote {
     const p = this.params;
-    const rand = Math.random();
-    const spreadRand = Math.random() * 2 - 1;
+    const rand = this.rand();
+    const spreadRand = this.rand() * 2 - 1;
     // A cone of half-width `spread * PI` centred on "up" (-PI/2, screen convention: +y is down). At
     // spread = 1 the half-width is PI, so the range covers a full 2*PI uniformly regardless of centre —
     // one formula naturally degenerates to "all directions" without a branch.
     const angle = -Math.PI / 2 + spreadRand * p.spread * Math.PI;
-    const speedJitter = 1 + (Math.random() * 2 - 1) * p.speedVar;
+    const speedJitter = 1 + (this.rand() * 2 - 1) * p.speedVar;
     const speed = Math.max(0, p.speed * speedJitter);
-    const sizeJitter = 1 + (Math.random() * 2 - 1) * p.sizeVar;
+    const sizeJitter = 1 + (this.rand() * 2 - 1) * p.sizeVar;
     const size = Math.max(0.5, p.size * sizeJitter);
     // Small per-mote core-bias jitter for organic variety in the tint, not just a flat colour per palette.
     // As with burst.ts, this is now a greyscale bias signal for the shader to posterize — NOT a resolved
@@ -491,7 +505,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     const bias = Math.min(1, Math.max(0, p.coreBias + (rand - 0.5) * 0.12));
 
     // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
-    emissionOffset(p.emitShape, p.emitRadius, Math.random(), Math.random(), this.emitScratch);
+    emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch);
     const particle = new Particle({
       texture: this.texture,
       x: this.originX + this.emitScratch.ox,

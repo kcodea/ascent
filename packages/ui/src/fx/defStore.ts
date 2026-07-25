@@ -36,12 +36,28 @@ export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
  *  simply stop restoring) rather than a migration. */
 const SESSION_KEY = 'ascent.fx.session.v1';
 
+/**
+ * A stored layer: the runtime `FxLayer` plus the workbench's authoring-only flags.
+ *
+ * `muted` lives HERE rather than on `FxLayer` because the runtime player takes mute as a live instruction
+ * (`FxPlayer.setLayerMuted`), not as def data — but round-tripping the author's working state is far more
+ * useful than silently dropping (or silently un-muting) a layer they had isolated, so it survives a save.
+ */
+export type StoredFxLayer = FxLayer & { muted?: boolean };
+
 /** A def as it is stored on disk. */
 export interface StoredFxDef {
   version: 1;
   id: string;
   duration: number;
-  layers: FxLayer[];
+  /**
+   * The seed the composition's randomness replays from, when the author LOCKED one (see the workbench's
+   * seed control). OPTIONAL by design, and the reason `FX_DEF_VERSION` is not bumped: every def written
+   * before seeding existed stays valid and simply means "roll fresh every time", which is exactly what an
+   * unlocked composition means today. A def that carries one reproduces its exact look on any machine.
+   */
+  seed?: number;
+  layers: StoredFxLayer[];
 }
 
 export type SaveResult = { ok: true; path: string } | { ok: false; error: string };
@@ -93,7 +109,7 @@ function finite(v: unknown): number | null {
 
 /** Coerce one raw layer, or `null` if it names a primitive this build doesn't have (the only reason to drop
  *  a layer: without its primitive there is no param spec to coerce against and nothing to render). */
-function coerceLayer(raw: unknown): FxLayer | null {
+function coerceLayer(raw: unknown): StoredFxLayer | null {
   if (!isRecord(raw)) return null;
   const primitiveId = typeof raw.primitive === 'string' ? raw.primitive : '';
   const prim = getPrimitive(primitiveId);
@@ -105,7 +121,7 @@ function coerceLayer(raw: unknown): FxLayer | null {
       : FALLBACK_ANCHOR;
   const at = Math.max(0, finite(raw.at) ?? 0);
   const life = finite(raw.life);
-  const layer: FxLayer = {
+  const layer: StoredFxLayer = {
     primitive: primitiveId,
     anchor,
     at,
@@ -114,6 +130,9 @@ function coerceLayer(raw: unknown): FxLayer | null {
   // `life` is optional by design (omitted = live until the def's duration), so it is kept ONLY when it is a
   // usable number — a null/NaN/string `life` becomes an omission, not a zero-length layer.
   if (life !== null && life >= 0) layer.life = life;
+  // Authoring state, kept ONLY when it is literally `true` — anything else (absent, false, 'yes', 1) means
+  // "not muted", which is the default and must serialise as an omission.
+  if (raw.muted === true) layer.muted = true;
   return layer;
 }
 
@@ -142,8 +161,13 @@ export function coerceDef(raw: unknown): StoredFxDef | null {
     );
   }
 
-  const layers = raw.layers.map(coerceLayer).filter((l): l is FxLayer => l !== null);
-  return { version: FX_DEF_VERSION, id, duration: Math.max(0, duration), layers };
+  const layers = raw.layers.map(coerceLayer).filter((l): l is StoredFxLayer => l !== null);
+  const def: StoredFxDef = { version: FX_DEF_VERSION, id, duration: Math.max(0, duration), layers };
+  // A seed is kept ONLY when it is a finite number; `NaN`, `"5"`, `null` and an absent field all mean the
+  // same thing — no locked seed, roll fresh — so they are dropped rather than repaired into a wrong seed.
+  const seed = finite(raw.seed);
+  if (seed !== null) def.seed = seed;
+  return def;
 }
 
 /** Parse def JSON (a paste, a file's contents). Never throws; `null` = not a def. */
@@ -157,9 +181,13 @@ export function parseDef(json: string): StoredFxDef | null {
   return coerceDef(raw);
 }
 
-/** Build a `StoredFxDef` from the workbench's live editor state. */
-export function toStoredDef(id: string, duration: number, layers: FxLayer[]): StoredFxDef {
-  return { version: FX_DEF_VERSION, id, duration, layers };
+/** Build a `StoredFxDef` from the workbench's live editor state. `seed` is written only when a finite one is
+ *  supplied — the workbench passes it ONLY while the seed is LOCKED, so an unlocked composition deliberately
+ *  saves no seed and therefore keeps meaning "roll fresh every time". */
+export function toStoredDef(id: string, duration: number, layers: StoredFxLayer[], seed?: number): StoredFxDef {
+  const def: StoredFxDef = { version: FX_DEF_VERSION, id, duration, layers };
+  if (typeof seed === 'number' && Number.isFinite(seed)) def.seed = seed;
+  return def;
 }
 
 // ─── writing (dev server only) ────────────────────────────────────────────────────────────────────────

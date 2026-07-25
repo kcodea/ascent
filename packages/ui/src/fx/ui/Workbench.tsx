@@ -4,6 +4,7 @@ import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, listPrimitives } from '../registry';
 import { resolveAnchor } from '../anchors';
+import { randomSeed } from '../rng';
 import { SCENARIOS } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
 import {
@@ -25,8 +26,10 @@ import { createBackdrop, type FxBackdrop } from './backdrop';
 import {
   addLayer,
   createEditorLayer,
+  duplicateLayer,
   moveLayer,
   removeLayer,
+  setLayerMuted,
   setLayerParam,
   setLayerPrimitive,
   setLayerTiming,
@@ -148,6 +151,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [loopOn, setLoopOn] = useState(false);
   const [loopGapMs, setLoopGapMs] = useState(0);
 
+  // ── seed (see `FxPlayer.setSeed` / `fx/rng.ts`) ─────────────────────────────────────────────────────
+  // UNLOCKED is the default and is exactly today's behaviour: the player is handed `null`, so every spawned
+  // instance rolls its own fresh seed and the effect looks slightly different each Fire. LOCKED hands the
+  // player the number below, freezing the look so you can tune everything ELSE against a fixed roll. The
+  // seed shown while unlocked is a real, usable number (not a placeholder) so locking is a single click.
+  const [seed, setSeed] = useState(() => restoredSession?.seed ?? randomSeed());
+  const [seedLocked, setSeedLocked] = useState(restoredSession?.seedLocked ?? false);
+
   const playerRef = useRef<FxPlayer | null>(null);
   const backdropRef = useRef<FxBackdrop | null>(null);
   // Mirrors of the latest state, read by the per-frame updater / build closures so those never go stale
@@ -157,6 +168,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const layersRef = useRef(layers);
   const speedRef = useRef(speed);
   const loopGapRef = useRef(loopGapMs);
+  // The seed a REBUILD hands the freshly-created player. Mirrored the same way `speedRef`/`loopGapRef` are —
+  // a rebuild constructs a brand-new player with no seed, and re-applying it here is what makes a locked
+  // seed survive a primitive swap / duration change / def load rather than silently re-rolling.
+  const seedRef = useRef(seed);
+  const seedLockedRef = useRef(seedLocked);
   const cursorRef = useRef({ x: 0, y: 0 });
   const clickRef = useRef<{ x: number; y: number } | null>(null);
   // Autosave stays DISARMED until the composition is actually touched, so merely opening the workbench (or
@@ -210,14 +226,15 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     backdropRef.current?.setColor(backdropColor);
   }, [backdropColor]);
 
-  // A signature of the layers' STRUCTURE only (primitive/anchor/at/life/order), NOT their params. This is
-  // THE key that keeps a param drag from respawning the effect while still rebuilding on any structural
-  // change — see the build effect's dependency array below.
+  // A signature of the layers' STRUCTURE only (primitive/anchor/order), NOT their params and NOT their
+  // timing. This is THE key that keeps a param or At/Life drag from respawning the effect while still
+  // rebuilding on any genuinely structural change — see the build effect's dependency array below.
   const structKey = useMemo(() => structureKey(layers), [layers]);
 
   // (Re)build the player whenever the layer STRUCTURE, scenario, OR duration changes. Param tweaks do NOT
   // land here — they go through player.setLayerParams (see `change` below) so a slider drag never respawns
-  // the effect mid-gesture. Loop-on/off and the loop-gap dial ALSO don't land here (see `toggleLoop` /
+  // the effect mid-gesture; At/Life tweaks likewise go through player.setLayerTiming (see
+  // `changeLayerTiming`). Loop-on/off and the loop-gap dial ALSO don't land here (see `toggleLoop` /
   // `changeLoopGap`) -- they're live `setLoop`/`setLoopGap` calls on the existing player, not a rebuild, per
   // the same "don't respawn mid-gesture" reasoning.
   useEffect(() => {
@@ -283,6 +300,15 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       // below) -- Loop is opt-in per build, matching the "no auto-loop on open" rule for every rebuild.
       player = createPlayer(def, { container, renderer }, { loop: false, loopGapMs: loopGapRef.current });
       player.setSpeed(speedRef.current);
+      // Re-apply the seed BEFORE the auto-fire below, so the very first pass of a rebuilt player already
+      // replays the locked roll — this is what makes "swap a primitive / load a def / re-Fire" reproduce the
+      // same look instead of re-rolling it. Unlocked hands over `null`: fresh roll per instance, as before.
+      player.setSeed(seedLockedRef.current ? seedRef.current : null);
+      // Mute is live player state, not def data, so a rebuilt player starts with nothing muted — re-apply the
+      // author's muted layers here or an isolated layer would come back the moment anything rebuilt.
+      layersForDef.forEach((l, i) => {
+        if (l.muted === true) player?.setLayerMuted(i, true);
+      });
       player.fireOnce();
       playerRef.current = player;
       setUiPlaying(true);
@@ -370,6 +396,20 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setLayers(next);
   };
 
+  /** Push a whole composition's params AND timing onto the live player. Needed wherever the layers are
+   *  replaced wholesale in a way that can leave `structKey` unchanged (so the build effect doesn't re-run) —
+   *  a params/timing-only def load, a reorder of two same-primitive layers, discarding restored work.
+   *  Without it those paths would leave the running effect on the previous layers' params/timing. */
+  const pushLiveLayers = (next: EditorLayer[]): void => {
+    const p = playerRef.current;
+    if (!p) return;
+    next.forEach((l, i) => {
+      p.setLayerParams(i, l.params);
+      p.setLayerTiming(i, l.at, l.life);
+      p.setLayerMuted(i, l.muted === true);
+    });
+  };
+
   // A restored session can name a primitive that no longer exists (renamed, deleted, or simply not part of
   // this branch). The build effect POLLS while any layer's primitive is unregistered — forever, if it never
   // arrives — so something has to drop it. Runs once on mount, waiting for the DEV-gated dynamic import that
@@ -412,9 +452,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Deliberately NOT the def file: a git-tracked write on every slider drag is exactly what Save is for.
   useEffect(() => {
     if (!autosaveArmedRef.current) return;
-    const timer = setTimeout(() => saveSession({ layers, selected, durationMs }), AUTOSAVE_DEBOUNCE_MS);
+    const timer = setTimeout(
+      () => saveSession({ layers, selected, durationMs, seed, seedLocked }),
+      AUTOSAVE_DEBOUNCE_MS,
+    );
     return () => clearTimeout(timer);
-  }, [layers, selected, durationMs]);
+  }, [layers, selected, durationMs, seed, seedLocked]);
 
   // The transient "Saved" confirmation's timer, cleared on unmount.
   useEffect(() => () => {
@@ -430,6 +473,24 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setSelected(next.length - 1);
   };
 
+  /** Copy a tuned layer instead of re-dialling it from defaults. The copy lands directly after the source and
+   *  becomes the selection — you almost always want to start changing it immediately. Adding a layer IS a
+   *  structural change, so `structureKey` moves and the effect legitimately rebuilds (unlike mute/timing). */
+  const duplicateLayerAt = (i: number): void => {
+    const next = duplicateLayer(layers, i);
+    if (next.length === layers.length) return; // out-of-range guard in the model — nothing was inserted
+    commitLayers(next);
+    setSelected(i + 1);
+  };
+
+  /** Mute/unmute one layer: a LIVE player call, never a rebuild, so isolating a layer leaves every other
+   *  layer's instance (and its randomness) exactly where it was. */
+  const toggleMute = (i: number): void => {
+    const on = !(layers[i]?.muted === true);
+    commitLayers(setLayerMuted(layers, i, on));
+    playerRef.current?.setLayerMuted(i, on);
+  };
+
   const deleteLayer = (i: number): void => {
     const next = removeLayer(layers, i);
     commitLayers(next);
@@ -439,6 +500,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const reorderLayer = (i: number, dir: -1 | 1): void => {
     const next = moveLayer(layers, i, dir);
     commitLayers(next);
+    // Swapping two layers that share a primitive+anchor leaves `structKey` unchanged (it no longer carries
+    // timing), so no rebuild fires — the live instances would keep the pre-swap params/timing at their new
+    // indices. Push them explicitly; harmless when the key DID change and a rebuild is coming anyway.
+    pushLiveLayers(next);
     const target = i + dir;
     if (target >= 0 && target < next.length) setSelected(target); // keep selection on the moved layer
   };
@@ -451,8 +516,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     commitLayers(setLayerPrimitive(layers, selected, id, prim ? defaultsOf(prim.params) : {}));
   };
 
+  // Timing edit: state (so it persists / survives the next rebuild via `layersRef`) PLUS a live push to the
+  // player — never a rebuild. `at`/`life` are no longer part of `structKey`, so the build effect correctly
+  // doesn't re-run: the effect keeps playing, the edited layer's window moves under it, and a ribbon's noise
+  // seed isn't re-rolled mid-drag. Exactly the shape of `change` above, for timing instead of params.
   const changeLayerTiming = (at: number, life: number | null): void => {
     commitLayers(setLayerTiming(layers, selected, at, life));
+    playerRef.current?.setLayerTiming(selected, at, life);
   };
 
   // Pause/resume. There's no standing continuous loop to "resume" unless Loop is on -- so when Loop is off,
@@ -530,6 +600,33 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     playerRef.current?.setLoopGap(ms);
   };
 
+  /** Apply a seed + lock state to BOTH the mirrors a rebuild reads and the live player. The player call is
+   *  the only side effect, and it deliberately doesn't respawn anything: a seed change lands on the NEXT
+   *  spawn (Fire, loop wrap, rebuild), so it can never restart an effect out from under you mid-tune. */
+  const applySeed = (nextSeed: number, locked: boolean): void => {
+    autosaveArmedRef.current = true;
+    seedRef.current = nextSeed;
+    seedLockedRef.current = locked;
+    setSeed(nextSeed);
+    setSeedLocked(locked);
+    playerRef.current?.setSeed(locked ? nextSeed : null);
+  };
+
+  // Typing a seed is as plainly "I want THIS roll" as rerolling is, so it locks too — otherwise the number
+  // you just typed would sit there doing nothing until you noticed the padlock. (Judgement call; the toggle
+  // still unlocks in one click.) Non-numeric input is ignored rather than coerced to 0.
+  const changeSeed = (raw: string): void => {
+    const n = Number(raw);
+    if (raw.trim() === '' || !Number.isFinite(n)) return;
+    applySeed(Math.trunc(n), true);
+  };
+
+  const toggleSeedLock = (): void => applySeed(seed, !seedLocked);
+
+  // Reroll draws a fresh seed and LOCKS it: rerolling while unlocked would be a no-op (every spawn already
+  // rolls its own), and "give me a different specific look" is unambiguously the intent.
+  const rerollSeed = (): void => applySeed(randomSeed(), true);
+
   // Duration dial: deliberately just a `setState` -- the actual rebuild is driven by `durationMs` sitting
   // in the build effect's dependency array (see above), same as primitive/scenario changes.
   const changeDuration = (ms: number): void => {
@@ -598,7 +695,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         if (art.ok) artRefs.set(ref, `${ART_SHAPE_REF_PREFIX}${slug}`);
         else artFailures.push(`${ref}: ${art.error}`);
       }
-      const stored = toStoredDef(id, durationMs, toStoredLayers(layers, artRefs));
+      // The seed travels with the def ONLY while locked — an unlocked composition means "roll fresh", and
+      // writing a seed anyway would silently freeze a look the author deliberately left free.
+      const stored = toStoredDef(
+        id,
+        durationMs,
+        toStoredLayers(layers, artRefs),
+        seedLocked ? seed : undefined,
+      );
       const result = await saveDef(stored);
       if (!result.ok) {
         setSaveError(result.error);
@@ -640,10 +744,15 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       next = [createEditorLayer(first, prim ? defaultsOf(prim.params) : {})];
     }
     const nextDuration = clampDuration(def.duration, DURATION_BOUNDS);
-    // A def that differs from the current composition ONLY in params leaves structKey and durationMs
-    // untouched — so the build effect (correctly) doesn't re-run and the live player would keep the old
-    // params. Push them the same way `change` does. Detected BEFORE committing, off the outgoing state.
-    const paramsOnly = structureKey(next) === structureKey(layers) && nextDuration === durationMs;
+    // A def that differs from the current composition ONLY in params and/or TIMING leaves structKey and
+    // durationMs untouched — so the build effect (correctly) doesn't re-run and the live player would keep
+    // the old params/timing. Push them the same way `change`/`changeLayerTiming` do. Detected BEFORE
+    // committing, off the outgoing state.
+    const liveOnly = structureKey(next) === structureKey(layers) && nextDuration === durationMs;
+    // A def that carries a seed reproduces its EXACT look, so loading one adopts + locks that seed; a def
+    // without one deliberately means "roll fresh", so loading it unlocks. Applied BEFORE `commitLayers` so
+    // the mirrors are already right if this load triggers a rebuild.
+    applySeed(def.seed ?? seed, def.seed !== undefined);
     commitLayers(next);
     setSelected(0);
     setDurationMs(nextDuration);
@@ -651,10 +760,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setSaveNote(null);
     setSaveError(null);
     setRestoredNotice(false); // the restored work has just been replaced — the banner would be a lie
-    if (paramsOnly) {
-      const p = playerRef.current;
-      if (p) next.forEach((l, i) => p.setLayerParams(i, l.params));
-    }
+    if (liveOnly) pushLiveLayers(next);
   };
 
   /** Throw the restored work away and start from a fresh default composition. Disarms the autosave so the
@@ -663,11 +769,18 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     clearSession();
     const first = listPrimitives()[0]?.id ?? 'ribbon';
     const prim = getPrimitive(first);
-    commitLayers([createEditorLayer(first, prim ? defaultsOf(prim.params) : {})]);
+    const fresh = [createEditorLayer(first, prim ? defaultsOf(prim.params) : {})];
+    commitLayers(fresh);
+    // Same reasoning as `loadDef`: if the discarded work happened to share the fresh default's structure,
+    // structKey is unchanged and nothing rebuilds — push the defaults onto the live player explicitly.
+    pushLiveLayers(fresh);
     setSelected(0);
     setDurationMs(DEFAULT_DURATION_MS);
+    // A fresh default composition is an UNLOCKED one (the default feel): the restored work's frozen roll
+    // goes with the work it belonged to. The number itself is kept so locking again is one click.
+    applySeed(seed, false);
     setRestoredNotice(false);
-    autosaveArmedRef.current = false; // AFTER commitLayers, which arms it
+    autosaveArmedRef.current = false; // AFTER commitLayers/applySeed, which arm it
   };
 
   // The selected layer drives the top primitive row, the Inspector, and the timing controls. Fallback to the
@@ -752,12 +865,23 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           {layers.map((l, i) => (
             <div
               key={i}
-              className={`fxwb-layer-row${i === selected ? ' on' : ''}`}
+              className={`fxwb-layer-row${i === selected ? ' on' : ''}${l.muted === true ? ' muted' : ''}`}
               onClick={() => selectLayer(i)}
             >
               <span className="fxwb-layer-name">{l.primitive}</span>
-              <span className="fxwb-layer-meta">@{l.at}ms · {l.life === null ? 'full' : `${l.life}ms`}</span>
+              <span className="fxwb-layer-meta">
+                @{l.at}ms · {l.life === null ? 'full' : `${l.life}ms`}{l.muted === true ? ' · muted' : ''}
+              </span>
               <span className="fxwb-layer-btns">
+                <button
+                  className={`fxwb-layer-mute${l.muted === true ? ' on' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggleMute(i); }}
+                  title={l.muted === true ? 'Muted — click to bring this layer back' : 'Mute this layer (isolate the others)'}
+                >{l.muted === true ? '◐' : '👁'}</button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); duplicateLayerAt(i); }}
+                  title="Duplicate this layer (a full copy of its tuning, inserted below)"
+                >⧉</button>
                 <button
                   onClick={(e) => { e.stopPropagation(); reorderLayer(i, -1); }}
                   disabled={i === 0}
@@ -913,6 +1037,35 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             onChange={(e) => changeLoopGap(Number(e.target.value))}
           />
           <span className="fxwb-speedval">{loopGapMs} ms</span>
+        </div>
+
+        {/* Seed: unlocked = every spawn rolls its own randomness (the historical feel); locked = the shown
+            seed is used, so the LOOK is frozen while you tune everything else. A change lands on the next
+            spawn -- press Fire (or Loop) to see it. */}
+        <div
+          className="fxwb-seedgroup"
+          title="Lock the seed to freeze the randomness while you tune other params. Takes effect on the next Fire."
+        >
+          <button
+            className={`fxwb-seed-lock${seedLocked ? ' on' : ''}`}
+            onClick={toggleSeedLock}
+            title={seedLocked ? 'Seed is LOCKED -- click to roll fresh every spawn' : 'Seed is UNLOCKED (fresh roll every spawn) -- click to freeze this one'}
+          >
+            {seedLocked ? '🔒' : '🔓'}
+          </button>
+          <label className="fxwb-speedlabel" htmlFor="fxwb-seed">Seed</label>
+          <input
+            id="fxwb-seed"
+            className="fxwb-seedinput"
+            type="number"
+            step={1}
+            value={seed}
+            spellCheck={false}
+            onChange={(e) => changeSeed(e.target.value)}
+          />
+          <button className="fxwb-seed-reroll" onClick={rerollSeed} title="Roll a new seed (and lock it)">
+            🎲
+          </button>
         </div>
 
         <label className="fxwb-speedlabel" htmlFor="fxwb-speed">Speed</label>

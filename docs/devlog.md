@@ -1,5 +1,52 @@
 # ASCENT — development log
 
+### fix(sim/ui): consume hygiene audit; permanent shop buffs; practice timer dial; Choose One wording
+
+Four owner items (2026-07-25), the first being a real bug hunt.
+
+**Consume audit — three bugs, one visible, two silent.** The report was "Revolving Maw stacks the minions up and
+eats all of them, and Hungerling sometimes consumes when it does".
+
+1. **The swirl payload accumulated across actions.** `fodderEaten` was cleared only by the handful of call sites
+   that ASSIGNED it wholesale, while everything else appended — so each new consume replayed every previous one.
+   That is both symptoms at once: ghost minions stacking over the shop, and a card that hadn't eaten
+   (Hungerling) appearing to eat alongside one that had (Revolving Maw). It's a per-action FX payload, so it now
+   clears with the other transient FX lists at the top of the reducer. Multi-consume ACTIONS still animate fully
+   — Feastmaster Vhal's two neighbours have a test.
+2. **Eaten minions never returned to the shared pool.** `rollShop` returns every unbought offer, but an eaten one
+   is spliced out before that — so each consume permanently shrank the run's pool. With eight eating Demons, two
+   of them every turn, a long run would visibly run dry. An eaten minion is DESTROYED, not owned, so it goes back.
+3. **It fed the FODDER tallies.** `noteFodderConsumed` drives Abhorrent Horror's "stats from Fodder consumed"
+   window AND Rune of Consumption's permanent Fodder-aura improve — both were paying out for eating something
+   that isn't Fodder. Dropped; `onConsume` still fires, since "a Demon consumed" is the real event. This was the
+   owner's own hunch ("maybe something broken from the fodder connection") and it was right.
+
+Revolving Maw itself was fine: it eats the right-most, once. There's now a test asserting exactly one consume on
+its fourth refresh.
+
+**"Give minions in the Shop" is a PERMANENT buy-buff.** Owner ruling: that phrasing means the Staff of Guel
+channel; only "THIS shop" / "the NEXT shop" is scoped to one roll. Contract Butcher and Display Curator were
+using the per-offer channel, so their buff died on the next refresh — which made Curator's escalating version
+nearly worthless, since each turn's grant expired before the next arrived. Both now use `tavernBuyBonus` (and
+feed the Fodder enchant, as the Staff does, so a bought Fodder isn't silently excluded). **Apples** now says
+"give **this shop** +1/+3", because a bare "the shop" reads as the permanent buff it isn't.
+
+**A practice-mode timer dial.** A 1-4x dropdown beside the clock, practice only — 1x is exactly the scored
+mode's clock. Practice was a fixed 3x, which stays the default so existing practice runs feel unchanged.
+Persisted like the combat-speed slider. Deliberately absent in scored runs, where the timer is part of the
+challenge.
+
+**Choose One wording, part two.** Orivax's OPTIONS were already clean but its combined card text still read
+"Choose One — Chorus: … Spellweave: …", so the first guard missed it — it only checked options. The guard now
+covers the card's own text too. That widening immediately flagged Coppercoat Spellsword's "Choose One — Shout:",
+a legitimate KEYWORD rather than a flavour name, but it reads identically to the labels being removed and a
+Choose One already implies it resolves on play, so it's phrased like the rest now. All five set-2 Choose Ones
+print the mechanic alone.
+
+Verified: typecheck / lint / test (1705) / build:web / harness green. Every consume fix confirmed to bite by
+reverting it. The pool-drain and Fodder-tally bugs were both SILENT — no error, no visible symptom, just a run
+slowly getting worse — which is why they get tests rather than a comment.
+
 ### tweak(content): Choose One options print the MECHANIC, not a flavour name
 
 Owner 2026-07-25: the flavour labels on set-2 Choose One options read as extra rules to decode. Two cards

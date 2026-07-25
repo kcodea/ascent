@@ -115,14 +115,34 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-function ShopTimer({ label }: { label: string }) {
+function ShopTimer({ label, practice }: { label: string; practice?: boolean }) {
   const s = Math.max(0, useTurnSeconds());
+  const practiceTimer = useGame((st) => st.practiceTimer);
+  const setPracticeTimer = useGame((st) => st.setPracticeTimer);
   return (
     <div className={`statcell time${s <= 5 ? ' low' : ''}`}>
       <span className="sc-l">{label}</span>
       <span className="sc-ic"><Icon name="clock" /></span>
       <span className="sc-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
-      <span className="sbtip">Time left this turn — at 0 your actions lock; hit End Turn</span>
+      {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
+          Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`
+          on the pointer keeps a click on the select from reaching the board's drag handler. */}
+      {practice && (
+        <select
+          className="timermult"
+          value={practiceTimer}
+          onChange={(e) => setPracticeTimer(Number(e.target.value))}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Practice shop timer speed"
+        >
+          {[1, 2, 3, 4].map((m) => <option key={m} value={m}>{m}×</option>)}
+        </select>
+      )}
+      <span className="sbtip">
+        {practice
+          ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run).'
+          : 'Time left this turn — at 0 your actions lock; hit End Turn'}
+      </span>
     </div>
   );
 }
@@ -537,7 +557,11 @@ export function Recruit() {
   // Rounds 6+ get a flat +6s on top of the +4s/wave ramp, and rounds 12–17 a further +12s ON TOP OF the
   // 80s cap (owner 2026-07-16 ×2): late boards have the most to think about. w12 80s, w13 84s … w15+ 92s.
   // Sandbox (Scene Builder): a huge fixed clock so the turn never times out while you build.
-  const turnSeconds = run.sandbox ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? 3 : 1));
+  // Practice's shop timer is a PLAYER CHOICE (owner 2026-07-25): the dropdown beside the clock picks 1-4x, with
+  // 1x being exactly the scored mode's clock. Was a fixed 3x, which is still the default so existing practice
+  // runs feel unchanged. Scored modes always run at 1x — the multiplier is never consulted outside practice.
+  const practiceTimer = useGame((st) => st.practiceTimer);
+  const turnSeconds = run.sandbox ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -3647,7 +3671,7 @@ export function Recruit() {
             <span className="sc-v">{run.tier}</span>
             <span className="sbtip">Shop tier — higher tiers offer stronger minions (Upgrade Tavern to raise it)</span>
           </div>
-          <ShopTimer label={isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} />
+          <ShopTimer label={isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} practice={run.mode === 'practice'} />
         </div>
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
             shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,

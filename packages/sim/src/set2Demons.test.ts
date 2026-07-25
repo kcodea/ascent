@@ -86,6 +86,69 @@ describe('set 2 — Consume from the Shop (the shared primitive)', () => {
   });
 });
 
+describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
+  it('the swirl payload does NOT accumulate across actions', () => {
+    // The bug: `fodderEaten` was appended to but cleared only by a few call sites, so each new consume replayed
+    // every PREVIOUS one. On screen that stacked ghost minions over the shop and made a card that hadn't eaten
+    // (Hungerling) look like it ate alongside one that had (Revolving Maw).
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [], hand: [minion('c1', 'dm_clerk', 1, 1), minion('c2', 'dm_clerk', 1, 1)],
+      shop: shop('sandbag', 'alley'),
+    };
+    s = reduce(s, { type: 'play', uid: 'c1' });
+    expect(s.fodderEaten?.length).toBe(1);
+    s = reduce(s, { type: 'play', uid: 'c2' });
+    expect(s.fodderEaten?.length, 'the second action replays only ITS consume').toBe(1);
+  });
+
+  it('several consumes in ONE action all animate', () => {
+    // The other half: clearing per action must not clear WITHIN one. Feastmaster Vhal's two neighbours each eat.
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [minion('L', 'dm_clerk', 1, 1), minion('v', 'dm_vhal', 6, 8), minion('R', 'dm_butcher', 2, 3)],
+      hand: [], shop: shop('sandbag', 'alley', 'stray', 'pup'),
+    };
+    applyEndOfTurn(s);
+    expect(s.fodderEaten!.length).toBeGreaterThan(1);
+  });
+
+  it('an eaten minion RETURNS to the shared pool', () => {
+    // It's destroyed, not owned — same as an unbought offer on a reroll. Without this, eight eating Demons drain
+    // the run's pool permanently.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [], hand: [minion('cc', 'dm_clerk', 1, 1)], shop: shop('sandbag'),
+    };
+    const before = s.pool['sandbag'] ?? 0;
+    s = reduce(s, { type: 'play', uid: 'cc' });
+    expect(s.pool['sandbag'] ?? 0).toBe(before + 1);
+  });
+
+  it('does NOT feed the FODDER tallies — a Shop minion is not Fodder', () => {
+    // Feeding `noteFodderConsumed` here inflated Abhorrent Horror's "stats from Fodder consumed" window and
+    // ticked Rune of Consumption's permanent Fodder-aura improve, both for eating something that isn't Fodder.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [], hand: [minion('cc', 'dm_clerk', 1, 1)], shop: shop('sandbag'),
+    };
+    s = reduce(s, { type: 'play', uid: 'cc' });
+    expect(s.fodderConsumedThisTurn ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 });
+    expect(s.runFodderConsumed?.count ?? 0).toBe(0);
+  });
+
+  it('Revolving Maw eats exactly ONE minion on its 4th refresh', () => {
+    // The report said it ate "all of them". It eats the right-most, once — the appearance of more was the
+    // accumulated swirl above.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 99, freeRolls: 99,
+      board: [minion('m', 'dm_maw', 8, 8)], hand: [], shop: shop('sandbag', 'alley', 'stray'),
+    };
+    for (let i = 0; i < 4; i++) s = reduce(s, { type: 'roll' });
+    expect(s.fodderEaten?.length ?? 0).toBe(1); // one consume animating, not a pile
+  });
+});
+
 describe('set 2 — Hungerling eats the RIGHT-most', () => {
   it('takes the tail of the row, not a random offer', () => {
     const s: RunState = {
@@ -114,9 +177,9 @@ describe('set 2 — Grand Gourmand takes stats WITHOUT eating', () => {
 });
 
 describe('set 2 — Contract Butcher / Display Curator buff the shop', () => {
-  it('Butcher gives every minion offer +1/+1, and the buff survives into a BUY', () => {
+  it('Butcher permanently buffs what you buy from the Shop', () => {
     let s: RunState = {
-      ...createRun(1), phase: 'recruit', embers: 20,
+      ...createRun(1), phase: 'recruit', embers: 40,
       board: [], hand: [minion('b', 'dm_butcher', 2, 3)],
       shop: shop('sandbag'),
     };
@@ -124,19 +187,29 @@ describe('set 2 — Contract Butcher / Display Curator buff the shop', () => {
     s = reduce(s, { type: 'buy', uid: 's0' });
     const bought = s.hand.find((c) => c.cardId === 'sandbag')!;
     expect([bought.attack, bought.health]).toEqual([1, 5]); // 0/4 + 1/1
+    // …and a minion from a LATER shop gets it too — the permanent channel, not this roll's offers.
+    s = { ...s, shop: shop('alley') };
+    s = reduce(s, { type: 'buy', uid: 's0' });
+    const later = s.hand.find((c) => c.cardId === 'alley')!;
+    const base = CARD_INDEX['alley']!;
+    expect([later.attack, later.health]).toEqual([base.attack + 1, base.health + 1]);
   });
 
-  it('Curator escalates: +1/+1, then +2/+2 on its second trigger', () => {
+  it('Curator escalates, and the buff SURVIVES a refresh (it is permanent)', () => {
+    // Owner ruling 2026-07-25: "give minions in the Shop" is a PERMANENT buy-buff like Staff of Guel, not a
+    // per-offer one. The per-offer version made this card nearly worthless — each turn's grant died on the next
+    // refresh, before the escalation could ever compound.
     const s: RunState = {
       ...createRun(1), phase: 'recruit',
       board: [minion('c', 'dm_curator', 5, 3)], hand: [], shop: shop('sandbag'),
     };
     applyEndOfTurn(s);
-    const after1 = s.shop[0]!;
-    expect([after1.atk ?? 0, after1.hp ?? 0]).toEqual([1, 1]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([1, 1]);
     applyEndOfTurn(s);
-    // Second trigger grants +2/+2 on top of the first's +1/+1.
-    expect([s.shop[0]!.atk ?? 0, s.shop[0]!.hp ?? 0]).toEqual([3, 3]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([3, 3]); // +1 then +2 — it escalated
+    // A brand-new shop still carries it, which the per-offer version could not do.
+    s.shop = shop('alley');
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([3, 3]);
   });
 });
 
@@ -257,16 +330,23 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect(malphas.chooseOne![1]!.text).toMatch(/Imp/);       // option 1 = the Imp-copy half
   });
 
-  it('no set-2 Choose One option carries a flavour NAME', () => {
-    // Owner 2026-07-25: options print the mechanic only. Guards the whole set at once, so a future Choose One
-    // can't quietly reintroduce the pattern. The heuristic is a leading "**Word:**" label — which is exactly
-    // what Hunt / Ritual / Feast / Legion looked like.
-    const FLAVOUR = /^\*\*[A-Z][a-z]+:\*\*/;
+  it('no set-2 Choose One carries a flavour NAME — in its options OR its card text', () => {
+    // Owner 2026-07-25: Choose One prints the mechanic only. Guards the whole set so a future card can't quietly
+    // reintroduce the pattern.
+    //
+    // Checking the CARD's own text too, not just the options: the first version of this guard looked only at
+    // options and passed while Orivax's combined text still read "Choose One — Chorus: … Spellweave: …". The
+    // flavour hid in the half the guard wasn't looking at.
+    const OPT_FLAVOUR = /^\*\*[A-Z][a-z]+:\*\*/;                 // a leading "**Hunt:**" label on an option
+    const CARD_FLAVOUR = /Choose One\s*[—-]\s*\*?\*?[A-Z][a-z]+/; // "Choose One — Chorus" in the card text
     for (const c of poolFor('set2').all) {
-      for (const opt of c.chooseOne ?? []) {
-        expect(opt.text, `${c.id} option`).not.toMatch(FLAVOUR);
-        if (opt.goldenText) expect(opt.goldenText, `${c.id} golden option`).not.toMatch(FLAVOUR);
+      if (!c.chooseOne?.length) continue;
+      for (const opt of c.chooseOne) {
+        expect(opt.text, `${c.id} option`).not.toMatch(OPT_FLAVOUR);
+        if (opt.goldenText) expect(opt.goldenText, `${c.id} golden option`).not.toMatch(OPT_FLAVOUR);
       }
+      expect(c.text, `${c.id} card text`).not.toMatch(CARD_FLAVOUR);
+      if (c.goldenText) expect(c.goldenText, `${c.id} golden card text`).not.toMatch(CARD_FLAVOUR);
     }
   });
 

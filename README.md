@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Practice mode gets a timer dial** — pick 1–4x beside the clock (1x matches a scored run).
 - **Set 2's Demon tribe is complete** — all 23 cards, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.
 
 - **Set 2's Demon tribe is underway** — 20 of 23 cards in, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.

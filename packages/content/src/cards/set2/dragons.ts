@@ -311,7 +311,8 @@ export const SET2_DRAGONS: CardDef[] = [
       { text: 'Your first **Shop spell** each turn casts **3 times**.', effects: [{ on: 'onPlay', do: 'battlecryGrantFirstSpellMult', params: { mult: 3 } }] },
     ],
     chooseBothWhenGolden: true,
-    text: '**Choose One — Chorus:** your Shouts trigger an additional time. **Spellweave:** your first spell each turn casts **3 times**.',
-    goldenText: '**Choose One — Chorus / Spellweave:** gain **both**.',
+    // No flavour names (owner 2026-07-25) — its OPTIONS never carried them, but the combined card text did.
+    text: '**Choose One:** your **Shouts** trigger an additional time, or your first **Shop spell** each turn casts **3 times**.',
+    goldenText: '**Choose One:** gain **both** — your **Shouts** trigger an additional time, and your first **Shop spell** each turn casts **3 times**.',
   },
 ];

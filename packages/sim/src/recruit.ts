@@ -1774,22 +1774,28 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Contract Butcher (Shout) / Display Curator (End of Turn): give every minion OFFER in the shop
-   *  +atk/+hp. Uses `addOfferBuff`, the per-offer channel, so the buff rides the offer and is picked up by
-   *  `offerBuyStats` when it's bought — or eaten.
+  /** Set 2 — Contract Butcher (Shout) / Display Curator (End of Turn): "give minions in the Shop +atk/+hp".
+   *
+   *  PERMANENT, via the same `tavernBuyBonus` channel Staff of Guel uses — NOT the per-offer channel (owner
+   *  ruling 2026-07-25). The vocabulary is exact: "minions in the Shop" is a lasting buff on everything you buy
+   *  from here on; only "THIS shop" or "the NEXT shop" is scoped to one roll (Apples has both of those).
+   *  The first cut used `addOfferBuff`, so the buff evaporated on the next refresh — which made Display
+   *  Curator's escalating version nearly worthless, since each turn's grant died before the next arrived.
+   *
+   *  Feeds the Fodder enchant for the same reason the Staff does: a bought Fodder gets tavern buffs through that
+   *  run-wide channel rather than the buy-buff, so skipping it would silently exclude Fodder.
    *
    *  Curator's "improve this by +1/+1 each time this triggers" rides `summonBonus`, the standard per-instance
-   *  accrual, so it survives combats and shows in the inspect breakdown. Golden starts at +2/+2 AND improves by
-   *  +2/+2, which is why the improvement is also multiplied. */
-  buffShopOffers: (ctx, self, params) => {
-    const step = num(params.improve, 0) * gold(self);
+   *  accrual, so it survives combats and shows in the inspect breakdown. Golden starts doubled AND improves
+   *  doubled, which is why the step is multiplied too. */
+  buffShopPermanent: (ctx, self, params) => {
     const a = (num(params.attack, 1) + (self.summonBonus ?? 0)) * gold(self);
     const h = (num(params.health, 1) + (self.summonBonus ?? 0)) * gold(self);
-    for (const offer of ctx.state.shop) {
-      if (CARD_INDEX[offer.cardId]?.spell || CARD_INDEX[offer.cardId]?.ruby) continue;
-      addOfferBuff(offer, nameOf(self), a, h);
-    }
-    if (step > 0) self.summonBonus = (self.summonBonus ?? 0) + num(params.improve, 0);
+    ctx.state.tavernBuyBonus.atk += a;
+    ctx.state.tavernBuyBonus.hp += h;
+    buffFodderRunWide(ctx.state, a, h, nameOf(self), false);
+    const step = num(params.improve, 0);
+    if (step > 0) self.summonBonus = (self.summonBonus ?? 0) + step;
   },
 
   /** Set 2 — Market Tormentor (Shout): give the RIGHT-most shop minion +atk/+hp PERMANENTLY — i.e. through the
@@ -4418,8 +4424,16 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
   // in one action — Feastmaster Vhal's two neighbours, a Gilded double — all animate instead of just the last.
   state.fodderEaten = [...(state.fodderEaten ?? []), { eaterUid: eater.uid, fodderId: def.id, attack: fa, health: fh, gainA, gainH }];
   state.fodderEatenSeq += 1;
+  // The eaten minion is DESTROYED, not owned — so its copy goes back to the shared pool, exactly as an unbought
+  // offer does on a reroll (`rollShop` returns everything it clears). Without this every consume permanently
+  // shrank the run's pool, and with eight Demons eating — two of them every single turn — a long run would
+  // visibly run the pool dry.
+  returnToPool(state, def.id);
   fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off, same as a Fodder consume
-  noteFodderConsumed(state, fa, fh, eater); // Abhorrent Horror's SoC window counts it
+  // Deliberately NOT `noteFodderConsumed`: that tally is about FODDER. Feeding it here inflated Abhorrent
+  // Horror's "stats from Fodder consumed" window and ticked Rune of Consumption's permanent Fodder-aura improve
+  // — both paying out for eating something that isn't Fodder at all (owner report 2026-07-25, "maybe something
+  // broken from the fodder connection"). `onConsume` still fires, since "a Demon consumed" is the real event.
   return true;
 }
 

@@ -111,7 +111,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryConsumeShopRandom',
   'consumeShopRightmost',
   'battlecryTargetConsumesShop',
-  'buffShopOffers',
+  'buffShopPermanent',
   'battlecryBuffRightmostShopPermanent',
   'endOfTurnGainRightmostShopStats',
   'endOfTurnBuffSpellsAndImps',

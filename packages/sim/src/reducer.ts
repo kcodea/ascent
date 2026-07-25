@@ -524,6 +524,13 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
   s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
+  // The consume swirl is a PER-ACTION payload too. It used to be cleared only by the handful of call sites that
+  // assigned it wholesale, while every other consumer APPENDED — so Set 2's shop-eating Demons grew the list
+  // across actions and the UI replayed every past consume on each new one. That showed up as ghost minions
+  // stacking over the shop, and as a card that hadn't eaten (Hungerling) appearing to eat alongside one that had
+  // (Revolving Maw) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
+  // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
+  s.fodderEaten = [];
 
   switch (action.type) {
     case 'buy': {

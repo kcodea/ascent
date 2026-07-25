@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — a smoke primitive)
+
+### feat(fx): posterized / cel-style smoke — the emitter's rising, billowing cousin
+
+Owner picked cel-style over soft/realistic smoke, so it renders through the SAME posterized particle material
+as burst/emitter (matching the game's stylized cel art) rather than a soft radial texture. Structurally it's an
+emitter, tuned to read as smoke, plus one new channel:
+
+- **Rises + billows:** default `gravity` negative (rises), gentle `speed`, long `life` (1500ms) + low `rate`
+  (40/s) so puffs linger; a **grow-over-life** `sizeCurve` (`[[0,0.3],[1,1]]`); turbulence ON by default (the
+  column wanders) with a soft `disc` emission source.
+- **Slow tumble (new vs emitter):** a `spin` param (deg/sec ± `spinVar`, random direction per mote) with
+  `rotation: true` enabled on the container so puffs rotate.
+- **Reads as haze, not energy:** a desaturated grey default palette (recolourable via presets), `blendMode`
+  `normal` (not additive), `glow` 0, rim-heavy `coreBias`, soft `fadeIn`. Reuses the shared curve/motion/blend/
+  palette/shape machinery; keeps the size- and colour-over-life curves.
+- Registered in the primitives barrel (5th primitive). Self-contained pure helpers (`advanceSmokeBudget`,
+  `smokeWithinEmitWindow`, `smokeFireComplete`, `smokeMoteAlpha`), unit-tested (24 tests).
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1800 passing** (110 files), `build:web` green;
+dev-only (absent from the prod bundle).
+
+**Follow-up surfaced:** the `curve` kind clamps multipliers to [0,1], so a size curve can't grow a particle
+*beyond* its base size (smoke's grow is 0.3→1.0× of the base `Size`, which is set larger to compensate). A
+small `vMax` addition to the curve param (declare a per-curve max, editor + coerce + validate honour it) would
+let size-over-life exceed 1× — worth doing when size curves want true overshoot/pop.
+
 ## 2026-07-24 (FX workbench — multi-layer composition)
 
 ### feat(fx): the workbench stages a LIST of layers, not one primitive

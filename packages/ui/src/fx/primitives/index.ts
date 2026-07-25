@@ -9,3 +9,4 @@ import './ribbon';
 import './burst';
 import './shockwave';
 import './emitter';
+import './smoke';

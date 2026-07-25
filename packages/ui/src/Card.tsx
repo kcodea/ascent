@@ -61,6 +61,7 @@ const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
   mech: `${import.meta.env.BASE_URL}frames/cardplate-mech.webp`,
   demon: `${import.meta.env.BASE_URL}frames/cardplate-demon.webp`,
   undead: `${import.meta.env.BASE_URL}frames/cardplate-undead.webp`,
+  neutral: `${import.meta.env.BASE_URL}frames/cardplate-neutral.webp`,
 };
 const plateSrcFor = (tribe: Tribe | undefined): string =>
   (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;

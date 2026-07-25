@@ -5,6 +5,15 @@
 Added a `tribe name · size` slider (`--plate-tribe-sf`, font size × card width, default 0.062) to the 🂠 Card
 Plate tuner, next to the X/Y position dials. Verified live: 0.062 → 0.1 grew the label 5.9 → 9.4px.
 
+### feat(ui): Neutral tribe plate + dragon re-exported clean (all SIX plated)
+
+Added Neutral to `TRIBE_PLATES` (`cardplate-neutral.webp`, 945×1469 native) — so every tribe including
+neutral now has its own plate; the default `cardplate.webp` remains only as the safety fallback. Neutral gets
+the same treatment as the others: its name ("NEUTRAL") on the plate gem, drawer label suppressed. Also
+re-exported Dragon from the owner's fresh 945×1469 export (ratio 1.5545), so it's now pixel-clean like the
+rest — the earlier ~3% fill-stretch is gone. Verified live: neutral → `cardplate-neutral.webp` with "Neutral"
+on the gem.
+
 ### feat(ui): Demon + Undead tribe plates (all five tribes now plated)
 
 Added Demon and Undead to `TRIBE_PLATES` and refreshed Mech from the owner's final v2 art — so every

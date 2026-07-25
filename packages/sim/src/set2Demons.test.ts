@@ -87,8 +87,8 @@ describe('set 2 — Consume from the Shop (the shared primitive)', () => {
 });
 
 describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
-  it('the swirl payload does NOT accumulate across actions', () => {
-    // The bug: `fodderEaten` was appended to but cleared only by a few call sites, so each new consume replayed
+  it('the SHOP-consume swirl payload does NOT accumulate across actions', () => {
+    // The bug: the payload was appended to but cleared only by a few call sites, so each new consume replayed
     // every PREVIOUS one. On screen that stacked ghost minions over the shop and made a card that hadn't eaten
     // (Hungerling) look like it ate alongside one that had (Revolving Maw).
     let s: RunState = {
@@ -97,9 +97,9 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
       shop: shop('sandbag', 'alley'),
     };
     s = reduce(s, { type: 'play', uid: 'c1' });
-    expect(s.fodderEaten?.length).toBe(1);
+    expect(s.shopEaten?.length).toBe(1);
     s = reduce(s, { type: 'play', uid: 'c2' });
-    expect(s.fodderEaten?.length, 'the second action replays only ITS consume').toBe(1);
+    expect(s.shopEaten?.length, 'the second action replays only ITS consume').toBe(1);
   });
 
   it('several consumes in ONE action all animate', () => {
@@ -110,7 +110,7 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
       hand: [], shop: shop('sandbag', 'alley', 'stray', 'pup'),
     };
     applyEndOfTurn(s);
-    expect(s.fodderEaten!.length).toBeGreaterThan(1);
+    expect(s.shopEaten!.length).toBeGreaterThan(1);
   });
 
   it('an eaten minion RETURNS to the shared pool', () => {
@@ -145,7 +145,7 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
       board: [minion('m', 'dm_maw', 8, 8)], hand: [], shop: shop('sandbag', 'alley', 'stray'),
     };
     for (let i = 0; i < 4; i++) s = reduce(s, { type: 'roll' });
-    expect(s.fodderEaten?.length ?? 0).toBe(1); // one consume animating, not a pile
+    expect(s.shopEaten?.length ?? 0).toBe(1); // one consume animating, not a pile
   });
 });
 

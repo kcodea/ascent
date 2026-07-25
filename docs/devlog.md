@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+### refactor(sim/ui): Shop-consume gets its OWN channel; full audit of the Demon consume line
+
+**Separated from Fodder consume** (owner 2026-07-25: "they are very different mechanics and will have different
+animations"). Shop-minion consumes now write `shopEaten` / `shopEatenSeq` instead of borrowing `fodderEaten`,
+with their own UI effect and tracker. Same payload shape for now, so the choreography is shared until the
+animations actually diverge — the point of the split is that either can be restyled without touching the other.
+Both clear per action, so neither can accumulate.
+
+With that, the two mechanics are now separated at every layer, which the earlier fixes had started:
+* **FX** — separate payload + sequence (this change).
+* **Tallies** — shop consumes don't call `noteFodderConsumed`, so they don't feed Abhorrent Horror or the
+  run-wide Fodder totals.
+* **Quests** — `consumeFodder` / `consumeStats` read `runFodderConsumed`, which shop consumes no longer touch.
+* **Runes** — Transfusion and Endless Appetite live inside `noteFodderConsumed`, so they're excluded too.
+* **`onConsume`** — still fires for both, deliberately: "a Demon consumed" is the shared event, and the only
+  card listening is Avarice Incarnate, whose own text says "a Shop minion".
+
+**Audit of all nine interacting cards — every one behaves correctly.** Traced rather than eyeballed:
+
+| Card | Verified |
+| --- | --- |
+| Cinder Clerk | eats one random offer; golden doubles the STATS, not the count |
+| Hungerling | eats the right-most, once per End of Turn |
+| Revolving Maw | eats exactly ONE on its 4th refresh (the "ate all of them" was the old accumulating FX) |
+| Appetite Agent | prompts for a target; the TARGET eats and gains — the Agent itself does not |
+| Selective Glutton | fires on a DEMON play (1 extra eat), not on a Beast play |
+| Feastmaster Vhal | both NEIGHBOURS eat; Vhal itself gains nothing |
+| Malphas (Feast) | the left-most and right-most DEMONS eat 2 each, from opposite ends of the row |
+| Avarice Incarnate | pays 3 Gold for a consume by ANOTHER card, capped once per turn |
+| Grand Gourmand | takes the right-most's stats and does NOT eat it — the offer stays buyable |
+
+Also confirmed: a shop of only spells/Rubies is left untouched, an empty shop is a clean no-op, and every golden
+eater doubles the stats gained rather than the number eaten.
+
+**One thing worth knowing, not a bug:** the Imp token is a DEMON, and Selective Glutton hooks the recruit
+`onSummon` event, which today only fires on a PLAY. If a future card summons an Imp directly onto the board
+during the shop phase, Glutton would trigger on it even though the card says "whenever you PLAY a Demon". Noted
+rather than pre-emptively guarded, since no such path exists yet and the guard would need a play-vs-summon
+distinction the recruit event doesn't currently carry.
+
+Verified: typecheck / lint / test (1705) / build:web / harness green.
+
 ### fix(sim/ui): consume hygiene audit; permanent shop buffs; practice timer dial; Choose One wording
 
 Four owner items (2026-07-25), the first being a real bug hunt.

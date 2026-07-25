@@ -4422,8 +4422,11 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
   // `fodderEaten` is the only carrier of that (Avarice Incarnate pays Gold equal to the eaten minion's tier and
   // read an empty list when this was appended afterwards). APPENDED rather than replacing, so several consumes
   // in one action — Feastmaster Vhal's two neighbours, a Gilded double — all animate instead of just the last.
-  state.fodderEaten = [...(state.fodderEaten ?? []), { eaterUid: eater.uid, fodderId: def.id, attack: fa, health: fh, gainA, gainH }];
-  state.fodderEatenSeq += 1;
+  // Its OWN channel, not `fodderEaten` (owner 2026-07-25): eating a tavern MINION and eating Fodder are
+  // different mechanics that will get different animations. Appended, so several consumes in one action all
+  // animate; cleared per action by the reducer alongside the other transient FX.
+  state.shopEaten = [...(state.shopEaten ?? []), { eaterUid: eater.uid, cardId: def.id, attack: fa, health: fh, gainA, gainH }];
+  state.shopEatenSeq += 1;
   // The eaten minion is DESTROYED, not owned — so its copy goes back to the shared pool, exactly as an unbought
   // offer does on a reroll (`rollShop` returns everything it clears). Without this every consume permanently
   // shrank the run's pool, and with eight Demons eating — two of them every single turn — a long run would

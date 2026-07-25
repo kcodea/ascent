@@ -912,6 +912,7 @@ export function Recruit() {
     } | null
   >(null);
   const prevFodderSeq = useRef(run.fodderEatenSeq);
+  const prevShopEatSeq = useRef(run.shopEatenSeq); // Set 2's shop-minion consume — its own channel (see state.ts)
   const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
   const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
@@ -2566,6 +2567,7 @@ export function Recruit() {
     if (run.fodderEatenSeq !== prevEatFlashSeq.current) {
       prevEatFlashSeq.current = run.fodderEatenSeq;
       for (const ev of run.fodderEaten ?? []) eatUids.add(ev.eaterUid);
+      for (const ev of run.shopEaten ?? []) eatUids.add(ev.eaterUid); // shop consumes suppress the pop the same way
     }
     // Cards that gained stats, with the exact delta — drives the +X/+X float (board + hand minions).
     const gained: { uid: string; attack: number; health: number }[] = [];
@@ -2946,6 +2948,17 @@ export function Recruit() {
     // would re-run this effect (and its cleanup) on unrelated actions, stranding the ghost. The seq only
     // changes when Fodder is actually eaten, so the snapshot read of `run.fodderEaten` here is current.
   }, [run.fodderEatenSeq]);
+
+  // A SHOP MINION was consumed (Set 2's Demons) — its own sequence, so it can't be confused with a Fodder eat.
+  // Shares `playFodderEat`'s choreography for now: the payload shapes match, and the owner's plan is a distinct
+  // animation later — this split is what makes that possible without disturbing the Fodder cue.
+  useEffect(() => {
+    if (run.shopEatenSeq === prevShopEatSeq.current) return;
+    prevShopEatSeq.current = run.shopEatenSeq;
+    const events = (run.shopEaten ?? []).map((e) => ({ ...e, fodderId: e.cardId }));
+    if (events.length === 0) return;
+    return playFodderEat(events, run.shopEatenSeq);
+  }, [run.shopEatenSeq]);
 
   // --- Live warband drag: a dragged board minion is *lifted out* of the row entirely
   // (the floating copy IS the card) for the whole drag; the rest physically close up,

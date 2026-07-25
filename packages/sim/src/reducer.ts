@@ -531,6 +531,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // (Revolving Maw) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
   // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
   s.fodderEaten = [];
+  s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
 
   switch (action.type) {
     case 'buy': {

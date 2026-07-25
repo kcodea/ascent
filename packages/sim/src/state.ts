@@ -541,6 +541,13 @@ export interface RunState {
   fodderEaten?: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[];
   /** Bumps each time Fodder is auto-eaten — the UI keys its swirl animation off this. */
   fodderEatenSeq: number;
+  /** Set 2 (Demons) — the most recent SHOP-MINION consume. Deliberately its OWN channel rather than reusing
+   *  `fodderEaten` (owner 2026-07-25): eating a tavern minion and eating Fodder are different mechanics and
+   *  will get different animations, and sharing one payload meant one couldn't be restyled without the other.
+   *  Same shape, so the UI can share choreography until they diverge. Transient, cleared each action. */
+  shopEaten?: { eaterUid: string; cardId: string; attack: number; health: number; gainA: number; gainH: number }[];
+  /** Bumps each time a Shop minion is consumed — the UI keys its own animation off this. */
+  shopEatenSeq: number;
   /** Transient buff-other FX captured during the CURRENT action (cleared at the top of `reduce`). */
   recruitBuffFx: BuffFxEvent[];
   /** Monotonic bump when `recruitBuffFx` is non-empty after an action — the UI fires once per change. */
@@ -1061,6 +1068,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     pendingTavern: [],
     cardBuffs: {},
     fodderEatenSeq: 0,
+    shopEatenSeq: 0,
     recruitBuffFx: [],
     recruitFxSeq: 0,
     karwindFlashSeq: 0,

@@ -6121,8 +6121,22 @@ marker, and the no-rect early-out (9 tests, +3).
 SHADER to `TextureShader`), `plateCoalesce`'s `unhide` returning `removeProperty`'s value from a `: void`
 arrow, a documented `unknown` hop for supabase's runtime-built select, and two test fixtures.
 
-Verified: `typecheck` (both projects) + `typecheck:web` + `lint` (0 errors; 1 pre-existing unused-import
-warning in `SceneBuilder.tsx`) + `test` (1541 pass / 92 files) + `build:web` all green.
+**Caught on rebase — errors the gate flagged in code that merged while the gate was still off** (the Set-2
+Beast/Demon + Choose-One/Mage-Pup/Sunmane PRs #706–709, #711–717): a recurring pattern where a display field
+was added to `MinionSnapshot` and read in `Unit.tsx`, but never plumbed through the UI's `UnitFrame`.
+`chosenOption`, `taughtSpellId` and `rallySpreadAtk` were all read as `u.<field>` in combat while `UnitFrame`
+didn't declare them and `fromSnap` didn't copy them — so **a resolved Choose One, a Mage-Pup and a Sunmane
+Herald each read `undefined` in COMBAT**, silently reverting to base printed text instead of the branch / taught
+spell / live rally value. Added all three to `UnitFrame` and populated them in `fromSnap` (fixes the type errors
+and the latent runtime bugs together). Plus `Card.tsx`'s `getSpellBuffSeq(uid)` — `uid` is optional on `Card`,
+so guard it — and two under-specified `UnitFrame`/`CombatEvent` fixtures in `preBuffHolds.test.ts` (the function
+reads only uid/attack/health, so route the minimal literals through `unknown`). These are exactly the
+regressions the gate exists to stop; that they kept slipping in over the days this PR sat in review is the
+argument for it.
+
+Verified: `typecheck` (both projects) + `typecheck:web` + `lint` (0 errors; 3 pre-existing unused-import
+warnings — `SceneBuilder.tsx`, plus `reducer.ts` + `Recruit.tsx` imports left by the Set-2 PRs) + `test` (1712
+pass / 104 files) + `build:web` all green.
 
 ## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
 

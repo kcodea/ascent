@@ -18,7 +18,9 @@ const buff = (target: string, source: string, attack: number, health: number): C
   ({ type: 'buff', target, source, attack, health, step: 1 } as CombatEvent);
 
 const frameOf = (player: ReturnType<typeof unit>[], enemy: ReturnType<typeof unit>[] = []) =>
-  ({ player, enemy } as Parameters<typeof preBuffHolds>[2]);
+  // `preBuffHolds` only reads uid/attack/health off each frame unit, so the fixtures stay minimal; go via
+  // `unknown` rather than fill every UnitFrame field the function never touches.
+  ({ player, enemy } as unknown as Parameters<typeof preBuffHolds>[2]);
 
 describe('preBuffHolds', () => {
   it('subtracts the beat’s grant to give the pre-buff value', () => {
@@ -59,7 +61,7 @@ describe('preBuffHolds', () => {
   });
 
   it('ignores non-buff events in the window', () => {
-    const events = [{ type: 'attack', source: 'm0', target: 'e0', step: 1 } as CombatEvent, buff('m1', 'm0', 6, 0)];
+    const events = [{ type: 'attack', source: 'm0', target: 'e0', step: 1 } as unknown as CombatEvent, buff('m1', 'm0', 6, 0)];
     const holds = preBuffHolds({ start: 0, end: 2 }, events, frameOf([unit('m1', 10, 4)]));
     expect(holds.get('m1')).toEqual({ atk: 4, hp: 4 });
     expect(holds.size).toBe(1);

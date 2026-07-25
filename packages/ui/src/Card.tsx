@@ -367,7 +367,7 @@ export const Card = memo(function Card({
   // to thread state down — see `spellBuffFx.ts`. `undefined` = not bursting; the number INCREASES on every
   // retrigger so a buff landing mid-burst restarts the cue instead of being swallowed (owner 2026-07-24: each
   // trigger must read as its own hit, and cutting the previous one off is fine).
-  const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => getSpellBuffSeq(uid), () => undefined);
+  const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => (uid ? getSpellBuffSeq(uid) : undefined), () => undefined);
   const spellSparks = useMemo(() => (spellBuffSeq !== undefined ? makeSpellBuffSparks() : []), [spellBuffSeq]);
   const spellBuffed = spellBuffSeq !== undefined;
   const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;

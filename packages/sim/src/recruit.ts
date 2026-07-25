@@ -1677,6 +1677,189 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), perA * played * g, perH * played * g);
   },
 
+  /** Set 2 — Malphas "Feast": at End of Turn your LEFT-most and RIGHT-most Demons each Consume the `count` Shop
+   *  minions on their own side of the row — left-most eats from the front, right-most from the back. Splitting
+   *  the row is what makes seating matter; both eating the same tail would collapse the two halves into one. */
+  endOfTurnEndDemonsConsumeSides: (ctx, self, params) => {
+    // Gated on the Choose One pick. `applyChooseOne` fires an option's effects ONCE, as a battlecry, so a
+    // PERSISTENT option (this one, and Legion) can't live in `chooseOne[].effects` — it would fire at pick time
+    // and never again. Both halves are printed effects instead, each checking the branch this body became.
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
+    const demons = ctx.state.board.filter((c) => isTribe(c, 'demon'));
+    if (demons.length === 0) return;
+    const each = num(params.count, 2) * gold(self);
+    const left = demons[0]!;
+    const right = demons[demons.length - 1]!;
+    // FRONT of the row for the left-most Demon.
+    for (let k = 0; k < each; k++) {
+      const i = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (i < 0) break;
+      consumeShopMinion(ctx.state, left, i, 1);
+    }
+    // BACK of the row for the right-most — skipped when they're the same body, so a lone Demon doesn't eat twice.
+    if (right.uid === left.uid) return;
+    for (let k = 0; k < each; k++) {
+      const i = rightmostShopMinion(ctx.state);
+      if (i < 0) break;
+      consumeShopMinion(ctx.state, right, i, 1);
+    }
+  },
+
+  /** Set 2 — Revolving Maw: every `every` refreshes, consume the RIGHT-most Shop minion. The count is
+   *  per-instance (`eotTick`, already reset-safe and carried on the card), so it means "four refreshes since
+   *  this arrived" rather than four since the run began. Golden doubles the stats gained, not the frequency. */
+  onShopRefreshConsume: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 4));
+    const tick = (self.eotTick ?? 0) + 1;
+    self.eotTick = tick;
+    if (tick % every !== 0) return;
+    const i = rightmostShopMinion(ctx.state);
+    if (i < 0) return;
+    consumeShopMinion(ctx.state, self, i, num(params.times, 1) * gold(self));
+  },
+
+  /** Set 2 — Selective Glutton: whenever you PLAY a `tribe` minion, a friendly of that tribe Consumes a Shop
+   *  minion. Hooked on `onSummon` (the recruit-phase "a minion entered play" event), guarded to the tribe.
+   *
+   *  The EATER is a random friendly of the tribe, not necessarily the Glutton or the minion just played — the
+   *  card says "a friendly Demon", so the stats can land anywhere in the tribe. Deterministic off the run cursor.
+   *  Guarded against the Glutton's own arrival so playing it doesn't immediately feed itself. */
+  onTribePlayedConsumeShop: (ctx, self, params, payload) => {
+    const played = payload.minion;
+    const tribe = str(params.tribe) || 'demon';
+    if (!played || played.uid === self.uid || !isTribe(played, tribe as never)) return;
+    const eaters = ctx.state.board.filter((c) => isTribe(c, tribe as never));
+    if (eaters.length === 0) return;
+    const edible = ctx.state.shop
+      .map((_, i) => i)
+      .filter((i) => { const d = CARD_INDEX[ctx.state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+    if (edible.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const eater = eaters[rng.int(eaters.length)]!;
+    const pick = edible[rng.int(edible.length)]!;
+    ctx.state.rngCursor = rng.state();
+    consumeShopMinion(ctx.state, eater, pick, num(params.times, 1) * gold(self));
+  },
+
+  /** Set 2 — Cinder Clerk (Shout): consume a random Shop minion. `times` 2 on golden = "gain double its stats"
+   *  (the Gilded rider), which is the shared `consumeShopMinion` multiplier rather than a second effect. */
+  battlecryConsumeShopRandom: (ctx, self, params) => {
+    const edible = ctx.state.shop
+      .map((_, i) => i)
+      .filter((i) => { const d = CARD_INDEX[ctx.state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+    if (edible.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const pick = edible[rng.int(edible.length)]!;
+    ctx.state.rngCursor = rng.state();
+    consumeShopMinion(ctx.state, self, pick, num(params.times, 1) * (self.golden ? 2 : 1));
+  },
+
+  /** Set 2 — Hungerling / Revolving Maw: consume the RIGHT-most Shop minion. Golden doubles the stats gained
+   *  ("and gain double its stats"), not the number eaten. */
+  consumeShopRightmost: (ctx, self, params) => {
+    const i = rightmostShopMinion(ctx.state);
+    if (i < 0) return;
+    consumeShopMinion(ctx.state, self, i, num(params.times, 1) * (self.golden ? 2 : 1));
+  },
+
+  /** Set 2 — Appetite Agent (targeted Shout): the TARGET minion consumes `count` Shop minions — not this one.
+   *  The eater being someone else is the whole card, so an un-aimed play (auto-pick fallback) still routes the
+   *  gain to that pick rather than silently feeding the Agent. */
+  battlecryTargetConsumesShop: (ctx, self, params, payload) => {
+    const target = payload.target ?? ctx.state.board.find((c) => c.uid !== self.uid) ?? self;
+    for (let n = 0; n < num(params.count, 1) * gold(self); n++) {
+      const i = rightmostShopMinion(ctx.state);
+      if (i < 0) return;
+      consumeShopMinion(ctx.state, target, i, 1);
+    }
+  },
+
+  /** Set 2 — Contract Butcher (Shout) / Display Curator (End of Turn): "give minions in the Shop +atk/+hp".
+   *
+   *  PERMANENT, via the same `tavernBuyBonus` channel Staff of Guel uses — NOT the per-offer channel (owner
+   *  ruling 2026-07-25). The vocabulary is exact: "minions in the Shop" is a lasting buff on everything you buy
+   *  from here on; only "THIS shop" or "the NEXT shop" is scoped to one roll (Apples has both of those).
+   *  The first cut used `addOfferBuff`, so the buff evaporated on the next refresh — which made Display
+   *  Curator's escalating version nearly worthless, since each turn's grant died before the next arrived.
+   *
+   *  Feeds the Fodder enchant for the same reason the Staff does: a bought Fodder gets tavern buffs through that
+   *  run-wide channel rather than the buy-buff, so skipping it would silently exclude Fodder.
+   *
+   *  Curator's "improve this by +1/+1 each time this triggers" rides `summonBonus`, the standard per-instance
+   *  accrual, so it survives combats and shows in the inspect breakdown. Golden starts doubled AND improves
+   *  doubled, which is why the step is multiplied too. */
+  buffShopPermanent: (ctx, self, params) => {
+    const a = (num(params.attack, 1) + (self.summonBonus ?? 0)) * gold(self);
+    const h = (num(params.health, 1) + (self.summonBonus ?? 0)) * gold(self);
+    ctx.state.tavernBuyBonus.atk += a;
+    ctx.state.tavernBuyBonus.hp += h;
+    buffFodderRunWide(ctx.state, a, h, nameOf(self), false);
+    const step = num(params.improve, 0);
+    if (step > 0) self.summonBonus = (self.summonBonus ?? 0) + step;
+  },
+
+  /** Set 2 — Market Tormentor (Shout): give the RIGHT-most shop minion +atk/+hp PERMANENTLY — i.e. through the
+   *  run-wide per-card channel (`buffCardTypeRunWide`), not the per-offer one, so it sticks to that card for the
+   *  rest of the run rather than evaporating on the next refresh. */
+  battlecryBuffRightmostShopPermanent: (ctx, self, params) => {
+    const i = rightmostShopMinion(ctx.state);
+    if (i < 0) return;
+    const id = ctx.state.shop[i]!.cardId;
+    buffCardTypeRunWide(ctx.state, id, num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self), nameOf(self));
+  },
+
+  /** Set 2 — Grand Gourmand (End of Turn): gain the RIGHT-most Shop minion's stats `times` over WITHOUT eating
+   *  it — the offer stays in the tavern. Deliberately not `consumeShopMinion`: no consume fires, so it doesn't
+   *  feed Pactstone / Glutton / Abhorrent Horror, and the minion is still buyable. */
+  endOfTurnGainRightmostShopStats: (ctx, self, params) => {
+    const i = rightmostShopMinion(ctx.state);
+    if (i < 0) return;
+    const { attack, health } = offerBuyStats(ctx.state, ctx.state.shop[i]!);
+    const times = num(params.times, 1) * gold(self);
+    addBuff(self, nameOf(self), attack * times, health * times);
+  },
+
+  /** Set 2 — Tallymonger (End of Turn): give your SPELLS and IMPS +atk/+hp. Two run-wide channels: the spell
+   *  stat bonus (`spellBonus`, what every stat spell gains) and the Imp enchant (`buffImpsRunWide`, which
+   *  reaches Imps "wherever they are" — board, hand and future summons). */
+  endOfTurnBuffSpellsAndImps: (ctx, self, params) => {
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    const cur = ctx.state.spellBonus ?? { attack: 0, health: 0 };
+    ctx.state.spellBonus = { attack: cur.attack + a, health: cur.health + h };
+    buffImpsRunWide(ctx.state, a, h, nameOf(self));
+  },
+
+  /** Set 2 — Avarice Incarnate: the FIRST Shop-minion Consume each turn pays a flat `gold` (golden doubles).
+   *
+   *  Was "Gold equal to its tier" (owner change 2026-07-25). That version worked, but paid 1 Gold off a Tier-1
+   *  offer — negligible on a Tier-6 card, and swingy on the way up since the payout depended on whatever the
+   *  shop happened to be showing. A flat 3 (6 golden) is both stronger and predictable.
+   *
+   *  Hooked on `onConsume`, so it counts any source — the tribe's eight consumers, a Fodder eat, Feastmaster's
+   *  neighbours. `rubyRecvTick` is the per-turn counter (already reset each wave with the other per-turn state). */
+  onConsumeGoldFlat: (ctx, self, params) => {
+    if ((self.rubyRecvTick ?? 0) >= 1) return; // "the first time" each turn
+    self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
+    ctx.state.embers += num(params.gold, 3) * gold(self);
+  },
+
+  /** Set 2 — Feastmaster Vhal (End of Turn): each ADJACENT minion consumes `count` random Shop minions. The
+   *  neighbours eat, not Vhal — so the stats land on them. */
+  endOfTurnNeighboursConsumeShop: (ctx, self, params) => {
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    const neighbours = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter((c): c is BoardCard => !!c);
+    const each = num(params.count, 1) * gold(self);
+    for (const n of neighbours) {
+      for (let k = 0; k < each; k++) {
+        const idx = rightmostShopMinion(ctx.state);
+        if (idx < 0) return; // tavern empty — stop rather than half-feeding the rest
+        consumeShopMinion(ctx.state, n, idx, 1);
+      }
+    }
+  },
+
   /** Set 2 — Coppercoat Spellsword (Choose One Shout): permanently raise run-wide SPELL POWER by +atk/+hp.
    *  The two options are the same factory with different params (one all-Attack, one all-Health), which is why
    *  this takes both rather than being two factories. Golden doubles, matching the printed Gilded text. */
@@ -4092,6 +4275,25 @@ export function applySpellBought(state: RunState, spellId: string): void {
   }
 }
 
+/**
+ * Set 2 — the tavern was REFRESHED. Fires `shopRefreshed` so a watcher can count rolls (Revolving Maw: every 4).
+ *
+ * The tally deliberately lives PER-INSTANCE on the watching card, not as a run-wide counter: "every 4 refreshes"
+ * should mean four since that body arrived, so a Maw bought on turn 8 doesn't immediately fire off refreshes it
+ * was never present for. A dedicated loop rather than the generic `fire`, whose payload is minion-shaped.
+ */
+export function applyShopRefreshed(state: RunState): void {
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def?.effects.some((e) => e.on === 'shopRefreshed')) continue;
+    const ctx = makeContext(state);
+    for (const eff of def.effects) {
+      if (eff.on !== 'shopRefreshed') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+    }
+  }
+}
+
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);
@@ -4187,6 +4389,65 @@ export function feastConsume(state: RunState, center: BoardCard, count: number):
     state.fodderEaten = [...(state.fodderEaten ?? []), ...eaten];
     state.fodderEatenSeq += 1;
   }
+}
+
+/**
+ * Set 2 (Demons) — have `eater` CONSUME a specific shop offer: the offer leaves the tavern and the eater gains
+ * its CURRENT (buffed) stats, `times` over. Fires `onConsume` and records the swirl FX, so it looks and reacts
+ * exactly like a Fodder consume.
+ *
+ * The shared primitive behind the whole tribe: eight Demon cards consume a Shop minion, four of them with a
+ * Gilded "and gain double its stats" rider — which is `times: 2`, NOT a separate effect. Set 1's
+ * `consumeTavernFodder` already ate from the shop, but only cards carrying `FD` (Fodder); this eats any minion,
+ * which is the new part.
+ *
+ * Stats come from `offerBuyStats`, the same helper the buy path uses, so a consumed offer is worth exactly what
+ * it would have been worth bought — including run buffs, per-offer buffs and a golden offer's doubling. Reading
+ * the raw CardDef instead would silently ignore every shop buff the player had invested in.
+ *
+ * Returns true if something was eaten, so a caller can tell "no legal target" from "done".
+ */
+export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex: number, times = 1): boolean {
+  const offer = state.shop[offerIndex];
+  if (!offer) return false;
+  const def = CARD_INDEX[offer.cardId];
+  if (!def || def.spell || def.ruby) return false; // spells/Rubies in the row aren't minions — never edible
+  const { attack: fa, health: fh } = offerBuyStats(state, offer);
+  state.shop.splice(offerIndex, 1); // eaten — leaves the tavern
+  const ctx = makeContext(state);
+  const gainA = fa * times;
+  const gainH = fh * times;
+  addBuff(eater, 'Consume', gainA, gainH);
+  // Record the consume BEFORE notifying: an `onConsume` watcher has to be able to see WHAT was eaten, and
+  // `fodderEaten` is the only carrier of that (Avarice Incarnate pays Gold equal to the eaten minion's tier and
+  // read an empty list when this was appended afterwards). APPENDED rather than replacing, so several consumes
+  // in one action — Feastmaster Vhal's two neighbours, a Gilded double — all animate instead of just the last.
+  // Its OWN channel, not `fodderEaten` (owner 2026-07-25): eating a tavern MINION and eating Fodder are
+  // different mechanics that will get different animations. Appended, so several consumes in one action all
+  // animate; cleared per action by the reducer alongside the other transient FX.
+  state.shopEaten = [...(state.shopEaten ?? []), { eaterUid: eater.uid, cardId: def.id, attack: fa, health: fh, gainA, gainH }];
+  state.shopEatenSeq += 1;
+  // The eaten minion is DESTROYED, not owned — so its copy goes back to the shared pool, exactly as an unbought
+  // offer does on a reroll (`rollShop` returns everything it clears). Without this every consume permanently
+  // shrank the run's pool, and with eight Demons eating — two of them every single turn — a long run would
+  // visibly run the pool dry.
+  returnToPool(state, def.id);
+  fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off, same as a Fodder consume
+  // Deliberately NOT `noteFodderConsumed`: that tally is about FODDER. Feeding it here inflated Abhorrent
+  // Horror's "stats from Fodder consumed" window and ticked Rune of Consumption's permanent Fodder-aura improve
+  // — both paying out for eating something that isn't Fodder at all (owner report 2026-07-25, "maybe something
+  // broken from the fodder connection"). `onConsume` still fires, since "a Demon consumed" is the real event.
+  return true;
+}
+
+/** The RIGHT-most edible shop offer's index, or -1. "Right-most" is the tail of the row, which is what the
+ *  cards say; spells/Rubies sitting in the row are skipped since they aren't minions. */
+export function rightmostShopMinion(state: RunState): number {
+  for (let i = state.shop.length - 1; i >= 0; i--) {
+    const d = CARD_INDEX[state.shop[i]!.cardId];
+    if (d && !d.spell && !d.ruby) return i;
+  }
+  return -1;
 }
 
 /**

@@ -42,6 +42,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Practice mode gets a timer dial** — pick 1–4x beside the clock (1x matches a scored run).
+- **Set 2's Demon tribe is complete** — all 23 cards, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.
+
+- **Set 2's Demon tribe is underway** — 20 of 23 cards in, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.
+
 - **Beast cards have their own plate.** Beast-primary minions now render on a green-gem variant of the card
   backplate; other tribes keep the neutral one.
 - **Set 2 gains a 28-card neutral roster** — 21 carried from Set 1 unchanged, plus 7 new cards (Tamer, Coppercoat Spellsword, Gravelight Acolyte, Oathbound Avenger, Bellringer Voss, Lastlight Marshal, Fatecarver).

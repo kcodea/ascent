@@ -1,5 +1,208 @@
 # ASCENT — development log
 
+### refactor(sim/ui): Shop-consume gets its OWN channel; full audit of the Demon consume line
+
+**Separated from Fodder consume** (owner 2026-07-25: "they are very different mechanics and will have different
+animations"). Shop-minion consumes now write `shopEaten` / `shopEatenSeq` instead of borrowing `fodderEaten`,
+with their own UI effect and tracker. Same payload shape for now, so the choreography is shared until the
+animations actually diverge — the point of the split is that either can be restyled without touching the other.
+Both clear per action, so neither can accumulate.
+
+With that, the two mechanics are now separated at every layer, which the earlier fixes had started:
+* **FX** — separate payload + sequence (this change).
+* **Tallies** — shop consumes don't call `noteFodderConsumed`, so they don't feed Abhorrent Horror or the
+  run-wide Fodder totals.
+* **Quests** — `consumeFodder` / `consumeStats` read `runFodderConsumed`, which shop consumes no longer touch.
+* **Runes** — Transfusion and Endless Appetite live inside `noteFodderConsumed`, so they're excluded too.
+* **`onConsume`** — still fires for both, deliberately: "a Demon consumed" is the shared event, and the only
+  card listening is Avarice Incarnate, whose own text says "a Shop minion".
+
+**Audit of all nine interacting cards — every one behaves correctly.** Traced rather than eyeballed:
+
+| Card | Verified |
+| --- | --- |
+| Cinder Clerk | eats one random offer; golden doubles the STATS, not the count |
+| Hungerling | eats the right-most, once per End of Turn |
+| Revolving Maw | eats exactly ONE on its 4th refresh (the "ate all of them" was the old accumulating FX) |
+| Appetite Agent | prompts for a target; the TARGET eats and gains — the Agent itself does not |
+| Selective Glutton | fires on a DEMON play (1 extra eat), not on a Beast play |
+| Feastmaster Vhal | both NEIGHBOURS eat; Vhal itself gains nothing |
+| Malphas (Feast) | the left-most and right-most DEMONS eat 2 each, from opposite ends of the row |
+| Avarice Incarnate | pays 3 Gold for a consume by ANOTHER card, capped once per turn |
+| Grand Gourmand | takes the right-most's stats and does NOT eat it — the offer stays buyable |
+
+Also confirmed: a shop of only spells/Rubies is left untouched, an empty shop is a clean no-op, and every golden
+eater doubles the stats gained rather than the number eaten.
+
+**One thing worth knowing, not a bug:** the Imp token is a DEMON, and Selective Glutton hooks the recruit
+`onSummon` event, which today only fires on a PLAY. If a future card summons an Imp directly onto the board
+during the shop phase, Glutton would trigger on it even though the card says "whenever you PLAY a Demon". Noted
+rather than pre-emptively guarded, since no such path exists yet and the guard would need a play-vs-summon
+distinction the recruit event doesn't currently carry.
+
+Verified: typecheck / lint / test (1705) / build:web / harness green.
+
+### fix(sim/ui): consume hygiene audit; permanent shop buffs; practice timer dial; Choose One wording
+
+Four owner items (2026-07-25), the first being a real bug hunt.
+
+**Consume audit — three bugs, one visible, two silent.** The report was "Revolving Maw stacks the minions up and
+eats all of them, and Hungerling sometimes consumes when it does".
+
+1. **The swirl payload accumulated across actions.** `fodderEaten` was cleared only by the handful of call sites
+   that ASSIGNED it wholesale, while everything else appended — so each new consume replayed every previous one.
+   That is both symptoms at once: ghost minions stacking over the shop, and a card that hadn't eaten
+   (Hungerling) appearing to eat alongside one that had (Revolving Maw). It's a per-action FX payload, so it now
+   clears with the other transient FX lists at the top of the reducer. Multi-consume ACTIONS still animate fully
+   — Feastmaster Vhal's two neighbours have a test.
+2. **Eaten minions never returned to the shared pool.** `rollShop` returns every unbought offer, but an eaten one
+   is spliced out before that — so each consume permanently shrank the run's pool. With eight eating Demons, two
+   of them every turn, a long run would visibly run dry. An eaten minion is DESTROYED, not owned, so it goes back.
+3. **It fed the FODDER tallies.** `noteFodderConsumed` drives Abhorrent Horror's "stats from Fodder consumed"
+   window AND Rune of Consumption's permanent Fodder-aura improve — both were paying out for eating something
+   that isn't Fodder. Dropped; `onConsume` still fires, since "a Demon consumed" is the real event. This was the
+   owner's own hunch ("maybe something broken from the fodder connection") and it was right.
+
+Revolving Maw itself was fine: it eats the right-most, once. There's now a test asserting exactly one consume on
+its fourth refresh.
+
+**"Give minions in the Shop" is a PERMANENT buy-buff.** Owner ruling: that phrasing means the Staff of Guel
+channel; only "THIS shop" / "the NEXT shop" is scoped to one roll. Contract Butcher and Display Curator were
+using the per-offer channel, so their buff died on the next refresh — which made Curator's escalating version
+nearly worthless, since each turn's grant expired before the next arrived. Both now use `tavernBuyBonus` (and
+feed the Fodder enchant, as the Staff does, so a bought Fodder isn't silently excluded). **Apples** now says
+"give **this shop** +1/+3", because a bare "the shop" reads as the permanent buff it isn't.
+
+**A practice-mode timer dial.** A 1-4x dropdown beside the clock, practice only — 1x is exactly the scored
+mode's clock. Practice was a fixed 3x, which stays the default so existing practice runs feel unchanged.
+Persisted like the combat-speed slider. Deliberately absent in scored runs, where the timer is part of the
+challenge.
+
+**Choose One wording, part two.** Orivax's OPTIONS were already clean but its combined card text still read
+"Choose One — Chorus: … Spellweave: …", so the first guard missed it — it only checked options. The guard now
+covers the card's own text too. That widening immediately flagged Coppercoat Spellsword's "Choose One — Shout:",
+a legitimate KEYWORD rather than a flavour name, but it reads identically to the labels being removed and a
+Choose One already implies it resolves on play, so it's phrased like the rest now. All five set-2 Choose Ones
+print the mechanic alone.
+
+Verified: typecheck / lint / test (1705) / build:web / harness green. Every consume fix confirmed to bite by
+reverting it. The pool-drain and Fodder-tally bugs were both SILENT — no error, no visible symptom, just a run
+slowly getting worse — which is why they get tests rather than a comment.
+
+### tweak(content): Choose One options print the MECHANIC, not a flavour name
+
+Owner 2026-07-25: the flavour labels on set-2 Choose One options read as extra rules to decode. Two cards
+carried them — Elderhorn ("**Hunt:**" / "**Ritual:**") and Malphas ("**Feast:**" / "**Legion:**") — and both now
+print the effect alone. Their combined card text is reworded to match, since it named the branches too.
+
+Audited the rest rather than assuming: Orivax, Coppercoat Spellsword and Facetwright's Choice were already clean.
+
+The FACTORY ids keep the names (`battlecryGrantBeastHunt`, and Malphas's `option: 0`/`option: 1` gates). Those
+are internal, and renaming them would churn the run-state fields — `beastHuntExtra` / `beastRitualExtra` — for a
+display-only change, the same rule the Gem Shard rename followed.
+
+A set-wide guard came with it: a test walking every set-2 Choose One option and rejecting a leading `**Word:**`
+label, so a future card can't quietly reintroduce the pattern. Verified it bites by putting "Hunt:" back.
+
+Also retargeted the Malphas Choose One test, which had asserted on the words "Feast" and "Legion" and so broke on
+a pure wording change. It now matches the MECHANIC ("Consume" / "Imp") — which is what actually distinguishes the
+two options, and what the `option:` gates key on by ORDER.
+
+Verified: typecheck / lint / test (1700) / build:web / harness green. Live-checked the prompt in a throwaway run:
+Elderhorn's two options read "Your Beast Rallies and Slaughters trigger an additional time." and "Your Beast
+Echoes trigger an additional time.", and the picked branch carries through to the board card unchanged.
+
+### tweak(content/core/sim): Avarice pays flat Gold; Endless Overseer is a capped death trigger
+
+Three owner items on the Demon tribe (2026-07-25).
+
+**Avarice Incarnate WAS working** — verified before changing anything: it paid 1 Gold for a Tier-1 consume and
+correctly capped once per turn. But that's the problem, not a bug: 1 Gold off a Tier-1 offer is negligible on a
+Tier-6 card, and the payout swung with whatever the shop happened to be showing. Now a flat **3 Gold (6 golden)**,
+which is both stronger and predictable. Golden doubles the GOLD rather than raising the cap, matching the new text.
+
+**Endless Overseer is now "your first 3 Imps that die summon an Imp"** (6 golden), replacing the version that
+grafted an Echo onto every living Imp. The new shape is better on two counts beyond reading more simply: it
+catches Imps summoned MID-combat (a graft can only reach bodies that already exist), and the budget is an
+explicit cap rather than relying on "don't grant to the ones you just made" to avoid recursion. Without the cap
+the same fixture produces **48** summons instead of 3, so it's load-bearing and has a test.
+
+It hooks `avenge` — the per-friendly-death signal — which previously carried only `{ side, count }`. The payload
+now also carries the **victim**, so a watcher can ask WHAT died. Additive: every existing Avenge consumer reads
+side/count only. Its budget param is named `imps`, NOT `count`, deliberately: by convention an avenge factory's
+`params.count` is the every-N threshold (see `avengeShieldAttack`), and this card has no threshold — it pays on
+every Imp death until the budget is spent.
+
+*Also found:* `onFriendDeathBuffRandom` is dead code — registered in the union and the schema, implemented in
+factories, used by no card and dispatched by nothing. Left alone (out of scope), noted for a future sweep.
+
+**Malphas needed no change.** The owner's clarification — "if they choose the Imp one, that version is on their
+board and active while it's alive" — is exactly what the printed-effects-gated-on-`chosenOption` implementation
+already does. Verified rather than assumed: Feast fired on three consecutive End of Turns while he was on the
+board, and stopped the moment he was removed.
+
+Verified: typecheck / lint / test (1699) / build:web / harness green. The Overseer's new tests cover the exact
+budget (3, not 4, not unbounded), that a NON-Imp death pays nothing, and that the cap bites when removed.
+
+*Fixture lesson:* the first Overseer test gave it 60 HP against a 20-attack enemy, so it died on the second death
+and only one summon landed — the test read as a bug in the card when it was a bug in the setup. A card that pays
+out over several deaths needs a body that survives them.
+
+### feat(content/sim/core/ui): set 2's DEMON tribe is COMPLETE (23/23), art wired
+
+Owner roster 2026-07-25. The tribe's identity is **Consume from the Shop** — eight cards eat a tavern minion for
+its stats — braided with an **Imp** swarm line. `demon` is now a playable set-2 tribe.
+
+**The shared primitive first, because eight cards ride it.** Set 1's Demons already ate from the shop, but only
+offers carrying `FD` (Fodder); `consumeShopMinion` eats any minion. Stats come from `offerBuyStats`, the same
+helper the BUY path uses, so an eaten offer is worth exactly what it would have been worth bought — run buffs,
+per-offer buffs and a golden offer's doubling included. Reading the raw CardDef instead would have silently
+ignored every shop buff the player had invested. The recurring Gilded rider "and gain double its stats" is that
+primitive's `times` multiplier, not a second effect, so four cards' golden text is a number change and no extra
+code path.
+
+*A real ordering bug the tests caught:* the primitive fired `onConsume` BEFORE appending the consume record, so
+Avarice Incarnate — which pays Gold equal to the eaten minion's tier — read an empty list and paid nothing. The
+record is now written first, since a watcher has to be able to see WHAT was eaten.
+
+**23 cards**, needing 21 new factories. Two design notes:
+* **Cinderwall Captain** ("Start of Combat: the first 2 Imps you summon gain Ward") is implemented as an
+  `onSummon` watcher with a per-instance cap, NOT a Start-of-Combat pre-pass — at Start of Combat the Imps don't
+  exist yet, so a pre-pass would have nothing to shield. Per-instance means the cap resets each fight, which is
+  what "this combat" requires, and it needed no new context plumbing.
+* **Grand Gourmand** deliberately does NOT use the consume primitive: it takes the right-most offer's stats and
+  leaves it in the tavern, so no `onConsume` fires and the minion is still buyable. That's the whole difference
+  from Hungerling, and it has a test asserting the offer survives.
+
+**The last three landed in the same PR.**
+
+* **Revolving Maw** counts refreshes. Rather than a run-wide counter, a new `shopRefreshed` event fires after
+  `refreshTavern` and the tally lives PER-INSTANCE — "every 4 refreshes" should mean four since that body
+  arrived, so a Maw bought on turn 8 doesn't immediately fire off rolls it was never present for. Fired after the
+  refresh so a watcher that eats sees the NEW row, not the one that just rolled away.
+* **Endless Overseer** grafts "Echo: summon an Imp" onto each Imp ALIVE at Start of Combat, via the same
+  `grantDeathrattle` path Grave Body and Sunmane use. Imps summoned later deliberately do NOT inherit it — a
+  self-granting Echo that summons more of itself would recur until the board cap and the stack both gave out.
+  There's a test asserting the fight terminates and the summons stay bounded.
+* **Malphas** exposed a real design limit worth recording. `applyChooseOne` fires an option's effects ONCE, as a
+  battlecry — fine for Elderhorn's permanent grants, but Malphas's halves are PERSISTENT (Feast every End of
+  Turn, Legion on every Imp attack), so putting them in `chooseOne[].effects` meant they fired at pick time and
+  never again. Both halves are now PRINTED effects gated on `chosenOption`, the per-instance pick I added
+  earlier this session — which already rides into combat, so one mechanism covers both phases with no new
+  plumbing. My first Malphas test passed vacuously (a Hungerling on the fixture board was eating the shop, not
+  Malphas); it now has Malphas on the board and a CONTROL with no pick recorded, proving the shrink is his.
+
+**Art.** 21 of the 23 wired and verified (Malphas needed an alias — the file drops his epithet, like Orivax).
+Broodwright and Feastmaster Vhal have no master in the folder yet. Four
+`2` variants (CinderChancellor2, ErrandFiend2, LegionShepherd2, VelvetRopeFiend2) are skipped under the standing
+rule — each has an un-suffixed sibling, and mtime is not a safe tiebreak after Sunmane.
+
+Verified: typecheck / lint / test (1698, +23) / build:web / harness green. The primitive carries the heaviest
+coverage — leaves-the-shop, golden doubling, current-buffed-stats, never eats a spell, empty-shop no-op — since
+a bug there is a bug in eight cards at once. Live-checked after a dev-server RESTART (new art files need more
+than a reload): 20 Demons in the pool, `demon` in set 2's tribes, 18/18 arts resolving at 512x512, none leaked
+into set 1: 23 Demons, 21/21 arts resolving at 512x512, and a sane tier curve (2/2/5/4/4/5/1 across T1-T7).
+
 ### feat(ui): tribe-name size dial
 
 Added a `tribe name · size` slider (`--plate-tribe-sf`, font size × card width, default 0.062) to the 🂠 Card

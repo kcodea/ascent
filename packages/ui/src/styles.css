@@ -496,6 +496,22 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .statcell + .statcell { border-left: 2px solid color-mix(in srgb, var(--gold) 42%, transparent); }
 .statcell .sc-l { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink3); }
 .statcell .sc-ic { display: grid; place-items: center; }
+/* PRACTICE shop-timer multiplier — a small select tucked into the time cell (owner 2026-07-25). Styled to sit in
+   the plaque rather than look like a browser control: the strip is a decorative surface, so a default select
+   reads as a bug. `appearance: none` + the dark pill matches the tuner/dev selects. Practice only, so it never
+   appears in a scored run. */
+.statcell .timermult {
+  appearance: none; -webkit-appearance: none;
+  margin-left: calc(4 * var(--u));
+  padding: calc(1 * var(--u)) calc(6 * var(--u));
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u));
+  color: #f4ecdb; background: linear-gradient(180deg, #241a13, #17110c);
+  border: 1px solid color-mix(in srgb, var(--gold) 50%, #000);
+  border-radius: calc(7 * var(--u));
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+.statcell .timermult:hover { border-color: var(--acc); }
+.statcell .timermult option { background: #17110c; color: #f4ecdb; } /* the popup list is OS-drawn — keep it legible */
 .statcell .sc-ic svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--acc-dk); }
 .statcell .sc-v { font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #4a3410; font-variant-numeric: tabular-nums; }
 /* Gold cell — soft gold tint + a tangerine coin. Keeps the `.gold` hook the coin-sprinkle FX anchors to. */

@@ -364,10 +364,12 @@ export const SPELLS: CardDef[] = [
     cost: 1,
     effects: [],
     chooseOne: [
-      { text: 'Give the shop **+1/+3**.', effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 1, health: 3 } }] },
+      { text: 'Give **this shop +1/+3**.', effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 1, health: 3 } }] },
       { text: 'Give the next shop **+2/+4**.', effects: [{ on: 'cast', do: 'spellBuffNextShop', params: { attack: 2, health: 4 } }] },
     ],
-    text: '**Choose One:** Give the shop **+1/+3**, or the next shop **+2/+4**.',
+    // "THIS shop" is load-bearing vocabulary (owner 2026-07-25): a bare "the shop" reads as the permanent
+    // buy-buff Staff of Guel gives, but this option only touches the offers currently on the board.
+    text: '**Choose One:** Give **this shop +1/+3**, or the **next shop +2/+4**.',
   },
   {
     // Tier-scaled buff: +Tavern Tier / +Tavern Tier, plus the run's spell power on top of both stats

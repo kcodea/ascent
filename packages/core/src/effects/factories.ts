@@ -2257,6 +2257,132 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — Imp Wrangler (Start of Combat) / Errand Fiend (Rally): summon `count` Imps. `keyword` optionally
+   *  grants them one on arrival (unused here, but the Captain's Ward path below shares the token). */
+  summonImps: (ctx, self, params, payload) => {
+    // On a RALLY this fires per attack, and only for this minion's own swing.
+    const p = payload as MinionPayload;
+    if (p.minion && p.minion !== self) return;
+    const imp = ctx.getCard('impscrap');
+    if (!imp) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, imp, self.uid);
+  },
+
+  /** Set 2 — Riot Caller (Rally): your `count` LEFT-most Imps attack immediately, out of turn order. Board
+   *  order, so no RNG; skips itself in case Riot Caller is ever an Imp via Anomaly Reactor. */
+  rallyImpsAttackNow: (ctx, self, params, payload) => {
+    const p = payload as MinionPayload;
+    if (self.dead || (p.minion && p.minion !== self)) return;
+    const imps = ctx.boards[self.side].filter((m) => !m.dead && m.health > 0 && m !== self && m.cardId === 'impscrap');
+    for (const imp of imps.slice(0, num(params.count, 1) * mul(self))) ctx.attackNow?.(imp, false);
+  },
+
+  /** Set 2 — Cinderwall Captain: the first `count` Imps you summon this combat gain Ward.
+   *  Implemented as an `onSummon` WATCHER with a per-instance cap (`attackSeen` as the tally), not as a
+   *  Start-of-Combat pre-pass: the Imps don't exist yet at Start of Combat, so a pre-pass would have nothing to
+   *  shield. Same shape as Broodwright's grant, and it needs no new context plumbing. Per-instance means the
+   *  cap resets each fight, which is what "this combat" requires. Golden doubles the count. */
+  onSummonImpWard: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side || minion.cardId !== 'impscrap' || minion.dead) return;
+    const cap = num(params.count, 2) * mul(self);
+    if ((self.attackSeen ?? 0) >= cap) return;
+    self.attackSeen = (self.attackSeen ?? 0) + 1;
+    grantShield(ctx, minion);
+  },
+
+  /** Set 2 — Broodwright: whenever you summon an Imp, give it +atk/+hp. Its Avenge half improves that grant
+   *  permanently via `summonBonus`, the standard per-instance accrual. */
+  onSummonImpBuff: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side || minion.cardId !== 'impscrap' || minion.dead) return;
+    const bonus = self.summonBonus ?? 0;
+    ctx.buff(minion, (num(params.attack, 2) + bonus) * mul(self), (num(params.health, 2) + bonus) * mul(self), self.uid);
+  },
+
+  /** Set 2 — Endless Overseer: your first `count` IMPS that die each combat summon an Imp (owner change
+   *  2026-07-25, replacing a version that grafted an Echo onto every living Imp).
+   *
+   *  Hooked on `avenge` — the per-friendly-death signal — reading the VICTIM from the payload so it fires only
+   *  for Imps. Its own `count` budget lives per-instance (`attackSeen`), so it resets each fight, which is what
+   *  "each combat" means, and the cap is what stops the chain: a replacement Imp dying can itself pay out, but
+   *  only while the budget lasts.
+   *
+   *  Better than the graft it replaces on two counts: it catches Imps summoned MID-combat (a graft can only
+   *  reach bodies that already exist), and the budget is explicit rather than relying on "don't grant to the
+   *  ones you just made" to avoid recursion. */
+  onImpDeathSummonImp: (ctx, self, params, payload) => {
+    const { side, victim } = payload as { side: Side; count: number; victim?: Minion };
+    if (self.dead || side !== self.side) return;
+    if (!victim || victim.cardId !== 'impscrap') return;
+    // `imps`, NOT `count`: by convention an avenge factory's `params.count` is the every-N THRESHOLD (see
+    // `avengeShieldAttack`), and this card has no threshold — it pays out on EVERY Imp death until its budget is
+    // spent, which is what "your first 3 Imps that die" says. Reusing `count` here would read as "every 3rd".
+    const budget = num(params.imps, 3) * mul(self);
+    if ((self.attackSeen ?? 0) >= budget) return;
+    self.attackSeen = (self.attackSeen ?? 0) + 1;
+    const imp = ctx.getCard('impscrap');
+    if (imp) ctx.summon(self.side, imp, self.uid);
+  },
+
+  /** Set 2 — Malphas "Legion": when an Imp attacks, summon a COPY of it if there's room. Copies the attacker's
+   *  card, so a buffed Imp still yields a base-stat body — a copy of the card, not of the creature, matching how
+   *  every other "summon a copy" in the game reads. */
+  onImpAttackSummonCopy: (ctx, self, params, payload) => {
+    // Gated on the Choose One pick — see the note on Malphas's Feast half. A persistent option can't live in
+    // `chooseOne[].effects`, which fire once at pick time, so both halves are printed and branch-checked.
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side || minion.cardId !== 'impscrap') return;
+    const imp = ctx.getCard('impscrap');
+    if (!imp) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, imp, minion.uid);
+  },
+
+  /** Set 2 — Broodwright's Avenge half: every X friendly deaths, improve this minion's own summon-grant by
+   *  `step` (`summonBonus`, the standard per-instance accrual, so it carries back to the run and shows in the
+   *  inspect breakdown). Pairs with `onSummonImpBuff`, which reads the same field. */
+  avengeImproveSummonBuff: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * mul(self);
+  },
+
+  /** Set 2 — Legion Shepherd (Start of Combat): fill your warband with Imps, then give your Imps +atk/+hp for
+   *  EACH one summoned. The grant scales with how much room you left, so a wide board pays little and a lone
+   *  Shepherd pays a lot — the tension is the card. */
+  scFillWithImpsAndBuff: (ctx, self, params) => {
+    const imp = ctx.getCard('impscrap');
+    if (!imp) return;
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} calls the legion` });
+    let made = 0;
+    // `ctx.summon` returns the body; a full board makes it a no-op, so compare the living count to detect that
+    // rather than assuming success.
+    for (let i = 0; i < 7; i++) {
+      const before = ctx.living(self.side).length;
+      ctx.summon(self.side, imp, self.uid);
+      if (ctx.living(self.side).length === before) break; // no room left
+      made++;
+    }
+    if (made === 0) return;
+    const a = num(params.attack, 1) * mul(self) * made;
+    const h = num(params.health, 1) * mul(self) * made;
+    for (const m of ctx.living(self.side)) if (m.cardId === 'impscrap') ctx.buff(m, a, h, self.uid);
+  },
+
+  /** Set 2 — Cinder Chancellor: whenever an Imp attacks, give your Imps +atk/+hp for the rest of the combat,
+   *  improving by `improve` every `improveEvery` Imp attacks. The escalation rides `summonBonus` (per-instance,
+   *  so it resets each fight — "this combat"), and the attack tally rides `attackSeen`. */
+  onImpAttackBuffImps: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side || minion.cardId !== 'impscrap') return;
+    self.attackSeen = (self.attackSeen ?? 0) + 1;
+    const every = Math.max(1, num(params.improveEvery, 3));
+    const a = (num(params.attack, 3) + (self.summonBonus ?? 0)) * mul(self);
+    for (const m of ctx.living(self.side)) if (m.cardId === 'impscrap') ctx.buff(m, a, a, self.uid);
+    if (self.attackSeen % every === 0) self.summonBonus = (self.summonBonus ?? 0) + num(params.improve, 1);
+  },
+
   /** Set 2 — Gravelight Acolyte (Echo): on death, summon `count` random minions of an exact `tier` (golden
    *  doubles). Sibling of `deathrattleSummonRandomTribe`, keyed on tier instead of tribe; tokens and spells are
    *  excluded so it can only roll a real shop minion. */

@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -524,6 +524,14 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
   s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
+  // The consume swirl is a PER-ACTION payload too. It used to be cleared only by the handful of call sites that
+  // assigned it wholesale, while every other consumer APPENDED — so Set 2's shop-eating Demons grew the list
+  // across actions and the UI replayed every past consume on each new one. That showed up as ghost minions
+  // stacking over the shop, and as a card that hadn't eaten (Hungerling) appearing to eat alongside one that had
+  // (Revolving Maw) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
+  // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
+  s.fodderEaten = [];
+  s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
 
   switch (action.type) {
     case 'buy': {
@@ -1134,6 +1142,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       s.frozen = false;
       refreshTavern(s);
+      // Set 2 — tell the board a refresh happened (Revolving Maw counts them). Fired AFTER `refreshTavern`, so a
+      // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
+      applyShopRefreshed(s);
       return s;
     }
 

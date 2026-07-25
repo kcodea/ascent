@@ -91,9 +91,11 @@ export function simulate(
   // shieldUp / summon / …) is stamped `avenge:true`. try/finally guarantees the flag clears even if a handler
   // throws. The two call sites are the two friendly-death tallies (a true death, and a board-full Rise that
   // stays dead). Presentation-only tag; resolution is unchanged.
-  const emitAvenge = (side: Side, count: number): void => {
+  const emitAvenge = (side: Side, count: number, victim?: Minion): void => {
     inAvenge = true;
-    try { bus.emit('avenge', { side, count }); } finally { inAvenge = false; }
+    // `victim` is ADDITIVE: every existing Avenge consumer reads only side/count, so passing the dead body is
+    // free, and a watcher that cares WHAT died (Endless Overseer: only Imps) can now ask.
+    try { bus.emit('avenge', { side, count, victim }); } finally { inAvenge = false; }
   };
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
@@ -1022,7 +1024,7 @@ export function simulate(
         if (minion.side === 'enemy') enemyDeaths++;
         deaths[minion.side] += 1;
         if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
-        emitAvenge(minion.side, deaths[minion.side]);
+        emitAvenge(minion.side, deaths[minion.side], minion);
         return;
       }
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
@@ -1094,7 +1096,7 @@ export function simulate(
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
-    emitAvenge(minion.side, deaths[minion.side]);
+    emitAvenge(minion.side, deaths[minion.side], minion);
     // The Bone Throne: every N friendly deaths, trigger your leftmost living Echo (like Echoing Coop, but
     // paced by the death counter). Fires the leftmost minion that HAS a Deathrattle — its own doublers apply.
     const side = minion.side; // per-side quest/rune death effects — a served enemy runs its own

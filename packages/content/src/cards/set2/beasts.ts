@@ -39,16 +39,19 @@ export const SET2_BEASTS: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [],
+    // No flavour names on the options (owner 2026-07-25): "Hunt" / "Ritual" read as extra rules the player had
+    // to decode, when the mechanic is the whole choice. The factory ids keep the names — they're internal, and
+    // renaming them would churn the run-state fields for a display-only change.
     chooseOne: [
-      { text: '**Hunt:** your Beast **Rallies** and **Slaughters** trigger an additional time.',
-        goldenText: '**Hunt:** your Beast **Rallies** and **Slaughters** trigger **2 additional** times.',
+      { text: 'Your Beast **Rallies** and **Slaughters** trigger an additional time.',
+        goldenText: 'Your Beast **Rallies** and **Slaughters** trigger **2 additional** times.',
         effects: [{ on: 'onPlay', do: 'battlecryGrantBeastHunt', params: { extra: 1 } }] },
-      { text: '**Ritual:** your Beast **Echoes** trigger an additional time.',
-        goldenText: '**Ritual:** your Beast **Echoes** trigger **2 additional** times.',
+      { text: 'Your Beast **Echoes** trigger an additional time.',
+        goldenText: 'Your Beast **Echoes** trigger **2 additional** times.',
         effects: [{ on: 'onPlay', do: 'battlecryGrantBeastRitual', params: { extra: 1 } }] },
     ],
-    text: '**Choose One — Hunt:** your Beast Rallies and Slaughters trigger an additional time. **Ritual:** your Beast Echoes trigger an additional time.',
-    goldenText: '**Choose One — Hunt / Ritual:** that trigger fires **2 additional** times.',
+    text: '**Choose One:** your Beast **Rallies** and **Slaughters**, or your Beast **Echoes**, trigger an additional time.',
+    goldenText: '**Choose One:** your Beast **Rallies** and **Slaughters**, or your Beast **Echoes**, trigger **2 additional** times.',
   },
   {
     // A viral Rally whose escalation is EMERGENT: every Beast it buffs learns the rally, and a carrier grants

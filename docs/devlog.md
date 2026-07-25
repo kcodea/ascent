@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+### chore(ui): re-wire all Set-2 minion + spell art in one pass (133 files)
+
+One unified matcher (`matchall.py`) over every `Set 2 Minions/*` subfolder plus `Spells/`, replacing the
+per-tribe scripts. 172 masters seen → **133 wired** (68 minions, 65 spells), 4 skipped, 35 reported unwired.
+
+Of the 133, only **5 images actually changed content** — `d2_chronicler`, `d2_scalechanter`, `fleetingvigor`,
+`growth`, `sprout`. Everything else re-encoded byte-identically (sharp is deterministic and the earlier passes
+already used 512px / q82), so the diff is honest about what's new instead of churning 133 blobs.
+
+**The 22 Kobold masters converted PNG → WebP.** They were the last unoptimized art in the repo — wired before
+the optimizer step existed — and including the Kobolds folder in this pass fixed that as a side effect.
+
+Two things the matcher caught that a per-folder script wouldn't have:
+
+* **A routing bug.** The matcher decides `art/minions/` vs `art/spells/` from the CARD's own type, not the source
+  folder, and cross-checks the two. That flagged `discoverspell` (the triple-reward Discover token), which
+  carries neither `spell: true` nor `ruby: true` — the UI special-cases it by id — so it would have been filed
+  under `art/minions/` while its art actually lives in `art/spells/`, and silently stopped resolving.
+* **Six near-misses that are real cards**, now explicit hand-confirmed aliases rather than silent drops:
+  `Orivax.png` → `d2_orivax` (the card carries an epithet), `GemShard.png` → `gemheart-shard` (the token was
+  just renamed to Gemheart Golem; its id is unchanged), `RivalsReflections.png` → `rivalsreflection` (plural
+  master), `GemheartCarver2.png` → `k_gemheart` (the ONLY Carver master, so the suffix is meaningless), and two
+  filename variances where the file is the sole candidate for the sole such card: `GemforgeFiend.png` →
+  `k_gemgorge` (card is "Gem**gorge** Fiend"; the owner has used both spellings) and `CandlelightBulwark.png` →
+  `k_candleback` (card is "Candle**back** Bulwark").
+
+**Deliberately NOT wired, and why** — these need an owner call, not a guess:
+* **All 23 Demon masters.** There are no Set-2 Demon cards yet; the art is ahead of the content.
+* **3 ambiguous "2" variants** — `FaultlineScrapper2`, `GemstormInstigator2`, `Veinbreaker2` — each of which has
+  an un-suffixed sibling. mtime is NOT a safe tiebreak here: with Sunmane Herald the newer "2" turned out to be
+  the reject, which the owner signalled by renaming it `extra.png`. The base names stay wired.
+* **12 spell masters with no card**: the 5 Work Orders, Cupcakes, Deepdelve Writ, Ironclad Requisition,
+  Preemptive Attack, Road to the Summit, Spark Plug (the card was renamed Waking Rift, which has its own
+  master), Timepiece.
+
+Verified: typecheck / lint / test (1636) / build:web green. Dev server RESTARTED (22 filenames changed
+extension, so the eager `import.meta.glob` needs more than a reload) and all 133 ids checked through `artFor()`
+— asserting the full resolved path lands in the right subdirectory, that each fetches 200, and that none decode
+above 512px. 133/133 OK, and no `.png` remains anywhere under `art/`.
+
 ### fix(core): a Ruby played in COMBAT fires the target's onRubyPlayed; rename Gem Shard → Gemheart Golem
 
 **"Geode Guardian rubies played on Resonance Idol do not bounce to adjacent minions" — confirmed NOT fixed, now

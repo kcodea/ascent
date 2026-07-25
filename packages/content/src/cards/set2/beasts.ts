@@ -20,9 +20,11 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 4,
     health: 9,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnGrantMagePups' }],
-    text: 'Once per turn, when you buy a Shop spell, teach it to a **Mage-Pup**. **End of Turn:** get that Mage-Pup.',
-    goldenText: 'Twice per turn, when you buy a Shop spell, teach it to a **Mage-Pup**. **End of Turn:** get those Mage-Pups.',
+    // Fires the moment the spell is BOUGHT (owner 2026-07-24) — the Pup lands in hand right away, so you can
+    // play it the same turn. It used to queue and mint at End of Turn, which put the payoff a turn away.
+    effects: [{ on: 'spellBought', do: 'grantMagePupTaught' }],
+    text: 'Once per turn, when you buy a Shop spell, get a **Mage-Pup** that has learned it.',
+    goldenText: 'Twice per turn, when you buy a Shop spell, get a **Mage-Pup** that has learned it.',
   },
   {
     // The tribe capstone: a Choose-One that permanently multiplies one HALF of the Beast trigger suite. Hunt
@@ -50,7 +52,9 @@ export const SET2_BEASTS: CardDef[] = [
   },
   {
     // A viral Rally: every Beast it buffs also LEARNS this rally, so the effect spreads across the board as
-    // your Beasts attack. Each body only ever picks it up once (no exponential re-granting).
+    // your Beasts attack — and the copy each one learns is worth DOUBLE (owner 2026-07-24: it stacks
+    // multiplicatively). Each body only ever picks it up once, which is what bounds the doubling to the board
+    // size instead of compounding with attack count. See `rallySpreadTribeBuff`.
     id: 'b2_sunmane',
     name: 'Sunmane Herald',
     tribe: 'beast',
@@ -59,8 +63,8 @@ export const SET2_BEASTS: CardDef[] = [
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe: 'beast', attack: 3 } }],
-    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**.',
-    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**.',
+    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**, **doubling** each time it spreads.',
+    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**, **doubling** each time it spreads.',
   },
   {
     // The tribe's two halves in one card: it pays your summons, and your SPELLS make that payment bigger.

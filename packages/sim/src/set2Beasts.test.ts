@@ -127,6 +127,38 @@ describe('set 2 — Beast summon + aura cards', () => {
 });
 
 describe('set 2 — Sunmane Herald spreads its Rally', () => {
+  /** Every `buff` event's Attack magnitude, in order — the spread's generation sequence. */
+  const rallyGrants = (board: BoardMinion[]): number[] =>
+    simulate(board, [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }))
+      .events.filter((e) => e.type === 'buff' && e.health === 0)
+      .map((e) => (e as { attack: number }).attack);
+
+  it('DOUBLES each generation: the Beasts it touches grant +6, not another +3', () => {
+    // The owner ruling (2026-07-24) is that the rally stacks multiplicatively. Sunmane grants the base +3 and
+    // hands out a copy worth double, so the second-generation Herald grants +6. Flat spreading — the bug —
+    // produced only +3s forever, so the presence of a 6 is what distinguishes fixed from broken.
+    const grants = rallyGrants([
+      { cardId: 'b2_sunmane', attack: 3, health: 60, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 60, sourceUid: 'B1' },
+    ]);
+    expect(grants).toContain(3); // generation 0 — Sunmane's own grant
+    expect(grants).toContain(6); // generation 1 — the Beast it converted grants double
+  });
+
+  it('each body learns the rally only ONCE, which is what bounds the doubling', () => {
+    // With two Beasts, the chain can only reach generation 1: when B1 attacks it would hand Sunmane a
+    // generation-2 copy, but Sunmane already carries the rally, so nothing is re-granted. Without that guard
+    // the magnitude would compound with ATTACK COUNT rather than spread depth and diverge — a 12 here is the
+    // signature of that runaway.
+    const grants = rallyGrants([
+      { cardId: 'b2_sunmane', attack: 3, health: 60, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 60, sourceUid: 'B1' },
+    ]);
+    expect(Math.max(...grants)).toBe(6);
+    expect(grants).not.toContain(12);
+  });
+
   it('buffs Beasts +3 Attack and grafts the rally onto them (once each, no runaway)', () => {
     const r = simulate([
       { cardId: 'b2_sunmane', attack: 3, health: 60, keywords: ['RL'], sourceUid: 'SH' },
@@ -184,8 +216,147 @@ describe('set 2 — Elderhorn multiplies BEAST triggers only', () => {
   });
 });
 
+describe('set 2 — Moonhowl fires from BOTH spell-buy paths', () => {
+  // Owner report 2026-07-24: "moonhowl isnt proccing when i buy spirit fire". There are two ways to buy a
+  // spell — the right-hand spell SLOT and a spell offer sitting in the minion ROW (Spell Cart / set 2) — and
+  // `spellBought` only fired from the slot, so a row buy silently taught nothing.
+  const mentor = (): BoardCard =>
+    ({ uid: 'mh', cardId: 'b2_moonhowl', tribe: 'beast', attack: 4, health: 9, keywords: [], golden: false });
+
+  it('the right-hand spell SLOT teaches', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 60, board: [mentor()], hand: [],
+      spell: { uid: 'sp', cardId: 'spiritfire' },
+    };
+    s = reduce(s, { type: 'buy', uid: 'sp' });
+    expect(s.hand.find((c) => c.cardId === 'b2_magepup')?.taughtSpellId).toBe('spiritfire');
+  });
+
+  it('a spell offer in the minion ROW teaches too (the reported miss)', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 60, board: [mentor()], hand: [],
+      shop: [{ uid: 'row', cardId: 'spiritfire' }], spell: null,
+    };
+    s = reduce(s, { type: 'buy', uid: 'row' });
+    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // the spell itself bought
+    expect(s.hand.find((c) => c.cardId === 'b2_magepup')?.taughtSpellId).toBe('spiritfire');
+  });
+});
+
+describe('set 2 — a Mage-Pup taught an AIMED spell lets you pick the target', () => {
+  // Owner 2026-07-24. The aim is a PER-INSTANCE property: the Mage-Pup CardDef is untargeted, so the usual
+  // `def.target === 'friendly'` deferral can't see it — the taught spell on the instance is what needs an aim.
+  const pup = (uid: string, spellId: string): BoardCard => ({
+    uid, cardId: 'b2_magepup', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false,
+    taughtSpellId: spellId,
+  });
+  const body = (uid: string): BoardCard =>
+    ({ uid, cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+
+  it('playing it opens the aim picker instead of auto-casting', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', board: [body('a'), body('b')],
+      hand: [pup('p', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 'p' });
+    expect(s.pendingTarget?.uid).toBe('p'); // waiting on the player
+    // Nothing cast yet — the Shout is deferred, not fired-then-corrected.
+    expect(s.spellsCast).toBe(0);
+  });
+
+  it('the chosen minion is the one that gets the spell', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', board: [body('a'), body('b')],
+      hand: [pup('p', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 'p' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'b' });
+    expect(s.pendingTarget).toBeUndefined();
+    expect(s.spellsCast).toBe(1);
+    const a = s.board.find((c) => c.uid === 'a')!;
+    const b = s.board.find((c) => c.uid === 'b')!;
+    // Spirit Fire buffed the PICKED body, and only it — the whole point of aiming.
+    expect(b.attack + b.health).toBeGreaterThan(2);
+    expect(a.attack + a.health).toBe(2);
+  });
+
+  it('an UNtargeted taught spell still resolves immediately (no stray prompt)', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 4, phase: 'recruit', board: [body('a')],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      hand: [pup('p', 'beyondsummit')], shop: [],
+    };
+    s = reduce(s, { type: 'play', uid: 'p' });
+    expect(s.pendingTarget).toBeUndefined();          // no aim for a Discover spell
+    expect(s.discover?.length ?? 0).toBeGreaterThan(0); // it just resolved
+  });
+});
+
+describe('set 2 — Mage-Pups never triple', () => {
+  // Owner ruling 2026-07-24: "mage pups cannot be tripled in any circumstance". Each Pup's identity is the
+  // spell on its instance, so a combine would have to pick one taught spell and bin the other two.
+  const pup = (uid: string, spellId: string): BoardCard => ({
+    uid, cardId: 'b2_magepup', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false,
+    taughtSpellId: spellId,
+  });
+  const stray = (uid: string): BoardCard =>
+    ({ uid, cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+
+  /** Buying a shop minion is the realistic trigger: `checkTriples` runs on BUY (and play/grant), never on a
+   *  roll — asserting after a roll would pass without the guard, i.e. prove nothing. */
+  const buyToTriggerCheck = (s: RunState): RunState =>
+    reduce({ ...s, embers: 60, shop: [{ uid: 'shopbuy', cardId: 'alley' }] }, { type: 'buy', uid: 'shopbuy' });
+
+  it('three Pups do not combine — and each keeps its own taught spell', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', board: [],
+      hand: [pup('p1', 'spiritfire'), pup('p2', 'growth'), pup('p3', 'mend')],
+    };
+    s = buyToTriggerCheck(s);
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'b2_magepup');
+    expect(pups.length).toBe(3);                       // all three survive
+    expect(pups.some((c) => c.golden)).toBe(false);    // nothing gilded
+    expect(pups.map((c) => c.taughtSpellId).sort()).toEqual(['growth', 'mend', 'spiritfire']);
+  });
+
+  it('does not combine across hand and board either', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit',
+      board: [pup('p1', 'spiritfire'), pup('p2', 'growth')],
+      hand: [pup('p3', 'mend')],
+    };
+    s = buyToTriggerCheck(s);
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'b2_magepup');
+    expect(pups.length).toBe(3);
+    expect(pups.some((c) => c.golden)).toBe(false);
+  });
+
+  it('Rune of Twin Gilding (Gild at 2) still cannot gild them', () => {
+    // The rune lowers the threshold, so it's the case most likely to slip past a fix written against 3.
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', runeTwinGilding: true, board: [],
+      hand: [pup('p1', 'spiritfire'), pup('p2', 'growth')],
+    };
+    s = buyToTriggerCheck(s);
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'b2_magepup');
+    expect(pups.length).toBe(2);
+    expect(pups.some((c) => c.golden)).toBe(false);
+  });
+
+  it('CONTROL: a normal minion still triples at 3 — the guard is Pup-specific, not a blanket break', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', board: [],
+      hand: [stray('a'), stray('b'), stray('c')],
+    };
+    s = buyToTriggerCheck(s);
+    expect([...s.board, ...s.hand].some((c) => c.cardId === 'stray' && c.golden)).toBe(true);
+  });
+});
+
 describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
-  it('buy a Shop spell → End of Turn mints a Mage-Pup that remembers it → its Shout casts that spell', () => {
+  it('buying a Shop spell mints the taught Mage-Pup IMMEDIATELY (not at End of Turn)', () => {
+    // Owner 2026-07-24: the payoff used to queue and mint at End of Turn, so the turn you invested in the
+    // spell you got nothing. The Pup must be playable the same turn.
     let s: RunState = {
       ...createRun(6), tier: 6, phase: 'recruit', embers: 60,
       board: [bm('mh', 'b2_moonhowl', 'beast', 4, 9), bm('t1', 'stray', 'beast', 1, 1)],
@@ -193,24 +364,57 @@ describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
       spell: { uid: 'sp', cardId: 'spiritfire' }, // the shop's spell slot
     };
     s = reduce(s, { type: 'buy', uid: 'sp' });
-    expect(s.taughtSpellsThisTurn).toEqual(['spiritfire']); // taught on the BUY
-    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // the spell itself still bought
-
-    s = reduce(s, { type: 'faceOmen' }); // End of Turn mints the Pup
     const pup = s.hand.find((c) => c.cardId === 'b2_magepup');
-    expect(pup).toBeDefined();
-    expect(pup!.taughtSpellId).toBe('spiritfire'); // it remembers what it learned
-    expect(s.taughtSpellsThisTurn).toEqual([]); // queue cleared
+    expect(pup).toBeDefined();                       // in hand NOW, before any End of Turn
+    expect(pup!.taughtSpellId).toBe('spiritfire');   // it remembers what it learned
+    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // the spell itself still bought
+  });
+
+  it('the taught Shout casts the spell — a real cast, tallied like any other', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 60,
+      board: [bm('mh', 'b2_moonhowl', 'beast', 4, 9), bm('t1', 'stray', 'beast', 1, 1)],
+      hand: [], spell: { uid: 'sp', cardId: 'spiritfire' },
+    };
+    s = reduce(s, { type: 'buy', uid: 'sp' });
+    const pup = s.hand.find((c) => c.cardId === 'b2_magepup')!;
+    const before = s.spellsCast;
+    const boardBefore = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    s = reduce(s, { type: 'play', uid: pup.uid });
+    // Spirit Fire is AIMED, so playing the Pup opens the picker (owner 2026-07-24) — complete the aim.
+    expect(s.pendingTarget?.uid).toBe(pup.uid);
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 't1' });
+    expect(s.spellsCast).toBe(before + 1); // it went through castSpell, so spell-watchers see it
+    expect(s.board.reduce((n, c) => n + c.attack + c.health, 0)).toBeGreaterThan(boardBefore);
+  });
+
+  it('a taught DISCOVER spell opens the real Discover (the Beyond the Summit bug)', () => {
+    // The reported failure: `castSpell` only runs a spell's `effects[]`, and Beyond the Summit has none — it
+    // works entirely through `discoverOnPlay`. A taught copy therefore did nothing at all. It now routes
+    // through the same `discoverSpecFor` + `queueDiscover` the hand path uses.
+    let s: RunState = {
+      ...createRun(6), tier: 4, phase: 'recruit', embers: 60,
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      board: [bm('mh', 'b2_moonhowl', 'beast', 4, 9)], hand: [], shop: [],
+      spell: { uid: 'sp', cardId: 'beyondsummit' },
+    };
+    s = reduce(s, { type: 'buy', uid: 'sp' });
+    const pup = s.hand.find((c) => c.cardId === 'b2_magepup')!;
+    expect(pup.taughtSpellId).toBe('beyondsummit');
+    s = reduce(s, { type: 'play', uid: pup.uid });
+    expect(s.discover?.length ?? 0).toBeGreaterThan(0); // the peek actually opened
+    // …and it's the tier-up peek the real card gives, not an arbitrary offer.
+    expect(s.discover!.every((id) => (CARD_INDEX[id]?.tier ?? 0) >= 5)).toBe(true);
   });
 
   it('respects the once-per-turn cap, and does nothing with no Mentor on board', () => {
-    // No Mentor → buying a spell teaches nothing.
+    // No Mentor → buying a spell mints nothing.
     let none: RunState = {
       ...createRun(6), tier: 6, phase: 'recruit', embers: 60, board: [], hand: [],
       spell: { uid: 'sp', cardId: 'spiritfire' },
     };
     none = reduce(none, { type: 'buy', uid: 'sp' });
-    expect(none.taughtSpellsThisTurn ?? []).toEqual([]);
+    expect(none.hand.some((c) => c.cardId === 'b2_magepup')).toBe(false);
 
     // With a Mentor: the first buy teaches, a second in the same turn does not (cap 1 for a non-golden).
     let s: RunState = {
@@ -221,6 +425,8 @@ describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
     s = reduce(s, { type: 'buy', uid: 'sp1' });
     s = { ...s, spell: { uid: 'sp2', cardId: 'growth' } }; // a second spell appears in the slot
     s = reduce(s, { type: 'buy', uid: 'sp2' });
-    expect(s.taughtSpellsThisTurn).toEqual(['spiritfire']); // still just the first — cap respected
+    const pups = s.hand.filter((c) => c.cardId === 'b2_magepup');
+    expect(pups.length).toBe(1);                     // cap respected
+    expect(pups[0]!.taughtSpellId).toBe('spiritfire'); // still the first spell
   });
 });

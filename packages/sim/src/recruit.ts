@@ -33,7 +33,7 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef },
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -503,6 +503,20 @@ export function grimoireMultActive(state: RunState): number {
  *  first after arming consumes it). No-op unless a live Grimoire made it active. */
 export function consumeGrimoireCharge(state: RunState): void {
   if (grimoireMultActive(state) > 1) state.grimoireMult = 0;
+}
+
+/**
+ * How many times a RUBY played from hand resolves: 1, plus `rubyExtraCast` per Prismcaster on board (doubled per
+ * golden Prismcaster), all multiplied by a live Living Grimoire charge (a Ruby is a spell for the Grimoire — it
+ * doesn't say "Shop spell").
+ *
+ * Extracted from the reducer so the UI can PREVIEW the count for the ×N badge (owner ask 2026-07-24: Rubies had
+ * no multicast badge at all, because the count only existed inline at the cast site). Side-effect free, like
+ * `spellCasts` — the charge is spent by the real cast path, not by reading it here.
+ */
+export function rubyCastCount(state: RunState): number {
+  const extra = state.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+  return (1 + extra) * grimoireMultActive(state);
 }
 
 export function spellCasts(state: RunState, def: CardDef): number {
@@ -1059,44 +1073,95 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Set 2 — Mage-Pup (Shout): cast the spell this token was TAUGHT (`taughtSpellId`, stamped when Moonhowl
-   *  Mentor minted it). A real `castSpell`, so it tallies and fires spell-cast watchers exactly like casting
-   *  the card from hand. An AIMED spell re-targets a seeded-random friendly minion — the same rule Rune of
-   *  Recurrence and Runic Archivist use, so "cast a spell without choosing a target" behaves consistently.
+   *  Mentor minted it). Because this is a real `onPlay` effect, anything that re-fires Shouts (Drakko and
+   *  friends) re-fires the whole cast for free — no special-casing needed on that side.
+   *
+   *  **Reworked 2026-07-24 (owner: "take a full and complete pass").** The first cut called `castSpell`
+   *  directly, which only ever runs a spell's `effects[]`. That silently did NOTHING for a whole class of
+   *  spells whose behaviour lives elsewhere in the play path — most visibly Beyond the Summit, which has
+   *  `effects: []` and works entirely through `discoverOnPlay` (the reported bug). It also skipped the cast
+   *  multipliers, so a taught spell ignored Nimbus / Ancient Runes / Spell Thesis / Yazzus. This now mirrors
+   *  the reducer's own spell resolution:
+   *   - **Discover spells** open the real Discover, via the shared `discoverSpecFor` + `queueDiscover`.
+   *   - **Cast count** comes from `spellCasts` (Yazzus on aimed spells, Ancient Runes, Spell Thesis, Nimbus),
+   *     with `singleCast` respected — the same call the hand path makes.
+   *   - **Aimed spells** re-target a seeded-random friendly, the rule Rune of Recurrence and Runic Archivist
+   *     already use, so "cast a spell without choosing a target" behaves consistently everywhere.
+   *
+   *  Deliberately NOT handled: a Choose One spell (Apples). Resolving one requires opening a modal and waiting
+   *  for a player decision, which a Battlecry mid-resolution can't do — so a taught Choose One casts its FIRST
+   *  option rather than silently doing nothing. Called out here because it's a real (small) divergence from
+   *  the hand path, not an oversight.
+   *
    *  Untaught (or an unknown id) is a clean no-op. */
-  battlecryCastTaughtSpell: (ctx, self) => {
+  battlecryCastTaughtSpell: (ctx, self, _params, payload) => {
     const def = self.taughtSpellId ? CARD_INDEX[self.taughtSpellId] : undefined;
     if (!def?.spell) return;
-    for (let i = 0; i < gold(self); i++) {
-      if (!def.target) { castSpell(ctx.state, def); continue; }
-      if (ctx.state.board.length === 0) return;
-      const rng = makeRng(ctx.state.rngCursor);
-      const target = ctx.state.board[rng.int(ctx.state.board.length)]!;
-      ctx.state.rngCursor = rng.state();
-      castSpell(ctx.state, def, target);
+    const st = ctx.state;
+    // A golden Pup casts the whole thing twice; `spellCasts` then applies the run's own multipliers per cast,
+    // exactly as playing the spell from hand would.
+    for (let g = 0; g < gold(self); g++) {
+      const casts = def.singleCast ? 1 : spellCasts(st, def);
+      if (def.discoverOnPlay) {
+        // A Discover spell's payload is the OFFER, not an `effects[]` — go through the same builder the hand
+        // path uses so a taught Beyond the Summit peeks a tier up like the real card.
+        const spec = discoverSpecFor(st, def);
+        if (spec) for (let n = 0; n < casts; n++) queueDiscover(st, { ...spec });
+      } else if (def.chooseOne?.length) {
+        // See the note above: cast the first option rather than stranding the play on a modal we can't open.
+        const synthetic = { ...def, effects: def.chooseOne[0]!.effects };
+        for (let n = 0; n < casts; n++) castSpell(st, synthetic, pickTaughtTarget(st, def));
+      } else {
+        for (let n = 0; n < casts; n++) {
+          // The PLAYER's pick when the Pup was played through the aim picker; otherwise a seeded-random
+          // friendly (the Pup was re-fired by something that can't prompt, e.g. a Shout-repeater).
+          const target = payload.target ?? pickTaughtTarget(st, def);
+          if (def.target && !target) break; // aimed with nothing to aim at → fizzle, like the hand path
+          castSpell(st, def, target);
+        }
+      }
+      // Spend the same one-shot charges a hand cast spends, so a taught spell can't double-dip them.
+      if (!def.singleCast) {
+        st.nextSpellExtraCasts = undefined; // Nimbus charge (already folded into `casts`)
+        if (st.spellFirstDoubleEachTurn) st.spellFirstUsedThisTurn = true; // Spell Thesis freebie
+      }
     }
   },
 
-  /** Set 2 — Moonhowl Mentor (End of Turn): mint one Mage-Pup into hand per spell taught this turn, each
-   *  stamped with the spell it learned. Clears the queue so next turn starts fresh. Respects the hand cap. */
-  endOfTurnGrantMagePups: (ctx) => {
-    const taught = ctx.state.taughtSpellsThisTurn ?? [];
-    if (taught.length === 0) return;
+  /** Set 2 — Moonhowl Mentor: a Shop Spell was bought — mint a Mage-Pup that has LEARNED it, straight into
+   *  hand, so it's playable the same turn (owner 2026-07-24; it used to queue and mint at End of Turn, which
+   *  put the payoff a turn away and made the card feel dead on the turn you invested in it).
+   *
+   *  The per-turn cap is counted PER MENTOR (1 each, 2 if golden) and shared across them via one run-level
+   *  tally, so two Mentors teach twice — the tally lives on the run, not the instance, because the cap is
+   *  "how many spells got taught this turn", not "how many times this body acted". Respects the hand cap. */
+  grantMagePupTaught: (ctx, self, _params, payload) => {
+    const spellId = payload.spellId ?? '';
+    const spell = CARD_INDEX[spellId];
+    if (!spell?.spell) return;
+    // Cap: this Mentor allows 1 teach (2 golden); the run-level tally is what actually gates, so a second
+    // Mentor on board raises the ceiling rather than each firing independently.
+    const cap = ctx.state.board.reduce(
+      (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
+      0,
+    );
+    const used = ctx.state.moonhowlTeachesThisTurn ?? 0;
+    if (used >= cap) return; // "once per turn" (twice for a golden Mentor)
+    if (ctx.state.hand.length >= CONFIG.handMax) return; // no room — don't burn the teach on a card that can't land
     const def = CARD_INDEX['b2_magepup'];
     if (!def) return;
-    for (const spellId of taught) {
-      if (ctx.state.hand.length >= CONFIG.handMax) break;
-      ctx.state.hand.push({
-        uid: `t${ctx.state.uidSeq++}`,
-        cardId: def.id,
-        tribe: def.tribe,
-        attack: def.attack,
-        health: def.health,
-        keywords: [...def.keywords],
-        golden: false,
-        taughtSpellId: spellId,
-      });
-    }
-    ctx.state.taughtSpellsThisTurn = [];
+    ctx.state.moonhowlTeachesThisTurn = used + 1;
+    ctx.state.hand.push({
+      uid: `t${ctx.state.uidSeq++}`,
+      cardId: def.id,
+      tribe: def.tribe,
+      attack: def.attack,
+      health: def.health,
+      keywords: [...def.keywords],
+      golden: false,
+      taughtSpellId: spellId,
+    });
+    void self;
   },
 
   /** Set 2 — Elderhorn "Hunt": your BEAST Rallies and Slaughters trigger `extra` more times, permanently.
@@ -2108,7 +2173,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Same first-per-turn guard. Neighbours are board-adjacent (left/right), so it rewards seating it between
    *  two Dragons — and it never re-casts on ITSELF, which would double-dip the original cast. */
   onSpellCastOnThisSpreadAdjacent: (ctx, self, params, payload) => {
-    if (self.spellsOnThisTurn !== 1) return;
+    // The SUM, because Runefire counts Rubies too — a Ruby then a spell on the same body pays out once.
+    if ((self.spellsOnThisTurn ?? 0) + (self.rubiesOnThisTurn ?? 0) !== 1) return;
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef) return;
     const tribe = str(params.tribe);
@@ -2119,6 +2185,36 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     );
     for (const n of neighbours) {
       for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, n);
+    }
+  },
+
+  /** Set 2 — Runefire, the RUBY half of "the first spell you cast on this each turn also casts on adjacent
+   *  Dragons". Runefire is one of the two spell-reactive Dragons that deliberately works with Rubies too
+   *  (owner 2026-07-24: only the cards that say "Shop spell" exclude them), and a Ruby doesn't route through
+   *  `castSpell`, so it can't reach the `spellCastOnThis` factory — it needs its own hook.
+   *
+   *  "First each turn" is the SUM of Shop spells and Rubies landed on this body, so casting a spell and then a
+   *  Ruby on Runefire pays out once, not twice. Spreading a Ruby means giving each adjacent `tribe` neighbour
+   *  the same permanent stat buff the Ruby just gave — the Ruby's own resolution, repeated on the neighbour,
+   *  including that neighbour's own `onRubyPlayed` watchers (Ruby Broker's Gold), because a spread Ruby is a
+   *  Ruby landing on it. */
+  onRubyPlayedSpreadAdjacent: (ctx, self, params, payload) => {
+    const landed = (self.spellsOnThisTurn ?? 0) + (self.rubiesOnThisTurn ?? 0);
+    if (landed !== 1) return; // only the first spell-or-Ruby on this body each turn
+    const a = num(payload.rubyAttack, 0);
+    const h = num(payload.rubyHealth, 0);
+    if (a <= 0 && h <= 0) return;
+    const tribe = str(params.tribe);
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    const neighbours = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter(
+      (c): c is BoardCard => !!c && (!tribe || isTribe(c, tribe as never)),
+    );
+    for (const n of neighbours) {
+      for (let r = 0; r < num(params.count, 1) * gold(self); r++) {
+        addBuff(n, 'Ruby', a, h);
+        fireOnRubyPlayed(ctx.state, n, a, h);
+      }
     }
   },
 
@@ -2192,12 +2288,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * improveReps(ctx.state);
   },
 
-  /** Set 2 — Ashscribe Whelp: the FIRST spell you cast each turn permanently grows this minion.
-   *  Hooked on `spellCast`, which fires once per cast AFTER the tally — so `spellsThisTurn === 1` is exactly
-   *  "this was the first". Permanent (owner ruling 2026-07-24): a plain `addBuff`, so it accumulates every turn
-   *  and shows in the inspect breakdown like any other growth. */
+  /** Set 2 — Ashscribe Whelp: the FIRST spell you cast each turn permanently grows this minion. Permanent
+   *  (owner ruling 2026-07-24): a plain `addBuff`, so it accumulates every turn and shows in the inspect
+   *  breakdown like any other growth.
+   *
+   *  Counts from when THIS Whelp was PLACED, not from turn start — the same correction the owner made for
+   *  Living Grimoire and Spellkeeper Drake, applied here for consistency. Reading the turn-global
+   *  `spellsThisTurn === 1` meant a Whelp bought and played after you'd already cast that turn was dead until
+   *  next turn, which reads as the card being broken rather than as a cost of sequencing. The per-instance
+   *  `boardSpellCount` is reset each turn and undefined on a fresh body, so placement is the natural floor. */
   onSpellCastFirstBuffSelf: (ctx, self, params) => {
-    if (ctx.state.spellsThisTurn !== 1) return;
+    const n = (self.boardSpellCount ?? 0) + 1;
+    self.boardSpellCount = n;
+    if (n !== 1) return; // only the first since this Whelp hit the board
     addBuff(self, nameOf(self), num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self));
   },
 
@@ -3210,6 +3313,65 @@ export function modalOpen(state: RunState): boolean {
  * overwrites `state.discover` unconditionally, which either stacks the overlay or silently eats the offer
  * it replaced.
  */
+/**
+ * Resolve a card's `discoverOnPlay` data into a concrete minion Discover spec against the live run. Shared by
+ * the reducer's play path and by the Mage-Pup's taught-spell Shout, so a Discover spell offers the SAME thing
+ * however it's cast — the Pup used to bypass this entirely and a taught Beyond the Summit did nothing at all
+ * (owner report 2026-07-24). `grantedTier` freezes a triple-reward Discover at the tier it was granted.
+ */
+/**
+ * The spell a Mage-Pup was taught, when that spell needs a TARGET — i.e. when playing this Pup should open the
+ * aim picker rather than resolving immediately (owner 2026-07-24: "when a mage pup is taught a spell that
+ * targets a minion, they should be able to target a minion when played").
+ *
+ * This is a PER-INSTANCE question, which is why it can't ride the usual `def.target === 'friendly'` check: the
+ * Mage-Pup CardDef is untargeted, and whether a given Pup needs an aim depends on the spell on its instance.
+ * Returns undefined for every other card, an untaught Pup, or a taught spell that needs no target.
+ */
+export function taughtAimSpell(card: BoardCard): CardDef | undefined {
+  if (card.cardId !== 'b2_magepup' || !card.taughtSpellId) return undefined;
+  const spell = CARD_INDEX[card.taughtSpellId];
+  if (!spell?.spell) return undefined;
+  // 'any' spells can also hit a TAVERN OFFER when cast from hand; a deferred Battlecry aim resolves against the
+  // board only (`applyBattlecryTarget` takes a BoardCard), so a taught 'any' spell aims at your board. Called
+  // out rather than silently narrowed — widening it means teaching the pendingTarget path about shop offers.
+  return spell.target === 'friendly' || spell.target === 'any' ? spell : undefined;
+}
+
+/** The friendly a TAUGHT aimed spell lands on: a seeded-random board minion (deterministic — it advances the
+ *  run's RNG cursor), or `undefined` when the board is empty so the caller can fizzle. Untargeted spells get
+ *  `undefined` and cast normally. Same rule as Rune of Recurrence / Runic Archivist. */
+function pickTaughtTarget(state: RunState, def: CardDef): BoardCard | undefined {
+  if (!def.target || state.board.length === 0) return undefined;
+  const rng = makeRng(state.rngCursor);
+  const pick = state.board[rng.int(state.board.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
+}
+
+export function discoverSpecFor(state: RunState, def: CardDef, grantedTier?: number): DiscoverSpec | undefined {
+  const dop = def.discoverOnPlay;
+  if (!dop) return undefined;
+  if (dop.spell) return { kind: 'spell' };
+  // `exactCurrentTier` (Key Findings) locks the pool to the live tavern tier; `exactTier` is a fixed tier
+  // (Sprout); otherwise the offer tier is current + `tierOffset`.
+  const exactTier = dop.exactCurrentTier ? state.tier : dop.exactTier;
+  const baseTier = grantedTier ?? state.tier;
+  const tier = exactTier ?? baseTier + (dop.tierOffset ?? 0);
+  const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(state) ?? undefined) : dop.tribe;
+  return {
+    kind: 'minion' as const,
+    tier,
+    ...(exactTier !== undefined ? { exactTier } : {}),
+    ...(dop.filter ? { filter: dop.filter } : {}),
+    ...(tribe ? { tribe } : {}),
+    ...(dop.topTierFirst ? { topTierFirst: true } : {}),
+    ...(dop.maxTier !== undefined ? { maxTier: dop.maxTier } : {}),
+    ...(dop.lockUntilNextTurn ? { lockWave: state.wave + 1 } : {}), // Hourglass Reserve: locked until next turn
+    ...(dop.borrowed ? { borrowed: true } : {}), // Funeral on Loan: play -> trigger Echo + destroy
+  };
+}
+
 export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
   if (modalOpen(state)) {
     (state.discoverQueue ??= []).push(spec);
@@ -3458,6 +3620,9 @@ export function fireOnRubyCast(state: RunState, before: number, after: number): 
  *  Resonance Idol → bounce). The played Ruby's stats ride in the payload so a bounce can re-apply the same
  *  buff. The bounce uses `addBuff` directly (not this path) so it can't cascade into an infinite loop. */
 export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number): void {
+  // Counted BEFORE the effects run, mirroring `fireOnSpellCastOnThis` — a spread/recast that lands another Ruby
+  // on this body must see a count past 1 or a "first each turn" card recurses.
+  card.rubiesOnThisTurn = (card.rubiesOnThisTurn ?? 0) + 1;
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onRubyPlayed')) return;
   const ctx = makeContext(state);
@@ -3842,21 +4007,23 @@ export function replayRecurringEndOfTurn(state: RunState): boolean {
 }
 
 /**
- * Set 2 — Moonhowl Mentor: buying a SHOP SPELL teaches it to a Mage-Pup, up to the Mentor's per-turn cap
- * (once base, twice golden). Queued into `taughtSpellsThisTurn`; the Mentor's End of Turn mints one Mage-Pup
- * per entry. Called from the reducer's spell-buy path — spells deliberately don't fire the normal `onBuy`
- * trigger ("a spell isn't a minion"), so this is its own narrow hook rather than a widening of that contract.
+ * Set 2 — a SHOP SPELL was purchased. Fires the `spellBought` event so any watcher can react (today: Moonhowl
+ * Mentor). Called from the reducer's spell-buy path — spells deliberately don't fire the normal `onBuy`
+ * trigger ("a spell isn't a minion"), so this is its own event rather than a widening of that contract, which
+ * would change what every existing buy-trigger sees.
  */
-export function teachSpellToMagePup(state: RunState, spellId: string): void {
-  const cap = state.board.reduce(
-    (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'endOfTurnGrantMagePups') ? (c.golden ? 2 : 1) : 0),
-    0,
-  );
-  if (cap <= 0) return; // no Mentor on board
-  const used = state.moonhowlTeachesThisTurn ?? 0;
-  if (used >= cap) return; // "once per turn" (twice for a golden Mentor)
-  state.moonhowlTeachesThisTurn = used + 1;
-  state.taughtSpellsThisTurn = [...(state.taughtSpellsThisTurn ?? []), spellId];
+export function applySpellBought(state: RunState, spellId: string): void {
+  // A dedicated loop rather than the generic `fire`, which is typed to a minion-only payload — this event's
+  // subject is the SPELL, and the board minion is just the watcher. Mirrors `fireOnRubyGained`.
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def?.effects.some((e) => e.on === 'spellBought')) continue;
+    const ctx = makeContext(state);
+    for (const eff of def.effects) {
+      if (eff.on !== 'spellBought') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, spellId });
+    }
+  }
 }
 
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
@@ -4421,6 +4588,11 @@ export function playCard(state: RunState, played: BoardCard): void {
   // Targeted Battlecry (Toxin Tender): the player picks the friendly target next — deferred to
   // `applyBattlecryTarget` (the reducer sets `pendingTarget`). onSummon already fired above.
   if (def.target === 'friendly') return;
+  // A Mage-Pup taught an AIMED spell defers the same way, but the check is per-instance (its CardDef is
+  // untargeted — the taught spell is what needs a target). The Pup is already on the board by the time this
+  // runs and a friendly spell may target the Pup itself, so a legal target always exists; the reducer opens
+  // the picker unconditionally for this case.
+  if (taughtAimSpell(played)) return;
   // Drakko the Drummer makes Battlecries fire extra times; Warm Embers doubles the next few played Shouts.
   const repeats = playedShoutRepeats(state, def);
   const hasBattlecry = def.effects.some((e) => e.on === 'onPlay');

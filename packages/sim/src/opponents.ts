@@ -119,6 +119,8 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.golden ? { golden: true } : {}),
     ...(m.addedTribes && m.addedTribes.length ? { addedTribes: [...m.addedTribes] } : {}), // Anomaly Reactor: spell-added tribe → combat tribe2
     ...(m.bloodlust ? { bloodlust: true } : {}), // Bloodlust: pending Start-of-Combat immune strike
+    ...(m.chosenOption !== undefined ? { chosenOption: m.chosenOption } : {}), // Choose One: the branch it became, so a served board reads the same single branch
+    ...(m.taughtSpellId ? { taughtSpellId: m.taughtSpellId } : {}), // Mage-Pup: the spell it learned
     ...(m.summonBonus ? { summonBonus: m.summonBonus } : {}),
     // Per-minion accruals the snapshot persisted (see `cleanBoard`): carry them ALL so a served board is as
     // strong AND reads as accurately as the board it was captured from. `instantiate` seeds each into the

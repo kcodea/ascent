@@ -52,6 +52,8 @@ export function instantiate(
 
     summonBonus: board.summonBonus ?? 0,
     eotBonus: board.eotBonus, // Ritualist: seed the End-of-Turn grant accrual so the live combat text shows its per-tick value
+    chosenOption: board.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
+    taughtSpellId: board.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: board.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)
     eotTick: board.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the live combat text
     // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack. Mauron

@@ -309,7 +309,12 @@ export const Card = memo(function Card({
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
   // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.
-  const showText = forceFull || !useGame((s) => s.compactCards);
+  // `||` here SHORT-CIRCUITED the `useGame` call whenever `forceFull` was set — a conditionally-called hook.
+  // It went unnoticed while every call site passed a constant `forceFull`, but any tree position where a card
+  // renders force-full after a non-force-full one shifts the whole hook order and React throws "Should have a
+  // queue" (hit 2026-07-24 adding force-full cards to the Choose One prompt). Read the store unconditionally.
+  const compactCards = useGame((s) => s.compactCards);
+  const showText = forceFull || !compactCards;
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
   const [popin, setPopin] = useState(() => !suppressPop);
   // Drop the `popin` class once the mount-pop has played. It must not linger: `.card.popin` carries the
@@ -345,14 +350,32 @@ export const Card = memo(function Card({
   // Its own config (`stepProcFxConfig`), NOT the spell-power one — same primitive, independently tunable.
   const stepCounterRef = useRef<HTMLSpanElement>(null);
   const prevStepRef = useRef<number | null>(null);
+  // The counter's last laid-out CENTRE. Kept because one card fires its flourish as the counter DISAPPEARS
+  // (see below), by which point the element is unmounted and has no rect of its own to read.
+  const lastStepPtRef = useRef<{ x: number; y: number } | null>(null);
   const stepCur = card.stepProgress?.current;
   const stepTotal = card.stepProgress?.total;
   useEffect(() => {
     const prev = prevStepRef.current;
     prevStepRef.current = stepCur ?? null;
-    if (stepCur === undefined || stepTotal === undefined) return;
-    if (!isStepProcTick(prev, stepCur, stepTotal)) return;      // see the rule (+ its tests) in stepProcFxConfig
     const el = stepCounterRef.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width || r.height) lastStepPtRef.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    // Living Grimoire: its meter is hidden while CHARGED, so "recharged" shows up as the counter vanishing
+    // rather than as a tick landing on `total` (owner correction 2026-07-24 — a 3/3 read as still-to-fill).
+    // Fire the same flourish from where the counter just was, so becoming ready still reads as an event.
+    // Guarded on `prev !== null` so a card that mounts already charged doesn't burst.
+    if (stepCur === undefined) {
+      if (prev !== null && lastStepPtRef.current) {
+        const { x, y } = lastStepPtRef.current;
+        pixiFx.spellPower(x, y, getStepProcFxConfig());
+      }
+      return;
+    }
+    if (stepTotal === undefined) return;
+    if (!isStepProcTick(prev, stepCur, stepTotal)) return;      // see the rule (+ its tests) in stepProcFxConfig
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (!r.width && !r.height) return;             // not laid out (hidden/unmounted) — nothing to fire from

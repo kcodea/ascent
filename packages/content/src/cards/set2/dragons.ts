@@ -41,8 +41,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'onSpellCastFirstBuffSelf', params: { attack: 2, health: 2 } }],
-    text: 'The first time you cast a spell each turn, gain **+2/+2**.',
-    goldenText: 'The first time you cast a spell each turn, gain **+4/+4**.',
+    text: 'The first time you cast a **Shop spell** each turn, gain **+2/+2**.',
+    goldenText: 'The first time you cast a **Shop spell** each turn, gain **+4/+4**.',
   },
   {
     // Rewards casting TWICE in a turn rather than once — the recursion line's "keep going" piece.
@@ -54,8 +54,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'onSpellCastSecondCopyFirst', params: { count: 1 } }],
-    text: 'After you cast your **second shop spell** each turn, get a copy of the first.',
-    goldenText: 'After you cast your **second shop spell** each turn, get **2** copies of the first.',
+    text: 'After you cast your **second Shop spell** each turn, get a copy of the first.',
+    goldenText: 'After you cast your **second Shop spell** each turn, get **2** copies of the first.',
   },
   {
     // Rally: every time it attacks, it re-fires a friend's Shout. Left-most OTHER Dragon — "other" is in the
@@ -128,8 +128,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleQueueNextSpellCopy', params: { count: 1 } }],
-    text: '**Echo:** get a copy of the first spell you cast next turn.',
-    goldenText: '**Echo:** get **2** copies of the first spell you cast next turn.',
+    text: '**Echo:** get a copy of the first **Shop spell** you cast next turn.',
+    goldenText: '**Echo:** get **2** copies of the first **Shop spell** you cast next turn.',
   },
   {
     // Dragon/DEMON, Rise: the tribe's combat payoff — deaths make your SPELLS better for the rest of the run.
@@ -144,8 +144,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 8,
     keywords: ['R'],
     effects: [{ on: 'avenge', do: 'avengeBuffSpellPower', params: { count: 4, attack: 1, health: 1 } }],
-    text: '**Rise. Avenge (4):** improve your spells by **+1/+1**.',
-    goldenText: '**Rise. Avenge (4):** improve your spells by **+2/+2**.',
+    text: '**Rise. Avenge (4):** improve your **Shop spells** by **+1/+1**.',
+    goldenText: '**Rise. Avenge (4):** improve your **Shop spells** by **+2/+2**.',
   },
   {
     // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the
@@ -171,8 +171,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
-    text: '**End of Turn:** cast the first spell you cast this turn again.',
-    goldenText: '**End of Turn:** cast the first spell you cast this turn **2 additional** times.',
+    text: '**End of Turn:** cast the first **Shop spell** you cast this turn again.',
+    goldenText: '**End of Turn:** cast the first **Shop spell** you cast this turn **2 additional** times.',
   },
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.
@@ -198,8 +198,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisRecast', params: { count: 1 } }],
-    text: 'The first spell you cast on this each turn **casts again**.',
-    goldenText: 'The first spell you cast on this each turn casts **2 additional** times.',
+    text: 'The first **Shop spell** you cast on this each turn **casts again**.',
+    goldenText: 'The first **Shop spell** you cast on this each turn casts **2 additional** times.',
   },
   {
     // The wide version of Mirrorwing: instead of doubling on itself, it copies the spell onto its Dragon
@@ -211,9 +211,15 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisSpreadAdjacent', params: { tribe: 'dragon', count: 1 } }],
-    text: 'The first spell you cast on this each turn **also casts on adjacent Dragons**.',
-    goldenText: 'The first spell you cast on this each turn casts **twice** on adjacent Dragons.',
+    // Two hooks for one rule: Shop spells arrive via `spellCastOnThis`, Rubies via `onRubyPlayed` (a Ruby never
+    // routes through `castSpell`). Runefire deliberately works with BOTH — it's one of the two spell-reactive
+    // Dragons that doesn't say "Shop spell" (owner 2026-07-24).
+    effects: [
+      { on: 'spellCastOnThis', do: 'onSpellCastOnThisSpreadAdjacent', params: { tribe: 'dragon', count: 1 } },
+      { on: 'onRubyPlayed', do: 'onRubyPlayedSpreadAdjacent', params: { tribe: 'dragon', count: 1 } },
+    ],
+    text: 'The first spell or **Ruby** you cast on this each turn **also casts on adjacent Dragons**.',
+    goldenText: 'The first spell or **Ruby** you cast on this each turn casts **twice** on adjacent Dragons.',
   },
   {
     // Two effects, one card: the Shout that pays out, and the cadence that grows it. Rides
@@ -257,8 +263,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryCopyCastSpell', params: { which: 'last', count: 1 } }],
-    text: '**Shout:** get a copy of the last spell you cast this turn.',
-    goldenText: '**Shout:** get **2** copies of the last spell you cast this turn.',
+    text: '**Shout:** get a copy of the last **Shop spell** you cast this turn.',
+    goldenText: '**Shout:** get **2** copies of the last **Shop spell** you cast this turn.',
   },
   {
     // The End-of-Turn half of the same idea — it pays out AFTER the turn's casting is done, so it rewards
@@ -271,8 +277,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyCastSpell', params: { which: 'first', count: 1 } }],
-    text: '**End of Turn:** get a copy of the first spell you cast this turn.',
-    goldenText: '**End of Turn:** get **2** copies of the first spell you cast this turn.',
+    text: '**End of Turn:** get a copy of the first **Shop spell** you cast this turn.',
+    goldenText: '**End of Turn:** get **2** copies of the first **Shop spell** you cast this turn.',
   },
   {
     // Set 1's Karwind pays on Battlecries; the Matriarch is the Attack-only Dragon version, so the tribe has a
@@ -302,7 +308,7 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [],
     chooseOne: [
       { text: 'Your **Shouts** trigger an additional time.', effects: [{ on: 'onPlay', do: 'battlecryGrantShoutExtra', params: { extra: 1 } }] },
-      { text: 'Your first spell each turn casts **3 times**.', effects: [{ on: 'onPlay', do: 'battlecryGrantFirstSpellMult', params: { mult: 3 } }] },
+      { text: 'Your first **Shop spell** each turn casts **3 times**.', effects: [{ on: 'onPlay', do: 'battlecryGrantFirstSpellMult', params: { mult: 3 } }] },
     ],
     chooseBothWhenGolden: true,
     text: '**Choose One — Chorus:** your Shouts trigger an additional time. **Spellweave:** your first spell each turn casts **3 times**.',

@@ -2097,16 +2097,31 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  attack. Uses `ctx.grantDeathrattle`, which despite the name grafts + registers ANY effect (it's the same
    *  path Grave Body uses to copy Echoes).
    *
-   *  Guarded against re-granting to a minion that already carries this rally: without the check, every Herald's
-   *  attack would stack another copy of the effect onto the same body, and the grants would grow exponentially
-   *  with attack count rather than spreading once per Beast. */
+   *  The spread **DOUBLES each generation** (owner ruling 2026-07-24: "this stacks multiplicatively to scale
+   *  with the right build"). The copy a recipient learns is worth twice what it was just handed, so the rally
+   *  escalates as it travels: Sunmane grants +3, the Beasts it touched grant +6, the ones they touch grant
+   *  +12, and so on. Flat spreading was the bug — every generation granted the same +3.
+   *
+   *  Two properties keep that bounded rather than runaway. (1) A minion that already carries this rally is
+   *  never re-granted — otherwise each Herald's attack would weld another copy onto the same body and the
+   *  magnitude would compound with ATTACK COUNT instead of spread depth, which diverges. (2) Because each body
+   *  acquires the rally exactly once, the number of doublings can't exceed the board size — the ceiling is
+   *  `atk × 2^6` on a full board, not an unbounded escalation. Both are load-bearing; drop either and a long
+   *  fight overflows.
+   *
+   *  A recipient that already has the rally at a LOWER generation deliberately keeps its own value rather than
+   *  upgrading. Upgrading would re-open the compound-with-attack-count path (1), and "each Beast becomes a
+   *  Herald once" is the simpler rule to read off the board. */
   rallySpreadTribeBuff: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
     const tribe = (str(params.tribe) || 'beast') as Tribe;
-    const a = num(params.attack, 3) * mul(self);
+    const base = num(params.attack, 3);
+    const a = base * mul(self);
     if (a <= 0) return;
-    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}) } };
+    // The next generation is worth double. Derived from the PRE-golden base so the escalation stays a property
+    // of the chain (deterministic, same on both sides) rather than of who happened to be golden.
+    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}), attack: base * 2 } };
     for (const m of ctx.living(self.side)) {
       if (m === self) continue;
       if (!(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;

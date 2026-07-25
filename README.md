@@ -42,6 +42,18 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **The ×N multicast badge is tunable** — position, scale and two colour pickers in the Card Pills dev tuner; shipped mirroring the cost coin in the opposite corner.
+- **Rubies show their ×N multicast badge**, now an orange minted coin matching the hero-power cost. Living Grimoire's Shout meter stays hidden while it's charged and appears at 0/3 once spent.
+- **Living Grimoire recharges every turn** (its rule always said "each turn" — now it's true), and shows a 0/3 Shout meter while spent that fills and flashes when it's ready again.
+- **Dragons that ignore Rubies now say so.** Every spell-reactive Dragon meant to exclude Rubies prints "Shop spell"; Living Grimoire and Runefire still take both, and Runefire finally spreads a Ruby to its neighbours.
+- **A Mage-Pup taught a targeted spell lets you aim it**, and Moonhowl now procs on spells bought from the minion row as well as the spell slot.
+- **Mage-Pups never combine into a golden** — each one carries the spell it was taught, so a triple would throw two of them away.
+- **Mage-Pups cast what they were taught, properly.** Moonhowl Mentor hands you the Pup the moment you buy the
+  spell, the Pup's text names the spell it learned, and taught Discover spells now actually Discover.
+- **Sunmane Herald's Rally doubles as it spreads** (+3 → +6 → +12) instead of handing out a flat +3.
+- **Choose One cards stop advertising the option they didn't take.** Once resolved, the card on your board
+  prints only the branch it became — and the prompt itself is now two real cards, so you pick the version of
+  the card you want instead of reading two paragraphs.
 - **The Set-2 Beast tribe has its art**, tokens included (Mage-Pup, T-Rex Baby, Void Cub), plus a refresh of
   the spell art. Six Beasts are carried-over cards, so their Set-1 portraits update too.
 - **Gilded cards materialise in gold.** A triple reward now coalesces in gold (not the arcane blue) and its

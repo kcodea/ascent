@@ -173,6 +173,23 @@ export type EffectFactoryId =
   | 'battlecryGrantSpellPowerRun' // Set 2 — Coppercoat Spellsword (Choose One): permanently raise run-wide spell power
   | 'endOfTurnCopyNeighbour' // Set 2 — Bellringer Voss: every N turns, a plain copy of the board neighbour(s) to hand
   | 'deathrattleSummonRandomTier' // Set 2 — Gravelight Acolyte (Echo): summon N random minions of an exact tier
+  | 'summonImps' // Set 2 — Imp Wrangler / Errand Fiend: summon N Imps
+  | 'rallyImpsAttackNow' // Set 2 — Riot Caller (Rally): your N left-most Imps attack immediately
+  | 'onSummonImpWard' // Set 2 — Cinderwall Captain: the first N Imps summoned this combat gain Ward
+  | 'onTribePlayedConsumeShop' // Set 2 — Selective Glutton: playing a Demon makes a friendly Demon eat a Shop minion
+  | 'avengeImproveSummonBuff' // Set 2 — Broodwright: Avenge improves its own summon grant
+  | 'onSummonImpBuff' // Set 2 — Broodwright: an Imp you summon gains +X/+Y (improvable via summonBonus)
+  | 'scFillWithImpsAndBuff' // Set 2 — Legion Shepherd: fill the warband with Imps, then buff Imps per one summoned
+  | 'onImpAttackBuffImps' // Set 2 — Cinder Chancellor: an Imp attacking buffs your Imps, escalating
+  | 'battlecryConsumeShopRandom' // Set 2 — Cinder Clerk: Shout — consume a random Shop minion
+  | 'consumeShopRightmost' // Set 2 — Hungerling / Revolving Maw: consume the right-most Shop minion
+  | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
+  | 'buffShopOffers' // Set 2 — Contract Butcher / Display Curator: buff every shop minion offer
+  | 'battlecryBuffRightmostShopPermanent' // Set 2 — Market Tormentor: permanently buff the right-most shop minion
+  | 'endOfTurnGainRightmostShopStats' // Set 2 — Grand Gourmand: gain the right-most shop minion's stats (no consume)
+  | 'endOfTurnBuffSpellsAndImps' // Set 2 — Tallymonger: buff your spells and Imps
+  | 'onConsumeGoldByTier' // Set 2 — Avarice Incarnate: the first N consumes each turn pay Gold equal to the tier
+  | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
   | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
   | 'scGrantEndsFlurryWard' // Set 2 — Lastlight Marshal: Start of Combat — left-most gains Flurry, right-most Ward
   | 'onSummonDoubleStats' // Set 2 — Fatecarver: a minion you summon in combat has its stats doubled

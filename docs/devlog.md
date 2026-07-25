@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+### feat(content/sim/core/ui): set 2's DEMON tribe — tranche 1 (20 of 23), art wired
+
+Owner roster 2026-07-25. The tribe's identity is **Consume from the Shop** — eight cards eat a tavern minion for
+its stats — braided with an **Imp** swarm line. `demon` is now a playable set-2 tribe.
+
+**The shared primitive first, because eight cards ride it.** Set 1's Demons already ate from the shop, but only
+offers carrying `FD` (Fodder); `consumeShopMinion` eats any minion. Stats come from `offerBuyStats`, the same
+helper the BUY path uses, so an eaten offer is worth exactly what it would have been worth bought — run buffs,
+per-offer buffs and a golden offer's doubling included. Reading the raw CardDef instead would have silently
+ignored every shop buff the player had invested. The recurring Gilded rider "and gain double its stats" is that
+primitive's `times` multiplier, not a second effect, so four cards' golden text is a number change and no extra
+code path.
+
+*A real ordering bug the tests caught:* the primitive fired `onConsume` BEFORE appending the consume record, so
+Avarice Incarnate — which pays Gold equal to the eaten minion's tier — read an empty list and paid nothing. The
+record is now written first, since a watcher has to be able to see WHAT was eaten.
+
+**20 cards** land in this tranche, needing 17 new factories. Two design notes:
+* **Cinderwall Captain** ("Start of Combat: the first 2 Imps you summon gain Ward") is implemented as an
+  `onSummon` watcher with a per-instance cap, NOT a Start-of-Combat pre-pass — at Start of Combat the Imps don't
+  exist yet, so a pre-pass would have nothing to shield. Per-instance means the cap resets each fight, which is
+  what "this combat" requires, and it needed no new context plumbing.
+* **Grand Gourmand** deliberately does NOT use the consume primitive: it takes the right-most offer's stats and
+  leaves it in the tavern, so no `onConsume` fires and the minion is still buyable. That's the whole difference
+  from Hungerling, and it has a test asserting the offer survives.
+
+**Still to build (3):** Endless Overseer (grants a whole tribe a temporary Echo), Revolving Maw (counts
+REFRESHES — needs new run state, nothing tracks that yet), and Malphas (a Choose One whose halves are both
+novel). Their art is in the folder, unwired, waiting.
+
+**Art.** 18 of the 20 wired and verified. Broodwright and Feastmaster Vhal have no master in the folder yet. Four
+`2` variants (CinderChancellor2, ErrandFiend2, LegionShepherd2, VelvetRopeFiend2) are skipped under the standing
+rule — each has an un-suffixed sibling, and mtime is not a safe tiebreak after Sunmane.
+
+Verified: typecheck / lint / test (1691, +16) / build:web / harness green. The primitive carries the heaviest
+coverage — leaves-the-shop, golden doubling, current-buffed-stats, never eats a spell, empty-shop no-op — since
+a bug there is a bug in eight cards at once. Live-checked after a dev-server RESTART (new art files need more
+than a reload): 20 Demons in the pool, `demon` in set 2's tribes, 18/18 arts resolving at 512x512, none leaked
+into set 1.
+
 ### feat(ui): tribe-name size dial
 
 Added a `tribe name · size` slider (`--plate-tribe-sf`, font size × card width, default 0.062) to the 🂠 Card

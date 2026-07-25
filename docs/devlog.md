@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-07-25 (coalesce 20% faster; Triple Reward files into the hand fan)
+
+### tweak(ui): the coalesce runs 20% faster
+
+Every timing beat scaled ×0.8, so the choreography is identical and only the pace changes: `gatherMs` 410→328,
+`wireIn` 90→72, `holdMs` 45→36, `cardIn` 185→148, `total` 460→368. Visible length **640ms → 512ms**.
+
+NB `total` is NOT the animation length — it only drives the teardown guard (`ms >= total + 200`). The real
+visible end is `gatherMs + holdMs + cardIn` (`wireIn` overlaps the tail of the gather). Post-change the guard
+fires at 568ms against a 512ms end, so the slack is preserved.
+
+### fix(ui): the Triple Reward token no longer overlays the hand
+
+`.card.triplecard` carries `z-index: 5`, which lifted the reward above its neighbours — a token sitting
+mid-fan painted on top of the cards to its right instead of tucking under them. Hand cards stack by DOM order
+(no explicit z; `:hover` bumps to 50), so `.row.hand .card.triplecard` now resets to `auto`. The z5 elsewhere
+(tavern / board) is untouched. Verified live: the token and both neighbours all report `z-index: auto`.
+
+
 ### refactor(sim/ui): Shop-consume gets its OWN channel; full audit of the Demon consume line
 
 **Separated from Fodder consume** (owner 2026-07-25: "they are very different mechanics and will have different

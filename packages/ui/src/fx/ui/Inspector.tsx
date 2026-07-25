@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { FxParamSpecs } from '../params';
+import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 
 /**
  * Every control here is generated from the primitive's own FxParamSpec record — there is no separate
@@ -100,6 +101,14 @@ export function Inspector({
                     </div>
                   );
                 })()}
+                {spec.kind === 'shape' && (
+                  <ShapeField
+                    id={`fxwb-${key}`}
+                    value={(values[key] as string | undefined) ?? spec.default}
+                    fallback={spec.default}
+                    onChange={(next) => onChange(key, next)}
+                  />
+                )}
                 {spec.kind === 'curve' && (
                   <CurveEditor
                     value={(values[key] as [number, number][] | undefined) ?? spec.default.map((p) => [p[0], p[1]])}
@@ -113,6 +122,106 @@ export function Inspector({
           })}
         </section>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The `shape` param's control: a picker over the runtime shape library (built-ins + this browser's imports,
+ * see `shapeLibrary.ts`) plus an Import button and a remove affordance for the selected import.
+ *
+ * Its own component (not an inline IIFE like the palette branch) for the same reason `CurveEditor` is: it
+ * holds hooks, and hooks inside Inspector's mapped render would violate the rules of hooks.
+ *
+ * The library is module-level mutable state that React knows nothing about, so an import/remove bumps a
+ * local counter to force this component to re-read `listShapeOptions()`.
+ */
+function ShapeField({
+  id,
+  value,
+  fallback,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  /** The spec's default — what a removed shape's slot resets to. */
+  fallback: string;
+  onChange: (next: string) => void;
+}): React.ReactElement {
+  // Array hole rather than a named-but-unused state value: the counter exists purely to trigger a re-render
+  // after the module-level registry changes.
+  const [, bumpRegistry] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const options = listShapeOptions();
+  const builtins = options.filter((o) => o.builtin);
+  const imports = options.filter((o) => !o.builtin);
+  const selected = options.find((o) => o.id === value);
+
+  const runImport = async (file: File): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const shape = await importShapeFromFile(file);
+      bumpRegistry((n) => n + 1);
+      onChange(shape.id);
+    } catch (err) {
+      // Never throw into render — surface it as a line under the picker.
+      setError(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fxwb-shape">
+      <div className="fxwb-shape-row">
+        <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+          <optgroup label="Built-in">
+            {builtins.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </optgroup>
+          {imports.length > 0 && (
+            <optgroup label="Imported">
+              {imports.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </optgroup>
+          )}
+          {/* A def can name a shape this browser never imported (shared from another machine). Keep the id
+              visible + selected rather than silently snapping the dropdown to something else — the render
+              path is already drawing the fallback silhouette for it. */}
+          {selected === undefined && <option value={value}>{value} (missing)</option>}
+        </select>
+        {selected !== undefined && !selected.builtin && (
+          <button
+            type="button"
+            className="fxwb-shape-remove"
+            title={`Remove '${selected.label}'`}
+            aria-label={`Remove ${selected.label}`}
+            onClick={() => {
+              removeImportedShape(value);
+              bumpRegistry((n) => n + 1);
+              onChange(fallback);
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      <label className="fxwb-shape-import">
+        {busy ? 'Importing…' : 'Import PNG / SVG…'}
+        <input
+          type="file"
+          accept="image/png,image/svg+xml,.png,.svg"
+          disabled={busy}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = ''; // clear so re-picking the same file fires change again
+            if (file) void runImport(file);
+          }}
+        />
+      </label>
+      <div className="fxwb-shape-hint">Transparency is the silhouette — opaque art is auto-traced from brightness.</div>
+      {error !== null && <div className="fxwb-shape-err">{error}</div>}
     </div>
   );
 }

@@ -3,6 +3,45 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-25 (FX workbench — import custom particle art, PNG/SVG)
+
+### feat(fx): a runtime shape library — bring your own art as a particle silhouette
+
+Owner: "it's just missing so many components. the ability to import custom shapes via svgs or pngs." The six
+procedurally-drawn shapes were the whole vocabulary; now the owner's own art is a first-class shape.
+
+- **`shapeLibrary.ts`** — a runtime registry of selectable shapes: the built-ins (delegating to the untouched
+  `shapeTextures.ts`) plus imports. Imports are normalized onto an offscreen canvas at `SHAPE_UNIT * 4`,
+  aspect-fitted, cached as decoded `Texture`s, and persisted to `localStorage`.
+- **The alpha trap, designed around.** The particle shader uses ONLY the texture's alpha as the silhouette
+  (`texture(uTexture, vUV).a`), so opaque art (a shape on a solid black background — the common case for art
+  grabbed off the web) would render as a **solid rectangle**. On import we measure the opaque-pixel ratio *of
+  the drawn region* and, above 99%, **auto-trace the silhouette from Rec.709 brightness** into the alpha
+  channel. An explicit `alphaFrom` overrides the detection. This is the difference between "my PNG just works"
+  and "why is my particle a square".
+- **A new `shape` param kind** (params.ts, all five touchpoints) — deliberately NOT an `enum`, whose `options`
+  are fixed at spec-declaration time; the valid set here is a runtime registry that grows on import. It
+  resolves to plain `string` and `coerceParams` accepts any non-empty id, because rejecting an unknown one
+  would **permanently rewrite** a def shared from a machine that has that art. An unknown id is safe: the
+  render path falls back to a built-in.
+- **Sync lookup, async decode.** `getShapeTextureById` stays synchronous (the primitives' render path needs it
+  to be) and returns a built-in fallback until a decode completes — it can never return null or throw, so a
+  primitive can always construct. A just-imported shape is published only after its texture is ready, so
+  selecting it never shows a fallback frame.
+- **Degrades, never throws:** `localStorage` absent, access-throwing (privacy modes), quota-exceeded, or
+  malformed JSON all fall back to in-memory-only. Imports are capped (24, FIFO).
+- **Inspector:** a `ShapeField` component — built-in/imported optgroups, an Import PNG/SVG button, remove for
+  imported shapes, and a hint line. Wired on burst / emitter / smoke.
+
+**Verified:** `typecheck` clean, `lint` 0 errors (no new warnings), `test` **1850 passing** (111 files; 42 new
+`shapeLibrary` tests over the pure core — slug/luminance/opacity-threshold/fallback-resolution/persistence
+round-trip + malformed-JSON), `build:web` green, and the library confirmed absent from the prod bundle.
+
+**Follow-ups:** a `tintMode` toggle (keep the art's own colours vs force the palette) — owner-requested, comes
+with the material pass; and the material pass itself (see the next entry when it lands): particles currently
+posterize the texture's alpha, which is FLAT inside a hard-edged shape, so they render as one flat colour
+instead of the ribbon's cel bands.
+
 ## 2026-07-24 (FX workbench — a smoke primitive)
 
 ### feat(fx): posterized / cel-style smoke — the emitter's rising, billowing cousin

@@ -12,7 +12,8 @@ import {
   type ParticleShaping,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
-import { SHAPE_NAMES, getShapeTexture, resolveParticleScale } from '../shapeTextures';
+import { resolveParticleScale } from '../shapeTextures';
+import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
 import { registerPrimitive } from '../registry';
 
@@ -113,8 +114,8 @@ const SPECS = {
   },
 
   shape: {
-    kind: 'enum', label: 'Shape', group: 'Shape', options: SHAPE_NAMES, default: 'shard',
-    help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once.',
+    kind: 'shape', label: 'Shape', group: 'Shape', default: 'shard',
+    help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: { kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9 },
   sizeVar: { kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.5 },
@@ -226,7 +227,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.params = params;
     this.renderer = ctx.renderer;
     this.oneShot = ctx.oneShot === true;
-    this.texture = getShapeTexture(ctx.renderer, params.shape);
+    this.texture = getShapeTextureById(ctx.renderer, params.shape);
     this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands, shapingOf(params), params.glow);
     this.pc = new ParticleContainer({
       texture: this.texture,
@@ -418,7 +419,7 @@ class BurstInstance implements FxInstance<BurstParams> {
       // `shapeTextures.ts`'s `getShapeTexture` header comment), so every shard/mote already in flight
       // changes shape on the same frame as new ones — there's no way to have some particles keep the old
       // shape without a second container, and nothing in this workbench needs that.
-      this.texture = getShapeTexture(this.renderer, next.shape);
+      this.texture = getShapeTextureById(this.renderer, next.shape);
       this.pc.texture = this.texture;
     }
   }

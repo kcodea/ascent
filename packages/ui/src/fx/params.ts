@@ -27,6 +27,21 @@ export type FxParamSpec =
        *  (0 = birth, 1 = death) to yield a multiplier. At least 2 points. */
       default: readonly (readonly [number, number])[];
       presets?: Record<string, readonly (readonly [number, number])[]>;
+    }
+  | {
+      /**
+       * A particle silhouette picked from the RUNTIME shape library (`shapeLibrary.ts`): the built-in
+       * `SHAPE_NAMES` plus whatever art the owner has imported on this machine. Deliberately NOT an `enum`
+       * — an enum's `options` are fixed at spec-declaration time, and the whole point here is that the set
+       * of valid ids grows when a user imports a PNG/SVG. The value is just the id string; validity is a
+       * runtime question the render path already answers (an unknown id falls back to a built-in).
+       */
+      kind: 'shape';
+      label: string;
+      group?: string;
+      help?: string;
+      /** A shape id — a built-in `SHAPE_NAMES` entry (imports can't be a default: they don't exist yet). */
+      default: string;
     };
 
 export type FxParamSpecs = Record<string, FxParamSpec>;
@@ -35,7 +50,10 @@ export type FxParamSpecs = Record<string, FxParamSpec>;
  *  Enum params resolve to a union of their own `options` (not just the default), so a value that is
  *  valid at runtime is valid at compile time and nothing else is. Palette params resolve to a concrete
  *  mutable 4-number tuple (not `S[K]['default']`'s `readonly [...]`), so callers can index/spread it
- *  freely without fighting readonly-ness that the spec itself doesn't need at the value level. */
+ *  freely without fighting readonly-ness that the spec itself doesn't need at the value level. Shape params
+ *  resolve to plain `string` — the opposite of enum's narrowing, and on purpose: the valid ids are a runtime
+ *  registry (built-ins + the user's imports), so narrowing to the declared default would make every custom
+ *  shape a type error. */
 export type ParamsOf<S extends FxParamSpecs> = {
   [K in keyof S]: S[K] extends { kind: 'enum'; options: readonly (infer O)[] }
     ? O
@@ -43,7 +61,9 @@ export type ParamsOf<S extends FxParamSpecs> = {
       ? [number, number, number, number]
       : S[K] extends { kind: 'curve' }
         ? [number, number][]
-        : S[K]['default'];
+        : S[K] extends { kind: 'shape' }
+          ? string
+          : S[K]['default'];
 };
 
 export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
@@ -52,7 +72,8 @@ export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
     const spec = specs[key];
     // Palette defaults are arrays — copy so two instances (or two calls) never alias the same tuple and
     // mutate each other's colours through it. Curve defaults are nested arrays — deep-copy each [t, v] pair
-    // for the same reason (a shallow spread would still alias the inner point arrays).
+    // for the same reason (a shallow spread would still alias the inner point arrays). Shape defaults are
+    // plain strings — immutable, so the fall-through copy is correct as-is.
     if (spec.kind === 'palette') out[key] = [...spec.default];
     else if (spec.kind === 'curve') out[key] = spec.default.map((pt) => [pt[0], pt[1]]);
     else out[key] = spec.default;
@@ -83,6 +104,14 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
         break;
       case 'enum':
         if (typeof v === 'string' && spec.options.includes(v)) out[key] = v;
+        break;
+      case 'shape':
+        // Any non-empty string is accepted — unlike `enum`, the valid set is a RUNTIME registry
+        // (`shapeLibrary.ts`: built-ins + this browser's imports). A saved def may legitimately name a
+        // custom shape that hasn't been imported here (a def shared from another machine), and rejecting it
+        // would silently and PERMANENTLY rewrite the def to the default the first time it round-trips.
+        // Keeping the id is safe: `getShapeTextureById` already falls back to a built-in for an unknown id.
+        if (typeof v === 'string' && v !== '') out[key] = v;
         break;
       case 'palette':
         if (
@@ -135,6 +164,11 @@ export function validateSpecs(specs: FxParamSpecs): string[] {
     }
     if (spec.kind === 'enum' && !spec.options.includes(spec.default)) {
       problems.push(`'${key}': default '${spec.default}' is not one of its options`);
+    }
+    // A shape default can't be checked against a fixed list (the registry is runtime), but an EMPTY default
+    // is always wrong: `coerceParams` rejects '' as a value, so such a spec could never hold its own default.
+    if (spec.kind === 'shape' && spec.default === '') {
+      problems.push(`'${key}': shape default must be a non-empty shape id`);
     }
     if (spec.kind === 'palette') {
       if (spec.default.length !== 4) {

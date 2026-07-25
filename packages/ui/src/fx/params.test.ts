@@ -124,6 +124,36 @@ describe('coerceParams', () => {
     });
   });
 
+  describe('shape kind', () => {
+    const shapeSpecs = {
+      s: { kind: 'shape' as const, label: 'Shape', default: 'circle' },
+    } satisfies FxParamSpecs;
+
+    it('lifts the default through defaultsOf', () => {
+      expect(defaultsOf(shapeSpecs)).toEqual({ s: 'circle' });
+    });
+
+    it('accepts a built-in id', () => {
+      expect(coerceParams(shapeSpecs, { s: 'shard' }).s).toBe('shard');
+    });
+
+    it('accepts an ARBITRARY id — the valid set is a runtime registry, not a fixed option list', () => {
+      // A def saved on another machine may name a custom shape this browser never imported. Rewriting it to
+      // the default here would permanently lose the reference; the render path falls back instead.
+      expect(coerceParams(shapeSpecs, { s: 'custom:ember-wisp' }).s).toBe('custom:ember-wisp');
+    });
+
+    it('drops a non-string back to the default', () => {
+      expect(coerceParams(shapeSpecs, { s: 7 }).s).toBe('circle');
+      expect(coerceParams(shapeSpecs, { s: null }).s).toBe('circle');
+      expect(coerceParams(shapeSpecs, { s: ['circle'] }).s).toBe('circle');
+    });
+
+    it('drops an empty string back to the default', () => {
+      expect(coerceParams(shapeSpecs, { s: '' }).s).toBe('circle');
+    });
+  });
+
   describe('curve kind', () => {
     const curveSpecs = {
       c: { kind: 'curve' as const, label: 'Curve', default: [[0, 1], [1, 0]] as const },
@@ -202,6 +232,17 @@ describe('ParamsOf type derivation', () => {
     type Params = ParamsOf<typeof specsWithCurve>;
     expectTypeOf<Params['c']>().toEqualTypeOf<[number, number][]>();
   });
+
+  it('derives plain string for shape params (NOT narrowed to the default, unlike enum)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const specsWithShape = {
+      s: { kind: 'shape' as const, label: 'Shape', default: 'circle' as const },
+    } satisfies FxParamSpecs;
+    type Params = ParamsOf<typeof specsWithShape>;
+    // Bidirectional: exactly `string`. Narrowing to 'circle' would make every imported shape id a type
+    // error at the primitives' call sites.
+    expectTypeOf<Params['s']>().toEqualTypeOf<string>();
+  });
 });
 
 describe('validateSpecs', () => {
@@ -271,6 +312,22 @@ describe('validateSpecs', () => {
       pal: { kind: 'palette' as const, label: 'Palette', default: [1, 2, 3, 4] as const },
     } satisfies FxParamSpecs;
     expect(validateSpecs(okPalette)).toEqual([]);
+  });
+
+  it('catches an empty shape default', () => {
+    const badShape = {
+      s: { kind: 'shape' as const, label: 'Shape', default: '' },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badShape);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('non-empty shape id');
+  });
+
+  it('accepts a well-formed shape spec', () => {
+    const okShape = {
+      s: { kind: 'shape' as const, label: 'Shape', default: 'circle' },
+    } satisfies FxParamSpecs;
+    expect(validateSpecs(okShape)).toEqual([]);
   });
 
   it('catches a curve default with fewer than 2 points', () => {

@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+### fix(sim/ui): Living Grimoire re-arms each turn; its Shout meter reads 0/3 while spent
+
+**The "only targeted spells" report was a misdiagnosis on my side worth writing down.** I probed it before
+changing anything: `spellCasts` already applies the Grimoire multiplier to every spell, and both the sim and
+the ×N badge doubled an untargeted Ember Pouch (1 Gold → 2) exactly like an aimed Spirit Fire. So the
+multiplier was never targeted-only.
+
+The real defect is WHEN it's armed. It armed on play and via the 3-Shout reset — and nowhere else. So on any
+later turn where you hadn't triggered 3 Shouts, the card did nothing at all. The turn it was played happened to
+be a targeted cast, which is why it read as "targeted works, untargeted doesn't". Its printed rule — "the first
+spell you cast **each turn** casts twice" — was simply false from turn 2 onward.
+
+It now **re-arms at the start of every turn**, which makes the printed rule true; the 3-Shout reset still gives
+a SECOND charge within the same turn. Re-armed to the strongest Grimoire on board (golden = ×3) so two copies
+don't compound, and to nothing if you've sold them all.
+
+**The Shout meter is now visible** (owner ask): the card shows a 0/3 counter while spent, climbing 1/3 → 2/3 as
+you trigger Shouts. It reads FULL (3/3) while charged rather than hiding, and that choice is load-bearing
+rather than cosmetic: recharging then LANDS on `total`, which is exactly the signal `Card`'s existing
+step-counter proc burst fires on — so "animate showing it's ready again" needed no new animation, just the
+right numbers. Dropping back to 0/3 when spent is a wrap FROM full, which that burst's `prev !== total` guard
+already ignores, so it can't double-fire.
+
+This also required an explicit exception to the "hide a fresh 0/N counter as noise" rule: for the Grimoire, 0/3
+is the whole point — it's how you see the card is spent and how far the recharge has come.
+
+Verified: typecheck / lint / test (1630, +4) / build:web / harness green. Tests cover the untargeted doubling
+(Ember Pouch's Gold is directly countable), the per-turn re-arm across a real combat cycle, a golden re-arming
+to 3 with two copies NOT compounding, and no arming with no Grimoire on board. Confirmed the re-arm tests bite
+by deleting the block. Live-checked in a throwaway run: an untargeted spell paid double, and the counter walked
+0/3 → 1/3 → 2/3 → 3/3 with the charge back to ×2 on the third Shout.
+
 ### fix(content/sim): every Ruby-excluding Dragon says "Shop spell"; Runefire gains its Ruby half
 
 Owner ruling 2026-07-24: "every Dragon effect intended to exclude Rubies must explicitly say **Shop spell**."

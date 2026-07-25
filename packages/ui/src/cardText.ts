@@ -535,12 +535,25 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; shoutTick?: number; grimoireCharged?: boolean },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
   const n = (v: unknown, d: number): number => (typeof v === 'number' ? v : d);
   const cyc = (v: number, total: number): StepProgress => ({ current: v <= 0 ? 0 : ((v - 1) % total) + 1, total });
+
+  // Living Grimoire: the Shout meter toward its next charge (owner ask 2026-07-24 — "add the avenge counter
+  // below it when it is spent showing 0/3, count up to 3, and animate showing it's ready again").
+  //
+  // Reads FULL (3/3) while charged rather than hiding: that makes recharging LAND on `total`, which is exactly
+  // the signal Card's existing step-proc burst fires on — so "animate when ready" needs no new animation. And a
+  // full meter is the clearest read of "ready" on a card whose whole state is charged-or-not. Going back to 0/3
+  // when spent is a wrap FROM full, which the burst's `prev !== total` guard correctly ignores.
+  const rearm = def.effects.find((e) => e.do === 'onBattlecryRearmGrimoire');
+  if (rearm) {
+    const total = Math.max(1, n((rearm.params as { every?: number })?.every, 3));
+    return p.grimoireCharged ? { current: total, total } : { current: Math.min(p.shoutTick ?? 0, total), total };
+  }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
   const monk = def.effects.find((e) => e.do === 'overflowBuffRandom');

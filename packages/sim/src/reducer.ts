@@ -2273,6 +2273,20 @@ function advanceCombat(s: RunState): void {
   s.firstShoutUid = undefined;
   s.consumesThisTurn = 0; // Endless Appetite's "first Consume each turn" gate resets each wave
   s.firstSpellThisTurnId = undefined; // Rune of Recurrence's first-spell record resets each wave
+  // Set 2 — Living Grimoire RE-ARMS at the start of each turn, which is what makes its printed rule ("the
+  // first spell you cast EACH TURN casts twice") true. It used to arm only on play and via the 3-Shout reset,
+  // so on any later turn where you hadn't triggered 3 Shouts the card silently did nothing — the owner read
+  // that as "it only works on targeted spells" (2026-07-24), since the turn it was played happened to be a
+  // targeted cast. The 3-Shout reset still exists for a SECOND charge within the same turn.
+  // Re-armed to the strongest Grimoire on board (golden = 3) so two copies don't compound; selling them all
+  // leaves nothing to arm.
+  {
+    const grimoires = s.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'battlecryArmGrimoire'));
+    if (grimoires.length) {
+      s.grimoireMult = Math.max(...grimoires.map((c) => (c.golden ? 3 : 2)));
+      for (const c of grimoires) c.shoutTick = 0; // a fresh turn's charge restarts the Shout count
+    }
+  }
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie

@@ -146,7 +146,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number } },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -205,8 +205,13 @@ export function instView(
           const sp = stepProgress(inst.cardId, {
             spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
             ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick,
+            shoutTick: inst.shoutTick, grimoireCharged: live?.grimoireCharged,
           });
-          return sp && sp.current > 0 ? sp : null;
+          // Normally a fresh 0/N is hidden as noise (owner ruling). The Living Grimoire is the deliberate
+          // exception: 0/3 is the whole point there — it's how you see the card is SPENT and how far the
+          // recharge has come (owner ask 2026-07-24).
+          const showsZero = inst.cardId === 'd2_grimoire';
+          return sp && (sp.current > 0 || showsZero) ? sp : null;
         })() ?? undefined
       : undefined,
   };

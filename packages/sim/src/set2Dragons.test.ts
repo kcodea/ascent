@@ -286,6 +286,63 @@ describe('set 2 — Living Grimoire charges, spends and re-arms', () => {
     expect([t1.attack - a0, t1.health - h0]).toEqual([4, 6]); // +2/+3 x2, despite being the turn’s 2nd spell
   });
 
+  it('multiplies UNTARGETED spells too, not just aimed ones', () => {
+    // Owner report 2026-07-24 ("supposed to cast ALL spells twice, not just targeted"). Ember Pouch is
+    // untargeted and pays Gold, so the doubling is directly countable.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80,
+      board: [minion('lg', 'd2_grimoire', 'dragon', 7, 9)],
+      hand: [spellInHand('e', 'emberpouch')],
+      grimoireMult: 2,
+    };
+    const g0 = s.embers;
+    s = reduce(s, { type: 'play', uid: 'e' });
+    // Ember Pouch grants 1 Gold; cast twice = 2. (The spell itself costs nothing to PLAY from hand.)
+    expect(s.embers - g0).toBe(2);
+    expect(s.grimoireMult).toBe(0); // charge spent
+  });
+
+  it('RE-ARMS at the start of each turn, so "the first spell you cast each turn" is true', () => {
+    // The actual cause of the report: it armed only on play and via the 3-Shout reset, so on a later turn
+    // where you had not triggered 3 Shouts it silently did nothing at all.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80,
+      board: [minion('lg', 'd2_grimoire', 'dragon', 7, 9)],
+      hand: [], grimoireMult: 0, // spent this turn
+    };
+    s = reduce(s, { type: 'faceOmen' });   // end the turn
+    s = reduce(s, { type: 'resolveCombat' });
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.grimoireMult).toBe(2);        // charged again for the new turn
+    expect(s.board.find((c) => c.uid === 'lg')!.shoutTick ?? 0).toBe(0); // and the Shout meter restarts
+  });
+
+  it('a GOLDEN Grimoire re-arms to 3, and two copies do not compound', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80,
+      board: [
+        { ...minion('lg1', 'd2_grimoire', 'dragon', 14, 18), golden: true },
+        minion('lg2', 'd2_grimoire', 'dragon', 7, 9),
+      ],
+      hand: [], grimoireMult: 0,
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.grimoireMult).toBe(3); // the strongest on board wins; not 2x3 or 2+3
+  });
+
+  it('with no Grimoire on board nothing is armed', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80,
+      board: [minion('b', 'bronzewarden', 'dragon', 1, 3)], hand: [], grimoireMult: 0,
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.grimoireMult ?? 0).toBe(0);
+  });
+
   it('the charge also multiplies a RUBY (a Ruby is a spell — no "shop spell" wording)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 80,

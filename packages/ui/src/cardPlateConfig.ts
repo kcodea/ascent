@@ -60,9 +60,9 @@ const DEFAULTS: CardPlateConfig = {
   goldBright: 1.13,
   goldContrast: 0.95,
   goldHue: 3,
-  tribeNameY: 1.01,
+  tribeNameY: 1.015,
   tribeNameX: 0,
-  tribeNameSize: 0.062,
+  tribeNameSize: 0.072,
 };
 
 /** Font-size buckets, LARGEST first. `id` is appended to a `.plate-txt-` class on the card. */

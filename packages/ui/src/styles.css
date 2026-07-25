@@ -7,7 +7,7 @@
   /* tribe hues (drive each card's accent --c): Beast green · Dragon red/orange · Mech blue ·
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
-  --t-beast: #4ea83b; --t-dragon: #ff6a3c; --t-mech: #27a9dd; --t-undead: #22b8a8; --t-demon: #b15cf0; --t-neutral: #9a8d79;
+  --t-beast: #4ea83b; --t-dragon: #ffffff; --t-mech: #27a9dd; --t-undead: #22b8a8; --t-demon: #b15cf0; --t-neutral: #9a8d79;
   --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;
@@ -2980,14 +2980,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   position: absolute;
   z-index: 2;
   left: 50%;
-  top: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * var(--plate-tribe-yf, 1.01));
+  top: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * var(--plate-tribe-yf, 1.015));
   transform: translate(calc(-50% + var(--ccw) * var(--plate-tribe-xf, 0)), -50%);
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
   font-family: var(--font-ui);
   font-weight: 800;
-  font-size: calc(var(--ccw) * var(--plate-tribe-sf, 0.062));
+  font-size: calc(var(--ccw) * var(--plate-tribe-sf, 0.072));
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--c) 55%, #f4ecdb);

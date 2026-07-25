@@ -5,6 +5,12 @@
 Added a `tribe name · size` slider (`--plate-tribe-sf`, font size × card width, default 0.062) to the 🂠 Card
 Plate tuner, next to the X/Y position dials. Verified live: 0.062 → 0.1 grew the label 5.9 → 9.4px.
 
+### tweak(ui): bake tribe-name defaults + Dragon tribe colour → white
+
+Owner-dialed: tribe-name defaults baked to Y 1.015 / X 0 / size 0.072 (`cardPlateConfig.ts` + the
+`--plate-tribe-*` CSS fallbacks). Dragon's tribe colour changed from red-orange `#ff6a3c` to white `#ffffff`
+(`--t-dragon`, single source — flows to its borders, icons, bold keywords and tribe-name label).
+
 ### feat(ui): Neutral tribe plate + dragon re-exported clean (all SIX plated)
 
 Added Neutral to `TRIBE_PLATES` (`cardplate-neutral.webp`, 945×1469 native) — so every tribe including

@@ -98,6 +98,12 @@ export interface BoardCard {
   /** Anomaly Reactor's "All" mode: this instance counts as EVERY tribe for the rest of the run — `isTribe`
    *  short-circuits true, and combat seeds `universalTribe` from it. */
   allTribes?: boolean;
+  /** Choose One: the index into the def's `chooseOne` that the player PICKED for this instance. Purely a record
+   *  of the decision — the chosen effects resolve once, at pick time — but the card must keep showing only the
+   *  branch it became, so the printed text stops listing options it can no longer do (owner 2026-07-24). A
+   *  golden `chooseBothWhenGolden` card gains both, so it records none and keeps its combined text. Absent on
+   *  every card without a Choose One, and on one that somehow reached the board without resolving. */
+  chosenOption?: number;
   /** Triple-reward Discover spell: the shop tier CAPTURED when it was granted to hand, so its "peek one tier up"
    *  is frozen at grant time — taverning up afterwards no longer inflates the Discover's tier (owner 2026-07-15).
    *  Read by the `discoverOnPlay` resolution + the live card text; absent on non-granted cards. */

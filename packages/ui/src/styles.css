@@ -1693,9 +1693,6 @@ body.modalup .statusbar .questbadges {
   pointer-events: none;
 }
 .statusbar .hero, .statusbar .heropanel, .statusbar .questbadges { transition: filter 0.2s ease; }
-.discover-box { background: var(--card); border: 3px solid var(--acc); border-radius: calc(20 * var(--u)); padding: calc(22 * var(--u)) calc(26 * var(--u)); box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.4); }
-.discover-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); text-align: center; margin-bottom: calc(16 * var(--u)); color: var(--ink); }
-.discover-title b { color: var(--acc-dk); }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 /* Runeforge: the current-Gold chip under the banner — the runes charge Gold, so the purse must be visible. */
 .forge-gold {
@@ -1882,10 +1879,8 @@ body.modalup .statusbar .questbadges {
   50% { transform: translateY(-4px); }
 }
 /* Choose One — two big option buttons */
-.chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
-.chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
-.chooseopt:hover { border-color: var(--acc); transform: translateY(-3px); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35); }
-.chooseopt b { color: var(--acc-dk); font-weight: 800; }
+/* (`.chooseone-opts` / `.chooseopt` — the old cream text-button Choose One prompt — removed 2026-07-24 when
+   the prompt became two real cards on the Discover chrome. `.discover-box`/`.discover-title` went with it.) */
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */

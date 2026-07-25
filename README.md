@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Choose One cards stop advertising the option they didn't take.** Once resolved, the card on your board
+  prints only the branch it became — and the prompt itself is now two real cards, so you pick the version of
+  the card you want instead of reading two paragraphs.
 - **The Set-2 Beast tribe has its art**, tokens included (Mage-Pup, T-Rex Baby, Void Cub), plus a refresh of
   the spell art. Six Beasts are carried-over cards, so their Set-1 portraits update too.
 - **Gilded cards materialise in gold.** A triple reward now coalesces in gold (not the arcane blue) and its

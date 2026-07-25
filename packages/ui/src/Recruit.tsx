@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
-import { Card, mdBold, type CardView } from './Card';
+import { Card, type CardView } from './Card';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
 import { QuestCard } from './QuestCard';
@@ -4141,24 +4141,43 @@ export function Recruit() {
 
       {run.chooseOne && (
         <div className="discover-ov" role="dialog" aria-label="Choose One">
-          <div className="discover-box">
-            <div className="discover-title">
-              <b>Choose One</b> — {CARD_INDEX[run.chooseOne.cardId]?.name}
-            </div>
-            <div className="chooseone-opts">
+          {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
+              bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the
+              player picks a CARD, not a paragraph (owner 2026-07-24). Each option renders the real card with
+              only that branch's text printed, so what you click is exactly what lands on your board. */}
+          <div className="disc-panel">
+            <div className="disc-banner"><span className="disp">Choose One</span></div>
+            <div className="disc-sub">{CARD_INDEX[run.chooseOne.cardId]?.name}</div>
+            <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
                 // option's `goldenText` (Wildwood Shaper: +2/+6 / two Strays). The card is on the board (Battlecry
                 // Choose One) or in hand (spell Choose One).
                 const co = run.chooseOne!;
-                const golden = !!(run.board.find((c) => c.uid === co.uid)?.golden ?? run.hand.find((c) => c.uid === co.uid)?.golden);
-                return (CARD_INDEX[co.cardId]?.chooseOne ?? []).map((opt, i) => (
-                  <button
-                    className="chooseopt"
-                    key={i}
-                    onClick={() => dispatch({ type: 'chooseOne', index: i })}
-                    dangerouslySetInnerHTML={{ __html: mdBold(golden ? (opt.goldenText ?? opt.text) : opt.text) }}
-                  />
+                const c = CARD_INDEX[co.cardId];
+                if (!c) return null;
+                const inst = run.board.find((x) => x.uid === co.uid) ?? run.hand.find((x) => x.uid === co.uid);
+                const golden = !!inst?.golden;
+                return (c.chooseOne ?? []).map((opt, i) => (
+                  <div className="disc-slot" key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                    <Card
+                      // The option's own text IS the card's text here — the whole point of showing two cards is
+                      // that each reads as the thing it would become. Stats come from the live instance when
+                      // there is one (a played minion may already be buffed), else the printed base.
+                      card={{
+                        name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+                        golden, attack: inst?.attack ?? c.attack, health: inst?.health ?? c.health,
+                        keywords: inst?.keywords ?? c.keywords, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+                        text: golden ? (opt.goldenText ?? opt.text) : opt.text,
+                        goldenText: opt.goldenText ?? opt.text,
+                      }}
+                      // `forceFull` regardless of the compact-cards preference: on every other surface the text
+                      // drawer is optional detail you can hover for, but here the two texts ARE the decision —
+                      // a Choose One with both drawers collapsed is two identical portraits.
+                      forceFull
+                      onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                    />
+                  </div>
                 ));
               })()}
             </div>

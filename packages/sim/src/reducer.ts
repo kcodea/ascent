@@ -1019,6 +1019,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           : s.board.some((c) => c.uid !== card.uid);
         if (hasTarget) {
           s.chooseOne = undefined;
+          card.chosenOption = action.index; // the branch is already decided; only its TARGET is still pending
           s.pendingTarget = { uid: card.uid, cardId: card.cardId, optionIndex: action.index };
           return s;
         }
@@ -1027,6 +1028,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // still opens and you still click a side — both apply on resolve, which is the honest reading of
       // "Gilded: Gain both". Applied in option order so the log/FX are deterministic.
       const chosen = card.golden && def.chooseBothWhenGolden ? def.chooseOne! : [option];
+      // Record WHICH branch this instance became so its printed text can narrow to just that one. A
+      // `chooseBothWhenGolden` golden gained both, so it records nothing and keeps the combined text.
+      if (chosen.length === 1) card.chosenOption = action.index;
       for (const opt of chosen) applyChooseOne(s, card, opt.effects); // the chosen Battlecry (or all, if golden) resolves now
       s.chooseOne = undefined;
       checkTriples(s);
@@ -1512,6 +1516,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(b.addedTribes && b.addedTribes.length ? { addedTribes: [...b.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (→ combat tribe2) — was dropped, so the tribe stopped counting in the player's own fights
         ...(b.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a Start-of-Combat immune out-of-turn strike — was dropped, so it never fired
         ...(b.bloodlustRally ? { bloodlustRally: true } : {}), // Bloodlust's welded Rally (give a friendly minion this minion's Attack)
+        ...(b.chosenOption !== undefined ? { chosenOption: b.chosenOption } : {}), // Choose One: display-only, so the combat card prints the same single branch
         summonBonus: b.summonBonus ?? 0,
         overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat

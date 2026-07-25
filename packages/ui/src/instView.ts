@@ -48,6 +48,10 @@ export interface LiveTextParams {
   maxTier?: number;
   /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line (1/1 + this) it grants the shop. */
   rubyBonus?: { attack: number; health: number };
+  /** Choose One: the branch this INSTANCE picked (`BoardCard.chosenOption`). Once chosen, the card only does
+   *  that one thing, so it prints only that branch — listing the road not taken is a lie about what the body
+   *  on your board now does (owner 2026-07-24). Absent for a shop/Discover preview, which still shows both. */
+  chosenOption?: number;
 }
 
 /**
@@ -57,6 +61,12 @@ export interface LiveTextParams {
  */
 export function liveCardText(cardId: string, p: LiveTextParams): { text: string; goldenText: string | undefined } {
   const c = CARD_INDEX[cardId];
+  // A RESOLVED Choose One prints only the branch it became — the other option is no longer something this body
+  // can do. Applies to every Choose One card, golden included (a golden reads its option's `goldenText`, which
+  // is where the doubled magnitude lives). Returned before the scaling chain below because no Choose One option
+  // currently carries a live-scaling value; when one does, its helper must be threaded through here too.
+  const picked = p.chosenOption !== undefined ? c.chooseOne?.[p.chosenOption] : undefined;
+  if (picked) return { text: picked.text, goldenText: picked.goldenText ?? picked.text };
   const text =
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
@@ -143,6 +153,7 @@ export function instView(
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rubyBonus: live?.rubyBonus,
+    chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

@@ -395,6 +395,7 @@ export function simulate(
     golden: m.golden,
     summonBonus: m.summonBonus,
     eotBonus: m.eotBonus,
+    chosenOption: m.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
     sellBonus: m.sellBonus,
     eotTick: m.eotTick,
     overflowBonus: m.overflowBonus,

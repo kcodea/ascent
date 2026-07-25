@@ -1001,6 +1001,10 @@ export interface BoardMinion {
   /** Bloodlust weld: the Bloodlust spell also grants its target a Rally — on each of its own attacks, give a
    *  random friendly minion Attack equal to this minion's Attack. One-fight, like `bloodlust` (stripped at settle). */
   bloodlustRally?: boolean;
+  /** Choose One: the branch this instance picked in the shop (`BoardCard.chosenOption`). Display-only in
+   *  combat — the chosen effects were already baked in during recruit — but carried so the combat card reads
+   *  the SAME single branch the board showed, instead of reverting to the both-options printed text. */
+  chosenOption?: number;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -1068,6 +1072,9 @@ export interface Minion {
   summonBonus: number;
   /** Ritualist: accrued End-of-Turn grant seeded from the run board — read (not changed) in combat for live text. */
   eotBonus?: number;
+  /** Choose One: the branch this body picked in the shop — display-only in combat (the effects already baked
+   *  in during recruit), carried so the combat card prints that single branch, not both options. */
+  chosenOption?: number;
   /** Trail Forager sell bonus / cadence End-of-Turn counter — seeded from the run board, read (not changed) in
    *  combat, purely for the live card text. */
   sellBonus?: number;
@@ -1153,6 +1160,9 @@ export interface MinionSnapshot {
   summonBonus?: number;
   /** Ritualist: current End-of-Turn grant step (seeded) — for the live combat card text (per-tick Fodder/Imp value). */
   eotBonus?: number;
+  /** Choose One: the branch this body picked in the shop — display-only in combat (the effects already baked
+   *  in during recruit), carried so the combat card prints that single branch, not both options. */
+  chosenOption?: number;
   /** Trail Forager sell bonus / cadence End-of-Turn counter (seeded) — for the live combat card text. */
   sellBonus?: number;
   eotTick?: number;

@@ -309,7 +309,12 @@ export const Card = memo(function Card({
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
   // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.
-  const showText = forceFull || !useGame((s) => s.compactCards);
+  // `||` here SHORT-CIRCUITED the `useGame` call whenever `forceFull` was set — a conditionally-called hook.
+  // It went unnoticed while every call site passed a constant `forceFull`, but any tree position where a card
+  // renders force-full after a non-force-full one shifts the whole hook order and React throws "Should have a
+  // queue" (hit 2026-07-24 adding force-full cards to the Choose One prompt). Read the store unconditionally.
+  const compactCards = useGame((s) => s.compactCards);
+  const showText = forceFull || !compactCards;
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
   const [popin, setPopin] = useState(() => !suppressPop);
   // Drop the `popin` class once the mount-pop has played. It must not linger: `.card.popin` carries the

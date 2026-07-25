@@ -1,5 +1,53 @@
 # ASCENT — development log
 
+### feat(sim/ui): a resolved Choose One shows only the branch it became; the prompt is two real cards
+
+Three owner reports (2026-07-24), one theme — a Choose One card was lying about what it does.
+
+**1. On board, a resolved Choose One now prints only the option it picked.** It used to keep listing both, so
+an Elderhorn that took Hunt still advertised Ritual. The pick is recorded per-instance as
+`BoardCard.chosenOption` (the reducer stamps it at pick time, including on the TARGETED path — Runic Beetle
+decides its branch before it aims, so waiting for the target would leave it showing both mid-pick), and
+`liveCardText` narrows to `chooseOne[i]` when it's set. Applies to every Choose One card, not just Elderhorn.
+A `chooseBothWhenGolden` golden (Orivax) genuinely gained both, so it records nothing and keeps its combined
+text — the honest read there.
+
+The field rides all four instance paths so the card reads the same everywhere: board→combat (`reducer`),
+combat instantiate (`minion.ts`), the combat snapshot the UI renders (`simulate.ts` → `Unit.tsx`), and BOTH
+persistence paths — `snapshot.ts` (so a restored run doesn't revert to both-options) and `opponents.ts` (so a
+board served as someone's opponent reads true). Dropping it from the snapshot pair is exactly the fidelity bug
+class PR #453 cleaned up, so it went in with them rather than after another audit.
+
+**2. The Choose One prompt is now two CARDS.** It was two cream text-buttons; a Choose One is the same kind of
+decision as a Discover, so it now reuses the Discover chrome (dark-glass banner, transparent panel, card row)
+and renders the real card twice, each printing only its own branch — you pick the version of the card you want.
+Cards are `forceFull` regardless of the compact-tiles preference: everywhere else the text drawer is optional
+detail you hover for, but here the two texts ARE the decision, and two collapsed drawers is two identical
+portraits. The dead `.chooseopt` / `.chooseone-opts` / `.discover-box` / `.discover-title` rules are deleted.
+
+*Found on the way:* `Card.tsx` had a **conditionally-called hook** — `forceFull || !useGame(…)` short-circuits
+the `useGame` subscription whenever `forceFull` is set. Harmless while every call site passed a constant, but
+the new force-full cards render at a tree position that previously held non-force-full ones, which shifts the
+hook order and crashes the render with React's "Should have a queue". Now read unconditionally. This was a live
+landmine for any future force-full call site, not something my change introduced.
+
+**3. Spirit Worgen no longer shows in a Set-2 Compendium.** `EVOLUTION_CARDS` walked the global `CARD_INDEX` to
+find ascend/transform targets. `CARD_INDEX` is deliberately set-agnostic (id→def needs no set), so that leaked
+every set's evolution forms into every other set. It's now derived from the SOURCE cards in the set's own pool:
+an evolution form is in scope exactly when the card that evolves into it is. Spirit Pup isn't in Set 2, so
+Spirit Worgen isn't either.
+
+Verified: typecheck / lint / test (1603, +4) / build:web / harness all green. The new
+`chooseOneMemory.test.ts` covers the untargeted pick, the deferred-target pick, a `chooseOption: 0` guard (a
+truthiness test would silently drop the first branch — the common pick), and asserts every Choose One option in
+the pool has non-empty text so a narrowed card can never render an empty rule box. Confirmed the tests really
+bite by removing the recording and watching 2 fail. Live-checked in a throwaway run: the prompt renders both
+branch texts on-screen with no overflow, and picking Ritual leaves the board card reading only
+"Ritual: your Beast Echoes trigger an additional time."
+
+Follow-ups: the remaining owner items from this batch (Moonhowl Mentor's taught-spell fidelity, Sunmane
+Herald's multiplicative Rally stacking) are their own change and not in here.
+
 ### chore(ui): re-wire the Beast + spell art (owner refreshed the masters)
 
 Second art pass over the same two folders. **Beasts: 24 files** (was 21) — the 21 minions plus three tokens

@@ -1,5 +1,57 @@
 # ASCENT — development log
 
+### chore(ui): re-wire the Beast + spell art (owner refreshed the masters)
+
+Second art pass over the same two folders. **Beasts: 24 files** (was 21) — the 21 minions plus three tokens
+the owner has since drawn: Mage-Pup, T-Rex Baby, and Void Cub (`sabercub`, a Set-1 id). **Spells: 66 files**,
+of which Gold Font, Spirit Fire and Marked Target are freshly redrawn.
+
+**Corrects the Sunmane Herald call from earlier in this branch.** That pass wired `SunmaneHerald2.png` over the
+original because the "2" had the newer mtime. The owner has since renamed that file to `extra.png` — an explicit
+signal it's the reject — so `SunmaneHerald.png` is the keeper and `extra.png` is skipped. Newer mtime alone was
+the wrong tiebreak; a rename is the real signal.
+
+Same matcher discipline: normalised card name against every id/name pair in `packages/content`, unmatched files
+reported rather than guessed. Two hand-confirmed aliases — `VoidPanther.png -> manasaber` (historical id) and
+`BabyRex.png -> b2_trexbaby` (the card is "T-Rex Baby"). The 7 unchanged spell files with no card (Cupcakes,
+Deepdelve Writ, Ironclad Requisition, Preemptive Attack, Road to the Summit, Spark Plug, Timepiece) stay
+unwired — same list as before, so nothing new drifted.
+
+*Near-miss worth recording:* the first attempt ran the WebP optimizer over the whole `art/minions` directory,
+which swept up 22 tracked-as-`.png` Kobold arts that aren't part of this task. Reverting that with a blanket
+`git checkout -- art/minions/` then also threw away the fresh Beast copies. The optimizer now iterates **only
+the ids the matcher copied**, and the Kobold PNGs are verified byte-intact.
+
+Verified: `build:web` green; dev server restarted (eager glob) and all **90** ids checked through `artFor()` —
+asserting the full resolved path lands in the right subdirectory (`art/minions/` vs `art/spells/`, the check
+that once missed 38 shadowed spell arts), that each fetches 200, and that none decode above 512px. 90/90 OK.
+
+### chore(ui): wire the Set-2 Beast art — all 21 cards
+
+Art pass for the Beast tribe. 21 masters from `Ascent Art/Set 2 Minions/Beasts` copied into
+`packages/ui/src/art/minions/<id>.webp` and resized/encoded to the house 512x512 / q82 WebP, so the
+eager `import.meta.glob` in `art.ts` picks them up by card id with no code change.
+
+Matching was done by NORMALISED CARD NAME against every `id`/`name` pair parsed out of `packages/content`,
+not by eye — the script reports anything it can't match rather than guessing (the standing art rule). Two
+files needed a hand-confirmed decision, both recorded explicitly in the matcher:
+* **`VoidPanther2.png` -> `manasaber`** — the card is "Void Panther"; the id is historical.
+* **`SunmaneHerald2.png` -> `b2_sunmane`**, and `SunmaneHerald.png` deliberately NOT wired. Two masters exist
+  for the same card and the "2" is the NEWER of the pair (Jul 24 14:22 vs Jul 23 23:40), so it's the
+  replacement — the same call we made for Scalefeather Drake.
+
+**Six of the 21 replace existing Set-1 art**: `badgington`, `beetle`, `kennel`, `manasaber`, `seaurchin`,
+`sporebat`. These are carried-over cards sharing one id across both sets, so there's one art slot — the new
+master shows up in Set 1 too. That's consistent with how their re-specs were handled; flagging it because it
+changes Set-1 visuals as a side effect.
+
+The two Beast tokens (`b2_trexbaby`, `b2_magepup`) have no master in the folder and keep their fallback.
+
+Verified: `build:web` green; the dev server restarted (an eager glob needs a restart, not a reload) and each
+of the 21 ids checked through `artFor()` — asserting the **full** resolved path lands in `art/minions/`, not
+just the basename (the check that missed 38 spell arts shadowed by same-named minion files), and that every
+one fetches 200 and decodes at 512x512. `git status` shows exactly 21 changed files.
+
 ### feat(content/sim/core): Beast tranche 6 — Moonhowl Mentor; the Beast tribe is COMPLETE (21/21)
 
 Moonhowl Mentor (T6 4/9) — the last card. **All 21 Set-2 Beasts are in**: 15 authored + 6 carried from set 1

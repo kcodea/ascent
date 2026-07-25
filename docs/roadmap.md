@@ -149,7 +149,7 @@ The career surface exists; deepen what a finished run *remembers*.
   list them in `SETS.set2.own`, trim the inherited set-1 pool with `excludes`. Before flipping it live, run
   `SET=set2 npm run pool` — an unbaked set has no captured opponents and falls back to procedural boards.
   Shipped so far: the 22-Kobold tribe + Ruby engine, the 21-card Dragon tribe (spell recursion), the 21-card
-  Beast tribe (spell/summon synergy),
+  Beast tribe (spell/summon synergy, art wired),
   and Set 1's neutral spell toolkit carried over (minus the four tribe-locked ones). Still needed before flipping
   live: more tribes/minions to cover the enemy curve,
   set-scoped quests/runes, and a baked opponent pool.

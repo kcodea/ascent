@@ -1712,6 +1712,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.triplecard .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
 .card.triplecard .cfoot { background: color-mix(in srgb, #f4cf6a 30%, var(--card)); }
 .card.triplecard .ctype.spell { color: var(--acc-dk); }
+/* IN HAND the Triple Reward files in like any other card. The `z-index: 5` above lifted it over its
+   neighbours, so a reward sitting mid-fan painted on top of the cards to its right instead of tucking under
+   them (owner report 2026-07-25). Hand cards stack by DOM order (no explicit z), so drop back to `auto` here;
+   the `:hover` bump (z50) and the z5 elsewhere (tavern / board) are untouched. */
+.row.hand .card.triplecard { z-index: auto; }
 
 /* Discover overlay (triple reward) */
 /* z160: discover / choose-one must sit above ALL effects — the FX overlay (.pixifx z110), a freshly-placed

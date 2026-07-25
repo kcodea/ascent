@@ -66,7 +66,7 @@ export interface PlateCoalesceConfig {
  *  below 1 is an ease-IN — the motes drift, then accelerate home — and `onLines: 1` means they land only on
  *  the wireframe lines, never the plate body. */
 const DEFAULTS: PlateCoalesceConfig = {
-  total: 460, gatherMs: 410, wireIn: 90, holdMs: 45, cardIn: 185,
+  total: 368, gatherMs: 328, wireIn: 72, holdMs: 36, cardIn: 148,
   dist: 0.82, distVar: 0.88, swirl: 1.24, ease: 0.4, stag: 0.14, linger: 0.18,
   count: 390, onLines: 1, size: 3.1, sizeVar: 0.7, trail: 0.14,
   puff: 1.28, inten: 1.04, g1: 94, g2: 0,

@@ -1,5 +1,10 @@
 # ASCENT — development log
 
+### feat(ui): tribe-name size dial
+
+Added a `tribe name · size` slider (`--plate-tribe-sf`, font size × card width, default 0.062) to the 🂠 Card
+Plate tuner, next to the X/Y position dials. Verified live: 0.062 → 0.1 grew the label 5.9 → 9.4px.
+
 ### feat(ui): Dragon + Mech tribe plates
 
 Wired the Dragon and Mech plates into the `TRIBE_PLATES` map — each a one-line entry plus a webp, exactly as

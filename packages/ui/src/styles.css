@@ -2987,7 +2987,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   white-space: nowrap;
   font-family: var(--font-ui);
   font-weight: 800;
-  font-size: calc(var(--ccw) * 0.062);
+  font-size: calc(var(--ccw) * var(--plate-tribe-sf, 0.062));
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--c) 55%, #f4ecdb);

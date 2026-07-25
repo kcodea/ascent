@@ -4,6 +4,11 @@
 
 ### feat(ui): relocate the tribe name, recolour the body text, add a Card Text tuner
 
+- **Tribe-name X dial + Undead → teal.** Added a `tribe name · x` slider (horizontal offset, `--plate-tribe-xf`)
+  alongside the existing Y on the 🂠 Card Plate tuner. Changed the Undead tribe colour from slate `#5c6f8c` to
+  teal `#22b8a8` (the single `--t-undead` source, so it flows to borders, icons, and now the tribe-coloured
+  bold keywords). Verified live: undead bold reads `rgb(34,184,168)`, the X slider shifts the label right.
+
 Follow-ups on the per-tribe plates:
 
 - **Tribe name on the plate gem.** A tribe-plated card (Beast today) drops its in-drawer tribe icon+label and

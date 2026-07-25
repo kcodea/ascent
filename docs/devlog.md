@@ -1,5 +1,77 @@
 # ASCENT — development log
 
+### chore(ui): re-wire all Set-2 minion + spell art in one pass (133 files)
+
+One unified matcher (`matchall.py`) over every `Set 2 Minions/*` subfolder plus `Spells/`, replacing the
+per-tribe scripts. 172 masters seen → **133 wired** (68 minions, 65 spells), 4 skipped, 35 reported unwired.
+
+Of the 133, only **5 images actually changed content** — `d2_chronicler`, `d2_scalechanter`, `fleetingvigor`,
+`growth`, `sprout`. Everything else re-encoded byte-identically (sharp is deterministic and the earlier passes
+already used 512px / q82), so the diff is honest about what's new instead of churning 133 blobs.
+
+**The 22 Kobold masters converted PNG → WebP.** They were the last unoptimized art in the repo — wired before
+the optimizer step existed — and including the Kobolds folder in this pass fixed that as a side effect.
+
+Two things the matcher caught that a per-folder script wouldn't have:
+
+* **A routing bug.** The matcher decides `art/minions/` vs `art/spells/` from the CARD's own type, not the source
+  folder, and cross-checks the two. That flagged `discoverspell` (the triple-reward Discover token), which
+  carries neither `spell: true` nor `ruby: true` — the UI special-cases it by id — so it would have been filed
+  under `art/minions/` while its art actually lives in `art/spells/`, and silently stopped resolving.
+* **Six near-misses that are real cards**, now explicit hand-confirmed aliases rather than silent drops:
+  `Orivax.png` → `d2_orivax` (the card carries an epithet), `GemShard.png` → `gemheart-shard` (the token was
+  just renamed to Gemheart Golem; its id is unchanged), `RivalsReflections.png` → `rivalsreflection` (plural
+  master), `GemheartCarver2.png` → `k_gemheart` (the ONLY Carver master, so the suffix is meaningless), and two
+  filename variances where the file is the sole candidate for the sole such card: `GemforgeFiend.png` →
+  `k_gemgorge` (card is "Gem**gorge** Fiend"; the owner has used both spellings) and `CandlelightBulwark.png` →
+  `k_candleback` (card is "Candle**back** Bulwark").
+
+**Deliberately NOT wired, and why** — these need an owner call, not a guess:
+* **All 23 Demon masters.** There are no Set-2 Demon cards yet; the art is ahead of the content.
+* **3 ambiguous "2" variants** — `FaultlineScrapper2`, `GemstormInstigator2`, `Veinbreaker2` — each of which has
+  an un-suffixed sibling. mtime is NOT a safe tiebreak here: with Sunmane Herald the newer "2" turned out to be
+  the reject, which the owner signalled by renaming it `extra.png`. The base names stay wired.
+* **12 spell masters with no card**: the 5 Work Orders, Cupcakes, Deepdelve Writ, Ironclad Requisition,
+  Preemptive Attack, Road to the Summit, Spark Plug (the card was renamed Waking Rift, which has its own
+  master), Timepiece.
+
+Verified: typecheck / lint / test (1636) / build:web green. Dev server RESTARTED (22 filenames changed
+extension, so the eager `import.meta.glob` needs more than a reload) and all 133 ids checked through `artFor()`
+— asserting the full resolved path lands in the right subdirectory, that each fetches 200, and that none decode
+above 512px. 133/133 OK, and no `.png` remains anywhere under `art/`.
+
+### fix(core): a Ruby played in COMBAT fires the target's onRubyPlayed; rename Gem Shard → Gemheart Golem
+
+**"Geode Guardian rubies played on Resonance Idol do not bounce to adjacent minions" — confirmed NOT fixed, now
+fixed.** The cause was a clean split across the recruit/combat seam: Geode Guardian's Echo is a **combat**
+factory (`deathrattlePlayRubiesAdjacent` in `core/effects/factories.ts`), while Resonance Idol's bounce existed
+only as a **recruit** factory (`rubyPlayedBounce` in `sim/recruit.ts`). So a Ruby played mid-fight had nobody
+listening — combat's `playRubyOn` applied stats and returned, and no `onRubyPlayed` equivalent was ever fired.
+
+Two halves to the fix. Combat's `playRubyOn` now notifies the target, running its own `onRubyPlayed` effects the
+way recruit's `fireOnRubyPlayed` does; and Resonance Idol gained a combat implementation so there's something to
+run. This fixes the bounce for **every** combat Ruby source, not just Geode Guardian — Frenzied Excavator's
+per-buy Rubies and Candle Conduit's casts route through the same helper.
+
+The stat application was split out as `applyRubyStats`, and the bounce deliberately calls THAT rather than
+`playRubyOn`. That guard is load-bearing: a bounced Ruby must not itself count as "a Ruby played on" the
+neighbour, or two adjacent Idols ping-pong until the stack blows. It's the same property the recruit half gets by
+calling `addBuff` directly, and it now has a test whose passing at all is the assertion.
+
+Only factories with a combat implementation respond to the new notification — Ruby Broker's Gold, for instance,
+is meaningless mid-fight and simply has no combat entry, so it no-ops rather than needing a guard.
+
+**Gem Shard → Gemheart Golem** (owner rename). DISPLAY name only: the id stays `gemheart-shard`, which is what
+the art file, the summon reference and any captured opponent board key off — the same rule the vocabulary rename
+followed, since renaming ids would invalidate saved runs for a cosmetic change. Gemheart Carver's text and
+goldenText updated to match.
+
+Verified: typecheck / lint / test (1636, +2) / build:web / harness green. The new tests assert the exact event
+chain — a +1/+1 Ruby buff on the Idol sourced from Geode, then a second on the Idol's *other* neighbour sourced
+from the Idol — and that two adjacent Idols terminate. Confirmed the first bites by removing the notification.
+Live-checked the rename in the browser: the token reads "Gemheart Golem", the Carver's text follows, and the art
+still resolves from `minions/gemheart-shard.webp` at 512x512.
+
 ## 2026-07-24 (buy slide no longer blinks the card out and back in)
 
 ### fix(ui): the buy/place slide re-armed the card's mount-pop

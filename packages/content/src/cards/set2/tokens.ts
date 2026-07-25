@@ -77,8 +77,12 @@ export const SET2_TOKENS: CardDef[] = [
   {
     // Gemheart Carver's Echo summons this with stats copied from the Rubies on Gemheart (via `copyStats`), so
     // its base is 0/0 (overridden at summon).
+    //
+    // Renamed Gem Shard -> Gemheart Golem (owner 2026-07-25). DISPLAY name only — the id stays `gemheart-shard`,
+    // which is what the art file, every summon reference and any captured opponent board key off. Same rule the
+    // vocabulary rename followed: renaming ids would invalidate saved runs for a cosmetic change.
     id: 'gemheart-shard',
-    name: 'Gem Shard',
+    name: 'Gemheart Golem',
     tribe: 'kobold',
     tier: 1,
     attack: 1,

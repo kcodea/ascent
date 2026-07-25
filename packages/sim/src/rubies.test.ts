@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { mintRubies, applyCardsBought, applyEndOfTurn, RUBY_ID } from './recruit';
 
@@ -182,5 +184,53 @@ describe('Ruby engine (set 2)', () => {
     const rubies = s.hand.filter((c) => c.cardId === RUBY_ID);
     expect(rubies.length).toBe(4); // all four remain — none combined
     expect(rubies.some((r) => r.golden)).toBe(false); // no golden Ruby formed
+  });
+});
+
+/**
+ * Rubies played MID-COMBAT must reach the target's own `onRubyPlayed` effects, exactly like a Ruby played from
+ * hand does in the shop. Owner report 2026-07-25: "Geode Guardian rubies played on Resonance Idol do not bounce
+ * to adjacent minions."
+ *
+ * The cause was the simulation/presentation-adjacent seam between the two phases — Geode Guardian's Echo is a
+ * COMBAT factory, while Resonance Idol's bounce existed only as a RECRUIT factory, so mid-fight Rubies had
+ * nobody listening. Combat's `playRubyOn` now notifies the target and the Idol has a combat half.
+ */
+describe('set 2 — a Ruby played in COMBAT fires the target’s onRubyPlayed', () => {
+  const bm = (cardId: string, uid: string, attack: number, health: number): BoardMinion =>
+    ({ cardId, attack, health, sourceUid: uid, keywords: [] });
+
+  /** Ruby buffs only: a Ruby grants +1/+1 (no rubyBonus here), so filtering on health > 0 excludes the
+   *  attack-only combat buffs the enemy sandbag generates. Combat uids are positional — m0, m1, m2. */
+  type BuffEvent = { type: 'buff'; target: string; attack: number; health: number; source: string };
+  const rubyBuffs = (r: { events: readonly { type: string }[] }): BuffEvent[] =>
+    (r.events as readonly BuffEvent[]).filter((e) => e.type === 'buff' && e.health > 0);
+
+  it('Geode Guardian’s Echo bounces off an adjacent Resonance Idol', () => {
+    // Board order matters: [outer, Idol, Geode]. Geode dies, plays a Ruby on its neighbour (the Idol), and the
+    // Idol bounces those stats onward to ITS other neighbour (`outer`, m0). Before the fix the Ruby landed on
+    // the Idol and stopped there — the Idol's bounce was a recruit-only factory.
+    const r = simulate(
+      [bm('sandbag', 'OUT', 1, 40), bm('k_resonance', 'IDOL', 2, 40), bm('k_geode', 'GEO', 1, 1)],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }),
+    );
+    const buffs = rubyBuffs(r);
+    // The Ruby landed on the Idol (m1), sourced from Geode (m2)…
+    expect(buffs.some((b) => b.target === 'm1' && b.source === 'm2' && b.attack === 1 && b.health === 1)).toBe(true);
+    // …and BOUNCED to the Idol's other neighbour (m0), sourced from the IDOL. This is the reported bug.
+    expect(buffs.some((b) => b.target === 'm0' && b.source === 'm1' && b.attack === 1 && b.health === 1)).toBe(true);
+  });
+
+  it('two adjacent Resonance Idols do not bounce a Ruby forever', () => {
+    // The recursion guard: a bounced Ruby must not itself count as "a Ruby played on" the neighbour. Without it
+    // this pair ping-pongs until the stack blows, so terminating at all IS the assertion.
+    const r = simulate(
+      [bm('k_resonance', 'I1', 2, 40), bm('k_resonance', 'I2', 2, 40), bm('k_geode', 'GEO', 1, 1)],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }),
+    );
+    expect(r.result).toBeTruthy();
+    expect(r.events.length).toBeLessThan(5000);
   });
 });

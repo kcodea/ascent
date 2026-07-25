@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+### feat(ui): Dragon + Mech tribe plates
+
+Wired the Dragon and Mech plates into the `TRIBE_PLATES` map — each a one-line entry plus a webp, exactly as
+the map was set up for. Both converted from the owner's PNGs to `frames/cardplate-{dragon,mech}.webp` at
+800×1244 (sharp q92). Verified live: a Dragon-primary card → `cardplate-dragon.webp`, Mech → `cardplate-mech.webp`,
+each with the drawer tribe label suppressed and the tribe NAME on the plate gem; Undead still shows the neutral
+plate. typecheck + lint + 1649 tests + build:web green.
+
+NB the Dragon source was 972×1469 (ratio 1.5113) vs the plate's 1.5550 — fill-resized to 800×1244, so it took a
+~3% vertical stretch to share the frame geometry. Eyeball the window/gem alignment; re-export at ~945×1469 if it
+reads off.
+
 ## 2026-07-25 (tribe-plate cards: name on the gem, white body text, tribe-coloured keywords, a text-box tuner)
 
 ### feat(ui): relocate the tribe name, recolour the body text, add a Card Text tuner

@@ -57,6 +57,8 @@ const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 // LABEL to the plate's bottom gem (no icon) — see `TRIBE_PLATE_SET` / `.plate-tribe`.
 const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
   beast: `${import.meta.env.BASE_URL}frames/cardplate-beast.webp`,
+  dragon: `${import.meta.env.BASE_URL}frames/cardplate-dragon.webp`,
+  mech: `${import.meta.env.BASE_URL}frames/cardplate-mech.webp`,
 };
 const plateSrcFor = (tribe: Tribe | undefined): string =>
   (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;

@@ -126,12 +126,11 @@ describe('set 2 — Beast summon + aura cards', () => {
   });
 });
 
-describe('set 2 — Sunmane Herald’s rally escalates', () => {
-  /** Rally grants in order: Attack-only `buff` events granted BY someone else. The `source !== target` filter
-   *  matters — the enemy sandbag self-buffs +1/+0 on its own schedule, and those readings would otherwise
-   *  interleave with the rally rungs and make the sequence unreadable. */
-  const grants = (board: BoardMinion[], seed = 3): number[] =>
-    simulate(board, [{ cardId: 'sandbag', attack: 0, health: 600 }], makeRng(seed), CARD_INDEX,
+describe('set 2 — Sunmane Herald’s rally accumulates', () => {
+  /** Every rally grant in order (Attack-only buffs from another minion). The `source !== target` filter matters:
+   *  the enemy Target Dummy self-buffs +1/+0 when damaged, and those would interleave with the rungs. */
+  const grants = (board: BoardMinion[], enemyHp = 90000, seed = 3): number[] =>
+    simulate(board, [{ cardId: 'sandbag', attack: 0, health: enemyHp }], makeRng(seed), CARD_INDEX,
       combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }))
       .events.filter((e) => {
         const b = e as { type: string; health: number; source?: string; target?: string };
@@ -139,44 +138,54 @@ describe('set 2 — Sunmane Herald’s rally escalates', () => {
       })
       .map((e) => (e as { attack: number }).attack);
 
-  it('DOUBLES on every rally attack: 3 → 6 → 12 → 24 …', () => {
-    // Owner spec 2026-07-25: the value continuously stacks board-wide. The previous reading — each recipient
-    // learns a copy worth 2x what it was handed, once — could not escalate past +6 on a static board, because
-    // every body had already learned it. This is the assertion that distinguishes the two.
+  it('OWNER CASE: a carrier grants what it ACCUMULATED — it does not double per attack', () => {
+    // The assertion that actually DISTINGUISHES the two models, and the reason it's the RAW sequence rather than
+    // the distinct rungs. Four Beasts, one attack each:
+    //   accumulation → Sunmane grants +3 x3, then the first carrier passes on the +3 it holds (+3 x3), THEN 6s
+    //   "double per attack" → Sunmane grants +3 x3, then the first carrier already grants +6
+    // So the count of +3s (six vs three) is the discriminator. Collapsing duplicate rungs hides it — an earlier
+    // version of this test did exactly that and passed against the WRONG model.
     const g = grants([
-      { cardId: 'b2_sunmane', attack: 3, health: 200, keywords: ['RL'], sourceUid: 'SH' },
-      { cardId: 'stray', attack: 1, health: 200, sourceUid: 'B1' },
-      { cardId: 'pup', attack: 1, health: 200, sourceUid: 'B2' },
+      { cardId: 'b2_sunmane', attack: 3, health: 400, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 400, sourceUid: 'B1' },
+      { cardId: 'pup', attack: 1, health: 400, sourceUid: 'B2' },
+      { cardId: 'babycub', attack: 1, health: 400, sourceUid: 'B3' },
     ]);
-    // The distinct rungs the chain reaches, in order of first appearance.
-    const rungs: number[] = [];
-    for (const v of g) if (rungs[rungs.length - 1] !== v) rungs.push(v);
-    expect(rungs.slice(0, 4)).toEqual([3, 6, 12, 24]);
+    expect(g.slice(0, 12)).toEqual([3, 3, 3, 3, 3, 3, 6, 6, 6, 12, 12, 12]);
   });
 
-  it('a Beast summoned MID-COMBAT joins the chain at full strength', () => {
-    // Owner rule: it has no stacks until a carrier attacks, then takes the CURRENT value and can carry on.
-    // Sea Urchin's Echo summons a token mid-fight, so the token arrives after the chain has already escalated.
+  it('OWNER CASE: a Flurry Sunmane grants its base once PER SWING, and the recipient passes on the sum', () => {
+    // "it only buffs the rest of the beast minions +3 attack 4 times, so +12 attack. this DOES mean that the
+    // next beast that attacks would rally: +12". Two swings here → +3, +3, then the Stray passes on 6.
     const g = grants([
-      { cardId: 'b2_sunmane', attack: 3, health: 200, keywords: ['RL'], sourceUid: 'SH' },
-      { cardId: 'seaurchin', attack: 1, health: 1, sourceUid: 'SU' }, // dies early → summons its token
-      { cardId: 'stray', attack: 1, health: 200, sourceUid: 'B1' },
-    ], 7);
-    // The chain still climbs past the opening rungs even though a fresh body joined partway — a newcomer must
-    // not reset or stall it.
-    expect(Math.max(...g)).toBeGreaterThanOrEqual(12);
+      { cardId: 'b2_sunmane', attack: 3, health: 400, keywords: ['RL', 'W'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 400, sourceUid: 'B1' },
+    ]);
+    expect(g.slice(0, 3)).toEqual([3, 3, 6]);
   });
 
-  it('the escalation cannot reach Infinity (the doubling is clamped)', () => {
-    // Unbounded doubling is the design, but the arithmetic must stay finite — an Infinity here would turn every
-    // downstream stat into NaN. A long fight with several Beasts exercises many rungs.
+  it('Sunmane never buffs ITSELF, which is why it keeps granting its printed base', () => {
+    // Load-bearing, not incidental: self-buffing would make Sunmane accumulate and its own grant escalate,
+    // which is exactly the behaviour the owner rejected.
+    const r = simulate(
+      [{ cardId: 'b2_sunmane', attack: 3, health: 400, keywords: ['RL'], sourceUid: 'SH' },
+       { cardId: 'stray', attack: 1, health: 400, sourceUid: 'B1' }],
+      [{ cardId: 'sandbag', attack: 0, health: 90000 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    // m0 is Sunmane. It may RECEIVE from the Stray, but never from itself.
+    const selfBuffs = (r.events as { type: string; source?: string; target?: string }[])
+      .filter((e) => e.type === 'buff' && e.source === 'm0' && e.target === 'm0');
+    expect(selfBuffs).toEqual([]);
+  });
+
+  it('the accumulation cannot reach Infinity (it is clamped)', () => {
     const board: BoardMinion[] = [
       { cardId: 'b2_sunmane', attack: 3, health: 4000, keywords: ['RL'], sourceUid: 'SH' },
       { cardId: 'stray', attack: 1, health: 4000, sourceUid: 'B1' },
       { cardId: 'pup', attack: 1, health: 4000, sourceUid: 'B2' },
       { cardId: 'badgington', attack: 1, health: 4000, sourceUid: 'B3' },
     ];
-    const r = simulate(board, [{ cardId: 'sandbag', attack: 0, health: 200000 }], makeRng(11), CARD_INDEX,
+    const r = simulate(board, [{ cardId: 'sandbag', attack: 0, health: 500000 }], makeRng(11), CARD_INDEX,
       combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
     const bad = r.events.filter((e) => {
       const v = (e as { attack?: number }).attack;
@@ -191,9 +200,7 @@ describe('set 2 — Sunmane Herald’s rally escalates', () => {
       { cardId: 'b2_sunmane', attack: 3, health: 200, keywords: ['RL'], sourceUid: 'SH' },
       { cardId: 'stray', attack: 1, health: 200, sourceUid: 'B1' },
     ]);
-    // More grants than Sunmane alone could produce from its own attacks — the Stray learned the rally and is
-    // granting too.
-    expect(g.length).toBeGreaterThan(2);
+    expect(g.length).toBeGreaterThan(2); // the Stray learned it and is granting too
   });
 });
 

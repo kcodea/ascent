@@ -92,4 +92,21 @@ export const SET2_TOKENS: CardDef[] = [
     token: true,
     text: 'A living shard of gemstone.',
   },
+  {
+    // Tamer's Echo whelp. 3/3 (the owner's roster spec) and `attackOnSummon`, so it strikes out of turn order
+    // the moment it lands — the same flag set 1's 3/2 `whelpling` uses. A separate token rather than reusing
+    // that one because the stat line differs; kept a DRAGON like every other Whelp in the game, which matters
+    // in set 2 where Dragons are a playable tribe.
+    id: 'n2_whelp',
+    name: 'Whelp',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [],
+    attackOnSummon: true,
+    token: true,
+    text: 'A 3/3 Dragon that attacks immediately when summoned.',
+  },
 ];

@@ -2257,6 +2257,61 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — Gravelight Acolyte (Echo): on death, summon `count` random minions of an exact `tier` (golden
+   *  doubles). Sibling of `deathrattleSummonRandomTribe`, keyed on tier instead of tribe; tokens and spells are
+   *  excluded so it can only roll a real shop minion. */
+  deathrattleSummonRandomTier: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tier = num(params.tier, 1);
+    const pool = ctx.allCards().filter((c) => !c.token && !c.spell && c.tier === tier);
+    if (pool.length === 0) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, ctx.rng.pick(pool), self.uid);
+  },
+
+  /** Set 2 — Oathbound Avenger — Avenge (X): every X friendly deaths, give a RANDOM living friendly +atk/+hp
+   *  and Ward. Golden doubles the stats (its Gilded text reads "+2/+6 and Ward" — the Ward itself doesn't
+   *  double, a keyword either is or isn't). Prefers a friend that doesn't already have Ward so the grant isn't
+   *  wasted, falling back to any friendly when they all do. */
+  avengeBuffRandomFriendlyShield: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    void count;
+    const friends = ctx.living(self.side);
+    if (friends.length === 0) return;
+    const unshielded = friends.filter((m) => !m.divineShield);
+    const target = ctx.rng.pick(unshielded.length ? unshielded : friends);
+    ctx.buff(target, num(params.attack, 1) * mul(self), num(params.health, 3) * mul(self), self.uid);
+    grantShield(ctx, target);
+  },
+
+  /** Set 2 — Lastlight Marshal (Start of Combat): give your LEFT-most minion Flurry and your RIGHT-most Ward.
+   *  Board order, so no RNG. The two ends can be the same minion on a one-minion board — it then gets both,
+   *  which is the honest reading of "left-most" and "right-most" both pointing at it. Gilded text is identical
+   *  to the base, per the owner's roster, so this deliberately does NOT scale with golden. */
+  scGrantEndsFlurryWard: (ctx, self) => {
+    const friends = ctx.living(self.side);
+    if (friends.length === 0) return;
+    const left = friends[0]!;
+    const right = friends[friends.length - 1]!;
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} sounds the last light` });
+    if (!left.keywords.includes('W')) left.keywords.push('W'); // Flurry
+    grantShield(ctx, right); // Ward (emits its own shieldUp)
+  },
+
+  /** Set 2 — Fatecarver: whenever YOU summon a minion in combat, double that minion's stats. Fires on the
+   *  `onSummon` of the SUMMONED body (the payload carries it), so it catches every source — Echo tokens, spell
+   *  summons, Rise — rather than enumerating them.
+   *
+   *  Guarded against doubling ITSELF (Fatecarver entering play is a summon too) and against a summon on the
+   *  other side. Doubling is `ctx.buff` by the current stats, so it stacks correctly with anything that already
+   *  buffed the body this beat and shows as a normal buff in the log. Gilded text is identical to the base per
+   *  the owner's roster, so no golden scaling. */
+  onSummonDoubleStats: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion === self || minion.side !== self.side || minion.dead) return;
+    ctx.buff(minion, minion.attack, minion.health, self.uid);
+  },
+
   /** Set 2 — Menagerie Mammoth (Echo): summon `count` RANDOM minions of `tribe`, drawn from the run's set pool
    *  (golden doubles the count). Seeded via the combat RNG so replays stay faithful. Tokens are excluded — a
    *  random summon should give you real bodies, not another card's summon-fodder. */

@@ -1677,6 +1677,42 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), perA * played * g, perH * played * g);
   },
 
+  /** Set 2 — Coppercoat Spellsword (Choose One Shout): permanently raise run-wide SPELL POWER by +atk/+hp.
+   *  The two options are the same factory with different params (one all-Attack, one all-Health), which is why
+   *  this takes both rather than being two factories. Golden doubles, matching the printed Gilded text. */
+  battlecryGrantSpellPowerRun: (ctx, self, params) => {
+    const cur = ctx.state.spellBonus ?? { attack: 0, health: 0 };
+    ctx.state.spellBonus = {
+      attack: cur.attack + num(params.attack, 0) * gold(self),
+      health: cur.health + num(params.health, 0) * gold(self),
+    };
+  },
+
+  /** Set 2 — Bellringer Voss (End of Turn): every `every` turns, conjure a PLAIN copy of the board minion to
+   *  this one's LEFT into hand (golden: both neighbours). "Plain" = a fresh card from the index, so buffs,
+   *  welds and golden are deliberately NOT copied — the same rule Re-Pete's Second Hand uses.
+   *
+   *  Cadence follows Frontdrake exactly: `eotTick` advances ONCE per turn (on proc 0), so a Chronos repeat
+   *  fires an extra copy on the cadence turn without advancing the count, and a Djinn replay pays off on the
+   *  turn it would naturally land. Getting this wrong is how a cadence card ends up firing every turn. */
+  endOfTurnCopyNeighbour: (ctx, self, params, payload) => {
+    const every = Math.max(1, num(params.every, 2));
+    const replay = payload.replay === true;
+    if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1;
+    const tick = self.eotTick ?? 0;
+    const due = replay ? (tick + 1) % every === 0 : tick % every === 0;
+    if (!due) return;
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    // Left neighbour always; the right one too when golden ("adjacent minions").
+    const picks = [ctx.state.board[i - 1], ...(self.golden ? [ctx.state.board[i + 1]] : [])];
+    const defs = picks
+      .map((c) => (c ? CARD_INDEX[c.cardId] : undefined))
+      .filter((d): d is CardDef => !!d && !d.spell && !d.ruby);
+    if (defs.length === 0) return;
+    for (const d of defs) conjureToHand(ctx.state, [d], 1);
+  },
+
   /** Frontdrake — End of Turn: every `every` turns on the board, conjure `count` random minions of
    *  `tribe` into the hand (tier ≤ tavern tier, active tribes, copies left — "abides by tavern rules").
    *  Golden doubles the count. The per-card `eotTick` advances ONCE per turn (on proc 0), so Chronos

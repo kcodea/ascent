@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+### fix(content/core/ui): Sunmane Herald's rally escalates board-wide; Dawnclaw gains Taunt
+
+**Sunmane Herald, reworked to the owner's actual model (2026-07-25).** My previous pass read "stacks
+multiplicatively" as *each recipient learns a copy worth 2x what it was handed, once* — which needed new BODIES
+to escalate, so on a static board it oscillated at 3, 6, 3, 6 forever. The owner's spec is a single value that
+**doubles on every rally attack, board-wide**: 3 -> 6 -> 12 -> 24 -> 48 -> …, compounding with attack count, so
+Flurry and Solaris-style extra attacks are the payoff rather than an edge case.
+
+The magnitude now lives on the combat INSTANCE (`Minion.rallySpreadAtk`), which is what makes the owner's two
+edge rules fall out for free rather than needing special cases:
+* **Death loses the stacks** — a Rise/resummon is a fresh body with no magnitude, so it re-enters at the printed
+  base and does not inherit the chain.
+* **A Beast summoned mid-combat joins at full strength** — it has no magnitude until a carrier attacks, then
+  takes the current value and can carry the chain onward.
+
+Each rally attack grants the current value to your Beasts, then moves **every carrier including the attacker** to
+the next rung — which is why a Flurry body escalates twice in one turn. The effect is still grafted only once per
+body (a second copy would double-fire the same attack); the magnitude is refreshed every time, and that refresh
+is the actual carrier of the escalation.
+
+Unbounded doubling is the design, but the arithmetic isn't: ~50 rally attacks reaches Infinity and turns every
+downstream stat into NaN. Clamped at 1e9 — far past any reachable board strength, so it never binds in play and
+only stops the maths from breaking. That clamp has its own test.
+
+Card text updated to describe the real rule ("Each **Rally doubles** the Attack"), and the printed +3 is now
+folded to the live value in combat via a new `rallySpreadText` helper — the live-text rule applies here because
+the grant genuinely depends on combat state, and a card reading "+3" while granting +768 would be a lie.
+
+**Dawnclaw gains Taunt** (owner ask). Its Echo triggers adjacent Shouts, so it has to be attacked INTO to pay
+off — guarding the line is what lets the card do its own job. Text + goldenText updated; verified the edit hit
+only Dawnclaw (its goldenText line is one another card could plausibly share).
+
+Verified: typecheck / lint / test (1641, +5) / build:web / harness green. Confirmed the rework bites by
+restoring the old per-generation behaviour — the sequence test then reads `[3, 6, 3, 6]`, the exact stall the
+owner reported. Observed the real fight sequence: **3, 6, 12, 24, 48, 96, 192, 384, 768** (each rung appears
+twice with three Beasts, since one attack grants to two recipients). Live-checked Dawnclaw renders the Taunt
+frame.
+
+*Left as-is, worth a second look:* the rally still excludes the ATTACKER from its own Attack buff (pre-existing
+behaviour), even though Sunmane is itself a Beast and the text reads "give your Beasts". Not part of this fix, so
+I didn't change it.
+
 ### chore(ui): re-wire all Set-2 minion + spell art in one pass (133 files)
 
 One unified matcher (`matchall.py`) over every `Set 2 Minions/*` subfolder plus `Spells/`, replacing the

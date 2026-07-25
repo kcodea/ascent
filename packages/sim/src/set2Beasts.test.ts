@@ -126,53 +126,74 @@ describe('set 2 — Beast summon + aura cards', () => {
   });
 });
 
-describe('set 2 — Sunmane Herald spreads its Rally', () => {
-  /** Every `buff` event's Attack magnitude, in order — the spread's generation sequence. */
-  const rallyGrants = (board: BoardMinion[]): number[] =>
-    simulate(board, [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), CARD_INDEX,
+describe('set 2 — Sunmane Herald’s rally escalates', () => {
+  /** Rally grants in order: Attack-only `buff` events granted BY someone else. The `source !== target` filter
+   *  matters — the enemy sandbag self-buffs +1/+0 on its own schedule, and those readings would otherwise
+   *  interleave with the rally rungs and make the sequence unreadable. */
+  const grants = (board: BoardMinion[], seed = 3): number[] =>
+    simulate(board, [{ cardId: 'sandbag', attack: 0, health: 600 }], makeRng(seed), CARD_INDEX,
       combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }))
-      .events.filter((e) => e.type === 'buff' && e.health === 0)
+      .events.filter((e) => {
+        const b = e as { type: string; health: number; source?: string; target?: string };
+        return b.type === 'buff' && b.health === 0 && b.source !== b.target;
+      })
       .map((e) => (e as { attack: number }).attack);
 
-  it('DOUBLES each generation: the Beasts it touches grant +6, not another +3', () => {
-    // The owner ruling (2026-07-24) is that the rally stacks multiplicatively. Sunmane grants the base +3 and
-    // hands out a copy worth double, so the second-generation Herald grants +6. Flat spreading — the bug —
-    // produced only +3s forever, so the presence of a 6 is what distinguishes fixed from broken.
-    const grants = rallyGrants([
-      { cardId: 'b2_sunmane', attack: 3, health: 60, keywords: ['RL'], sourceUid: 'SH' },
-      { cardId: 'stray', attack: 1, health: 60, sourceUid: 'B1' },
+  it('DOUBLES on every rally attack: 3 → 6 → 12 → 24 …', () => {
+    // Owner spec 2026-07-25: the value continuously stacks board-wide. The previous reading — each recipient
+    // learns a copy worth 2x what it was handed, once — could not escalate past +6 on a static board, because
+    // every body had already learned it. This is the assertion that distinguishes the two.
+    const g = grants([
+      { cardId: 'b2_sunmane', attack: 3, health: 200, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 200, sourceUid: 'B1' },
+      { cardId: 'pup', attack: 1, health: 200, sourceUid: 'B2' },
     ]);
-    expect(grants).toContain(3); // generation 0 — Sunmane's own grant
-    expect(grants).toContain(6); // generation 1 — the Beast it converted grants double
+    // The distinct rungs the chain reaches, in order of first appearance.
+    const rungs: number[] = [];
+    for (const v of g) if (rungs[rungs.length - 1] !== v) rungs.push(v);
+    expect(rungs.slice(0, 4)).toEqual([3, 6, 12, 24]);
   });
 
-  it('each body learns the rally only ONCE, which is what bounds the doubling', () => {
-    // With two Beasts, the chain can only reach generation 1: when B1 attacks it would hand Sunmane a
-    // generation-2 copy, but Sunmane already carries the rally, so nothing is re-granted. Without that guard
-    // the magnitude would compound with ATTACK COUNT rather than spread depth and diverge — a 12 here is the
-    // signature of that runaway.
-    const grants = rallyGrants([
-      { cardId: 'b2_sunmane', attack: 3, health: 60, keywords: ['RL'], sourceUid: 'SH' },
-      { cardId: 'stray', attack: 1, health: 60, sourceUid: 'B1' },
-    ]);
-    expect(Math.max(...grants)).toBe(6);
-    expect(grants).not.toContain(12);
+  it('a Beast summoned MID-COMBAT joins the chain at full strength', () => {
+    // Owner rule: it has no stacks until a carrier attacks, then takes the CURRENT value and can carry on.
+    // Sea Urchin's Echo summons a token mid-fight, so the token arrives after the chain has already escalated.
+    const g = grants([
+      { cardId: 'b2_sunmane', attack: 3, health: 200, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'seaurchin', attack: 1, health: 1, sourceUid: 'SU' }, // dies early → summons its token
+      { cardId: 'stray', attack: 1, health: 200, sourceUid: 'B1' },
+    ], 7);
+    // The chain still climbs past the opening rungs even though a fresh body joined partway — a newcomer must
+    // not reset or stall it.
+    expect(Math.max(...g)).toBeGreaterThanOrEqual(12);
   });
 
-  it('buffs Beasts +3 Attack and grafts the rally onto them (once each, no runaway)', () => {
-    const r = simulate([
-      { cardId: 'b2_sunmane', attack: 3, health: 60, keywords: ['RL'], sourceUid: 'SH' },
-      { cardId: 'stray', attack: 1, health: 60, sourceUid: 'B1' },
-      { cardId: 'pup', attack: 1, health: 60, sourceUid: 'B2' },
-    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), CARD_INDEX,
+  it('the escalation cannot reach Infinity (the doubling is clamped)', () => {
+    // Unbounded doubling is the design, but the arithmetic must stay finite — an Infinity here would turn every
+    // downstream stat into NaN. A long fight with several Beasts exercises many rungs.
+    const board: BoardMinion[] = [
+      { cardId: 'b2_sunmane', attack: 3, health: 4000, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 4000, sourceUid: 'B1' },
+      { cardId: 'pup', attack: 1, health: 4000, sourceUid: 'B2' },
+      { cardId: 'badgington', attack: 1, health: 4000, sourceUid: 'B3' },
+    ];
+    const r = simulate(board, [{ cardId: 'sandbag', attack: 0, health: 200000 }], makeRng(11), CARD_INDEX,
       combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
-    // The Herald's attack buffs both Beasts +3/+0…
-    const buffs = r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 0);
-    expect(buffs.length).toBeGreaterThanOrEqual(2);
-    // …and they picked up the rally, so THEY buff too as they attack — more +3/+0 events than the Herald
-    // alone could produce in its own attacks. The dedupe guard keeps this linear, not exponential: the fight
-    // resolves (the harness/suite would hang otherwise).
-    expect(buffs.length).toBeGreaterThan(2);
+    const bad = r.events.filter((e) => {
+      const v = (e as { attack?: number }).attack;
+      return typeof v === 'number' && !Number.isFinite(v);
+    });
+    expect(bad).toEqual([]);
+    for (const m of r.initial.player) expect(Number.isFinite(m.attack)).toBe(true);
+  });
+
+  it('still grants the Rally itself, so the spread reaches every Beast', () => {
+    const g = grants([
+      { cardId: 'b2_sunmane', attack: 3, health: 200, keywords: ['RL'], sourceUid: 'SH' },
+      { cardId: 'stray', attack: 1, health: 200, sourceUid: 'B1' },
+    ]);
+    // More grants than Sunmane alone could produce from its own attacks — the Stray learned the rally and is
+    // granting too.
+    expect(g.length).toBeGreaterThan(2);
   });
 });
 

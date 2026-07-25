@@ -50,6 +50,12 @@ let spellFrameAvailable = true;
 // Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
 // module-level availability flag flipped on the first 404, so a missing asset degrades to today's look.
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
+// Beast tribe gets its own plate — same stone/gold body, GREEN gem accents. Keyed on the PRIMARY tribe only
+// (owner 2026-07-25): a Beast/Dragon shows the neutral plate, only a Beast-primary card gets this one.
+// Same 800×1244 art dims, so the geometry vars are unchanged. (Per-tribe plates can grow from here.)
+const CARD_PLATE_BEAST_SRC = `${import.meta.env.BASE_URL}frames/cardplate-beast.webp`;
+const plateSrcFor = (tribe: Tribe | undefined): string =>
+  tribe === 'beast' ? CARD_PLATE_BEAST_SRC : CARD_PLATE_SRC;
 let cardPlateAvailable = true;
 
 // (KW_LABEL — the keyword→display-name map — was removed with the pill row it fed, owner 2026-07-21.
@@ -498,10 +504,10 @@ export const Card = memo(function Card({
               static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
               handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
               src, so the browser serves it from cache — no second decode. */}
-          <img className="plateglow" src={CARD_PLATE_SRC} alt="" aria-hidden="true" draggable={false} />
+          <img className="plateglow" src={plateSrcFor(card.tribe)} alt="" aria-hidden="true" draggable={false} />
           <img
             className="cardplate"
-            src={CARD_PLATE_SRC}
+            src={plateSrcFor(card.tribe)}
             alt=""
             aria-hidden="true"
             draggable={false}

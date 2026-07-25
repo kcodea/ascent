@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-07-25 (Beast tribe gets its own card plate)
+
+### feat(ui): Beast-primary cards use a green-gem plate
+
+Beast tribe now renders on its own backplate — the same ornate stone/gold body as the neutral plate but with
+GREEN gem accents (side runes + the bottom diamond). Keyed on the PRIMARY tribe only (owner call): a
+Beast-primary card gets it; a Beast/Dragon or Dragon/Beast keeps the neutral plate. `Card.tsx` picks the src
+via `plateSrcFor(card.tribe)` for both the plate and its hover-glow copy; everything else (geometry, text
+buckets, gold tint, dissolve/coalesce) is unchanged because the art is the same 800×1244 dims.
+
+Asset: `frames/cardplate-beast.webp`, converted from the owner's 945×1469 PNG (ratio 1.5545 ≈ the plate's
+1.5550) down to 800×1244 via sharp, quality 92 (263 KB). Verified live: a Beast-primary card's `.cardplate`
+src is `cardplate-beast.webp`, a Mech's and a Dragon/Beast's are `cardplate.webp`; the asset serves (200) and
+bundles into `dist/`.
+
+Follow-up (owner to decide): a golden Beast card gets this plate PLUS the gold tint filter, which pushes the
+green gems toward gold — leave as-is, or author a bespoke gold-beast plate.
+
+
 ### fix(core/ui): Sunmane's rally ACCUMULATES (not doubles); buff badges no longer flash up-down-up
 
 Two things from the owner's screen capture and the correction that followed.

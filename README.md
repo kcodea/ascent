@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Sunmane Herald's rally accumulates properly** — a carrier passes on what it was given (so the growth compounds as it spreads), and Sunmane keeps granting its own +3. Buff badges no longer flash the new number, snap back, then tick up.
 - **Sunmane Herald's rally really escalates now** — the granted Attack doubles on every rally attack (3 -> 6 -> 12 -> 24 …) instead of stalling, and the card shows its live value. Dawnclaw has Taunt.
 - **All Set-2 minion and spell art re-wired** in one pass (133 files), and the last unoptimized art in the repo — the 22 Kobold PNGs — is now WebP.
 - **Rubies played mid-combat now trigger the minion they land on** — Geode Guardian's Echo finally bounces off a Resonance Idol. Gem Shard is now **Gemheart Golem**.

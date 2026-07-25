@@ -110,6 +110,37 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
 }
 
 /**
+ * Each buff target's PRE-buff displayed stats for one beat: its post-beat value minus everything the beat granted
+ * it. The badge holds this until the tendril lands, so the number ticks up when the FX says it should.
+ *
+ * Pure so it can be tested directly — the bug it fixes (paint the new value, snap back, tick up again) was a
+ * TIMING mistake around this arithmetic, not the arithmetic itself, and a regression here is silent on screen.
+ * Sums the WHOLE beat per target: a target can take an incoming tendril and a self-buff in the same beat, and
+ * subtracting only one leaves the badge on a number that was never real.
+ */
+export function preBuffHolds(
+  beat: { start: number; end: number },
+  events: CombatEvent[],
+  frame: { player: UnitFrame[]; enemy: UnitFrame[] },
+): Map<string, { atk: number; hp: number }> {
+  const totals = new Map<string, { atk: number; hp: number }>();
+  for (let i = beat.start; i < beat.end; i++) {
+    const e = events[i];
+    if (!e || e.type !== 'buff') continue;
+    const t = totals.get(e.target) ?? { atk: 0, hp: 0 };
+    totals.set(e.target, { atk: t.atk + e.attack, hp: t.hp + e.health });
+  }
+  const out = new Map<string, { atk: number; hp: number }>();
+  for (const [uid, t] of totals) {
+    if (t.atk === 0 && t.hp === 0) continue;
+    const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
+    if (!u) continue; // not on the board this frame → nothing to hold
+    out.set(uid, { atk: u.attack - t.atk, hp: u.health - t.hp });
+  }
+  return out;
+}
+
+/**
  * Fold the event log up to `upto` into the live board state. Deaths from *before*
  * the current beat (index < `beatStart`) are removed outright; a minion dying in
  * the current beat is kept one beat (rendered with its death pop, no grey) so the
@@ -699,8 +730,10 @@ export function useCombatReplay(
     for (const [target, { atk: sumAtk, hp: sumHp, strikeMs }] of perTarget) {
       const tgt = unitOf(target);
       if (!tgt) continue;
-      const held = { atk: tgt.attack - sumAtk, hp: tgt.health - sumHp };
-      setStatHold((m) => new Map(m).set(target, held));
+      // The HOLD is installed pre-paint by the layout effect below — deliberately NOT here. Setting it from
+      // this post-paint effect meant the browser painted the already-buffed number for one frame, then the
+      // hold snapped it back to the pre-buff value, then the strike released it again: the "stat goes up,
+      // down, then up with the tendrils" the owner filmed (2026-07-25). This path now owns only the RELEASE.
       const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
       timers.push(window.setTimeout(() => {
         setStatHold((m) => { const n = new Map(m); n.delete(target); return n; });
@@ -730,9 +763,8 @@ export function useCombatReplay(
       pixiFx.pulse(cx, cy, cfg);
 
       const tgt = unitOf(s.uid);
-      if (!tgt) continue; // no frame entry → fall back to normal display (no negative held value)
-      const held = { atk: tgt.attack - s.attack, hp: tgt.health - s.health };
-      setStatHold((m) => new Map(m).set(s.uid, held));
+      if (!tgt) continue; // no frame entry → nothing to release
+      // Hold installed pre-paint by the layout effect below (see the note in `fireBuffCasts`); release only.
       const holdMs = cfg.holdMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
       timers.push(window.setTimeout(() => {
         setStatHold((m) => { const n = new Map(m); n.delete(s.uid); return n; });
@@ -1265,6 +1297,30 @@ export function useCombatReplay(
     [combat, events, processedEnd, beatStart, names],
   );
   frameRef.current = frame;
+
+  // ── Buff stat HOLDS, installed BEFORE the browser paints this beat ────────────────────────────────────
+  //
+  // `frame` already includes the buffs of the beat now being cued (`processedEnd` = the previous beat's end),
+  // because the FX for a beat plays while the frame shows that beat's outcome. The display is meant to lag —
+  // a buffed badge holds its PRE-buff number until the tendril lands, then ticks up. That hold used to be
+  // installed from the post-paint cue effect, which meant every buff painted three times: the new value for
+  // one frame, then the hold snapping back to the old value, then the release ticking up again. That is the
+  // "attack goes up, then down, then up when the tendrils come out" the owner filmed (2026-07-25).
+  //
+  // A LAYOUT effect commits the hold in the same paint as the frame advance, so the intermediate value is
+  // never shown. Cheap by construction — arithmetic over one beat's buff events, no DOM measurement — so it
+  // doesn't put layout work on the beat boundary. The FX path (`fireBuffCasts` / `fireSelfBuffs`) still owns
+  // the RELEASE, which is what has to be timed to the animation.
+  //
+  // Rebuilt wholesale each beat rather than merged, which also means a hold whose release timer was lost
+  // (a skip, a speed change mid-flight) can never outlive its beat and freeze a badge.
+  useLayoutEffect(() => {
+    if (!active || beatIdx === 0) { setStatHold((m) => (m.size ? new Map() : m)); return; }
+    const beat = beats[beatIdx - 1];
+    if (!beat) return;
+    const next = preBuffHolds(beat, events, frame);
+    setStatHold((m) => (m.size === 0 && next.size === 0 ? m : next));
+  }, [active, beatIdx, beats, events, frame]);
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.

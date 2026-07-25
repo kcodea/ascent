@@ -617,19 +617,18 @@ export function taughtSpellText(cardId: string, taughtSpellId: string | undefine
 }
 
 /**
- * Sunmane Herald: its rally's granted Attack DOUBLES on every rally attack, so the printed "+3" is only true on
- * the opening swing. Prints the value this body will actually grant next, green via `{{…}}` once it has climbed
- * above the base — the live-text rule applied to a value that lives on the combat instance.
+ * Sunmane Herald: a rally carrier grants its printed base PLUS everything it has accumulated, so the printed
+ * "+3" understates it the moment the buff has spread. Prints what this body will actually grant next, green via
+ * `{{…}}` once it exceeds the base — the live-text rule applied to a value that lives on the combat instance.
  *
- * Returns null in the shop (no `rallySpreadAtk` yet) and while still at base, so those fall back to the printed
- * text. Golden is already folded into the stored magnitude, so no extra doubling here.
+ * Returns null in the shop (nothing accumulated yet), so that falls back to the printed text.
  */
 export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?: number): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'rallySpreadTribeBuff');
   if (!eff || !rallySpreadAtk) return null;
   const base = ((eff.params as { attack?: number } | undefined)?.attack ?? 3) * (golden ? 2 : 1);
-  if (rallySpreadAtk <= base) return null; // still on the opening rung — the printed number is correct
+  const grant = base + rallySpreadAtk; // what the next rally attack actually hands out
   const src = golden ? (def!.goldenText ?? def!.text) : def!.text;
-  return src.replace(`+${base} Attack`, `{{+${rallySpreadAtk} Attack}}`);
+  return src.replace(`+${base} Attack`, `{{+${grant} Attack}}`);
 }

@@ -1,5 +1,51 @@
 # ASCENT — development log
 
+### fix(core/ui): Sunmane's rally ACCUMULATES (not doubles); buff badges no longer flash up-down-up
+
+Two things from the owner's screen capture and the correction that followed.
+
+**1. The rally model was wrong — twice, in opposite directions.** The correct rule (owner 2026-07-25): a carrier
+grants its printed base PLUS everything it has been GRANTED, and it never buffs itself. The escalation players
+see is **emergent** — later carriers hand out more purely because they were handed more. Nothing doubles anything.
+
+The discriminating case is Flurry: *"it only buffs the rest of the beast minions +3 attack 4 times, so +12
+attack. this DOES mean that the next beast that attacks would rally: +12"*. My previous version doubled the value
+on every rally attack, so four Sunmane swings would have escalated 3 → 6 → 12 → 24 instead of granting +3 four
+times. Because Sunmane never accumulates, it keeps granting its printed +3 forever while the Beasts it feeds grow
+— which is exactly why the self-exclusion is load-bearing rather than incidental (I briefly "fixed" it in #712,
+now closed; that was wrong).
+
+This model reproduces BOTH of the owner's descriptions, including the repeated `+3` in the first one that the
+doubling reading couldn't produce: with each Beast attacking once the raw grants run
+`3,3,3, 3,3,3, 6,6,6, 12,12,12`. Only the printed card carries a base; the graft is written with `attack: 0` so a
+converted Beast passes on exactly what it was given.
+
+*A testing lesson worth keeping.* My first attempt at the discriminating test collapsed duplicate values into
+"rungs" and asserted `[3, 6, 12, 24]` — which **passes against the wrong model too**, because collapsing hides
+the six-vs-three `+3`s that actually separate them. I only caught it by regressing the implementation on purpose
+and watching the test still pass. The test now asserts the RAW grant sequence, and I re-confirmed it fails
+against the doubling version.
+
+**2. The reported visual bug: buff badges flashed the new value, snapped back, then ticked up.** A buffed badge is
+*meant* to hold its pre-buff number until the tendril lands. That hold was installed from the post-paint cue
+effect, so every buff painted three times — new value for one frame, hold snapping back, release ticking up. It
+now installs in a **layout** effect, committing in the same paint as the frame advance, so the intermediate value
+is never shown. The FX path keeps the RELEASE, which is what has to be timed to the animation.
+
+The arithmetic moved into a pure exported `preBuffHolds`, tested directly — the failure mode is silent (the badge
+just lands on a plausible number that was never real), and it now also sums the WHOLE beat per target, fixing a
+latent inconsistency where a target taking both a tendril and a self-buff in one beat had only one of them
+subtracted. Holds are rebuilt wholesale each beat, so a lost release timer can no longer freeze a badge.
+
+Verified: typecheck / lint / test (1649) / build:web / harness green. Both fixes confirmed to bite by regressing
+them. Frame-accurate visual confirmation of the badge fix wasn't possible from here (the Browser pane isn't
+compositing, so rAF and screenshots are throttled) — the pure function is under test and a MutationObserver over
+a live replay showed no decreases, but **it's worth an eyeball in the exe**.
+
+*Tooling note:* read the owner's clip by installing `ffmpeg-static` into the scratchpad (NOT the repo), extracting
+frames, and tiling crops of the stat badges into filmstrips. That is what made the up/down/up sequence legible
+and located the bug.
+
 ### fix(content/core/ui): Sunmane Herald's rally escalates board-wide; Dawnclaw gains Taunt
 
 **Sunmane Herald, reworked to the owner's actual model (2026-07-25).** My previous pass read "stacks

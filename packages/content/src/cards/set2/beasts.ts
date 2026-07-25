@@ -51,10 +51,10 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Choose One — Hunt / Ritual:** that trigger fires **2 additional** times.',
   },
   {
-    // A viral, ESCALATING Rally: every Beast it buffs also learns this rally, and the granted Attack DOUBLES on
-    // every rally attack board-wide — 3, 6, 12, 24, … (owner spec 2026-07-25: "the value continuously stacks").
-    // Compounding with attack count is the point, so Flurry and extra-attack effects are the payoff. The
-    // magnitude lives on the combat INSTANCE, so death loses the stacks. See `rallySpreadTribeBuff`.
+    // A viral Rally whose escalation is EMERGENT: every Beast it buffs learns the rally, and a carrier grants
+    // whatever it has ACCUMULATED — so later carriers hand out more purely because they were handed more.
+    // Sunmane never buffs itself, so it keeps granting its printed +3 while the Beasts it feeds grow. The
+    // accumulation lives on the combat instance, so death loses the stacks. See `rallySpreadTribeBuff`.
     id: 'b2_sunmane',
     name: 'Sunmane Herald',
     tribe: 'beast',
@@ -63,8 +63,10 @@ export const SET2_BEASTS: CardDef[] = [
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe: 'beast', attack: 3 } }],
-    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**. Each **Rally doubles** the Attack.',
-    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**. Each **Rally doubles** the Attack.',
+    // The plain wording is the ACCURATE one: nothing doubles anything, the growth is just the buff compounding
+    // as it spreads (owner 2026-07-25). The live value is folded in by `rallySpreadText` on the combat card.
+    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**.',
+    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**.',
   },
   {
     // The tribe's two halves in one card: it pays your summons, and your SPELLS make that payment bigger.

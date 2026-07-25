@@ -197,7 +197,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 5,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { spellId: 'staffofguel', count: 1 } }],
+    // `cardId`, NOT `spellId` — the factory reads `params.cardId`, so the wrong key granted the EMPTY string and
+    // the hand-grant preview then crashed on `CARD_INDEX['']` (owner report 2026-07-25). `count` is likewise not
+    // a param here: the factory grants `mul(self)` copies, which is already the golden "2 Staves".
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'staffofguel' } }],
     text: '**Echo:** get a **Staff of Guel**.',
     goldenText: '**Echo:** get **2 Staves of Guel**.',
   },

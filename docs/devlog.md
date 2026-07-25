@@ -1,6 +1,30 @@
 # ASCENT — development log
 
-### refactor(sim/ui): Shop-consume gets its OWN channel; full audit of the Demon consume line
+### 2026-07-25 — fix: a bad `params.cardId` crashed the Recruit render; Gemgorge bypassed the consume primitive
+
+**The crash.** Velvet Rope Fiend's Echo passed `params: { spellId: 'staffofguel' }`, but
+`deathrattleGrantSpell` reads **`params.cardId`**. `str(params.cardId)` returned `''`, so combat granted the
+EMPTY id to hand and `tokenRefView` threw on `CARD_INDEX[''].spell` — taking down the whole Recruit tree
+(`TypeError: Cannot read properties of undefined (reading 'spell')`). A wrong param key is silent: schema
+validation doesn't know which keys a factory reads, so nothing caught it.
+
+Fixed the key, and **hardened the render**: the combat hand-grant map now filters against `CARD_INDEX`, the
+way the other `tokenRefView` call site already did. A card-data typo should show nothing, not white-screen.
+
+**The audit that found a second bug.** Cross-checking every Set-2 card's effect params against the keys its
+factory actually reads surfaced four mismatches; three were false positives (`every`/`count` are read by the
+*dispatch* sites, not the factory bodies). The fourth was real: **Gemgorge Fiend** hand-rolled its own shop
+consume instead of calling the shared `consumeShopMinion`, so it skipped everything that primitive does —
+no return-to-pool (the permanent pool drain fixed last PR), no `shopEaten` record so no consume animation,
+no `onConsume` fire (Avarice Incarnate never paid for it) — and it excluded only spells, **not Rubies**, so
+it could eat a Ruby offer. Now routed through the primitive, with matching eligibility so it can't pick an
+index the primitive then refuses.
+
+**Verified:** typecheck / lint / test / build:web green, 1709 tests (+5). Both new regression tests were
+confirmed to FAIL against the pre-fix code and pass after. Added a sweep asserting every `params.cardId` in
+Set 2 names an id the index knows, so this class of typo can't reach the UI again.
+
+## refactor(sim/ui): Shop-consume gets its OWN channel; full audit of the Demon consume line
 
 **Separated from Fodder consume** (owner 2026-07-25: "they are very different mechanics and will have different
 animations"). Shop-minion consumes now write `shopEaten` / `shopEatenSeq` instead of borrowing `fodderEaten`,

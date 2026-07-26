@@ -2410,18 +2410,39 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     grantShield(ctx, target);
   },
 
-  /** Set 2 — Lastlight Marshal (Start of Combat): give your LEFT-most minion Flurry and your RIGHT-most Ward.
-   *  Board order, so no RNG. The two ends can be the same minion on a one-minion board — it then gets both,
-   *  which is the honest reading of "left-most" and "right-most" both pointing at it. Gilded text is identical
-   *  to the base, per the owner's roster, so this deliberately does NOT scale with golden. */
-  scGrantEndsFlurryWard: (ctx, self) => {
-    const friends = ctx.living(self.side);
+  /** Set 2 — Aeon Acolyte (Echo): hand a random friendly minion THIS minion's stats.
+   *
+   *  Uses `maxHealth`, not `health` — by the time an Echo runs the body is at or below 0, so `health` would
+   *  grant nothing. `maxHealth` is the statline as it STOOD, including every buff it collected, which is the
+   *  honest reading of "this minion's stats".
+   *
+   *  Deliberately NOT multiplied by `mul(self)`: a Gilded Acolyte already carries doubled stats, so the grant
+   *  doubles on its own. Applying the golden multiplier on top would quadruple it (owner change 2026-07-25 —
+   *  flag if you want the extra doubling). */
+  deathrattleGiveOwnStats: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const friends = ctx.living(self.side).filter((m) => m !== self);
     if (friends.length === 0) return;
-    const left = friends[0]!;
-    const right = friends[friends.length - 1]!;
-    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} sounds the last light` });
-    if (!left.keywords.includes('W')) left.keywords.push('W'); // Flurry
-    grantShield(ctx, right); // Ward (emits its own shieldUp)
+    void params;
+    ctx.buff(ctx.rng.pick(friends), self.attack, self.maxHealth, self.uid);
+  },
+
+  /** Set 2 — Lastlight Marshal (Echo): give `count` friendly minions Ward (golden doubles).
+   *
+   *  Prefers minions that DON'T already have a shield — handing Ward to a shielded body is a wasted grant, and
+   *  on a wide board the random pick would do that often. Falls back to the full living set only if everyone is
+   *  already shielded (where it's a no-op anyway). Picks are DISTINCT: `count` is a number of minions, not a
+   *  number of rolls, so the same body can't soak both. */
+  deathrattleGrantWardRandom: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
+    let n = num(params.count, 2) * mul(self);
+    while (n > 0 && pool.length > 0) {
+      const target = ctx.rng.pick(pool);
+      pool.splice(pool.indexOf(target), 1); // distinct targets
+      grantShield(ctx, target);
+      n--;
+    }
   },
 
   /** Set 2 — Fatecarver: whenever YOU summon a minion in combat, double that minion's stats. Fires on the

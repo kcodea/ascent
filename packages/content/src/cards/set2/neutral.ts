@@ -48,16 +48,18 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Choose One:** give your Shop spells **+2 Attack** or **+2 Health**.',
   },
   {
+    // Renamed from Gravelight Acolyte and re-pointed off the summon line (owner change 2026-07-25). The ID is
+    // deliberately unchanged: art files and saved runs key off `n2_gravelight`, and set 2's vocabulary rename
+    // set the precedent that display names move while ids stay put.
     id: 'n2_gravelight',
-    name: 'Gravelight Acolyte',
+    name: 'Aeon Acolyte',
     tribe: 'neutral',
     tier: 2,
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonRandomTier', params: { tier: 1, count: 1 } }],
-    text: '**Echo:** summon a random **Tier 1** minion.',
-    goldenText: '**Echo:** summon **2** random **Tier 1** minions.',
+    effects: [{ on: 'onDeath', do: 'deathrattleGiveOwnStats' }],
+    text: "**Echo:** give a friendly minion this minion's stats.",
   },
   {
     // Avenge that pays in survivability rather than damage — the Ward is the point, the stats are the sweetener.
@@ -86,8 +88,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Every 2 turns:** get a plain copy of **adjacent** minions.',
   },
   {
-    // Positional Start of Combat: the two ends of your line get the two keywords that matter most there —
-    // Flurry on the leader that strikes first, Ward on the tail that gets attacked into.
+    // Echo: its death hands Ward to two survivors — a body that trades early and leaves the line tougher than
+    // it found it (owner change 2026-07-25, replacing a positional Start of Combat).
     id: 'n2_lastlight',
     name: 'Lastlight Marshal',
     tribe: 'neutral',
@@ -95,8 +97,9 @@ export const SET2_NEUTRAL: CardDef[] = [
     attack: 5,
     health: 7,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scGrantEndsFlurryWard' }],
-    text: '**Start of Combat:** give your **left-most** minion **Flurry** and your **right-most** minion **Ward**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantWardRandom', params: { count: 2 } }],
+    text: '**Echo:** give **2** friendly minions **Ward**.',
+    goldenText: '**Echo:** give **4** friendly minions **Ward**.',
   },
   {
     // The summon-build capstone: every body you make in combat lands at double size. Its Gilded text on the

@@ -52,17 +52,28 @@ describe('set 2 — Tamer', () => {
   });
 });
 
-describe('set 2 — Gravelight Acolyte', () => {
-  it('Echo summons a random TIER 1 minion', () => {
-    const r = simulate([bm('n2_gravelight', 'G', 2, 1)], [{ cardId: 'sandbag', attack: 5, health: 400 }],
+describe('set 2 — Aeon Acolyte (renamed from Gravelight Acolyte, owner change 2026-07-25)', () => {
+  it("Echo hands a friendly minion this minion's stats", () => {
+    // Acolyte is a 4/6 here and dies on the first swing; the survivor should end up +4/+6.
+    const r = simulate([
+      bm('n2_gravelight', 'G', 4, 6),
+      bm('stray', 'S', 2, 40),
+    ], [{ cardId: 'sandbag', attack: 20, health: 400 }], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 2 }), combatSide({ tier: 1 }));
+
+    const buffs = r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[];
+    const got = buffs.find((b) => b.target === 'm1');
+    expect(got, 'the surviving friend was buffed').toBeTruthy();
+    expect(got!.attack, "its full Attack").toBe(4);
+    // maxHealth, not the 0-or-less health it died at — the statline as it stood.
+    expect(got!.health, 'its full Health, not the 0 it died on').toBe(6);
+  });
+
+  it('buffs a FRIEND, never itself, and no-ops on an empty board', () => {
+    const r = simulate([bm('n2_gravelight', 'G', 4, 1)], [{ cardId: 'sandbag', attack: 20, health: 400 }],
       makeRng(7), CARD_INDEX, combatSide({ tier: 2 }), combatSide({ tier: 1 }));
-    // Assert the FIRST summon, not the count: the roll can legitimately CHAIN (it drew Tamer here, whose own
-    // Echo then summons a Whelp), so a total-count assertion would fail for the right reasons.
-    const summons = r.events.filter((e) => e.type === 'summon') as { minion: { cardId: string } }[];
-    expect(summons.length).toBeGreaterThan(0);
-    const def = CARD_INDEX[summons[0]!.minion.cardId]!;
-    expect(def.tier).toBe(1);
-    expect(def.token).not.toBe(true); // a real shop minion, not a token
+    const buffs = r.events.filter((e) => e.type === 'buff') as { target: string }[];
+    expect(buffs.filter((b) => b.target === 'm0'), 'it is the one that died').toEqual([]);
   });
 });
 
@@ -84,20 +95,33 @@ describe('set 2 — Oathbound Avenger', () => {
 });
 
 describe('set 2 — Lastlight Marshal', () => {
-  it('Start of Combat: left-most gains Flurry, right-most gains Ward', () => {
+  // Swept across seeds on purpose: with THREE eligible bodies and two grants, a non-distinct pick only
+  // collides on some seeds — the first version of this test passed on seed 3 against a broken implementation.
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])('Echo: two OTHER friendly minions gain Ward when it dies (seed %i)', (seed) => {
+    // A 1-health Marshal dies to the first swing; the sandbag hits hard enough to kill it outright.
     const r = simulate([
-      bm('stray', 'L', 2, 20),
-      bm('n2_lastlight', 'LM', 5, 20),
-      bm('pup', 'R', 2, 20),
-    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), CARD_INDEX,
+      bm('n2_lastlight', 'LM', 1, 1),
+      bm('stray', 'A', 2, 20),
+      bm('pup', 'B', 2, 20),
+      bm('sandbag', 'C', 2, 20),
+    ], [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(seed), CARD_INDEX,
       combatSide({ tier: 5 }), combatSide({ tier: 1 }));
-    // Ward shows as a shieldUp on the RIGHT-most (m2).
-    const shields = r.events.filter((e) => e.type === 'shieldUp') as { target: string }[];
-    expect(shields.some((s) => s.target === 'm2')).toBe(true);
-    // Flurry on the LEFT-most means it strikes twice per turn — more attacks from m0 than from the others.
-    const attacksBy = (uid: string): number =>
-      r.events.filter((e) => e.type === 'attack' && (e as { attacker: string }).attacker === uid).length;
-    expect(attacksBy('m0')).toBeGreaterThan(attacksBy('m1'));
+
+    const shielded = new Set(
+      (r.events.filter((e) => e.type === 'shieldUp') as { target: string }[]).map((s) => s.target),
+    );
+    expect(shielded.size, 'exactly two minions get Ward — distinct picks, not two rolls').toBe(2);
+    expect(shielded.has('m0'), 'never itself — it is the one that died').toBe(false);
+  });
+
+  it('grants no more Wards than there are eligible bodies', () => {
+    // Only ONE other minion alive, so the second grant has nowhere to go rather than double-shielding it.
+    const r = simulate([
+      bm('n2_lastlight', 'LM', 1, 1),
+      bm('stray', 'A', 2, 20),
+    ], [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 5 }), combatSide({ tier: 1 }));
+    expect(r.events.filter((e) => e.type === 'shieldUp').length).toBe(1);
   });
 });
 

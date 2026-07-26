@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+### 2026-07-25 — content: three owner card changes (Ashen Broodlord, Aeon Acolyte, Lastlight Marshal)
+
+**Ashen Broodlord** drops the Avenge-spell-power line for *"When this Consumes a minion, get a Shop spell"*
+(`onConsumeSelfGrantSpell`). `onConsume` fires board-wide with the eater in the payload, so the
+`payload.minion !== self` guard is what makes it "when **this** Consumes" rather than Avarice's "the first
+time **you** consume". Broodlord has no consume of its own — as a Demon it eats through the shared sources
+(a Fodder sell's left-most Demon, Feastmaster Vhal's neighbours), which is how the trigger turns on. The
+"Shop spell" promise costs no explicit Ruby check: `poolOf().spells` filters `!token`, and a Ruby is a token.
+Rise and the statline are unchanged — the change rewrote the effect, not the keywords.
+
+**Gravelight Acolyte → Aeon Acolyte** (owner: it's a rename), re-pointed off the summon line to
+*"Echo: give a friendly minion this minion's stats"* (`deathrattleGiveOwnStats`). Uses **`maxHealth`, not
+`health`** — by the time an Echo runs the body is at or below 0, so `health` would grant nothing; `maxHealth`
+is the statline as it stood, buffs included. Deliberately not multiplied by `mul(self)`: a Gilded Acolyte
+already carries doubled stats, so the grant doubles on its own and the multiplier would quadruple it. The
+**id stays `n2_gravelight`** — art files and saved runs key off the id, and set 2's vocabulary rename set the
+precedent that display names move while ids stay put.
+
+**Lastlight Marshal** drops the positional Start of Combat for *"Echo: give 2 friendly minions Ward"*
+(`deathrattleGrantWardRandom`, golden 4). Picks are distinct and prefer unshielded bodies — a random grant
+onto an already-shielded minion is wasted. `scGrantEndsFlurryWard` had no other user and was removed rather
+than left as dead code.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1721 tests (+12). Each new guard was
+confirmed load-bearing by reverting it and re-running.
+
+**A test-quality note worth keeping.** The distinct-pick assertion first passed against a *broken*
+implementation, because on seed 3 the RNG happened not to collide. It's now an `it.each` sweep across eight
+seeds, which fails on two of them without the guard. Single-seed assertions on RNG behaviour are close to
+worthless — that's the fifth vacuous-test catch in this stretch of work.
+
 ## 2026-07-25 (reward previews get the card plate)
 
 ### feat(ui): quest + rune reward previews render on the card plate

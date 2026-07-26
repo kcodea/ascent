@@ -263,6 +263,10 @@ const SPECS = {
     enabledWhen: { param: 'waveAmp', above: 0 },
     help: 'How fast the wave travels (rad/sec); 0 freezes it in place. Only bites once Wave amp is above 0.',
   },
+  drain: {
+    kind: 'slider', label: 'Drain', group: 'Shape', min: 0, max: 2000, step: 10, default: 0,
+    help: 'How fast (px/sec) the tail retracts into the head once the head STOPS moving — the trail carries on arriving and shrinks to nothing, instead of freezing as a static streak or blinking out whole when the layer ends. 0 (the default) is the old freeze-in-place behaviour.',
+  },
   segments: {
     kind: 'slider', label: 'Segments', group: 'Shape',
     min: RIBBON_MIN_SEGMENTS, max: RIBBON_MAX_SEGMENTS, step: 4, default: RIBBON_SEGMENTS,
@@ -329,6 +333,44 @@ export function pushSpineHead(
   return spine;
 }
 
+/** Below this per-frame head movement (px) the head counts as PARKED, and `drain` starts eating the tail.
+ *  Not zero: a head pinned to a target still jitters by sub-pixel amounts, and an exactly-equal test would
+ *  leave the trail frozen forever in precisely the case the drain exists for. */
+export const RIBBON_STALL_EPSILON_PX = 0.5;
+
+/**
+ * Eat `dropPx` of arc length off the TAIL end of the spine — the trail retracting into a stopped head.
+ *
+ * Without this a ribbon whose head stops just FREEZES (the spine only ever shrinks when new head input
+ * pushes the far end past `length`), so an effect that travels to a target either hangs there as a static
+ * streak or blinks out whole when its layer expires. Draining lets the front stop while the back keeps
+ * coming, and the trail shortens to nothing.
+ *
+ * Whole segments are dropped until less than one remains, then the final point is slid along its own
+ * segment toward its neighbour — so the tail retracts smoothly rather than in point-sized jumps. A spine
+ * that drops below two points is emptied: one point is not a ribbon, and `writeRibbonPositions` already
+ * reports "nothing to draw" for it. Mutates and returns `spine`.
+ */
+export function drainSpineTail(spine: RibbonPoint[], dropPx: number): RibbonPoint[] {
+  let remaining = dropPx;
+  while (spine.length >= 2 && remaining > 0) {
+    const last = spine[spine.length - 1];
+    const prev = spine[spine.length - 2];
+    const seg = Math.hypot(last.x - prev.x, last.y - prev.y);
+    if (seg <= remaining) {
+      spine.pop();
+      remaining -= seg;
+    } else {
+      const t = remaining / seg;
+      last.x += (prev.x - last.x) * t;
+      last.y += (prev.y - last.y) * t;
+      remaining = 0;
+    }
+  }
+  if (spine.length < 2) spine.length = 0;
+  return spine;
+}
+
 class RibbonInstance implements FxInstance<RibbonParams> {
   private readonly mesh: Mesh<MeshGeometry, Shader>;
   private readonly geometry: MeshGeometry;
@@ -343,6 +385,12 @@ class RibbonInstance implements FxInstance<RibbonParams> {
   // resets to 0 on each `setHead`; `headEverSet` flips true on the first `setHead`. Both are harmless
   // no-op bookkeeping in continuous mode (isComplete returns false there).
   private msSinceHead = 0;
+  // Drain bookkeeping (see `drainSpineTail`). `headMoved` is set by a `setHead` that actually MOVED the head
+  // and cleared by each `update`, so `update` sees "did the head advance since my last tick?" — which is the
+  // real question. Tracking "was setHead called" instead would miss the commonest case by far: a head parked
+  // on a target is still fed the same point every single frame.
+  private headMoved = false;
+  private lastHead: RibbonPoint | null = null;
   private headEverSet = false;
   // Cached scratch object for writeRibbonPositions' `shape` arg — kept off the per-frame hot path
   // (update()) per the no-per-frame-allocation discipline established right next to it in
@@ -433,6 +481,9 @@ class RibbonInstance implements FxInstance<RibbonParams> {
    *  in whatever coordinate space `ctx.container` (passed to `spawn`) itself lives in — this instance
    *  applies no transform of its own, so it never converts between spaces. */
   setHead(x: number, y: number): void {
+    const prev = this.lastHead;
+    if (prev === null || Math.hypot(x - prev.x, y - prev.y) > RIBBON_STALL_EPSILON_PX) this.headMoved = true;
+    this.lastHead = { x, y };
     pushSpineHead(this.spine, { x, y }, this.params.length);
     // The head is being fed — reset the "time since last head" counter. In one-shot mode this is what
     // keeps the effect from completing while the workbench is still driving the trail (see isComplete).
@@ -443,6 +494,10 @@ class RibbonInstance implements FxInstance<RibbonParams> {
   update(dtMs: number): void {
     this.clockSec += dtMs / 1000;
     this.msSinceHead += dtMs;
+    // The head didn't advance since the last tick — retract the tail into it. Gated on `drain > 0`, so a def
+    // that doesn't ask for this behaves exactly as it did before the param existed.
+    if (!this.headMoved && this.params.drain > 0) drainSpineTail(this.spine, (this.params.drain * dtMs) / 1000);
+    this.headMoved = false;
     this.uniforms.uTime = this.clockSec;
     // In-place field write on the cached shape object — this is what makes the wave travel, and it
     // allocates nothing (same discipline as the rest of this object; see the `shape` declaration).

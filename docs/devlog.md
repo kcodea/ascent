@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx): ribbon `drain` — the tail retracts into a stopped head instead of freezing
+
+Owner: "how can we make it so the ribbon trail doesnt immediately disappear once it reaches the target? i
+want the end of the tail to continue while the front stops."
+
+The ribbon's spine only ever shrank when NEW head input pushed its far end past `length`, so a head that
+stops leaves the trail frozen as a static streak — and when the layer expires it blinks out whole. New
+`drain` param (px/sec, Shape group) eats arc length off the tail end each tick, so the front parks and the
+back keeps arriving until there's nothing left.
+
+The trigger is the part worth recording: it fires when the head **hasn't advanced**, not when `setHead`
+stopped being called. Tracking the call would miss the commonest case by far — a head parked on a target is
+still fed the same point every single frame, which is exactly the "reached the target" case this exists for.
+Hence `RIBBON_STALL_EPSILON_PX` (0.5px) rather than an equality test: a pinned head still jitters sub-pixel,
+and an exact test would leave the trail frozen forever in precisely the situation being fixed.
+
+`drainSpineTail` drops whole segments until less than one remains, then slides the final point along its own
+segment — without that the tail would jump point-to-point instead of retracting smoothly. A spine falling
+below two points is emptied rather than left as a stranded single point. Default 0, so all 14 committed defs
+keep their existing behaviour byte-for-byte.
+
+**A defect in `blue-trail-detonate` found while wiring this, NOT yet fixed.** The `travel` anchor resolves
+against the DEF's progress, not the layer's: `resolveAnchor(anchors, 'travel', progress)` where progress is
+`timeMs / duration` for the whole composition. So a ribbon layer cannot complete its arc before the def
+does. In that def the burst fires at 400ms of an 800ms duration — i.e. while the trail is still only halfway
+across — and the original `life: 440` was killing the ribbon mid-flight on top of that. The def now runs the
+ribbon full-life with `drain: 700`, which is coherent, but the detonation still does not coincide with the
+arrival. Expressing "arrive, THEN detonate" needs `travel` to resolve against the layer's own progress
+(`(now - at) / life`), which for a full-life layer is identical to today's behaviour — so it is a contained
+change, just not one to bundle into this turn.
+
+Verified: typecheck clean, lint 0 errors, 2357 tests across 122 files green (9 new), `build:web` green. The
+drain itself is not visually verified; the way to see it is the **Pinned to cursor** stage — stop moving the
+mouse and the trail should retract into the pointer.
+
 ### feat(fx): `blue-trail-detonate`, and a def file on disk now shows up without a dev-server restart
 
 Owner: "i want this blue trail to detonate into a blue burst once it hits its target."

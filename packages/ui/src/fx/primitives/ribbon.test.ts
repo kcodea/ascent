@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { defaultsOf, validateSpecs, type FxParamSpecs } from '../params';
 import { makeRng } from '../rng';
-import { RIBBON_FIRE_GRACE_MS, pushSpineHead, ribbonOneShotComplete, ribbonPrimitive } from './ribbon';
+import {
+  RIBBON_FIRE_GRACE_MS,
+  RIBBON_STALL_EPSILON_PX,
+  drainSpineTail,
+  pushSpineHead,
+  ribbonOneShotComplete,
+  ribbonPrimitive,
+} from './ribbon';
 import {
   RIBBON_MAX_SEGMENTS,
   RIBBON_MIN_SEGMENTS,
@@ -172,5 +179,88 @@ describe('ribbon uSeed', () => {
       expect(v).toBeGreaterThanOrEqual(0);
       expect(v).toBeLessThan(1000);
     }
+  });
+});
+
+/**
+ * The tail drain. Without it a ribbon whose head stops just FREEZES — the spine only ever shrinks when new
+ * head input pushes the far end past `length` — so an effect that travels to a target hangs there as a
+ * static streak, or blinks out whole when its layer expires. Draining lets the front stop while the back
+ * keeps arriving.
+ */
+describe('drainSpineTail', () => {
+  /** A straight horizontal spine, head at x=0, one point every 10px. */
+  const line = (points: number): { x: number; y: number }[] =>
+    Array.from({ length: points }, (_, i) => ({ x: i * 10, y: 0 }));
+
+  const arcLength = (spine: { x: number; y: number }[]): number => {
+    let total = 0;
+    for (let i = 1; i < spine.length; i++) total += Math.hypot(spine[i].x - spine[i - 1].x, spine[i].y - spine[i - 1].y);
+    return total;
+  };
+
+  it('removes exactly the requested arc length from the TAIL end', () => {
+    const spine = line(5); // 40px of arc
+    drainSpineTail(spine, 15);
+    expect(arcLength(spine)).toBeCloseTo(25, 6);
+  });
+
+  it('leaves the HEAD untouched — the front is what has stopped', () => {
+    const spine = line(5);
+    drainSpineTail(spine, 15);
+    expect(spine[0]).toEqual({ x: 0, y: 0 });
+  });
+
+  // Sliding the final point along its own segment is what makes the retraction smooth; popping whole points
+  // only would make the tail jump 10px at a time here.
+  it('slides the last point along its segment for a partial bite, rather than jumping point to point', () => {
+    const spine = line(3); // 20px
+    drainSpineTail(spine, 5);
+    expect(spine).toHaveLength(3);
+    expect(spine[2].x).toBeCloseTo(15, 6);
+  });
+
+  it('drops whole segments when the bite spans several', () => {
+    const spine = line(5);
+    drainSpineTail(spine, 25);
+    expect(arcLength(spine)).toBeCloseTo(15, 6);
+    expect(spine.length).toBeLessThan(5);
+  });
+
+  // One point is not a ribbon, and writeRibbonPositions already reports "nothing to draw" for it — leaving a
+  // single stranded point would be a lingering invisible instance rather than a finished effect.
+  it('empties the spine entirely once it is drained past the last segment', () => {
+    const spine = line(3);
+    drainSpineTail(spine, 999);
+    expect(spine).toEqual([]);
+  });
+
+  it('is a no-op for a zero drop, and for an already-empty spine', () => {
+    const spine = line(4);
+    const before = spine.map((p) => ({ ...p }));
+    drainSpineTail(spine, 0);
+    expect(spine).toEqual(before);
+    expect(drainSpineTail([], 50)).toEqual([]);
+  });
+
+  it('handles a spine of coincident points without spinning forever', () => {
+    const spine = [{ x: 5, y: 5 }, { x: 5, y: 5 }, { x: 5, y: 5 }];
+    drainSpineTail(spine, 10);
+    expect(spine).toEqual([]); // zero-length segments are consumed, not looped on
+  });
+});
+
+describe('RIBBON_STALL_EPSILON_PX', () => {
+  // Deliberately not zero: a head pinned to a target still jitters sub-pixel, and an exactly-equal test
+  // would leave the trail frozen forever in exactly the case the drain exists for.
+  it('is a small positive tolerance', () => {
+    expect(RIBBON_STALL_EPSILON_PX).toBeGreaterThan(0);
+    expect(RIBBON_STALL_EPSILON_PX).toBeLessThan(2);
+  });
+});
+
+describe('the drain param', () => {
+  it('defaults to 0, so every existing def keeps its freeze-in-place behaviour', () => {
+    expect(ribbonPrimitive.params.drain.default).toBe(0);
   });
 });

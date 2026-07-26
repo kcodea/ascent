@@ -193,6 +193,32 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
     configureServer(server) {
       server.middlewares.use('/__fx/def', (req, res) => void handle('def')(req, res));
       server.middlewares.use('/__fx/art', (req, res) => void handle('art')(req, res));
+
+      /**
+       * Make a def file that appears on disk actually SHOW UP without restarting the dev server.
+       *
+       * `fxDefs.ts` reads the library with `import.meta.glob(..., { eager: true })`, which Vite expands at
+       * TRANSFORM time. Adding or deleting a file in the globbed directory does not invalidate the module
+       * that contains the glob, so its expansion stays frozen at whatever existed when it was last
+       * transformed. In-app Saves route around this (`registerSavedDef` overlays the new def in the running
+       * session), but that only covers defs created THROUGH the app — a def arriving any other way (git
+       * pull, a branch switch, a file written by an agent) stayed invisible until a full restart, with no
+       * symptom except the library silently not listing it.
+       *
+       * So: watch the defs directory, and on add/unlink invalidate the glob's own module and reload. Scoped
+       * to `add`/`unlink` deliberately — a CHANGE to an existing def already invalidates normally through
+       * the import graph, and reloading on every keystroke-triggered write would fight the editor.
+       */
+      const globOwner = path.resolve(defsRoot, '..', 'fxDefs.ts');
+      server.watcher.add(defsRoot);
+      const onDefFileAppearOrVanish = (file: string): void => {
+        if (path.dirname(path.resolve(file)) !== defsRoot || !file.endsWith('.json')) return;
+        const mod = server.moduleGraph.getModuleById(globOwner);
+        if (mod !== undefined) server.moduleGraph.invalidateModule(mod);
+        server.ws.send({ type: 'full-reload' });
+      };
+      server.watcher.on('add', onDefFileAppearOrVanish);
+      server.watcher.on('unlink', onDefFileAppearOrVanish);
     },
   };
 }

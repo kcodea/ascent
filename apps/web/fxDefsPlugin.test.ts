@@ -201,14 +201,55 @@ describe('middleware round trip', () => {
 
   type Handler = (req: IncomingMessage, res: ServerResponse) => void;
 
-  async function routes(): Promise<Map<string, Handler>> {
+  type WatchHandler = (file: string) => void;
+  interface FakeServer {
+    routes: Map<string, Handler>;
+    watched: string[];
+    watchers: Map<string, WatchHandler[]>;
+    invalidated: unknown[];
+    sent: unknown[];
+    /** Stand-in for a module Vite knows about, keyed by resolved id. */
+    modules: Map<string, unknown>;
+  }
+
+  /**
+   * A fake dev server carrying every surface the plugin touches. It grew `watcher`/`moduleGraph`/`ws` when
+   * the glob-invalidation watcher landed: the previous fake stubbed only `middlewares`, so `configureServer`
+   * threw on the first `server.watcher.add`. Widening the fake (rather than making the plugin defensive
+   * about a server shape Vite always provides) keeps the new behaviour actually under test.
+   */
+  async function fakeServer(): Promise<FakeServer> {
     const root = await tmp;
-    const map = new Map<string, Handler>();
-    const server = { middlewares: { use: (route: string, fn: Handler) => map.set(route, fn) } };
+    const state: FakeServer = {
+      routes: new Map(),
+      watched: [],
+      watchers: new Map(),
+      invalidated: [],
+      sent: [],
+      modules: new Map(),
+    };
+    const server = {
+      middlewares: { use: (route: string, fn: Handler) => state.routes.set(route, fn) },
+      watcher: {
+        add: (dir: string) => state.watched.push(dir),
+        on: (event: string, fn: WatchHandler) => {
+          state.watchers.set(event, [...(state.watchers.get(event) ?? []), fn]);
+        },
+      },
+      moduleGraph: {
+        getModuleById: (id: string) => state.modules.get(id),
+        invalidateModule: (mod: unknown) => state.invalidated.push(mod),
+      },
+      ws: { send: (msg: unknown) => state.sent.push(msg) },
+    };
     const plugin = fxDefsPlugin({ defsRoot: root });
     const configure = plugin.configureServer as (s: unknown) => void;
     configure(server);
-    return map;
+    return state;
+  }
+
+  async function routes(): Promise<Map<string, Handler>> {
+    return (await fakeServer()).routes;
   }
 
   function call(handler: Handler, body: string, method = 'POST'): Promise<{ status: number; body: unknown }> {
@@ -266,5 +307,90 @@ describe('middleware round trip', () => {
   it('answers an unreadable body with a 400 rather than crashing the dev server', async () => {
     const handler = (await routes()).get('/__fx/def')!;
     expect((await call(handler, 'not json at all')).status).toBe(400);
+  });
+});
+
+/**
+ * The glob-invalidation watcher. `fxDefs.ts` reads the library with an EAGER `import.meta.glob`, which Vite
+ * expands at transform time — so a def file appearing on disk (git pull, branch switch, an agent writing
+ * one) was invisible until the whole dev server restarted, with no symptom except the library quietly not
+ * listing it. Verified live too (a probe file appeared and vanished without a restart); these cases pin the
+ * wiring so it can't silently regress.
+ */
+describe('defs-directory watcher', () => {
+  const tmp = mkdtemp(path.join(tmpdir(), 'fx-defs-watch-'));
+  afterAll(async () => rm(await tmp, { recursive: true, force: true }));
+
+  type Handler = (req: IncomingMessage, res: ServerResponse) => void;
+  type WatchHandler = (file: string) => void;
+
+  async function setup(): Promise<{
+    root: string;
+    globOwner: string;
+    watched: string[];
+    fire: (event: string, file: string) => void;
+    invalidated: unknown[];
+    sent: unknown[];
+  }> {
+    const root = await tmp;
+    const globOwner = path.resolve(root, '..', 'fxDefs.ts');
+    const watched: string[] = [];
+    const watchers = new Map<string, WatchHandler[]>();
+    const invalidated: unknown[] = [];
+    const sent: unknown[] = [];
+    const module = { id: globOwner };
+    const server = {
+      middlewares: { use: (_r: string, _f: Handler) => {} },
+      watcher: {
+        add: (dir: string) => watched.push(dir),
+        on: (event: string, fn: WatchHandler) => {
+          watchers.set(event, [...(watchers.get(event) ?? []), fn]);
+        },
+      },
+      moduleGraph: {
+        getModuleById: (id: string) => (id === globOwner ? module : undefined),
+        invalidateModule: (mod: unknown) => invalidated.push(mod),
+      },
+      ws: { send: (msg: unknown) => sent.push(msg) },
+    };
+    const plugin = fxDefsPlugin({ defsRoot: root });
+    (plugin.configureServer as (s: unknown) => void)(server);
+    const fire = (event: string, file: string): void => {
+      (watchers.get(event) ?? []).forEach((fn) => fn(file));
+    };
+    return { root, globOwner, watched, fire, invalidated, sent };
+  }
+
+  it('watches the defs directory', async () => {
+    const { root, watched } = await setup();
+    expect(watched).toContain(root);
+  });
+
+  it('invalidates the glob owner and reloads when a def APPEARS', async () => {
+    const { root, globOwner, fire, invalidated, sent } = await setup();
+    fire('add', path.join(root, 'new-effect.json'));
+    expect(invalidated).toEqual([{ id: globOwner }]);
+    expect(sent).toEqual([{ type: 'full-reload' }]);
+  });
+
+  it('does the same when a def is DELETED, so a stale entry cannot linger', async () => {
+    const { root, fire, sent } = await setup();
+    fire('unlink', path.join(root, 'gone.json'));
+    expect(sent).toEqual([{ type: 'full-reload' }]);
+  });
+
+  // Art PNGs live in a `defs/art/` SUBdirectory and are not part of the def glob; reloading on those would
+  // interrupt an import for nothing.
+  it('ignores files outside the defs directory itself', async () => {
+    const { root, fire, sent } = await setup();
+    fire('add', path.join(root, 'art', 'sigil.png'));
+    fire('add', path.join(root, '..', 'elsewhere.json'));
+    expect(sent).toEqual([]);
+  });
+
+  it('ignores non-JSON files landing in the defs directory', async () => {
+    const { root, fire, sent } = await setup();
+    fire('add', path.join(root, 'notes.md'));
+    expect(sent).toEqual([]);
   });
 });

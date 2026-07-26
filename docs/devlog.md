@@ -5,6 +5,45 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx): `blue-trail-detonate`, and a def file on disk now shows up without a dev-server restart
+
+Owner: "i want this blue trail to detonate into a blue burst once it hits its target."
+
+**The def** is a two-layer composition and the first one to use the timeline for anything: a `ribbon` on the
+`travel` anchor (at 0, life 440 — the flight), then a `burst` on the `target` anchor firing at 400ms, so the
+detonation starts just before the trail lands and the two overlap rather than reading as two separate
+events. Both carry the same hand-authored blue tuple. The burst's own `interval` is pushed to 1200ms —
+longer than the layer's 400ms life — so it emits exactly one wave instead of re-firing inside the layer.
+Left `blue-glow-trail` untouched rather than editing it in place: it's the building block, this is the
+composed effect.
+
+Duration 800 makes the preview agree with the real thing by coincidence worth stating: on the Bounce stage
+the head reaches the far spot at progress 0.5, which is 400ms here — the same instant the burst fires. In
+real combat `travel` runs source→target over the ribbon layer's own life instead, so the two readings only
+line up because the numbers were chosen to.
+
+**The infrastructure bug this exposed.** The def didn't appear in the running dev server, and no reload
+fixed it — confirmed by fetching the transformed `fxDefs.ts` and finding no mention of the new id.
+`import.meta.glob(..., { eager: true })` is expanded at TRANSFORM time, and adding a file to the globbed
+directory doesn't invalidate the module containing the glob. `registerSavedDef` already routed around this
+for defs created THROUGH the app's Save button — but that covers only that one path, and every def Claude
+authors arrives the other way (a file write, a git pull, a branch switch), staying invisible with no symptom
+beyond the library quietly not listing it. This was live for the whole request-loop design without being
+noticed, because the loop had only ever been walked with the dev server restarted anyway.
+
+`fxDefsPlugin` now watches the defs directory and, on `add`/`unlink` of a `.json` directly inside it,
+invalidates `fxDefs.ts` in the module graph and sends a full reload. Scoped to add/unlink deliberately: a
+CHANGE to an existing def already invalidates through the import graph, and art PNGs live in a `defs/art/`
+subdirectory that isn't part of the def glob.
+
+Verified live first — copied a probe def in with the server running and it appeared without a restart, then
+deleted it and it vanished. The existing `fxDefsPlugin.test.ts` fake server stubbed only `middlewares`, so
+`configureServer` threw on the first `watcher.add`; widened the fake (rather than making the plugin
+defensive about a server shape Vite always provides) and added five cases pinning the new wiring, including
+that art PNGs and non-JSON files are ignored.
+
+Verified: typecheck clean, lint 0 errors, 2348 tests across 122 files green (5 new), `build:web` green.
+
 ### feat(fx): `blue-glow-trail` — the first def authored through the request loop
 
 Owner: "lets try a test. create a blue glowing ribbon effect in the fx editor." The first exercise of the

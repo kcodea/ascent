@@ -42,6 +42,7 @@ import {
   setLayerPrimitive,
   setLayerSolo,
   setLayerTiming,
+  setLayerTravel,
   structureKey,
   toDef,
   type EditorLayer,
@@ -874,6 +875,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   };
 
   /**
+   * The travel window: how long this layer's head takes to cross its arc, independent of how long the layer
+   * LIVES. Set below the life and the layer arrives early and lingers — the whole point (a trail that lands,
+   * then drains its tail into the stopped head while the next layer fires). Only meaningful for a
+   * `travel`-anchored layer, so the control is only rendered for one.
+   *
+   * Live-pushed like the other timing edits — it changes where the head is fed, not the layer's structure.
+   */
+  const changeLayerTravel = (travelMs: number | null): void => {
+    record('timing', `${selected}:travel`);
+    commitLayers(setLayerTravel(layersRef.current, selected, travelMs));
+  };
+
+  /**
    * Retime ANY layer by index — what the timeline drags need, since a drag can grab a bar that isn't the
    * selected one. `changeLayerTiming` is this with `selected` baked in, for the sliders.
    *
@@ -1411,6 +1425,42 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               option-level tooltip can't teach you what you're picking BETWEEN — and `travel` vs `slot` is
               exactly the pair nobody guesses right. */}
           <p className="fxwb-anchorblurb">{anchorBlurb(selLayer.anchor)}</p>
+          {/* Travel window. Only a `travel`-anchored layer has an arc to cross, so this is the one timing
+              control that is conditional — showing it on a target-pinned burst would be a dial that does
+              nothing. "Arrives with the layer" (the checkbox) is the default and serialises as an omission. */}
+          {selLayer.anchor === 'travel' && (
+            <>
+              <label className="fxwb-timing-full" title="The head takes the layer's whole life to cross its arc — untick to make it arrive EARLY and linger">
+                <input
+                  type="checkbox"
+                  checked={selLayer.travelMs === null || selLayer.travelMs === undefined}
+                  onChange={(e) =>
+                    changeLayerTravel(
+                      e.target.checked
+                        ? null
+                        : Math.max(10, Math.round((selLayer.life ?? durationMs - selLayer.at) * 0.6)),
+                    )
+                  }
+                />
+                Arrives at the end
+              </label>
+              {selLayer.travelMs !== null && selLayer.travelMs !== undefined && (
+                <>
+                  <label htmlFor="fxwb-layer-travel">Arrives after</label>
+                  <input
+                    id="fxwb-layer-travel"
+                    type="range"
+                    min={10}
+                    max={selLayer.life ?? durationMs - selLayer.at}
+                    step={10}
+                    value={selLayer.travelMs}
+                    onChange={(e) => changeLayerTravel(Number(e.target.value))}
+                  />
+                  <span className="fxwb-val">{selLayer.travelMs} ms</span>
+                </>
+              )}
+            </>
+          )}
           {/* "Starts at" / "Lasts for", not "At" / "Life". These are the LAYER's placement in the composition
               and they sat ~6cm above a primitive's own `Life` param (a particle's lifetime in ms) — two
               different numbers, same word, adjacent on screen. The verb phrasing also can't be mistaken for a

@@ -133,6 +133,11 @@ function coerceLayer(raw: unknown): StoredFxLayer | null {
   // `life` is optional by design (omitted = live until the def's duration), so it is kept ONLY when it is a
   // usable number — a null/NaN/string `life` becomes an omission, not a zero-length layer.
   if (life !== null && life >= 0) layer.life = life;
+  // Same optional-by-design treatment for the travel window: omitted means "the layer's whole life", which
+  // is what every def did before `travelMs` existed, so a junk value must become an omission and never a
+  // zero-length arc (which would park the head at the target from frame one).
+  const travelMs = finite(raw.travelMs);
+  if (travelMs !== null && travelMs > 0) layer.travelMs = travelMs;
   // Authoring state, kept ONLY when it is literally `true` — anything else (absent, false, 'yes', 1) means
   // "not muted", which is the default and must serialise as an omission.
   if (raw.muted === true) layer.muted = true;

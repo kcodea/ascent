@@ -81,6 +81,13 @@ export function coerceLayerName(v: unknown): string | undefined {
   return trimmed === '' ? undefined : trimmed.slice(0, LAYER_NAME_MAX);
 }
 
+/** The travel window: a positive number of ms, or null = "use the layer's life". Anything else (absent,
+ *  zero, negative, NaN, a string) is null — a zero-length arc would park the head at the target from the
+ *  very first frame, which is worse than the default in every case. */
+function coerceTravel(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : null;
+}
+
 /** Coerce one untrusted layer-ish value into an `EditorLayer`. Returns null when it has no usable primitive
  *  id — the one field nothing can be invented for. */
 export function toEditorLayer(raw: unknown): EditorLayer | null {
@@ -96,6 +103,9 @@ export function toEditorLayer(raw: unknown): EditorLayer | null {
     anchor: coerceAnchor(l.anchor),
     at: coerceAt(l.at),
     life: coerceLife(l.life),
+    // Omitted unless genuinely set, on the same terms as `muted`/`name` below: absent means "the arc takes
+    // the layer's whole life", the behaviour every composition had before `travelMs` existed.
+    ...(coerceTravel(l.travelMs) === null ? {} : { travelMs: coerceTravel(l.travelMs) }),
     // Kept only when literally `true`, and OMITTED otherwise (never `muted: false`) so an untouched
     // composition is byte-for-byte what it was before mute existed — the default is an exact no-op.
     ...(l.muted === true ? { muted: true as const } : {}),
@@ -226,6 +236,7 @@ export function toStoredLayers(
       anchor: l.anchor,
       at: l.at,
       ...(l.life === null ? {} : { life: l.life }),
+      ...(l.travelMs === null || l.travelMs === undefined ? {} : { travelMs: l.travelMs }),
       // A muted layer is PERSISTED as muted rather than dropped or silently un-muted: the author's working
       // state (which layer they had isolated) is more useful to round-trip than either alternative, and a
       // dropped layer would lose its tuning outright. Omitted unless muted — the default stays an omission.

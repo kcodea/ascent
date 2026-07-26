@@ -53,6 +53,8 @@ export interface FxAnchoredLayer {
    *  the type; absent reads as a layer spanning the whole composition. */
   at?: number;
   life?: number | null;
+  /** Overrides `life` as the travel window — see `FxLayer.travelMs`. */
+  travelMs?: number | null;
 }
 
 /** The composition clock `driveLayerHeads` needs to resolve per-layer travel. */
@@ -69,6 +71,10 @@ export interface FxLayerClock {
  * arrival always fired while the trail was still mid-flight. Against the layer's own window, a ribbon at
  * `at: 0, life: 440` lands at 440ms and anything scheduled after that reads as a consequence of it.
  *
+ * `travelMs` overrides the window when a layer wants to ARRIVE before it ends — a trail that lands at 440ms
+ * but lives to 800ms so its tail can drain into the stopped head. Absent, the window is the life, so a def
+ * that doesn't ask for it is unaffected.
+ *
  * A layer with no `life` (running to the end of the composition) spans `duration - at`, so a full-life
  * layer starting at 0 produces exactly `timeMs / durationMs` — identical to the old behaviour, which is
  * what keeps every existing def unchanged.
@@ -82,8 +88,10 @@ export function layerTravelProgress(
   durationMs: number,
 ): number {
   const at = layer.at ?? 0;
+  const travel = layer.travelMs ?? null;
   const life = layer.life ?? null;
-  const span = life !== null && life > 0 ? life : durationMs - at;
+  const span =
+    travel !== null && travel > 0 ? travel : life !== null && life > 0 ? life : durationMs - at;
   if (!(span > 0)) return 1;
   const t = (timeMs - at) / span;
   if (!Number.isFinite(t)) return 1;

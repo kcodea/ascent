@@ -11,6 +11,16 @@ export interface FxLayer {
   at: number;
   /** Milliseconds the layer lives. Omitted = until the def's duration. */
   life?: number;
+  /**
+   * `travel`-anchored layers only: milliseconds the head takes to cross its arc. Omitted = the layer's whole
+   * life, which is the behaviour every def had before this existed.
+   *
+   * It exists because `life` was doing two jobs — how long the layer EXISTS and how long its travel TAKES —
+   * so a layer could not arrive somewhere and then linger there. A ribbon that reaches its target at
+   * `travelMs` and lives past it can drain its tail into the stopped head (see the ribbon's `drain`) while a
+   * burst timed to the arrival goes off, which is the "arrive, drain, detonate" shape.
+   */
+  travelMs?: number;
   params: Record<string, unknown>;
 }
 

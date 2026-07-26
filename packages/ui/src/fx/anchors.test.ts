@@ -166,6 +166,27 @@ describe('layerTravelProgress', () => {
     expect(layerTravelProgress(layer, 99999, DURATION)).toBe(1);
   });
 
+  // `travelMs` is the whole point of the param: arrive BEFORE the layer ends, and linger.
+  it('uses travelMs as the window when present, so the layer arrives before it dies', () => {
+    const layer = { anchor: 'travel' as const, at: 0, life: 800, travelMs: 440 };
+    expect(layerTravelProgress(layer, 220, DURATION)).toBeCloseTo(0.5, 9);
+    expect(layerTravelProgress(layer, 440, DURATION)).toBe(1);
+    // …and STAYS arrived for the rest of the layer's life — that dwell is what the drain runs during.
+    expect(layerTravelProgress(layer, 800, DURATION)).toBe(1);
+  });
+
+  it('offsets travelMs by the layer start, like life', () => {
+    const layer = { anchor: 'travel' as const, at: 200, life: 600, travelMs: 200 };
+    expect(layerTravelProgress(layer, 200, DURATION)).toBe(0);
+    expect(layerTravelProgress(layer, 300, DURATION)).toBeCloseTo(0.5, 9);
+    expect(layerTravelProgress(layer, 400, DURATION)).toBe(1);
+  });
+
+  it('ignores a non-positive travelMs rather than parking the head at the target from frame one', () => {
+    const layer = { anchor: 'travel' as const, at: 0, life: 400, travelMs: 0 };
+    expect(layerTravelProgress(layer, 200, DURATION)).toBeCloseTo(0.5, 9); // falls back to life
+  });
+
   it('collapses a degenerate window to the arc END rather than NaN', () => {
     expect(layerTravelProgress({ anchor: 'travel', at: 0, life: 0 }, 100, 0)).toBe(1);
     expect(layerTravelProgress({ anchor: 'travel', at: 800, life: null }, 100, 800)).toBe(1);

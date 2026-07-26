@@ -5135,6 +5135,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   position: absolute; top: 0; right: 0; bottom: 0; width: 7px; cursor: ew-resize;
   background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.22));
 }
+/* Arrival marker: where a travelling layer reaches its target, when that is before the layer ends. Inside
+   the bar, so it reads as a moment WITHIN that layer rather than a separate event on the track. */
+.fxwb-timeline-arrival {
+  position: absolute; top: 1px; bottom: 1px; width: 2px; margin-left: -1px;
+  background: #ffe08a; opacity: 0.85; pointer-events: none;
+}
 .fxwb-timeline-playhead {
   position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
   background: #f0a0ff; pointer-events: none; /* decorative -- must never intercept a drag */

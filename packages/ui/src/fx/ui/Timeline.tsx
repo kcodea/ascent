@@ -100,9 +100,16 @@ export function Timeline({
       </div>
       <div className="fxwb-timeline-track" ref={trackRef}>
         {layers.map((l, i) => {
-          const { left, width } = spanToTrack(spanOf(l, durationMs), durationMs);
           const span = spanOf(l, durationMs);
+          const { left, width } = spanToTrack(span, durationMs);
           const label = l.name ?? primitiveLabel(l.primitive);
+          // Fraction ACROSS THE BAR (not the track) at which a travelling layer reaches its target. Null
+          // when the layer has no early arrival to show — no travel window, or one that just matches its end.
+          const barMs = span.endMs - span.startMs;
+          const arrivalFrac =
+            l.anchor === 'travel' && typeof l.travelMs === 'number' && l.travelMs > 0 && l.travelMs < barMs
+              ? l.travelMs / barMs
+              : null;
           return (
             <div className="fxwb-timeline-row" key={i}>
               <div
@@ -115,6 +122,16 @@ export function Timeline({
                 onPointerCancel={endDrag}
               >
                 <span className="fxwb-timeline-label">{label}</span>
+                {/* Where a travelling layer ARRIVES, when that is earlier than its end. Without a mark the
+                    dwell after the arrival is invisible on the bar, and the whole reason to set a travel
+                    window is to see that dwell relative to whatever fires next. */}
+                {arrivalFrac !== null && (
+                  <span
+                    className="fxwb-timeline-arrival"
+                    style={{ left: `${arrivalFrac * 100}%` }}
+                    title={`Arrives after ${l.travelMs}ms, then holds for the rest of the layer`}
+                  />
+                )}
                 {/* The resize grip. Its own pointerdown (stopped from reaching the bar) is what makes edge
                     vs body two different gestures rather than one ambiguous one. */}
                 <span

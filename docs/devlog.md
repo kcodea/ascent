@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx): per-layer `travelMs` — arrive, drain, then detonate
+
+Owner: "add travelMs so it can arrive, drain, then detonate." Resolves the tension the previous entry named:
+`life` was setting both how long a layer EXISTS and how long its travel TAKES, so a layer could never arrive
+somewhere and then linger there — which left the ribbon's `drain` inert in the very def it was built for.
+
+New optional `FxLayer.travelMs`. When set it becomes the travel window in `layerTravelProgress`, in
+preference to `life`; absent, the window is still the life, so every existing def is untouched. A
+non-positive value falls back rather than being honoured: a zero-length arc would park the head on the
+target from frame one, which is worse than the default in every case.
+
+Threaded end to end, each hop keeping "absent" as a true omission rather than a stored null — the property
+that keeps an untouched layer serialising byte-for-byte as it always did: `def.ts` (the format), `defStore`'s
+`coerceLayer` (def files), `sessionState`'s `toEditorLayer` + `toStoredLayers` (localStorage and the def
+save path), `layerModel`'s `EditorLayer`/`toDef`, and a new `setLayerTravel` whose clear-path `delete`s the
+key.
+
+In the editor it is the one CONDITIONAL timing control — rendered only for a `travel`-anchored layer, since
+a target-pinned burst has no arc to cross and the dial would do nothing. Default is a ticked "Arrives at the
+end"; unticking seeds 60% of the layer's life so the slider starts somewhere useful. The timeline bar grew a
+gold arrival marker at `travelMs`, because the dwell after the arrival is exactly what you are trying to
+judge against whatever fires next, and it is invisible on a plain bar.
+
+`blue-trail-detonate` now expresses all three beats: the ribbon lives the full 800ms but ARRIVES at 430
+(`travelMs: 430`), leaving ~370ms in which `drain: 700` retracts its tail into the stopped head, while the
+burst fires at 430 on the target. Every piece of the last four turns is finally load-bearing in one def.
+
+Verified: typecheck clean, lint 0 errors, 2375 tests across 122 files green (7 new), `build:web` green. Not
+visually verified — this is the def to actually look at.
+
 ### fix(fx): `travel` resolves against the LAYER's window, not the whole composition's
 
 Owner: "yes fix the travel anchor" — the defect recorded in the drain entry below.

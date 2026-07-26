@@ -20,6 +20,10 @@ export interface EditorLayer {
   anchor: FxLayer['anchor']; // reuse def.ts's anchor type
   at: number; // ms from effect start at which this layer spawns
   life: number | null; // ms this layer lives, or null = "runs to the def's full duration"
+  /** `travel`-anchored layers only: ms the head takes to cross its arc, or null = "the whole life" (the
+   *  behaviour before this existed). Set it BELOW the life and the layer arrives early and lingers — which
+   *  is what lets a ribbon drain its tail into a stopped head before the next layer fires. */
+  travelMs?: number | null;
   /** Authoring-only: a muted layer is not spawned (and is killed if live) so ONE layer of a composition can
    *  be isolated without deleting — and therefore losing the tuning of — the others. Absent/`false` is the
    *  default and an exact no-op. Pushed to the running effect live via `FxPlayer.setLayerMuted`, so it is
@@ -160,6 +164,19 @@ export function setLayerTiming(layers: EditorLayer[], index: number, at: number,
   return layers.map((l, i) => (i === index ? { ...l, at, life } : l));
 }
 
+/** Set the travel window of the layer at `index` (see `EditorLayer.travelMs`). `null` OMITS the field rather
+ *  than storing null, so a layer that never used it serialises exactly as it did before `travelMs` existed.
+ *  Returns a NEW array. */
+export function setLayerTravel(layers: EditorLayer[], index: number, travelMs: number | null): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    const next = { ...l };
+    if (travelMs === null) delete next.travelMs;
+    else next.travelMs = travelMs;
+    return next;
+  });
+}
+
 /** Set the mute flag of the layer at `index`. Returns a NEW array. `false` is stored as an ABSENT `muted`
  *  rather than `muted: false`, so an untouched composition serialises byte-for-byte as it did before mute
  *  existed. */
@@ -286,6 +303,7 @@ export function toDef(id: string, durationMs: number, layers: EditorLayer[]): Fx
       anchor: l.anchor,
       at: l.at,
       life: l.life ?? undefined,
+      travelMs: l.travelMs ?? undefined,
       params: l.params,
     })),
   };

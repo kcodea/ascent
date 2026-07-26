@@ -7,7 +7,7 @@
       "primitive": "ribbon",
       "anchor": "travel",
       "at": 0,
-      "life": 440,
+      "travelMs": 430,
       "params": {
         "palette": [741288, 3115519, 11066111, 16777215],
         "bands": 4,

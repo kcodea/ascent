@@ -16,6 +16,7 @@ import {
   setLayerPrimitive,
   setLayerSolo,
   setLayerTiming,
+  setLayerTravel,
   structureKey,
   toDef,
   type EditorLayer,
@@ -503,5 +504,37 @@ describe('fitDurationToLayers', () => {
     const before = JSON.parse(JSON.stringify(layers));
     fitDurationToLayers(layers, BOUNDS);
     expect(layers).toEqual(before);
+  });
+});
+
+describe('setLayerTravel', () => {
+  it('sets the travel window immutably', () => {
+    const input = [layer('ribbon', { life: 800 }), layer('burst')];
+    const out = setLayerTravel(input, 0, 440);
+    expect(out[0].travelMs).toBe(440);
+    expect(out[1].travelMs).toBeUndefined();
+    expect(input[0].travelMs).toBeUndefined();
+    expect(out).not.toBe(input);
+  });
+
+  // Absent means "the arc takes the layer's whole life" — the behaviour before travelMs existed — so
+  // clearing must OMIT the key, not store null, or an untouched layer stops round-tripping unchanged.
+  it('clearing OMITS the key rather than storing null', () => {
+    const set = setLayerTravel([layer('ribbon')], 0, 440);
+    const out = setLayerTravel(set, 0, null);
+    expect('travelMs' in out[0]).toBe(false);
+    expect(out[0]).toEqual(layer('ribbon'));
+  });
+
+  it('leaves the rest of the layer alone', () => {
+    const input = [layer('ribbon', { anchor: 'travel', at: 120, life: 600, params: { n: 1 } })];
+    expect(setLayerTravel(input, 0, 300)[0]).toEqual({ ...input[0], travelMs: 300 });
+  });
+
+  it('carries travelMs into the def, and omits it when unset', () => {
+    const withTravel = toDef('d', 800, [layer('ribbon', { life: 800, travelMs: 440 })]);
+    expect(withTravel.layers[0].travelMs).toBe(440);
+    const without = toDef('d', 800, [layer('ribbon', { life: 800 })]);
+    expect(without.layers[0].travelMs).toBeUndefined();
   });
 });

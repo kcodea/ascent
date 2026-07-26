@@ -1531,6 +1531,26 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 /* tier pill rides the arch top */
 .card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: calc(var(--ccw) * 0.014) solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
+/* TIER STARS — the tier badge as N steel stars instead of a coloured "TIER N" pill. The img carries BOTH
+   `tierbadge` (so every already-tuned per-frame-type anchor applies: the oval's `--tier` seat, the heater's
+   banner nudge, the plain card's top offset) and `tierstars`, which strips the pill chrome the text version
+   needed. Specificity is deliberate: `.card.compact img.tierbadge.tierstars` (0,3,1) has to outrank BOTH
+   `.tierbadge[data-tier="N"]` (0,2,0 — the per-tier background colours) and `.card.compact .tierbadge`
+   (0,3,0 — the padding/border/radius), so a plain 2-class selector would lose. HEIGHT is pinned and width is
+   auto: the art is 78px tall and 55px wider per star, so width scales with tier on its own. */
+img.tierbadge.tierstars,
+.card.compact img.tierbadge.tierstars {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+  height: calc(var(--ccw) * var(--tier-stars-h, 0.115));
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
 /* circular, gold-set attack / health badges in the arch's bottom corners (relative to .archbox) */
 /* Border + ring track the badge size (were fixed 3px/2px — on a ~16px phone-scale badge that read as a huge
    goofy outline, owner's mobile test). Ratios = the tuned px at the desktop badge (~141px --ccw). */

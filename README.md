@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Tier is shown as stars.** A card's tier now reads as N steel stars instead of a coloured "TIER N" pill.
 - **Four minions cut** — Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte and Fatecarver, along with the
   effect primitives that existed only for them.
 - **All Set-2 minion art re-wired** (110 masters) — Broodwright and Feastmaster Vhal finally have their own.

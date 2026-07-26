@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-07-26 (tier is shown as stars)
+
+### feat(ui): the tier badge is N steel stars, not a "TIER N" pill
+
+Owner art: the card's tier now reads as **N stars** instead of a per-tier coloured text pill. One image per
+tier (78 px tall, +55 px per star → 81…410 wide), so the badge's WIDTH scales with tier and only the height is
+pinned (`--tier-stars-h`, default 0.115 × card width); `width: auto` does the rest.
+
+The img carries BOTH `tierbadge` and `tierstars`: the first inherits every already-tuned per-frame-type anchor
+(the oval's `--tier` seat, the heater's banner nudge, the plain card's top offset), so nothing needed
+re-positioning; the second strips the pill chrome the text version needed. **Specificity is load-bearing** —
+`.card.compact img.tierbadge.tierstars` (0,3,1) must outrank both `.tierbadge[data-tier="N"]` (0,2,0, the
+per-tier background colours) and `.card.compact .tierbadge` (0,3,0, the padding/border/radius); a plain
+two-class selector loses to the latter and the stars would keep the pill's padding and border.
+
+Degrades like the frames: a 404 flips `tierStarsAvailable` and the text pill comes back.
+
+Assets: 7 webp at native size, 72 KB total.
+
+**Verified live** on real cards of every tier (sandbag→thundeer): each resolves to its own `tier-stars-N.webp`
+and the rendered aspect ratios match the source art exactly (1.04, 1.74, 2.45, 3.15, 3.86, 4.55, 5.25) —
+proving width tracks tier while height stays pinned. Chrome overrides confirmed: transparent background, zero
+padding, no border.
+
+
 ### 2026-07-26 — content: removed four minions (Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte, Fatecarver)
 
 Owner cut. Removed the card defs, their art, and everything that existed only to serve them:

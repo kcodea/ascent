@@ -425,18 +425,48 @@ describe('createPlayer', () => {
     expect(p.isPlaying()).toBe(true);
   });
 
-  it('fireOnce (fallback, no isComplete) stops once the clock passes the def duration -- it does not wrap even on a looping player', () => {
-    const p = createPlayer(DEF, CTX, { loop: true });
+  it('fireOnce on a NON-looping player runs past the duration, then stops', () => {
+    const p = createPlayer(DEF, CTX, { loop: false });
     p.fireOnce();
-    p.update(520); // past duration (500); a looping player would normally wrap to 20
+    p.update(520); // past duration (500)
     // Fire-once does NOT clamp the clock to the def's duration -- it tracks genuine elapsed time until
     // completion, which for a primitive with no isComplete() is "the clock passed the duration".
     expect(p.timeMs()).toBe(520);
     expect(p.isPlaying()).toBe(false);
   });
 
-  it('fireOnce is repeatable: calling it again restarts the pass from t=0', () => {
+  /**
+   * CONTRACT CHANGE (owner: "i want to press play and have the effects play out with no overall timeline
+   * impacting what displays"). A looping fire used to stop dead at the end of its pass; it now REPEATS the
+   * pass. The distinction that matters: it repeats when everything has genuinely FINISHED, not when the
+   * clock reaches `def.duration` — so a layer outliving the composition's nominal length is never cut off
+   * mid-play, which is what the duration used to do.
+   */
+  it('a LOOPING fire repeats the pass from t=0 once everything has finished, instead of stopping', () => {
     const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireOnce();
+    const spawnsAfterFirst = spawned.length;
+    p.update(520); // the first pass completes (fallback: clock past duration)...
+    expect(p.isPlaying()).toBe(true); // ...and the player keeps going rather than stopping
+    expect(p.timeMs()).toBe(0); // a fresh pass, from the top
+    expect(spawned.length).toBeGreaterThan(spawnsAfterFirst); // everything respawned for the new cycle
+  });
+
+  it('a looping fire holds for the loop gap between passes, with nothing live', () => {
+    const p = createPlayer(DEF, CTX, { loop: true, loopGapMs: 200 });
+    p.fireOnce();
+    p.update(520); // pass completes -> enters the gap
+    expect(p.isPlaying()).toBe(true);
+    const spawnsAtGapStart = spawned.length;
+    p.update(100); // still inside the gap: nothing respawns
+    expect(spawned.length).toBe(spawnsAtGapStart);
+    p.update(150); // gap elapsed -> next pass
+    expect(spawned.length).toBeGreaterThan(spawnsAtGapStart);
+    expect(p.timeMs()).toBe(0);
+  });
+
+  it('fireOnce is repeatable: calling it again restarts the pass from t=0', () => {
+    const p = createPlayer(DEF, CTX, { loop: false });
     p.fireOnce();
     p.update(520); // let the first pass finish (fallback completion once clock passes duration)
     expect(p.isPlaying()).toBe(false);
@@ -458,11 +488,13 @@ describe('createPlayer', () => {
   });
 
   it('a normal play() after fireOnce naturally finishes also resumes looping', () => {
-    const p = createPlayer(DEF, CTX, { loop: true });
+    // NON-looping, so the fire genuinely ends: on a looping player the pass now repeats itself instead.
+    const p = createPlayer(DEF, CTX, { loop: false });
     p.fireOnce();
     p.update(520); // the one-shot pass runs to completion (fallback) and stops; clock is NOT clamped to 500
     expect(p.isPlaying()).toBe(false);
     expect(p.timeMs()).toBe(520);
+    p.setLoop(true);
 
     p.play();
     expect(p.isPlaying()).toBe(true);
@@ -859,5 +891,44 @@ describe('createPlayer', () => {
       p.update(50);
       expect(p.timeMs()).toBe(0);
     });
+  });
+});
+
+/**
+ * `resume` exists so pause/resume CONTINUES the pass in flight. `play()` cannot serve: it deliberately tears
+ * a fire down (a fire and ordinary playback are different lifecycles), so using it to un-pause would silently
+ * restart the effect from zero every time the author hit the play button.
+ */
+describe('resume', () => {
+  it('continues a paused fire instead of restarting it', () => {
+    const p = createPlayer(DEF, CTX, { loop: false });
+    p.fireOnce();
+    p.update(200);
+    p.pause();
+    expect(p.isPlaying()).toBe(false);
+    const spawnsWhilePaused = spawned.length;
+
+    p.resume();
+    expect(p.isPlaying()).toBe(true);
+    expect(p.timeMs()).toBe(200); // continued, NOT reset
+    expect(spawned.length).toBe(spawnsWhilePaused); // nothing respawned
+  });
+
+  it('starts a fresh pass when there is nothing to continue', () => {
+    const p = createPlayer(DEF, CTX, { loop: false });
+    p.resume();
+    expect(p.isPlaying()).toBe(true);
+    expect(p.timeMs()).toBe(0);
+    expect(spawned.length).toBeGreaterThan(0);
+  });
+
+  it('is inert-ish after stop(): stop resets, so resume starts over rather than continuing nothing', () => {
+    const p = createPlayer(DEF, CTX, { loop: false });
+    p.fireOnce();
+    p.update(200);
+    p.stop();
+    p.resume();
+    expect(p.timeMs()).toBe(0);
+    expect(p.isPlaying()).toBe(true);
   });
 });

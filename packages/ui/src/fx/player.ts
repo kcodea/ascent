@@ -16,6 +16,9 @@ export interface FxPlayerOptions {
 export interface FxPlayer {
   play(): void;
   pause(): void;
+  /** Un-pause without resetting: continues the pass in flight rather than restarting it (which is what
+   *  `play()` would do to a fire). Starts a fresh pass if there is nothing to continue. */
+  resume(): void;
   stop(): void;
   fireOnce(): void;
   update(dtMs: number): void;
@@ -289,6 +292,13 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     pause(): void {
       playing = false;
     },
+    resume(): void {
+      // Un-pause in place, WITHOUT the lifecycle reset `play()` performs — `play()` tears down a fire in
+      // flight, which would make pause/resume silently restart the effect from zero instead of continuing
+      // it. Nothing to resume from a stopped player, so that case starts a fresh pass.
+      if (firing || clock > 0) playing = true;
+      else this.fireOnce();
+    },
     fireOnce(): void {
       // Always restarts from t=0 for a single pass, regardless of the player's current state
       // (playing/paused/stopped) or how it was constructed -- the workbench's "Fire" trigger for a
@@ -320,6 +330,18 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       const dt = dtMs * speed;
 
       if (firing) {
+        // Between-cycle hold, for a LOOPING fire (see the completion branch below). Lives inside the firing
+        // branch because the non-firing `inGap` handler further down is unreachable while a fire is in
+        // flight, and a fire-loop needs the same visible clear between passes that ordinary looping has.
+        if (inGap) {
+          gapElapsed += dt;
+          if (gapElapsed < loopGapMs) return;
+          inGap = false;
+          gapElapsed = 0;
+          clock = 0;
+          reconcile(0, true);
+          return;
+        }
         clock += dt;
         // Same schedule as ordinary playback: layers arrive at their `at` and bounded ones die when their
         // `life` window closes. Only the END of the pass differs (below) -- no wrap, and an unbounded layer
@@ -341,6 +363,20 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
         // layer's window closed and stop before a later layer ever reached its `at`.
         if (clock >= def.duration && allFiringLayersDone()) {
           killAllLive();
+          // Looping repeats the PASS, not the duration: the next cycle begins when everything has genuinely
+          // finished, so nothing is ever cut off mid-play by the composition's nominal length. (Ordinary
+          // non-firing playback below still wraps at `def.duration` — that path is what `playDef` uses for
+          // a bounded in-game effect, where the clock IS the contract.)
+          if (loopEnabled) {
+            if (loopGapMs > 0) {
+              inGap = true;
+              gapElapsed = 0;
+              return;
+            }
+            clock = 0;
+            reconcile(0, true);
+            return;
+          }
           playing = false;
           firing = false;
         }

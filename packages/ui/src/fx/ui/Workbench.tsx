@@ -414,8 +414,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       effectiveMutes(layersForDef).forEach((muted, i) => {
         if (muted) player?.setLayerMuted(i, true);
       });
-      if (loopOnRef.current) player.play();
-      else player.fireOnce();
+      // ALWAYS a fire, loop or not. A fire is the lifecycle that plays every layer to its own genuine end
+      // rather than cutting it off at the composition's nominal duration, and with Loop on the player now
+      // repeats the PASS instead of wrapping the clock (see `player.ts`'s firing branch). Ordinary
+      // `play()` still exists for `playDef`, where the def's duration IS the contract.
+      player.fireOnce();
       playerRef.current = player;
       setUiPlaying(true);
       setTimeMs(0);
@@ -910,22 +913,20 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     playerRef.current?.setLayerTiming(index, at, life);
   };
 
-  // Pause/resume. There's no standing continuous loop to "resume" unless Loop is on -- so when Loop is off,
-  // resuming just re-fires a fresh one-shot pass (consistent with Fire); when Loop is on, resuming restarts
-  // continuous playback.
+  // Pause/resume the pass in flight. Playback is always a FIRE now (see the build effect), which plays every
+  // layer to its own genuine end; Loop simply repeats that pass. So resuming means continuing, never
+  // restarting -- and from a fully stopped player, starting a fresh pass.
   const togglePlay = (): void => {
     const p = playerRef.current;
     if (!p) return;
     if (p.isPlaying()) {
       p.pause();
       setUiPlaying(false);
-    } else if (loopOn) {
-      p.play();
-      setUiPlaying(true);
     } else {
-      p.fireOnce();
+      // `resume`, not `play`: continues the pass in flight instead of tearing it down and restarting from
+      // zero. A stopped player has nothing to continue, so `resume` starts a fresh pass itself.
+      p.resume();
       setUiPlaying(true);
-      setTimeMs(0);
     }
   };
 
@@ -941,7 +942,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     if (!p) return;
     if (next) {
       p.setLoop(true);
-      p.play();
+      // A fire, not `play()` — with Loop on the player repeats the whole PASS once everything has finished,
+      // which is the "play it out, then again" behaviour, rather than wrapping the clock at `duration`.
+      p.fireOnce();
       setUiPlaying(true);
     } else {
       p.setLoop(false);

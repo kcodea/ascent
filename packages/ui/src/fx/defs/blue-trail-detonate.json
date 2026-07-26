@@ -36,7 +36,6 @@
       "primitive": "burst",
       "anchor": "target",
       "at": 430,
-      "life": 370,
       "params": {
         "palette": [741288, 3115519, 11066111, 16777215],
         "count": 34,

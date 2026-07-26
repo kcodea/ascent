@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx): playback plays every layer OUT — the duration stops deciding what you see
+
+Owner: "i feel like the timeline is messing so many things UP!!!! i want to press play and have the effects
+play out with no overall timeline impacting what displays and what doesnt." Asked two questions; the answers
+were **per-layer `life` is fiddly** and **a Fire should end when everything has finished**. I had built the
+wrong model, and this replaces it.
+
+The old model made `duration` a hard wall: layers were torn down when the clock reached it, so an effect was
+only ever as long as a number set elsewhere. Worse, the way to avoid being cut off was to hand-set a `life`
+on every layer — exactly the fiddliness called out.
+
+`fireOnce` already had the right lifecycle (a layer with no explicit `life` outlives `def.duration` and is
+torn down only when its own `isComplete()` says so). What it lacked was repetition, and the workbench wasn't
+using it for playback. So:
+
+- **A looping fire now repeats the PASS** rather than stopping. The distinction that matters: it restarts
+  when everything has genuinely finished, not when the clock hits `duration` — so nothing is ever cut off
+  mid-play. The between-cycle gap moved inside the firing branch, since the ordinary `inGap` handler is
+  unreachable while a fire is in flight.
+- **The workbench always fires**, loop or not. Ordinary `play()` still exists and is what `playDef` uses in
+  the game, where the def's duration IS the contract — this changes the AUTHORING lifecycle only.
+- **New `FxPlayer.resume()`**, because `play()` deliberately tears down a fire in flight; using it to
+  un-pause would silently restart the effect from zero every time the play button was pressed.
+- `blue-trail-detonate` dropped its explicit `life` values entirely. Both layers now simply play out.
+
+**Three existing tests asserted the behaviour this changes** ("fireOnce … does not wrap even on a looping
+player"). Rewritten against the new contract rather than deleted or coerced, with the change flagged in the
+test body so it reads as a decision — and the ones that only needed a non-looping player to still make sense
+were pinned to `{ loop: false }` rather than reworded.
+
+Verified: typecheck clean, lint 0 errors, 2388 tests across 122 files green (5 new), `build:web` green.
+
 ### fix(fx): `blue-trail-detonate`'s drain could not finish inside its own dwell
 
 Owner, with a screenshot: "once it gets to the end point it just freezes in place. how do i make it drain."

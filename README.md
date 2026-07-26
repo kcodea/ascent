@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Market Tormentor works** — every fresh Shop's right-most minion now comes in buffed, and a consume that
+  eats it gets the buffed body.
 - **Choose One cards can ship art per branch** — pick the Stray and Wildwood Shaper *looks* like the Stray
   version, on the board and in combat. Drop `<id>2.png` next to `<id>.png` and it's wired.
 - **Three Set-2 card reworks** — Ashen Broodlord pays off Consume with a Shop spell, Aeon Acolyte (was

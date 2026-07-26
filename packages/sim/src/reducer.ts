@@ -2348,7 +2348,13 @@ function advanceCombat(s: RunState): void {
     topUpTavern(s);
     injectPendingTavern(s, true); // defer the eat — a Runeforge / queued modal may be about to open (see holdFodderConsume)
     s.frozen = false;
-  } else refreshTavern(s, true);
+  } else {
+    refreshTavern(s, true);
+    // A NEW TURN's shop is a fresh roll too — the most common one. Firing the event only on the manual reroll
+    // meant Market Tormentor never touched the turn-start row (owner report 2026-07-25). A FROZEN shop is
+    // deliberately excluded above: it wasn't re-rolled, so there's no new right-most to buff.
+    applyShopRefreshed(s);
+  }
   // Start-of-turn modals resolve ONE AT A TIME, in priority order (Quest > Runeforge > Discover/other). A quest
   // offer or the Runesmith forge (set above) shows first; the Epic Runeforge + any queued Discovers wait their
   // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
@@ -2456,6 +2462,7 @@ function advanceCombat(s: RunState): void {
       s.frozen = false;
     } else {
       refreshTavern(s, true);
+      applyShopRefreshed(s); // same fresh-roll rule as the main start-of-turn path above
     }
   }
 }

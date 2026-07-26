@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+### 2026-07-25 — fix(content/sim): Market Tormentor buffs every fresh Shop's right-most minion
+
+Owner report: the card wasn't working. Its spec is a **standing effect** — while it's on board, the right-most
+minion of every FRESH Shop roll comes in buffed, decided at refresh time, before any consume triggers fire.
+
+Three separate faults, each enough on its own:
+
+1. **It was a one-shot Shout.** `on: 'onPlay'` fired once when played and never again.
+2. **It buffed the card id, not the offer.** `buffCardTypeRunWide` meant every future copy of whatever minion
+   happened to be right-most was buffed for the rest of the run. Now `addOfferBuff`, which bumps that one
+   offer; `offerBuyStats` folds offer buffs into the bought card, so "permanently" means the minion keeps it
+   once you buy it, while an unbought offer rolls away with the shop. That also gives the owner's rule for
+   free — the buff rides the CARD, so re-ordering the shop afterwards doesn't move it.
+3. **`shopRefreshed` never fired on a new turn.** Only the manual reroll raised it, so the turn-start row —
+   the most common fresh shop there is — was untouched. Now fired from the start-of-turn refresh too. A FROZEN
+   shop is deliberately excluded: it wasn't re-rolled, so there's no new right-most to buff.
+
+**Ordering is now explicit.** `applyShopRefreshed` runs in two passes — stat-buffing watchers before consuming
+ones — so anything eating the right-most eats the BUFFED body, per the owner's ruling. Board order can't carry
+this: a Revolving Maw sitting left of a Market Tormentor would otherwise eat the offer a moment early.
+
+**Ashen Broodlord loses Rise** (owner call, answering the flag from #721) — the consume payoff is the whole
+card now.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1730 tests (+6). The two subtle guards were
+each confirmed load-bearing by reverting them: without the two-pass ordering the Maw eats unbuffed stats,
+without the turn-start firing the new shop's right-most is unbuffed.
+
+**Knock-on worth knowing:** raising `shopRefreshed` on turn-start rolls also means **Revolving Maw** now counts
+them. That reads correct — a new turn's shop is a refresh — but it does make the Maw fire more often than
+before, and it's a behaviour change nobody asked for directly.
+
 ### 2026-07-25 — feat(ui): Choose One cards wear the art of the branch they became
 
 Owner request: a Choose One minion gets two illustrations, and picking an option picks its art.

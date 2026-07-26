@@ -95,9 +95,9 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 3,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffRightmostShopPermanent', params: { attack: 4, health: 4 } }],
-    text: '**Shout:** give the **right-most** minion in the Shop **+4/+4** permanently.',
-    goldenText: '**Shout:** give the **right-most** minion in the Shop **+8/+8** permanently.',
+    effects: [{ on: 'shopRefreshed', do: 'shopRefreshedBuffRightmost', params: { attack: 4, health: 4 } }],
+    text: 'After each Shop refresh, give the **right-most** minion **+4/+4** permanently.',
+    goldenText: 'After each Shop refresh, give the **right-most** minion **+8/+8** permanently.',
   },
   {
     id: 'dm_drillmaster',

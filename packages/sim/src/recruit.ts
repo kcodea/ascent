@@ -1802,14 +1802,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (step > 0) self.summonBonus = (self.summonBonus ?? 0) + step;
   },
 
-  /** Set 2 — Market Tormentor (Shout): give the RIGHT-most shop minion +atk/+hp PERMANENTLY — i.e. through the
-   *  run-wide per-card channel (`buffCardTypeRunWide`), not the per-offer one, so it sticks to that card for the
-   *  rest of the run rather than evaporating on the next refresh. */
-  battlecryBuffRightmostShopPermanent: (ctx, self, params) => {
+  /** Set 2 — Market Tormentor: while it's on board, the RIGHT-most minion of every FRESH Shop roll comes in
+   *  buffed (owner spec 2026-07-25).
+   *
+   *  Three things the earlier one-shot Shout got wrong, all of them owner-visible:
+   *   - it fired ONCE on play, not on every roll;
+   *   - it used `buffCardTypeRunWide`, which buffs EVERY copy of that card id for the rest of the run rather
+   *     than the single offer sitting on the right;
+   *   - nothing re-ran it, so a fresh shop was never touched.
+   *
+   *  `addOfferBuff` is the right channel: it bumps that OFFER, and `offerBuyStats` folds offer buffs into the
+   *  bought card — so "permanently" means the minion keeps it once you buy it, while an unbought offer rolls
+   *  away with the shop. The buff is decided AT REFRESH, against the row as it was just dealt, so re-ordering
+   *  the shop afterwards doesn't move it — it's attached to the card, not to the position.
+   *
+   *  Ordering matters and is enforced by `applyShopRefreshed`: this runs before consuming watchers, so a
+   *  Revolving Maw that eats the right-most eats the BUFFED body. */
+  shopRefreshedBuffRightmost: (ctx, self, params) => {
     const i = rightmostShopMinion(ctx.state);
     if (i < 0) return;
-    const id = ctx.state.shop[i]!.cardId;
-    buffCardTypeRunWide(ctx.state, id, num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self), nameOf(self));
+    addOfferBuff(ctx.state.shop[i]!, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
   },
 
   /** Set 2 — Grand Gourmand (End of Turn): gain the RIGHT-most Shop minion's stats `times` over WITHOUT eating
@@ -4302,13 +4314,20 @@ export function applySpellBought(state: RunState, spellId: string): void {
  * was never present for. A dedicated loop rather than the generic `fire`, whose payload is minion-shaped.
  */
 export function applyShopRefreshed(state: RunState): void {
-  for (const card of [...state.board]) {
-    const def = CARD_INDEX[card.cardId];
-    if (!def?.effects.some((e) => e.on === 'shopRefreshed')) continue;
-    const ctx = makeContext(state);
-    for (const eff of def.effects) {
-      if (eff.on !== 'shopRefreshed') continue;
-      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+  // TWO PASSES, and the order is load-bearing (owner ruling 2026-07-25): watchers that STAT-BUFF the new row
+  // resolve before watchers that CONSUME from it, so anything eating the right-most minion eats the buffed
+  // body. Board order can't be trusted for this — a Revolving Maw sitting left of a Market Tormentor would
+  // otherwise eat the offer a moment before it got buffed.
+  const BUFF_FIRST = new Set(['shopRefreshedBuffRightmost']);
+  for (const pass of [true, false]) {
+    for (const card of [...state.board]) {
+      const def = CARD_INDEX[card.cardId];
+      if (!def?.effects.some((e) => e.on === 'shopRefreshed')) continue;
+      const ctx = makeContext(state);
+      for (const eff of def.effects) {
+        if (eff.on !== 'shopRefreshed' || BUFF_FIRST.has(eff.do) !== pass) continue;
+        RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+      }
     }
   }
 }

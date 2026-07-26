@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { bounceUnits, bounceScenario, clickPlace, pinnedCursor, realBoard, stationary, twoUnits, SCENARIOS } from './scenarios';
+import { bounceSpots, bounceScenario, pinnedCursor, realBoard, stationary, SCENARIOS } from './scenarios';
 import type { FxHeadContext } from './scenarios';
-import { pointOnTravel } from './anchors';
+import { FX_ANCHOR_IDS, pointOnTravel, resolveAnchor } from './anchors';
 
 const SAMPLE_VIEWPORT = { w: 1280, h: 800 };
 const SAMPLE_CURSOR = { x: 640, y: 400 };
@@ -10,7 +10,6 @@ function ctxAt(progress: number, overrides: Partial<FxHeadContext> = {}): FxHead
   return {
     viewport: SAMPLE_VIEWPORT,
     cursor: SAMPLE_CURSOR,
-    click: null,
     progress,
     ...overrides,
   };
@@ -45,6 +44,23 @@ describe('SCENARIOS', () => {
         });
       });
 
+      // THE regression this suite exists for. An anchor a scenario doesn't stage resolves to (0,0) — the
+      // top-left corner of the page, off-stage — which is indistinguishable from "the effect is broken".
+      // That is exactly what happened: only `pinnedCursor` and `realBoard` staged `cursor`, so a
+      // cursor-anchored layer drew nothing in every other mode. Every anchor a layer can PICK must resolve
+      // somewhere on the stage in every mode that can be picked alongside it.
+      it('stages every pickable anchor, so no layer can silently resolve to the off-stage origin', () => {
+        const anchors = scenario.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
+        FX_ANCHOR_IDS.forEach((id) => {
+          // `travel` is derived from source→target rather than staged, so it's covered by them resolving.
+          if (id === 'travel') return;
+          const point = resolveAnchor(anchors, id, 0.5);
+          expect(point, `${scenario.id} left '${id}' unstaged`).not.toEqual({ x: 0, y: 0 });
+          expect(point.x, `${scenario.id}.${id}.x off-stage`).toBeGreaterThan(0);
+          expect(point.y, `${scenario.id}.${id}.y off-stage`).toBeGreaterThan(0);
+        });
+      });
+
       // Future-proofs any scenario (present or later-added) that opts into the custom head path.
       if (scenario.headAt) {
         it('returns finite head coordinates across a progress sweep', () => {
@@ -52,6 +68,16 @@ describe('SCENARIOS', () => {
             const point = scenario.headAt!(ctxAt(progress));
             expect(Number.isFinite(point.x), `${scenario.id}.headAt(${progress}).x is not finite`).toBe(true);
             expect(Number.isFinite(point.y), `${scenario.id}.headAt(${progress}).y is not finite`).toBe(true);
+          });
+        });
+
+        it('keeps the head on-stage across a progress sweep', () => {
+          [0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1].forEach((progress) => {
+            const point = scenario.headAt!(ctxAt(progress));
+            expect(point.x, `${scenario.id}.headAt(${progress}).x`).toBeGreaterThan(0);
+            expect(point.x, `${scenario.id}.headAt(${progress}).x`).toBeLessThan(SAMPLE_VIEWPORT.w);
+            expect(point.y, `${scenario.id}.headAt(${progress}).y`).toBeGreaterThan(0);
+            expect(point.y, `${scenario.id}.headAt(${progress}).y`).toBeLessThan(SAMPLE_VIEWPORT.h);
           });
         });
       }
@@ -78,43 +104,22 @@ describe('pinnedCursor', () => {
   });
 });
 
-describe('clickPlace', () => {
-  it('is registered in SCENARIOS', () => {
-    expect(SCENARIOS).toContain(clickPlace);
-  });
-
-  it('falls back to viewport centre before any click', () => {
-    const point = clickPlace.headAt!(ctxAt(0.5, { click: null }));
-    expect(point).toEqual({ x: SAMPLE_VIEWPORT.w / 2, y: SAMPLE_VIEWPORT.h / 2 });
-  });
-
-  it('anchors to the last click once one has happened', () => {
-    const clicked = { x: 200, y: 150 };
-    [0, 0.5, 1].forEach((progress) => {
-      const point = clickPlace.headAt!(ctxAt(progress, { click: clicked }));
-      expect(point).toEqual(clicked);
-    });
-  });
-});
-
 describe('stationary', () => {
   it('is registered in SCENARIOS', () => {
     expect(SCENARIOS).toContain(stationary);
   });
 
-  it('stays within a small amplitude of viewport centre', () => {
-    const amplitude = Math.min(SAMPLE_VIEWPORT.w, SAMPLE_VIEWPORT.h) * 0.06;
+  // Deliberately DEAD still. The earlier version crept along a sine sweep so the ribbon primitive (a motion
+  // trail) would still draw something — an honest "stationary" matters more than one primitive's convenience.
+  it('never moves, at any progress', () => {
+    const centre = { x: SAMPLE_VIEWPORT.w * 0.5, y: SAMPLE_VIEWPORT.h * 0.5 };
     [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].forEach((progress) => {
-      const point = stationary.headAt!(ctxAt(progress));
-      expect(point.y).toBeCloseTo(SAMPLE_VIEWPORT.h * 0.5, 5);
-      expect(Math.abs(point.x - SAMPLE_VIEWPORT.w * 0.5)).toBeLessThanOrEqual(amplitude + 1e-6);
+      expect(stationary.headAt!(ctxAt(progress))).toEqual(centre);
     });
   });
 
-  it('is not perfectly still (sweeps back and forth so a trail still forms)', () => {
-    const a = stationary.headAt!(ctxAt(0.25));
-    const b = stationary.headAt!(ctxAt(0.75));
-    expect(Math.abs(a.x - b.x)).toBeGreaterThan(1);
+  it('warns in its hint that a ribbon needs a moving scenario', () => {
+    expect(stationary.hint).toMatch(/ribbon/i);
   });
 });
 
@@ -125,12 +130,11 @@ describe('realBoard', () => {
 
   // The suite runs headless (no `document`), so `readBoardAnchors()` returns null and this exercises exactly
   // the degradation path: the scenario must never be broken just because the board isn't up.
-  it('falls back to the synthetic two-unit anchors when no board is on screen', () => {
+  it('falls back to the synthetic bounce anchors when no board is on screen', () => {
     const anchors = realBoard.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
-    const synthetic = twoUnits.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
-    expect(anchors.source).toEqual(synthetic.source);
-    expect(anchors.target).toEqual(synthetic.target);
-    expect(anchors.camera).toEqual(synthetic.camera);
+    const [a, b] = bounceSpots(SAMPLE_VIEWPORT);
+    expect(anchors.source).toEqual(a);
+    expect(anchors.target).toEqual(b);
   });
 
   it('stages `slot` and `cursor` too, so every anchor a layer can pick resolves', () => {
@@ -149,58 +153,34 @@ describe('bounceScenario', () => {
     expect(SCENARIOS).toContain(bounceScenario);
   });
 
-  it('lays out four units in a left-to-right row', () => {
-    const units = bounceUnits(SAMPLE_VIEWPORT);
-    expect(units).toHaveLength(4);
-    for (let i = 1; i < units.length; i++) {
-      expect(units[i].x).toBeGreaterThan(units[i - 1].x);
-    }
+  it('stages exactly two spots, left then right', () => {
+    const [a, b] = bounceSpots(SAMPLE_VIEWPORT);
+    expect(bounceSpots(SAMPLE_VIEWPORT)).toHaveLength(2);
+    expect(b.x).toBeGreaterThan(a.x);
+    expect(a.y).toBeCloseTo(b.y, 5);
   });
 
-  it('headAt returns finite coordinates across progress', () => {
-    [0, 0.25, 0.5, 0.75, 0.99].forEach((progress) => {
-      const point = bounceScenario.headAt!(ctxAt(progress));
-      expect(Number.isFinite(point.x), `headAt(${progress}).x`).toBe(true);
-      expect(Number.isFinite(point.y), `headAt(${progress}).y`).toBe(true);
-    });
-  });
-
-  it('ping-pongs across the row instead of looping: 0 -> 1 -> 2 -> 3 -> 2 -> 1 -> 0', () => {
-    const units = bounceUnits(SAMPLE_VIEWPORT);
+  it('lands exactly on spot A at the start, spot B at the turnaround, and A again at the end', () => {
+    const [a, b] = bounceSpots(SAMPLE_VIEWPORT);
     const headAt = bounceScenario.headAt!;
-    // Six legs across progress 0..1, each 1/6 wide, landing exactly on a unit at every leg boundary.
-    const expectedUnitAtBoundary = [0, 1, 2, 3, 2, 1, 0];
-    expectedUnitAtBoundary.forEach((unitIndex, leg) => {
-      const progress = leg / 6;
-      const point = headAt(ctxAt(progress));
-      expect(point.x).toBeCloseTo(units[unitIndex].x, 5);
-      expect(point.y).toBeCloseTo(units[unitIndex].y, 5);
-    });
+    expect(headAt(ctxAt(0)).x).toBeCloseTo(a.x, 5);
+    expect(headAt(ctxAt(0)).y).toBeCloseTo(a.y, 5);
+    expect(headAt(ctxAt(0.5)).x).toBeCloseTo(b.x, 5);
+    expect(headAt(ctxAt(0.5)).y).toBeCloseTo(b.y, 5);
+    expect(headAt(ctxAt(1)).x).toBeCloseTo(a.x, 5);
+    expect(headAt(ctxAt(1)).y).toBeCloseTo(a.y, 5);
   });
 
   it('reverses cleanly at the far end (no teleport at the turnaround)', () => {
     const headAt = bounceScenario.headAt!;
     const EPS = 1e-6;
-    // The far-end turnaround sits at progress 3/6 = 0.5: approaching from below (leg 2, unit2->unit3) and
-    // leaving from above (leg 3, unit3->unit2) must agree on the same point — the head reverses in place.
     const approaching = headAt(ctxAt(0.5 - EPS));
     const leaving = headAt(ctxAt(0.5 + EPS));
     expect(approaching.x).toBeCloseTo(leaving.x, 2);
     expect(approaching.y).toBeCloseTo(leaving.y, 2);
   });
 
-  it('is continuous across every leg boundary (no teleport between bounces)', () => {
-    const headAt = bounceScenario.headAt!;
-    const EPS = 1e-6;
-    [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6].forEach((boundary) => {
-      const endOfPrevLeg = headAt(ctxAt(boundary - EPS));
-      const startOfNextLeg = headAt(ctxAt(boundary + EPS));
-      expect(endOfPrevLeg.x).toBeCloseTo(startOfNextLeg.x, 2);
-      expect(endOfPrevLeg.y).toBeCloseTo(startOfNextLeg.y, 2);
-    });
-  });
-
-  it('loops without a teleport too (end of the cycle meets the start, both unit0)', () => {
+  it('loops without a teleport (end of the cycle meets the start, both on spot A)', () => {
     const headAt = bounceScenario.headAt!;
     const nearEnd = headAt(ctxAt(1 - 1e-6));
     const start = headAt(ctxAt(0));
@@ -208,11 +188,20 @@ describe('bounceScenario', () => {
     expect(nearEnd.y).toBeCloseTo(start.y, 2);
   });
 
-  it('matches pointOnTravel for a point mid-leg', () => {
-    const units = bounceUnits(SAMPLE_VIEWPORT);
-    // progress 1/12 is halfway through leg 0 (unit0 -> unit1): scaled = (1/12)*6 = 0.5, leg 0, t = 0.5.
-    const expected = pointOnTravel(units[0], units[1], 0.5, 0.22);
-    const actual = bounceScenario.headAt!(ctxAt(1 / 12));
+  it('arcs the return leg along the opposite side, so it reads as a bounce and not a retrace', () => {
+    const headAt = bounceScenario.headAt!;
+    const out = headAt(ctxAt(0.25)); // mid-outbound
+    const back = headAt(ctxAt(0.75)); // mid-return, same x
+    expect(out.x).toBeCloseTo(back.x, 2);
+    // Opposite sides of the straight line between the two spots (which is flat in y).
+    expect(Math.sign(out.y - SAMPLE_VIEWPORT.h * 0.5)).toBe(-Math.sign(back.y - SAMPLE_VIEWPORT.h * 0.5));
+  });
+
+  it('matches pointOnTravel mid-leg', () => {
+    const [a, b] = bounceSpots(SAMPLE_VIEWPORT);
+    // progress 0.25 is halfway through the outbound leg: t = 0.5, bow = +0.22.
+    const expected = pointOnTravel(a, b, 0.5, 0.22);
+    const actual = bounceScenario.headAt!(ctxAt(0.25));
     expect(actual.x).toBeCloseTo(expected.x, 5);
     expect(actual.y).toBeCloseTo(expected.y, 5);
   });

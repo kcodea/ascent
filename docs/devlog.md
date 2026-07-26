@@ -5,6 +5,45 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx): three stage scenarios, and an unstaged anchor no longer parks the effect off-screen
+
+Owner: "i dont see any effects occuring for most of the view modes. its working for pin to cursor and that's
+about it. i just need one that bounces back and forth between two spots, one that pins to cursor, one that is
+stationary."
+
+**The invisibility bug.** `resolveAnchor` falls back to `(0, 0)` for an anchor the scenario didn't stage —
+the top-left corner of the page, off-stage, and completely indistinguishable from a broken effect. Only
+`pinnedCursor` and `realBoard` ever staged `cursor`; nothing but `realBoard` staged `slot`. So a layer on
+either anchor drew nothing in every other mode, which is exactly the reported symptom. Every scenario now
+builds its anchors through one `stageAll()` helper that fills in all five (source / target / slot / cursor /
+camera), so an anchor can't be silently present in one mode and missing in another. A new suite-wide test
+walks `FX_ANCHOR_IDS` for every registered scenario and fails if any resolves to the origin, so a
+later-added scenario or anchor id can't reintroduce it.
+
+**The scenario list, cut to what was asked for.** `twoUnits` and `clickPlace` are gone. `bounce` was four
+units in a zigzag row; it's now two spots, out and back, one cycle per loop (so the loop point is continuous
+— progress 1 lands where progress 0 starts). `stationary` is now genuinely still: it previously crept along
+a small sine sweep so the ribbon primitive (a motion trail, which draws nothing from a stationary head)
+would still show something, which traded an honest "stationary" for one primitive's convenience. Its hint
+now says a ribbon needs Bounce or Pinned instead.
+
+`realBoard` is kept as a fourth entry — a judgement call, flagged: it's the only mode that previews at true
+in-game distance and scale, and deleting it would also orphan `boardAnchors.ts`. Its synthetic fallback now
+reuses the Bounce layout, and merges over `stageAll` so a partial board read can't leave an anchor at the
+origin either.
+
+Also removed with `clickPlace`: `FxHeadContext.click` and the Workbench's `pointerdown` listener +
+`clickRef`, which nothing read any more.
+
+One bug of my own, caught by the new tests: I bowed the return leg with a negated bow to make it arc the
+other way. `pointOnTravel` measures the bow perpendicular to the direction of travel, so reversing the leg
+already flips the side — negating it retraced the identical arc backwards, and the head appeared to reverse
+through its own trail. Same sign both ways gives the flattened loop that was intended.
+
+Verified: typecheck clean, lint 0 errors, 2300 tests across 120 files green, `build:web` green. Not
+browser-checked: the preview pane runs at a ~0px viewport, and every scenario derives its layout from
+`window.innerWidth/Height`, so it would collapse the whole stage to a point and prove nothing.
+
 ### feat(fx/ui): Loop is ON by default, and the loop flag survives a rebuild
 
 Owner: "make auto loop on by default." The workbench previously opened with Loop OFF and *reset it to OFF on

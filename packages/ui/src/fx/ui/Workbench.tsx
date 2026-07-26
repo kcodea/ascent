@@ -248,7 +248,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const seedRef = useRef(seed);
   const seedLockedRef = useRef(seedLocked);
   const cursorRef = useRef({ x: 0, y: 0 });
-  const clickRef = useRef<{ x: number; y: number } | null>(null);
   // Autosave stays DISARMED until the composition is actually touched, so merely opening the workbench (or
   // React 18's StrictMode double-mounting it) never writes a session — otherwise every open would hand the
   // next one a "Restored unsaved work" banner over a pristine default. `discardRestored` disarms it again so
@@ -271,21 +270,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // A ref, not the state, because both would land in the same React batch and the state wouldn't have moved.
   const renamingRef = useRef<number | null>(null);
 
-  // Live pointer position (for cursor-driven scenarios) and last click point (for `clickPlace`) —
-  // independent of build/rebuild, tracked once.
+  // Live pointer position, for cursor-driven scenarios — independent of build/rebuild, tracked once.
   useEffect(() => {
     const onMove = (e: PointerEvent): void => {
       cursorRef.current = { x: e.clientX, y: e.clientY };
     };
-    const onDown = (e: PointerEvent): void => {
-      clickRef.current = { x: e.clientX, y: e.clientY };
-    };
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerdown', onDown);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerdown', onDown);
-    };
+    return () => { window.removeEventListener('pointermove', onMove); };
   }, []);
 
   // Mount the preview backdrop BEHIND the effect, once for the workbench's whole lifetime — deliberately its
@@ -348,7 +339,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // Reused and MUTATED in place each frame rather than reallocated: the updater runs every frame and the
     // scenarios only ever read these (none retains the object it is handed).
     const vp = { w: 0, h: 0 };
-    const headCtx: FxHeadContext = { viewport: vp, cursor: { x: 0, y: 0 }, click: null, progress: 0 };
+    const headCtx: FxHeadContext = { viewport: vp, cursor: { x: 0, y: 0 }, progress: 0 };
     // A scenario switch is exactly the moment the sampled board rects could be stale (and the moment the
     // author is watching for the change), so force the next read to measure for real. Cheap and idempotent.
     invalidateBoardAnchors();
@@ -437,14 +428,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           // it by its own `anchor` (see `driveLayerHeads`). This is what makes a composition previewable as
           // the thing it is: a burst pinned to `target` while a ribbon rides the `travel` arc.
           const anchors = scenario.anchorsAt(vp, cursorRef.current);
-          // A scenario may drive the head along a custom path (e.g. `bounce` ping-ponging between units,
-          // `pinnedCursor` tracking the live pointer, `clickPlace` anchoring to the last click). That path
+          // A scenario may drive the head along a custom path (`bounce` arcing between two spots,
+          // `pinnedCursor` tracking the live pointer). That path
           // IS the travel point — `driveLayerHeads` substitutes it for the `travel` anchor only, so the
           // scenario's other staged anchors keep resolving normally alongside it.
           let head: FxPoint | null = null;
           if (scenario.headAt) {
             headCtx.cursor = cursorRef.current;
-            headCtx.click = clickRef.current;
             headCtx.progress = progress;
             head = scenario.headAt(headCtx);
           }

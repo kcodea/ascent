@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx/ui): human names for primitives + anchors, a non-destructive primitive swap, transport shortcuts
+
+Owner: "how can we make this more user friendly." Proposed a ranked list; owner picked the sharp edges (this
+entry) and the visual timeline (separate).
+
+**Names instead of registry ids.** The primitive row rendered `burst` / `emitter` / `ribbon` / `shockwave` /
+`smoke` and the anchor picker rendered `travel` / `source` / `target` / `slot` / `cursor` / `camera`. Those
+are fine registry keys and useless as an interface — nothing said that `emitter` streams while `burst` fires
+once, or what `travel` travels between. New `ui/copy.ts` maps both to a label plus a one-line blurb (Burst /
+Stream / Trail / Ring / Smoke; Travelling / Source / Target / Board slot / Cursor / Screen centre). The
+blurb is the button tooltip, and the selected anchor's blurb renders as always-visible caption text — a
+`<select>` only shows one option at a time, so an option tooltip can't teach you what you're choosing
+*between*, and `travel` vs `slot` is exactly the pair nobody guesses.
+
+The copy lives in the UI layer rather than on `FxPrimitive`: a primitive's contract is its params and its
+`spawn`, not marketing text. That trades a clean engine boundary for drift risk, so `copy.test.ts` walks the
+live registry and `FX_ANCHOR_IDS` and fails on a missing entry, an orphaned entry, a duplicate label, or a
+blurb too short to explain anything.
+
+**The primitive row no longer destroys a tuned layer.** `setLayerPrimitive` hard-reset params to the new
+primitive's defaults, which made that row the most expensive control in the editor: one mis-click on a row
+of adjacent buttons discarded every value on the layer, recoverable only by noticing and reaching for undo.
+It now carries params over via `coerceParams`, whose rules are exactly the ones wanted — start from the new
+defaults, take any key the new specs declare whose incoming value validates, sliders clamped into the new
+range, enums dropped unless the option exists in the new set. So a shared name with an incompatible type
+can't leak across and a narrower range can't smuggle an out-of-range value in. It's also the better
+behaviour on a *deliberate* swap: "same effect, but a ring instead of a burst" keeps your palette and size.
+
+**Transport shortcuts.** Space = play/pause, F = fire, L = loop, hinted in the transport bar and the
+tooltips. Space is `preventDefault`ed unconditionally: it scrolls the page by default, and if a button has
+focus (you just clicked Fire) the browser fires that button's click too — so without it Space would do
+different things depending on where you last clicked.
+
+Verified: typecheck clean, lint 0 errors, 2322 tests across 120 files green (14 new), `build:web` green.
+
 ### feat(fx/ui): "Fit to effects" — trim the loop duration to the composition
 
 Owner: "can we make a button at the bottom in the play transport panel that allows us to sync the duration of

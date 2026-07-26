@@ -20,6 +20,7 @@ import {
   toDef,
   type EditorLayer,
 } from './layerModel';
+import type { FxParamSpec } from '../params';
 
 const layer = (primitive: string, over: Partial<EditorLayer> = {}): EditorLayer => ({
   primitive,
@@ -259,13 +260,45 @@ describe('moveLayer', () => {
 });
 
 describe('setLayerPrimitive', () => {
-  it('replaces the primitive and resets its params to the injected defaults', () => {
+  const slider = (min: number, max: number, def: number): FxParamSpec =>
+    ({ kind: 'slider', label: 'x', min, max, step: 1, default: def }) as FxParamSpec;
+
+  it('drops params the new primitive does not declare, and defaults the rest', () => {
     const input = [layer('ribbon', { params: { keep: 1 } })];
-    const out = setLayerPrimitive(input, 0, 'burst', { fresh: 7 });
+    const out = setLayerPrimitive(input, 0, 'burst', { fresh: slider(0, 10, 7) });
     expect(out[0].primitive).toBe('burst');
     expect(out[0].params).toEqual({ fresh: 7 });
     expect(input[0].params).toEqual({ keep: 1 }); // input unchanged
     expect(out).not.toBe(input);
+  });
+
+  // THE point of carrying over: a mis-click on the primitive row used to discard every tuned value on the
+  // layer, with undo as the only recovery.
+  it('CARRIES OVER a param the new primitive shares by name', () => {
+    const input = [layer('ribbon', { params: { size: 40, wobble: 0.4 } })];
+    const out = setLayerPrimitive(input, 0, 'burst', { size: slider(0, 100, 10) });
+    expect(out[0].params.size).toBe(40); // the tuned value survives the swap
+  });
+
+  it('clamps a carried value into the new primitive range instead of smuggling it in', () => {
+    const input = [layer('ribbon', { params: { size: 400 } })];
+    const out = setLayerPrimitive(input, 0, 'burst', { size: slider(0, 100, 10) });
+    expect(out[0].params.size).toBe(100);
+  });
+
+  // Same NAME, incompatible TYPE — carrying this over would hand the new primitive a value its own spec
+  // says is impossible.
+  it('does not carry a shared name whose type does not match, falling back to the default', () => {
+    const input = [layer('ribbon', { params: { fade: true } })];
+    const out = setLayerPrimitive(input, 0, 'burst', { fade: slider(0, 1, 0.5) });
+    expect(out[0].params.fade).toBe(0.5);
+  });
+
+  it('does not carry an enum value the new primitive does not offer', () => {
+    const enumSpec = { kind: 'enum', label: 'mode', options: ['add', 'normal'], default: 'normal' } as FxParamSpec;
+    const input = [layer('ribbon', { params: { mode: 'screen' } })];
+    const out = setLayerPrimitive(input, 0, 'burst', { mode: enumSpec });
+    expect(out[0].params.mode).toBe('normal');
   });
 
   it('preserves anchor and timing', () => {

@@ -3,7 +3,7 @@ import { Container } from 'pixi.js';
 import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, listPrimitives } from '../registry';
-import { driveLayerHeads, FX_ANCHOR_IDS, type FxPoint } from '../anchors';
+import { driveLayerHeads, type FxPoint } from '../anchors';
 import { invalidateBoardAnchors } from '../boardAnchors';
 import type { FxAnchorId } from '../def';
 import { randomSeed } from '../rng';
@@ -25,6 +25,7 @@ import { getImportedDataUrl } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
 import { createBackdrop, type FxBackdrop } from './backdrop';
+import { ANCHOR_OPTIONS, anchorBlurb, primitiveBlurb, primitiveLabel } from './copy';
 import {
   addLayer,
   createEditorLayer,
@@ -270,6 +271,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // (this component re-renders several times a second for the fps / time readouts).
   const undoRef = useRef<() => void>(() => {});
   const redoRef = useRef<() => void>(() => {});
+  // Same pattern for the transport shortcuts (Space / F / L) — see the keydown effect below.
+  const togglePlayRef = useRef<() => void>(() => {});
+  const fireRef = useRef<() => void>(() => {});
+  const toggleLoopRef = useRef<() => void>(() => {});
   // Mirrors `renaming` so committing a rename is IDEMPOTENT: Enter commits and unmounts the input, and some
   // browsers fire a `blur` on removal — which would otherwise commit (and record) the same rename twice.
   // A ref, not the state, because both would land in the same React batch and the state wouldn't have moved.
@@ -611,6 +616,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   useEffect(() => {
     undoRef.current = undoEdit;
     redoRef.current = redoEdit;
+    togglePlayRef.current = togglePlay;
+    fireRef.current = fire;
+    toggleLoopRef.current = toggleLoop;
   });
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y (⌘ on mac). Bound to `window` rather than the workbench root because the
@@ -627,6 +635,41 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       } else if ((key === 'z' && e.shiftKey) || key === 'y') {
         e.preventDefault();
         redoRef.current();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  /**
+   * Transport shortcuts: Space = play/pause, F = fire once, L = loop on/off. Every tool in this category has
+   * them, and tuning is a two-handed job — one on the mouse holding a slider, one that shouldn't have to
+   * travel back to the transport bar to replay what just changed.
+   *
+   * Space is `preventDefault`ed unconditionally, for two reasons that both bite otherwise: it scrolls the
+   * page by default, and if a BUTTON currently has focus (you just clicked Fire) the browser would fire that
+   * button's click as well — so Space would do two different things depending on where you last clicked.
+   * Preventing it makes Space mean play/pause everywhere, always.
+   *
+   * Modifier combos are left alone so Ctrl+Z above (and the browser's own) still work, and text entry is
+   * exempt so a space in a def name stays a space.
+   */
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isTextEntry(e.target)) return;
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        togglePlayRef.current();
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key === 'f') {
+        e.preventDefault();
+        fireRef.current();
+      } else if (key === 'l') {
+        e.preventDefault();
+        toggleLoopRef.current();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -803,7 +846,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     if (layers[selected]?.primitive === id) return;
     record('structural');
     const prim = getPrimitive(id);
-    commitLayers(setLayerPrimitive(layers, selected, id, prim ? defaultsOf(prim.params) : {}));
+    // Params the new primitive shares by name are CARRIED OVER (see `setLayerPrimitive`) rather than reset,
+    // so a mis-click on this row no longer discards a tuned layer.
+    commitLayers(setLayerPrimitive(layers, selected, id, prim?.params ?? {}));
   };
 
   // Anchor edit: which staged point this layer's head follows. Unlike params/timing this one deliberately
@@ -1154,13 +1199,16 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           </button>
         </div>
         <div className="fxwb-group">
+          {/* Human names, not registry ids (see `copy.ts`) — `emitter` and `burst` are indistinguishable
+              until something says one streams and the other fires once. The blurb is the tooltip. */}
           {listPrimitives().map((prim) => (
             <button
               key={prim.id}
               className={`fxwb-btn${prim.id === selLayer.primitive ? ' on' : ''}`}
+              title={primitiveBlurb(prim.id)}
               onClick={() => changeLayerPrimitive(prim.id)}
             >
-              {prim.id}
+              {primitiveLabel(prim.id)}
             </button>
           ))}
         </div>
@@ -1332,12 +1380,16 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             <select
               id="fxwb-layer-anchor"
               value={selLayer.anchor}
-              title="Which staged point this layer follows: travel = the source→target arc, target = pinned to the target, …"
+              title={anchorBlurb(selLayer.anchor)}
               onChange={(e) => changeLayerAnchor(e.target.value as FxAnchorId)}
             >
-              {FX_ANCHOR_IDS.map((a) => <option key={a} value={a}>{a}</option>)}
+              {ANCHOR_OPTIONS.map((a) => <option key={a.id} value={a.id} title={a.blurb}>{a.label}</option>)}
             </select>
           </label>
+          {/* The chosen anchor's one-liner, always visible. A <select> shows one option at a time, so an
+              option-level tooltip can't teach you what you're picking BETWEEN — and `travel` vs `slot` is
+              exactly the pair nobody guesses right. */}
+          <p className="fxwb-anchorblurb">{anchorBlurb(selLayer.anchor)}</p>
           {/* "Starts at" / "Lasts for", not "At" / "Life". These are the LAYER's placement in the composition
               and they sat ~6cm above a primitive's own `Life` param (a particle's lifetime in ms) — two
               different numbers, same word, adjacent on screen. The verb phrasing also can't be mistaken for a
@@ -1436,7 +1488,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           <button
             className="fxwb-play"
             onClick={togglePlay}
-            title={uiPlaying ? 'Pause the timeline where it is' : 'Play — resume the timeline (or start a pass if nothing is running)'}
+            title={uiPlaying ? 'Pause the timeline where it is (Space)' : 'Play — resume the timeline, or start a pass if nothing is running (Space)'}
             aria-label={uiPlaying ? 'Pause' : 'Play'}
           >
             {uiPlaying ? '⏸' : '▶'}
@@ -1444,11 +1496,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           <button
             className="fxwb-fire"
             onClick={fire}
-            title="Retrigger the whole composition from 0 — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
+            title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
           >
             🔥 Fire once
           </button>
-          <span className="fxwb-playnote">▶ play / pause · 🔥 restart from 0</span>
+          <span className="fxwb-playnote">▶ play / pause (Space) · 🔥 restart from 0 (F)</span>
         </div>
         <input
           className="fxwb-scrub"
@@ -1464,7 +1516,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           <button
             className={`fxwb-loop-toggle${loopOn ? ' on' : ''}`}
             onClick={toggleLoop}
-            title={loopOn ? 'Loop is ON -- click to stop' : 'Loop is OFF -- click to loop continuously'}
+            title={loopOn ? 'Loop is ON -- click to stop (L)' : 'Loop is OFF -- click to loop continuously (L)'}
           >
             {loopOn ? '🔁 Loop: On' : '🔁 Loop: Off'}
           </button>

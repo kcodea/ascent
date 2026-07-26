@@ -5293,6 +5293,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; font-weight: 700; cursor: pointer;
 }
 .fxwb-anchorrow select:focus { outline: none; border-color: #c936ef; }
+/* The selected anchor's one-liner. Spans the timing grid so it reads as a caption under the picker, not as
+   another field competing with the timing controls beside it. */
+.fxwb-anchorblurb {
+  grid-column: 1 / -1; margin: -2px 0 2px; font-size: 11px; line-height: 1.35; color: #8a7fa8;
+}
 
 /* FX Workbench — undo/redo. Sits in the top bar next to the title, in the same `.fxwb-group` pill as the
    primitive/scenario rows so it reads as one more cluster rather than a bolted-on toolbar. The disabled

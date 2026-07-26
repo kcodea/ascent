@@ -22,6 +22,7 @@ import {
   type HistoryMark,
 } from './sessionState';
 import { setLayerParam, setLayerPrimitive, type EditorLayer } from './layerModel';
+import type { FxParamSpec } from '../params';
 
 const BOUNDS: DurationBounds = { min: 200, max: 4000, fallback: 1000 };
 
@@ -443,9 +444,13 @@ describe('history over real editor layers', () => {
     return [pushed, m];
   };
 
-  // THE motivating bug: swapping a layer's primitive resets its params to the new primitive's defaults, so a
-  // mis-click throws away every slider you tuned. One Ctrl+Z has to bring the tuning back, intact.
+  // THE motivating bug: swapping a layer's primitive loses every param the new primitive doesn't share, so a
+  // mis-click can still throw away tuning (carrying over shared names softens this but can't undo it). One
+  // Ctrl+Z has to bring the tuning back, intact.
   it('a primitive swap is undoable — the tuned params come BACK', () => {
+    // A one-param spec for the primitive being swapped TO. None of the ribbon's tuned names appear in it, so
+    // nothing carries over and the swap is the full wipe this test is about.
+    const COUNT_SPEC = { kind: 'slider', label: 'count', min: 0, max: 20, step: 1, default: 8 } as FxParamSpec;
     const tuned = [layer('ribbon', { params: { width: 12, wobble: 0.4, palette: [1, 2, 3, 4] } })];
     let h = initHistory(tuned);
     let last: HistoryMark | null = null;
@@ -456,7 +461,7 @@ describe('history over real editor layers', () => {
     expect(h.past).toHaveLength(1); // ONE entry for the whole drag
 
     // …then mis-click a different primitive, which wipes the params.
-    [h, last] = edit(h, last, setLayerPrimitive(h.present, 0, 'burst', { count: 8 }), mark('structural', '', 1030));
+    [h, last] = edit(h, last, setLayerPrimitive(h.present, 0, 'burst', { count: COUNT_SPEC }), mark('structural', '', 1030));
     expect(h.present[0].primitive).toBe('burst');
     expect(h.present[0].params).toEqual({ count: 8 }); // the tuning is gone…
 

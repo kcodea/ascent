@@ -1,4 +1,5 @@
 import type { FxDef, FxLayer } from '../def';
+import { coerceParams, type FxParamSpecs } from '../params';
 
 /**
  * The workbench's editable model of a single FX layer. A superset of `FxLayer` in editability terms: `life`
@@ -7,7 +8,8 @@ import type { FxDef, FxLayer } from '../def';
  *
  * ALL of the workbench's layer-list arithmetic lives in THIS file, deliberately free of React and Pixi, so it
  * can be unit-tested headlessly (mirroring the fx package's pure-helper precedent — `def.ts`, `params.ts`).
- * The registry is injected as a `defaultParams` argument rather than imported, so this module stays pure.
+ * The registry is injected (a primitive's specs are passed IN rather than looked up here), so this module
+ * stays free of the registry; `params.ts` is imported only for its pure coercion helper.
  */
 export interface EditorLayer {
   primitive: string;
@@ -102,15 +104,32 @@ export function moveLayer(layers: EditorLayer[], index: number, dir: -1 | 1): Ed
   return next;
 }
 
-/** Replace the primitive of the layer at `index`, resetting its params to `defaultParams` (the new
- *  primitive's defaults). Anchor and timing are preserved. Returns a NEW array. */
+/**
+ * Replace the primitive of the layer at `index`. Anchor and timing are preserved; params are CARRIED OVER
+ * where the new primitive has a param of the same name that the old value is still valid for. Returns a NEW
+ * array.
+ *
+ * This used to hard-reset params to the new primitive's defaults, which made the primitive row the most
+ * expensive control in the editor: one mis-click on a row of adjacent buttons discarded every value on a
+ * tuned layer, recoverable only by noticing immediately and reaching for undo. Carrying over is also the
+ * useful behaviour on a DELIBERATE swap — "the same effect, but as a ring instead of a burst" keeps your
+ * palette, size, life and blend mode instead of making you re-dial them.
+ *
+ * `coerceParams` does the deciding, and its rules are exactly the ones wanted here: start from the new
+ * defaults, then take any key the new specs declare whose incoming value validates against that spec —
+ * sliders clamped into the new range, enums dropped unless the option exists in the new set, everything
+ * unrecognised left at its default. So a shared name with an incompatible type can't leak across, and a
+ * shared name with a narrower range can't smuggle an out-of-range value in.
+ */
 export function setLayerPrimitive(
   layers: EditorLayer[],
   index: number,
   primitive: string,
-  defaultParams: Record<string, unknown>,
+  specs: FxParamSpecs,
 ): EditorLayer[] {
-  return layers.map((l, i) => (i === index ? { ...l, primitive, params: { ...defaultParams } } : l));
+  return layers.map((l, i) =>
+    i === index ? { ...l, primitive, params: coerceParams(specs, l.params) as Record<string, unknown> } : l,
+  );
 }
 
 /**

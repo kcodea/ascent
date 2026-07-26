@@ -130,6 +130,13 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **Dwarf tribe: the card frame art already exists.** When the `dwarf` tribe lands in the `Tribe` union, its
+  oval frame + gilded variant are already authored and waiting at
+  `Desktop/Reference Art/card frames/dwarf frame.png` + `dwarf gilded frame.png` (1059×1427, same window as
+  every other tribe frame). Wiring is one command + one line: convert both to
+  `apps/web/public/frames/oval-dwarf{,-gilded}.webp` (sharp, q92) and add a `dwarf:` entry to `TRIBE_OVALS`
+  in `Card.tsx`. Don't re-author the art.
+
 - **Re-tune the hand row for the plated card.** The backplate makes hand cards taller than they were, so
   `handY` / `handGap` (📐 Scale & Layout) and probably `handPop` (🎴 Drag Feel) want dialing by eye. Shipped
   with reasonable starting values. When baking the export, update **both** the TS defaults and the CSS

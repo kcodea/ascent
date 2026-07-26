@@ -2,6 +2,20 @@
 
 ## 2026-07-26 (per-tribe card frames)
 
+### feat(ui): per-tribe TAUNT shields too
+
+Same treatment for the heater shield: all seven tribes get their own Taunt frame plus a gilded variant, so a
+Taunt minion is themed like its non-Taunt kin instead of falling back to the shared gold shield. `TRIBE_TAUNTS`
++ `tauntFrameSrcFor(tribe, golden)` mirror the oval's map exactly, and Taunt cards now also carry `.tribeframe`
+(the CSS neutraliser is a two-selector list now). The art is 1086×1448 with the same window silhouette as
+`taunt-shield.png`, so the `--heater` clip-path and every geometry knob are untouched. NB `.taunt` carries only
+the `--frame-tone` grayscale, no baked `--fovl` overlay, so that one var was all it needed.
+
+Assets: 14 more webp at native 1086×1448 (q92) — 2.47 MB vs ~15.6 MB as PNG.
+
+**Verified live:** all seven Taunt tribes resolve to `taunt-<tribe>.webp` with `.tribeframe` and
+`--frame-tone: brightness(1)`; all seven golden Taunts resolve to `taunt-<tribe>-gilded.webp`.
+
 ### feat(ui): every tribe wears its own oval frame, with a dedicated gilded variant
 
 The shared silver oval is now per-tribe: all seven tribes (beast, dragon, mech, undead, demon, neutral,
@@ -23,8 +37,8 @@ webp-for-art convention.
 **Verified live** across all seven tribes: each resolves to its own `oval-<tribe>.webp` with `.tribeframe`
 applied, `--frame-tone: brightness(1)` and `--fovl-a: 0`; all seven golden cards resolve to
 `oval-<tribe>-gilded.webp`. Frame precedence is unchanged — a spell still shows the purple square
-(`spell-frame-v2.png`, no `tribeframe`) and a **Taunt** minion still shows the shared heater shield, so a
-Taunt Beast does NOT wear the beast oval (only ovals were authored).
+(`spell-frame-v2.png`, no `tribeframe`) and a **Taunt** minion shows its tribe's heater shield rather than the
+oval — see the Taunt entry above; the two frame families are themed in parallel.
 
 Not wired: the owner also supplied `dwarf frame.png` / `dwarf gilded frame.png`, but there is no `dwarf` tribe
 in the `Tribe` union — held aside pending that tribe existing.

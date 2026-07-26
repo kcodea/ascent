@@ -2811,7 +2811,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
        would smear brown over the tribe hue.
    Both are vars, so neutralising them here flows into every rule that reads them (the keyword-state rims
    below included). Geometry knobs are deliberately left alone: the art matches the shared oval's window. */
-.card.compact.stdframe.tribeframe { --frame-tone: brightness(1); --fovl-a: 0; }
+.card.compact.stdframe.tribeframe,
+.card.compact.taunt.tribeframe { --frame-tone: brightness(1); --fovl-a: 0; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));

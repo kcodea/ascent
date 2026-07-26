@@ -42,8 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
-- **Every tribe has its own card frame.** The oval frame is now themed per tribe — beast, dragon, mech, undead,
-  demon, neutral and kobold each have their own colours, plus a dedicated gilded version for golden minions.
+- **Every tribe has its own card frame.** Both the oval and the Taunt shield are now themed per tribe — beast,
+  dragon, mech, undead, demon, neutral and kobold each have their own colours, plus a dedicated gilded version
+  for golden minions.
 - **Four minions cut** — Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte and Fatecarver, along with the
   effect primitives that existed only for them.
 - **All Set-2 minion art re-wired** (110 masters) — Broodwright and Feastmaster Vhal finally have their own.

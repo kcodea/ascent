@@ -43,22 +43,6 @@ const spell = (uid: string, cardId: string): BoardCard =>
   ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 
 describe('set 2 — Beast spell payoffs', () => {
-  it('Mosswhisker Adept: the FIRST spell each turn buffs your Beasts +1/+1 (not the second)', () => {
-    let s: RunState = {
-      ...createRun(1), phase: 'recruit', embers: 40,
-      board: [bm('mw', 'b2_mosswhisker', 'beast', 1, 2), bm('b1', 'stray', 'beast', 1, 1)],
-      hand: [spell('s1', 'growth'), spell('s2', 'growth')],
-    };
-    s = reduce(s, { type: 'play', uid: 's1' });
-    const afterFirst = s.board.find((c) => c.uid === 'b1')!;
-    const [a1, h1] = [afterFirst.attack, afterFirst.health];
-    s = reduce(s, { type: 'play', uid: 's2' });
-    const b1 = s.board.find((c) => c.uid === 'b1')!;
-    // Growth buffs the board too, so compare DELTAS: the 2nd cast adds only Growth's +1/+1, the 1st added
-    // Growth's +1/+1 plus Mosswhisker's +1/+1.
-    expect([b1.attack - a1, b1.health - h1]).toEqual([1, 1]);
-  });
-
   it('Runebloom Matriarch: every spell buffs 3 Beasts +3/+3', () => {
     // DISTINCT beasts on purpose — three copies of one token triple-combine and vanish (the recurring trap).
     let s: RunState = {

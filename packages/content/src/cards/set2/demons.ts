@@ -100,18 +100,6 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'After each Shop refresh, give the **right-most** minion **+8/+8** permanently.',
   },
   {
-    id: 'dm_drillmaster',
-    name: 'Pit Drillmaster',
-    tribe: 'demon',
-    tier: 3,
-    attack: 4,
-    health: 4,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 0 } }],
-    text: '**Shout:** give your **Imps +2 Attack** wherever they are.',
-    goldenText: '**Shout:** give your **Imps +4 Attack** wherever they are.',
-  },
-  {
     id: 'dm_riotcaller',
     name: 'Riot Caller',
     tribe: 'demon',

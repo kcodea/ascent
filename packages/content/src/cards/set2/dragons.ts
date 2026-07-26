@@ -132,9 +132,11 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Echo:** get **2** copies of the first **Shop spell** you cast next turn.',
   },
   {
-    // Dragon/DEMON, Rise: the tribe's combat payoff — deaths make your SPELLS better for the rest of the run.
-    // Routed through `grantSpellPower`, so it emits the `+A/+H Spell Power` narration the replay already rides
-    // and the gain reads on the proc rather than at settle.
+    // Dragon/DEMON, Rise: pays off the Demon half of its typing — eating from the Shop turns into spell fuel.
+    // The `onConsume` factory self-guards on the payload, so it's "when THIS consumes", not any consume on the
+    // board. Broodlord has no consume of its own: it eats via the shared Demon sources (a Fodder sell's
+    // left-most Demon, Feastmaster Vhal's neighbours). Rise is kept — the owner's change rewrote the effect,
+    // not the card's keywords (owner change 2026-07-25).
     id: 'd2_broodlord',
     name: 'Ashen Broodlord',
     tribe: 'dragon',
@@ -143,9 +145,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 6,
     health: 8,
     keywords: ['R'],
-    effects: [{ on: 'avenge', do: 'avengeBuffSpellPower', params: { count: 4, attack: 1, health: 1 } }],
-    text: '**Rise. Avenge (4):** improve your **Shop spells** by **+1/+1**.',
-    goldenText: '**Rise. Avenge (4):** improve your **Shop spells** by **+2/+2**.',
+    effects: [{ on: 'onConsume', do: 'onConsumeSelfGrantSpell', params: { count: 1 } }],
+    text: '**Rise.** When this **Consumes** a minion, get a **Shop spell**.',
+    goldenText: '**Rise.** When this **Consumes** a minion, get **2 Shop spells**.',
   },
   {
     // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the

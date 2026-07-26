@@ -1848,6 +1848,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.embers += num(params.gold, 3) * gold(self);
   },
 
+  /** Set 2 — Ashen Broodlord: when THIS body Consumes a minion, get a Shop spell (golden: 2).
+   *
+   *  `onConsume` fires board-wide with the EATER in the payload, so the `payload.minion !== self` guard is what
+   *  makes this "when **this** Consumes" rather than Avarice's "the first time **you** consume". Broodlord has
+   *  no consume of its own — as a Demon it eats through the shared sources (a Fodder sell's left-most Demon,
+   *  Feastmaster Vhal's neighbours), which is the intended way this turns on.
+   *
+   *  The pool is `poolOf().spells`, which filters `!token` — and a Ruby is a token — so "Shop spell" is honoured
+   *  by construction rather than by an explicit Ruby check. */
+  onConsumeSelfGrantSpell: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard } | undefined)?.minion !== self) return;
+    const spells = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
+    conjureToHand(ctx.state, spells, num(params.count, 1) * gold(self));
+  },
+
   /** Set 2 — Feastmaster Vhal (End of Turn): each ADJACENT minion consumes `count` random Shop minions. The
    *  neighbours eat, not Vhal — so the stats land on them. */
   endOfTurnNeighboursConsumeShop: (ctx, self, params) => {

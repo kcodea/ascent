@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { createRun, poolOf, reduce, type BoardCard, type RunState } from './index';
+import { consumeShopMinion } from './recruit';
 
 /**
  * Set 2's Dragon tribe — the SPELL-RECURSION line.
@@ -556,5 +557,41 @@ describe('set 2 — the cast meter is the umbrella of Rubies + Shop Spells', () 
     expect(s.shop.length).toBe(shopBefore); // 2 casts — not there yet
     s = reduce(s, { type: 'play', uid: 's3' }); // the 3rd cast crosses the step
     expect(s.shop.length).toBe(shopBefore - 1); // it Consumed a Shop minion
+  });
+});
+
+describe('set 2 — Ashen Broodlord (owner change 2026-07-25)', () => {
+  /** Board + a shop row of DISTINCT real minions to eat. */
+  const setup = (broodlordGolden = false): RunState => {
+    const s: RunState = { ...createRun(4), phase: 'recruit' };
+    const bl = minion('BL', 'd2_broodlord', 'dragon', 6, 8);
+    bl.golden = broodlordGolden;
+    s.board = [bl, minion('OTHER', 'dm_clerk', 'demon', 2, 2)];
+    s.shop = [{ uid: 's0', cardId: 'dm_hungerling' }, { uid: 's1', cardId: 'stray' }];
+    s.hand = [];
+    s.tier = 6;
+    return s;
+  };
+
+  it('consuming a Shop minion puts a Shop spell in hand', () => {
+    const s = setup();
+    consumeShopMinion(s, s.board[0]!, 0);
+    expect(s.hand.length).toBe(1);
+    const got = CARD_INDEX[s.hand[0]!.cardId]!;
+    expect(got.spell, `${got.name} is a spell`).toBe(true);
+    expect(got.token, 'and a Shop spell, not a Ruby — the card says "Shop spell"').toBeFalsy();
+  });
+
+  it('only fires for ITS OWN consume, not another minion eating', () => {
+    const s = setup();
+    // The OTHER demon eats. Broodlord is on the board watching, and must stay quiet.
+    consumeShopMinion(s, s.board[1]!, 0);
+    expect(s.hand.length, 'a board-mate consuming is not "when THIS Consumes"').toBe(0);
+  });
+
+  it('golden grants two', () => {
+    const s = setup(true);
+    consumeShopMinion(s, s.board[0]!, 0);
+    expect(s.hand.length).toBe(2);
   });
 });

@@ -196,7 +196,9 @@ export type EffectFactoryId =
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
   | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
-  | 'scGrantEndsFlurryWard' // Set 2 — Lastlight Marshal: Start of Combat — left-most gains Flurry, right-most Ward
+  | 'deathrattleGiveOwnStats' // Set 2 — Aeon Acolyte: Echo — give a friendly minion this minion's stats
+  | 'deathrattleGrantWardRandom' // Set 2 — Lastlight Marshal: Echo — give N friendly minions Ward
+  | 'onConsumeSelfGrantSpell' // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
   | 'onSummonDoubleStats' // Set 2 — Fatecarver: a minion you summon in combat has its stats doubled
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand

@@ -4367,6 +4367,25 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(card.buffs?.some((b) => b.source === 'Engraved' && b.attack === 5 && b.health === 5)).toBe(true);
   });
 
+  it('a combat RUBY carries back labelled "Ruby", not "Flowing Monk"', () => {
+    // Owner report 2026-07-25: Ruby stats gained in combat showed on the run board attributed to Flowing Monk,
+    // a card that need not even be in the run — because before Set 2 the only non-Engraved permaGain WAS the
+    // Monk's gift. The label also matters mechanically: Deepdelve Paragon finds Rubies by that exact source.
+    let s: RunState = {
+      ...createRun(1), phase: 'combat', combatSettled: false,
+      board: [{ uid: 'k', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      lastCombat: {
+        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+        initial: { player: [], enemy: [] },
+        playerPermaBuffs: [{ sourceUid: 'k', attack: 3, health: 3, engraved: false, ruby: true }],
+      },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    const card = s.board.find((c) => c.uid === 'k')!;
+    expect(card.buffs?.some((b) => b.source === 'Ruby' && b.attack === 3)).toBe(true);
+    expect(card.buffs?.some((b) => b.source === 'Flowing Monk')).toBe(false);
+  });
+
   it('Flowing Monk gift (engraved: false) still labels the carry-back "Flowing Monk"', () => {
     // Regression guard: a non-EG carrier that received Flowing Monk's overflow gift carries back labelled
     // "Flowing Monk", exactly as before the refactor (the `engraved` flag steers only the label).

@@ -81,11 +81,13 @@ export const SET2_BEASTS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [
-      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 2, health: 4 } },
-      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
+      // Owner change 2026-07-25: the grant is symmetric +2/+2 and each spell improves it by a further +2/+2
+      // (was +2/+4 improving by +1/+1).
+      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 2, health: 2, step: 2 } },
+      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 2 } },
     ],
-    text: 'When you summon a Beast, give it **+2/+4**. Improve this when you cast a spell.',
-    goldenText: 'When you summon a Beast, give it **+4/+8**. Improve this when you cast a spell (twice as much).',
+    text: 'When you summon a Beast, give it **+2/+2**. Improve this by **+2/+2** when you cast a spell.',
+    goldenText: 'When you summon a Beast, give it **+4/+4**. Improve this by **+4/+4** when you cast a spell.',
   },
   {
     // Your front Beast enters shielded. The free opening swing was removed at the owner's call (2026-07-25) —

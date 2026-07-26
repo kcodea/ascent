@@ -39,8 +39,9 @@ const RALLY_SPREAD_CAP = 1_000_000_000;
 function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
   if (per <= 0) return;
   const rb = ctx.rubyBonusFor(self.side);
-  const a = (1 + rb.attack) * per;
-  const h = (1 + rb.health) * per;
+  const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon
+  const a = (1 + rb.attack) * per * mult;
+  const h = (1 + rb.health) * per * mult;
   applyRubyStats(ctx, self, target, a, h);
   // Tell the TARGET a Ruby landed on it, so its own `onRubyPlayed` effects fire — the combat half of the recruit
   // `fireOnRubyPlayed`. Without this, a Geode Guardian Echo playing Rubies onto a Resonance Idol did nothing
@@ -55,6 +56,21 @@ function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: numbe
 /** The stat half of playing a Ruby — no `onRubyPlayed` notification, so a BOUNCE can't re-trigger the bounce.
  *  That guard is load-bearing: two adjacent Resonance Idols would otherwise ping a Ruby between each other
  *  forever. (The recruit factory gets the same property by calling `addBuff` directly.) */
+/** Set 2 — Deepdelve Paragon: how much your Rubies are worth on `side` right now. 1 with no Paragon out, 2
+ *  with one, 3 if it's Gilded (owner clarification 2026-07-25: "+2/+2 Rubies give +4/+4 in combat" — so the
+ *  card DOUBLES, it doesn't add double).
+ *
+ *  Read live rather than snapshotted at Start of Combat, because a Ruby played MID-FIGHT (Geode Guardian's
+ *  Echo, Candle Conduit, Frenzied Excavator) has to be multiplied too — that's the half a Start-of-Combat
+ *  pass structurally cannot do, and the reason the card looked broken on a Ruby-in-combat board. */
+function rubyMultiplierFor(ctx: CombatContext, side: Side): number {
+  let mult = 1;
+  for (const m of ctx.living(side)) {
+    if (m.effects.some((e) => e.do === 'rubyStatMultiplier')) mult = Math.max(mult, m.golden ? 3 : 2);
+  }
+  return mult;
+}
+
 function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number): void {
   ctx.buff(target, a, h, self.uid);
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
@@ -64,6 +80,11 @@ function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: num
   if (!target.keywords.includes('EG')) {
     target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
   }
+  // Record the RUBY share of the permanent gain. Without this the carry-back had only two labels — Engraved or
+  // Flowing Monk — so a combat Ruby showed up on the run board attributed to Flowing Monk, a card that need not
+  // even be in the run (owner report 2026-07-25). EG minions accrue the same stats through `ctx.buff`, so this
+  // is tracked for both and subtracted out at collection time.
+  target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
 }
 function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
   if (per <= 0) return;
@@ -1042,15 +1063,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h });
   },
 
-  /** Set 2 — Deepdelve Paragon (Start of Combat): your Rubies give 3× stats in combat — for each friendly
-   *  minion, add 2× its `Ruby` buff (the 1× already in its stats + this = 3×). Combat-only (no permaGain). */
-  scTripleRubyStats: (ctx, self) => {
-    for (const m of ctx.living(self.side)) {
-      const ruby = m.buffs?.find((b) => b.source === 'Ruby');
-      if (!ruby || (ruby.attack <= 0 && ruby.health <= 0)) continue;
-      ctx.buff(m, ruby.attack * 2, ruby.health * 2, self.uid);
-    }
-  },
+  /** Set 2 — Deepdelve Paragon. A MARKER, not a trigger: it is never dispatched.
+   *
+   *  The card does exactly one thing (owner spec 2026-07-25): Rubies APPLIED DURING COMBAT are worth double
+   *  (triple Gilded). It does not touch Rubies already on the board, and it has no Start-of-Combat step — an
+   *  earlier version topped up existing Ruby buffs, which was wrong on both counts.
+   *
+   *  The work happens in `playRubyOn`, which multiplies as each Ruby lands; `rubyMultiplierFor` finds the
+   *  Paragon by scanning for this effect id. Declaring it here keeps the card data-driven — the alternative
+   *  was hardcoding a card id inside core. */
+  rubyStatMultiplier: () => {},
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
   deathrattleRubyStatGain: (ctx, self, params, payload) => {
@@ -2516,6 +2538,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const h = (num(params.health, 1) + step * num(params.stepHealth, 1)) * mul(self);
     if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
     ctx.buff(minion, minion.attack, minion.health, self.uid); // …then double what it now has
+  },
+
+  /** Set 2 — Groveweaver (combat half): a `tribe` minion summoned DURING the fight gets the same asymmetric
+   *  grant the recruit half hands out, sized by this instance's accrued `summonBonus`.
+   *
+   *  This half was missing entirely (owner report 2026-07-25): the factory existed only in the recruit table,
+   *  so Groveweaver paid for shop summons and silently did nothing for the Echo/Rise tokens that make up most
+   *  of a summon board's bodies. */
+  summonBuffTribeAsym: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    const tribe = str(params.tribe);
+    if (tribe && !(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    const bonus = self.summonBonus ?? 0;
+    const a = (num(params.attack, 2) + bonus) * mul(self);
+    const h = (num(params.health, 4) + bonus) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.buff(minion, a, h, self.uid);
   },
 
   /** Set 2 — Lastlight Marshal (Echo): give `count` friendly minions Ward (golden doubles).

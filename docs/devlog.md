@@ -1,5 +1,55 @@
 # ASCENT — development log
 
+### 2026-07-25 — content: the owner's card batch (17 changes, 2 new minions, Deepdelve fix, Ruby hover)
+
+**Part 1 — reworks on existing primitives.** Scalechanter (every Shop spell gives your whole board +1 Attack;
+the `spellCast` event is already Ruby-blind, so the printed "Shop spell" needs no extra check), Traveling
+Skald (a friendly Dragon that attacks gets +2/+1), Scalefeather Drake (Echo: Beasts AND Dragons +4/+4 — one
+multi-tribe pass so a Beast/Dragon dual-type is buffed once, not twice), Faultline Scrapper (Echo instead of
+on-damage), Lancel (Ward only, no free opening swing), Pouchpincher moved to the neutral file and tribe.
+
+**New:** Blazing Keeper (T5 Dragon 5/3 — "Shout Dragon" means a Dragon with an `onPlay`, which correctly
+excludes watchers like Karwind) and Storm Chaser (T2 Kobold 2/2, hands you a Veinstorm).
+
+**Part 2 — reworks needing new wiring.** Kennelmaster +2 Attack improving by +2 per Avenge; Karwind's Shout
+payoff gives neighbouring Dragons +4/+4 *instead of* the base +2/+2 (needed BOTH a recruit and a combat twin —
+most of Karwind's procs happen in the shop); Runic Archivist recasts the LAST spell of the turn; Denkeeper
+Oona grants +1/+1 then DOUBLES (order is load-bearing and pinned by a test); Roaring Matriarch is 2/7 and
+alternates Attack/Health each turn, phase tracked **per-instance** so it always opens on Attack no matter when
+you bought it — the same reasoning as Revolving Maw counting refreshes from its own arrival.
+
+**Part 3 — the Deepdelve Paragon bug.** Three separate faults, and the owner's clarification reshaped it twice:
+- It had a Start-of-Combat pass that topped up Rubies already on the board. That is now **gone entirely** — the
+  card does exactly one thing: Rubies APPLIED DURING COMBAT are worth 2× (3× Gilded).
+- The magnitude was 3× flat (it *added* 2×). Now a true multiplier.
+- Its combat Ruby stats carried back to the run board labelled **"Flowing Monk"** — because before Set 2 the
+  only non-Engraved permanent gain WAS the Monk's gift. `permaGain` now tracks its Ruby share separately, so
+  each carries its own label. That also matters mechanically: the label is how a Ruby is recognised later.
+
+Implemented as a `passive` marker effect (a new, never-dispatched event) that `playRubyOn` reads — the
+alternative was hardcoding a card id inside core.
+
+**Groveweaver.** Now +2/+2 improving by +2/+2 per spell. Two real findings: its `summonBuffTribeAsym` existed
+**only in the recruit table**, so it silently did nothing for combat summons (the Echo tokens that make up most
+of a summon board); and its printed number never moved as the accrual grew. The mechanic itself was fine — a
+spell really did raise the grant — so "not improving" was the *text* lying.
+
+**The audit** the owner asked for is now a test (`liveTextAudit.test.ts`) rather than a chat message: every
+factory that sizes a grant from a per-instance accrual must have a cardText helper or an explicit exemption
+with a reason. It fails when a new scaling card ships without one.
+
+**Ruby hover.** Any card whose text mentions Rubies now previews the Ruby at its live value. Derived from the
+text rather than hand-listed, so a new Ruby card can't be forgotten.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1763 tests. Live-checked in the browser:
+the Ruby preview renders beside Deepdelve showing +3/+3 against a +2/+2 run bonus.
+
+**A debugging note worth keeping.** The Ruby preview silently did nothing, and the cause was mine: writing the
+regex through a shell heredoc turned `` into a literal **backspace byte**, so `/Rub(y|ies)/i` was really
+`/<BS>Rub…/` and never matched. Nothing failed loudly — typecheck, lint and tests were all green. I only found
+it by instrumenting the running app and dumping the line through `cat -A`. Swept the repo for other stray
+0x08 bytes; that was the only one. Regexes with escapes now go through a file, not a heredoc.
+
 ### 2026-07-25 — content: Chorus Drake drops "other" from its Rally
 
 Owner text change: **"Rally: trigger your left-most Dragon's Shout"** (was "left-most **other** Dragon's").

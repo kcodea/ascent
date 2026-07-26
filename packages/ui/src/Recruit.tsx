@@ -298,8 +298,25 @@ function tokenRefView(
   cardBuffs?: Record<string, { attack: number; health: number }>,
   impBuff?: { attack: number; health: number },
   spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number },
+  rubyBonus?: { attack: number; health: number },
 ): CardView {
   const c = CARD_INDEX[id];
+  // A RUBY previews at what it is worth RIGHT NOW — base 1/1 plus the run's accrued `rubyBonus` (owner
+  // 2026-07-25: hovering a card that mentions Rubies should show the Ruby at its current value). Handled
+  // before the generic spell branch because a Ruby is flagged `spell` but has no spell-power text of its own.
+  if (c.ruby) {
+    const a = c.attack + (rubyBonus?.attack ?? 0);
+    const h = c.health + (rubyBonus?.health ?? 0);
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, universalTribe: !!c.universalTribe,
+      attack: a, health: h, keywords: c.keywords, tier: c.tier,
+      // The Ruby's own text has to read live too, or the preview would promise "+1/+1" while granting +3/+3.
+      // Same helper the shop's spell slot uses, so the two surfaces can't disagree.
+      text: spellDisplayText(c.id, 0, 0, 0, 0, 0, 0, { rubyBonus }),
+      spell: c.spell, ruby: true, target: c.target,
+      baseAttack: c.attack, baseHealth: c.health, // so the gain reads green against the printed 1/1
+    };
+  }
   if (c.spell && spellLive) {
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
@@ -1849,21 +1866,28 @@ export function Recruit() {
       // Fodder), then every card the effects actually name (summoned tokens, granted/transformed cards) so ANY
       // card that mentions another in its text surfaces it. De-duped, manual order wins.
       const def = CARD_INDEX[cardId];
-      const refs = [...new Set([...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])])]
-        .filter((id) => CARD_INDEX[id]);
+      // …plus a DERIVED rule: any card whose text talks about Rubies previews the Ruby itself, at its live
+      // value (owner 2026-07-25). Derived rather than hand-listed so a new Ruby card can never be forgotten —
+      // there are ~20 of them across the Kobold line and the list would rot on the first one added.
+      const mentionsRuby = !!def && !def.ruby && /\bRub(y|ies)\b/i.test(`${def.text} ${def.goldenText ?? ''}`);
+      const refs = [...new Set([
+        ...(CARD_REFERENCES[cardId] ?? []),
+        ...(def ? referencedCardIds(def) : []),
+        ...(mentionsRuby ? ['ruby'] : []),
+      ])].filter((id) => CARD_INDEX[id]);
       const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
       // `cardBuff()`; this popup was the last raw reader.
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive)));
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus)));
     };
     for (const c of run.board) add(c.uid, c.cardId);
     for (const c of run.hand) add(c.uid, c.cardId);
     for (const o of run.shop) add(o.uid, o.cardId);
     refViewCache.current = stabilizeRefMap(m, refViewCache.current); // reuse unchanged ref-popup arrays (memo bailout)
     return refViewCache.current;
-  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn]);
+  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn, run.rubyBonus]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(

@@ -3800,6 +3800,13 @@ export function spellHealthBonus(state: RunState): number {
 export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[] }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
+  // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
+  // Rubies now previews the Ruby (owner 2026-07-25) — a preview promising "+1/+1" while the real Ruby grants
+  // +3/+3 would be exactly the stale-number defect the live-text rule exists to prevent.
+  if (def.ruby) {
+    const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
+    return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
+  }
   // Veinstorm: "equal to your Rubies" = base 1/1 + the run's rubyBonus — green the printed +1/+1 once it grows.
   if (def.id === 'veinstorm') {
     const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };

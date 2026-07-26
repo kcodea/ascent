@@ -42,6 +42,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **A 19-card balance batch** — Kennelmaster, Karwind, Groveweaver, Denkeeper Oona, Roaring Matriarch (which
+  now alternates Attack/Health each turn) and more, plus two new minions: Blazing Keeper and Storm Chaser.
+- **Deepdelve Paragon works** — it doubles Rubies applied *in combat*, and Ruby gains no longer carry back
+  mislabelled as Flowing Monk.
+- **Hovering a card that mentions Rubies previews the Ruby** at its current value.
 - **Chorus Drake** now reads "trigger your left-most Dragon's Shout" — the "other" exclusion is gone.
 - **Market Tormentor works** — every fresh Shop's right-most minion now comes in buffed, and a consume that
   eats it gets the buffed body.

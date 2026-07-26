@@ -2808,16 +2808,43 @@ describe('simulate (handoff A.3)', () => {
     expect([shard!.attack, shard!.health]).toEqual([4, 4]); // 1/1 base + 3 Rubies played in combat
   });
 
-  it('set 2 — Deepdelve Paragon: Rubies give 3× stats in combat (adds 2× the Ruby buff)', () => {
-    const dptest: CardDef = { id: 'dptest', name: 'DP', tribe: 'kobold', tier: 6, attack: 4, health: 100, keywords: ['SC'],
-      effects: [{ on: 'startOfCombat', do: 'scTripleRubyStats' }], text: '' };
+  // Deepdelve Paragon, final spec 2026-07-25 (owner): it does exactly one thing — Rubies APPLIED DURING
+  // COMBAT are worth double (triple Gilded). No Start-of-Combat step, and Rubies already on the board are
+  // untouched. Both of those were wrong in the previous version, so both are pinned below.
+  const dptest: CardDef = { id: 'dptest', name: 'DP', tribe: 'kobold', tier: 6, attack: 4, health: 100, keywords: [],
+    effects: [{ on: 'passive', do: 'rubyStatMultiplier' }], text: '' };
+  const gdmid: CardDef = { id: 'gdmid', name: 'GD', tribe: 'kobold', tier: 2, attack: 2, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };
+  const nbmid: CardDef = { id: 'nbmid', name: 'NB', tribe: 'kobold', tier: 1, attack: 1, health: 100, keywords: [], effects: [], text: '' };
+
+  it('set 2 — Deepdelve Paragon doubles a Ruby applied MID-COMBAT', () => {
+    const fight = (paragon: boolean, golden = false) => simulate(
+      [
+        ...(paragon ? [{ cardId: 'dptest', attack: 4, health: 100, sourceUid: 'DP', golden }] : []),
+        { cardId: 'gdmid', attack: 2, health: 1, sourceUid: 'GD' },
+        { cardId: 'nbmid', attack: 1, health: 100, sourceUid: 'NB' },
+      ] as never,
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, dptest, gdmid, nbmid },
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    const best = (r: ReturnType<typeof simulate>) =>
+      Math.max(...(r.events.filter((e) => e.type === 'buff') as { attack: number }[]).map((b) => b.attack));
+    const plain = best(fight(false));
+    expect(best(fight(true)), 'with a Paragon out the in-combat Ruby is worth double').toBe(plain * 2);
+    expect(best(fight(true, true)), 'Gilded → triple').toBe(plain * 3);
+  });
+
+  it('set 2 — Deepdelve Paragon does NOTHING to Rubies already on the board', () => {
+    // The behaviour the owner corrected: no Start-of-Combat top-up, no touching existing Ruby stats.
+    // Precise assertion: other systems buff during a fight, so what matters is that NONE of the buffs on the
+    // Ruby carrier are SOURCED from the Paragon. That's exactly the old Start-of-Combat top-up this removed.
     const r = simulate([
       { cardId: 'dptest', attack: 4, health: 100, sourceUid: 'DP' },
       { cardId: 'sandbag', attack: 5, health: 100, sourceUid: 'M', buffs: [{ source: 'Ruby', attack: 2, health: 2, count: 2 }] },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, dptest },
       combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    // Deepdelve adds 2× the +2/+2 Ruby buff → a +4/+4 Start-of-Combat buff.
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+    const fromParagon = (r.events.filter((e) => e.type === 'buff') as { source?: string }[])
+      .filter((b) => b.source === 'm0');
+    expect(fromParagon, 'the Paragon grants nothing itself — it only scales Rubies as they land').toEqual([]);
   });
 
   it('set 2 — Geode Guardian: on death, plays a Ruby on each adjacent minion (carry-back)', () => {

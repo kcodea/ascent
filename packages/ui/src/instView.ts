@@ -2,7 +2,7 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
-  abhorrentHorrorText, alternatingBuffText, ascendProgressText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
+  abhorrentHorrorText, alternatingBuffText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   rallySpreadText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
@@ -100,6 +100,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
+            asymSummonBuffText(c.id, p.summonBonus ?? 0, p.golden) ?? // Groveweaver: live asymmetric grant
             summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             hunterText(c.id, p.summonBonus ?? 0, p.golden) ??

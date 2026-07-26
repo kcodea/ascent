@@ -89,7 +89,7 @@ describe('set 2 — Dawnclaw', () => {
 });
 
 describe('set 2 — Beast summon + aura cards', () => {
-  it('Groveweaver: buffs a summoned Beast +2/+4, and a spell cast improves that grant', () => {
+  it('Groveweaver: buffs a summoned Beast +2/+2, and a spell cast improves that grant by +2/+2', () => {
     // Summon path: play a Beast while Groveweaver is out → it lands with the grant folded in.
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
@@ -98,12 +98,12 @@ describe('set 2 — Beast summon + aura cards', () => {
     };
     s = reduce(s, { type: 'play', uid: 'n1' });
     const first = s.board.find((c) => c.uid === 'n1')!;
-    expect([first.attack - 1, first.health - 1]).toEqual([2, 4]); // base grant
+    expect([first.attack - 1, first.health - 1]).toEqual([2, 2]); // base grant (owner change 2026-07-25)
 
-    s = reduce(s, { type: 'play', uid: 'sp' }); // a cast improves the grant by +1
+    s = reduce(s, { type: 'play', uid: 'sp' }); // a cast improves the grant by +2/+2
     s = reduce(s, { type: 'play', uid: 'n2' });
     const second = s.board.find((c) => c.uid === 'n2')!;
-    expect([second.attack - 1, second.health - 1]).toEqual([3, 5]); // improved by +1 on each stat
+    expect([second.attack - 1, second.health - 1]).toEqual([4, 4]); // improved by +2 on each stat
   });
 
   it('Denkeeper Oona / Lancel / Solaris / T-Rex are wired with the expected stats + effects', () => {
@@ -520,5 +520,35 @@ describe('set 2 — Roaring Matriarch alternates each turn (owner spec 2026-07-2
     s.wave = 8;
     const m = play(s, 'sh').board.find((c) => c.uid === 'M')!;
     expect(m.attack - 2).toBe(2);
+  });
+});
+
+describe('set 2 — Groveweaver (owner report 2026-07-25)', () => {
+  it('buffs a Beast summoned IN COMBAT, not just in the shop', () => {
+    // The missing half: `summonBuffTribeAsym` lived only in the recruit table, so Groveweaver paid for shop
+    // summons and silently did nothing for the Echo tokens that make up most of a summon board.
+    const r = simulate(
+      [{ cardId: 'b2_groveweaver', attack: 4, health: 40, sourceUid: 'G', keywords: [] },
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const pups = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
+      .filter((e) => e.minion.cardId === 'pup');
+    expect(pups.length, 'the Pups spawned').toBeGreaterThan(0);
+    const got = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
+      .filter((b) => b.target === pups[0]!.minion.uid);
+    expect(got.some((b) => b.attack === 2 && b.health === 2), 'the summoned Pup got +2/+2').toBe(true);
+  });
+
+  it('the grant grows with the accrual it has banked', () => {
+    const r = simulate(
+      [{ cardId: 'b2_groveweaver', attack: 4, health: 40, sourceUid: 'G', keywords: [], summonBonus: 4 } as never,
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const pups = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string } }[]);
+    const got = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
+      .filter((b) => pups.some((p) => p.minion.uid === b.target));
+    expect(got.some((b) => b.attack === 6 && b.health === 6), 'base +2/+2 plus two spells of accrual').toBe(true);
   });
 });

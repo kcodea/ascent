@@ -137,6 +137,27 @@ export function alternatingBuffText(cardId: string, eotTick: number, golden = fa
     .replace(/This alternates every turn\./, `{{+${amount} ${next} next turn.}}`);
 }
 
+/**
+ * Groveweaver's summon grant GROWS with every spell cast while it's on board (`summonBonus`), but its printed
+ * "+2/+4" never moved — so the card advertised its base rate forever (owner report 2026-07-25). Fold the live
+ * value in, the same way `summonBuffText` does for the Start-of-Combat auras.
+ *
+ * Deliberately shaped as its own helper rather than folded into `summonBuffText`: that one injects into an
+ * Attack-only or symmetric "+N/+N", while this grant is ASYMMETRIC (+2/+4) and each stat picks up the bonus.
+ */
+export function asymSummonBuffText(cardId: string, summonBonus: number, golden = false): string | null {
+  if (summonBonus <= 0) return null; // at base the printed text is already accurate
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'summonBuffTribeAsym');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; health?: number } | undefined;
+  const g = golden ? 2 : 1;
+  const a = (Number(p?.attack ?? 2) + summonBonus) * g;
+  const h = (Number(p?.health ?? 4) + summonBonus) * g;
+  const base = golden ? (def.goldenText ?? def.text) : def.text;
+  return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
+}
+
 export function cadenceProgressText(cardId: string, eotTick: number): string | null {
   const def = CARD_INDEX[cardId];
   // Any "every N turns" End-of-Turn effect: Frontdrake's Dragon conjure or Money Maker's card grant.

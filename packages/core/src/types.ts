@@ -105,6 +105,9 @@ export type GameEvent =
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
   | 'rubyCast' // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
   | 'shopRefreshed' // set 2 recruit phase: the tavern was rolled (Revolving Maw counts refreshes)
+  | 'passive' // declared but NEVER dispatched: marks a card whose effect is read by another system rather
+  //  than fired by an event (Deepdelve Paragon — `playRubyOn` scans the board for it). Keeping it in the
+  //  effects list means the card is still data-driven and greppable, instead of a card id hardcoded in core.
   | 'spellBought'; // set 2 recruit phase: a Shop Spell was PURCHASED (Moonhowl Mentor teaches it to a Mage-Pup).
   //  Distinct from `onBuy`, which is minions only ("a spell isn't a minion") — widening onBuy would have
   //  changed what every existing buy-trigger sees.
@@ -455,7 +458,7 @@ export type EffectFactoryId =
   | 'deathrattlePlayRubiesAdjacent' // Set 2 — Geode Guardian (Echo): on death, play N Rubies on each neighbour
   | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies
-  | 'scTripleRubyStats' // Set 2 — Deepdelve Paragon: Start of Combat, Rubies give 3× stats
+  | 'rubyStatMultiplier' // Set 2 — Deepdelve Paragon: Rubies applied IN COMBAT are worth 2× (3× Gilded)
   | 'rubyCastConsumeShop'; // Set 2 — Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
 
 export interface EffectDef {
@@ -1170,6 +1173,10 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** The RUBY share of `permaGain`. Rubies applied in combat are permanent, and without knowing which part of
+   *  the carry-back came from them the run board labelled the gain "Flowing Monk" — the only non-Engraved
+   *  source that existed before Set 2. Subtracted out at collection so each share is labelled correctly. */
+  permaRuby?: { attack: number; health: number };
   /** Set 2 — stats from RUBIES played onto this minion during COMBAT (`playRubyOn`). Tracked separately from
    *  the recruit-phase `Ruby` entry in `buffs` because `buffs` is SHARED BY REFERENCE with the run's board card
    *  (see `combat/minion.ts`) — appending to it from inside the simulation would mutate run state and break the
@@ -1460,7 +1467,7 @@ export interface CombatResult {
    *  false` — a one-off gift to a non-EG carrier) and Engraved minions keeping their own combat gains
    *  (`engraved: true` — native EG like Gnasher/Flowing-Monk-recipient, or EG granted at Start of Combat
    *  by Taurus). `engraved` only drives the inspect-panel source label; the stats apply either way. */
-  playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean }[];
+  playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
   /** Set 2 — Rubies to mint into the hand after combat (Rikk / Gemline "Get N Rubies" in combat). Minted with

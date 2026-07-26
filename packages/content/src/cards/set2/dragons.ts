@@ -173,8 +173,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
-    text: '**End of Turn:** cast the first **Shop spell** you cast this turn again.',
-    goldenText: '**End of Turn:** cast the first **Shop spell** you cast this turn **2 additional** times.',
+    text: '**End of Turn:** cast the last **Shop spell** you cast this turn again.',
+    goldenText: '**End of Turn:** cast the last **Shop spell** you cast this turn **2 additional** times.',
   },
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.
@@ -303,12 +303,17 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Roaring Matriarch',
     tribe: 'dragon',
     tier: 4,
-    attack: 4,
+    attack: 2,
     health: 7,
     keywords: [],
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 0 } }],
-    text: 'After you play a **Shout** minion, give your Dragons **+2 Attack**.',
-    goldenText: 'After you play a **Shout** minion, give your Dragons **+4 Attack**.',
+    effects: [
+      { on: 'battlecryTriggered', do: 'onBattlecryBuffTribeAlternating', params: { tribe: 'dragon', amount: 2 } },
+      { on: 'endOfTurn', do: 'endOfTurnAlternateMode' },
+    ],
+    // The printed stat is filled in live by `alternatingBuffText` — an alternating card must never print a
+    // stat it isn't currently giving, so this base text is only the fallback shape.
+    text: 'After you play a **Shout** minion, give your Dragons **+2 Attack**. This alternates every turn.',
+    goldenText: 'After you play a **Shout** minion, give your Dragons **+4 Attack**. This alternates every turn.',
   },
   {
     // The tribe capstone: a Choose-One that installs a permanent global mode, and Gilds into BOTH. Chorus

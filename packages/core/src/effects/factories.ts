@@ -2475,6 +2475,49 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
   },
 
+  /** Karwind (owner rework 2026-07-25): whenever a Shout triggers, give your `tribe` +atk/+hp — except this
+   *  minion's two NEIGHBOURS, who get the bigger `adjAttack`/`adjHealth` INSTEAD of (not on top of) the base
+   *  grant. A neighbour that isn't of the tribe gets nothing: the owner chose "instead", not "any tribe".
+   *
+   *  Neighbours are read off `ctx.living(self.side)` by index, which is board order — deterministic, no RNG. */
+  onBattlecryBuffTribeAdjacentMore: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    const adjA = num(params.adjAttack, 4) * mul(self);
+    const adjH = num(params.adjHealth, 4) * mul(self);
+    const friends = ctx.living(self.side);
+    const i = friends.indexOf(self);
+    const neighbours = new Set(i < 0 ? [] : [friends[i - 1], friends[i + 1]].filter(Boolean));
+    // Karwind is itself a Dragon and the original buffed it, so "your Dragons" keeps including it. It is
+    // never its own neighbour, so it takes the BASE grant.
+    for (const m of friends) {
+      if (!(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
+      const adj = neighbours.has(m);
+      ctx.buff(m, adj ? adjA : a, adj ? adjH : h, self.uid);
+    }
+  },
+
+  /** Set 2 — Denkeeper Oona (owner rework 2026-07-25): a Beast you summon in combat gets +atk/+hp and THEN
+   *  has its stats doubled. Order matters and is the printed order — the flat grant is included in what gets
+   *  doubled, so +1/+1 on a 3/3 yields 8/8, not 7/7.
+   *
+   *  The flat grant grows with Oona's Avenge accrual (`summonBonus`), which is what "Improve this" means here.
+   *  Doubling is applied as a buff of the minion's CURRENT stats rather than a set, so it stacks correctly with
+   *  anything else that has already touched the body. */
+  onSummonTribeBuffThenDouble: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    const step = self.summonBonus ?? 0;
+    const a = (num(params.attack, 1) + step * num(params.stepAttack, 1)) * mul(self);
+    const h = (num(params.health, 1) + step * num(params.stepHealth, 1)) * mul(self);
+    if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
+    ctx.buff(minion, minion.attack, minion.health, self.uid); // …then double what it now has
+  },
+
   /** Set 2 — Lastlight Marshal (Echo): give `count` friendly minions Ward (golden doubles).
    *
    *  Prefers minions that DON'T already have a shield — handing Ward to a shielded body is a wasted grant, and

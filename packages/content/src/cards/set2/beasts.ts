@@ -102,18 +102,22 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Start of Combat:** give your **2** left-most Beasts **Ward**.',
   },
   {
-    // A summon-payoff aura: it does NOT buff the board you already have — it makes everything you summon
-    // during the fight enter bigger. Pairs with the Echo-summon line (T-Rex, Mammoth, Void Panther).
+    // A summon payoff: everything you summon mid-fight lands bigger. Reworked 2026-07-25 (owner) from a flat
+    // +5/+5 aura to "+1/+1 then DOUBLE", so it scales with whatever the token was already worth. `SC` dropped
+    // from keywords — it's an onSummon watcher now, not a Start of Combat.
     id: 'b2_oona',
     name: 'Denkeeper Oona',
     tribe: 'beast',
     tier: 5,
     attack: 4,
     health: 6,
-    keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scSummonOnlyTribeAura', params: { tribe: 'beast', attack: 5, health: 5 } }],
-    text: 'Beasts you **summon in combat** have **+5/+5**.',
-    goldenText: 'Beasts you **summon in combat** have **+10/+10**.',
+    keywords: [],
+    effects: [
+      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 1, health: 1, stepAttack: 1, stepHealth: 1 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
+    ],
+    text: 'When you summon a Beast in combat, give it **+1/+1**, then **double** its stats. **Avenge (4):** improve this.',
+    goldenText: 'When you summon a Beast in combat, give it **+2/+2**, then **double** its stats. **Avenge (4):** improve this.',
   },
   {
     // Avenge that pays twice: a spell for the hand AND a lasting Beast Attack aura (later summons inherit it).

@@ -5314,3 +5314,92 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-layer-btns button.fxwb-layer-solo.on { border-color: #ffd23f; color: #ffd23f; }
 .fxwb-layer-row.solo { border-color: #ffd23f; }
 .fxwb-layer-row.silenced { opacity: 0.55; }
+
+/* ══ FX Workbench — PROGRESSIVE DISCLOSURE ═══════════════════════════════════════════════════════════════
+   The rail used to open with 43 controls in 288px: every group expanded, nothing collapsible, no tier, no
+   search, and no sign of which sliders were inert. These rules dress the three things that fixed it — the
+   Essentials/All tier, collapsible counted groups, and a disabled-with-a-reason row — in the existing dark
+   panel language (accent #c936ef, panel #2b2739, border #3d3752, text #d9d3ea, muted #8a7fa8). Everything
+   here is ADDITIVE: no rule above is touched, and the rail stays exactly 288px wide. */
+
+/* The inspector's own header: tier switch + search + a line saying what you're looking at. */
+.fxwb-tierbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.fxwb-tier {
+  display: flex; flex: 0 0 auto; gap: 2px; padding: 2px; border-radius: 7px; background: #2b2739;
+  border: 1px solid #3d3752;
+}
+.fxwb-tierbtn {
+  border: 1px solid transparent; border-radius: 5px; background: transparent; color: #8a7fa8;
+  font-family: var(--font-ui); font-weight: 800; font-size: 11px; padding: 3px 9px; cursor: pointer;
+}
+.fxwb-tierbtn:hover { color: #d9d3ea; }
+.fxwb-tierbtn.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; color: #f0a0ff; }
+.fxwb-search {
+  flex: 1 1 90px; min-width: 0; box-sizing: border-box; padding: 4px 7px; border-radius: 7px;
+  border: 1px solid #3d3752; background: #2b2739; color: #d9d3ea; font-family: var(--font-ui);
+  font-size: 11px; font-weight: 700;
+}
+.fxwb-search::placeholder { color: #8a7fa8; font-weight: 400; }
+.fxwb-search:focus { outline: none; border-color: #c936ef; }
+.fxwb-tierhint { flex: 1 1 100%; font-size: 10px; line-height: 1.3; color: #8a7fa8; }
+.fxwb-tierempty { font-size: 11px; line-height: 1.3; color: #8a7fa8; }
+
+/* Collapsible group: the old <h3> heading becomes a full-width button with a caret and a count, so "how much
+   is hiding in here?" is answerable without opening it. */
+.fxwb-grphead {
+  display: flex; align-items: center; gap: 6px; width: 100%; margin: 0 0 2px; padding: 4px 2px;
+  border: 0; border-bottom: 1px solid #3d3752; background: none; cursor: pointer; text-align: left;
+  font-family: var(--font-ui); font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #8a7fa8;
+}
+.fxwb-grphead:hover { color: #d9d3ea; border-bottom-color: #c936ef; }
+.fxwb-grpcaret { flex: 0 0 auto; font-size: 9px; }
+.fxwb-grpname { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxwb-grpcount {
+  flex: 0 0 auto; min-width: 16px; padding: 1px 5px; border-radius: 99px; background: #2b2739;
+  color: #b9b1cf; font-size: 9px; font-weight: 800; letter-spacing: 0; text-align: center;
+}
+/* Essentials is a FLAT list, so its rows are direct children of the inspector's 12px flex gap — drop their
+   own margin so the spacing doesn't double up. Rows inside a group keep it. */
+.fxwb-inspector > .fxwb-row { margin: 0; }
+
+/* Row label cell: the name plus a visible `?`. Help used to be a `title=` on the row div — invisible until
+   you hovered the right pixel for a second, and absent entirely on keyboard/touch. */
+.fxwb-lab { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.fxwb-lab > label { min-width: 0; }
+.fxwb-help {
+  flex: 0 0 auto; width: 15px; height: 15px; padding: 0; border-radius: 50%; border: 1px solid #3d3752;
+  background: transparent; color: #8a7fa8; font-family: var(--font-ui); font-size: 9px; font-weight: 800;
+  line-height: 1; cursor: help;
+}
+.fxwb-help:hover { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-help.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; color: #f0a0ff; }
+/* The two full-width lines under a control (the timing panel's anchor row uses the same 1 / -1 trick). */
+.fxwb-rowhelp {
+  grid-column: 1 / -1; margin-top: 3px; padding: 5px 7px; border-radius: 6px; background: #211d2c;
+  border: 1px solid #3d3752; font-size: 10px; line-height: 1.4; color: #b9b1cf;
+}
+.fxwb-rowwhy {
+  grid-column: 1 / -1; margin-top: 2px; font-size: 10px; line-height: 1.3; font-weight: 800; color: #b58ad8;
+}
+
+/* An INERT param — one whose `enabledWhen` isn't satisfied — is greyed and non-interactive, never hidden: a
+   control that disappears takes its discoverability with it and makes the rail jump while you tune. The `?`
+   stays live on purpose (help matters most on the control that just stopped responding). */
+.fxwb-row.fxwb-off > .fxwb-lab > label { color: #7d7397; }
+.fxwb-row.fxwb-off .fxwb-val { color: #8a6fa0; }
+.fxwb-row.fxwb-off input, .fxwb-row.fxwb-off select { opacity: 0.4; cursor: not-allowed; }
+.fxwb-row.fxwb-off .fxwb-curve, .fxwb-row.fxwb-off .fxwb-shape, .fxwb-row.fxwb-off .fxwb-palette { opacity: 0.45; }
+.fxwb-row.fxwb-off .fxwb-curve-svg { pointer-events: none; }
+
+/* "Start from" — the def library, moved to the TOP of the rail and reframed as the entry point rather than
+   the author's output shelf. Accent heading because it is the first thing you should reach for; a little
+   more height than the old 148px box now that it isn't buried under 43 sliders. */
+.fxwb-startfrom .fxwb-def-head { color: #f0a0ff; border-bottom-color: color-mix(in srgb, #c936ef 45%, #3d3752); }
+.fxwb-startfrom .fxwb-def-list { max-height: 176px; }
+.fxwb-def-sub { font-size: 10px; line-height: 1.35; color: #8a7fa8; }
+
+/* Transport: the two play-shaped buttons get grouped with a one-line note, so "what's the difference between
+   ▶ and 🔥?" is answered on screen instead of by pressing both. */
+.fxwb-playgroup { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.fxwb-playnote { flex: 0 0 auto; font-size: 10px; line-height: 1.2; color: #8a7fa8; white-space: nowrap; }

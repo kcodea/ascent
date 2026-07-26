@@ -178,15 +178,15 @@ void main() {
  */
 const SPECS = {
   rings: {
-    kind: 'slider', label: 'Rings', group: 'Ring', min: 1, max: 5, step: 1, default: 2,
+    kind: 'slider', label: 'Rings', group: 'Ring', min: 1, max: 5, step: 1, default: 2, essential: true,
     help: 'Concurrent expanding rings.',
   },
   speed: {
-    kind: 'slider', label: 'Speed', group: 'Ring', min: 0.1, max: 3, step: 0.05, default: 0.9,
+    kind: 'slider', label: 'Speed', group: 'Ring', min: 0.1, max: 3, step: 0.05, default: 0.9, essential: true,
     help: 'Expansions per second.',
   },
   thickness: {
-    kind: 'slider', label: 'Thickness', group: 'Ring', min: 0.01, max: 0.3, step: 0.005, default: 0.06,
+    kind: 'slider', label: 'Thickness', group: 'Ring', min: 0.01, max: 0.3, step: 0.005, default: 0.06, essential: true,
     help: 'Ring band width.',
   },
   fade: {
@@ -194,7 +194,7 @@ const SPECS = {
     help: 'How fast a ring fades as it grows.',
   },
   radius: {
-    kind: 'slider', label: 'Radius', group: 'Ring', min: 40, max: 400, step: 5, default: 160,
+    kind: 'slider', label: 'Radius', group: 'Ring', min: 40, max: 400, step: 5, default: 160, essential: true,
     help: 'Max ring radius, px.',
   },
   squash: {
@@ -203,6 +203,9 @@ const SPECS = {
   },
   ringDelay: {
     kind: 'slider', label: 'Ring delay', group: 'Ring', min: 0, max: 1, step: 0.01, default: 0,
+    // The stagger is `- float(k) * uRingDelay`, so with a single ring (k is always 0) it is an exact no-op
+    // no matter what this says.
+    enabledWhen: { param: 'rings', above: 1 },
     help: 'Extra stagger between successive rings; 0 keeps them evenly phased (the default cadence).',
   },
   ease: {
@@ -214,7 +217,7 @@ const SPECS = {
     help: 'Posterization levels (the cel look).',
   },
   palette: {
-    kind: 'palette', label: 'Palette', group: 'Style',
+    kind: 'palette', label: 'Palette', group: 'Style', essential: true,
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
     help: 'The four colours each ring steps through, faint outer fringe first and white-hot crest last. A preset swaps all four at once; the last (core) colour is also what tints the Glow halo.',
   },
@@ -237,18 +240,24 @@ const SPECS = {
   },
   noiseAlong: {
     kind: 'slider', label: 'Noise (along)', group: 'Noise', min: 0.5, max: 12, step: 0.1, default: 3,
+    // Inert at Erode 0: the band is `wfall * uGain - nz * uErode`, normalised straight back by
+    // `shape / uGain` — so with no noise term uGain cancels and every noise knob feeds nothing.
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How fine the tatter is around the ring — low takes a few big bites out of the band, high leaves a dense ragged fringe. Does nothing while Erode is 0.',
   },
   noiseAcross: {
     kind: 'slider', label: 'Noise (across)', group: 'Noise', min: 1, max: 20, step: 0.1, default: 7,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How fine the tatter is across the band (crest → edge), so the outer fringe frays differently from the bright middle. Does nothing while Erode is 0.',
   },
   warp: {
     kind: 'slider', label: 'Warp', group: 'Noise', min: 0, max: 1.5, step: 0.01, default: 0.35,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'Curls the tatter into flowing, flame-like streaks instead of round blobs — 0 leaves it plain and lumpy, 0.35 is the reference look. Does nothing while Erode is 0.',
   },
   scroll: {
     kind: 'slider', label: 'Scroll', group: 'Noise', min: 0, max: 6, step: 0.05, default: 1.4,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How fast the tatter swirls around the ring — 0 freezes the pattern in place so the ring expands without churning. Does nothing while Erode is 0.',
   },
   erode: {
@@ -257,6 +266,7 @@ const SPECS = {
   },
   gain: {
     kind: 'slider', label: 'Gain', group: 'Noise', min: 0.3, max: 2, step: 0.01, default: 1.5,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a ring resists Erode — raise it and the noise takes smaller bites so the band reads solid, lower it and the same Erode chews it down to wisps. Does nothing while Erode is 0.',
   },
 } satisfies FxParamSpecs;

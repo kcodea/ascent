@@ -3,8 +3,50 @@
  * from the same record, so it is impossible to add a parameter without a label, or to label a parameter
  * that does not exist — the failure mode that left two Trail tuner sliders blank for months.
  */
-export type FxParamSpec =
-  | { kind: 'slider'; label: string; group?: string; help?: string; min: number; max: number; step: number; default: number }
+
+/**
+ * A dependency that decides whether a param is LIVE right now.
+ *
+ * A third of this workbench's params do nothing until some OTHER param moves — `turbScale` is dead while
+ * `turbulence` is 0, the whole noise/texture group is dead while `erode` is 0, and so on. That was only ever
+ * written in prose in each `help` string, which means the editor itself could not act on it: every one of
+ * those controls looked exactly as live as a working one. Declaring it as DATA lets the inspector grey the
+ * control out and say why, and lets `validateSpecs` catch a typo in the dependency's name.
+ *
+ * Clauses are ANDed, and at least one must be present (`validateSpecs` flags a bare `{ param }`). Evaluation
+ * is `isParamEnabled`, which fails OPEN — a predicate it cannot evaluate leaves the control usable, because a
+ * control wrongly locked out is strictly worse than one wrongly left live.
+ *
+ * NOTE: only fully-inert cases belong here. A param that still does *something* under the condition (e.g.
+ * `plateau` still shapes the Glow halo once `fieldMix` reaches 1) must NOT declare a dependency — disabling
+ * it would take away real reach. Those stay documented in `help`.
+ */
+export type FxParamDependency = {
+  /** Another key in the SAME spec record. `validateSpecs` rejects a name that isn't one. */
+  param: string;
+  /** Live while the dependency is strictly `===` this. */
+  is?: unknown;
+  /** Live while the dependency is strictly `!==` this. */
+  not?: unknown;
+  /** Live while the dependency is a number strictly greater than this. */
+  above?: number;
+};
+
+/** Fields every spec carries regardless of `kind`. Intersected onto the union below rather than repeated in
+ *  all eight members — both are optional, so every pre-existing spec stays valid untouched. */
+type FxParamMeta = {
+  /**
+   * One of the ~5-7 params that actually carry this primitive's read. The inspector's default "Essentials"
+   * tier shows only these, which is what turns a 43-control rail into a handful. Not a statement about
+   * importance in the abstract: the test is "does moving this change what the effect LOOKS like at a glance".
+   */
+  essential?: boolean;
+  /** What has to be true elsewhere in this spec record for the param to do anything. See {@link FxParamDependency}. */
+  enabledWhen?: FxParamDependency;
+};
+
+export type FxParamSpec = FxParamMeta &
+  ({ kind: 'slider'; label: string; group?: string; help?: string; min: number; max: number; step: number; default: number }
   | { kind: 'toggle'; label: string; group?: string; help?: string; default: boolean }
   | { kind: 'color'; label: string; group?: string; help?: string; default: number }
   | { kind: 'enum'; label: string; group?: string; help?: string; options: readonly string[]; default: string }
@@ -47,7 +89,7 @@ export type FxParamSpec =
       help?: string;
       /** A shape id — a built-in `SHAPE_NAMES` entry (imports can't be a default: they don't exist yet). */
       default: string;
-    };
+    });
 
 export type FxParamSpecs = Record<string, FxParamSpec>;
 
@@ -159,6 +201,152 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
   return out as ParamsOf<S>;
 }
 
+/* ────────────────────────────────────────────────────────────────────────────────────────────────────────
+ * Editor derivations. Everything below is PURE (no React, no DOM, no localStorage) and lives here rather
+ * than in `ui/Inspector.tsx` for one reason: the vitest include is `packages/**\/*.test.ts` on a node
+ * environment, so a helper inside a `.tsx` cannot be unit-tested. The inspector keeps the hooks and the
+ * markup; the rules about which params are live, which are shown, and how they group live here with the
+ * specs they read.
+ * ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/** The group an unlabelled param falls into — matches the inspector's historical fallback heading. */
+export const DEFAULT_PARAM_GROUP = 'General';
+
+/**
+ * Groups that stay COLLAPSED on first open even when they hold an essential param: the advanced material
+ * tiers. This is the Shuriken lesson — the tools with the most parameters show the fewest at once — and it
+ * is why 43 controls no longer land on you at once. Everything else opens.
+ */
+const ADVANCED_GROUPS: ReadonlySet<string> = new Set(['Texture', 'Noise', 'Physics']);
+
+/**
+ * Is this param live right now, given the sibling values it was declared to depend on?
+ *
+ * Fails OPEN in every ambiguous case (no `enabledWhen`, a dependency missing from `values`, a predicate with
+ * no clauses): a control wrongly greyed out is a capability the author has silently lost, which is worse than
+ * the status quo of a control that quietly does nothing. Clauses are ANDed.
+ */
+export function isParamEnabled(spec: FxParamSpec, values: Record<string, unknown>): boolean {
+  const dep = spec.enabledWhen;
+  if (dep === undefined) return true;
+  if (!(dep.param in values)) return true; // can't evaluate → don't lock the control
+  const v = values[dep.param];
+  if (dep.is !== undefined && v !== dep.is) return false;
+  if (dep.not !== undefined && v === dep.not) return false;
+  if (dep.above !== undefined && (typeof v !== 'number' || !(v > dep.above))) return false;
+  // Every declared clause held — and a predicate with NO clauses lands here too, which is the fail-open case
+  // `validateSpecs` separately flags as a malformed spec.
+  return true;
+}
+
+/** How a dependency's expected value reads in a sentence: booleans as on/off, everything else verbatim. */
+function describeValue(v: unknown): string {
+  if (v === true) return 'on';
+  if (v === false) return 'off';
+  return String(v);
+}
+
+/**
+ * Why a param is greyed out, phrased for the row that is greyed out ("Needs Turbulence above 0"), or `null`
+ * when it is live. Takes the whole record because the reason has to name the DEPENDENCY'S label — the thing
+ * the author has to go and move — not its key.
+ */
+export function paramDisabledReason(
+  specs: FxParamSpecs,
+  key: string,
+  values: Record<string, unknown>,
+): string | null {
+  const spec = specs[key];
+  if (spec === undefined || isParamEnabled(spec, values)) return null;
+  const dep = spec.enabledWhen;
+  if (dep === undefined) return null;
+  const depLabel = specs[dep.param]?.label ?? dep.param;
+  const parts: string[] = [];
+  if (dep.is !== undefined) parts.push(`${depLabel} ${describeValue(dep.is)}`);
+  if (dep.not !== undefined) {
+    parts.push(typeof dep.not === 'boolean' ? `${depLabel} ${describeValue(!dep.not)}` : `${depLabel} ≠ ${String(dep.not)}`);
+  }
+  if (dep.above !== undefined) parts.push(`${depLabel} above ${dep.above}`);
+  return parts.length === 0 ? null : `Needs ${parts.join(' and ')}`;
+}
+
+/** Case-insensitive substring match of the search box against the label first, then the key (an author who
+ *  knows the JSON reaches for `emitRadius` as readily as for "Emit radius"). An empty query matches all. */
+export function matchesParamQuery(spec: FxParamSpec, key: string, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (q === '') return true;
+  return spec.label.toLowerCase().includes(q) || key.toLowerCase().includes(q);
+}
+
+/**
+ * The keys the inspector should render, in DECLARATION order (never re-sorted — the spec order is the
+ * authored reading order). `essentialsOnly` is the tier switch; `query` is the search box. A search is
+ * deliberately allowed to reach past the Essentials tier: someone typing "turb" wants the turbulence
+ * controls whether or not they were promoted.
+ */
+export function visibleParamKeys(
+  specs: FxParamSpecs,
+  opts: { essentialsOnly: boolean; query?: string },
+): string[] {
+  const query = opts.query ?? '';
+  const searching = query.trim() !== '';
+  return Object.keys(specs).filter((key) => {
+    const spec = specs[key];
+    if (opts.essentialsOnly && !searching && spec.essential !== true) return false;
+    return matchesParamQuery(spec, key, query);
+  });
+}
+
+/** Bucket keys into their groups, both the groups and the keys inside them kept in declaration order. */
+export function groupParamKeys(
+  specs: FxParamSpecs,
+  keys: readonly string[],
+): { group: string; keys: string[] }[] {
+  const out: { group: string; keys: string[] }[] = [];
+  const index = new Map<string, { group: string; keys: string[] }>();
+  for (const key of keys) {
+    const group = specs[key]?.group ?? DEFAULT_PARAM_GROUP;
+    let bucket = index.get(group);
+    if (bucket === undefined) {
+      bucket = { group, keys: [] };
+      index.set(group, bucket);
+      out.push(bucket);
+    }
+    bucket.keys.push(key);
+  }
+  return out;
+}
+
+/** First-open state per group: open if it holds an essential AND isn't one of the advanced material tiers. */
+export function defaultOpenGroups(specs: FxParamSpecs): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const key of Object.keys(specs)) {
+    const spec = specs[key];
+    const group = spec.group ?? DEFAULT_PARAM_GROUP;
+    const open = spec.essential === true && !ADVANCED_GROUPS.has(group);
+    out[group] = (out[group] ?? false) || open;
+  }
+  return out;
+}
+
+/**
+ * Fold a persisted open/closed map over the computed defaults. Total and defensive — `stored` comes from
+ * `localStorage`, so it can be anything: only booleans, and only for groups this primitive actually has,
+ * survive. A group the persisted map never heard of keeps its default (that's how a NEW group added to a
+ * primitive later still opens correctly for someone with an old entry saved).
+ */
+export function mergeOpenGroups(
+  defaults: Record<string, boolean>,
+  stored: unknown,
+): Record<string, boolean> {
+  const out = { ...defaults };
+  if (stored === null || typeof stored !== 'object' || Array.isArray(stored)) return out;
+  for (const [group, value] of Object.entries(stored as Record<string, unknown>)) {
+    if (group in out && typeof value === 'boolean') out[group] = value;
+  }
+  return out;
+}
+
 /** Dev-time invariant: catch a spec that contradicts itself (a default outside its own range, an enum
  *  default not in its own options) at registration rather than as a silently wrong slider months later.
  *  Returns the problems rather than throwing, so the caller decides how loud to be. */
@@ -166,6 +354,20 @@ export function validateSpecs(specs: FxParamSpecs): string[] {
   const problems: string[] = [];
   for (const key of Object.keys(specs)) {
     const spec = specs[key];
+    // An `enabledWhen` that names a param which doesn't exist would silently disable its control FOREVER
+    // (the dependency can never become true), so a typo here has to be loud. Same for a self-reference and
+    // for a predicate with nothing to test — both mean the author declared a dependency that isn't one.
+    const dep = spec.enabledWhen;
+    if (dep !== undefined) {
+      if (!(dep.param in specs)) {
+        problems.push(`'${key}': enabledWhen names '${dep.param}', which is not a param in this spec`);
+      } else if (dep.param === key) {
+        problems.push(`'${key}': enabledWhen depends on itself`);
+      }
+      if (dep.is === undefined && dep.not === undefined && dep.above === undefined) {
+        problems.push(`'${key}': enabledWhen must declare at least one of is/not/above`);
+      }
+    }
     if (spec.kind === 'slider') {
       if (spec.min > spec.max) problems.push(`'${key}': min ${spec.min} exceeds max ${spec.max}`);
       if (spec.default < spec.min || spec.default > spec.max) {

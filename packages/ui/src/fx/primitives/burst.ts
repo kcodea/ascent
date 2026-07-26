@@ -98,7 +98,7 @@ export function burstFireComplete(oneShot: boolean, fired: boolean, liveCount: n
 
 const SPECS = {
   count: {
-    kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 120, step: 1, default: 28,
+    kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 120, step: 1, default: 28, essential: true,
     help: 'Particles per burst.',
   },
   interval: {
@@ -110,7 +110,7 @@ const SPECS = {
     help: '1 = full circle, lower narrows to a forward cone along the travel direction.',
   },
 
-  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 800, step: 5, default: 260, help: 'px/sec initial.' },
+  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 800, step: 5, default: 260, essential: true, help: 'px/sec initial.' },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.5,
     help: 'Randomises speed ± this fraction.',
@@ -123,7 +123,7 @@ const SPECS = {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 800, step: 10, default: 0,
     help: 'px/sec² downward.',
   },
-  life: { kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, help: 'Particle lifetime ms.' },
+  life: { kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, essential: true, help: 'Particle lifetime ms.' },
   orientToVelocity: {
     kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
     help: 'Point each particle along its direction of travel (good for shards, arrows, and imported directional art). Overrides spin/rotation while on.',
@@ -135,6 +135,7 @@ const SPECS = {
   },
   turbScale: {
     kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
+    enabledWhen: { param: 'turbulence', above: 0 },
     help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites once Turbulence is above 0.',
   },
   emitShape: {
@@ -143,6 +144,10 @@ const SPECS = {
   },
   emitRadius: {
     kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
+    // `emitShape` and `emitRadius` are mutually dead at these defaults (point + 0), so only ONE of the pair
+    // may declare the dependency — disabling both would be a deadlock with no way back in. Shape is the
+    // gateway you pick first; picking anything but `point` unlocks the radius.
+    enabledWhen: { param: 'emitShape', not: 'point' },
     help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
   inheritVel: {
@@ -155,7 +160,7 @@ const SPECS = {
     help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9,
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9, essential: true,
     help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
   },
   sizeVar: {
@@ -210,12 +215,12 @@ const SPECS = {
     help: 'palette = recolour into the palette stops; texture = keep imported art\'s own colours, still posterized into Bands levels.',
   },
   palette: {
-    kind: 'palette', label: 'Palette', group: 'Style',
+    kind: 'palette', label: 'Palette', group: 'Style', essential: true,
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
     help: 'The four colours a shard steps through, dark rim first and white-hot core last; a preset swaps all four at once. While Tint mode is texture only the last (core) colour is used — and only to tint the Glow halo — so the other three do nothing there.',
   },
   blendMode: {
-    kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add',
+    kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add', essential: true,
     help: 'How the shards composite over what is behind them: add (the default) makes them glow and brighten whatever they cross, normal paints them as solid opaque colour, screen is a gentler lift, and multiply/overlay stain what is behind rather than lighting it.',
   },
   glow: {
@@ -225,14 +230,20 @@ const SPECS = {
 
   noiseScale: {
     kind: 'slider', label: 'Noise scale', group: 'Texture', min: 0.5, max: 20, step: 0.1, default: 6,
+    // The whole noise/texture group is inert while Erode is 0: the shader only ever consumes the noise as
+    // `baseShape * uGain - n * uErode`, so at erode 0 the noise term vanishes AND uGain cancels out of the
+    // `d / uGain` normalisation. See particleMaterial.ts's PARTICLE_FRAG.
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How fine the mottling inside each shard is — low gives a couple of big blotches per shard, high a dense speckle. Does nothing while Erode is 0.',
   },
   warp: {
     kind: 'slider', label: 'Warp', group: 'Texture', min: 0, max: 1.5, step: 0.01, default: 0.35,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'Curls that mottling into flowing, flame-like streaks instead of round blobs — 0 leaves it plain and lumpy, 0.35 is the reference look. Does nothing while Erode is 0.',
   },
   scroll: {
     kind: 'slider', label: 'Scroll', group: 'Texture', min: 0, max: 6, step: 0.05, default: 1.4,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How fast the mottling drifts across each shard — this is what makes shards flicker and churn instead of looking stamped; 0 holds the pattern still. Does nothing while Erode is 0.',
   },
   erode: {
@@ -241,6 +252,7 @@ const SPECS = {
   },
   gain: {
     kind: 'slider', label: 'Gain', group: 'Texture', min: 0.3, max: 2, step: 0.01, default: 1.4,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a shard resists Erode — raise it and the noise takes smaller bites so shards read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
   },
 } satisfies FxParamSpecs;

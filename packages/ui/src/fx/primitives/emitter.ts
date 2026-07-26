@@ -37,11 +37,11 @@ import { registerPrimitive } from '../registry';
 
 const SPECS = {
   rate: {
-    kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 300, step: 5, default: 80,
+    kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 300, step: 5, default: 80, essential: true,
     help: 'Motes per second.',
   },
   life: {
-    kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 2000, step: 10, default: 700,
+    kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 2000, step: 10, default: 700, essential: true,
     help: 'Mote lifetime in ms.',
   },
   spread: {
@@ -49,9 +49,10 @@ const SPECS = {
     help: '1 = emit in all directions, lower = upward cone.',
   },
 
-  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 60, help: 'px/sec initial.' },
+  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 60, essential: true, help: 'px/sec initial.' },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
+    enabledWhen: { param: 'speed', above: 0 },
     help: 'How much motes differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
   },
   gravity: {
@@ -69,6 +70,7 @@ const SPECS = {
   },
   turbScale: {
     kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
+    enabledWhen: { param: 'turbulence', above: 0 },
     help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites once Turbulence is above 0.',
   },
   emitShape: {
@@ -77,6 +79,9 @@ const SPECS = {
   },
   emitRadius: {
     kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
+    // Only one half of the mutually-dead shape/radius pair may declare the dependency, or the two lock each
+    // other out permanently at these defaults. Shape is the gateway; see burst.ts for the same note.
+    enabledWhen: { param: 'emitShape', not: 'point' },
     help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
   inheritVel: {
@@ -89,7 +94,7 @@ const SPECS = {
     help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 7,
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 7, essential: true,
     help: 'How big a mote is across, in px — 7 reads as sparks, 30 as fat glowing blobs. Size var jitters it per mote and the Size / life curve rescales it as the mote ages.',
   },
   sizeVar: {
@@ -148,12 +153,12 @@ const SPECS = {
     help: 'Fraction of life spent fading in (and, symmetrically, fading out at the end).',
   },
   palette: {
-    kind: 'palette', label: 'Palette', group: 'Style',
+    kind: 'palette', label: 'Palette', group: 'Style', essential: true,
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
     help: 'The four colours a mote steps through, dark rim first and white-hot core last; a preset swaps all four at once. While Tint mode is texture only the last (core) colour is used — and only to tint the Glow halo — so the other three do nothing there.',
   },
   blendMode: {
-    kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add',
+    kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add', essential: true,
     help: 'How the motes composite over what is behind them: add (the default) makes them glow and brighten whatever they cross, normal paints them as solid opaque colour, screen is a gentler lift, and multiply/overlay stain what is behind rather than lighting it.',
   },
   glow: {
@@ -163,14 +168,19 @@ const SPECS = {
 
   noiseScale: {
     kind: 'slider', label: 'Noise scale', group: 'Texture', min: 0.5, max: 20, step: 0.1, default: 6,
+    // Inert at Erode 0 — the shader only reads the noise as `baseShape * uGain - n * uErode`, and uGain
+    // cancels out of the `d / uGain` normalisation once the noise term is gone (particleMaterial.ts).
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How fine the mottling inside each mote is — low gives a couple of big blotches per mote, high a dense speckle. Does nothing while Erode is 0.',
   },
   warp: {
     kind: 'slider', label: 'Warp', group: 'Texture', min: 0, max: 1.5, step: 0.01, default: 0.35,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'Curls that mottling into flowing, flame-like streaks instead of round blobs — 0 leaves it plain and lumpy, 0.35 is the reference look. Does nothing while Erode is 0.',
   },
   scroll: {
     kind: 'slider', label: 'Scroll', group: 'Texture', min: 0, max: 6, step: 0.05, default: 1.4,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How fast the mottling drifts across each mote — this is what makes motes flicker and churn instead of looking stamped; 0 holds the pattern still. Does nothing while Erode is 0.',
   },
   erode: {
@@ -179,6 +189,7 @@ const SPECS = {
   },
   gain: {
     kind: 'slider', label: 'Gain', group: 'Texture', min: 0.3, max: 2, step: 0.01, default: 1.4,
+    enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a mote resists Erode — raise it and the noise takes smaller bites so motes read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
   },
 } satisfies FxParamSpecs;

@@ -1,12 +1,41 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { insertCurvePoint, removeCurvePoint, MIN_CURVE_POINTS, CURVE_T_EPSILON } from '../curve';
-import type { FxParamSpecs } from '../params';
+import {
+  defaultOpenGroups,
+  groupParamKeys,
+  isParamEnabled,
+  mergeOpenGroups,
+  paramDisabledReason,
+  visibleParamKeys,
+  type FxParamSpec,
+  type FxParamSpecs,
+} from '../params';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 
 /**
  * Every control here is generated from the primitive's own FxParamSpec record — there is no separate
  * labels map, ranges table, or keys array to keep in sync. That triplication (and its silent drift) is the
  * exact thing the workbench exists to kill.
+ *
+ * What the record can NOT do on its own is decide how much of itself to show at once. Burst alone declares 35
+ * params; the rail is 288px; every group used to be expanded, always, with no tier, no search and no sign of
+ * which controls were inert. So this file adds the three things every mature FX editor has and this one
+ * didn't:
+ *
+ *  - **A tier.** "Essentials" (the default) shows only the handful of params flagged `essential` in the spec —
+ *    the ones that carry the look. "All" shows the full surface. This is After Effects' Essential Graphics /
+ *    Niagara's User Parameters, and it is the difference between opening on ~6 controls and opening on 43.
+ *  - **Collapsible groups** with a count and a persisted open/closed state — Shuriken's 24 collapsed modules,
+ *    the reason 150+ fields there are tolerable.
+ *  - **Disabled-with-a-reason.** A param whose spec declares `enabledWhen` is greyed out with the condition
+ *    printed under it ("Needs Erode above 0") instead of silently doing nothing. Disabled, never hidden: a
+ *    control that vanishes takes its own discoverability with it, and makes the rail jump as you tune.
+ *
+ * Plus a search box and a per-row `?` — help used to be a `title=` on the row div, which is invisible until
+ * you hover the right pixel for a second and does not exist at all on touch/keyboard.
+ *
+ * The rules about WHICH params are live/shown/grouped are pure functions in `../params` (the vitest include is
+ * `packages/**\/*.test.ts` on a node environment, so they'd be untestable if they lived in this .tsx).
  */
 const STOP_LABELS = ['Rim', 'Mid', 'Bright', 'Core'] as const;
 
@@ -15,115 +44,287 @@ const hexToColor = (hex: string): number => parseInt(hex.slice(1), 16);
 /** 0xRRGGBB -> `#rrggbb`, matching the existing `color` kind's own inline format below. */
 const colorToHex = (n: number): string => `#${(n >>> 0).toString(16).padStart(6, '0')}`;
 
+/** Which parameter tier the inspector is showing. */
+type InspectorTier = 'essentials' | 'all';
+
+/** Per-primitive so the groups you opened for `burst` don't decide what `ribbon` looks like. */
+const groupsKey = (primitiveId: string): string => `fxwb.inspector.groups.${primitiveId}`;
+
+/** Read the persisted open/closed map. Total: any storage failure (private mode, disabled storage, corrupt
+ *  JSON) degrades to "no stored state", never to a thrown render. */
+function readOpenGroups(primitiveId: string): unknown {
+  try {
+    const raw = window.localStorage.getItem(groupsKey(primitiveId));
+    return raw === null ? null : JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the open/closed map. Swallows storage failures for the same reason as the read. */
+function writeOpenGroups(primitiveId: string, open: Record<string, boolean>): void {
+  try {
+    window.localStorage.setItem(groupsKey(primitiveId), JSON.stringify(open));
+  } catch {
+    /* a workbench that can't remember which groups were open is still a working workbench */
+  }
+}
+
 export function Inspector({
   specs,
   values,
   onChange,
+  primitiveId,
 }: {
   specs: FxParamSpecs;
   values: Record<string, unknown>;
   onChange: (key: string, value: number | boolean | string | number[] | number[][]) => void;
+  /** Which primitive these specs belong to — the key the open/closed group state is persisted under. */
+  primitiveId: string;
 }): React.ReactElement {
-  const groups = new Map<string, string[]>();
-  for (const key of Object.keys(specs)) {
-    const g = specs[key].group ?? 'General';
-    const list = groups.get(g) ?? [];
-    list.push(key);
-    groups.set(g, list);
-  }
+  const [tier, setTier] = useState<InspectorTier>('essentials');
+  const [query, setQuery] = useState('');
+  // Open/closed lives here keyed by primitive rather than being re-read from storage every render: the
+  // stored map is the STARTING point (below), this is the live one for primitives touched this session.
+  const [openByPrimitive, setOpenByPrimitive] = useState<Record<string, Record<string, boolean>>>({});
+
+  const stored = useMemo(
+    () => mergeOpenGroups(defaultOpenGroups(specs), readOpenGroups(primitiveId)),
+    [specs, primitiveId],
+  );
+  const open = openByPrimitive[primitiveId] ?? stored;
+
+  const toggleGroup = (group: string): void => {
+    const next = { ...open, [group]: !(open[group] ?? true) };
+    setOpenByPrimitive((prev) => ({ ...prev, [primitiveId]: next }));
+    writeOpenGroups(primitiveId, next);
+  };
+
+  const searching = query.trim() !== '';
+  const total = Object.keys(specs).length;
+  const essentialCount = Object.keys(specs).filter((k) => specs[k].essential === true).length;
+  const keys = visibleParamKeys(specs, { essentialsOnly: tier === 'essentials', query });
+  // Flat while browsing Essentials (a handful of rows needs no filing system); grouped in All, and grouped
+  // while SEARCHING from either tier so a hit still says which part of the primitive it came from. A search
+  // also reaches past the Essentials tier — someone typing "turb" wants the turbulence knobs either way.
+  const grouped = tier === 'all' || searching;
+
+  const renderRow = (key: string): React.ReactElement => (
+    <ParamRow
+      key={key}
+      paramKey={key}
+      spec={specs[key]}
+      value={values[key]}
+      enabled={isParamEnabled(specs[key], values)}
+      reason={paramDisabledReason(specs, key, values)}
+      onChange={onChange}
+    />
+  );
 
   return (
     <div className="fxwb-inspector">
-      {[...groups.entries()].map(([group, keys]) => (
-        <section key={group}>
-          <h3>{group}</h3>
-          {keys.map((key) => {
-            const spec = specs[key];
+      <div className="fxwb-tierbar">
+        <div className="fxwb-tier" role="group" aria-label="Parameter tier">
+          <button
+            type="button"
+            className={`fxwb-tierbtn${tier === 'essentials' ? ' on' : ''}`}
+            aria-pressed={tier === 'essentials'}
+            title="Only the few params that carry this effect's look"
+            onClick={() => setTier('essentials')}
+          >
+            Essentials
+          </button>
+          <button
+            type="button"
+            className={`fxwb-tierbtn${tier === 'all' ? ' on' : ''}`}
+            aria-pressed={tier === 'all'}
+            title={`Every parameter this primitive has (${total}), grouped`}
+            onClick={() => setTier('all')}
+          >
+            All
+          </button>
+        </div>
+        <input
+          className="fxwb-search"
+          type="search"
+          spellCheck={false}
+          placeholder="Search params…"
+          aria-label="Search parameters"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="fxwb-tierhint">
+          {searching
+            ? `${keys.length} of ${total} match “${query.trim()}”`
+            : tier === 'essentials'
+              ? `${essentialCount} of ${total} — the ones that change the look. Switch to All for the rest.`
+              : `All ${total} params. Click a group to fold it away.`}
+        </div>
+      </div>
+
+      {keys.length === 0 && (
+        <div className="fxwb-tierempty">
+          {searching ? `Nothing matches “${query.trim()}”.` : 'This primitive declares no parameters.'}
+        </div>
+      )}
+
+      {grouped
+        ? groupParamKeys(specs, keys).map(({ group, keys: groupKeys }) => {
+            // A search forces every group holding a hit open — a filtered-but-collapsed group would just be a
+            // heading you have to click to discover the thing you already searched for.
+            const isOpen = searching || (open[group] ?? true);
             return (
-              <div className="fxwb-row" key={key} title={spec.help ?? ''}>
-                <label htmlFor={`fxwb-${key}`}>{spec.label}</label>
-                {spec.kind === 'slider' && (
-                  <>
-                    <input id={`fxwb-${key}`} type="range" min={spec.min} max={spec.max} step={spec.step}
-                      value={values[key] as number} onChange={(e) => onChange(key, Number(e.target.value))} />
-                    <span className="fxwb-val">{String(values[key])}</span>
-                  </>
-                )}
-                {spec.kind === 'toggle' && (
-                  <input id={`fxwb-${key}`} type="checkbox" checked={values[key] as boolean}
-                    onChange={(e) => onChange(key, e.target.checked)} />
-                )}
-                {spec.kind === 'enum' && (
-                  <select id={`fxwb-${key}`} value={values[key] as string}
-                    onChange={(e) => onChange(key, e.target.value)}>
-                    {spec.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                )}
-                {spec.kind === 'color' && (
-                  <input id={`fxwb-${key}`} type="color"
-                    value={`#${((values[key] as number) >>> 0).toString(16).padStart(6, '0')}`}
-                    onChange={(e) => onChange(key, parseInt(e.target.value.slice(1), 16))} />
-                )}
-                {spec.kind === 'palette' && (() => {
-                  const stops = (values[key] as number[] | undefined) ?? spec.default;
-                  const presetEntries = Object.entries(spec.presets ?? {});
-                  return (
-                    <div className="fxwb-palette">
-                      {presetEntries.length > 0 && (
-                        <select
-                          id={`fxwb-${key}`}
-                          aria-label={`${spec.label} preset`}
-                          value=""
-                          onChange={(e) => {
-                            const preset = spec.presets?.[e.target.value];
-                            if (preset) onChange(key, [...preset]);
-                          }}
-                        >
-                          <option value="" disabled>Preset…</option>
-                          {presetEntries.map(([name]) => <option key={name} value={name}>{name}</option>)}
-                        </select>
-                      )}
-                      <div className="fxwb-palette-stops">
-                        {STOP_LABELS.map((stopLabel, i) => (
-                          <input
-                            key={stopLabel}
-                            type="color"
-                            title={stopLabel}
-                            aria-label={`${spec.label} ${stopLabel}`}
-                            value={colorToHex(stops[i] ?? 0)}
-                            onChange={(e) => {
-                              const next = [...stops];
-                              next[i] = hexToColor(e.target.value);
-                              onChange(key, next);
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-                {spec.kind === 'shape' && (
-                  <ShapeField
-                    id={`fxwb-${key}`}
-                    value={(values[key] as string | undefined) ?? spec.default}
-                    fallback={spec.default}
-                    onChange={(next) => onChange(key, next)}
-                  />
-                )}
-                {spec.kind === 'curve' && (
-                  <CurveEditor
-                    value={(values[key] as [number, number][] | undefined) ?? spec.default.map((p) => [p[0], p[1]])}
-                    label={spec.label}
-                    presets={spec.presets}
-                    vMax={spec.vMax}
-                    onChange={(next) => onChange(key, next)}
-                  />
-                )}
-              </div>
+              <section className="fxwb-grp" key={group}>
+                <button
+                  type="button"
+                  className="fxwb-grphead"
+                  aria-expanded={isOpen}
+                  title={isOpen ? `Collapse ${group}` : `Expand ${group}`}
+                  onClick={() => toggleGroup(group)}
+                >
+                  <span className="fxwb-grpcaret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
+                  <span className="fxwb-grpname">{group}</span>
+                  <span className="fxwb-grpcount">{groupKeys.length}</span>
+                </button>
+                {isOpen && <div className="fxwb-grpbody">{groupKeys.map(renderRow)}</div>}
+              </section>
             );
-          })}
-        </section>
-      ))}
+          })
+        : keys.map(renderRow)}
+    </div>
+  );
+}
+
+/**
+ * One parameter's row: label, help affordance, the control itself, and — when the spec says the param is
+ * inert right now — the reason it's greyed out.
+ *
+ * Its own component because the `?` toggle is state, and state inside Inspector's mapped render would violate
+ * the rules of hooks (the same reason `CurveEditor`/`ShapeField` below are components).
+ */
+function ParamRow({
+  paramKey: key,
+  spec,
+  value,
+  enabled,
+  reason,
+  onChange,
+}: {
+  paramKey: string;
+  spec: FxParamSpec;
+  value: unknown;
+  enabled: boolean;
+  reason: string | null;
+  onChange: (key: string, value: number | boolean | string | number[] | number[][]) => void;
+}): React.ReactElement {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const off = !enabled;
+
+  return (
+    <div className={`fxwb-row${off ? ' fxwb-off' : ''}`}>
+      <span className="fxwb-lab">
+        <label htmlFor={`fxwb-${key}`}>{spec.label}</label>
+        {spec.help !== undefined && (
+          <button
+            type="button"
+            className={`fxwb-help${helpOpen ? ' on' : ''}`}
+            // Kept as a title as well as a click target: hover is the fast path for someone already using a
+            // mouse, the click is the one that works on a trackpad, a touchscreen, or the keyboard.
+            title={spec.help}
+            aria-expanded={helpOpen}
+            aria-label={`What ${spec.label} does`}
+            onClick={() => setHelpOpen((v) => !v)}
+          >
+            ?
+          </button>
+        )}
+      </span>
+      {spec.kind === 'slider' && (
+        <>
+          <input id={`fxwb-${key}`} type="range" min={spec.min} max={spec.max} step={spec.step}
+            disabled={off}
+            value={value as number} onChange={(e) => onChange(key, Number(e.target.value))} />
+          <span className="fxwb-val">{String(value)}</span>
+        </>
+      )}
+      {spec.kind === 'toggle' && (
+        <input id={`fxwb-${key}`} type="checkbox" checked={value as boolean} disabled={off}
+          onChange={(e) => onChange(key, e.target.checked)} />
+      )}
+      {spec.kind === 'enum' && (
+        <select id={`fxwb-${key}`} value={value as string} disabled={off}
+          onChange={(e) => onChange(key, e.target.value)}>
+          {spec.options.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      )}
+      {spec.kind === 'color' && (
+        <input id={`fxwb-${key}`} type="color" disabled={off}
+          value={`#${((value as number) >>> 0).toString(16).padStart(6, '0')}`}
+          onChange={(e) => onChange(key, parseInt(e.target.value.slice(1), 16))} />
+      )}
+      {spec.kind === 'palette' && (() => {
+        const stops = (value as number[] | undefined) ?? spec.default;
+        const presetEntries = Object.entries(spec.presets ?? {});
+        return (
+          <div className="fxwb-palette">
+            {presetEntries.length > 0 && (
+              <select
+                id={`fxwb-${key}`}
+                aria-label={`${spec.label} preset`}
+                value=""
+                disabled={off}
+                onChange={(e) => {
+                  const preset = spec.presets?.[e.target.value];
+                  if (preset) onChange(key, [...preset]);
+                }}
+              >
+                <option value="" disabled>Preset…</option>
+                {presetEntries.map(([name]) => <option key={name} value={name}>{name}</option>)}
+              </select>
+            )}
+            <div className="fxwb-palette-stops">
+              {STOP_LABELS.map((stopLabel, i) => (
+                <input
+                  key={stopLabel}
+                  type="color"
+                  title={stopLabel}
+                  aria-label={`${spec.label} ${stopLabel}`}
+                  disabled={off}
+                  value={colorToHex(stops[i] ?? 0)}
+                  onChange={(e) => {
+                    const next = [...stops];
+                    next[i] = hexToColor(e.target.value);
+                    onChange(key, next);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+      {spec.kind === 'shape' && (
+        <ShapeField
+          id={`fxwb-${key}`}
+          value={(value as string | undefined) ?? spec.default}
+          fallback={spec.default}
+          disabled={off}
+          onChange={(next) => onChange(key, next)}
+        />
+      )}
+      {spec.kind === 'curve' && (
+        <CurveEditor
+          value={(value as [number, number][] | undefined) ?? spec.default.map((p) => [p[0], p[1]])}
+          label={spec.label}
+          presets={spec.presets}
+          vMax={spec.vMax}
+          disabled={off}
+          onChange={(next) => onChange(key, next)}
+        />
+      )}
+      {/* The two full-width lines under the control. The reason is the whole point of the `enabledWhen` data:
+          "this slider is doing nothing, and here is the exact knob that would change that". */}
+      {off && reason !== null && <div className="fxwb-rowwhy">{reason}</div>}
+      {helpOpen && spec.help !== undefined && <div className="fxwb-rowhelp">{spec.help}</div>}
     </div>
   );
 }
@@ -142,12 +343,15 @@ function ShapeField({
   id,
   value,
   fallback,
+  disabled = false,
   onChange,
 }: {
   id: string;
   value: string;
   /** The spec's default — what a removed shape's slot resets to. */
   fallback: string;
+  /** The param is inert right now (see `enabledWhen`): show it, don't let it be edited. */
+  disabled?: boolean;
   onChange: (next: string) => void;
 }): React.ReactElement {
   // Array hole rather than a named-but-unused state value: the counter exists purely to trigger a re-render
@@ -179,7 +383,7 @@ function ShapeField({
   return (
     <div className="fxwb-shape">
       <div className="fxwb-shape-row">
-        <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+        <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
           <optgroup label="Built-in">
             {builtins.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </optgroup>
@@ -199,6 +403,7 @@ function ShapeField({
             className="fxwb-shape-remove"
             title={`Remove '${selected.label}'`}
             aria-label={`Remove ${selected.label}`}
+            disabled={disabled}
             onClick={() => {
               removeImportedShape(value);
               bumpRegistry((n) => n + 1);
@@ -214,7 +419,7 @@ function ShapeField({
         <input
           type="file"
           accept="image/png,image/svg+xml,.png,.svg"
-          disabled={busy}
+          disabled={busy || disabled}
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = ''; // clear so re-picking the same file fires change again
@@ -280,6 +485,7 @@ function CurveEditor({
   label,
   presets,
   vMax = 1,
+  disabled = false,
   onChange,
 }: {
   value: number[][];
@@ -287,6 +493,9 @@ function CurveEditor({
   presets?: Record<string, readonly (readonly [number, number])[]>;
   /** The spec's value ceiling — the top of the box. 1 (the default) is the historical behaviour. */
   vMax?: number;
+  /** The param is inert right now (see `enabledWhen`): the curve still DRAWS (its shape is information),
+   *  it just stops accepting gestures. */
+  disabled?: boolean;
   onChange: (next: number[][]) => void;
 }): React.ReactElement {
   const points = value;
@@ -321,6 +530,7 @@ function CurveEditor({
    *  the curve doesn't silently reshape it). Handles stop the event themselves, so this only ever fires on
    *  empty canvas. */
   const addAt = (e: React.MouseEvent<SVGSVGElement>): void => {
+    if (disabled) return;
     const { t, v } = pointerToCurve(e.currentTarget, e.clientX, e.clientY, vMax);
     onChange(insertCurvePoint(points, t, v, vMax));
   };
@@ -333,6 +543,7 @@ function CurveEditor({
         <select
           aria-label={`${label} preset`}
           value=""
+          disabled={disabled}
           onChange={(e) => {
             const preset = presets?.[e.target.value];
             if (preset) onChange(preset.map((p) => [p[0], p[1]]));
@@ -404,6 +615,7 @@ function CurveEditor({
             r={5}
             className="fxwb-curve-handle"
             onPointerDown={(e) => {
+              if (disabled) return;
               // Alt-click removes instead of starting a drag -- the pointer-native twin of the right-click
               // below, for trackpads and for anyone whose browser eats the context menu.
               if (e.altKey && removable(i)) {
@@ -417,7 +629,7 @@ function CurveEditor({
             }}
             onContextMenu={(e) => {
               e.preventDefault(); // never show the browser menu over a handle, removable or not
-              if (removable(i)) onChange(removeCurvePoint(points, i));
+              if (!disabled && removable(i)) onChange(removeCurvePoint(points, i));
             }}
             // A double-click that lands ON a handle must not also drop a new point beside it.
             onDoubleClick={(e) => e.stopPropagation()}

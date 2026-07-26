@@ -2,7 +2,15 @@ import { useState } from 'react';
 import { parseDef, type StoredFxDef } from '../defStore';
 
 /**
- * The committed-def library: the read side of durable defs.
+ * The committed-def library: the read side of durable defs, and — since it sits at the TOP of the rail —
+ * the workbench's entry point.
+ *
+ * It used to be headed "Library", parked at the bottom under 43 sliders, with an empty state that read "No
+ * saved defs yet — tune an effect and hit Save". That framed thirteen finished, working effects as the
+ * author's *output*. They are the best available *input*: every mature FX tool opens on a template picker
+ * (Unity's VFX Graph literally will not give you a graph until you pick one; Unreal tells beginners to start
+ * by modifying a template; Effekseer ships a sample library), because starting from something that already
+ * works beats starting from a blank instrument every time. Hence "Start from", first thing in the rail.
  *
  * Three ways a def gets INTO the editor, all of them landing on the same `onLoad`/`onDuplicate` callbacks so
  * the workbench owns the single "replace the editor state coherently" path (see `FxWorkbench.loadDef`):
@@ -63,44 +71,53 @@ export function DefLibrary({
   };
 
   return (
-    <div className="fxwb-deflib">
-      <h3 className="fxwb-def-head">Library</h3>
+    <div className="fxwb-deflib fxwb-startfrom">
+      <h3 className="fxwb-def-head">Start from</h3>
       {defs.length === 0 ? (
-        <div className="fxwb-def-empty">No saved defs yet — tune an effect and hit Save.</div>
+        <div className="fxwb-def-empty">
+          Nothing in the library yet. Pick a primitive above and tune it, then Save — every effect saved here
+          becomes a starting point you (or anyone on the repo) can open and adapt.
+        </div>
       ) : (
-        <div className="fxwb-def-list">
-          {defs.map((def) => (
-            <div className="fxwb-def-row" key={def.id}>
-              <button
-                type="button"
-                className="fxwb-def-load"
-                title={`Load '${def.id}' into the editor`}
-                onClick={() => {
-                  setError(null);
-                  onLoad(def);
-                }}
-              >
-                <span className="fxwb-def-name">{def.id}</span>
-                <span className="fxwb-def-meta">
-                  {def.layers.length} layer{def.layers.length === 1 ? '' : 's'} · {def.duration} ms
-                </span>
-              </button>
-              <span className="fxwb-def-actions">
+        <>
+          <div className="fxwb-def-sub">
+            Open a finished effect and tune it — faster than building from defaults. Click to load, ⧉ to copy
+            it as a fresh unsaved template.
+          </div>
+          <div className="fxwb-def-list">
+            {defs.map((def) => (
+              <div className="fxwb-def-row" key={def.id}>
                 <button
                   type="button"
-                  title={`Duplicate '${def.id}' as a template (nothing is written until you Save)`}
-                  aria-label={`Duplicate ${def.id}`}
+                  className="fxwb-def-load"
+                  title={`Load '${def.id}' into the editor`}
                   onClick={() => {
                     setError(null);
-                    onDuplicate(def);
+                    onLoad(def);
                   }}
                 >
-                  ⧉
+                  <span className="fxwb-def-name">{def.id}</span>
+                  <span className="fxwb-def-meta">
+                    {def.layers.length} layer{def.layers.length === 1 ? '' : 's'} · {def.duration} ms
+                  </span>
                 </button>
-              </span>
-            </div>
-          ))}
-        </div>
+                <span className="fxwb-def-actions">
+                  <button
+                    type="button"
+                    title={`Duplicate '${def.id}' as a template (nothing is written until you Save)`}
+                    aria-label={`Duplicate ${def.id}`}
+                    onClick={() => {
+                      setError(null);
+                      onDuplicate(def);
+                    }}
+                  >
+                    ⧉
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="fxwb-def-pasterow">

@@ -1208,6 +1208,17 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             </button>
           </div>
         )}
+        {/* FIRST thing in the rail, on purpose. Thirteen finished effects are the best available STARTING
+            point, and they used to sit in a 148px box at the very bottom under 43 sliders, headed "Library" —
+            i.e. framed as the author's output. Every mature FX tool opens on a template picker instead (see
+            DefLibrary's own header comment), so the picker leads and the Save box stays at the bottom with
+            "Copy def", where the output belongs. */}
+        <DefLibrary
+          defs={defs}
+          onLoad={(def) => loadDef(def, def.id)}
+          onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
+        />
+
         <div className="fxwb-layers">
           {layers.map((l, i) => (
             <div
@@ -1314,7 +1325,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               {FX_ANCHOR_IDS.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </label>
-          <label htmlFor="fxwb-layer-at">At</label>
+          {/* "Starts at" / "Lasts for", not "At" / "Life". These are the LAYER's placement in the composition
+              and they sat ~6cm above a primitive's own `Life` param (a particle's lifetime in ms) — two
+              different numbers, same word, adjacent on screen. The verb phrasing also can't be mistaken for a
+              param name. The life range had no <label> at all: a bare slider next to a "Full" checkbox, which
+              is why it rendered in column 1 of the timing grid instead of alongside its siblings. */}
+          <label htmlFor="fxwb-layer-at">Starts at</label>
           <input
             id="fxwb-layer-at"
             type="range"
@@ -1325,7 +1341,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             onChange={(e) => changeLayerTiming(Number(e.target.value), selLayer.life, 'at')}
           />
           <span className="fxwb-val">{selLayer.at} ms</span>
-          <label className="fxwb-timing-full">
+          <label className="fxwb-timing-full" title="Run this layer for the whole composition">
             <input
               type="checkbox"
               checked={selLayer.life === null}
@@ -1337,11 +1353,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
                 )
               }
             />
-            Full
+            Full duration
           </label>
           {selLayer.life !== null && (
             <>
+              <label htmlFor="fxwb-layer-life">Lasts for</label>
               <input
+                id="fxwb-layer-life"
                 type="range"
                 min={10}
                 max={durationMs}
@@ -1354,11 +1372,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           )}
         </div>
 
-        {activePrimitive && <Inspector specs={activePrimitive.params} values={selLayer.params} onChange={change} />}
+        {activePrimitive && (
+          <Inspector
+            specs={activePrimitive.params}
+            values={selLayer.params}
+            onChange={change}
+            primitiveId={selLayer.primitive}
+          />
+        )}
         <button className="fxwb-copy" onClick={copyDef}>{copied ? 'Copied!' : 'Copy def'}</button>
 
-        {/* Durable defs: name + Save writes a committed `defs/<id>.json` (and any imported art alongside it);
-            the library below loads / duplicates / pastes one back into the editor. */}
+        {/* Durable defs, the WRITE side: name + Save writes a committed `defs/<id>.json` (and any imported art
+            alongside it). The read side — load / duplicate / paste — is the "Start from" picker at the top of
+            the rail. */}
         <div className="fxwb-def">
           <div className="fxwb-def-saverow">
             <input
@@ -1385,21 +1411,32 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           </div>
           {saveNote !== null && <div className="fxwb-def-note">{saveNote}</div>}
           {saveError !== null && <div className="fxwb-def-err">{saveError}</div>}
-          <DefLibrary
-            defs={defs}
-            onLoad={(def) => loadDef(def, def.id)}
-            onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
-          />
         </div>
       </div>
 
       <div className="fxwb-transport">
-        <button className="fxwb-play" onClick={togglePlay} title={uiPlaying ? 'Pause' : 'Play'}>
-          {uiPlaying ? '⏸' : '▶'}
-        </button>
-        <button className="fxwb-fire" onClick={fire} title="Fire a single one-shot preview (no loop)">
-          🔥 Fire
-        </button>
+        {/* Two play-shaped buttons sat here with nothing to tell them apart. They are genuinely different:
+            ▶/⏸ is the TIMELINE (pause where you are, resume from there — or, with Loop off and nothing
+            running, kick off a pass), while Fire always retriggers from t=0, including in the middle of a
+            playing pass. The label says "once" and a hint line under them says which is which. */}
+        <div className="fxwb-playgroup">
+          <button
+            className="fxwb-play"
+            onClick={togglePlay}
+            title={uiPlaying ? 'Pause the timeline where it is' : 'Play — resume the timeline (or start a pass if nothing is running)'}
+            aria-label={uiPlaying ? 'Pause' : 'Play'}
+          >
+            {uiPlaying ? '⏸' : '▶'}
+          </button>
+          <button
+            className="fxwb-fire"
+            onClick={fire}
+            title="Retrigger the whole composition from 0 — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
+          >
+            🔥 Fire once
+          </button>
+          <span className="fxwb-playnote">▶ play / pause · 🔥 restart from 0</span>
+        </div>
         <input
           className="fxwb-scrub"
           type="range"
@@ -1473,7 +1510,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           </button>
         </div>
 
-        <label className="fxwb-speedlabel" htmlFor="fxwb-speed">Speed</label>
+        {/* "Playback", not "Speed": this is the transport's PLAY RATE, and it used to share a name with the
+            primitives' own `Speed` param (px/sec of particle launch, expansions/sec for shockwave) sitting a
+            few centimetres up the same screen. */}
+        <label className="fxwb-speedlabel" htmlFor="fxwb-speed">Playback</label>
         <input
           id="fxwb-speed"
           className="fxwb-speed"

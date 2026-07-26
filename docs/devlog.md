@@ -3,6 +3,46 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
+
+### feat(fx/ui): Essentials tier, collapsible groups, disabled-with-reason, and a "Start from" gallery
+
+Owner: "consider best practices in the industry and fix the UI of the editor." An audit had measured the
+problem: **43 controls in a 288px rail on open**, every group permanently expanded, no search, no tier, and
+~30 params silently inert with nothing marking them. The research found the convention every comparable tool
+follows — Unity Shuriken carries ~150-200 fields but they are COLLAPSED AND DISABLED by default; Unity VFX
+Graph opens a template picker BEFORE a graph; After Effects / Niagara / Cavalry all expose a curated handful
+on top of the full surface. The tools with the most parameters show the fewest at once.
+
+- ** +  on the param spec** (both optional, added via an intersection so all 149
+  existing literals stayed byte-identical). 28 essentials, 35 dependency declarations.  and
+   are pure and unit-tested;  now rejects an  naming a
+  missing param, a self-reference, or an empty predicate.
+- **Essentials / All toggle, defaulting to Essentials.** Opening burst went from **35 params rendered to 6**
+  (count, speed, life, size, palette, blendMode). Plus a search that reaches past the tier filter and
+  force-opens groups with hits.
+- **Collapsible groups**, persisted per primitive in localStorage; a group opens iff it holds an essential and
+  isn't Texture/Noise/Physics.
+- **Inert params are disabled and say why** ("Needs Turbulence above 0") rather than silently ignoring input.
+  Curve editors stay DRAWN when disabled — the shape is information — but refuse gestures.
+- **A visible  per row** replacing the bare  tooltip, which had no affordance and a ~1s delay.
+- **The def library moved to the TOP and became "Start from"** — 13 finished effects had been sitting in a
+  148px box BELOW 43 sliders, headed "Library" with an empty state implying they were only the author's own
+  output. That reframing was the single highest-leverage item in the audit.
+- **Name collisions fixed:** layer timing is now "Starts at" / "Lasts for" (the life slider previously had NO
+  label at all) and the transport's rate is "Playback", so neither collides with a primitive's own  and
+   params sitting centimetres away. Fire is now "Fire once" with a visible note on how it differs
+  from Play.
+
+**Three judgement calls worth keeping:**  deliberately got NO  — it and 
+are mutually dead at their defaults, so gating both would be a permanent deadlock neither could escape; a test
+now asserts no param is ever gated on another gated param. And ,  and /
+were left UNgated despite being on the inert list, because each still does something real (the glow halo, the
+erode cutoff) — disabling them would have removed genuine reach.
+
+**Verified:** typecheck clean, lint 0 errors, **2304 tests** (120 files),  green. No param default,
+range, kind, group, label or declaration order changed anywhere;  has zero removed lines.
+
 ## 2026-07-26 (FX workbench — usability pass: undo, honest controls, and help that exists)
 
 ### fix(fx): two controls that lied, plus undo/redo, naming, solo, and 149/149 help coverage

@@ -2,6 +2,17 @@
 
 ## 2026-07-26 (tier is shown as stars)
 
+### chore(ui): bake the owner's tuned pill values
+
+All three tier seats dialed to scale **0.74** with the oval nudged `y 2`, the spell square `y 3.25` and the
+heater at `y 0`; the spell type pill picked up `x -2`. Baked into `cardPillsConfig.ts` DEFAULTS — `Card.tsx`
+imports that module, so `applyCardPillVars()` runs in production and DEFAULTS are what players get. No CSS
+fallback to mirror here: the `var(--cpl-*-t, translateX(-50%))` fallbacks are deliberately the *un-nudged*
+centring, i.e. a safety net rather than a duplicated number.
+
+**Verified from a CLEARED saved config** (`localStorage` key removed → exactly what production renders): all
+four vars resolve from DEFAULTS with the tuned numbers and each retains its `translateX(-50%)` centring.
+
 ### feat(ui): three independent tier-badge seats + finer nudge steps
 
 The tier badge sits on three different frame families whose banners don't line up — the minion oval, the spell

@@ -71,18 +71,18 @@ const DEFAULTS: CardPillsConfig = {
   costScale: 0.81,
 
   tierX: 0,
-  tierY: 0,
-  tierScale: 1,
+  tierY: 2,
+  tierScale: 0.74,
 
   stierX: 0,
-  stierY: 0,
-  stierScale: 1,
+  stierY: 3.25,
+  stierScale: 0.74,
 
   ttierX: 0,
   ttierY: 0,
-  ttierScale: 1,
+  ttierScale: 0.74,
 
-  spellX: 0,
+  spellX: -2,
   spellY: 34,
   spellScale: 0.91,
 

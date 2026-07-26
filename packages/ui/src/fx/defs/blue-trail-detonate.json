@@ -7,6 +7,7 @@
       "primitive": "ribbon",
       "anchor": "travel",
       "at": 0,
+      "life": 440,
       "params": {
         "palette": [741288, 3115519, 11066111, 16777215],
         "bands": 4,
@@ -34,8 +35,8 @@
     {
       "primitive": "burst",
       "anchor": "target",
-      "at": 400,
-      "life": 400,
+      "at": 430,
+      "life": 370,
       "params": {
         "palette": [741288, 3115519, 11066111, 16777215],
         "count": 34,

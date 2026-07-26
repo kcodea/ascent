@@ -243,7 +243,7 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   // Position every layer BEFORE anything can render. `fireOnce` spawns the t=0 layers but a primitive's head
   // starts at (0,0), so this is what guarantees a layer never exists un-positioned — independent of the
   // ticker's updater-vs-render ordering, which lives in another module.
-  driveLayerHeads(player, layers, anchors, 0);
+  driveLayerHeads(player, layers, anchors, 0, null, { timeMs: 0, durationMs: def.duration });
 
   let wallMs = 0;
   let removeUpdater: (() => void) | null = null;
@@ -278,7 +278,13 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
     }
     // ONE anchor resolve per layer per frame off the SNAPSHOT — no layout reads. Only `travel` actually
     // varies with progress; the rest are constant lookups.
-    driveLayerHeads(player, layers, anchors, fireProgress(player.timeMs(), def.duration));
+    // The clock is what makes `travel` run along each layer's OWN window rather than the whole def's, so a
+    // trail can land at its target before a burst timed to that arrival fires (see `layerTravelProgress`).
+    const nowMs = player.timeMs();
+    driveLayerHeads(player, layers, anchors, fireProgress(nowMs, def.duration), null, {
+      timeMs: nowMs,
+      durationMs: def.duration,
+    });
   });
 
   return retire;

@@ -48,6 +48,46 @@ export interface FxHeadSink {
  *  `EditorLayer` satisfy it without either module having to know about the other. */
 export interface FxAnchoredLayer {
   anchor: FxAnchorId;
+  /** Layer timing, for resolving `travel` against this layer's OWN window (see `layerTravelProgress`).
+   *  Optional so a caller that only cares about anchoring — and every existing test fake — still satisfies
+   *  the type; absent reads as a layer spanning the whole composition. */
+  at?: number;
+  life?: number | null;
+}
+
+/** The composition clock `driveLayerHeads` needs to resolve per-layer travel. */
+export interface FxLayerClock {
+  timeMs: number;
+  durationMs: number;
+}
+
+/**
+ * PURE: how far a layer is through its OWN window, 0..1 — what `travel` interpolates along.
+ *
+ * `travel` used to resolve against the whole composition's progress, which made "fly to the target, THEN
+ * detonate" inexpressible: a ribbon could not complete its arc before the def did, so a burst timed to the
+ * arrival always fired while the trail was still mid-flight. Against the layer's own window, a ribbon at
+ * `at: 0, life: 440` lands at 440ms and anything scheduled after that reads as a consequence of it.
+ *
+ * A layer with no `life` (running to the end of the composition) spans `duration - at`, so a full-life
+ * layer starting at 0 produces exactly `timeMs / durationMs` — identical to the old behaviour, which is
+ * what keeps every existing def unchanged.
+ *
+ * Clamped at both ends, and non-finite collapses to 1 (the arc's end) rather than poisoning a head with
+ * NaN: a fire deliberately runs past `duration`, and a zero-length window would otherwise divide by zero.
+ */
+export function layerTravelProgress(
+  layer: FxAnchoredLayer,
+  timeMs: number,
+  durationMs: number,
+): number {
+  const at = layer.at ?? 0;
+  const life = layer.life ?? null;
+  const span = life !== null && life > 0 ? life : durationMs - at;
+  if (!(span > 0)) return 1;
+  const t = (timeMs - at) / span;
+  if (!Number.isFinite(t)) return 1;
+  return t < 0 ? 0 : t > 1 ? 1 : t;
 }
 
 /**
@@ -71,10 +111,17 @@ export function driveLayerHeads(
   anchors: FxAnchors,
   progress: number,
   head: FxPoint | null = null,
+  clock: FxLayerClock | null = null,
 ): void {
   for (let i = 0; i < layers.length; i++) {
-    const anchor = layers[i].anchor;
-    const pt = head !== null && anchor === 'travel' ? head : resolveAnchor(anchors, anchor, progress);
+    const layer = layers[i];
+    const anchor = layer.anchor;
+    // `travel` runs along the LAYER's own window when a clock is supplied (see `layerTravelProgress`);
+    // without one it falls back to the composition-wide `progress`, which is what every caller did before
+    // per-layer travel existed. `progress` still drives a scenario's custom `head` path, which is
+    // deliberately composition-wide — it describes where the EFFECT is going, not any one layer.
+    const travelAt = clock !== null ? layerTravelProgress(layer, clock.timeMs, clock.durationMs) : progress;
+    const pt = head !== null && anchor === 'travel' ? head : resolveAnchor(anchors, anchor, travelAt);
     sink.setHead(i, pt.x, pt.y);
   }
 }

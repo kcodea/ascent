@@ -5,6 +5,39 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx): `travel` resolves against the LAYER's window, not the whole composition's
+
+Owner: "yes fix the travel anchor" — the defect recorded in the drain entry below.
+
+`resolveAnchor(anchors, 'travel', progress)` was fed `timeMs / duration` for the whole composition, so a
+layer could never complete its arc before the def did. "Fly to the target, THEN detonate" was therefore
+inexpressible: a burst timed to the arrival always fired while the trail was still mid-flight, which is
+exactly what `blue-trail-detonate` was doing.
+
+New pure `layerTravelProgress(layer, timeMs, durationMs)` resolves against the layer's own window —
+`(timeMs - at) / (life ?? duration - at)`, clamped, with a degenerate window collapsing to 1 rather than
+NaN. **A full-life layer starting at 0 produces exactly `timeMs / durationMs`**, which is the compatibility
+property the change rests on and is pinned by its own test: every existing def is a full-life travel layer,
+so nothing shifts.
+
+`driveLayerHeads` takes an optional `FxLayerClock`; without one it behaves exactly as before, so the
+signature stays backward-compatible for the existing test fakes. Both real callers pass it — `playDef` from
+`player.timeMs()`, the workbench from loop-relative `timeMs % durationMs` (the modulo matters: the workbench
+loops, and an un-wrapped clock would peg every layer's travel at 1 after the first cycle). A scenario's
+custom `head` path stays composition-wide and still overrides `travel` outright — it describes where the
+EFFECT is going, not any one layer.
+
+`blue-trail-detonate` retimed to the semantics that now exist: ribbon `at 0, life 440` (the flight, arc
+completing at 440ms), burst at 430 so the detonation starts as the trail lands.
+
+**Known tension this creates, worth naming before it surprises someone:** `life` is now doing two jobs — how
+long the layer exists AND how long its travel takes. So a layer cannot arrive early and then linger, which
+means the ribbon's `drain` is currently inert in this def (the layer despawns the instant the arc
+completes). Decoupling them wants a separate per-layer `travelMs`, defaulting to the life so nothing
+changes. Not done here.
+
+Verified: typecheck clean, lint 0 errors, 2368 tests across 122 files green (11 new), `build:web` green.
+
 ### feat(fx): ribbon `drain` — the tail retracts into a stopped head instead of freezing
 
 Owner: "how can we make it so the ribbon trail doesnt immediately disappear once it reaches the target? i

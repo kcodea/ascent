@@ -434,7 +434,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         if (scenario) {
           vp.w = window.innerWidth;
           vp.h = window.innerHeight;
-          const progress = (p.timeMs() % durationMs) / durationMs;
+          // Loop-relative time: `progress` drives the scenario's own path, and `loopMs` drives each layer's
+          // travel window (see `layerTravelProgress`) — both must be measured within the current cycle.
+          const loopMs = p.timeMs() % durationMs;
+          const progress = loopMs / durationMs;
           // ONE anchor resolve per frame, shared by every layer — then each layer picks its OWN point out of
           // it by its own `anchor` (see `driveLayerHeads`). This is what makes a composition previewable as
           // the thing it is: a burst pinned to `target` while a ribbon rides the `travel` arc.
@@ -453,7 +456,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           // canvas origin with no transform, and the overlay canvas itself is a full-viewport element at
           // (0,0) — so these page/screen coordinates map directly onto the container's local space with
           // no conversion needed, matching what a primitive's `setHead` assumes.
-          driveLayerHeads(p, layersRef.current, anchors, progress, head);
+          driveLayerHeads(p, layersRef.current, anchors, progress, head, { timeMs: loopMs, durationMs });
         }
 
         fpsAccMs += dtMs;

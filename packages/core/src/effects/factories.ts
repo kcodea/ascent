@@ -1984,15 +1984,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Set 2 — Chorus Drake (Rally): trigger your LEFT-MOST OTHER `tribe` minion's Shout when this attacks.
-   *  "Other" is explicit in the text, so the Drake never re-fires itself. Left-most = board order, which is
-   *  deterministic and consumes no RNG. Same trigger convention as `scTriggerTribeShouts` above. */
+  /** Set 2 — Chorus Drake (Rally): trigger your LEFT-MOST `tribe` minion's Shout when this attacks.
+   *  Left-most = board order, which is deterministic and consumes no RNG. Same trigger convention as
+   *  `scTriggerTribeShouts` above.
+   *
+   *  The "other" exclusion was dropped with the text (owner 2026-07-25). In practice that's inert — the Drake
+   *  has no Shout of its own, and the search already skips anything without one — but it matters if the Drake
+   *  is ever GIVEN a Shout, and the code should say what the card says. No recursion risk either way:
+   *  `replayCombatBattlecry` fires `onPlay` effects, and this is an `onAttack` one.
+   *
+   *  Note the search still skips Dragons with no Shout rather than stopping at the left-most Dragon and doing
+   *  nothing — otherwise a Shout-less Dragon parked on the left would blank the card. */
   rallyTriggerLeftmostTribeShout: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
     const tribe = str(params.tribe);
     const target = ctx.living(self.side).find(
-      (m) => m !== self && hasBattlecry(m)
+      (m) => hasBattlecry(m)
         && (!tribe || m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe),
     );
     if (!target) return;

@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+### 2026-07-25 — content: Chorus Drake drops "other" from its Rally
+
+Owner text change: **"Rally: trigger your left-most Dragon's Shout"** (was "left-most **other** Dragon's").
+
+The `m !== self` guard came off with the word. In practice that's inert — the Drake has no Shout of its own,
+and the search already skips anything without one — but it matters the moment the Drake is *given* a Shout,
+and the code should say what the card says. No recursion risk: `replayCombatBattlecry` fires `onPlay`
+effects and this is an `onAttack` one.
+
+Left in place deliberately: the search still **skips Dragons that have no Shout** rather than stopping at the
+left-most Dragon and doing nothing. A strict reading would let any Shout-less Dragon parked on the left blank
+the card.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1734 tests (+4). The card had **no coverage
+at all** before this, which is what the text change surfaced — it now has three behavioural tests plus a text
+assertion, reading the `sc` log line so they work for any Shout rather than only combat-visible ones.
+
+**A revert-check that nearly fooled me, worth recording.** My first attempt to prove the golden test was
+load-bearing patched `const repeats = drakkoRepeats(ctx, self.side) * mul(self);` — a line that appears
+**twice**, so the edit hit a different factory and the test still passed. It looked like a vacuous test; it
+was a bad revert. Line-targeted the Drake's own copy and it fails correctly (4 vs 8). When a revert-check
+comes back green, suspect the revert before the test.
+
 ### 2026-07-25 — fix(content/sim): Market Tormentor buffs every fresh Shop's right-most minion
 
 Owner report: the card wasn't working. Its spec is a **standing effect** — while it's on board, the right-most

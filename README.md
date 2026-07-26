@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Chorus Drake** now reads "trigger your left-most Dragon's Shout" — the "other" exclusion is gone.
 - **Market Tormentor works** — every fresh Shop's right-most minion now comes in buffed, and a consume that
   eats it gets the buffed body.
 - **Choose One cards can ship art per branch** — pick the Stray and Wildwood Shaper *looks* like the Stray

@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx): `blue-glow-trail` — the first def authored through the request loop
+
+Owner: "lets try a test. create a blue glowing ribbon effect in the fx editor." The first exercise of the
+loop `docs/fx-requests.md` describes.
+
+A single `ribbon` layer on the `travel` anchor, 900ms. The colour is the notable part: **none of the six
+shared palettes is blue** (violet, ember, mint, magenta, gold, acid), so this authors a raw palette tuple
+directly — `#0b3fa8 → #2f8bff → #a8dcff → #ffffff`, rim to white-hot core. That is exactly what the editable
+`palette` param kind is for, and it means the def carries its own colours rather than depending on a preset.
+
+Tuned for "glowing" rather than "burning": `glow` 0.7 (well above the 0.3 default) for a wide soft halo,
+`add` blending so it lifts what it crosses, `erode` 0.28 — well under the 0.5 default, since heavy erosion
+reads as fire and a clean energy trail wants its edge mostly intact — and `soft` 2.2 to feather that edge.
+`plateau` 0.36 keeps a fat white core (the value that shipped as the reference look). The width curve bulges
+to 1.15× just behind the head and tapers to 0.5× at the tail, so it reads as a comet rather than a strip.
+
+**The guard bit immediately**, which is the point of it: the first version omitted `version: 1` and
+`defs.test.ts` failed with the file and field named. Worth recording because it's the second time this suite
+has caught a hand-authored def defect (the first was `ward-gained`'s out-of-range radius).
+
+Unverified visually, as every def here is — the numbers are a starting position for the owner to tune in the
+workbench and Save over. Not bound to any moment kind yet; it exists to be opened via **Start from**.
+
+Verified: typecheck clean, lint 0 errors, 2343 tests across 122 files green, `build:web` green.
+
 ### docs(fx): a request format for authoring effects through the workbench
 
 Owner: "as a test run i want to author a new effect… can we also create requests for effects that you can

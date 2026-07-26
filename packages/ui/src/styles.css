@@ -5104,6 +5104,41 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   padding: 9px 14px; background: #211d2c; border-top: 2px solid #3d3752; box-shadow: 0 -6px 18px -8px rgba(0, 0, 0, 0.5);
   flex-wrap: wrap;
 }
+/* TIMELINE -- one bar per layer across the composition, as the transport bar's own full-width first row.
+   Overlap/gaps/ordering are the substance of a multi-layer effect and used to be invisible: timing lived
+   only in two range inputs on whichever layer happened to be selected. */
+.fxwb-timeline { flex: 1 1 100%; display: flex; flex-direction: column; gap: 3px; }
+.fxwb-timeline-head { display: flex; align-items: baseline; gap: 8px; }
+.fxwb-timeline-title {
+  font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.fxwb-timeline-hint { font-size: 11px; color: #6f6688; }
+.fxwb-timeline-track {
+  position: relative; display: flex; flex-direction: column; gap: 2px;
+  padding: 3px; border-radius: 7px; background: #191623; border: 1px solid #3d3752;
+}
+.fxwb-timeline-row { position: relative; height: 16px; }
+.fxwb-timeline-bar {
+  position: absolute; top: 0; bottom: 0; display: flex; align-items: center; overflow: hidden;
+  min-width: 6px; padding: 0 5px; border-radius: 4px; cursor: grab;
+  background: #3d3752; border: 1px solid #4d456a; color: #b9b1cf;
+}
+.fxwb-timeline-bar:active { cursor: grabbing; }
+.fxwb-timeline-bar.on { background: color-mix(in srgb, #c936ef 30%, #2b2739); border-color: #c936ef; color: #f0a0ff; }
+.fxwb-timeline-bar.muted { opacity: 0.35; }
+.fxwb-timeline-label {
+  font-size: 10px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none; /* never swallow the drag aimed at the bar under it */
+}
+/* The resize grip. Wide enough to hit without being wide enough to eat a short bar's body. */
+.fxwb-timeline-grip {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 7px; cursor: ew-resize;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.22));
+}
+.fxwb-timeline-playhead {
+  position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+  background: #f0a0ff; pointer-events: none; /* decorative -- must never intercept a drag */
+}
 .fxwb-play {
   flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid #3d3752; background: #2b2739;
   color: #d9d3ea; font-size: 13px; cursor: pointer;

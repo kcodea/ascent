@@ -5,6 +5,43 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx/ui): a visual timeline — the composition as a picture, draggable
+
+The second half of the owner's user-friendliness pick. A composition's timing existed only as two range
+inputs on whichever layer happened to be selected, so "the burst fires 200ms into the trail" was something
+you held in your head and verified by watching. Overlap, gaps and ordering are the entire substance of a
+multi-layer effect, and none of it was visible.
+
+The transport bar now opens with a full-width row of one bar per layer across the composition, with a live
+playhead. Drag a bar's body to move it; drag its right edge to set how long it lasts. Dragging the right
+edge of a *full-life* bar is also how it gets a fixed end — the affordance and the conversion are the same
+gesture, while dragging the body deliberately preserves `life: null` rather than quietly pinning it.
+
+All the arithmetic is in `timelineModel.ts`, pure and tested (21 cases): span resolution, track fractions,
+pointer→ms, and the drag resolver. The resolver moves by pointer DELTA rather than to the pointer, so
+grabbing a bar in the middle doesn't teleport its start to the cursor; it snaps to 10ms (the At slider's own
+step, so the two controls can reach the same values); and it clamps both gestures into the composition
+rather than letting a drag push a layer out of it.
+
+Two things worth noting in the wiring. The track rect is measured ONCE at pointerdown and held in a ref —
+per-move `getBoundingClientRect` is the classic drag stutter (`docs/performance.md`), and it would be wrong
+as well as slow, since the rect can't change mid-drag. And `changeLayerTiming` was split: the new
+`retimeLayer(index, …)` takes an explicit index (a drag can grab a bar that isn't selected) and reads
+`layersRef` rather than the render's `layers`, because a pointermove can fire more than once between renders
+and a second move resolved against a stale array would compute its edit from pre-drag timing. Each gesture
+still collapses to one undo entry via the existing `record('timing', …)` coalescing.
+
+The playhead rides the existing 20Hz `timeMs` state that the scrub bar already uses, so it adds no new
+per-frame work.
+
+**Caught by `build:web`, not by typecheck:** the component was `Timeline.tsx` and the pure module
+`timeline.ts` — a case-only collision. TypeScript resolved it happily; Rollup resolved `./Timeline` to
+`timeline.ts` and failed on the missing export. Renamed the model to `timelineModel.ts`, matching the
+`layerModel.ts` convention next to it, with a comment so it doesn't get "tidied" back.
+
+Verified: typecheck clean, lint 0 errors, 2343 tests across 121 files green (21 new), `build:web` green.
+Not browser-checked (the preview pane's ~0px viewport) — the drag behaviour wants a real pointer.
+
 ### feat(fx/ui): human names for primitives + anchors, a non-destructive primitive swap, transport shortcuts
 
 Owner: "how can we make this more user friendly." Proposed a ranked list; owner picked the sharp edges (this

@@ -25,6 +25,7 @@ import { getImportedDataUrl } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
 import { createBackdrop, type FxBackdrop } from './backdrop';
+import { Timeline } from './Timeline';
 import { ANCHOR_OPTIONS, anchorBlurb, primitiveBlurb, primitiveLabel } from './copy';
 import {
   addLayer,
@@ -866,13 +867,30 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // doesn't re-run: the effect keeps playing, the edited layer's window moves under it, and a ribbon's noise
   // seed isn't re-rolled mid-drag. Exactly the shape of `change` above, for timing instead of params.
   const changeLayerTiming = (at: number, life: number | null, field: 'at' | 'life' | 'full' = 'at'): void => {
-    // The At/Life sliders are range inputs that fire per pixel of travel, so one gesture has to collapse to
-    // one undo step — coalesced exactly like a param drag, keyed by layer AND field so nudging At and then
-    // Life is two steps. The Full checkbox is a discrete toggle and always takes its own entry.
+    retimeLayer(selected, at, life, field);
+  };
+
+  /**
+   * Retime ANY layer by index — what the timeline drags need, since a drag can grab a bar that isn't the
+   * selected one. `changeLayerTiming` is this with `selected` baked in, for the sliders.
+   *
+   * Reads `layersRef` rather than the render's `layers`: a pointermove can fire more than once between
+   * renders, and a second move resolved against a stale array would compute its edit from pre-drag timing.
+   */
+  const retimeLayer = (
+    index: number,
+    at: number,
+    life: number | null,
+    field: 'at' | 'life' | 'full' = 'at',
+  ): void => {
+    // The At/Life sliders are range inputs that fire per pixel of travel, and a timeline drag fires per
+    // pointermove, so one gesture has to collapse to one undo step — coalesced exactly like a param drag,
+    // keyed by layer AND field so nudging At and then Life is two steps. The Full checkbox is a discrete
+    // toggle and always takes its own entry.
     if (field === 'full') record('structural');
-    else record('timing', `${selected}:${field}`);
-    commitLayers(setLayerTiming(layers, selected, at, life));
-    playerRef.current?.setLayerTiming(selected, at, life);
+    else record('timing', `${index}:${field}`);
+    commitLayers(setLayerTiming(layersRef.current, index, at, life));
+    playerRef.current?.setLayerTiming(index, at, life);
   };
 
   // Pause/resume. There's no standing continuous loop to "resume" unless Loop is on -- so when Loop is off,
@@ -1480,6 +1498,17 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       </div>
 
       <div className="fxwb-transport">
+        {/* The composition as a picture, as the transport bar's own first row (it wraps, and the timeline
+            takes a full-width line) — directly above the controls that play it. */}
+        <Timeline
+          layers={layers}
+          mutes={liveMutes}
+          selected={selected}
+          durationMs={durationMs}
+          timeMs={timeMs}
+          onSelect={applySelected}
+          onRetime={retimeLayer}
+        />
         {/* Two play-shaped buttons sat here with nothing to tell them apart. They are genuinely different:
             ▶/⏸ is the TIMELINE (pause where you are, resume from there — or, with Loop off and nothing
             running, kick off a pass), while Fire always retriggers from t=0, including in the middle of a

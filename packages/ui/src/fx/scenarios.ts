@@ -1,5 +1,6 @@
 import type { FxAnchors, FxPoint } from './anchors';
 import { pointOnTravel } from './anchors';
+import { readBoardAnchors } from './boardAnchors';
 
 /** Everything a scenario's `headAt` needs to place the effect head for the current frame. */
 export interface FxHeadContext {
@@ -138,4 +139,42 @@ export const stationary: FxScenario = {
   },
 };
 
-export const SCENARIOS: FxScenario[] = [twoUnits, pinnedCursor, clickPlace, bounceScenario, stationary];
+/** The synthetic stand-in `realBoard` uses when the live board isn't on screen — deliberately the SAME
+ *  layout `twoUnits` stages, so falling back lands you on the well-understood default rather than on a
+ *  third, subtly-different geometry. */
+const syntheticBoard = (v: { w: number; h: number }): FxAnchors => ({
+  source: { x: v.w * 0.3, y: v.h * 0.5 },
+  target: { x: v.w * 0.7, y: v.h * 0.5 },
+  slot: { x: v.w * 0.3, y: v.h * 0.5 },
+  camera: { x: v.w * 0.5, y: v.h * 0.5 },
+});
+
+/**
+ * The REAL board: anchors read off the live game DOM (see `boardAnchors.ts`) instead of viewport fractions,
+ * so an effect is tuned at the true distance and scale it will actually fire at. The workbench overlay is
+ * transparent between its chrome, so the board is visible underneath while you tune.
+ *
+ * Degrades rather than breaks: with no board on screen (title screen, end screen, headless) it stages the
+ * `twoUnits` layout instead, and `hint` says which of the two you're looking at — a silently-synthetic
+ * "real board" would be worse than no scenario at all.
+ */
+export const realBoard: FxScenario = {
+  id: 'realBoard',
+  label: 'Real board',
+  // A GETTER, deliberately: the hint has to report which of the two states you're in, and that is only
+  // knowable at read time. Read on React render (not per frame), and `readBoardAnchors` is cached, so this
+  // costs nothing. Everything else about `hint` — a plain string to the consumer — is unchanged.
+  get hint(): string {
+    return readBoardAnchors() !== null
+      ? 'Anchors read from the LIVE board — source = your first unit, target = the first opposing unit.'
+      : 'No board on screen — falling back to synthetic two-unit anchors. Open this over Recruit or a combat.';
+  },
+  anchorsAt: (v, c) => {
+    const live = readBoardAnchors();
+    // `cursor` is folded in at this level because only the scenario is handed the pointer — a cursor-anchored
+    // layer must keep working over the real board too.
+    return live !== null ? { ...live, cursor: c } : { ...syntheticBoard(v), cursor: c };
+  },
+};
+
+export const SCENARIOS: FxScenario[] = [twoUnits, pinnedCursor, clickPlace, bounceScenario, stationary, realBoard];

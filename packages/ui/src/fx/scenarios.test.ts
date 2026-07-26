@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounceUnits, bounceScenario, clickPlace, pinnedCursor, stationary, SCENARIOS } from './scenarios';
+import { bounceUnits, bounceScenario, clickPlace, pinnedCursor, realBoard, stationary, twoUnits, SCENARIOS } from './scenarios';
 import type { FxHeadContext } from './scenarios';
 import { pointOnTravel } from './anchors';
 
@@ -115,6 +115,32 @@ describe('stationary', () => {
     const a = stationary.headAt!(ctxAt(0.25));
     const b = stationary.headAt!(ctxAt(0.75));
     expect(Math.abs(a.x - b.x)).toBeGreaterThan(1);
+  });
+});
+
+describe('realBoard', () => {
+  it('is registered in SCENARIOS', () => {
+    expect(SCENARIOS).toContain(realBoard);
+  });
+
+  // The suite runs headless (no `document`), so `readBoardAnchors()` returns null and this exercises exactly
+  // the degradation path: the scenario must never be broken just because the board isn't up.
+  it('falls back to the synthetic two-unit anchors when no board is on screen', () => {
+    const anchors = realBoard.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
+    const synthetic = twoUnits.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
+    expect(anchors.source).toEqual(synthetic.source);
+    expect(anchors.target).toEqual(synthetic.target);
+    expect(anchors.camera).toEqual(synthetic.camera);
+  });
+
+  it('stages `slot` and `cursor` too, so every anchor a layer can pick resolves', () => {
+    const anchors = realBoard.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
+    expect(anchors.slot).toEqual(anchors.source);
+    expect(anchors.cursor).toEqual(SAMPLE_CURSOR);
+  });
+
+  it('says in its hint that it is showing the FALLBACK, not the live board', () => {
+    expect(realBoard.hint).toMatch(/synthetic/i);
   });
 });
 

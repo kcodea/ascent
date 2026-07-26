@@ -5,6 +5,7 @@ import {
   duplicateLayer,
   moveLayer,
   removeLayer,
+  setLayerAnchor,
   setLayerMuted,
   setLayerParam,
   setLayerPrimitive,
@@ -195,6 +196,37 @@ describe('setLayerTiming', () => {
     expect(out[0].life).toBe(400);
     expect(input[0].at).toBe(0);
     expect(input[0].life).toBeNull();
+  });
+});
+
+describe('setLayerAnchor', () => {
+  it('sets the anchor immutably and leaves the other layers alone', () => {
+    const input = [layer('ribbon'), layer('burst')];
+    const out = setLayerAnchor(input, 1, 'target');
+    expect(out[1].anchor).toBe('target');
+    expect(out[0].anchor).toBe('travel');
+    expect(input[1].anchor).toBe('travel'); // input untouched
+    expect(out).not.toBe(input);
+    expect(out[1]).not.toBe(input[1]);
+  });
+
+  it('preserves primitive, timing, mute and params', () => {
+    const input = [layer('burst', { at: 120, life: 300, muted: true, params: { n: 4 } })];
+    const out = setLayerAnchor(input, 0, 'slot');
+    expect(out[0]).toEqual({ ...input[0], anchor: 'slot' });
+  });
+
+  it('is a no-op for an out-of-range index', () => {
+    const input = [layer('ribbon')];
+    expect(setLayerAnchor(input, 5, 'target')).toEqual(input);
+  });
+
+  // An anchor change is genuinely STRUCTURAL — it must move the key so the workbench rebuilds the player
+  // (unlike params/timing/mute, which are pushed live precisely so they DON'T respawn the effect).
+  it('MOVES structureKey', () => {
+    const a = [layer('ribbon')];
+    const b = setLayerAnchor(a, 0, 'target');
+    expect(structureKey(b)).not.toBe(structureKey(a));
   });
 });
 

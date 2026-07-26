@@ -3,9 +3,11 @@ import { Container } from 'pixi.js';
 import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, listPrimitives } from '../registry';
-import { resolveAnchor } from '../anchors';
+import { driveLayerHeads, FX_ANCHOR_IDS, type FxPoint } from '../anchors';
+import { invalidateBoardAnchors } from '../boardAnchors';
+import type { FxAnchorId } from '../def';
 import { randomSeed } from '../rng';
-import { SCENARIOS } from '../scenarios';
+import { SCENARIOS, type FxHeadContext } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
 import {
   clearSession,
@@ -29,6 +31,7 @@ import {
   duplicateLayer,
   moveLayer,
   removeLayer,
+  setLayerAnchor,
   setLayerMuted,
   setLayerParam,
   setLayerPrimitive,
@@ -252,6 +255,18 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // player's REAL state without a `setState` call on every single frame.
     let lastPlaying = true;
 
+    // ── hoisted out of the per-frame updater ────────────────────────────────────────────────────────────
+    // `scenarioId` is a dependency of THIS effect, so the scenario can never change under a live updater —
+    // resolving it once per build removes an `Array.prototype.find` from every single frame.
+    const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
+    // Reused and MUTATED in place each frame rather than reallocated: the updater runs every frame and the
+    // scenarios only ever read these (none retains the object it is handed).
+    const vp = { w: 0, h: 0 };
+    const headCtx: FxHeadContext = { viewport: vp, cursor: { x: 0, y: 0 }, click: null, progress: 0 };
+    // A scenario switch is exactly the moment the sampled board rects could be stale (and the moment the
+    // author is watching for the change), so force the next read to measure for real. Cheap and idempotent.
+    invalidateBoardAnchors();
+
     const build = (): void => {
       if (disposed) return;
       const renderer = pixiFx.renderer;
@@ -327,22 +342,30 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           setUiPlaying(nowPlaying);
         }
 
-        const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
         if (scenario) {
-          const vp = { w: window.innerWidth, h: window.innerHeight };
+          vp.w = window.innerWidth;
+          vp.h = window.innerHeight;
           const progress = (p.timeMs() % durationMs) / durationMs;
+          // ONE anchor resolve per frame, shared by every layer — then each layer picks its OWN point out of
+          // it by its own `anchor` (see `driveLayerHeads`). This is what makes a composition previewable as
+          // the thing it is: a burst pinned to `target` while a ribbon rides the `travel` arc.
+          const anchors = scenario.anchorsAt(vp, cursorRef.current);
           // A scenario may drive the head along a custom path (e.g. `bounce` ping-ponging between units,
-          // `pinnedCursor` tracking the live pointer, `clickPlace` anchoring to the last click); otherwise
-          // the head follows the default source→target travel arc.
-          const pt = scenario.headAt
-            ? scenario.headAt({ viewport: vp, cursor: cursorRef.current, click: clickRef.current, progress })
-            : resolveAnchor(scenario.anchorsAt(vp, cursorRef.current), 'travel', progress);
+          // `pinnedCursor` tracking the live pointer, `clickPlace` anchoring to the last click). That path
+          // IS the travel point — `driveLayerHeads` substitutes it for the `travel` anchor only, so the
+          // scenario's other staged anchors keep resolving normally alongside it.
+          let head: FxPoint | null = null;
+          if (scenario.headAt) {
+            headCtx.cursor = cursorRef.current;
+            headCtx.click = clickRef.current;
+            headCtx.progress = progress;
+            head = scenario.headAt(headCtx);
+          }
           // `pixiFx.mountLayer` parents `container` straight onto the overlay stage, which sits at the
           // canvas origin with no transform, and the overlay canvas itself is a full-viewport element at
           // (0,0) — so these page/screen coordinates map directly onto the container's local space with
           // no conversion needed, matching what a primitive's `setHead` assumes.
-          // Every layer shares the SAME scenario head for now — per-layer anchors are a later refinement.
-          for (let i = 0; i < layersRef.current.length; i++) p.setHead(i, pt.x, pt.y);
+          driveLayerHeads(p, layersRef.current, anchors, progress, head);
         }
 
         fpsAccMs += dtMs;
@@ -514,6 +537,15 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     if (layers[selected]?.primitive === id) return;
     const prim = getPrimitive(id);
     commitLayers(setLayerPrimitive(layers, selected, id, prim ? defaultsOf(prim.params) : {}));
+  };
+
+  // Anchor edit: which staged point this layer's head follows. Unlike params/timing this one deliberately
+  // DOES rebuild — `anchor` is part of `structureKey`, and re-pointing a live instance mid-flight would
+  // leave a trail that lies about where it has been. A no-op pick (same anchor) is dropped so re-selecting
+  // the current value in the <select> can't respawn the effect for nothing.
+  const changeLayerAnchor = (anchor: FxAnchorId): void => {
+    if (layers[selected]?.anchor === anchor) return;
+    commitLayers(setLayerAnchor(layers, selected, anchor));
   };
 
   // Timing edit: state (so it persists / survives the next rebuild via `layersRef`) PLUS a live push to the
@@ -869,8 +901,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               onClick={() => selectLayer(i)}
             >
               <span className="fxwb-layer-name">{l.primitive}</span>
+              {/* Anchor sits in the row meta so a composition reads at a glance — "which layer is pinned to
+                  the target and which one rides the arc?" is the first question you ask of one. */}
               <span className="fxwb-layer-meta">
-                @{l.at}ms · {l.life === null ? 'full' : `${l.life}ms`}{l.muted === true ? ' · muted' : ''}
+                {l.anchor} · @{l.at}ms · {l.life === null ? 'full' : `${l.life}ms`}{l.muted === true ? ' · muted' : ''}
               </span>
               <span className="fxwb-layer-btns">
                 <button
@@ -910,6 +944,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         </div>
 
         <div className="fxwb-timing">
+          {/* Which staged point this layer's head follows. Lives with At/Life because the three together are
+              "when and where this layer happens" — the whole of a layer's placement in the composition. */}
+          <label className="fxwb-anchorrow" htmlFor="fxwb-layer-anchor">
+            <span>Anchor</span>
+            <select
+              id="fxwb-layer-anchor"
+              value={selLayer.anchor}
+              title="Which staged point this layer follows: travel = the source→target arc, target = pinned to the target, …"
+              onChange={(e) => changeLayerAnchor(e.target.value as FxAnchorId)}
+            >
+              {FX_ANCHOR_IDS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </label>
           <label htmlFor="fxwb-layer-at">At</label>
           <input
             id="fxwb-layer-at"

@@ -5275,3 +5275,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-layer-row.muted { opacity: 0.55; border-style: dashed; }
 .fxwb-layer-row.muted .fxwb-layer-name { text-decoration: line-through; }
 .fxwb-layer-btns button.fxwb-layer-mute.on { border-color: #c936ef; color: #f0a0ff; }
+
+/* FX Workbench — the per-layer ANCHOR picker. Spans the full timing grid (like `.fxwb-timing-full`) so the
+   At/Life controls below it keep their own three-column layout instead of flowing into a shared row. */
+.fxwb-anchorrow { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.fxwb-anchorrow > span { font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-anchorrow select {
+  flex: 1; min-width: 0; background: #211d2c; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;
+  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.fxwb-anchorrow select:focus { outline: none; border-color: #c936ef; }

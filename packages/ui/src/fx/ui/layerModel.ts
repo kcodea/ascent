@@ -104,6 +104,23 @@ export function setLayerPrimitive(
   return layers.map((l, i) => (i === index ? { ...l, primitive, params: { ...defaultParams } } : l));
 }
 
+/**
+ * Set the ANCHOR of the layer at `index` — which staged point the layer's head follows (`travel` = the
+ * source→target arc, `target` = pinned to the target, …). Primitive, timing and params are preserved.
+ * Returns a NEW array.
+ *
+ * Unlike `setLayerParam`/`setLayerTiming` this one legitimately MOVES `structureKey`, so the workbench
+ * rebuilds the player: the anchor decides where a layer's head is fed from for its whole life, which isn't
+ * something a live instance can be re-pointed at mid-flight without lying about where it has been.
+ */
+export function setLayerAnchor(
+  layers: EditorLayer[],
+  index: number,
+  anchor: EditorLayer['anchor'],
+): EditorLayer[] {
+  return layers.map((l, i) => (i === index ? { ...l, anchor } : l));
+}
+
 /** Merge a single param key into the layer at `index`. Returns a NEW array with a NEW params object for
  *  that layer (never mutates the input). */
 export function setLayerParam(layers: EditorLayer[], index: number, key: string, value: unknown): EditorLayer[] {

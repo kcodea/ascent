@@ -3,6 +3,40 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-25 (FX workbench — anchors become real, + a live-board preview)
+
+### feat(fx): each layer follows its own anchor, and effects can be staged over the actual board
+
+`FxLayer.anchor` had been **dead data** since the def format was written: `createEditorLayer` hardcoded
+`'travel'`, no UI could change it, the player never read it, and the updater fed *every* layer one shared
+head. So the one thing compositions exist for — a burst pinned to the target while a ribbon follows the
+travel arc — was impossible to preview. Separately, all anchors were synthetic viewport fractions, so an
+effect could look right in the lab and wrong over the real board.
+
+- **Per-layer anchors.** The scenario's `FxAnchors` are resolved once per frame and each layer now gets its
+  own point via `resolveAnchor(anchors, layer.anchor, progress)`. A per-layer anchor picker sits with the
+  timing controls, and each row's meta reads `{anchor} · @{at}ms · {life}` so a composition is legible at a
+  glance. `travel` remains the default, so every existing composition is bit-identical.
+- **Custom paths reconciled.** A scenario's `headAt` (bounce / pinned-to-cursor / click-to-place) now supplies
+  the **`travel`** point specifically — "wherever the effect is travelling right now" is exactly what a custom
+  path defines — while every other anchor still resolves from `anchorsAt`. A target-pinned burst therefore
+  stays on the target while a travel ribbon ping-pongs past it.
+- **`boardAnchors.ts` + a `realBoard` scenario** reading the LIVE game DOM, reusing the shipping selectors
+  (`[data-zone="warband"] .row [data-uid]` etc.) rather than inventing new ones — the same approach
+  `fxTestFire.ts` already uses for the legacy path. `slot` deliberately takes the unit's x but the row's
+  midline y, so a hover-lifted or mid-drag card doesn't drag the anchor with it.
+- **No per-frame layout reads.** Board rects are sampled at ~5 Hz and cached (the null answer too), with an
+  explicit invalidation on scenario switch — the repo's "don't read layout per frame" rule. The wave also
+  removed a per-frame `Array.find` and two per-frame object allocations that already existed in the updater.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **2100 passing** (117 files), `build:web` green. In a
+live browser the selectors resolve (tavern row + player row found, 4 `[data-uid]` elements); the player unit is
+absent only because a fresh boot has an empty warband, so `realBoard` correctly falls back to synthetic anchors
+and its hint says so — the degrade path working as designed rather than a broken selector.
+
+**Follow-up noted:** `sessionState.ts` keeps its own private anchor-id list for coercion, now duplicating
+`FX_ANCHOR_IDS` in `anchors.ts`; worth collapsing to one source when that file is next touched.
+
 ## 2026-07-25 (FX workbench — the three trust defects, + seed lock, duplicate, mute)
 
 ### fix(fx): the timing sliders work, timing edits stop restarting the effect, and randomness is holdable

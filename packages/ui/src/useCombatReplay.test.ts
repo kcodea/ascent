@@ -34,9 +34,9 @@ describe('computeFrame — ascend fold (live mid-combat transform)', () => {
 });
 
 describe('computeFrame — Kennelmaster aura on multi-summon Deathrattles', () => {
-  it('shows the +2 Attack on BOTH Deathrattle-summoned Pups in the replay frame (not just the first)', () => {
+  it('shows the Kennelmaster Attack aura on BOTH Deathrattle-summoned Pups in the replay frame (not just the first)', () => {
     const p: BoardMinion[] = [
-      { cardId: 'kennel', attack: 1, health: 40 }, // SoC board-wide aura +2/+0
+      { cardId: 'kennel', attack: 1, health: 40 }, // SoC Beast aura, Attack-only
       { cardId: 'pack', attack: 2, health: 1 },    // Mama Pup → two 1/1 Pups on death
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
@@ -51,7 +51,7 @@ describe('computeFrame — Kennelmaster aura on multi-summon Deathrattles', () =
     const pups = player.filter((u) => pupUids.includes(u.uid));
     expect(pups.length).toBe(2);
     for (const pup of pups) {
-      expect(pup.attack).toBe(2); // base 1 + Kennelmaster +1 Attack (re-spec)
+      expect(pup.attack).toBe(3); // base 1 + Kennelmaster +2 Attack (owner rebalance 2026-07-25)
       expect(pup.health).toBe(1); // Health untouched — the aura is Attack-only
     }
   });

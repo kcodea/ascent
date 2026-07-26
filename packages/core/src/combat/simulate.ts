@@ -2066,12 +2066,22 @@ export function simulate(
   // carry-back, which the reducer applies regardless.
   const playerPermaBuffs = boards.player
     .filter((m) => m.sourceUid !== undefined && m.permaGain && (m.permaGain.attack > 0 || m.permaGain.health > 0))
-    .map((m) => ({
-      sourceUid: m.sourceUid!,
-      attack: m.permaGain!.attack,
-      health: m.permaGain!.health,
-      engraved: m.keywords.includes('EG'),
-    }));
+    .flatMap((m) => {
+      // Split the permanent gain into its RUBY share and the rest, so each carries its own label. Before this
+      // every non-Engraved permaGain was attributed to Flowing Monk, which made a combat Ruby show up on the
+      // run board as a Flowing Monk gift (owner report 2026-07-25).
+      const ruby = m.permaRuby ?? { attack: 0, health: 0 };
+      const restA = m.permaGain!.attack - ruby.attack;
+      const restH = m.permaGain!.health - ruby.health;
+      const out: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[] = [];
+      if (ruby.attack > 0 || ruby.health > 0) {
+        out.push({ sourceUid: m.sourceUid!, attack: ruby.attack, health: ruby.health, engraved: false, ruby: true });
+      }
+      if (restA > 0 || restH > 0) {
+        out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') });
+      }
+      return out;
+    });
 
   return {
     events,

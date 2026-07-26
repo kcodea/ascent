@@ -89,7 +89,7 @@ describe('set 2 — Dawnclaw', () => {
 });
 
 describe('set 2 — Beast summon + aura cards', () => {
-  it('Groveweaver: buffs a summoned Beast +2/+4, and a spell cast improves that grant', () => {
+  it('Groveweaver: buffs a summoned Beast +2/+2, and a spell cast improves that grant by +2/+2', () => {
     // Summon path: play a Beast while Groveweaver is out → it lands with the grant folded in.
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
@@ -98,20 +98,23 @@ describe('set 2 — Beast summon + aura cards', () => {
     };
     s = reduce(s, { type: 'play', uid: 'n1' });
     const first = s.board.find((c) => c.uid === 'n1')!;
-    expect([first.attack - 1, first.health - 1]).toEqual([2, 4]); // base grant
+    expect([first.attack - 1, first.health - 1]).toEqual([2, 2]); // base grant (owner change 2026-07-25)
 
-    s = reduce(s, { type: 'play', uid: 'sp' }); // a cast improves the grant by +1
+    s = reduce(s, { type: 'play', uid: 'sp' }); // a cast improves the grant by +2/+2
     s = reduce(s, { type: 'play', uid: 'n2' });
     const second = s.board.find((c) => c.uid === 'n2')!;
-    expect([second.attack - 1, second.health - 1]).toEqual([3, 5]); // improved by +1 on each stat
+    expect([second.attack - 1, second.health - 1]).toEqual([4, 4]); // improved by +2 on each stat
   });
 
   it('Denkeeper Oona / Lancel / Solaris / T-Rex are wired with the expected stats + effects', () => {
     // These reuse combat primitives already covered elsewhere (avengeShieldAttack, addTribeAura, the
     // fixed+goldenTokens summon shape), so the new surface is the card wiring.
+    // Oona reworked 2026-07-25 (owner): an onSummon watcher that grants +1/+1 and THEN doubles, with an
+    // Avenge(4) improving the flat half. No longer a Start-of-Combat aura, so `SC` came off her keywords too.
     const oona = CARD_INDEX['b2_oona']!;
     expect([oona.tier, oona.attack, oona.health]).toEqual([5, 4, 6]);
-    expect(oona.effects[0]!.do).toBe('scSummonOnlyTribeAura');
+    expect(oona.effects.map((e) => e.do)).toEqual(['onSummonTribeBuffThenDouble', 'avengeImproveSummon']);
+    expect(oona.keywords).not.toContain('SC');
 
     const lancel = CARD_INDEX['b2_lancel']!;
     expect([lancel.tier, lancel.attack, lancel.health]).toEqual([3, 3, 4]);
@@ -456,5 +459,96 @@ describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
     const pups = s.hand.filter((c) => c.cardId === 'b2_magepup');
     expect(pups.length).toBe(1);                     // cap respected
     expect(pups[0]!.taughtSpellId).toBe('spiritfire'); // still the first spell
+  });
+});
+
+describe('set 2 — Denkeeper Oona (owner rework 2026-07-25)', () => {
+  it('a summoned Beast gets +1/+1 and THEN doubles — order matters', () => {
+    // Mama Pup's 1/1 Pups: +1/+1 → 2/2, then doubled → 4/4. If the doubling ran FIRST the Pup would be 3/3,
+    // so this pins the printed order rather than merely "it got bigger".
+    const r = simulate(
+      [{ cardId: 'b2_oona', attack: 4, health: 40, sourceUid: 'O', keywords: [] },
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const summoned = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
+      .filter((e) => e.minion.cardId === 'pup');
+    expect(summoned.length, 'the Pups spawned').toBeGreaterThan(0);
+    const uid = summoned[0]!.minion.uid;
+    const gained = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
+      .filter((b) => b.target === uid);
+    expect(gained.map((b) => [b.attack, b.health]), 'flat grant first, then a double of the NEW stats')
+      .toEqual([[1, 1], [2, 2]]);
+  });
+
+  it('does not touch a non-Beast summon', () => {
+    const oona = CARD_INDEX['b2_oona']!;
+    expect(oona.effects[0]!.params!.tribe).toBe('beast');
+  });
+});
+
+describe('set 2 — Roaring Matriarch alternates each turn (owner spec 2026-07-25)', () => {
+  const play = (s: RunState, uid: string) => reduce(s, { type: 'play', uid });
+  const setup = (eotTick?: number): RunState => ({
+    ...createRun(1), phase: 'recruit', embers: 60,
+    board: [{ uid: 'M', cardId: 'd2_matriarch', tribe: 'dragon', attack: 2, health: 7, keywords: [], golden: false, ...(eotTick === undefined ? {} : { eotTick }) }],
+    hand: [{ uid: 'sh', cardId: 'd2_chronicler', tribe: 'dragon', attack: 3, health: 5, keywords: [], golden: false }],
+  } as RunState);
+
+  it('a FRESH Matriarch starts on Attack', () => {
+    const after = play(setup(), 'sh');
+    const m = after.board.find((c) => c.uid === 'M')!;
+    expect([m.attack - 2, m.health - 7], 'Attack only on its first turn').toEqual([2, 0]);
+  });
+
+  it('the next turn it gives Health instead', () => {
+    const after = play(setup(1), 'sh'); // one turn elapsed
+    const m = after.board.find((c) => c.uid === 'M')!;
+    expect([m.attack - 2, m.health - 7], 'Health only on the second turn').toEqual([0, 2]);
+  });
+
+  it('and flips back on the turn after that', () => {
+    const after = play(setup(2), 'sh');
+    const m = after.board.find((c) => c.uid === 'M')!;
+    expect([m.attack - 2, m.health - 7]).toEqual([2, 0]);
+  });
+
+  it('the phase is PER-INSTANCE, so a Matriarch bought later still starts on Attack', () => {
+    // The reason this isn't global wave parity: a card bought on an even turn would otherwise open on Health,
+    // contradicting "starts on Attack".
+    const s = setup();
+    s.wave = 8;
+    const m = play(s, 'sh').board.find((c) => c.uid === 'M')!;
+    expect(m.attack - 2).toBe(2);
+  });
+});
+
+describe('set 2 — Groveweaver (owner report 2026-07-25)', () => {
+  it('buffs a Beast summoned IN COMBAT, not just in the shop', () => {
+    // The missing half: `summonBuffTribeAsym` lived only in the recruit table, so Groveweaver paid for shop
+    // summons and silently did nothing for the Echo tokens that make up most of a summon board.
+    const r = simulate(
+      [{ cardId: 'b2_groveweaver', attack: 4, health: 40, sourceUid: 'G', keywords: [] },
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const pups = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
+      .filter((e) => e.minion.cardId === 'pup');
+    expect(pups.length, 'the Pups spawned').toBeGreaterThan(0);
+    const got = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
+      .filter((b) => b.target === pups[0]!.minion.uid);
+    expect(got.some((b) => b.attack === 2 && b.health === 2), 'the summoned Pup got +2/+2').toBe(true);
+  });
+
+  it('the grant grows with the accrual it has banked', () => {
+    const r = simulate(
+      [{ cardId: 'b2_groveweaver', attack: 4, health: 40, sourceUid: 'G', keywords: [], summonBonus: 4 } as never,
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const pups = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string } }[]);
+    const got = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
+      .filter((b) => pups.some((p) => p.minion.uid === b.target));
+    expect(got.some((b) => b.attack === 6 && b.health === 6), 'base +2/+2 plus two spells of accrual').toBe(true);
   });
 });

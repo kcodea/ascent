@@ -35,6 +35,7 @@ export const GameEventSchema = z.enum([
   'spellCastOnThis',
   'onGetRuby',
   'rubyCast',
+  'passive', // never dispatched — a marker another system reads (Deepdelve Paragon)
   'spellBought',
   'shopRefreshed',
 ]);
@@ -118,6 +119,13 @@ export const EffectFactoryIdSchema = z.enum([
   'onConsumeGoldFlat',
   'endOfTurnNeighboursConsumeShop',
   'avengeBuffRandomFriendlyShield',
+  'onBattlecryBuffTribeAlternating',
+  'endOfTurnAlternateMode',
+  'onBattlecryBuffTribeAdjacentMore',
+  'onSummonTribeBuffThenDouble',
+  'spellCastBuffAll',
+  'battlecryGrantShoutDragon',
+  'onTribeAttackBuffAttacker',
   'deathrattleGiveOwnStats',
   'deathrattleGrantWardRandom',
   'onConsumeSelfGrantSpell',
@@ -363,7 +371,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattlePlayRubiesAdjacent', // Geode Guardian (Echo): on death, play N Rubies on each neighbour
   'endOfTurnPlayRuby', // Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   'deathrattleSummonRubyStats', // Gemheart Carver: Echo summon a token with stats = its Rubies
-  'scTripleRubyStats', // Deepdelve Paragon: Start of Combat, Rubies give 3x stats
+  'rubyStatMultiplier', // Deepdelve Paragon: Rubies applied IN COMBAT are worth 2x (3x Gilded)
   'rubyCastConsumeShop', // Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
 ]);
 

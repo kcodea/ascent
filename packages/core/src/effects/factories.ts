@@ -39,8 +39,9 @@ const RALLY_SPREAD_CAP = 1_000_000_000;
 function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
   if (per <= 0) return;
   const rb = ctx.rubyBonusFor(self.side);
-  const a = (1 + rb.attack) * per;
-  const h = (1 + rb.health) * per;
+  const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon
+  const a = (1 + rb.attack) * per * mult;
+  const h = (1 + rb.health) * per * mult;
   applyRubyStats(ctx, self, target, a, h);
   // Tell the TARGET a Ruby landed on it, so its own `onRubyPlayed` effects fire — the combat half of the recruit
   // `fireOnRubyPlayed`. Without this, a Geode Guardian Echo playing Rubies onto a Resonance Idol did nothing
@@ -55,6 +56,21 @@ function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: numbe
 /** The stat half of playing a Ruby — no `onRubyPlayed` notification, so a BOUNCE can't re-trigger the bounce.
  *  That guard is load-bearing: two adjacent Resonance Idols would otherwise ping a Ruby between each other
  *  forever. (The recruit factory gets the same property by calling `addBuff` directly.) */
+/** Set 2 — Deepdelve Paragon: how much your Rubies are worth on `side` right now. 1 with no Paragon out, 2
+ *  with one, 3 if it's Gilded (owner clarification 2026-07-25: "+2/+2 Rubies give +4/+4 in combat" — so the
+ *  card DOUBLES, it doesn't add double).
+ *
+ *  Read live rather than snapshotted at Start of Combat, because a Ruby played MID-FIGHT (Geode Guardian's
+ *  Echo, Candle Conduit, Frenzied Excavator) has to be multiplied too — that's the half a Start-of-Combat
+ *  pass structurally cannot do, and the reason the card looked broken on a Ruby-in-combat board. */
+function rubyMultiplierFor(ctx: CombatContext, side: Side): number {
+  let mult = 1;
+  for (const m of ctx.living(side)) {
+    if (m.effects.some((e) => e.do === 'rubyStatMultiplier')) mult = Math.max(mult, m.golden ? 3 : 2);
+  }
+  return mult;
+}
+
 function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number): void {
   ctx.buff(target, a, h, self.uid);
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
@@ -64,6 +80,11 @@ function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: num
   if (!target.keywords.includes('EG')) {
     target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
   }
+  // Record the RUBY share of the permanent gain. Without this the carry-back had only two labels — Engraved or
+  // Flowing Monk — so a combat Ruby showed up on the run board attributed to Flowing Monk, a card that need not
+  // even be in the run (owner report 2026-07-25). EG minions accrue the same stats through `ctx.buff`, so this
+  // is tracked for both and subtracted out at collection time.
+  target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
 }
 function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
   if (per <= 0) return;
@@ -291,6 +312,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Deathrattle: buff all living friends of `tribe` (+atk/+hp). */
   deathrattleBuffTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
+    // `tribes` (plural) buffs SEVERAL tribes in one pass — Scalefeather Drake's "Beasts & Dragons". Done as one
+    // aura per tribe rather than two copies of this effect on the card, so a Beast/Dragon dual-type is buffed
+    // ONCE rather than twice. Falls back to the single `tribe` param every other card uses.
+    const many = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : null;
+    if (many) {
+      const a = num(params.attack) * mul(self);
+      const h = num(params.health) * mul(self);
+      const hit = new Set<Minion>();
+      for (const t of many) {
+        ctx.addTribeAura(self.side, t, a, h, self.uid);
+        for (const m of ctx.living(self.side)) {
+          if ((m.tribe === t || m.tribe2 === t || ctx.getCard(m.cardId)?.universalTribe) && !hit.has(m)) hit.add(m);
+        }
+      }
+      for (const m of hit) ctx.buff(m, a, h, self.uid);
+      return;
+    }
     const tribe = str(params.tribe) as Tribe | 'any';
     const attack = num(params.attack) * mul(self);
     const health = num(params.health) * mul(self);
@@ -1025,15 +1063,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h });
   },
 
-  /** Set 2 — Deepdelve Paragon (Start of Combat): your Rubies give 3× stats in combat — for each friendly
-   *  minion, add 2× its `Ruby` buff (the 1× already in its stats + this = 3×). Combat-only (no permaGain). */
-  scTripleRubyStats: (ctx, self) => {
-    for (const m of ctx.living(self.side)) {
-      const ruby = m.buffs?.find((b) => b.source === 'Ruby');
-      if (!ruby || (ruby.attack <= 0 && ruby.health <= 0)) continue;
-      ctx.buff(m, ruby.attack * 2, ruby.health * 2, self.uid);
-    }
-  },
+  /** Set 2 — Deepdelve Paragon. A MARKER, not a trigger: it is never dispatched.
+   *
+   *  The card does exactly one thing (owner spec 2026-07-25): Rubies APPLIED DURING COMBAT are worth double
+   *  (triple Gilded). It does not touch Rubies already on the board, and it has no Start-of-Combat step — an
+   *  earlier version topped up existing Ruby buffs, which was wrong on both counts.
+   *
+   *  The work happens in `playRubyOn`, which multiplies as each Ruby lands; `rubyMultiplierFor` finds the
+   *  Paragon by scanning for this effect id. Declaring it here keeps the card data-driven — the alternative
+   *  was hardcoding a card id inside core. */
+  rubyStatMultiplier: () => {},
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
   deathrattleRubyStatGain: (ctx, self, params, payload) => {
@@ -2206,7 +2245,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.log({ type: 'sc', source: self.uid, text: `${self.name} sounds the charge` });
     for (const m of friends) {
       grantShield(ctx, m);
-      ctx.attackNow?.(m, false); // already shielded above — don't re-grant per strike
+      // `attackNow: false` (Lancel, owner change 2026-07-25) — Ward only, no free opening swing.
+      if (params.attackNow !== false) ctx.attackNow?.(m, false); // already shielded above — don't re-grant per strike
     }
   },
 
@@ -2433,6 +2473,89 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (friends.length === 0) return;
     void params;
     ctx.buff(ctx.rng.pick(friends), self.attack, self.maxHealth, self.uid);
+  },
+
+  /** Set 2 — Traveling Skald: whenever a FRIENDLY minion of `tribe` attacks, give IT +atk/+hp. Watches every
+   *  friend's attack, not just its own — so the payload's attacker is the target, and the Skald buffs itself
+   *  only when it is the one swinging (it's a Dragon). Golden doubles. */
+  onTribeAttackBuffAttacker: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.dead || minion.side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe;
+    if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    ctx.buff(minion, num(params.attack, 2) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
+  /** Set 2 — Scalechanter (combat half): a spell cast mid-fight gives the whole side +atk. Mirrors the recruit
+   *  factory so the card behaves the same whichever phase the cast happens in. */
+  spellCastBuffAll: (ctx, self, params) => {
+    if (self.dead) return;
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (a === 0 && h === 0) return;
+    for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+  },
+
+  /** Karwind (owner rework 2026-07-25): whenever a Shout triggers, give your `tribe` +atk/+hp — except this
+   *  minion's two NEIGHBOURS, who get the bigger `adjAttack`/`adjHealth` INSTEAD of (not on top of) the base
+   *  grant. A neighbour that isn't of the tribe gets nothing: the owner chose "instead", not "any tribe".
+   *
+   *  Neighbours are read off `ctx.living(self.side)` by index, which is board order — deterministic, no RNG. */
+  onBattlecryBuffTribeAdjacentMore: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    const adjA = num(params.adjAttack, 4) * mul(self);
+    const adjH = num(params.adjHealth, 4) * mul(self);
+    const friends = ctx.living(self.side);
+    const i = friends.indexOf(self);
+    const neighbours = new Set(i < 0 ? [] : [friends[i - 1], friends[i + 1]].filter(Boolean));
+    // Karwind is itself a Dragon and the original buffed it, so "your Dragons" keeps including it. It is
+    // never its own neighbour, so it takes the BASE grant.
+    for (const m of friends) {
+      if (!(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
+      const adj = neighbours.has(m);
+      ctx.buff(m, adj ? adjA : a, adj ? adjH : h, self.uid);
+    }
+  },
+
+  /** Set 2 — Denkeeper Oona (owner rework 2026-07-25): a Beast you summon in combat gets +atk/+hp and THEN
+   *  has its stats doubled. Order matters and is the printed order — the flat grant is included in what gets
+   *  doubled, so +1/+1 on a 3/3 yields 8/8, not 7/7.
+   *
+   *  The flat grant grows with Oona's Avenge accrual (`summonBonus`), which is what "Improve this" means here.
+   *  Doubling is applied as a buff of the minion's CURRENT stats rather than a set, so it stacks correctly with
+   *  anything else that has already touched the body. */
+  onSummonTribeBuffThenDouble: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    const step = self.summonBonus ?? 0;
+    const a = (num(params.attack, 1) + step * num(params.stepAttack, 1)) * mul(self);
+    const h = (num(params.health, 1) + step * num(params.stepHealth, 1)) * mul(self);
+    if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
+    ctx.buff(minion, minion.attack, minion.health, self.uid); // …then double what it now has
+  },
+
+  /** Set 2 — Groveweaver (combat half): a `tribe` minion summoned DURING the fight gets the same asymmetric
+   *  grant the recruit half hands out, sized by this instance's accrued `summonBonus`.
+   *
+   *  This half was missing entirely (owner report 2026-07-25): the factory existed only in the recruit table,
+   *  so Groveweaver paid for shop summons and silently did nothing for the Echo/Rise tokens that make up most
+   *  of a summon board's bodies. */
+  summonBuffTribeAsym: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    const tribe = str(params.tribe);
+    if (tribe && !(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    const bonus = self.summonBonus ?? 0;
+    const a = (num(params.attack, 2) + bonus) * mul(self);
+    const h = (num(params.health, 4) + bonus) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.buff(minion, a, h, self.uid);
   },
 
   /** Set 2 — Lastlight Marshal (Echo): give `count` friendly minions Ward (golden doubles).

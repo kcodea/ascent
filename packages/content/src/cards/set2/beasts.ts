@@ -81,15 +81,17 @@ export const SET2_BEASTS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [
-      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 2, health: 4 } },
-      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
+      // Owner change 2026-07-25: the grant is symmetric +2/+2 and each spell improves it by a further +2/+2
+      // (was +2/+4 improving by +1/+1).
+      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 2, health: 2, step: 2 } },
+      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 2 } },
     ],
-    text: 'When you summon a Beast, give it **+2/+4**. Improve this when you cast a spell.',
-    goldenText: 'When you summon a Beast, give it **+4/+8**. Improve this when you cast a spell (twice as much).',
+    text: 'When you summon a Beast, give it **+2/+2**. Improve this by **+2/+2** when you cast a spell.',
+    goldenText: 'When you summon a Beast, give it **+4/+4**. Improve this by **+4/+4** when you cast a spell.',
   },
   {
-    // An opener: your front Beast enters shielded and swings before the turn order starts, so a big left-most
-    // body gets a free hit in. Left-most = board order (deterministic, no RNG).
+    // Your front Beast enters shielded. The free opening swing was removed at the owner's call (2026-07-25) —
+    // it's Ward only now. Left-most = board order (deterministic, no RNG).
     id: 'b2_lancel',
     name: 'Lancel',
     tribe: 'beast',
@@ -97,23 +99,27 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 3,
     health: 4,
     keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scShieldAttackLeftmostTribe', params: { tribe: 'beast', count: 1 } }],
-    text: '**Start of Combat:** give your left-most Beast **Ward**. It attacks immediately.',
-    goldenText: '**Start of Combat:** give your **2** left-most Beasts **Ward**. They attack immediately.',
+    effects: [{ on: 'startOfCombat', do: 'scShieldAttackLeftmostTribe', params: { tribe: 'beast', count: 1, attackNow: false } }],
+    text: '**Start of Combat:** give your left-most Beast **Ward**.',
+    goldenText: '**Start of Combat:** give your **2** left-most Beasts **Ward**.',
   },
   {
-    // A summon-payoff aura: it does NOT buff the board you already have — it makes everything you summon
-    // during the fight enter bigger. Pairs with the Echo-summon line (T-Rex, Mammoth, Void Panther).
+    // A summon payoff: everything you summon mid-fight lands bigger. Reworked 2026-07-25 (owner) from a flat
+    // +5/+5 aura to "+1/+1 then DOUBLE", so it scales with whatever the token was already worth. `SC` dropped
+    // from keywords — it's an onSummon watcher now, not a Start of Combat.
     id: 'b2_oona',
     name: 'Denkeeper Oona',
     tribe: 'beast',
     tier: 5,
     attack: 4,
     health: 6,
-    keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scSummonOnlyTribeAura', params: { tribe: 'beast', attack: 5, health: 5 } }],
-    text: 'Beasts you **summon in combat** have **+5/+5**.',
-    goldenText: 'Beasts you **summon in combat** have **+10/+10**.',
+    keywords: [],
+    effects: [
+      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 1, health: 1, stepAttack: 1, stepHealth: 1 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
+    ],
+    text: 'When you summon a Beast in combat, give it **+1/+1**, then **double** its stats. **Avenge (4):** improve this.',
+    goldenText: 'When you summon a Beast in combat, give it **+2/+2**, then **double** its stats. **Avenge (4):** improve this.',
   },
   {
     // Avenge that pays twice: a spell for the hand AND a lasting Beast Attack aura (later summons inherit it).

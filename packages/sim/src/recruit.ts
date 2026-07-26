@@ -1875,6 +1875,91 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, spells, num(params.count, 1) * gold(self));
   },
 
+  /** Karwind (recruit half, owner rework 2026-07-25): a Shout trigger buffs your `tribe`, except Karwind's two
+   *  board NEIGHBOURS, who get the bigger `adj` grant INSTEAD of the base one. A neighbour outside the tribe
+   *  gets nothing — the owner chose "instead", not "any tribe".
+   *
+   *  Most of Karwind's procs happen HERE, not in combat: Shouts fire when you play minions in the shop. The
+   *  combat twin of the same name covers a Shout re-fired mid-fight. */
+  onBattlecryBuffTribeAdjacentMore: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 2);
+    const h = num(params.health, 2);
+    const adjA = num(params.adjAttack, 4);
+    const adjH = num(params.adjHealth, 4);
+    const board = ctx.state.board;
+    const i = board.indexOf(self);
+    const neighbours = new Set(i < 0 ? [] : [board[i - 1], board[i + 1]].filter(Boolean));
+    const flash = (ctx.state.karwindFlash ??= []);
+    // Golden applies the pulse twice at base magnitude, matching `onBattlecryBuffTribe`.
+    for (let n = 0; n < gold(self); n++) {
+      for (const c of board) {
+        // Includes Karwind itself (it's a Dragon, and the pre-rework card buffed it) — never as a neighbour.
+        if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
+        const adj = neighbours.has(c);
+        addBuff(c, nameOf(self), adj ? adjA : a, adj ? adjH : h);
+        if (!flash.includes(c.uid)) flash.push(c.uid);
+      }
+    }
+  },
+
+  /** Set 2 — Roaring Matriarch: each Shout you trigger buffs your Dragons, and WHICH stat it buffs alternates
+   *  every turn — Attack on its first turn, Health on the next, and so on (owner spec 2026-07-25).
+   *
+   *  The phase is PER-INSTANCE (`eotTick`, advanced by the `endOfTurnAlternateMode` half below) rather than
+   *  global wave parity, so a Matriarch always starts on Attack no matter which turn you bought it — the same
+   *  reasoning as Revolving Maw counting refreshes "from its own arrival". Two copies can therefore sit out of
+   *  phase, which is a feature: one covers each stat.
+   *
+   *  `alternateModeOf` is exported so the printed text can name the stat that's live RIGHT NOW — the card-text
+   *  rule means an alternating card must never print a stat it isn't currently giving. */
+  onBattlecryBuffTribeAlternating: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const amount = num(params.amount, 2);
+    const health = alternateModeOf(self) === 'health';
+    const flash = (ctx.state.karwindFlash ??= []);
+    for (let i = 0; i < gold(self); i++) {
+      for (const c of ctx.state.board) {
+        if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
+        addBuff(c, nameOf(self), health ? 0 : amount, health ? amount : 0);
+        if (!flash.includes(c.uid)) flash.push(c.uid);
+      }
+    }
+  },
+
+  /** The other half of the alternating pair: advance this instance's turn counter so the mode flips. Does
+   *  nothing else — it exists purely so the phase is per-instance and survives in the saved run. */
+  endOfTurnAlternateMode: (_ctx, self) => {
+    self.eotTick = (self.eotTick ?? 0) + 1;
+  },
+
+  /** Set 2 — Scalechanter: every SHOP spell you cast gives your whole board +atk. The `spellCast` event is
+   *  already shop-spell-only (Rubies don't route through `castSpell`), so the printed "Shop spell" wording
+   *  needs no explicit Ruby check. Golden doubles the grant. */
+  spellCastBuffAll: (ctx, self, params) => {
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 0) * gold(self);
+    if (a === 0 && h === 0) return;
+    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
+  },
+
+  /** Set 2 — Blazing Keeper (Shout): get a random Dragon that HAS a Shout.
+   *
+   *  "Has a Shout" is `onPlay`, which is exactly what the keyword means — so this picks up Dragons whose
+   *  Shout does anything at all, and correctly excludes payoff cards like Karwind that only WATCH Shouts
+   *  (`battlecryTriggered`) without having one (owner ruling 2026-07-25).
+   *
+   *  Drawn from `poolOf(state)` so a set-2 run can only pull set-2 Dragons, and tier-capped by the shop's
+   *  current tier like every other "get a random X" — an un-capped roll could hand a Tier-6 body at Tier 3. */
+  battlecryGrantShoutDragon: (ctx, self, params) => {
+    const pool = poolOf(ctx.state).buyable.filter(
+      (c) => !c.spell && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon')
+        && c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onPlay'),
+    );
+    if (pool.length === 0) return;
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
+  },
+
   /** Set 2 — Feastmaster Vhal (End of Turn): each ADJACENT minion consumes `count` random Shop minions. The
    *  neighbours eat, not Vhal — so the stats land on them. */
   endOfTurnNeighboursConsumeShop: (ctx, self, params) => {
@@ -2577,7 +2662,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  thing differently would be a rules inconsistency, not a feature. No spell cast this turn, or an aimed
    *  spell with an empty board → a clean no-op. */
   endOfTurnRecastFirstSpell: (ctx, self, params) => {
-    const def = ctx.state.firstSpellThisTurnId ? CARD_INDEX[ctx.state.firstSpellThisTurnId] : undefined;
+    // Reads the LAST spell cast this turn (owner change 2026-07-25, was the first). `lastSpellCastId` is
+    // maintained for the Steward of Spells rune; the factory id is kept so saved runs and the schema entry
+    // don't churn for a one-word behaviour change.
+    const def = ctx.state.lastSpellCastId ? CARD_INDEX[ctx.state.lastSpellCastId] : undefined;
     if (!def?.spell) return;
     for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
       if (!def.target) { castSpell(ctx.state, def); continue; }
@@ -3712,6 +3800,13 @@ export function spellHealthBonus(state: RunState): number {
 export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[] }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
+  // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
+  // Rubies now previews the Ruby (owner 2026-07-25) — a preview promising "+1/+1" while the real Ruby grants
+  // +3/+3 would be exactly the stale-number defect the live-text rule exists to prevent.
+  if (def.ruby) {
+    const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
+    return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
+  }
   // Veinstorm: "equal to your Rubies" = base 1/1 + the run's rubyBonus — green the printed +1/+1 once it grows.
   if (def.id === 'veinstorm') {
     const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
@@ -4480,6 +4575,12 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
 
 /** The RIGHT-most edible shop offer's index, or -1. "Right-most" is the tail of the row, which is what the
  *  cards say; spells/Rubies sitting in the row are skipped since they aren't minions. */
+/** Set 2 — Roaring Matriarch: which stat its next grant will pump. Attack on the instance's FIRST turn, then
+ *  alternating each turn. Shared by the effect and the printed text so the two can never disagree. */
+export function alternateModeOf(card: { eotTick?: number }): 'attack' | 'health' {
+  return ((card.eotTick ?? 0) % 2) === 0 ? 'attack' : 'health';
+}
+
 export function rightmostShopMinion(state: RunState): number {
   for (let i = state.shop.length - 1; i >= 0; i--) {
     const d = CARD_INDEX[state.shop[i]!.cardId];

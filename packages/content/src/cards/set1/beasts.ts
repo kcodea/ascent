@@ -43,7 +43,9 @@ export const BEASTS: CardDef[] = [
     health: 4,
     keywords: ['SC'],
     effects: [
-      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
+      // Owner rebalance 2026-07-25: base +2 Attack, and each Avenge improves it by the SAME +2 ("improves by
+      // the amount of their buff") rather than the old flat +1 step.
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 2, health: 0, stepAttack: 2, stepHealth: 0 } },
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
     ],
     // Start of Combat: a board-wide (`tribe: 'any'`) Attack aura that lasts the fight — current minions + any

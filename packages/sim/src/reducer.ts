@@ -2004,13 +2004,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Engraved only at Start of Combat (Taurus's neighbor) carries its gains back and is labelled "Engraved",
   // even though its run-board card never had the EG keyword. A non-Engraved carrier got Flowing Monk's gift.
   if (result.playerPermaBuffs) {
-    for (const { sourceUid, attack, health, engraved } of result.playerPermaBuffs) {
+    for (const { sourceUid, attack, health, engraved, ruby } of result.playerPermaBuffs) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (!card) continue;
       // Taragosa's Heir amplifies stat gains from ALL sources — combat included. It's Engraved, so its combat
       // gains reach here; multiply its carry-back ×2 (golden ×3) so combat matches its recruit-phase amplifier.
       const mult = card.cardId === 'taragosaheir' ? (card.golden ? 3 : 2) : 1;
-      addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
+      // 'Ruby' keeps the inspect breakdown honest AND makes the gain visible to Deepdelve Paragon next fight,
+      // which looks for exactly that source.
+      addBuff(card, ruby ? 'Ruby' : engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
     }
   }
   // Set 2 — Rubies gained IN COMBAT (Rikk's Rally, Gemline's Avenge): mint them into hand now, baked with the

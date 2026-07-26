@@ -457,42 +457,32 @@ describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
   });
 });
 
-describe('set 2 — Scalechanter improves on a Shout cadence', () => {
-  it('buffs Dragons by its CURRENT magnitude, and improves every 3 Shouts triggered', () => {
-    // Its own Shout counts as one of the three, so the cadence is observable from a single board.
+describe('set 2 — Scalechanter (owner rework 2026-07-25)', () => {
+  it('every Shop spell cast gives your WHOLE board +1 Attack', () => {
+    // "your minions" is the whole board, not just Dragons — a Beast on the board must gain it too.
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 60,
-      board: [minion('sc', 'd2_scalechanter', 'dragon', 4, 3)],
-      // Three DISTINCT Shout minions on purpose: three copies of one card would TRIPLE-combine, which
-      // consumes them, grants a Triple Reward and leaves the board looking untouched — a false failure.
-      hand: [
-        minion('a1', 'd2_chronicler', 'dragon', 3, 5),
-        minion('a2', 'd2_embermouth', 'dragon', 2, 2),
-        minion('a3', 'd2_skald', 'dragon', 4, 5),
-      ],
+      board: [minion('sc', 'd2_scalechanter', 'dragon', 4, 3), minion('b', 'alley', 'beast', 2, 2)],
+      hand: [spellInHand('sp', 'emberpouch')], // a Gold spell: no stat effect of its own to confound the +1
     };
-    const sc0 = s.board.find((c) => c.uid === 'sc')!;
-    expect(sc0.summonBonus ?? 0).toBe(0);
-
-    // three Shout minions played → three Battlecry fires → one improvement
-    s = reduce(s, { type: 'play', uid: 'a1' });
-    s = reduce(s, { type: 'play', uid: 'a2' });
-    const mid = s.board.find((c) => c.uid === 'sc')!;
-    expect(mid.summonBonus ?? 0).toBe(0); // 2 fires — not yet
-    s = reduce(s, { type: 'play', uid: 'a3' });
-    const after = s.board.find((c) => c.uid === 'sc')!;
-    expect(after.summonBonus).toBe(1); // 3rd fire → improved by the base step
-    expect(after.shoutTick).toBe(0); // the cadence rolled over, so it's every-3 and not a running total
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    const sc = s.board.find((c) => c.uid === 'sc')!;
+    const beast = s.board.find((c) => c.uid === 'b')!;
+    expect(sc.attack, 'it buffs itself too').toBe(5);
+    expect(beast.attack, 'and a non-Dragon friend').toBe(3);
+    expect([sc.health, beast.health], 'Attack only — no Health').toEqual([3, 2]);
   });
 
-  it("the Shout's magnitude includes the improvement", () => {
-    // Pre-improved instance: base 1 + summonBonus 2 → +3/+3 to each Dragon.
-    const sc = { ...minion('sc', 'd2_scalechanter', 'dragon', 4, 3), summonBonus: 2 };
-    const target = minion('t1', 'd2_chronicler', 'dragon', 3, 5);
-    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 60, board: [target], hand: [sc] };
-    const next = reduce(s, { type: 'play', uid: 'sc' });
-    const t = next.board.find((c) => c.uid === 't1')!;
-    expect([t.attack - 3, t.health - 5]).toEqual([3, 3]);
+  it('a RUBY is not a Shop spell, so it does not trigger it', () => {
+    // The printed text says "Shop spell". `spellCast` never fires for Rubies (they don't route through
+    // castSpell), so the exclusion is structural — this pins it rather than trusting the comment.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 60,
+      board: [minion('sc', 'd2_scalechanter', 'dragon', 4, 3), minion('k', 'k_stormchaser', 'kobold', 2, 2)],
+      hand: [spellInHand('r', 'ruby')],
+    };
+    s = reduce(s, { type: 'play', uid: 'r', targetUid: 'k' } as never);
+    expect(s.board.find((c) => c.uid === 'sc')!.attack, 'a Ruby cast leaves it alone').toBe(4);
   });
 });
 
@@ -639,5 +629,85 @@ describe('set 2 — Chorus Drake', () => {
     const c = CARD_INDEX['d2_chorus']!;
     expect(c.text).not.toMatch(/other/i);
     expect(c.goldenText).not.toMatch(/other/i);
+  });
+});
+
+describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
+  const bm2 = (cardId: string, uid: string, attack = 2, health = 20): BoardMinion =>
+    ({ cardId, attack, health, sourceUid: uid, keywords: [] as BoardMinion['keywords'] });
+
+  it('Traveling Skald buffs a friendly DRAGON that attacks, not a Beast', () => {
+    const r = simulate(
+      [bm2('d2_skald', 'S', 1, 60), bm2('d2_embermouth', 'D', 3, 60), bm2('alley', 'B', 3, 60)],
+      [{ cardId: 'sandbag', attack: 0, health: 900 }], makeRng(4), CARD_INDEX,
+      combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }));
+    const buffsOn = (uid: string) => (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number }[])
+      .filter((b) => b.target === uid);
+    expect(buffsOn('m1').length, 'the Dragon that attacked was buffed').toBeGreaterThan(0);
+    expect(buffsOn('m1')[0]!.attack).toBe(2);
+    expect(buffsOn('m2'), 'the Beast that attacked was NOT').toEqual([]);
+  });
+
+  it("Scalefeather Drake Echo buffs Beasts AND Dragons, and a dual-type only ONCE", () => {
+    // b2_elderhorn is a Beast; d2_embermouth a Dragon; the Drake itself is Dragon/Beast — the dual-type case
+    // is the reason this is one multi-tribe pass instead of two copies of the effect.
+    const r = simulate(
+      [bm2('d2_scalefeather', 'SF', 1, 1), bm2('d2_embermouth', 'D', 2, 60), bm2('alley', 'B', 2, 60), bm2('n2_lastlight', 'N', 2, 60)],
+      [{ cardId: 'sandbag', attack: 10, health: 900 }], makeRng(4), CARD_INDEX,
+      combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }));
+    const gained = (uid: string) => (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number }[])
+      .filter((b) => b.target === uid).reduce((n, b) => n + b.attack, 0);
+    expect(gained('m1'), 'the Dragon').toBe(4);
+    expect(gained('m2'), 'the Beast').toBe(4);
+    expect(gained('m3'), 'a neutral gets nothing').toBe(0);
+  });
+
+  it('Blazing Keeper only offers Dragons that actually HAVE a Shout', () => {
+    const s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 60, board: [], hand: [minion('bk', 'd2_blazingkeeper', 'dragon', 5, 3)] };
+    const after = reduce(s, { type: 'play', uid: 'bk' });
+    expect(after.hand.length, 'it granted something').toBe(1);
+    const got = CARD_INDEX[after.hand[0]!.cardId]!;
+    expect(got.tribe === 'dragon' || got.tribe2 === 'dragon', `${got.name} is a Dragon`).toBe(true);
+    expect(got.effects.some((e) => e.on === 'onPlay'), `${got.name} has a Shout`).toBe(true);
+  });
+
+  it('Blazing Keeper can never roll Karwind — it watches Shouts but has none', () => {
+    // The owner called this one out by name. Assert against the POOL rather than a sampled roll, so it can't
+    // pass by luck of the seed.
+    const eligible = poolOf({ ...createRun(3), tier: 7 } as RunState).buyable.filter(
+      (c) => !c.spell && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon') && c.effects.some((e) => e.on === 'onPlay'),
+    );
+    expect(eligible.some((c) => c.id === 'karwind'), 'Karwind is not a Shout Dragon').toBe(false);
+    expect(eligible.length, 'but there ARE Shout Dragons to draw').toBeGreaterThan(2);
+  });
+
+  it('Storm Chaser hands you a Veinstorm', () => {
+    const s: RunState = { ...createRun(3), phase: 'recruit', embers: 60, board: [], hand: [minion('sc', 'k_stormchaser', 'kobold', 2, 2)] };
+    const after = reduce(s, { type: 'play', uid: 'sc' });
+    expect(after.hand.map((c) => c.cardId)).toContain('veinstorm');
+  });
+
+  it('Pouchpincher is a NEUTRAL minion now', () => {
+    expect(CARD_INDEX['k_pouchpincher']!.tribe).toBe('neutral');
+  });
+
+  it('Faultline Scrapper raises Ruby strength on DEATH, not on damage', () => {
+    const c = CARD_INDEX['k_faultline']!;
+    expect(c.effects.map((e) => e.on)).toEqual(['onDeath']);
+    expect(c.text).toMatch(/Echo/);
+  });
+
+  it('Lancel grants Ward with NO free opening swing', () => {
+    // The fixture has to make the two behaviours DISTINGUISHABLE. With Lancel left-most it attacks first in
+    // normal turn order anyway, so a free swing looks identical — the first version of this test passed
+    // against the un-fixed code for exactly that reason. Here a DRAGON is left-most, so the shielded Beast
+    // (m1) only swings early if the removed `attackNow` is still firing.
+    const r = simulate(
+      [bm2('d2_embermouth', 'D', 3, 60), bm2('alley', 'B', 3, 60), bm2('b2_lancel', 'L', 3, 60)],
+      [{ cardId: 'sandbag', attack: 0, health: 900 }], makeRng(4), CARD_INDEX,
+      combatSide({ tier: 3, tribes: ['beast', 'dragon'] }), combatSide({ tier: 1 }));
+    expect(r.events.some((e) => e.type === 'shieldUp'), 'Ward still lands').toBe(true);
+    const firstAttacker = (r.events.find((e) => e.type === 'attack') as { attacker: string } | undefined)?.attacker;
+    expect(firstAttacker, 'turn order opens the fight, not a Start-of-Combat swing').toBe('m0');
   });
 });

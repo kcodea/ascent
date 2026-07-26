@@ -704,8 +704,9 @@ describe('run loop (@game/sim)', () => {
 
   it("a Kennelmaster triple folds its accrued Avenge bonus into the golden's summon bonus", () => {
     // Kennelmaster's Beast buff is now a Start-of-Combat aura (+(1 + summonBonus)/+(same)); the recruit
-    // triple still carries the accrual, so the golden's summonBonus = base (1) + the two highest copies'
-    // bonuses. Three copies (bonuses 2 / 1 / 0) → golden summonBonus 1 + 2 + 1 = 4.
+    // triple still carries the accrual, so the golden's summonBonus = base + the two highest copies'
+    // bonuses. Three copies (bonuses 2 / 1 / 0) → golden summonBonus 2 + 2 + 1 = 5.
+    // Kennelmaster rebalance 2026-07-25 (owner): base +2 Attack, and each Avenge improves by +2 as well.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [
@@ -716,7 +717,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'k3' }); // 3 Kennelmasters → triple → one golden in hand
     const golden = [...s.board, ...s.hand].find((c) => c.cardId === 'kennel' && c.golden);
-    expect(golden?.summonBonus).toBe(4); // base 1 (re-spec) + top-two bonuses (2 + 1)
+    expect(golden?.summonBonus).toBe(5); // base 2 + top-two bonuses (2 + 1)
   });
 
   it("persists a Kennelmaster's Avenge improvement across combat (whole-run)", () => {
@@ -772,7 +773,7 @@ describe('run loop (@game/sim)', () => {
 
   it('tripling a Kennelmaster combines its accrued Avenge buffs', () => {
     // Two Kennelmasters at summonBonus 5 and 3 + a fresh one → the golden folds the two highest
-    // (summonBonus 9 = base 1 (re-spec) + top-two 5 + 3).
+    // (summonBonus 10 = base 2 + top-two 5 + 3).
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -784,7 +785,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
     const golden = s.hand.find((c) => c.cardId === 'kennel' && c.golden);
-    expect(golden?.summonBonus).toBe(9); // base 1 (re-spec) + (5 + 3)
+    expect(golden?.summonBonus).toBe(10); // base 2 + (5 + 3)
   });
 
   it("tripling a Flowing Monk combines the two highest copies' CURRENT grants into the golden's start", () => {
@@ -4364,6 +4365,25 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     const card = s.board.find((c) => c.uid === 'n')!;
     expect([card.attack, card.health]).toEqual([6, 6]); // base 1/1 + the carried-back +5/+5
     expect(card.buffs?.some((b) => b.source === 'Engraved' && b.attack === 5 && b.health === 5)).toBe(true);
+  });
+
+  it('a combat RUBY carries back labelled "Ruby", not "Flowing Monk"', () => {
+    // Owner report 2026-07-25: Ruby stats gained in combat showed on the run board attributed to Flowing Monk,
+    // a card that need not even be in the run — because before Set 2 the only non-Engraved permaGain WAS the
+    // Monk's gift. The label also matters mechanically: Deepdelve Paragon finds Rubies by that exact source.
+    let s: RunState = {
+      ...createRun(1), phase: 'combat', combatSettled: false,
+      board: [{ uid: 'k', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      lastCombat: {
+        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+        initial: { player: [], enemy: [] },
+        playerPermaBuffs: [{ sourceUid: 'k', attack: 3, health: 3, engraved: false, ruby: true }],
+      },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    const card = s.board.find((c) => c.uid === 'k')!;
+    expect(card.buffs?.some((b) => b.source === 'Ruby' && b.attack === 3)).toBe(true);
+    expect(card.buffs?.some((b) => b.source === 'Flowing Monk')).toBe(false);
   });
 
   it('Flowing Monk gift (engraved: false) still labels the carry-back "Flowing Monk"', () => {

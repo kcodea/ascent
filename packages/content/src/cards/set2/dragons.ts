@@ -127,9 +127,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 4,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleQueueNextSpellCopy', params: { count: 1 } }],
-    text: '**Echo:** get a copy of the first **Shop spell** you cast next turn.',
-    goldenText: '**Echo:** get **2** copies of the first **Shop spell** you cast next turn.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribes: ['beast', 'dragon'], attack: 4, health: 4 } }],
+    text: '**Echo:** give your Beasts and Dragons **+4/+4**.',
+    goldenText: '**Echo:** give your Beasts and Dragons **+8/+8**.',
   },
   {
     // Dragon/DEMON, Rise: pays off the Demon half of its typing — eating from the Shop turns into spell fuel.
@@ -173,8 +173,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
-    text: '**End of Turn:** cast the first **Shop spell** you cast this turn again.',
-    goldenText: '**End of Turn:** cast the first **Shop spell** you cast this turn **2 additional** times.',
+    text: '**End of Turn:** cast the last **Shop spell** you cast this turn again.',
+    goldenText: '**End of Turn:** cast the last **Shop spell** you cast this turn **2 additional** times.',
   },
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.
@@ -234,11 +234,10 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [
-      { on: 'onPlay', do: 'battlecryBuffTribeImproving', params: { tribe: 'dragon', attack: 1 } },
-      { on: 'battlecryTriggered', do: 'onBattlecryImproveSelf', params: { every: 3, step: 1 } },
+      { on: 'spellCast', do: 'spellCastBuffAll', params: { attack: 1, health: 0 } },
     ],
-    text: '**Shout:** give your Dragons **+1/+1**. Improve this by **+1/+1** after every **3 Shouts** you trigger.',
-    goldenText: '**Shout:** give your Dragons **+2/+2**. Improve this by **+2/+2** after every **3 Shouts** you trigger.',
+    text: 'Whenever you cast a **Shop spell**, give your minions **+1 Attack**.',
+    goldenText: 'Whenever you cast a **Shop spell**, give your minions **+2 Attack**.',
   },
   {
     // Seeds BOTH halves of the tribe at once — a body to buff and a spell to recur (owner re-spec 2026-07-24:
@@ -250,9 +249,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 4,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantTribeAndSpell', params: { tribe: 'dragon', tier: 1, count: 1 } }],
-    text: '**Shout:** get a random **Tier 1 Dragon** and a random **spell**.',
-    goldenText: '**Shout:** get **2** random **Tier 1 Dragons** and **2** random **spells**.',
+    effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 2, health: 1 } }],
+    text: 'When a friendly **Dragon** attacks, give it **+2/+1**.',
+    goldenText: 'When a friendly **Dragon** attacks, give it **+4/+2**.',
   },
   {
     // Recursion, on tempo: replay whatever you just cast. Reads `lastSpellCastId` (already tracked for the
@@ -283,18 +282,38 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**End of Turn:** get **2** copies of the first **Shop spell** you cast this turn.',
   },
   {
+    // A Shout that FETCHES another Shout — the tribe's engine piece for a Shout-heavy build. "Shout Dragon"
+    // means a Dragon with an `onPlay`, which deliberately excludes payoff cards like Karwind that only WATCH
+    // Shouts without having one (owner ruling 2026-07-25). Tier-capped by the shop like every other random get.
+    id: 'd2_blazingkeeper',
+    name: 'Blazing Keeper',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 5,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantShoutDragon', params: { count: 1 } }],
+    text: '**Shout:** get a random **Shout** Dragon.',
+    goldenText: '**Shout:** get **2** random **Shout** Dragons.',
+  },
+  {
     // Set 1's Karwind pays on Battlecries; the Matriarch is the Attack-only Dragon version, so the tribe has a
     // Shout payoff that isn't a full Karwind. Same `battlecryTriggered` channel.
     id: 'd2_matriarch',
     name: 'Roaring Matriarch',
     tribe: 'dragon',
     tier: 4,
-    attack: 4,
+    attack: 2,
     health: 7,
     keywords: [],
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 0 } }],
-    text: 'After you play a **Shout** minion, give your Dragons **+2 Attack**.',
-    goldenText: 'After you play a **Shout** minion, give your Dragons **+4 Attack**.',
+    effects: [
+      { on: 'battlecryTriggered', do: 'onBattlecryBuffTribeAlternating', params: { tribe: 'dragon', amount: 2 } },
+      { on: 'endOfTurn', do: 'endOfTurnAlternateMode' },
+    ],
+    // The printed stat is filled in live by `alternatingBuffText` — an alternating card must never print a
+    // stat it isn't currently giving, so this base text is only the fallback shape.
+    text: 'After you play a **Shout** minion, give your Dragons **+2 Attack**. This alternates every turn.',
+    goldenText: 'After you play a **Shout** minion, give your Dragons **+4 Attack**. This alternates every turn.',
   },
   {
     // The tribe capstone: a Choose-One that installs a permanent global mode, and Gilds into BOTH. Chorus

@@ -114,4 +114,19 @@ export const SET2_NEUTRAL: CardDef[] = [
     effects: [{ on: 'onSummon', do: 'onSummonDoubleStats' }],
     text: 'When you summon a minion in combat, **double its stats**.',
   },
+  {
+    // Crossover: "Get a Gold Pouch" grants the SET-1 Gold Pouch spell (`emberpouch`) to hand — CARD_INDEX is
+    // global, so `battlecryGrantSpell` reuses it directly (owner: there will be crossover cards between sets).
+    // NEUTRAL as of 2026-07-25 (owner) — moved here out of the Kobold file so the tribe and the file agree.
+    id: 'k_pouchpincher',
+    name: 'Pouchpincher',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 4,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'emberpouch', count: 1 } }],
+    text: '**Shout:** Get a **Gold Pouch**.',
+    goldenText: '**Shout:** Get **2 Gold Pouches**.',
+  },
 ];

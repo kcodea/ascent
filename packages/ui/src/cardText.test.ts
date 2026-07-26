@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, alternatingBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
@@ -193,13 +193,36 @@ describe('cardText helpers', () => {
   });
 
   it('summonBuffText shows Kennelmaster’s live Start-of-Combat Attack aura (base + Avenge bonus)', () => {
-    // Kennelmaster's aura is +(1 + summonBonus) ATTACK ONLY (re-spec 2026-07-24); printed "+1 Attack" becomes live.
-    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +1 Attack
-    expect(summonBuffText('kennel', 2)).toContain('{{+3 Attack}}'); // base 1 (re-spec) + summonBonus 2
+    // Kennelmaster's aura is +(2 + summonBonus×2) ATTACK ONLY (owner rebalance 2026-07-25); the printed
+    // "+2 Attack" becomes live. The stepAttack of 2 is what makes this 6 rather than 4 — if the helper ever
+    // stops reading `stepAttack`, the card would print a number it isn't giving.
+    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +2 Attack
+    expect(summonBuffText('kennel', 2)).toContain('{{+6 Attack}}'); // base 2 + summonBonus 2 × step 2
     expect(summonBuffText('sandbag', 3)).toBeNull(); // not a summon-buff / aura card
     // Trophy Stalker's growing Rally (base 5): golden doubles the live grant so the printed number matches the
     // real +10/+10 effect (owner-caught: it was under-showing +5/+5). Non-golden stays base+bonus.
     expect(summonBuffText('trophystalker', 5)).toContain('{{+10/+10}}'); // (5 + 5) × 1
     expect(summonBuffText('trophystalker', 5, true)).toContain('{{+20/+20}}'); // (5 + 5) × 2 golden
+  });
+});
+
+describe('alternatingBuffText — Roaring Matriarch', () => {
+  it('names the stat it is giving THIS turn, and what is coming next', () => {
+    const t0 = alternatingBuffText('d2_matriarch', 0)!;
+    expect(t0, 'first turn: Attack').toContain('{{+2 Attack}}');
+    expect(t0, 'and the flip is spelled out').toContain('{{+2 Health next turn.}}');
+    const t1 = alternatingBuffText('d2_matriarch', 1)!;
+    expect(t1).toContain('{{+2 Health}}');
+    expect(t1).toContain('{{+2 Attack next turn.}}');
+    // Never leaves the stale printed stat behind — the whole point of the helper.
+    expect(t1).not.toMatch(/\*\*\+\d+ Attack\*\*/);
+  });
+
+  it('golden doubles the printed magnitude', () => {
+    expect(alternatingBuffText('d2_matriarch', 0, true)).toContain('{{+4 Attack}}');
+  });
+
+  it('returns null for a card that does not alternate', () => {
+    expect(alternatingBuffText('karwind', 0)).toBeNull();
   });
 });

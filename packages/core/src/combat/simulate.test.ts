@@ -89,7 +89,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
   });
 
-  it('Kennelmaster Start of Combat: buffs your Beasts +1 Attack, and a Beast summoned later inherits the aura', () => {
+  it('Kennelmaster Start of Combat: buffs your Beasts +2 Attack, and a Beast summoned later inherits the aura', () => {
     // The SoC aura buffs the living Beasts now (Kennelmaster + Mama Pup), then Mama Pup dies and its Pups —
     // summoned AFTER the aura registered — pick it up too ("wherever they are, incl. combat summons").
     const p: BoardMinion[] = [
@@ -102,7 +102,7 @@ describe('simulate (handoff A.3)', () => {
     expect(summonEvents.length).toBeGreaterThanOrEqual(1); // Mama Pup's Pups spawned
     const summonedUids = new Set(summonEvents.flatMap((ev) => (ev.type === 'summon' ? [ev.minion.uid] : [])));
     // A Beast summoned after Kennelmaster's SoC still receives the +1/+0 aura.
-    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 0 && summonedUids.has(ev.target));
+    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 0 && summonedUids.has(ev.target));
     expect(summonAura).toBe(true);
   });
 
@@ -118,8 +118,8 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 1);
     const beastUid = r.initial.player[1]!.uid;
     const dragonUid = r.initial.player[2]!.uid;
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === beastUid && ev.attack === 1 && ev.health === 0)).toBe(true);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 1 && ev.health === 0)).toBe(false);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === beastUid && ev.attack === 2 && ev.health === 0)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 2 && ev.health === 0)).toBe(false);
     // No Kennelmaster buff ever grants Health (stepHealth 0 keeps the Avenge accrual off Health too).
     const kennelUid = r.initial.player[0]!.uid;
     expect(r.events.some((ev) => ev.type === 'buff' && ev.source === kennelUid && ev.health !== 0)).toBe(false);
@@ -134,7 +134,7 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 1);
     const pupUids = r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : []));
     expect(pupUids.length).toBe(2); // both Pups summoned
-    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 1 && ev.health === 0));
+    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 2 && ev.health === 0));
     expect(buffed.length).toBe(2); // BOTH inherit the +1/+0 aura, not only the first
   });
 
@@ -665,7 +665,7 @@ describe('simulate (handoff A.3)', () => {
     const gUid = (r.events[rebornIdx] as { target: string }).target;
     // A +1/+0 aura buff lands on the Gryphon (a Beast) AFTER it Rises (the bug: reborn bodies were skipped).
     const auraAfterRise = r.events.slice(rebornIdx + 1).some(
-      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 1 && ev.health === 0,
+      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 2 && ev.health === 0,
     );
     expect(auraAfterRise).toBe(true);
   });
@@ -1574,8 +1574,12 @@ describe('simulate (handoff A.3)', () => {
     );
     // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one sc narration each.
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
-    // Karwind procs once per trigger → +2/+2 to both Dragons (Karwind + Hoard Cleric), 8× = 16 buff events.
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(16);
+    // Karwind procs once per trigger. Since the 2026-07-25 rework the two grants differ, and this board shows
+    // all three cases at once: Karwind itself takes the BASE +2/+2 (it is never its own neighbour); the Hoard
+    // Cleric is an ADJACENT Dragon so it takes +4/+4 instead; Drakko sits on the other side but is NEUTRAL, so
+    // the adjacency clause passes it over entirely.
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(8);
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length).toBe(8);
   });
 
   it("Bane reacting to Ryme's battlecry trigger carries the Fodder enchant back to the run", () => {
@@ -2804,16 +2808,43 @@ describe('simulate (handoff A.3)', () => {
     expect([shard!.attack, shard!.health]).toEqual([4, 4]); // 1/1 base + 3 Rubies played in combat
   });
 
-  it('set 2 — Deepdelve Paragon: Rubies give 3× stats in combat (adds 2× the Ruby buff)', () => {
-    const dptest: CardDef = { id: 'dptest', name: 'DP', tribe: 'kobold', tier: 6, attack: 4, health: 100, keywords: ['SC'],
-      effects: [{ on: 'startOfCombat', do: 'scTripleRubyStats' }], text: '' };
+  // Deepdelve Paragon, final spec 2026-07-25 (owner): it does exactly one thing — Rubies APPLIED DURING
+  // COMBAT are worth double (triple Gilded). No Start-of-Combat step, and Rubies already on the board are
+  // untouched. Both of those were wrong in the previous version, so both are pinned below.
+  const dptest: CardDef = { id: 'dptest', name: 'DP', tribe: 'kobold', tier: 6, attack: 4, health: 100, keywords: [],
+    effects: [{ on: 'passive', do: 'rubyStatMultiplier' }], text: '' };
+  const gdmid: CardDef = { id: 'gdmid', name: 'GD', tribe: 'kobold', tier: 2, attack: 2, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };
+  const nbmid: CardDef = { id: 'nbmid', name: 'NB', tribe: 'kobold', tier: 1, attack: 1, health: 100, keywords: [], effects: [], text: '' };
+
+  it('set 2 — Deepdelve Paragon doubles a Ruby applied MID-COMBAT', () => {
+    const fight = (paragon: boolean, golden = false) => simulate(
+      [
+        ...(paragon ? [{ cardId: 'dptest', attack: 4, health: 100, sourceUid: 'DP', golden }] : []),
+        { cardId: 'gdmid', attack: 2, health: 1, sourceUid: 'GD' },
+        { cardId: 'nbmid', attack: 1, health: 100, sourceUid: 'NB' },
+      ] as never,
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, dptest, gdmid, nbmid },
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    const best = (r: ReturnType<typeof simulate>) =>
+      Math.max(...(r.events.filter((e) => e.type === 'buff') as { attack: number }[]).map((b) => b.attack));
+    const plain = best(fight(false));
+    expect(best(fight(true)), 'with a Paragon out the in-combat Ruby is worth double').toBe(plain * 2);
+    expect(best(fight(true, true)), 'Gilded → triple').toBe(plain * 3);
+  });
+
+  it('set 2 — Deepdelve Paragon does NOTHING to Rubies already on the board', () => {
+    // The behaviour the owner corrected: no Start-of-Combat top-up, no touching existing Ruby stats.
+    // Precise assertion: other systems buff during a fight, so what matters is that NONE of the buffs on the
+    // Ruby carrier are SOURCED from the Paragon. That's exactly the old Start-of-Combat top-up this removed.
     const r = simulate([
       { cardId: 'dptest', attack: 4, health: 100, sourceUid: 'DP' },
       { cardId: 'sandbag', attack: 5, health: 100, sourceUid: 'M', buffs: [{ source: 'Ruby', attack: 2, health: 2, count: 2 }] },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, dptest },
       combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    // Deepdelve adds 2× the +2/+2 Ruby buff → a +4/+4 Start-of-Combat buff.
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+    const fromParagon = (r.events.filter((e) => e.type === 'buff') as { source?: string }[])
+      .filter((b) => b.source === 'm0');
+    expect(fromParagon, 'the Paragon grants nothing itself — it only scales Rubies as they land').toEqual([]);
   });
 
   it('set 2 — Geode Guardian: on death, plays a Ruby on each adjacent minion (carry-back)', () => {

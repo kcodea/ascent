@@ -41,7 +41,7 @@ were left UNgated despite being on the inert list, because each still does somet
 erode cutoff) — disabling them would have removed genuine reach.
 
 **Verified:** typecheck clean, lint 0 errors, **2304 tests** (120 files), `build:web` green. No param default,
-range, kind, group, label or declaration order changed anywhere;  has zero removed lines.
+range, kind, group, label or declaration order changed anywhere; `styles.css` has zero removed lines.
 
 ## 2026-07-26 (FX workbench — usability pass: undo, honest controls, and help that exists)
 

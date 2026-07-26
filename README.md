@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **All Set-2 minion art re-wired** (110 masters) — Broodwright and Feastmaster Vhal finally have their own.
 - **A 19-card balance batch** — Kennelmaster, Karwind, Groveweaver, Denkeeper Oona, Roaring Matriarch (which
   now alternates Attack/Health each turn) and more, plus two new minions: Blazing Keeper and Storm Chaser.
 - **Deepdelve Paragon works** — it doubles Rubies applied *in combat*, and Ruby gains no longer carry back

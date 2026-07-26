@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+### 2026-07-25 — art: re-wired all Set-2 minion art (110 masters)
+
+Full re-wire from `C:\Game Assets\Ascent Art\Set 2 Minions`. 110 masters matched to card ids by normalised
+name, 239.6MB → 6.17MB as WebP.
+
+**Two long-standing gaps closed:** Broodwright and Feastmaster Vhal finally have masters — they'd been
+falling back since the Demon tribe shipped. Also picked up `n2_spellsword`, and re-pointed `GemShard.png` at
+`k_gemheart` after the Gem Shard → Gemheart Golem rename.
+
+**Four filename aliases**, each a deliberate call rather than a fuzzy match: `BabyRex` → "T-Rex Baby" (the
+file reverses the words), `JenkinsAndFi` → `jenkins` (the card reads "Jensen & Fi"), `SalvatoreMcKluskey` →
+`salvatore` (the card spells it McKlusky), `ZyffBetrayer` → "Zyff, the Betrayer".
+
+**Reported, not guessed at** (the standing rule — never attribute art from a filename that doesn't match a
+card):
+- `GemforgeFiend.png` — no card by that name. "Gemgorge Fiend" is one letter away but already has art, so
+  overwriting it on a spelling guess would be exactly the wrong move.
+- `Whelp.png` — TWO cards are literally named Whelp (set-1's `whelpling` token and set-2's `n2_whelp`).
+- Six alternate `…2` masters (CinderChancellor2, ErrandFiend2, FeastmasterVhal2, GemheartCarver2,
+  GemstormInstigator2, Veinbreaker2). None of those cards is a Choose One, so they aren't branch art either.
+- `extra.png`, `unknown.png` and one raw-export filename — un-attributed.
+
+**Six Set-2 minions still have no master:** Blazing Keeper and Storm Chaser (new this session), plus Aeon
+Acolyte, Bellringer Voss, Lastlight Marshal and Oathbound Avenger. All fall back cleanly.
+
+**Verified** after a dev-server RESTART (the eager `import.meta.glob` needs one — a reload isn't enough):
+111 of 117 Set-2 minions resolve art, all 111 images load at 512px with zero failures, and the newly wired
+ones render distinctly on a live board.
+
+**Sweep check:** the optimizer once swept up unrelated tracked PNGs, so the change set was reconciled against
+the match list — 109 files changed, every one of them in the list, nothing extra. (`taurus` re-encoded
+byte-identically; its master hadn't changed.)
+
 ### 2026-07-25 — content: the owner's card batch (17 changes, 2 new minions, Deepdelve fix, Ruby hover)
 
 **Part 1 — reworks on existing primitives.** Scalechanter (every Shop spell gives your whole board +1 Attack;

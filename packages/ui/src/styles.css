@@ -2803,6 +2803,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
 .card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.76; --fovl: #655449; --fovl-blend: overlay; }
+/* PER-TRIBE OVAL — the art is authored in its tribe's colours (and has its own gilded variant), so BOTH of the
+   shared oval's recolour passes must stand down or the authored colour is destroyed:
+     • `--frame-tone: grayscale(0.92) brightness(1.2) contrast(0.9)` (set on `.stdframe` above) desaturates the
+       gold master to silver → it would wash a coloured frame out to grey.
+     • the baked `--fovl` overlay (#655449 @ 0.76, `overlay` blend) is what tints the silver toward stone → it
+       would smear brown over the tribe hue.
+   Both are vars, so neutralising them here flows into every rule that reads them (the keyword-state rims
+   below included). Geometry knobs are deliberately left alone: the art matches the shared oval's window. */
+.card.compact.stdframe.tribeframe { --frame-tone: brightness(1); --fovl-a: 0; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));

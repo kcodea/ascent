@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-07-26 (per-tribe card frames)
+
+### feat(ui): every tribe wears its own oval frame, with a dedicated gilded variant
+
+The shared silver oval is now per-tribe: all seven tribes (beast, dragon, mech, undead, demon, neutral,
+kobold) get owner-authored coloured art, each with its own GILDED variant used when the minion is golden.
+`TRIBE_OVALS` maps tribe → `{ base, gold }` and `stdFrameSrcFor(tribe, golden)` picks the src; a card wearing
+one also gets the `.tribeframe` class. Falls back to `standard-oval-v2.png` for any tribe without art.
+
+**The load-bearing part is what `.tribeframe` turns OFF.** The shared oval is authored neutral gold and gets
+its silver-stone look from TWO recolour passes, both of which would destroy authored colour:
+`--frame-tone: grayscale(0.92) brightness(1.2) contrast(0.9)` desaturates it, and a baked `--fovl` overlay
+(`#655449` @ 0.76, `overlay` blend) washes it brown. `.card.compact.stdframe.tribeframe` neutralises both
+(`brightness(1)` / `--fovl-a: 0`). Both are vars, so the override flows into every rule that reads them —
+including the keyword-state rims (Divine Shield etc.) further down the file. Geometry knobs are untouched:
+the art is 1059×1427 with the same window as the shared oval, so "AUTHORED FRAMES" needed no retuning.
+
+Assets: 14 webp at native 1059×1427 (sharp q92) — **1.84 MB total vs ~9.8 MB as PNG**, matching the repo's
+webp-for-art convention.
+
+**Verified live** across all seven tribes: each resolves to its own `oval-<tribe>.webp` with `.tribeframe`
+applied, `--frame-tone: brightness(1)` and `--fovl-a: 0`; all seven golden cards resolve to
+`oval-<tribe>-gilded.webp`. Frame precedence is unchanged — a spell still shows the purple square
+(`spell-frame-v2.png`, no `tribeframe`) and a **Taunt** minion still shows the shared heater shield, so a
+Taunt Beast does NOT wear the beast oval (only ovals were authored).
+
+Not wired: the owner also supplied `dwarf frame.png` / `dwarf gilded frame.png`, but there is no `dwarf` tribe
+in the `Tribe` union — held aside pending that tribe existing.
+
+
 ### 2026-07-26 — content: removed four minions (Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte, Fatecarver)
 
 Owner cut. Removed the card defs, their art, and everything that existed only to serve them:

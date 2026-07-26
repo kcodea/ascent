@@ -192,6 +192,7 @@ export function instView(
     : text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
+    chosenOption: inst.chosenOption, // a resolved Choose One also wears the ART of the branch it became
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,
     attack: shownAtk, health: shownHp,
     keywords: inst.keywords, text: shownText,

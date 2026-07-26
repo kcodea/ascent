@@ -190,7 +190,7 @@ export type EffectFactoryId =
   | 'consumeShopRightmost' // Set 2 — Hungerling / Revolving Maw: consume the right-most Shop minion
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Display Curator: permanent buff to minions bought from the Shop
-  | 'battlecryBuffRightmostShopPermanent' // Set 2 — Market Tormentor: permanently buff the right-most shop minion
+  | 'shopRefreshedBuffRightmost' // Set 2 — Market Tormentor: each fresh Shop's right-most minion comes in buffed
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Grand Gourmand: gain the right-most shop minion's stats (no consume)
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Tallymonger: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount

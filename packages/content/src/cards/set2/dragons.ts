@@ -135,8 +135,8 @@ export const SET2_DRAGONS: CardDef[] = [
     // Dragon/DEMON, Rise: pays off the Demon half of its typing — eating from the Shop turns into spell fuel.
     // The `onConsume` factory self-guards on the payload, so it's "when THIS consumes", not any consume on the
     // board. Broodlord has no consume of its own: it eats via the shared Demon sources (a Fodder sell's
-    // left-most Demon, Feastmaster Vhal's neighbours). Rise is kept — the owner's change rewrote the effect,
-    // not the card's keywords (owner change 2026-07-25).
+    // left-most Demon, Feastmaster Vhal's neighbours). Rise REMOVED at the owner's call (2026-07-25) — the
+    // consume payoff is the whole card now.
     id: 'd2_broodlord',
     name: 'Ashen Broodlord',
     tribe: 'dragon',
@@ -144,10 +144,10 @@ export const SET2_DRAGONS: CardDef[] = [
     tier: 5,
     attack: 6,
     health: 8,
-    keywords: ['R'],
+    keywords: [],
     effects: [{ on: 'onConsume', do: 'onConsumeSelfGrantSpell', params: { count: 1 } }],
-    text: '**Rise.** When this **Consumes** a minion, get a **Shop spell**.',
-    goldenText: '**Rise.** When this **Consumes** a minion, get **2 Shop spells**.',
+    text: 'When this **Consumes** a minion, get a **Shop spell**.',
+    goldenText: 'When this **Consumes** a minion, get **2 Shop spells**.',
   },
   {
     // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the

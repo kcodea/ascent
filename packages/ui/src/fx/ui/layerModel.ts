@@ -226,6 +226,36 @@ export function structureKey(layers: EditorLayer[]): string {
   return layers.map((l) => `${l.primitive}:${l.anchor}`).join('|');
 }
 
+/**
+ * The composition duration that exactly contains every layer — the loop trimmed to the effects, with no
+ * dead time at the end and nothing cut off. Pure; the caller decides whether to apply it.
+ *
+ * `null` means "can't fit", and the caller should disable the control rather than guess:
+ *  - No layers at all.
+ *  - Every layer has `life === null`. A full-life layer runs to whatever the duration happens to be, so it
+ *    can't tell you what the duration should be — fitting to those alone is circular.
+ *
+ * Full-life layers still constrain the result when finite ones exist: a layer starting at 900ms would never
+ * play in a 500ms loop, so the fit is held at or above the latest such start plus one step. The result is
+ * rounded UP to `step` and clamped to `[min, max]`, so it stays a value the duration dial can actually
+ * represent and never trims a layer short to reach it.
+ */
+export function fitDurationToLayers(
+  layers: EditorLayer[],
+  bounds: { min: number; max: number; step: number },
+): number | null {
+  let latestFiniteEnd = -1;
+  let latestFullLifeStart = -1;
+  for (const l of layers) {
+    if (l.life === null) latestFullLifeStart = Math.max(latestFullLifeStart, l.at);
+    else latestFiniteEnd = Math.max(latestFiniteEnd, l.at + l.life);
+  }
+  if (latestFiniteEnd < 0) return null;
+  const needed = Math.max(latestFiniteEnd, latestFullLifeStart + bounds.step);
+  const snapped = Math.ceil(needed / bounds.step) * bounds.step;
+  return Math.min(bounds.max, Math.max(bounds.min, snapped));
+}
+
 /** Build the `FxDef` the player consumes from the editor layers. `life = null` maps to `FxLayer.life`
  *  omitted (undefined); params pass through by reference (the player treats the def as read-only). */
 export function toDef(id: string, durationMs: number, layers: EditorLayer[]): FxDef {

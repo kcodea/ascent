@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx/ui): "Fit to effects" — trim the loop duration to the composition
+
+Owner: "can we make a button at the bottom in the play transport panel that allows us to sync the duration of
+the effects to the duration of the loop?" Asked which direction, since "duration of the effects" could mean
+the layer timeline or the primitives' own particle-life params; the answer was **loop → fit the effects**.
+
+New `fitDurationToLayers` (pure, in `layerModel.ts`) returns the shortest duration that still contains every
+layer: the latest `at + life`, rounded UP to the duration dial's 50ms step so a fit can never trim the last
+layer short, then clamped into the dial's range. Two subtleties it handles rather than ignores:
+
+- **Full-life layers can't set the end.** A `life: null` layer runs to whatever the duration happens to be,
+  so fitting to one is circular. With no finite-life layer anywhere, the helper returns `null` and the button
+  is disabled with a tooltip saying so — not silently inert.
+- **But they still constrain it.** A full-life layer starting at 900ms would never play in a 500ms loop, so
+  the fit is held at or above the latest such start plus one step.
+
+The button sits in the loop group beside the Duration dial, sharing the Loop toggle's chip shape but never
+its lit `.on` state — it's a one-shot action, not a mode. It's disabled (with the reason in the tooltip) when
+there's nothing to fit against or the loop already fits, and its edit is `record('structural')` so it lands
+as its own undo step instead of coalescing with a Duration drag next to it.
+
+Verified: typecheck clean, lint 0 errors, 2308 tests across 120 files green (8 new), `build:web` green.
+
 ### fix(fx): three stage scenarios, and an unstaged anchor no longer parks the effect off-screen
 
 Owner: "i dont see any effects occuring for most of the view modes. its working for pin to cursor and that's

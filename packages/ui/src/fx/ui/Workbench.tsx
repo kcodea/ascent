@@ -30,6 +30,7 @@ import {
   createEditorLayer,
   duplicateLayer,
   effectiveMutes,
+  fitDurationToLayers,
   moveLayer,
   removeLayer,
   setLayerAnchor,
@@ -101,6 +102,10 @@ const LOOP_GAP_STEP_MS = 50;
 
 /** The duration band a restored session / loaded def is clamped into — the dial's own bounds, handed to the
  *  pure helpers in `sessionState.ts` so that module never has to know about this file's constants. */
+/** The same dial bounds, in the shape `fitDurationToLayers` wants (it needs the STEP, which the session
+ *  clamp doesn't care about, and no fallback, which a fit can't use). */
+const DURATION_FIT_BOUNDS = { min: MIN_DURATION_MS, max: MAX_DURATION_MS, step: DURATION_STEP_MS };
+
 const DURATION_BOUNDS: DurationBounds = {
   min: MIN_DURATION_MS,
   max: MAX_DURATION_MS,
@@ -943,6 +948,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     applyDuration(ms);
   };
 
+  // Trim the loop to the effects: the shortest duration that still contains every layer (see
+  // `fitDurationToLayers`). `null` = nothing to fit against, and the button is disabled with a reason rather
+  // than silently doing nothing. Recomputed per render off `layers`, which is cheap (one pass, no allocation)
+  // and keeps the button's enabled-ness honest the instant a layer's timing changes.
+  const fittedDuration = fitDurationToLayers(layers, DURATION_FIT_BOUNDS);
+  const canFitDuration = fittedDuration !== null && fittedDuration !== durationMs;
+  const fitDuration = (): void => {
+    if (fittedDuration === null || fittedDuration === durationMs) return;
+    record('structural'); // a discrete one-click jump, never coalesced with a duration DRAG next to it
+    autosaveArmedRef.current = true;
+    applyDuration(fittedDuration);
+  };
+
   // Copy the whole composed DEF as JSON — with multiple layers, the def is the useful artifact, not one
   // layer's params.
   const copyDef = (): void => {
@@ -1462,6 +1480,23 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             onChange={(e) => changeDuration(Number(e.target.value))}
           />
           <span className="fxwb-speedval">{durationMs} ms</span>
+          {/* Trim the loop to the content. Disabled states say WHY rather than sitting there dead: nothing
+              to fit against (every layer runs full-life, so none of them can say what the duration should
+              be), or the loop already fits. */}
+          <button
+            className="fxwb-fitduration"
+            onClick={fitDuration}
+            disabled={!canFitDuration}
+            title={
+              fittedDuration === null
+                ? 'Nothing to fit to — every layer runs the full duration, so none of them sets an end. Give a layer a fixed "Lasts for" first.'
+                : fittedDuration === durationMs
+                  ? 'The loop already ends exactly where the last layer does.'
+                  : `Trim the loop to ${fittedDuration} ms — where the last layer ends, so there's no dead time and nothing is cut off.`
+            }
+          >
+            ⇥ Fit to effects
+          </button>
           <label className="fxwb-speedlabel" htmlFor="fxwb-loopgap">Loop gap</label>
           <input
             id="fxwb-loopgap"

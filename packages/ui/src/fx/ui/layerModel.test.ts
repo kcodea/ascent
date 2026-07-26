@@ -6,6 +6,7 @@ import {
   duplicateLayer,
   effectiveMuted,
   effectiveMutes,
+  fitDurationToLayers,
   moveLayer,
   removeLayer,
   setLayerAnchor,
@@ -420,5 +421,54 @@ describe('toDef', () => {
   it('drops the authoring-only fields (name / muted / solo)', () => {
     const def = toDef('workbench', 1000, [layer('burst', { name: 'flash', muted: true, solo: true })]);
     expect(def.layers[0]).toEqual({ primitive: 'burst', anchor: 'travel', at: 0, life: undefined, params: {} });
+  });
+});
+
+describe('fitDurationToLayers', () => {
+  const BOUNDS = { min: 200, max: 4000, step: 50 };
+
+  it('fits the loop to where the last layer ends', () => {
+    const layers = [
+      layer('ribbon', { at: 0, life: 400 }),
+      layer('burst', { at: 200, life: 300 }),
+    ];
+    expect(fitDurationToLayers(layers, BOUNDS)).toBe(500);
+  });
+
+  it('rounds UP to the dial step, so a fit never trims the last layer short', () => {
+    expect(fitDurationToLayers([layer('burst', { at: 0, life: 410 })], BOUNDS)).toBe(450);
+  });
+
+  it('clamps into the dial range', () => {
+    expect(fitDurationToLayers([layer('burst', { at: 0, life: 10 })], BOUNDS)).toBe(200);
+    expect(fitDurationToLayers([layer('burst', { at: 0, life: 99999 })], BOUNDS)).toBe(4000);
+  });
+
+  // A full-life layer runs to whatever the duration is, so it cannot say what the duration should BE.
+  it('returns null when nothing has a finite life (fitting to those alone is circular)', () => {
+    expect(fitDurationToLayers([layer('ribbon'), layer('burst')], BOUNDS)).toBeNull();
+  });
+
+  it('returns null for an empty composition', () => {
+    expect(fitDurationToLayers([], BOUNDS)).toBeNull();
+  });
+
+  it('ignores full-life layers when a finite one sets the end', () => {
+    const layers = [layer('ribbon', { at: 0, life: null }), layer('burst', { at: 100, life: 250 })];
+    expect(fitDurationToLayers(layers, BOUNDS)).toBe(350);
+  });
+
+  // Otherwise fitting could shrink the loop below a full-life layer's start, and that layer would silently
+  // never play again.
+  it('stays above a full-life layer start even when the finite layers end earlier', () => {
+    const layers = [layer('ribbon', { at: 900, life: null }), layer('burst', { at: 0, life: 250 })];
+    expect(fitDurationToLayers(layers, BOUNDS)).toBe(950);
+  });
+
+  it('is pure — it does not touch the layers', () => {
+    const layers = [layer('burst', { at: 200, life: 300 })];
+    const before = JSON.parse(JSON.stringify(layers));
+    fitDurationToLayers(layers, BOUNDS);
+    expect(layers).toEqual(before);
   });
 });

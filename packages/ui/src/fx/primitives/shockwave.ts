@@ -216,10 +216,15 @@ const SPECS = {
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style',
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
+    help: 'The four colours each ring steps through, faint outer fringe first and white-hot crest last. A preset swaps all four at once; the last (core) colour is also what tints the Glow halo.',
   },
-  alpha: { kind: 'slider', label: 'Alpha', group: 'Style', min: 0, max: 1, step: 0.01, default: 1 },
+  alpha: {
+    kind: 'slider', label: 'Alpha', group: 'Style', min: 0, max: 1, step: 0.01, default: 1,
+    help: 'Overall opacity of the rings, glow included — 1 is full strength, lower fades the whole effect back without changing its shape or timing.',
+  },
   blendMode: {
     kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add',
+    help: 'How the rings composite over what is behind them: add (the default) makes them glow and brighten whatever they cross, normal paints them as solid opaque colour, screen is a gentler lift, and multiply/overlay stain what is behind rather than lighting it.',
   },
   glow: {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.3,
@@ -232,22 +237,28 @@ const SPECS = {
   },
   noiseAlong: {
     kind: 'slider', label: 'Noise (along)', group: 'Noise', min: 0.5, max: 12, step: 0.1, default: 3,
-    help: 'Noise frequency around the ring.',
+    help: 'How fine the tatter is around the ring — low takes a few big bites out of the band, high leaves a dense ragged fringe. Does nothing while Erode is 0.',
   },
   noiseAcross: {
     kind: 'slider', label: 'Noise (across)', group: 'Noise', min: 1, max: 20, step: 0.1, default: 7,
-    help: 'Noise frequency across the ring band (crest → edge).',
+    help: 'How fine the tatter is across the band (crest → edge), so the outer fringe frays differently from the bright middle. Does nothing while Erode is 0.',
   },
-  warp: { kind: 'slider', label: 'Warp', group: 'Noise', min: 0, max: 1.5, step: 0.01, default: 0.35 },
+  warp: {
+    kind: 'slider', label: 'Warp', group: 'Noise', min: 0, max: 1.5, step: 0.01, default: 0.35,
+    help: 'Curls the tatter into flowing, flame-like streaks instead of round blobs — 0 leaves it plain and lumpy, 0.35 is the reference look. Does nothing while Erode is 0.',
+  },
   scroll: {
     kind: 'slider', label: 'Scroll', group: 'Noise', min: 0, max: 6, step: 0.05, default: 1.4,
-    help: 'How fast the noise swirls around the ring, rad/sec.',
+    help: 'How fast the tatter swirls around the ring — 0 freezes the pattern in place so the ring expands without churning. Does nothing while Erode is 0.',
   },
   erode: {
     kind: 'slider', label: 'Erode', group: 'Noise', min: 0, max: 1.2, step: 0.01, default: 0.5,
     help: 'How much the noise eats into the ring — higher gives a more tattered band.',
   },
-  gain: { kind: 'slider', label: 'Gain', group: 'Noise', min: 0.3, max: 2, step: 0.01, default: 1.5 },
+  gain: {
+    kind: 'slider', label: 'Gain', group: 'Noise', min: 0.3, max: 2, step: 0.01, default: 1.5,
+    help: 'How well a ring resists Erode — raise it and the noise takes smaller bites so the band reads solid, lower it and the same Erode chews it down to wisps. Does nothing while Erode is 0.',
+  },
 } satisfies FxParamSpecs;
 
 type ShockwaveParams = ParamsOf<typeof SPECS>;

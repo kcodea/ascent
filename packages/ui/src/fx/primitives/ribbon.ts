@@ -160,14 +160,16 @@ const SPECS = {
   },
   plateau: {
     kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
-    help: 'Width of the flat hot core; at 0 the top colour band never fires.',
+    help: 'How wide the flat white-hot core running down the middle of the trail is — 0.3 is the reference look; at 0 the brightest colour shrinks to a hairline you will never see.',
   },
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style',
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
+    help: 'The four colours the trail steps through, faint outer edge first and white-hot core last. A preset swaps all four at once; the last (core) colour is also what tints the Glow halo.',
   },
   blendMode: {
     kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add',
+    help: 'How the trail composites over what is behind it: add (the default) makes it glow and brighten whatever it crosses, normal paints it as solid opaque colour, screen is a gentler lift, and multiply/overlay stain what is behind rather than lighting it.',
   },
   glow: {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.3,
@@ -176,20 +178,29 @@ const SPECS = {
 
   noiseAlong: {
     kind: 'slider', label: 'Noise (along)', group: 'Noise', min: 0.5, max: 12, step: 0.1, default: 3,
-    help: 'Noise frequency along the trail (head → tail).',
+    help: 'How fine the mottling is along the trail (head → tail) — low gives a few long blotches, high a dense speckle. Does nothing while Erode is 0.',
   },
   noiseAcross: {
     kind: 'slider', label: 'Noise (across)', group: 'Noise', min: 1, max: 20, step: 0.1, default: 7,
-    help: 'Noise frequency across the trail width.',
+    help: 'How fine the mottling is across the trail\'s width — high values break it into thin lengthwise streaks. Does nothing while Erode is 0.',
   },
-  warp: { kind: 'slider', label: 'Warp', group: 'Noise', min: 0, max: 1.5, step: 0.01, default: 0.35 },
-  scroll: { kind: 'slider', label: 'Scroll', group: 'Noise', min: 0, max: 6, step: 0.05, default: 1.4 },
+  warp: {
+    kind: 'slider', label: 'Warp', group: 'Noise', min: 0, max: 1.5, step: 0.01, default: 0.35,
+    help: 'Curls the mottling into flowing, flame-like streaks instead of round blobs — 0 leaves it plain and lumpy, 0.35 is the reference look. Does nothing while Erode is 0.',
+  },
+  scroll: {
+    kind: 'slider', label: 'Scroll', group: 'Noise', min: 0, max: 6, step: 0.05, default: 1.4,
+    help: 'How fast the mottling flows along the trail — this is what makes the fire churn instead of sitting frozen; 0 holds it still. Does nothing while Erode is 0.',
+  },
   erode: {
     kind: 'slider', label: 'Erode', group: 'Noise', min: 0, max: 1.2, step: 0.01, default: 0.5,
     help: 'How much the noise eats into the shape — higher gives a more tattered edge.',
   },
 
-  gain: { kind: 'slider', label: 'Gain', group: 'Shape', min: 0.3, max: 2, step: 0.01, default: 1.5 },
+  gain: {
+    kind: 'slider', label: 'Gain', group: 'Shape', min: 0.3, max: 2, step: 0.01, default: 1.5,
+    help: 'How well the trail resists Erode — raise it and the noise takes smaller bites so the body fills in solid, lower it and the same Erode chews it down to wisps. Does nothing while Erode is 0.',
+  },
   head: {
     kind: 'slider', label: 'Head', group: 'Shape', min: 0.01, max: 0.5, step: 0.005, default: 0.06,
     help: 'How quickly the trail ramps up to full brightness at the head.',
@@ -198,13 +209,22 @@ const SPECS = {
     kind: 'slider', label: 'Tail', group: 'Shape', min: 0.3, max: 4, step: 0.05, default: 1.6,
     help: 'Exponent of the tail fade — higher tapers off sooner.',
   },
-  soft: { kind: 'slider', label: 'Soft', group: 'Shape', min: 0.5, max: 6, step: 0.1, default: 1.5 },
+  soft: {
+    kind: 'slider', label: 'Soft', group: 'Shape', min: 0.5, max: 6, step: 0.1, default: 1.5,
+    help: 'How crisp the trail\'s outline is — 0.5 is a hard cel cut-out, 6 feathers the edge out over several pixels. The Glow halo has its own soft edge and is unaffected.',
+  },
   length: {
     kind: 'slider', label: 'Length', group: 'Shape', min: 60, max: 700, step: 5, default: 300,
     help: 'Max spine arc length in px — how far back the trail reaches.',
   },
-  width: { kind: 'slider', label: 'Width', group: 'Shape', min: 8, max: 160, step: 1, default: 54 },
-  alpha: { kind: 'slider', label: 'Alpha', group: 'Shape', min: 0, max: 1, step: 0.01, default: 1 },
+  width: {
+    kind: 'slider', label: 'Width', group: 'Shape', min: 8, max: 160, step: 1, default: 54,
+    help: 'How thick the trail is in px at its fattest. Head pinch, Tail feather and the Width / length curve all scale it along the length, so this sets the ceiling rather than a constant width.',
+  },
+  alpha: {
+    kind: 'slider', label: 'Alpha', group: 'Shape', min: 0, max: 1, step: 0.01, default: 1,
+    help: 'Overall opacity of the whole trail, glow included — 1 is full strength, lower dials the entire effect back without changing its shape.',
+  },
   headPinch: {
     kind: 'slider', label: 'Head pinch', group: 'Shape', min: 0.02, max: 0.5, step: 0.01, default: 0.12,
     help: 'Fraction of the length over which the ribbon geometry widens from a point at the head.',

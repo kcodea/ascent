@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { sampleCurve } from '../curve';
+import type { FxParamSpecs } from '../params';
 import { makeRng, type FxRandom } from '../rng';
 import {
   advanceSmokeBudget,
@@ -19,6 +20,13 @@ import {
 describe('smoke param specs', () => {
   it('registers under the id "smoke"', () => {
     expect(smokePrimitive.id).toBe('smoke');
+  });
+
+  /** See ribbon.test.ts's copy for why every param must carry help — the same gate on smoke's own SPECS. */
+  it('gives every param non-empty help text', () => {
+    const specs: FxParamSpecs = smokePrimitive.params;
+    const missing = Object.keys(specs).filter((key) => (specs[key].help ?? '').trim() === '');
+    expect(missing).toEqual([]);
   });
 
   // The smoke-defining defaults (vs the emitter template): motes RISE, BILLOW OUT, are grey, and composite as

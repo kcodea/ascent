@@ -3,6 +3,50 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-26 (FX workbench — usability pass: undo, honest controls, and help that exists)
+
+### fix(fx): two controls that lied, plus undo/redo, naming, solo, and 149/149 help coverage
+
+An approachability audit against After Effects / Niagara / Unity VFX Graph / Cavalry / Effekseer / Spine /
+Lottie / `@pixi/particle-emitter`. Two findings were outright defects, not design debt:
+
+- **The scrub bar did not scrub.** `scrub()` set the clock then called `reconcile(0)`, whose tick is guarded by
+  `if (dtMs > 0)` — so dragging inside a live layer changed only the numeric readout. It now advances the
+  instances by the real elapsed ms; a BACKWARD scrub re-simulates from zero (forward-only particle sims have
+  no reverse integration), bounded to ~2s of sim in 16ms slices so a long def cannot lock the UI. The agent
+  proved the bug first by restoring the old body and watching the new tests fail.
+- **The curve editor could only draw straight lines.** It dragged existing points but could not add or remove
+  any, and most curves default to 2 points — so the headline value-over-life feature was unusable without
+  discovering the preset dropdown. Double-click adds, alt/right-click removes, ends stay pinned, and it can
+  never drop below the 2 points `coerceParams` requires.
+
+**Undo/redo** over the whole editor state, which finally makes the worst trap reversible: switching a layer's
+primitive silently wiped every param tuned on it. A slider drag coalesces into ONE history entry (same kind +
+key within 400ms) instead of sixty; structural actions always get their own. Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, with
+text inputs exempt so typing a def name is not hijacked. Plus **layer naming** (a three-burst composition
+showed three rows all reading "burst") and **solo**, both on the live path so isolating one layer does not
+restart — and therefore re-roll — the others.
+
+**Help text is now 149/149** (was 113/149, and the missing 24% was exactly the shader vocabulary — `warp`,
+`gain`, `scroll`, `blendMode`, `palette` had none on any primitive). Every param that is inert until another
+moves now says so in plain words, because the audit found **24 such cases** — including two mutually dead at
+their defaults (`Emit shape` does nothing while `Emit radius` is 0, and vice versa) and burst's `Interval`,
+the second slider in the panel, which does nothing under Fire at all.
+
+**Also:** a def file now round-trips layer `name`/`solo` (they survived the session autosave but were dropped
+by `coerceLayer`, so saving and reloading your own composition lost every label).
+
+**Verified:** typecheck clean, lint 0 errors, **2255 tests** (120 files), `build:web` green.
+
+**The comparison, since it decides what comes next.** Our param count is NOT the outlier — burst has 35 where
+Godot ships 107 on one material and an Effekseer node runs ~90-250. What every one of those tools has and we
+do not is a SMALL EXPOSED SURFACE on top of the full one: After Effects' Essential Graphics, Niagara's User
+Parameters, Cavalry's Components (3 promoted controls off an 8-layer rig), Effekseer's Dynamic Parameters
+(exactly **4** float inputs). Consistently a handful — never "most of them". We expose all 149, flat, always,
+with no field in the param spec to hang disclosure on. Queued next: a "Start from" gallery (13 finished defs
+already exist, mislabelled as the author's output and buried under 43 sliders), an `essential`/advanced split,
+and greying out the inert params.
+
 ## 2026-07-25 (FX — 12 authored effects for combat events that had none)
 
 ### feat(fx/ui): defs for Stealth-break, keyword gain/loss, Venom, Rally, quests, casts, plain death…

@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createPlayer, FIRE_TIMEOUT_MS, LAYER_SEED_STRIDE } from './player';
+import {
+  createPlayer,
+  FIRE_TIMEOUT_MS,
+  LAYER_SEED_STRIDE,
+  SCRUB_MAX_STEPS,
+  SCRUB_SIM_BUDGET_MS,
+  SCRUB_STEP_MS,
+} from './player';
 import { clearPrimitives, registerPrimitive } from './registry';
 import type { FxContext, FxInstance } from './primitive';
 import type { FxDef } from './def';
@@ -61,6 +68,26 @@ const BOUNDED_DEF: FxDef = {
   layers: [{ primitive: 'a', anchor: 'target', at: 0, life: 200, params: {} }],
 };
 
+// A long def with one full-span layer: the case that forces a scrub's fast-forward to be BOUNDED. Ticking
+// naively to the target would run 30 seconds of particle simulation inside a single step of a slider drag.
+const LONG_DEF: FxDef = {
+  id: 'long',
+  duration: 30_000,
+  layers: [{ primitive: 'a', anchor: 'target', at: 0, life: 30_000, params: {} }],
+};
+
+/** How many times an instance has been ticked. The stub's `update` is a vi.fn(), so its call log is the
+ *  record of the simulation it was actually given. */
+const tickCount = (inst: FxInstance): number => vi.mocked(inst.update).mock.calls.length;
+/** Total simulated ms an instance has been ticked with — "how old does this instance think it is". */
+const tickedMs = (inst: FxInstance): number =>
+  vi.mocked(inst.update).mock.calls.reduce((sum, [dt]) => sum + dt, 0);
+/** The most recently spawned instance of layer `id` (a re-simulating scrub spawns fresh ones). */
+const latest = (id: string): FxInstance => {
+  for (let i = spawned.length - 1; i >= 0; i--) if (spawned[i].id === id) return spawned[i].inst;
+  throw new Error(`no instance of '${id}' was ever spawned`);
+};
+
 describe('createPlayer', () => {
   beforeEach(() => {
     spawned.length = 0;
@@ -110,6 +137,126 @@ describe('createPlayer', () => {
     const b = spawned.find((s) => s.id === 'b')!.inst;
     p.scrub(50);
     expect(b.destroy).toHaveBeenCalled();
+  });
+
+  // A scrub must show the effect AS IT WOULD LOOK at the target time. It used to set the clock and call
+  // `reconcile(0)`, whose per-instance tick is guarded by `dtMs > 0` and whose `spawn` early-returns for an
+  // already-live layer -- so dragging the bar WITHIN one layer's window moved the numeric readout and
+  // nothing else, and crossing a boundary restarted that layer at its own t=0 instead of showing it
+  // mid-flight. It now advances the simulation for real, bounded by a fixed budget.
+
+  describe('scrub', () => {
+    it('advances a LIVE instance by the delta instead of freezing it', () => {
+      const p = createPlayer(DEF, CTX);
+      p.play();
+      const a = spawned[0].inst;
+      expect(tickedMs(a)).toBe(0);
+
+      p.scrub(120); // still inside 'a's 0..300 window -- no boundary crossed, so nothing respawns
+
+      expect(spawned).toHaveLength(1);
+      expect(spawned[0].inst).toBe(a);
+      expect(a.destroy).not.toHaveBeenCalled();
+      expect(tickedMs(a)).toBeCloseTo(120, 6); // THE bug: this used to be 0
+      expect(p.timeMs()).toBe(120);
+
+      p.scrub(180); // and again, forward within the same window
+      expect(tickedMs(a)).toBeCloseTo(180, 6);
+      expect(p.timeMs()).toBe(180);
+    });
+
+    it('spawns a layer that becomes due mid-jump and ticks it only for the time since its own start', () => {
+      const p = createPlayer(DEF, CTX);
+      p.play();
+      p.scrub(250); // 'b' starts at 200
+
+      const b = latest('b');
+      expect(tickedMs(b)).toBeGreaterThan(0);
+      // ~50ms of life, not 250. The slack is one slice: a layer spawned partway through a slice still takes
+      // that whole slice's tick, exactly as it does during ordinary playback.
+      expect(tickedMs(b)).toBeLessThanOrEqual(50 + SCRUB_STEP_MS);
+      expect(tickedMs(latest('a'))).toBeCloseTo(250, 6);
+    });
+
+    it('re-simulates from zero when scrubbing BACKWARD: a fresh instance, fast-forwarded to the target', () => {
+      const p = createPlayer(DEF, CTX);
+      p.play();
+      p.scrub(250);
+      const before = latest('a');
+      const countBefore = spawned.length;
+
+      p.scrub(80);
+
+      const after = latest('a');
+      // The primitives are forward-only, so the old instance can't be rewound -- it is torn down and a new
+      // one is simulated from the layer's start.
+      expect(after).not.toBe(before);
+      expect(before.destroy).toHaveBeenCalledTimes(1);
+      expect(spawned).toHaveLength(countBefore + 1); // 'b' (at:200) is not due at 80, so only 'a' comes back
+      expect(tickedMs(after)).toBeCloseTo(80, 6);
+      expect(p.timeMs()).toBe(80);
+    });
+
+    it('caps a large FORWARD jump at the sim budget rather than simulating the whole span', () => {
+      const p = createPlayer(LONG_DEF, CTX);
+      p.play();
+      const a = spawned[0].inst;
+
+      p.scrub(29_000); // 29s in one gesture (short of the very end, where the layer's window closes)
+
+      expect(p.timeMs()).toBe(29_000); // the clock still lands exactly on the target
+      expect(tickCount(a)).toBe(SCRUB_MAX_STEPS); // ...but the work is bounded
+      expect(tickedMs(a)).toBeCloseTo(SCRUB_SIM_BUDGET_MS, 6); // 2s simulated, not 29s
+      expect(spawned).toHaveLength(1); // a forward scrub never tears the live layer down
+    });
+
+    it('caps a large BACKWARD jump too -- the rewind never replays the whole def', () => {
+      const p = createPlayer(LONG_DEF, CTX);
+      p.play();
+      p.scrub(29_000);
+      const countBefore = spawned.length;
+
+      p.scrub(25_000);
+
+      const fresh = latest('a');
+      expect(spawned).toHaveLength(countBefore + 1);
+      expect(tickCount(fresh)).toBeLessThanOrEqual(SCRUB_MAX_STEPS);
+      expect(tickedMs(fresh)).toBeCloseTo(SCRUB_SIM_BUDGET_MS, 6);
+      expect(p.timeMs()).toBe(25_000);
+    });
+
+    it('clamps the target to [0, duration]', () => {
+      const p = createPlayer(DEF, CTX);
+      p.play();
+      p.scrub(-500);
+      expect(p.timeMs()).toBe(0);
+      p.scrub(99_999);
+      expect(p.timeMs()).toBe(DEF.duration);
+    });
+
+    it('scrubbing to the current time is a no-op, not a teardown', () => {
+      const p = createPlayer(DEF, CTX);
+      p.play();
+      p.scrub(120);
+      const a = spawned[0].inst;
+      const ticked = tickedMs(a);
+
+      p.scrub(120);
+
+      expect(spawned).toHaveLength(1);
+      expect(a.destroy).not.toHaveBeenCalled();
+      expect(tickedMs(a)).toBe(ticked);
+    });
+
+    it('does not resume playback (the transport stays wherever it was)', () => {
+      const p = createPlayer(DEF, CTX);
+      p.play();
+      p.pause();
+      p.scrub(150);
+      expect(p.isPlaying()).toBe(false);
+      p.update(100); // paused -- the scrub must not have restarted the clock
+      expect(p.timeMs()).toBe(150);
+    });
   });
 
   it('loops back to zero at the duration when looping is on', () => {

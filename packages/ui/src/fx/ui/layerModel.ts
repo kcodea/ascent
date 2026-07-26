@@ -11,6 +11,10 @@ import type { FxDef, FxLayer } from '../def';
  */
 export interface EditorLayer {
   primitive: string;
+  /** Authoring-only display label. A composition of three bursts is three rows reading "burst"; a name makes
+   *  it "impact flash / embers / smoke". Absent = fall back to the primitive id, which is exactly the
+   *  pre-naming behaviour, so an unnamed layer is an exact no-op (and serialises as an omission). */
+  name?: string;
   anchor: FxLayer['anchor']; // reuse def.ts's anchor type
   at: number; // ms from effect start at which this layer spawns
   life: number | null; // ms this layer lives, or null = "runs to the def's full duration"
@@ -19,6 +23,11 @@ export interface EditorLayer {
    *  default and an exact no-op. Pushed to the running effect live via `FxPlayer.setLayerMuted`, so it is
    *  deliberately NOT part of `structureKey`. */
   muted?: boolean;
+  /** Authoring-only: the positive counterpart of `muted` — isolate a layer by naming what you WANT rather
+   *  than muting everything else one at a time. Once any layer is soloed, only soloed layers play (see
+   *  `effectiveMuted`). Reaches the player through the very same `FxPlayer.setLayerMuted` call mute uses, so
+   *  it is likewise NOT part of `structureKey`: soloing must not restart the other layers. */
+  solo?: boolean;
   params: Record<string, unknown>;
 }
 
@@ -147,9 +156,66 @@ export function setLayerMuted(layers: EditorLayer[], index: number, muted: boole
   });
 }
 
+/** Set the solo flag of the layer at `index`. Returns a NEW array. Off is an ABSENT `solo` for the same
+ *  reason mute's off is an absent `muted`: the default has to serialise as an omission. */
+export function setLayerSolo(layers: EditorLayer[], index: number, solo: boolean): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    if (!solo) {
+      const next = { ...l };
+      delete next.solo;
+      return next;
+    }
+    return { ...l, solo: true };
+  });
+}
+
+/** Set (or clear) the authoring-only name of the layer at `index`. Returns a NEW array. An empty/whitespace
+ *  name CLEARS the field rather than storing `''` — "no name" has exactly one representation, and clearing
+ *  the rename box is how you go back to showing the primitive id. Trimmed; not length-capped here (the
+ *  caller coerces through `coerceLayerName` on the way in from storage). */
+export function setLayerName(layers: EditorLayer[], index: number, name: string): EditorLayer[] {
+  const trimmed = name.trim();
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    if (trimmed === '') {
+      const next = { ...l };
+      delete next.name;
+      return next;
+    }
+    return { ...l, name: trimmed };
+  });
+}
+
+/** Is ANY layer soloed? The switch that flips solo from "no-op" to "only these play". */
+export function anySolo(layers: readonly EditorLayer[]): boolean {
+  return layers.some((l) => l.solo === true);
+}
+
+/**
+ * The mute state actually pushed to the player for ONE layer — the whole solo/mute policy, as a pure
+ * function of three booleans so it can be checked exhaustively.
+ *
+ * Standard mixing-desk semantics: **mute always wins**, and while anything is soloed everything that isn't
+ * soloed is silenced. With no solos anywhere this is exactly `muted`, i.e. today's behaviour unchanged.
+ */
+export function effectiveMuted(muted: boolean, solo: boolean, anySoloOn: boolean): boolean {
+  if (muted) return true;
+  return anySoloOn && !solo;
+}
+
+/** `effectiveMuted` for a whole composition, index-aligned with `layers`. Solo is a GLOBAL condition (one
+ *  soloed layer silences every other), so this is computed for the list, never per layer in isolation. */
+export function effectiveMutes(layers: readonly EditorLayer[]): boolean[] {
+  const soloing = anySolo(layers);
+  return layers.map((l) => effectiveMuted(l.muted === true, l.solo === true, soloing));
+}
+
 /** A signature of the STRUCTURE only — primitive, anchor and order — NOT params, and deliberately NOT
- *  timing, and deliberately NOT `muted` (which is pushed live via `FxPlayer.setLayerMuted` — muting one
- *  layer must not restart, and therefore re-roll, all the others). The workbench keys its player-rebuild effect off this, so only a change the player genuinely
+ *  timing, and deliberately NOT `muted`/`solo` (both pushed live via `FxPlayer.setLayerMuted` — isolating
+ *  one layer must not restart, and therefore re-roll, all the others), and deliberately NOT `name` (a label
+ *  changes nothing about what renders at all).
+ *  The workbench keys its player-rebuild effect off this, so only a change the player genuinely
  *  cannot absorb live (add/remove/reorder/primitive-swap/anchor-swap) respawns the effect.
  *
  *  `at`/`life` used to live here and were the reason every step of the At/Life sliders tore the whole

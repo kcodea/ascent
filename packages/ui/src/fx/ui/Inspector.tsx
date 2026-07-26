@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { insertCurvePoint, removeCurvePoint, MIN_CURVE_POINTS, CURVE_T_EPSILON } from '../curve';
 import type { FxParamSpecs } from '../params';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 
@@ -247,11 +248,32 @@ const xToT = (x: number): number => (x - CURVE_PAD) / (CURVE_W - 2 * CURVE_PAD);
 /** SVG y → curve-space v (flipped, scaled to [0, vMax]). */
 const yToV = (y: number, vMax = 1): number => ((CURVE_H - CURVE_PAD - y) / (CURVE_H - 2 * CURVE_PAD)) * vMax;
 
+/** Pointer px → curve space (t, v), both already clamped to their axes. Goes through the SVG's own viewBox
+ *  units because the element is laid out at a different CSS size than its 160×80 coordinate system. */
+const pointerToCurve = (
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+  vMax: number,
+): { t: number; v: number } => {
+  const rect = svg.getBoundingClientRect();
+  const px = ((clientX - rect.left) / rect.width) * CURVE_W;
+  const py = ((clientY - rect.top) / rect.height) * CURVE_H;
+  return { t: clamp01(xToT(px)), v: clampV(yToV(py, vMax), vMax) };
+};
+
 /**
  * A self-contained SVG editor for a `curve` param — a draggable control-point polyline over a normalized
  * life axis. Its own component (not an inline IIFE like the palette branch) because it holds hooks
  * (useRef for the live drag index): hooks inside the mapped render of Inspector would violate the rules of
  * hooks, so the curve editor keeps them at its own top level.
+ *
+ * Points can be ADDED (double-click the box) and REMOVED (alt-click or right-click a handle) as well as
+ * dragged — without that, a curve param that defaults to 2 points could only ever be a straight line by
+ * direct manipulation, and a 3-point preset could never be simplified back. The endpoints stay pinned to
+ * t=0 / t=1 and are never removable, and the list can never drop below `MIN_CURVE_POINTS` (which
+ * `coerceParams` would reject outright) — both rules live in `curve.ts` alongside the sampler, so they are
+ * unit-tested rather than trusted to the event handlers here.
  */
 function CurveEditor({
   value,
@@ -270,16 +292,16 @@ function CurveEditor({
   const points = value;
   const dragIndex = useRef<number | null>(null);
   const presetEntries = Object.entries(presets ?? {});
+  /** Interior points only, and never the last two — the endpoints define the curve's span and a curve
+   *  needs at least `MIN_CURVE_POINTS`. Mirrors `removeCurvePoint`'s own refusals so the affordance is
+   *  hidden rather than offered-and-ignored. */
+  const removable = (i: number): boolean =>
+    i > 0 && i < points.length - 1 && points.length > MIN_CURVE_POINTS;
 
   const moveHandle = (e: React.PointerEvent<SVGSVGElement>): void => {
     const i = dragIndex.current;
     if (i === null) return;
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    // Map pointer px → the SVG's own viewBox units (the element may be laid out at a different CSS size).
-    const px = ((e.clientX - rect.left) / rect.width) * CURVE_W;
-    const py = ((e.clientY - rect.top) / rect.height) * CURVE_H;
-    const v = clampV(yToV(py, vMax), vMax);
+    const { t: rawT, v } = pointerToCurve(e.currentTarget, e.clientX, e.clientY, vMax);
     let t: number;
     if (i === 0) {
       t = 0; // first point pinned to birth
@@ -289,11 +311,18 @@ function CurveEditor({
       // Interior point: keep strictly between its neighbours so points can't cross/reorder.
       const lo = points[i - 1][0];
       const hi = points[i + 1][0];
-      const eps = 1e-3;
-      t = Math.min(hi - eps, Math.max(lo + eps, clamp01(xToT(px))));
+      t = Math.min(hi - CURVE_T_EPSILON, Math.max(lo + CURVE_T_EPSILON, rawT));
     }
     const next = points.map((p, idx) => (idx === i ? [t, v] : [p[0], p[1]]));
     onChange(next);
+  };
+
+  /** Double-click on the box adds a point there (double rather than single, so a stray click while reading
+   *  the curve doesn't silently reshape it). Handles stop the event themselves, so this only ever fires on
+   *  empty canvas. */
+  const addAt = (e: React.MouseEvent<SVGSVGElement>): void => {
+    const { t, v } = pointerToCurve(e.currentTarget, e.clientX, e.clientY, vMax);
+    onChange(insertCurvePoint(points, t, v, vMax));
   };
 
   const polyline = points.map((p) => `${tToX(p[0])},${vToY(p[1], vMax)}`).join(' ');
@@ -327,6 +356,7 @@ function CurveEditor({
             dragIndex.current = null;
           }
         }}
+        onDoubleClick={addAt}
       >
         <rect x={0} y={0} width={CURVE_W} height={CURVE_H} className="fxwb-curve-bg" />
         {vMax === 1 ? (
@@ -374,12 +404,38 @@ function CurveEditor({
             r={5}
             className="fxwb-curve-handle"
             onPointerDown={(e) => {
+              // Alt-click removes instead of starting a drag -- the pointer-native twin of the right-click
+              // below, for trackpads and for anyone whose browser eats the context menu.
+              if (e.altKey && removable(i)) {
+                e.preventDefault();
+                e.stopPropagation();
+                onChange(removeCurvePoint(points, i));
+                return;
+              }
               dragIndex.current = i;
               e.currentTarget.ownerSVGElement?.setPointerCapture(e.pointerId);
             }}
-          />
+            onContextMenu={(e) => {
+              e.preventDefault(); // never show the browser menu over a handle, removable or not
+              if (removable(i)) onChange(removeCurvePoint(points, i));
+            }}
+            // A double-click that lands ON a handle must not also drop a new point beside it.
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <title>
+              {removable(i)
+                ? 'Drag to move · alt-click or right-click to remove'
+                : 'Drag to move (pinned endpoint — cannot be removed)'}
+            </title>
+          </circle>
         ))}
       </svg>
+      {/* The editor had no visible instructions at all, so the add/remove gestures were undiscoverable
+          (and before this change, non-existent). Styled inline to match `.fxwb-shape-hint` rather than
+          adding a rule to the shared stylesheet. */}
+      <div className="fxwb-curve-hint" style={{ fontSize: 10, lineHeight: 1.3, color: '#8a7fa8' }}>
+        Drag points · double-click to add · alt-click or right-click a point to remove (ends are pinned).
+      </div>
     </div>
   );
 }

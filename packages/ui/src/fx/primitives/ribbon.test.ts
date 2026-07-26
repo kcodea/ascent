@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { defaultsOf, validateSpecs } from '../params';
+import { defaultsOf, validateSpecs, type FxParamSpecs } from '../params';
 import { makeRng } from '../rng';
 import { RIBBON_FIRE_GRACE_MS, pushSpineHead, ribbonOneShotComplete, ribbonPrimitive } from './ribbon';
 import {
@@ -17,6 +17,19 @@ describe('ribbon param specs', () => {
 
   it('registers under the id "ribbon"', () => {
     expect(ribbonPrimitive.id).toBe('ribbon');
+  });
+
+  /**
+   * Every param the inspector shows must explain itself. This is a hard gate rather than a convention
+   * because the *least* guessable knobs here — Warp, Gain, Scroll, Plateau — are shader-math words whose
+   * labels tell a newcomer nothing at all, and an unexplained one costs a whole tuning session of dragging
+   * a slider to find out what it does. The sibling primitives each carry the same assertion over their own
+   * SPECS, so a new param cannot ship unexplained on any of them.
+   */
+  it('gives every param non-empty help text', () => {
+    const specs: FxParamSpecs = ribbonPrimitive.params;
+    const missing = Object.keys(specs).filter((key) => (specs[key].help ?? '').trim() === '');
+    expect(missing).toEqual([]);
   });
 });
 

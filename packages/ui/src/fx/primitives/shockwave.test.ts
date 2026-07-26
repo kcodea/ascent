@@ -11,6 +11,13 @@ describe('shockwave param specs', () => {
     expect(shockwavePrimitive.id).toBe('shockwave');
   });
 
+  /** See ribbon.test.ts's copy for why every param must carry help — the same gate on shockwave's own SPECS. */
+  it('gives every param non-empty help text', () => {
+    const specs: FxParamSpecs = shockwavePrimitive.params;
+    const missing = Object.keys(specs).filter((key) => (specs[key].help ?? '').trim() === '');
+    expect(missing).toEqual([]);
+  });
+
   it('defaults the three shaping extras to an exact no-op (the pre-existing look)', () => {
     // squash 1 divides y by exactly 1, ringDelay 0 subtracts exactly 0 from the ring clock, and ease 1
     // takes the shader's `uEase == 1.0` early-out straight to the linear phase. Anything else here would

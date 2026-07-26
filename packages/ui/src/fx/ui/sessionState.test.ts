@@ -1,16 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
   artSlugOf,
+  canRedo,
+  canUndo,
   clampDuration,
+  coerceLayerName,
   collectCustomShapeRefs,
   editorLayersFromDef,
+  initHistory,
+  LAYER_NAME_MAX,
   normalizeSession,
   pruneUnknownPrimitives,
+  pushHistory,
+  redo,
+  replaceHistoryPresent,
+  shouldCoalesce,
   toEditorLayer,
   toStoredLayers,
+  undo,
   type DurationBounds,
+  type HistoryMark,
 } from './sessionState';
-import type { EditorLayer } from './layerModel';
+import { setLayerParam, setLayerPrimitive, type EditorLayer } from './layerModel';
 
 const BOUNDS: DurationBounds = { min: 200, max: 4000, fallback: 1000 };
 
@@ -67,11 +78,38 @@ describe('toEditorLayer', () => {
     }
   });
 
+  it('keeps `solo` on exactly the same terms as `muted`', () => {
+    expect(toEditorLayer({ primitive: 'ribbon', solo: true })?.solo).toBe(true);
+    for (const solo of [false, 'yes', 1, null, undefined]) {
+      const out = toEditorLayer({ primitive: 'ribbon', solo });
+      expect('solo' in out!, `solo: ${String(solo)}`).toBe(false);
+    }
+  });
+
+  it('keeps a usable `name` and OMITS the field otherwise (absent stays absent)', () => {
+    expect(toEditorLayer({ primitive: 'ribbon', name: '  impact flash  ' })?.name).toBe('impact flash');
+    for (const name of ['', '   ', 7, null, undefined, ['x']]) {
+      const out = toEditorLayer({ primitive: 'ribbon', name });
+      expect('name' in out!, `name: ${JSON.stringify(name)}`).toBe(false);
+    }
+  });
+
   it('copies params rather than aliasing them', () => {
     const params = { a: 1 };
     const out = toEditorLayer({ primitive: 'ribbon', params });
     out!.params.a = 99;
     expect(params.a).toBe(1);
+  });
+});
+
+describe('coerceLayerName', () => {
+  it('trims, caps, and treats blank as absent', () => {
+    expect(coerceLayerName('embers')).toBe('embers');
+    expect(coerceLayerName('  embers \n')).toBe('embers');
+    expect(coerceLayerName('')).toBeUndefined();
+    expect(coerceLayerName('   ')).toBeUndefined();
+    expect(coerceLayerName(42)).toBeUndefined();
+    expect(coerceLayerName('x'.repeat(500))).toHaveLength(LAYER_NAME_MAX);
   });
 });
 
@@ -127,6 +165,23 @@ describe('normalizeSession', () => {
     expect(out?.seedLocked).toBe(true);
     expect(out?.layers[0].muted).toBe(true);
     expect('muted' in out!.layers[1]).toBe(false); // the default stays an OMISSION
+  });
+
+  // Naming and soloing are working state exactly like mute: a composition you left as "three named layers
+  // with the middle one soloed" has to come back that way, or the labels you added are a per-session toy.
+  it('round-trips a layer name and a solo, and leaves an untouched layer with NEITHER field', () => {
+    const saved = {
+      layers: [layer('burst', { name: 'impact flash', solo: true }), layer('ribbon')],
+      selected: 0,
+      durationMs: 900,
+      seed: 7,
+      seedLocked: false,
+    };
+    const out = normalizeSession(JSON.parse(JSON.stringify(saved)), BOUNDS);
+    expect(out?.layers[0].name).toBe('impact flash');
+    expect(out?.layers[0].solo).toBe(true);
+    expect('name' in out!.layers[1]).toBe(false); // absent stays absent — the default is an exact no-op
+    expect('solo' in out!.layers[1]).toBe(false);
   });
 
   it('a snapshot with no seed restores UNLOCKED (today\'s fresh-roll behaviour), with no seed of its own', () => {
@@ -237,5 +292,198 @@ describe('toStoredLayers', () => {
     expect(out).toHaveLength(2); // the layer is kept, tuning and all
     expect(out[0].muted).toBe(true);
     expect('muted' in out[1]).toBe(false); // and the default is still an omission
+  });
+
+  it('persists `name` and `solo`, and writes NEITHER key for a layer that has neither', () => {
+    const out = toStoredLayers([layer('a', { name: 'impact flash', solo: true }), layer('b')], new Map());
+    expect(out[0].name).toBe('impact flash');
+    expect(out[0].solo).toBe(true);
+    expect('name' in out[1]).toBe(false);
+    expect('solo' in out[1]).toBe(false);
+    // An untouched composition still serialises byte-for-byte as it did before any of this existed.
+    expect(JSON.parse(JSON.stringify(out[1]))).toEqual({ primitive: 'b', anchor: 'travel', at: 0, params: {} });
+  });
+
+  it('survives a full stored round-trip: stored → JSON → editor layer', () => {
+    const before = [layer('burst', { name: 'embers', muted: true, solo: true, at: 40, life: 200 }), layer('r')];
+    const after = JSON.parse(JSON.stringify(toStoredLayers(before, new Map()))).map(toEditorLayer);
+    expect(after).toEqual(before);
+  });
+});
+
+// ─── undo / redo ──────────────────────────────────────────────────────────────────────────────────────
+
+/** A stand-in for the workbench's `EditorSnapshot` — the stack is generic, so the tests only need something
+ *  distinguishable. */
+type Snap = { n: number };
+const snap = (n: number): Snap => ({ n });
+const mark = (kind: HistoryMark['kind'], key: string, atMs: number): HistoryMark => ({ kind, key, atMs });
+
+describe('history stack', () => {
+  it('push / undo / redo round-trips', () => {
+    let h = initHistory(snap(0));
+    expect(canUndo(h)).toBe(false);
+    expect(canRedo(h)).toBe(false);
+
+    h = pushHistory(h, snap(1));
+    h = pushHistory(h, snap(2));
+    expect(h.present).toEqual(snap(2));
+    expect(canUndo(h)).toBe(true);
+    expect(canRedo(h)).toBe(false);
+
+    h = undo(h);
+    expect(h.present).toEqual(snap(1));
+    expect(canRedo(h)).toBe(true);
+    h = undo(h);
+    expect(h.present).toEqual(snap(0));
+
+    h = redo(h);
+    expect(h.present).toEqual(snap(1));
+    h = redo(h);
+    expect(h.present).toEqual(snap(2));
+    expect(canRedo(h)).toBe(false);
+  });
+
+  it('never mutates the stack it is handed', () => {
+    const h = pushHistory(initHistory(snap(0)), snap(1));
+    const before = JSON.parse(JSON.stringify(h));
+    pushHistory(h, snap(2));
+    undo(h);
+    redo(undo(h));
+    expect(h).toEqual(before);
+  });
+
+  it('a new push after an undo CLEARS the redo branch', () => {
+    let h = pushHistory(pushHistory(initHistory(snap(0)), snap(1)), snap(2));
+    h = undo(h); // present = 1, future = [2]
+    expect(canRedo(h)).toBe(true);
+    h = pushHistory(h, snap(9)); // fork
+    expect(canRedo(h)).toBe(false);
+    expect(h.future).toEqual([]);
+    expect(undo(h).present).toEqual(snap(1)); // …and the branch we forked from is still behind us
+  });
+
+  it('caps the stack, dropping the OLDEST entry', () => {
+    let h = initHistory(snap(0));
+    for (let i = 1; i <= 6; i++) h = pushHistory(h, snap(i), 3);
+    expect(h.past).toHaveLength(3);
+    expect(h.past.map((s) => s.n)).toEqual([3, 4, 5]); // 0,1,2 fell off the bottom
+    // …and undoing all the way lands on the oldest SURVIVING state rather than throwing.
+    while (canUndo(h)) h = undo(h);
+    expect(h.present).toEqual(snap(3));
+  });
+
+  it('undo at the bottom and redo at the top are no-ops (the same object back)', () => {
+    const empty = initHistory(snap(0));
+    expect(undo(empty)).toBe(empty);
+    expect(redo(empty)).toBe(empty);
+    const pushed = pushHistory(empty, snap(1));
+    expect(redo(pushed)).toBe(pushed);
+    const bottom = undo(pushed);
+    expect(undo(bottom)).toBe(bottom); // already at the bottom — stepping back again changes nothing
+  });
+
+  it('replaceHistoryPresent swaps the present WITHOUT making the outgoing one undoable', () => {
+    const h = pushHistory(initHistory(snap(0)), snap(1));
+    const replaced = replaceHistoryPresent(h, snap(99));
+    expect(replaced.present).toEqual(snap(99));
+    expect(replaced.past).toBe(h.past); // the pre-gesture entry is untouched
+    expect(undo(replaced).present).toEqual(snap(0));
+  });
+});
+
+describe('shouldCoalesce', () => {
+  it('collapses two rapid edits of the SAME control', () => {
+    expect(shouldCoalesce(mark('param', '0:size', 1000), mark('param', '0:size', 1016))).toBe(true);
+    expect(shouldCoalesce(mark('param', '0:size', 1000), mark('param', '0:size', 1400))).toBe(true);
+  });
+
+  it('does NOT collapse a different key, or the same key on a different layer', () => {
+    expect(shouldCoalesce(mark('param', '0:size', 1000), mark('param', '0:angle', 1016))).toBe(false);
+    expect(shouldCoalesce(mark('param', '0:size', 1000), mark('param', '1:size', 1016))).toBe(false);
+  });
+
+  it('does NOT collapse across kinds', () => {
+    expect(shouldCoalesce(mark('param', '0:at', 1000), mark('timing', '0:at', 1016))).toBe(false);
+    expect(shouldCoalesce(mark('duration', '', 1000), mark('seed', '', 1016))).toBe(false);
+  });
+
+  // The motivating rule: a structural action must never be swallowed by the drag it lands next to, in
+  // EITHER direction — a primitive swap is exactly the thing you need one Ctrl+Z to reverse.
+  it('NEVER collapses a structural action', () => {
+    expect(shouldCoalesce(mark('structural', '', 1000), mark('structural', '', 1001))).toBe(false);
+    expect(shouldCoalesce(mark('param', '0:size', 1000), mark('structural', '', 1001))).toBe(false);
+    expect(shouldCoalesce(mark('structural', '', 1000), mark('param', '0:size', 1001))).toBe(false);
+  });
+
+  it('does NOT collapse across a pause longer than the window', () => {
+    expect(shouldCoalesce(mark('param', '0:size', 1000), mark('param', '0:size', 1401))).toBe(false);
+    expect(shouldCoalesce(mark('param', '0:size', 1000), mark('param', '0:size', 5000))).toBe(false);
+    // The window is measured from the PREVIOUS edit, so a long continuous drag keeps extending it.
+    expect(shouldCoalesce(mark('param', '0:size', 5000), mark('param', '0:size', 5300), 400)).toBe(true);
+  });
+
+  it('has nothing to coalesce with on the first edit', () => {
+    expect(shouldCoalesce(null, mark('param', '0:size', 1000))).toBe(false);
+  });
+});
+
+describe('history over real editor layers', () => {
+  /** The workbench's recipe, condensed: record the state that is about to change, then change it. */
+  const edit = (
+    h: ReturnType<typeof initHistory<EditorLayer[]>>,
+    last: HistoryMark | null,
+    next: EditorLayer[],
+    m: HistoryMark,
+  ): [ReturnType<typeof initHistory<EditorLayer[]>>, HistoryMark] => {
+    const refreshed = { ...h, present: h.present };
+    const pushed = shouldCoalesce(last, m)
+      ? replaceHistoryPresent(refreshed, next)
+      : pushHistory(refreshed, next);
+    return [pushed, m];
+  };
+
+  // THE motivating bug: swapping a layer's primitive resets its params to the new primitive's defaults, so a
+  // mis-click throws away every slider you tuned. One Ctrl+Z has to bring the tuning back, intact.
+  it('a primitive swap is undoable — the tuned params come BACK', () => {
+    const tuned = [layer('ribbon', { params: { width: 12, wobble: 0.4, palette: [1, 2, 3, 4] } })];
+    let h = initHistory(tuned);
+    let last: HistoryMark | null = null;
+
+    // …tune a slider (two rapid steps of one drag)…
+    [h, last] = edit(h, last, setLayerParam(h.present, 0, 'width', 13), mark('param', '0:width', 1000));
+    [h, last] = edit(h, last, setLayerParam(h.present, 0, 'width', 14), mark('param', '0:width', 1020));
+    expect(h.past).toHaveLength(1); // ONE entry for the whole drag
+
+    // …then mis-click a different primitive, which wipes the params.
+    [h, last] = edit(h, last, setLayerPrimitive(h.present, 0, 'burst', { count: 8 }), mark('structural', '', 1030));
+    expect(h.present[0].primitive).toBe('burst');
+    expect(h.present[0].params).toEqual({ count: 8 }); // the tuning is gone…
+
+    h = undo(h);
+    expect(h.present[0].primitive).toBe('ribbon');
+    expect(h.present[0].params).toEqual({ width: 14, wobble: 0.4, palette: [1, 2, 3, 4] }); // …and back
+    expect(h.present[0].params.palette).toBe(tuned[0].params.palette); // by reference: nothing was cloned
+
+    // …and redo puts the swap back, so the undo itself is reversible.
+    h = redo(h);
+    expect(h.present[0].primitive).toBe('burst');
+    expect(last).not.toBeNull();
+  });
+
+  it('a whole slider drag is ONE undo step, and a pause between drags is two', () => {
+    let h = initHistory([layer('ribbon', { params: { size: 1 } })]);
+    let last: HistoryMark | null = null;
+    for (let i = 2; i <= 40; i++) {
+      [h, last] = edit(h, last, setLayerParam(h.present, 0, 'size', i), mark('param', '0:size', 1000 + i * 8));
+    }
+    expect(h.past).toHaveLength(1);
+    expect(h.present[0].params.size).toBe(40);
+
+    // …a pause, then a second drag: a second entry, and the first drag's result is what undo lands on.
+    [h, last] = edit(h, last, setLayerParam(h.present, 0, 'size', 41), mark('param', '0:size', 9000));
+    expect(h.past).toHaveLength(2);
+    expect(undo(h).present[0].params.size).toBe(40);
+    expect(undo(undo(h)).present[0].params.size).toBe(1);
   });
 });

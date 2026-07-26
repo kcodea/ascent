@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   addLayer,
+  anySolo,
   createEditorLayer,
   duplicateLayer,
+  effectiveMuted,
+  effectiveMutes,
   moveLayer,
   removeLayer,
   setLayerAnchor,
   setLayerMuted,
+  setLayerName,
   setLayerParam,
   setLayerPrimitive,
+  setLayerSolo,
   setLayerTiming,
   structureKey,
   toDef,
@@ -122,6 +127,100 @@ describe('setLayerMuted', () => {
     const out = setLayerMuted(muted, 0, false);
     expect('muted' in out[0]).toBe(false);
     expect(out[0]).toEqual(layer('ribbon'));
+  });
+});
+
+describe('setLayerSolo', () => {
+  it('solos one layer immutably and leaves the others alone', () => {
+    const input = [layer('ribbon'), layer('burst')];
+    const out = setLayerSolo(input, 1, true);
+    expect(out[1].solo).toBe(true);
+    expect(out[0].solo).toBeUndefined();
+    expect(input[1].solo).toBeUndefined();
+    expect(out).not.toBe(input);
+  });
+
+  it('un-soloing OMITS the flag rather than storing `solo: false` (the default is an exact no-op)', () => {
+    const soloed = setLayerSolo([layer('ribbon')], 0, true);
+    const out = setLayerSolo(soloed, 0, false);
+    expect('solo' in out[0]).toBe(false);
+    expect(out[0]).toEqual(layer('ribbon'));
+  });
+
+  it('is independent of mute — a layer can be both', () => {
+    const out = setLayerSolo(setLayerMuted([layer('ribbon')], 0, true), 0, true);
+    expect(out[0]).toEqual({ ...layer('ribbon'), muted: true, solo: true });
+  });
+});
+
+describe('setLayerName', () => {
+  it('names one layer immutably', () => {
+    const input = [layer('burst'), layer('burst')];
+    const out = setLayerName(input, 1, 'impact flash');
+    expect(out[1].name).toBe('impact flash');
+    expect(out[0].name).toBeUndefined();
+    expect(input[1].name).toBeUndefined();
+    expect(out).not.toBe(input);
+  });
+
+  it('trims, and CLEARS the name for an empty / whitespace-only value', () => {
+    expect(setLayerName([layer('burst')], 0, '  embers  ')[0].name).toBe('embers');
+    const named = setLayerName([layer('burst')], 0, 'embers');
+    for (const blank of ['', '   ', '\t\n']) {
+      const out = setLayerName(named, 0, blank);
+      expect('name' in out[0], `cleared by ${JSON.stringify(blank)}`).toBe(false);
+      expect(out[0]).toEqual(layer('burst')); // …and is byte-for-byte the un-named layer again
+    }
+  });
+
+  it('preserves everything else about the layer', () => {
+    const input = [layer('burst', { anchor: 'target', at: 120, life: 300, muted: true, solo: true, params: { n: 4 } })];
+    expect(setLayerName(input, 0, 'flash')[0]).toEqual({ ...input[0], name: 'flash' });
+  });
+});
+
+describe('effectiveMuted', () => {
+  // The full truth table — all 8 combinations of (muted, solo, anySolo). Mute always wins; solo only means
+  // anything once SOMETHING is soloed; with no solos anywhere this is exactly `muted`, i.e. today's behaviour.
+  const CASES: [muted: boolean, solo: boolean, anySoloOn: boolean, expected: boolean][] = [
+    [false, false, false, false], // nothing soloed anywhere → plays (the default composition)
+    [false, false, true, true], // another layer is soloed → this one is silenced
+    [false, true, false, false], // (not reachable from real state: solo implies anySolo) → still plays
+    [false, true, true, false], // the soloed layer → plays
+    [true, false, false, true], // plain mute
+    [true, false, true, true],
+    [true, true, false, true], // mute WINS over solo
+    [true, true, true, true], // …even when this is the soloed layer
+  ];
+
+  for (const [muted, solo, anySoloOn, expected] of CASES) {
+    it(`muted=${muted} solo=${solo} anySolo=${anySoloOn} → ${expected}`, () => {
+      expect(effectiveMuted(muted, solo, anySoloOn)).toBe(expected);
+    });
+  }
+});
+
+describe('anySolo / effectiveMutes', () => {
+  it('is an exact no-op when nothing is soloed (every layer keeps its own mute)', () => {
+    const layers = [layer('a'), layer('b', { muted: true }), layer('c')];
+    expect(anySolo(layers)).toBe(false);
+    expect(effectiveMutes(layers)).toEqual([false, true, false]);
+  });
+
+  it('silences everything that is not soloed, the moment ONE layer is soloed', () => {
+    const layers = setLayerSolo([layer('a'), layer('b'), layer('c')], 1, true);
+    expect(anySolo(layers)).toBe(true);
+    expect(effectiveMutes(layers)).toEqual([true, false, true]);
+  });
+
+  it('lets mute win inside the solo group', () => {
+    const layers = [layer('a', { solo: true }), layer('b', { solo: true, muted: true }), layer('c')];
+    expect(effectiveMutes(layers)).toEqual([false, true, true]);
+  });
+
+  it('brings the others straight back when the last solo goes off', () => {
+    const soloed = setLayerSolo([layer('a'), layer('b')], 0, true);
+    expect(effectiveMutes(setLayerSolo(soloed, 0, false))).toEqual([false, false]);
   });
 });
 
@@ -262,6 +361,17 @@ describe('structureKey', () => {
     expect(structureKey(setLayerMuted(setLayerMuted(a, 1, true), 1, false))).toBe(structureKey(a));
   });
 
+  // Solo reaches the player through the very same live `setLayerMuted` call mute does, so it must stay out of
+  // this key for the same reason: soloing one layer to hear it alone must not restart — and therefore
+  // re-roll — every OTHER layer in the composition. A name changes nothing that renders at all.
+  it('is STABLE across a solo toggle and a rename', () => {
+    const a = [layer('ribbon'), layer('burst')];
+    expect(structureKey(setLayerSolo(a, 1, true))).toBe(structureKey(a));
+    expect(structureKey(setLayerSolo(setLayerSolo(a, 1, true), 1, false))).toBe(structureKey(a));
+    expect(structureKey(setLayerName(a, 0, 'the arc'))).toBe(structureKey(a));
+    expect(structureKey(setLayerName(setLayerName(a, 0, 'the arc'), 0, ''))).toBe(structureKey(a));
+  });
+
   it('CHANGES on a duplicate (a new layer IS structural)', () => {
     const a = [layer('ribbon')];
     expect(structureKey(duplicateLayer(a, 0))).not.toBe(structureKey(a));
@@ -303,5 +413,12 @@ describe('toDef', () => {
     });
     // params pass through by reference (player treats the def as read-only)
     expect(def.layers[0].params).toBe(params);
+  });
+
+  // `name`/`solo`/`muted` are AUTHORING state — the runtime def has no concept of any of them, and leaking
+  // one into the def the player consumes would put a field in `FxLayer` that nothing reads.
+  it('drops the authoring-only fields (name / muted / solo)', () => {
+    const def = toDef('workbench', 1000, [layer('burst', { name: 'flash', muted: true, solo: true })]);
+    expect(def.layers[0]).toEqual({ primitive: 'burst', anchor: 'travel', at: 0, life: undefined, params: {} });
   });
 });

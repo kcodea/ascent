@@ -50,7 +50,10 @@ const SPECS = {
   },
 
   speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 60, help: 'px/sec initial.' },
-  speedVar: { kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4 },
+  speedVar: {
+    kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
+    help: 'How much motes differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
+  },
   gravity: {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30,
     help: 'px/sec² (negative = rise, like embers).',
@@ -66,15 +69,15 @@ const SPECS = {
   },
   turbScale: {
     kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
-    help: 'Spatial frequency of the turbulence field — higher = tighter swirls.',
+    help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites once Turbulence is above 0.',
   },
   emitShape: {
     kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'point',
-    help: 'Where particles spawn relative to the anchor.',
+    help: 'Where motes are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
     kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
-    help: 'Size of the emission shape in px (ignored for point).',
+    help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
   inheritVel: {
     kind: 'slider', label: 'Inherit vel', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
@@ -85,8 +88,14 @@ const SPECS = {
     kind: 'shape', label: 'Shape', group: 'Shape', default: 'circle',
     help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
-  size: { kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 7 },
-  sizeVar: { kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4 },
+  size: {
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 7,
+    help: 'How big a mote is across, in px — 7 reads as sparks, 30 as fat glowing blobs. Size var jitters it per mote and the Size / life curve rescales it as the mote ages.',
+  },
+  sizeVar: {
+    kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4,
+    help: 'How much mote sizes differ from each other, as a fraction of Size — 0 makes every mote identical, 0.4 (the default) spreads them between 0.6x and 1.4x size.',
+  },
   stretchX: {
     kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
     help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
@@ -106,12 +115,12 @@ const SPECS = {
 
   coreBias: {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5,
-    help: '0 = rim colour, 1 = white core.',
+    help: 'How far toward the bright core each mote sits — 0 keeps them all rim-dark, 1 pushes them to the white core (each mote jitters a little either side of this). With Bands at 1 there is only one flat colour to land on, so it stops changing the tint (it still shifts how much of a mote survives Erode).',
   },
   biasCurve: {
     kind: 'curve', label: 'Bias / life', group: 'Style',
     default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
-    help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life.',
+    help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life. With Bands at 1 there is only one flat colour, so it has no tint left to shift.',
   },
   alphaCurve: {
     kind: 'curve', label: 'Alpha / life', group: 'Style',
@@ -124,11 +133,11 @@ const SPECS = {
   },
   plateau: {
     kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
-    help: 'Width of the flat core before the falloff starts — this is what gives fat cel bands and a hot core (0 = a thin centre line). Same knob, same range, as the ribbon\'s own Plateau.',
+    help: 'How much of a mote is one flat hot centre before its colour steps down toward the rim — wide gives fat cel bands and a big bright middle, 0 shrinks the brightest colour to a hairline. It stops shaping the mote\'s body as Field mix approaches 1, though it still shapes the Glow halo.',
   },
   fieldMix: {
     kind: 'slider', label: 'Field mix', group: 'Style', min: 0, max: 1, step: 0.01, default: 0,
-    help: '0 = band the particle by its distance from centre (the ribbon look, works on any silhouette); 1 = band it by the texture\'s own alpha gradient (better for soft hand-painted art).',
+    help: 'Where a mote\'s colour rings come from: 0 draws them outward from its own centre (the ribbon look, and the only setting that can band a hard-edged silhouette at all), 1 follows the art\'s own soft edge instead — better for hand-painted PNGs that already fade out.',
   },
   tintMode: {
     kind: 'enum', label: 'Tint mode', group: 'Style', options: PARTICLE_TINT_MODES, default: 'palette',
@@ -141,8 +150,12 @@ const SPECS = {
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style',
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
+    help: 'The four colours a mote steps through, dark rim first and white-hot core last; a preset swaps all four at once. While Tint mode is texture only the last (core) colour is used — and only to tint the Glow halo — so the other three do nothing there.',
   },
-  blendMode: { kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add' },
+  blendMode: {
+    kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add',
+    help: 'How the motes composite over what is behind them: add (the default) makes them glow and brighten whatever they cross, normal paints them as solid opaque colour, screen is a gentler lift, and multiply/overlay stain what is behind rather than lighting it.',
+  },
   glow: {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.25,
     help: 'Soft additive halo behind each particle.',
@@ -150,15 +163,24 @@ const SPECS = {
 
   noiseScale: {
     kind: 'slider', label: 'Noise scale', group: 'Texture', min: 0.5, max: 20, step: 0.1, default: 6,
-    help: 'Domain-warped fbm frequency across each particle — the ribbon\'s uNoise, isotropic here.',
+    help: 'How fine the mottling inside each mote is — low gives a couple of big blotches per mote, high a dense speckle. Does nothing while Erode is 0.',
   },
-  warp: { kind: 'slider', label: 'Warp', group: 'Texture', min: 0, max: 1.5, step: 0.01, default: 0.35 },
-  scroll: { kind: 'slider', label: 'Scroll', group: 'Texture', min: 0, max: 6, step: 0.05, default: 1.4 },
+  warp: {
+    kind: 'slider', label: 'Warp', group: 'Texture', min: 0, max: 1.5, step: 0.01, default: 0.35,
+    help: 'Curls that mottling into flowing, flame-like streaks instead of round blobs — 0 leaves it plain and lumpy, 0.35 is the reference look. Does nothing while Erode is 0.',
+  },
+  scroll: {
+    kind: 'slider', label: 'Scroll', group: 'Texture', min: 0, max: 6, step: 0.05, default: 1.4,
+    help: 'How fast the mottling drifts across each mote — this is what makes motes flicker and churn instead of looking stamped; 0 holds the pattern still. Does nothing while Erode is 0.',
+  },
   erode: {
     kind: 'slider', label: 'Erode', group: 'Texture', min: 0, max: 1.2, step: 0.01, default: 0.35,
     help: 'How much the noise eats into each particle\'s shape — higher gives a more tattered edge.',
   },
-  gain: { kind: 'slider', label: 'Gain', group: 'Texture', min: 0.3, max: 2, step: 0.01, default: 1.4 },
+  gain: {
+    kind: 'slider', label: 'Gain', group: 'Texture', min: 0.3, max: 2, step: 0.01, default: 1.4,
+    help: 'How well a mote resists Erode — raise it and the noise takes smaller bites so motes read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
+  },
 } satisfies FxParamSpecs;
 
 type EmitterParams = ParamsOf<typeof SPECS>;

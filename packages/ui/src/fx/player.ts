@@ -81,6 +81,30 @@ export const FIRE_TIMEOUT_MS = 10_000;
 export const LAYER_SEED_STRIDE = 7919;
 
 /**
+ * Scrubbing budget — how much SIMULATED time one `scrub` call may spend fast-forwarding, and the slice it
+ * spends it in.
+ *
+ * A scrub has to show the effect as it would LOOK at the target time, and every primitive here is a
+ * forward-only particle sim: the only way to know what t=800ms looks like is to have ticked there. But a def
+ * can be tens of seconds long and a slider drag fires a scrub every frame, so the work per call is capped at
+ * `SCRUB_SIM_BUDGET_MS` of simulated time taken in `SCRUB_STEP_MS` slices (≈ one frame each, so primitives
+ * see the same dt scale they see during ordinary playback rather than one enormous step).
+ *
+ * When the span exceeds the budget it is the OLDEST part that is skipped: the clock jumps straight to
+ * `target - SCRUB_SIM_BUDGET_MS` and only the last two seconds are actually simulated. That keeps the cost
+ * of a scrub constant regardless of def length while keeping the most recent — and therefore most visible —
+ * part of the effect accurate. The trade is that a layer which started before the skipped point begins its
+ * own life at the jump rather than at its true `at`; for a >2s-old particle that is invisible.
+ *
+ * Exported so tests (and a future perf probe) can drive exactly to the boundary.
+ */
+export const SCRUB_SIM_BUDGET_MS = 2000;
+/** One fast-forward slice, ≈ a 60Hz frame. See `SCRUB_SIM_BUDGET_MS`. */
+export const SCRUB_STEP_MS = 16;
+/** Hard ceiling on instance ticks per `scrub` call — the budget expressed in slices. */
+export const SCRUB_MAX_STEPS = Math.ceil(SCRUB_SIM_BUDGET_MS / SCRUB_STEP_MS);
+
+/**
  * Drives an `FxDef`. Owns layer lifetimes, the clock, and scrubbing. Deliberately has no idea how any
  * primitive renders — that indirection is why one player can be optimised on behalf of every effect.
  *
@@ -198,6 +222,34 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   const reconcile = (dtMs: number, oneShot = false): void => {
     for (let i = 0; i < def.layers.length; i++) syncLayer(i, oneShot);
     if (dtMs > 0) for (const l of live.values()) l.inst.update(dtMs);
+  };
+
+  /**
+   * Advance the clock to `target` (which must be >= `clock`), bringing layers in and out on the way and
+   * ticking the live ones with the REAL elapsed ms, in `SCRUB_STEP_MS` slices. This is what makes a scrub
+   * show the effect mid-flight instead of frozen: `reconcile(0)` alone can't do it, because its per-instance
+   * tick is guarded by `dtMs > 0` and `spawn` early-returns for a layer that is already live.
+   *
+   * Bounded by `SCRUB_MAX_STEPS` (see `SCRUB_SIM_BUDGET_MS`), so a drag to the far end of a 30s def costs
+   * the same as a drag to 2s and can never lock the UI. Deliberately does NOT apply `speed`: a scrub is
+   * expressed in the def's own timeline, not in wall-clock time.
+   */
+  const fastForwardTo = (target: number): void => {
+    if (target - clock > SCRUB_SIM_BUDGET_MS) clock = target - SCRUB_SIM_BUDGET_MS;
+    // Bring the layer set in line with the (possibly jumped) clock BEFORE ticking, so a layer that is
+    // already due takes part in the fast-forward instead of spawning at the very end of it.
+    reconcile(0);
+    for (let step = 0; step < SCRUB_MAX_STEPS && clock < target; step++) {
+      const dt = Math.min(SCRUB_STEP_MS, target - clock);
+      clock = Math.min(target, clock + dt);
+      reconcile(dt);
+    }
+    if (clock !== target) {
+      // Only reachable via float drift on the final slice. Snap and re-sync the layer set so `timeMs()`
+      // reads back exactly what the caller asked for.
+      clock = target;
+      reconcile(0);
+    }
   };
 
   /** Whether every currently-live layer is done, for fire-once completion. A layer whose instance doesn't
@@ -338,8 +390,26 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       reconcile(dt);
     },
     scrub(ms: number): void {
-      clock = Math.min(def.duration, Math.max(0, ms));
-      reconcile(0);
+      const target = Math.min(def.duration, Math.max(0, ms));
+      if (target < clock) {
+        // BACKWARD. Every primitive here is a forward-only particle sim with no reverse integration, so
+        // there is no honest way to "un-tick" to an earlier frame -- the only thing that shows t=target is
+        // re-simulating it. Tear every layer down, rewind to zero and fast-forward.
+        //
+        // Seeded (see `setSeed`), that reproduces the previous pass exactly. UNSEEDED, each respawned
+        // instance rolls a fresh stream, so the re-simulated frame will differ in its particulars from the
+        // pass you scrubbed away from -- it is the same effect at the same age, not the same particles.
+        // Accepted deliberately: an honest live picture beats a frozen one, and locking the seed makes it
+        // exact for anyone who cares.
+        killAllLive();
+        clock = 0;
+      }
+      // FORWARD (including the tail of the rewind above): advance the live instances by the real elapsed
+      // ms rather than freezing them. Cost per call is bounded by SCRUB_MAX_STEPS instance ticks, which IS
+      // the throttle -- there is deliberately no wall-clock debounce in here (it would make the player
+      // depend on timers and untestable without faking them), and a range-input drag emits at most one
+      // change per frame, so a drag costs at most that bound per frame.
+      fastForwardTo(target);
     },
     setSpeed(n: number): void {
       speed = n;

@@ -63,18 +63,21 @@ const SPECS = {
   },
 
   speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 30, help: 'px/sec initial — gentle drift.' },
-  speedVar: { kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4 },
+  speedVar: {
+    kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
+    help: 'How much puffs differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
+  },
   gravity: {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30,
     help: 'px/sec² (negative = rise, like smoke/embers).',
   },
   spin: {
     kind: 'slider', label: 'Spin', group: 'Motion', min: 0, max: 180, step: 1, default: 25,
-    help: 'Degrees/sec each puff slowly rotates — 0 = no tumble.',
+    help: 'Degrees/sec each puff slowly rotates — 25 is a lazy tumble, 0 leaves every puff frozen at the angle it was born with. Ignored entirely while Orient to velocity is on.',
   },
   spinVar: {
     kind: 'slider', label: 'Spin var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.6,
-    help: 'Per-mote randomisation of the spin rate; direction is randomised regardless.',
+    help: 'How much puffs differ from each other in tumble rate; which way each one turns is random either way. Does nothing while Spin is 0, or while Orient to velocity is on.',
   },
   orientToVelocity: {
     kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
@@ -87,15 +90,15 @@ const SPECS = {
   },
   turbScale: {
     kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
-    help: 'Spatial frequency of the turbulence field — higher = tighter swirls.',
+    help: 'How tight the billowing is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites while Turbulence is above 0 (smoke ships with it on).',
   },
   emitShape: {
     kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'disc',
-    help: 'Where particles spawn relative to the anchor — a small disc gives a soft-edged smoke source.',
+    help: 'Where puffs are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc (the default — a soft-edged smoke source), or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
     kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 8,
-    help: 'Size of the emission shape in px (ignored for point).',
+    help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer smoke source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
   inheritVel: {
     kind: 'slider', label: 'Inherit vel', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
@@ -106,8 +109,14 @@ const SPECS = {
     kind: 'shape', label: 'Shape', group: 'Shape', default: 'circle',
     help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
-  size: { kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 14 },
-  sizeVar: { kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4 },
+  size: {
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 14,
+    help: 'How big a puff is across, in px, at birth — 14 gives a chunky column, low values a thin wispy one. Size var jitters it per puff and the Size / life curve grows it as the puff rises.',
+  },
+  sizeVar: {
+    kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4,
+    help: 'How much puff sizes differ from each other, as a fraction of Size — 0 makes every puff identical (and the column read mechanical), 0.4 (the default) spreads them between 0.6x and 1.4x.',
+  },
   stretchX: {
     kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
     help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
@@ -129,12 +138,12 @@ const SPECS = {
 
   coreBias: {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.35,
-    help: '0 = rim colour (darker body), 1 = white core.',
+    help: 'How far toward the pale core each puff sits — 0 keeps the column dark and sooty, 1 pushes it to the lightest stop (each puff jitters a little either side of this). With Bands at 1 there is only one flat colour to land on, so it stops changing the tint (it still shifts how much of a puff survives Erode).',
   },
   biasCurve: {
     kind: 'curve', label: 'Bias / life', group: 'Style',
     default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
-    help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life.',
+    help: 'Multiplier over life on how far coreward the particle sits (0 = rim colour, 1 = its spawn bias). Flat 1 = fixed colour; a falling curve cools rim-ward over life. With Bands at 1 there is only one flat colour, so it has no tint left to shift.',
   },
   alphaCurve: {
     kind: 'curve', label: 'Alpha / life', group: 'Style',
@@ -147,11 +156,11 @@ const SPECS = {
   },
   plateau: {
     kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
-    help: 'Width of the flat core before the falloff starts — this is what gives fat cel bands and a hot core (0 = a thin centre line). Same knob, same range, as the ribbon\'s own Plateau.',
+    help: 'How much of a puff is one flat pale centre before its colour steps down toward the dark rim — wide gives fat cel bands and a big light middle, 0 shrinks the lightest colour to a hairline. It stops shaping the puff\'s body as Field mix approaches 1, though it still shapes the Glow halo.',
   },
   fieldMix: {
     kind: 'slider', label: 'Field mix', group: 'Style', min: 0, max: 1, step: 0.01, default: 0,
-    help: '0 = band the particle by its distance from centre (the ribbon look, works on any silhouette); 1 = band it by the texture\'s own alpha gradient (better for soft hand-painted art).',
+    help: 'Where a puff\'s colour rings come from: 0 draws them outward from its own centre (the ribbon look, and the only setting that can band a hard-edged silhouette at all), 1 follows the art\'s own soft edge instead — better for hand-painted PNGs that already fade out.',
   },
   tintMode: {
     kind: 'enum', label: 'Tint mode', group: 'Style', options: PARTICLE_TINT_MODES, default: 'palette',
@@ -164,8 +173,12 @@ const SPECS = {
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style',
     default: SMOKE_GREYS, presets: PALETTE_PRESETS,
+    help: 'The four colours a puff steps through, dark rim first and pale core last — smoke starts on greys rather than one of the glowing presets, but any preset swaps all four at once. While Tint mode is texture only the last (core) colour is used, and only to tint the Glow halo, which smoke keeps at 0 by default.',
   },
-  blendMode: { kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'normal' },
+  blendMode: {
+    kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'normal',
+    help: 'How the puffs composite over what is behind them: normal (the default here) paints them as solid haze that hides what it covers, add makes them glow and brighten it instead, screen is a gentler lift, and multiply/overlay stain what is behind rather than lighting it.',
+  },
   glow: {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0,
     help: 'Soft additive halo behind each particle — off for smoke (it\'s haze, not glow).',
@@ -173,15 +186,24 @@ const SPECS = {
 
   noiseScale: {
     kind: 'slider', label: 'Noise scale', group: 'Texture', min: 0.5, max: 20, step: 0.1, default: 6,
-    help: 'Domain-warped fbm frequency across each particle — the ribbon\'s uNoise, isotropic here.',
+    help: 'How fine the mottling inside each puff is — low gives a couple of big blotches per puff, high a dense speckle. Does nothing while Erode is 0.',
   },
-  warp: { kind: 'slider', label: 'Warp', group: 'Texture', min: 0, max: 1.5, step: 0.01, default: 0.35 },
-  scroll: { kind: 'slider', label: 'Scroll', group: 'Texture', min: 0, max: 6, step: 0.05, default: 1.4 },
+  warp: {
+    kind: 'slider', label: 'Warp', group: 'Texture', min: 0, max: 1.5, step: 0.01, default: 0.35,
+    help: 'Curls that mottling into flowing, smoke-like streaks instead of round blobs — 0 leaves it plain and lumpy, 0.35 is the reference look. Does nothing while Erode is 0.',
+  },
+  scroll: {
+    kind: 'slider', label: 'Scroll', group: 'Texture', min: 0, max: 6, step: 0.05, default: 1.4,
+    help: 'How fast the mottling drifts across each puff — this is what makes the smoke churn from the inside instead of looking stamped; 0 holds the pattern still. Does nothing while Erode is 0.',
+  },
   erode: {
     kind: 'slider', label: 'Erode', group: 'Texture', min: 0, max: 1.2, step: 0.01, default: 0.35,
     help: 'How much the noise eats into each particle\'s shape — higher gives a more tattered edge.',
   },
-  gain: { kind: 'slider', label: 'Gain', group: 'Texture', min: 0.3, max: 2, step: 0.01, default: 1 },
+  gain: {
+    kind: 'slider', label: 'Gain', group: 'Texture', min: 0.3, max: 2, step: 0.01, default: 1,
+    help: 'How well a puff resists Erode — raise it and the noise takes smaller bites so puffs read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
+  },
 } satisfies FxParamSpecs;
 
 type SmokeParams = ParamsOf<typeof SPECS>;

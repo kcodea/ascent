@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { validateSpecs } from '../params';
+import { validateSpecs, type FxParamSpecs } from '../params';
 import { sampleCurve } from '../curve';
 import { makeRng } from '../rng';
 import { burstFireComplete, burstPrimitive, resolveParticleRotation, sampleBurstAngle } from './burst';
@@ -12,6 +12,13 @@ describe('burst param specs', () => {
 
   it('registers under the id "burst"', () => {
     expect(burstPrimitive.id).toBe('burst');
+  });
+
+  /** See ribbon.test.ts's copy for why every param must carry help — the same gate on burst's own SPECS. */
+  it('gives every param non-empty help text', () => {
+    const specs: FxParamSpecs = burstPrimitive.params;
+    const missing = Object.keys(specs).filter((key) => (specs[key].help ?? '').trim() === '');
+    expect(missing).toEqual([]);
   });
 
   // Guards against the "I don't see any of the ribbon's options applied to burst/emitter" gap regressing:

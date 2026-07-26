@@ -5285,3 +5285,32 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; font-weight: 700; cursor: pointer;
 }
 .fxwb-anchorrow select:focus { outline: none; border-color: #c936ef; }
+
+/* FX Workbench — undo/redo. Sits in the top bar next to the title, in the same `.fxwb-group` pill as the
+   primitive/scenario rows so it reads as one more cluster rather than a bolted-on toolbar. The disabled
+   state is the whole point of showing them at all: "nothing to undo" has to be visible, not discovered by
+   pressing the key and seeing nothing happen. */
+.fxwb-history-btn { font-size: 15px; line-height: 1; padding: 4px 9px; }
+.fxwb-btn:disabled { opacity: 0.3; cursor: default; }
+.fxwb-btn:disabled:hover { background: transparent; color: #b9b1cf; }
+
+/* FX Workbench — per-layer NAME + SOLO.
+   The row's button cluster now carries seven controls (mute, solo, rename, duplicate, up, down, delete) in a
+   288px rail, so they shrink to 18px: still a comfortable hit target, and it leaves the name enough width to
+   be worth reading. */
+.fxwb-layer-btns { gap: 2px; }
+.fxwb-layer-btns button { width: 18px; height: 18px; font-size: 10px; }
+/* The name doubles as the rename affordance (double-click), so it gets a text cursor to say so. */
+.fxwb-layer-name { cursor: text; }
+.fxwb-layer-rename {
+  min-width: 0; width: 100%; box-sizing: border-box; padding: 1px 4px; border-radius: 4px;
+  border: 1px solid #c936ef; background: #211d2c; color: #f0a0ff; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 800;
+}
+.fxwb-layer-rename:focus { outline: none; }
+/* Solo is the loudest state in the list — it silences everything else — so the ON pip is the accent colour,
+   and the layers it silenced are dimmed exactly like a muted one (without the line-through, which means
+   "you muted this"). */
+.fxwb-layer-btns button.fxwb-layer-solo.on { border-color: #ffd23f; color: #ffd23f; }
+.fxwb-layer-row.solo { border-color: #ffd23f; }
+.fxwb-layer-row.silenced { opacity: 0.55; }

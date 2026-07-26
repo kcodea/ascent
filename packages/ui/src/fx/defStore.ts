@@ -43,7 +43,10 @@ const SESSION_KEY = 'ascent.fx.session.v1';
  * (`FxPlayer.setLayerMuted`), not as def data — but round-tripping the author's working state is far more
  * useful than silently dropping (or silently un-muting) a layer they had isolated, so it survives a save.
  */
-export type StoredFxLayer = FxLayer & { muted?: boolean };
+/** Cap on a persisted layer name — matches the editor cap so a round-trip can never lengthen one. */
+export const LAYER_NAME_MAX = 48;
+
+export type StoredFxLayer = FxLayer & { muted?: boolean; solo?: boolean; name?: string };
 
 /** A def as it is stored on disk. */
 export interface StoredFxDef {
@@ -133,6 +136,13 @@ function coerceLayer(raw: unknown): StoredFxLayer | null {
   // Authoring state, kept ONLY when it is literally `true` — anything else (absent, false, 'yes', 1) means
   // "not muted", which is the default and must serialise as an omission.
   if (raw.muted === true) layer.muted = true;
+  // ...and the same for `solo`, plus the author's layer `name`. These round-trip through the localStorage
+  // session already; without them here a def FILE silently loses them, so saving and reloading your own
+  // composition would drop every layer label and un-solo whatever you were isolating. Kept only when
+  // meaningful (`solo` literally `true`, `name` a non-empty string) so an untouched layer still serialises
+  // as the bare `{primitive, anchor, at, params}` it always did.
+  if (raw.solo === true) layer.solo = true;
+  if (typeof raw.name === 'string' && raw.name.trim() !== '') layer.name = raw.name.slice(0, LAYER_NAME_MAX);
   return layer;
 }
 

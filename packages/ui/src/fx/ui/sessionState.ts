@@ -14,6 +14,12 @@ import type { EditorLayer } from './layerModel';
  * longer exists must degrade, not break" and "saving never mutates live editor state" contracts are
  * unit-testable headlessly. The registry is injected as an `isKnown` predicate rather than imported.
  *
+ * It is ALSO the home of the undo/redo stack (`HistoryState` + `pushHistory`/`undo`/`redo`/`shouldCoalesce`),
+ * for the same reason: the interesting part of undo is arithmetic over snapshots — cap the stack, drop the
+ * oldest, collapse a slider drag into one entry — and that arithmetic is worth testing without mounting a
+ * React tree or a renderer. The stack is generic in its snapshot type, so this module never has to know what
+ * the workbench considers "my effect".
+ *
  * Nothing here throws: a malformed input degrades (a bad field falls back to its default, an unusable layer
  * is dropped, an unusable session returns `null`).
  */
@@ -62,20 +68,39 @@ const coerceLife = (v: unknown): number | null =>
 const coerceParams = (v: unknown): Record<string, unknown> =>
   v !== null && typeof v === 'object' && !Array.isArray(v) ? { ...(v as Record<string, unknown>) } : {};
 
+/** How long an authoring-only layer name may be. A label, not a description — the layer row is 288px wide,
+ *  and anything past this is ellipsised on screen anyway, so it is trimmed at the model instead of stored. */
+export const LAYER_NAME_MAX = 48;
+
+/** An authoring-only layer label, or `undefined` when there isn't a usable one. Whitespace-only is the SAME
+ *  as absent (that's what clearing the rename box means: "go back to the primitive id"), so it collapses to
+ *  an omission rather than an empty string — keeping "unnamed" a single representable state. */
+export function coerceLayerName(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const trimmed = v.trim();
+  return trimmed === '' ? undefined : trimmed.slice(0, LAYER_NAME_MAX);
+}
+
 /** Coerce one untrusted layer-ish value into an `EditorLayer`. Returns null when it has no usable primitive
  *  id — the one field nothing can be invented for. */
 export function toEditorLayer(raw: unknown): EditorLayer | null {
   if (raw === null || typeof raw !== 'object') return null;
   const l = raw as Record<string, unknown>;
   if (typeof l.primitive !== 'string' || l.primitive === '') return null;
+  const name = coerceLayerName(l.name);
   return {
     primitive: l.primitive,
+    // Same omit-unless-set discipline as `muted` below: an unnamed layer carries NO `name` key, so it
+    // serialises exactly as it did before naming existed and falls back to the primitive id on screen.
+    ...(name === undefined ? {} : { name }),
     anchor: coerceAnchor(l.anchor),
     at: coerceAt(l.at),
     life: coerceLife(l.life),
     // Kept only when literally `true`, and OMITTED otherwise (never `muted: false`) so an untouched
     // composition is byte-for-byte what it was before mute existed — the default is an exact no-op.
     ...(l.muted === true ? { muted: true as const } : {}),
+    // Solo rides along with mute, on the same terms and for the same reason (see `effectiveMuted`).
+    ...(l.solo === true ? { solo: true as const } : {}),
     params: coerceParams(l.params),
   };
 }
@@ -168,6 +193,16 @@ export function artSlugOf(customRef: string): string {
 }
 
 /**
+ * What a save WRITES for one layer: the runtime layer, plus the workbench's authoring-only flags.
+ *
+ * `muted` is already part of `StoredFxLayer` (see `defStore.ts`); `name` and `solo` are additive fields on
+ * top of it, declared here rather than there because they are purely an authoring convenience — the runtime
+ * player has no concept of either. Written unconditionally-when-set so a session/def round-trips the
+ * author's working state; a reader that doesn't know them simply ignores them.
+ */
+export type StoredEditorLayer = StoredFxLayer & { name?: string; solo?: boolean };
+
+/**
  * Editor layers → the `FxLayer[]` a def is stored as, rewriting any `custom:…` param whose art was
  * successfully uploaded to its committed `art:<slug>` reference.
  *
@@ -177,7 +212,7 @@ export function artSlugOf(customRef: string): string {
 export function toStoredLayers(
   layers: readonly EditorLayer[],
   artRefs: ReadonlyMap<string, string>,
-): StoredFxLayer[] {
+): StoredEditorLayer[] {
   return layers.map((l) => {
     const params: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(l.params)) {
@@ -185,6 +220,9 @@ export function toStoredLayers(
     }
     return {
       primitive: l.primitive,
+      // The author's label for this layer ("impact flash" beats a third row reading "burst"). Omitted unless
+      // set, exactly like `muted`, so an unnamed composition serialises byte-for-byte as it always has.
+      ...(l.name === undefined ? {} : { name: l.name }),
       anchor: l.anchor,
       at: l.at,
       ...(l.life === null ? {} : { life: l.life }),
@@ -192,7 +230,127 @@ export function toStoredLayers(
       // state (which layer they had isolated) is more useful to round-trip than either alternative, and a
       // dropped layer would lose its tuning outright. Omitted unless muted — the default stays an omission.
       ...(l.muted === true ? { muted: true } : {}),
+      ...(l.solo === true ? { solo: true } : {}),
       params,
     };
   });
+}
+
+// ─── undo / redo ──────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A past/present/future stack over whatever the caller considers one editable state. Generic on purpose: the
+ * workbench's snapshot type (layers + selection + duration + seed) is a UI concern, and keeping it out of
+ * here is what lets the whole stack be tested as arithmetic.
+ *
+ * `past` is oldest-first, so the most recent undoable state is `past[past.length - 1]`. `future` is
+ * newest-first, so `future[0]` is what the next redo restores.
+ */
+export interface HistoryState<T> {
+  past: T[];
+  present: T;
+  future: T[];
+}
+
+/** How many undo steps are kept. Past this, the OLDEST entry is dropped — an editing session is unbounded,
+ *  and every entry pins a whole composition (layers + params) in memory. */
+export const HISTORY_LIMIT = 50;
+
+/** How long after an edit a same-kind, same-key edit still counts as the SAME gesture. Long enough to span
+ *  the gaps in a slow drag (a range input fires per pixel of travel, but a hesitant hand can stall), short
+ *  enough that a deliberate second adjustment reads as its own step. */
+export const COALESCE_WINDOW_MS = 400;
+
+/**
+ * What kind of edit produced a snapshot. The CONTINUOUS kinds are the ones driven by a control that fires
+ * repeatedly across one physical gesture (a range input, a number field being typed into); `structural` is
+ * everything discrete — add/remove/reorder/duplicate/primitive-swap/anchor/mute/solo/rename/load — and never
+ * collapses into a neighbour.
+ */
+export type HistoryKind = 'param' | 'timing' | 'duration' | 'seed' | 'structural';
+
+/** The provenance of the most recent history entry — the input to the coalescing decision. `key` narrows
+ *  `kind` to the exact control (a param key, a layer index), so dragging `size` and then `angle` is two
+ *  entries even though both are `param` edits. */
+export interface HistoryMark {
+  kind: HistoryKind;
+  key: string;
+  atMs: number;
+}
+
+const CONTINUOUS_KINDS: readonly HistoryKind[] = ['param', 'timing', 'duration', 'seed'];
+
+/** A fresh stack with nothing to undo or redo. */
+export function initHistory<T>(present: T): HistoryState<T> {
+  return { past: [], present, future: [] };
+}
+
+/**
+ * Record `next` as the new present, making the outgoing present undoable. Clears `future` — the classic
+ * rule: editing after an undo forks, and the abandoned branch is not reachable again.
+ *
+ * Beyond `limit` entries the OLDEST past state is dropped (you keep the recent steps you actually reach for,
+ * not the ones from an hour ago).
+ */
+export function pushHistory<T>(h: HistoryState<T>, next: T, limit: number = HISTORY_LIMIT): HistoryState<T> {
+  if (limit <= 0) return { past: [], present: next, future: [] };
+  const past = [...h.past, h.present];
+  return { past: past.length > limit ? past.slice(past.length - limit) : past, present: next, future: [] };
+}
+
+/**
+ * Swap the present WITHOUT making the outgoing one undoable — the coalescing half of `pushHistory`. This is
+ * what keeps a continuous slider drag to a single undo step: the first frame of the gesture pushes (so the
+ * pre-drag state is undoable), every frame after it replaces.
+ */
+export function replaceHistoryPresent<T>(h: HistoryState<T>, next: T): HistoryState<T> {
+  return { past: h.past, present: next, future: [] };
+}
+
+export function canUndo<T>(h: HistoryState<T>): boolean {
+  return h.past.length > 0;
+}
+
+export function canRedo<T>(h: HistoryState<T>): boolean {
+  return h.future.length > 0;
+}
+
+/** Step back one entry. A no-op (returns the SAME object) at the bottom of the stack. */
+export function undo<T>(h: HistoryState<T>): HistoryState<T> {
+  if (h.past.length === 0) return h;
+  return {
+    past: h.past.slice(0, -1),
+    present: h.past[h.past.length - 1],
+    future: [h.present, ...h.future],
+  };
+}
+
+/** Step forward one entry. A no-op (returns the SAME object) at the top of the stack. */
+export function redo<T>(h: HistoryState<T>): HistoryState<T> {
+  if (h.future.length === 0) return h;
+  return {
+    past: [...h.past, h.present],
+    present: h.future[0],
+    future: h.future.slice(1),
+  };
+}
+
+/**
+ * Is `next` a continuation of the gesture that produced `prev`, rather than a new undo step?
+ *
+ * Pure, and the whole coalescing policy in one place: same kind, same key, both kinds continuous, and inside
+ * the window measured from the PREVIOUS edit (so a long drag keeps extending the same entry, while a pause
+ * ends it). A `structural` edit never coalesces in either direction — a primitive swap sitting in the middle
+ * of a drag must not be swallowed by it, which is precisely the destructive action undo exists to reverse.
+ */
+export function shouldCoalesce(
+  prev: HistoryMark | null,
+  next: HistoryMark,
+  windowMs: number = COALESCE_WINDOW_MS,
+): boolean {
+  if (prev === null) return false;
+  if (!CONTINUOUS_KINDS.includes(prev.kind) || !CONTINUOUS_KINDS.includes(next.kind)) return false;
+  if (prev.kind !== next.kind || prev.key !== next.key) return false;
+  const dt = next.atMs - prev.atMs;
+  return dt >= 0 && dt <= windowMs;
 }

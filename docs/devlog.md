@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx/ui): Loop is ON by default, and the loop flag survives a rebuild
+
+Owner: "make auto loop on by default." The workbench previously opened with Loop OFF and *reset it to OFF on
+every rebuild* — a deliberate earlier rule ("no auto-loop on open"), which in practice meant you clicked Loop,
+then changed a primitive or a duration, and playback silently stopped. Tuning an effect is watching it play
+repeatedly while dragging sliders, so the default was backwards.
+
+- `loopOn` now initialises to `true`, and `build()` constructs the player with `{ loop: loopOnRef.current }`
+  instead of a hardcoded `false`.
+- The initial playback call is now mode-aware: `play()` when looping, `fireOnce()` otherwise. This matters
+  because `fireOnce()` is a discrete one-shot *regardless* of the loop flag (see `FxPlayer.fireOnce`) — leaving
+  it in place would have made "loop on" render exactly one pass and stop.
+- Added `loopOnRef`, mirroring the flag the same way `speedRef` / `loopGapRef` / `seedRef` already do, so a
+  primitive swap, scenario switch, duration change, or def load reconstructs the player in the mode the author
+  left it in. The old `setLoopOn(false)` inside `build()` is gone. Turning Loop off still stops and resets, and
+  Fire is still a single one-shot pass either way — neither of those changed.
+
+Verified: typecheck clean, lint 0 errors (one pre-existing `SceneBuilder` unused-import warning), 2304 tests
+across 120 files green, `build:web` green.
+
 ### feat(fx/ui): Essentials tier, collapsible groups, disabled-with-reason, and a "Start from" gallery
 
 Owner: "consider best practices in the industry and fix the UI of the editor." An audit had measured the

@@ -202,9 +202,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // "Restored unsaved work" is VISIBLE and dismissible — restoring must never silently clobber what the
   // author expected to see (a blank default composition).
   const [restoredNotice, setRestoredNotice] = useState(restoredSession !== null);
-  // Loop is opt-in and OFF by default (see file-level rework note above `build()`): the workbench must
-  // never auto-start a continuous loop just because an effect opened. Only `toggleLoop` turns this on.
-  const [loopOn, setLoopOn] = useState(false);
+  // Loop is ON by default: tuning an effect means watching it play over and over while you drag sliders, so
+  // the workbench opens looping rather than making you click Loop first every session. `toggleLoop` turns it
+  // off for the cases where a single discrete pass is what you want to study.
+  const [loopOn, setLoopOn] = useState(true);
   const [loopGapMs, setLoopGapMs] = useState(0);
 
   // ── seed (see `FxPlayer.setSeed` / `fx/rng.ts`) ─────────────────────────────────────────────────────
@@ -238,6 +239,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const durationRef = useRef(durationMs);
   const speedRef = useRef(speed);
   const loopGapRef = useRef(loopGapMs);
+  // Whether playback is continuous. Mirrored so a rebuild reconstructs the player in the SAME mode the author
+  // left it in, and so the build closure (which doesn't re-run on this state) reads the live value.
+  const loopOnRef = useRef(loopOn);
   // The seed a REBUILD hands the freshly-created player. Mirrored the same way `speedRef`/`loopGapRef` are —
   // a rebuild constructs a brand-new player with no seed, and re-applying it here is what makes a locked
   // seed survive a primitive swap / duration change / def load rather than silently re-rolling.
@@ -390,12 +394,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       unmountLayer = pixiFx.mountLayer(container);
 
       const def = toDef(`workbench-${layersForDef[0]?.primitive ?? 'fx'}`, durationMs, layersForDef);
-      // NO auto-loop: every build (open, primitive/scenario switch, duration change) always constructs a
-      // non-looping player and fires it exactly once, so the effect is visible immediately and then sits
-      // idle -- never a continuous loop the user didn't ask for. `loopGapMs` is a dial value that DOES
-      // survive the rebuild (see `loopGapRef`); the "is looping" flag deliberately does not (see `setLoopOn`
-      // below) -- Loop is opt-in per build, matching the "no auto-loop on open" rule for every rebuild.
-      player = createPlayer(def, { container, renderer }, { loop: false, loopGapMs: loopGapRef.current });
+      // The loop flag SURVIVES a rebuild, the same way `loopGapMs`/`speed`/`seed` do (see `loopOnRef`): a
+      // primitive/scenario switch or duration change must not silently stop a loop the author is tuning
+      // against, and must not start one they turned off. Whichever mode is live, playback starts immediately
+      // below -- `play()` for continuous, `fireOnce()` for a single pass -- so a rebuilt effect is always
+      // visible without a click.
+      player = createPlayer(def, { container, renderer }, { loop: loopOnRef.current, loopGapMs: loopGapRef.current });
       player.setSpeed(speedRef.current);
       // Re-apply the seed BEFORE the auto-fire below, so the very first pass of a rebuilt player already
       // replays the locked roll — this is what makes "swap a primitive / load a def / re-Fire" reproduce the
@@ -407,11 +411,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       effectiveMutes(layersForDef).forEach((muted, i) => {
         if (muted) player?.setLayerMuted(i, true);
       });
-      player.fireOnce();
+      if (loopOnRef.current) player.play();
+      else player.fireOnce();
       playerRef.current = player;
       setUiPlaying(true);
       setTimeMs(0);
-      setLoopOn(false);
       lastPlaying = true;
 
       removeUpdater = pixiFx.addUpdater((dtMs) => {
@@ -832,8 +836,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   };
 
   // Pause/resume. There's no standing continuous loop to "resume" unless Loop is on -- so when Loop is off,
-  // resuming just re-fires a fresh one-shot pass (consistent with Fire, and with "no auto-loop" generally);
-  // when Loop is on, resuming restarts continuous playback.
+  // resuming just re-fires a fresh one-shot pass (consistent with Fire); when Loop is on, resuming restarts
+  // continuous playback.
   const togglePlay = (): void => {
     const p = playerRef.current;
     if (!p) return;
@@ -850,13 +854,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     }
   };
 
-  // Loop toggle -- the ONLY thing that starts continuous looping. OFF -> ON starts a fresh continuous cycle
+  // Loop toggle. OFF -> ON starts a fresh continuous cycle
   // from t=0; ON -> OFF stops and resets, matching "Loop off" meaning "nothing is looping", not "paused
   // mid-loop". Live setLoop()/play()/stop() calls on the existing player -- never a rebuild (see the build
   // effect's comment).
   const toggleLoop = (): void => {
     const p = playerRef.current;
     const next = !loopOn;
+    loopOnRef.current = next;
     setLoopOn(next);
     if (!p) return;
     if (next) {
@@ -1447,7 +1452,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         />
         <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
 
-        <div className="fxwb-loopgroup" title="Loop is opt-in -- Fire above always stays a single one-shot pass regardless of this toggle">
+        <div className="fxwb-loopgroup" title="Loop is on by default -- Fire above always stays a single one-shot pass regardless of this toggle">
           <button
             className={`fxwb-loop-toggle${loopOn ? ' on' : ''}`}
             onClick={toggleLoop}

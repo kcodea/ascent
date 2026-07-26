@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx): a One-way stage — cross once, arrive, end (and it is now the default)
+
+Owner: "i need an option that doesnt auto bounce back and forth. i want to fire the animation and let it
+play out once where it reaches its target and plays everything through and ends. somethings off."
+
+Right diagnosis. Bounce was fighting every feature of the last few turns, and the reason is structural: a
+scenario with a `headAt` OVERRIDES `travel` outright and drives the head forever. So on Bounce the head
+never stops — which means `travelMs` never "arrives", the ribbon's `drain` never triggers (it fires on the
+head not advancing), and a burst timed to an arrival has no arrival to be timed to. Every one of those
+features was invisible on the only stage suited to watching a trail move.
+
+New `oneWay` scenario: source left, target right, and deliberately **no `headAt` at all**. That hands
+`travel` back to `resolveAnchor`, which now runs it along each layer's own window — so a layer with a
+`travelMs` genuinely reaches the target and STAYS there, the drain runs during the dwell, and the burst
+reads as a consequence. It is the shape a real attack takes and the only stage that previews what a def
+will actually do in the game, so it is now first in `SCENARIOS` and therefore the default. Its hint says to
+pair it with Loop off and Fire, which is the "play once and end" loop asked for. Its test asserts
+`headAt === undefined`, since that absence is the whole mechanism and would otherwise look like an omission
+someone should "fix".
+
+This is the third time the deleted `twoUnits` scenario's job has turned out to matter — worth noting that
+trimming it in the scenario cleanup removed the only non-driven stage, and nothing caught that because
+nothing tested what a stage was FOR.
+
+Verified: typecheck clean, lint 0 errors, 2383 tests across 122 files green (8 new), `build:web` green.
+
 ### feat(fx): per-layer `travelMs` — arrive, drain, then detonate
 
 Owner: "add travelMs so it can arrive, drain, then detonate." Resolves the tension the previous entry named:

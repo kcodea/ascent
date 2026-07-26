@@ -51,6 +51,27 @@ function stageAll(
   };
 }
 
+/**
+ * Source on the left, target on the right, and the head crosses ONCE — the shape a real attack takes, and
+ * the only stage that previews what a def will actually do in combat.
+ *
+ * Deliberately has NO `headAt`. That hands `travel` back to `resolveAnchor`, which now runs it along each
+ * layer's own window (`layerTravelProgress`), so a layer with a `travelMs` genuinely arrives at the target
+ * and STAYS there — which is what lets a ribbon's tail drain into the stopped head and a burst read as a
+ * consequence of the arrival. A scenario with a custom path overrides `travel` outright and drives the head
+ * forever, so on Bounce the head never stops, the drain never fires and an arrival never happens: fine for
+ * judging a trail's look in motion, useless for judging a composition that has an ending.
+ */
+export const oneWay: FxScenario = {
+  id: 'oneWay',
+  label: 'One-way (source → target)',
+  hint: 'The head crosses once, lands on the target and stays — the shape a real attack takes. Use this one with Loop off and Fire.',
+  anchorsAt: (v, c) => {
+    const [a, b] = bounceSpots(v);
+    return stageAll(a, b, c, v);
+  },
+};
+
 /** The two spots a bounce ricochets between. Exported so tests can assert `headAt` lands on them without
  *  re-deriving the layout. */
 export function bounceSpots(v: { w: number; h: number }): [FxPoint, FxPoint] {
@@ -101,13 +122,13 @@ export const pinnedCursor: FxScenario = {
  *
  * Genuinely stationary, unlike the earlier version of this scenario, which crept along a small sine sweep
  * so that the ribbon primitive (a motion trail, which draws nothing from a still head) would still show
- * something. That traded an honest "stationary" for one primitive's convenience; a ribbon belongs in
- * Bounce, and the hint says so.
+ * something. That traded an honest "stationary" for one primitive's convenience; a ribbon belongs on a
+ * stage that moves, and the hint says so.
  */
 export const stationary: FxScenario = {
   id: 'stationary',
   label: 'Stationary (in place)',
-  hint: 'The effect animates in place at centre, with no movement. (A ribbon is a motion trail — it needs Bounce or Pinned to draw anything.)',
+  hint: 'The effect animates in place at centre, with no movement. (A ribbon is a motion trail — it needs One-way, Bounce or Pinned to draw anything.)',
   anchorsAt: (v, c) => {
     const centre = { x: v.w * 0.5, y: v.h * 0.5 };
     return stageAll(centre, centre, c, v);
@@ -152,4 +173,6 @@ export const realBoard: FxScenario = {
   },
 };
 
-export const SCENARIOS: FxScenario[] = [bounceScenario, pinnedCursor, stationary, realBoard];
+// `oneWay` is FIRST, and therefore the default stage: it is the only one that shows what a def will do in
+// the game — cross once, arrive, finish. The others are tuning aids for a look in isolation.
+export const SCENARIOS: FxScenario[] = [oneWay, bounceScenario, pinnedCursor, stationary, realBoard];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounceSpots, bounceScenario, pinnedCursor, realBoard, stationary, SCENARIOS } from './scenarios';
+import { bounceSpots, bounceScenario, oneWay, pinnedCursor, realBoard, stationary, SCENARIOS } from './scenarios';
 import type { FxHeadContext } from './scenarios';
 import { FX_ANCHOR_IDS, pointOnTravel, resolveAnchor } from './anchors';
 
@@ -204,5 +204,30 @@ describe('bounceScenario', () => {
     const actual = bounceScenario.headAt!(ctxAt(0.25));
     expect(actual.x).toBeCloseTo(expected.x, 5);
     expect(actual.y).toBeCloseTo(expected.y, 5);
+  });
+});
+
+describe('oneWay', () => {
+  it('is registered, and is the DEFAULT stage', () => {
+    expect(SCENARIOS).toContain(oneWay);
+    expect(SCENARIOS[0]).toBe(oneWay);
+  });
+
+  // THE property. A custom headAt overrides `travel` outright and drives the head forever, so the head never
+  // stops -- no arrival, no drain, no ending. Leaving it off hands travel back to layerTravelProgress.
+  it('drives NO custom head path, so travel follows each layer own window', () => {
+    expect(oneWay.headAt).toBeUndefined();
+  });
+
+  it('stages the source left and the target right', () => {
+    const anchors = oneWay.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
+    const [a, b] = bounceSpots(SAMPLE_VIEWPORT);
+    expect(anchors.source).toEqual(a);
+    expect(anchors.target).toEqual(b);
+    expect(anchors.target!.x).toBeGreaterThan(anchors.source!.x);
+  });
+
+  it('tells you to pair it with Loop off and Fire', () => {
+    expect(oneWay.hint).toMatch(/loop off/i);
   });
 });

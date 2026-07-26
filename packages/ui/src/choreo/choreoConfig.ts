@@ -117,7 +117,10 @@ export function beatDelay(type: string): number {
 // directions (classify-forward vs hold-lookup-backward) — adding a `MomentKind` variant requires updating both
 // (the `Record<MomentKind, …>` here forces this side exhaustively).
 const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
-  attackExchange: 'attack', damage: 'dmg', shieldPop: 'shield', poisonTick: 'poison',
+  // `shieldGain` (Ward gained) split out of `shieldPop` (Ward consumed) so the score can author them apart.
+  // It maps to the `shieldUp` pacing key, which is 460 — the SAME value `shield` carries — so the split is
+  // pacing-neutral (and the replay clock keys by primary event type anyway, never by kind).
+  attackExchange: 'attack', damage: 'dmg', shieldPop: 'shield', shieldGain: 'shieldUp', poisonTick: 'poison',
   death: 'death', riseDeath: 'death', scCast: 'sc',
   summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
   toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', keywordLost: 'buff',

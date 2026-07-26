@@ -3,6 +3,56 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-25 (FX — the bridge: an authored def can now play in real combat)
+
+### feat(fx/ui): playDef + combat anchors + an `fxDef` Score channel
+
+Everything before this was a lab. `createPlayer` had exactly two call sites — the workbench and a test — and
+no shipped effect used the system. This wires it into combat playback.
+
+- **`playDef(id, anchors)`** — fire-and-forget, matching every shipped `pixiFx` method. It mounts its own
+  container, drives its own updater, and **self-retires** on completion (idempotent: the returned cancel fn
+  and natural completion are the same guarded function). A 15s wall-clock valve above the player's own
+  simulated-time cap covers "the sim clock isn't advancing", so a stuck def can't leak an updater for the
+  session. Honours a def's saved `seed`, and **filters muted layers** — handing the same filtered array to
+  both `createPlayer` and `driveLayerHeads`, which removes the index-alignment hazard rather than managing it.
+- **Anchor sampling policy, decided and documented:** anchors are a SNAPSHOT taken at fire time and held for
+  the effect's life (`travel` still interpolates from that snapshot). A moving unit does not drag the effect —
+  the alternative is a `getBoundingClientRect` per frame, which is a documented anti-pattern here, and a
+  combat moment is an event with the geometry it had.
+- **`combatAnchors.ts`** resolves a moment's unit uids to real screen anchors using the *same* selector
+  Recruit's combat code already uses, delegating the rect→anchors math to `boardAnchors.ts` so there's one
+  definition. A uid that resolves to nothing returns `null` (unit left the screen → the caller skips); a
+  `null` uid folds onto the other end, so a source-less event doesn't fling its effect at the screen corner.
+- **An `fxDef` Score channel** whose `Cue` carries an optional `def` id — so "what plays when" is data,
+  scheduled through the same `offset`/`scaled`/`enabled` path as every other cue and inheriting the live
+  cue-timing overrides. Strictly additive: no existing channel, cue, or offset changed.
+
+**The catch the wiring caught.** `shieldUp` (Ward GAINED) shared the `shieldPop` moment kind with `shield`
+(Ward CONSUMED) — opposite beats — and `shieldPop` already owns the gold-shatter cue. Scoring the new effect
+there would have fired it on **every Ward shatter**. Split into an additive `shieldGain` kind instead (which
+required one mandated line in `choreoConfig.ts`'s exhaustive `KIND_TO_KEY`; pacing-neutral at 460ms, the same
+value `shield` returned).
+
+**Prod cost, measured not assumed.** `score.ts` is the first production importer of the bridge, pulling
+**+8.5 kB raw / +3.24 kB gzip** (0.66% of the main chunk) of def-player machinery into the shipped bundle.
+The primitives and their GLSL do **not** ship — they arrive only via a DEV-gated dynamic import — so in prod
+`canPlayDefs()` is false, the cue allocates no closure and schedules no timer, and `playDef` returns null.
+Shipping defs to players is a separate, explicit decision: it means shipping the primitives too.
+
+**Verified end to end in the real game** (not just tests): `typecheck` clean, `lint` 0 errors, `test`
+**2151 passing** (119 files), `build:web` green, and prod confirmed free of the primitives, the DEV handle and
+the def. In a live browser, with the committed `ward-gained` def: `canPlayDefs()` true, the def loaded from
+disk, `anchorsForUnits('s0', null)` resolved to real screen coordinates (479, 303), and firing it lit
+1689 → **5082** → 2226 pixels over its 700ms with **0 GL errors and 0 console errors** — then **self-retired
+cleanly**: updaters 1 → 0, overlay children 1 → 0, 0 pixels left drawing.
+
+**Known limitation, not a bug:** `shieldUp` is a result-type event, so it collapses into contiguous result
+runs — a `[dmg, shieldUp]` run compiles to a `damage` moment and won't reach the cue, and a `[shieldUp,
+shieldUp]` run anchors only to the first unit. Fine for proving the wiring; a per-event fan-out is the fix if
+this moment needs to be reliable. A DEV-only `window.__fx` handle (`ready()`/`play()`/`anchors()`/`list()`)
+exists to test-fire any def on the real board without waiting for its moment to occur.
+
 ## 2026-07-25 (FX workbench — anchors become real, + a live-board preview)
 
 ### feat(fx): each layer follows its own anchor, and effects can be staged over the actual board

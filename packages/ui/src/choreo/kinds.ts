@@ -8,7 +8,7 @@ import type { CombatEvent } from '@game/core';
  */
 export type MomentKind =
   | 'attackExchange'
-  | 'damage' | 'shieldPop' | 'poisonTick'
+  | 'damage' | 'shieldPop' | 'shieldGain' | 'poisonTick'
   | 'death'
   | 'riseDeath'
   | 'scCast'
@@ -19,7 +19,13 @@ export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
     case 'attack': return 'attackExchange';
     case 'dmg': return 'damage';
-    case 'shield': case 'shieldUp': return 'shieldPop';
+    // Ward CONSUMED (`shield`) and Ward GAINED (`shieldUp`) are opposite beats that shared one kind. They are
+    // split so the score can author them independently — a gain can carry its own FX without that FX also
+    // firing on every shatter. Pacing is untouched: the clock keys holds by PRIMARY EVENT TYPE (clock.ts's
+    // `beatDelay(next.primary.type)`), and the kind-facing `holdMsForKind` maps `shieldGain`→the `shieldUp`
+    // pacing key, whose value equals `shield`'s — so both classifications hold for the same time.
+    case 'shield': return 'shieldPop';
+    case 'shieldUp': return 'shieldGain';
     case 'poison': case 'venomLost': return 'poisonTick';
     case 'death': return primary.rise ? 'riseDeath' : 'death';
     case 'sc': return 'scCast';

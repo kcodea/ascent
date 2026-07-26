@@ -1,9 +1,20 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from './compile';
 import { sfx } from '../sfx';
-import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues } from './score';
-import { momentKind } from './kinds';
+import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues, type Channel } from './score';
+import { momentKind, type MomentKind } from './kinds';
+import { holdMsForKind } from './choreoConfig';
+import { canPlayDefs, playDef } from '../fx/playDef';
+import { anchorsForUnits } from '../fx/combatAnchors';
+
+// The `fxDef` channel's collaborators are mocked at the CONTRACT (`playDef`/`canPlayDefs`/`anchorsForUnits`),
+// so these tests prove the SCORE's dispatch/guard/timing wiring without depending on how the fx layer renders.
+vi.mock('../fx/playDef', () => ({ playDef: vi.fn(() => () => {}), canPlayDefs: vi.fn(() => true) }));
+vi.mock('../fx/combatAnchors', () => ({ anchorsForUnits: vi.fn(() => ({ target: { x: 5, y: 7 } })) }));
+const mockPlayDef = vi.mocked(playDef);
+const mockCanPlayDefs = vi.mocked(canPlayDefs);
+const mockAnchors = vi.mocked(anchorsForUnits);
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
@@ -293,5 +304,177 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
       expect(score[kind]).toBeDefined(); // getScore()[kind] must be iterable, not undefined
       expect(Array.isArray(score[kind])).toBe(true);
     }
+  });
+});
+
+// ── the `fxDef` channel (authored FX defs) ──────────────────────────────────────────────────────────────
+const shieldUpMoment = (): Moment => moment('shieldGain', [{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+
+describe('fxDef channel', () => {
+  beforeEach(() => {
+    // The suite-wide `restoreAllMocks` strips these module mocks' implementations — restate them per test.
+    mockPlayDef.mockReset(); mockPlayDef.mockImplementation(() => () => {});
+    mockCanPlayDefs.mockReset(); mockCanPlayDefs.mockImplementation(() => true);
+    mockAnchors.mockReset(); mockAnchors.mockImplementation(() => ({ target: { x: 5, y: 7 } }));
+    resetScore();
+  });
+  afterEach(() => resetScore());
+
+  it('is scored on shieldGain ONLY, with the ward-gained def (exactly one binding)', () => {
+    expect(SCORE_DEFAULTS.shieldGain).toEqual(expect.arrayContaining([
+      { ch: 'fxDef', at: 'start', offset: 0, def: 'ward-gained' },
+    ]));
+    for (const [kind, cues] of Object.entries(SCORE_DEFAULTS)) {
+      expect(cues.some((c) => c.ch === 'fxDef'), kind).toBe(kind === 'shieldGain');
+    }
+  });
+
+  // The kinds split must not have cost the moment anything it already played.
+  it('shieldGain keeps every cue shieldPop had — the split is purely additive', () => {
+    const before = SCORE_DEFAULTS.shieldPop.map((c) => c.ch);
+    expect(SCORE_DEFAULTS.shieldGain.map((c) => c.ch)).toEqual([...before, 'fxDef']);
+    expect(holdMsForKind('shieldGain')).toBe(holdMsForKind('shieldPop')); // and the pacing is identical
+  });
+
+  it('dispatches the channel: plays the cue def with the resolved anchors', () => {
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    runMomentCues(shieldUpMoment(), c);
+    // a shieldUp carries a target but no source → the missing side is passed as null
+    expect(mockAnchors).toHaveBeenCalledWith(null, 'b');
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', { target: { x: 5, y: 7 } });
+  });
+
+  it('no-ops when canPlayDefs() is false (production: defs do not ship)', () => {
+    mockCanPlayDefs.mockReturnValue(false);
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    runMomentCues(shieldUpMoment(), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+    expect(mockAnchors).not.toHaveBeenCalled(); // bails BEFORE resolving anchors — costs nothing
+  });
+
+  it('no-ops when the cue carries no def id', () => {
+    setCue('shieldGain', 'fxDef', { def: undefined });
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    runMomentCues(shieldUpMoment(), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  it('skips silently when the anchors are null (the unit already left the screen)', () => {
+    mockAnchors.mockReturnValue(null);
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    expect(() => runMomentCues(shieldUpMoment(), c)).not.toThrow();
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  // An unknown def id is `playDef`'s own null return — a build without ward-gained.json must not throw here.
+  it('tolerates an unknown def (playDef returns null)', () => {
+    mockPlayDef.mockReturnValue(null);
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    expect(() => runMomentCues(shieldUpMoment(), c)).not.toThrow();
+    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', expect.anything());
+  });
+
+  it('honours `enabled: false`', () => {
+    setCue('shieldGain', 'fxDef', { enabled: false });
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    runMomentCues(shieldUpMoment(), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  it('honours `offset`, scaled by combatSpeed like every other cue, and cancels on cleanup', () => {
+    vi.useFakeTimers();
+    setCue('shieldGain', 'fxDef', { offset: 200 });
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[], { combatSpeed: 2 });
+    const cleanup = runMomentCues(shieldUpMoment(), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();        // 200 ÷ 2 = 100ms
+    vi.advanceTimersByTime(99); expect(mockPlayDef).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2); expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    cleanup();
+    // and a pending one is cancelled
+    mockPlayDef.mockClear();
+    const c2 = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[], { combatSpeed: 1 });
+    runMomentCues(shieldUpMoment(), c2)();
+    vi.advanceTimersByTime(1000);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('a `scaled: false` offset is fixed wall-clock', () => {
+    vi.useFakeTimers();
+    setCue('shieldGain', 'fxDef', { offset: 300, scaled: false });
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[], { combatSpeed: 3 });
+    runMomentCues(shieldUpMoment(), c);
+    vi.advanceTimersByTime(299); expect(mockPlayDef).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2); expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  // The channel is generic: it reads the units off the moment's PRIMARY event, whatever that event is. An
+  // `attack` names its pair attacker/defender rather than source/target, so it gets its own resolution branch.
+  it('resolves an attack primary to its attacker/defender pair', () => {
+    const events = [{ type: 'attack', attacker: 'a', defender: 'd', swing: 0 }] as CombatEvent[];
+    const c = baseCtx(events);
+    // a `shieldGain`-scored moment whose primary happens to be an attack — exercises the resolution, not the binding
+    runMomentCues({ start: 0, end: 1, primary: events[0]!, stepGroups: [[0]], kind: 'shieldGain' }, c);
+    expect(mockAnchors).toHaveBeenCalledWith('a', 'd');
+  });
+});
+
+// The persisted score is a shared, cross-version blob (`localStorage['ascent.choreoScore']`): a score written
+// by a NEWER build (new kinds/channels/fields) must not break an OLDER one, and vice versa. NOTE: the suite
+// runs in bare node (no jsdom), so `localStorage` is undefined and score.ts's try/catch swallows every access
+// — the write-back test below installs a minimal stub to exercise the real persistence path.
+const withLocalStorage = (fn: (store: Map<string, string>) => void): void => {
+  const store = new Map<string, string>();
+  const g = globalThis as unknown as { localStorage?: unknown };
+  const had = 'localStorage' in g;
+  const prev = g.localStorage;
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    },
+    configurable: true, writable: true,
+  });
+  try { fn(store); } finally {
+    if (had) Object.defineProperty(globalThis, 'localStorage', { value: prev, configurable: true, writable: true });
+    else delete g.localStorage;
+  }
+};
+
+describe('score persistence tolerates unknown kinds/channels (cross-version round-trip)', () => {
+  afterEach(() => resetScore());
+
+  it('an unknown channel or kind in the overrides is ignored, not thrown on', () => {
+    resetScore();
+    setCue('shieldPop', 'notAChannel' as Channel, { offset: 999 });   // a channel this build doesn't know
+    setCue('notAKind' as MomentKind, 'sfx', { offset: 999 });         // a kind this build doesn't know
+    expect(() => getScore()).not.toThrow();
+    expect(() => scoreJson()).not.toThrow();
+    // the real cues are untouched by the junk, and no phantom kind appears in the effective score
+    expect(getCues('shieldPop').find((c) => c.ch === 'auraBreak')!.offset).toBe(300);
+    expect(Object.keys(getScore())).not.toContain('notAKind');
+    const c = baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[]);
+    expect(() => runMomentCues(moment('shieldPop', c.events), c)).not.toThrow();
+  });
+
+  it("an unknown override is PRESERVED on write-back — an older build cannot drop a newer build's score", () => {
+    withLocalStorage((store) => {
+      resetScore();
+      setCue('notAKind' as MomentKind, 'sfx', { offset: 999 });   // "written by a newer build"
+      setCue('death', 'auraBurst', { offset: 42 });                // an older build then edits its own cue
+      const raw = JSON.parse(store.get('ascent.choreoScore') ?? '{}');
+      expect(raw.notAKind).toEqual({ sfx: { offset: 999 } });      // still there — merged, not clobbered
+      expect(raw.death).toEqual({ auraBurst: { offset: 42 } });
+      expect(getCues('death').find((c) => c.ch === 'auraBurst')!.offset).toBe(42);
+    });
+  });
+
+  it('the new `def` field survives a JSON round-trip of the effective score', () => {
+    resetScore();
+    const json = JSON.parse(scoreJson());
+    expect(json.shieldGain.find((c: { ch: string }) => c.ch === 'fxDef').def).toBe('ward-gained');
   });
 });

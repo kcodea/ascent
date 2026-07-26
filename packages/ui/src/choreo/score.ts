@@ -5,6 +5,8 @@ import { playMomentSfx } from './channels/sfx';
 import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
+import { canPlayDefs, playDef } from '../fx/playDef';
+import { anchorsForUnits } from '../fx/combatAnchors';
 
 /**
  * The Score (choreographer phase 3) — per moment KIND, the ordered cues (channels + when they fire) that a
@@ -16,7 +18,7 @@ import { groupSelfBuffs } from './channels/buffSelf';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -29,6 +31,10 @@ export interface Cue {
   scaled?: boolean;
   /** default true; a disabled cue is skipped by the runner/engine. */
   enabled?: boolean;
+  /** `fxDef` ONLY: the authored FX def id to play (see `fx/playDef`). OPTIONAL so every pre-existing cue
+   *  literal and every persisted score stays valid; a `fxDef` cue without it is a no-op. Ignored by all other
+   *  channels. */
+  def?: string;
 }
 
 const BASE: Cue[] = [
@@ -72,6 +78,11 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // `attackExchange` (already has the full lunge/impact FX), so it never double-bursts; the handler no-ops on a
   // plain death that carries no dmg events.
   damage: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], shieldPop: [...BASE], poisonTick: [...BASE],
+  // `shieldGain` = a unit GAINS a Ward mid-combat (`shieldUp`). It carries the same BASE cues `shieldPop` gave
+  // it before the kinds split, PLUS the first authored-def cue: the moment had no pixiFx at all (Ward is a CSS
+  // dome stack), so this can't collide with an existing look. Inert until `ward-gained` exists — `playDef`
+  // returns null for an unknown id — and inert in production, where defs don't ship (`canPlayDefs()` false).
+  shieldGain: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'ward-gained' }],
   death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE], scCast: [...BASE],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
@@ -186,6 +197,17 @@ export interface CueContext {
   onAscend: (uids: string[]) => void;
 }
 
+/** The two units a moment is ABOUT, read off its PRIMARY event — what an authored def anchors to. `attack`
+ *  names its pair differently (attacker/defender); every other event carries at most a `target` plus an
+ *  optional `source`. A side the event doesn't carry is `null` (a `shieldUp` has a target but no source), which
+ *  `anchorsForUnits` is specified to accept. */
+function momentUnits(primary: CombatEvent): { source: string | null; target: string | null } {
+  if (primary.type === 'attack') return { source: primary.attacker, target: primary.defender };
+  const source = 'source' in primary && typeof primary.source === 'string' ? primary.source : null;
+  const target = 'target' in primary && typeof primary.target === 'string' ? primary.target : null;
+  return { source, target };
+}
+
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
  *  `start + offset`: an offset ≤0 fires synchronously; a positive offset schedules a timer (÷combatSpeed
  *  unless `scaled:false`, e.g. the reborn re-form's fixed wall-clock). Returns a cleanup that cancels any
@@ -270,6 +292,26 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'ascend') uids.push(e.target); }
       if (uids.length) ctx.onAscend(uids);
     });
+    // An AUTHORED FX def (fx/playDef) plays at this moment. Guarded BEFORE `at()` so the production path costs
+    // nothing: defs are a dev-authoring payload that doesn't ship, so `canPlayDefs()` is false there (two
+    // property reads, short-circuiting on the first) and this allocates no closure and schedules no timer,
+    // rather than bailing inside a callback that already cost a setTimeout. Nothing on that path warns.
+    // (In DEV, `playDef` itself logs once per call for a def id that hasn't been authored yet — its choice,
+    // and the signal an author wants; it cannot reach production, where this branch never calls it.)
+    else if (cue.ch === 'fxDef') {
+      const def = cue.def;                       // capture: narrowing a property doesn't survive into the closure
+      if (!def || !canPlayDefs()) continue;      // no def id / defs unavailable → nothing to schedule
+      at(cue, () => {
+        const { source, target } = momentUnits(moment.primary);
+        const anchors = anchorsForUnits(source, target);
+        if (!anchors) return;                    // the unit already left the screen → skip silently
+        // Unknown def id → `playDef` returns null, so a build without this def's JSON is a silent no-op. The
+        // returned stop() is deliberately NOT wired into this runner's cleanup: every channel here is
+        // fire-and-forget (an aura burst outlives its moment too), and cancelling on moment-change would cut
+        // the effect off mid-play.
+        playDef(def, anchors);
+      });
+    }
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }
   return () => timers.forEach((id) => clearTimeout(id));

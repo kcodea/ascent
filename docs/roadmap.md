@@ -152,14 +152,20 @@ The career surface exists; deepen what a finished run *remembers*.
   plugin, with a library / Duplicate / Paste / autosave, and imported art promoted to committed `art:` files
   so a shared def renders what its author saw.
 
-- **FX — bridge defs into the game (the next sub-project).** Durable defs landed; nothing in real gameplay
-  plays one yet. Needs: flipping the `fxDefs` registry out of DEV-only, an anchor provider mapping a combat
-  uid → screen points (copy the pattern in `fxTestFire.ts`, which already reads real DOM rects), a
-  fire-and-forget `playDef(id, anchors)` that self-retires, and a `fxDef` Score channel whose `Cue` carries a
-  def id — which would make "what plays when" data, inheriting the existing live cue-timing overrides. An
-  audit found **~15 combat events with no visual effect at all** (Ward *gained*, Stealth breaking, keyword
-  granted/stripped, Venom spent, Rally's source→target link, quest trigger/complete, enemy-side tribe auras, a
-  plain minion death) — that's the content backlog this unlocks.
+- **FX — the bridge SHIPPED 2026-07-25** (`playDef` + `combatAnchors` + an `fxDef` Score channel, proven in a
+  live browser with the committed `ward-gained` def bound to the new `shieldGain` moment). What's left on it:
+  - **The prod decision.** Defs are inert for players: the primitives ship only via a DEV-gated dynamic
+    import, so `canPlayDefs()` is false in a production build. Turning it on means shipping the primitives +
+    their GLSL — measure that before flipping. The bridge scaffolding itself already costs +3.24 kB gzip.
+  - **`shieldUp` is a result-type event** and collapses into contiguous result runs, so the demo cue doesn't
+    fire on every combat (`[dmg, shieldUp]` compiles to a `damage` moment). A per-event fan-out in
+    `compile.ts` is the fix if that moment needs to be reliable.
+  - **The content backlog this unlocks:** ~15 combat events still have no visual effect at all — Stealth
+    breaking, keyword granted/stripped, Venom spent, Rally's source→target link (the defining read of the
+    card, with no visual link at all), quest trigger/complete, enemy-side tribe auras, and a plain minion
+    death. Each is now an authored def + one score entry rather than bespoke `pixiFx` code.
+  - **Anchors are a fire-time snapshot**, so an effect doesn't follow a moving unit. Deliberate (per-frame
+    layout reads are banned here); revisit if a follow-the-unit effect is ever wanted.
 
 - **FX workbench — remaining authoring gaps.** (The three trust defects — Fire ignoring `at`/`life`, timing
   edits respawning mid-drag, no seed lock — were fixed 2026-07-25, along with duplicate-layer and per-layer

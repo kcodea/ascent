@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "id": "ward-gained",
+  "duration": 700,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "life": 700,
+      "params": {
+        "rings": 1,
+        "speed": 1.5,
+        "thickness": 0.16,
+        "radius": 0.42,
+        "fade": 1.4,
+        "ease": 0.55,
+        "bands": 3,
+        "alpha": 0.9,
+        "glow": 0.35,
+        "erode": 0.35,
+        "palette": [1849924, 3046796, 6280918, 14221311]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 60,
+      "life": 520,
+      "params": {
+        "count": 16,
+        "spread": 1,
+        "speed": 150,
+        "speedVar": 0.45,
+        "drag": 0.88,
+        "gravity": -40,
+        "life": 420,
+        "shape": "diamond",
+        "size": 7,
+        "coreBias": 0.6,
+        "bands": 3,
+        "plateau": 0.34,
+        "glow": 0.3,
+        "palette": [1849924, 3046796, 6280918, 14221311]
+      }
+    }
+  ]
+}

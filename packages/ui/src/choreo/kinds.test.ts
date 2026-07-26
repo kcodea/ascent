@@ -26,7 +26,9 @@ describe('momentKind', () => {
       [{ type: 'hpGrant', target: 'b', amount: 1 }, 'hpGrant'],
       [{ type: 'reveal', target: 'b' }, 'reveal'],
       [{ type: 'venomLost', target: 'b' }, 'poisonTick'],
-      [{ type: 'shieldUp', target: 'b' }, 'shieldPop'],
+      // Ward GAINED is its own kind (was `shieldPop`, shared with Ward CONSUMED) so the score can author a
+      // gain's FX without it also firing on every shatter. Pacing is unchanged — see kinds.ts.
+      [{ type: 'shieldUp', target: 'b' }, 'shieldGain'],
     ];
     for (const [primary, kind] of cases) {
       expect(momentKind(primary)).toBe(kind);

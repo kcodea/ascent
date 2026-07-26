@@ -4218,6 +4218,9 @@ export function Recruit() {
                         keywords: inst?.keywords ?? c.keywords, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
                         text: golden ? (opt.goldenText ?? opt.text) : opt.text,
                         goldenText: opt.goldenText ?? opt.text,
+                        // Each option previews the ART it would become, not just its text — the picture is half
+                        // of what's being chosen (owner 2026-07-25).
+                        chosenOption: i,
                       }}
                       // `forceFull` regardless of the compact-cards preference: on every other surface the text
                       // drawer is optional detail you can hover for, but here the two texts ARE the decision —

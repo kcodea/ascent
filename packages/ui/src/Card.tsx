@@ -112,6 +112,9 @@ export interface CardView {
   name: string;
   /** Card id — used to look up illustrated art (falls back to the tribe sprite). */
   cardId?: string;
+  /** Choose One: the branch this instance picked. Drives ART only here — the per-branch TEXT is already
+   *  resolved upstream (`instView` / `Unit`). Option N renders `<cardId><N+1>` when that art exists. */
+  chosenOption?: number;
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
@@ -449,7 +452,7 @@ export const Card = memo(function Card({
   // While a card is being held/dragged, you're not "hovering" anything — drop any popup + don't open one.
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   // Illustrated art (if any). `uid` lets multi-variant cards (Pup) pick a stable per-instance image.
-  const artUrl = artFor(card.cardId, uid);
+  const artUrl = artFor(card.cardId, uid, card.chosenOption);
   // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
   // STANDARD / SPELL frames: same load-or-fallback guard. A card wears exactly one authored frame — Taunt wins

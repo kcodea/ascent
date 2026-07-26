@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+### 2026-07-25 — feat(ui): Choose One cards wear the art of the branch they became
+
+Owner request: a Choose One minion gets two illustrations, and picking an option picks its art.
+
+Wired as a **naming convention rather than a data field** — option index N renders `<cardId><N+1>`, so option 0
+keeps the base file and Wildwood Shaper's Stray branch (index 1) is `shaper2`, matching the master's
+`WildwoodShaper2.png`. New art is a drag-and-drop with no code change, and a branch without its own art falls
+back to the base file, so partial art is fine (every other Choose One card ships one illustration today).
+
+`CardView` gains `chosenOption`, fed from `instView` (shop/board/hand) and `Unit` (combat) — both already
+carried the field for TEXT, so the art rides the same resolution the printed branch does. The Choose One
+**prompt** also previews each option with its own art: the picture is half of what's being chosen.
+
+`WildwoodShaper2.png` → `shaper2.webp` (2.0MB → 51KB) is the first wired pair.
+
+**Note for the earlier `2` files:** the Set-2 masters I'd been skipping under the ambiguity rule
+(CinderChancellor2, ErrandFiend2, LegionShepherd2, VelvetRopeFiend2, FaultlineScrapper2, GemstormInstigator2,
+Veinbreaker2) are NOT branch art — none of those cards is a Choose One. They're still awaiting a ruling.
+
+**Verified:** typecheck / lint / test / build:web green, 1724 tests (+3). Live-checked on a throwaway run
+against a freshly started dev server (new art needs a restart, not a reload): the prompt renders
+`shaper.webp` / `shaper2.webp` on the two options, picking the Stray branch leaves `shaper2` on the board,
+picking the buff branch leaves `shaper`, console clean.
+
+The new test guards the convention, which typecheck can't see — a file numbered past the option count would
+silently never render. Confirmed it fails both ways: on a bogus `shaper3`, and on the art going missing.
+
 ### 2026-07-25 — content: three owner card changes (Ashen Broodlord, Aeon Acolyte, Lastlight Marshal)
 
 **Ashen Broodlord** drops the Avenge-spell-power line for *"When this Consumes a minion, get a Shop spell"*

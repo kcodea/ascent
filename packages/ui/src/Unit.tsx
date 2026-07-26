@@ -87,6 +87,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     : { text: '', goldenText: undefined };
   const view: CardView = {
     name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2,
+    chosenOption: u.chosenOption, // the branch's ART rides into combat with it, same as its text
     // Buff-tendril: hold the pre-buff value while the tendril flies; on strike, release + flash the changed badge(s).
     attack: statHold?.atk ?? u.attack,
     health: statHold ? statHold.hp : Math.max(0, u.health),

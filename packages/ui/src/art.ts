@@ -51,8 +51,20 @@ const SPELL_ART = indexArt(
 
 /** The illustrated art URL for a card id, or undefined if none has been added. `uid` lets cards
  *  with multiple art variants pick one per instance (stable across re-renders, ~50/50 split). */
-export const artFor = (cardId?: string, uid?: string): string | undefined => {
+export const artFor = (cardId?: string, uid?: string, chosenOption?: number): string | undefined => {
   if (!cardId) return undefined;
+  // CHOOSE ONE: a resolved instance wears the art of the branch it BECAME (owner 2026-07-25). Option 0 keeps
+  // the base file and option N looks for `<id><N+1>` — so Wildwood Shaper's Stray branch (option index 1) is
+  // `shaper2`, matching the master's `WildwoodShaper2.png`. Numbering the file after the option's POSITION,
+  // rather than adding a per-branch id, means new art is a drag-and-drop with no code change.
+  //
+  // Falls through to the base art when the variant hasn't been drawn yet, so a Choose One card with only one
+  // illustration still renders — every existing one does, which is why this is a fallback and not a lookup.
+  if (chosenOption !== undefined && chosenOption > 0) {
+    const key = `${cardId}${chosenOption + 1}`;
+    const variant = MINION_ART[key] ?? SPELL_ART[key];
+    if (variant) return variant;
+  }
   // Pup ships two variants (pup / pup2) — flip a coin per spawn (by uid) for a little flavor.
   if (cardId === 'pup' && MINION_ART.pup2 && uid) {
     return hashStr(uid) % 2 === 0 ? MINION_ART.pup : MINION_ART.pup2;

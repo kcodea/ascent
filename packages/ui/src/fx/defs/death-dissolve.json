@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "id": "death-dissolve",
+  "duration": 600,
+  "layers": [
+    {
+      "primitive": "smoke",
+      "anchor": "target",
+      "at": 0,
+      "life": 560,
+      "params": {
+        "rate": 55,
+        "life": 260,
+        "spread": 1,
+        "speed": 25,
+        "speedVar": 0.5,
+        "gravity": 150,
+        "spin": 12,
+        "spinVar": 0.7,
+        "turbulence": 25,
+        "turbScale": 0.03,
+        "emitShape": "disc",
+        "emitRadius": 26,
+        "shape": "circle",
+        "size": 16,
+        "sizeVar": 0.45,
+        "sizeCurve": [[0, 0.55], [1, 1.35]],
+        "coreBias": 0.28,
+        "biasCurve": [[0, 1], [1, 0.35]],
+        "bands": 3,
+        "plateau": 0.3,
+        "fadeIn": 0.22,
+        "palette": [2763314, 5592415, 8947866, 12105928]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 40,
+      "life": 520,
+      "params": {
+        "count": 9,
+        "spread": 1,
+        "speed": 55,
+        "speedVar": 0.6,
+        "drag": 0.86,
+        "gravity": 260,
+        "life": 460,
+        "shape": "circle",
+        "size": 5,
+        "sizeVar": 0.5,
+        "coreBias": 0.3,
+        "bands": 3,
+        "plateau": 0.3,
+        "blendMode": "normal",
+        "glow": 0,
+        "palette": [2763314, 5592415, 8947866, 12105928]
+      }
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "id": "keyword-gain",
+  "duration": 520,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "life": 380,
+      "params": {
+        "rings": 1,
+        "speed": 2.8,
+        "thickness": 0.07,
+        "fade": 1.6,
+        "radius": 74,
+        "squash": 0.55,
+        "ease": 0.6,
+        "bands": 3,
+        "alpha": 0.7,
+        "glow": 0.3,
+        "plateau": 0.3,
+        "erode": 0.35,
+        "palette": [16736010, 16758815, 16773288, 16777215]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 0,
+      "life": 380,
+      "params": {
+        "count": 14,
+        "spread": 1,
+        "speed": 150,
+        "speedVar": 0.5,
+        "drag": 0.88,
+        "gravity": -300,
+        "life": 340,
+        "shape": "diamond",
+        "size": 8,
+        "sizeVar": 0.45,
+        "sizeCurve": [[0, 1], [1, 0]],
+        "coreBias": 0.8,
+        "bands": 3,
+        "plateau": 0.32,
+        "glow": 0.3,
+        "erode": 0.3,
+        "palette": [16736010, 16758815, 16773288, 16777215]
+      }
+    },
+    {
+      "primitive": "emitter",
+      "anchor": "target",
+      "at": 60,
+      "life": 460,
+      "params": {
+        "rate": 110,
+        "life": 220,
+        "spread": 0.3,
+        "speed": 110,
+        "speedVar": 0.4,
+        "gravity": -240,
+        "emitShape": "disc",
+        "emitRadius": 24,
+        "shape": "diamond",
+        "size": 6,
+        "sizeVar": 0.4,
+        "sizeCurve": [[0, 1], [1, 0.4]],
+        "coreBias": 0.7,
+        "fadeIn": 0.18,
+        "bands": 3,
+        "plateau": 0.3,
+        "glow": 0.3,
+        "erode": 0.3,
+        "palette": [16736010, 16758815, 16773288, 16777215]
+      }
+    }
+  ]
+}

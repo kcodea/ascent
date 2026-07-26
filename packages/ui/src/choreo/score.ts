@@ -83,16 +83,41 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // dome stack), so this can't collide with an existing look. Inert until `ward-gained` exists — `playDef`
   // returns null for an unknown id — and inert in production, where defs don't ship (`canPlayDefs()` false).
   shieldGain: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'ward-gained' }],
-  death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE], scCast: [...BASE],
+  // A Venomous charge SPENT — split out of `poisonTick` (the Execute proc), which keeps its crescent strike
+  // untouched. Same cues `poisonTick` gave it, plus the def.
+  venomSpent: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'venom-spent' }],
+  death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE],
+  // A real Start-of-Combat CAST (`sc` with `cast: true`) → a muzzle/charge flash at the CASTER (the `sc` event
+  // carries a source and no target, so the anchors fold onto the caster). The bolt/projectile itself stays
+  // DOM/CSS — this def adds the flash at the origin, it does not replace the travel. Mid-combat NARRATION now
+  // classifies as `scNarrate` and keeps exactly the cues it had, so a spell-power line stays silent.
+  scCast: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'spell-cast' }], scNarrate: [...BASE],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
   summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }], reborn: withReform(),
   ascend: [...BASE, { ch: 'ascendFx', at: 'start', offset: 0 }],
-  rally: [...BASE], toHand: [...BASE],
+  // Deathsayer firing an ally's Deathrattle — the one binding here that is genuinely source→target: a `rally`
+  // event names BOTH ends, so `anchorsForUnits` gets two real units and the def's `travel` arc reads as the link.
+  rally: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'rally-link' }],
+  // `toHand` carries no target and only an OPTIONAL source (the minion that granted the card). With a source the
+  // anchors fold onto it; the sourceless case (a quest's reward card) resolves to null anchors and skips.
+  toHand: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'to-hand' }],
   maxGold: [...BASE, { ch: 'coins', at: 'start', offset: 0 }],
   improve: [...BASE, { ch: 'improveSelf', at: 'start', offset: 0 }],
-  keyword: [...BASE], keywordLost: [...BASE], hpGrant: [...BASE], spellProgress: [...BASE], reveal: [...BASE],
+  keyword: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'keyword-gain' }],
+  keywordLost: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'keyword-lost' }],
+  hpGrant: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'hp-grant' }],
+  spellProgress: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'spell-progress' }],
+  reveal: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'stealth-break' }],
   tribeAura: [...BASE], // the wash itself is fired from the per-beat scan in useCombatReplay (like spell power), not a choreo channel
+  // Quest/rune beats. These were classified `damage` before their kinds existed, so they carry `damage`'s exact
+  // cue list + the def — the split is provably a no-op for everything that already played. `damageFx` rides
+  // along INERT: it bursts at the moment's `dmg` events and a quest moment is a single non-result event, so it
+  // has none. Anchors: neither event names a unit (`flag`/`questId` + `side`), so `anchorsForUnits(null, null)`
+  // returns null and the def skips silently — these two stay dormant until the score can anchor to a badge/HUD
+  // node rather than a board unit. Scored anyway so the binding is in one place when that anchor exists.
+  questTrigger: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }, { ch: 'fxDef', at: 'start', offset: 0, def: 'quest-trigger' }],
+  questComplete: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }, { ch: 'fxDef', at: 'start', offset: 0, def: 'quest-complete' }],
 };
 
 const KEY = 'ascent.choreoScore';

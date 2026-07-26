@@ -8,12 +8,13 @@ import type { CombatEvent } from '@game/core';
  */
 export type MomentKind =
   | 'attackExchange'
-  | 'damage' | 'shieldPop' | 'shieldGain' | 'poisonTick'
+  | 'damage' | 'shieldPop' | 'shieldGain' | 'poisonTick' | 'venomSpent'
   | 'death'
   | 'riseDeath'
-  | 'scCast'
+  | 'scCast' | 'scNarrate'
   | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'toHand' | 'maxGold' | 'improve'
-  | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal' | 'tribeAura';
+  | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal' | 'tribeAura'
+  | 'questTrigger' | 'questComplete';
 
 export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
@@ -26,9 +27,20 @@ export function momentKind(primary: CombatEvent): MomentKind {
     // pacing key, whose value equals `shield`'s — so both classifications hold for the same time.
     case 'shield': return 'shieldPop';
     case 'shieldUp': return 'shieldGain';
-    case 'poison': case 'venomLost': return 'poisonTick';
+    // Same split, same reason, as `shield`/`shieldUp` above: an Execute PROC (`poison`, a kill) and a Venomous
+    // charge being SPENT (`venomLost`) shared one kind, so a def authored for "Venom spent" would have fired on
+    // every Execute kill too — and `poisonTick` already runs the `executeFx` cue (the crescent strike), which is
+    // exactly the FX a shared kind would double up on. Pacing is untouched: the clock keys holds by PRIMARY EVENT
+    // TYPE, and `holdMsForKind` maps `venomSpent`→the `venomLost` pacing key, whose value equals `poison`'s.
+    case 'poison': return 'poisonTick';
+    case 'venomLost': return 'venomSpent';
     case 'death': return primary.rise ? 'riseDeath' : 'death';
-    case 'sc': return 'scCast';
+    // `sc` is TWO different beats behind one type: a genuine Start-of-Combat damage CAST (`cast: true` — the UI
+    // plays the zap/bolt/flash) and mid-combat NARRATION (a spell-power gain: log line + trigger pulse only).
+    // They shared `scCast`, so a caster muzzle-flash def would also have flashed on every narration line. The
+    // narration keeps every cue it had, under its own name; `scCast` now means what it says. Both map to the
+    // `sc` pacing key, so holds are unchanged either way.
+    case 'sc': return primary.cast ? 'scCast' : 'scNarrate';
     case 'summon': return 'summon';
     case 'buff': return 'buffWave';
     case 'reborn': return 'reborn';
@@ -43,6 +55,14 @@ export function momentKind(primary: CombatEvent): MomentKind {
     case 'spellProgress': return 'spellProgress'; // Archmagus Guel's on-board spell tally tick
     case 'reveal': return 'reveal';
     case 'tribeAura': return 'tribeAura'; // a run-wide combat aura → the board aura-wash
+    // Quest/rune beats had NO case of their own, so they fell through to the `damage` default below and were
+    // classified as damage moments — which own the `damageFx` cue (the crimson burst + impact ring). Harmless
+    // while nothing was authored on `damage` (a quest moment is a single non-result event, so it contains no
+    // `dmg` for that cue to burst at), but it made `damage` the ONLY place a quest def could be scored, and a
+    // def scored there fires on every real hit in the fight. They get their own kinds instead; both map to the
+    // `dmg` pacing key, so `holdMsForKind` is unchanged from the `damage` classification they had.
+    case 'questTrigger': return 'questTrigger';
+    case 'questComplete': return 'questComplete';
     // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
     // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).
     default: return 'damage';

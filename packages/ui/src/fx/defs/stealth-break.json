@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "id": "stealth-break",
+  "duration": 420,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "life": 360,
+      "params": {
+        "rings": 1,
+        "speed": 3,
+        "thickness": 0.05,
+        "fade": 1.8,
+        "radius": 96,
+        "ease": 0.55,
+        "bands": 3,
+        "alpha": 0.85,
+        "glow": 0.2,
+        "plateau": 0.3,
+        "noiseAlong": 3,
+        "noiseAcross": 8,
+        "warp": 0.3,
+        "scroll": 2,
+        "erode": 0.3,
+        "gain": 1.5,
+        "palette": [4139660, 8084704, 12834047, 16777215]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 20,
+      "life": 400,
+      "params": {
+        "count": 12,
+        "spread": 1,
+        "speed": 300,
+        "speedVar": 0.5,
+        "drag": 0.86,
+        "gravity": 0,
+        "life": 300,
+        "orientToVelocity": true,
+        "shape": "shard",
+        "size": 8,
+        "sizeVar": 0.5,
+        "stretchX": 1.4,
+        "sizeCurve": [[0, 1], [1, 0]],
+        "coreBias": 0.7,
+        "bands": 3,
+        "plateau": 0.3,
+        "glow": 0.2,
+        "erode": 0.3,
+        "palette": [4139660, 8084704, 12834047, 16777215]
+      }
+    }
+  ]
+}

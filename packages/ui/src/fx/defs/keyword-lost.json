@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "keyword-lost",
+  "duration": 520,
+  "layers": [
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 0,
+      "life": 500,
+      "params": {
+        "count": 14,
+        "spread": 1,
+        "speed": 110,
+        "speedVar": 0.5,
+        "drag": 0.9,
+        "gravity": 340,
+        "life": 460,
+        "orientToVelocity": true,
+        "shape": "shard",
+        "size": 8,
+        "sizeVar": 0.5,
+        "sizeCurve": [[0, 1], [1, 0.2]],
+        "coreBias": 0.5,
+        "biasCurve": [[0, 1], [1, 0.15]],
+        "alphaCurve": [[0, 1], [0.6, 0.8], [1, 0]],
+        "bands": 3,
+        "plateau": 0.28,
+        "blendMode": "normal",
+        "glow": 0.05,
+        "erode": 0.45,
+        "palette": [3810338, 7029568, 9406341, 12170161]
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "life": 340,
+      "params": {
+        "rings": 1,
+        "speed": 3,
+        "thickness": 0.06,
+        "fade": 2.2,
+        "radius": 56,
+        "squash": 0.45,
+        "ease": 1.5,
+        "bands": 3,
+        "alpha": 0.4,
+        "glow": 0.05,
+        "plateau": 0.28,
+        "erode": 0.6,
+        "palette": [3810338, 7029568, 9406341, 12170161]
+      }
+    }
+  ]
+}

@@ -116,16 +116,23 @@ export function beatDelay(type: string): number {
 // the 300 default. NOTE: this and `momentKind` (kinds.ts) encode the kind↔event-type relationship in OPPOSITE
 // directions (classify-forward vs hold-lookup-backward) — adding a `MomentKind` variant requires updating both
 // (the `Record<MomentKind, …>` here forces this side exhaustively).
+// EVERY kind split (see kinds.ts) is pacing-neutral BY CONSTRUCTION: the new kind maps to a key whose VALUE
+// equals the one the old kind mapped to, so `holdMsForKind(new) === holdMsForKind(old)`. (The replay clock
+// never reads a kind at all — it keys by primary event type — so a split cannot move a beat regardless; these
+// mappings keep the kind-facing view honest for when the score takes over the hold in a later phase.)
+//   shieldGain ← shieldPop : 'shieldUp' 460 === 'shield' 460
+//   venomSpent ← poisonTick: 'venomLost' 500 === 'poison' 500
+//   scNarrate  ← scCast    : the same 'sc' key, 720
+//   questTrigger/questComplete ← damage: the same 'dmg' key, 460 (they were classified `damage` before)
 const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
-  // `shieldGain` (Ward gained) split out of `shieldPop` (Ward consumed) so the score can author them apart.
-  // It maps to the `shieldUp` pacing key, which is 460 — the SAME value `shield` carries — so the split is
-  // pacing-neutral (and the replay clock keys by primary event type anyway, never by kind).
   attackExchange: 'attack', damage: 'dmg', shieldPop: 'shield', shieldGain: 'shieldUp', poisonTick: 'poison',
-  death: 'death', riseDeath: 'death', scCast: 'sc',
+  venomSpent: 'venomLost',
+  death: 'death', riseDeath: 'death', scCast: 'sc', scNarrate: 'sc',
   summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
   toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', keywordLost: 'buff',
   hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
   tribeAura: 'buff', // hold-times like a buff wave — an aura is a buff cue
+  questTrigger: 'dmg', questComplete: 'dmg',
 };
 export function holdMsForKind(kind: MomentKind): number {
   return beatDelay(KIND_TO_KEY[kind]);

@@ -76,8 +76,20 @@ describe('score', () => {
 
   it('executeFx does NOT fire on a venomLost-only moment (the keyword being spent is not a kill)', () => {
     const c = ctx([{ type: 'venomLost', target: 'b' }]);
-    runMomentCues(moment('poisonTick', c.events), c);
+    runMomentCues(moment('poisonTick', c.events), c);       // absorbed into a poison run
     expect(c.onExecuteFx).not.toHaveBeenCalled();
+    const c2 = ctx([{ type: 'venomLost', target: 'b' }]);
+    runMomentCues(moment('venomSpent', c2.events), c2);      // and as its own kind (the split)
+    expect(c2.onExecuteFx).not.toHaveBeenCalled();
+  });
+
+  // The venomSpent/poisonTick split must not have cost the Execute crescent: both are RESULT_TYPES, so a
+  // `[venomLost, poison]` run collapses into ONE moment whose primary is the venomLost — i.e. a `venomSpent`
+  // moment that still CONTAINS a kill. It has to slash exactly as it did when both events shared a kind.
+  it('executeFx still fires for a poison collapsed into a venomSpent moment', () => {
+    const c = ctx([{ type: 'venomLost', target: 'b' }, { type: 'poison', target: 'b' }]);
+    runMomentCues(moment('venomSpent', c.events), c);
+    expect(c.onExecuteFx).toHaveBeenCalledWith(['b']);
   });
 
   // THE REGRESSION (owner report 2026-07-22: "i only see the original strike effect"). `poison` is a
@@ -286,7 +298,8 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
     { type: 'shield', target: 'b' }, { type: 'shieldUp', target: 'b' },
     { type: 'poison', target: 'b' }, { type: 'venomLost', target: 'b' },
     { type: 'death', target: 'b' }, { type: 'death', target: 'b', rise: true },
-    { type: 'sc', source: 'a', text: 'x' }, { type: 'summon', side: 'player', index: 0, minion: { uid: 'z', cardId: 'alley', name: 'Alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } },
+    { type: 'sc', source: 'a', text: 'x' }, { type: 'sc', source: 'a', text: 'x', cast: true },
+    { type: 'summon', side: 'player', index: 0, minion: { uid: 'z', cardId: 'alley', name: 'Alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } },
     { type: 'buff', target: 'b', source: 'a', attack: 1, health: 1 },
     { type: 'reborn', target: 'b', attack: 1, hp: 1, keywords: [] },
     { type: 'ascend', target: 'b', into: 'taragosa' }, { type: 'rally', source: 'a', target: 'b' },
@@ -294,7 +307,10 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
     { type: 'improve', target: 'b', amount: 1 },
     { type: 'keyword', target: 'b', keyword: 'DS' }, { type: 'keywordLost', target: 'b', keyword: 'T' },
     { type: 'hpGrant', target: 'b', amount: 2 }, { type: 'spellProgress', target: 'b', amount: 3 },
-    { type: 'reveal', target: 'b' },
+    { type: 'reveal', target: 'b' }, { type: 'tribeAura', side: 'player', tribe: 'beast', attack: 1 },
+    // Quest/rune beats: these used to hit `momentKind`'s `damage` fallthrough. They have their own kinds now, so
+    // this row also guards against a kind being added without its score entry (the "cues is not iterable" crash).
+    { type: 'questTrigger', flag: 'f', side: 'player' }, { type: 'questComplete', questId: 'q', side: 'player' },
   ] as CombatEvent[];
 
   it('every event type yields a defined, iterable score entry (never crashes runMomentCues)', () => {
@@ -310,6 +326,16 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
 // ── the `fxDef` channel (authored FX defs) ──────────────────────────────────────────────────────────────
 const shieldUpMoment = (): Moment => moment('shieldGain', [{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
 
+// THE binding table: which kind plays which authored def. Nothing else may carry an fxDef cue — an accidental
+// extra binding is exactly the failure mode the kind splits exist to prevent (one def firing on a neighbouring
+// event's beat), and it would stay invisible until someone authors that def.
+const BINDINGS: Record<string, string> = {
+  shieldGain: 'ward-gained', venomSpent: 'venom-spent', scCast: 'spell-cast',
+  reveal: 'stealth-break', keyword: 'keyword-gain', keywordLost: 'keyword-lost',
+  rally: 'rally-link', toHand: 'to-hand', hpGrant: 'hp-grant', spellProgress: 'spell-progress',
+  questTrigger: 'quest-trigger', questComplete: 'quest-complete',
+};
+
 describe('fxDef channel', () => {
   beforeEach(() => {
     // The suite-wide `restoreAllMocks` strips these module mocks' implementations — restate them per test.
@@ -320,20 +346,45 @@ describe('fxDef channel', () => {
   });
   afterEach(() => resetScore());
 
-  it('is scored on shieldGain ONLY, with the ward-gained def (exactly one binding)', () => {
-    expect(SCORE_DEFAULTS.shieldGain).toEqual(expect.arrayContaining([
-      { ch: 'fxDef', at: 'start', offset: 0, def: 'ward-gained' },
-    ]));
+  it('binds exactly the intended kind → def pairs, and nothing else carries an fxDef cue', () => {
+    for (const [kind, def] of Object.entries(BINDINGS)) {
+      expect(SCORE_DEFAULTS[kind as MomentKind], kind).toEqual(expect.arrayContaining([
+        { ch: 'fxDef', at: 'start', offset: 0, def },
+      ]));
+    }
     for (const [kind, cues] of Object.entries(SCORE_DEFAULTS)) {
-      expect(cues.some((c) => c.ch === 'fxDef'), kind).toBe(kind === 'shieldGain');
+      expect(cues.filter((c) => c.ch === 'fxDef').length, kind).toBe(kind in BINDINGS ? 1 : 0);
     }
   });
 
-  // The kinds split must not have cost the moment anything it already played.
-  it('shieldGain keeps every cue shieldPop had — the split is purely additive', () => {
-    const before = SCORE_DEFAULTS.shieldPop.map((c) => c.ch);
-    expect(SCORE_DEFAULTS.shieldGain.map((c) => c.ch)).toEqual([...before, 'fxDef']);
-    expect(holdMsForKind('shieldGain')).toBe(holdMsForKind('shieldPop')); // and the pacing is identical
+  // Kinds that already existed and already had FX must be untouched — a def on a NEIGHBOURING kind must never
+  // reach them. (`damage` is the one that matters most: quest beats used to be classified as damage moments,
+  // so scoring their def there would have fired it on every hit in the fight.)
+  it('leaves every previously-effected kind free of authored defs', () => {
+    for (const kind of ['attackExchange', 'damage', 'death', 'riseDeath', 'shieldPop', 'poisonTick',
+      'scNarrate', 'summon', 'buffWave', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura'] as const) {
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'fxDef'), kind).toBe(false);
+    }
+  });
+
+  // Every kinds split must not have cost the moments that MOVED anything they already played: the new kind
+  // carries its predecessor's exact cue list, in order, plus the one fxDef cue — and holds for the same time.
+  it.each([
+    ['shieldGain', 'shieldPop'],    // Ward gained ← Ward consumed
+    ['venomSpent', 'poisonTick'],   // Venom spent ← the Execute proc
+    ['questTrigger', 'damage'],     // quest tick   ← the `damage` fallthrough (damageFx rides along, inert)
+    ['questComplete', 'damage'],
+  ] as const)('%s keeps every cue %s had — the split is purely additive', (next, prev) => {
+    expect(SCORE_DEFAULTS[next].map((c) => c.ch)).toEqual([...SCORE_DEFAULTS[prev].map((c) => c.ch), 'fxDef']);
+    expect(holdMsForKind(next)).toBe(holdMsForKind(prev)); // and the pacing is identical
+  });
+
+  // The `sc` split runs the other way: the NEW kind (narration) is the one that gains nothing, and the existing
+  // name narrows to `cast: true`. So narration must keep precisely what `scCast` played before it took its def.
+  it('scNarrate keeps exactly what scCast played before it gained a def', () => {
+    expect(SCORE_DEFAULTS.scNarrate.map((c) => c.ch))
+      .toEqual(SCORE_DEFAULTS.scCast.filter((c) => c.ch !== 'fxDef').map((c) => c.ch));
+    expect(holdMsForKind('scNarrate')).toBe(holdMsForKind('scCast'));
   });
 
   it('dispatches the channel: plays the cue def with the resolved anchors', () => {
@@ -419,6 +470,69 @@ describe('fxDef channel', () => {
     runMomentCues({ start: 0, end: 1, primary: events[0]!, stepGroups: [[0]], kind: 'shieldGain' }, c);
     expect(mockAnchors).toHaveBeenCalledWith('a', 'd');
   });
+
+  // ── one row per binding: the real primary event → the right def, at the right anchors ──────────────────
+  // The kind is taken from `momentKind(event)`, not hardcoded, so a row also proves the CLASSIFICATION reaches
+  // the binding (a kind split that forgot its case would score the def on a kind no event ever produces).
+  // `[source, target]` is what `anchorsForUnits` receives: `null` = "this moment has no such end", which folds
+  // onto the other end (see combatAnchors.ts). Both null = no anchors at all in the real DOM.
+  it.each([
+    [{ type: 'shieldUp', target: 'b' }, 'shieldGain', 'ward-gained', [null, 'b']],
+    [{ type: 'venomLost', target: 'b' }, 'venomSpent', 'venom-spent', [null, 'b']],
+    // the CASTER: an `sc` carries a source and no target, so the flash folds onto the unit that cast
+    [{ type: 'sc', source: 'a', text: 'zap', cast: true }, 'scCast', 'spell-cast', ['a', null]],
+    [{ type: 'reveal', target: 'b' }, 'reveal', 'stealth-break', [null, 'b']],
+    [{ type: 'keyword', target: 'b', keyword: 'DS' }, 'keyword', 'keyword-gain', [null, 'b']],
+    [{ type: 'keywordLost', target: 'b', keyword: 'T' }, 'keywordLost', 'keyword-lost', [null, 'b']],
+    // the ONE genuinely two-ended binding — Deathsayer (source) firing an ally's Deathrattle (target)
+    [{ type: 'rally', source: 'a', target: 'b' }, 'rally', 'rally-link', ['a', 'b']],
+    [{ type: 'toHand', cardId: 'z', side: 'player', source: 'a' }, 'toHand', 'to-hand', ['a', null]],
+    [{ type: 'hpGrant', target: 'b', amount: 2 }, 'hpGrant', 'hp-grant', [null, 'b']],
+    [{ type: 'spellProgress', target: 'b', amount: 3 }, 'spellProgress', 'spell-progress', [null, 'b']],
+  ] as [CombatEvent, MomentKind, string, [string | null, string | null]][])(
+    'plays %o as a %s moment → its def at the right anchors', (event, kind, def, [source, target]) => {
+      expect(momentKind(event)).toBe(kind);
+      const c = baseCtx([event]);
+      runMomentCues(moment(kind, c.events), c);
+      expect(mockAnchors).toHaveBeenCalledWith(source, target);
+      expect(mockPlayDef).toHaveBeenCalledTimes(1);
+      expect(mockPlayDef).toHaveBeenCalledWith(def, { target: { x: 5, y: 7 } });
+    },
+  );
+
+  // A `toHand` with no source (a quest's reward card) and the two quest beats name NO unit at all, so the real
+  // `anchorsForUnits(null, null)` returns null and the def skips silently — the mock returns anchors here so the
+  // wiring is still asserted, which is the point: the binding is correct and simply dormant until the score can
+  // anchor these to a badge/HUD node. Flagged in score.ts.
+  it.each([
+    [{ type: 'toHand', cardId: 'z', side: 'player' }, 'toHand', 'to-hand'],
+    [{ type: 'questTrigger', flag: 'f', side: 'player' }, 'questTrigger', 'quest-trigger'],
+    [{ type: 'questComplete', questId: 'q', side: 'player' }, 'questComplete', 'quest-complete'],
+  ] as [CombatEvent, MomentKind, string][])('resolves %o to no unit end (dormant until it can anchor)', (event, kind, def) => {
+    expect(momentKind(event)).toBe(kind);
+    const c = baseCtx([event]);
+    runMomentCues(moment(kind, c.events), c);
+    expect(mockAnchors).toHaveBeenCalledWith(null, null);
+    expect(mockPlayDef).toHaveBeenCalledWith(def, expect.anything());
+  });
+
+  // THE TRAP each split exists to close (the shieldGain/shieldPop template): the neighbouring kind — the one the
+  // events were split OUT of, and the one that already owns FX — must stay silent. Without the split, every one
+  // of these would fire the sibling's def on the wrong beat: `poison` (an Execute KILL) would play "venom spent",
+  // a spell-power narration line would flash a caster muzzle, and every hit in the fight would play a quest tick.
+  it.each([
+    [{ type: 'shield', target: 'b' }, 'shieldPop'],          // Ward CONSUMED — must not play `ward-gained`
+    [{ type: 'poison', target: 'b' }, 'poisonTick'],         // Execute proc — must not play `venom-spent`
+    [{ type: 'sc', source: 'a', text: '+1/+1 Spell Power' }, 'scNarrate'], // narration — must not play `spell-cast`
+    [{ type: 'dmg', target: 'b', amount: 3, remainingHp: 1 }, 'damage'],   // a real hit — must not play a quest def
+    [{ type: 'death', target: 'b', side: 'enemy' }, 'death'], // plain death — the dissolve is NOT scored here
+    [{ type: 'attack', attacker: 'a', defender: 'b', swing: 0 }, 'attackExchange'],
+  ] as [CombatEvent, MomentKind][])('does NOT fire any def for %o (the neighbouring kind stays silent)', (event, kind) => {
+    expect(momentKind(event)).toBe(kind);
+    const c = baseCtx([event]);
+    runMomentCues(moment(kind, c.events), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
 });
 
 // The persisted score is a shared, cross-version blob (`localStorage['ascent.choreoScore']`): a score written
@@ -474,7 +588,11 @@ describe('score persistence tolerates unknown kinds/channels (cross-version roun
 
   it('the new `def` field survives a JSON round-trip of the effective score', () => {
     resetScore();
-    const json = JSON.parse(scoreJson());
-    expect(json.shieldGain.find((c: { ch: string }) => c.ch === 'fxDef').def).toBe('ward-gained');
+    const json = JSON.parse(scoreJson()) as Record<string, { ch: string; def?: string }[]>;
+    // EVERY binding, not just the first one: the effective score is what the persistence path serialises, so a
+    // kind that never round-trips its def would silently lose its FX for anyone with a saved score.
+    for (const [kind, def] of Object.entries(BINDINGS)) {
+      expect(json[kind]?.find((c) => c.ch === 'fxDef')?.def, kind).toBe(def);
+    }
   });
 });

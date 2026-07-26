@@ -24,6 +24,8 @@ import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
+import { canPlayDefs, playDef } from './fx/playDef';
+import { anchorsForUnits } from './fx/combatAnchors';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -1027,7 +1029,20 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (e?.type !== 'death' || e.target === impactAtk) continue;
-      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
+      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
+        // …and a PLAIN death (no Deathrattle) gets the authored `death-dissolve` def instead. It lives in the
+        // `else` of the SKULL's own gate, in the skull's own loop, so the two can never both fire for one unit
+        // — the reason this isn't an `fxDef` cue in the Score: a cue is chosen by moment KIND, and a kind is
+        // derived from the event alone, which cannot see whether the dying card has an onDeath effect.
+        // Rise deaths are excluded too (the body re-forms — it doesn't dissolve). Inert in production, where
+        // defs don't ship (`canPlayDefs()` false), and a no-op until `death-dissolve` is authored (`playDef`
+        // returns null for an unknown id).
+        if (!e.rise && canPlayDefs()) {
+          const a = anchorsForUnits(null, e.target); // no source: the anchors fold onto the dying unit
+          if (a) playDef('death-dissolve', a);
+        }
+        continue;
+      }
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
     }

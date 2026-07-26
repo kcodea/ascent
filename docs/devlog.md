@@ -3,6 +3,59 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-25 (FX — 12 authored effects for combat events that had none)
+
+### feat(fx/ui): defs for Stealth-break, keyword gain/loss, Venom, Rally, quests, casts, plain death…
+
+An audit found ~15 combat events with **no visual effect at all** — only a CSS class or a text float. With the
+bridge in place each is now an authored def plus one score line, not bespoke `pixiFx` code. Twelve defs
+landed: `stealth-break`, `keyword-gain`, `keyword-lost`, `venom-spent`, `rally-link`, `spell-cast`, `to-hand`,
+`hp-grant`, `spell-progress`, `quest-trigger`, `quest-complete`, `death-dissolve`.
+
+The one that mattered most is **`rally-link`**: Deathsayer firing an ally's Deathrattle had *no visual
+connection* between source and target, and that link is the entire read of the card. It's a ribbon on the
+`travel` anchor with a burst + ring timed to land after the head arrives.
+
+**Three more shared-kind traps caught** — the same class as `shieldUp`, and none of them obvious:
+- `venomLost` shared `poisonTick` with `poison`, the kind that owns the **Execute strike**.
+- `scCast` also covered non-cast **narration** ("+A/+H Spell Power" lines), so a caster muzzle-flash would
+  have fired on every narration line. Split into `scNarrate`.
+- `questTrigger`/`questComplete` had **no kind at all** and fell through to the `damage` default, which owns
+  the crimson damage burst — a quest tick would have flashed like a hit.
+All four splits are additive and pacing-neutral (`holdMsForKind(new) === holdMsForKind(old)`, asserted).
+
+**Plain death is deliberately NOT a score cue.** A cue is chosen by moment *kind*, and a kind is derived from
+the event alone — it cannot see whether the dying card has an `onDeath` effect. So `death-dissolve` sits in the
+`else` of the existing skull gate in `useCombatReplay.ts`: same loop, same predicate, mutually exclusive
+branches, so a deathrattle death can never get both.
+
+**Two silent-failure guards, both proven to bite.** `coerceParams` is deliberately total, which is exactly what
+makes hand-authored JSON dangerous: an unknown key is silently **dropped** and an out-of-range value silently
+**clamped** — the file looks authored either way. `defs.test.ts` now globs every committed def and checks both
+against the primitives' own `SPECS`. Each check was verified by deliberately breaking a def and watching it
+fail. The clamp check immediately caught a real one: **`ward-gained.json` (authored by hand two commits ago)
+set `"radius": 0.42` on a shockwave whose `radius` is in PIXELS, min 40** — it had been rendering the smallest
+ring the primitive can draw since the day it was committed. Fixed to 95.
+
+**Defs now load at boot in DEV.** Nothing called `ensureDefsReady()`, so `canPlayDefs()` was false in a normal
+session and *every* binding — including the previously shipped `ward-gained` — was inert with no error to
+explain it. One DEV-gated effect in `Game.tsx`; production still ships no primitives and no defs.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **2187 passing** (120 files), `build:web` green, prod
+confirmed free of `registerPrimitive` and every def id.
+
+**Honest limitations (all recorded rather than discovered later):**
+- **`quest-trigger`/`quest-complete` are wired but dormant** — those events name no unit (`flag`/`questId` +
+  `side`), so `anchorsForUnits` returns null and the cue skips. They need a badge/HUD anchor.
+- **Enemy-side `tribeAura` was NOT un-filtered.** It isn't the one-liner it looks like: `fireCombatAuraWave`
+  hardcodes the *player's* board as the wash target, and the loop dedupes by tribe alone — so an enemy aura
+  would wash your board and could *suppress* your own wash for that tribe. Needs a side-aware target and a
+  `(side, tribe)` dedupe key. Follow-up.
+- **`hpGrant` holds ~0ms**, so `hp-grant` fires into an immediately-advancing beat; it wants to be very short
+  or that pacing key needs a value.
+- **`rally` only forms its own moment for a Deathsayer-style rally** — an on-attack rally is absorbed into
+  `attackExchange`. Same for the result-run collapsing already noted for `shieldUp`.
+
 ## 2026-07-25 (FX — the bridge: an authored def can now play in real combat)
 
 ### feat(fx/ui): playDef + combat anchors + an `fxDef` Score channel

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "id": "spell-progress",
+  "duration": 340,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "params": {
+        "rings": 1,
+        "speed": 3,
+        "thickness": 0.1,
+        "radius": 50,
+        "fade": 1.8,
+        "ease": 0.6,
+        "bands": 3,
+        "plateau": 0.3,
+        "alpha": 0.42,
+        "glow": 0.12,
+        "erode": 0.4,
+        "palette": [8001469, 13186799, 15769855, 16777215]
+      }
+    }
+  ]
+}

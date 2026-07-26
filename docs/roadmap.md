@@ -160,10 +160,12 @@ The career surface exists; deepen what a finished run *remembers*.
   - **`shieldUp` is a result-type event** and collapses into contiguous result runs, so the demo cue doesn't
     fire on every combat (`[dmg, shieldUp]` compiles to a `damage` moment). A per-event fan-out in
     `compile.ts` is the fix if that moment needs to be reliable.
-  - **The content backlog this unlocks:** ~15 combat events still have no visual effect at all — Stealth
-    breaking, keyword granted/stripped, Venom spent, Rally's source→target link (the defining read of the
-    card, with no visual link at all), quest trigger/complete, enemy-side tribe auras, and a plain minion
-    death. Each is now an authored def + one score entry rather than bespoke `pixiFx` code.
+  - **The content backlog: 12 of ~15 landed 2026-07-25** (stealth-break, keyword gain/lost, venom-spent,
+    rally-link, spell-cast, to-hand, hp-grant, spell-progress, quest-trigger, quest-complete, death-dissolve).
+    Still open: **enemy-side tribe auras** (needs a side-aware wash target + a (side,tribe) dedupe key —
+    un-filtering naively would wash the PLAYER'''s board and suppress their own aura); **quest-trigger /
+    quest-complete are wired but dormant** (those events name no unit, so anchors resolve to null — they need
+    a badge/HUD anchor); and **hpGrant holds ~0ms**, so its def fires into an immediately-advancing beat.
   - **Anchors are a fire-time snapshot**, so an effect doesn't follow a moving unit. Deliberate (per-frame
     layout reads are banned here); revisit if a follow-the-unit effect is ever wanted.
 

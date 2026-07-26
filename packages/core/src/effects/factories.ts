@@ -291,6 +291,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Deathrattle: buff all living friends of `tribe` (+atk/+hp). */
   deathrattleBuffTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
+    // `tribes` (plural) buffs SEVERAL tribes in one pass — Scalefeather Drake's "Beasts & Dragons". Done as one
+    // aura per tribe rather than two copies of this effect on the card, so a Beast/Dragon dual-type is buffed
+    // ONCE rather than twice. Falls back to the single `tribe` param every other card uses.
+    const many = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : null;
+    if (many) {
+      const a = num(params.attack) * mul(self);
+      const h = num(params.health) * mul(self);
+      const hit = new Set<Minion>();
+      for (const t of many) {
+        ctx.addTribeAura(self.side, t, a, h, self.uid);
+        for (const m of ctx.living(self.side)) {
+          if ((m.tribe === t || m.tribe2 === t || ctx.getCard(m.cardId)?.universalTribe) && !hit.has(m)) hit.add(m);
+        }
+      }
+      for (const m of hit) ctx.buff(m, a, h, self.uid);
+      return;
+    }
     const tribe = str(params.tribe) as Tribe | 'any';
     const attack = num(params.attack) * mul(self);
     const health = num(params.health) * mul(self);
@@ -2206,7 +2223,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.log({ type: 'sc', source: self.uid, text: `${self.name} sounds the charge` });
     for (const m of friends) {
       grantShield(ctx, m);
-      ctx.attackNow?.(m, false); // already shielded above — don't re-grant per strike
+      // `attackNow: false` (Lancel, owner change 2026-07-25) — Ward only, no free opening swing.
+      if (params.attackNow !== false) ctx.attackNow?.(m, false); // already shielded above — don't re-grant per strike
     }
   },
 
@@ -2433,6 +2451,28 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (friends.length === 0) return;
     void params;
     ctx.buff(ctx.rng.pick(friends), self.attack, self.maxHealth, self.uid);
+  },
+
+  /** Set 2 — Traveling Skald: whenever a FRIENDLY minion of `tribe` attacks, give IT +atk/+hp. Watches every
+   *  friend's attack, not just its own — so the payload's attacker is the target, and the Skald buffs itself
+   *  only when it is the one swinging (it's a Dragon). Golden doubles. */
+  onTribeAttackBuffAttacker: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.dead || minion.side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe;
+    if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    ctx.buff(minion, num(params.attack, 2) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
+  /** Set 2 — Scalechanter (combat half): a spell cast mid-fight gives the whole side +atk. Mirrors the recruit
+   *  factory so the card behaves the same whichever phase the cast happens in. */
+  spellCastBuffAll: (ctx, self, params) => {
+    if (self.dead) return;
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (a === 0 && h === 0) return;
+    for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
   },
 
   /** Set 2 — Lastlight Marshal (Echo): give `count` friendly minions Ward (golden doubles).

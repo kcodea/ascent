@@ -151,7 +151,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: 'Rubies played from hand cast 2 extra times.',
   },
   {
-    // onDamaged (combat) → raise your Ruby strength (carried back). Each hit it survives buffs your Rubies.
+    // Echo (owner change 2026-07-25, was an onDamaged trigger) → raise your Ruby strength for the rest of the
+    // run. `deathrattleRubyStatGain` carries the gain back out of combat, so dying in the fight still pays.
     id: 'k_faultline',
     name: 'Faultline Scrapper',
     tribe: 'kobold',
@@ -159,9 +160,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 1,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onDamaged', do: 'damagedGainRubyBonus', params: { attack: 1, health: 0 } }],
-    text: 'When this minion takes damage, give your Rubies **+1 Attack**.',
-    goldenText: 'When this minion takes damage, give your Rubies **+2 Attack**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 0 } }],
+    text: '**Echo:** your Rubies gain **+1 Attack**.',
+    goldenText: '**Echo:** your Rubies gain **+2 Attack**.',
   },
   {
     // Taunt + onDamaged (combat) → get a Ruby, capped 2×/fight (per-instance rubyRecvTick on the combat minion).
@@ -250,18 +251,18 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Shout and Echo:** Your Rubies gain **+2/+2**. **End of Turn:** Play **2 Rubies** on your Kobold.',
   },
   {
-    // Crossover: "Get a Gold Pouch" grants the SET-1 Gold Pouch spell (`emberpouch`) to hand — CARD_INDEX is
-    // global, so `battlecryGrantSpell` reuses it directly (owner: there will be crossover cards between sets).
-    id: 'k_pouchpincher',
-    name: 'Pouchpincher',
+    // A cheap Ruby-build enabler: hands you the tribe's shop-wide Ruby spell instead of a body. Same
+    // `battlecryGrantSpell` crossover mechanism Pouchpincher used for the Gold Pouch.
+    id: 'k_stormchaser',
+    name: 'Storm Chaser',
     tribe: 'kobold',
     tier: 2,
-    attack: 4,
+    attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'emberpouch', count: 1 } }],
-    text: '**Shout:** Get a **Gold Pouch**.',
-    goldenText: '**Shout:** Get **2 Gold Pouches**.',
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
+    text: '**Shout:** get a **Veinstorm**.',
+    goldenText: '**Shout:** get **2 Veinstorms**.',
   },
   {
     // "When you GET a Ruby" trigger (fires in mintRubies) — casts a Ruby on a random friendly Kobold.

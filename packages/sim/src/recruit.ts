@@ -1875,6 +1875,33 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, spells, num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Scalechanter: every SHOP spell you cast gives your whole board +atk. The `spellCast` event is
+   *  already shop-spell-only (Rubies don't route through `castSpell`), so the printed "Shop spell" wording
+   *  needs no explicit Ruby check. Golden doubles the grant. */
+  spellCastBuffAll: (ctx, self, params) => {
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 0) * gold(self);
+    if (a === 0 && h === 0) return;
+    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
+  },
+
+  /** Set 2 — Blazing Keeper (Shout): get a random Dragon that HAS a Shout.
+   *
+   *  "Has a Shout" is `onPlay`, which is exactly what the keyword means — so this picks up Dragons whose
+   *  Shout does anything at all, and correctly excludes payoff cards like Karwind that only WATCH Shouts
+   *  (`battlecryTriggered`) without having one (owner ruling 2026-07-25).
+   *
+   *  Drawn from `poolOf(state)` so a set-2 run can only pull set-2 Dragons, and tier-capped by the shop's
+   *  current tier like every other "get a random X" — an un-capped roll could hand a Tier-6 body at Tier 3. */
+  battlecryGrantShoutDragon: (ctx, self, params) => {
+    const pool = poolOf(ctx.state).buyable.filter(
+      (c) => !c.spell && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon')
+        && c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onPlay'),
+    );
+    if (pool.length === 0) return;
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
+  },
+
   /** Set 2 — Feastmaster Vhal (End of Turn): each ADJACENT minion consumes `count` random Shop minions. The
    *  neighbours eat, not Vhal — so the stats land on them. */
   endOfTurnNeighboursConsumeShop: (ctx, self, params) => {

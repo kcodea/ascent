@@ -88,8 +88,8 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: 'When you summon a Beast, give it **+4/+8**. Improve this when you cast a spell (twice as much).',
   },
   {
-    // An opener: your front Beast enters shielded and swings before the turn order starts, so a big left-most
-    // body gets a free hit in. Left-most = board order (deterministic, no RNG).
+    // Your front Beast enters shielded. The free opening swing was removed at the owner's call (2026-07-25) —
+    // it's Ward only now. Left-most = board order (deterministic, no RNG).
     id: 'b2_lancel',
     name: 'Lancel',
     tribe: 'beast',
@@ -97,9 +97,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 3,
     health: 4,
     keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scShieldAttackLeftmostTribe', params: { tribe: 'beast', count: 1 } }],
-    text: '**Start of Combat:** give your left-most Beast **Ward**. It attacks immediately.',
-    goldenText: '**Start of Combat:** give your **2** left-most Beasts **Ward**. They attack immediately.',
+    effects: [{ on: 'startOfCombat', do: 'scShieldAttackLeftmostTribe', params: { tribe: 'beast', count: 1, attackNow: false } }],
+    text: '**Start of Combat:** give your left-most Beast **Ward**.',
+    goldenText: '**Start of Combat:** give your **2** left-most Beasts **Ward**.',
   },
   {
     // A summon-payoff aura: it does NOT buff the board you already have — it makes everything you summon

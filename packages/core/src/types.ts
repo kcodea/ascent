@@ -196,6 +196,9 @@ export type EffectFactoryId =
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
   | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
+  | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
+  | 'battlecryGrantShoutDragon' // Set 2 — Blazing Keeper: get a random Dragon that has a Shout
+  | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
   | 'deathrattleGiveOwnStats' // Set 2 — Aeon Acolyte: Echo — give a friendly minion this minion's stats
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight Marshal: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell' // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell

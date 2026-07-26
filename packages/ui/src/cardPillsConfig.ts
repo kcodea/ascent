@@ -28,6 +28,19 @@ export interface CardPillsConfig {
   /** Tier badge — scale (×). */
   tierScale: number;
 
+  /** SPELL tier badge — its own offset/scale. A spell's frame is a square with a different banner seat than the
+   *  minion oval, so the two badges can't share one nudge (owner 2026-07-26). Spells + Rubies use these; every
+   *  other card keeps `tier*` above. */
+  stierX: number;
+  stierY: number;
+  stierScale: number;
+
+  /** TAUNT tier badge — its own offset/scale. The heater shield's banner sits higher and narrower than either
+   *  the oval or the spell square, so it needs a third seat (owner 2026-07-26). */
+  ttierX: number;
+  ttierY: number;
+  ttierScale: number;
+
   /** Spell / Ruby type pill (the "✦ SPELL" capsule) — design-px offset (× --u). */
   spellX: number;
   spellY: number;
@@ -61,6 +74,14 @@ const DEFAULTS: CardPillsConfig = {
   tierY: 0,
   tierScale: 1,
 
+  stierX: 0,
+  stierY: 0,
+  stierScale: 1,
+
+  ttierX: 0,
+  ttierY: 0,
+  ttierScale: 1,
+
   spellX: 0,
   spellY: 34,
   spellScale: 0.91,
@@ -78,18 +99,24 @@ const DEFAULTS: CardPillsConfig = {
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const CARD_PILLS_RANGES: Record<CardPillsNumKey, [number, number, number]> = {
-  costX: [-120, 120, 1],
-  costY: [-120, 120, 1],
-  costScale: [0.3, 2.5, 0.01],
-  tierX: [-120, 120, 1],
-  tierY: [-120, 120, 1],
-  tierScale: [0.3, 2.5, 0.01],
-  spellX: [-120, 120, 1],
-  spellY: [-120, 160, 1],
-  spellScale: [0.3, 2.5, 0.01],
-  multX: [-120, 120, 1],
-  multY: [-120, 120, 1],
-  multScale: [0.3, 2.5, 0.01],
+  costX: [-120, 120, 0.25],
+  costY: [-120, 120, 0.25],
+  costScale: [0.3, 2.5, 0.005],
+  tierX: [-120, 120, 0.25],
+  tierY: [-120, 120, 0.25],
+  tierScale: [0.3, 2.5, 0.005],
+  stierX: [-120, 120, 0.25],
+  stierY: [-120, 120, 0.25],
+  stierScale: [0.3, 2.5, 0.005],
+  ttierX: [-120, 120, 0.25],
+  ttierY: [-120, 120, 0.25],
+  ttierScale: [0.3, 2.5, 0.005],
+  spellX: [-120, 120, 0.25],
+  spellY: [-120, 160, 0.25],
+  spellScale: [0.3, 2.5, 0.005],
+  multX: [-120, 120, 0.25],
+  multY: [-120, 120, 0.25],
+  multScale: [0.3, 2.5, 0.005],
 };
 
 /** One-line definitions, shown as a hover tooltip on each control in the DEV tuner. */
@@ -100,6 +127,12 @@ export const CARD_PILLS_DESC: Record<keyof CardPillsConfig, string> = {
   tierX: 'Tier badge — horizontal nudge (design px). +x → right.',
   tierY: 'Tier badge — vertical nudge (design px). +y → down.',
   tierScale: 'Tier badge — size multiplier.',
+  stierX: 'SPELL tier badge — horizontal nudge (design px). +x → right. Spells/Rubies only.',
+  stierY: 'SPELL tier badge — vertical nudge (design px). +y → down. Spells/Rubies only.',
+  stierScale: 'SPELL tier badge — size multiplier. Spells/Rubies only.',
+  ttierX: 'TAUNT tier badge — horizontal nudge (design px). +x → right. Taunt minions only.',
+  ttierY: 'TAUNT tier badge — vertical nudge (design px). +y → down. Taunt minions only.',
+  ttierScale: 'TAUNT tier badge — size multiplier. Taunt minions only.',
   spellX: 'Spell / Ruby pill — horizontal nudge (design px). +x → right.',
   spellY: 'Spell / Ruby pill — vertical nudge (design px). +y → down.',
   spellScale: 'Spell / Ruby pill — size multiplier.',
@@ -114,6 +147,8 @@ export const CARD_PILLS_DESC: Record<keyof CardPillsConfig, string> = {
 export const CARD_PILLS_KEYS = [
   'costX', 'costY', 'costScale',
   'tierX', 'tierY', 'tierScale',
+  'stierX', 'stierY', 'stierScale',
+  'ttierX', 'ttierY', 'ttierScale',
   'spellX', 'spellY', 'spellScale',
   'multX', 'multY', 'multScale',
 ] as const;
@@ -153,6 +188,8 @@ export function applyCardPillVars(): void {
     `${base}${base ? ' ' : ''}translate(calc(${x} * var(--u)), calc(${y} * var(--u))) scale(${s})`;
   root.setProperty('--cpl-cost-t', t(cfg.costX, cfg.costY, cfg.costScale));
   root.setProperty('--cpl-tier-t', t(cfg.tierX, cfg.tierY, cfg.tierScale, 'translateX(-50%)'));
+  root.setProperty('--cpl-ttier-t', t(cfg.ttierX, cfg.ttierY, cfg.ttierScale, 'translateX(-50%)'));
+  root.setProperty('--cpl-stier-t', t(cfg.stierX, cfg.stierY, cfg.stierScale, 'translateX(-50%)'));
   root.setProperty('--cpl-spell-t', t(cfg.spellX, cfg.spellY, cfg.spellScale, 'translateX(-50%)'));
   root.setProperty('--cpl-mult-t', t(cfg.multX, cfg.multY, cfg.multScale));
   // Colours go across as plain custom props; `.castmult` mixes the gradient stops out of `--cpl-mult-bg`.

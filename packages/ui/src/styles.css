@@ -1530,6 +1530,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   100% { opacity: 1; clip-path: inset(0 0 0 0); }
 }
 /* tier pill rides the arch top */
+/* SPELL tier badge gets its OWN nudge. A spell's frame is a square whose banner seat differs from the minion
+   oval's, so one shared offset can't serve both (owner 2026-07-26). `.spellcard` covers spells AND Rubies, and
+   at (0,3,0) this outranks the base `.tierbadge` transform (0,1,0). Falls back to plain centring if unset. */
+.card.compact.spellcard .tierbadge { transform: var(--cpl-stier-t, translateX(-50%)); }
+/* TAUNT tier badge — third seat. The heater's banner is higher and narrower than the oval's or the spell
+   square's, so it gets its own nudge. Same (0,3,0) as the spell rule and they never co-occur on one card. */
+.card.compact.taunt .tierbadge { transform: var(--cpl-ttier-t, translateX(-50%)); }
 .card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: calc(var(--ccw) * 0.014) solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
 /* TIER STARS — the tier badge as N steel stars instead of a coloured "TIER N" pill. The img carries BOTH
    `tierbadge` (so every already-tuned per-frame-type anchor applies: the oval's `--tier` seat, the heater's

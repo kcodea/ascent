@@ -2,6 +2,22 @@
 
 ## 2026-07-26 (tier is shown as stars)
 
+### feat(ui): three independent tier-badge seats + finer nudge steps
+
+The tier badge sits on three different frame families whose banners don't line up — the minion oval, the spell
+square and the Taunt heater — so one shared nudge couldn't serve them. Added two more seats to the 🏷️ Card
+Pills tuner: `spell tier · x/y/scale` (`--cpl-stier-t`, via `.card.compact.spellcard`, covering spells AND
+Rubies) and `taunt tier · x/y/scale` (`--cpl-ttier-t`, via `.card.compact.taunt`). Both are (0,3,0) so they
+outrank the base `.tierbadge` transform, and they can't collide — no card is both a spell and a Taunt.
+
+Also made every pill nudge finer, per owner: all X/Y steps 1 → **0.25** design px and all scale steps
+0.01 → **0.005**. Existing baked values stay reachable; only slider granularity changed.
+
+**Verified live** with a minion, a Taunt minion and a spell on screen at once, moving one seat at a time:
+`stierY 30` moved only the spell badge (587→606), `ttierY 30` only the Taunt badge (366→385), `tierY 30` only
+the plain minion (364→384) — the other two unchanged in each case. The 0.25 step renders a real sub-pixel
+delta (383.83 vs 384.00). NB a design-px nudge is × `--u`, so 30 design px ≈ 20 real px at that viewport.
+
 ### feat(ui): the tier badge is N steel stars, not a "TIER N" pill
 
 Owner art: the card's tier now reads as **N stars** instead of a per-tier coloured text pill. One image per

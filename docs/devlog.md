@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx): `blue-trail-detonate`'s drain could not finish inside its own dwell
+
+Owner, with a screenshot: "once it gets to the end point it just freezes in place. how do i make it drain."
+It was draining — it just could not visibly finish, which is indistinguishable from not draining.
+
+The arithmetic: the layer arrives at 430ms and lives to 800ms, a 370ms dwell. At `drain: 700` px/sec a
+340px trail needs **486ms** to empty, so it could only ever retract about three-quarters before the def
+ended. Worse, the drain eats the TAIL first, which is the thin, faint, already-tapered end — so the portion
+removed in that window is the least visible part of the trail, and the head-end body (all the bright
+banding) sat there untouched, reading as frozen. Raised to 1200 px/sec: empties in 283ms with 87ms to
+spare.
+
+The general lesson for authoring, worth keeping: a drain rate has to be checked against the dwell it has to
+finish in (`length / drain <= life - travelMs`), or it silently reads as a freeze. Nothing enforces that —
+`defs.test.ts` checks that params exist and are in range, not that a def's timings are mutually coherent.
+A cross-param check ("this drain cannot finish in this dwell") is a candidate for that suite.
+
+Verified: typecheck clean, 2383 tests green, `build:web` green. Numbers only — no code changed.
+
 ### feat(fx): a One-way stage — cross once, arrive, end (and it is now the default)
 
 Owner: "i need an option that doesnt auto bounce back and forth. i want to fire the animation and let it

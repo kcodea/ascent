@@ -28,7 +28,7 @@
         "alpha": 1,
         "headPinch": 0.1,
         "tailFeather": 0.4,
-        "drain": 700,
+        "drain": 1200,
         "widthCurve": [[0, 1], [0.35, 1.15], [1, 0.5]]
       }
     },

@@ -21,6 +21,14 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+### FX authoring loop (owner test run — 2026-07-26)
+The FX workbench is built; the next step is authoring a real effect through it end to end.
+[`docs/fx-requests.md`](fx-requests.md) holds the brief template and the queue. Division of labour: owner
+briefs → Claude builds a first-pass `defs/<id>.json` → owner tunes in the workbench and Saves → Claude binds
+it to a moment kind in `score.ts`. Blocking-ish for a serious run: `fxScale` isn't threaded into the
+primitives (a def is the same pixel size on every screen), `playDef` takes no per-call params, and anchors
+are points rather than rectangles.
+
 ### Drag feel is not scale-invariant (owner report 2026-07-22 — decision needed)
 The drag maths works on raw pixel deltas (`tiltPerPx * hLean * gx`) without dividing by `--scale`, so the same
 hand movement produces the same tilt in degrees over a card that may be 50% larger. A fullscreen exe (`--scale`

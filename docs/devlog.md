@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### docs(fx): a request format for authoring effects through the workbench
+
+Owner: "as a test run i want to author a new effect… can we also create requests for effects that you can
+then take and build within the editor?" Yes — and the split falls out of an asymmetry worth naming.
+
+Claude can write a def's JSON and prove it LOADS (`defs.test.ts` checks every param name and value range
+against the primitives' own specs) but cannot judge whether it LOOKS right: the headless preview runs at a
+degenerate viewport, so all 13 committed defs shipped without a visual check. The owner can judge a look
+instantly and shouldn't be dialling thirty params from defaults. So the loop is: owner briefs → Claude
+builds a first-pass `defs/<id>.json` and commits → owner opens it via **Start from**, tunes, hits **Save**
+(which overwrites that same file) → Claude binds it in `score.ts`. The first pass is a starting position;
+changing every number in it is the expected outcome.
+
+New [`docs/fx-requests.md`](fx-requests.md) carries the brief template, the queue, and the limits worth
+writing around. The template's load-bearing fields are **Reads as** and **Must not** — "a gold ring with
+sparks" describes a picture, while "the player should think *that minion got tougher*, and it must not read
+as damage" determines the colour, the direction of motion and half the params.
+
+Seeded the queue from moment kinds that currently fire no authored def (`summon`, `ascend`, `maxGold` called
+out as showing the most). Also noted while auditing the bindings: `death-dissolve.json` exists but is bound
+to nothing — it wants either wiring to `death` or retiring.
+
+Docs only; no code touched.
+
 ### feat(fx/ui): a visual timeline — the composition as a picture, draggable
 
 The second half of the owner's user-friendliness pick. A composition's timing existed only as two range

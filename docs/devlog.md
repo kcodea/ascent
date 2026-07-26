@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+### 2026-07-26 — content: removed four minions (Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte, Fatecarver)
+
+Owner cut. Removed the card defs, their art, and everything that existed only to serve them:
+
+- **Three orphaned effect factories** went with them — `onSpellCastFirstBuffTribe` (Mosswhisker),
+  `deathrattleGiveOwnStats` (Aeon Acolyte) and `onSummonDoubleStats` (Fatecarver) — along with their
+  `EffectFactoryId` union and content-schema entries. `battlecryBuffImps` deliberately STAYS: Pit Drillmaster
+  used it, but so do three Set-1 Demons.
+- Their art files, and the tests that covered them.
+- Stale roster counts: Set 2's Demons are 22 rather than 23, and its own neutrals 5 rather than 7.
+
+**Checked, and clean:** nothing referenced them in the generated `opponentPool.data.ts` (so no re-run of
+`npm run pool` is needed), no quest or rune granted them, and `CARD_REFERENCES` never named them.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1758 tests. A throwaway assertion confirmed
+all four are absent from `CARD_INDEX` and from BOTH set pools — removing a card def is not the same as removing
+it from a set, and only checking the file would have missed a lingering id list. Set 2 still fields 113 minions
+(112 buyable).
+
+**Noted, not touched:** `docs/CONTENT.md` says 37 shop spells where the real figure is 59. That drift predates
+this change and is Set-1-scoped bookkeeping (`BUYABLE_CARDS` excludes Set 2 entirely, so the minion count there
+is unaffected by this removal) — flagging rather than silently widening this commit.
+
 ### 2026-07-25 — art: re-wired all Set-2 minion art (110 masters)
 
 Full re-wire from `C:\Game Assets\Ascent Art\Set 2 Minions`. 110 masters matched to card ids by normalised

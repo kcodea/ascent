@@ -5,10 +5,12 @@ import { createRun, reduce, spellAttackBonus, spellHealthBonus, type BoardCard, 
 import { applyEndOfTurn } from './recruit';
 
 /**
- * Set 2's OWN neutral minions — the seven from the owner's 2026-07-25 roster that didn't already exist in set 1.
- * Six of them needed a brand-new effect primitive, so each gets real coverage rather than a shape assertion.
+ * Set 2's OWN neutral minions — the five still in the game from the owner's 2026-07-25 roster (Aeon Acolyte
+ * and Fatecarver were cut on 2026-07-26) that didn't already exist in set 1.
+ * Each needed a brand-new effect primitive, so each gets real coverage rather than a shape assertion.
  */
-const NEW_IDS = ['n2_tamer', 'n2_spellsword', 'n2_gravelight', 'n2_oathbound', 'n2_bellringer', 'n2_lastlight', 'n2_fatecarver'];
+// Five, not seven: Aeon Acolyte and Fatecarver were removed from the game (owner 2026-07-26).
+const NEW_IDS = ['n2_tamer', 'n2_spellsword', 'n2_oathbound', 'n2_bellringer', 'n2_lastlight'];
 
 const bm = (cardId: string, uid: string, attack = 1, health = 1, keywords: string[] = []): BoardMinion =>
   ({ cardId, attack, health, sourceUid: uid, keywords: keywords as BoardMinion['keywords'] });
@@ -16,7 +18,7 @@ const card = (uid: string, cardId: string, attack = 1, health = 1): BoardCard =>
   ({ uid, cardId, tribe: CARD_INDEX[cardId]?.tribe ?? 'neutral', attack, health, keywords: [], golden: false });
 
 describe('set 2 — its own neutral minions are wired into the set', () => {
-  it('all seven are in set 2 and NOT in set 1', () => {
+  it('all five are in set 2 and NOT in set 1', () => {
     const s2 = new Set(poolFor('set2').all.map((c) => c.id));
     const s1 = new Set(poolFor('set1').all.map((c) => c.id));
     for (const id of NEW_IDS) {
@@ -29,11 +31,9 @@ describe('set 2 — its own neutral minions are wired into the set', () => {
     const spec = (id: string): string => { const c = CARD_INDEX[id]!; return `T${c.tier} ${c.attack}/${c.health}`; };
     expect(spec('n2_tamer')).toBe('T1 1/1');
     expect(spec('n2_spellsword')).toBe('T2 3/4');
-    expect(spec('n2_gravelight')).toBe('T2 2/2');
     expect(spec('n2_oathbound')).toBe('T3 2/5');
     expect(spec('n2_bellringer')).toBe('T4 4/6');
     expect(spec('n2_lastlight')).toBe('T5 5/7');
-    expect(spec('n2_fatecarver')).toBe('T6 5/10');
   });
 });
 
@@ -52,30 +52,6 @@ describe('set 2 — Tamer', () => {
   });
 });
 
-describe('set 2 — Aeon Acolyte (renamed from Gravelight Acolyte, owner change 2026-07-25)', () => {
-  it("Echo hands a friendly minion this minion's stats", () => {
-    // Acolyte is a 4/6 here and dies on the first swing; the survivor should end up +4/+6.
-    const r = simulate([
-      bm('n2_gravelight', 'G', 4, 6),
-      bm('stray', 'S', 2, 40),
-    ], [{ cardId: 'sandbag', attack: 20, health: 400 }], makeRng(7), CARD_INDEX,
-      combatSide({ tier: 2 }), combatSide({ tier: 1 }));
-
-    const buffs = r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[];
-    const got = buffs.find((b) => b.target === 'm1');
-    expect(got, 'the surviving friend was buffed').toBeTruthy();
-    expect(got!.attack, "its full Attack").toBe(4);
-    // maxHealth, not the 0-or-less health it died at — the statline as it stood.
-    expect(got!.health, 'its full Health, not the 0 it died on').toBe(6);
-  });
-
-  it('buffs a FRIEND, never itself, and no-ops on an empty board', () => {
-    const r = simulate([bm('n2_gravelight', 'G', 4, 1)], [{ cardId: 'sandbag', attack: 20, health: 400 }],
-      makeRng(7), CARD_INDEX, combatSide({ tier: 2 }), combatSide({ tier: 1 }));
-    const buffs = r.events.filter((e) => e.type === 'buff') as { target: string }[];
-    expect(buffs.filter((b) => b.target === 'm0'), 'it is the one that died').toEqual([]);
-  });
-});
 
 describe('set 2 — Oathbound Avenger', () => {
   it('Avenge (3) gives a random friendly +1/+3 AND Ward', () => {
@@ -125,36 +101,6 @@ describe('set 2 — Lastlight Marshal', () => {
   });
 });
 
-describe('set 2 — Fatecarver', () => {
-  it('doubles the stats of a minion summoned in combat', () => {
-    // The Tamer's Whelp lands at 3/3; with Fatecarver out it should be buffed by another +3/+3.
-    const r = simulate([
-      bm('n2_fatecarver', 'FC', 5, 40),
-      bm('n2_tamer', 'T', 1, 1),
-    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), CARD_INDEX,
-      combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-    const doubling = r.events.filter((e) => {
-      const b = e as { type: string; attack?: number; health?: number; source?: string };
-      return b.type === 'buff' && b.attack === 3 && b.health === 3 && b.source === 'm0';
-    });
-    expect(doubling.length).toBe(1); // exactly the Whelp, doubled once
-  });
-
-  it('does NOT double an ENEMY summon', () => {
-    // The side guard, which IS reachable: the enemy's Tamer summons a Whelp, and our Fatecarver must ignore it.
-    // (The self-guard in the same condition is defensive only — an initial-board minion fires no `onSummon`, so
-    // it can't be exercised from here. Left in place deliberately: a Fatecarver summoned mid-combat would
-    // otherwise double itself.)
-    const r = simulate(
-      [bm('n2_fatecarver', 'FC', 5, 60)],
-      [{ cardId: 'n2_tamer', attack: 1, health: 1 }, { cardId: 'sandbag', attack: 0, health: 300 }],
-      makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-    // The enemy Whelp arrives at 3/3; nothing sourced from our Fatecarver (m0) may buff it.
-    const fromFatecarver = r.events.filter((e) => (e as { type: string; source?: string }).type === 'buff'
-      && (e as { source?: string }).source === 'm0');
-    expect(fromFatecarver).toEqual([]);
-  });
-});
 
 describe('set 2 — Coppercoat Spellsword', () => {
   it('Choose One raises run-wide spell power on the picked axis only', () => {

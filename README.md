@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Four minions cut** — Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte and Fatecarver, along with the
+  effect primitives that existed only for them.
 - **All Set-2 minion art re-wired** (110 masters) — Broodwright and Feastmaster Vhal finally have their own.
 - **A 19-card balance batch** — Kennelmaster, Karwind, Groveweaver, Denkeeper Oona, Roaring Matriarch (which
   now alternates Attack/Health each turn) and more, plus two new minions: Blazing Keeper and Storm Chaser.

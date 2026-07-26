@@ -2458,22 +2458,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     grantShield(ctx, target);
   },
 
-  /** Set 2 — Aeon Acolyte (Echo): hand a random friendly minion THIS minion's stats.
-   *
-   *  Uses `maxHealth`, not `health` — by the time an Echo runs the body is at or below 0, so `health` would
-   *  grant nothing. `maxHealth` is the statline as it STOOD, including every buff it collected, which is the
-   *  honest reading of "this minion's stats".
-   *
-   *  Deliberately NOT multiplied by `mul(self)`: a Gilded Acolyte already carries doubled stats, so the grant
-   *  doubles on its own. Applying the golden multiplier on top would quadruple it (owner change 2026-07-25 —
-   *  flag if you want the extra doubling). */
-  deathrattleGiveOwnStats: (ctx, self, params, payload) => {
-    if ((payload as MinionPayload).minion !== self) return;
-    const friends = ctx.living(self.side).filter((m) => m !== self);
-    if (friends.length === 0) return;
-    void params;
-    ctx.buff(ctx.rng.pick(friends), self.attack, self.maxHealth, self.uid);
-  },
 
   /** Set 2 — Traveling Skald: whenever a FRIENDLY minion of `tribe` attacks, give IT +atk/+hp. Watches every
    *  friend's attack, not just its own — so the payload's attacker is the target, and the Skald buffs itself
@@ -2576,19 +2560,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Set 2 — Fatecarver: whenever YOU summon a minion in combat, double that minion's stats. Fires on the
-   *  `onSummon` of the SUMMONED body (the payload carries it), so it catches every source — Echo tokens, spell
-   *  summons, Rise — rather than enumerating them.
-   *
-   *  Guarded against doubling ITSELF (Fatecarver entering play is a summon too) and against a summon on the
-   *  other side. Doubling is `ctx.buff` by the current stats, so it stacks correctly with anything that already
-   *  buffed the body this beat and shows as a normal buff in the log. Gilded text is identical to the base per
-   *  the owner's roster, so no golden scaling. */
-  onSummonDoubleStats: (ctx, self, _params, payload) => {
-    const { minion } = payload as MinionPayload;
-    if (!minion || minion === self || minion.side !== self.side || minion.dead) return;
-    ctx.buff(minion, minion.attack, minion.health, self.uid);
-  },
 
   /** Set 2 — Menagerie Mammoth (Echo): summon `count` RANDOM minions of `tribe`, drawn from the run's set pool
    *  (golden doubles the count). Seeded via the combat RNG so replays stay faithful. Tokens are excluded — a

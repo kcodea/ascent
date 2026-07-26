@@ -277,8 +277,9 @@ describe('set 2 — the Imp line (combat)', () => {
 });
 
 describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
-  it('all 23 roster cards are in the set', () => {
-    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(23);
+  it('all 22 roster cards are in the set', () => {
+    // 22, not 23 — Pit Drillmaster was removed from the game (owner 2026-07-26).
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(22);
   });
 
   it('Revolving Maw eats on every 4th REFRESH, counting from its own arrival', () => {

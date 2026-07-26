@@ -2567,18 +2567,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.spellFirstMultEachTurn = Math.max(ctx.state.spellFirstMultEachTurn ?? 1, num(params.mult, 3));
   },
 
-  /** Set 2 — Mosswhisker Adept: the FIRST spell you cast each turn buffs your `tribe` board-wide (+atk/+hp
-   *  wherever they are). Fires once per turn via the `spellsThisTurn === 1` gate (the tally is bumped before
-   *  this `spellCast` watcher runs), like Ashscribe Whelp. Golden doubles the grant. */
-  onSpellCastFirstBuffTribe: (ctx, self, params) => {
-    if (ctx.state.spellsThisTurn !== 1) return;
-    const tribe = str(params.tribe);
-    const a = num(params.attack, 1) * gold(self), h = num(params.health, 1) * gold(self);
-    if (a <= 0 && h <= 0) return;
-    for (const c of [...ctx.state.board, ...ctx.state.hand]) {
-      if (!tribe || isTribe(c, tribe as never)) addBuff(c, nameOf(self), a, h);
-    }
-  },
 
   /** Set 2 — Runebloom Matriarch: EVERY spell you cast buffs `count` random friendly `tribe` minions on board
    *  by +atk/+hp. Golden doubles the STAT grant (the count stays), matching "trigger this twice"'s net effect

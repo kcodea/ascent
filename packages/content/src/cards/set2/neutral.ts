@@ -48,20 +48,6 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Choose One:** give your Shop spells **+2 Attack** or **+2 Health**.',
   },
   {
-    // Renamed from Gravelight Acolyte and re-pointed off the summon line (owner change 2026-07-25). The ID is
-    // deliberately unchanged: art files and saved runs key off `n2_gravelight`, and set 2's vocabulary rename
-    // set the precedent that display names move while ids stay put.
-    id: 'n2_gravelight',
-    name: 'Aeon Acolyte',
-    tribe: 'neutral',
-    tier: 2,
-    attack: 2,
-    health: 2,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleGiveOwnStats' }],
-    text: "**Echo:** give a friendly minion this minion's stats.",
-  },
-  {
     // Avenge that pays in survivability rather than damage — the Ward is the point, the stats are the sweetener.
     id: 'n2_oathbound',
     name: 'Oathbound Avenger',
@@ -100,19 +86,6 @@ export const SET2_NEUTRAL: CardDef[] = [
     effects: [{ on: 'onDeath', do: 'deathrattleGrantWardRandom', params: { count: 2 } }],
     text: '**Echo:** give **2** friendly minions **Ward**.',
     goldenText: '**Echo:** give **4** friendly minions **Ward**.',
-  },
-  {
-    // The summon-build capstone: every body you make in combat lands at double size. Its Gilded text on the
-    // owner's roster is identical to the base, so it deliberately doesn't scale with golden.
-    id: 'n2_fatecarver',
-    name: 'Fatecarver',
-    tribe: 'neutral',
-    tier: 6,
-    attack: 5,
-    health: 10,
-    keywords: [],
-    effects: [{ on: 'onSummon', do: 'onSummonDoubleStats' }],
-    text: 'When you summon a minion in combat, **double its stats**.',
   },
   {
     // Crossover: "Get a Gold Pouch" grants the SET-1 Gold Pouch spell (`emberpouch`) to hand — CARD_INDEX is

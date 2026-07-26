@@ -193,19 +193,6 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Avenge (4):** gain **Ward** and attack immediately **twice**.',
   },
   {
-    // A low-tier spell payoff: your first cast each turn washes the board of Beasts with +1/+1.
-    id: 'b2_mosswhisker',
-    name: 'Mosswhisker Adept',
-    tribe: 'beast',
-    tier: 2,
-    attack: 1,
-    health: 2,
-    keywords: [],
-    effects: [{ on: 'spellCast', do: 'onSpellCastFirstBuffTribe', params: { tribe: 'beast', attack: 1, health: 1 } }],
-    text: 'The first time you cast a spell each turn, give your Beasts **+1/+1** wherever they are.',
-    goldenText: 'The first time you cast a spell each turn, give your Beasts **+2/+2** wherever they are.',
-  },
-  {
     // The top-end spell payoff: every cast rains +3/+3 onto three Beasts. Rewards a spell-heavy Beast board.
     id: 'b2_runebloom',
     name: 'Runebloom Matriarch',

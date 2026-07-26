@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { createRun, poolOf, reduce, type BoardCard, type RunState } from './index';
 import { consumeShopMinion } from './recruit';
 
@@ -593,5 +594,50 @@ describe('set 2 — Ashen Broodlord (owner change 2026-07-25)', () => {
     const s = setup(true);
     consumeShopMinion(s, s.board[0]!, 0);
     expect(s.hand.length).toBe(2);
+  });
+});
+
+/**
+ * Chorus Drake. Had NO coverage before this — the owner's text change (2026-07-25, dropping "other") is what
+ * surfaced that. Assertions read the `sc` log line, which names the minion whose Shout was re-fired, so they
+ * work for any Shout rather than only ones with a combat-visible effect.
+ */
+describe('set 2 — Chorus Drake', () => {
+  const bm = (cardId: string, uid: string, attack = 2, health = 20): BoardMinion =>
+    ({ cardId, attack, health, sourceUid: uid, keywords: [] as BoardMinion['keywords'] });
+  const fight = (player: BoardMinion[], seed = 5) =>
+    simulate(player, [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(seed), CARD_INDEX,
+      combatSide({ tier: 3, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+  const triggered = (r: ReturnType<typeof fight>): string[] =>
+    (r.events.filter((e) => e.type === 'sc') as { text: string }[])
+      .filter((e) => /triggers .*Battlecry/.test(e.text)).map((e) => e.text);
+
+  it("Rally re-fires the left-most Dragon's Shout", () => {
+    const r = fight([bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)]);
+    expect(triggered(r).some((t) => /Embermouth Whelp/.test(t)), "the Whelp Shout fired").toBe(true);
+  });
+
+  it('skips a Dragon that has no Shout rather than blanking', () => {
+    // Voicekeeper is a Dragon with no onPlay. Parked on the LEFT, a strict "left-most Dragon" reading would
+    // find it, see no Shout, and do nothing — which would make the Drake dead weight behind a common body.
+    const voicekeeper = CARD_INDEX['d2_voicekeeper']!;
+    expect(voicekeeper.effects.some((e) => e.on === 'onPlay'), 'fixture: Voicekeeper has no Shout').toBe(false);
+    const r = fight([bm('d2_voicekeeper', 'V', 2, 40), bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)]);
+    expect(triggered(r).some((t) => /Embermouth Whelp/.test(t)), 'it reached past the Shout-less Dragon').toBe(true);
+  });
+
+  it('golden re-fires it twice per attack', () => {
+    const plain = triggered(fight([bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)])).length;
+    const r = simulate(
+      [{ ...bm('d2_chorus', 'C', 3, 40), golden: true } as BoardMinion, bm('d2_embermouth', 'E', 2, 40)],
+      [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(5), CARD_INDEX,
+      combatSide({ tier: 3, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    expect(triggered(r).length).toBe(plain * 2);
+  });
+
+  it('its printed text no longer excludes itself (owner change 2026-07-25)', () => {
+    const c = CARD_INDEX['d2_chorus']!;
+    expect(c.text).not.toMatch(/other/i);
+    expect(c.goldenText).not.toMatch(/other/i);
   });
 });

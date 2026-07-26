@@ -58,8 +58,8 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'After you cast your **second Shop spell** each turn, get **2** copies of the first.',
   },
   {
-    // Rally: every time it attacks, it re-fires a friend's Shout. Left-most OTHER Dragon — "other" is in the
-    // text, and left-most is board order, so no RNG is consumed.
+    // Rally: every time it attacks, it re-fires a Dragon's Shout. Left-most Dragon (owner text change
+    // 2026-07-25 dropped "other"); left-most is board order, so no RNG is consumed.
     id: 'd2_chorus',
     name: 'Chorus Drake',
     tribe: 'dragon',
@@ -68,8 +68,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 4,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyTriggerLeftmostTribeShout', params: { tribe: 'dragon' } }],
-    text: '**Rally:** trigger your left-most other Dragon’s **Shout**.',
-    goldenText: '**Rally:** trigger your left-most other Dragon’s **Shout** twice.',
+    text: '**Rally:** trigger your left-most Dragon’s **Shout**.',
+    goldenText: '**Rally:** trigger your left-most Dragon’s **Shout** twice.',
   },
   {
     // A rechargeable spell amplifier: it doubles your opening spell, then goes quiet until you trigger 3

@@ -1622,6 +1622,10 @@ export function Recruit() {
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
   const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // The hand's layout as of the PREVIOUS commit, so a buy / play / cast that changes the card count can glide
+  // the survivors to their new slots instead of blinking them there. Re-captured every commit — see the pair
+  // of layout effects near `handOrderKey`.
+  const handCompFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
   const commitRectsRef = useRef<Map<string, number> | null>(null);
@@ -3271,21 +3275,49 @@ export function Recruit() {
   // pop-in.
   const handOrderKey = run.hand.map((c) => c.uid).join(',');
   useLayoutEffect(() => {
-    const st = handReorderFlipRef.current;
-    if (!st) return;
-    handReorderFlipRef.current = null;
     // Kill the hand cards' CSS `transition: transform` first (like the warband/shop commit does): on drop the
     // dragged card's slide resets to 0 and the neighbours' slides clear, and if the base transition is live it
     // animates those resets AT THE SAME TIME as this Flip — the two fight and that's the drop judder. Flip owns
     // the settle; restore the transition on complete.
-    const targets = gsap.utils.toArray<HTMLElement>('.row.hand .card[data-uid]');
-    gsap.set(targets, { transition: 'none' });
-    Flip.from(st, {
-      duration: getFlipConfig().commitMs / 1000,
-      ease: 'power2.out',
-      onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
+    const glide = (st: ReturnType<typeof Flip.getState>): void => {
+      const targets = gsap.utils.toArray<HTMLElement>('.row.hand > .card');
+      gsap.set(targets, { transition: 'none' });
+      Flip.from(st, {
+        duration: getFlipConfig().commitMs / 1000,
+        ease: 'power2.out',
+        onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
+      });
+    };
+    const st = handReorderFlipRef.current;
+    if (st) { handReorderFlipRef.current = null; glide(st); return; }
+    /* ---- MAKE ROOM / CLOSE THE GAP on any other hand-count change (owner ask 2026-07-27) ------------
+       A buy, a play, a cast — anything that adds or removes a hand card — re-centres the fan, and every
+       other card used to blink to its new slot. Glide them instead, the same read the warband has and the
+       same motion the in-combat coalesce got.
+
+       `handCompFlipRef` is re-captured EVERY commit (see the effect just below), so the state we animate
+       from is always the immediately-preceding frame. That matters mid-drag: the hand is already sliding to
+       make room via `handSlidePx`, and animating from a state captured before the drag began would rewind
+       those cards to their resting spots and re-glide them — a visible snap back. One frame back is the
+       real previous position in every case.
+
+       Entering cards (the one you just bought) aren't in the captured state, so Flip leaves them alone and
+       `playBuySlide` still owns that motion. Skipped in combat, where the hand is frozen and the preview
+       previews have their own capture (`handGrowFlipRef`). */
+    const comp = handCompFlipRef.current;
+    if (comp && !inCombat) glide(comp);
+  }, [handOrderKey, inCombat]);
+
+  /* The hand's layout, refreshed every commit for the glide above. Declared AFTER it so that within one
+     commit the glide reads the PREVIOUS frame's capture and this then overwrites it. Bounded work — the hand
+     is at most `CONFIG.handMax` cards — and it is the same per-commit `Flip.getState` the warband/tavern row
+     already pays for. */
+  useLayoutEffect(() => {
+    if (inCombat) { handCompFlipRef.current = null; return; }   // hand is frozen in a fight — don't pay for it
+    perfMonitor.measure('layout:handflip', () => {
+      handCompFlipRef.current = Flip.getState('.row.hand > .card');
     });
-  }, [handOrderKey]);
+  });
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
   const fireSpark = (x: number, y: number): void => {

@@ -1530,6 +1530,43 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'summon' && e.minion.cardId === 'stray')).toBe(true);
   });
 
+  it("Ryme's trigger on Field Mechanic DEFERS its economy Battlecry to settle (it is not lost)", () => {
+    // The owner reported this as "it didn't proc". It does — just not during the fight. A Battlecry with no
+    // combat surface (adding a card to hand, gaining Gold) is recorded in `playerDeferredBattlecries` and
+    // re-fired through the real recruit factory at settle, which is where the Patch Job actually appears.
+    // Pinning it here so the deferral isn't mistaken for a dropped trigger again.
+    const r = run(
+      [
+        { cardId: 'fieldmechanic', attack: 0, health: 100 },
+        { cardId: 'ryme', attack: 1, health: 1 },
+      ],
+      [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
+      1,
+    );
+    expect(r.events.some((e) => e.type === 'sc' && /triggers Field Mechanic/.test(e.text)), 'Ryme named it').toBe(true);
+    expect(r.playerDeferredBattlecries?.map((d) => d.cardId), 'and it is queued for settle, not dropped')
+      .toContain('fieldmechanic');
+  });
+
+  it('Ryme reaches PAST a corpse to the next living neighbour (owner report 2026-07-26)', () => {
+    // The reported asymmetry: Soren destroying Ryme at Start of Combat fired both flanking Battlecries, but a
+    // death later in the fight fired only one. Dead minions stay in `boards[side]`, so a body that died earlier
+    // sat between Ryme and the second Battlecry and blocked it — invisible to the player, since corpses are
+    // gone from the board. A 1-HP filler on Ryme's left dies to the first swing and reproduces exactly that.
+    const r = run(
+      [
+        { cardId: 'alley', attack: 0, health: 100 },   // the far Battlecry, behind the corpse
+        { cardId: 'sandbag', attack: 1, health: 1 },   // attacks first, dies to retaliation → the corpse
+        { cardId: 'ryme', attack: 1, health: 1 },   // …then Ryme swings and dies, with a corpse on its left
+        { cardId: 'alley', attack: 0, health: 100 },   // the near Battlecry
+      ],
+      [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
+      1,
+    );
+    const fired = r.events.filter((e) => e.type === 'sc' && /triggers .*Battlecry/.test(e.text));
+    expect(fired.length, 'both flanking Battlecries fire, not just the unblocked one').toBe(2);
+  });
+
   it('a golden Ryme re-fires BOTH adjacent Battlecries TWICE each', () => {
     const r = run(
       [

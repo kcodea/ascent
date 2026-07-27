@@ -78,7 +78,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     const taught = taughtSpellText(c.id, p.taughtSpellId, spellDisplayText(
       p.taughtSpellId, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0,
       p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0,
-      { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined },
+      { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier },
     ));
     if (taught) return { text: taught, goldenText: taught };
   }
@@ -86,7 +86,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined })
+        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown

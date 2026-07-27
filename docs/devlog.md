@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx/ui): resolve the acting card from COMBAT STATE, and strip every stock hit visual from a bound proc
+
+Owner: "ive asked you many times now to strip all of the original bloodbinder proc animations out of the
+game and yet the project still existed. make sure everything except the lance effect is out."
+
+Two changes, and the first is why the strip kept failing.
+
+**The card lookup went through the DOM.** `cardIdForUid` queried `[data-uid]` and read a `data-card`
+attribute added for this feature — so the binding depended on the unit being rendered, matched by that exact
+selector, and carrying that attribute. Meanwhile `ctx.cardIds` — the replay's own uid→card `Map` — was
+ALREADY being threaded into `runMomentCues`, for the sfx channel's death voicelines. Combat state knew the
+answer the whole time. The lookup now reads it, and the DOM function is deleted rather than left as a second
+way to ask the same question.
+
+That mattered beyond tidiness: the suppression only claims units when the binding MATCHES, so a failed
+lookup meant no lance AND no suppression. One broken link produced both reported symptoms, which is why
+"strip the old animations" appeared not to take.
+
+**The claim now covers every stock hit visual on the beat, not just the burst.** `executeFx` (the strike
+overlay) honours it alongside `damageFx` (the red/orange shard spray + impact ring).
+
+**Deliberately NOT stripped:** damage-number floats and the hit SFX. Those are information and audio rather
+than the "proc animation", and silently swallowing a damage number would hide game state. Say the word if
+they should go too — it is a one-line filter each.
+
+Verified: typecheck clean, lint 0 errors, 2428 tests across 123 files green, `build:web` green. The score
+tests now opt into a per-card binding by passing a `cardIds` map through ctx rather than mocking a DOM
+lookup, which is a truer shape for what the runner actually reads.
+
 ### chore(fx): point the bindings at the owner's own defs (`ruby-lance`, `self-buff-gold`)
 
 Owner: "use ruby-lance for bloodbinder and self-buff-gold for the self buff." Both were authored in the

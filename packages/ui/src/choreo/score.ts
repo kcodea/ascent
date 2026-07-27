@@ -6,7 +6,7 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { canPlayDefs, playDef } from '../fx/playDef';
-import { anchorsForUnits, cardIdForUid } from '../fx/combatAnchors';
+import { anchorsForUnits } from '../fx/combatAnchors';
 import { cardFxFor, claimDamageFx, damagedUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 
 /**
@@ -291,7 +291,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'executeFx') at(cue, () => {
       if (moment.kind === 'attackExchange') return;
       const uids: string[] = [];
-      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'poison') uids.push(e.target); }
+      // Claimed units are covered by an authored effect (see `claimDamageFx`) — the strike is part of the
+      // stock hit presentation this replaces, so it is skipped for the same units the burst is.
+      for (let i = moment.start; i < moment.end; i++) {
+        const e = ctx.events[i];
+        if (e?.type === 'poison' && !isDamageFxClaimed(e.step, e.target)) uids.push(e.target);
+      }
       if (uids.length) ctx.onExecuteFx(uids);
     });
     else if (cue.ch === 'auraReform') at(cue, () => {  // reborn: re-form glow
@@ -356,7 +361,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // anything. Moments are scheduled in log order and the `damage` moment follows its own cast, so the
       // claim is standing by the time that moment's `damageFx` cue is scheduled. Doing it inside the deferred
       // callback would race: the burst is scheduled first and would fire regardless.
-      const claimSource = cardIdForUid(momentUnits(moment.primary).source);
+      // The card comes from `ctx.cardIds` — the replay's own uid→card map, already threaded in for the sfx
+      // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
+      // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute
+      // added for this feature. Combat state knows the answer without any of that.
+      const claimSource = ctx.cardIds?.get(momentUnits(moment.primary).source ?? '') ?? null;
       const claimBinding = cardFxFor(claimSource, moment.kind);
       if (claimBinding?.fanOut === 'damaged') {
         const claimed = damagedUidsIn(ctx.events, moment.start, moment.end);
@@ -393,7 +402,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // "a Ward was gained", but every spell cast shares `scCast`, so a card with its own look needs the
         // narrower key. Resolved here rather than at compile time because it depends on which unit is
         // actually on screen.
-        const binding = cardFxFor(cardIdForUid(source), moment.kind);
+        const binding = cardFxFor(ctx.cardIds?.get(source ?? '') ?? null, moment.kind);
         if (binding?.fanOut === 'damaged') {
           // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
           // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.

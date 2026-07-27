@@ -6,22 +6,18 @@ import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMo
 import { momentKind, type MomentKind } from './kinds';
 import { holdMsForKind } from './choreoConfig';
 import { canPlayDefs, playDef } from '../fx/playDef';
-import { anchorsForUnits, cardIdForUid } from '../fx/combatAnchors';
+import { anchorsForUnits } from '../fx/combatAnchors';
 
 // The `fxDef` channel's collaborators are mocked at the CONTRACT (`playDef`/`canPlayDefs`/`anchorsForUnits`),
 // so these tests prove the SCORE's dispatch/guard/timing wiring without depending on how the fx layer renders.
 vi.mock('../fx/playDef', () => ({ playDef: vi.fn(() => () => {}), canPlayDefs: vi.fn(() => true) }));
-// `cardIdForUid` is mocked to null by default = "no per-card binding", so every case below exercises the
-// KIND-level default exactly as it did before per-card bindings existed. The per-card path has its own
-// tests in cardFx.test.ts, plus the two cases at the end of this file.
-vi.mock('../fx/combatAnchors', () => ({
-  anchorsForUnits: vi.fn(() => ({ target: { x: 5, y: 7 } })),
-  cardIdForUid: vi.fn(() => null),
-}));
+vi.mock('../fx/combatAnchors', () => ({ anchorsForUnits: vi.fn(() => ({ target: { x: 5, y: 7 } })) }));
 const mockPlayDef = vi.mocked(playDef);
 const mockCanPlayDefs = vi.mocked(canPlayDefs);
 const mockAnchors = vi.mocked(anchorsForUnits);
-const mockCardId = vi.mocked(cardIdForUid);
+/** The per-card path now reads the replay's own uid→card map out of ctx, so a case opts in by passing one
+ *  rather than by mocking a DOM lookup. No map = no per-card binding = the kind-level default. */
+const withCard = (uid: string, cardId: string) => ({ cardIds: new Map([[uid, cardId]]) });
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
@@ -629,67 +625,62 @@ describe('score persistence tolerates unknown kinds/channels (cross-version roun
  */
 describe('fxDef channel — per-card bindings', () => {
   it("plays the CARD's def instead of the kind default when the source card has a binding", () => {
-    mockCardId.mockReturnValue('bloodbinder');
+
     const events: CombatEvent[] = [
       { type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true } as CombatEvent,
       { type: 'dmg', target: 'e1', amount: 5 } as CombatEvent,
       { type: 'dmg', target: 'e2', amount: 5 } as CombatEvent,
     ];
-    runMomentCues(moment('scCast', events), baseCtx(events));
+    runMomentCues(moment('scCast', events), baseCtx(events, withCard('a', 'bloodbinder')));
     // fanOut 'damaged': one play per damaged unit, all with the card's def, never the kind's `spell-cast`.
     expect(mockPlayDef).toHaveBeenCalledTimes(2);
     expect(mockPlayDef.mock.calls.every((c) => c[0] === 'ruby-lance')).toBe(true);
     expect(mockAnchors).toHaveBeenCalledWith('a', 'e1');
     expect(mockAnchors).toHaveBeenCalledWith('a', 'e2');
-    mockCardId.mockReturnValue(null);
   });
 
   it('falls back to the kind default for a card with no binding', () => {
-    mockCardId.mockReturnValue('someothercard');
+
     const events: CombatEvent[] = [{ type: 'sc', source: 'a', text: 'zap', cast: true } as CombatEvent];
-    runMomentCues(moment('scCast', events), baseCtx(events));
+    runMomentCues(moment('scCast', events), baseCtx(events, withCard('a', 'someothercard')));
     expect(mockPlayDef).toHaveBeenCalledWith('spell-cast', expect.anything());
-    mockCardId.mockReturnValue(null);
   });
 
   // A proc that damaged nobody (every mark already dead) must play nothing rather than collapsing onto the
   // caster, which is what a targetless travelling effect would otherwise do.
   it('plays nothing when a fan-out moment damaged no one', () => {
-    mockCardId.mockReturnValue('bloodbinder');
+
     const events: CombatEvent[] = [{ type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true } as CombatEvent];
-    runMomentCues(moment('scCast', events), baseCtx(events));
+    runMomentCues(moment('scCast', events), baseCtx(events, withCard('a', 'bloodbinder')));
     expect(mockPlayDef).not.toHaveBeenCalled();
-    mockCardId.mockReturnValue(null);
   });
 });
 
 /** End-to-end: the authored effect fires AND the stock orange hit-burst is skipped for the units it covers. */
 describe('fxDef channel — an authored effect replaces the stock damageFx burst', () => {
   it('suppresses onDamageFx for the units the per-card effect covers', () => {
-    mockCardId.mockReturnValue('bloodbinder');
+
     const events: CombatEvent[] = [
       { type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true, step: 4 } as CombatEvent,
       { type: 'dmg', target: 'e1', amount: 5, step: 4 } as CombatEvent,
     ];
-    const ctx = baseCtx(events);
+    const ctx = baseCtx(events, withCard('a', 'bloodbinder'));
     // The cast moment claims; the separate damage moment then finds its target already covered.
     runMomentCues(moment('scCast', events), ctx);
     runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
     expect(ctx.onDamageFx).not.toHaveBeenCalled();
-    mockCardId.mockReturnValue(null);
   });
 
   it('leaves the stock burst alone for a card with no binding', () => {
-    mockCardId.mockReturnValue('someothercard');
+
     const events: CombatEvent[] = [
       { type: 'sc', source: 'a', text: 'zap', cast: true, step: 5 } as CombatEvent,
       { type: 'dmg', target: 'e1', amount: 5, step: 5 } as CombatEvent,
     ];
-    const ctx = baseCtx(events);
+    const ctx = baseCtx(events, withCard('a', 'someothercard'));
     runMomentCues(moment('scCast', events), ctx);
     runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
     expect(ctx.onDamageFx).toHaveBeenCalledWith(['e1']);
-    mockCardId.mockReturnValue(null);
   });
 });
 

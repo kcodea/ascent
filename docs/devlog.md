@@ -8,8 +8,11 @@ Owner art: a dark shape seated BEHIND the rules-text panel to darken the plate's
 reads cleanly. This is the readable middle ground between the old hard slab (removed 2026-07-21) and bare text
 on stone — a shaped, blended wash rather than a rectangle.
 
-`.descbox` is the drawer's FIRST child, so it paints behind every text sibling by **tree order** — deliberately
-not a z-index, because `.drawer` having none is load-bearing (a z-index there would restack the panel above the
+`.descbox` is the drawer's FIRST child, and the text nodes are given `position: relative` so they land in the
+SAME paint step, where tree order decides: backbox first → behind, text after → in front. Being first in the
+DOM is NOT enough on its own — the backbox is positioned (absolute) while the text was static, and CSS paints
+positioned/z-auto boxes in a LATER step than in-flow blocks, so it covered the copy (owner report, fixed same
+day). No z-index on any of them, deliberately, because `.drawer` having none is load-bearing (a z-index there would restack the panel above the
 frame, whose oval overflows down past the panel's top edge). Sized by WIDTH (× --ccw) with `height: auto`, so
 the art's 853×621 ratio holds at any card size. `mix-blend-mode` blends it against the plate, and
 `.card.plated`'s `isolation: isolate` contains that to the card so it can never blend with the board behind.

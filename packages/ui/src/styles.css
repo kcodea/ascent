@@ -1705,6 +1705,17 @@ img.tierbadge.tierstars,
   pointer-events: none;
   user-select: none;
 }
+/* …and the text has to sit IN FRONT of it. Tree order alone doesn't do that: `.descbox` is POSITIONED
+   (absolute) while the text nodes are static, and CSS paints positioned/z-auto boxes in a LATER step than
+   in-flow blocks — so the backbox covered the copy no matter that it comes first in the DOM (owner report
+   2026-07-26). Making the text `position: relative` puts every one of them in that same later step, where tree
+   order DOES decide: backbox first → behind, text after → in front. Deliberately NO z-index on any of them —
+   z-index here would lift the text out past the frame, whose oval overflows down over the panel's top edge
+   (the same trap documented on `.drawer` itself). `position: relative` on a flex child changes no layout. */
+.card.compact.showtext .drawer .cn,
+.card.compact.showtext .drawer .desc,
+.card.compact.showtext .drawer .dtribe,
+.card.compact.showtext .drawer .plate-tribe { position: relative; }
 .card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: var(--ctx-line, 1.32); color: var(--card-desc-color, #fff); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
 /* Bold keywords/numbers take the card's TRIBE colour so they pop off the pure-white body text (owner
    2026-07-25). `--c` is the primary tribe hue the card already sets inline. */

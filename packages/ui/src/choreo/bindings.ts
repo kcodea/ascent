@@ -62,7 +62,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-/** One binding, or null with a console.error naming `where`. Never throws: this is fed untrusted JSON. */
+/** One binding, or null with `devError` naming `where`. Never throws: this is fed untrusted JSON. */
 function coerceBinding(v: unknown, where: string): FxBinding | null {
   if (!isRecord(v)) {
     devError(`[fx] bindings.json: ${where} is not an object — dropped.`);
@@ -135,6 +135,103 @@ export function parseTable(raw: unknown): BindingTable {
 /** The committed baseline, validated once at module load. */
 const COMMITTED: BindingTable = parseTable(rawBindings);
 
+/**
+ * Session overrides, layered over the file.
+ *
+ * Deliberately the same two-tier shape defs already have (session autosave vs. Save), so there is ONE mental
+ * model for both: a change is live the instant you make it and survives a reload, and a separate explicit
+ * commit writes the git-tracked file.
+ *
+ * `null` is a TOMBSTONE, not an absence. Against a file baseline an absent key means "inherit", so without an
+ * explicit null there would be no way to express "this card plays nothing here" as a live change.
+ */
+type PatchTable = {
+  kinds: Partial<Record<MomentKind, FxBinding | null>>;
+  cards: Record<string, Partial<Record<MomentKind, FxBinding | null>>>;
+};
+
+const PATCH_KEY = 'ascent.fxBindings';
+
+/**
+ * Validate a raw patch blob the same way `parseTable` validates the file, plus preserving tombstones (an
+ * explicit `null` survives as `null`; anything else that isn't a valid `FxBinding` is dropped as if absent,
+ * never promoted to a tombstone). Reuses `UNSAFE_KEYS` for the same reason `parseTable` needs it: the blob
+ * comes from `Object.entries` over `JSON.parse` output, which is the same untrusted-key surface — a
+ * hand-edited `__proto__` key in localStorage must be dropped here exactly like it is for the file.
+ */
+function parsePatchTable(raw: unknown): PatchTable {
+  const out: PatchTable = { kinds: {}, cards: {} };
+  if (!isRecord(raw)) return out;
+  if (isRecord(raw.kinds)) {
+    for (const [kind, v] of Object.entries(raw.kinds)) {
+      if (UNSAFE_KEYS.includes(kind)) continue;
+      if (v === null) {
+        out.kinds[kind as MomentKind] = null;
+        continue;
+      }
+      const b = coerceBinding(v, `session patch: kinds.${kind}`);
+      if (b) out.kinds[kind as MomentKind] = b;
+    }
+  }
+  if (isRecord(raw.cards)) {
+    for (const [cardId, byKind] of Object.entries(raw.cards)) {
+      if (UNSAFE_KEYS.includes(cardId) || !isRecord(byKind)) continue;
+      const table: Partial<Record<MomentKind, FxBinding | null>> = {};
+      for (const [kind, v] of Object.entries(byKind)) {
+        if (UNSAFE_KEYS.includes(kind)) continue;
+        if (v === null) {
+          table[kind as MomentKind] = null;
+          continue;
+        }
+        const b = coerceBinding(v, `session patch: cards.${cardId}.${kind}`);
+        if (b) table[kind as MomentKind] = b;
+      }
+      if (Object.keys(table).length > 0) out.cards[cardId] = table;
+    }
+  }
+  return out;
+}
+
+/** The in-memory patch is the source of truth (this works with no localStorage at all); storage is
+ *  persistence only, read once at module load. A corrupt blob degrades to no overrides. */
+let patch: PatchTable = (() => {
+  try {
+    return parsePatchTable(JSON.parse(localStorage.getItem(PATCH_KEY) ?? '{}'));
+  } catch {
+    return { kinds: {}, cards: {} };
+  }
+})();
+
+function savePatch(): void {
+  try {
+    localStorage.setItem(PATCH_KEY, JSON.stringify(patch));
+  } catch {
+    /* ignore — the in-memory patch still works */
+  }
+}
+
+/**
+ * Bind (or, with `null`, explicitly unbind) a def.
+ *
+ * Takes the SAME `(cardId, kind)` key `bindingFor` reads, so the write and the read cannot disagree about
+ * what a scope is: `cardId === null` addresses the kind layer, a string addresses that card's layer.
+ */
+export function setBinding(cardId: string | null, kind: MomentKind, binding: FxBinding | null): void {
+  if (cardId === null) patch = { ...patch, kinds: { ...patch.kinds, [kind]: binding } };
+  else patch = { ...patch, cards: { ...patch.cards, [cardId]: { ...patch.cards[cardId], [kind]: binding } } };
+  savePatch();
+}
+
+/** Drop every session override, back to the committed file. */
+export function resetBindings(): void {
+  patch = { kinds: {}, cards: {} };
+  try {
+    localStorage.removeItem(PATCH_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** A copy deep enough that NOTHING returned from `effectiveTables()` shares a mutable object with the
  *  module's own tables — every leaf `FxBinding` is spread too, not just the outer kind/card maps, so a caller
  *  that edits a returned binding's `def` in place (an editor UI does exactly this) cannot corrupt `COMMITTED`. */
@@ -159,13 +256,57 @@ function cloneTable(t: BindingTable): BindingTable {
  */
 export function bindingFor(cardId: string | null, kind: MomentKind): FxBinding | null {
   if (cardId !== null) {
-    const card = COMMITTED.cards[cardId]?.[kind];
-    if (card !== undefined) return card;
+    // `undefined` means "no opinion, keep looking"; an explicit `null` is a tombstone that STOPS here —
+    // falling through to the kind layer would make "play nothing" impossible to express.
+    const overridden = patch.cards[cardId]?.[kind];
+    if (overridden !== undefined) return overridden;
+    const fromFile = COMMITTED.cards[cardId]?.[kind];
+    if (fromFile !== undefined) return fromFile;
   }
+  const overriddenKind = patch.kinds[kind];
+  if (overriddenKind !== undefined) return overriddenKind;
   return COMMITTED.kinds[kind] ?? null;
 }
 
-/** The whole effective table — what the FX library browser enumerates. Always a fresh copy. */
+/**
+ * The whole effective table: the file with the session patch applied and tombstones REMOVED. This is what
+ * the library browser enumerates and what `bindingsJson` commits — in both cases "unbound" is expressed by
+ * absence, so tombstones (which only exist to stop resolution falling through) have done their job by here.
+ */
 export function effectiveTables(): BindingTable {
-  return cloneTable(COMMITTED);
+  const out = cloneTable(COMMITTED);
+  for (const [kind, b] of Object.entries(patch.kinds)) {
+    if (b) out.kinds[kind as MomentKind] = b;
+    else delete out.kinds[kind as MomentKind];
+  }
+  for (const [cardId, byKind] of Object.entries(patch.cards)) {
+    const table = { ...out.cards[cardId] };
+    for (const [kind, b] of Object.entries(byKind)) {
+      if (b) table[kind as MomentKind] = b;
+      else delete table[kind as MomentKind];
+    }
+    if (Object.keys(table).length > 0) out.cards[cardId] = table;
+    else delete out.cards[cardId];
+  }
+  return out;
+}
+
+/**
+ * The merged file + patch as the exact text to write to `bindings.json`.
+ *
+ * Keys are sorted so a commit produces a minimal, readable diff rather than reordering the whole file
+ * whenever an object's insertion order happens to change.
+ */
+export function bindingsJson(): string {
+  const t = effectiveTables();
+  const kinds: Record<string, FxBinding> = {};
+  for (const kind of Object.keys(t.kinds).sort()) kinds[kind] = t.kinds[kind as MomentKind] as FxBinding;
+  const cards: Record<string, Record<string, FxBinding>> = {};
+  for (const cardId of Object.keys(t.cards).sort()) {
+    const byKind = t.cards[cardId] ?? {};
+    const inner: Record<string, FxBinding> = {};
+    for (const kind of Object.keys(byKind).sort()) inner[kind] = byKind[kind as MomentKind] as FxBinding;
+    cards[cardId] = inner;
+  }
+  return `${JSON.stringify({ version: 1, kinds, cards }, null, 2)}\n`;
 }

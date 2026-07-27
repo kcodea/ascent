@@ -270,6 +270,38 @@ describe('coerceDef / toStoredDef', () => {
   });
 });
 
+describe('coerceDef — label and tags', () => {
+  const base = { version: 1, id: 'x', duration: 500, layers: [] };
+
+  it('carries a string label and string tags through', () => {
+    const def = coerceDef({ ...base, label: 'Ember Lance', tags: ['impact', 'spell'] });
+    expect(def?.label).toBe('Ember Lance');
+    expect(def?.tags).toEqual(['impact', 'spell']);
+  });
+
+  // Absent is the norm — 20 committed defs have neither — so an untouched def must serialise exactly as it
+  // did before these fields existed.
+  it('OMITS both when absent, rather than storing empty values', () => {
+    const def = coerceDef(base);
+    expect('label' in (def ?? {})).toBe(false);
+    expect('tags' in (def ?? {})).toBe(false);
+  });
+
+  it('drops a non-string label and trims a blank one to an omission', () => {
+    expect('label' in (coerceDef({ ...base, label: 42 }) ?? {})).toBe(false);
+    expect('label' in (coerceDef({ ...base, label: '   ' }) ?? {})).toBe(false);
+  });
+
+  it('drops non-string tags individually, keeping the usable ones', () => {
+    expect(coerceDef({ ...base, tags: ['ok', 7, null, 'fine'] })?.tags).toEqual(['ok', 'fine']);
+  });
+
+  it('drops a tags field that is not an array, and an array that empties out', () => {
+    expect('tags' in (coerceDef({ ...base, tags: 'impact' }) ?? {})).toBe(false);
+    expect('tags' in (coerceDef({ ...base, tags: [1, 2] }) ?? {})).toBe(false);
+  });
+});
+
 describe('saveDef / saveArt', () => {
   const def: StoredFxDef = { version: 1, id: 'crit-impact', duration: 100, layers: [] };
   const png = `${ART_DATA_URL_PREFIX}iVBORw0KGgo=`;

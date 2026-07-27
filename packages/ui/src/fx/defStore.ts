@@ -60,6 +60,14 @@ export interface StoredFxDef {
    * unlocked composition means today. A def that carries one reproduces its exact look on any machine.
    */
   seed?: number;
+  /**
+   * Authoring-only display name and free-text tags, for the library browser's search and grouping.
+   * BOTH OPTIONAL and omitted when unset, on the same terms as `seed` above: every def written before these
+   * existed stays byte-identical, and an untagged def is still fully browsable — it just can't be found by a
+   * word that isn't derivable from its data (see `fx/ui/catalog.ts`).
+   */
+  label?: string;
+  tags?: string[];
   layers: StoredFxLayer[];
 }
 
@@ -182,6 +190,15 @@ export function coerceDef(raw: unknown): StoredFxDef | null {
   // same thing — no locked seed, roll fresh — so they are dropped rather than repaired into a wrong seed.
   const seed = finite(raw.seed);
   if (seed !== null) def.seed = seed;
+  // Same omit-unless-usable discipline as `seed`. A blank label and a tag list that contains nothing usable
+  // both mean "not set" rather than "set to empty" — storing the empty form would make an untouched def stop
+  // round-tripping unchanged.
+  const label = typeof raw.label === 'string' ? raw.label.trim() : '';
+  if (label !== '') def.label = label;
+  if (Array.isArray(raw.tags)) {
+    const tags = raw.tags.filter((t): t is string => typeof t === 'string' && t.trim() !== '').map((t) => t.trim());
+    if (tags.length > 0) def.tags = tags;
+  }
   return def;
 }
 

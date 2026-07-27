@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 - **End-of-turn cards hand you their reward on their own beat** — each pulse now lands its card as it
   fires, instead of the whole turn's batch appearing at once after every pulse was over.
+- **Cards granted in combat arrive twice as fast** — the beat spacing between an effect's pulse, its card
+  coalescing into hand, and the next pulse is halved.
 - **Ryme triggering Field Mechanic now shows you the Patch Job during the fight** — the card was always
   granted, but only appeared once combat was over.
 - **Cards granted mid-combat materialise in your hand as the effect procs** — on the same beat as the

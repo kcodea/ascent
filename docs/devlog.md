@@ -2,6 +2,28 @@
 
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
+### tweak(ui): grant beats play twice as fast
+
+**Owner 2026-07-27:** the spacing between an effect pulse, its coalesce, and the next effect pulse should be
+50% faster.
+
+That spacing is one number: `choreoConfig`'s **`toHand`** beat delay, **820 → 410**. `holdMs` computes a
+moment's hold from the NEXT moment's type, and `toHand` is deliberately *not* in `OVERLAP_INTO` (a grant gets
+its own read rather than riding the preceding FX), so this single delay governs both the gap *into* the first
+grant beat and the gap *between* consecutive ones. Two Avenge granters now read pulse→coalesce,
+pulse→coalesce at twice the pace.
+
+At `speed` 1.5 that is ~615 ms per grant beat (was ~1230), which still leaves a clear read for the
+materialise. The coalesce FX itself is untouched — it has its own duration and is not derived from the beat.
+
+Nothing else moves: only `toHand` changed, and the End-of-Turn sequence runs on its own `BEAT`/`GAP` in
+`Recruit.endTurn` (the owner confirmed that pacing is already right).
+
+Pacing has no live tuner by design — an accidental slider nudge used to persist silently and skew every future
+combat — so this is a committed change to `DEFAULTS`, which is the intended way to retune.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
 ### fix(ui): grants land in lockstep with their pulse again (correcting my own regression)
 
 **Owner:** "both avenge pulses occur and THEN coalesce 1 and 2 occur." Correct, and I caused it.

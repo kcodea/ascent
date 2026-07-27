@@ -63,6 +63,18 @@ export interface CardPillsConfig {
   /** Plate — CIRCLE (oval) frame. */
   plateOvX: number; plateOvY: number; plateOvW: number;
 
+  /* TIER 7 GLOW — a pulsing halo behind the stars on top-tier cards only. */
+  /** Glow diameter (× --ccw). 0 hides it. */
+  glowW: number;
+  /** Glow PEAK opacity; the pulse dips to `glowW`×`glowDip` of it. */
+  glowA: number;
+  /** Seconds per pulse cycle. */
+  glowSpeed: number;
+  /** How far the pulse dips (0 = fades right out, 1 = no pulse). */
+  glowDip: number;
+  /** Glow colour. */
+  glowColor: string;
+
   /** Spell / Ruby type pill (the "✦ SPELL" capsule) — design-px offset (× --u). */
   spellX: number;
   spellY: number;
@@ -92,26 +104,29 @@ const DEFAULTS: CardPillsConfig = {
   costY: -13,
   costScale: 0.81,
 
-  tierX: 0,
-  tierY: 0,
-  tierScale: 0.74,
+  tierX: -0.25,
+  tierY: -0.25,
+  tierScale: 1.24,
 
   stierX: 0,
-  stierY: 3.25,
+  stierY: 4,
   stierScale: 1,
 
   ttierX: 0,
-  ttierY: 0,
+  ttierY: 2.75,
   ttierScale: 1,
 
   otierX: 0,
-  otierY: 2,
+  otierY: 4,
   otierScale: 1,
 
-  plateAllX: 0, plateAllY: 0, plateAllW: 0.66,
+  plateAllX: 0, plateAllY: 0, plateAllW: 0.765,
   plateSpX: 0, plateSpY: 0, plateSpW: 1,
-  plateTaX: 0, plateTaY: 0, plateTaW: 1,
+  plateTaX: 0, plateTaY: -1.5, plateTaW: 1,
   plateOvX: 0, plateOvY: 0, plateOvW: 1,
+
+  glowW: 0.62, glowA: 0.8, glowSpeed: 2.2, glowDip: 0.35,
+  glowColor: '#ffd977',
 
   spellX: -2,
   spellY: 34,
@@ -157,6 +172,10 @@ export const CARD_PILLS_RANGES: Record<CardPillsNumKey, [number, number, number]
   plateOvX: [-120, 120, 0.25],
   plateOvY: [-120, 120, 0.25],
   plateOvW: [0, 3, 0.005],
+  glowW: [0, 2, 0.005],
+  glowA: [0, 1, 0.01],
+  glowSpeed: [0.4, 8, 0.1],
+  glowDip: [0, 1, 0.01],
   spellX: [-120, 120, 0.25],
   spellY: [-120, 160, 0.25],
   spellScale: [0.3, 2.5, 0.005],
@@ -194,6 +213,11 @@ export const CARD_PILLS_DESC: Record<keyof CardPillsConfig, string> = {
   plateOvX: 'Tier plate (CIRCLE (oval) frame) — horizontal nudge (design px) on top of the tier seat.',
   plateOvY: 'Tier plate (CIRCLE (oval) frame) — vertical nudge (design px).',
   plateOvW: 'Tier plate (CIRCLE (oval) frame) — WIDTH (× card width). Height follows the art ratio. 0 hides it.',
+  glowW: 'TIER 7 glow — diameter (× card width). 0 hides it.',
+  glowA: 'TIER 7 glow — peak opacity.',
+  glowSpeed: 'TIER 7 glow — seconds per pulse cycle.',
+  glowDip: 'TIER 7 glow — how far the pulse dips (0 = fades right out, 1 = steady, no pulse).',
+  glowColor: 'TIER 7 glow — colour.',
 
   spellX: 'Spell / Ruby pill — horizontal nudge (design px). +x → right.',
   spellY: 'Spell / Ruby pill — vertical nudge (design px). +y → down.',
@@ -216,11 +240,12 @@ export const CARD_PILLS_KEYS = [
   'plateOvX', 'plateOvY', 'plateOvW',
   'plateSpX', 'plateSpY', 'plateSpW',
   'plateTaX', 'plateTaY', 'plateTaW',
+  'glowW', 'glowA', 'glowSpeed', 'glowDip',
   'spellX', 'spellY', 'spellScale',
   'multX', 'multY', 'multScale',
 ] as const;
 /** The COLOUR keys, rendered as `<input type="color">` in the tuner. */
-export const CARD_PILLS_COLOR_KEYS = ['multBadge', 'multFont'] as const;
+export const CARD_PILLS_COLOR_KEYS = ['multBadge', 'multFont', 'glowColor'] as const;
 
 export type CardPillsNumKey = (typeof CARD_PILLS_KEYS)[number];
 export type CardPillsColorKey = (typeof CARD_PILLS_COLOR_KEYS)[number];
@@ -275,6 +300,11 @@ export function applyCardPillVars(): void {
   root.setProperty('--cpl-spell-t', t(cfg.spellX, cfg.spellY, cfg.spellScale, 'translateX(-50%)'));
   root.setProperty('--cpl-mult-t', t(cfg.multX, cfg.multY, cfg.multScale));
   // Colours go across as plain custom props; `.castmult` mixes the gradient stops out of `--cpl-mult-bg`.
+  root.setProperty('--cpl-glow-w', String(cfg.glowW));
+  root.setProperty('--cpl-glow-a', String(cfg.glowA));
+  root.setProperty('--cpl-glow-speed', `${cfg.glowSpeed}s`);
+  root.setProperty('--cpl-glow-dip', String(cfg.glowDip));
+  root.setProperty('--cpl-glow-color', cfg.glowColor);
   root.setProperty('--cpl-mult-bg', cfg.multBadge);
   root.setProperty('--cpl-mult-fg', cfg.multFont);
 }

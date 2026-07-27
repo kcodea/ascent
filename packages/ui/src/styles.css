@@ -1558,6 +1558,32 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    one set of plate knobs serves minions, spells and Taunts. Specificity is deliberate — `.card.compact
    img.tierbadge.tierplate` (0,3,1) must beat `.card.compact .tierbadge` (0,3,0), and the spell/taunt variants
    (0,4,1) must beat their own `.card.compact.spellcard/.taunt .tierbadge` seat rules (0,3,0). */
+/* TIER 7 GLOW — a pulsing halo behind the stars, on top-tier cards only. It carries `tierbadge`, so the
+   per-family star transforms above ALSO match it and it tracks the stars for free — no extra seat needed.
+   PERF: the gradient is STATIC and only OPACITY animates, per docs/performance.md (a looping box-shadow or
+   filter repaints every frame). Sized by --ccw so it scales with the card; 0 hides it. Selector is (0,4,0) to
+   beat `.card.compact .tierbadge`'s padding/border/radius. */
+.card.compact .tierbadge.tierglow {
+  width: calc(var(--ccw) * var(--cpl-glow-w, 0.62));
+  height: calc(var(--ccw) * var(--cpl-glow-w, 0.62));
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--cpl-glow-color, #ffd977) 85%, transparent) 0%,
+    color-mix(in srgb, var(--cpl-glow-color, #ffd977) 45%, transparent) 42%,
+    transparent 72%);
+  box-shadow: none;
+  pointer-events: none;
+  animation: tiersevenpulse var(--cpl-glow-speed, 2.2s) ease-in-out infinite;
+}
+@keyframes tiersevenpulse {
+  0%, 100% { opacity: calc(var(--cpl-glow-a, 0.8) * var(--cpl-glow-dip, 0.35)); }
+  50%      { opacity: var(--cpl-glow-a, 0.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.compact .tierbadge.tierglow { animation: none; opacity: var(--cpl-glow-a, 0.8); }
+}
 img.tierbadge.tierplate,
 .card.compact img.tierbadge.tierplate {
   background: none;
@@ -1582,19 +1608,19 @@ img.tierbadge.tierplate,
    report 2026-07-26). Base is (0,3,1) to beat `.card.compact .tierbadge`; the variants are (0,4,1). */
 .card.compact img.tierbadge.tierplate {
   transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0));
-  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.66));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765));
 }
 .card.compact.stdframe img.tierbadge.tierplate {
   transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-ov-t, translate(0, 0));
-  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.66) * var(--cpl-plate-ov-w, 1));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-ov-w, 1));
 }
 .card.compact.spellcard img.tierbadge.tierplate {
   transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-sp-t, translate(0, 0));
-  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.66) * var(--cpl-plate-sp-w, 1));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-sp-w, 1));
 }
 .card.compact.taunt img.tierbadge.tierplate {
   transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-ta-t, translate(0, 0));
-  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.66) * var(--cpl-plate-ta-w, 1));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-ta-w, 1));
 }
 img.tierbadge.tierstars,
 .card.compact img.tierbadge.tierstars {

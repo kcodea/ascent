@@ -629,6 +629,11 @@ export const Card = memo(function Card({
           aria-hidden="true"
           draggable={false}
         />
+        {/* TIER 7 ONLY — a soft pulsing glow behind the stars, marking the top tier. It carries `tierbadge`,
+            so it inherits the very same per-family transform the stars use and tracks them for free. Rendered
+            between the plate and the stars, so it reads as light coming off the plaque. Opacity is the only
+            animated property (see `.tierglow`). */}
+        {card.tier === 7 && <span className="tierbadge tierglow" aria-hidden="true" />}
         <img
           className="tierbadge tierstars"
           data-tier={card.tier}

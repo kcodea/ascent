@@ -2,6 +2,28 @@
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### chore(ui) + feat(ui): bake the tuned tier values; tier-7 stars get a pulsing glow
+
+Baked the owner's dialed pass into `cardPillsConfig.ts` DEFAULTS — stars ALL row at
+`x -0.25 / y -0.25 / size 1.24` with family deltas (spell y 4, taunt y 2.75, circle y 4), plate ALL width
+0.765 with the taunt plate nudged `y -1.5`. The `--cpl-plate-all-w` CSS fallback was mirrored to 0.765 (the
+double-source rule).
+
+**Tier 7 glow.** Top-tier cards now carry a soft pulsing halo behind the stars. It's a `<span>` with the
+`tierbadge` class, so the per-family star transforms already match it and it tracks the stars for free — no
+extra seat. Rendered between the plate and the stars, so it reads as light off the plaque.
+
+Built to the perf rule: the radial gradient is **static** and **opacity is the only animated property** — a
+looping `box-shadow`/`filter` would repaint every frame (docs/performance.md). Verified by reading the running
+animation's keyframes back: `keyframeProps: ["opacity"]`, pulsing 0.28 ↔ 0.8 over 2.2 s. Also honours
+`prefers-reduced-motion` by holding steady at peak instead of pulsing.
+
+Five knobs on the 🏷️ Card Pills tuner: `tier7 glow · size / opacity / speed / dip / colour` (dip 0 fades right
+out, 1 = steady).
+
+**Verified live:** tiers 5 and 6 render no glow at all, tier 7 renders a 70×70 radial halo with
+`tiersevenpulse` running, and the DOM order is `tierplate → tierglow → tierstars`.
+
 ### fix(ui): the ALL rows did nothing — families now COMPOSE them instead of shadowing
 
 Owner report: `plate · all · x/y/size` had no effect. Cause: every real card matches one of the three family

@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx): `ember-lance` — burst, lance, glints, velocity-carried sparks, impact ring
+
+Owner brief: "bursts from the starting unit and travels as a ribbon with emitter effects along its path,
+then detonates into a large amount of sparks that are affected by the velocity of the ribbon. there should
+be a shockwave upon impact with the target. this effect needs to be red with glints of white and sparkle."
+
+Six layers, and the first def to use four different primitives at once:
+
+1. **launch** — `burst` on `source`, a short shard spray at t=0.
+2. **lance** — `ribbon` on `travel`, `travelMs: 430`, `drain: 1300` so the tail retracts into the impact.
+3. **path glints** — `emitter` on `travel`, riding the same head as the ribbon, `coreBias 0.85` to sit at
+   the white end of the palette (the "glints"), with `inheritVel 0.2` so they drift along the flight line
+   rather than puffing outward from it.
+4. **detonation sparks** — `burst`, `count: 90`, `inheritVel: 0.6`, `orientToVelocity`, gravity 320.
+5. **white sparkle** — `burst` on `target`, `star` shape, palette collapsed to near-white, erode 0.
+6. **impact ring** — `shockwave` on `target` at 425, two rings with a 0.16 delay.
+
+**The one authoring decision worth recording:** the detonation sparks are anchored to `travel`, NOT to
+`target`, even though they go off at the target. `inheritVel` adds a fraction of *the anchor's own movement*
+to each particle — and `target` never moves, so anchoring there would have yielded exactly zero inherited
+velocity and quietly ignored the "affected by the velocity of the ribbon" half of the brief. They also fire
+at 390 rather than 430: spawning at the arrival instant means spawning after the head has stopped, so there
+would be no velocity left to inherit. 40ms early is the price of the spark cone actually leaning into the
+direction of travel.
+
+Palette is a red ramp (`#6b0a10 → #d41f1f → #ff8a5c → #ffffff`) shared by five layers; the sparkle layer
+overrides it with a near-white ramp so it reads as glints against the red rather than more of the same.
+
+Verified: typecheck clean, lint 0 errors, 2397 tests across 122 files green, `build:web` green, and the def
+appeared in the running dev server without a restart (the glob watcher earning its keep). Not visually
+verified — this one is a lot of simultaneous motion and almost certainly needs tuning.
+
 ### fix(fx): a one-shot ribbon could NEVER report complete, so a Fire never ended
 
 Owner, after two adjacent fixes that missed: "when i fire once, i want the ribbon to travel to its target

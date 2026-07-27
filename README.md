@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **End-of-turn cards hand you their reward on their own beat** — each pulse now lands its card as it
+  fires, instead of the whole turn's batch appearing at once after every pulse was over.
 - **Cards granted mid-combat now materialise in your hand** — the arcane coalesce used to play in the
   middle of the screen, then the card warped into hand and blinked once more as the fight ended.
 - **Ruby and Ward Echoes animate in combat** — Geode Guardian and Lastlight Marshal were landing their buffs

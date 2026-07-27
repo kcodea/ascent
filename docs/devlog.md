@@ -2,6 +2,37 @@
 
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
+### feat(ui/sim): End-of-Turn grants arrive on their own beat, not all at once
+
+**Owner ask:** with two End-of-Turn cards that each add a card to hand, every pulse fired first and *then*
+the whole batch of cards appeared at once. Wanted: card A pulses → card A's grant coalesces → card B pulses →
+card B's grant coalesces.
+
+The cause is structural. The recruit screen plays the End-of-Turn beats itself (`endTurn` in `Recruit.tsx`,
+one beat per card × repeat), but the *effects* only resolve when `faceOmen` commits — a single dispatch after
+the last beat. So the hand could not grow until every pulse was already over. The stat climb had solved this
+years-equivalent ago by projecting per-proc snapshots; grants just weren't part of the projection.
+
+- **`packages/sim`** — `EotStepFx` gains **`handGrants: string[]`**, the cardIds a beat put in hand, diffed
+  off the projection clone's hand per beat (`projectEndOfTurnSteps`). cardIds rather than uids: the clone's
+  uids aren't the ones `faceOmen` will mint. Additive; nothing else in the shape changed.
+- **`packages/ui`** — the beat loop appends `bfx.handGrants` to `eotGrants` as each beat fires, and those
+  render as preview cards after the real hand. The coalesce watcher (see the fix above) then materialises
+  each one *on the beat that produced it*, and records it in `grantPlayedRef` so the real card doesn't
+  materialise a second time when `faceOmen` commits. Previews are dropped in the same commit as the
+  `faceOmen` dispatch so the hand never briefly doubles.
+- The in-combat and End-of-Turn preview paths are now **one list** (`handPreviews`) behind one watcher —
+  they can't overlap (End-of-Turn is `recruit`, cleared as the phase flips) and both want identical
+  behaviour, so one `plated` render site and one materialise rule serves both.
+
+**Verified:** two new sim tests — grants are attributed one-per-beat across two Hoard Whelps rather than all
+landing on the last beat, **and the projection's grants match what `reduce(faceOmen)` actually puts in hand**
+(same clone, same rng state), plus a beat that grants nothing carries an empty list. Full suite **1781
+tests** / 108 files green, `typecheck` clean, `lint` 0 errors, `build:web` green.
+
+*Ownership note: `packages/sim/src/recruit.ts` is Kevin's side of the map — the change is one additive field
+on a projection type that exists purely to feed recruit-screen FX, flagged for review.*
+
 ### fix(ui): a card granted mid-combat coalesces in the hand, not in the middle of the screen
 
 **Owner report:** granting a card during a fight played the arcane coalesce *centre screen*, the card then

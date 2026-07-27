@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultsOf, validateSpecs, type FxParamSpec, type FxParamSpecs } from '../params';
-import { SHOCKWAVE_FRAG, shockwaveOneShotDurationSec, shockwavePrimitive } from './shockwave';
+import { QUAD_SCALE, SHOCKWAVE_FRAG, shockwaveOneShotDurationSec, shockwavePrimitive } from './shockwave';
 
 describe('shockwave param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -127,5 +127,32 @@ describe('shockwaveOneShotDurationSec', () => {
 
   it('clamps a negative ringDelay rather than shortening the cycle below the shader truth', () => {
     expect(shockwaveOneShotDurationSec(3, 1, -5)).toBe(shockwaveOneShotDurationSec(3, 1));
+  });
+});
+
+/**
+ * The quad is deliberately BIGGER than the ring's radius. At exactly +/-radius a fully expanded ring sat on
+ * the mesh boundary, and the outer half of the band — its soft edge and its glow with it — was clipped dead
+ * straight, drawing a hard line where the glow met its bounding box (owner report, with a screenshot).
+ */
+describe('quad oversizing', () => {
+  it('leaves room beyond the widest band the params can produce', () => {
+    const thickness = shockwavePrimitive.params.thickness as { max: number };
+    // The band is centred on d == 1 with `thickness` of half-width beyond it; the scale has to clear that
+    // AND leave room for the soft edge and glow. If someone raises the thickness ceiling, this fails rather
+    // than the clipping quietly coming back.
+    expect(QUAD_SCALE).toBeGreaterThan(1 + thickness.max);
+    expect(QUAD_SCALE - (1 + thickness.max)).toBeGreaterThanOrEqual(0.1);
+  });
+
+  // Fragment area scales with the square, so this can't just be raised "to be safe".
+  it('is not so large that it wastes fragment area', () => {
+    expect(QUAD_SCALE).toBeLessThanOrEqual(1.6);
+  });
+
+  // The shader must undo the oversizing, or every existing def's ring would render 1.45x too small.
+  it('is applied in the shader so d == 1 still means the true radius', () => {
+    expect(SHOCKWAVE_FRAG).toContain('uniform float uQuadScale;');
+    expect(SHOCKWAVE_FRAG).toContain('(vUV * 2.0 - 1.0) * uQuadScale');
   });
 });

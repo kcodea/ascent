@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx): the shockwave's glow no longer gets sliced square by its own quad
+
+Owner, with a screenshot: "any idea of how we can remove the hard white line when an effect glow comes up
+against the bounding box?"
+
+The shockwave's mesh was exactly `±radius`. Its band is centred on `d == 1` — which IS the quad's edge — with
+up to `thickness` 0.3 of half-width beyond that, plus a soft antialiased edge and the glow halo. All of it
+outside the mesh, so a fully expanded ring had its outer half cut off dead straight by the mesh boundary.
+That straight cut is the hard line.
+
+The quad is now 1.45× the radius, with a `uQuadScale` uniform putting `d == 1` back at the true radius — so
+every already-tuned def renders identically and the falloff simply has room to finish. Cost is ~2.1× the
+fragment area on a primitive that draws a couple of rings for a few hundred ms; the alternative (fading the
+ring out before it reaches full radius) would have changed the look of every def that uses one.
+
+**Checked the other three primitives for the same class of bug and they are clean**, for a reason worth
+recording: the ribbon's halo and the particle material's both derive from a `wfall` term that reaches exactly
+0 at their own mesh edge (`across == 1`), so their glow is already fully contained. The shockwave was unique
+in placing its brightest feature ON the boundary rather than inside it.
+
+A test ties `QUAD_SCALE` to the `thickness` spec's own max, so raising that ceiling later fails loudly
+instead of quietly reintroducing the clipping — and caps it at 1.6, since fragment cost scales with the
+square and "just make it bigger" is the obvious wrong fix.
+
+(Also: my GLSL comment contained backticks, inside a JS template literal. It terminated the shader string and
+broke the build until esbuild pointed at it. Second time backticks have bitten me this session.)
+
+Verified: typecheck clean, lint 0 errors, 2404 tests across 122 files green (3 new), `build:web` green.
+
 ### fix(fx/ui): the preview clock wrapped, so a travelling head re-flew its arc forever
 
 Owner: "its actually not the loop. its still the play once effect. i think it may be logic clashing between

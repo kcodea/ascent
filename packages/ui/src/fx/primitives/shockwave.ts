@@ -71,6 +71,12 @@ uniform float uGain;
 uniform float uSquash;
 uniform float uRingDelay;
 uniform float uEase;
+// How much bigger the QUAD is than the ring's own radius. The mesh used to be exactly +/-radius, so a ring
+// at full expansion sat right on the quad's edge and its outer half -- band, soft edge and glow alike --
+// was sliced off dead straight by the mesh boundary. That is the hard line where a glow meets its bounding
+// box. The quad is now oversized and this scale puts d == 1.0 back at the true radius, so every existing
+// tuning renders identically; there is simply room around it for the falloff to complete.
+uniform float uQuadScale;
 uniform vec4  uPal[4];
 
 ${NOISE_GLSL}
@@ -81,7 +87,7 @@ ${POSTERIZE_PAL_GLSL}
 const int MAX_RINGS = 5;
 
 void main() {
-  vec2 p = vUV * 2.0 - 1.0;
+  vec2 p = (vUV * 2.0 - 1.0) * uQuadScale;
   // Vertical squash: scaling y BEFORE the length() turns the ring into an ellipse flattened along y, so
   // it reads as a circle lying on a ground plane seen at an angle. At uSquash 1.0 this divides by exactly
   // 1.0 - an exact IEEE no-op - so the default is the original true circle.
@@ -277,6 +283,23 @@ type ShockwaveParams = ParamsOf<typeof SPECS>;
  *  `radius` changes. UV order matches so the fragment shader's `vUV * 2.0 - 1.0` recovers this same
  *  -1..1 square regardless of the current radius. */
 const UNIT_QUAD = [-1, -1, 1, -1, 1, 1, -1, 1] as const;
+
+/**
+ * How much bigger the quad is than the ring's radius.
+ *
+ * The mesh used to be exactly +/-radius, which put a fully expanded ring right on the quad's edge: the outer
+ * half of the band, its antialiased edge and its glow halo were all clipped dead straight by the mesh
+ * boundary, drawing a hard line where the glow met its bounding box.
+ *
+ * 1.45 covers the worst case with room to spare: the band is centred on `d == 1` with up to `thickness` 0.3
+ * of half-width beyond it (1.3), plus the soft edge and the glow. `uQuadScale` feeds the shader so `d == 1`
+ * still means "the radius", which is what keeps every already-tuned def rendering exactly as before.
+ *
+ * The cost is fragment area — 1.45^2 is ~2.1x the pixels — on a primitive that draws a handful of rings for
+ * a few hundred ms. Cheaper than the alternative of fading the ring out early, which would have changed the
+ * look of every def that uses one.
+ */
+export const QUAD_SCALE = 1.45;
 const QUAD_UVS = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
 const QUAD_INDICES = new Uint32Array([0, 1, 2, 0, 2, 3]);
 
@@ -342,6 +365,9 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
           uErode: { value: params.erode, type: 'f32' },
           uGain: { value: params.gain, type: 'f32' },
           uSquash: { value: params.squash, type: 'f32' },
+          // Constant for the instance's lifetime — the quad and this scale are written together (see
+          // `QUAD_SCALE`), so they can never disagree about where `d == 1` is.
+          uQuadScale: { value: QUAD_SCALE, type: 'f32' },
           uRingDelay: { value: params.ringDelay, type: 'f32' },
           uEase: { value: params.ease, type: 'f32' },
           uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
@@ -359,7 +385,7 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   }
 
   private writeQuad(radius: number): void {
-    for (let i = 0; i < 8; i++) this.positions[i] = UNIT_QUAD[i] * radius;
+    for (let i = 0; i < 8; i++) this.positions[i] = UNIT_QUAD[i] * radius * QUAD_SCALE;
   }
 
   /** Anchor hook (see `FxInstance.setHead`): position the mesh at the caller's anchor each frame, in

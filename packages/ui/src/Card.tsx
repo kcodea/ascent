@@ -90,6 +90,14 @@ let spellFrameAvailable = true;
 // HAND CARD BACKPLATE — the ornate stone/gold card body behind a card in hand (and on the dragged copy).
 // Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
 // module-level availability flag flipped on the first 404, so a missing asset degrades to today's look.
+/* TIER STARS — the tier is shown as N steel stars (owner art, 2026-07-26) instead of a "TIER N" text pill.
+   One image per tier, 78px tall and 55px wider per star (81→410), so the badge's WIDTH scales with tier and
+   the height is what we pin. Rendered with the `tierbadge` class as well as `tierstars`, so it inherits every
+   already-tuned per-frame-type anchor (oval / heater / plain) and only the pill chrome is overridden in CSS.
+   Falls back to the text pill if the asset 404s, same degrade-gracefully pattern as the frames. */
+const tierStarsSrc = (tier: number): string =>
+  `${import.meta.env.BASE_URL}frames/tier-stars-${tier}.webp`;
+let tierStarsAvailable = true;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 // Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
 // dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
@@ -496,6 +504,7 @@ export const Card = memo(function Card({
   const artUrl = artFor(card.cardId, uid, card.chosenOption);
   // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
+  const [starsOk, setStarsOk] = useState(tierStarsAvailable);
   // STANDARD / SPELL frames: same load-or-fallback guard. A card wears exactly one authored frame — Taunt wins
   // for a Taunt minion; regular spells (but NOT the golden Triple-Reward token) get the purple square; every other
   // minion gets the oval. On 404 the flag flips and the card renders its original arch/spell look.
@@ -606,7 +615,19 @@ export const Card = memo(function Card({
           A plain element rather than a pseudo-element: `::before` is already the keyword-glow layer on
           Venomous / Reborn / triple-ready cards, and `::after` is the drawer bridge. */}
       <span className="handpad" aria-hidden="true" />
-      {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
+      {card.tier !== undefined && (starsOk && card.tier >= 1 && card.tier <= 7 ? (
+        <img
+          className="tierbadge tierstars"
+          data-tier={card.tier}
+          src={tierStarsSrc(card.tier)}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          onError={() => { tierStarsAvailable = false; setStarsOk(false); }}
+        />
+      ) : (
+        <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>
+      ))}
       {/* Disco Dan's Setlist lock — a padlock ribbon across a greyed card, captioned with the tier it unlocks at. */}
       {locked && (
         <span className="cardlock" aria-label={`Locked${lockLabel ? ` until ${lockLabel}` : ''}`}>

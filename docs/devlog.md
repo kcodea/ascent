@@ -1,5 +1,55 @@
 # ASCENT — development log
 
+## 2026-07-26 (tier is shown as stars)
+
+### chore(ui): bake the owner's tuned pill values
+
+All three tier seats dialed to scale **0.74** with the oval nudged `y 2`, the spell square `y 3.25` and the
+heater at `y 0`; the spell type pill picked up `x -2`. Baked into `cardPillsConfig.ts` DEFAULTS — `Card.tsx`
+imports that module, so `applyCardPillVars()` runs in production and DEFAULTS are what players get. No CSS
+fallback to mirror here: the `var(--cpl-*-t, translateX(-50%))` fallbacks are deliberately the *un-nudged*
+centring, i.e. a safety net rather than a duplicated number.
+
+**Verified from a CLEARED saved config** (`localStorage` key removed → exactly what production renders): all
+four vars resolve from DEFAULTS with the tuned numbers and each retains its `translateX(-50%)` centring.
+
+### feat(ui): three independent tier-badge seats + finer nudge steps
+
+The tier badge sits on three different frame families whose banners don't line up — the minion oval, the spell
+square and the Taunt heater — so one shared nudge couldn't serve them. Added two more seats to the 🏷️ Card
+Pills tuner: `spell tier · x/y/scale` (`--cpl-stier-t`, via `.card.compact.spellcard`, covering spells AND
+Rubies) and `taunt tier · x/y/scale` (`--cpl-ttier-t`, via `.card.compact.taunt`). Both are (0,3,0) so they
+outrank the base `.tierbadge` transform, and they can't collide — no card is both a spell and a Taunt.
+
+Also made every pill nudge finer, per owner: all X/Y steps 1 → **0.25** design px and all scale steps
+0.01 → **0.005**. Existing baked values stay reachable; only slider granularity changed.
+
+**Verified live** with a minion, a Taunt minion and a spell on screen at once, moving one seat at a time:
+`stierY 30` moved only the spell badge (587→606), `ttierY 30` only the Taunt badge (366→385), `tierY 30` only
+the plain minion (364→384) — the other two unchanged in each case. The 0.25 step renders a real sub-pixel
+delta (383.83 vs 384.00). NB a design-px nudge is × `--u`, so 30 design px ≈ 20 real px at that viewport.
+
+### feat(ui): the tier badge is N steel stars, not a "TIER N" pill
+
+Owner art: the card's tier now reads as **N stars** instead of a per-tier coloured text pill. One image per
+tier (78 px tall, +55 px per star → 81…410 wide), so the badge's WIDTH scales with tier and only the height is
+pinned (`--tier-stars-h`, default 0.115 × card width); `width: auto` does the rest.
+
+The img carries BOTH `tierbadge` and `tierstars`: the first inherits every already-tuned per-frame-type anchor
+(the oval's `--tier` seat, the heater's banner nudge, the plain card's top offset), so nothing needed
+re-positioning; the second strips the pill chrome the text version needed. **Specificity is load-bearing** —
+`.card.compact img.tierbadge.tierstars` (0,3,1) must outrank both `.tierbadge[data-tier="N"]` (0,2,0, the
+per-tier background colours) and `.card.compact .tierbadge` (0,3,0, the padding/border/radius); a plain
+two-class selector loses to the latter and the stars would keep the pill's padding and border.
+
+Degrades like the frames: a 404 flips `tierStarsAvailable` and the text pill comes back.
+
+Assets: 7 webp at native size, 72 KB total.
+
+**Verified live** on real cards of every tier (sandbag→thundeer): each resolves to its own `tier-stars-N.webp`
+and the rendered aspect ratios match the source art exactly (1.04, 1.74, 2.45, 3.15, 3.86, 4.55, 5.25) —
+proving width tracks tier while height stays pinned. Chrome overrides confirmed: transparent background, zero
+padding, no border.
 ## 2026-07-26 (per-tribe card frames)
 
 ### feat(ui): per-tribe TAUNT shields too

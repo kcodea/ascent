@@ -2,6 +2,17 @@
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### chore(ui): bake the owner's tuned tier-7 glow
+
+Glow dialed and baked: `1.025 × 0.63` (a wide flat ellipse rather than the near-circle default), offset
+`x -1.5 / y -28`, peak opacity `1` dipping to `0.49` over a `2.1 s` cycle, colour `#ffe27a`. All six
+`--cpl-glow-*` CSS fallbacks mirrored alongside the DEFAULTS (double-source rule) — six values, all six checked
+for stale copies afterwards.
+
+**Verified from a CLEARED config** (what production renders): every glow var resolves from DEFAULTS, the halo
+renders 115×71 (ratio 1.63, matching 1.025/0.63), and the pulse reads 2100 ms cycling opacity 0.49 ↔ 1 — still
+`keyframeProps: ["opacity"]` only, so it stays compositor-cheap at the new brightness.
+
 ### tweak(ui): glow gets width/height/x/y, and the tier sandwich is stacked explicitly
 
 Owner follow-up. The glow was already painting in front of the plate and behind the stars (all three shared

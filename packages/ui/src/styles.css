@@ -1564,8 +1564,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    filter repaints every frame). Sized by --ccw so it scales with the card; 0 hides it. Selector is (0,4,0) to
    beat `.card.compact .tierbadge`'s padding/border/radius. */
 .card.compact .tierbadge.tierglow {
-  width: calc(var(--ccw) * var(--cpl-glow-w, 0.62));
-  height: calc(var(--ccw) * var(--cpl-glow-h, 0.26));
+  width: calc(var(--ccw) * var(--cpl-glow-w, 1.025));
+  height: calc(var(--ccw) * var(--cpl-glow-h, 0.63));
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -1573,12 +1573,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
      stay above the frame (z3), exactly as when they shared z6, so nothing changes relative to the artwork. */
   z-index: 6;
   background: radial-gradient(ellipse closest-side,
-    color-mix(in srgb, var(--cpl-glow-color, #ffd977) 85%, transparent) 0%,
-    color-mix(in srgb, var(--cpl-glow-color, #ffd977) 45%, transparent) 42%,
+    color-mix(in srgb, var(--cpl-glow-color, #ffe27a) 85%, transparent) 0%,
+    color-mix(in srgb, var(--cpl-glow-color, #ffe27a) 45%, transparent) 42%,
     transparent 72%);
   box-shadow: none;
   pointer-events: none;
-  animation: tiersevenpulse var(--cpl-glow-speed, 2.2s) ease-in-out infinite;
+  animation: tiersevenpulse var(--cpl-glow-speed, 2.1s) ease-in-out infinite;
 }
 .card.compact img.tierbadge.tierplate { z-index: 5; }
 .card.compact img.tierbadge.tierstars { z-index: 7; }
@@ -1597,11 +1597,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-ttier-n, translate(0, 0)) var(--cpl-glow-t, translate(0, 0));
 }
 @keyframes tiersevenpulse {
-  0%, 100% { opacity: calc(var(--cpl-glow-a, 0.8) * var(--cpl-glow-dip, 0.35)); }
-  50%      { opacity: var(--cpl-glow-a, 0.8); }
+  0%, 100% { opacity: calc(var(--cpl-glow-a, 1) * var(--cpl-glow-dip, 0.49)); }
+  50%      { opacity: var(--cpl-glow-a, 1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .card.compact .tierbadge.tierglow { animation: none; opacity: var(--cpl-glow-a, 0.8); }
+  .card.compact .tierbadge.tierglow { animation: none; opacity: var(--cpl-glow-a, 1); }
 }
 img.tierbadge.tierplate,
 .card.compact img.tierbadge.tierplate {

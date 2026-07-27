@@ -132,8 +132,8 @@ const DEFAULTS: CardPillsConfig = {
   plateTaX: 0, plateTaY: -1.5, plateTaW: 1,
   plateOvX: 0, plateOvY: 0, plateOvW: 1,
 
-  glowW: 0.62, glowH: 0.26, glowX: 0, glowY: 0, glowA: 0.8, glowSpeed: 2.2, glowDip: 0.35,
-  glowColor: '#ffd977',
+  glowW: 1.025, glowH: 0.63, glowX: -1.5, glowY: -28, glowA: 1, glowSpeed: 2.1, glowDip: 0.49,
+  glowColor: '#ffe27a',
 
   spellX: -2,
   spellY: 34,

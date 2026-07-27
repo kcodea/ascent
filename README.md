@@ -42,6 +42,16 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **End-of-turn cards hand you their reward on their own beat** — each pulse now lands its card as it
+  fires, instead of the whole turn's batch appearing at once after every pulse was over.
+- **Cards granted in combat arrive twice as fast** — the beat spacing between an effect's pulse, its card
+  coalescing into hand, and the next pulse is halved.
+- **Ryme triggering Field Mechanic now shows you the Patch Job during the fight** — the card was always
+  granted, but only appeared once combat was over.
+- **Cards granted mid-combat materialise in your hand as the effect procs** — on the same beat as the
+  Deathrattle skull, with the hand gliding open to make room. The mid-screen "To your hand" card is gone.
+- **Cards granted mid-combat now materialise in your hand** — the arcane coalesce used to play in the
+  middle of the screen, then the card warped into hand and blinked once more as the fight ended.
 - **Ruby and Ward Echoes animate in combat** — Geode Guardian and Lastlight Marshal were landing their buffs
   with no cue at all.
 - **The Dwarf Work Orders are now Ales** — Golden, Defensive, Champion's, Reinforcing and Bloody, with new art.

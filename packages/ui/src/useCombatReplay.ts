@@ -11,7 +11,7 @@ import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
-import { attackerOfImpact, meleePairOfImpact } from './combatBeats';
+import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -85,6 +85,8 @@ export interface UnitFrame {
 /** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
  *  beats and the memoized Unit can skip re-rendering them (a fresh `[]` each render would defeat it). */
 const EMPTY_FLOATS: Float[] = [];
+// Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
+const EMPTY_GRANTS: string[] = [];
 
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
@@ -138,6 +140,27 @@ export function preBuffHolds(
     out.set(uid, { atk: u.attack - t.atk, hp: u.health - t.hp });
   }
   return out;
+}
+
+/**
+ * The cardIds a combat has put in the player's hand as of `beatIdx` — every `toHand` through the beat that
+ * is CURRENTLY ON SCREEN. The recruit hand stays the pre-combat hand until `resolveCombat`, so the combat
+ * view appends these and the hand grows as the cards arrive.
+ *
+ * **`beatIdx` is the beat about to play; the one on screen is `beats[beatIdx - 1]`** (see the scheduler's
+ * `shown`/`next` split, and `processedEnd` — the same index the live frame folds through). Everything here
+ * hangs off that: the card must materialise on the beat whose effect granted it, in lockstep with that
+ * unit's trigger-medallion pulse, which is derived from the same `beats[beatIdx - 1]` window.
+ *
+ * Slicing one beat further (`beats[beatIdx].end`) puts the card in hand a beat BEFORE its own pulse. With two
+ * Avenge granters that desynchronises the whole read — the pulses and the coalesces stop pairing up, which is
+ * exactly what the owner reported on 2026-07-27. Don't "fix" a late-looking grant by widening this window; if
+ * a card seems to arrive only after combat, check first that the effect emits a `toHand` event at all (a
+ * DEFERRED economy Battlecry did not, until `replayCombatBattlecry` began announcing named grants).
+ */
+export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): string[] {
+  const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
+  return events.slice(0, through).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
 }
 
 /**
@@ -626,6 +649,9 @@ export function useCombatReplay(
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
+  // Per-uid clear timers for that pulse. In a ref, not the effect's cleanup, so a hold outlives the beat that
+  // started it — see the trigger effect for what cancelling them on every beat cost.
+  const pulseTimersRef = useRef<Map<string, number>>(new Map());
   // uid → a monotonic nonce, bumped on EACH Rally fire. The nonce is used as a React `key` on the medallion
   // (see Card) so it REMOUNTS every fire and the gold pulse animation restarts — a rally unit's own Rally also
   // sets the normal trigger pulse, so `.pulsing` never leaves the element between swings and a plain class
@@ -675,6 +701,9 @@ export function useCombatReplay(
     setBeatIdx(0);
     setFloats([]);
     setDeathFloats([]);
+    // …and drop the pulse holds with it, or a timer from the last fight clears a uid mid-pulse in this one.
+    for (const t of pulseTimersRef.current.values()) window.clearTimeout(t);
+    pulseTimersRef.current.clear();
     setTriggers(new Set());
     setRallyPulse(new Map());
     setFinished(false);
@@ -948,12 +977,26 @@ export function useCombatReplay(
       if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
     }
     setTriggers((prev) => new Set([...prev, ...trig]));
-    const t = window.setTimeout(() => setTriggers((prev) => {
-      const next = new Set(prev);
-      for (const uid of trig) next.delete(uid);
-      return next;
-    }), 1150);
-    return () => window.clearTimeout(t);
+    /* The ~1150ms hold is PER UID and must outlive the beat. This used to be one timeout cancelled by the
+       effect's own cleanup, which was invisible only while every beat ran longer than the hold: the moment
+       `toHand` dropped to 410 (×1.5 ≈ 615ms) the beat advanced first, the cleanup killed the pending clear,
+       and the uid was never removed from the set. A unit that had pulsed once stayed flagged forever, so its
+       next trigger couldn't toggle the class off→on and simply did not animate — the owner's "the effect icon
+       doesn't pulse every time" (the Avenge counter, driven separately, kept firing). Keyed timers in a ref
+       survive the beat change; a re-trigger inside the window restarts its own hold. */
+    for (const uid of trig) {
+      const prevT = pulseTimersRef.current.get(uid);
+      if (prevT !== undefined) window.clearTimeout(prevT);
+      pulseTimersRef.current.set(uid, window.setTimeout(() => {
+        pulseTimersRef.current.delete(uid);
+        setTriggers((prev) => {
+          if (!prev.has(uid)) return prev;
+          const next = new Set(prev);
+          next.delete(uid);
+          return next;
+        });
+      }, 1150));
+    }
   }, [active, beatIdx, beats, events, cardIds]);
 
   // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
@@ -1465,13 +1508,19 @@ export function useCombatReplay(
     [events, names],
   );
   const procs = useMemo(() => procReport(events, names), [events, names]);
-  // Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire) that have already
-  // "landed" — every `toHand` before the current beat. The recruit hand stays the pre-combat hand until
-  // `resolveCombat`, so the combat view appends these so the hand visibly grows as cards arrive.
-  const handGrantsShown = useMemo(() => {
-    const before = beats[beatIdx]?.start ?? events.length;
-    return events.slice(0, before).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
-  }, [beatIdx, beats, events]);
+  /* Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire, a Deathrattle's Patch Job) —
+     see `grantsShownThrough` for the beat window and why it is the beat ON SCREEN.
+
+     Gated on `active`, which is false through the shop-closing intro. The hook persists across fights and
+     `beatIdx` is reset in an effect, so on the first commit of a new combat it still holds the PREVIOUS
+     fight's value — usually past the new `beats` array, where the `?? events.length` fallback means "the
+     replay is done" and hands back EVERY grant at once. That painted the whole fight's grants into the hand
+     for one frame the instant you pressed Start Combat, coalesce and all, before the reset wiped them (owner
+     clip 2026-07-27). `active` only turns true after the intro, by which point the reset has landed. */
+  const handGrantsShown = useMemo(
+    () => (active ? grantsShownThrough(events, beats, beatIdx) : EMPTY_GRANTS),
+    [active, beatIdx, beats, events],
+  );
 
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,

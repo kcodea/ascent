@@ -937,12 +937,6 @@ export function Recruit() {
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
   const [endTurnFlash, setEndTurnFlash] = useState(false);
-  // Cards a combat Deathrattle just added to the hand (Arcane Weaver → Spirit Fire) — pop them
-  // in when they arrive. Snapshot the hand on entering combat; the new uids afterwards are grants.
-  const handBeforeCombatRef = useRef<Set<string>>(new Set());
-  // Cards the COMBAT granted, which already materialised mid-fight (see the handGrant watcher) and so must
-  // not coalesce a second time as they settle into hand. Populated at the combat→recruit flip.
-  const coalesceSkipRef = useRef<Set<string>>(new Set());
   // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
   const [battlecryUids, setBattlecryUids] = useState<Set<string>>(new Set());
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
@@ -970,10 +964,28 @@ export function Recruit() {
      in, and the release box. Buy + sell are deliberately NOT set here: buy has its own slide, sell removes
      the card. */
   const placePendingRef = useRef<{ uid: string; sel: string; from: BuyFrom } | null>(null);
-  // cardIds whose in-combat coalesce actually played, so the settle-side skip only suppresses a genuine
-  // double-fire. On a SKIPPED replay nothing plays mid-fight, and a blanket skip left those grants with no
-  // effect at all.
+  /* cardIds whose in-combat coalesce actually played (see the hand-grant watcher), so the settle-side
+     coalesce suppresses exactly those and nothing else. Consumed one-per-card by the coalesce watcher as
+     the grants land in the real hand, which happens at `settleCombat` on a win but not until
+     `resolveCombat` on a loss — matching there rather than at the phase flip is what keeps both paths
+     single-fire. On a SKIPPED replay nothing renders mid-fight, so this stays empty and those grants
+     coalesce on arrival instead of losing their effect entirely. */
   const grantPlayedRef = useRef<string[]>([]);
+  // How many hand-grant previews have already materialised (index into `handPreviews`).
+  const grantsShownRef = useRef(0);
+  /* The hand row's layout captured on the commit BEFORE a grant lands. Appending a card re-centres the fan,
+     so every card already in hand snaps to a new slot the instant the new one appears — this glides them
+     instead (owner ask 2026-07-27), the same "make room" read the warband has.
+     GSAP Flip rather than the warband/shop manual x-tween: hand cards carry their fan rotation and the
+     translateY tuck IN their transform, and a bare x-tween wipes both — the same reason the reorder glide
+     next to it uses Flip. */
+  const handGrowFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  /* cardIds an End-of-Turn BEAT has granted to hand so far, appended one beat at a time. `faceOmen` commits
+     every End-of-Turn grant in a single dispatch after the LAST beat, so the whole batch used to appear at
+     once, after every pulse had already fired. Showing the projection's per-beat grants (`EotStepFx.handGrants`)
+     as the beats run puts each card's arrival on its own pulse (owner ask 2026-07-27); the real cards replace
+     them at `faceOmen`, and `grantPlayedRef` keeps them from materialising twice. */
+  const [eotGrants, setEotGrants] = useState<string[]>([]);
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
@@ -1269,7 +1281,8 @@ export function Recruit() {
       setShowLog(false); // close the log when the fight is over
       return;
     }
-    handBeforeCombatRef.current = new Set(run.hand.map((c) => c.uid));
+    grantsShownRef.current = 0;   // a fresh fight — no hand-grant preview has materialised yet
+    grantPlayedRef.current = [];
     setEotAnimStats(null); // the End-of-Turn climb is done + baked in; combat shows the real units
     setEotAnimTick(null); // projected cadence tick is now committed (faceOmen) — drop the override
     setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
@@ -1441,24 +1454,10 @@ export function Recruit() {
       // Retired 2026-07-22: the coalesce is the arrival announcement now, and a combat-granted card was
       // getting BOTH — materialising mid-fight, then flashing gold again on the way back to the shop.
       //
-      // What survives is the discrimination that flash was doing for free. Cards granted BY THE COMBAT
-      // already had their moment on the flying "To your hand" card, so they must not coalesce again as they
-      // settle. Everything ELSE that lands in this same window — start-of-turn conjures, the Chaos token,
-      // delayed quest repeats — never had one, so it still coalesces. `lastCombat.playerHandGrants` is a
-      // cardId list, so match is consumed one-per-card to stay correct when the same card is granted twice.
-      const before = handBeforeCombatRef.current;
-      // Only skip grants whose mid-fight coalesce ACTUALLY PLAYED. Skipping everything in
-      // `lastCombat.playerHandGrants` was wrong for a skipped replay: nothing renders mid-fight there, so
-      // those grants got no effect at all. `grantPlayedRef` is what the in-combat watcher really fired.
-      const pending = [...grantPlayedRef.current];
-      grantPlayedRef.current = [];
-      const skip = new Set<string>();
-      for (const c of run.hand) {
-        if (before.has(c.uid)) continue;
-        const i = pending.indexOf(c.cardId);
-        if (i >= 0) { pending.splice(i, 1); skip.add(c.uid); }
-      }
-      coalesceSkipRef.current = skip;
+      // Nothing replaces it here. Suppressing the second materialise for cards the combat granted is the
+      // coalesce watcher's own job now (it consumes `grantPlayedRef` as they land), because the grants hit
+      // the real hand at `settleCombat` — while the phase is still 'combat' — so a skip set built at this
+      // flip was always one dispatch too late (owner report 2026-07-27).
     }
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
@@ -1477,8 +1476,10 @@ export function Recruit() {
        - REFRAIN BOUNCES, where a played minion returns to hand. The uid was on the BOARD last render, so
          it's a return rather than something new.
 
-     Combat grants are handled by the separate watcher below — they materialise at the moment the effect
-     procs, mid-fight, not when they settle into hand afterwards (owner ruling 2026-07-22). */
+       - COMBAT GRANTS that already materialised mid-fight, in the hand row, via the watcher below. They
+         reach the REAL hand later (at `settleCombat` on a win, `resolveCombat` on a loss) and would
+         otherwise materialise a second time there. `grantPlayedRef` is a cardId list, so the match is
+         consumed one-per-card and stays correct when the same card is granted twice. */
   useLayoutEffect(() => {
     const prevHand = prevHandUidsRef.current;
     const prevBoard = prevBoardUidsRef.current;
@@ -1486,13 +1487,15 @@ export function Recruit() {
     const bought = buyPendingRef.current;
     prevTriplesRef.current = run.triplesMade ?? 0;
     buyPendingRef.current = null;
-    const skip = coalesceSkipRef.current;
+    const granted = grantPlayedRef.current;
     /* Exclusions are PER CARD, not per commit. A blanket `bought`/`tripled` return threw away every fresh
        card in that tick, so anything conjured alongside a buy or a triple silently lost its effect. */
     const fresh = run.hand.filter((c) => {
-      if (prevHand.has(c.uid) || prevBoard.has(c.uid) || skip.has(c.uid)) return false;
+      if (prevHand.has(c.uid) || prevBoard.has(c.uid)) return false;
       if (bought && c.uid === bought.uid) return false;             // the card you bought — it slides in
       if (tripled && c.golden) return false;                        // the gild owns its own card
+      const g = granted.indexOf(c.cardId);
+      if (g >= 0) { granted.splice(g, 1); return false; }           // already materialised mid-fight
       return true;
     });
     // The bought card slides into its slot from where you released it, instead of materialising.
@@ -1500,8 +1503,6 @@ export function Recruit() {
       const el = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${bought.uid}"]`);
       if (el) playBuySlide(bought.from, el);
     }
-    // consumed exactly once — the flip effect is declared above this one, so it always populates first
-    if (skip.size) coalesceSkipRef.current = new Set();
     prevHandUidsRef.current = new Set(run.hand.map((c) => c.uid));
     /* ---- GILD: three become one ----------------------------------------------------------------
        Fires on the same `triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
@@ -1534,7 +1535,7 @@ export function Recruit() {
        (owner report 2026-07-22). They were then invisible on the way back too, because the pre-combat hand
        snapshot is taken after they land, so the flip doesn't see them as granted either.
        The real gate is whether the card is actually on screen, which the element lookup below does. Combat
-       grants can't double-fire here: they're in `coalesceSkipRef`. */
+       grants can't double-fire here: the filter above consumed them out of `grantPlayedRef`. */
     for (const c of fresh) {
       const card = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${c.uid}"]`);
       if (!card) continue;
@@ -1544,23 +1545,74 @@ export function Recruit() {
     }
   });
 
-  /* In-combat grants (Deathrattle / Rally / Avenge / quest). The replay already flies a "To your hand" card
-     at the beat the effect procs; we materialise THAT card out of dust rather than announcing it a second
-     time when it settles into hand after the fight. Keyed on `handGrant.key`, which the replay bumps per
-     grant, so repeat grants of the same card still each get their moment. */
-  const grantFxKeyRef = useRef<number | null>(null);
+  /* Cards showing in the hand row that the run state doesn't own yet — rendered after the real hand so it
+     visibly grows at the moment the effect fires, rather than when the dispatch that commits them lands.
+     Two sources, and they can't overlap: End-of-Turn beats (still `recruit`, cleared as `faceOmen` flips the
+     phase) and in-combat grants. Filtered against CARD_INDEX — a grant of an id the index doesn't know (a
+     card-data typo: Velvet Rope Fiend once granted the empty string) used to throw inside the map and
+     white-screen the whole Recruit tree. A bad grant should show nothing, not take down the game.
+
+     CAPPED AT THE HAND LIMIT. A preview is a promise that the card is yours, and the sim only keeps grants
+     while there's room — `settleCombat` / the End-of-Turn commit walk the grant list in order and drop
+     everything past `CONFIG.handMax`. Without the same cap here the hand visibly overflowed past 10 during
+     the replay and then snapped back as combat ended (owner report 2026-07-27). Same first-N rule as the
+     reducer, so the cards that materialise are exactly the ones that survive the commit — and a hand that is
+     already full shows (and coalesces) nothing at all for the rest of the round. */
+  const handRoom = Math.max(0, CONFIG.handMax - run.hand.length);
+  const handPreviews = useMemo(
+    () => (inCombat && !run.combatSettled ? replay.handGrantsShown : eotGrants)
+      .filter((id) => !!CARD_INDEX[id])
+      .slice(0, handRoom),
+    [inCombat, run.combatSettled, replay.handGrantsShown, eotGrants, handRoom],
+  );
+
+  /* In-combat grants (Deathrattle / Rally / Avenge / quest) and End-of-Turn grants alike. The hand visibly
+     grows as each one arrives, so the card materialises out of arcane dust RIGHT THERE, identical to a
+     shop-phase conjure.
+
+     It used to coalesce on the mid-screen "To your hand" flyer instead, which played as a materialise in
+     the middle of the screen, then the card warping into hand a beat later, then a THIRD appearance as the
+     settle-side coalesce re-fired on the real card (owner report 2026-07-27). The flyer keeps its labelled
+     announcement; the coalesce belongs where the card lands.
+
+     Preview grants are the only cards in the hand row with no `data-uid`, which is how they're addressed;
+     the index is tracked so a batch that reveals several at once (a Skipped replay) materialises each of
+     them exactly once. The list emptying just resets the index, so it re-arms for the next fight/turn. */
   useLayoutEffect(() => {
-    const g = replay.handGrant;
-    if (!g || grantFxKeyRef.current === g.key) return;
-    grantFxKeyRef.current = g.key;
-    const el = document.querySelector<HTMLElement>('.handgrant .card');
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    if (r.width > 0) {
-      playPlateCoalesce(r, el);
-      grantPlayedRef.current.push(g.cardId);   // so the settle-side skip suppresses exactly this one
+    const prev = grantsShownRef.current;
+    grantsShownRef.current = handPreviews.length;
+    const grew = handPreviews.length > prev;
+    // MAKE ROOM: glide everything that was already in hand from where it sat to its new slot. The card that
+    // just arrived is not in the captured state, so Flip leaves it alone and the coalesce owns it. The base
+    // `.card { transition: transform }` is killed for the glide or it fights Flip (the reorder judder).
+    const st = handGrowFlipRef.current;
+    handGrowFlipRef.current = null;
+    if (grew && st) {
+      const settled = gsap.utils.toArray<HTMLElement>('.row.hand > .card');
+      gsap.set(settled, { transition: 'none' });
+      Flip.from(st, {
+        duration: getFlipConfig().commitMs / 1000,
+        ease: 'power2.out',
+        onComplete: () => gsap.set(settled, { clearProps: 'transition' }),
+      });
     }
-  }, [replay.handGrant]);
+    // Re-arm for the NEXT beat's grant. Only during a fight: this effect re-runs every beat there (the
+    // replay hands back a fresh `handGrantsShown`), so the capture stays one commit ahead. The End-of-Turn
+    // path captures at its own call site instead, where it knows a grant is coming.
+    if (inCombat && !run.combatSettled) handGrowFlipRef.current = Flip.getState('.row.hand > .card');
+    if (!grew) return;
+    const els = document.querySelectorAll<HTMLElement>('.row.hand > .card:not([data-uid])');
+    for (let i = prev; i < handPreviews.length; i++) {
+      const el = els[i];
+      if (!el) continue;   // committed in the same commit — the settle-side coalesce covers it instead
+      const plate = el.querySelector<HTMLElement>('.cardplate');
+      const r = (plate ?? el).getBoundingClientRect();
+      if (r.width > 0) {
+        playPlateCoalesce(r, el);
+        grantPlayedRef.current.push(handPreviews[i]!);   // so it doesn't materialise again as it commits
+      }
+    }
+  }, [handPreviews, inCombat, run.combatSettled]);
 
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
@@ -3314,6 +3366,9 @@ export function Recruit() {
         setElectrifyUids(new Set());
         endTurnPendingRef.current = false;
         setEndTurnAnimating(false);
+        // Drop the previews in the SAME commit `faceOmen` puts the real cards in hand, or the two lists
+        // would both render for a frame and the hand would visibly double.
+        setEotGrants([]);
         dispatch({ type: 'faceOmen' });
         return;
       }
@@ -3410,6 +3465,14 @@ export function Recruit() {
           replayBuffFxEvents(bfx.buffFx, waveGapFor(Math.min(waveCount, getBuffFxConfig().waveMaxCount)));
         }
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
+        // Cards this beat grants to hand arrive ON the beat — each coalesces beside the pulse that produced
+        // it, instead of the whole turn's batch materialising at once when `faceOmen` finally commits.
+        // Capture the hand's layout FIRST: React hasn't flushed this state update yet, so the row is still
+        // at its old width and the watcher can glide the existing cards out to make room.
+        if (bfx.handGrants.length > 0) {
+          handGrowFlipRef.current = Flip.getState('.row.hand > .card');
+          setEotGrants((g) => [...g, ...bfx.handGrants]);
+        }
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');
       }
@@ -3984,13 +4047,12 @@ export function Recruit() {
               />
             );
           })}
-          {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
-              committed to the real hand at `resolveCombat`). */}
-          {/* Filtered against CARD_INDEX: a grant of an id the index doesn't know (a card-data typo — Velvet Rope
-              Fiend once passed the wrong param name and granted the empty string) used to throw inside the map
-              and white-screen the whole Recruit tree. A bad grant should show nothing, not take down the game. */}
-          {inCombat && !run.combatSettled && replay.handGrantsShown.filter((id) => CARD_INDEX[id]).map((cardId, i) => (
-            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff)} suppressPop forceFull />
+          {/* Cards an End-of-Turn beat or a combat effect just granted, so the hand grows at the moment the
+              effect fires (the real commit lands later, at `faceOmen` / `settleCombat`). See `handPreviews`. */}
+          {handPreviews.map((cardId, i) => (
+            /* `plated` to match the real hand cards exactly — the preview is swapped for the committed card,
+               and an unplated preview made that swap read as a flicker. */
+            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff)} suppressPop forceFull plated />
           ))}
         </div>
       </div>
@@ -4045,19 +4107,11 @@ export function Recruit() {
         </div>
       ))}
 
-      {/* A card a combat effect just granted (Arcane Weaver → Spirit Fire) flies into your hand. */}
-      {fighting && replay.handGrant && (() => {
-        // Same helper as the hand preview and the reducer's settle — the card that flies in must carry the
-        // stats it will actually have (it previously showed raw base stats, so it visibly jumped at settle).
-        const view = conjuredView(replay.handGrant.cardId, run);
-        if (!view) return null;
-        return (
-          <div className="handgrant" key={replay.handGrant.key} aria-hidden="true">
-            <span className="hg-label">To your hand</span>
-            <Card card={view} suppressPop />
-          </div>
-        );
-      })()}
+      {/* The mid-screen "To your hand" flyer used to live here. Retired 2026-07-27: the granted card now
+          materialises IN THE HAND on the very beat its effect procs, so the flyer showed a second copy of the
+          same card, at the same instant, in the middle of the screen — the duplicate announcement the owner
+          asked us to get rid of. `replay.handGrant` and the `.handgrant` CSS are kept, so restoring this is
+          just putting the block back. */}
 
       {/* A clear "End of Turn" beat as the turn ends (end-of-turn effects have resolved). */}
       {endTurnFlash && (

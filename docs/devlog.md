@@ -1,5 +1,269 @@
 # ASCENT — development log
 
+## 2026-07-27 (combat hand-grants materialise where they land)
+
+### fix(ui): the medallion pulse survives a short beat + no grant flash at Start Combat
+
+Two defects the faster pacing exposed.
+
+**1. The effect icon stopped pulsing every time.** (Owner: the Avenge *counter* still pulsed — that is a
+separate cue — but the medallion did not.) The ~1150 ms pulse hold was a single `setTimeout` cancelled by its
+own effect's cleanup, which was harmless only while every beat ran LONGER than the hold. The moment `toHand`
+dropped to 410 (×1.5 ≈ 615 ms) the beat advanced first, the cleanup killed the pending clear, and the uid was
+never removed from `triggers`. A unit that had pulsed once stayed flagged forever, so its next trigger could
+not toggle the class off→on and simply did not animate.
+
+The holds are now **per-uid timers in a ref**, so a hold outlives the beat that started it and a re-trigger
+restarts its own. Cleared on a fresh combat, or a timer from the last fight would cut a pulse short in this
+one. This bug was latent in every beat type shorter than 1150 ms — the pacing change only made it obvious.
+
+**2. A full hand of cards flashed and faded the instant you pressed Start Combat.** (Owner clip.) The replay
+hook persists across fights and `beatIdx` is reset in an *effect*, so on the first commit of a new combat it
+still holds the previous fight's value — usually past the new `beats` array, where `grantsShownThrough`'s
+`?? events.length` fallback means "the replay is done" and returns EVERY grant at once. That painted the whole
+fight's grants into the hand for one frame, coalesce and all, until the reset wiped them.
+
+`handGrantsShown` is now gated on the replay's `active` flag, which is false through the shop-closing intro
+and only turns true once the reset has landed.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green — run
+with the worktree pinned (see the note below).
+
+*Process note: the shell's working directory silently reverted to the primary checkout mid-session twice, and
+a gate run reported green against old `main`. The tell was the test count DROPPING while code was only added.
+Every gate run now prints `pwd` + branch first.*
+
+### tweak(ui): grant beats play twice as fast
+
+**Owner 2026-07-27:** the spacing between an effect pulse, its coalesce, and the next effect pulse should be
+50% faster.
+
+That spacing is one number: `choreoConfig`'s **`toHand`** beat delay, **820 → 410**. `holdMs` computes a
+moment's hold from the NEXT moment's type, and `toHand` is deliberately *not* in `OVERLAP_INTO` (a grant gets
+its own read rather than riding the preceding FX), so this single delay governs both the gap *into* the first
+grant beat and the gap *between* consecutive ones. Two Avenge granters now read pulse→coalesce,
+pulse→coalesce at twice the pace.
+
+At `speed` 1.5 that is ~615 ms per grant beat (was ~1230), which still leaves a clear read for the
+materialise. The coalesce FX itself is untouched — it has its own duration and is not derived from the beat.
+
+Nothing else moves: only `toHand` changed, and the End-of-Turn sequence runs on its own `BEAT`/`GAP` in
+`Recruit.endTurn` (the owner confirmed that pacing is already right).
+
+Pacing has no live tuner by design — an accidental slider nudge used to persist silently and skew every future
+combat — so this is a committed change to `DEFAULTS`, which is the intended way to retune.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### fix(ui): grants land in lockstep with their pulse again (correcting my own regression)
+
+**Owner:** "both avenge pulses occur and THEN coalesce 1 and 2 occur." Correct, and I caused it.
+
+Earlier this session I widened `handGrantsShown` from `beats[beatIdx].start` to `beats[beatIdx].end`,
+reasoning that slicing to `start` excluded the granting beat. **That reasoning was wrong.** `beatIdx` is the
+beat *about to play* — the moment on screen is `beats[beatIdx - 1]` (the scheduler's own `shown`/`next` split;
+`processedEnd`, which the live frame folds through, is `beats[beatIdx - 1].end`). Moments are contiguous, so
+`beats[beatIdx].start === beats[beatIdx - 1].end`: the original slice already meant "through the beat on
+screen" and was right all along.
+
+Widening it by one beat put every granted card in hand BEFORE its own trigger-medallion pulse — and that pulse
+is derived from the same `beats[beatIdx - 1]` window. With a single grant that just looks slightly eager; with
+two Avenge granters it desynchronises the whole read, which is what the owner saw.
+
+Restored to the on-screen beat, written as `beats[beatIdx - 1].end` so the invariant is explicit rather than
+resting on contiguity, with the off-by-one documented at the function and a warning not to widen it again.
+
+**The thing I misdiagnosed:** the original "the card only coalesces after combat" report was NOT a windowing
+problem. It was the deferred Battlecry emitting no `toHand` event at all during the fight — fixed properly in
+the `fix(core)` entry above. The window change was a second, wrong fix layered on the first.
+
+Tests updated to pin the off-by-one from both sides: a Deathrattle grant is in hand when its beat is on screen
+and **not** a beat sooner; a final-beat grant is empty at `beats.length - 1` and present at `beats.length`;
+and neither Avenge card's grant appears before its own beat is the one showing.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### test(ui): lock the one-at-a-time ordering for multiple Avenge grants
+
+**Owner spec 2026-07-27:** two Avenge cards that each grant a card should read like the End-of-Turn beats —
+card 1 (left to right) pulses, its card coalesces, THEN card 2 pulses and its card coalesces.
+
+Checked against the real pipeline before changing anything, and it already behaves that way. Two Arcane
+Weavers (Avenge 2) proccing off the same pair of deaths produce two `toHand` events that `compileMoments`
+gives **separate single-event moments** — `toHand` is in neither the collapse nor the collapse-runs set, so
+consecutive grants can never fold into one beat. Each carries its own `source` (`m2`, then `m3`), which is
+what drives the proc pulse, so beat order is board order. The `toHand` moment holds **820 ms**
+(`choreoConfig`), so the two are plainly sequential rather than a smear. And `grantsShownThrough` returns one
+card at the first beat and two at the second, so the hand grows a card at a time and the coalesces cannot
+fire together.
+
+No production change — a test now pins all four properties (two separate beats, consecutive, sourced in board
+order, one card added per beat) against **both** presentation transforms in the hook's own order
+(`deferAvengeAfterSummons(deferClashBuffs(...))`), so a future grouping-rule change can't silently collapse
+them.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### fix(core): a deferred Battlecry's named card is announced during the fight
+
+**Owner:** "Field Mechanic's Shout is adding a Patch Job to hand — paired with Ryme's Deathrattle that should
+add a Patch Job if the Mechanic is still alive and next to it when Ryme dies. This qualifies for the coalesce."
+
+Correct, and it *does* grant — I was wrong to say that pairing grants nothing. Tracing the real event log:
+Ryme's Deathrattle fires, `sc` logs **"Ryme triggers Field Mechanic's Battlecry"**, and then… nothing. The
+reason is `replayCombatBattlecry`: `battlecryGrantSpell` isn't in `COMBAT_REPLAYABLE_BATTLECRIES`, so it falls
+to the `economy` branch and is recorded in `playerDeferredBattlecries`. `settleCombat` re-fires it through the
+real recruit factory, which is where the Patch Job actually lands. Nothing is lost — but there was **no event
+during the fight**, so the replay had nothing to animate and the arrival FX only played once combat was over.
+
+The economy branch now logs a `toHand` for a deferred grant that names its card:
+
+- **Presentation only** — `ctx.log` directly, NOT `ctx.grantToHand`, so the card isn't granted twice. The
+  deferral stays the single source of truth for what you receive. (Same split `simulate.ts` already uses for a
+  quest `rewardCardId`: announce without pushing.)
+- Count mirrors the recruit factory's `count * golden`, so a golden Mechanic announces both Patch Jobs.
+- **Only `battlecryGrantSpell`**, because it names its card in params. A random grant
+  (`battlecryGainRandomMinion`, the Discover fallbacks) can't be announced without rolling the pick here, and
+  rolling it would move the rng so the replay would stop matching the settle.
+
+Downstream this needed no UI work — the existing pipeline picks it up: the card materialises in hand on the
+Deathrattle beat, respects the hand cap, and `grantPlayedRef` suppresses the settle-side duplicate.
+
+**Verified:** a new test pins that the Patch Job is announced exactly once, *after* the death and at/after the
+trigger, and that `playerHandGrants` stays undefined while `playerDeferredBattlecries` still carries the
+Mechanic — i.e. announced, not double-granted. `typecheck` clean, `lint` 0 errors, **1784 tests** / 108 files
+green (no golden/determinism replay broke on the added event), `build:web` green.
+
+*Ownership note: `packages/core/src/effects/factories.ts` is Kevin's side — flagged for review alongside the
+`EotStepFx` field.*
+
+### fix(ui): hand-grant previews respect the 10-card hand cap
+
+**Owner report:** the in-combat coalesce would push the hand past its 10-card limit during the replay, then
+snap back down to 10 once combat ended.
+
+The previews were rendering the whole grant list, but the sim only *keeps* grants while there is room —
+`settleCombat` and the End-of-Turn commit both walk the grant list in order and drop everything past
+`CONFIG.handMax`. So the replay was promising cards that were never going to be yours.
+
+`handPreviews` now slices to `CONFIG.handMax - run.hand.length` — the same first-N rule the reducer uses, so
+the cards that materialise are exactly the ones that survive the commit. A hand that is already full has zero
+room, which means it shows nothing and coalesces nothing for the rest of the round, as the owner asked. The
+real hand can't change mid-combat or mid-End-of-Turn (grants land at `settleCombat` / `faceOmen`), so the room
+figure is stable across the whole beat sequence.
+
+Applies to both preview sources, since they share the one list.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1783 tests** / 108 files green, `build:web` green.
+
+### fix(ui): a combat grant materialises ON the beat that procs it, and the hand makes room
+
+Two follow-ups from the owner on the same session's work.
+
+**1. Combat grants were still only coalescing after the fight.** `handGrantsShown` sliced the event log to the
+current beat's **`start`** — i.e. strictly *before* it — so the beat that actually emitted the `toHand` was
+excluded. Two consequences: every grant appeared a beat late, and a grant on the **last** beat (the common
+shape — the final minion dies, its Deathrattle fires, the fight is over) never appeared during the replay at
+all, leaving the settle-time materialise as its only announcement. That is exactly what the owner was seeing.
+
+~~Now it slices through the beat's **`end`**~~ — **superseded, see the correction entry above: this was
+wrong.** `beatIdx` is the beat about to play, so `start` already meant "through the beat on screen"; widening
+it put grants a beat ahead of their pulse. The rule is extracted as **`grantsShownThrough(events, beats, beatIdx)`** and covered by
+two tests: a real Scrap Vendor Deathrattle is shown ON its beat and *not* on the one before it, and a grant on
+the final beat is shown during the replay. Both fail under the old `start` slice.
+
+Diagnosed headlessly rather than by eye — `simulate` + `compileMoments` in a throwaway probe printed the event
+log with beat boundaries, which is what located the off-by-one-beat. Worth noting for next time: the owner's
+example (Ryme's Deathrattle replaying an adjacent **Field Mechanic**) turns out to grant *nothing* — the combat
+sim's battlecry replay casts economy battlecries instead of granting, so that pairing emits no `toHand` and no
+`playerHandGrants` at all.
+
+**2. The mid-screen "To your hand" flyer is retired.** With the card now materialising in hand at the instant
+of the proc, the flyer showed a *second* copy of the same card, at the same moment, in the middle of the
+screen — the duplicate announcement this whole thread was about. `replay.handGrant` and the `.handgrant` CSS
+are deliberately kept, so restoring it is putting the render block back. *(Judgement call — flagged.)*
+
+**3. The hand glides to make room.** A coalescing card was appended to the row and every card already in hand
+snapped to its new slot. The row's layout is now captured on the commit *before* a grant lands and replayed
+with **GSAP Flip** — not the warband/shop manual x-tween, because hand cards carry their fan rotation and
+translateY tuck *in* their transform and a bare x-tween wipes both (the same reason the reorder glide next to
+it uses Flip). The End-of-Turn path captures at its own call site, where it knows a grant is coming; the combat
+path re-captures each beat, one commit ahead. Duration comes from `getFlipConfig().commitMs`, so it matches
+the warband's "make room" feel and stays tunable.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1783 tests** / 108 files green, `build:web` green.
+
+### feat(ui/sim): End-of-Turn grants arrive on their own beat, not all at once
+
+**Owner ask:** with two End-of-Turn cards that each add a card to hand, every pulse fired first and *then*
+the whole batch of cards appeared at once. Wanted: card A pulses → card A's grant coalesces → card B pulses →
+card B's grant coalesces.
+
+The cause is structural. The recruit screen plays the End-of-Turn beats itself (`endTurn` in `Recruit.tsx`,
+one beat per card × repeat), but the *effects* only resolve when `faceOmen` commits — a single dispatch after
+the last beat. So the hand could not grow until every pulse was already over. The stat climb had solved this
+years-equivalent ago by projecting per-proc snapshots; grants just weren't part of the projection.
+
+- **`packages/sim`** — `EotStepFx` gains **`handGrants: string[]`**, the cardIds a beat put in hand, diffed
+  off the projection clone's hand per beat (`projectEndOfTurnSteps`). cardIds rather than uids: the clone's
+  uids aren't the ones `faceOmen` will mint. Additive; nothing else in the shape changed.
+- **`packages/ui`** — the beat loop appends `bfx.handGrants` to `eotGrants` as each beat fires, and those
+  render as preview cards after the real hand. The coalesce watcher (see the fix above) then materialises
+  each one *on the beat that produced it*, and records it in `grantPlayedRef` so the real card doesn't
+  materialise a second time when `faceOmen` commits. Previews are dropped in the same commit as the
+  `faceOmen` dispatch so the hand never briefly doubles.
+- The in-combat and End-of-Turn preview paths are now **one list** (`handPreviews`) behind one watcher —
+  they can't overlap (End-of-Turn is `recruit`, cleared as the phase flips) and both want identical
+  behaviour, so one `plated` render site and one materialise rule serves both.
+
+**Verified:** two new sim tests — grants are attributed one-per-beat across two Hoard Whelps rather than all
+landing on the last beat, **and the projection's grants match what `reduce(faceOmen)` actually puts in hand**
+(same clone, same rng state), plus a beat that grants nothing carries an empty list. Full suite **1781
+tests** / 108 files green, `typecheck` clean, `lint` 0 errors, `build:web` green.
+
+*Ownership note: `packages/sim/src/recruit.ts` is Kevin's side of the map — the change is one additive field
+on a projection type that exists purely to feed recruit-screen FX, flagged for review.*
+
+### fix(ui): a card granted mid-combat coalesces in the hand, not in the middle of the screen
+
+**Owner report:** granting a card during a fight played the arcane coalesce *centre screen*, the card then
+"warped" into the hand a beat later, and finally blinked out and back in as the combat ended — three separate
+arrivals for one card.
+
+All three were the same design mistake plus one stale hand-off:
+
+- The in-combat watcher materialised the **mid-screen "To your hand" flyer** (`.handgrant .card`, a ruling
+  from #671). The flyer is a labelled announcement pinned at 50%/46% — coalescing *it* put the effect nowhere
+  near where the card actually arrives, and the hand-row copy (`handGrantsShown`, which appears one beat
+  later) then just popped in cold. That's the "coalesce in the middle, then warp to hand".
+- The settle-side suppression was **one dispatch too late**. `grantPlayedRef` → `coalesceSkipRef` was built at
+  the **combat → recruit phase flip**, but combat grants reach the real `run.hand` at `settleCombat` — which
+  fires while the phase is still `'combat'`. So the generic coalesce watcher saw a brand-new hand uid, found
+  an empty skip set, and materialised the card a *third* time. That's the "disappears and reappears when
+  combat ends".
+- The preview card rendered **unplated** while the committed hand card renders `plated`, so even the swap
+  itself read as a flicker.
+
+**The fix**, per the owner's ask — the coalesce should look exactly like a shop-phase conjure:
+
+- The in-combat watcher now keys on **`replay.handGrantsShown`** and materialises the card **in the hand row**,
+  measuring `.cardplate` and calling `playPlateCoalesce` on the same element the player will keep. Preview
+  grants are the only cards in `.row.hand` with no `data-uid`, which is how they're addressed; the shown-count
+  is tracked in a ref so a **Skip** that reveals several at once materialises each exactly once.
+- `coalesceSkipRef` / `handBeforeCombatRef` and the phase-flip block that built them are **gone**. The main
+  coalesce watcher now consumes `grantPlayedRef` (a cardId list) directly in its `fresh` filter, one match per
+  card. That's correct on **both** settle paths — `settleCombat` on a win, `resolveCombat` on a loss — where
+  the phase-flip version could only ever catch the loss path.
+- Preview grants render `plated`, matching the committed card exactly.
+- The mid-screen flyer keeps its "To your hand" label and `tohandhold` animation; it just no longer claims the
+  coalesce.
+
+Skipped replays still behave: nothing renders mid-fight, so `grantPlayedRef` stays empty and those grants get
+their coalesce on arrival in hand rather than losing the effect entirely (the regression #674 fixed).
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1779 tests** across 108 files pass, `build:web` green.
+
+
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
 ### chore(ui): second pass on the Card Text defaults

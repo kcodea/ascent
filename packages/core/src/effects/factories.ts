@@ -210,6 +210,27 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       ctx.grantImpBuff(a, h, m.side);
     } else {
       economy = true; // Fodder / Gold / shop / gain-minion — no combat surface; replayed at settle
+      /* …but if the deferred Battlecry hands you a NAMED card, ANNOUNCE it now. The card really is yours —
+         settleCombat re-fires the economy onPlay through the recruit factory and it lands in hand — it just
+         had no event during the fight, so the replay showed nothing and the arrival FX only played once
+         combat was over (owner report 2026-07-27: Ryme triggering Field Mechanic's Patch Job).
+
+         Presentation only: this logs `toHand` WITHOUT calling ctx.grantToHand, so the card is not granted
+         twice — the deferral remains the single source of truth for what you actually receive (the same
+         split simulate.ts uses for a quest `rewardCardId`). Count mirrors the recruit factory's
+         `count * golden` so a golden Mechanic announces both Patch Jobs.
+
+         Only `battlecryGrantSpell`, because it is the one that names its card up front. A random grant
+         (battlecryGainRandomMinion, the Discover fallbacks) can't be announced without rolling the pick
+         here, and rolling it would move the rng — the replay would stop matching the settle. */
+      if (eff.do === 'battlecryGrantSpell' && m.side === 'player') {
+        const id = str(p.spellId);
+        if (id) {
+          for (let i = 0; i < num(p.count, 1) * g; i++) {
+            ctx.log({ type: 'toHand', cardId: id, side: m.side, source: m.uid });
+          }
+        }
+      }
     }
   }
   // Economy battlecries can't run in pure combat (no tavern/Gold/hand on the run state). Record the card so

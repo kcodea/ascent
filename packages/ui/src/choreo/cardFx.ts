@@ -28,12 +28,6 @@ export interface CardFxBinding {
 }
 
 /** cardId → moment kind → binding. */
-/**
- * KNOWN LIMITATION, so nobody re-derives it: an authored effect plays IN ADDITION to the stock `damageFx`
- * hit-burst, not instead of it. That burst is fired by a separate channel keyed on the `damage` moment, and
- * a `dmg` event carries no `source` — so at the point the burst is scheduled there is no card id to check a
- * binding against. Suppressing it needs the damage moment to know who dealt it.
- */
 export const CARD_FX: Record<string, Partial<Record<MomentKind, CardFxBinding>>> = {
   // Start of Combat marks enemies; every 4 attacks the marks each take Bloodbinder's Attack. The proc emits
   // one targetless `sc` plus a damage event per mark, so the lance flies to each of them.
@@ -82,4 +76,50 @@ export function damagedUidsIn(events: readonly CombatEvent[], start: number, end
   }
   for (let i = start; i < events.length && events[i]?.step === step; i++) take(events[i]);
   return out;
+}
+
+/**
+ * The units an authored per-card effect has CLAIMED for this resolution step, so the stock `damageFx`
+ * hit-burst skips them and the authored impact plays instead of on top of the generic one.
+ *
+ * A claim is needed because the two live in different moments: the authored effect is scheduled from the
+ * CAST moment (which knows the acting card) while the burst is scheduled from the separate `damage` moment
+ * (whose `dmg` events carry no `source` at all, so it cannot look up a binding itself). The resolution step
+ * is the only thing both can see.
+ *
+ * SINGLE-SLOT on purpose. The damage moment immediately follows its own cast, and claims are made
+ * synchronously while scheduling — before the damage moment is reached — so exactly one claim is ever in
+ * flight. Holding a map would mean owning its lifetime across replays, restarts and scrubs; keeping one slot
+ * means a stale claim is overwritten by the next cast and can never accumulate or leak into a later fight.
+ */
+let claim: { step: number; uids: Set<string> } | null = null;
+
+/** Claim `uids` for `step`. A step of `undefined` (untagged legacy replay) claims nothing — without a step
+ *  there is no key the damage side could match on, and suppressing by uid alone would silence unrelated
+ *  hits on the same unit later in the fight. */
+export function claimDamageFx(step: number | undefined, uids: readonly string[]): void {
+  claim = step === undefined || uids.length === 0 ? null : { step, uids: new Set(uids) };
+}
+
+/** Whether `uid` at `step` is covered by an authored effect and should skip its stock burst. */
+export function isDamageFxClaimed(step: number | undefined, uid: string): boolean {
+  return step !== undefined && claim !== null && claim.step === step && claim.uids.has(uid);
+}
+
+/**
+ * Drop a standing claim once the replay has moved to a different step. Called once per moment, so a claim
+ * can only ever survive within the step that made it.
+ *
+ * Without this a claim lives until some LATER cast happens to overwrite it, and step numbers restart with
+ * each fight — so a claim left over from the end of one combat could silence one hit-burst in the next, on
+ * whichever unit happened to reuse that uid and step. Cheap insurance for a bug that would be near
+ * impossible to reproduce deliberately.
+ */
+export function expireDamageFxClaim(step: number | undefined): void {
+  if (claim !== null && claim.step !== step) claim = null;
+}
+
+/** Test-only: drop any standing claim so cases can't bleed into one another. */
+export function resetDamageFxClaims(): void {
+  claim = null;
 }

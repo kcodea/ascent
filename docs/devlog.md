@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx/ui): an authored per-card effect now REPLACES the stock hit-burst
+
+Owner: "kill the orange balls." Reversing the limitation recorded one entry below, which I had written off as
+needing an engine change.
+
+It doesn't. The obstacle was that the authored effect is scheduled from the CAST moment (which knows the
+acting card) while the stock burst is scheduled from the separate `damage` moment (whose `dmg` events carry
+no `source`, so it cannot look up a binding itself). But both can see the **resolution step**. So the cast
+side CLAIMS the units its effect will cover, and the damage side skips any unit already claimed for that
+step.
+
+Two details that make it safe:
+
+- **The claim is made synchronously, at schedule time, before `at()` defers the play.** Moments are
+  scheduled in log order and the damage moment follows its own cast, so the claim is standing when the
+  burst is scheduled. Claiming inside the deferred callback would race and lose every time.
+- **It is a single slot, expired on any step change** (`expireDamageFxClaim`, called once per moment). A
+  claim that lived until some later cast overwrote it would be a real bug: step numbers restart with each
+  fight, so a leftover claim could silence one burst in the NEXT combat, on whichever unit happened to reuse
+  that uid and step. My own test caught exactly this by leaking a claim between cases — which is how the
+  expiry got written.
+
+Verified: typecheck clean, lint 0 errors, 2424 tests across 123 files green (7 new), `build:web` green,
+including an end-to-end pair asserting the burst is suppressed for a bound card and untouched for every
+other.
+
 ### fix(fx/ui): the per-card fan-out searched the wrong moment, so the lance never played
 
 Owner: "then why do i see the old projectiles? the little orange balls? i want to see the new effect we

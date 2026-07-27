@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { CombatEvent } from '@game/core';
-import { CARD_FX, cardFxFor, damagedUidsIn } from './cardFx';
+import { CARD_FX, cardFxFor, claimDamageFx, damagedUidsIn, isDamageFxClaimed, resetDamageFxClaims } from './cardFx';
 import { SCORE_DEFAULTS } from './score';
 
 /**
@@ -76,5 +76,49 @@ describe('damagedUidsIn', () => {
 
   it('is empty when nothing was damaged', () => {
     expect(damagedUidsIn([cast(1), cast(1)], 0, 2)).toEqual([]);
+  });
+});
+
+/**
+ * The claim that lets an authored per-card effect REPLACE the stock `damageFx` hit-burst rather than play on
+ * top of it (owner: "kill the orange balls"). Needed because the two live in different moments: the authored
+ * effect is scheduled from the CAST moment, which knows the acting card; the burst from the separate
+ * `damage` moment, whose events carry no `source` at all. The resolution step is all both can see.
+ */
+describe('damageFx claims', () => {
+  beforeEach(() => resetDamageFxClaims());
+
+  it('suppresses exactly the claimed units at the claimed step', () => {
+    claimDamageFx(7, ['u1', 'u2']);
+    expect(isDamageFxClaimed(7, 'u1')).toBe(true);
+    expect(isDamageFxClaimed(7, 'u2')).toBe(true);
+    expect(isDamageFxClaimed(7, 'somebodyelse')).toBe(false);
+  });
+
+  // The same unit is hit constantly throughout a fight; a claim that ignored the step would silence every
+  // later hit on it too.
+  it('does not suppress the same unit at a DIFFERENT step', () => {
+    claimDamageFx(7, ['u1']);
+    expect(isDamageFxClaimed(8, 'u1')).toBe(false);
+  });
+
+  it('claims nothing without a step tag, or with no units', () => {
+    claimDamageFx(undefined, ['u1']);
+    expect(isDamageFxClaimed(7, 'u1')).toBe(false);
+    claimDamageFx(7, []);
+    expect(isDamageFxClaimed(7, 'u1')).toBe(false);
+  });
+
+  // Single-slot: a later cast overwrites the previous claim, so nothing accumulates across a fight and a
+  // stale claim can never leak into a later one.
+  it('keeps only the most recent claim', () => {
+    claimDamageFx(7, ['u1']);
+    claimDamageFx(9, ['u2']);
+    expect(isDamageFxClaimed(7, 'u1')).toBe(false);
+    expect(isDamageFxClaimed(9, 'u2')).toBe(true);
+  });
+
+  it('suppresses nothing when no claim stands', () => {
+    expect(isDamageFxClaimed(7, 'u1')).toBe(false);
   });
 });

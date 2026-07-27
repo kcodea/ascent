@@ -644,3 +644,33 @@ describe('fxDef channel — per-card bindings', () => {
     mockCardId.mockReturnValue(null);
   });
 });
+
+/** End-to-end: the authored effect fires AND the stock orange hit-burst is skipped for the units it covers. */
+describe('fxDef channel — an authored effect replaces the stock damageFx burst', () => {
+  it('suppresses onDamageFx for the units the per-card effect covers', () => {
+    mockCardId.mockReturnValue('bloodbinder');
+    const events: CombatEvent[] = [
+      { type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true, step: 4 } as CombatEvent,
+      { type: 'dmg', target: 'e1', amount: 5, step: 4 } as CombatEvent,
+    ];
+    const ctx = baseCtx(events);
+    // The cast moment claims; the separate damage moment then finds its target already covered.
+    runMomentCues(moment('scCast', events), ctx);
+    runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
+    expect(ctx.onDamageFx).not.toHaveBeenCalled();
+    mockCardId.mockReturnValue(null);
+  });
+
+  it('leaves the stock burst alone for a card with no binding', () => {
+    mockCardId.mockReturnValue('someothercard');
+    const events: CombatEvent[] = [
+      { type: 'sc', source: 'a', text: 'zap', cast: true, step: 5 } as CombatEvent,
+      { type: 'dmg', target: 'e1', amount: 5, step: 5 } as CombatEvent,
+    ];
+    const ctx = baseCtx(events);
+    runMomentCues(moment('scCast', events), ctx);
+    runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
+    expect(ctx.onDamageFx).toHaveBeenCalledWith(['e1']);
+    mockCardId.mockReturnValue(null);
+  });
+});

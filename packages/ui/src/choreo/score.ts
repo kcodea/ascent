@@ -7,7 +7,7 @@ import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { anchorsForUnits, cardIdForUid } from '../fx/combatAnchors';
-import { cardFxFor, damagedUidsIn } from './cardFx';
+import { cardFxFor, claimDamageFx, damagedUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 
 /**
  * The Score (choreographer phase 3) — per moment KIND, the ordered cues (channels + when they fire) that a
@@ -241,6 +241,9 @@ function momentUnits(primary: CombatEvent): { source: string | null; target: str
  *  `runAttackExchangeCues` — this registry silently ignores cue kinds it doesn't own, so `attackExchange`'s
  *  `lunge`/`impact` entries are no-ops here (by design). */
 export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
+  // A damageFx claim (see `cardFx.ts`) is scoped to the step that made it — drop it the moment the replay
+  // moves on, so it can never silence a burst in a later beat or a later fight.
+  expireDamageFxClaim(moment.primary.step);
   const timers: ReturnType<typeof setTimeout>[] = [];
   const at = (cue: Cue, fn: () => void): void => {
     const off = Math.max(0, cue.offset ?? 0) / (cue.scaled === false ? 1 : (ctx.combatSpeed > 0 ? ctx.combatSpeed : 1));
@@ -298,7 +301,13 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     });
     else if (cue.ch === 'damageFx') at(cue, () => {
       const uids = new Set<string>();
-      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'dmg') uids.add(e.target); }
+      for (let i = moment.start; i < moment.end; i++) {
+        const e = ctx.events[i];
+        // Skip a unit an authored per-card effect already claimed for this step (see `claimDamageFx`): its
+        // impact is that effect's job, and firing the generic burst too reads as the old effect never having
+        // been replaced.
+        if (e?.type === 'dmg' && !isDamageFxClaimed(e.step, e.target)) uids.add(e.target);
+      }
       // A melee clash is TWO-WAY: the defender's hit and the attacker's retaliation are both `dmg` events in
       // this one collapsed moment. Both units' hit FX were already fired by the lunge's impact channel (once,
       // at contact, on the defender), so bursting them again here doubled the strike on the defender AND put
@@ -327,6 +336,15 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'fxDef') {
       const def = cue.def;                       // capture: narrowing a property doesn't survive into the closure
       if (!def || !canPlayDefs()) continue;      // no def id / defs unavailable → nothing to schedule
+      // Claim the stock hit-burst for the units this binding will cover, SYNCHRONOUSLY — before `at()` defers
+      // anything. Moments are scheduled in log order and the `damage` moment follows its own cast, so the
+      // claim is standing by the time that moment's `damageFx` cue is scheduled. Doing it inside the deferred
+      // callback would race: the burst is scheduled first and would fire regardless.
+      const claimSource = cardIdForUid(momentUnits(moment.primary).source);
+      const claimBinding = cardFxFor(claimSource, moment.kind);
+      if (claimBinding?.fanOut === 'damaged') {
+        claimDamageFx(moment.primary.step, damagedUidsIn(ctx.events, moment.start, moment.end));
+      }
       at(cue, () => {
         const { source, target } = momentUnits(moment.primary);
         // A per-CARD binding wins over the kind's default (see `cardFx.ts`): the kind is the right key for

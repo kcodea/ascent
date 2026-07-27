@@ -711,6 +711,12 @@ export function useCombatReplay(
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
     setProjectiles([]);
     setShake(0);
+    // …and drop the shake FLAGS with the counters. The shake effects bail on `!shake`, so zeroing the counter
+    // cancelled their 300ms clear (effect cleanup) and then early-returned — leaving `.shaking` latched on
+    // into the next fight. Only reachable when a fight starts within 300ms of a shake (a Skip), but it is the
+    // same cleanup-cancels-the-clear defect as #735 / #736.
+    setShaking(false);
+    setCritShaking(false);
     setHandGrant(null);
     setStatHold(new Map());
     setStatFlash(new Map());

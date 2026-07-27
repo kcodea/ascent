@@ -1018,6 +1018,8 @@ export function Recruit() {
   const [eotAnimTick, setEotAnimTick] = useState<Record<string, number> | null>(null);
   // Dragons Karwind just flame-buffed (keyed off run.karwindFlashSeq) — a one-shot flame flash.
   const [karwindFlameUids, setKarwindFlameUids] = useState<Set<string>>(new Set());
+  // The flame's clear timer, held in a ref so a dispatch can't cancel it — see the Karwind effect.
+  const karwindTimerRef = useRef<number | undefined>(undefined);
   const prevKarwindSeq = useRef(run.karwindFlashSeq);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
@@ -2908,8 +2910,16 @@ export function Recruit() {
     const uids = run.karwindFlash ?? [];
     if (uids.length === 0) return;
     setKarwindFlameUids(new Set(uids));
-    const t = window.setTimeout(() => setKarwindFlameUids(new Set()), 520);
-    return () => window.clearTimeout(t);
+    /* The 520ms clear lives in a REF, not this effect's cleanup. `run.karwindFlash` is in the deps and the
+       reducer `structuredClone`s state on every dispatch (reducer.ts), so that array gets a fresh identity on
+       EVERY action — this effect re-runs constantly, and a cleanup-owned timer was cancelled by the next
+       dispatch. The seq guard above then early-returns, so nothing rescheduled it and the flames stuck on
+       until the next Karwind proc. Same defect as the two medallion pulses (#735, #736). */
+    if (karwindTimerRef.current !== undefined) window.clearTimeout(karwindTimerRef.current);
+    karwindTimerRef.current = window.setTimeout(() => {
+      karwindTimerRef.current = undefined;
+      setKarwindFlameUids(new Set());
+    }, 520);
   }, [run.karwindFlashSeq, run.karwindFlash]);
 
   // The living aim line (owner redesign 2026-07-16): sync the Pixi curved line to whichever targeting

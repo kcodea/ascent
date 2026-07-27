@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Four stuck visual cues fixed** — the Karwind flame, the hero-power refresh flash, the damage float on
+  the Resolve chip, and screen shake could all latch on permanently.
 - **The hand glides open and closed** when you buy or play a card, instead of cards blinking to new spots.
 - **Shout minions no longer flash when you reorder cards past them.**
 - **End-of-turn cards hand you their reward on their own beat** — each pulse now lands its card as it

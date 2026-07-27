@@ -3,6 +3,65 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-27 — FX bindings as data
+
+**What changed.** "Which authored FX def plays at this moment" moved out of two compiled-in TypeScript
+literals — the `def:` property on `fxDef` cues in `SCORE_DEFAULTS`, and the frozen `CARD_FX` table in
+`cardFx.ts` — into a single `packages/ui/src/choreo/bindings.json` behind a new `choreo/bindings.ts`. One
+resolver, `bindingFor(cardId, kind)`, now answers that question for the cue runner, the FX library browser,
+and (next) the workbench's commit button. Card layer beats kind layer; within each, a `localStorage` session
+patch beats the committed file, and a `null` binding is an explicit tombstone so "plays nothing here" is
+expressible against a file baseline.
+
+`fxDef` moved into `BASE`, so every moment kind carries a timing row and a binding alone is now *sufficient*
+to make an effect play. Previously a def bound to a kind whose cue list happened to lack an `fxDef` entry
+played nothing, silently — the same failure mode that has cost this subsystem several debugging sessions.
+`Cue.def` and `Cue.fanOut` are gone; the score owns *when*, `bindings.json` owns *what*. The two `fanOut`
+unions (`'selfBuffed'` on the cue, `'primary' | 'damaged'` on the card table) merged into one on `FxBinding`.
+
+The runner now resolves the binding **once** per `fxDef` cue instead of looking it up separately for the
+damage claim and again inside the deferred play. That turned out to be load-bearing rather than cosmetic:
+the old two-lookup shape was safe against a frozen `CARD_FX`, but against a live session patch a workbench
+edit landing between the two would claim the stock hit-burst for one set of units and play the effect at
+another. The same reasoning removed a second `damagedUidsIn` scan on the fan-out path, so the claimed set and
+the played set are now identical by construction.
+
+`POST /__fx/bindings` (dev-only, `apply: 'serve'`) commits the merged table. Its surface is deliberately
+*smaller* than the def endpoint's: the destination path is fixed by the plugin rather than derived from the
+request, so the traversal guard `planWrite` exists for does not apply. No file watcher is needed either —
+`bindings.json` is a static import, so a write invalidates through the normal import graph, unlike the
+`import.meta.glob` staleness that forced the defs-directory watcher.
+
+**Why.** This is phase ① of live FX authoring. ② stages a combat in which a chosen card's effect procs and
+replays it on demand; ③ ties them together behind a "commit animation" button offering card-only or global
+scope. None of that is buildable while the binding tables are constants.
+
+**How it was verified.** Migration was strangler-style: `bindings.json` was introduced as an exact duplicate
+of the literals, guarded by a parity test asserting the two agreed exactly, and readers were repointed one at
+a time while both sources were live. That test was deleted with the literals it compared against. Permanent
+guards took its place: every bound def id resolves to a real file in the registry (14/14); every `kinds` key
+is a real `MomentKind` and every `cards` key a real `CARD_INDEX` id; `bindingsJson()` round-trips through
+`parseTable` to the same resolution; and the `fxDef`-before-`damageFx` cue order the claim depends on is
+pinned with a guard against passing vacuously. A malformed entry is dropped **per entry** with a
+`console.error` naming the exact key, rather than taking the whole table down.
+
+Review caught three defects worth recording. `parseTable` built its tables as plain object literals, so a
+`__proto__` key would have invoked the inherited prototype setter and silently rewritten the table instead of
+being dropped — the opposite of its "loud per entry" contract; the same hole existed on the write endpoint,
+where a `__proto__` key returned 200 for a binding the reader is guaranteed to discard. And `canPlayDefs()`,
+whose comment claimed production paid "two property reads", was actually `listPrimitives().length > 0` —
+a spread plus a sort, allocated on every call, as the first term; this work widened that call site from 14
+kinds to all 25, so it gained a `hasPrimitives()` (`REGISTRY.size > 0`) and the comment became true.
+
+**Follow-ups.** No authoring UI yet — clicking a card to rebind it is ③'s job, once ② can stage a combat to
+see the change in. Separately: `apps/web/fxDefsPlugin.ts` and `apps/web/vite.config.ts` are in **no**
+TypeScript program at all (the root `tsconfig.json` includes only `packages/*/src/**/*.ts`; `apps/web/tsconfig.json`
+includes only `src` plus `packages/ui/src`), so neither is typechecked by anything, and `npm run typecheck:web`
+— the only script that covers `packages/ui` — is red on `main` and absent from CI. Closing either is CI
+infrastructure work with its own risk surface, deliberately kept out of this feature branch. Also still open:
+`fxScale` is not threaded into the primitives, `playDef` takes no per-call params, and ~30 legacy `pixiFx`
+effects remain unported to defs.
+
 ## 2026-07-27 (FX library browser — the def list becomes a browsable catalog)
 
 ### feat(fx/ui): three lenses over one derived catalog, and a guard that every binding resolves

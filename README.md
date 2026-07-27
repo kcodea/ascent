@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **FX bindings are data.** Which authored effect plays at a moment now lives in one `bindings.json` behind a
+  single resolver, with live session overrides and a dev endpoint that commits them back to the file — the
+  foundation for authoring an effect against a real combat.
 - **An FX library browser.** The workbench's effects are no longer a flat list of ids: one derived catalog
   is surfaced through three lenses — browse **by look** (shape, colour, motion), **by event** (which moment
   kinds have an effect, and which are still bare), and **by card** (grouped by tribe). Facets are derived

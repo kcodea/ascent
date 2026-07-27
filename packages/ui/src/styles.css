@@ -1749,8 +1749,8 @@ img.tierbadge.tierstars,
      panel and the hand hover-bridge (z-1) sit under it. */
   /* Box boundaries are tunable via the 🔤 Card Text tuner (`--ctx-*`); fallbacks MUST mirror
      cardTextConfig.ts DEFAULTS. */
-  position: absolute; top: calc(var(--ccw) * var(--ctx-top, 1.09)); left: 0; right: 0;
-  padding: calc(var(--ccw) * var(--ctx-pad-top, 0.065)) calc(var(--ccw) * var(--ctx-pad-x, 0.08)) calc(var(--ccw) * var(--ctx-pad-bottom, 0.07));
+  position: absolute; top: calc(var(--ccw) * var(--ctx-top, 1.085)); left: 0; right: 0;
+  padding: calc(var(--ccw) * var(--ctx-pad-top, 0.105)) calc(var(--ccw) * var(--ctx-pad-x, 0.08)) calc(var(--ccw) * var(--ctx-pad-bottom, 0.07));
 }
 /* With the backing removed entirely, this shadow is the ONLY thing separating the panel's text from the
    plate's stone — it's load-bearing for legibility, not decoration (owner 2026-07-21). Tuned dark and TIGHT:
@@ -1793,12 +1793,12 @@ img.tierbadge.tierstars,
 .card.compact.showtext .drawer .descbox {
   position: absolute;
   left: 50%;
-  top: calc(var(--ccw) * var(--ctx-box-y, -1.06));
-  width: calc(var(--ccw) * var(--ctx-box-w, 1.34));
+  top: calc(var(--ccw) * var(--ctx-box-y, -1.235));
+  width: calc(var(--ccw) * var(--ctx-box-w, 1.08));
   height: auto;
   transform: translateX(-50%) translateX(calc(var(--ccw) * var(--ctx-box-x, 0)));
-  opacity: var(--ctx-box-a, 0.55);
-  mix-blend-mode: var(--ctx-box-blend, multiply);
+  opacity: var(--ctx-box-a, 0.47);
+  mix-blend-mode: var(--ctx-box-blend, overlay);
   pointer-events: none;
   user-select: none;
 }
@@ -1813,7 +1813,7 @@ img.tierbadge.tierstars,
 .card.compact.showtext .drawer .desc,
 .card.compact.showtext .drawer .dtribe,
 .card.compact.showtext .drawer .plate-tribe { position: relative; }
-.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: var(--ctx-line, 1.32); color: var(--card-desc-color, #fff); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
+.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: var(--ctx-line, 1.42); color: var(--card-desc-color, #fff); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
 /* Bold keywords/numbers take the card's TRIBE colour so they pop off the pure-white body text (owner
    2026-07-25). `--c` is the primary tribe hue the card already sets inline. */
 .card.compact.showtext .drawer .desc b { color: var(--c); }

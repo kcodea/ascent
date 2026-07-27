@@ -41,16 +41,16 @@ export const CTX_BLENDS = ['normal', 'overlay', 'multiply', 'soft-light'] as con
 export type BoxBlend = (typeof CTX_BLENDS)[number];
 
 const DEFAULTS: CardTextConfig = {
-  top: 1.09,
+  top: 1.085,
   padX: 0.08,
-  padTop: 0.065,
+  padTop: 0.105,
   padBottom: 0.07,
-  line: 1.32,
-  boxW: 1.34,
+  line: 1.42,
+  boxW: 1.08,
   boxX: 0,
-  boxY: -1.06,
-  boxA: 0.55,
-  boxBlend: 'multiply',
+  boxY: -1.235,
+  boxA: 0.47,
+  boxBlend: 'overlay',
 };
 
 export const CTX_RANGES: Record<CardTextNumKey, [number, number, number]> = {

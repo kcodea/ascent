@@ -12,6 +12,13 @@ export const DEATHRATTLE_BUFF_FACTORIES: ReadonlySet<string> = new Set([
   'deathrattleGiveHealth', 'deathrattleSummonOverflowBuff',
   'deathrattleBuffFodder', 'deathrattleBuffAllByImpAura', // Burial Imp / Chef Raag — buff OTHERS on death (their
   // source is gone by strike time, so a living-source tendril is dropped → they need the sourceless descend).
+  // SET 2 (owner report 2026-07-26: "the in-combat animations are not working for the ruby buffing"):
+  //   • `deathrattlePlayRubiesAdjacent` — Geode Guardian plays Rubies on each neighbour as it dies.
+  //   • `deathrattleGrantWardRandom` — Lastlight Marshal hands out Ward on death (a keyword, but it rides the
+  //     same buff-cast path when it lands with stats).
+  // Both were missing since Set 2 shipped, so their buffs landed with NO cue at all: the source is dead by
+  // strike time, and a living-source cast whose element can't be found is DROPPED rather than downgraded.
+  'deathrattlePlayRubiesAdjacent', 'deathrattleGrantWardRandom',
   // NOT included: 'deathrattleBuffCardTypeRunWide' (Spear Warden / 'knit') — the owner wants that card
   // reframed as an "echo-aura" (its own effect concept), kept separate from Deathrattle descend. Excluded
   // deliberately until that design lands; do not add it here.

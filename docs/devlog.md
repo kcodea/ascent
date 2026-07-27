@@ -26,6 +26,33 @@ on the same card while checking.
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### 2026-07-26 — fix(ui): Ruby / Ward Echoes had NO combat animation at all
+
+Owner report: the in-combat Ruby buff animations don't play, though Set 1's (Ryme, Cinderwing) do.
+
+Not a missing FX — a **dropped** one. `fireBuffCasts` draws a source→target tendril, and for a buff whose
+source is a DEATHRATTLE it draws a sourceless "descend" instead. Which of the two it picks comes from
+`DEATHRATTLE_BUFF_FACTORIES`, a hand-maintained list carrying a "KEEP IN SYNC" note. Set 2 shipped two
+stat-granting Echoes without touching it:
+
+- **Geode Guardian** (`deathrattlePlayRubiesAdjacent`) — plays Rubies on each neighbour as it dies.
+- **Lastlight Marshal** (`deathrattleGrantWardRandom`).
+
+Missing from the list, they took the living-source path — and a living-source cast whose source element can't
+be found is `continue`d, not downgraded. The source is dead by strike time, so the cue wasn't merely wrong, it
+never fired. That's exactly why Set 1's cards look fine: theirs are on the list.
+
+The "KEEP IN SYNC" comment is now **enforced**: a test fails when any `onDeath` factory whose name grants stats
+(`Buff` / `PlayRubies` / `GiveHealth`) is absent from the list, with the one documented exclusion (Spear
+Warden's run-wide enchant). Confirmed load-bearing by removing the two new entries — it names the missing
+factory.
+
+**Verified:** typecheck / lint / test / build:web green, 1777 tests (+2).
+
+**Still open on this:** only the DEATHRATTLE ruby path is fixed. Rubies played by a LIVING source mid-combat
+(Frenzied Excavator's Start of Combat, Resonance Idol's bounce) take the ordinary tendril and should already
+draw — worth a look on stream to confirm they read, since they share none of this bug's cause.
+
 ### tweak(ui): the tier-7 glow moves BEHIND the plaque
 
 Owner call: the halo belongs behind the tier plate, not over its face. Stacking flipped from

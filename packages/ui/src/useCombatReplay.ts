@@ -11,7 +11,7 @@ import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
-import { attackerOfImpact, meleePairOfImpact } from './combatBeats';
+import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -138,6 +138,23 @@ export function preBuffHolds(
     out.set(uid, { atk: u.attack - t.atk, hp: u.health - t.hp });
   }
   return out;
+}
+
+/**
+ * The cardIds a combat has put in the player's hand as of `beatIdx` — every `toHand` up to and INCLUDING
+ * the current beat. The recruit hand stays the pre-combat hand until `resolveCombat`, so the combat view
+ * appends these and the hand grows as the cards arrive.
+ *
+ * Through the beat's `end`, not its `start`: the card has to materialise ON the beat its effect procs — the
+ * same moment as the purple Deathrattle skull — which is what the coalesce is announcing (owner ask
+ * 2026-07-27). Slicing to `start` excluded the very beat that granted the card, which cost two things: every
+ * grant showed up a beat late, and a grant on the LAST beat (the common case — the final minion dies, its
+ * Deathrattle fires, the fight is over) never appeared during the replay at all, leaving the settle-time
+ * materialise after combat as its only announcement.
+ */
+export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): string[] {
+  const through = beats[beatIdx]?.end ?? events.length;
+  return events.slice(0, through).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
 }
 
 /**
@@ -1465,13 +1482,17 @@ export function useCombatReplay(
     [events, names],
   );
   const procs = useMemo(() => procReport(events, names), [events, names]);
-  // Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire) that have already
-  // "landed" — every `toHand` before the current beat. The recruit hand stays the pre-combat hand until
-  // `resolveCombat`, so the combat view appends these so the hand visibly grows as cards arrive.
-  const handGrantsShown = useMemo(() => {
-    const before = beats[beatIdx]?.start ?? events.length;
-    return events.slice(0, before).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
-  }, [beatIdx, beats, events]);
+  /* Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire, a Deathrattle's Patch Job) —
+     every `toHand` up to and INCLUDING the current beat. The recruit hand stays the pre-combat hand until
+     `resolveCombat`, so the combat view appends these so the hand grows as the cards arrive.
+
+     Through the current beat's `end`, not its `start`: the card has to materialise ON the beat its effect
+     procs — the same moment as the purple Deathrattle skull — which is what the coalesce is announcing
+     (owner ask 2026-07-27). Slicing to `start` excluded the very beat that granted it, which cost two
+     things: every grant showed up a beat late, and a grant on the LAST beat (the common case — the final
+     minion dies, its Deathrattle fires, the fight ends) never appeared during the replay at all, so its
+     only materialise was the settle-time one after combat. */
+  const handGrantsShown = useMemo(() => grantsShownThrough(events, beats, beatIdx), [beatIdx, beats, events]);
 
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,

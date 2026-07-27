@@ -973,6 +973,13 @@ export function Recruit() {
   const grantPlayedRef = useRef<string[]>([]);
   // How many hand-grant previews have already materialised (index into `handPreviews`).
   const grantsShownRef = useRef(0);
+  /* The hand row's layout captured on the commit BEFORE a grant lands. Appending a card re-centres the fan,
+     so every card already in hand snaps to a new slot the instant the new one appears — this glides them
+     instead (owner ask 2026-07-27), the same "make room" read the warband has.
+     GSAP Flip rather than the warband/shop manual x-tween: hand cards carry their fan rotation and the
+     translateY tuck IN their transform, and a bare x-tween wipes both — the same reason the reorder glide
+     next to it uses Flip. */
+  const handGrowFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   /* cardIds an End-of-Turn BEAT has granted to hand so far, appended one beat at a time. `faceOmen` commits
      every End-of-Turn grant in a single dispatch after the LAST beat, so the whole batch used to appear at
      once, after every pulse had already fired. Showing the projection's per-beat grants (`EotStepFx.handGrants`)
@@ -1564,7 +1571,26 @@ export function Recruit() {
   useLayoutEffect(() => {
     const prev = grantsShownRef.current;
     grantsShownRef.current = handPreviews.length;
-    if (handPreviews.length <= prev) return;
+    const grew = handPreviews.length > prev;
+    // MAKE ROOM: glide everything that was already in hand from where it sat to its new slot. The card that
+    // just arrived is not in the captured state, so Flip leaves it alone and the coalesce owns it. The base
+    // `.card { transition: transform }` is killed for the glide or it fights Flip (the reorder judder).
+    const st = handGrowFlipRef.current;
+    handGrowFlipRef.current = null;
+    if (grew && st) {
+      const settled = gsap.utils.toArray<HTMLElement>('.row.hand > .card');
+      gsap.set(settled, { transition: 'none' });
+      Flip.from(st, {
+        duration: getFlipConfig().commitMs / 1000,
+        ease: 'power2.out',
+        onComplete: () => gsap.set(settled, { clearProps: 'transition' }),
+      });
+    }
+    // Re-arm for the NEXT beat's grant. Only during a fight: this effect re-runs every beat there (the
+    // replay hands back a fresh `handGrantsShown`), so the capture stays one commit ahead. The End-of-Turn
+    // path captures at its own call site instead, where it knows a grant is coming.
+    if (inCombat && !run.combatSettled) handGrowFlipRef.current = Flip.getState('.row.hand > .card');
+    if (!grew) return;
     const els = document.querySelectorAll<HTMLElement>('.row.hand > .card:not([data-uid])');
     for (let i = prev; i < handPreviews.length; i++) {
       const el = els[i];
@@ -1576,7 +1602,7 @@ export function Recruit() {
         grantPlayedRef.current.push(handPreviews[i]!);   // so it doesn't materialise again as it commits
       }
     }
-  }, [handPreviews]);
+  }, [handPreviews, inCombat, run.combatSettled]);
 
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
@@ -3431,7 +3457,12 @@ export function Recruit() {
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
         // Cards this beat grants to hand arrive ON the beat — each coalesces beside the pulse that produced
         // it, instead of the whole turn's batch materialising at once when `faceOmen` finally commits.
-        if (bfx.handGrants.length > 0) setEotGrants((g) => [...g, ...bfx.handGrants]);
+        // Capture the hand's layout FIRST: React hasn't flushed this state update yet, so the row is still
+        // at its old width and the watcher can glide the existing cards out to make room.
+        if (bfx.handGrants.length > 0) {
+          handGrowFlipRef.current = Flip.getState('.row.hand > .card');
+          setEotGrants((g) => [...g, ...bfx.handGrants]);
+        }
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');
       }
@@ -4066,19 +4097,11 @@ export function Recruit() {
         </div>
       ))}
 
-      {/* A card a combat effect just granted (Arcane Weaver → Spirit Fire) flies into your hand. */}
-      {fighting && replay.handGrant && (() => {
-        // Same helper as the hand preview and the reducer's settle — the card that flies in must carry the
-        // stats it will actually have (it previously showed raw base stats, so it visibly jumped at settle).
-        const view = conjuredView(replay.handGrant.cardId, run);
-        if (!view) return null;
-        return (
-          <div className="handgrant" key={replay.handGrant.key} aria-hidden="true">
-            <span className="hg-label">To your hand</span>
-            <Card card={view} suppressPop />
-          </div>
-        );
-      })()}
+      {/* The mid-screen "To your hand" flyer used to live here. Retired 2026-07-27: the granted card now
+          materialises IN THE HAND on the very beat its effect procs, so the flyer showed a second copy of the
+          same card, at the same instant, in the middle of the screen — the duplicate announcement the owner
+          asked us to get rid of. `replay.handGrant` and the `.handgrant` CSS are kept, so restoring this is
+          just putting the block back. */}
 
       {/* A clear "End of Turn" beat as the turn ends (end-of-turn effects have resolved). */}
       {endTurnFlash && (

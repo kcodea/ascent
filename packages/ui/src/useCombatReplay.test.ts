@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type MinionSnapshot } from '@game/core';
+import { compileMoments } from './choreo/compile';
 import { CARD_INDEX } from '@game/content';
-import { computeFrame, layoutRectOf } from './useCombatReplay';
+import { computeFrame, grantsShownThrough, layoutRectOf } from './useCombatReplay';
 import { deferClashBuffs } from './choreo/clashOrder';
 
 const snap = (over: Partial<MinionSnapshot> & { uid: string; cardId: string }): MinionSnapshot => ({
@@ -83,5 +84,39 @@ describe('layoutRectOf', () => {
     const r = layoutRectOf(stub({ scaleX: 2, scaleY: 2 }));
     expect(r.w).toBe(67);
     expect(r.h).toBe(67);
+  });
+});
+
+/* WHEN a combat grant shows up in hand. The card must materialise on the beat its effect PROCS — the same
+   moment as the purple Deathrattle skull — because that beat is what the coalesce is announcing (owner ask
+   2026-07-27). This used to slice to the current beat's `start`, i.e. strictly BEFORE it, which put every
+   grant a beat late and made a grant on the LAST beat invisible for the whole replay. */
+describe('grantsShownThrough — a combat grant appears ON its own beat', () => {
+  it('a real Deathrattle grant is shown at the beat that emits it, not the one after', () => {
+    // Scrap Vendor dies early and its Deathrattle grants a Patch Job.
+    const p: BoardMinion[] = [
+      { cardId: 'scrapvendor', attack: 3, health: 1 },
+      { cardId: 'sandbag', attack: 1, health: 40 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 40 }];
+    const combat = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    const events = deferClashBuffs(combat.events);
+    const beats = compileMoments(events);
+    const grantBeat = beats.findIndex((b) => events.slice(b.start, b.end).some((ev) => ev.type === 'toHand'));
+    expect(grantBeat).toBeGreaterThanOrEqual(0);
+    expect(grantsShownThrough(events, beats, grantBeat)).toContain('patchjob');       // ON the beat
+    expect(grantsShownThrough(events, beats, grantBeat - 1)).not.toContain('patchjob'); // not before it
+  });
+
+  it('a grant on the FINAL beat is still shown during the replay', () => {
+    // The regression that left the owner seeing the coalesce only after combat: the last minion dies, its
+    // Deathrattle grants, the fight ends — slicing to `start` never reached that beat's events.
+    const events = [
+      { type: 'attack', attacker: 'a', defender: 'b' },
+      { type: 'death', uid: 'a' },
+      { type: 'toHand', cardId: 'patchjob', side: 'player' },
+    ] as CombatEvent[];
+    const beats = compileMoments(events);
+    expect(grantsShownThrough(events, beats, beats.length - 1)).toEqual(['patchjob']);
   });
 });

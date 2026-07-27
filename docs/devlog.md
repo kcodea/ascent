@@ -2,6 +2,42 @@
 
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
+### fix(ui): a combat grant materialises ON the beat that procs it, and the hand makes room
+
+Two follow-ups from the owner on the same session's work.
+
+**1. Combat grants were still only coalescing after the fight.** `handGrantsShown` sliced the event log to the
+current beat's **`start`** — i.e. strictly *before* it — so the beat that actually emitted the `toHand` was
+excluded. Two consequences: every grant appeared a beat late, and a grant on the **last** beat (the common
+shape — the final minion dies, its Deathrattle fires, the fight is over) never appeared during the replay at
+all, leaving the settle-time materialise as its only announcement. That is exactly what the owner was seeing.
+
+Now it slices through the beat's **`end`**, so the card materialises on the same beat as the purple
+Deathrattle skull. The rule is extracted as **`grantsShownThrough(events, beats, beatIdx)`** and covered by
+two tests: a real Scrap Vendor Deathrattle is shown ON its beat and *not* on the one before it, and a grant on
+the final beat is shown during the replay. Both fail under the old `start` slice.
+
+Diagnosed headlessly rather than by eye — `simulate` + `compileMoments` in a throwaway probe printed the event
+log with beat boundaries, which is what located the off-by-one-beat. Worth noting for next time: the owner's
+example (Ryme's Deathrattle replaying an adjacent **Field Mechanic**) turns out to grant *nothing* — the combat
+sim's battlecry replay casts economy battlecries instead of granting, so that pairing emits no `toHand` and no
+`playerHandGrants` at all.
+
+**2. The mid-screen "To your hand" flyer is retired.** With the card now materialising in hand at the instant
+of the proc, the flyer showed a *second* copy of the same card, at the same moment, in the middle of the
+screen — the duplicate announcement this whole thread was about. `replay.handGrant` and the `.handgrant` CSS
+are deliberately kept, so restoring it is putting the render block back. *(Judgement call — flagged.)*
+
+**3. The hand glides to make room.** A coalescing card was appended to the row and every card already in hand
+snapped to its new slot. The row's layout is now captured on the commit *before* a grant lands and replayed
+with **GSAP Flip** — not the warband/shop manual x-tween, because hand cards carry their fan rotation and
+translateY tuck *in* their transform and a bare x-tween wipes both (the same reason the reorder glide next to
+it uses Flip). The End-of-Turn path captures at its own call site, where it knows a grant is coming; the combat
+path re-captures each beat, one commit ahead. Duration comes from `getFlipConfig().commitMs`, so it matches
+the warband's "make room" feel and stays tunable.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1783 tests** / 108 files green, `build:web` green.
+
 ### feat(ui/sim): End-of-Turn grants arrive on their own beat, not all at once
 
 **Owner ask:** with two End-of-Turn cards that each add a card to hand, every pulse fired first and *then*

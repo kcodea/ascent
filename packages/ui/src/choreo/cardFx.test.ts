@@ -1,38 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { CombatEvent } from '@game/core';
-import { CARD_FX, cardFxFor, claimDamageFx, damagedUidsIn, isDamageFxClaimed, resetDamageFxClaims } from './cardFx';
-import { SCORE_DEFAULTS } from './score';
-
-/**
- * Per-card FX binding. The `fxDef` channel keys on the moment KIND, which cannot express "this card's effect
- * looks like this" — Bloodbinder's bleed and every other spell cast share `scCast`.
- */
-describe('cardFxFor', () => {
-  it('finds a binding by card and kind', () => {
-    expect(cardFxFor('bloodbinder', 'scCast')?.def).toBe('ruby-lance');
-  });
-
-  it('is null for the same card at a different kind, and for an unbound card', () => {
-    expect(cardFxFor('bloodbinder', 'damage')).toBeNull();
-    expect(cardFxFor('somethingelse', 'scCast')).toBeNull();
-  });
-
-  // No unit on screen => no card => the kind's own default is used, never a crash.
-  it('is null for a null card id', () => {
-    expect(cardFxFor(null, 'scCast')).toBeNull();
-  });
-
-  // A per-card override that names a kind carrying no fxDef cue would never run: the runner only consults
-  // this table from inside the fxDef branch.
-  it('only binds kinds that actually carry an fxDef cue', () => {
-    for (const [cardId, byKind] of Object.entries(CARD_FX)) {
-      for (const kind of Object.keys(byKind)) {
-        const cues = SCORE_DEFAULTS[kind as keyof typeof SCORE_DEFAULTS];
-        expect(cues.some((c) => c.ch === 'fxDef'), `${cardId} → ${kind}`).toBe(true);
-      }
-    }
-  });
-});
+import { claimDamageFx, damagedUidsIn, isDamageFxClaimed, resetDamageFxClaims } from './cardFx';
 
 describe('damagedUidsIn', () => {
   const dmg = (target: string, step?: number): CombatEvent => ({ type: 'dmg', target, amount: 1, step }) as CombatEvent;

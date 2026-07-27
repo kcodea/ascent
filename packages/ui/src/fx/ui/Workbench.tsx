@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from 'pixi.js';
 import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
-import { getPrimitive, listPrimitives } from '../registry';
+import { getPrimitive, hasPrimitives, listPrimitives } from '../registry';
 import { driveLayerHeads, type FxAnchors, type FxPoint } from '../anchors';
 import { playDef } from '../playDef';
 import { invalidateBoardAnchors } from '../boardAnchors';
@@ -722,7 +722,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     let timer: ReturnType<typeof setTimeout> | undefined;
     const prune = (): void => {
       if (cancelled) return;
-      if (listPrimitives().length === 0) {
+      if (!hasPrimitives()) {
         timer = setTimeout(prune, REGISTRY_POLL_MS);
         return;
       }

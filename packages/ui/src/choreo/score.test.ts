@@ -470,7 +470,7 @@ describe('fxDef channel', () => {
 
   // ── one row per binding: the real primary event → the right def, at the right anchors ──────────────────
   // The kind is taken from `momentKind(event)`, not hardcoded, so a row also proves the CLASSIFICATION reaches
-  // the binding (a kind split that forgot its case would score the def on a kind no event ever produces).
+  // the binding (a kind split that forgot its case would bind the def on a kind no event ever produces).
   // `[source, target]` is what `anchorsForUnits` receives: `null` = "this moment has no such end", which folds
   // onto the other end (see combatAnchors.ts). Both null = no anchors at all in the real DOM.
   it.each([

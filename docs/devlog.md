@@ -2,6 +2,19 @@
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### tweak(ui): the tier-7 glow moves BEHIND the plaque
+
+Owner call: the halo belongs behind the tier plate, not over its face. Stacking flipped from
+`plate 5 · glow 6 · stars 7` to **`glow 5 · plate 6 · stars 7`**, and the glow is now rendered FIRST in the
+JSX so DOM order matches paint order rather than relying on z-index alone to contradict it. All three still
+sit above the frame (z3), so nothing moved relative to the artwork.
+
+Practical effect: only the part of the halo spilling past the plaque's silhouette is visible, so it reads as
+light radiating out from behind it. The baked 1.025 × 0.63 ellipse is wider and taller than the ~0.765-wide
+plate, so there is plenty of spill.
+
+**Verified live:** DOM order `tierglow → tierplate → tierstars` with computed z-indexes 5 / 6 / 7.
+
 ### chore(ui): bake the owner's tuned tier-7 glow
 
 Glow dialed and baked: `1.025 × 0.63` (a wide flat ellipse rather than the near-circle default), offset

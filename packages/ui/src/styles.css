@@ -1569,9 +1569,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   padding: 0;
   border: none;
   border-radius: 50%;
-  /* Explicit stacking so the sandwich can't be reordered by accident: plate 5 · glow 6 · stars 7. All three
-     stay above the frame (z3), exactly as when they shared z6, so nothing changes relative to the artwork. */
-  z-index: 6;
+  /* Explicit stacking, glow LOWEST: glow 5 · plate 6 · stars 7 (owner 2026-07-26 — the halo belongs behind the
+     plaque, so only the part spilling past its silhouette shows). All three stay above the frame (z3), exactly
+     as when they shared z6, so nothing changes relative to the artwork. */
+  z-index: 5;
   background: radial-gradient(ellipse closest-side,
     color-mix(in srgb, var(--cpl-glow-color, #ffe27a) 85%, transparent) 0%,
     color-mix(in srgb, var(--cpl-glow-color, #ffe27a) 45%, transparent) 42%,
@@ -1580,7 +1581,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   pointer-events: none;
   animation: tiersevenpulse var(--cpl-glow-speed, 2.1s) ease-in-out infinite;
 }
-.card.compact img.tierbadge.tierplate { z-index: 5; }
+.card.compact img.tierbadge.tierplate { z-index: 6; }
 .card.compact img.tierbadge.tierstars { z-index: 7; }
 /* The glow rides the same per-family seat as the stars, then adds its own offset — mirroring how the plate
    composes, so it can be nudged off the stars without touching them. (0,4,0)/(0,5,0) beat the star rules. */

@@ -415,10 +415,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         if (muted) player?.setLayerMuted(i, true);
       });
       // ALWAYS a fire, loop or not. A fire is the lifecycle that plays every layer to its own genuine end
-      // rather than cutting it off at the composition's nominal duration, and with Loop on the player now
-      // repeats the PASS instead of wrapping the clock (see `player.ts`'s firing branch). Ordinary
-      // `play()` still exists for `playDef`, where the def's duration IS the contract.
-      player.fireOnce();
+      // rather than cutting it off at the composition's nominal duration. `fireLoop` is the same pass that
+      // repeats itself when it finishes, rather than wrapping the clock (see `player.ts`'s firing branch).
+      // Ordinary `play()` still exists for `playDef`, where the def's duration IS the contract.
+      if (loopOnRef.current) player.fireLoop();
+      else player.fireOnce();
       playerRef.current = player;
       setUiPlaying(true);
       setTimeMs(0);
@@ -957,9 +958,23 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // "Fire" is a discrete one-shot preview -- restart the effect from t=0 and let it run through once,
   // regardless of whether it's currently looping, paused, or already stopped. Deliberately does NOT touch
   // playerRef's identity or rebuild anything; it only retriggers the existing player (see FxPlayer.fireOnce).
+  /**
+   * "Fire once" — exactly one pass, whatever the Loop toggle says. That is the label's promise, and it was
+   * broken when a fire on a looping player started repeating itself: the button read "once" and played
+   * forever.
+   *
+   * It also turns Loop OFF rather than leaving it lit while nothing repeats. Firing a single pass IS the
+   * statement "I want one", and a toggle showing On beside a player that has stopped is the worse of the two
+   * inconsistencies.
+   */
   const fire = (): void => {
     const p = playerRef.current;
     if (!p) return;
+    if (loopOn) {
+      loopOnRef.current = false;
+      setLoopOn(false);
+      p.setLoop(false);
+    }
     p.fireOnce();
     setUiPlaying(true);
     setTimeMs(0);

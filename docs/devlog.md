@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx): Fire once plays ONCE again — a looping fire is now a separate call
+
+Owner: "when i press fire once, the ribbon keeps auto playing." My regression, from the previous entry.
+
+Making a looping fire repeat its pass left `fireOnce` and the loop's engine INDISTINGUISHABLE: both set the
+same `firing` flag, and the completion branch checked only `loopEnabled`. So pressing a button labelled
+"Fire once" on a looping player replayed forever. The long-standing contract — printed on the control's own
+tooltip — is that Fire is a single pass whatever the Loop toggle says.
+
+Split them: `fireOnce()` and a new `fireLoop()`, distinguished by an internal `firingRepeats` flag that the
+completion branch now requires alongside `loopEnabled`. Cleared on stop and on the safety-cap bail, so a
+repeat can't survive either. The workbench drives `fireLoop` from the Loop toggle and from a rebuild while
+Loop is on; the Fire button drives `fireOnce`.
+
+Fire also turns Loop OFF now. Pressing "once" IS the statement "I want one", and of the two possible
+inconsistencies — a lit Loop toggle beside a stopped player, or Loop quietly switching itself off — the
+second is the honest one.
+
+Four regression tests, including that `setLoop(false)` mid-pass stops the repetition immediately rather than
+after one more full cycle.
+
+Verified: typecheck clean, lint 0 errors, 2392 tests across 122 files green (4 new), `build:web` green.
+
 ### style(fx/ui): wider rail (288 → 448px) and wider dials
 
 Owner: "can you make the right side bar larger? and can you make the dials and whatnot a bit wider?"

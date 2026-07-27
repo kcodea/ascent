@@ -21,6 +21,9 @@ export interface FxPlayer {
   resume(): void;
   stop(): void;
   fireOnce(): void;
+  /** Like `fireOnce`, but the pass REPEATS once everything has finished (the workbench's Loop). Kept
+   *  distinct so `fireOnce` can stay a single pass no matter what the loop flag says. */
+  fireLoop(): void;
   update(dtMs: number): void;
   scrub(ms: number): void;
   setSpeed(n: number): void;
@@ -144,6 +147,10 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   // the pass stops (naturally, via the safety cap, or because play()/stop() was called), so it never leaks
   // into ordinary playback once the one-shot preview is done.
   let firing = false;
+  // Whether the pass in flight is the LOOP's engine (repeat when it finishes) or a discrete one-shot.
+  // Without this the two are indistinguishable, and a `fireOnce` on a looping player repeats forever — which
+  // is precisely what "Fire once" must never do, whatever the Loop toggle says.
+  let firingRepeats = false;
 
   // Set while a looping player is holding at `def.duration` between cycles (see `loopGapMs`). The clock
   // stays pinned at `def.duration` for the duration of the gap; `gapElapsed` is a separate counter tracking
@@ -311,6 +318,21 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       gapElapsed = 0;
       killAllLive();
       firing = true;
+      firingRepeats = false;
+      playing = true;
+      reconcile(0, true);
+    },
+    fireLoop(): void {
+      // Identical to `fireOnce` except that the pass repeats itself once everything has finished. This is
+      // what the workbench's Loop drives: "play the whole thing out, then again", as opposed to `play()`'s
+      // wrap-the-clock-at-duration (which is what an in-game `playDef` wants, where the duration IS the
+      // contract) and as opposed to `fireOnce`, which must stay a single pass.
+      clock = 0;
+      inGap = false;
+      gapElapsed = 0;
+      killAllLive();
+      firing = true;
+      firingRepeats = true;
       playing = true;
       reconcile(0, true);
     },
@@ -321,6 +343,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       playing = false;
       clock = 0;
       firing = false;
+      firingRepeats = false;
       inGap = false;
       gapElapsed = 0;
       killAllLive();
@@ -355,6 +378,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           killAllLive();
           playing = false;
           firing = false;
+          firingRepeats = false;
           return;
         }
         // A fire is over only once the def's nominal window has elapsed AND nothing live has anything left
@@ -367,7 +391,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           // finished, so nothing is ever cut off mid-play by the composition's nominal length. (Ordinary
           // non-firing playback below still wraps at `def.duration` — that path is what `playDef` uses for
           // a bounded in-game effect, where the clock IS the contract.)
-          if (loopEnabled) {
+          if (firingRepeats && loopEnabled) {
             if (loopGapMs > 0) {
               inGap = true;
               gapElapsed = 0;
@@ -379,6 +403,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           }
           playing = false;
           firing = false;
+          firingRepeats = false;
         }
         return;
       }

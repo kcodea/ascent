@@ -442,9 +442,9 @@ describe('createPlayer', () => {
    * clock reaches `def.duration` — so a layer outliving the composition's nominal length is never cut off
    * mid-play, which is what the duration used to do.
    */
-  it('a LOOPING fire repeats the pass from t=0 once everything has finished, instead of stopping', () => {
+  it('a LOOPING fire (fireLoop) repeats the pass from t=0 once everything has finished, instead of stopping', () => {
     const p = createPlayer(DEF, CTX, { loop: true });
-    p.fireOnce();
+    p.fireLoop();
     const spawnsAfterFirst = spawned.length;
     p.update(520); // the first pass completes (fallback: clock past duration)...
     expect(p.isPlaying()).toBe(true); // ...and the player keeps going rather than stopping
@@ -454,7 +454,7 @@ describe('createPlayer', () => {
 
   it('a looping fire holds for the loop gap between passes, with nothing live', () => {
     const p = createPlayer(DEF, CTX, { loop: true, loopGapMs: 200 });
-    p.fireOnce();
+    p.fireLoop();
     p.update(520); // pass completes -> enters the gap
     expect(p.isPlaying()).toBe(true);
     const spawnsAtGapStart = spawned.length;
@@ -930,5 +930,49 @@ describe('resume', () => {
     p.resume();
     expect(p.timeMs()).toBe(0);
     expect(p.isPlaying()).toBe(true);
+  });
+});
+
+/**
+ * THE regression (owner: "when i press fire once, the ribbon keeps auto playing"). Making a looping fire
+ * repeat the pass left `fireOnce` and the loop's engine indistinguishable, so a Fire on a looping player
+ * repeated forever — a button labelled "once" that played endlessly.
+ */
+describe('fireOnce vs fireLoop', () => {
+  it('fireOnce plays EXACTLY ONE pass even on a looping player', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireOnce();
+    const spawnsAtStart = spawned.length;
+    p.update(520); // the pass completes
+    expect(p.isPlaying()).toBe(false);
+    expect(spawned.length).toBe(spawnsAtStart); // nothing respawned for a second pass
+  });
+
+  it('fireLoop on the SAME player does repeat', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireLoop();
+    const spawnsAtStart = spawned.length;
+    p.update(520);
+    expect(p.isPlaying()).toBe(true);
+    expect(spawned.length).toBeGreaterThan(spawnsAtStart);
+  });
+
+  // Turning the loop flag off mid-pass has to stop the repetition too, or "Loop: Off" would only take
+  // effect after one more full cycle.
+  it('a fireLoop pass stops repeating once setLoop(false) lands', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireLoop();
+    p.setLoop(false);
+    p.update(520);
+    expect(p.isPlaying()).toBe(false);
+  });
+
+  it('fireOnce after a fireLoop downgrades to a single pass', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireLoop();
+    p.update(100);
+    p.fireOnce();
+    p.update(520);
+    expect(p.isPlaying()).toBe(false);
   });
 });

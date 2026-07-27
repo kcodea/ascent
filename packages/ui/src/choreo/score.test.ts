@@ -7,7 +7,7 @@ import { momentKind, type MomentKind } from './kinds';
 import { holdMsForKind } from './choreoConfig';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { anchorsForUnits } from '../fx/combatAnchors';
-import { bindingFor, effectiveTables } from './bindings';
+import { bindingFor } from './bindings';
 
 // The `fxDef` channel's collaborators are mocked at the CONTRACT (`playDef`/`canPlayDefs`/`anchorsForUnits`),
 // so these tests prove the SCORE's dispatch/guard/timing wiring without depending on how the fx layer renders.
@@ -330,28 +330,8 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
 // ── the `fxDef` channel (authored FX defs) ──────────────────────────────────────────────────────────────
 const shieldUpMoment = (): Moment => moment('shieldGain', [{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
 
-// THE binding table now lives in `bindings.json`, not in the score. What this file still owns is that the
-// score gives every kind a TIMING row to hang a binding on, and that nothing is bound where nobody intended.
-const BINDINGS: Record<string, string> = {
-  shieldGain: 'ward-gained', venomSpent: 'venom-spent', scCast: 'spell-cast',
-  reveal: 'stealth-break', keyword: 'keyword-gain', keywordLost: 'keyword-lost',
-  rally: 'rally-link', toHand: 'to-hand', hpGrant: 'hp-grant', spellProgress: 'spell-progress',
-  questTrigger: 'quest-trigger', questComplete: 'quest-complete',
-};
-
-/** Bindings that FAN OUT rather than playing once at the moment's own pair — asserted separately because
- *  their cue carries the extra `fanOut` key. `attackExchange` is in here for a reason worth keeping: a
- *  self-buff absorbed into a wind-up never produces a `buffWave` moment, so binding only to `buffWave` would
- *  miss a unit that grows as it is attacked. */
-const FANOUT_BINDINGS: Record<string, { def: string; fanOut: string }> = {
-  buffWave: { def: 'self-buff-gold', fanOut: 'selfBuffed' },
-  attackExchange: { def: 'self-buff-gold', fanOut: 'selfBuffed' },
-};
-
-/** `{ shieldGain: 'ward-gained' }` → `{ shieldGain: { def: 'ward-gained' } }`, the shape the table stores. */
-const BINDINGS_AS_OBJECTS = (): Record<string, { def: string }> =>
-  Object.fromEntries(Object.entries(BINDINGS).map(([kind, def]) => [kind, { def }]));
-
+// THE binding table lives in `bindings.json` and is asserted in `bindings.test.ts`. What this file owns is
+// that the score gives every kind a TIMING row to hang a binding on, and that the rows are ordered correctly.
 describe('fxDef channel', () => {
   beforeEach(() => {
     // The suite-wide `restoreAllMocks` strips these module mocks' implementations — restate them per test.
@@ -362,11 +342,6 @@ describe('fxDef channel', () => {
   });
   afterEach(() => resetScore());
 
-  it('binds exactly the intended kind → def pairs, and nothing else', () => {
-    const expected: Record<string, { def: string; fanOut?: string }> = { ...BINDINGS_AS_OBJECTS(), ...FANOUT_BINDINGS };
-    expect(effectiveTables().kinds).toEqual(expected);
-  });
-
   // Every kind carries a timing row, so a binding added to `bindings.json` is SUFFICIENT to make it play.
   // Before this, a def bound to a kind whose cue list happened to lack an `fxDef` entry silently played
   // nothing.
@@ -376,17 +351,15 @@ describe('fxDef channel', () => {
     }
   });
 
-  // Kinds that already existed and already had FX must be untouched — a def on a NEIGHBOURING kind must never
-  // reach them. (`damage` is the one that matters most: quest beats used to be classified as damage moments,
-  // so binding their def there would have fired it on every hit in the fight.)
-  // `attackExchange` and `buffWave` have deliberately LEFT this list: both now carry the self-buff fan-out
-  // (see FANOUT_BINDINGS). Everything else stays unbound, so the list keeps doing its job of catching a def
-  // bound somewhere nobody intended.
-  it('leaves every previously-effected kind unbound', () => {
-    for (const kind of ['damage', 'death', 'riseDeath', 'shieldPop', 'poisonTick',
-      'scNarrate', 'summon', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura'] as const) {
-      expect(bindingFor(null, kind), kind).toBeNull();
-    }
+  // ORDER, not just presence. Both cues sit at `start` with offset 0, so they fire synchronously in list
+  // order within one `runMomentCues` call — and a `fanOut: 'damaged'` binding CLAIMS the units it covers
+  // synchronously, which only suppresses the stock hit-burst if `fxDef` runs first. Nothing exercises this
+  // today (no `damaged` binding sits at a kind that also carries `damageFx`), which is exactly why a future
+  // reorder of `BASE` would break it silently rather than turning a test red.
+  it('runs the fxDef row BEFORE damageFx, so a claim is standing when the stock burst reads it', () => {
+    const chans = SCORE_DEFAULTS.damage.map((c) => c.ch);
+    expect(chans.indexOf('fxDef')).toBeGreaterThanOrEqual(0);
+    expect(chans.indexOf('fxDef')).toBeLessThan(chans.indexOf('damageFx'));
   });
 
   // Every kinds split must not have cost the moments that MOVED anything they already played: the new kind
@@ -610,21 +583,23 @@ describe('score persistence tolerates unknown kinds/channels (cross-version roun
     });
   });
 
-  it('every bound kind still round-trips its fxDef timing row through the effective score', () => {
+  it('every kind round-trips its fxDef timing row through the effective score', () => {
     resetScore();
     const json = JSON.parse(scoreJson()) as Record<string, { ch: string }[]>;
-    // EVERY binding, not just the first one: the effective score is what the persistence path serialises, so a
-    // kind that never round-trips its timing row would silently lose its FX for anyone with a saved score.
-    for (const kind of Object.keys(BINDINGS)) {
+    // EVERY kind, not just the bound ones: the row is universal now, and the effective score is what the
+    // persistence path serialises — a kind that lost its timing row there would silently lose its FX for
+    // anyone with a saved score, including one bound later.
+    for (const kind of Object.keys(SCORE_DEFAULTS)) {
       expect(json[kind]?.some((c) => c.ch === 'fxDef'), kind).toBe(true);
     }
   });
 });
 
 /**
- * The per-card override, dispatched from the cue runner (the table itself is tested in cardFx.test.ts).
- * Bloodbinder's bleed shares the `scCast` kind with every other spell cast, so the card id is the only key
- * that can tell them apart.
+ * The per-card override, dispatched from the cue runner. The TABLE it resolves through is `bindings.json`'s
+ * `cards` section (asserted in bindings.test.ts); what these cases own is that the runner reads it at all, and
+ * fans out correctly. Bloodbinder's bleed shares the `scCast` kind with every other spell cast, so the card
+ * id is the only key that can tell them apart.
  */
 describe('fxDef channel — per-card bindings', () => {
   it("plays the CARD's def instead of the kind default when the source card has a binding", () => {

@@ -7,7 +7,7 @@ import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
 import { createPlayer } from './player';
-import { listPrimitives } from './registry';
+import { hasPrimitives } from './registry';
 
 /**
  * Play a COMMITTED def once, in the real game, and clean itself up. The runtime half of the workbench →
@@ -166,7 +166,9 @@ export function createRetire(t: FxPlayTeardown): FxRetire {
  * a per-moment call site must not await anything.
  */
 export function canPlayDefs(): boolean {
-  return listPrimitives().length > 0 && pixiFx.renderer !== null;
+  // `hasPrimitives()` (a Map `.size` read), NOT `listPrimitives().length` — the latter spreads and sorts the
+  // whole registry on every call, and this sits on the cue runner's per-moment path for all 25 moment kinds.
+  return hasPrimitives() && pixiFx.renderer !== null;
 }
 
 /** Memoised so N callers awaiting readiness share ONE dynamic import. A failed import is not retried: the
@@ -186,7 +188,7 @@ let readying: Promise<void> | null = null;
  * resolves immediately and `canPlayDefs()` stays false. **This does not un-gate anything for players.**
  */
 export function ensureDefsReady(): Promise<void> {
-  if (import.meta.env.DEV && listPrimitives().length === 0) {
+  if (import.meta.env.DEV && !hasPrimitives()) {
     readying ??= import('./primitives').then(
       () => undefined,
       (e: unknown) => {

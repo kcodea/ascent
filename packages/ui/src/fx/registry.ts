@@ -28,6 +28,13 @@ export function listPrimitives(): FxPrimitive[] {
   return [...REGISTRY.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
+/** Cheap existence check — `listPrimitives()` allocates and sorts, which is wasteful for a caller that only
+ *  wants to know whether ANY primitive is registered. `canPlayDefs()` is on the per-moment path in the cue
+ *  runner, so it uses this. */
+export function hasPrimitives(): boolean {
+  return REGISTRY.size > 0;
+}
+
 /**
  * Test-only: reset between cases. Not called by app code.
  *

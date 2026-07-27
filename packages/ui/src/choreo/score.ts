@@ -60,7 +60,8 @@ const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offse
  *  moments with nothing to show) EXCEPT `attackExchange`, which ALSO still needs sfx (the wind-up whoosh,
  *  `sfx.attack`) + float (absorbed windup events like Rally/buff can carry a float) at `start`, PLUS `lunge`
  *  (the motion) at `start` and `impact` (the smack/FX/recoil) at the `contact` anchor the lunge defines, plus
- *  auraBurst (a death grouped into an attack's absorbed-windup run must still burst in place). A Ward CONSUMED
+ *  auraBurst (a death grouped into an attack's absorbed-windup run must still burst in place) and `fxDef` (a
+ *  self-buff absorbed into a wind-up produces no `buffWave` moment of its own). A Ward CONSUMED
  *  by the exchange has no `auraBreak` cue here — the engine shatters it at the lunge's real `contact` (see
  *  `onImpactAuras`). The aura sub-channels are on EVERY kind because `death`/`shield` are RESULT_TYPES that
  *  collapse into another kind's moment (e.g. `[dmg, death]` is a `damage`-kind moment CONTAINING a death) —
@@ -93,8 +94,9 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // plain death that carries no dmg events.
   damage: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], shieldPop: [...BASE], poisonTick: [...BASE],
   // `shieldGain` = a unit GAINS a Ward mid-combat (`shieldUp`); `venomSpent` = a Venomous charge SPENT, split
-  // out of `poisonTick` (the Execute proc), which keeps its crescent strike untouched. Both carry exactly the
-  // cues their predecessor kind had — the splits are purely additive, and what they PLAY is a binding now.
+  // out of `poisonTick` (the Execute proc), which keeps its crescent strike untouched. Each new kind's cue
+  // list is now IDENTICAL to its predecessor's — the splits cost the timing nothing, because what a kind
+  // PLAYS is a binding rather than a cue.
   shieldGain: [...BASE], venomSpent: [...BASE],
   death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE],
   // A real Start-of-Combat CAST (`sc` with `cast: true`) vs. mid-combat NARRATION, which classifies as
@@ -116,8 +118,8 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // cue list — the split is provably a no-op for everything that already played. `damageFx` rides along INERT:
   // it bursts at the moment's `dmg` events and a quest moment is a single non-result event, so it has none.
   // Anchors: neither event names a unit (`flag`/`questId` + `side`), so `anchorsForUnits(null, null)` returns
-  // null and the def skips silently — these two stay dormant until the score can anchor to a badge/HUD node
-  // rather than a board unit. Bound anyway so the intent is recorded in one place.
+  // null and the def skips silently — so although `bindings.json` binds a def at both kinds, the two stay
+  // DORMANT until the score can anchor them to a badge/HUD node rather than a board unit.
   questTrigger: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }],
   questComplete: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }],
 };
@@ -353,6 +355,9 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // defers anything. Moments are scheduled in log order and the `damage` moment follows its own cast,
         // so the claim is standing by the time that moment's `damageFx` cue is scheduled. Doing it inside the
         // deferred callback would race: the burst is scheduled first and would fire regardless.
+        // Scanned ONCE and then reused by the deferred play, for the same reason the binding is resolved once:
+        // the claim suppresses the stock burst for exactly this set, so a second scan that disagreed would
+        // silence one set of units while the def played at another — silently, and only in the divergent case.
         const claimed = damagedUidsIn(ctx.events, moment.start, moment.end);
         claimDamageFx(moment.primary.step, claimed);
         // DEV-only, and deliberately loud about the FAILURE case. Every miss in this path so far has been
@@ -372,14 +377,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         at(cue, () => {
           // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
           // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
-          for (const uid of damagedUidsIn(ctx.events, moment.start, moment.end)) {
+          for (const uid of claimed) {
             const fanAnchors = anchorsForUnits(source, uid);
             if (fanAnchors) playDef(binding.def, fanAnchors);
           }
         });
-        continue;
-      }
-      if (binding.fanOut === 'selfBuffed') {
+      } else if (binding.fanOut === 'selfBuffed') {
         at(cue, () => {
           // Both ends are the same unit: a self-buff has no pair to travel between, so `source` and `target`
           // resolve to the same card and a travelling layer simply stays put on it.
@@ -388,17 +391,18 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             if (selfAnchors) playDef(binding.def, selfAnchors);
           }
         });
-        continue;
+      } else {
+        // `primary` (the default, and what an absent `fanOut` means): once, at the moment's own pair.
+        at(cue, () => {
+          const anchors = anchorsForUnits(source, target);
+          if (!anchors) return;                  // the unit already left the screen → skip silently
+          // Unknown def id → `playDef` returns null, so a build without this def's JSON is a silent no-op. The
+          // returned stop() is deliberately NOT wired into this runner's cleanup: every channel here is
+          // fire-and-forget (an aura burst outlives its moment too), and cancelling on moment-change would cut
+          // the effect off mid-play.
+          playDef(binding.def, anchors);
+        });
       }
-      at(cue, () => {
-        const anchors = anchorsForUnits(source, target);
-        if (!anchors) return;                    // the unit already left the screen → skip silently
-        // Unknown def id → `playDef` returns null, so a build without this def's JSON is a silent no-op. The
-        // returned stop() is deliberately NOT wired into this runner's cleanup: every channel here is
-        // fire-and-forget (an aura burst outlives its moment too), and cancelling on moment-change would cut
-        // the effect off mid-play.
-        playDef(binding.def, anchors);
-      });
     }
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }

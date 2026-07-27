@@ -127,6 +127,48 @@ describe('effectiveTables', () => {
 });
 
 /**
+ * THE binding table, as a hand-maintained golden copy. The duplication is the point: a `toEqual` against an
+ * expectation somebody had to type is the only thing that catches a binding added to `bindings.json` without
+ * telling anyone, and an accidental extra binding — one def firing on a neighbouring event's beat — is the
+ * failure mode this whole subsystem keeps reproducing. It stays invisible until someone authors that def.
+ */
+const BINDINGS: Record<string, { def: string }> = {
+  shieldGain: { def: 'ward-gained' }, venomSpent: { def: 'venom-spent' }, scCast: { def: 'spell-cast' },
+  reveal: { def: 'stealth-break' }, keyword: { def: 'keyword-gain' }, keywordLost: { def: 'keyword-lost' },
+  rally: { def: 'rally-link' }, toHand: { def: 'to-hand' }, hpGrant: { def: 'hp-grant' },
+  spellProgress: { def: 'spell-progress' },
+  questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
+};
+
+/** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a
+ *  reason worth keeping: a self-buff absorbed into a wind-up never produces a `buffWave` moment, so binding
+ *  only to `buffWave` would miss a unit that grows as it is attacked. */
+const FANOUT_BINDINGS: Record<string, { def: string; fanOut: string }> = {
+  buffWave: { def: 'self-buff-gold', fanOut: 'selfBuffed' },
+  attackExchange: { def: 'self-buff-gold', fanOut: 'selfBuffed' },
+};
+
+describe('the bound kinds', () => {
+  it('binds exactly the intended kind → def pairs, and nothing else', () => {
+    const expected: Record<string, { def: string; fanOut?: string }> = { ...BINDINGS, ...FANOUT_BINDINGS };
+    expect(effectiveTables().kinds).toEqual(expected);
+  });
+
+  // Kinds that already existed and already had FX must be untouched — a def on a NEIGHBOURING kind must never
+  // reach them. (`damage` is the one that matters most: quest beats used to be classified as damage moments,
+  // so binding their def there would have fired it on every hit in the fight.)
+  // `attackExchange` and `buffWave` are deliberately NOT on this list: both now carry the self-buff fan-out
+  // (see FANOUT_BINDINGS). Everything else stays unbound, so the list keeps doing its job of catching a def
+  // bound somewhere nobody intended.
+  it('leaves every previously-effected kind unbound', () => {
+    for (const kind of ['damage', 'death', 'riseDeath', 'shieldPop', 'poisonTick',
+      'scNarrate', 'summon', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura'] as const) {
+      expect(bindingFor(null, kind), kind).toBeNull();
+    }
+  });
+});
+
+/**
  * PERMANENT. A binding naming a def that does not exist is a silent no-op at runtime — `playDef` returns null
  * and nothing plays, which is indistinguishable from a binding nobody wired. That ambiguity cost a long
  * debugging session on Bloodbinder.

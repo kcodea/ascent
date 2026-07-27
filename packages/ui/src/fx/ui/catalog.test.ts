@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { hueBucketOf, FX_HUES, deriveFacets } from './catalog';
+import { hueBucketOf, FX_HUES, deriveFacets, bindingsByDef, kindCoverage } from './catalog';
 import type { StoredFxDef } from '../defStore';
+import { getScore } from '../../choreo/score';
+import { CARD_FX } from '../../choreo/cardFx';
 
 describe('hueBucketOf', () => {
   it('buckets the saturated stop of each shipped palette', () => {
@@ -82,5 +84,63 @@ describe('deriveFacets', () => {
     expect(f.shape).toBe('');
     expect(f.hue).toBe('neutral');
     expect(f.motion).toBe('in place');
+  });
+});
+
+describe('bindingsByDef', () => {
+  const index = bindingsByDef();
+
+  it('maps a def id to the moment kinds whose cue names it', () => {
+    expect(index.get('ward-gained')?.kinds).toContain('shieldGain');
+  });
+
+  it('maps a def id to the cards that override to it, with their tribes', () => {
+    const ruby = index.get('ruby-lance');
+    expect(ruby?.cards.map((c) => c.cardId)).toContain('bloodbinder');
+    expect(ruby?.cards.find((c) => c.cardId === 'bloodbinder')?.tribe).toBe('demon');
+  });
+
+  it('has no entry for a def nothing binds to', () => {
+    expect(index.get('blue-glow-trail')).toBeUndefined();
+  });
+});
+
+describe('kindCoverage', () => {
+  const coverage = kindCoverage();
+
+  it('lists EVERY moment kind, bound or not', () => {
+    expect(coverage.length).toBe(Object.keys(getScore()).length);
+  });
+
+  it('names the def for a bound kind', () => {
+    expect(coverage.find((c) => c.kind === 'shieldGain')?.def).toBe('ward-gained');
+  });
+
+  // Gaps are the entire point of the coverage lens.
+  it('reports null for a kind with no authored def', () => {
+    const gap = coverage.find((c) => c.kind === 'summon');
+    expect(gap).toBeDefined();
+    expect(gap?.def).toBeNull();
+  });
+});
+
+/**
+ * THE guard. A binding naming a def that does not exist is a silent no-op at runtime (`playDef` returns
+ * null and nothing plays), indistinguishable from a binding that was never wired — which is exactly the
+ * ambiguity that cost a long debugging session on Bloodbinder.
+ */
+describe('binding integrity', () => {
+  it('every bound def id exists in the registry', async () => {
+    await import('../primitives');
+    const { listDefs } = await import('../fxDefs');
+    const known = new Set(listDefs().map((d) => d.id));
+    const missing: string[] = [];
+    for (const cues of Object.values(getScore())) {
+      for (const c of cues) if (c.ch === 'fxDef' && c.def && !known.has(c.def)) missing.push(c.def);
+    }
+    for (const [cardId, byKind] of Object.entries(CARD_FX)) {
+      for (const b of Object.values(byKind)) if (b && !known.has(b.def)) missing.push(`${cardId}:${b.def}`);
+    }
+    expect(missing, `bindings naming defs that do not exist: ${missing.join(', ')}`).toEqual([]);
   });
 });

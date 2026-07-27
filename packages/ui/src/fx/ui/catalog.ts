@@ -1,5 +1,9 @@
+import { CARD_INDEX } from '@game/content';
 import type { StoredFxDef } from '../defStore';
 import { primitiveLabel } from './copy';
+import { CARD_FX } from '../../choreo/cardFx';
+import { getScore } from '../../choreo/score';
+import type { MomentKind } from '../../choreo/kinds';
 
 /** The colour buckets a def can be filed under. `neutral` is not a failure — it is the honest answer for a
  *  white, black or grey stop, which is what stops 1 and 4 of nearly every palette are. */
@@ -98,4 +102,62 @@ export function deriveFacets(def: StoredFxDef): FxFacets {
     hue: best ?? 'neutral',
     motion: def.layers.some((l) => l.anchor === 'travel') ? 'travels' : 'in place',
   };
+}
+
+export interface FxBindingCard {
+  cardId: string;
+  /** The card's display name, or the raw id when the card is unknown (see `missing` below). */
+  name: string;
+  tribe: string;
+  /** True when `CARD_FX` names a card that is not in `CARD_INDEX` — surfaced rather than skipped. */
+  missing: boolean;
+}
+
+export interface FxBindings {
+  kinds: MomentKind[];
+  cards: FxBindingCard[];
+}
+
+/**
+ * def id → what binds to it. Reads `getScore()` (the LIVE score, with any choreo-panel overrides applied)
+ * rather than `SCORE_DEFAULTS`, so the browser shows what would actually play right now.
+ */
+export function bindingsByDef(): Map<string, FxBindings> {
+  const out = new Map<string, FxBindings>();
+  const entry = (id: string): FxBindings => {
+    const found = out.get(id) ?? { kinds: [], cards: [] };
+    out.set(id, found);
+    return found;
+  };
+
+  for (const [kind, cues] of Object.entries(getScore()) as [MomentKind, { ch: string; def?: string }[]][]) {
+    for (const cue of cues) if (cue.ch === 'fxDef' && cue.def) entry(cue.def).kinds.push(kind);
+  }
+  for (const [cardId, byKind] of Object.entries(CARD_FX)) {
+    const card = CARD_INDEX[cardId];
+    for (const binding of Object.values(byKind)) {
+      if (!binding) continue;
+      entry(binding.def).cards.push({
+        cardId,
+        name: card?.name ?? cardId,
+        tribe: card?.tribe ?? 'unknown',
+        missing: card === undefined,
+      });
+    }
+  }
+  return out;
+}
+
+export interface FxKindCoverage {
+  kind: MomentKind;
+  /** The def bound to this kind, or null when nothing is — the gap the coverage lens exists to show. */
+  def: string | null;
+}
+
+/** Every moment kind with its bound def or null, in the score's own order. */
+export function kindCoverage(): FxKindCoverage[] {
+  return (Object.entries(getScore()) as [MomentKind, { ch: string; def?: string }[]][]).map(([kind, cues]) => ({
+    kind,
+    def: cues.find((c) => c.ch === 'fxDef' && c.def)?.def ?? null,
+  }));
 }

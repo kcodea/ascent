@@ -26,6 +26,29 @@ on the same card while checking.
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### 2026-07-26 — dev: `scripts/drag-probe.js` — measure drag feel instead of arguing about it
+
+Follow-up to the drag-feel divergence. My first theory (stale localStorage shadowing the shipped defaults) was
+wrong for THIS case: the two devs compared their tuner values directly and they match. The version-stamp work
+still stands on its own — it makes tuned values shareable through main — but it does not explain the report.
+
+So: stop theorising, measure. The probe samples the PIXEL GAP between the cursor and the card chasing it,
+every frame, which is what "snappy" actually means. It also reports the three things that can differ between
+two machines running identical values:
+
+- `frameMs` — the display's frame budget (16.7 = 60Hz, 6.9 = 144Hz).
+- `pointerHz` — how often the OS hands the page a new cursor position. A 125Hz mouse feeds the drag
+  8ms-stale targets where a 1000Hz mouse feeds fresh ones, and NO tuner value compensates for a stale target.
+- `longFrames` / `p95FrameMs` — whether the page is janking rather than the drag being heavy.
+
+`gapAtSameSpeed` normalises the gap by cursor speed, so a gentle drag on one machine and a fast one on the
+other stay comparable — that's the number to diff.
+
+Two measurement bugs found by running it rather than trusting it: `pointerHz` divided by the probe's whole
+lifetime (idle included), reading 4Hz on a 60Hz stream, and the first cut sampled parked frames where the gap
+is ~0 and flatters everyone. Both fixed; verified against a synthetic 60Hz drag (378 dragged frames, median
+gap 11.2px, pointerHz 52).
+
 ### 2026-07-26 — dev: drag-feel values are now SHAREABLE through main
 
 Owner 2026-07-26: two devs, both on dev servers, "identical" tuner settings, visibly different drag. And the

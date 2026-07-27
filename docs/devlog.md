@@ -26,6 +26,85 @@ on the same card while checking.
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### 2026-07-26 — dev: `scripts/drag-probe.js` — measure drag feel instead of arguing about it
+
+Follow-up to the drag-feel divergence. My first theory (stale localStorage shadowing the shipped defaults) was
+wrong for THIS case: the two devs compared their tuner values directly and they match. The version-stamp work
+still stands on its own — it makes tuned values shareable through main — but it does not explain the report.
+
+So: stop theorising, measure. The probe samples the PIXEL GAP between the cursor and the card chasing it,
+every frame, which is what "snappy" actually means. It also reports the three things that can differ between
+two machines running identical values:
+
+- `frameMs` — the display's frame budget (16.7 = 60Hz, 6.9 = 144Hz).
+- `pointerHz` — how often the OS hands the page a new cursor position. A 125Hz mouse feeds the drag
+  8ms-stale targets where a 1000Hz mouse feeds fresh ones, and NO tuner value compensates for a stale target.
+- `longFrames` / `p95FrameMs` — whether the page is janking rather than the drag being heavy.
+
+`gapAtSameSpeed` normalises the gap by cursor speed, so a gentle drag on one machine and a fast one on the
+other stay comparable — that's the number to diff.
+
+Two measurement bugs found by running it rather than trusting it: `pointerHz` divided by the probe's whole
+lifetime (idle included), reading 4Hz on a 60Hz stream, and the first cut sampled parked frames where the gap
+is ~0 and flatters everyone. Both fixed; verified against a synthetic 60Hz drag (378 dragged frames, median
+gap 11.2px, pointerHz 52).
+
+### 2026-07-26 — dev: drag-feel values are now SHAREABLE through main
+
+Owner 2026-07-26: two devs, both on dev servers, "identical" tuner settings, visibly different drag. And the
+follow-up ask — we want to tune by eye, push the values, and both machines pick them up on sync.
+
+**Why they diverged.** In dev the localStorage override WINS over the shipped `DEFAULTS` (prod ignores it —
+`dragFeel.ts:144`, from the 2026-07-21 report). So once you have ever touched the tuner, syncing main gets you
+the new code and NONE of the new feel: your stale save shadows it, silently and indefinitely. Nothing in the
+tuner said which of the two you were running.
+
+**The fix — a version stamp.** `DRAG_DEFAULTS_VERSION` is written into every save. On load, a save tuned
+against an older version is discarded (and cleared), so pulling main is all it takes for everyone to be on the
+same physics. That makes the workflow the owner asked for actually work:
+
+1. tune by eye → **Copy values**
+2. paste over `DEFAULTS` and bump `DRAG_DEFAULTS_VERSION`
+3. PR → merge → everyone syncs; stale overrides self-clear and the new feel is live
+
+**The bump is the whole mechanism, so it can't be left to memory.** `dragFeel.test.ts` fingerprints the
+`DEFAULTS` block: change the numbers without bumping and the test fails, naming both steps. Comments are
+stripped from the fingerprint, so editing the prose isn't a false alarm.
+
+**And the tuner now says whose values it is running** — `main · vN` or `LOCAL override` — with the Reset button
+relabelled **Reset to main**. That turns "why does mine feel different?" into a glance instead of console
+archaeology.
+
+**Verified:** typecheck / lint / test / build:web green, 1779 tests (+2). Live-checked in the tuner: it opens
+reading `main · v1`, and moving one slider flips it to `LOCAL override` with `__v: 1` stamped on the save.
+
+### 2026-07-26 — fix(ui): Ruby / Ward Echoes had NO combat animation at all
+
+Owner report: the in-combat Ruby buff animations don't play, though Set 1's (Ryme, Cinderwing) do.
+
+Not a missing FX — a **dropped** one. `fireBuffCasts` draws a source→target tendril, and for a buff whose
+source is a DEATHRATTLE it draws a sourceless "descend" instead. Which of the two it picks comes from
+`DEATHRATTLE_BUFF_FACTORIES`, a hand-maintained list carrying a "KEEP IN SYNC" note. Set 2 shipped two
+stat-granting Echoes without touching it:
+
+- **Geode Guardian** (`deathrattlePlayRubiesAdjacent`) — plays Rubies on each neighbour as it dies.
+- **Lastlight Marshal** (`deathrattleGrantWardRandom`).
+
+Missing from the list, they took the living-source path — and a living-source cast whose source element can't
+be found is `continue`d, not downgraded. The source is dead by strike time, so the cue wasn't merely wrong, it
+never fired. That's exactly why Set 1's cards look fine: theirs are on the list.
+
+The "KEEP IN SYNC" comment is now **enforced**: a test fails when any `onDeath` factory whose name grants stats
+(`Buff` / `PlayRubies` / `GiveHealth`) is absent from the list, with the one documented exclusion (Spear
+Warden's run-wide enchant). Confirmed load-bearing by removing the two new entries — it names the missing
+factory.
+
+**Verified:** typecheck / lint / test / build:web green, 1777 tests (+2).
+
+**Still open on this:** only the DEATHRATTLE ruby path is fixed. Rubies played by a LIVING source mid-combat
+(Frenzied Excavator's Start of Combat, Resonance Idol's bounce) take the ordinary tendril and should already
+draw — worth a look on stream to confirm they read, since they share none of this bug's cause.
+
 ### tweak(ui): the tier-7 glow moves BEHIND the plaque
 
 Owner call: the halo belongs behind the tier plate, not over its face. Stacking flipped from

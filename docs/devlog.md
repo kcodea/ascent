@@ -50,6 +50,48 @@ Assets: 7 webp at native size, 72 KB total.
 and the rendered aspect ratios match the source art exactly (1.04, 1.74, 2.45, 3.15, 3.86, 4.55, 5.25) —
 proving width tracks tier while height stays pinned. Chrome overrides confirmed: transparent background, zero
 padding, no border.
+## 2026-07-26 (per-tribe card frames)
+
+### feat(ui): per-tribe TAUNT shields too
+
+Same treatment for the heater shield: all seven tribes get their own Taunt frame plus a gilded variant, so a
+Taunt minion is themed like its non-Taunt kin instead of falling back to the shared gold shield. `TRIBE_TAUNTS`
++ `tauntFrameSrcFor(tribe, golden)` mirror the oval's map exactly, and Taunt cards now also carry `.tribeframe`
+(the CSS neutraliser is a two-selector list now). The art is 1086×1448 with the same window silhouette as
+`taunt-shield.png`, so the `--heater` clip-path and every geometry knob are untouched. NB `.taunt` carries only
+the `--frame-tone` grayscale, no baked `--fovl` overlay, so that one var was all it needed.
+
+Assets: 14 more webp at native 1086×1448 (q92) — 2.47 MB vs ~15.6 MB as PNG.
+
+**Verified live:** all seven Taunt tribes resolve to `taunt-<tribe>.webp` with `.tribeframe` and
+`--frame-tone: brightness(1)`; all seven golden Taunts resolve to `taunt-<tribe>-gilded.webp`.
+
+### feat(ui): every tribe wears its own oval frame, with a dedicated gilded variant
+
+The shared silver oval is now per-tribe: all seven tribes (beast, dragon, mech, undead, demon, neutral,
+kobold) get owner-authored coloured art, each with its own GILDED variant used when the minion is golden.
+`TRIBE_OVALS` maps tribe → `{ base, gold }` and `stdFrameSrcFor(tribe, golden)` picks the src; a card wearing
+one also gets the `.tribeframe` class. Falls back to `standard-oval-v2.png` for any tribe without art.
+
+**The load-bearing part is what `.tribeframe` turns OFF.** The shared oval is authored neutral gold and gets
+its silver-stone look from TWO recolour passes, both of which would destroy authored colour:
+`--frame-tone: grayscale(0.92) brightness(1.2) contrast(0.9)` desaturates it, and a baked `--fovl` overlay
+(`#655449` @ 0.76, `overlay` blend) washes it brown. `.card.compact.stdframe.tribeframe` neutralises both
+(`brightness(1)` / `--fovl-a: 0`). Both are vars, so the override flows into every rule that reads them —
+including the keyword-state rims (Divine Shield etc.) further down the file. Geometry knobs are untouched:
+the art is 1059×1427 with the same window as the shared oval, so "AUTHORED FRAMES" needed no retuning.
+
+Assets: 14 webp at native 1059×1427 (sharp q92) — **1.84 MB total vs ~9.8 MB as PNG**, matching the repo's
+webp-for-art convention.
+
+**Verified live** across all seven tribes: each resolves to its own `oval-<tribe>.webp` with `.tribeframe`
+applied, `--frame-tone: brightness(1)` and `--fovl-a: 0`; all seven golden cards resolve to
+`oval-<tribe>-gilded.webp`. Frame precedence is unchanged — a spell still shows the purple square
+(`spell-frame-v2.png`, no `tribeframe`) and a **Taunt** minion shows its tribe's heater shield rather than the
+oval — see the Taunt entry above; the two frame families are themed in parallel.
+
+Not wired: the owner also supplied `dwarf frame.png` / `dwarf gilded frame.png`, but there is no `dwarf` tribe
+in the `Tribe` union — held aside pending that tribe existing.
 
 
 ### 2026-07-26 — content: removed four minions (Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte, Fatecarver)

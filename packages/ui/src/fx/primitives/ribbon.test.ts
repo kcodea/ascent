@@ -138,8 +138,29 @@ describe('ribbonOneShotComplete', () => {
   });
 
   it('honours a custom grace period', () => {
-    expect(ribbonOneShotComplete(true, true, 40, 50)).toBe(false);
-    expect(ribbonOneShotComplete(true, true, 50, 50)).toBe(true);
+    expect(ribbonOneShotComplete(true, true, 40, false, 50)).toBe(false);
+    expect(ribbonOneShotComplete(true, true, 50, false, 50)).toBe(true);
+  });
+
+  /**
+   * THE bug this predicate's input change fixes (owner: "when i fire once ... i want the ribbon to travel to
+   * its target point and stop"). The counter used to be "ms since the head was FED", and both the workbench
+   * and playDef feed the head EVERY FRAME for as long as the layer lives — so it never climbed, a one-shot
+   * ribbon never completed, and the pass ran to the 10s safety cap with the trail alive throughout.
+   * It is now "ms since the head MOVED", which does climb the moment the trail arrives.
+   */
+  it('completes while still being fed, so long as the head has stopped MOVING', () => {
+    expect(ribbonOneShotComplete(true, true, RIBBON_FIRE_GRACE_MS)).toBe(true);
+  });
+
+  // A draining trail is mid-retraction after it arrives; completing there would have the player tear it
+  // down halfway through the animation the drain exists to show.
+  it('is never complete while the spine is still draining, however long it has been settled', () => {
+    expect(ribbonOneShotComplete(true, true, 10_000, true)).toBe(false);
+  });
+
+  it('completes once the drain has emptied the spine', () => {
+    expect(ribbonOneShotComplete(true, true, RIBBON_FIRE_GRACE_MS, false)).toBe(true);
   });
 });
 

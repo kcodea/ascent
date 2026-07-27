@@ -976,3 +976,37 @@ describe('fireOnce vs fireLoop', () => {
     expect(p.isPlaying()).toBe(false);
   });
 });
+
+/**
+ * After a fire finishes, NOTHING may restart on its own. The owner's requirement, exactly: "when i fire
+ * once, i want the ribbon to travel to its target point and stop, for all other effects to trigger once and
+ * stop. and thats it. no loop, no play, nothing."
+ */
+describe('a finished fire stays finished', () => {
+  it('stays stopped, with everything torn down', () => {
+    const p = createPlayer(DEF, CTX, { loop: false });
+    p.fireOnce();
+    const inst = spawned[spawned.length - 1].inst;
+    p.update(520);
+    expect(p.isPlaying()).toBe(false);
+    expect(inst.destroy).toHaveBeenCalled();
+    // …and further ticks do not bring anything back.
+    const spawnsAfter = spawned.length;
+    p.update(1000);
+    p.update(1000);
+    expect(p.isPlaying()).toBe(false);
+    expect(spawned.length).toBe(spawnsAfter);
+  });
+
+  // resume() used to fall through to ordinary wrap-at-duration playback on a stale clock, so pressing play
+  // after a finished fire started an endless loop rather than a fresh single pass.
+  it('resume after a finished fire starts ONE fresh pass, not ordinary looping playback', () => {
+    const p = createPlayer(DEF, CTX, { loop: false });
+    p.fireOnce();
+    p.update(520);
+    p.resume();
+    expect(p.timeMs()).toBe(0); // a fresh pass from the top, not a resumed clock
+    p.update(520);
+    expect(p.isPlaying()).toBe(false); // …and it ends, exactly like the first
+  });
+});

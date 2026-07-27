@@ -283,27 +283,38 @@ const MAX_SPINE_POINTS = 200;
 /**
  * How long (ms) after the workbench stops feeding the head a one-shot ribbon waits before reporting
  * completion. The workbench feeds `setHead` every frame for the fire's duration and then stops; the ribbon
- * can't visibly *drain* its spine without changing the look (the spine only ever shrinks on new head input,
- * via `pushSpineHead`'s arc-length trim), and the task requires the trail stay visually identical, so
- * one-shot only changes completion *reporting*. Completion is therefore defined by "the head has stopped
- * being fed for this long" — a robust signal that the fire ended, with the grace giving the frozen trail a
  * beat to read as settled before the player clears the layer.
+ *
+ * NOTE the definition of "stopped", which was originally "stopped being FED" and is now "stopped MOVING".
+ * Being fed is not a signal at all in the two contexts that matter: both the workbench and `playDef` drive
+ * `setHead` every single frame for as long as the effect exists, so the original rule could never fire and
+ * a one-shot ribbon never completed — the pass ran to the 10s safety cap with the trail alive the whole
+ * time. A head that has stopped moving is the real "it has arrived" signal, and it is the same one `drain`
+ * already keys off.
  */
 export const RIBBON_FIRE_GRACE_MS = 250;
 
 /**
  * Pure completion predicate for a one-shot ribbon, split out so the completion timing is unit-testable
- * without a WebGL context (the rest of the instance is rendering). Complete once we're in one-shot mode,
- * the head has been fed at least once (so the effect actually started — guards a large first `update` dt
- * from completing before the first `setHead`), and the head hasn't been fed for `graceMs` (the fire ended).
+ * without a WebGL context (the rest of the instance is rendering).
+ *
+ * Complete once we're in one-shot mode, the head has been fed at least once (so the effect actually started
+ * — guards a large first `update` dt from completing before the first `setHead`), the head has not MOVED
+ * for `graceMs` (it has arrived and settled), and there is nothing left on the spine to retract.
+ *
+ * `stillDraining` is the last clause: a trail with `drain` set is mid-retraction after it arrives, and
+ * reporting complete then would have the player tear it down halfway through the very animation the drain
+ * exists to show. A non-draining trail passes `false` and completes on the grace alone.
  */
 export function ribbonOneShotComplete(
   oneShot: boolean,
   headEverSet: boolean,
-  msSinceHead: number,
+  msSinceHeadMoved: number,
+  stillDraining = false,
   graceMs: number = RIBBON_FIRE_GRACE_MS,
 ): boolean {
-  return oneShot && headEverSet && msSinceHead >= graceMs;
+  if (stillDraining) return false;
+  return oneShot && headEverSet && msSinceHeadMoved >= graceMs;
 }
 
 /**
@@ -482,12 +493,15 @@ class RibbonInstance implements FxInstance<RibbonParams> {
    *  applies no transform of its own, so it never converts between spaces. */
   setHead(x: number, y: number): void {
     const prev = this.lastHead;
-    if (prev === null || Math.hypot(x - prev.x, y - prev.y) > RIBBON_STALL_EPSILON_PX) this.headMoved = true;
+    if (prev === null || Math.hypot(x - prev.x, y - prev.y) > RIBBON_STALL_EPSILON_PX) {
+      this.headMoved = true;
+      // Reset the settle timer only when the head actually MOVED. Resetting it merely because `setHead` was
+      // called is what stopped a one-shot ribbon ever completing: both the workbench and `playDef` feed the
+      // head every frame for as long as the layer lives, so the counter never got a chance to climb.
+      this.msSinceHead = 0;
+    }
     this.lastHead = { x, y };
     pushSpineHead(this.spine, { x, y }, this.params.length);
-    // The head is being fed — reset the "time since last head" counter. In one-shot mode this is what
-    // keeps the effect from completing while the workbench is still driving the trail (see isComplete).
-    this.msSinceHead = 0;
     this.headEverSet = true;
   }
 
@@ -511,7 +525,8 @@ class RibbonInstance implements FxInstance<RibbonParams> {
    *  its settle grace. Continuous instances always return false. See `ribbonOneShotComplete` for the full
    *  reasoning on why completion is grace-based rather than a visible spine drain. */
   isComplete(): boolean {
-    return ribbonOneShotComplete(this.oneShot, this.headEverSet, this.msSinceHead);
+    const stillDraining = this.params.drain > 0 && this.spine.length > 0;
+    return ribbonOneShotComplete(this.oneShot, this.headEverSet, this.msSinceHead, stillDraining);
   }
 
   setParams(next: RibbonParams): void {

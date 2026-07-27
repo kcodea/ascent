@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx): a one-shot ribbon could NEVER report complete, so a Fire never ended
+
+Owner, after two adjacent fixes that missed: "when i fire once, i want the ribbon to travel to its target
+point and stop, for all other effects to trigger once and stop. and thats it. no loop, no play, nothing."
+
+The actual bug, and it had nothing to do with Loop. `ribbonOneShotComplete` was defined as **"the head has
+not been FED for 250ms"** — but the workbench and `playDef` both call `setHead` EVERY FRAME for as long as
+the layer lives. The counter was reset every frame, so it never climbed, so a one-shot ribbon never reported
+complete, so `allFiringLayersDone()` never returned true and the pass ran to the 10-second `FIRE_TIMEOUT_MS`
+cap with the trail alive the whole time. The original comment even reasoned itself into the rule ("a robust
+signal that the fire ended") against the only two callers that exist.
+
+Completion is now **"the head has not MOVED for 250ms"** — the real "it has arrived" signal, and the same one
+`drain` already keys off, so the two agree by construction. `msSinceHead` resets on movement rather than on
+being called. Plus one clause: a trail that is still draining is never complete, or the player would tear it
+down halfway through the retraction the drain exists to show.
+
+Also hardened `resume()`. After a finished fire it fell through to `playing = true` on a stale clock, which
+is ordinary wrap-at-duration playback — so pressing play after a fire had ended started an endless loop
+instead of one fresh pass. It now continues only a pass genuinely in flight, and otherwise starts a new one.
+
+Two tests pin the end state directly: a finished fire stays finished across further ticks with everything
+torn down, and resume after one plays exactly one more pass. Those are behavioural contracts of the kind
+that would have caught this and the last two regressions — the gates check types and logic, not "the button
+does what its label says".
+
+Verified: typecheck clean, lint 0 errors, 2397 tests across 122 files green (5 new), `build:web` green.
+
 ### fix(fx): Fire once plays ONCE again — a looping fire is now a separate call
 
 Owner: "when i press fire once, the ribbon keeps auto playing." My regression, from the previous entry.

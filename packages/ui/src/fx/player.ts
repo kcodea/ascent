@@ -300,10 +300,16 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       playing = false;
     },
     resume(): void {
-      // Un-pause in place, WITHOUT the lifecycle reset `play()` performs — `play()` tears down a fire in
-      // flight, which would make pause/resume silently restart the effect from zero instead of continuing
-      // it. Nothing to resume from a stopped player, so that case starts a fresh pass.
-      if (firing || clock > 0) playing = true;
+      // Un-pause the pass in flight, WITHOUT the lifecycle reset `play()` performs — `play()` tears a fire
+      // down, which would make pause/resume silently restart the effect from zero instead of continuing it.
+      if (firing) {
+        playing = true;
+        return;
+      }
+      // Nothing in flight (never started, or the last pass finished): start a fresh one. Deliberately NOT
+      // `playing = true` on a stale clock, which would drop into ordinary wrap-at-duration playback — an
+      // effect that had finished would quietly start looping again from wherever the clock happened to sit.
+      if (loopEnabled) this.fireLoop();
       else this.fireOnce();
     },
     fireOnce(): void {

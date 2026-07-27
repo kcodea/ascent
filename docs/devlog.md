@@ -3,6 +3,72 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-27 (FX library browser — the def list becomes a browsable catalog)
+
+### feat(fx/ui): three lenses over one derived catalog, and a guard that every binding resolves
+
+Brainstormed and specced with the owner ([design](superpowers/specs/2026-07-27-fx-library-browser-design.md),
+[plan](superpowers/plans/2026-07-27-fx-library-browser.md)), then executed as nine TDD tasks with a spec
+review and a code-quality review between each.
+
+The workbench's def library was a flat list of ids answering one question — "what is this called" — while
+three were being asked of it: *find one to build from*, *see what is wired where*, and *find a card's
+effects*. Nothing served the last two at all.
+
+**One catalog, three lenses.** New `fx/ui/catalog.ts` (pure) turns the def registry plus the choreo binding
+tables into a single `FxCatalogEntry[]`, and `fx/ui/catalogView.ts` (pure) does all filtering and grouping
+over it. The overlay is a thin renderer. That structure is the point: "which def fires on Bloodbinder" is
+computed **once**, so the lenses cannot disagree — which is exactly how the Bloodbinder debugging went wrong
+the day before, with the same fact derived in two places.
+
+Facets are **derived, not authored**: shape from the primitives (reusing `copy.ts`'s human names), colour
+from the palette, motion from the `travel` anchor, bindings from `getScore()` and `CARD_FX`. So none of the
+20 existing defs needed back-filling. `label` and `tags` were added to the def format as *optional* extras,
+omitted-when-unset on the same terms as `seed`, so every committed def still round-trips byte-identically.
+
+**The colour derivation has a trap worth recording:** it reads the palette's SECOND stop. Stop 4 is
+`#ffffff` in nearly every shipped palette and stop 1 is a near-black rim — bucketing either would file most
+defs as the same colour. `hueBucketOf` returns `neutral` rather than inventing a hue for anything grey,
+black, white or non-finite, since it is fed raw numbers out of untrusted def JSON.
+
+**The guard that earns its keep:** a binding naming a def that does not exist is a **silent no-op** at
+runtime — `playDef` returns null and nothing plays, indistinguishable from a binding that was never wired.
+That ambiguity cost hours on Bloodbinder. There is now a test asserting every binding in `getScore()` and
+`CARD_FX` resolves to a real def, and the By-event lens renders an unresolvable one in red. It passes today
+(no missing bindings) — its value is the next time someone renames a def file.
+
+**Known limitation, deliberate:** the By-card lens lists every card in `CARD_INDEX` grouped by tribe (so a
+bare tribe is visible, which is the point), but `defId` is only ever an *explicit* per-card override. Working
+out which moment kinds an arbitrary card can produce is a static analysis that cannot be exact — many moments
+only exist at runtime. A `null` there means "uses whatever its moments give it", not "shows nothing".
+
+**Two review catches worth naming, because both were defects in the PLAN rather than the implementation:**
+
+- **Hover-preview destroyed the author's work.** The plan told the implementer to wire the overlay's
+  `onPreview` to the workbench's `loadDef` — and `loadDef` replaces layers, selection, duration, seed and its
+  lock, the name field, and pushes an undo entry. Moving the pointer across the list would silently replace
+  an in-progress composition, once per row. Recoverable only by pressing Ctrl+Z once per hover, with no
+  indication of how many. Now preview calls `playDef(id, anchors)` — a transient play that mounts its own
+  container and self-retires — using the anchors the per-frame updater already computes, mirrored into a ref.
+  Verified in a real browser: after a hover, the def-name field, the layer list and the seed are
+  byte-identical, and the overlay's container count goes 2 → 3 → 2 as the preview plays and cleans up.
+- **The debounce timer leaked on unmount** and lived in `useState`, re-rendering the whole list on every
+  hover and leave for a value never read during render. Now a ref with an unmount cleanup.
+
+Two smaller review catches were closed the same way: the `label`/`tags` trim-but-keep path had no test (only
+trim-to-omission did), and nothing asserted that filtering and grouping sort COPIES — a regression to an
+in-place `sort()` would reorder the caller's own array as a side effect of rendering, which React would then
+see as unchanged state.
+
+Verified: typecheck clean, lint 0 errors (1 pre-existing `SceneBuilder` warning), **2472 tests across 125
+files** green, `build:web` green. Browser-verified on the worktree's own dev server: all three lenses render
+(20 defs; 26 moment kinds of which 12 show "nothing bound" and 0 show "missing"; 259 cards in 7 tribe
+groups), a colour swatch filters 20 → 4 and unfilters, hover previews without touching the editor, and
+clicking loads and closes.
+
+Not visually verified: the CSS layout itself (the browser pane could not produce screenshots this session) —
+worth an eyeball.
+
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
 ### fix(fx/ui): resolve the acting card from COMBAT STATE, and strip every stock hit visual from a bound proc

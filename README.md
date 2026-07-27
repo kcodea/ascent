@@ -42,6 +42,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **An FX library browser.** The workbench's effects are no longer a flat list of ids: one derived catalog
+  is surfaced through three lenses — browse **by look** (shape, colour, motion), **by event** (which moment
+  kinds have an effect, and which are still bare), and **by card** (grouped by tribe). Facets are derived
+  from the effects themselves, so nothing needs tagging by hand, and a binding pointing at a def that no
+  longer exists — previously a silent no-op — now shows up in red and fails a test.
 - **An FX workbench.** Adding a new visual effect no longer costs a hand-written tuner panel (there were 34,
   on ~7,700 lines of four-parallel-list boilerplate that had already drifted). Effects are now **data played
   by a runtime player**; a primitive declares its parameters once and a dev-only workbench generates the whole

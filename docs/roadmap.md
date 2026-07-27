@@ -21,6 +21,15 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+### FX library browser — phase C: bindings as data (next)
+Phase A shipped 2026-07-27 (the browsable catalog + three lenses; see the devlog). It is **read-only**: it
+shows what is bound but cannot change it, because the binding tables live in TypeScript — `score.ts` for the
+kind-level defaults and `CARD_FX` for per-card overrides — and the dev plugin can only write JSON into
+`defs/`. Phase C moves them to a JSON file the plugin can write, which is what unlocks the loop the owner
+described: click a card, modify its effect globally, **or fork it for that card alone**, without a code edit.
+Phase A's catalog is exactly phase C's input, and using the lenses first should settle whether "fork for this
+card" belongs on the card lens or the effect row.
+
 ### FX authoring loop (owner test run — 2026-07-26)
 The FX workbench is built; the next step is authoring a real effect through it end to end.
 [`docs/fx-requests.md`](fx-requests.md) holds the brief template and the queue. Division of labour: owner

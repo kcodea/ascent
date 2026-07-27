@@ -939,6 +939,9 @@ export function Recruit() {
   const [endTurnFlash, setEndTurnFlash] = useState(false);
   // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
   const [battlecryUids, setBattlecryUids] = useState<Set<string>>(new Set());
+  // Per-uid clear timers for that flourish. In a ref, not the effect's cleanup, so a hold survives the next
+  // board change — see the battlecry effect for what cancelling them cost.
+  const bcTimersRef = useRef<Map<string, number>>(new Map());
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
   // COALESCE watcher state. A card that appears in hand from nowhere gets the arcane materialise; see the
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
@@ -2802,6 +2805,10 @@ export function Recruit() {
   useEffect(() => {
     if (inCombat) {
       prevBoardUidsRef.current = new Set(run.board.map((c) => c.uid));
+      // Drop any pending holds on the way into a fight — the flourish belongs to the shop, and a timer that
+      // outlives the phase would clear a uid that the next recruit phase has legitimately re-flagged.
+      for (const t of bcTimersRef.current.values()) window.clearTimeout(t);
+      bcTimersRef.current.clear();
       return;
     }
     const prev = prevBoardUidsRef.current;
@@ -2816,14 +2823,26 @@ export function Recruit() {
     if (fresh.length === 0) return;
     setBattlecryUids((s) => new Set([...s, ...fresh]));
     sfx.triggerPulse(); // a Battlecry officially fires → the medallion pulse cue (deduped)
-    const t = window.setTimeout(() => {
-      setBattlecryUids((s) => {
-        const n = new Set(s);
-        for (const u of fresh) n.delete(u);
-        return n;
-      });
-    }, 760);
-    return () => window.clearTimeout(t);
+    /* The 760ms clear is PER UID and must outlive this effect's next run. It used to be a single timeout
+       cancelled by the effect's own cleanup — and the deps are `[run.board, inCombat]`, so ANY board change
+       inside that window (a buff writing a new array, a sell, a reorder) killed the clear and left the minion
+       flagged in `battlecryUids` forever. That is what produced the errant reorder pulses the owner reported:
+       the medallion keeps `.pulsing`, and React moving a keyed child on a warband reorder re-inserts its DOM
+       node — which RESTARTS the CSS animation. So a long-dead Battlecry flashed again every time you shuffled
+       cards past it. Same defect, and same fix, as the combat medallion hold (#735). */
+    for (const uid of fresh) {
+      const prevT = bcTimersRef.current.get(uid);
+      if (prevT !== undefined) window.clearTimeout(prevT);
+      bcTimersRef.current.set(uid, window.setTimeout(() => {
+        bcTimersRef.current.delete(uid);
+        setBattlecryUids((s) => {
+          if (!s.has(uid)) return s;
+          const n = new Set(s);
+          n.delete(uid);
+          return n;
+        });
+      }, 760));
+    }
   }, [run.board, inCombat]);
 
   // Gilded (golden) minion deploys → fire the self-buff pulse ON it — the moment a unit turns gold (played from

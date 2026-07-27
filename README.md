@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Shout minions no longer flash when you reorder cards past them.**
 - **End-of-turn cards hand you their reward on their own beat** — each pulse now lands its card as it
   fires, instead of the whole turn's batch appearing at once after every pulse was over.
 - **Cards granted in combat arrive twice as fast** — the beat spacing between an effect's pulse, its card

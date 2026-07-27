@@ -1,5 +1,150 @@
 # ASCENT — development log
 
+## 2026-07-26 (a steel plaque behind the tier stars)
+
+### tweak(ui): the tier-7 glow moves BEHIND the plaque
+
+Owner call: the halo belongs behind the tier plate, not over its face. Stacking flipped from
+`plate 5 · glow 6 · stars 7` to **`glow 5 · plate 6 · stars 7`**, and the glow is now rendered FIRST in the
+JSX so DOM order matches paint order rather than relying on z-index alone to contradict it. All three still
+sit above the frame (z3), so nothing moved relative to the artwork.
+
+Practical effect: only the part of the halo spilling past the plaque's silhouette is visible, so it reads as
+light radiating out from behind it. The baked 1.025 × 0.63 ellipse is wider and taller than the ~0.765-wide
+plate, so there is plenty of spill.
+
+**Verified live:** DOM order `tierglow → tierplate → tierstars` with computed z-indexes 5 / 6 / 7.
+
+### chore(ui): bake the owner's tuned tier-7 glow
+
+Glow dialed and baked: `1.025 × 0.63` (a wide flat ellipse rather than the near-circle default), offset
+`x -1.5 / y -28`, peak opacity `1` dipping to `0.49` over a `2.1 s` cycle, colour `#ffe27a`. All six
+`--cpl-glow-*` CSS fallbacks mirrored alongside the DEFAULTS (double-source rule) — six values, all six checked
+for stale copies afterwards.
+
+**Verified from a CLEARED config** (what production renders): every glow var resolves from DEFAULTS, the halo
+renders 115×71 (ratio 1.63, matching 1.025/0.63), and the pulse reads 2100 ms cycling opacity 0.49 ↔ 1 — still
+`keyframeProps: ["opacity"]` only, so it stays compositor-cheap at the new brightness.
+
+### tweak(ui): glow gets width/height/x/y, and the tier sandwich is stacked explicitly
+
+Owner follow-up. The glow was already painting in front of the plate and behind the stars (all three shared
+z6, so tree order decided) — but it was a 73×73 CIRCLE over a 72×**18** plaque, so most of it spilled past the
+plate and read as a blob rather than light on the plaque. Fixes:
+
+- **Shape**: `glowW` and `glowH` are now independent (`radial-gradient(ellipse …)`), defaulting to 0.62 × 0.26
+  — a flat haze that hugs the plaque. Previously one knob drove both axes.
+- **Position**: `glowX` / `glowY`. The glow rides the same per-family seat as the stars and then adds its own
+  offset (mirroring how the plate composes), so it can be nudged off the stars without moving them.
+- **Stacking made explicit**: plate `z5` · glow `z6` · stars `z7`. It relied on tree order before, which was
+  correct but silent; all three stay above the frame (z3) exactly as when they shared z6, so nothing moved
+  relative to the artwork.
+- Colour was already exposed as `tier7 glow · colour`.
+
+**Verified live** on a tier-7 minion and a tier-7 Taunt from a cleared config: each knob moves exactly its own
+axis (`glowH 0.5` → h 30→59 with width held; `glowW 1.0` → w 73→117 with height held; `glowX 20` → x +16;
+`glowY 15` → y +12), the z-order reads 5/6/7, and the Taunt's glow tracks its own family seat.
+
+### chore(ui) + feat(ui): bake the tuned tier values; tier-7 stars get a pulsing glow
+
+Baked the owner's dialed pass into `cardPillsConfig.ts` DEFAULTS — stars ALL row at
+`x -0.25 / y -0.25 / size 1.24` with family deltas (spell y 4, taunt y 2.75, circle y 4), plate ALL width
+0.765 with the taunt plate nudged `y -1.5`. The `--cpl-plate-all-w` CSS fallback was mirrored to 0.765 (the
+double-source rule).
+
+**Tier 7 glow.** Top-tier cards now carry a soft pulsing halo behind the stars. It's a `<span>` with the
+`tierbadge` class, so the per-family star transforms already match it and it tracks the stars for free — no
+extra seat. Rendered between the plate and the stars, so it reads as light off the plaque.
+
+Built to the perf rule: the radial gradient is **static** and **opacity is the only animated property** — a
+looping `box-shadow`/`filter` would repaint every frame (docs/performance.md). Verified by reading the running
+animation's keyframes back: `keyframeProps: ["opacity"]`, pulsing 0.28 ↔ 0.8 over 2.2 s. Also honours
+`prefers-reduced-motion` by holding steady at peak instead of pulsing.
+
+Five knobs on the 🏷️ Card Pills tuner: `tier7 glow · size / opacity / speed / dip / colour` (dip 0 fades right
+out, 1 = steady).
+
+**Verified live:** tiers 5 and 6 render no glow at all, tier 7 renders a 70×70 radial halo with
+`tiersevenpulse` running, and the DOM order is `tierplate → tierglow → tierstars`.
+
+### fix(ui): the ALL rows did nothing — families now COMPOSE them instead of shadowing
+
+Owner report: `plate · all · x/y/size` had no effect. Cause: every real card matches one of the three family
+rules (`.stdframe` / `.spellcard` / `.taunt`), which are MORE SPECIFIC than the base rule the ALL knobs drove —
+so the ALL row only applied to a card that is none of them, i.e. never in practice. `stars · all` was dead the
+same way, from the moment the circle frame got its own seat. My isolation matrix probed the three families and
+never the ALL row, which is exactly why it passed while two knob rows were inert.
+
+Fixed by making ALL a genuine global that families **compose onto** rather than replace: each family rule is
+now `var(--cpl-tier-t) var(--cpl-<fam>-n)` for the stars and `…-all-t …-<fam>-t` with width `all × family` for
+the plate. Transforms multiply, so a family row of `0 / 0 / 1` means "same as all", and the family knobs are
+DELTAS (offset added, size multiplied) — family size ranges now centre on 1.
+
+Defaults were re-pointed so nothing shifted: the common part moved to the ALL row (scale 0.74) and each family
+keeps only its delta (spell y 3.25, circle y 2, taunt 0). Verified the products match the previously-baked
+values exactly.
+
+**Verified live** from a cleared config, probing the ALL rows this time: `plateAllY` and `plateAllW` moved and
+resized the plate on ALL THREE families; `tierY` and `tierScale` moved and resized the stars on all three; and
+the family rows still isolate (`plateOvY` → circle plate only, `stierY` → spell stars only). Default snapshot
+confirms the preserved relationships (spell stars 3.25 lower, every plate 62.4 px).
+
+### feat(ui): per-family seats for BOTH the stars and the plate (8 seats, 24 knobs)
+
+Owner needs to align the tier badge per frame family, for the stars AND the plaque separately. Two gaps closed:
+
+- **The CIRCLE (oval) frame had no seat of its own** — it fell through to the generic `tier*` one, so it
+  couldn't be dialed apart from the catch-all. Added `otier*` + a `.card.compact.stdframe .tierbadge` rule. Its
+  defaults mirror what the oval already rendered with (y 2, scale 0.74), so nothing shifted.
+- **The plate had ONE set of knobs for every family** — now four (`plateAll/Ov/Sp/Ta` × x/y/width), each rule
+  setting that family's own transform and width.
+
+Result: 4 families × 2 elements × 3 knobs = **24 knobs**, labelled `stars · <family> · x/y/size` and
+`plate · <family> · x/y/size` so the panel stays readable. No card is both `.stdframe` and `.spellcard`/`.taunt`
+(see `useStdFrame`), so the family rules can never fight.
+
+**The plate is deliberately DECOUPLED from the star seat.** The first cut had each plate rule re-apply its
+family's star seat and append the plate nudge; verification showed that nudging the stars dragged the plate with
+them, so the two could never be aligned against each other. The plate now anchors independently
+(`translateX(-50%)` off the shared `.tierbadge` top) and is offset only by its own knobs.
+
+**Verified live** with an oval minion, a Taunt and a spell on screen at once, probing all six representative
+knobs one at a time from a cleared config: every knob moved **exactly one element on exactly one family** and
+left the other five cells untouched — a clean 6×6 isolation matrix.
+
+### feat(ui): tier plate behind the stars, on every card type
+
+Owner art: a steel hexagonal plaque seated behind the tier stars, with a **gilded variant** for golden cards.
+Renders on all three frame families — minion oval, spell square and Taunt heater.
+
+The plate img carries `tierbadge` as well as `tierplate`, so it inherits every already-tuned per-frame-type
+`top` anchor for free and only its chrome, size and transform are overridden. It's rendered immediately BEFORE
+the stars, and since both are positioned the plate paints behind them by TREE ORDER — no z-index (which would
+lift it past the frame). Sized by WIDTH with `height: auto`, so the art's 4.09 ratio holds at any card size;
+size 0 hides it.
+
+Three transform rules re-apply whichever tier SEAT the card uses (`--cpl-tier-t` / `-stier-t` / `-ttier-t`) and
+append the plate's own nudge, so ONE set of plate knobs serves minions, spells and Taunts. Specificity is
+deliberate: `.card.compact img.tierbadge.tierplate` (0,3,1) must beat `.card.compact .tierbadge` (0,3,0), and
+the spell/taunt variants (0,4,1) must beat their own seat rules.
+
+Knobs on the 🏷️ Card Pills tuner: `tier plate · x / y / size`.
+
+Assets: `tierplate.webp` + `tierplate-gilded.webp`, 1200×293 (downscaled from the 3812×932 masters — still
+~10× the rendered size), 40/44 KB.
+
+**Verified live** on a minion, a Taunt, a golden and a spell: each renders the plate with the right variant
+(golden → `tierplate-gilded.webp`), ratio 4.10 held, plate before the stars in tree order, and the seat
+transform applied. All three knobs drive it (x 16→23, y 135→130, size → 38px, 0 → hidden). Re-measured from a
+CLEARED config so the numbers are what ships: at the default 0.66 every tier fits inside the plate — tier 7
+snug (2.1 px margin), tier 4 comfortable (10.9), tier 1 loose (19.7).
+
+**Known tradeoff:** the plate is a FIXED width while the star row grows ~55 px per tier, so it can't hug every
+tier — it's sized to contain tier 7, which leaves tier 1 sitting in a much wider plaque. Fine if the plaque is
+meant to be a constant nameplate; if it should hug the stars, the options are per-tier width scaling (uniform,
+so low tiers get a smaller plaque overall) or a 9-slice (fixed decorative caps, stretched middle — hugs every
+tier at constant height). Owner's call.
+
 ## 2026-07-26 (a dark backbox behind the rules text)
 
 ### feat(ui): authored backbox behind the text panel, fully tunable

@@ -1533,10 +1533,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* SPELL tier badge gets its OWN nudge. A spell's frame is a square whose banner seat differs from the minion
    oval's, so one shared offset can't serve both (owner 2026-07-26). `.spellcard` covers spells AND Rubies, and
    at (0,3,0) this outranks the base `.tierbadge` transform (0,1,0). Falls back to plain centring if unset. */
-.card.compact.spellcard .tierbadge { transform: var(--cpl-stier-t, translateX(-50%)); }
+.card.compact.spellcard .tierbadge { transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-stier-n, translate(0, 0)); }
 /* TAUNT tier badge — third seat. The heater's banner is higher and narrower than the oval's or the spell
    square's, so it gets its own nudge. Same (0,3,0) as the spell rule and they never co-occur on one card. */
-.card.compact.taunt .tierbadge { transform: var(--cpl-ttier-t, translateX(-50%)); }
+.card.compact.taunt .tierbadge { transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-ttier-n, translate(0, 0)); }
+/* CIRCLE (oval) frame tier badge — its own seat. The oval used to fall through to the generic `.tierbadge`
+   transform; giving it a rule means all four families are independently dialable. No card is both `.stdframe`
+   and `.spellcard`/`.taunt` (see `useStdFrame`), so these three (0,3,0) rules can never fight each other. */
+.card.compact.stdframe .tierbadge { transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-otier-n, translate(0, 0)); }
 .card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: calc(var(--ccw) * 0.014) solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
 /* TIER STARS — the tier badge as N steel stars instead of a coloured "TIER N" pill. The img carries BOTH
    `tierbadge` (so every already-tuned per-frame-type anchor applies: the oval's `--tier` seat, the heater's
@@ -1545,6 +1549,99 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    `.tierbadge[data-tier="N"]` (0,2,0 — the per-tier background colours) and `.card.compact .tierbadge`
    (0,3,0 — the padding/border/radius), so a plain 2-class selector would lose. HEIGHT is pinned and width is
    auto: the art is 78px tall and 55px wider per star, so width scales with tier on its own. */
+/* TIER PLATE — the steel plaque the stars sit on. It carries `tierbadge` too, so it inherits every per-frame-type
+   `top` anchor for free (oval seat / heater banner nudge / plain-card offset) and only needs its chrome, its size
+   and its transform overridden. It is rendered immediately BEFORE the stars and both are positioned, so TREE ORDER
+   puts the plate behind them — no z-index needed (and none wanted: z-index here would lift it past the frame).
+   Sized by WIDTH with `height: auto` so the art's 4.09 ratio holds at any card size; 0 hides it.
+   The three transform rules below re-apply whichever tier SEAT the card uses and append the plate's own nudge, so
+   one set of plate knobs serves minions, spells and Taunts. Specificity is deliberate — `.card.compact
+   img.tierbadge.tierplate` (0,3,1) must beat `.card.compact .tierbadge` (0,3,0), and the spell/taunt variants
+   (0,4,1) must beat their own `.card.compact.spellcard/.taunt .tierbadge` seat rules (0,3,0). */
+/* TIER 7 GLOW — a pulsing halo behind the stars, on top-tier cards only. It carries `tierbadge`, so the
+   per-family star transforms above ALSO match it and it tracks the stars for free — no extra seat needed.
+   PERF: the gradient is STATIC and only OPACITY animates, per docs/performance.md (a looping box-shadow or
+   filter repaints every frame). Sized by --ccw so it scales with the card; 0 hides it. Selector is (0,4,0) to
+   beat `.card.compact .tierbadge`'s padding/border/radius. */
+.card.compact .tierbadge.tierglow {
+  width: calc(var(--ccw) * var(--cpl-glow-w, 0.945));
+  height: calc(var(--ccw) * var(--cpl-glow-h, 0.47));
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  /* Explicit stacking, glow LOWEST: glow 5 · plate 6 · stars 7 (owner 2026-07-26 — the halo belongs behind the
+     plaque, so only the part spilling past its silhouette shows). All three stay above the frame (z3), exactly
+     as when they shared z6, so nothing changes relative to the artwork. */
+  z-index: 5;
+  background: radial-gradient(ellipse closest-side,
+    color-mix(in srgb, var(--cpl-glow-color, #ff7ae7) 85%, transparent) 0%,
+    color-mix(in srgb, var(--cpl-glow-color, #ff7ae7) 45%, transparent) 42%,
+    transparent 72%);
+  box-shadow: none;
+  pointer-events: none;
+  animation: tiersevenpulse var(--cpl-glow-speed, 0.7s) ease-in-out infinite;
+}
+.card.compact img.tierbadge.tierplate { z-index: 6; }
+.card.compact img.tierbadge.tierstars { z-index: 7; }
+/* The glow rides the same per-family seat as the stars, then adds its own offset — mirroring how the plate
+   composes, so it can be nudged off the stars without touching them. (0,4,0)/(0,5,0) beat the star rules. */
+.card.compact .tierbadge.tierglow {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-glow-t, translate(0, 0));
+}
+.card.compact.stdframe .tierbadge.tierglow {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-otier-n, translate(0, 0)) var(--cpl-glow-t, translate(0, 0));
+}
+.card.compact.spellcard .tierbadge.tierglow {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-stier-n, translate(0, 0)) var(--cpl-glow-t, translate(0, 0));
+}
+.card.compact.taunt .tierbadge.tierglow {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-ttier-n, translate(0, 0)) var(--cpl-glow-t, translate(0, 0));
+}
+@keyframes tiersevenpulse {
+  0%, 100% { opacity: calc(var(--cpl-glow-a, 1) * var(--cpl-glow-dip, 0.83)); }
+  50%      { opacity: var(--cpl-glow-a, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.compact .tierbadge.tierglow { animation: none; opacity: var(--cpl-glow-a, 1); }
+}
+img.tierbadge.tierplate,
+.card.compact img.tierbadge.tierplate {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+  height: auto;   /* width is set per family below */
+  max-width: none;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+/* Per-family plate seats — one per frame family, each with its own nudge AND width.
+   The plate does NOT re-apply the family's STAR seat: it is anchored independently (`translateX(-50%)` off the
+   shared `.tierbadge` `top`) and offset only by its own knobs. That decoupling is the point — with the star
+   seat folded in, nudging the stars dragged the plate along and you could never align the two against each
+   other (caught while verifying, 2026-07-26).
+
+   Each family rule COMPOSES the ALL row rather than replacing it: `…-all-t` then the family delta, and width is
+   `all × family` (family defaults to 1). Without that the family rules, being more specific, shadowed the ALL
+   row entirely and its knobs did nothing at all — every real card matches one of the three families (owner
+   report 2026-07-26). Base is (0,3,1) to beat `.card.compact .tierbadge`; the variants are (0,4,1). */
+.card.compact img.tierbadge.tierplate {
+  transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765));
+}
+.card.compact.stdframe img.tierbadge.tierplate {
+  transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-ov-t, translate(0, 0));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-ov-w, 1));
+}
+.card.compact.spellcard img.tierbadge.tierplate {
+  transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-sp-t, translate(0, 0));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-sp-w, 1));
+}
+.card.compact.taunt img.tierbadge.tierplate {
+  transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-ta-t, translate(0, 0));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-ta-w, 1));
+}
 img.tierbadge.tierstars,
 .card.compact img.tierbadge.tierstars {
   background: none;

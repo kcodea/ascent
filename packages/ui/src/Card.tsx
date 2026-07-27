@@ -98,7 +98,12 @@ let spellFrameAvailable = true;
 const tierStarsSrc = (tier: number): string =>
   `${import.meta.env.BASE_URL}frames/tier-stars-${tier}.webp`;
 let tierStarsAvailable = true;
-/** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, 853×621. */
+/* TIER PLATE — the steel plaque the stars sit ON. Rendered immediately BEFORE the stars so tree order paints
+   it behind them (both are positioned, so tree order is what decides — see the note on `.tierplate`). Gilded
+   cards get the gold variant. Shows on every card type: minion oval, spell square and Taunt heater alike. */
+const tierPlateSrc = (golden: boolean): string =>
+  `${import.meta.env.BASE_URL}frames/tierplate${golden ? '-gilded' : ''}.webp`;
+/** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
 const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 // Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
@@ -618,6 +623,19 @@ export const Card = memo(function Card({
           Venomous / Reborn / triple-ready cards, and `::after` is the drawer bridge. */}
       <span className="handpad" aria-hidden="true" />
       {card.tier !== undefined && (starsOk && card.tier >= 1 && card.tier <= 7 ? (
+        <>
+        {/* TIER 7 ONLY — a soft pulsing halo marking the top tier. It carries `tierbadge`, so it inherits the
+            very same per-family transform the stars use and tracks them for free. Rendered FIRST and stacked
+            lowest, so it sits BEHIND the plaque (owner 2026-07-26) and reads as light radiating out from
+            behind it rather than washing over its face. Opacity is the only animated property (`.tierglow`). */}
+        {card.tier === 7 && <span className="tierbadge tierglow" aria-hidden="true" />}
+        <img
+          className="tierbadge tierplate"
+          src={tierPlateSrc(!!card.golden)}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
         <img
           className="tierbadge tierstars"
           data-tier={card.tier}
@@ -627,6 +645,7 @@ export const Card = memo(function Card({
           draggable={false}
           onError={() => { tierStarsAvailable = false; setStarsOk(false); }}
         />
+        </>
       ) : (
         <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>
       ))}

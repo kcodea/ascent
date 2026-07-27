@@ -22,26 +22,30 @@ export interface CardPillsConfig {
   /** Cost coin — scale (×). */
   costScale: number;
 
-  /** Tier badge (the coloured "TIER N" tab at the top edge) — design-px offset (× --u). */
+  /* TIER BADGE — the stars and the plaque behind them, each with an ALL row plus a per-family row that
+     COMPOSES on top of it. `tier*` / `plateAll*` move every card; the family rows are deltas (offset added,
+     size multiplied), so a family row of 0/0/1 means "same as all". Without composition the family rules,
+     being more specific, simply shadowed the ALL row and it did nothing (owner report 2026-07-26). */
+  /** Tier stars — ALL cards. Design-px offset (× --u); scale is the base every family multiplies. */
   tierX: number;
   tierY: number;
   /** Tier badge — scale (×). */
   tierScale: number;
 
-  /** SPELL tier badge — its own offset/scale. A spell's frame is a square with a different banner seat than the
+  /** SPELL tier stars — DELTA on top of the ALL row. A spell's frame is a square with a different banner seat than the
    *  minion oval, so the two badges can't share one nudge (owner 2026-07-26). Spells + Rubies use these; every
    *  other card keeps `tier*` above. */
   stierX: number;
   stierY: number;
   stierScale: number;
 
-  /** TAUNT tier badge — its own offset/scale. The heater shield's banner sits higher and narrower than either
+  /** TAUNT tier stars — DELTA on top of the ALL row. The heater shield's banner sits higher and narrower than either
    *  the oval or the spell square, so it needs a third seat (owner 2026-07-26). */
   ttierX: number;
   ttierY: number;
   ttierScale: number;
 
-  /** CIRCLE (oval) frame tier badge — its own seat. Previously the oval fell through to the generic `tier*`
+  /** CIRCLE (oval) tier stars — DELTA on top of the ALL row. Previously the oval fell through to the generic `tier*`
    *  seat; it now has its own so all four families are independently dialable (owner 2026-07-26). */
   otierX: number;
   otierY: number;
@@ -89,25 +93,25 @@ const DEFAULTS: CardPillsConfig = {
   costScale: 0.81,
 
   tierX: 0,
-  tierY: 2,
+  tierY: 0,
   tierScale: 0.74,
 
   stierX: 0,
   stierY: 3.25,
-  stierScale: 0.74,
+  stierScale: 1,
 
   ttierX: 0,
   ttierY: 0,
-  ttierScale: 0.74,
+  ttierScale: 1,
 
   otierX: 0,
   otierY: 2,
-  otierScale: 0.74,
+  otierScale: 1,
 
   plateAllX: 0, plateAllY: 0, plateAllW: 0.66,
-  plateSpX: 0, plateSpY: 0, plateSpW: 0.66,
-  plateTaX: 0, plateTaY: 0, plateTaW: 0.66,
-  plateOvX: 0, plateOvY: 0, plateOvW: 0.66,
+  plateSpX: 0, plateSpY: 0, plateSpW: 1,
+  plateTaX: 0, plateTaY: 0, plateTaW: 1,
+  plateOvX: 0, plateOvY: 0, plateOvW: 1,
 
   spellX: -2,
   spellY: 34,
@@ -134,25 +138,25 @@ export const CARD_PILLS_RANGES: Record<CardPillsNumKey, [number, number, number]
   tierScale: [0.3, 2.5, 0.005],
   stierX: [-120, 120, 0.25],
   stierY: [-120, 120, 0.25],
-  stierScale: [0.3, 2.5, 0.005],
+  stierScale: [0, 3, 0.005],
   ttierX: [-120, 120, 0.25],
   ttierY: [-120, 120, 0.25],
-  ttierScale: [0.3, 2.5, 0.005],
+  ttierScale: [0, 3, 0.005],
   otierX: [-120, 120, 0.25],
   otierY: [-120, 120, 0.25],
-  otierScale: [0.3, 2.5, 0.005],
+  otierScale: [0, 3, 0.005],
   plateAllX: [-120, 120, 0.25],
   plateAllY: [-120, 120, 0.25],
   plateAllW: [0, 1.5, 0.005],
   plateSpX: [-120, 120, 0.25],
   plateSpY: [-120, 120, 0.25],
-  plateSpW: [0, 1.5, 0.005],
+  plateSpW: [0, 3, 0.005],
   plateTaX: [-120, 120, 0.25],
   plateTaY: [-120, 120, 0.25],
-  plateTaW: [0, 1.5, 0.005],
+  plateTaW: [0, 3, 0.005],
   plateOvX: [-120, 120, 0.25],
   plateOvY: [-120, 120, 0.25],
-  plateOvW: [0, 1.5, 0.005],
+  plateOvW: [0, 3, 0.005],
   spellX: [-120, 120, 0.25],
   spellY: [-120, 160, 0.25],
   spellScale: [0.3, 2.5, 0.005],
@@ -250,20 +254,24 @@ export function applyCardPillVars(): void {
   const t = (x: number, y: number, s: number, base = ''): string =>
     `${base}${base ? ' ' : ''}translate(calc(${x} * var(--u)), calc(${y} * var(--u))) scale(${s})`;
   root.setProperty('--cpl-cost-t', t(cfg.costX, cfg.costY, cfg.costScale));
+  // ALL row: carries the centring, so every family rule starts from it.
   root.setProperty('--cpl-tier-t', t(cfg.tierX, cfg.tierY, cfg.tierScale, 'translateX(-50%)'));
-  root.setProperty('--cpl-otier-t', t(cfg.otierX, cfg.otierY, cfg.otierScale, 'translateX(-50%)'));
+  // Family rows are bare DELTAS appended after it — translate adds, scale multiplies.
+  const delta = (x: number, y: number, sc: number): string =>
+    `translate(calc(${x} * var(--u)), calc(${y} * var(--u))) scale(${sc})`;
+  root.setProperty('--cpl-stier-n', delta(cfg.stierX, cfg.stierY, cfg.stierScale));
+  root.setProperty('--cpl-ttier-n', delta(cfg.ttierX, cfg.ttierY, cfg.ttierScale));
+  root.setProperty('--cpl-otier-n', delta(cfg.otierX, cfg.otierY, cfg.otierScale));
   const nudge = (x: number, y: number): string =>
     `translate(calc(${x} * var(--u)), calc(${y} * var(--u)))`;
   root.setProperty('--cpl-plate-all-t', nudge(cfg.plateAllX, cfg.plateAllY));
   root.setProperty('--cpl-plate-all-w', String(cfg.plateAllW));
   root.setProperty('--cpl-plate-sp-t', nudge(cfg.plateSpX, cfg.plateSpY));
-  root.setProperty('--cpl-plate-sp-w', String(cfg.plateSpW));
+  root.setProperty('--cpl-plate-sp-w', String(cfg.plateSpW));   // MULTIPLIER on the all width
   root.setProperty('--cpl-plate-ta-t', nudge(cfg.plateTaX, cfg.plateTaY));
   root.setProperty('--cpl-plate-ta-w', String(cfg.plateTaW));
   root.setProperty('--cpl-plate-ov-t', nudge(cfg.plateOvX, cfg.plateOvY));
   root.setProperty('--cpl-plate-ov-w', String(cfg.plateOvW));
-  root.setProperty('--cpl-ttier-t', t(cfg.ttierX, cfg.ttierY, cfg.ttierScale, 'translateX(-50%)'));
-  root.setProperty('--cpl-stier-t', t(cfg.stierX, cfg.stierY, cfg.stierScale, 'translateX(-50%)'));
   root.setProperty('--cpl-spell-t', t(cfg.spellX, cfg.spellY, cfg.spellScale, 'translateX(-50%)'));
   root.setProperty('--cpl-mult-t', t(cfg.multX, cfg.multY, cfg.multScale));
   // Colours go across as plain custom props; `.castmult` mixes the gradient stops out of `--cpl-mult-bg`.

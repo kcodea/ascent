@@ -2,6 +2,28 @@
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### fix(ui): the ALL rows did nothing — families now COMPOSE them instead of shadowing
+
+Owner report: `plate · all · x/y/size` had no effect. Cause: every real card matches one of the three family
+rules (`.stdframe` / `.spellcard` / `.taunt`), which are MORE SPECIFIC than the base rule the ALL knobs drove —
+so the ALL row only applied to a card that is none of them, i.e. never in practice. `stars · all` was dead the
+same way, from the moment the circle frame got its own seat. My isolation matrix probed the three families and
+never the ALL row, which is exactly why it passed while two knob rows were inert.
+
+Fixed by making ALL a genuine global that families **compose onto** rather than replace: each family rule is
+now `var(--cpl-tier-t) var(--cpl-<fam>-n)` for the stars and `…-all-t …-<fam>-t` with width `all × family` for
+the plate. Transforms multiply, so a family row of `0 / 0 / 1` means "same as all", and the family knobs are
+DELTAS (offset added, size multiplied) — family size ranges now centre on 1.
+
+Defaults were re-pointed so nothing shifted: the common part moved to the ALL row (scale 0.74) and each family
+keeps only its delta (spell y 3.25, circle y 2, taunt 0). Verified the products match the previously-baked
+values exactly.
+
+**Verified live** from a cleared config, probing the ALL rows this time: `plateAllY` and `plateAllW` moved and
+resized the plate on ALL THREE families; `tierY` and `tierScale` moved and resized the stars on all three; and
+the family rows still isolate (`plateOvY` → circle plate only, `stierY` → spell stars only). Default snapshot
+confirms the preserved relationships (spell stars 3.25 lower, every plate 62.4 px).
+
 ### feat(ui): per-family seats for BOTH the stars and the plate (8 seats, 24 knobs)
 
 Owner needs to align the tier badge per frame family, for the stars AND the plaque separately. Two gaps closed:

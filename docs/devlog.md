@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-07-26 (a dark backbox behind the rules text)
+
+### feat(ui): authored backbox behind the text panel, fully tunable
+
+Owner art: a dark shape seated BEHIND the rules-text panel to darken the plate's stone under it so the copy
+reads cleanly. This is the readable middle ground between the old hard slab (removed 2026-07-21) and bare text
+on stone — a shaped, blended wash rather than a rectangle.
+
+`.descbox` is the drawer's FIRST child, so it paints behind every text sibling by **tree order** — deliberately
+not a z-index, because `.drawer` having none is load-bearing (a z-index there would restack the panel above the
+frame, whose oval overflows down past the panel's top edge). Sized by WIDTH (× --ccw) with `height: auto`, so
+the art's 853×621 ratio holds at any card size. `mix-blend-mode` blends it against the plate, and
+`.card.plated`'s `isolation: isolate` contains that to the card so it can never blend with the board behind.
+
+Five knobs on the 🔤 Card Text tuner: `backbox · size / x / y / opacity / blend`, the last a select over the
+four modes the owner asked for (normal / overlay / multiply / soft-light). Defaults: size 1.02, centred,
+opacity 0.55, `multiply`. Size 0 or opacity 0 hides it entirely.
+
+Asset: `frames/desc-backbox.webp`, 853×621, **3.7 KB**.
+
+**Verified live** on a plated hand card: `.descbox` is the drawer's first child (order `descbox, cn, desc`),
+overlaps the description text, ratio 1.374 matches the source exactly, and `pointer-events: none`. Every knob
+drives it — size 1.6 grew it 52×38 → 82×60 (ratio held, stayed centred), x 0.3 moved it right 614→629, y 0.2
+down 703→714, opacity → 1, all four blend modes applied, and size 0 collapsed it to 0×0.
+
+
 ## 2026-07-26 (tier is shown as stars)
 
 ### chore(ui): bake the owner's tuned pill values

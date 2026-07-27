@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  CTX_BLENDS,
   CTX_KEYS,
   CTX_RANGES,
   CTX_DESC,
@@ -22,6 +23,11 @@ const LABELS: Record<keyof CardTextConfig, string> = {
   padTop: 'box · pad top',
   padBottom: 'box · pad bottom',
   line: 'text · line height',
+  boxW: 'backbox · size',
+  boxX: 'backbox · x',
+  boxY: 'backbox · y',
+  boxA: 'backbox · opacity',
+  boxBlend: 'backbox · blend',
 };
 
 export function CardTextTuner() {
@@ -29,7 +35,7 @@ export function CardTextTuner() {
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('cardtext');
 
-  const set = (k: keyof CardTextConfig, v: number): void => {
+  const set = (k: keyof CardTextConfig, v: number | string): void => {
     setCardTextValue(k, v);
     setCfg({ ...getCardTextConfig() });
   };
@@ -53,6 +59,13 @@ export function CardTextTuner() {
           </div>
         );
       })}
+      <div className="sfxmix-row">
+        <span className="sfxmix-name" title={CTX_DESC.boxBlend}>{LABELS.boxBlend}</span>
+        <select value={cfg.boxBlend} onChange={(e) => set('boxBlend', e.target.value)}>
+          {CTX_BLENDS.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
+        <span className="sfxmix-val" />
+      </div>
       <div className="lunge-btns">
         <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
         <button className="sfxmix-copy" onClick={reset}>Reset</button>

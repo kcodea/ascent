@@ -18,7 +18,24 @@ export interface CardTextConfig {
   padBottom: number;
   /** Description LINE HEIGHT (unitless). Tightens/opens the line spacing. */
   line: number;
+
+  /* BACKBOX — an authored dark shape seated BEHIND the text panel to darken the plate under it so the rules
+     text reads cleanly (owner 2026-07-26). Sized by WIDTH (× --ccw); height follows the art's 853×621 ratio. */
+  /** Backbox width (× --ccw). 0 hides it. */
+  boxW: number;
+  /** Backbox horizontal offset from the panel centre (× --ccw; + = right). */
+  boxX: number;
+  /** Backbox vertical offset from the panel top (× --ccw; + = down). */
+  boxY: number;
+  /** Backbox opacity (0–1). */
+  boxA: number;
+  /** Backbox blend mode against the plate beneath it. */
+  boxBlend: BoxBlend;
 }
+
+/** Blend modes offered for the backbox — the four the owner asked for. */
+export const CTX_BLENDS = ['normal', 'overlay', 'multiply', 'soft-light'] as const;
+export type BoxBlend = (typeof CTX_BLENDS)[number];
 
 const DEFAULTS: CardTextConfig = {
   top: 1.09,
@@ -26,14 +43,23 @@ const DEFAULTS: CardTextConfig = {
   padTop: 0.065,
   padBottom: 0.07,
   line: 1.32,
+  boxW: 1.02,
+  boxX: 0,
+  boxY: 0,
+  boxA: 0.55,
+  boxBlend: 'multiply',
 };
 
-export const CTX_RANGES: Record<keyof CardTextConfig, [number, number, number]> = {
+export const CTX_RANGES: Record<CardTextNumKey, [number, number, number]> = {
   top: [0.8, 1.4, 0.005],
   padX: [0, 0.25, 0.005],
   padTop: [0, 0.2, 0.005],
   padBottom: [0, 0.2, 0.005],
   line: [1, 1.8, 0.01],
+  boxW: [0, 2, 0.005],
+  boxX: [-0.6, 0.6, 0.005],
+  boxY: [-0.6, 0.6, 0.005],
+  boxA: [0, 1, 0.01],
 };
 
 export const CTX_DESC: Record<keyof CardTextConfig, string> = {
@@ -42,9 +68,17 @@ export const CTX_DESC: Record<keyof CardTextConfig, string> = {
   padTop: 'Top padding — gap above the first line (× card width).',
   padBottom: 'Bottom padding — gap below the last line (× card width).',
   line: 'Description line height — line spacing.',
+  boxW: 'Backbox WIDTH (× card width). Height follows the art ratio. 0 hides it.',
+  boxX: 'Backbox horizontal offset from centre (× card width; + = right).',
+  boxY: 'Backbox vertical offset (× card width; + = down).',
+  boxA: 'Backbox opacity. 0 = invisible.',
+  boxBlend: 'How the backbox blends with the plate beneath: normal / overlay / multiply / soft-light.',
 };
 
-export const CTX_KEYS = Object.keys(DEFAULTS) as (keyof CardTextConfig)[];
+/** Numeric keys (sliders). `boxBlend` is a select, handled separately in the tuner. */
+export type CardTextNumKey = Exclude<keyof CardTextConfig, 'boxBlend'>;
+export const CTX_KEYS = (Object.keys(DEFAULTS) as (keyof CardTextConfig)[])
+  .filter((k): k is CardTextNumKey => k !== 'boxBlend');
 
 const KEY = 'ascent.cardtext';
 let cfg: CardTextConfig = (() => {
@@ -70,10 +104,15 @@ export function applyCardTextVars(): void {
   root.setProperty('--ctx-pad-top', String(cfg.padTop));
   root.setProperty('--ctx-pad-bottom', String(cfg.padBottom));
   root.setProperty('--ctx-line', String(cfg.line));
+  root.setProperty('--ctx-box-w', String(cfg.boxW));
+  root.setProperty('--ctx-box-x', String(cfg.boxX));
+  root.setProperty('--ctx-box-y', String(cfg.boxY));
+  root.setProperty('--ctx-box-a', String(cfg.boxA));
+  root.setProperty('--ctx-box-blend', cfg.boxBlend);
 }
 
-export function setCardTextValue(key: keyof CardTextConfig, value: number): void {
-  cfg = { ...cfg, [key]: value };
+export function setCardTextValue(key: keyof CardTextConfig, value: number | string): void {
+  cfg = { ...cfg, [key]: value } as CardTextConfig;
   applyCardTextVars();
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
 }

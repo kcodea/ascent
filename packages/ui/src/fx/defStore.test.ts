@@ -287,6 +287,14 @@ describe('coerceDef — label and tags', () => {
     expect('tags' in (def ?? {})).toBe(false);
   });
 
+  // The trim is real, not cosmetic: a surviving value is STORED trimmed, so a label typed with a stray
+  // trailing space can't produce a second, visually identical entry in the browser's search results.
+  it('trims a surviving label and surviving tags', () => {
+    const def = coerceDef({ ...base, label: '  Ember Lance  ', tags: ['  impact  '] });
+    expect(def?.label).toBe('Ember Lance');
+    expect(def?.tags).toEqual(['impact']);
+  });
+
   it('drops a non-string label and trims a blank one to an omission', () => {
     expect('label' in (coerceDef({ ...base, label: 42 }) ?? {})).toBe(false);
     expect('label' in (coerceDef({ ...base, label: '   ' }) ?? {})).toBe(false);

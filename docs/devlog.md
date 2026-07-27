@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+### 2026-07-26 — art fix: Gemheart Carver was wearing the Gemheart Golem's art
+
+Owner catch. Two cards share the "Gemheart" name and I had them crossed:
+
+- `k_gemheart` is **Gemheart Carver**, the Kobold minion.
+- `gemheart-shard` is **Gemheart Golem**, the token that was renamed from Gem Shard.
+
+The art matcher carried an alias `'gemshard' -> 'k_gemheart'`, written when the Gem Shard rename landed. It
+looked right — the rename note said "Gem Shard → Gemheart Golem", and `k_gemheart` is the id that *reads* like
+Gemheart — but the renamed card was the TOKEN, whose id is `gemheart-shard`. So the token's art went onto the
+minion, and the Carver had no un-suffixed master of its own at the time to contradict it.
+
+`GemheartCarver.png` now exists, so the Carver is wired to it, and the alias is corrected to
+`'gemshard' -> 'gemheart-shard'` plus an explicit `'gemheartcarver' -> 'k_gemheart'` so a future rewire can't
+reintroduce the swap.
+
+**Verified:** the two art files now hash differently (they were distinct masters all along — the wrong one was
+simply copied twice), both load at 512×512, and a live board shows the Carver and the Golem with visibly
+different art. Only `k_gemheart.webp` changed.
+
+**The lesson for the next rename:** an id that merely *resembles* the new name is not evidence. `k_gemheart`
+vs `gemheart-shard` needed one grep to settle, and the alias comment asserted the mapping instead of checking
+it.
+
 ### 2026-07-26 — content: the Dwarf Work Orders become Ales, with new art
 
 Owner rename. Work Order: Mine → **Golden Ale**, Health → **Defensive Ale**, Champion → **Champion's Ale**,

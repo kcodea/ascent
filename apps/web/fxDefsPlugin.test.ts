@@ -243,7 +243,9 @@ describe('middleware round trip', () => {
       },
       ws: { send: (msg: unknown) => state.sent.push(msg) },
     };
-    const plugin = fxDefsPlugin({ defsRoot: root });
+    // A distinct tmp path — not the repo's real bindings.json — so a round-trip test through /__fx/bindings
+    // can never clobber the committed binding table.
+    const plugin = fxDefsPlugin({ defsRoot: root, bindingsFile: path.join(root, 'bindings.json') });
     const configure = plugin.configureServer as (s: unknown) => void;
     configure(server);
     return state;
@@ -298,6 +300,28 @@ describe('middleware round trip', () => {
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ ok: false });
     await expect(readFile(path.join(await tmp, '..', 'escape.json'))).rejects.toThrow();
+  });
+
+  it('writes the bindings table to its own tmp file, distinct from defs/art', async () => {
+    const handler = (await routes()).get('/__fx/bindings')!;
+    const body = JSON.stringify({ json: JSON.stringify({ version: 1, kinds: { scCast: { def: 'spell-cast' } }, cards: {} }) });
+    const res = await call(handler, body);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true });
+    const written = await readFile(path.join(await tmp, 'bindings.json'), 'utf8');
+    expect(JSON.parse(written)).toEqual({ version: 1, kinds: { scCast: { def: 'spell-cast' } }, cards: {} });
+  });
+
+  it('rejects a malformed bindings body over the wire too, writing nothing', async () => {
+    const handler = (await routes()).get('/__fx/bindings')!;
+    const res = await call(handler, JSON.stringify({ json: '{"version":2,"kinds":{},"cards":{}}' }));
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ ok: false });
+  });
+
+  it('refuses a non-POST to /__fx/bindings', async () => {
+    const handler = (await routes()).get('/__fx/bindings')!;
+    expect((await call(handler, '', 'GET')).status).toBe(405);
   });
 
   it('refuses a non-POST', async () => {
@@ -453,5 +477,32 @@ describe('planBindingsWrite', () => {
   it('rejects an oversized payload', () => {
     const huge = JSON.stringify({ version: 1, kinds: {}, cards: {}, pad: 'x'.repeat(300_000) });
     expect(planBindingsWrite({ json: huge }, FILE).status).toBe(413);
+  });
+
+  // The reader (`bindings.ts`'s `parseTable`) silently drops these keys via its own `UNSAFE_KEYS` guard, so a
+  // write that accepts one would report success for a binding that can never load. Reject at all three key
+  // positions: the kind key, the card-id key, and the inner per-card kind key.
+  it('rejects __proto__/constructor/prototype at the kinds key', () => {
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      const plan = planBindingsWrite({ json: JSON.stringify({ version: 1, kinds: { [key]: { def: 'spell-cast' } }, cards: {} }) }, FILE);
+      expect(plan.status).toBe(400);
+      expect(plan.error).toContain(key);
+    }
+  });
+
+  it('rejects __proto__/constructor/prototype at the cards card-id key', () => {
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      const plan = planBindingsWrite({ json: ok({}, { [key]: { scCast: { def: 'spell-cast' } } }) }, FILE);
+      expect(plan.status).toBe(400);
+      expect(plan.error).toContain(key);
+    }
+  });
+
+  it('rejects __proto__/constructor/prototype at the inner per-card kind key', () => {
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      const plan = planBindingsWrite({ json: ok({}, { bloodbinder: { [key]: { def: 'spell-cast' } } }) }, FILE);
+      expect(plan.status).toBe(400);
+      expect(plan.error).toContain(key);
+    }
   });
 });

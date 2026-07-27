@@ -117,7 +117,17 @@ export function planWrite(kind: WriteKind, body: unknown, defsRoot: string): Wri
   return { status: 200, file, data: buf };
 }
 
+// Duplicated ON PURPOSE across THREE sites that must stay in lockstep: here, `FAN_OUTS` in
+// `packages/ui/src/choreo/bindings.ts` (the reader), and the `FxBinding['fanOut']` TypeScript union. `ui`
+// is off-limits to import from `apps/web` (package-boundary rule in CLAUDE.md) and `FAN_OUTS` isn't on
+// `bindings.ts`'s public entrypoint anyway, so a shared constant isn't available — this comment is the
+// lockstep mechanism instead of a shared value.
 const BINDING_FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed'];
+
+/** Rejected at every key position, mirroring `bindings.ts`'s own `UNSAFE_KEYS` guard on the read side. A key
+ *  the reader is guaranteed to drop must never earn a 200 here: the file would claim a binding the game can
+ *  never play, and the only signal would be one dev-console line. */
+const UNSAFE_KEYS: readonly string[] = ['__proto__', 'constructor', 'prototype'];
 
 /** One binding entry: `{ def, fanOut? }`. Returns an error string, or null when it is fine. */
 function badBinding(v: unknown, where: string): string | null {
@@ -160,12 +170,19 @@ export function planBindingsWrite(body: unknown, file: string): WritePlan {
   if (!isRecord(parsed.cards)) return bad(400, '`cards` must be an object.');
 
   for (const [kind, v] of Object.entries(parsed.kinds)) {
+    if (UNSAFE_KEYS.includes(kind)) return bad(400, `kinds.${kind} is an unsafe key and can never be loaded.`);
     const err = badBinding(v, `kinds.${kind}`);
     if (err) return bad(400, err);
   }
   for (const [cardId, byKind] of Object.entries(parsed.cards)) {
+    if (UNSAFE_KEYS.includes(cardId)) {
+      return bad(400, `cards.${cardId} is an unsafe key and can never be loaded.`);
+    }
     if (!isRecord(byKind)) return bad(400, `cards.${cardId} is not an object.`);
     for (const [kind, v] of Object.entries(byKind)) {
+      if (UNSAFE_KEYS.includes(kind)) {
+        return bad(400, `cards.${cardId}.${kind} is an unsafe key and can never be loaded.`);
+      }
       const err = badBinding(v, `cards.${cardId}.${kind}`);
       if (err) return bad(400, err);
     }
@@ -224,35 +241,45 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
   // Only used to make the reported path readable ("packages/ui/src/fx/defs/x.json"), never to write.
   const repoRoot = path.resolve(defsRoot, '..', '..', '..', '..', '..');
 
-  const handle = (kind: WriteKind) => async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    if (req.method !== 'POST') {
-      send(res, 405, { ok: false, error: 'POST only.' });
-      return;
-    }
-    let body: unknown;
-    try {
-      body = JSON.parse(await readBody(req));
-    } catch (e) {
-      send(res, 400, { ok: false, error: (e as Error).message || 'Unreadable request body.' });
-      return;
-    }
-    const plan = planWrite(kind, body, defsRoot);
-    if (plan.status !== 200 || !plan.file || plan.data === undefined) {
-      send(res, plan.status, { ok: false, error: plan.error ?? 'Rejected.' });
-      return;
-    }
-    try {
-      await mkdir(path.dirname(plan.file), { recursive: true });
-      await writeFile(plan.file, plan.data);
-    } catch (e) {
-      send(res, 500, { ok: false, error: `Could not write the file: ${(e as Error).message}` });
-      return;
-    }
-    send(res, 200, { ok: true, path: path.relative(repoRoot, plan.file).split(path.sep).join('/') });
-  };
+  /**
+   * The shared shell for every write endpoint: read the body, hand it to whichever pure planner the route
+   * closed over, and act on the resulting `WritePlan`. `planWrite` (client-supplied id/slug → path under
+   * `defsRoot`) and `planBindingsWrite` (fixed path, content-only body) have genuinely different signatures —
+   * that's why they're not one function — but the shell around "plan it, then mkdir+writeFile it" is
+   * identical either way, so it lives here once.
+   */
+  const respondToWrite = (planFn: (body: unknown) => WritePlan) =>
+    async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+      if (req.method !== 'POST') {
+        send(res, 405, { ok: false, error: 'POST only.' });
+        return;
+      }
+      let body: unknown;
+      try {
+        body = JSON.parse(await readBody(req));
+      } catch (e) {
+        send(res, 400, { ok: false, error: (e as Error).message || 'Unreadable request body.' });
+        return;
+      }
+      const plan = planFn(body);
+      if (plan.status !== 200 || !plan.file || plan.data === undefined) {
+        send(res, plan.status, { ok: false, error: plan.error ?? 'Rejected.' });
+        return;
+      }
+      try {
+        await mkdir(path.dirname(plan.file), { recursive: true });
+        await writeFile(plan.file, plan.data);
+      } catch (e) {
+        send(res, 500, { ok: false, error: `Could not write the file: ${(e as Error).message}` });
+        return;
+      }
+      send(res, 200, { ok: true, path: path.relative(repoRoot, plan.file).split(path.sep).join('/') });
+    };
+
+  const handle = (kind: WriteKind) => respondToWrite((body) => planWrite(kind, body, defsRoot));
 
   /**
-   * Commit the FX binding table. Its own handler rather than a third `WriteKind`, because the destination is
+   * Commit the FX binding table. Its own route rather than a third `WriteKind`, because the destination is
    * fixed by the plugin instead of derived from the request — sharing `planWrite`'s signature would imply a
    * client-supplied path that does not exist here.
    *
@@ -260,32 +287,7 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
    * write invalidates through the normal import graph and HMR picks it up. The `import.meta.glob` staleness
    * that forced the defs watcher does not apply.
    */
-  const handleBindings = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    if (req.method !== 'POST') {
-      send(res, 405, { ok: false, error: 'POST only.' });
-      return;
-    }
-    let body: unknown;
-    try {
-      body = JSON.parse(await readBody(req));
-    } catch (e) {
-      send(res, 400, { ok: false, error: (e as Error).message || 'Unreadable request body.' });
-      return;
-    }
-    const plan = planBindingsWrite(body, bindingsFile);
-    if (plan.status !== 200 || !plan.file || plan.data === undefined) {
-      send(res, plan.status, { ok: false, error: plan.error ?? 'Rejected.' });
-      return;
-    }
-    try {
-      await mkdir(path.dirname(plan.file), { recursive: true });
-      await writeFile(plan.file, plan.data);
-    } catch (e) {
-      send(res, 500, { ok: false, error: `Could not write the file: ${(e as Error).message}` });
-      return;
-    }
-    send(res, 200, { ok: true, path: path.relative(repoRoot, plan.file).split(path.sep).join('/') });
-  };
+  const handleBindings = respondToWrite((body) => planBindingsWrite(body, bindingsFile));
 
   return {
     name: 'ascent:fx-defs',

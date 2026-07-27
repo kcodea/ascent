@@ -2,6 +2,29 @@
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### feat(ui): per-family seats for BOTH the stars and the plate (8 seats, 24 knobs)
+
+Owner needs to align the tier badge per frame family, for the stars AND the plaque separately. Two gaps closed:
+
+- **The CIRCLE (oval) frame had no seat of its own** — it fell through to the generic `tier*` one, so it
+  couldn't be dialed apart from the catch-all. Added `otier*` + a `.card.compact.stdframe .tierbadge` rule. Its
+  defaults mirror what the oval already rendered with (y 2, scale 0.74), so nothing shifted.
+- **The plate had ONE set of knobs for every family** — now four (`plateAll/Ov/Sp/Ta` × x/y/width), each rule
+  setting that family's own transform and width.
+
+Result: 4 families × 2 elements × 3 knobs = **24 knobs**, labelled `stars · <family> · x/y/size` and
+`plate · <family> · x/y/size` so the panel stays readable. No card is both `.stdframe` and `.spellcard`/`.taunt`
+(see `useStdFrame`), so the family rules can never fight.
+
+**The plate is deliberately DECOUPLED from the star seat.** The first cut had each plate rule re-apply its
+family's star seat and append the plate nudge; verification showed that nudging the stars dragged the plate with
+them, so the two could never be aligned against each other. The plate now anchors independently
+(`translateX(-50%)` off the shared `.tierbadge` top) and is offset only by its own knobs.
+
+**Verified live** with an oval minion, a Taunt and a spell on screen at once, probing all six representative
+knobs one at a time from a cleared config: every knob moved **exactly one element on exactly one family** and
+left the other five cells untouched — a clean 6×6 isolation matrix.
+
 ### feat(ui): tier plate behind the stars, on every card type
 
 Owner art: a steel hexagonal plaque seated behind the tier stars, with a **gilded variant** for golden cards.

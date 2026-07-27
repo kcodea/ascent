@@ -41,11 +41,23 @@ export interface CardPillsConfig {
   ttierY: number;
   ttierScale: number;
 
-  /** TIER PLATE — the plaque behind the stars. Its own nudge/size on TOP of whichever tier seat applies, so one
-   *  set of knobs serves minions, spells and Taunts alike. Width is × --ccw; height follows the 4.09 art ratio. */
-  tplateX: number;
-  tplateY: number;
-  tplateW: number;
+  /** CIRCLE (oval) frame tier badge — its own seat. Previously the oval fell through to the generic `tier*`
+   *  seat; it now has its own so all four families are independently dialable (owner 2026-07-26). */
+  otierX: number;
+  otierY: number;
+  otierScale: number;
+
+  /* TIER PLATE — the plaque behind the stars, with a seat PER FRAME FAMILY exactly like the stars, so the two
+     can be aligned independently on each (owner 2026-07-26). Each nudge stacks on top of that family's tier
+     seat. Width is × --ccw; height follows the 4.09 art ratio. */
+  /** Plate — generic / catch-all family. */
+  plateAllX: number; plateAllY: number; plateAllW: number;
+  /** Plate — SPELL square. */
+  plateSpX: number; plateSpY: number; plateSpW: number;
+  /** Plate — TAUNT heater. */
+  plateTaX: number; plateTaY: number; plateTaW: number;
+  /** Plate — CIRCLE (oval) frame. */
+  plateOvX: number; plateOvY: number; plateOvW: number;
 
   /** Spell / Ruby type pill (the "✦ SPELL" capsule) — design-px offset (× --u). */
   spellX: number;
@@ -88,9 +100,14 @@ const DEFAULTS: CardPillsConfig = {
   ttierY: 0,
   ttierScale: 0.74,
 
-  tplateX: 0,
-  tplateY: 0,
-  tplateW: 0.66,
+  otierX: 0,
+  otierY: 2,
+  otierScale: 0.74,
+
+  plateAllX: 0, plateAllY: 0, plateAllW: 0.66,
+  plateSpX: 0, plateSpY: 0, plateSpW: 0.66,
+  plateTaX: 0, plateTaY: 0, plateTaW: 0.66,
+  plateOvX: 0, plateOvY: 0, plateOvW: 0.66,
 
   spellX: -2,
   spellY: 34,
@@ -121,9 +138,21 @@ export const CARD_PILLS_RANGES: Record<CardPillsNumKey, [number, number, number]
   ttierX: [-120, 120, 0.25],
   ttierY: [-120, 120, 0.25],
   ttierScale: [0.3, 2.5, 0.005],
-  tplateX: [-120, 120, 0.25],
-  tplateY: [-120, 120, 0.25],
-  tplateW: [0, 1.5, 0.005],
+  otierX: [-120, 120, 0.25],
+  otierY: [-120, 120, 0.25],
+  otierScale: [0.3, 2.5, 0.005],
+  plateAllX: [-120, 120, 0.25],
+  plateAllY: [-120, 120, 0.25],
+  plateAllW: [0, 1.5, 0.005],
+  plateSpX: [-120, 120, 0.25],
+  plateSpY: [-120, 120, 0.25],
+  plateSpW: [0, 1.5, 0.005],
+  plateTaX: [-120, 120, 0.25],
+  plateTaY: [-120, 120, 0.25],
+  plateTaW: [0, 1.5, 0.005],
+  plateOvX: [-120, 120, 0.25],
+  plateOvY: [-120, 120, 0.25],
+  plateOvW: [0, 1.5, 0.005],
   spellX: [-120, 120, 0.25],
   spellY: [-120, 160, 0.25],
   spellScale: [0.3, 2.5, 0.005],
@@ -146,9 +175,22 @@ export const CARD_PILLS_DESC: Record<keyof CardPillsConfig, string> = {
   ttierX: 'TAUNT tier badge — horizontal nudge (design px). +x → right. Taunt minions only.',
   ttierY: 'TAUNT tier badge — vertical nudge (design px). +y → down. Taunt minions only.',
   ttierScale: 'TAUNT tier badge — size multiplier. Taunt minions only.',
-  tplateX: 'Tier PLATE — horizontal nudge (design px) on top of the tier seat. +x → right.',
-  tplateY: 'Tier PLATE — vertical nudge (design px). +y → down.',
-  tplateW: 'Tier PLATE — WIDTH (× card width). Height follows the art ratio. 0 hides it.',
+  otierX: 'CIRCLE-frame tier badge — horizontal nudge (design px). Oval-framed minions only.',
+  otierY: 'CIRCLE-frame tier badge — vertical nudge (design px). Oval-framed minions only.',
+  otierScale: 'CIRCLE-frame tier badge — size multiplier. Oval-framed minions only.',
+  plateAllX: 'Tier plate (generic / catch-all) — horizontal nudge (design px) on top of the tier seat.',
+  plateAllY: 'Tier plate (generic / catch-all) — vertical nudge (design px).',
+  plateAllW: 'Tier plate (generic / catch-all) — WIDTH (× card width). Height follows the art ratio. 0 hides it.',
+  plateSpX: 'Tier plate (SPELL square) — horizontal nudge (design px) on top of the tier seat.',
+  plateSpY: 'Tier plate (SPELL square) — vertical nudge (design px).',
+  plateSpW: 'Tier plate (SPELL square) — WIDTH (× card width). Height follows the art ratio. 0 hides it.',
+  plateTaX: 'Tier plate (TAUNT heater) — horizontal nudge (design px) on top of the tier seat.',
+  plateTaY: 'Tier plate (TAUNT heater) — vertical nudge (design px).',
+  plateTaW: 'Tier plate (TAUNT heater) — WIDTH (× card width). Height follows the art ratio. 0 hides it.',
+  plateOvX: 'Tier plate (CIRCLE (oval) frame) — horizontal nudge (design px) on top of the tier seat.',
+  plateOvY: 'Tier plate (CIRCLE (oval) frame) — vertical nudge (design px).',
+  plateOvW: 'Tier plate (CIRCLE (oval) frame) — WIDTH (× card width). Height follows the art ratio. 0 hides it.',
+
   spellX: 'Spell / Ruby pill — horizontal nudge (design px). +x → right.',
   spellY: 'Spell / Ruby pill — vertical nudge (design px). +y → down.',
   spellScale: 'Spell / Ruby pill — size multiplier.',
@@ -165,7 +207,11 @@ export const CARD_PILLS_KEYS = [
   'tierX', 'tierY', 'tierScale',
   'stierX', 'stierY', 'stierScale',
   'ttierX', 'ttierY', 'ttierScale',
-  'tplateX', 'tplateY', 'tplateW',
+  'otierX', 'otierY', 'otierScale',
+  'plateAllX', 'plateAllY', 'plateAllW',
+  'plateOvX', 'plateOvY', 'plateOvW',
+  'plateSpX', 'plateSpY', 'plateSpW',
+  'plateTaX', 'plateTaY', 'plateTaW',
   'spellX', 'spellY', 'spellScale',
   'multX', 'multY', 'multScale',
 ] as const;
@@ -205,9 +251,17 @@ export function applyCardPillVars(): void {
     `${base}${base ? ' ' : ''}translate(calc(${x} * var(--u)), calc(${y} * var(--u))) scale(${s})`;
   root.setProperty('--cpl-cost-t', t(cfg.costX, cfg.costY, cfg.costScale));
   root.setProperty('--cpl-tier-t', t(cfg.tierX, cfg.tierY, cfg.tierScale, 'translateX(-50%)'));
-  root.setProperty('--cpl-tplate-t',
-    `translate(calc(${cfg.tplateX} * var(--u)), calc(${cfg.tplateY} * var(--u)))`);
-  root.setProperty('--cpl-tplate-w', String(cfg.tplateW));
+  root.setProperty('--cpl-otier-t', t(cfg.otierX, cfg.otierY, cfg.otierScale, 'translateX(-50%)'));
+  const nudge = (x: number, y: number): string =>
+    `translate(calc(${x} * var(--u)), calc(${y} * var(--u)))`;
+  root.setProperty('--cpl-plate-all-t', nudge(cfg.plateAllX, cfg.plateAllY));
+  root.setProperty('--cpl-plate-all-w', String(cfg.plateAllW));
+  root.setProperty('--cpl-plate-sp-t', nudge(cfg.plateSpX, cfg.plateSpY));
+  root.setProperty('--cpl-plate-sp-w', String(cfg.plateSpW));
+  root.setProperty('--cpl-plate-ta-t', nudge(cfg.plateTaX, cfg.plateTaY));
+  root.setProperty('--cpl-plate-ta-w', String(cfg.plateTaW));
+  root.setProperty('--cpl-plate-ov-t', nudge(cfg.plateOvX, cfg.plateOvY));
+  root.setProperty('--cpl-plate-ov-w', String(cfg.plateOvW));
   root.setProperty('--cpl-ttier-t', t(cfg.ttierX, cfg.ttierY, cfg.ttierScale, 'translateX(-50%)'));
   root.setProperty('--cpl-stier-t', t(cfg.stierX, cfg.stierY, cfg.stierScale, 'translateX(-50%)'));
   root.setProperty('--cpl-spell-t', t(cfg.spellX, cfg.spellY, cfg.spellScale, 'translateX(-50%)'));

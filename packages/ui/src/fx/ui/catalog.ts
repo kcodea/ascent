@@ -5,6 +5,7 @@ import { CARD_FX } from '../../choreo/cardFx';
 import { getScore } from '../../choreo/score';
 import type { MomentKind } from '../../choreo/kinds';
 import { listDefs } from '../fxDefs';
+import type { FxCardRow } from './catalogView';
 
 /** The colour buckets a def can be filed under. `neutral` is not a failure — it is the honest answer for a
  *  white, black or grey stop, which is what stops 1 and 4 of nearly every palette are. */
@@ -185,4 +186,22 @@ export function buildCatalog(): FxCatalogEntry[] {
   return listDefs()
     .map((def) => ({ def, facets: deriveFacets(def), bindings: bindings.get(def.id) ?? { ...NO_BINDINGS } }))
     .sort((a, b) => a.def.id.localeCompare(b.def.id));
+}
+
+/**
+ * One row per card in the game, with its explicit per-card effect or null.
+ *
+ * DELIBERATELY not limited to cards that have an override. This lens answers "which cards have bespoke
+ * effects, and which tribes are bare" — and the bare half of that is invisible if unbound cards are dropped.
+ *
+ * `defId` is only ever an EXPLICIT override. It does not attempt to work out which moment kinds a card can
+ * produce: that is a static analysis of effect data which cannot be exact, because many moments only exist
+ * at runtime. A null here means "uses whatever its moments give it", not "shows nothing".
+ */
+export function buildCardRows(): FxCardRow[] {
+  return Object.values(CARD_INDEX).map((card) => {
+    const byKind = CARD_FX[card.id];
+    const first = byKind ? Object.values(byKind).find((b) => b !== undefined) : undefined;
+    return { cardId: card.id, name: card.name, tribe: card.tribe, defId: first?.def ?? null };
+  });
 }

@@ -175,3 +175,29 @@ describe('buildCatalog', () => {
     expect(ids).toEqual([...ids].sort());
   });
 });
+
+import { buildCardRows } from './catalog';
+import { CARD_INDEX } from '@game/content';
+
+describe('buildCardRows', () => {
+  const rows = buildCardRows();
+
+  // EVERY card, not just the bound ones: seeing which tribes are bare is the point of the card lens, and
+  // that is invisible if unbound cards are hidden.
+  it('returns one row per card in CARD_INDEX', () => {
+    expect(rows.length).toBe(Object.keys(CARD_INDEX).length);
+  });
+
+  it('names the explicit override for a card that has one', () => {
+    expect(rows.find((r) => r.cardId === 'bloodbinder')?.defId).toBe('ruby-lance');
+  });
+
+  it('reports null for a card with no bespoke effect', () => {
+    const plain = rows.find((r) => r.cardId !== 'bloodbinder' && r.defId === null);
+    expect(plain).toBeDefined();
+  });
+
+  it('carries the tribe through for grouping', () => {
+    expect(rows.find((r) => r.cardId === 'bloodbinder')?.tribe).toBe('demon');
+  });
+});

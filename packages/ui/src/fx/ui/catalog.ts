@@ -4,6 +4,7 @@ import { primitiveLabel } from './copy';
 import { CARD_FX } from '../../choreo/cardFx';
 import { getScore } from '../../choreo/score';
 import type { MomentKind } from '../../choreo/kinds';
+import { listDefs } from '../fxDefs';
 
 /** The colour buckets a def can be filed under. `neutral` is not a failure — it is the honest answer for a
  *  white, black or grey stop, which is what stops 1 and 4 of nearly every palette are. */
@@ -160,4 +161,28 @@ export function kindCoverage(): FxKindCoverage[] {
     kind,
     def: cues.find((c) => c.ch === 'fxDef' && c.def)?.def ?? null,
   }));
+}
+
+export interface FxCatalogEntry {
+  def: StoredFxDef;
+  facets: FxFacets;
+  bindings: FxBindings;
+}
+
+const NO_BINDINGS: FxBindings = { kinds: [], cards: [] };
+
+/**
+ * The whole library, as one array. Every view in the browser reads THIS and nothing else — which is the
+ * point: "which def fires on Bloodbinder" is computed once here rather than separately per lens, so the
+ * lenses cannot disagree with each other.
+ *
+ * Not memoised. `listDefs()` is already cached in `fxDefs.ts`, the derivations are a few dozen arithmetic
+ * ops over ~20 defs, and the browser rebuilds only when it opens — caching here would mean owning an
+ * invalidation story for a save, and that is exactly the bug class the def registry already had.
+ */
+export function buildCatalog(): FxCatalogEntry[] {
+  const bindings = bindingsByDef();
+  return listDefs()
+    .map((def) => ({ def, facets: deriveFacets(def), bindings: bindings.get(def.id) ?? { ...NO_BINDINGS } }))
+    .sort((a, b) => a.def.id.localeCompare(b.def.id));
 }

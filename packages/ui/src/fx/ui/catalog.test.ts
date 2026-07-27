@@ -144,3 +144,34 @@ describe('binding integrity', () => {
     expect(missing, `bindings naming defs that do not exist: ${missing.join(', ')}`).toEqual([]);
   });
 });
+
+import { buildCatalog } from './catalog';
+
+describe('buildCatalog', () => {
+  it('returns one entry per registered def, exactly once', async () => {
+    await import('../primitives');
+    const { listDefs } = await import('../fxDefs');
+    const catalog = buildCatalog();
+    expect(catalog.length).toBe(listDefs().length);
+    expect(new Set(catalog.map((e) => e.def.id)).size).toBe(catalog.length);
+  });
+
+  it('carries the derived facets and the bindings on each entry', async () => {
+    await import('../primitives');
+    const entry = buildCatalog().find((e) => e.def.id === 'ward-gained');
+    expect(entry?.facets.shape).toBeTruthy();
+    expect(entry?.bindings.kinds).toContain('shieldGain');
+  });
+
+  it('gives an unbound def empty bindings rather than undefined', async () => {
+    await import('../primitives');
+    const entry = buildCatalog().find((e) => e.def.id === 'blue-glow-trail');
+    expect(entry?.bindings).toEqual({ kinds: [], cards: [] });
+  });
+
+  it('sorts by id so the list is stable between renders', async () => {
+    await import('../primitives');
+    const ids = buildCatalog().map((e) => e.def.id);
+    expect(ids).toEqual([...ids].sort());
+  });
+});

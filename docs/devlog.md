@@ -3,6 +3,35 @@
 
 ## 2026-07-27 (the errant reorder pulse)
 
+### feat(ui): the hand glides when its card count changes in the shop
+
+**Owner ask:** extend the "make room" slide from the in-combat coalesce to the shop — buying or playing a card
+changes the hand count, and the other cards blinked to their new slots.
+
+Same motion, same duration source (`getFlipConfig().commitMs`), reusing the hand's existing GSAP Flip glide
+rather than a second mechanism: the hand's fan rotation and translateY tuck live *in* its transform, and a
+manual x-tween wipes both — which is why the reorder path already uses Flip. The reorder branch is untouched;
+this is a fallback for a composition change that no drag-reorder claimed.
+
+**The capture timing is the whole trick.** `handCompFlipRef` is re-captured on **every commit** (a second layout
+effect declared *after* the glide, so within one commit the glide reads the previous frame's capture and the
+recapture then overwrites it). Capturing only on hand changes would have been cheaper but wrong mid-drag: the
+hand is already sliding to make room via `handSlidePx`, so animating from a state taken before the drag began
+rewinds those cards to their resting spots and re-glides them — a visible snap back. One frame back is the true
+previous position in every case, drag or not.
+
+Entering cards aren't in the captured state, so Flip leaves them alone and `playBuySlide` still owns the bought
+card's motion. Skipped entirely in combat, where the hand is frozen and the grant previews have their own
+capture (`handGrowFlipRef`).
+
+**Perf:** this is a per-commit `Flip.getState` over at most `CONFIG.handMax` cards — the same class of work the
+warband/tavern row already does every commit, and it no-ops in combat. Wrapped in
+`perfMonitor.measure('layout:handflip')` so it shows up by name if it ever matters rather than hiding inside a
+generic frame cost.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green. Feel
+still wants an eyeball — automated checks can't see a rewind.
+
 ### fix(ui): a Shout minion stops re-pulsing when you shuffle cards past it
 
 **Owner report:** Shout minions occasionally fire their medallion pulse again while you reorder cards around

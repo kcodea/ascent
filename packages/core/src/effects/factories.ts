@@ -71,6 +71,33 @@ function rubyMultiplierFor(ctx: CombatContext, side: Side): number {
   return mult;
 }
 
+/** The nearest LIVING minion on each side of `self`.
+ *
+ *  A dead minion is only flagged `dead` — it stays in `ctx.boards[side]` — so indexing `arr[i ± 1]` and then
+ *  discarding corpses meant a body that died earlier in the fight BLOCKED adjacency, and the live minion just
+ *  past it was never reached. That's what made Ryme fire only one of two flanking Battlecries once the fight
+ *  was under way, while Soren destroying it at Start of Combat (no corpses yet) fired both — owner report
+ *  2026-07-26.
+ *
+ *  Corpses are invisible to the player, so "adjacent" has to mean adjacent among the living. `ctx.living()`
+ *  already gives that ordering, which is how Karwind's neighbours were written; this makes the older
+ *  index-the-raw-board sites agree with it instead of quietly meaning something else.
+ */
+function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
+  const alive = ctx.living(self.side);
+  const raw = ctx.boards[self.side];
+  const i = raw.indexOf(self);
+  if (i < 0) return [];
+  // `self` may itself be dead (a Deathrattle), so it won't appear in `alive` — find where it SAT by walking
+  // outward from its raw index and taking the first living body on each side.
+  const before: Minion[] = [];
+  const after: Minion[] = [];
+  for (let k = i - 1; k >= 0; k--) if (!raw[k]!.dead && raw[k]!.health > 0) { before.push(raw[k]!); break; }
+  for (let k = i + 1; k < raw.length; k++) if (!raw[k]!.dead && raw[k]!.health > 0) { after.push(raw[k]!); break; }
+  void alive;
+  return [...before, ...after];
+}
+
 function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number): void {
   ctx.buff(target, a, h, self.uid);
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
@@ -1092,12 +1119,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = rubyAttack ?? 0;
     const h = rubyHealth ?? 0;
     if (a <= 0 && h <= 0) return;
-    const arr = ctx.boards[self.side];
-    const i = arr.indexOf(self);
-    if (i < 0) return;
     const reps = self.golden ? num(params.goldenReps, 2) : 1;
-    for (const adj of [arr[i - 1], arr[i + 1]]) {
-      if (!adj || adj.dead || adj.health <= 0) continue;
+    for (const adj of livingNeighbours(ctx, self)) {
       for (let r = 0; r < reps; r++) applyRubyStats(ctx, self, adj, a, h);
     }
   },
@@ -1105,12 +1128,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */
   deathrattlePlayRubiesAdjacent: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const arr = ctx.boards[self.side];
-    const i = arr.indexOf(self);
     const per = num(params.rubies, 1) * mul(self);
-    for (const adj of [arr[i - 1], arr[i + 1]]) {
-      if (adj && !adj.dead && adj.health > 0) playRubyOn(ctx, self, adj, per);
-    }
+    for (const adj of livingNeighbours(ctx, self)) playRubyOn(ctx, self, adj, per);
   },
 
   /** Set 2 — Frenzied Excavator: Start of Combat, play `rubies` Rubies on your [tribe] minions for every
@@ -1983,11 +2002,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  Deathrattle (they re-invoke by factory id), so their multiplication composes for free. */
   deathrattleReplayAdjacentBattlecry: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const arr = ctx.boards[self.side];
-    const i = arr.indexOf(self);
-    const neighbors = [arr[i - 1], arr[i + 1]].filter(
-      (m): m is Minion => !!m && !m.dead && m.health > 0 && hasBattlecry(m),
-    );
+    const neighbors = livingNeighbours(ctx, self).filter(hasBattlecry);
     if (neighbors.length === 0) return;
     // Base Ryme now triggers BOTH neighbours (it used to pick one at random); golden triggers each TWICE.
     // Note this no longer consumes an RNG roll on the base card — a seeded-replay-visible change, so the

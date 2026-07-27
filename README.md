@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Spell power now shows on every spell that gets it** — Hoardflame wasn't even applying it, and Lantern
+  Light hid it too.
+- **Ryme reaches past corpses** — a minion that died earlier no longer blocks an adjacent Battlecry.
+- **Five Dragon renames** — Ashscribe, Drachronicler, Mirrorwing, Spell Warden, Enchanter.
 - **Tier is shown as stars.** A card's tier now reads as N steel stars instead of a coloured "TIER N" pill.
 - **Every tribe has its own card frame.** Both the oval and the Taunt shield are now themed per tribe — beast,
   dragon, mech, undead, demon, neutral and kobold each have their own colours, plus a dedicated gilded version

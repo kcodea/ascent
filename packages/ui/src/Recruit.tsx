@@ -321,7 +321,7 @@ function tokenRefView(
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: c.attack, health: c.health, keywords: c.keywords,
-      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0),
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier }),
       tier: c.tier, spell: c.spell, target: c.target,
       baseAttack: c.attack, baseHealth: c.health,
     };
@@ -1875,7 +1875,7 @@ export function Recruit() {
         ...(def ? referencedCardIds(def) : []),
         ...(mentionsRuby ? ['ruby'] : []),
       ])].filter((id) => CARD_INDEX[id]);
-      const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue };
+      const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through

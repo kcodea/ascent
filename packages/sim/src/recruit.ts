@@ -2926,7 +2926,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const d = CARD_INDEX[id];
       return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
     }).length;
-    addBuff(self, str(params._source) || 'Hoardflame', num(params.attack, 4) + per * dragons, num(params.health, 4) + per * dragons);
+    // Spell power applies ONCE to the grant, exactly like every other stat-granting spell (`spellBuffTarget`).
+    // It was missing entirely (owner report 2026-07-26): a Spellbinder's +0/+1 did nothing here, and the
+    // printed text matched the broken behaviour. Deliberately not multiplied by the Dragon count — no other
+    // spell scales spell power by anything, and doing so here would make Hoardflame silently the best
+    // spell-power payoff in the game.
+    const a = num(params.attack, 4) + spellAttackBonus(ctx.state) + per * dragons;
+    const h = num(params.health, 4) + spellHealthBonus(ctx.state) + per * dragons;
+    addBuff(self, str(params._source) || 'Hoardflame', a, h);
   },
 
   /** Sigil of Kinship — cast on a friendly minion: refresh the tavern's minion offers with random minions of
@@ -3785,7 +3792,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[] }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[]; tier?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
@@ -3800,13 +3807,27 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
     return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
   }
-  // Hoardflame: +4/+4 base + 1/+1 per Dragon PLAYED this turn — green the base to its live total once any played.
+  // Lantern Light — the grant is +Tier/+Tier PLUS spell power, but the printed "+1/+1 for each Tavern Tier"
+  // showed neither. Same defect as Hoardflame, found by the spell-power audit (owner asked whether other
+  // spells shared it — this was the only other one). Shows the live TOTAL, since the whole grant is derived.
+  if (def.id === 'lanternlight' && extra?.tier) {
+    const a = extra.tier + bonusA;
+    const h = extra.tier + bonusH;
+    // Replace the WHOLE rate clause, not just the number: injecting the total while leaving "for each Tavern
+    // Tier" standing would read "+5/+4 for each Tavern Tier", which promises far more than it gives.
+    return def.text.replace('**+1/+1** for each **Tavern Tier**', `{{+${a}/+${h}}}`);
+  }
+  // Hoardflame: +4/+4 base + spell power + 1/+1 per Dragon PLAYED this turn. This branch used to return before
+  // the generic spell-power handling below, so a Spellbinder's bonus never showed (owner report 2026-07-26) —
+  // it printed the base rate while the cast granted something else.
   if (def.id === 'hoardflame') {
     const dragons = (extra?.playedThisTurn ?? []).filter((id) => {
       const d = CARD_INDEX[id];
       return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
     }).length;
-    return dragons > 0 ? def.text.replace('+4/+4', `{{+${4 + dragons}/+${4 + dragons}}}`) : def.text;
+    const a = 4 + bonusA + dragons;
+    const h = 4 + bonusH + dragons;
+    return a > 4 || h > 4 ? def.text.replace('+4/+4', `{{+${a}/+${h}}}`) : def.text;
   }
   // Rune of Pillaging: Gold Pouch reads its LIVE payout once the rune raises it ("Gain {{2 Gold}}.") —
   // the same value the cast actually grants (see the gainEmbers override above). Handled before the

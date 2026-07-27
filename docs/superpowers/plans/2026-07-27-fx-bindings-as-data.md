@@ -53,15 +53,24 @@ unions that this work merges:
 npx vitest run packages/ui/src/choreo/bindings.test.ts
 ```
 
-**The full gate (must be green before the final commit):**
+**The full gate (must be green before the final commit) — exactly what CI runs:**
 ```bash
-npm run typecheck && npm run typecheck:web && npm run lint && npm test && npm run build:web
+npm run typecheck && npm run lint && npm test && npm run build:web
 ```
 
-**`typecheck:web` is not optional here.** The root `tsconfig.json` explicitly *excludes* `packages/ui`
-(`"exclude": ["packages/ui"]`), so `npm run typecheck` alone does **not** typecheck a single file this plan
-touches except `apps/web/fxDefsPlugin.ts`. `npm run typecheck:web` runs `apps/web/tsconfig.json`, whose
-`include` covers `packages/ui/src`. Run both.
+**There is no working typecheck for `packages/ui`, and you must not try to create one.** The root
+`tsconfig.json` excludes `packages/ui`, so `npm run typecheck` covers core/content/sim/tools only — none of
+the files in Tasks 1–5. The script that *would* cover them, `npm run typecheck:web`, is **red on a clean
+`main`** (66 errors: missing `BoardMinion`/`Tribe` exports, `noImplicitOverride` violations, implicit `any`s)
+and is **not in CI**. `npm run build:web` is plain `vite build` — esbuild, no type checking.
+
+So for UI files the real safety net is the Vitest suite plus the build. Run `typecheck:web` for
+**information only**, and check that **none of the reported errors name a file you touched**:
+
+```bash
+npm run typecheck:web 2>&1 | grep -E "choreo/(bindings|score|cardFx)|fx/ui/catalog"
+```
+Expected: no output. Never report `typecheck:web` as "clean" — it isn't, and it wasn't before this branch.
 
 `resolveJsonModule: true` is already set in `tsconfig.base.json`, which both configs extend — importing
 `bindings.json` needs no config change.

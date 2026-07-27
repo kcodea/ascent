@@ -38,6 +38,20 @@ export interface FxBinding {
 
 const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed'];
 
+/** Keys that must never be used as a table key: assigning to `__proto__` on a plain object invokes the
+ *  inherited setter and rewrites the table's prototype, so a malformed entry would silently corrupt the table
+ *  instead of being dropped like every other one. `constructor`/`prototype` are refused alongside it because
+ *  the same class of confusion is not worth reasoning about per-call-site. */
+const UNSAFE_KEYS: readonly string[] = ['__proto__', 'constructor', 'prototype'];
+
+/** DEV-only: bindings.json is a static import, so unlike fxDefs.ts's DEV-gated glob, this module ships in the
+ *  production bundle. A malformed entry that slipped past CI would otherwise log to every player's console on
+ *  load — and there is nothing a production consumer could do about it anyway, since `canPlayDefs()` is false
+ *  in production and authored defs never play there. Matches the gating pattern in `fxDefs.ts`. */
+function devError(msg: string): void {
+  if (import.meta.env.DEV) console.error(msg);
+}
+
 /** kind → binding, and card → kind → binding. Both sparse. */
 export interface BindingTable {
   kinds: Partial<Record<MomentKind, FxBinding>>;
@@ -51,15 +65,15 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 /** One binding, or null with a console.error naming `where`. Never throws: this is fed untrusted JSON. */
 function coerceBinding(v: unknown, where: string): FxBinding | null {
   if (!isRecord(v)) {
-    console.error(`[fx] bindings.json: ${where} is not an object — dropped.`);
+    devError(`[fx] bindings.json: ${where} is not an object — dropped.`);
     return null;
   }
   if (typeof v.def !== 'string' || v.def === '') {
-    console.error(`[fx] bindings.json: ${where}.def must be a non-empty string — dropped.`);
+    devError(`[fx] bindings.json: ${where}.def must be a non-empty string — dropped.`);
     return null;
   }
   if (v.fanOut !== undefined && (typeof v.fanOut !== 'string' || !FAN_OUTS.includes(v.fanOut))) {
-    console.error(`[fx] bindings.json: ${where}.fanOut must be one of ${FAN_OUTS.join(', ')} — dropped.`);
+    devError(`[fx] bindings.json: ${where}.fanOut must be one of ${FAN_OUTS.join(', ')} — dropped.`);
     return null;
   }
   return v.fanOut === undefined ? { def: v.def } : { def: v.def, fanOut: v.fanOut as FxBinding['fanOut'] };
@@ -76,44 +90,64 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
 export function parseTable(raw: unknown): BindingTable {
   const out: BindingTable = { kinds: {}, cards: {} };
   if (!isRecord(raw)) {
-    console.error('[fx] bindings.json is not an object — no authored FX will be bound.');
+    devError('[fx] bindings.json is not an object — no authored FX will be bound.');
     return out;
   }
   if (isRecord(raw.kinds)) {
     for (const [kind, v] of Object.entries(raw.kinds)) {
+      if (UNSAFE_KEYS.includes(kind)) {
+        devError(`[fx] bindings.json: kinds.${kind} is an unsafe key — dropped.`);
+        continue;
+      }
       const b = coerceBinding(v, `kinds.${kind}`);
       if (b) out.kinds[kind as MomentKind] = b;
     }
   } else {
-    console.error('[fx] bindings.json: `kinds` is missing or not an object.');
+    devError('[fx] bindings.json: `kinds` is missing or not an object.');
   }
   if (isRecord(raw.cards)) {
     for (const [cardId, byKind] of Object.entries(raw.cards)) {
+      if (UNSAFE_KEYS.includes(cardId)) {
+        devError(`[fx] bindings.json: cards.${cardId} is an unsafe key — dropped.`);
+        continue;
+      }
       if (!isRecord(byKind)) {
-        console.error(`[fx] bindings.json: cards.${cardId} is not an object — dropped.`);
+        devError(`[fx] bindings.json: cards.${cardId} is not an object — dropped.`);
         continue;
       }
       const table: Partial<Record<MomentKind, FxBinding>> = {};
       for (const [kind, v] of Object.entries(byKind)) {
+        if (UNSAFE_KEYS.includes(kind)) {
+          devError(`[fx] bindings.json: cards.${cardId}.${kind} is an unsafe key — dropped.`);
+          continue;
+        }
         const b = coerceBinding(v, `cards.${cardId}.${kind}`);
         if (b) table[kind as MomentKind] = b;
       }
       if (Object.keys(table).length > 0) out.cards[cardId] = table;
     }
   } else {
-    console.error('[fx] bindings.json: `cards` is missing or not an object.');
+    devError('[fx] bindings.json: `cards` is missing or not an object.');
   }
   return out;
 }
 
 /** The committed baseline, validated once at module load. */
-const FILE: BindingTable = parseTable(rawBindings);
+const COMMITTED: BindingTable = parseTable(rawBindings);
 
-/** A deep-ish copy so a caller cannot mutate the module's own tables (the browser iterates these freely). */
+/** A copy deep enough that NOTHING returned from `effectiveTables()` shares a mutable object with the
+ *  module's own tables — every leaf `FxBinding` is spread too, not just the outer kind/card maps, so a caller
+ *  that edits a returned binding's `def` in place (an editor UI does exactly this) cannot corrupt `COMMITTED`. */
 function cloneTable(t: BindingTable): BindingTable {
+  const kinds: BindingTable['kinds'] = {};
+  for (const [kind, b] of Object.entries(t.kinds)) kinds[kind as MomentKind] = { ...b };
   const cards: BindingTable['cards'] = {};
-  for (const [id, byKind] of Object.entries(t.cards)) cards[id] = { ...byKind };
-  return { kinds: { ...t.kinds }, cards };
+  for (const [id, byKind] of Object.entries(t.cards)) {
+    const table: Partial<Record<MomentKind, FxBinding>> = {};
+    for (const [kind, b] of Object.entries(byKind)) if (b) table[kind as MomentKind] = { ...b };
+    cards[id] = table;
+  }
+  return { kinds, cards };
 }
 
 /**
@@ -125,13 +159,13 @@ function cloneTable(t: BindingTable): BindingTable {
  */
 export function bindingFor(cardId: string | null, kind: MomentKind): FxBinding | null {
   if (cardId !== null) {
-    const card = FILE.cards[cardId]?.[kind];
+    const card = COMMITTED.cards[cardId]?.[kind];
     if (card !== undefined) return card;
   }
-  return FILE.kinds[kind] ?? null;
+  return COMMITTED.kinds[kind] ?? null;
 }
 
 /** The whole effective table — what the FX library browser enumerates. Always a fresh copy. */
 export function effectiveTables(): BindingTable {
-  return cloneTable(FILE);
+  return cloneTable(COMMITTED);
 }

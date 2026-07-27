@@ -46,6 +46,22 @@ describe('parseTable', () => {
     expect(err).toHaveBeenCalled();
     err.mockRestore();
   });
+
+  // Object.entries over JSON.parse output surfaces "__proto__" as a normal own key; assigning to it on a
+  // plain object literal invokes the inherited Object.prototype.__proto__ setter instead of creating an own
+  // property, which would silently rewrite the table's prototype rather than dropping the bad entry.
+  it('drops a __proto__-keyed entry instead of polluting the table prototype', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const raw = JSON.parse('{"version":1,"kinds":{"__proto__":{"def":"evil"},"rally":{"def":"rally-link"}},"cards":{"__proto__":{"scCast":{"def":"evil"}}}}');
+    const t = parseTable(raw);
+    expect(t.kinds.rally).toEqual({ def: 'rally-link' });
+    expect((t.kinds as Record<string, unknown>).__proto__).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(t.kinds)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(t.cards)).toBe(Object.prototype);
+    expect(Object.keys(t.cards)).not.toContain('__proto__');
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
+  });
 });
 
 describe('bindingFor', () => {
@@ -78,6 +94,15 @@ describe('effectiveTables', () => {
   it('hands out a copy — mutating the result cannot corrupt the module', () => {
     const t = effectiveTables();
     delete t.kinds.scCast;
+    expect(effectiveTables().kinds.scCast).toEqual({ def: 'spell-cast' });
+  });
+
+  // The top-level delete above only proves the outer maps are copied. A leaf FxBinding is a plain object too
+  // (an editor UI would reasonably write `binding.def = 'x'` in place after fetching one) — this proves the
+  // leaves are copies as well, not shared references into the module's own table.
+  it('hands out copies of the leaf bindings too — editing a field cannot corrupt the module', () => {
+    const t = effectiveTables();
+    t.kinds.scCast!.def = 'clobbered';
     expect(effectiveTables().kinds.scCast).toEqual({ def: 'spell-cast' });
   });
 });

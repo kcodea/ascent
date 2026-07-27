@@ -1,3 +1,6 @@
+import type { StoredFxDef } from '../defStore';
+import { primitiveLabel } from './copy';
+
 /** The colour buckets a def can be filed under. `neutral` is not a failure — it is the honest answer for a
  *  white, black or grey stop, which is what stops 1 and 4 of nearly every palette are. */
 export const FX_HUES = ['red', 'orange', 'gold', 'green', 'cyan', 'blue', 'violet', 'magenta', 'neutral'] as const;
@@ -51,4 +54,48 @@ export function hueBucketOf(rgb: number): FxHue {
 
   for (const [hue, lo, hi] of HUE_RANGES) if (h >= lo && h < hi) return hue;
   return 'neutral';
+}
+
+export type FxMotion = 'travels' | 'in place';
+
+export interface FxFacets {
+  /** Human primitive names in layer order, de-duplicated: `Ring + Burst + Trail`. */
+  shape: string;
+  hue: FxHue;
+  motion: FxMotion;
+}
+
+/** Which palette stop identifies a def's colour. Stop 1 is a near-black rim and stop 4 is `#ffffff` in
+ *  nearly every shipped palette — only stop 2 carries a hue anyone would name. */
+const IDENTIFYING_STOP = 1;
+
+/**
+ * Everything about a def that can be worked out from the def itself. No authoring, so it is always correct
+ * and never needs back-filling for the defs that already exist.
+ */
+export function deriveFacets(def: StoredFxDef): FxFacets {
+  const seen: string[] = [];
+  for (const l of def.layers) if (!seen.includes(l.primitive)) seen.push(l.primitive);
+  const shape = seen.map(primitiveLabel).join(' + ');
+
+  // Count buckets in layer order so the FIRST layer wins a tie simply by being counted first.
+  const counts = new Map<FxHue, number>();
+  let best: FxHue | null = null;
+  for (const l of def.layers) {
+    const palette = l.params.palette;
+    if (!Array.isArray(palette)) continue;
+    const stop = palette[IDENTIFYING_STOP];
+    if (typeof stop !== 'number') continue;
+    const bucket = hueBucketOf(stop);
+    if (bucket === 'neutral') continue;
+    const n = (counts.get(bucket) ?? 0) + 1;
+    counts.set(bucket, n);
+    if (best === null || n > (counts.get(best) ?? 0)) best = bucket;
+  }
+
+  return {
+    shape,
+    hue: best ?? 'neutral',
+    motion: def.layers.some((l) => l.anchor === 'travel') ? 'travels' : 'in place',
+  };
 }

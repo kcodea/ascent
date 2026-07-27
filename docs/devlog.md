@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx/ui): the per-card fan-out searched the wrong moment, so the lance never played
+
+Owner: "then why do i see the old projectiles? the little orange balls? i want to see the new effect we
+made." The little orange balls are the stock `damageFx` hit-burst — they were all that played, because the
+authored effect was firing zero times.
+
+`fanOut: 'damaged'` scanned the cast moment's own `[start, end)`. But `dmg` is a RESULT type, so damage
+collapses into its OWN `damage` moment, separate from the `scCast` moment the cast lands in. The cast
+moment therefore contains no damage events at all, the fan-out found nobody, and it played nothing —
+silently, which is the worst part: the guard I added ("plays nothing when a fan-out moment damaged no one")
+was even testing that this happened.
+
+Nor could the binding simply move to the `damage` kind: a `dmg` event carries no `source`. So the cast knows
+who acted and the damage knows who was hit, and neither knows both. What joins them is the **resolution
+step** — `procBleed` calls `nextStep()` once and emits the `sc` and every damage under that one tag. The
+fan-out now walks forward from the cast while the step tag holds, which costs the length of one step rather
+than the log, and falls back to the moment bounds for untagged events (legacy replays, fixtures).
+
+Started to add `suppressDamageFx` so an authored effect would replace the stock burst rather than play on
+top of it, then removed it: the `damage` moment has no `source`, so at the point that burst is scheduled
+there is no card id to check a binding against. Shipping the field would have been unusable API pretending
+to be a feature. Recorded as a known limitation next to the binding table instead — an authored effect
+currently plays IN ADDITION to the orange hit-burst.
+
+Verified: typecheck clean, lint 0 errors, 2417 tests across 123 files green, `build:web` green. Still not
+seen in a live proc — that needs Bloodbinder on board and four attacks.
+
 ### feat(fx/ui): per-CARD FX bindings — Bloodbinder's bleed fires the owner's `ember-lance`
 
 Owner pasted a tuned def back and asked: "can i have this effect trigger when bloodbinder's effect procs?"

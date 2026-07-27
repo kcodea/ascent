@@ -35,27 +35,46 @@ describe('cardFxFor', () => {
 });
 
 describe('damagedUidsIn', () => {
-  const dmg = (target: string): CombatEvent => ({ type: 'dmg', target, amount: 1 }) as CombatEvent;
-  const other = (): CombatEvent => ({ type: 'sc', source: 'a', text: 'x' }) as CombatEvent;
+  const dmg = (target: string, step?: number): CombatEvent => ({ type: 'dmg', target, amount: 1, step }) as CombatEvent;
+  const cast = (step?: number): CombatEvent => ({ type: 'sc', source: 'a', text: 'bleeds', cast: true, step }) as CombatEvent;
 
-  it('collects the units damaged inside the window, in order', () => {
-    const events = [other(), dmg('u1'), dmg('u2'), other()];
-    expect(damagedUidsIn(events, 0, events.length)).toEqual(['u1', 'u2']);
+  /**
+   * THE bug this function's rewrite fixes. `dmg` is a RESULT type, so damage collapses into its OWN moment,
+   * separate from the `scCast` moment the cast lands in — searching the cast's moment bounds found nothing
+   * and the authored effect silently never played (owner: "why do i see the old projectiles?"). The sim tags
+   * both with one resolution STEP, which is what actually ties a cast to what it hit.
+   */
+  it('reaches damage in the same STEP but OUTSIDE the moment bounds', () => {
+    const events = [cast(7), dmg('u1', 7), dmg('u2', 7)];
+    // The scCast moment is just the cast itself: end = 1. The damage is a separate moment entirely.
+    expect(damagedUidsIn(events, 0, 1)).toEqual(['u1', 'u2']);
   });
 
-  // One moment can carry two hits on the same unit; firing the same travelling effect twice at one card
+  it('stops at the step boundary, so a later beat cannot leak in', () => {
+    const events = [cast(7), dmg('u1', 7), dmg('later', 8)];
+    expect(damagedUidsIn(events, 0, 1)).toEqual(['u1']);
+  });
+
+  it('collects in order', () => {
+    const events = [cast(1), dmg('u1', 1), dmg('u2', 1)];
+    expect(damagedUidsIn(events, 0, 1)).toEqual(['u1', 'u2']);
+  });
+
+  // One step can carry two hits on the same unit; firing the same travelling effect twice at one card
   // reads as a stutter rather than as two hits.
   it('de-duplicates repeated targets', () => {
-    const events = [dmg('u1'), dmg('u1'), dmg('u2')];
-    expect(damagedUidsIn(events, 0, events.length)).toEqual(['u1', 'u2']);
+    const events = [cast(1), dmg('u1', 1), dmg('u1', 1), dmg('u2', 1)];
+    expect(damagedUidsIn(events, 0, 1)).toEqual(['u1', 'u2']);
   });
 
-  it('respects the window bounds', () => {
-    const events = [dmg('before'), dmg('inside'), dmg('after')];
-    expect(damagedUidsIn(events, 1, 2)).toEqual(['inside']);
+  // Legacy saved replays and synthetic fixtures carry no step tag, so there is no step to share.
+  it('falls back to the moment bounds for UNTAGGED events', () => {
+    const events = [cast(), dmg('u1'), dmg('u2')];
+    expect(damagedUidsIn(events, 0, 3)).toEqual(['u1', 'u2']);
+    expect(damagedUidsIn(events, 0, 2)).toEqual(['u1']);
   });
 
   it('is empty when nothing was damaged', () => {
-    expect(damagedUidsIn([other(), other()], 0, 2)).toEqual([]);
+    expect(damagedUidsIn([cast(1), cast(1)], 0, 2)).toEqual([]);
   });
 });

@@ -85,6 +85,8 @@ export interface UnitFrame {
 /** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
  *  beats and the memoized Unit can skip re-rendering them (a fresh `[]` each render would defeat it). */
 const EMPTY_FLOATS: Float[] = [];
+// Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
+const EMPTY_GRANTS: string[] = [];
 
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
@@ -647,6 +649,9 @@ export function useCombatReplay(
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
+  // Per-uid clear timers for that pulse. In a ref, not the effect's cleanup, so a hold outlives the beat that
+  // started it — see the trigger effect for what cancelling them on every beat cost.
+  const pulseTimersRef = useRef<Map<string, number>>(new Map());
   // uid → a monotonic nonce, bumped on EACH Rally fire. The nonce is used as a React `key` on the medallion
   // (see Card) so it REMOUNTS every fire and the gold pulse animation restarts — a rally unit's own Rally also
   // sets the normal trigger pulse, so `.pulsing` never leaves the element between swings and a plain class
@@ -696,6 +701,9 @@ export function useCombatReplay(
     setBeatIdx(0);
     setFloats([]);
     setDeathFloats([]);
+    // …and drop the pulse holds with it, or a timer from the last fight clears a uid mid-pulse in this one.
+    for (const t of pulseTimersRef.current.values()) window.clearTimeout(t);
+    pulseTimersRef.current.clear();
     setTriggers(new Set());
     setRallyPulse(new Map());
     setFinished(false);
@@ -969,12 +977,26 @@ export function useCombatReplay(
       if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
     }
     setTriggers((prev) => new Set([...prev, ...trig]));
-    const t = window.setTimeout(() => setTriggers((prev) => {
-      const next = new Set(prev);
-      for (const uid of trig) next.delete(uid);
-      return next;
-    }), 1150);
-    return () => window.clearTimeout(t);
+    /* The ~1150ms hold is PER UID and must outlive the beat. This used to be one timeout cancelled by the
+       effect's own cleanup, which was invisible only while every beat ran longer than the hold: the moment
+       `toHand` dropped to 410 (×1.5 ≈ 615ms) the beat advanced first, the cleanup killed the pending clear,
+       and the uid was never removed from the set. A unit that had pulsed once stayed flagged forever, so its
+       next trigger couldn't toggle the class off→on and simply did not animate — the owner's "the effect icon
+       doesn't pulse every time" (the Avenge counter, driven separately, kept firing). Keyed timers in a ref
+       survive the beat change; a re-trigger inside the window restarts its own hold. */
+    for (const uid of trig) {
+      const prevT = pulseTimersRef.current.get(uid);
+      if (prevT !== undefined) window.clearTimeout(prevT);
+      pulseTimersRef.current.set(uid, window.setTimeout(() => {
+        pulseTimersRef.current.delete(uid);
+        setTriggers((prev) => {
+          if (!prev.has(uid)) return prev;
+          const next = new Set(prev);
+          next.delete(uid);
+          return next;
+        });
+      }, 1150));
+    }
   }, [active, beatIdx, beats, events, cardIds]);
 
   // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
@@ -1487,16 +1509,18 @@ export function useCombatReplay(
   );
   const procs = useMemo(() => procReport(events, names), [events, names]);
   /* Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire, a Deathrattle's Patch Job) —
-     every `toHand` up to and INCLUDING the current beat. The recruit hand stays the pre-combat hand until
-     `resolveCombat`, so the combat view appends these so the hand grows as the cards arrive.
+     see `grantsShownThrough` for the beat window and why it is the beat ON SCREEN.
 
-     Through the current beat's `end`, not its `start`: the card has to materialise ON the beat its effect
-     procs — the same moment as the purple Deathrattle skull — which is what the coalesce is announcing
-     (owner ask 2026-07-27). Slicing to `start` excluded the very beat that granted it, which cost two
-     things: every grant showed up a beat late, and a grant on the LAST beat (the common case — the final
-     minion dies, its Deathrattle fires, the fight ends) never appeared during the replay at all, so its
-     only materialise was the settle-time one after combat. */
-  const handGrantsShown = useMemo(() => grantsShownThrough(events, beats, beatIdx), [beatIdx, beats, events]);
+     Gated on `active`, which is false through the shop-closing intro. The hook persists across fights and
+     `beatIdx` is reset in an effect, so on the first commit of a new combat it still holds the PREVIOUS
+     fight's value — usually past the new `beats` array, where the `?? events.length` fallback means "the
+     replay is done" and hands back EVERY grant at once. That painted the whole fight's grants into the hand
+     for one frame the instant you pressed Start Combat, coalesce and all, before the reset wiped them (owner
+     clip 2026-07-27). `active` only turns true after the intro, by which point the reset has landed. */
+  const handGrantsShown = useMemo(
+    () => (active ? grantsShownThrough(events, beats, beatIdx) : EMPTY_GRANTS),
+    [active, beatIdx, beats, events],
+  );
 
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,

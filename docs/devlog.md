@@ -2,6 +2,37 @@
 
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
+### fix(ui): the medallion pulse survives a short beat + no grant flash at Start Combat
+
+Two defects the faster pacing exposed.
+
+**1. The effect icon stopped pulsing every time.** (Owner: the Avenge *counter* still pulsed — that is a
+separate cue — but the medallion did not.) The ~1150 ms pulse hold was a single `setTimeout` cancelled by its
+own effect's cleanup, which was harmless only while every beat ran LONGER than the hold. The moment `toHand`
+dropped to 410 (×1.5 ≈ 615 ms) the beat advanced first, the cleanup killed the pending clear, and the uid was
+never removed from `triggers`. A unit that had pulsed once stayed flagged forever, so its next trigger could
+not toggle the class off→on and simply did not animate.
+
+The holds are now **per-uid timers in a ref**, so a hold outlives the beat that started it and a re-trigger
+restarts its own. Cleared on a fresh combat, or a timer from the last fight would cut a pulse short in this
+one. This bug was latent in every beat type shorter than 1150 ms — the pacing change only made it obvious.
+
+**2. A full hand of cards flashed and faded the instant you pressed Start Combat.** (Owner clip.) The replay
+hook persists across fights and `beatIdx` is reset in an *effect*, so on the first commit of a new combat it
+still holds the previous fight's value — usually past the new `beats` array, where `grantsShownThrough`'s
+`?? events.length` fallback means "the replay is done" and returns EVERY grant at once. That painted the whole
+fight's grants into the hand for one frame, coalesce and all, until the reset wiped them.
+
+`handGrantsShown` is now gated on the replay's `active` flag, which is false through the shop-closing intro
+and only turns true once the reset has landed.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green — run
+with the worktree pinned (see the note below).
+
+*Process note: the shell's working directory silently reverted to the primary checkout mid-session twice, and
+a gate run reported green against old `main`. The tell was the test count DROPPING while code was only added.
+Every gate run now prints `pwd` + branch first.*
+
 ### tweak(ui): grant beats play twice as fast
 
 **Owner 2026-07-27:** the spacing between an effect pulse, its coalesce, and the next effect pulse should be

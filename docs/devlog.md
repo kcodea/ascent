@@ -1,6 +1,52 @@
 # ASCENT — development log
 
 
+
+## 2026-07-27 (stuck-cue timer audit)
+
+### fix(ui): audit every cleanup-cancelled cue timer — four stuck cues
+
+Follow-up to the two medallion-pulse bugs (#735, #736). Both were the same shape: a transient cue sets state,
+schedules a `setTimeout` to clear it, and returns `() => clearTimeout(t)` — so the effect's own **cleanup
+cancels the clear** whenever a dependency changes. If the effect then early-returns on its guard, nothing
+reschedules and the cue **latches on**. Swept all 11 such sites in `packages/ui`.
+
+**The reason this is common here:** the reducer `structuredClone`s state on every dispatch
+(`packages/sim/src/reducer.ts`). Every state array/object therefore gets a **fresh identity on every action**,
+so any effect with one in its deps re-runs on *every dispatch* — not just when its own data changed.
+
+**Fixed (4):**
+
+- **Karwind flame flash** (`Recruit`) — the confirmed case. Deps include `run.karwindFlash`, so per the clone
+  above the effect re-ran on every dispatch; the seq guard early-returned and the flames stayed lit until the
+  next Karwind proc. Any action within 520 ms of the flash triggered it, which is most of them.
+- **Hero-power refresh flash** (`StatusBar`) — `flashSignal` going true→false inside the hold cancelled the
+  clear, and the rising-edge guard then early-returns. The flash stayed lit permanently.
+- **Effective-HP hit float** (`StatusBar`) — HP moving again inside the 1100 ms hold (armor gained, Resolve
+  healed) cancelled the clear and took the `now < prev` branch out of play, parking the −X on the chip.
+- **Screen shake / crit shake** (`useCombatReplay`) — the fresh-combat reset zeroed `shake` but not `shaking`;
+  the effects bail on `!shake`, so the reset cancelled their clear and latched `.shaking` into the next fight.
+  Reachable when a fight starts within 300 ms of a shake (a Skip). Fixed by clearing the flags with the counters.
+
+All three cue fixes use the same ref-held-timer idiom as #735/#736, so the codebase has one recognisable shape
+for "a hold that must outlive its effect".
+
+**Examined and deliberately left alone (7)** — the cancellation is correct in each:
+
+- `Card.popin` — deps `[popin]`, and `popin` only changes when the timer itself fires. Nothing else can cancel it.
+- The **beat clock** and the **final hold** (`useCombatReplay`) — these *drive* the replay rather than clearing a
+  cue, and every re-run reschedules unconditionally. Cancelling is the point.
+- The **turn-charge fade** (`Recruit`) — deps `[lit, mounted]`; a `lit` flip inside the fade is explicitly
+  handled by the branch above it.
+- The **1s timer tick** (`Recruit`) — self-rescheduling clock.
+- The **delayed `syncShields` re-measure** (`Recruit`) — a cancelled pass leaves no state set, and the
+  synchronous `syncShields()` at the top of the effect runs every render anyway. A missed correction, not a
+  latch. (Left as-is; noted in case aura placement is ever reported askew after a fast render burst.)
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green. These are
+timing latches under specific interleavings, so the checks prove no regression rather than proving the fix —
+the reasoning above is the evidence, and each was traced to a concrete trigger.
+
 ## 2026-07-27 (the errant reorder pulse)
 
 ### feat(ui): the hand glides when its card count changes in the shop

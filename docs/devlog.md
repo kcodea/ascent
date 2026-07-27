@@ -21,7 +21,14 @@ Five knobs on the 🔤 Card Text tuner: `backbox · size / x / y / opacity / ble
 four modes the owner asked for (normal / overlay / multiply / soft-light). Defaults: size 1.02, centred,
 opacity 0.55, `multiply`. Size 0 or opacity 0 hides it entirely.
 
-Asset: `frames/desc-backbox.webp`, 853×621, **3.7 KB**.
+Asset: `frames/desc-backbox.webp`, 676×1228, **4.1 KB**.
+
+**Shape replaced (owner, same day):** the first pass was a wide 853×621 strip; the shipped art is a full card-BODY
+silhouette (arched top, notched bottom) at 676×1228 — ratio **0.55**, so it now renders ~1.8× TALLER than wide
+instead of ~1.4× wider than tall. Because it's anchored inside the text panel but has to cover the body above
+it, the offset ranges were opened right up (x ±1.5, y −2.5…1.5 card-widths, width up to 2.5) — the old
+±0.6 fractions couldn't reach. Defaults re-pointed to `width 1.34 / y −1.06` so it lands roughly on the card
+body out of the gate, with the CSS fallbacks mirrored.
 
 **Verified live** on a plated hand card: `.descbox` is the drawer's first child (order `descbox, cn, desc`),
 overlaps the description text, ratio 1.374 matches the source exactly, and `pointer-events: none`. Every knob

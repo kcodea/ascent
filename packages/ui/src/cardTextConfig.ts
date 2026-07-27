@@ -20,7 +20,10 @@ export interface CardTextConfig {
   line: number;
 
   /* BACKBOX — an authored dark shape seated BEHIND the text panel to darken the plate under it so the rules
-     text reads cleanly (owner 2026-07-26). Sized by WIDTH (× --ccw); height follows the art's 853×621 ratio. */
+     text reads cleanly (owner 2026-07-26). Sized by WIDTH (× --ccw); height follows the art ratio. The art is
+     a full card-BODY silhouette (676×1228, ratio 0.55 — arched top, notched bottom), so it renders ~1.8×
+     taller than wide and has to be pulled well ABOVE the text panel it is anchored inside: the offsets range
+     over whole card-widths, not the fractions the old wide strip needed. */
   /** Backbox width (× --ccw). 0 hides it. */
   boxW: number;
   /** Backbox horizontal offset from the panel centre (× --ccw; + = right). */
@@ -43,9 +46,9 @@ const DEFAULTS: CardTextConfig = {
   padTop: 0.065,
   padBottom: 0.07,
   line: 1.32,
-  boxW: 1.02,
+  boxW: 1.34,
   boxX: 0,
-  boxY: 0,
+  boxY: -1.06,
   boxA: 0.55,
   boxBlend: 'multiply',
 };
@@ -56,9 +59,9 @@ export const CTX_RANGES: Record<CardTextNumKey, [number, number, number]> = {
   padTop: [0, 0.2, 0.005],
   padBottom: [0, 0.2, 0.005],
   line: [1, 1.8, 0.01],
-  boxW: [0, 2, 0.005],
-  boxX: [-0.6, 0.6, 0.005],
-  boxY: [-0.6, 0.6, 0.005],
+  boxW: [0, 2.5, 0.005],
+  boxX: [-1.5, 1.5, 0.005],
+  boxY: [-2.5, 1.5, 0.005],
   boxA: [0, 1, 0.01],
 };
 

@@ -1696,8 +1696,8 @@ img.tierbadge.tierstars,
 .card.compact.showtext .drawer .descbox {
   position: absolute;
   left: 50%;
-  top: calc(var(--ccw) * var(--ctx-box-y, 0));
-  width: calc(var(--ccw) * var(--ctx-box-w, 1.02));
+  top: calc(var(--ccw) * var(--ctx-box-y, -1.06));
+  width: calc(var(--ccw) * var(--ctx-box-w, 1.34));
   height: auto;
   transform: translateX(-50%) translateX(calc(var(--ccw) * var(--ctx-box-x, 0)));
   opacity: var(--ctx-box-a, 0.55);

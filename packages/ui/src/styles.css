@@ -4980,7 +4980,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    bar's `right` offset — which have to agree exactly or the transport slides under the rail (or leaves a
    gap). Widened from 288px: at that width the param rows had ~150px of slider left after the label and
    value columns, so every dial was a stub. */
-.fxwb { --fxwb-rail: 384px; }
+.fxwb { --fxwb-rail: 448px; }
 @media (max-width: 1100px) {
   /* Don't eat a small screen alive — below this the stage matters more than the dials. */
   .fxwb { --fxwb-rail: 300px; }
@@ -5362,7 +5362,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* FX Workbench — per-layer NAME + SOLO.
    The row's button cluster now carries seven controls (mute, solo, rename, duplicate, up, down, delete) in a
-   rail. At 288px they had to shrink to 18px; with the rail at 384px they get their full size back and the
+   rail. At 288px they had to shrink to 18px; with the rail widened they get their full size back and the
    name still has room to be worth reading. */
 .fxwb-layer-btns { gap: 3px; }
 .fxwb-layer-btns button { width: 21px; height: 21px; font-size: 11px; }

@@ -5,13 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
-### style(fx/ui): wider rail (288 → 384px) and wider dials
+### style(fx/ui): wider rail (288 → 448px) and wider dials
 
 Owner: "can you make the right side bar larger? and can you make the dials and whatnot a bit wider?"
 
 The rail's width was hardcoded TWICE — on `.fxwb-side` and again as the transport bar's `right` offset —
 which have to agree exactly or the transport slides under the rail or leaves a gap. Replaced both with one
-`--fxwb-rail` custom property on `.fxwb`, so widening it is a single number, and it drops to 300px under
+`--fxwb-rail` custom property on `.fxwb`, so widening it is a single number (it went 384 → 448 on a
+second pass, which was exactly that: one number), and it drops to 300px under
 1100px so a small screen isn't eaten alive.
 
 At 288px a param row had roughly 150px of slider left after its label and value columns, so every dial was

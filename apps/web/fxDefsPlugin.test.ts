@@ -12,6 +12,7 @@ import {
   SLUG_RE,
   fxDefsPlugin,
   isInside,
+  planBindingsWrite,
   planWrite,
 } from './fxDefsPlugin';
 
@@ -269,8 +270,8 @@ describe('middleware round trip', () => {
     });
   }
 
-  it('registers exactly the two endpoints', async () => {
-    expect([...(await routes()).keys()].sort()).toEqual(['/__fx/art', '/__fx/def']);
+  it('registers exactly the three endpoints', async () => {
+    expect([...(await routes()).keys()].sort()).toEqual(['/__fx/art', '/__fx/bindings', '/__fx/def']);
   });
 
   it('writes a def file and reports its path', async () => {
@@ -392,5 +393,65 @@ describe('defs-directory watcher', () => {
     const { root, fire, sent } = await setup();
     fire('add', path.join(root, 'notes.md'));
     expect(sent).toEqual([]);
+  });
+});
+
+const FILE = '/repo/packages/ui/src/choreo/bindings.json';
+const ok = (kinds: unknown, cards: unknown = {}): string => JSON.stringify({ version: 1, kinds, cards });
+
+describe('planBindingsWrite', () => {
+  it('accepts a well-formed table and writes to the fixed path', () => {
+    const plan = planBindingsWrite({ json: ok({ scCast: { def: 'spell-cast' } }) }, FILE);
+    expect(plan.status).toBe(200);
+    expect(plan.file).toBe(FILE);
+    expect(String(plan.data)).toContain('"spell-cast"');
+    expect(String(plan.data).endsWith('\n')).toBe(true);
+  });
+
+  it('re-serializes rather than echoing, so what lands on disk is stably formatted', () => {
+    const plan = planBindingsWrite({ json: '{"version":1,"kinds":{},"cards":{}}' }, FILE);
+    expect(plan.status).toBe(200);
+    expect(String(plan.data)).toBe('{\n  "version": 1,\n  "kinds": {},\n  "cards": {}\n}\n');
+  });
+
+  it('rejects a non-object body, a missing json field, and unparseable json', () => {
+    expect(planBindingsWrite(null, FILE).status).toBe(400);
+    expect(planBindingsWrite({}, FILE).status).toBe(400);
+    expect(planBindingsWrite({ json: '{oops' }, FILE).status).toBe(400);
+  });
+
+  it('rejects a wrong version', () => {
+    const plan = planBindingsWrite({ json: JSON.stringify({ version: 2, kinds: {}, cards: {} }) }, FILE);
+    expect(plan.status).toBe(400);
+    expect(plan.error).toContain('version');
+  });
+
+  it('rejects a missing or non-object kinds/cards', () => {
+    expect(planBindingsWrite({ json: JSON.stringify({ version: 1, cards: {} }) }, FILE).status).toBe(400);
+    expect(planBindingsWrite({ json: ok({}, []) }, FILE).status).toBe(400);
+  });
+
+  // The def id is a filename stem on disk, so it gets the same grammar the def endpoint enforces.
+  it('rejects a def id outside the slug grammar', () => {
+    expect(planBindingsWrite({ json: ok({ scCast: { def: '../../etc/passwd' } }) }, FILE).status).toBe(400);
+    expect(planBindingsWrite({ json: ok({ scCast: { def: 'Spell Cast' } }) }, FILE).status).toBe(400);
+    expect(planBindingsWrite({ json: ok({ scCast: { def: '' } }) }, FILE).status).toBe(400);
+  });
+
+  it('rejects an unknown fanOut', () => {
+    const plan = planBindingsWrite({ json: ok({ scCast: { def: 'spell-cast', fanOut: 'sideways' } }) }, FILE);
+    expect(plan.status).toBe(400);
+    expect(plan.error).toContain('fanOut');
+  });
+
+  it('validates nested card bindings too', () => {
+    expect(planBindingsWrite({ json: ok({}, { bloodbinder: { scCast: { def: 'ruby-lance' } } }) }, FILE).status).toBe(200);
+    expect(planBindingsWrite({ json: ok({}, { bloodbinder: { scCast: { def: 'BAD ID' } } }) }, FILE).status).toBe(400);
+    expect(planBindingsWrite({ json: ok({}, { bloodbinder: 'nope' }) }, FILE).status).toBe(400);
+  });
+
+  it('rejects an oversized payload', () => {
+    const huge = JSON.stringify({ version: 1, kinds: {}, cards: {}, pad: 'x'.repeat(300_000) });
+    expect(planBindingsWrite({ json: huge }, FILE).status).toBe(413);
   });
 });

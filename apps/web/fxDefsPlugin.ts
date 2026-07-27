@@ -117,6 +117,64 @@ export function planWrite(kind: WriteKind, body: unknown, defsRoot: string): Wri
   return { status: 200, file, data: buf };
 }
 
+const BINDING_FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed'];
+
+/** One binding entry: `{ def, fanOut? }`. Returns an error string, or null when it is fine. */
+function badBinding(v: unknown, where: string): string | null {
+  if (!isRecord(v)) return `${where} is not an object.`;
+  // The def id becomes a filename stem on disk, so it gets exactly the grammar the def endpoint enforces.
+  if (typeof v.def !== 'string' || !SLUG_RE.test(v.def)) {
+    return `${where}.def must match ${String(SLUG_RE)}.`;
+  }
+  if (v.fanOut !== undefined && (typeof v.fanOut !== 'string' || !BINDING_FAN_OUTS.includes(v.fanOut))) {
+    return `${where}.fanOut must be one of ${BINDING_FAN_OUTS.join(', ')}.`;
+  }
+  return null;
+}
+
+/**
+ * The validation surface for a bindings commit, as a pure function — same contract as `planWrite`: no fs, no
+ * server, no globals.
+ *
+ * NOTE the surface here is SMALLER than `planWrite`'s, not larger. The destination path is fixed by the
+ * plugin and never derived from the request, so the traversal question `planWrite` exists to answer simply
+ * does not arise: the client supplies content only. What is left is shape, size, and the slug grammar on def
+ * ids (which do become filenames, indirectly, when something later loads them).
+ */
+export function planBindingsWrite(body: unknown, file: string): WritePlan {
+  if (!isRecord(body)) return bad(400, 'Expected a JSON object body.');
+  const { json } = body;
+  if (typeof json !== 'string') return bad(400, 'Missing `json`.');
+  if (Buffer.byteLength(json, 'utf8') > MAX_DEF_BYTES) {
+    return bad(413, `Bindings are larger than ${MAX_DEF_BYTES} bytes.`);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return bad(400, '`json` is not valid JSON.');
+  }
+  if (!isRecord(parsed)) return bad(400, '`json` must describe a bindings object.');
+  if (parsed.version !== 1) return bad(400, 'Unsupported bindings `version` — expected 1.');
+  if (!isRecord(parsed.kinds)) return bad(400, '`kinds` must be an object.');
+  if (!isRecord(parsed.cards)) return bad(400, '`cards` must be an object.');
+
+  for (const [kind, v] of Object.entries(parsed.kinds)) {
+    const err = badBinding(v, `kinds.${kind}`);
+    if (err) return bad(400, err);
+  }
+  for (const [cardId, byKind] of Object.entries(parsed.cards)) {
+    if (!isRecord(byKind)) return bad(400, `cards.${cardId} is not an object.`);
+    for (const [kind, v] of Object.entries(byKind)) {
+      const err = badBinding(v, `cards.${cardId}.${kind}`);
+      if (err) return bad(400, err);
+    }
+  }
+  // Re-serialized (not echoed) so what lands on disk is always well-formed, stably formatted JSON that
+  // reviews cleanly in a diff.
+  return { status: 200, file, data: `${JSON.stringify(parsed, null, 2)}\n` };
+}
+
 // ─── the plugin ───────────────────────────────────────────────────────────────────────────────────────
 
 /** Hard ceiling on a request body, independent of `planWrite`: the socket is torn down past this so a
@@ -124,6 +182,10 @@ export function planWrite(kind: WriteKind, body: unknown, defsRoot: string): Wri
 const MAX_BODY_BYTES = MAX_ART_BYTES * 2 + 4096;
 
 const DEFAULT_DEFS_ROOT = fileURLToPath(new URL('../../packages/ui/src/fx/defs', import.meta.url));
+
+const DEFAULT_BINDINGS_FILE = fileURLToPath(
+  new URL('../../packages/ui/src/choreo/bindings.json', import.meta.url),
+);
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -152,10 +214,13 @@ function send(res: ServerResponse, status: number, payload: unknown): void {
 export interface FxDefsPluginOptions {
   /** Where defs are written. Defaults to `packages/ui/src/fx/defs` relative to this file. */
   defsRoot?: string;
+  /** Where the FX binding table is committed. Defaults to `packages/ui/src/choreo/bindings.json`. */
+  bindingsFile?: string;
 }
 
 export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
   const defsRoot = path.resolve(options.defsRoot ?? DEFAULT_DEFS_ROOT);
+  const bindingsFile = path.resolve(options.bindingsFile ?? DEFAULT_BINDINGS_FILE);
   // Only used to make the reported path readable ("packages/ui/src/fx/defs/x.json"), never to write.
   const repoRoot = path.resolve(defsRoot, '..', '..', '..', '..', '..');
 
@@ -186,6 +251,42 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
     send(res, 200, { ok: true, path: path.relative(repoRoot, plan.file).split(path.sep).join('/') });
   };
 
+  /**
+   * Commit the FX binding table. Its own handler rather than a third `WriteKind`, because the destination is
+   * fixed by the plugin instead of derived from the request — sharing `planWrite`'s signature would imply a
+   * client-supplied path that does not exist here.
+   *
+   * No watcher is needed on this file (unlike the defs directory): `bindings.json` is a STATIC import, so a
+   * write invalidates through the normal import graph and HMR picks it up. The `import.meta.glob` staleness
+   * that forced the defs watcher does not apply.
+   */
+  const handleBindings = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    if (req.method !== 'POST') {
+      send(res, 405, { ok: false, error: 'POST only.' });
+      return;
+    }
+    let body: unknown;
+    try {
+      body = JSON.parse(await readBody(req));
+    } catch (e) {
+      send(res, 400, { ok: false, error: (e as Error).message || 'Unreadable request body.' });
+      return;
+    }
+    const plan = planBindingsWrite(body, bindingsFile);
+    if (plan.status !== 200 || !plan.file || plan.data === undefined) {
+      send(res, plan.status, { ok: false, error: plan.error ?? 'Rejected.' });
+      return;
+    }
+    try {
+      await mkdir(path.dirname(plan.file), { recursive: true });
+      await writeFile(plan.file, plan.data);
+    } catch (e) {
+      send(res, 500, { ok: false, error: `Could not write the file: ${(e as Error).message}` });
+      return;
+    }
+    send(res, 200, { ok: true, path: path.relative(repoRoot, plan.file).split(path.sep).join('/') });
+  };
+
   return {
     name: 'ascent:fx-defs',
     // The one line that makes this dev-only. A production build never runs it.
@@ -193,6 +294,7 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
     configureServer(server) {
       server.middlewares.use('/__fx/def', (req, res) => void handle('def')(req, res));
       server.middlewares.use('/__fx/art', (req, res) => void handle('art')(req, res));
+      server.middlewares.use('/__fx/bindings', (req, res) => void handleBindings(req, res));
 
       /**
        * Make a def file that appears on disk actually SHOW UP without restarting the dev server.

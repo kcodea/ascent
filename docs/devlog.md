@@ -2,6 +2,25 @@
 
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
+### fix(ui): hand-grant previews respect the 10-card hand cap
+
+**Owner report:** the in-combat coalesce would push the hand past its 10-card limit during the replay, then
+snap back down to 10 once combat ended.
+
+The previews were rendering the whole grant list, but the sim only *keeps* grants while there is room —
+`settleCombat` and the End-of-Turn commit both walk the grant list in order and drop everything past
+`CONFIG.handMax`. So the replay was promising cards that were never going to be yours.
+
+`handPreviews` now slices to `CONFIG.handMax - run.hand.length` — the same first-N rule the reducer uses, so
+the cards that materialise are exactly the ones that survive the commit. A hand that is already full has zero
+room, which means it shows nothing and coalesces nothing for the rest of the round, as the owner asked. The
+real hand can't change mid-combat or mid-End-of-Turn (grants land at `settleCombat` / `faceOmen`), so the room
+figure is stable across the whole beat sequence.
+
+Applies to both preview sources, since they share the one list.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1783 tests** / 108 files green, `build:web` green.
+
 ### fix(ui): a combat grant materialises ON the beat that procs it, and the hand makes room
 
 Two follow-ups from the owner on the same session's work.

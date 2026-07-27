@@ -1550,10 +1550,20 @@ export function Recruit() {
      Two sources, and they can't overlap: End-of-Turn beats (still `recruit`, cleared as `faceOmen` flips the
      phase) and in-combat grants. Filtered against CARD_INDEX — a grant of an id the index doesn't know (a
      card-data typo: Velvet Rope Fiend once granted the empty string) used to throw inside the map and
-     white-screen the whole Recruit tree. A bad grant should show nothing, not take down the game. */
+     white-screen the whole Recruit tree. A bad grant should show nothing, not take down the game.
+
+     CAPPED AT THE HAND LIMIT. A preview is a promise that the card is yours, and the sim only keeps grants
+     while there's room — `settleCombat` / the End-of-Turn commit walk the grant list in order and drop
+     everything past `CONFIG.handMax`. Without the same cap here the hand visibly overflowed past 10 during
+     the replay and then snapped back as combat ended (owner report 2026-07-27). Same first-N rule as the
+     reducer, so the cards that materialise are exactly the ones that survive the commit — and a hand that is
+     already full shows (and coalesces) nothing at all for the rest of the round. */
+  const handRoom = Math.max(0, CONFIG.handMax - run.hand.length);
   const handPreviews = useMemo(
-    () => (inCombat && !run.combatSettled ? replay.handGrantsShown : eotGrants).filter((id) => !!CARD_INDEX[id]),
-    [inCombat, run.combatSettled, replay.handGrantsShown, eotGrants],
+    () => (inCombat && !run.combatSettled ? replay.handGrantsShown : eotGrants)
+      .filter((id) => !!CARD_INDEX[id])
+      .slice(0, handRoom),
+    [inCombat, run.combatSettled, replay.handGrantsShown, eotGrants, handRoom],
   );
 
   /* In-combat grants (Deathrattle / Rally / Avenge / quest) and End-of-Turn grants alike. The hand visibly

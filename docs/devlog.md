@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx/ui): `self-buff-bloom` — an authored effect on any unit that buffs ITSELF
+
+Owner: "when a unit buffs itself (for example, training dummy when it grows its attack) play this effect",
+with a tuned single-layer burst (ring emit, negative gravity, heavy turbulence, a size curve that overshoots
+to 1.83× before settling — it blooms upward and outward rather than spraying).
+
+Unlike the Bloodbinder binding this is a GENERAL rule, not a per-card one, so it belongs on the cue rather
+than in `CARD_FX`. The `fxDef` cue gained `fanOut: 'selfBuffed'`: instead of playing once at the moment's
+source/target pair, it plays once per unit that buffed itself, with BOTH anchors on that unit (a self-buff
+has no pair to travel between). The set comes from the existing `groupSelfBuffs`, which already isolates
+exactly `e.source === e.target` — the same set the stock self-buff pulse uses, so the two can never disagree
+about what counts as a self-buff. Playing once at `moment.primary` instead would have put one effect on
+whichever unit came first in a wave and none on the others.
+
+**Bound to `attackExchange` as well as `buffWave`, and that is the whole difference between this working and
+not for the example given.** A self-buff absorbed into a wind-up (`absorbIntoWindup` in `compile.ts`) never
+produces a `buffWave` moment — a Target Dummy growing *as it is hit* is precisely that case, so binding to
+`buffWave` alone would have missed the card the request names. It fans out to nothing on the overwhelming
+majority of exchanges, which carry no self-buff at all.
+
+Two long-standing guard tests failed on the new binding and were extended rather than relaxed: the table
+asserting "exactly these kind → def pairs and nothing else carries an fxDef cue" now carries a separate
+`FANOUT_BINDINGS` map (their cue has the extra key), and `attackExchange`/`buffWave` left the
+"previously-effected kinds stay free of authored defs" list with a note saying why — so that list keeps
+catching a def bound somewhere nobody intended.
+
+Verified: typecheck clean, lint 0 errors, 2428 tests across 123 files green (4 new), `build:web` green.
+
 ### chore(fx/ui): make the per-card binding path report itself in DEV
 
 Owner: "im still seeing the old orange orb effect." Four attempts in, every miss in this path has failed the

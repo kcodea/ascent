@@ -36,6 +36,17 @@ export interface Cue {
    *  literal and every persisted score stays valid; a `fxDef` cue without it is a no-op. Ignored by all other
    *  channels. */
   def?: string;
+  /**
+   * `fxDef` ONLY: fan the def out over every unit that buffed ITSELF in this moment, instead of playing once
+   * at the moment's own source/target pair.
+   *
+   * A self-buff has no pair to travel between — the unit is both ends — and a moment can carry several at
+   * once (a wave where three minions each grow). Playing once at `moment.primary` would put one effect on
+   * whichever unit happened to come first and none on the others. `groupSelfBuffs` already isolates exactly
+   * this set (`e.source === e.target`), which is the same set the stock self-buff pulse uses, so the two can
+   * never disagree about what counts as a self-buff.
+   */
+  fanOut?: 'selfBuffed';
 }
 
 const BASE: Cue[] = [
@@ -73,6 +84,11 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // (engine-driven, `onImpactAuras`), not on a fixed start-relative delay that drifted off the hit and left the
     // bubble lingering disjointed from the unit. `auraBurst` (a death's in-place burst) stays at start.
     { ch: 'auraBurst', at: 'start', offset: 0 },
+    // Self-buffs ABSORBED into a wind-up (`absorbIntoWindup` in compile.ts) never produce a `buffWave`
+    // moment of their own — a Target Dummy growing as it is hit is exactly this case, and binding the effect
+    // to `buffWave` alone would have missed the very example asked for. Fans out to nothing on the
+    // overwhelming majority of exchanges, which carry no self-buff at all.
+    { ch: 'fxDef', at: 'start', offset: 0, def: 'self-buff-bloom', fanOut: 'selfBuffed' },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
@@ -95,7 +111,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   scCast: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'spell-cast' }], scNarrate: [...BASE],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
-  summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }], reborn: withReform(),
+  summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'fxDef', at: 'start', offset: 0, def: 'self-buff-bloom', fanOut: 'selfBuffed' }], reborn: withReform(),
   ascend: [...BASE, { ch: 'ascendFx', at: 'start', offset: 0 }],
   // Deathsayer firing an ally's Deathrattle — the one binding here that is genuinely source→target: a `rally`
   // event names BOTH ends, so `anchorsForUnits` gets two real units and the def's `travel` arc reads as the link.
@@ -359,6 +375,17 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             console.info(`[fx] '${claimSource}' → '${claimBinding.def}' ×${claimed.length}`, claimed);
           }
         }
+      }
+      if (cue.fanOut === 'selfBuffed') {
+        at(cue, () => {
+          // Both ends are the same unit: a self-buff has no pair to travel between, so `source` and `target`
+          // resolve to the same card and a travelling layer simply stays put on it.
+          for (const sb of groupSelfBuffs(moment, ctx.events)) {
+            const selfAnchors = anchorsForUnits(sb.uid, sb.uid);
+            if (selfAnchors) playDef(def, selfAnchors);
+          }
+        });
+        continue;
       }
       at(cue, () => {
         const { source, target } = momentUnits(moment.primary);

@@ -343,6 +343,15 @@ const BINDINGS: Record<string, string> = {
   questTrigger: 'quest-trigger', questComplete: 'quest-complete',
 };
 
+/** Bindings that FAN OUT rather than playing once at the moment's own pair — asserted separately because
+ *  their cue carries the extra `fanOut` key. `attackExchange` is in here for a reason worth keeping: a
+ *  self-buff absorbed into a wind-up never produces a `buffWave` moment, so binding only to `buffWave` would
+ *  miss a unit that grows as it is attacked. */
+const FANOUT_BINDINGS: Record<string, { def: string; fanOut: string }> = {
+  buffWave: { def: 'self-buff-bloom', fanOut: 'selfBuffed' },
+  attackExchange: { def: 'self-buff-bloom', fanOut: 'selfBuffed' },
+};
+
 describe('fxDef channel', () => {
   beforeEach(() => {
     // The suite-wide `restoreAllMocks` strips these module mocks' implementations — restate them per test.
@@ -359,17 +368,26 @@ describe('fxDef channel', () => {
         { ch: 'fxDef', at: 'start', offset: 0, def },
       ]));
     }
+    for (const [kind, { def, fanOut }] of Object.entries(FANOUT_BINDINGS)) {
+      expect(SCORE_DEFAULTS[kind as MomentKind], kind).toEqual(expect.arrayContaining([
+        { ch: 'fxDef', at: 'start', offset: 0, def, fanOut },
+      ]));
+    }
     for (const [kind, cues] of Object.entries(SCORE_DEFAULTS)) {
-      expect(cues.filter((c) => c.ch === 'fxDef').length, kind).toBe(kind in BINDINGS ? 1 : 0);
+      const expected = kind in BINDINGS || kind in FANOUT_BINDINGS ? 1 : 0;
+      expect(cues.filter((c) => c.ch === 'fxDef').length, kind).toBe(expected);
     }
   });
 
   // Kinds that already existed and already had FX must be untouched — a def on a NEIGHBOURING kind must never
   // reach them. (`damage` is the one that matters most: quest beats used to be classified as damage moments,
   // so scoring their def there would have fired it on every hit in the fight.)
+  // `attackExchange` and `buffWave` have deliberately LEFT this list: both now carry the self-buff fan-out
+  // (see FANOUT_BINDINGS). Everything else stays free of authored defs, so the list keeps doing its job of
+  // catching a def bound somewhere nobody intended.
   it('leaves every previously-effected kind free of authored defs', () => {
-    for (const kind of ['attackExchange', 'damage', 'death', 'riseDeath', 'shieldPop', 'poisonTick',
-      'scNarrate', 'summon', 'buffWave', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura'] as const) {
+    for (const kind of ['damage', 'death', 'riseDeath', 'shieldPop', 'poisonTick',
+      'scNarrate', 'summon', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura'] as const) {
       expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'fxDef'), kind).toBe(false);
     }
   });
@@ -672,5 +690,47 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
     runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
     expect(ctx.onDamageFx).toHaveBeenCalledWith(['e1']);
     mockCardId.mockReturnValue(null);
+  });
+});
+
+/** The self-buff fan-out: one play per unit that buffed ITSELF, both anchors on that unit. */
+describe('fxDef channel — self-buff fan-out', () => {
+  const selfBuff = (uid: string): CombatEvent =>
+    ({ type: 'buff', source: uid, target: uid, attack: 1, health: 0 }) as CombatEvent;
+  const buffOther = (src: string, tgt: string): CombatEvent =>
+    ({ type: 'buff', source: src, target: tgt, attack: 1, health: 0 }) as CombatEvent;
+
+  it('plays once per SELF-buffed unit, anchored on that unit at both ends', () => {
+    const events = [selfBuff('u1'), selfBuff('u2')];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
+    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'self-buff-bloom')).toBe(true);
+    expect(mockAnchors).toHaveBeenCalledWith('u1', 'u1');
+    expect(mockAnchors).toHaveBeenCalledWith('u2', 'u2');
+  });
+
+  // Buff-OTHER is the tendril channel's job; it has a real source→target pair and must not bloom on itself.
+  it('ignores a buff aimed at somebody else', () => {
+    const events = [buffOther('a', 'b')];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  // THE case the owner named: a Target Dummy growing as it is hit is ABSORBED into the wind-up and never
+  // produces a buffWave moment of its own.
+  it('covers a self-buff absorbed into an attack exchange', () => {
+    const events: CombatEvent[] = [
+      { type: 'attack', attacker: 'a', defender: 'b' } as CombatEvent,
+      selfBuff('b'),
+    ];
+    runMomentCues(moment('attackExchange', events), baseCtx(events));
+    expect(mockPlayDef).toHaveBeenCalledWith('self-buff-bloom', expect.anything());
+    expect(mockAnchors).toHaveBeenCalledWith('b', 'b');
+  });
+
+  it('plays nothing on the overwhelming majority of exchanges, which carry no self-buff', () => {
+    const events: CombatEvent[] = [{ type: 'attack', attacker: 'a', defender: 'b' } as CombatEvent];
+    runMomentCues(moment('attackExchange', events), baseCtx(events));
+    expect(mockPlayDef).not.toHaveBeenCalled();
   });
 });

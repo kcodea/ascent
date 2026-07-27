@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "id": "self-buff-bloom",
+  "duration": 900,
+  "layers": [
+    {
+      "primitive": "burst",
+      "name": "bloom",
+      "anchor": "source",
+      "at": 0,
+      "params": {
+        "count": 44,
+        "interval": 1120,
+        "spread": 1,
+        "speed": 150,
+        "speedVar": 0.86,
+        "drag": 0.98,
+        "gravity": -400,
+        "life": 1270,
+        "orientToVelocity": false,
+        "turbulence": 275,
+        "turbScale": 0.09,
+        "emitShape": "ring",
+        "emitRadius": 25,
+        "inheritVel": 0,
+        "shape": "circle",
+        "size": 22,
+        "sizeVar": 0.73,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [0, 0],
+          [0.18354479763390963, 1.8337076405097832],
+          [0.3483023182805469, 0.7924151526074072],
+          [1, 0]
+        ],
+        "coreBias": 0.7,
+        "biasCurve": [
+          [0, 0],
+          [0.28400692479850415, 0.8674822556653904],
+          [1, 0.21218576089272412]
+        ],
+        "alphaCurve": [
+          [0, 1],
+          [1, 1]
+        ],
+        "bands": 3,
+        "plateau": 0,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [16762670, 16753183, 16773288, 16777215],
+        "blendMode": "add",
+        "glow": 0.07,
+        "noiseScale": 17.8,
+        "warp": 1.07,
+        "scroll": 2.1,
+        "erode": 0.04,
+        "gain": 0.95
+      }
+    }
+  ]
+}

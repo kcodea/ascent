@@ -24,6 +24,7 @@ import { listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
 import { getImportedDataUrl } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
+import { LibraryBrowser } from './LibraryBrowser';
 import { createBackdrop, type FxBackdrop } from './backdrop';
 import { Timeline } from './Timeline';
 import { previewClock } from './timelineModel';
@@ -208,6 +209,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // The committed def library. Held in state (rather than calling `listDefs()` inline) so a Save can refresh
   // it explicitly — the registry behind it is module-level and React knows nothing about it.
   const [defs, setDefs] = useState<StoredFxDef[]>(() => listDefs());
+  const [browsing, setBrowsing] = useState(false);
   // "Restored unsaved work" is VISIBLE and dismissible — restoring must never silently clobber what the
   // author expected to see (a blank default composition).
   const [restoredNotice, setRestoredNotice] = useState(restoredSession !== null);
@@ -1334,6 +1336,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           onLoad={(def) => loadDef(def, def.id)}
           onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
         />
+        <button className="fxwb-btn" onClick={() => setBrowsing(true)}>Browse all</button>
 
         <div className="fxwb-layers">
           {layers.map((l, i) => (
@@ -1711,6 +1714,20 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         <span className="fxwb-speedval">{speed.toFixed(1)}x</span>
         <div className="fxwb-hint">{activeScenario?.hint}</div>
       </div>
+
+      {browsing && (
+        <LibraryBrowser
+          onLoad={(def) => loadDef(def, def.id)}
+          onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
+          // Preview reuses the workbench's own player: the overlay names a def, the editor plays it on the
+          // stage already running behind it. No second Pixi context, and the preview is the real thing.
+          onPreview={(id) => {
+            const found = id === null ? undefined : defs.find((d) => d.id === id);
+            if (found) loadDef(found, found.id);
+          }}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
     </div>
   );
 }

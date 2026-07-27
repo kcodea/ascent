@@ -5469,3 +5469,59 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    ▶ and 🔥?" is answered on screen instead of by pressing both. */
 .fxwb-playgroup { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
 .fxwb-playnote { flex: 0 0 auto; font-size: 10px; line-height: 1.2; color: #8a7fa8; white-space: nowrap; }
+
+/* FX LIBRARY BROWSER — a full-screen overlay above the workbench. Deliberately opaque: the workbench rail
+   underneath is a competing wall of controls, and browsing wants a quiet surface. */
+.fxlib {
+  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+  background: #17141f; color: #d9d3ea; font-family: var(--font-ui);
+}
+.fxlib-top {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: #211d2c; border-bottom: 2px solid #3d3752;
+}
+.fxlib-title { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; margin-right: 6px; }
+.fxlib-search {
+  flex: 1; min-width: 0; height: 28px; padding: 0 10px; border-radius: 7px;
+  border: 1px solid #3d3752; background: #17141f; color: #d9d3ea; font-size: 12px;
+}
+.fxlib-body { flex: 1; display: flex; min-height: 0; }
+.fxlib-facets {
+  width: 190px; flex: none; padding: 12px; border-right: 2px solid #3d3752;
+  display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
+}
+.fxlib-facet-title {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #8a7fa8; margin-top: 8px;
+}
+.fxlib-hues { display: flex; flex-wrap: wrap; gap: 5px; }
+.fxlib-hue { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.fxlib-hue.on { border-color: #fff; }
+.fxlib-hue.red { background: #d41f1f; } .fxlib-hue.orange { background: #ff9c1e; }
+.fxlib-hue.gold { background: #ffb81f; } .fxlib-hue.green { background: #7ade22; }
+.fxlib-hue.cyan { background: #2ee0ac; } .fxlib-hue.blue { background: #2f8bff; }
+.fxlib-hue.violet { background: #c936ef; } .fxlib-hue.magenta { background: #ff33a8; }
+.fxlib-hue.neutral { background: #8a7fa8; }
+.fxlib-results { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.fxlib-group { margin-bottom: 16px; }
+.fxlib-group-title {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #8a7fa8; border-bottom: 1px solid #3d3752; padding-bottom: 4px; margin-bottom: 6px;
+}
+.fxlib-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.fxlib-row:hover { background: #211d2c; }
+.fxlib-swatch { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.fxlib-swatch.red { background: #d41f1f; } .fxlib-swatch.orange { background: #ff9c1e; }
+.fxlib-swatch.gold { background: #ffb81f; } .fxlib-swatch.green { background: #7ade22; }
+.fxlib-swatch.cyan { background: #2ee0ac; } .fxlib-swatch.blue { background: #2f8bff; }
+.fxlib-swatch.violet { background: #c936ef; } .fxlib-swatch.magenta { background: #ff33a8; }
+.fxlib-swatch.neutral { background: #8a7fa8; }
+.fxlib-row-load {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  background: none; border: none; color: inherit; text-align: left; cursor: pointer; padding: 2px 4px;
+}
+.fxlib-row-name { font-size: 12px; font-weight: 700; }
+.fxlib-row-meta { font-size: 11px; color: #8a7fa8; }
+.fxlib-gap { font-size: 11px; color: #6f6688; font-style: italic; }
+/* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
+.fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }

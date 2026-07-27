@@ -1,5 +1,20 @@
 # ASCENT — development log
 
+## 2026-07-26 (bake the tuned card-text + backbox values)
+
+### chore(ui): commit the owner's Card Text defaults
+
+Baked from the 🔤 Card Text tuner into `cardTextConfig.ts` DEFAULTS, with all ten `--ctx-*` CSS fallbacks
+mirrored (double-source rule): text box `top 1.085`, `padTop 0.105`, `line 1.42` (padX/padBottom unchanged);
+backbox `size 1.08`, `y -1.235`, `opacity 0.47`, and blend switched `multiply → overlay` — overlay keeps the
+plate's stonework reading through the silhouette where multiply was flattening it.
+
+**Verified from a CLEARED saved config** (what production renders): all ten root vars resolve to the tuned
+numbers, the backbox renders `mix-blend-mode: overlay` at 0.47 with its 0.551 art ratio intact, and the drawer
+padding reflects the new insets. Confirmed on `main`, so the backbox, tier plate and tier-7 glow were all live
+on the same card while checking.
+
+
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
 ### tweak(ui): the tier-7 glow moves BEHIND the plaque

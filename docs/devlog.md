@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+
+## 2026-07-27 (the errant reorder pulse)
+
+### fix(ui): a Shout minion stops re-pulsing when you shuffle cards past it
+
+**Owner report:** Shout minions occasionally fire their medallion pulse again while you reorder cards around
+them on the warband. Asked whether the combat medallion fix (#735) covered it — it did not: that one lives in
+`useCombatReplay` and only runs during a fight. But it is the **same defect**, in the recruit-side twin.
+
+Two facts combine:
+
+1. The battlecry flourish's 760 ms clear was a single `setTimeout` **cancelled by its own effect's cleanup**,
+   and the effect's deps are `[run.board, inCombat]`. Any board change inside that window — a buff writing a
+   new array, a sell, a reorder — killed the clear, and the minion stayed in `battlecryUids` **forever**. The
+   watcher itself is uid-diffed and correct; nothing re-fires it. The flag just never comes off.
+2. A stuck flag means the medallion keeps its `.pulsing` class. React moving a keyed child on a reorder
+   re-inserts that DOM node, and **re-inserting an element restarts its CSS animations**. So a long-dead
+   Battlecry flashed again every time the row shuffled it past a neighbour.
+
+That also explains "occasionally": it needs a board change within 760 ms of the Shout to arm it, and then a
+reorder that actually moves that node to show it.
+
+Fixed the same way as #735 — **per-uid timers in a ref**, so a hold outlives the effect's next run and a
+re-trigger restarts its own. Also dropped on the way into combat, since the flourish belongs to the shop and a
+timer crossing the phase would clear a uid the next recruit phase had legitimately re-flagged.
+
+**Follow-up, not fixed here (scope):** the Karwind flame flash (`karwindFlashSeq`) has the same shape — it
+early-returns when the seq is unchanged, but the cleanup still cancels its 520 ms clear on any dep change, so
+`karwindFlameUids` can stick. Worth its own pass, along with a sweep for other `return () => clearTimeout`
+cues whose deps change faster than their hold.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
 ### fix(ui): the medallion pulse survives a short beat + no grant flash at Start Combat

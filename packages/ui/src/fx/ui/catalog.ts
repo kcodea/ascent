@@ -161,6 +161,11 @@ export interface FxKindCoverage {
  *
  * The kind LIST still comes from `getScore()` — that is the authority on which kinds exist — but the def
  * comes from the resolver, since a kind's cue no longer carries one.
+ *
+ * Safe only because two things hold together: `SCORE_DEFAULTS` is typed `Record<MomentKind, Cue[]>`, a TOTAL
+ * record over every kind, and `bindings.test.ts` separately enforces that `bindings.json` cannot name a kind
+ * outside that set. Break either and a bound kind missing from this list would vanish from the coverage
+ * lens — which exists precisely to show gaps, so it would hide exactly what it was built to reveal.
  */
 export function kindCoverage(): FxKindCoverage[] {
   return (Object.keys(getScore()) as MomentKind[]).map((kind) => ({

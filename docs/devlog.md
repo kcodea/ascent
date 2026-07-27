@@ -2,6 +2,34 @@
 
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
+### fix(ui): grants land in lockstep with their pulse again (correcting my own regression)
+
+**Owner:** "both avenge pulses occur and THEN coalesce 1 and 2 occur." Correct, and I caused it.
+
+Earlier this session I widened `handGrantsShown` from `beats[beatIdx].start` to `beats[beatIdx].end`,
+reasoning that slicing to `start` excluded the granting beat. **That reasoning was wrong.** `beatIdx` is the
+beat *about to play* — the moment on screen is `beats[beatIdx - 1]` (the scheduler's own `shown`/`next` split;
+`processedEnd`, which the live frame folds through, is `beats[beatIdx - 1].end`). Moments are contiguous, so
+`beats[beatIdx].start === beats[beatIdx - 1].end`: the original slice already meant "through the beat on
+screen" and was right all along.
+
+Widening it by one beat put every granted card in hand BEFORE its own trigger-medallion pulse — and that pulse
+is derived from the same `beats[beatIdx - 1]` window. With a single grant that just looks slightly eager; with
+two Avenge granters it desynchronises the whole read, which is what the owner saw.
+
+Restored to the on-screen beat, written as `beats[beatIdx - 1].end` so the invariant is explicit rather than
+resting on contiguity, with the off-by-one documented at the function and a warning not to widen it again.
+
+**The thing I misdiagnosed:** the original "the card only coalesces after combat" report was NOT a windowing
+problem. It was the deferred Battlecry emitting no `toHand` event at all during the fight — fixed properly in
+the `fix(core)` entry above. The window change was a second, wrong fix layered on the first.
+
+Tests updated to pin the off-by-one from both sides: a Deathrattle grant is in hand when its beat is on screen
+and **not** a beat sooner; a final-beat grant is empty at `beats.length - 1` and present at `beats.length`;
+and neither Avenge card's grant appears before its own beat is the one showing.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
 ### test(ui): lock the one-at-a-time ordering for multiple Avenge grants
 
 **Owner spec 2026-07-27:** two Avenge cards that each grant a card should read like the End-of-Turn beats —
@@ -85,8 +113,9 @@ excluded. Two consequences: every grant appeared a beat late, and a grant on the
 shape — the final minion dies, its Deathrattle fires, the fight is over) never appeared during the replay at
 all, leaving the settle-time materialise as its only announcement. That is exactly what the owner was seeing.
 
-Now it slices through the beat's **`end`**, so the card materialises on the same beat as the purple
-Deathrattle skull. The rule is extracted as **`grantsShownThrough(events, beats, beatIdx)`** and covered by
+~~Now it slices through the beat's **`end`**~~ — **superseded, see the correction entry above: this was
+wrong.** `beatIdx` is the beat about to play, so `start` already meant "through the beat on screen"; widening
+it put grants a beat ahead of their pulse. The rule is extracted as **`grantsShownThrough(events, beats, beatIdx)`** and covered by
 two tests: a real Scrap Vendor Deathrattle is shown ON its beat and *not* on the one before it, and a grant on
 the final beat is shown during the replay. Both fail under the old `start` slice.
 

@@ -141,19 +141,23 @@ export function preBuffHolds(
 }
 
 /**
- * The cardIds a combat has put in the player's hand as of `beatIdx` — every `toHand` up to and INCLUDING
- * the current beat. The recruit hand stays the pre-combat hand until `resolveCombat`, so the combat view
- * appends these and the hand grows as the cards arrive.
+ * The cardIds a combat has put in the player's hand as of `beatIdx` — every `toHand` through the beat that
+ * is CURRENTLY ON SCREEN. The recruit hand stays the pre-combat hand until `resolveCombat`, so the combat
+ * view appends these and the hand grows as the cards arrive.
  *
- * Through the beat's `end`, not its `start`: the card has to materialise ON the beat its effect procs — the
- * same moment as the purple Deathrattle skull — which is what the coalesce is announcing (owner ask
- * 2026-07-27). Slicing to `start` excluded the very beat that granted the card, which cost two things: every
- * grant showed up a beat late, and a grant on the LAST beat (the common case — the final minion dies, its
- * Deathrattle fires, the fight is over) never appeared during the replay at all, leaving the settle-time
- * materialise after combat as its only announcement.
+ * **`beatIdx` is the beat about to play; the one on screen is `beats[beatIdx - 1]`** (see the scheduler's
+ * `shown`/`next` split, and `processedEnd` — the same index the live frame folds through). Everything here
+ * hangs off that: the card must materialise on the beat whose effect granted it, in lockstep with that
+ * unit's trigger-medallion pulse, which is derived from the same `beats[beatIdx - 1]` window.
+ *
+ * Slicing one beat further (`beats[beatIdx].end`) puts the card in hand a beat BEFORE its own pulse. With two
+ * Avenge granters that desynchronises the whole read — the pulses and the coalesces stop pairing up, which is
+ * exactly what the owner reported on 2026-07-27. Don't "fix" a late-looking grant by widening this window; if
+ * a card seems to arrive only after combat, check first that the effect emits a `toHand` event at all (a
+ * DEFERRED economy Battlecry did not, until `replayCombatBattlecry` began announcing named grants).
  */
 export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): string[] {
-  const through = beats[beatIdx]?.end ?? events.length;
+  const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   return events.slice(0, through).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
 }
 

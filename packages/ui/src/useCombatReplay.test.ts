@@ -88,10 +88,11 @@ describe('layoutRectOf', () => {
   });
 });
 
-/* WHEN a combat grant shows up in hand. The card must materialise on the beat its effect PROCS — the same
-   moment as the purple Deathrattle skull — because that beat is what the coalesce is announcing (owner ask
-   2026-07-27). This used to slice to the current beat's `start`, i.e. strictly BEFORE it, which put every
-   grant a beat late and made a grant on the LAST beat invisible for the whole replay. */
+/* WHEN a combat grant shows up in hand. The card must materialise on the beat its effect PROCS — in lockstep
+   with that unit's trigger-medallion pulse, which is derived from the same window. `beatIdx` is the beat about
+   to play, so the beat ON SCREEN is `beats[beatIdx - 1]`; these tests pin that off-by-one, because widening it
+   by a beat puts every card in hand BEFORE its own pulse (owner report 2026-07-27: with two Avenge granters,
+   both pulses fired and only then did the two cards coalesce). */
 describe('grantsShownThrough — a combat grant appears ON its own beat', () => {
   it('a real Deathrattle grant is shown at the beat that emits it, not the one after', () => {
     // Scrap Vendor dies early and its Deathrattle grants a Patch Job.
@@ -105,8 +106,9 @@ describe('grantsShownThrough — a combat grant appears ON its own beat', () => 
     const beats = compileMoments(events);
     const grantBeat = beats.findIndex((b) => events.slice(b.start, b.end).some((ev) => ev.type === 'toHand'));
     expect(grantBeat).toBeGreaterThanOrEqual(0);
-    expect(grantsShownThrough(events, beats, grantBeat)).toContain('patchjob');       // ON the beat
-    expect(grantsShownThrough(events, beats, grantBeat - 1)).not.toContain('patchjob'); // not before it
+    // On screen during beat `grantBeat` — i.e. beatIdx one past it — and not a moment sooner.
+    expect(grantsShownThrough(events, beats, grantBeat + 1)).toContain('patchjob');
+    expect(grantsShownThrough(events, beats, grantBeat)).not.toContain('patchjob');
   });
 
   it('two Avenge granters resolve ONE AT A TIME, in board order', () => {
@@ -133,11 +135,14 @@ describe('grantsShownThrough — a combat grant appears ON its own beat', () => 
     expect((grantBeats[0]!.ev as { source?: string }).source).toBe('m2');
     expect((grantBeats[1]!.ev as { source?: string }).source).toBe('m3');
     // …and the hand grows one card per beat, so the coalesces can't fire together.
-    expect(grantsShownThrough(events, beats, grantBeats[0]!.i)).toHaveLength(1);
-    expect(grantsShownThrough(events, beats, grantBeats[1]!.i)).toHaveLength(2);
+    expect(grantsShownThrough(events, beats, grantBeats[0]!.i + 1)).toHaveLength(1);
+    expect(grantsShownThrough(events, beats, grantBeats[1]!.i + 1)).toHaveLength(2);
+    // …and neither card is in hand before its own beat is the one on screen — that early arrival is what
+    // made both pulses fire before either coalesce.
+    expect(grantsShownThrough(events, beats, grantBeats[0]!.i)).toHaveLength(0);
   });
 
-  it('a grant on the FINAL beat is still shown during the replay', () => {
+  it('a grant on the FINAL beat is shown once that beat is on screen', () => {
     // The regression that left the owner seeing the coalesce only after combat: the last minion dies, its
     // Deathrattle grants, the fight ends — slicing to `start` never reached that beat's events.
     const events = [
@@ -146,6 +151,7 @@ describe('grantsShownThrough — a combat grant appears ON its own beat', () => 
       { type: 'toHand', cardId: 'patchjob', side: 'player' },
     ] as CombatEvent[];
     const beats = compileMoments(events);
-    expect(grantsShownThrough(events, beats, beats.length - 1)).toEqual(['patchjob']);
+    expect(grantsShownThrough(events, beats, beats.length - 1)).toEqual([]);   // still one beat out
+    expect(grantsShownThrough(events, beats, beats.length)).toEqual(['patchjob']);
   });
 });

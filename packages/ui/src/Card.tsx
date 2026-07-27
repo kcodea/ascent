@@ -103,6 +103,8 @@ let tierStarsAvailable = true;
    cards get the gold variant. Shows on every card type: minion oval, spell square and Taunt heater alike. */
 const tierPlateSrc = (golden: boolean): string =>
   `${import.meta.env.BASE_URL}frames/tierplate${golden ? '-gilded' : ''}.webp`;
+/** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
+const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 // Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
 // dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
@@ -860,6 +862,11 @@ export const Card = memo(function Card({
           click inspect, or the always-on-text setting): name, rules text, tribe. Hidden
           (display:none) on a resting compact tile. */}
       <div className="drawer">
+        {/* BACKBOX — an authored dark shape behind the text panel, darkening the plate under it so the rules
+            text reads cleanly. FIRST child so tree order paints it behind every text sibling; `.drawer` keeps
+            NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
+            tuner (backbox · size/x/y/opacity/blend). */}
+        <img className="descbox" src={DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
         <div className="cn">{card.name}</div>
         {card.text && (
           <div className="desc">

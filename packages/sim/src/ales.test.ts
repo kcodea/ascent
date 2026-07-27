@@ -3,7 +3,9 @@ import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /**
- * The Work Orders (owner batch 2026-07-25) — a five-card cycle of cheap Tier-3 utility spells, SET 2 ONLY.
+ * The Ales (owner batch 2026-07-25, renamed from Work Orders 2026-07-26) — a five-card cycle of cheap
+ * Tier-3 utility spells, SET 2 ONLY. The card IDS keep their `wo_` prefix: art files and saved runs key off
+ * them, the same rule every other rename here has followed.
  * Same tier and cost by design, each paying a different axis.
  */
 const WORK_ORDERS = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
@@ -18,7 +20,7 @@ const board = (n: number): BoardCard[] => INERT.slice(0, n).map((id, i) => minio
 const spell = (uid: string, cardId: string): BoardCard =>
   ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 
-describe('Work Orders — set scoping and shared shape', () => {
+describe('The Ales — set scoping and shared shape', () => {
   it('are in SET 2 and NOT in set 1', () => {
     // The whole point of authoring them in `cards/set2/spells.ts`: a set-1 run must never see them.
     const set2 = new Set(poolFor('set2').spells.map((c) => c.id));
@@ -38,7 +40,7 @@ describe('Work Orders — set scoping and shared shape', () => {
   });
 });
 
-describe('Work Order: Mine', () => {
+describe('Golden Ale', () => {
   it('gains 2 Gold', () => {
     let s: RunState = { ...createRun(1), phase: 'recruit', embers: 5, board: [], hand: [spell('m', 'wo_mine')] };
     s = reduce(s, { type: 'play', uid: 'm' });
@@ -46,7 +48,7 @@ describe('Work Order: Mine', () => {
   });
 });
 
-describe('Work Order: Champion', () => {
+describe("Champion's Ale", () => {
   it('buffs the LEFT-MOST minion only', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
@@ -68,7 +70,7 @@ describe('Work Order: Champion', () => {
   });
 });
 
-describe('Work Order: Health / Attack', () => {
+describe('Defensive / Bloody Ale', () => {
   it('Health buffs exactly 3 DISTINCT minions by +4 Health', () => {
     // Distinct matters: "3 random friendly minions" means three bodies, not three rolls that can double up.
     let s: RunState = {
@@ -117,7 +119,7 @@ describe('Work Order: Health / Attack', () => {
   });
 });
 
-describe('Work Order: Reinforcement', () => {
+describe('Reinforcing Ale', () => {
   it('grants a minion of the dominant tribe, into hand', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', tier: 3,

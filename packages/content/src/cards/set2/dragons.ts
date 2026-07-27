@@ -34,7 +34,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // The tribe's Tier-1 spell payoff: a body that grows every turn you cast, so casting early has a floor
     // even when you have no other Dragon out. Permanent growth (owner ruling 2026-07-24).
     id: 'd2_ashscribe',
-    name: 'Ashscribe Whelp',
+    name: 'Ashscribe',
     tribe: 'dragon',
     tier: 1,
     attack: 1,
@@ -47,7 +47,7 @@ export const SET2_DRAGONS: CardDef[] = [
   {
     // Rewards casting TWICE in a turn rather than once — the recursion line's "keep going" piece.
     id: 'd2_spellkeeper',
-    name: 'Spellkeeper Drake',
+    name: 'Spell Warden',
     tribe: 'dragon',
     tier: 3,
     attack: 3,
@@ -179,7 +179,7 @@ export const SET2_DRAGONS: CardDef[] = [
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.
     id: 'd2_chronicler',
-    name: 'Hoard Chronicler',
+    name: 'Drachronicler',
     tribe: 'dragon',
     tier: 3,
     attack: 3,
@@ -193,7 +193,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // A spell magnet: aim your best spell at it and it resolves twice. Only the FIRST spell each turn, so it
     // rewards picking the right one rather than chaining cheap ones.
     id: 'd2_mirrorwing',
-    name: 'Mirrorwing Hatchling',
+    name: 'Mirrorwing',
     tribe: 'dragon',
     tier: 2,
     attack: 2,
@@ -227,7 +227,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // Two effects, one card: the Shout that pays out, and the cadence that grows it. Rides
     // `battlecryTriggered`, so every Shout FIRE counts (Drakko repeats included) — "Shouts you trigger".
     id: 'd2_scalechanter',
-    name: 'Scalechanter',
+    name: 'Enchanter',
     tribe: 'dragon',
     tier: 3,
     attack: 4,

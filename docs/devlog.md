@@ -145,6 +145,132 @@ meant to be a constant nameplate; if it should hug the stars, the options are pe
 so low tiers get a smaller plaque overall) or a 9-slice (fixed decorative caps, stretched middle — hugs every
 tier at constant height). Owner's call.
 
+## 2026-07-26 (a dark backbox behind the rules text)
+
+### feat(ui): authored backbox behind the text panel, fully tunable
+
+Owner art: a dark shape seated BEHIND the rules-text panel to darken the plate's stone under it so the copy
+reads cleanly. This is the readable middle ground between the old hard slab (removed 2026-07-21) and bare text
+on stone — a shaped, blended wash rather than a rectangle.
+
+`.descbox` is the drawer's FIRST child, and the text nodes are given `position: relative` so they land in the
+SAME paint step, where tree order decides: backbox first → behind, text after → in front. Being first in the
+DOM is NOT enough on its own — the backbox is positioned (absolute) while the text was static, and CSS paints
+positioned/z-auto boxes in a LATER step than in-flow blocks, so it covered the copy (owner report, fixed same
+day). No z-index on any of them, deliberately, because `.drawer` having none is load-bearing (a z-index there would restack the panel above the
+frame, whose oval overflows down past the panel's top edge). Sized by WIDTH (× --ccw) with `height: auto`, so
+the art's 853×621 ratio holds at any card size. `mix-blend-mode` blends it against the plate, and
+`.card.plated`'s `isolation: isolate` contains that to the card so it can never blend with the board behind.
+
+Five knobs on the 🔤 Card Text tuner: `backbox · size / x / y / opacity / blend`, the last a select over the
+four modes the owner asked for (normal / overlay / multiply / soft-light). Defaults: size 1.02, centred,
+opacity 0.55, `multiply`. Size 0 or opacity 0 hides it entirely.
+
+Asset: `frames/desc-backbox.webp`, 676×1228, **4.1 KB**.
+
+**Shape replaced (owner, same day):** the first pass was a wide 853×621 strip; the shipped art is a full card-BODY
+silhouette (arched top, notched bottom) at 676×1228 — ratio **0.55**, so it now renders ~1.8× TALLER than wide
+instead of ~1.4× wider than tall. Because it's anchored inside the text panel but has to cover the body above
+it, the offset ranges were opened right up (x ±1.5, y −2.5…1.5 card-widths, width up to 2.5) — the old
+±0.6 fractions couldn't reach. Defaults re-pointed to `width 1.34 / y −1.06` so it lands roughly on the card
+body out of the gate, with the CSS fallbacks mirrored.
+
+**Verified live** on a plated hand card: `.descbox` is the drawer's first child (order `descbox, cn, desc`),
+overlaps the description text, ratio 1.374 matches the source exactly, and `pointer-events: none`. Every knob
+drives it — size 1.6 grew it 52×38 → 82×60 (ratio held, stayed centred), x 0.3 moved it right 614→629, y 0.2
+down 703→714, opacity → 1, all four blend modes applied, and size 0 collapsed it to 0×0.
+
+### 2026-07-26 — art fix: Gemheart Carver was wearing the Gemheart Golem's art
+
+Owner catch. Two cards share the "Gemheart" name and I had them crossed:
+
+- `k_gemheart` is **Gemheart Carver**, the Kobold minion.
+- `gemheart-shard` is **Gemheart Golem**, the token that was renamed from Gem Shard.
+
+The art matcher carried an alias `'gemshard' -> 'k_gemheart'`, written when the Gem Shard rename landed. It
+looked right — the rename note said "Gem Shard → Gemheart Golem", and `k_gemheart` is the id that *reads* like
+Gemheart — but the renamed card was the TOKEN, whose id is `gemheart-shard`. So the token's art went onto the
+minion, and the Carver had no un-suffixed master of its own at the time to contradict it.
+
+`GemheartCarver.png` now exists, so the Carver is wired to it, and the alias is corrected to
+`'gemshard' -> 'gemheart-shard'` plus an explicit `'gemheartcarver' -> 'k_gemheart'` so a future rewire can't
+reintroduce the swap.
+
+**Verified:** the two art files now hash differently (they were distinct masters all along — the wrong one was
+simply copied twice), both load at 512×512, and a live board shows the Carver and the Golem with visibly
+different art. Only `k_gemheart.webp` changed.
+
+**The lesson for the next rename:** an id that merely *resembles* the new name is not evidence. `k_gemheart`
+vs `gemheart-shard` needed one grep to settle, and the alias comment asserted the mapping instead of checking
+it.
+
+### 2026-07-26 — content: the Dwarf Work Orders become Ales, with new art
+
+Owner rename. Work Order: Mine → **Golden Ale**, Health → **Defensive Ale**, Champion → **Champion's Ale**,
+Reinforcement → **Reinforcing Ale**, Attack → **Bloody Ale**. Art wired from `Ascent Art/Spells`.
+
+**Ids keep their `wo_` prefix** — art files and saved runs key off them, the same rule every rename here has
+followed. Worth knowing when grepping: the cycle is called the Ales but still lives under `wo_*`.
+
+The rename had to reach further than the five `name:` fields. `addBuff(target, 'Work Order', …)` was the
+**buff-source label**, which the player reads in the inspect breakdown — a stat gain would have kept saying
+"Work Order" long after the cards stopped being called that. That's now 'Ale'. Also updated the stale
+`EffectFactoryId` comments and renamed `workOrders.test.ts` → `ales.test.ts` with its describes.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1775 tests. Live-checked: all five render in
+hand with the right name and their own art, loading at 512×512. Only those five art files changed — the
+optimizer has swept unrelated PNGs before, so the change set was reconciled.
+
+### 2026-07-26 — content+fix: five Dragon renames, spell-power text, corpse-blocked adjacency, art rewire
+
+**Renames** (ids unchanged — art and saved runs key off them): Ashscribe Whelp → **Ashscribe**, Hoard
+Chronicler → **Drachronicler**, Mirrorwing Hatchling → **Mirrorwing**, Spellkeeper Drake → **Spell Warden**,
+Scalechanter → **Enchanter**. The owner's note spelled the first "Ashscrbibe"; the art master they shipped is
+`Ashscribe.png`, which settles it.
+
+**Hoardflame was broken in the engine, not just the text.** `spellBuffPerDragonPlayed` never applied spell
+power at all — a Spellbinder's +0/+1 did nothing — and the printed text matched the broken effect, so the two
+agreed on the wrong number. Spell power now applies once, like every other stat spell (deliberately NOT
+multiplied by the Dragon count), and the text shows the live value: +4/+5 with a +0/+1 buff.
+
+**The owner asked whether other spells shared it.** `spellPowerText.test.ts` derives the answer instead of
+hand-listing: it reads `recruit.ts`, finds which cast factories actually call `spellAttackBonus`/
+`spellHealthBonus`, and requires every spell using one to print a live value. Exactly one other did —
+**Lantern Light**, whose "+1/+1 for each Tavern Tier" showed neither the tier scaling nor spell power. Its
+whole rate clause is now replaced by the live total, since injecting a number and leaving "for each Tavern
+Tier" standing would have read "+5/+4 for each Tavern Tier" — a bigger lie than the one being fixed.
+
+*A false-positive worth recording:* the first version of that audit bounded each factory body at the first
+`
+  },`, which overruns any factory containing a nested object — so it attributed a NEIGHBOUR's spell power
+to five innocent spells (Devour, Mend, Lasso, Last Stand, Executioner's Edge). Bounding by the next factory
+declaration fixed it. A false positive in an audit is worse than none: it sends you rewriting correct text.
+
+**Ryme: corpses were blocking adjacency.** A dead minion keeps its slot in `boards[side]`, so indexing
+`arr[i ± 1]` and discarding corpses meant a body that died earlier stopped Ryme reaching the live Battlecry
+just past it. That's the owner's exact report — Soren destroying Ryme at Start of Combat fired both flanking
+Clerics (no corpses yet), while a later death fired one. Corpses are invisible to the player, so "adjacent"
+now means adjacent among the LIVING, via a shared `livingNeighbours` helper. Applied to all three raw-board
+sites (Ryme, Geode Guardian, Resonance Idol) — Karwind already used `ctx.living()`, so adjacency meant two
+different things in the same file until now.
+
+**Field Mechanic is NOT broken.** Traced end-to-end: Ryme's trigger records it in `playerDeferredBattlecries`
+and settle re-fires it through the real recruit factory — the Patch Job does land in hand, just after the
+fight, which is how every economy Battlecry has always worked. I'd started adding a combat implementation
+before checking, and removed it: `replayCombatBattlecry` is a hardcoded chain that never consults `FACTORIES`,
+so the entry would have been dead code that merely looked like a fix. A test now pins the deferral.
+
+**Art:** Set-1 Whelpling and Buddy Buddy remapped; Set-2 minions re-wired (107 masters, 16 actually changed).
+Set 1 having its own `Whelpling.png` resolves the Whelp ambiguity — the Set-2 folder's `Whelp.png` is
+`n2_whelp`, now wired.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1775 tests. Live-checked the renames (all
+five carry their art), Hoardflame (+4/+5, and +6/+7 with two Dragons) and Lantern Light. The corpse fix was
+confirmed load-bearing by restoring the old indexing — the new test fails 1-vs-2.
+
+**Still un-attributed** (reported, not guessed): `GemforgeFiend.png`, six `…2` alternates, six new `…Alt`
+masters, and seven raw-export UUID filenames. `Fatecarver.png` and `PitDrillmaster.png` are also present but
+those cards were removed yesterday.
 
 ## 2026-07-26 (tier is shown as stars)
 
@@ -238,7 +364,6 @@ oval — see the Taunt entry above; the two frame families are themed in paralle
 
 Not wired: the owner also supplied `dwarf frame.png` / `dwarf gilded frame.png`, but there is no `dwarf` tribe
 in the `Tribe` union — held aside pending that tribe existing.
-
 
 ### 2026-07-26 — content: removed four minions (Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte, Fatecarver)
 

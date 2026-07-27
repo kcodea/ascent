@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Fixed broken images on the itch browser build** — root-absolute asset paths 404 on itch's CDN sub-path;
+  a test now blocks the whole class.
 - **Ruby and Ward Echoes animate in combat** — Geode Guardian and Lastlight Marshal were landing their buffs
   with no cue at all.
 - **The Dwarf Work Orders are now Ales** — Golden, Defensive, Champion's, Reinforcing and Bloody, with new art.

@@ -3,6 +3,12 @@ import { getTavernUpConfig } from './tavernUpConfig';
 import { pixiFx } from './pixiFx';
 import { Icon } from './Icon';
 
+// Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
+// root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
+// rewrites CSS `url(/…)` to relative at build time but CANNOT rewrite JS string literals, so every one of
+// these has to prefix the base itself ('/' in dev, './' in the build). Same rule as Card.tsx's frame srcs.
+const F = `${import.meta.env.BASE_URL}frames/`;
+
 /**
  * The standalone TAVERN UP stone button — the carved rock medallion that replaces the plain "Upgrade
  * Tavern" plaque in the shop tray (same playbook as the End Turn diamond, handoff 2026-07-16). Stage-pinned
@@ -68,18 +74,18 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
       {/* Gem UNDER the base: the stone's transparent hole reveals it and the gold ring overlaps its rim. The
           broken gem is the max-tier "complete" state; both stay mounted (CSS flips on `.maxed`). */}
       <span className="tvb-gembox" aria-hidden="true">
-        <img className="tvb-gem lit" src="/frames/tavernup_gem.webp" alt="" draggable={false} />
-        <img className="tvb-gem broken" src="/frames/tavernup_gem_broken.webp" alt="" draggable={false} />
+        <img className="tvb-gem lit" src={`${F}tavernup_gem.webp`} alt="" draggable={false} />
+        <img className="tvb-gem broken" src={`${F}tavernup_gem_broken.webp`} alt="" draggable={false} />
         {/* Ambient SHEEN — a glare bar sweeping the gem's face, clipped to its circle; transform-only loop. */}
         <span className="tvb-sheen"><span className="tvb-sheen-bar" /></span>
       </span>
-      <img className="tvb-base" src="/frames/tavernup_base.webp" alt="" draggable={false} />
+      <img className="tvb-base" src={`${F}tavernup_base.webp`} alt="" draggable={false} />
       {/* Tier pips — the current tavern tier lit into the stone's slot arc. All seven stay mounted (they
           share one aligned canvas); CSS shows the active one, and the press flash masks the advance.
           NOTE: tavernup_tier7.webp is a PLACEHOLDER (a copy of tier 6) — Tier 7 only appears under the
           Summit rift, and the real badge art is still to come. */}
       {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-        <img key={n} className={`tvb-pips${n === pipTier ? ' on' : ''}`} src={`/frames/tavernup_tier${n}.webp`} alt="" draggable={false} aria-hidden="true" />
+        <img key={n} className={`tvb-pips${n === pipTier ? ' on' : ''}`} src={`${F}tavernup_tier${n}.webp`} alt="" draggable={false} aria-hidden="true" />
       ))}
       {/* Hover glow — a circular halo hugging the gem. NOT the diamond's drop-shadow-of-the-art trick: a
           drop-shadow halo is clipped at its element box (any real blur floods the box and reads SQUARE).
@@ -87,7 +93,7 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
           the element, and can never clip. */}
       <span className="tvb-glow" aria-hidden="true" />
       {/* The press FLASH — a warm pop of the gem masking the pip advance. One-shot: mounts, animates, unmounts. */}
-      {striking && <img className="tvb-flash" src="/frames/tavernup_gem_pad.webp" alt="" draggable={false} aria-hidden="true" />}
+      {striking && <img className="tvb-flash" src={`${F}tavernup_gem_pad.webp`} alt="" draggable={false} aria-hidden="true" />}
       {/* Cost coin — the live upgrade cost (hidden at max tier — the broken gem tells that story — and
           during combat, where the stone is a passive tier indicator). */}
       {!maxed && !combat && (

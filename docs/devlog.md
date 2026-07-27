@@ -2,6 +2,37 @@
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### 2026-07-27 — fix(ui): broken images on the itch browser build (root-absolute public paths)
+
+Owner report with a screenshot: several buttons render as broken-image icons on itch, while the same build is
+perfect on localhost.
+
+**Cause.** itch serves the game from a CDN sub-path, so a root-absolute `src="/frames/x.webp"` resolves against
+the CDN ROOT and 404s. Vite rewrites `url(/…)` inside CSS at build time — the built stylesheet correctly says
+`url(../cursors/…)` — but it CANNOT rewrite a string literal in JS, so eleven `/frames/…` srcs survived
+verbatim into the bundle. Localhost serves from `/`, which is why it never shows up in dev or `vite preview`.
+
+Fixed by prefixing `import.meta.env.BASE_URL` in the four components that missed it — EndTurnButton,
+RefreshButton, StatusBar (hero power) and TavernUpButton — which is exactly the pattern `Card.tsx` already
+documents for its frame srcs.
+
+**This is the SECOND time it shipped** (Card.tsx's comment records the first, from a mobile itch test), so a
+comment in one file is evidently not enough: `publicAssetPaths.test.ts` now fails on any root-absolute
+`/frames|cursors|fx|sfx|audio/` reference in the UI source.
+
+The guard immediately earned itself — it caught a TWELFTH site the regex pass had missed, `TavernUpButton`'s
+tier pips, which build their src from a template literal rather than a plain string.
+
+**Verified the way the bug actually manifests**, since localhost can't reproduce it: served the built `dist`
+from `http://localhost:8899/html/1234/` (an itch-shaped sub-path) and walked mode → hero → recruit. 50 images,
+**zero broken**, srcs now reading `./frames/…`; the old form 404s there, as it should. Built JS contains no
+root-absolute public refs at all.
+
+**A bug in my own test, worth recording:** it first reported every explanatory comment as an offender. The
+repo is CRLF, `split('
+')` leaves a trailing ``, and JS `.` does not match `` — so `/\/\/.*$/` never
+matched and no `//` line was ever stripped.
+
 ### chore(ui): second pass on the Card Text defaults
 
 Owner re-dialed after seeing the first bake in place: side inset `padX 0.08 → 0` (the text column now runs the

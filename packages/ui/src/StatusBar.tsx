@@ -14,6 +14,12 @@ import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
 
+// Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
+// root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
+// rewrites CSS `url(/…)` to relative at build time but CANNOT rewrite JS string literals, so every one of
+// these has to prefix the base itself ('/' in dev, './' in the build). Same rule as Card.tsx's frame srcs.
+const F = `${import.meta.env.BASE_URL}frames/`;
+
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
  *  fit): after layout, if the text overflows the pill's max-width, scale the font down by the overflow
  *  ratio (one measurement, no loops). Re-fits when the text changes and on window resize (--u shifts). */
@@ -272,15 +278,15 @@ export function StatusBar() {
                   follow the inner diamond's alpha; a CSS mask cuts the source pixels back out so only the
                   halo paints — hover shows it, READY/ARMED pin it). All dialed live by the 💠 tuner via
                   --hpb-* vars. */}
-              <img className="hpb-glow" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />
-              <img className="hpb-frame" src="/frames/heropowerbutton.webp" alt="" draggable={false} aria-hidden="true" />
+              <img className="hpb-glow" src={`${F}heropowerbutton_face.webp`} alt="" draggable={false} aria-hidden="true" />
+              <img className="hpb-frame" src={`${F}heropowerbutton.webp`} alt="" draggable={false} aria-hidden="true" />
               {/* Art sits in a CLIPPING wrapper (the face window stays fixed) so the 💠 tuner's art
                   offset/scale dials move the art INSIDE the window without moving the clip. */}
               {heroPowerArt(hero.id)
                 ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
               {/* The REFRESH FLASH — a one-shot bloom of the face as the power re-arms (never a loop). */}
-              {refreshFlash && <img className="hpb-flash" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />}
+              {refreshFlash && <img className="hpb-flash" src={`${F}heropowerbutton_face.webp`} alt="" draggable={false} aria-hidden="true" />}
             </button>
             {(digCost ?? tamerCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? power.cost}</span></span> : null}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel). */}

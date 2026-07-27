@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### style(fx/ui): wider rail (288 → 384px) and wider dials
+
+Owner: "can you make the right side bar larger? and can you make the dials and whatnot a bit wider?"
+
+The rail's width was hardcoded TWICE — on `.fxwb-side` and again as the transport bar's `right` offset —
+which have to agree exactly or the transport slides under the rail or leaves a gap. Replaced both with one
+`--fxwb-rail` custom property on `.fxwb`, so widening it is a single number, and it drops to 300px under
+1100px so a small screen isn't eaten alive.
+
+At 288px a param row had roughly 150px of slider left after its label and value columns, so every dial was
+a stub. The row grid went 92px/1fr/auto → 118px/minmax(0,1fr)/52px. The value column is now FIXED rather
+than `auto`, which fixes something separate and slightly maddening: with `auto` every slider ended at a
+different x depending on how many digits its number happened to have, so the column of dials was ragged.
+Track 5→7px and thumb 13→16px, now that there's room to grab.
+
+The per-layer button cluster (mute/solo/rename/duplicate/up/down/delete) had been squeezed to 18px to fit
+seven controls in 288px; back to 21px.
+
+Verified: typecheck clean, lint 0 errors, 2388 tests green, `build:web` green. CSS only. Not visually
+checked — the preview pane's degenerate viewport would trigger the ≤1100px branch and prove nothing about
+the layout at a real width.
+
 ### feat(fx): playback plays every layer OUT — the duration stops deciding what you see
 
 Owner: "i feel like the timeline is messing so many things UP!!!! i want to press play and have the effects

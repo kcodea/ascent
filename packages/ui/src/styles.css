@@ -4976,6 +4976,15 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    below the boot screens (z9999+). */
 .fxwb { position: fixed; inset: 0; z-index: 500; pointer-events: none; font-family: var(--font-ui); color: #d9d3ea; }
 .fxwb-top, .fxwb-transport, .fxwb-side { pointer-events: auto; }
+/* ONE source for the rail's width. It was hardcoded twice — on `.fxwb-side` and again as the transport
+   bar's `right` offset — which have to agree exactly or the transport slides under the rail (or leaves a
+   gap). Widened from 288px: at that width the param rows had ~150px of slider left after the label and
+   value columns, so every dial was a stub. */
+.fxwb { --fxwb-rail: 384px; }
+@media (max-width: 1100px) {
+  /* Don't eat a small screen alive — below this the stage matters more than the dials. */
+  .fxwb { --fxwb-rail: 300px; }
+}
 
 .fxwb-top {
   position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 10px;
@@ -5013,7 +5022,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-backdrop-custom.on { border-color: #c936ef; box-shadow: 0 0 0 2px color-mix(in srgb, #c936ef 55%, transparent); }
 
 .fxwb-side {
-  position: absolute; top: 52px; right: 0; bottom: 60px; width: 288px; overflow-y: auto; box-sizing: border-box;
+  position: absolute; top: 52px; right: 0; bottom: 60px; width: var(--fxwb-rail); overflow-y: auto; box-sizing: border-box;
   background: #211d2c; border-left: 2px solid #3d3752; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px;
 }
 .fxwb-inspector { display: flex; flex-direction: column; gap: 12px; }
@@ -5021,11 +5030,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   margin: 0 0 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
   color: #8a7fa8; border-bottom: 1px solid #3d3752; padding-bottom: 4px;
 }
-.fxwb-row { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 6px; margin: 4px 0; }
+.fxwb-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 52px; align-items: center; gap: 8px; margin: 5px 0; }
+/* The value column is FIXED rather than `auto` so the sliders all end at the same x — with `auto` every row
+   was a different length depending on how many digits its number happened to have. */
+.fxwb-row .fxwb-val, .fxwb-row > span:last-child { text-align: right; }
 .fxwb-row label { font-size: 12px; font-weight: 700; color: #d9d3ea; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fxwb-row input[type='range'] { width: 100%; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
-.fxwb-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
-.fxwb-row input[type='range']::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-row input[type='range'] { width: 100%; height: 7px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
+.fxwb-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-row input[type='range']::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
 /* Editable palette control: a preset dropdown above a row of four rim→core colour swatches. */
 .fxwb-palette { display: flex; flex-direction: column; gap: 5px; width: 100%; }
 .fxwb-palette > select { width: 100%; }
@@ -5100,7 +5112,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-timing-full input[type='checkbox'] { accent-color: #c936ef; width: 14px; height: 14px; cursor: pointer; }
 
 .fxwb-transport {
-  position: absolute; left: 0; right: 288px; bottom: 0; display: flex; align-items: center; gap: 10px;
+  position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0; display: flex; align-items: center; gap: 10px;
   padding: 9px 14px; background: #211d2c; border-top: 2px solid #3d3752; box-shadow: 0 -6px 18px -8px rgba(0, 0, 0, 0.5);
   flex-wrap: wrap;
 }
@@ -5350,10 +5362,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* FX Workbench — per-layer NAME + SOLO.
    The row's button cluster now carries seven controls (mute, solo, rename, duplicate, up, down, delete) in a
-   288px rail, so they shrink to 18px: still a comfortable hit target, and it leaves the name enough width to
-   be worth reading. */
-.fxwb-layer-btns { gap: 2px; }
-.fxwb-layer-btns button { width: 18px; height: 18px; font-size: 10px; }
+   rail. At 288px they had to shrink to 18px; with the rail at 384px they get their full size back and the
+   name still has room to be worth reading. */
+.fxwb-layer-btns { gap: 3px; }
+.fxwb-layer-btns button { width: 21px; height: 21px; font-size: 11px; }
 /* The name doubles as the rename affordance (double-click), so it gets a text cursor to say so. */
 .fxwb-layer-name { cursor: text; }
 .fxwb-layer-rename {
@@ -5374,7 +5386,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    search, and no sign of which sliders were inert. These rules dress the three things that fixed it — the
    Essentials/All tier, collapsible counted groups, and a disabled-with-a-reason row — in the existing dark
    panel language (accent #c936ef, panel #2b2739, border #3d3752, text #d9d3ea, muted #8a7fa8). Everything
-   here is ADDITIVE: no rule above is touched, and the rail stays exactly 288px wide. */
+   here is ADDITIVE: no rule above is touched. (The rail itself is now `--fxwb-rail`, widened from 288px.) */
 
 /* The inspector's own header: tier switch + search + a line saying what you're looking at. */
 .fxwb-tierbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

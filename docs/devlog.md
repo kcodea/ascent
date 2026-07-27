@@ -2,6 +2,39 @@
 
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
+### fix(core): a deferred Battlecry's named card is announced during the fight
+
+**Owner:** "Field Mechanic's Shout is adding a Patch Job to hand — paired with Ryme's Deathrattle that should
+add a Patch Job if the Mechanic is still alive and next to it when Ryme dies. This qualifies for the coalesce."
+
+Correct, and it *does* grant — I was wrong to say that pairing grants nothing. Tracing the real event log:
+Ryme's Deathrattle fires, `sc` logs **"Ryme triggers Field Mechanic's Battlecry"**, and then… nothing. The
+reason is `replayCombatBattlecry`: `battlecryGrantSpell` isn't in `COMBAT_REPLAYABLE_BATTLECRIES`, so it falls
+to the `economy` branch and is recorded in `playerDeferredBattlecries`. `settleCombat` re-fires it through the
+real recruit factory, which is where the Patch Job actually lands. Nothing is lost — but there was **no event
+during the fight**, so the replay had nothing to animate and the arrival FX only played once combat was over.
+
+The economy branch now logs a `toHand` for a deferred grant that names its card:
+
+- **Presentation only** — `ctx.log` directly, NOT `ctx.grantToHand`, so the card isn't granted twice. The
+  deferral stays the single source of truth for what you receive. (Same split `simulate.ts` already uses for a
+  quest `rewardCardId`: announce without pushing.)
+- Count mirrors the recruit factory's `count * golden`, so a golden Mechanic announces both Patch Jobs.
+- **Only `battlecryGrantSpell`**, because it names its card in params. A random grant
+  (`battlecryGainRandomMinion`, the Discover fallbacks) can't be announced without rolling the pick here, and
+  rolling it would move the rng so the replay would stop matching the settle.
+
+Downstream this needed no UI work — the existing pipeline picks it up: the card materialises in hand on the
+Deathrattle beat, respects the hand cap, and `grantPlayedRef` suppresses the settle-side duplicate.
+
+**Verified:** a new test pins that the Patch Job is announced exactly once, *after* the death and at/after the
+trigger, and that `playerHandGrants` stays undefined while `playerDeferredBattlecries` still carries the
+Mechanic — i.e. announced, not double-granted. `typecheck` clean, `lint` 0 errors, **1784 tests** / 108 files
+green (no golden/determinism replay broke on the added event), `build:web` green.
+
+*Ownership note: `packages/core/src/effects/factories.ts` is Kevin's side — flagged for review alongside the
+`EotStepFx` field.*
+
 ### fix(ui): hand-grant previews respect the 10-card hand cap
 
 **Owner report:** the in-combat coalesce would push the hand past its 10-card limit during the replay, then

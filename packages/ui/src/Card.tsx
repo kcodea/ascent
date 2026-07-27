@@ -29,6 +29,25 @@ import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
 // CSS url(/…) to relative at build, but it can't rewrite JS string literals — these must carry the base
 // themselves (BASE_URL is '/' in dev, './' in the build).
 const TAUNT_FRAME_SRC = `${import.meta.env.BASE_URL}frames/taunt-shield.png`;
+/* PER-TRIBE TAUNT SHIELDS (owner-authored, 2026-07-26) — the heater equivalent of `TRIBE_OVALS` below, so a
+   Taunt minion is themed like its non-Taunt kin instead of falling back to the shared gold shield. Same
+   1086×1448 dims and window silhouette as `taunt-shield.png`, so the `--heater` clip + geometry are unchanged. */
+const TRIBE_TAUNTS: Partial<Record<Tribe, { base: string; gold: string }>> = {
+  beast: { base: 'taunt-beast.webp', gold: 'taunt-beast-gilded.webp' },
+  dragon: { base: 'taunt-dragon.webp', gold: 'taunt-dragon-gilded.webp' },
+  mech: { base: 'taunt-mech.webp', gold: 'taunt-mech-gilded.webp' },
+  undead: { base: 'taunt-undead.webp', gold: 'taunt-undead-gilded.webp' },
+  demon: { base: 'taunt-demon.webp', gold: 'taunt-demon-gilded.webp' },
+  neutral: { base: 'taunt-neutral.webp', gold: 'taunt-neutral-gilded.webp' },
+  kobold: { base: 'taunt-kobold.webp', gold: 'taunt-kobold-gilded.webp' },
+};
+/** The heater a Taunt card should wear: its tribe's shield (gilded variant when golden), else the shared gold. */
+function tauntFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
+  const t = tribe && TRIBE_TAUNTS[tribe];
+  if (!t) return TAUNT_FRAME_SRC;
+  return `${import.meta.env.BASE_URL}frames/${golden ? t.gold : t.base}`;
+}
+const hasTribeTaunt = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_TAUNTS[tribe]);
 let tauntFrameAvailable = true;
 // STANDARD frame (every non-Taunt MINION) — the authored gold OVAL, and SPELL frame — the authored purple SQUARE.
 // Same pipeline as Taunt (portrait clipped to the frame's window → PNG over it → per-tribe tint → DOM data). Each
@@ -40,6 +59,28 @@ let tauntFrameAvailable = true;
 // grayscale(...)` on `.stdframe` (Gilded minions still show it gold).
 const STD_FRAME_SRC = `${import.meta.env.BASE_URL}frames/standard-oval-v2.png`;
 let stdFrameAvailable = true;
+/* PER-TRIBE OVAL FRAMES (owner-authored, 2026-07-26). Each tribe has its own coloured oval plus a dedicated
+   GILDED variant, all 1059×1427 with the same window as `standard-oval-v2.png`, so the "AUTHORED FRAMES"
+   geometry drops in unchanged. A card with a tribe frame also gets the `.tribeframe` class, which neutralises
+   BOTH recolour passes the shared silver oval relies on (`--frame-tone: grayscale(0.92)…` and the baked
+   `--fovl` brown overlay) — without that the authored colour is desaturated and washed brown. Taunt minions
+   keep the shared heater shield and spells the square, per the frame precedence below. */
+const TRIBE_OVALS: Partial<Record<Tribe, { base: string; gold: string }>> = {
+  beast: { base: 'oval-beast.webp', gold: 'oval-beast-gilded.webp' },
+  dragon: { base: 'oval-dragon.webp', gold: 'oval-dragon-gilded.webp' },
+  mech: { base: 'oval-mech.webp', gold: 'oval-mech-gilded.webp' },
+  undead: { base: 'oval-undead.webp', gold: 'oval-undead-gilded.webp' },
+  demon: { base: 'oval-demon.webp', gold: 'oval-demon-gilded.webp' },
+  neutral: { base: 'oval-neutral.webp', gold: 'oval-neutral-gilded.webp' },
+  kobold: { base: 'oval-kobold.webp', gold: 'oval-kobold-gilded.webp' },
+};
+/** The oval a card should wear: its tribe's frame (gilded variant when golden), else the shared silver oval. */
+function stdFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
+  const t = tribe && TRIBE_OVALS[tribe];
+  if (!t) return STD_FRAME_SRC;
+  return `${import.meta.env.BASE_URL}frames/${golden ? t.gold : t.base}`;
+}
+const hasTribeOval = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_OVALS[tribe]);
 // New spell frame art (owner-supplied, session 42). Filename-swapped for one-line revert (original untouched).
 // Same 1122×1346 dims + window as the original → geometry unchanged. NOTE: spells carry NO `--frame-tone`
 // (it's a no-op `brightness(1)`), so this renders as-authored — the new art is GOLD w/ purple gems. Add the
@@ -477,7 +518,7 @@ export const Card = memo(function Card({
   return (
     <div
       ref={sbRootRef}
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -668,14 +709,14 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW"): a black, blurred copy of the frame seated
                 behind the art, so the shield reads as sitting on the board rather than floating. */}
-            <img className="tframe tframe-img cshadow" src={TAUNT_FRAME_SRC} alt="" aria-hidden="true" />
+            <img className="tframe tframe-img cshadow" src={tauntFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="tframe tframe-img"
-              src={TAUNT_FRAME_SRC}
+              src={tauntFrameSrcFor(card.tribe, !!card.golden)}
               alt=""
               aria-hidden="true"
               onError={() => {
@@ -715,14 +756,14 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the oval seated
                 behind the art so the card sits on the board. */}
-            <img className="cframe cframe-img cshadow" src={STD_FRAME_SRC} alt="" aria-hidden="true" />
+            <img className="cframe cframe-img cshadow" src={stdFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="cframe cframe-img"
-              src={STD_FRAME_SRC}
+              src={stdFrameSrcFor(card.tribe, !!card.golden)}
               alt=""
               aria-hidden="true"
               onError={() => {

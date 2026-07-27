@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { hueBucketOf, FX_HUES, deriveFacets, bindingsByDef, kindCoverage } from './catalog';
 import type { StoredFxDef } from '../defStore';
 import { getScore } from '../../choreo/score';
-import { CARD_FX } from '../../choreo/cardFx';
+import { effectiveTables } from '../../choreo/bindings';
 
 describe('hueBucketOf', () => {
   it('buckets the saturated stop of each shipped palette', () => {
@@ -128,17 +128,19 @@ describe('kindCoverage', () => {
  * THE guard. A binding naming a def that does not exist is a silent no-op at runtime (`playDef` returns
  * null and nothing plays), indistinguishable from a binding that was never wired — which is exactly the
  * ambiguity that cost a long debugging session on Bloodbinder.
+ *
+ * `bindings.test.ts` asserts the same thing against the raw tables; this one asserts it through the catalog's
+ * own view, so the browser cannot show a green row for a def that isn't there.
  */
 describe('binding integrity', () => {
   it('every bound def id exists in the registry', async () => {
     await import('../primitives');
     const { listDefs } = await import('../fxDefs');
     const known = new Set(listDefs().map((d) => d.id));
+    const tables = effectiveTables();
     const missing: string[] = [];
-    for (const cues of Object.values(getScore())) {
-      for (const c of cues) if (c.ch === 'fxDef' && c.def && !known.has(c.def)) missing.push(c.def);
-    }
-    for (const [cardId, byKind] of Object.entries(CARD_FX)) {
+    for (const [kind, b] of Object.entries(tables.kinds)) if (!known.has(b.def)) missing.push(`${kind}:${b.def}`);
+    for (const [cardId, byKind] of Object.entries(tables.cards)) {
       for (const b of Object.values(byKind)) if (b && !known.has(b.def)) missing.push(`${cardId}:${b.def}`);
     }
     expect(missing, `bindings naming defs that do not exist: ${missing.join(', ')}`).toEqual([]);

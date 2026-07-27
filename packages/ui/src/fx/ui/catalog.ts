@@ -1,7 +1,7 @@
 import { CARD_INDEX } from '@game/content';
 import type { StoredFxDef } from '../defStore';
 import { primitiveLabel } from './copy';
-import { CARD_FX } from '../../choreo/cardFx';
+import { bindingFor, effectiveTables } from '../../choreo/bindings';
 import { getScore } from '../../choreo/score';
 import type { MomentKind } from '../../choreo/kinds';
 import { listDefs } from '../fxDefs';
@@ -111,7 +111,7 @@ export interface FxBindingCard {
   /** The card's display name, or the raw id when the card is unknown (see `missing` below). */
   name: string;
   tribe: string;
-  /** True when `CARD_FX` names a card that is not in `CARD_INDEX` — surfaced rather than skipped. */
+  /** True when a binding names a card that is not in `CARD_INDEX` — surfaced rather than skipped. */
   missing: boolean;
 }
 
@@ -121,8 +121,9 @@ export interface FxBindings {
 }
 
 /**
- * def id → what binds to it. Reads `getScore()` (the LIVE score, with any choreo-panel overrides applied)
- * rather than `SCORE_DEFAULTS`, so the browser shows what would actually play right now.
+ * def id → what binds to it. Reads the LIVE resolver (`effectiveTables`, which folds in any session
+ * overrides), so the browser shows what would actually play right now rather than what the committed file
+ * says.
  */
 export function bindingsByDef(): Map<string, FxBindings> {
   const out = new Map<string, FxBindings>();
@@ -132,10 +133,9 @@ export function bindingsByDef(): Map<string, FxBindings> {
     return found;
   };
 
-  for (const [kind, cues] of Object.entries(getScore()) as [MomentKind, { ch: string; def?: string }[]][]) {
-    for (const cue of cues) if (cue.ch === 'fxDef' && cue.def) entry(cue.def).kinds.push(kind);
-  }
-  for (const [cardId, byKind] of Object.entries(CARD_FX)) {
+  const tables = effectiveTables();
+  for (const [kind, binding] of Object.entries(tables.kinds)) entry(binding.def).kinds.push(kind as MomentKind);
+  for (const [cardId, byKind] of Object.entries(tables.cards)) {
     const card = CARD_INDEX[cardId];
     for (const binding of Object.values(byKind)) {
       if (!binding) continue;
@@ -156,11 +156,16 @@ export interface FxKindCoverage {
   def: string | null;
 }
 
-/** Every moment kind with its bound def or null, in the score's own order. */
+/**
+ * Every moment kind with its bound def or null, in the score's own order.
+ *
+ * The kind LIST still comes from `getScore()` — that is the authority on which kinds exist — but the def
+ * comes from the resolver, since a kind's cue no longer carries one.
+ */
 export function kindCoverage(): FxKindCoverage[] {
-  return (Object.entries(getScore()) as [MomentKind, { ch: string; def?: string }[]][]).map(([kind, cues]) => ({
+  return (Object.keys(getScore()) as MomentKind[]).map((kind) => ({
     kind,
-    def: cues.find((c) => c.ch === 'fxDef' && c.def)?.def ?? null,
+    def: bindingFor(null, kind)?.def ?? null,
   }));
 }
 
@@ -199,8 +204,9 @@ export function buildCatalog(): FxCatalogEntry[] {
  * at runtime. A null here means "uses whatever its moments give it", not "shows nothing".
  */
 export function buildCardRows(): FxCardRow[] {
+  const cards = effectiveTables().cards;
   return Object.values(CARD_INDEX).map((card) => {
-    const byKind = CARD_FX[card.id];
+    const byKind = cards[card.id];
     const first = byKind ? Object.values(byKind).find((b) => b !== undefined) : undefined;
     return { cardId: card.id, name: card.name, tribe: card.tribe, defId: first?.def ?? null };
   });

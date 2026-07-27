@@ -83,3 +83,33 @@ describe('groupByCard', () => {
     expect(groupByCard(cards).find((g) => g.title === 'beast')?.cards).toHaveLength(1);
   });
 });
+
+/**
+ * Both helpers sort, and both sort COPIES. A regression here — someone "simplifying" `[...list].sort()` to
+ * `list.sort()` — would reorder the caller's own array as a side effect of rendering, which React would
+ * then see as unchanged state. It would be near-invisible in review and infuriating to debug, so it gets a
+ * test rather than a comment.
+ */
+describe('purity', () => {
+  it("neither filtering nor grouping reorders the caller's array", () => {
+    const entries = [
+      entry('c'),
+      entry('a', { facets: { shape: 'Trail', hue: 'blue', motion: 'travels' } }),
+      entry('b'),
+    ];
+    const before = entries.map((e) => e.def.id);
+    applyFilter(entries, EMPTY_FILTER);
+    groupByLook(entries);
+    expect(entries.map((e) => e.def.id)).toEqual(before);
+  });
+
+  it("does not reorder the caller's card array either", () => {
+    const cards = [
+      { cardId: 'w', name: 'Wolf', tribe: 'beast', defId: null },
+      { cardId: 'b', name: 'Bloodbinder', tribe: 'demon', defId: 'ruby-lance' },
+    ];
+    const before = cards.map((c) => c.cardId);
+    groupByCard(cards);
+    expect(cards.map((c) => c.cardId)).toEqual(before);
+  });
+});

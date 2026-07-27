@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### feat(fx/ui): per-CARD FX bindings — Bloodbinder's bleed fires the owner's `ember-lance`
+
+Owner pasted a tuned def back and asked: "can i have this effect trigger when bloodbinder's effect procs?"
+
+**The tuning is saved** over `ember-lance.json` (layer names restored — the workbench's Copy Def drops them).
+It is materially different from my first pass: ribbon `length` 655 and `width` 29 (a long thin lance rather
+than my short fat one), `normal` blending on the trail with `add` everywhere else, three shockwave rings at
+`erode` 0.95, and a 1310ms sparkle life. Which is exactly the point of the loop — the first pass was a
+starting position and every number moved.
+
+**The binding needed a capability that didn't exist.** Bloodbinder's proc emits `sc` "Bloodbinder bleeds",
+which compiles to the `scCast` moment kind — shared with EVERY spell cast in the game. The `fxDef` channel
+binds a def to a KIND, so binding there would have put this effect on every cast. New `choreo/cardFx.ts`
+adds the narrower key, card id → kind → def, mirroring how per-card SFX already work so "this card has its
+own look" sits beside "this card has its own sound".
+
+**And a second problem underneath it:** the bleed's `sc` event carries a source and NO target — the damage
+lands in separate events, one per marked enemy. A travelling effect bound to it would have had nowhere to
+travel and collapsed onto the caster. So a binding may declare `fanOut: 'damaged'`, which plays one pass per
+distinct unit damaged inside the moment, all from the same source. Distinct because a moment can carry two
+hits on one unit, and the same lance twice at one card reads as a stutter rather than as two hits.
+
+The uid→card lookup (`cardIdForUid`) reads `data-card`, added to `Unit.tsx` beside the existing `data-uid`
+— the same DOM `anchorsForUnits` already resolves through, so there is one source of truth about which units
+are on screen rather than two.
+
+Guard worth noting: a test asserts every card binding names a kind that actually carries an `fxDef` cue,
+since the runner only consults this table from inside that branch — a binding on any other kind would be
+silently dead. The 22 pre-existing `score.test.ts` failures were the mock, not the code: it stubbed
+`combatAnchors` with only `anchorsForUnits`, so the new import was undefined. `cardIdForUid` now mocks to
+null there, which means every existing case still exercises the kind-level default exactly as before.
+
+Verified: typecheck clean, lint 0 errors, 2415 tests across 123 files green (11 new), `build:web` green. Not
+seen in a live combat — it needs a run with Bloodbinder on board.
+
 ### fix(fx): the shockwave's glow no longer gets sliced square by its own quad
 
 Owner, with a screenshot: "any idea of how we can remove the hard white line when an effect glow comes up

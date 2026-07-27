@@ -6,7 +6,8 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { canPlayDefs, playDef } from '../fx/playDef';
-import { anchorsForUnits } from '../fx/combatAnchors';
+import { anchorsForUnits, cardIdForUid } from '../fx/combatAnchors';
+import { cardFxFor, damagedUidsIn } from './cardFx';
 
 /**
  * The Score (choreographer phase 3) — per moment KIND, the ordered cues (channels + when they fire) that a
@@ -328,13 +329,27 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       if (!def || !canPlayDefs()) continue;      // no def id / defs unavailable → nothing to schedule
       at(cue, () => {
         const { source, target } = momentUnits(moment.primary);
+        // A per-CARD binding wins over the kind's default (see `cardFx.ts`): the kind is the right key for
+        // "a Ward was gained", but every spell cast shares `scCast`, so a card with its own look needs the
+        // narrower key. Resolved here rather than at compile time because it depends on which unit is
+        // actually on screen.
+        const binding = cardFxFor(cardIdForUid(source), moment.kind);
+        if (binding?.fanOut === 'damaged') {
+          // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
+          // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
+          for (const uid of damagedUidsIn(ctx.events, moment.start, moment.end)) {
+            const fanAnchors = anchorsForUnits(source, uid);
+            if (fanAnchors) playDef(binding.def, fanAnchors);
+          }
+          return;
+        }
         const anchors = anchorsForUnits(source, target);
         if (!anchors) return;                    // the unit already left the screen → skip silently
         // Unknown def id → `playDef` returns null, so a build without this def's JSON is a silent no-op. The
         // returned stop() is deliberately NOT wired into this runner's cleanup: every channel here is
         // fire-and-forget (an aura burst outlives its moment too), and cancelling on moment-change would cut
         // the effect off mid-play.
-        playDef(def, anchors);
+        playDef(binding?.def ?? def, anchors);
       });
     }
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.

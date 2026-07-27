@@ -6,15 +6,22 @@ import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMo
 import { momentKind, type MomentKind } from './kinds';
 import { holdMsForKind } from './choreoConfig';
 import { canPlayDefs, playDef } from '../fx/playDef';
-import { anchorsForUnits } from '../fx/combatAnchors';
+import { anchorsForUnits, cardIdForUid } from '../fx/combatAnchors';
 
 // The `fxDef` channel's collaborators are mocked at the CONTRACT (`playDef`/`canPlayDefs`/`anchorsForUnits`),
 // so these tests prove the SCORE's dispatch/guard/timing wiring without depending on how the fx layer renders.
 vi.mock('../fx/playDef', () => ({ playDef: vi.fn(() => () => {}), canPlayDefs: vi.fn(() => true) }));
-vi.mock('../fx/combatAnchors', () => ({ anchorsForUnits: vi.fn(() => ({ target: { x: 5, y: 7 } })) }));
+// `cardIdForUid` is mocked to null by default = "no per-card binding", so every case below exercises the
+// KIND-level default exactly as it did before per-card bindings existed. The per-card path has its own
+// tests in cardFx.test.ts, plus the two cases at the end of this file.
+vi.mock('../fx/combatAnchors', () => ({
+  anchorsForUnits: vi.fn(() => ({ target: { x: 5, y: 7 } })),
+  cardIdForUid: vi.fn(() => null),
+}));
 const mockPlayDef = vi.mocked(playDef);
 const mockCanPlayDefs = vi.mocked(canPlayDefs);
 const mockAnchors = vi.mocked(anchorsForUnits);
+const mockCardId = vi.mocked(cardIdForUid);
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
@@ -594,5 +601,46 @@ describe('score persistence tolerates unknown kinds/channels (cross-version roun
     for (const [kind, def] of Object.entries(BINDINGS)) {
       expect(json[kind]?.find((c) => c.ch === 'fxDef')?.def, kind).toBe(def);
     }
+  });
+});
+
+/**
+ * The per-card override, dispatched from the cue runner (the table itself is tested in cardFx.test.ts).
+ * Bloodbinder's bleed shares the `scCast` kind with every other spell cast, so the card id is the only key
+ * that can tell them apart.
+ */
+describe('fxDef channel — per-card bindings', () => {
+  it("plays the CARD's def instead of the kind default when the source card has a binding", () => {
+    mockCardId.mockReturnValue('bloodbinder');
+    const events: CombatEvent[] = [
+      { type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true } as CombatEvent,
+      { type: 'dmg', target: 'e1', amount: 5 } as CombatEvent,
+      { type: 'dmg', target: 'e2', amount: 5 } as CombatEvent,
+    ];
+    runMomentCues(moment('scCast', events), baseCtx(events));
+    // fanOut 'damaged': one play per damaged unit, all with the card's def, never the kind's `spell-cast`.
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
+    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'ember-lance')).toBe(true);
+    expect(mockAnchors).toHaveBeenCalledWith('a', 'e1');
+    expect(mockAnchors).toHaveBeenCalledWith('a', 'e2');
+    mockCardId.mockReturnValue(null);
+  });
+
+  it('falls back to the kind default for a card with no binding', () => {
+    mockCardId.mockReturnValue('someothercard');
+    const events: CombatEvent[] = [{ type: 'sc', source: 'a', text: 'zap', cast: true } as CombatEvent];
+    runMomentCues(moment('scCast', events), baseCtx(events));
+    expect(mockPlayDef).toHaveBeenCalledWith('spell-cast', expect.anything());
+    mockCardId.mockReturnValue(null);
+  });
+
+  // A proc that damaged nobody (every mark already dead) must play nothing rather than collapsing onto the
+  // caster, which is what a targetless travelling effect would otherwise do.
+  it('plays nothing when a fan-out moment damaged no one', () => {
+    mockCardId.mockReturnValue('bloodbinder');
+    const events: CombatEvent[] = [{ type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true } as CombatEvent];
+    runMomentCues(moment('scCast', events), baseCtx(events));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+    mockCardId.mockReturnValue(null);
   });
 });

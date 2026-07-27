@@ -92,3 +92,19 @@ export function anchorsForUnits(sourceUid: string | null, targetUid: string | nu
     viewport: { w: window.innerWidth, h: window.innerHeight },
   });
 }
+
+/**
+ * The CARD id of a live combat unit, read off the same DOM the anchors come from (`Unit.tsx` renders it as
+ * `data-card` beside `data-uid`). `null` when there is no such unit on screen — exactly the condition
+ * `anchorsForUnits` already treats as "skip silently".
+ *
+ * Deliberately the DOM rather than the store: this is called from the choreo's cue runner, which already
+ * resolves units through the DOM for anchoring, and threading combat state into it just to answer "which
+ * card is this" would give two sources of truth about which units exist right now.
+ */
+export function cardIdForUid(uid: string | null): string | null {
+  if (uid === null || typeof document === 'undefined') return null;
+  const el = document.querySelector<HTMLElement>(unitSelector(uid));
+  const cardId = el?.dataset.card;
+  return cardId === undefined || cardId === '' ? null : cardId;
+}

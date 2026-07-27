@@ -215,6 +215,15 @@ SoC badge beats shipped (#541). Remaining, in impact order:
   initial board; Fleeting Vigor is baked pre-sim with one un-stepped `sc` narration. Fine if intended —
   listed for completeness.
 
+### End-of-turn grants should coalesce ON their own pulse (owner ask 2026-07-27)
+Today every End-of-Turn card pulses in sequence, and then the whole batch of granted cards materialises in
+hand **at once**, after the last pulse — because the sim resolves all EoT effects in one dispatch and the
+coalesce watcher only sees the finished hand. The owner wants the arrival interleaved with the beat: card A
+pulses → card A's grant coalesces → card B pulses → card B's grant coalesces, and so on. Needs the EoT beat
+replay to carry which grant belongs to which source uid (or an ordered grant list the replay can drain in
+step with `eotPulseUids`), then the coalesce watcher to hold fresh hand cards and release them on that
+schedule instead of firing them all in the settle commit.
+
 ### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
 The Aura Wash + EoT beat replay closed the big ones — plus the triggered rune buffs (Rune of Kindling /
 Scales / Scale) now descend onto their targets. Still open:

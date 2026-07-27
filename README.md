@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Cards granted mid-combat now materialise in your hand** — the arcane coalesce used to play in the
+  middle of the screen, then the card warped into hand and blinked once more as the fight ended.
 - **Ruby and Ward Echoes animate in combat** — Geode Guardian and Lastlight Marshal were landing their buffs
   with no cue at all.
 - **The Dwarf Work Orders are now Ales** — Golden, Defensive, Champion's, Reinforcing and Bloody, with new art.

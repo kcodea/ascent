@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+## 2026-07-27 (combat hand-grants materialise where they land)
+
+### fix(ui): a card granted mid-combat coalesces in the hand, not in the middle of the screen
+
+**Owner report:** granting a card during a fight played the arcane coalesce *centre screen*, the card then
+"warped" into the hand a beat later, and finally blinked out and back in as the combat ended — three separate
+arrivals for one card.
+
+All three were the same design mistake plus one stale hand-off:
+
+- The in-combat watcher materialised the **mid-screen "To your hand" flyer** (`.handgrant .card`, a ruling
+  from #671). The flyer is a labelled announcement pinned at 50%/46% — coalescing *it* put the effect nowhere
+  near where the card actually arrives, and the hand-row copy (`handGrantsShown`, which appears one beat
+  later) then just popped in cold. That's the "coalesce in the middle, then warp to hand".
+- The settle-side suppression was **one dispatch too late**. `grantPlayedRef` → `coalesceSkipRef` was built at
+  the **combat → recruit phase flip**, but combat grants reach the real `run.hand` at `settleCombat` — which
+  fires while the phase is still `'combat'`. So the generic coalesce watcher saw a brand-new hand uid, found
+  an empty skip set, and materialised the card a *third* time. That's the "disappears and reappears when
+  combat ends".
+- The preview card rendered **unplated** while the committed hand card renders `plated`, so even the swap
+  itself read as a flicker.
+
+**The fix**, per the owner's ask — the coalesce should look exactly like a shop-phase conjure:
+
+- The in-combat watcher now keys on **`replay.handGrantsShown`** and materialises the card **in the hand row**,
+  measuring `.cardplate` and calling `playPlateCoalesce` on the same element the player will keep. Preview
+  grants are the only cards in `.row.hand` with no `data-uid`, which is how they're addressed; the shown-count
+  is tracked in a ref so a **Skip** that reveals several at once materialises each exactly once.
+- `coalesceSkipRef` / `handBeforeCombatRef` and the phase-flip block that built them are **gone**. The main
+  coalesce watcher now consumes `grantPlayedRef` (a cardId list) directly in its `fresh` filter, one match per
+  card. That's correct on **both** settle paths — `settleCombat` on a win, `resolveCombat` on a loss — where
+  the phase-flip version could only ever catch the loss path.
+- Preview grants render `plated`, matching the committed card exactly.
+- The mid-screen flyer keeps its "To your hand" label and `tohandhold` animation; it just no longer claims the
+  coalesce.
+
+Skipped replays still behave: nothing renders mid-fight, so `grantPlayedRef` stays empty and those grants get
+their coalesce on arrival in hand rather than losing the effect entirely (the regression #674 fixed).
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1779 tests** across 108 files pass, `build:web` green.
+
+
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
 ### chore(ui): second pass on the Card Text defaults

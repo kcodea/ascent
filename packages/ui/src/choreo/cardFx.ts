@@ -31,7 +31,7 @@ export interface CardFxBinding {
 export const CARD_FX: Record<string, Partial<Record<MomentKind, CardFxBinding>>> = {
   // Start of Combat marks enemies; every 4 attacks the marks each take Bloodbinder's Attack. The proc emits
   // one targetless `sc` plus a damage event per mark, so the lance flies to each of them.
-  bloodbinder: { scCast: { def: 'ember-lance', fanOut: 'damaged' } },
+  bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
 };
 
 /** The binding for a card at a kind, or null. `null` cardId (no unit on screen) never matches. */

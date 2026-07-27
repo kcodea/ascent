@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### chore(fx): point the bindings at the owner's own defs (`ruby-lance`, `self-buff-gold`)
+
+Owner: "use ruby-lance for bloodbinder and self-buff-gold for the self buff." Both were authored in the
+workbench and committed in the previous entry; the score was still pointing at my first passes.
+`CARD_FX.bloodbinder` → `ruby-lance`, both self-buff cues (`buffWave` and `attackExchange`) →
+`self-buff-gold`. `ember-lance` and `self-buff-bloom` stay on disk as the earlier drafts.
+
+**Ruled out statically while chasing the "orange projectile":** `blastBolt` is the only travelling projectile
+in `pixiFx`, and it fires exactly once, at the end-of-combat defeat blast — not per hit. `spell-cast` (the
+kind-level default that a failed per-card match falls back to) is violet, source-anchored, and doesn't
+travel. So the orange thing is `damageBurst`, whose own docblock calls it "a spray of red/orange shards".
+
+Which collapses both symptoms into ONE cause: the suppression only claims units when the per-card binding
+MATCHES. No match ⇒ no lance AND no suppression. "I see the orange one and not mine" is not two bugs, it is
+the single question of whether `cardFxFor(cardIdForUid(source), 'scCast')` returns a binding at a live proc —
+which is exactly what the DEV instrumentation now answers.
+
+Verified: typecheck clean, lint 0 errors, 2428 tests across 123 files green, `build:web` green.
+
 ### feat(fx/ui): `self-buff-bloom` — an authored effect on any unit that buffs ITSELF
 
 Owner: "when a unit buffs itself (for example, training dummy when it grows its attack) play this effect",

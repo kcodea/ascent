@@ -348,8 +348,8 @@ const BINDINGS: Record<string, string> = {
  *  self-buff absorbed into a wind-up never produces a `buffWave` moment, so binding only to `buffWave` would
  *  miss a unit that grows as it is attacked. */
 const FANOUT_BINDINGS: Record<string, { def: string; fanOut: string }> = {
-  buffWave: { def: 'self-buff-bloom', fanOut: 'selfBuffed' },
-  attackExchange: { def: 'self-buff-bloom', fanOut: 'selfBuffed' },
+  buffWave: { def: 'self-buff-gold', fanOut: 'selfBuffed' },
+  attackExchange: { def: 'self-buff-gold', fanOut: 'selfBuffed' },
 };
 
 describe('fxDef channel', () => {
@@ -638,7 +638,7 @@ describe('fxDef channel — per-card bindings', () => {
     runMomentCues(moment('scCast', events), baseCtx(events));
     // fanOut 'damaged': one play per damaged unit, all with the card's def, never the kind's `spell-cast`.
     expect(mockPlayDef).toHaveBeenCalledTimes(2);
-    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'ember-lance')).toBe(true);
+    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'ruby-lance')).toBe(true);
     expect(mockAnchors).toHaveBeenCalledWith('a', 'e1');
     expect(mockAnchors).toHaveBeenCalledWith('a', 'e2');
     mockCardId.mockReturnValue(null);
@@ -704,7 +704,7 @@ describe('fxDef channel — self-buff fan-out', () => {
     const events = [selfBuff('u1'), selfBuff('u2')];
     runMomentCues(moment('buffWave', events), baseCtx(events));
     expect(mockPlayDef).toHaveBeenCalledTimes(2);
-    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'self-buff-bloom')).toBe(true);
+    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'self-buff-gold')).toBe(true);
     expect(mockAnchors).toHaveBeenCalledWith('u1', 'u1');
     expect(mockAnchors).toHaveBeenCalledWith('u2', 'u2');
   });
@@ -724,7 +724,7 @@ describe('fxDef channel — self-buff fan-out', () => {
       selfBuff('b'),
     ];
     runMomentCues(moment('attackExchange', events), baseCtx(events));
-    expect(mockPlayDef).toHaveBeenCalledWith('self-buff-bloom', expect.anything());
+    expect(mockPlayDef).toHaveBeenCalledWith('self-buff-gold', expect.anything());
     expect(mockAnchors).toHaveBeenCalledWith('b', 'b');
   });
 

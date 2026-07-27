@@ -9,7 +9,7 @@ import { SCORE_DEFAULTS } from './score';
  */
 describe('cardFxFor', () => {
   it('finds a binding by card and kind', () => {
-    expect(cardFxFor('bloodbinder', 'scCast')?.def).toBe('ember-lance');
+    expect(cardFxFor('bloodbinder', 'scCast')?.def).toBe('ruby-lance');
   });
 
   it('is null for the same card at a different kind, and for an unbound card', () => {

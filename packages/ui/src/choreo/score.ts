@@ -88,7 +88,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // moment of their own — a Target Dummy growing as it is hit is exactly this case, and binding the effect
     // to `buffWave` alone would have missed the very example asked for. Fans out to nothing on the
     // overwhelming majority of exchanges, which carry no self-buff at all.
-    { ch: 'fxDef', at: 'start', offset: 0, def: 'self-buff-bloom', fanOut: 'selfBuffed' },
+    { ch: 'fxDef', at: 'start', offset: 0, def: 'self-buff-gold', fanOut: 'selfBuffed' },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
@@ -111,7 +111,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   scCast: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'spell-cast' }], scNarrate: [...BASE],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
-  summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'fxDef', at: 'start', offset: 0, def: 'self-buff-bloom', fanOut: 'selfBuffed' }], reborn: withReform(),
+  summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'fxDef', at: 'start', offset: 0, def: 'self-buff-gold', fanOut: 'selfBuffed' }], reborn: withReform(),
   ascend: [...BASE, { ch: 'ascendFx', at: 'start', offset: 0 }],
   // Deathsayer firing an ally's Deathrattle — the one binding here that is genuinely source→target: a `rally`
   // event names BOTH ends, so `anchorsForUnits` gets two real units and the def's `travel` arc reads as the link.

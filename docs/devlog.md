@@ -26,6 +26,35 @@ on the same card while checking.
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### 2026-07-26 — dev: drag-feel values are now SHAREABLE through main
+
+Owner 2026-07-26: two devs, both on dev servers, "identical" tuner settings, visibly different drag. And the
+follow-up ask — we want to tune by eye, push the values, and both machines pick them up on sync.
+
+**Why they diverged.** In dev the localStorage override WINS over the shipped `DEFAULTS` (prod ignores it —
+`dragFeel.ts:144`, from the 2026-07-21 report). So once you have ever touched the tuner, syncing main gets you
+the new code and NONE of the new feel: your stale save shadows it, silently and indefinitely. Nothing in the
+tuner said which of the two you were running.
+
+**The fix — a version stamp.** `DRAG_DEFAULTS_VERSION` is written into every save. On load, a save tuned
+against an older version is discarded (and cleared), so pulling main is all it takes for everyone to be on the
+same physics. That makes the workflow the owner asked for actually work:
+
+1. tune by eye → **Copy values**
+2. paste over `DEFAULTS` and bump `DRAG_DEFAULTS_VERSION`
+3. PR → merge → everyone syncs; stale overrides self-clear and the new feel is live
+
+**The bump is the whole mechanism, so it can't be left to memory.** `dragFeel.test.ts` fingerprints the
+`DEFAULTS` block: change the numbers without bumping and the test fails, naming both steps. Comments are
+stripped from the fingerprint, so editing the prose isn't a false alarm.
+
+**And the tuner now says whose values it is running** — `main · vN` or `LOCAL override` — with the Reset button
+relabelled **Reset to main**. That turns "why does mine feel different?" into a glance instead of console
+archaeology.
+
+**Verified:** typecheck / lint / test / build:web green, 1779 tests (+2). Live-checked in the tuner: it opens
+reading `main · v1`, and moving one slider flips it to `LOCAL override` with `__v: 1` stamped on the save.
+
 ### 2026-07-26 — fix(ui): Ruby / Ward Echoes had NO combat animation at all
 
 Owner report: the in-combat Ruby buff animations don't play, though Set 1's (Ryme, Cinderwing) do.

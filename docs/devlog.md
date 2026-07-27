@@ -2,6 +2,25 @@
 
 ## 2026-07-26 (a steel plaque behind the tier stars)
 
+### tweak(ui): glow gets width/height/x/y, and the tier sandwich is stacked explicitly
+
+Owner follow-up. The glow was already painting in front of the plate and behind the stars (all three shared
+z6, so tree order decided) — but it was a 73×73 CIRCLE over a 72×**18** plaque, so most of it spilled past the
+plate and read as a blob rather than light on the plaque. Fixes:
+
+- **Shape**: `glowW` and `glowH` are now independent (`radial-gradient(ellipse …)`), defaulting to 0.62 × 0.26
+  — a flat haze that hugs the plaque. Previously one knob drove both axes.
+- **Position**: `glowX` / `glowY`. The glow rides the same per-family seat as the stars and then adds its own
+  offset (mirroring how the plate composes), so it can be nudged off the stars without moving them.
+- **Stacking made explicit**: plate `z5` · glow `z6` · stars `z7`. It relied on tree order before, which was
+  correct but silent; all three stay above the frame (z3) exactly as when they shared z6, so nothing moved
+  relative to the artwork.
+- Colour was already exposed as `tier7 glow · colour`.
+
+**Verified live** on a tier-7 minion and a tier-7 Taunt from a cleared config: each knob moves exactly its own
+axis (`glowH 0.5` → h 30→59 with width held; `glowW 1.0` → w 73→117 with height held; `glowX 20` → x +16;
+`glowY 15` → y +12), the z-order reads 5/6/7, and the Taunt's glow tracks its own family seat.
+
 ### chore(ui) + feat(ui): bake the tuned tier values; tier-7 stars get a pulsing glow
 
 Baked the owner's dialed pass into `cardPillsConfig.ts` DEFAULTS — stars ALL row at

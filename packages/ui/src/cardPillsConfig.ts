@@ -64,8 +64,15 @@ export interface CardPillsConfig {
   plateOvX: number; plateOvY: number; plateOvW: number;
 
   /* TIER 7 GLOW — a pulsing halo behind the stars on top-tier cards only. */
-  /** Glow diameter (× --ccw). 0 hides it. */
+  /** Glow WIDTH (× --ccw). 0 hides it. */
   glowW: number;
+  /** Glow HEIGHT (× --ccw) — independent of width, so it can be squashed to a wide, short haze that hugs the
+   *  plaque instead of a circle that spills past it. */
+  glowH: number;
+  /** Glow horizontal offset (design px × --u). */
+  glowX: number;
+  /** Glow vertical offset (design px × --u). */
+  glowY: number;
   /** Glow PEAK opacity; the pulse dips to `glowW`×`glowDip` of it. */
   glowA: number;
   /** Seconds per pulse cycle. */
@@ -125,7 +132,7 @@ const DEFAULTS: CardPillsConfig = {
   plateTaX: 0, plateTaY: -1.5, plateTaW: 1,
   plateOvX: 0, plateOvY: 0, plateOvW: 1,
 
-  glowW: 0.62, glowA: 0.8, glowSpeed: 2.2, glowDip: 0.35,
+  glowW: 0.62, glowH: 0.26, glowX: 0, glowY: 0, glowA: 0.8, glowSpeed: 2.2, glowDip: 0.35,
   glowColor: '#ffd977',
 
   spellX: -2,
@@ -173,6 +180,9 @@ export const CARD_PILLS_RANGES: Record<CardPillsNumKey, [number, number, number]
   plateOvY: [-120, 120, 0.25],
   plateOvW: [0, 3, 0.005],
   glowW: [0, 2, 0.005],
+  glowH: [0, 2, 0.005],
+  glowX: [-120, 120, 0.25],
+  glowY: [-120, 120, 0.25],
   glowA: [0, 1, 0.01],
   glowSpeed: [0.4, 8, 0.1],
   glowDip: [0, 1, 0.01],
@@ -213,7 +223,10 @@ export const CARD_PILLS_DESC: Record<keyof CardPillsConfig, string> = {
   plateOvX: 'Tier plate (CIRCLE (oval) frame) — horizontal nudge (design px) on top of the tier seat.',
   plateOvY: 'Tier plate (CIRCLE (oval) frame) — vertical nudge (design px).',
   plateOvW: 'Tier plate (CIRCLE (oval) frame) — WIDTH (× card width). Height follows the art ratio. 0 hides it.',
-  glowW: 'TIER 7 glow — diameter (× card width). 0 hides it.',
+  glowW: 'TIER 7 glow — WIDTH (× card width). 0 hides it.',
+  glowH: 'TIER 7 glow — HEIGHT (× card width). Independent of width, so it can be squashed flat.',
+  glowX: 'TIER 7 glow — horizontal offset (design px).',
+  glowY: 'TIER 7 glow — vertical offset (design px).',
   glowA: 'TIER 7 glow — peak opacity.',
   glowSpeed: 'TIER 7 glow — seconds per pulse cycle.',
   glowDip: 'TIER 7 glow — how far the pulse dips (0 = fades right out, 1 = steady, no pulse).',
@@ -240,7 +253,7 @@ export const CARD_PILLS_KEYS = [
   'plateOvX', 'plateOvY', 'plateOvW',
   'plateSpX', 'plateSpY', 'plateSpW',
   'plateTaX', 'plateTaY', 'plateTaW',
-  'glowW', 'glowA', 'glowSpeed', 'glowDip',
+  'glowW', 'glowH', 'glowX', 'glowY', 'glowA', 'glowSpeed', 'glowDip',
   'spellX', 'spellY', 'spellScale',
   'multX', 'multY', 'multScale',
 ] as const;
@@ -301,6 +314,8 @@ export function applyCardPillVars(): void {
   root.setProperty('--cpl-mult-t', t(cfg.multX, cfg.multY, cfg.multScale));
   // Colours go across as plain custom props; `.castmult` mixes the gradient stops out of `--cpl-mult-bg`.
   root.setProperty('--cpl-glow-w', String(cfg.glowW));
+  root.setProperty('--cpl-glow-h', String(cfg.glowH));
+  root.setProperty('--cpl-glow-t', nudge(cfg.glowX, cfg.glowY));
   root.setProperty('--cpl-glow-a', String(cfg.glowA));
   root.setProperty('--cpl-glow-speed', `${cfg.glowSpeed}s`);
   root.setProperty('--cpl-glow-dip', String(cfg.glowDip));

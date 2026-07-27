@@ -92,3 +92,24 @@ export function resolveTimingDrag(
   const life = Math.max(MIN_LAYER_LIFE_MS, Math.min(maxLife, snap(startLife + deltaMs)));
   return { at: drag.startAt, life };
 }
+
+/**
+ * The clock the PREVIEW feeds the layers each frame, from the player's own time.
+ *
+ * This exists because of a bug that read as "Fire once keeps playing forever". The workbench used to feed
+ * `player.timeMs() % durationMs`, and a fire deliberately runs PAST `duration` — an unbounded layer plays to
+ * true completion rather than to the composition's nominal length. So the moment the clock crossed the
+ * duration the modulo wrapped it to 0, `layerTravelProgress` read 0, and the travelling head TELEPORTED back
+ * to the source and flew the whole arc again. Every `duration` ms, indefinitely. Worse, the restarted motion
+ * reset the ribbon's settle timer, so the pass could never report complete and ran to the 10s safety cap
+ * re-flying the effect the entire time — which looked like a broken loop rather than a broken clock.
+ *
+ * The modulo was a leftover from the old wrap-at-duration playback. A looping fire resets the clock to 0
+ * itself at the start of each pass, so nothing needs wrapping here at all: the time runs forward, and
+ * `progress` simply CLAMPS at 1 (arrived, and staying arrived) instead of rolling over.
+ */
+export function previewClock(playerTimeMs: number, durationMs: number): { timeMs: number; progress: number } {
+  const timeMs = Math.max(0, playerTimeMs);
+  if (!(durationMs > 0)) return { timeMs, progress: 1 };
+  return { timeMs, progress: Math.min(1, timeMs / durationMs) };
+}

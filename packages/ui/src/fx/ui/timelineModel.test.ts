@@ -4,6 +4,7 @@ import {
   pointerToMs,
   resolveTimingDrag,
   spanOf,
+  previewClock,
   spanToTrack,
   type TimelineDrag,
 } from './timelineModel';
@@ -135,5 +136,33 @@ describe('resolveTimingDrag — resize', () => {
   it('converts a full-life layer to a finite one', () => {
     const out = resolveTimingDrag(drag({ startLife: null, grabMs: DURATION }), 600, DURATION);
     expect(out.life).toBe(400); // was 800 (1000 - 200), dragged 400 left
+  });
+});
+
+describe('previewClock', () => {
+  it('runs forward through the composition', () => {
+    expect(previewClock(0, 800)).toEqual({ timeMs: 0, progress: 0 });
+    expect(previewClock(400, 800)).toEqual({ timeMs: 400, progress: 0.5 });
+    expect(previewClock(800, 800)).toEqual({ timeMs: 800, progress: 1 });
+  });
+
+  /**
+   * THE regression. The workbench used to feed `timeMs % durationMs`, and a fire runs PAST the duration on
+   * purpose — so crossing it wrapped the clock to 0, and a travelling head teleported back to the source and
+   * flew the arc again, over and over. "Fire once" played forever.
+   */
+  it('does NOT wrap past the duration — a fire that overruns keeps running forward', () => {
+    expect(previewClock(900, 800).timeMs).toBe(900);
+    expect(previewClock(2400, 800).timeMs).toBe(2400);
+  });
+
+  it('CLAMPS progress at 1, so an arrived head stays arrived', () => {
+    expect(previewClock(900, 800).progress).toBe(1);
+    expect(previewClock(9999, 800).progress).toBe(1);
+  });
+
+  it('never goes negative, and survives a zero duration', () => {
+    expect(previewClock(-50, 800).timeMs).toBe(0);
+    expect(previewClock(100, 0)).toEqual({ timeMs: 100, progress: 1 });
   });
 });

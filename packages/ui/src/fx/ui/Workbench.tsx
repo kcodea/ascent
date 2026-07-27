@@ -26,6 +26,7 @@ import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
 import { createBackdrop, type FxBackdrop } from './backdrop';
 import { Timeline } from './Timeline';
+import { previewClock } from './timelineModel';
 import { ANCHOR_OPTIONS, anchorBlurb, primitiveBlurb, primitiveLabel } from './copy';
 import {
   addLayer,
@@ -439,10 +440,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         if (scenario) {
           vp.w = window.innerWidth;
           vp.h = window.innerHeight;
-          // Loop-relative time: `progress` drives the scenario's own path, and `loopMs` drives each layer's
-          // travel window (see `layerTravelProgress`) — both must be measured within the current cycle.
-          const loopMs = p.timeMs() % durationMs;
-          const progress = loopMs / durationMs;
+          // NOT wrapped with `% durationMs` — see `previewClock`, which exists for exactly this bug. A fire
+          // deliberately overruns the duration, and wrapping teleported a travelling head back to the source
+          // to fly the arc again, indefinitely. `progress` drives the scenario's own path; `loopMs` drives
+          // each layer's travel window (see `layerTravelProgress`).
+          const { timeMs: loopMs, progress } = previewClock(p.timeMs(), durationMs);
           // ONE anchor resolve per frame, shared by every layer — then each layer picks its OWN point out of
           // it by its own `anchor` (see `driveLayerHeads`). This is what makes a composition previewable as
           // the thing it is: a burst pinned to `target` while a ribbon rides the `travel` arc.

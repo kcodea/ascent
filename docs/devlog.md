@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### fix(fx/ui): the preview clock wrapped, so a travelling head re-flew its arc forever
+
+Owner: "its actually not the loop. its still the play once effect. i think it may be logic clashing between
+the timeline editor and ribbon effects and how we have the various preview displays working." Exactly right,
+and a better diagnosis than my last two attempts.
+
+The workbench fed each layer `player.timeMs() % durationMs`. A fire deliberately runs PAST `duration` — that
+is the whole point of the lifecycle, an unbounded layer plays to true completion rather than to the
+composition's nominal length. So the instant the clock crossed the duration, the modulo wrapped it to 0,
+`layerTravelProgress` read 0, and the travelling head **teleported back to the source and flew the entire arc
+again**. Every `duration` ms, indefinitely.
+
+And it compounded: the restarted motion reset the ribbon's settle timer, so the pass could never report
+complete, so it ran to the 10-second `FIRE_TIMEOUT_MS` cap re-flying the effect throughout. That is why this
+kept presenting as a LOOP problem across three turns — the symptom was periodic repetition, but the cause was
+a clock, and every fix I aimed at the loop machinery missed it.
+
+The modulo was a leftover from the old wrap-at-duration playback, which no longer runs in the workbench at
+all: a looping fire resets the clock to 0 itself at the start of each pass, so nothing needed wrapping. New
+pure `previewClock` runs the time forward and CLAMPS progress at 1 — arrived, and staying arrived — with the
+whole story in its docblock and four tests, one of which is specifically "does not wrap past the duration".
+
+Verified: typecheck clean, lint 0 errors, 2401 tests across 122 files green (4 new), `build:web` green.
+
 ### feat(fx): `ember-lance` — burst, lance, glints, velocity-carried sparks, impact ring
 
 Owner brief: "bursts from the starting unit and travels as a ribbon with emitter effects along its path,

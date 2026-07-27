@@ -2,6 +2,15 @@
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### chore(ui): second pass on the Card Text defaults
+
+Owner re-dialed after seeing the first bake in place: side inset `padX 0.08 → 0` (the text column now runs the
+full panel width), `padTop 0.105 → 0.075`, `line 1.42 → 1.43`. Backbox values and the `overlay` blend are
+unchanged. Both sources updated as always — DEFAULTS and the three affected `--ctx-*` CSS fallbacks.
+
+**Verified from a CLEARED config:** all ten vars resolve to the new numbers and the drawer's computed padding
+reads `3.86px 0px 3.60px` — the side inset is genuinely zero, not just a changed variable.
+
 ### chore(ui): commit the owner's Card Text defaults
 
 Baked from the 🔤 Card Text tuner into `cardTextConfig.ts` DEFAULTS, with all ten `--ctx-*` CSS fallbacks

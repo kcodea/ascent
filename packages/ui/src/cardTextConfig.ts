@@ -42,10 +42,10 @@ export type BoxBlend = (typeof CTX_BLENDS)[number];
 
 const DEFAULTS: CardTextConfig = {
   top: 1.085,
-  padX: 0.08,
-  padTop: 0.105,
+  padX: 0,
+  padTop: 0.075,
   padBottom: 0.07,
-  line: 1.42,
+  line: 1.43,
   boxW: 1.08,
   boxX: 0,
   boxY: -1.235,

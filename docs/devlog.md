@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-07-26 (a steel plaque behind the tier stars)
+
+### feat(ui): tier plate behind the stars, on every card type
+
+Owner art: a steel hexagonal plaque seated behind the tier stars, with a **gilded variant** for golden cards.
+Renders on all three frame families — minion oval, spell square and Taunt heater.
+
+The plate img carries `tierbadge` as well as `tierplate`, so it inherits every already-tuned per-frame-type
+`top` anchor for free and only its chrome, size and transform are overridden. It's rendered immediately BEFORE
+the stars, and since both are positioned the plate paints behind them by TREE ORDER — no z-index (which would
+lift it past the frame). Sized by WIDTH with `height: auto`, so the art's 4.09 ratio holds at any card size;
+size 0 hides it.
+
+Three transform rules re-apply whichever tier SEAT the card uses (`--cpl-tier-t` / `-stier-t` / `-ttier-t`) and
+append the plate's own nudge, so ONE set of plate knobs serves minions, spells and Taunts. Specificity is
+deliberate: `.card.compact img.tierbadge.tierplate` (0,3,1) must beat `.card.compact .tierbadge` (0,3,0), and
+the spell/taunt variants (0,4,1) must beat their own seat rules.
+
+Knobs on the 🏷️ Card Pills tuner: `tier plate · x / y / size`.
+
+Assets: `tierplate.webp` + `tierplate-gilded.webp`, 1200×293 (downscaled from the 3812×932 masters — still
+~10× the rendered size), 40/44 KB.
+
+**Verified live** on a minion, a Taunt, a golden and a spell: each renders the plate with the right variant
+(golden → `tierplate-gilded.webp`), ratio 4.10 held, plate before the stars in tree order, and the seat
+transform applied. All three knobs drive it (x 16→23, y 135→130, size → 38px, 0 → hidden). Re-measured from a
+CLEARED config so the numbers are what ships: at the default 0.66 every tier fits inside the plate — tier 7
+snug (2.1 px margin), tier 4 comfortable (10.9), tier 1 loose (19.7).
+
+**Known tradeoff:** the plate is a FIXED width while the star row grows ~55 px per tier, so it can't hug every
+tier — it's sized to contain tier 7, which leaves tier 1 sitting in a much wider plaque. Fine if the plaque is
+meant to be a constant nameplate; if it should hug the stars, the options are per-tier width scaling (uniform,
+so low tiers get a smaller plaque overall) or a 9-slice (fixed decorative caps, stretched middle — hugs every
+tier at constant height). Owner's call.
+
+
 ## 2026-07-26 (tier is shown as stars)
 
 ### chore(ui): bake the owner's tuned pill values

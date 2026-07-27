@@ -1545,6 +1545,37 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    `.tierbadge[data-tier="N"]` (0,2,0 — the per-tier background colours) and `.card.compact .tierbadge`
    (0,3,0 — the padding/border/radius), so a plain 2-class selector would lose. HEIGHT is pinned and width is
    auto: the art is 78px tall and 55px wider per star, so width scales with tier on its own. */
+/* TIER PLATE — the steel plaque the stars sit on. It carries `tierbadge` too, so it inherits every per-frame-type
+   `top` anchor for free (oval seat / heater banner nudge / plain-card offset) and only needs its chrome, its size
+   and its transform overridden. It is rendered immediately BEFORE the stars and both are positioned, so TREE ORDER
+   puts the plate behind them — no z-index needed (and none wanted: z-index here would lift it past the frame).
+   Sized by WIDTH with `height: auto` so the art's 4.09 ratio holds at any card size; 0 hides it.
+   The three transform rules below re-apply whichever tier SEAT the card uses and append the plate's own nudge, so
+   one set of plate knobs serves minions, spells and Taunts. Specificity is deliberate — `.card.compact
+   img.tierbadge.tierplate` (0,3,1) must beat `.card.compact .tierbadge` (0,3,0), and the spell/taunt variants
+   (0,4,1) must beat their own `.card.compact.spellcard/.taunt .tierbadge` seat rules (0,3,0). */
+img.tierbadge.tierplate,
+.card.compact img.tierbadge.tierplate {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+  width: calc(var(--ccw) * var(--cpl-tplate-w, 0.66));
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+.card.compact img.tierbadge.tierplate {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-tplate-t, translate(0, 0));
+}
+.card.compact.spellcard img.tierbadge.tierplate {
+  transform: var(--cpl-stier-t, translateX(-50%)) var(--cpl-tplate-t, translate(0, 0));
+}
+.card.compact.taunt img.tierbadge.tierplate {
+  transform: var(--cpl-ttier-t, translateX(-50%)) var(--cpl-tplate-t, translate(0, 0));
+}
 img.tierbadge.tierstars,
 .card.compact img.tierbadge.tierstars {
   background: none;

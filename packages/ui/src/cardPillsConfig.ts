@@ -41,6 +41,12 @@ export interface CardPillsConfig {
   ttierY: number;
   ttierScale: number;
 
+  /** TIER PLATE — the plaque behind the stars. Its own nudge/size on TOP of whichever tier seat applies, so one
+   *  set of knobs serves minions, spells and Taunts alike. Width is × --ccw; height follows the 4.09 art ratio. */
+  tplateX: number;
+  tplateY: number;
+  tplateW: number;
+
   /** Spell / Ruby type pill (the "✦ SPELL" capsule) — design-px offset (× --u). */
   spellX: number;
   spellY: number;
@@ -82,6 +88,10 @@ const DEFAULTS: CardPillsConfig = {
   ttierY: 0,
   ttierScale: 0.74,
 
+  tplateX: 0,
+  tplateY: 0,
+  tplateW: 0.66,
+
   spellX: -2,
   spellY: 34,
   spellScale: 0.91,
@@ -111,6 +121,9 @@ export const CARD_PILLS_RANGES: Record<CardPillsNumKey, [number, number, number]
   ttierX: [-120, 120, 0.25],
   ttierY: [-120, 120, 0.25],
   ttierScale: [0.3, 2.5, 0.005],
+  tplateX: [-120, 120, 0.25],
+  tplateY: [-120, 120, 0.25],
+  tplateW: [0, 1.5, 0.005],
   spellX: [-120, 120, 0.25],
   spellY: [-120, 160, 0.25],
   spellScale: [0.3, 2.5, 0.005],
@@ -133,6 +146,9 @@ export const CARD_PILLS_DESC: Record<keyof CardPillsConfig, string> = {
   ttierX: 'TAUNT tier badge — horizontal nudge (design px). +x → right. Taunt minions only.',
   ttierY: 'TAUNT tier badge — vertical nudge (design px). +y → down. Taunt minions only.',
   ttierScale: 'TAUNT tier badge — size multiplier. Taunt minions only.',
+  tplateX: 'Tier PLATE — horizontal nudge (design px) on top of the tier seat. +x → right.',
+  tplateY: 'Tier PLATE — vertical nudge (design px). +y → down.',
+  tplateW: 'Tier PLATE — WIDTH (× card width). Height follows the art ratio. 0 hides it.',
   spellX: 'Spell / Ruby pill — horizontal nudge (design px). +x → right.',
   spellY: 'Spell / Ruby pill — vertical nudge (design px). +y → down.',
   spellScale: 'Spell / Ruby pill — size multiplier.',
@@ -149,6 +165,7 @@ export const CARD_PILLS_KEYS = [
   'tierX', 'tierY', 'tierScale',
   'stierX', 'stierY', 'stierScale',
   'ttierX', 'ttierY', 'ttierScale',
+  'tplateX', 'tplateY', 'tplateW',
   'spellX', 'spellY', 'spellScale',
   'multX', 'multY', 'multScale',
 ] as const;
@@ -188,6 +205,9 @@ export function applyCardPillVars(): void {
     `${base}${base ? ' ' : ''}translate(calc(${x} * var(--u)), calc(${y} * var(--u))) scale(${s})`;
   root.setProperty('--cpl-cost-t', t(cfg.costX, cfg.costY, cfg.costScale));
   root.setProperty('--cpl-tier-t', t(cfg.tierX, cfg.tierY, cfg.tierScale, 'translateX(-50%)'));
+  root.setProperty('--cpl-tplate-t',
+    `translate(calc(${cfg.tplateX} * var(--u)), calc(${cfg.tplateY} * var(--u)))`);
+  root.setProperty('--cpl-tplate-w', String(cfg.tplateW));
   root.setProperty('--cpl-ttier-t', t(cfg.ttierX, cfg.ttierY, cfg.ttierScale, 'translateX(-50%)'));
   root.setProperty('--cpl-stier-t', t(cfg.stierX, cfg.stierY, cfg.stierScale, 'translateX(-50%)'));
   root.setProperty('--cpl-spell-t', t(cfg.spellX, cfg.spellY, cfg.spellScale, 'translateX(-50%)'));

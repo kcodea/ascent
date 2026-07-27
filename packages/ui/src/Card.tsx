@@ -98,6 +98,11 @@ let spellFrameAvailable = true;
 const tierStarsSrc = (tier: number): string =>
   `${import.meta.env.BASE_URL}frames/tier-stars-${tier}.webp`;
 let tierStarsAvailable = true;
+/* TIER PLATE — the steel plaque the stars sit ON. Rendered immediately BEFORE the stars so tree order paints
+   it behind them (both are positioned, so tree order is what decides — see the note on `.tierplate`). Gilded
+   cards get the gold variant. Shows on every card type: minion oval, spell square and Taunt heater alike. */
+const tierPlateSrc = (golden: boolean): string =>
+  `${import.meta.env.BASE_URL}frames/tierplate${golden ? '-gilded' : ''}.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 // Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
 // dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
@@ -616,6 +621,14 @@ export const Card = memo(function Card({
           Venomous / Reborn / triple-ready cards, and `::after` is the drawer bridge. */}
       <span className="handpad" aria-hidden="true" />
       {card.tier !== undefined && (starsOk && card.tier >= 1 && card.tier <= 7 ? (
+        <>
+        <img
+          className="tierbadge tierplate"
+          src={tierPlateSrc(!!card.golden)}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
         <img
           className="tierbadge tierstars"
           data-tier={card.tier}
@@ -625,6 +638,7 @@ export const Card = memo(function Card({
           draggable={false}
           onError={() => { tierStarsAvailable = false; setStarsOk(false); }}
         />
+        </>
       ) : (
         <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>
       ))}

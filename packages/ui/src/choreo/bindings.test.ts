@@ -246,6 +246,16 @@ describe('session overrides', () => {
     expect(bindingFor(null, 'scCast')).toBeNull();
   });
 
+  // The tombstone must beat a LIVE kind override, not just the committed file's default. Today's early
+  // return makes that true by construction; this pins it, because the obvious "simplification" to a single
+  // nullish chain (`overridden ?? patch.kinds[kind] ?? …`) would silently reintroduce the fallthrough.
+  it('a card tombstone beats a live kind-level override, not just the file default', () => {
+    setBinding(null, 'scCast', { def: 'test-red-blast' });
+    setBinding('bloodbinder', 'scCast', null);
+    expect(bindingFor('bloodbinder', 'scCast')).toBeNull();
+    expect(bindingFor('somethingelse', 'scCast')).toEqual({ def: 'test-red-blast' });
+  });
+
   it('resetBindings returns everything to the file baseline', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
     setBinding('bloodbinder', 'scCast', null);

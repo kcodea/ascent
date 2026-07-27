@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+### 2026-07-26 — content: the Dwarf Work Orders become Ales, with new art
+
+Owner rename. Work Order: Mine → **Golden Ale**, Health → **Defensive Ale**, Champion → **Champion's Ale**,
+Reinforcement → **Reinforcing Ale**, Attack → **Bloody Ale**. Art wired from `Ascent Art/Spells`.
+
+**Ids keep their `wo_` prefix** — art files and saved runs key off them, the same rule every rename here has
+followed. Worth knowing when grepping: the cycle is called the Ales but still lives under `wo_*`.
+
+The rename had to reach further than the five `name:` fields. `addBuff(target, 'Work Order', …)` was the
+**buff-source label**, which the player reads in the inspect breakdown — a stat gain would have kept saying
+"Work Order" long after the cards stopped being called that. That's now 'Ale'. Also updated the stale
+`EffectFactoryId` comments and renamed `workOrders.test.ts` → `ales.test.ts` with its describes.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1775 tests. Live-checked: all five render in
+hand with the right name and their own art, loading at 512×512. Only those five art files changed — the
+optimizer has swept unrelated PNGs before, so the change set was reconciled.
+
 ### 2026-07-26 — content+fix: five Dragon renames, spell-power text, corpse-blocked adjacency, art rewire
 
 **Renames** (ids unchanged — art and saved runs key off them): Ashscribe Whelp → **Ashscribe**, Hoard

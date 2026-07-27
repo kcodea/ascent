@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **The Dwarf Work Orders are now Ales** — Golden, Defensive, Champion's, Reinforcing and Bloody, with new art.
 - **Spell power now shows on every spell that gets it** — Hoardflame wasn't even applying it, and Lantern
   Light hid it too.
 - **Ryme reaches past corpses** — a minion that died earlier no longer blocks an adjacent Battlecry.

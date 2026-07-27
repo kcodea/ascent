@@ -71,13 +71,13 @@ export const SET2_SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellBuffShopByRuby' }],
     text: 'Your Shop minions **permanently** get stats equal to your Rubies (**+1/+1**).',
   },
-  // ── Work Orders (owner batch 2026-07-25) ─────────────────────────────────────────────────────────────
+  // ── Ales (owner batch 2026-07-25; renamed from Work Orders 2026-07-26) ─────────────────────────────────────────────────────────────
   // A cycle of five cheap Tier-3 utility spells on one template: same tier, same cost, each paying a different
   // axis (economy / bodies / a spike / spread health / spread attack). SET 2 ONLY — they live in this file, so
   // they're in `SET2_SPELLS` and never reachable from a set-1 run.
   {
     id: 'wo_mine',
-    name: 'Work Order: Mine',
+    name: 'Golden Ale',
     tribe: 'neutral',
     tier: 3,
     attack: 0,
@@ -92,7 +92,7 @@ export const SET2_SPELLS: CardDef[] = [
     // "Most common type" resolves through the shared `grantTopTypeMinion`, so it means the same thing here as
     // everywhere else: your dominant board tribe, capped at your tavern tier, drawn from the shared pool.
     id: 'wo_reinforcement',
-    name: 'Work Order: Reinforcement',
+    name: 'Reinforcing Ale',
     tribe: 'neutral',
     tier: 3,
     attack: 0,
@@ -107,7 +107,7 @@ export const SET2_SPELLS: CardDef[] = [
     // Untargeted by design: you pick the recipient by ARRANGING your line, which also keeps the spell
     // deterministic (board order, no RNG).
     id: 'wo_champion',
-    name: 'Work Order: Champion',
+    name: "Champion's Ale",
     tribe: 'neutral',
     tier: 3,
     attack: 0,
@@ -120,7 +120,7 @@ export const SET2_SPELLS: CardDef[] = [
   },
   {
     id: 'wo_health',
-    name: 'Work Order: Health',
+    name: 'Defensive Ale',
     tribe: 'neutral',
     tier: 3,
     attack: 0,
@@ -133,7 +133,7 @@ export const SET2_SPELLS: CardDef[] = [
   },
   {
     id: 'wo_attack',
-    name: 'Work Order: Attack',
+    name: 'Bloody Ale',
     tribe: 'neutral',
     tier: 3,
     attack: 0,

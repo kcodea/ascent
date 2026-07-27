@@ -3229,15 +3229,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Golden Touch — make a random (non-golden) tavern minion offer Golden; the buy bakes the golden in
    *  (goldens store base stats, ×2 at combat, like Indy's gild). Untargeted — the game picks the minion. */
-  /** Set 2 — Work Order: Champion. Give your LEFT-MOST board minion +atk/+hp. Board order, so the pick is
+  /** Set 2 — Champion's Ale. Give your LEFT-MOST board minion +atk/+hp. Board order, so the pick is
    *  deterministic and consumes no RNG — the player chooses by arranging their line, which is the point. */
   spellBuffLeftmost: (ctx, _self, params) => {
     const target = ctx.state.board[0];
     if (!target) return; // empty board → fizzles (the spell is still spent, like every untargeted cast)
-    addBuff(target, 'Work Order', num(params.attack, 0), num(params.health, 0));
+    addBuff(target, 'Ale', num(params.attack, 0), num(params.health, 0));
   },
 
-  /** Set 2 — Work Order: Health / Attack. Buff `count` DISTINCT random friendly minions by +atk/+hp.
+  /** Set 2 — Defensive / Bloody Ale. Buff `count` DISTINCT random friendly minions by +atk/+hp.
    *  Distinct because "3 random friendly minions" means three bodies, not three rolls that can land twice on
    *  the same one; a board smaller than `count` simply buffs everyone. Seeded off the run cursor so a reload or
    *  replay picks identically. */
@@ -3249,10 +3249,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const picks: BoardCard[] = [];
     for (let i = 0; i < want && pool.length > 0; i++) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
     ctx.state.rngCursor = rng.state();
-    for (const t of picks) addBuff(t, 'Work Order', num(params.attack, 0), num(params.health, 0));
+    for (const t of picks) addBuff(t, 'Ale', num(params.attack, 0), num(params.health, 0));
   },
 
-  /** Set 2 — Work Order: Reinforcement. Get a minion of your most common tribe, into hand. Reuses the same
+  /** Set 2 — Reinforcing Ale. Get a minion of your most common tribe, into hand. Reuses the same
    *  `grantTopTypeMinion` the hero power path uses, so "most common type" is resolved one way everywhere
    *  (dominant tribe, capped at your tavern tier, respecting the shared pool). No-op with no dominant tribe. */
   spellGrantTopTypeMinion: (ctx) => {

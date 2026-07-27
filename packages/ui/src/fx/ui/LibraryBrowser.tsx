@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StoredFxDef } from '../defStore';
 import { buildCatalog, buildCardRows, kindCoverage, FX_HUES, type FxHue } from './catalog';
 import { EMPTY_FILTER, applyFilter, groupByLook, groupByCard, type FxFilter } from './catalogView';
@@ -27,11 +27,19 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
   const shown = useMemo(() => applyFilter(catalog, filter), [catalog, filter]);
   const knownIds = useMemo(() => new Set(catalog.map((e) => e.def.id)), [catalog]);
 
-  const [hoverTimer, setHoverTimer] = useState<number | null>(null);
+  // A ref, not state: the handle is only ever read inside handlers, so keeping it in state would re-render
+  // the whole list on every hover and leave for no benefit.
+  const hoverTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    // A pending preview must not fire after the overlay is gone.
+    if (hoverTimerRef.current !== null) window.clearTimeout(hoverTimerRef.current);
+  }, []);
+
   const hover = (id: string | null): void => {
-    if (hoverTimer !== null) window.clearTimeout(hoverTimer);
-    if (id === null) { onPreview(null); setHoverTimer(null); return; }
-    setHoverTimer(window.setTimeout(() => onPreview(id), PREVIEW_DELAY_MS));
+    if (hoverTimerRef.current !== null) window.clearTimeout(hoverTimerRef.current);
+    if (id === null) { onPreview(null); hoverTimerRef.current = null; return; }
+    hoverTimerRef.current = window.setTimeout(() => onPreview(id), PREVIEW_DELAY_MS);
   };
 
   const load = (def: StoredFxDef): void => { hover(null); onLoad(def); onClose(); };

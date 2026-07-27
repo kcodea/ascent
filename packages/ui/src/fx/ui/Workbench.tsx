@@ -3,7 +3,8 @@ import { Container } from 'pixi.js';
 import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, listPrimitives } from '../registry';
-import { driveLayerHeads, type FxPoint } from '../anchors';
+import { driveLayerHeads, type FxAnchors, type FxPoint } from '../anchors';
+import { playDef } from '../playDef';
 import { invalidateBoardAnchors } from '../boardAnchors';
 import type { FxAnchorId } from '../def';
 import { randomSeed } from '../rng';
@@ -259,6 +260,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const seedRef = useRef(seed);
   const seedLockedRef = useRef(seedLocked);
   const cursorRef = useRef({ x: 0, y: 0 });
+  // The latest staged anchors, mirrored for the library browser's hover-preview: it needs somewhere to
+  // play a def that ISN'T the editor's own composition, and the scenario already computes this every frame.
+  const lastAnchorsRef = useRef<FxAnchors | null>(null);
   // Autosave stays DISARMED until the composition is actually touched, so merely opening the workbench (or
   // React 18's StrictMode double-mounting it) never writes a session — otherwise every open would hand the
   // next one a "Restored unsaved work" banner over a pristine default. `discardRestored` disarms it again so
@@ -451,6 +455,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           // it by its own `anchor` (see `driveLayerHeads`). This is what makes a composition previewable as
           // the thing it is: a burst pinned to `target` while a ribbon rides the `travel` arc.
           const anchors = scenario.anchorsAt(vp, cursorRef.current);
+          lastAnchorsRef.current = anchors;
           // A scenario may drive the head along a custom path (`bounce` arcing between two spots,
           // `pinnedCursor` tracking the live pointer). That path
           // IS the travel point — `driveLayerHeads` substitutes it for the `travel` anchor only, so the
@@ -1719,11 +1724,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         <LibraryBrowser
           onLoad={(def) => loadDef(def, def.id)}
           onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
-          // Preview reuses the workbench's own player: the overlay names a def, the editor plays it on the
-          // stage already running behind it. No second Pixi context, and the preview is the real thing.
           onPreview={(id) => {
-            const found = id === null ? undefined : defs.find((d) => d.id === id);
-            if (found) loadDef(found, found.id);
+            const anchors = lastAnchorsRef.current;
+            if (id === null || anchors === null) return;
+            // A PREVIEW, deliberately not `loadDef`: hovering a list must never replace the author's
+            // in-progress composition. `playDef` mounts its own container, plays once and self-retires, so
+            // the editor's own layers, duration, seed, name and undo history are all untouched.
+            playDef(id, anchors);
           }}
           onClose={() => setBrowsing(false)}
         />

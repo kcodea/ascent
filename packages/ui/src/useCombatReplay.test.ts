@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type MinionSnapshot } from '@game/core';
 import { compileMoments } from './choreo/compile';
+import { deferAvengeAfterSummons } from './choreo/avengeOrder';
 import { CARD_INDEX } from '@game/content';
 import { computeFrame, grantsShownThrough, layoutRectOf } from './useCombatReplay';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -106,6 +107,34 @@ describe('grantsShownThrough — a combat grant appears ON its own beat', () => 
     expect(grantBeat).toBeGreaterThanOrEqual(0);
     expect(grantsShownThrough(events, beats, grantBeat)).toContain('patchjob');       // ON the beat
     expect(grantsShownThrough(events, beats, grantBeat - 1)).not.toContain('patchjob'); // not before it
+  });
+
+  it('two Avenge granters resolve ONE AT A TIME, in board order', () => {
+    /* Owner spec 2026-07-27: card 1 (left to right) signals its proc pulse and its card coalesces, THEN
+       card 2 pulses and its card coalesces — the same read as the End-of-Turn beats. Two Arcane Weavers
+       (Avenge 2) both proc off the same pair of friendly deaths. */
+    const p: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'weaver', attack: 4, health: 60 },  // m2 — the left Weaver
+      { cardId: 'weaver', attack: 4, health: 60 },  // m3 — the right one
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
+    const combat = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    // The exact array the hook folds — BOTH presentation transforms, in the hook's order.
+    const events = deferAvengeAfterSummons(deferClashBuffs(combat.events));
+    const beats = compileMoments(events);
+    const grantBeats = beats
+      .map((b, i) => ({ i, ev: events[b.start]! }))
+      .filter((x) => x.ev.type === 'toHand');
+    expect(grantBeats.length, 'each grant gets its OWN beat — never collapsed together').toBe(2);
+    expect(grantBeats[0]!.i, 'and they are consecutive beats, in order').toBeLessThan(grantBeats[1]!.i);
+    // The proc pulse is derived from the event's `source`, so beat order == board order, left to right.
+    expect((grantBeats[0]!.ev as { source?: string }).source).toBe('m2');
+    expect((grantBeats[1]!.ev as { source?: string }).source).toBe('m3');
+    // …and the hand grows one card per beat, so the coalesces can't fire together.
+    expect(grantsShownThrough(events, beats, grantBeats[0]!.i)).toHaveLength(1);
+    expect(grantsShownThrough(events, beats, grantBeats[1]!.i)).toHaveLength(2);
   });
 
   it('a grant on the FINAL beat is still shown during the replay', () => {

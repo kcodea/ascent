@@ -2,6 +2,27 @@
 
 ## 2026-07-27 (combat hand-grants materialise where they land)
 
+### test(ui): lock the one-at-a-time ordering for multiple Avenge grants
+
+**Owner spec 2026-07-27:** two Avenge cards that each grant a card should read like the End-of-Turn beats —
+card 1 (left to right) pulses, its card coalesces, THEN card 2 pulses and its card coalesces.
+
+Checked against the real pipeline before changing anything, and it already behaves that way. Two Arcane
+Weavers (Avenge 2) proccing off the same pair of deaths produce two `toHand` events that `compileMoments`
+gives **separate single-event moments** — `toHand` is in neither the collapse nor the collapse-runs set, so
+consecutive grants can never fold into one beat. Each carries its own `source` (`m2`, then `m3`), which is
+what drives the proc pulse, so beat order is board order. The `toHand` moment holds **820 ms**
+(`choreoConfig`), so the two are plainly sequential rather than a smear. And `grantsShownThrough` returns one
+card at the first beat and two at the second, so the hand grows a card at a time and the coalesces cannot
+fire together.
+
+No production change — a test now pins all four properties (two separate beats, consecutive, sourced in board
+order, one card added per beat) against **both** presentation transforms in the hook's own order
+(`deferAvengeAfterSummons(deferClashBuffs(...))`), so a future grouping-rule change can't silently collapse
+them.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
 ### fix(core): a deferred Battlecry's named card is announced during the fight
 
 **Owner:** "Field Mechanic's Shout is adding a Patch Job to hand — paired with Ryme's Deathrattle that should

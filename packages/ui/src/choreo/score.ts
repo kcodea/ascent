@@ -343,7 +343,22 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       const claimSource = cardIdForUid(momentUnits(moment.primary).source);
       const claimBinding = cardFxFor(claimSource, moment.kind);
       if (claimBinding?.fanOut === 'damaged') {
-        claimDamageFx(moment.primary.step, damagedUidsIn(ctx.events, moment.start, moment.end));
+        const claimed = damagedUidsIn(ctx.events, moment.start, moment.end);
+        claimDamageFx(moment.primary.step, claimed);
+        // DEV-only, and deliberately loud about the FAILURE case. Every miss in this path so far has been
+        // silent — the effect simply doesn't appear and the stock burst does, which is indistinguishable
+        // from "the binding isn't wired". A binding that matched but found no targets is the specific bug
+        // that already happened once (searching the wrong moment), so it gets a warning, not a log line.
+        if (import.meta.env.DEV) {
+          if (claimed.length === 0) {
+            console.warn(
+              `[fx] '${claimSource}' → '${claimBinding.def}' matched at '${moment.kind}' but found NO damaged ` +
+                `units in step ${String(moment.primary.step)} — nothing will play.`,
+            );
+          } else {
+            console.info(`[fx] '${claimSource}' → '${claimBinding.def}' ×${claimed.length}`, claimed);
+          }
+        }
       }
       at(cue, () => {
         const { source, target } = momentUnits(moment.primary);

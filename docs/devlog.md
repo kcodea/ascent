@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
 
+### chore(fx/ui): make the per-card binding path report itself in DEV
+
+Owner: "im still seeing the old orange orb effect." Four attempts in, every miss in this path has failed the
+same way — SILENTLY. The authored effect doesn't appear, the stock burst does, and that is
+indistinguishable from "the binding was never wired", so each round has cost a full guess-and-check cycle.
+
+DEV-only instrumentation in the fan-out branch: an `info` line naming the card, the def and the target count
+when a binding matches, and a `warn` when a binding matches but finds NO damaged units — that specific case
+is the bug that already happened once (searching the wrong moment), and it is the one that produces exactly
+the reported symptom. Now the failure says which of the three links broke: card not resolved (no line at
+all), targets not found (warning), or effect played and something downstream ate it (info line, no visuals).
+
+Confirmed while checking: `onDamageFx` calls `pixiFx.damageBurst` + `impactPulse`, so the orbs ARE the
+channel the suppression targets — the aim was right even though something upstream isn't firing.
+
+Also worth stating plainly, since it is half the report: the fan-out already plays one pass PER damaged unit,
+so two marked enemies give two lances from Bloodbinder. That is asserted by test; it just cannot be seen
+while the binding isn't matching at all.
+
+Verified: typecheck clean, 2424 tests green, `build:web` green.
+
 ### feat(fx/ui): an authored per-card effect now REPLACES the stock hit-burst
 
 Owner: "kill the orange balls." Reversing the limitation recorded one entry below, which I had written off as

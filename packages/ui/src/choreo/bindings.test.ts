@@ -1,15 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  bindingFor,
-  bindingsJson,
-  effectiveTables,
-  parseTable,
-  resetBindings,
-  setBinding,
-  type FxBinding,
-} from './bindings';
+import { bindingFor, bindingsJson, effectiveTables, parseTable, resetBindings, setBinding } from './bindings';
 import { CARD_INDEX } from '@game/content';
-import { CARD_FX } from './cardFx';
 import { SCORE_DEFAULTS } from './score';
 
 // The session patch is module-level shared state — a `setBinding` in one test would otherwise leak into
@@ -132,30 +123,6 @@ describe('effectiveTables', () => {
     const t = effectiveTables();
     t.kinds.scCast!.def = 'clobbered';
     expect(effectiveTables().kinds.scCast).toEqual({ def: 'spell-cast' });
-  });
-});
-
-/**
- * TEMPORARY — delete together with `CARD_FX` and the `def:` literals in Task 4.
- *
- * bindings.json is introduced as an exact duplicate of the two literals it replaces, so that readers can be
- * repointed one at a time while both sources still agree. This test is what makes "exact" a fact rather than
- * a hope.
- */
-describe('parity with the literals being replaced', () => {
-  it('binds every kind → def pair SCORE_DEFAULTS does, and no others', () => {
-    const fromScore: Record<string, FxBinding> = {};
-    for (const [kind, cues] of Object.entries(SCORE_DEFAULTS)) {
-      for (const c of cues) {
-        if (c.ch !== 'fxDef' || !c.def) continue;
-        fromScore[kind] = c.fanOut === undefined ? { def: c.def } : { def: c.def, fanOut: c.fanOut };
-      }
-    }
-    expect(effectiveTables().kinds).toEqual(fromScore);
-  });
-
-  it('binds every card → kind → def entry CARD_FX does, and no others', () => {
-    expect(effectiveTables().cards).toEqual(CARD_FX);
   });
 });
 

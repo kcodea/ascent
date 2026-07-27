@@ -7,7 +7,8 @@ import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { anchorsForUnits } from '../fx/combatAnchors';
-import { cardFxFor, claimDamageFx, damagedUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
+import { claimDamageFx, damagedUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
+import { bindingFor } from './bindings';
 
 /**
  * The Score (choreographer phase 3) — per moment KIND, the ordered cues (channels + when they fire) that a
@@ -32,21 +33,6 @@ export interface Cue {
   scaled?: boolean;
   /** default true; a disabled cue is skipped by the runner/engine. */
   enabled?: boolean;
-  /** `fxDef` ONLY: the authored FX def id to play (see `fx/playDef`). OPTIONAL so every pre-existing cue
-   *  literal and every persisted score stays valid; a `fxDef` cue without it is a no-op. Ignored by all other
-   *  channels. */
-  def?: string;
-  /**
-   * `fxDef` ONLY: fan the def out over every unit that buffed ITSELF in this moment, instead of playing once
-   * at the moment's own source/target pair.
-   *
-   * A self-buff has no pair to travel between — the unit is both ends — and a moment can carry several at
-   * once (a wave where three minions each grow). Playing once at `moment.primary` would put one effect on
-   * whichever unit happened to come first and none on the others. `groupSelfBuffs` already isolates exactly
-   * this set (`e.source === e.target`), which is the same set the stock self-buff pulse uses, so the two can
-   * never disagree about what counts as a self-buff.
-   */
-  fanOut?: 'selfBuffed';
 }
 
 const BASE: Cue[] = [
@@ -60,22 +46,34 @@ const BASE: Cue[] = [
   // owner report 2026-07-22. The runner SKIPS it on `attackExchange`, where the impact channel fires the
   // strike at the lunge's real contact point instead (and replaces the standard hit FX doing it).
   { ch: 'executeFx', at: 'start', offset: 0 },
+  // `fxDef` is on EVERY kind as a pure TIMING row, carrying no def of its own — what plays comes from
+  // `bindings.json` via `bindingFor`. It used to be added per-kind, which meant binding a def to a kind whose
+  // cue list happened not to include one silently played nothing: another instance of the failure mode this
+  // whole subsystem keeps producing. Inert wherever nothing is bound, and free in production (the runner
+  // checks `canPlayDefs()` before it allocates anything). It sits BEFORE `damageFx` in the list on purpose —
+  // an authored effect claims the units it covers synchronously, and the claim has to be standing before the
+  // stock hit-burst reads it.
+  { ch: 'fxDef', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
-/** Every kind runs sfx + float + auraBurst + auraBreak at start (all adapters no-op for moments with nothing
- *  to show) EXCEPT `attackExchange`, which ALSO still needs sfx (the wind-up whoosh, `sfx.attack`) + float
- *  (absorbed windup events like Rally/buff can carry a float) at `start`, PLUS `lunge` (the motion) at `start`
- *  and `impact` (the smack/FX/recoil) at the `contact` anchor the lunge defines, plus auraBurst (a death grouped
- *  into an attack's absorbed-windup run must still burst in place). A Ward CONSUMED by the exchange has no
- *  `auraBreak` cue here — the engine shatters it at the lunge's real `contact` (see `onImpactAuras`). The aura sub-channels
- *  are on EVERY kind because `death`/`shield` are RESULT_TYPES that collapse into another kind's moment (e.g.
- *  `[dmg, death]` is a `damage`-kind moment CONTAINING a death) — gating them on death/shieldPop kinds would
- *  miss those grouped effects. `auraReform` (the reborn re-form glow) rides only on the `reborn` kind, since a
- *  reborn is never grouped into another kind's moment. The three aura sub-channels (`auraBurst` = a real death
- *  bursting its auras in place at offset 0; `auraBreak` = a Divine-Shield consume's delayed gold shatter at
- *  +300ms scaled; `auraReform` = a reborn re-form glow at +460ms fixed wall-clock) each carry their own offset
- *  so a later authoring pass can retime each independently. Each kind gets its OWN array (not a shared
- *  reference) so a future authoring pass can vary one kind's cues without mutating others. */
+/** Every kind runs sfx + float + auraBurst + auraBreak + executeFx + fxDef at start (all adapters no-op for
+ *  moments with nothing to show) EXCEPT `attackExchange`, which ALSO still needs sfx (the wind-up whoosh,
+ *  `sfx.attack`) + float (absorbed windup events like Rally/buff can carry a float) at `start`, PLUS `lunge`
+ *  (the motion) at `start` and `impact` (the smack/FX/recoil) at the `contact` anchor the lunge defines, plus
+ *  auraBurst (a death grouped into an attack's absorbed-windup run must still burst in place). A Ward CONSUMED
+ *  by the exchange has no `auraBreak` cue here — the engine shatters it at the lunge's real `contact` (see
+ *  `onImpactAuras`). The aura sub-channels are on EVERY kind because `death`/`shield` are RESULT_TYPES that
+ *  collapse into another kind's moment (e.g. `[dmg, death]` is a `damage`-kind moment CONTAINING a death) —
+ *  gating them on death/shieldPop kinds would miss those grouped effects. `auraReform` (the reborn re-form
+ *  glow) rides only on the `reborn` kind, since a reborn is never grouped into another kind's moment. The three
+ *  aura sub-channels (`auraBurst` = a real death bursting its auras in place at offset 0; `auraBreak` = a
+ *  Divine-Shield consume's delayed gold shatter at +300ms scaled; `auraReform` = a reborn re-form glow at
+ *  +460ms fixed wall-clock) each carry their own offset so a later authoring pass can retime each
+ *  independently. Each kind gets its OWN array (not a shared reference) so a future authoring pass can vary
+ *  one kind's cues without mutating others.
+ *
+ *  WHICH def each kind plays is NOT here — it lives in `bindings.json` (see `bindings.ts`). This table is
+ *  timing only. */
 export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   attackExchange: [
     { ch: 'sfx', at: 'start' }, { ch: 'float', at: 'start' },
@@ -84,57 +82,44 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // (engine-driven, `onImpactAuras`), not on a fixed start-relative delay that drifted off the hit and left the
     // bubble lingering disjointed from the unit. `auraBurst` (a death's in-place burst) stays at start.
     { ch: 'auraBurst', at: 'start', offset: 0 },
-    // Self-buffs ABSORBED into a wind-up (`absorbIntoWindup` in compile.ts) never produce a `buffWave`
-    // moment of their own — a Target Dummy growing as it is hit is exactly this case, and binding the effect
-    // to `buffWave` alone would have missed the very example asked for. Fans out to nothing on the
-    // overwhelming majority of exchanges, which carry no self-buff at all.
-    { ch: 'fxDef', at: 'start', offset: 0, def: 'self-buff-gold', fanOut: 'selfBuffed' },
+    // Self-buffs ABSORBED into a wind-up (`absorbIntoWindup` in compile.ts) never produce a `buffWave` moment
+    // of their own — a Target Dummy growing as it is hit is exactly this case, which is why `attackExchange`
+    // carries an fxDef row at all. (The binding itself is in `bindings.json`.)
+    { ch: 'fxDef', at: 'start', offset: 0 },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
   // `attackExchange` (already has the full lunge/impact FX), so it never double-bursts; the handler no-ops on a
   // plain death that carries no dmg events.
   damage: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], shieldPop: [...BASE], poisonTick: [...BASE],
-  // `shieldGain` = a unit GAINS a Ward mid-combat (`shieldUp`). It carries the same BASE cues `shieldPop` gave
-  // it before the kinds split, PLUS the first authored-def cue: the moment had no pixiFx at all (Ward is a CSS
-  // dome stack), so this can't collide with an existing look. Inert until `ward-gained` exists — `playDef`
-  // returns null for an unknown id — and inert in production, where defs don't ship (`canPlayDefs()` false).
-  shieldGain: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'ward-gained' }],
-  // A Venomous charge SPENT — split out of `poisonTick` (the Execute proc), which keeps its crescent strike
-  // untouched. Same cues `poisonTick` gave it, plus the def.
-  venomSpent: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'venom-spent' }],
+  // `shieldGain` = a unit GAINS a Ward mid-combat (`shieldUp`); `venomSpent` = a Venomous charge SPENT, split
+  // out of `poisonTick` (the Execute proc), which keeps its crescent strike untouched. Both carry exactly the
+  // cues their predecessor kind had — the splits are purely additive, and what they PLAY is a binding now.
+  shieldGain: [...BASE], venomSpent: [...BASE],
   death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE],
-  // A real Start-of-Combat CAST (`sc` with `cast: true`) → a muzzle/charge flash at the CASTER (the `sc` event
-  // carries a source and no target, so the anchors fold onto the caster). The bolt/projectile itself stays
-  // DOM/CSS — this def adds the flash at the origin, it does not replace the travel. Mid-combat NARRATION now
-  // classifies as `scNarrate` and keeps exactly the cues it had, so a spell-power line stays silent.
-  scCast: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'spell-cast' }], scNarrate: [...BASE],
+  // A real Start-of-Combat CAST (`sc` with `cast: true`) vs. mid-combat NARRATION, which classifies as
+  // `scNarrate` and stays unbound so a spell-power line is silent.
+  scCast: [...BASE], scNarrate: [...BASE],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
-  summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'fxDef', at: 'start', offset: 0, def: 'self-buff-gold', fanOut: 'selfBuffed' }], reborn: withReform(),
+  summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }],
+  buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }],
+  reborn: withReform(),
   ascend: [...BASE, { ch: 'ascendFx', at: 'start', offset: 0 }],
-  // Deathsayer firing an ally's Deathrattle — the one binding here that is genuinely source→target: a `rally`
-  // event names BOTH ends, so `anchorsForUnits` gets two real units and the def's `travel` arc reads as the link.
-  rally: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'rally-link' }],
-  // `toHand` carries no target and only an OPTIONAL source (the minion that granted the card). With a source the
-  // anchors fold onto it; the sourceless case (a quest's reward card) resolves to null anchors and skips.
-  toHand: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'to-hand' }],
+  rally: [...BASE], toHand: [...BASE],
   maxGold: [...BASE, { ch: 'coins', at: 'start', offset: 0 }],
   improve: [...BASE, { ch: 'improveSelf', at: 'start', offset: 0 }],
-  keyword: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'keyword-gain' }],
-  keywordLost: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'keyword-lost' }],
-  hpGrant: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'hp-grant' }],
-  spellProgress: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'spell-progress' }],
-  reveal: [...BASE, { ch: 'fxDef', at: 'start', offset: 0, def: 'stealth-break' }],
+  keyword: [...BASE], keywordLost: [...BASE],
+  hpGrant: [...BASE], spellProgress: [...BASE], reveal: [...BASE],
   tribeAura: [...BASE], // the wash itself is fired from the per-beat scan in useCombatReplay (like spell power), not a choreo channel
   // Quest/rune beats. These were classified `damage` before their kinds existed, so they carry `damage`'s exact
-  // cue list + the def — the split is provably a no-op for everything that already played. `damageFx` rides
-  // along INERT: it bursts at the moment's `dmg` events and a quest moment is a single non-result event, so it
-  // has none. Anchors: neither event names a unit (`flag`/`questId` + `side`), so `anchorsForUnits(null, null)`
-  // returns null and the def skips silently — these two stay dormant until the score can anchor to a badge/HUD
-  // node rather than a board unit. Scored anyway so the binding is in one place when that anchor exists.
-  questTrigger: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }, { ch: 'fxDef', at: 'start', offset: 0, def: 'quest-trigger' }],
-  questComplete: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }, { ch: 'fxDef', at: 'start', offset: 0, def: 'quest-complete' }],
+  // cue list — the split is provably a no-op for everything that already played. `damageFx` rides along INERT:
+  // it bursts at the moment's `dmg` events and a quest moment is a single non-result event, so it has none.
+  // Anchors: neither event names a unit (`flag`/`questId` + `side`), so `anchorsForUnits(null, null)` returns
+  // null and the def skips silently — these two stay dormant until the score can anchor to a badge/HUD node
+  // rather than a board unit. Bound anyway so the intent is recorded in one place.
+  questTrigger: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }],
+  questComplete: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }],
 };
 
 const KEY = 'ascent.choreoScore';
@@ -350,24 +335,24 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     });
     // An AUTHORED FX def (fx/playDef) plays at this moment. Guarded BEFORE `at()` so the production path costs
     // nothing: defs are a dev-authoring payload that doesn't ship, so `canPlayDefs()` is false there (two
-    // property reads, short-circuiting on the first) and this allocates no closure and schedules no timer,
-    // rather than bailing inside a callback that already cost a setTimeout. Nothing on that path warns.
-    // (In DEV, `playDef` itself logs once per call for a def id that hasn't been authored yet — its choice,
-    // and the signal an author wants; it cannot reach production, where this branch never calls it.)
+    // property reads, short-circuiting on the first) and this allocates no closure and schedules no timer.
     else if (cue.ch === 'fxDef') {
-      const def = cue.def;                       // capture: narrowing a property doesn't survive into the closure
-      if (!def || !canPlayDefs()) continue;      // no def id / defs unavailable → nothing to schedule
-      // Claim the stock hit-burst for the units this binding will cover, SYNCHRONOUSLY — before `at()` defers
-      // anything. Moments are scheduled in log order and the `damage` moment follows its own cast, so the
-      // claim is standing by the time that moment's `damageFx` cue is scheduled. Doing it inside the deferred
-      // callback would race: the burst is scheduled first and would fire regardless.
+      if (!canPlayDefs()) continue;
       // The card comes from `ctx.cardIds` — the replay's own uid→card map, already threaded in for the sfx
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute
       // added for this feature. Combat state knows the answer without any of that.
-      const claimSource = ctx.cardIds?.get(momentUnits(moment.primary).source ?? '') ?? null;
-      const claimBinding = cardFxFor(claimSource, moment.kind);
-      if (claimBinding?.fanOut === 'damaged') {
+      const { source, target } = momentUnits(moment.primary);
+      const cardId = ctx.cardIds?.get(source ?? '') ?? null;
+      // Resolved ONCE, here, rather than separately for the claim and again inside the deferred callback —
+      // two lookups of the same key are two chances to disagree.
+      const binding = bindingFor(cardId, moment.kind);
+      if (!binding) continue;                    // nothing bound at this kind/card → nothing to schedule
+      if (binding.fanOut === 'damaged') {
+        // Claim the stock hit-burst for the units this binding will cover, SYNCHRONOUSLY — before `at()`
+        // defers anything. Moments are scheduled in log order and the `damage` moment follows its own cast,
+        // so the claim is standing by the time that moment's `damageFx` cue is scheduled. Doing it inside the
+        // deferred callback would race: the burst is scheduled first and would fire regardless.
         const claimed = damagedUidsIn(ctx.events, moment.start, moment.end);
         claimDamageFx(moment.primary.step, claimed);
         // DEV-only, and deliberately loud about the FAILURE case. Every miss in this path so far has been
@@ -377,48 +362,42 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         if (import.meta.env.DEV) {
           if (claimed.length === 0) {
             console.warn(
-              `[fx] '${claimSource}' → '${claimBinding.def}' matched at '${moment.kind}' but found NO damaged ` +
-                `units in step ${String(moment.primary.step)} — nothing will play.`,
+              `[fx] '${cardId ?? moment.kind}' → '${binding.def}' matched at '${moment.kind}' but found NO ` +
+                `damaged units in step ${String(moment.primary.step)} — nothing will play.`,
             );
           } else {
-            console.info(`[fx] '${claimSource}' → '${claimBinding.def}' ×${claimed.length}`, claimed);
+            console.info(`[fx] '${cardId ?? moment.kind}' → '${binding.def}' ×${claimed.length}`, claimed);
           }
         }
-      }
-      if (cue.fanOut === 'selfBuffed') {
         at(cue, () => {
-          // Both ends are the same unit: a self-buff has no pair to travel between, so `source` and `target`
-          // resolve to the same card and a travelling layer simply stays put on it.
-          for (const sb of groupSelfBuffs(moment, ctx.events)) {
-            const selfAnchors = anchorsForUnits(sb.uid, sb.uid);
-            if (selfAnchors) playDef(def, selfAnchors);
-          }
-        });
-        continue;
-      }
-      at(cue, () => {
-        const { source, target } = momentUnits(moment.primary);
-        // A per-CARD binding wins over the kind's default (see `cardFx.ts`): the kind is the right key for
-        // "a Ward was gained", but every spell cast shares `scCast`, so a card with its own look needs the
-        // narrower key. Resolved here rather than at compile time because it depends on which unit is
-        // actually on screen.
-        const binding = cardFxFor(ctx.cardIds?.get(source ?? '') ?? null, moment.kind);
-        if (binding?.fanOut === 'damaged') {
           // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
           // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
           for (const uid of damagedUidsIn(ctx.events, moment.start, moment.end)) {
             const fanAnchors = anchorsForUnits(source, uid);
             if (fanAnchors) playDef(binding.def, fanAnchors);
           }
-          return;
-        }
+        });
+        continue;
+      }
+      if (binding.fanOut === 'selfBuffed') {
+        at(cue, () => {
+          // Both ends are the same unit: a self-buff has no pair to travel between, so `source` and `target`
+          // resolve to the same card and a travelling layer simply stays put on it.
+          for (const sb of groupSelfBuffs(moment, ctx.events)) {
+            const selfAnchors = anchorsForUnits(sb.uid, sb.uid);
+            if (selfAnchors) playDef(binding.def, selfAnchors);
+          }
+        });
+        continue;
+      }
+      at(cue, () => {
         const anchors = anchorsForUnits(source, target);
         if (!anchors) return;                    // the unit already left the screen → skip silently
         // Unknown def id → `playDef` returns null, so a build without this def's JSON is a silent no-op. The
         // returned stop() is deliberately NOT wired into this runner's cleanup: every channel here is
         // fire-and-forget (an aura burst outlives its moment too), and cancelling on moment-change would cut
         // the effect off mid-play.
-        playDef(binding?.def ?? def, anchors);
+        playDef(binding.def, anchors);
       });
     }
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.

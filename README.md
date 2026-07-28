@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **A guide for driving the FX workbench**, end to end — author, stage, tune, save, bind, verify in a real
+  fight. See [`docs/fx-workbench-guide.md`](docs/fx-workbench-guide.md).
+- **A travelling effect can fly straight.** The arc's bow was a hardcoded constant nothing could reach; it is
+  now a per-layer `bow` with an **Arc** slider, where `0` is a dead-straight laser.
 - **FX bindings are data.** Which authored effect plays at a moment now lives in one `bindings.json` behind a
   single resolver, with live session overrides and a dev endpoint that commits them back to the file — the
   foundation for authoring an effect against a real combat.

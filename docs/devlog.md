@@ -1,5 +1,55 @@
 # ASCENT — development log
 
+## 2026-07-28 — an end-to-end guide for the FX workbench, and the arc can be turned off
+
+**`docs/fx-workbench-guide.md`.** The workbench had a request-loop doc (`fx-requests.md`, the brief → build →
+tune → bind contract) but nothing describing how to actually *drive* it. This is that: start the dev server,
+open it, pick a starting point from the library, stage it with the right scenario, build the composition,
+lock the seed, save, bind, verify in a real fight, commit. Written because the tool has accumulated enough
+surface — five primitives, five scenarios, per-layer anchors and timing, curves, palettes, seed locking,
+the three-lens browser — that "obvious once you know" now describes most of it.
+
+Two things it documents that are genuinely easy to get wrong and cost real time:
+
+- **Lock the seed before tuning, unlock before saving.** Unlocked, every Fire rolls fresh, so a param nudge
+  and a different dice roll are indistinguishable and you end up tuning against noise. But saving *while*
+  locked bakes the seed into the def, and `playDef` honours it — so every play in the real game becomes the
+  identical roll, and a repeated proc starts reading as mechanical. No committed def carries a seed today.
+- **Saving makes an effect exist; it does not make it play.** Binding is the separate step, and it has no UI
+  yet (phase ③), so the guide shows the `bindings.json` shape and what each `fanOut` value means.
+
+**`fx-requests.md` step 4 was stale** and pointed at `packages/ui/src/choreo/score.ts` for binding — which
+stopped being true when bindings moved into `bindings.json`. Corrected, and cross-linked to the new guide.
+
+**Also in this group: `FxLayer.bow`.** The travel arc's perpendicular bow was `TRAVEL_BOW = 0.28`, a
+module-private constant in `anchors.ts` whose one real call site never overrode it — `resolveAnchor` and
+`pointOnTravel` both already took a `bow` argument, so the flexibility existed with nothing able to reach it.
+"Travels in a straight line" was therefore not expressible, which rules out a bolt, a beam or a thrown spear
+(owner report 2026-07-27). Added as a per-layer optional field following `travelMs`'s template exactly:
+coerced in `defStore`, threaded through `driveLayerHeads`, exposed as an **Arc** slider on `travel`-anchored
+layers with a reset-to-default button, reading "Straight" at 0.
+
+The load-bearing detail is that **0 is a meaningful value here**, unlike every other optional field in that
+path — so the guards are `!== null` and `?? TRAVEL_BOW`, never truthiness, which would swallow the straight
+line back into the default arc and present as a slider that does nothing at exactly the setting you want.
+Junk coerces to an omission (the default arc) rather than to 0, so a hand-edit typo can't silently restyle an
+effect into a laser; out-of-range clamps to ±1 rather than flinging the head off-screen. Omission stays the
+serialised default, so every committed def renders exactly as before.
+
+**Also fixed: the FX library browser was rendered but completely inert.** `.fxwb` is deliberately
+`pointer-events: none` — a transparent backdrop so the pixiFx canvas underneath stays interactive for the
+cursor scenario — and its bars opt back in through one shared rule. `LibraryBrowser` renders *inside* that
+root and `.fxlib` was never added to the list, so the whole overlay inherited `none`: every row, the search
+box and its own Close button dead, with no way out of the screen. Nothing about the markup or the component
+looks wrong and every class it uses is defined, which is why it survived review — the defect lives entirely
+in inherited CSS across a parent/child boundary, where no component test can see it. It reads as a frozen UI
+rather than a styling bug. Owner report 2026-07-27; this is the concrete cost of the "browser layout never
+visually verified" gap that shipped with the library browser.
+
+**Verified:** typecheck clean, lint 0 errors (3 warnings, all pre-existing), 2766 tests across 142 files,
+`build:web` green. The bow feature added 9 tests — the straight line surviving coercion, endpoints never
+moving at any bow, negative mirroring, clamping, and junk falling back to an omission.
+
 
 
 ## 2026-07-27 (stuck-cue timer audit)

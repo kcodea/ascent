@@ -14,11 +14,14 @@ defaults. So:
 | 1. Brief | Owner | Fill in the template below. Two minutes, not a spec. |
 | 2. First pass | Claude | Build `defs/<id>.json`, verify it loads + typechecks, commit. |
 | 3. Tune | Owner | Dev Menu → 🎨 FX Workbench → **Start from** → `<id>` → tune → **Save**. Save overwrites the same file. |
-| 4. Bind | Claude | One line in `packages/ui/src/choreo/score.ts` mapping a moment kind to the def id, plus its test. |
-| 5. Commit | Owner | The Save wrote to your working tree — it goes in the next commit. |
+| 4. Bind | Claude | One entry in `packages/ui/src/choreo/bindings.json` — by moment kind, or by card for a bespoke look. |
+| 5. Commit | Owner | The Save wrote to your working tree — it goes in the next commit, alongside the binding. |
 
 Step 3 is the point of the whole tool: the first pass is a starting position, not a proposal. Changing every
 number in it is the expected outcome, not a rejection.
+
+**Driving the workbench itself** — the controls, the scenarios, the seed lock, and the save → bind → verify
+loop in full — is [`fx-workbench-guide.md`](fx-workbench-guide.md).
 
 ---
 

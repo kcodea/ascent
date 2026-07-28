@@ -13,6 +13,7 @@ import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
+import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
 import { BalancePanel } from './BalancePanel';
 import { PerfHud } from './PerfHud';
@@ -41,6 +42,15 @@ export function Game() {
   const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}`);
   const [menuOpen, setMenuOpen] = useState(false);
   const [perfOn, setPerfOn] = useState(perfEnabledByFlag);
+
+  // Load the FX primitives once, in DEV only, so authored defs can actually play during a normal dev session.
+  // Without this `canPlayDefs()` is false until something happens to open the workbench, and EVERY def binding
+  // in the Score is silently inert — you'd play a whole combat and see none of the authored effects, with no
+  // error to explain why. Written as a positive `import.meta.env.DEV` branch (the same shape `Workbench.tsx`
+  // uses) so Rollup drops it — and the primitives' GLSL — from production, where defs deliberately don't ship.
+  useEffect(() => {
+    if (import.meta.env.DEV) void ensureDefsReady();
+  }, []);
 
   // Perf HUD: start/stop the sampler with the toggle, and feed it the game context so every logged second
   // carries what was happening (a spike is only actionable if you know the phase + wave it landed in).

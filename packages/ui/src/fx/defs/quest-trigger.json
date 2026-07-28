@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "id": "quest-trigger",
+  "duration": 450,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "life": 420,
+      "params": {
+        "rings": 1,
+        "speed": 2.4,
+        "thickness": 0.12,
+        "radius": 75,
+        "fade": 1.5,
+        "ease": 0.55,
+        "bands": 3,
+        "plateau": 0.3,
+        "alpha": 0.8,
+        "glow": 0.3,
+        "erode": 0.4,
+        "palette": [16736010, 16758815, 16773288, 16777215]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 70,
+      "life": 340,
+      "params": {
+        "count": 8,
+        "spread": 1,
+        "speed": 140,
+        "speedVar": 0.5,
+        "drag": 0.87,
+        "gravity": -20,
+        "life": 300,
+        "shape": "diamond",
+        "size": 6,
+        "sizeVar": 0.5,
+        "coreBias": 0.7,
+        "bands": 3,
+        "plateau": 0.32,
+        "glow": 0.3,
+        "palette": [16736010, 16758815, 16773288, 16777215]
+      }
+    }
+  ]
+}

@@ -49,6 +49,7 @@ import { TavernUpTuner } from './TavernUpTuner';
 import { HeroPanelTuner } from './HeroPanelTuner';
 import { pixiFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
+import { FxWorkbench } from './fx/ui/Workbench';
 
 /**
  * DEV-only Dev Tuning Menu — the single 🛠️ button that replaces the old row of floating tuner buttons.
@@ -109,6 +110,7 @@ const TUNERS = [
 export function DevMenu() {
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState<Set<string>>(new Set());
+  const [wbOpen, setWbOpen] = useState(false);
 
   const toggle = (key: string): void =>
     setShown((s) => {
@@ -158,12 +160,18 @@ export function DevMenu() {
             <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
             <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
             <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>
+            <button className="devmenu-item" onClick={() => setWbOpen(true)}>🎨 FX Workbench <span>▸</span></button>
           </div>
         </div>
       )}
       <DevPanelContext.Provider value={{ close }}>
         {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}
       </DevPanelContext.Provider>
+      {/* Outside the provider on purpose: `DevPanelContext` exists so a DRAGGABLE tuner panel's ✕ can close
+          itself by key (see `useDraggablePanel`). The workbench is a full-screen overlay that owns its own
+          close, doesn't use that hook, and has no key in `TUNERS` — wrapping it would imply a relationship
+          it doesn't have. */}
+      {wbOpen && <FxWorkbench onClose={() => setWbOpen(false)} />}
     </>
   );
 }

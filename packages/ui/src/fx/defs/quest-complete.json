@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "id": "quest-complete",
+  "duration": 850,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "life": 360,
+      "params": {
+        "rings": 1,
+        "speed": 2.8,
+        "thickness": 0.16,
+        "radius": 70,
+        "fade": 1.6,
+        "ease": 0.5,
+        "bands": 3,
+        "plateau": 0.34,
+        "alpha": 0.75,
+        "glow": 0.35,
+        "erode": 0.3,
+        "palette": [16736010, 16758815, 16773288, 16777215]
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 60,
+      "life": 780,
+      "params": {
+        "rings": 1,
+        "speed": 1.3,
+        "thickness": 0.13,
+        "radius": 155,
+        "fade": 1.2,
+        "ease": 0.55,
+        "bands": 4,
+        "plateau": 0.34,
+        "alpha": 0.95,
+        "glow": 0.4,
+        "noiseAlong": 3.5,
+        "erode": 0.35,
+        "palette": [16736010, 16758815, 16773288, 16777215]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 110,
+      "life": 660,
+      "params": {
+        "count": 26,
+        "interval": 900,
+        "spread": 1,
+        "speed": 240,
+        "speedVar": 0.5,
+        "drag": 0.9,
+        "gravity": 70,
+        "life": 540,
+        "shape": "diamond",
+        "size": 8,
+        "sizeVar": 0.55,
+        "coreBias": 0.72,
+        "bands": 3,
+        "plateau": 0.32,
+        "glow": 0.35,
+        "palette": [16736010, 16758815, 16773288, 16777215]
+      }
+    }
+  ]
+}

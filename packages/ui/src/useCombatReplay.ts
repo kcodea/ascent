@@ -495,7 +495,10 @@ export interface CombatReplay {
    *
    * **Follows the hook's index convention:** `beatIdx = N` is the moment ABOUT TO PLAY, and the one on screen
    * is `beats[N - 1]`. So `seekTo(N)` does not "show moment N" — it plays *into* moment N, which is what you
-   * want when the point is to watch that moment's effect fire.
+   * want when the point is to watch that moment's effect fire. The corollary is worth stating outright,
+   * because it surprises: since every cue effect renders `beats[beatIdx - 1]`, `seekTo(N)` immediately
+   * replays moment **N−1**'s cues and only reaches N one hold later. To put moment N's effect on screen
+   * right now, seek to `N + 1`.
    *
    * Re-seeking the index you are already on replays it (a seek nonce drives the cue effects, since `beatIdx`
    * itself would not change). The index is clamped to `beats.length - 1`, so the last moment can be played
@@ -732,10 +735,13 @@ export function useCombatReplay(
    * hold it without re-subscribing.
    */
   const resetTo = useCallback((index: number): void => {
-    // FIRST, before the index is set. Killing a live lunge timeline makes GSAP re-render it and re-fire the
-    // `.add()` callbacks at its endpoint (see channels/lunge.ts) — including `ctx.advance()`, whose
-    // `setBeatIdx(k => k + 1)` would otherwise queue AFTER our absolute set and land the seek one beat late.
-    // Killing first puts the functional update ahead of the absolute one, so the absolute value wins.
+    // FIRST, before the index is set. Killing a live lunge timeline makes GSAP re-render it and run the
+    // `.add()` callbacks at its endpoint (see channels/lunge.ts) — including `ctx.advance()` and its
+    // `setBeatIdx(k => k + 1)`. A timeline already PAST contact is protected: `onContact` is `once()`-wrapped,
+    // so that is a harmless re-fire. But one seeked into BEFORE contact still has an unfired guard, so the
+    // kill runs the advance for the FIRST time — and that functional update would otherwise queue AFTER our
+    // absolute set and land the seek one beat late. Killing first puts the functional update ahead of the
+    // absolute one, so the absolute value wins.
     gsap.killTweensOf('[data-zone] .unit');
     setBeatIdx(index);
     setFloats([]);
@@ -868,7 +874,9 @@ export function useCombatReplay(
     const beat = active ? beats[beatIdx] : undefined;
     if (beat && beat.primary.type === 'toHand') setHandGrant({ cardId: beat.primary.cardId, key: beatIdx });
     else setHandGrant(null);
-  }, [active, beatIdx, beats]);
+    // `seekNonce`: `resetTo` nulls the flying card, so without this a re-seek onto a `toHand` beat would
+    // clear the grant and never restore it — that moment's animation just wouldn't replay.
+  }, [active, beatIdx, seekNonce, beats]);
 
   useEffect(() => {
     if (!shake) return;
@@ -909,7 +917,11 @@ export function useCombatReplay(
     if (lead) d += lead / combatSpeed;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
-  }, [active, hidden, paused, beatIdx, beats, combatSpeed, events, cardIds]);
+    // `seekNonce`: not a cue, but a same-index re-seek must RESTART this hold rather than inherit whatever
+    // remains of the original one — re-seek late in a beat and the replayed cues would be cut off almost
+    // immediately, showing a flash instead of the moment. The cleanup clears the pending timeout, so the
+    // extra dep can only restart the timer; it can never double-advance.
+  }, [active, hidden, paused, beatIdx, seekNonce, beats, combatSpeed, events, cardIds]);
 
   // Hold on the final beat: once the clock reaches the end, wait FINAL_HOLD_MS before reporting `done` — so
   // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.
@@ -1431,7 +1443,13 @@ export function useCombatReplay(
     if (!beat) return;
     const next = preBuffHolds(beat, events, frame);
     setStatHold((m) => (m.size === 0 && next.size === 0 ? m : next));
-  }, [active, beatIdx, beats, events, frame]);
+    // `seekNonce`: this is the ONLY installer of `statHold` (every other write is a delete), and both
+    // `resetTo` and the cue effect's teardown clear it. `frame` can't stand in — it is memoised on
+    // `processedEnd`/`beatStart`, both derived from `beatIdx`, so it too is unchanged by a same-index
+    // re-seek. Without this the badge shows the POST-buff number for the whole replayed beat instead of
+    // holding pre-buff and ticking up at the tendril — the up-then-down-then-up artifact this effect exists
+    // to kill.
+  }, [active, beatIdx, seekNonce, beats, events, frame]);
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.

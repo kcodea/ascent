@@ -21,6 +21,12 @@ reassignments; buses/limiter unchanged.
   **only** via its ✕ (a click outside a panel does not dismiss it).
 - **Click-outside closes the Dev Tuning dropdown itself** (the 🛠️ list) — a pointerdown outside the menu + its
   toggle collapses the list; open tuner panels are untouched.
+- **Stacking + open placement** (also in `useDraggablePanel`): opening a panel or clicking anywhere inside it
+  **brings it to the front** (a monotonic z counter based at 600, above the panels' CSS z-index and below the
+  9999+ toast/HUD layer). Panels no longer restore a saved position — each opens at a **top-left cascade slot**
+  (slot 0 = corner; each additional open panel lands slightly down-right; slots free on close and re-use
+  lowest-first, so a lone panel is always in the corner). Size still persists; slots are keyed per panel id so
+  React StrictMode's double-mount doesn't leak them.
 - **Mixing Desk:** each bus section (ui / combat / voice / hero) is now tinted + left-accented in **its own
   category colour** (the colour of its label), and the category/bus **labels are much larger** (9px → 17px).
 

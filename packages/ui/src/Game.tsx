@@ -22,6 +22,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { warmArt } from './art';
+import { sfx } from './sfx';
 import { useGame } from './store';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
@@ -56,6 +57,31 @@ export function Game() {
     perfMonitor.start();
     return () => { window.removeEventListener('pointermove', onMove); perfMonitor.stop(); };
   }, [perfOn]);
+
+  // UI-hover SFX: one delegated pointerover listener for the whole app (mounted once). Plays a soft cue when
+  // the pointer ENTERS a MENU / selection control — any button (title / esc-menu / leaderboard / career menus,
+  // hero-select `.herocard` buttons) plus Discover options (`.disc-slot`). Deliberately silent on the in-game
+  // shop/combat HUD controls (hero power, freeze, refresh, tavern-up, rift, end-turn, summary, combat skip/speed,
+  // rune-forge reroll) — those are gameplay actions, not menu navigation — and on minion cards (`.card` divs),
+  // dev panels, and disabled controls. Per-target enter dedupe (skips moves within the same element); no time
+  // throttle, so a fast sweep ticks every element it passes.
+  useEffect(() => {
+    const SEL = 'button, [role="button"], .disc-slot';
+    // In-game HUD controls to keep silent (their button wrapper classes) + generic opt-outs.
+    const SKIP = '[data-nohoversfx], .devmenu, .desk, .heropowerbtn, .frzwrap, .tvbwrap, .rfbwrap, '
+      + '.riftbtn, .etbwrap, .combatsummary, .combathud-skip, .combatspeed, .forge-reroll';
+    let last: Element | null = null;
+    const onOver = (e: PointerEvent): void => {
+      if (e.pointerType === 'touch') return;                 // hover is a mouse/pen affordance only
+      const el = (e.target as Element | null)?.closest?.(SEL) ?? null;
+      if (el === last) return;                               // still within the same target (or still on nothing)
+      last = el;
+      if (!el || el.closest(SKIP) || (el as HTMLButtonElement).disabled) return;
+      sfx.uiHover();
+    };
+    window.addEventListener('pointerover', onOver, { passive: true });
+    return () => window.removeEventListener('pointerover', onOver);
+  }, []);
   // Console handles: toggle the HUD from anywhere (dev menu, devtools) without threading state through the
   // tree, and reach the monitor itself for triage — `__perf.summary()` / `__perf.exportLog()` are the two
   // you actually want when someone reports a hitch and the HUD isn't already up.

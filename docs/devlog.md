@@ -2,6 +2,68 @@
 
 
 
+## 2026-07-27 (UI hover sound)
+
+### chore(audio): whole-mix rebalance (owner by-ear export) + masterGain 0.8 → 0.61
+
+Baked the owner's latest Mixing-Desk export into `DEFAULT_AUDIO_CONFIG`. `masterGain` drops `0.8 → 0.61`
+(whole output quieter) and the per-category gains were rebalanced against that new headroom — notably
+`smack 0.29→0.33`, `crit 0.44→0.34`, `attack 0.1875→0.29` (supersedes the #500 wind-up cut, now louder relative
+to a quieter master), `death 0.54→0.26`, `shield 0.45→0.37`, `triggerglow 0.5→0.45`, `divineshieldbreak
+0.21→0.29`, `rebornshatter 0.16→0.24`, `rebornsummon 0.28→0.24`, `summon 0.24→0.2`, `uihover 0.09→0.08`. No bus
+reassignments; buses/limiter unchanged.
+
+### feat(ui): dev panels — ✕ close button + click-outside-to-close; Mixing Desk section colours
+
+- **Every dev tuner** now gets a top-right **✕ close button**, wired once in the shared `useDraggablePanel` hook
+  (+ a `DevPanelContext` from `DevMenu`) — no per-tuner edits; the hook injects the ✕ as an imperative trailing
+  child and `DevMenu` provides `close(key)`. Covers all ~45 tuners + any future one automatically. A panel closes
+  **only** via its ✕ (a click outside a panel does not dismiss it).
+- **Click-outside closes the Dev Tuning dropdown itself** (the 🛠️ list) — a pointerdown outside the menu + its
+  toggle collapses the list; open tuner panels are untouched.
+- **Stacking + open placement** (also in `useDraggablePanel`): opening a panel or clicking anywhere inside it
+  **brings it to the front** (a monotonic z counter based at 600, above the panels' CSS z-index and below the
+  9999+ toast/HUD layer). Panels no longer restore a saved position — each opens at a **top-left cascade slot**
+  (slot 0 = corner; each additional open panel lands slightly down-right; slots free on close and re-use
+  lowest-first, so a lone panel is always in the corner). Size still persists; slots are keyed per panel id so
+  React StrictMode's double-mount doesn't leak them.
+- **Mixing Desk:** each bus section (ui / combat / voice / hero) is now tinted + left-accented in **its own
+  category colour** (the colour of its label), and the category/bus **labels are much larger** (9px → 17px).
+
+### feat(ui): Mixing Desk — every fader gets a typed numeric field (read + edit exact values)
+
+The desk's per-category faders showed no value and nothing was typeable, so setting a precise level (e.g. an
+audio cue at `0.09`) meant guessing with a tiny vertical slider. Added a **numeric field beside every fader** —
+category, bus, and master-limiter dials — bound to the live value on the **raw-gain scale (0–1)** the config
+actually stores (buses 0–1.5; master dials in their own units), `step="any"` so any precision can be typed.
+Drag = coarse, type = exact; both drive the same value. Fields round to 3 dp for a tidy readout and clamp to
+range. Styled `.numf` (dark, tabular-nums, spinners hidden). No engine/audio-graph change — pure desk UX.
+
+Verified: `build:web` + `npm test` green (the desk is DEV-only React; UI `typecheck:web` in this worktree is
+contaminated — unrelated to these files).
+
+### feat(audio): soft hover sound on interactive UI (buttons, hero-select, Discover)
+
+Added a UI-hover cue that plays when the pointer enters an interactive control. Owner-supplied clip
+(`UI Hover Click.mp3` → `packages/ui/src/audio/uihover.mp3`).
+- **Category:** new `uihover` (gain `0.09`, `ui` bus) in `audio/config.ts` — appears automatically in the
+  Mixing Desk under the ui bus with its own ▶ preview, so its level is live-tunable.
+- **Cue:** `sfx.uiHover()` in `sfx.ts` — plays the sourced clip with a soft synth-blip fallback. **No time
+  throttle:** the listener's per-target enter dedupe already collapses repeats on the same element, so each
+  element you pass over ticks exactly once — a fast sweep across a row fires each one (owner wanted the misses
+  on quick swipes gone).
+- **Wiring:** one delegated `pointerover` listener in `Game.tsx` (mounted once, covers every screen). Fires on
+  `button, [role="button"], .disc-slot` — menu / navigation buttons (title, esc-menu, leaderboard, career),
+  hero-select `.herocard` buttons, and Discover option cards. **Silent on the in-game shop/combat HUD controls**
+  (hero power `.heropowerbtn`, freeze `.frzwrap`, refresh `.rfbwrap`, tavern-up `.tvbwrap`, rift `.riftbtn`,
+  end-turn `.etbwrap`, combat summary/skip/speed, rune-forge reroll) — those are gameplay actions, not menu
+  navigation (owner direction). Minion cards (`.card` divs), dev panels, disabled controls, and touch pointers
+  are also skipped. Per-target enter dedupe (skips moves within the same element).
+
+Verified: `npm test` (1785) + `npm run build:web` green; `npm run typecheck`/`lint` clean for the changed
+files. (Pre-existing `typecheck:web` errors in `Unit.tsx`/`useCombatReplay.ts` are unrelated — untouched here.)
+Audio itself is for the owner to judge by ear.
+
 ## 2026-07-27 (stuck-cue timer audit)
 
 ### fix(ui): audit every cleanup-cancelled cue timer — four stuck cues

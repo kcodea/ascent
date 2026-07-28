@@ -4,6 +4,18 @@
 
 ## 2026-07-27 (UI hover sound)
 
+### feat(ui): Mixing Desk — every fader gets a typed numeric field (read + edit exact values)
+
+The desk's per-category faders showed no value and nothing was typeable, so setting a precise level (e.g. an
+audio cue at `0.09`) meant guessing with a tiny vertical slider. Added a **numeric field beside every fader** —
+category, bus, and master-limiter dials — bound to the live value on the **raw-gain scale (0–1)** the config
+actually stores (buses 0–1.5; master dials in their own units), `step="any"` so any precision can be typed.
+Drag = coarse, type = exact; both drive the same value. Fields round to 3 dp for a tidy readout and clamp to
+range. Styled `.numf` (dark, tabular-nums, spinners hidden). No engine/audio-graph change — pure desk UX.
+
+Verified: `build:web` + `npm test` green (the desk is DEV-only React; UI `typecheck:web` in this worktree is
+contaminated — unrelated to these files).
+
 ### feat(audio): soft hover sound on interactive UI (buttons, hero-select, Discover)
 
 Added a UI-hover cue that plays when the pointer enters an interactive control. Owner-supplied clip

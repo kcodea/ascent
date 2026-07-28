@@ -4145,9 +4145,16 @@ svg { width: 18px; height: 18px; }
 .mcol { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .mcol-l { font-size: 8px; font-weight: 700; text-transform: uppercase; color: #8a7f6d; }
 .strip-dials { display: flex; gap: 6px; }
-.vdial { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; }
+.vdial { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 50px; }
 .vdial-l { font-size: 8.5px; font-weight: 700; text-transform: capitalize; color: #b7a998; text-align: center; }
-.vdial b { font-size: 9px; }
+
+/* Typed numeric field beside every fader — the exact value, editable. */
+.numf { width: 46px; text-align: center; background: #131110; color: #ffcf9e; border: 1px solid #4a4133;
+  border-radius: 5px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums;
+  padding: 2px 3px; -moz-appearance: textfield; }
+.numf::-webkit-outer-spin-button, .numf::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.numf:focus { outline: none; border-color: #ff8a3c; background: #1b1815; }
+.vdial .numf { width: 44px; }
 
 /* VERTICAL faders (up = max) — writing-mode is the modern vertical-range approach */
 .vfader { writing-mode: vertical-lr; direction: rtl; width: 22px; height: 130px; accent-color: var(--acc, #ff8a3c);

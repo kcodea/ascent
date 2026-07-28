@@ -4180,13 +4180,16 @@ svg { width: 18px; height: 18px; }
 .desk-scenes button:hover, .cstrip .play:hover { border-color: #ff8a3c; color: #ffcf9e; }
 
 /* categories — grouped by bus, each a mini vertical strip; horizontally scrollable */
-.desk-cats { display: flex; gap: 12px; overflow-x: auto; align-items: flex-start; padding-bottom: 6px;
-  border-top: 1px solid #33302a; padding-top: 8px; flex: 1 1 auto; min-height: 130px; }
-.cat-group { display: flex; flex-direction: column; gap: 5px; }
-.cat-group-h { color: var(--acc); align-self: center; }
+/* Bus groups are STACKED VERTICALLY — each bus (ui / combat / voice / hero) is its own row, its sound
+   strips wrapping across the available width; the whole area scrolls vertically. */
+.desk-cats { display: flex; flex-direction: column; gap: 10px; overflow: auto; align-items: stretch;
+  padding-bottom: 6px; border-top: 1px solid #33302a; padding-top: 8px; flex: 1 1 auto; min-height: 130px; }
+.cat-group { display: flex; flex-direction: column; gap: 6px; }
+.cat-group:not(:last-child) { border-bottom: 1px solid #2a2723; padding-bottom: 9px; }
+.cat-group-h { color: var(--acc); align-self: flex-start; }
 .cat-group-h.bus-ui { --acc: var(--ui); } .cat-group-h.bus-combat { --acc: var(--combat); }
 .cat-group-h.bus-voice { --acc: var(--voice); } .cat-group-h.bus-hero { --acc: var(--hero); }
-.cat-strips { display: flex; gap: 8px; }
+.cat-strips { display: flex; flex-wrap: wrap; gap: 10px; }
 .cstrip { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 68px; }
 .cstrip .vfader { accent-color: #cbb; }
 .cstrip .play { width: 22px; height: 18px; background: #2a2620; color: #efe7db; border: 1px solid #4a4133;

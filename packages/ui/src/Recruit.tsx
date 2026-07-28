@@ -554,6 +554,9 @@ export function Recruit() {
   // Any full-screen overlay pauses the recruit turn timer + logic AND the combat replay (see `paused` below) — so
   // the saved game never ticks / runs "in the background" (and no combat sfx leak) behind the Career, Leaderboard
   // (Hall of Champions + Rankings), Balance Report, Compendium, or title (an exploit + a confusing UX).
+  // The DEV FX workbench is deliberately NOT in this list. Its rail mode exists precisely to watch the fight
+  // play under the panel, and `overlayOpen` would freeze the replay the moment the workbench opened. Don't
+  // "complete" the list by adding it.
   const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook || s.showBalance);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
@@ -1070,6 +1073,24 @@ export function Recruit() {
     [],
   );
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen });
+
+  // DEV (proc harness): publish the live replay's `seekTo` on a window handle so the FX workbench's rail-mode
+  // harness can jump the fight to a moment. NOT a prop and NOT a store field, deliberately:
+  //   - a prop is impossible — the workbench is mounted from `DevMenu`, a SIBLING of `Recruit` under `Game`,
+  //     so there is no ancestor that can see this replay to thread it through;
+  //   - the store is the repo's hottest shared file (see CLAUDE.md's chokepoint list) and this is a dev-only
+  //     callback with no business in shipped run state.
+  // Same shape as the existing `window.__perfHud` / `window.__pixiFx` dev handles. Published through a ref so
+  // the effect runs once per mount rather than re-registering on every combat frame (`seekTo` is a fresh
+  // closure each render); the handle is deleted on unmount, so a stale `Recruit` can never be seeked.
+  const seekToRef = useRef(replay.seekTo);
+  seekToRef.current = replay.seekTo;
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const w = window as unknown as { __fxSeek?: (index: number) => void };
+    w.__fxSeek = (index: number) => seekToRef.current(index);
+    return () => { delete w.__fxSeek; };
+  }, []);
 
   // --- Divine-shield bubbles (Pixi) ------------------------------------------------------------------
   // A persistent golden bubble tracks every shielded card via its `.card.dscard` DOM marker, so the

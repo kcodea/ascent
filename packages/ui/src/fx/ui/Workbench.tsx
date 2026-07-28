@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from 'pixi.js';
 import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
@@ -26,6 +26,8 @@ import { getImportedDataUrl } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
 import { LibraryBrowser } from './LibraryBrowser';
+import { ProcHarness } from '../harness/ProcHarness';
+import { useGame } from '../../store';
 import { createBackdrop, type FxBackdrop } from './backdrop';
 import { Timeline } from './Timeline';
 import { previewClock } from './timelineModel';
@@ -212,6 +214,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // it explicitly — the registry behind it is module-level and React knows nothing about it.
   const [defs, setDefs] = useState<StoredFxDef[]>(() => listDefs());
   const [browsing, setBrowsing] = useState(false);
+  // Rail mode: collapse to one side so the live board is visible underneath, and host the proc harness.
+  // A MODE rather than a second overlay, because the whole point is tuning and watching without a context
+  // switch — two windows would put them a click apart, which is the loop this is meant to remove.
+  const [railMode, setRailMode] = useState(false);
+  // The fight the live replay is currently animating. Read off the store rather than passed in, because the
+  // workbench is mounted from `DevMenu` — a SIBLING of `Recruit` under `Game`, so no common parent holds it.
+  const lastCombat = useGame((s) => s.run.lastCombat);
+  // `Recruit` publishes its replay's `seekTo` on `window.__fxSeek` while it is mounted (see the comment at
+  // that publish site). Read at CALL time, never captured: the handle appears/disappears with `Recruit`, and
+  // the workbench can be open across a remount.
+  const seekReplay = useCallback((index: number) => {
+    (window as unknown as { __fxSeek?: (i: number) => void }).__fxSeek?.(index);
+  }, []);
   // "Restored unsaved work" is VISIBLE and dismissible — restoring must never silently clobber what the
   // author expected to see (a blank default composition).
   const [restoredNotice, setRestoredNotice] = useState(restoredSession !== null);
@@ -1247,7 +1262,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const liveMutes = effectiveMutes(layers);
 
   return (
-    <div className="fxwb">
+    <div className={`fxwb${railMode ? ' fxwb-rail' : ''}`}>
       <div className="fxwb-top">
         <div className="fxwb-title">🎨 FX Workbench</div>
         {/* Undo/redo sits first because it is the safety net for everything to its right — above all the
@@ -1354,6 +1369,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
         />
         <button className="fxwb-btn" onClick={() => setBrowsing(true)}>Browse all</button>
+        <button className="fxwb-btn" onClick={() => setRailMode((r) => !r)}>
+          {railMode ? 'Full editor' : 'Watch in combat'}
+        </button>
 
         <div className="fxwb-layers">
           {layers.map((l, i) => (
@@ -1757,6 +1775,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         <span className="fxwb-speedval">{speed.toFixed(1)}x</span>
         <div className="fxwb-hint">{activeScenario?.hint}</div>
       </div>
+
+      {/* The proc harness lives INSIDE the `.fxwb` root (not as its own overlay) so rail mode is a single
+          layout: editor rail, harness rail, live board in what's left. `combat` comes straight off the store
+          rather than from a prop, and `onSeek` goes through the `window.__fxSeek` handle `Recruit` publishes
+          — see the comment there for why neither can be threaded down as a prop. */}
+      {railMode && <ProcHarness onSeek={seekReplay} combat={lastCombat} />}
 
       {browsing && (
         <LibraryBrowser

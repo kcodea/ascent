@@ -31,10 +31,14 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
 
   // Only cards actually on the board can proc — offering the whole index would let you pick a card that
   // cannot possibly appear in the fight you are about to stage, and then wonder why the list is empty.
-  const boardCards = useGame((s) => {
-    const board = s.run?.board ?? [];
-    return [...new Set(board.map((m) => m.cardId))];
-  });
+  //
+  // The dedupe is a `useMemo` OUTSIDE the selector, not inside it. Zustand's `useSyncExternalStore` compares
+  // each snapshot by reference, so a selector that builds a fresh array every call never settles: React
+  // re-reads, sees a new identity, re-renders, forever. That is not a slow render — it throws
+  // "Maximum update depth exceeded" and the ErrorBoundary tears the whole game down the instant rail mode
+  // opens (seen live 2026-07-28). Select the board's own stable reference, derive from it here.
+  const board = useGame((s) => s.run?.board);
+  const boardCards = useMemo(() => [...new Set((board ?? []).map((m) => m.cardId))], [board]);
 
   const procs: ProcMoment[] = useMemo(
     () => (combat && cardId ? scanProcs(combat, cardId) : []),

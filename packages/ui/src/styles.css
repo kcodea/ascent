@@ -5321,6 +5321,35 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    It reads as a frozen UI rather than a CSS problem, which is why it survived review: nothing about the
    markup or the component looks wrong, and no test can see it. */
 .fxwb-top, .fxwb-transport, .fxwb-side, .fxlib { pointer-events: auto; }
+
+/* Rail mode — the workbench narrows to one column so the live board plays in the space it vacates. The root
+   stays pointer-events:none (see above), so the board underneath keeps receiving the pointer.
+   The editor rail is pushed LEFT by the harness's own width: both are `position: absolute; right: 0` by
+   default, so leaving them there would stack the harness exactly on top of the editor and hide it — which
+   defeats the mode (you could watch, but not tune). Top/bottom stretch to the full height the hidden top +
+   transport bars vacate. */
+.fxwb-rail .fxwb-side { width: 320px; right: 320px; top: 0; bottom: 0; }
+.fxwb-rail .fxwb-top,
+.fxwb-rail .fxwb-transport { display: none; }
+.fxharness {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 320px;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; box-sizing: border-box; overflow-y: auto;
+  background: #17141f; color: #d9d3ea; pointer-events: auto;
+}
+.fxharness-h { font-weight: 600; letter-spacing: 0.02em; }
+.fxharness-val { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.fxharness-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.fxharness-row {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 6px 8px; border-radius: 4px; border: 1px solid #2c2740;
+  background: #1e1a2b; color: inherit; cursor: pointer; text-align: left;
+}
+.fxharness-row:hover { background: #272136; }
+.fxharness-kind { font-weight: 600; }
+.fxharness-def { opacity: 0.75; }
+.fxharness-unbound { opacity: 0.6; font-style: italic; }
+.fxharness-empty { opacity: 0.7; font-size: 0.9em; line-height: 1.4; }
 /* ONE source for the rail's width. It was hardcoded twice — on `.fxwb-side` and again as the transport
    bar's `right` offset — which have to agree exactly or the transport slides under the rail (or leaves a
    gap). Widened from 288px: at that width the param rows had ~150px of slider left after the label and

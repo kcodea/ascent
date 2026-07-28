@@ -14,8 +14,7 @@ import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
-import { deferClashBuffs } from './choreo/clashOrder';
-import { deferAvengeAfterSummons } from './choreo/avengeOrder';
+import { replayOrder } from './choreo/replayOrder';
 import { runMomentCues } from './choreo/score';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
@@ -663,7 +662,10 @@ export function useCombatReplay(
   // …then hold every Avenge payoff beat until AFTER the death cascade's summons deploy (deferAvengeAfterSummons):
   // a multi-death clash or a deferred attack-on-summon token would otherwise show the Avenge (a buff pulse, a
   // coin burst) before the token pops in. Composed on the clash-normalized copy; both folds see THIS array.
-  const events = useMemo(() => deferAvengeAfterSummons(deferClashBuffs(combat?.events ?? [])), [combat]);
+  // Both transforms live in `replayOrder` — the single source of truth for this ordering, so anything (like
+  // the proc harness's `scanProcs`) that computes a moment index for `seekTo` folds the SAME array and can't
+  // silently address a different moment than the one the replay is actually showing.
+  const events = useMemo(() => replayOrder(combat?.events ?? []), [combat]);
   // Moments are Beat-shaped (choreographer phase 1): identical grouping to the old buildBeats (equivalence-
   // tested), now carrying stepGroups for later phases. buildBeats itself remains only as the test oracle.
   const beats = useMemo(() => compileMoments(events), [events]);

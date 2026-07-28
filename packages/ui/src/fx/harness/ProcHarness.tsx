@@ -1,9 +1,28 @@
 import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import type { RunState } from '@game/sim';
+import { modalOpen, type RunState } from '@game/sim';
 import { useGame } from '../../store';
 import { sandbagBoard, SANDBAG_LIMITS, type SandbagSpec } from './procStage';
 import { scanProcs, type ProcMoment } from './procScan';
+
+/**
+ * Why a fight can't be staged right now, or `null` when it can.
+ *
+ * Mirrors `reducer.ts`'s exact gate for `faceOmen`, not just `modalOpen()`: a `pendingTarget` alone does
+ * NOT block `faceOmen` (`endTurnEscapesAim`, reducer.ts:502) — it auto-resolves onto the highest-Attack
+ * legal carry instead. Every OTHER `modalOpen()` field is a genuine block; `stage()` must not run over one
+ * (a live Discover / Choose One / quest / Runeforge offer is real game state, not a stale leftover from a
+ * previous stage — see the long comment on `stage()` below).
+ */
+function blockedReason(run: RunState | undefined): string | null {
+  if (!run || !modalOpen(run) || run.pendingTarget) return null;
+  if (run.discover) return 'Close the open card choice first.';
+  if (run.chooseOne) return 'Resolve the open Choose One first.';
+  if (run.questOffer) return 'Resolve the open quest offer first.';
+  if (run.runeforgeOffer) return 'Resolve the open Runeforge offer first.';
+  if (run.scoutedNextOpponent?.length) return 'Clear the scouted-opponent view first.';
+  return 'A menu is open — resolve it first.'; // modalOpen() grew a field this doesn't know about yet
+}
 
 /**
  * The proc harness: stage a controlled fight, find the moments a card caused, and replay any of them.
@@ -39,6 +58,10 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
   // opens (seen live 2026-07-28). Select the board's own stable reference, derive from it here.
   const board = useGame((s) => s.run?.board);
   const boardCards = useMemo(() => [...new Set((board ?? []).map((m) => m.cardId))], [board]);
+
+  // A primitive (string | null), so — unlike the array above — a fresh call every render is fine: Zustand's
+  // default `Object.is` equality settles on a primitive without the "Maximum update depth" trap.
+  const blockReason = useGame((s) => blockedReason(s.run));
 
   const procs: ProcMoment[] = useMemo(
     () => (combat && cardId ? scanProcs(combat, cardId) : []),
@@ -78,16 +101,21 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
    * Nothing else needs resetting for `faceOmen` to be accepted: `combatSettled` is set unconditionally by
    * `faceOmen` itself (reducer.ts:1704), and `pendingTarget` is specifically EXEMPTED from the modal-block
    * check for `faceOmen` (`endTurnEscapesAim`, :502) — it auto-resolves onto the highest-Attack legal carry
-   * rather than blocking. The other modal fields (`discover`/`chooseOne`/`questOffer`/`runeforgeOffer`/
-   * `scoutedNextOpponent`, `modalOpen()` in recruit.ts) are deliberately left alone: they can only be set
-   * while `phase === 'recruit'` (every action that opens one is itself phase-gated), so they can't be a
-   * stale leftover from a previous STAGE the way `phase`/`resolve` can — and if one is genuinely open (the
-   * user had a live Discover pending in the real game), that's real game state whose semantics `faceOmen`
-   * should honor exactly as a normal End Turn would, not blow away.
+   * rather than blocking.
+   *
+   * The other modal fields (`discover`/`chooseOne`/`questOffer`/`runeforgeOffer`/`scoutedNextOpponent`,
+   * `modalOpen()` in recruit.ts) are deliberately NOT cleared here, only DETECTED (`blockedReason` above):
+   * they can only be set while `phase === 'recruit'` (every action that opens one is itself phase-gated), so
+   * unlike `phase`/`resolve` they can never be a stale leftover from a previous stage() call — a genuinely
+   * open one is real game state (the user had a live Discover pending), and `faceOmen` should honor it
+   * exactly as a normal End Turn would, not have it silently blown away by this panel. Since the reducer
+   * would still drop the dispatch in that case (reducer.ts:503), the Stage button disables itself and this
+   * bails rather than firing a `faceOmen` that gets swallowed and leaving `staged` claiming a fresh fight
+   * that never actually ran.
    */
   const stage = (): void => {
     const run = useGame.getState().run;
-    if (!run) return;
+    if (!run || blockedReason(run)) return;
     const board = sandbagBoard(run.wave, spec);
     useGame.setState({
       run: {
@@ -135,7 +163,15 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
         value={spec.attack} onChange={(e) => setSpec({ ...spec, attack: Number(e.target.value) })} />
       <span className="fxharness-val">{spec.attack}</span>
 
-      <button className="fxwb-btn" onClick={stage}>Stage fight</button>
+      <button
+        className="fxwb-btn"
+        onClick={stage}
+        disabled={blockReason !== null}
+        title={blockReason ?? undefined}
+      >
+        Stage fight
+      </button>
+      {blockReason !== null && <p className="fxharness-empty">{blockReason}</p>}
 
       <label htmlFor="fxh-runup" title="How many beats before the moment to start from, so you see it in context">
         Run-up
@@ -149,6 +185,9 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
           <button
             key={p.index}
             className="fxharness-row"
+            // `seekTo(N)` shows `beats[N-1]` — moment N hasn't played yet when it lands, only queued next —
+            // so this seeks one beat "early" by that convention. Playback then advances forward on its own
+            // within a tick, so the moment we actually want still lands on screen; left as-is deliberately.
             onClick={() => onSeek(Math.max(0, p.index - runUp))}
           >
             <span className="fxharness-kind">{p.kind}</span>
@@ -160,14 +199,22 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
           </button>
         ))}
         {/* Loud about the empty case, on purpose. An empty list reads identically to "the scan is broken",
-            and every significant defect in this subsystem so far has presented as "nothing happened". */}
-        {staged && cardId !== '' && procs.length === 0 && (
-          <p className="fxharness-empty">
-            No moments from {CARD_INDEX[cardId]?.name ?? cardId} in this fight. Try more sandbag HP so the
-            fight runs longer, or check the card is on your board.
-          </p>
+            and every significant defect in this subsystem so far has presented as "nothing happened". Every
+            reachable (procs.length === 0) state must land in exactly one of these three branches — none of
+            them may all fall through, or the list goes silently blank (a real regression this once had:
+            staging, then resetting the card picker back to "", satisfied neither branch). */}
+        {procs.length === 0 && (
+          !staged ? (
+            <p className="fxharness-empty">Stage a fight to see this card&apos;s moments.</p>
+          ) : cardId === '' ? (
+            <p className="fxharness-empty">Pick a card to see its moments in this fight.</p>
+          ) : (
+            <p className="fxharness-empty">
+              No moments from {CARD_INDEX[cardId]?.name ?? cardId} in this fight. Try more sandbag HP so the
+              fight runs longer, or check the card is on your board.
+            </p>
+          )
         )}
-        {!staged && <p className="fxharness-empty">Stage a fight to see this card&apos;s moments.</p>}
       </div>
     </div>
   );

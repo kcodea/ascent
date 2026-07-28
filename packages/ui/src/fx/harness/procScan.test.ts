@@ -109,3 +109,55 @@ describe('scanProcs', () => {
     expect(scanProcs(combat, 'nothere')).toEqual([]);
   });
 });
+
+// `useCombatReplay` doesn't walk the raw log — it walks `replayOrder(combat.events)` (deferClashBuffs, then
+// deferAvengeAfterSummons), which reorders events for presentation and thereby moves `compileMoments`'s
+// grouping boundaries. If `scanProcs` compiled the raw log instead, its indices would address a DIFFERENT
+// moment list than the one `seekTo` actually walks — a proc row would seek to an unrelated (or nonexistent)
+// beat. This is not hypothetical: a Target Dummy-style self-buff is exactly the case `deferClashBuffs` exists
+// for, and `self-buff-gold` is one of only two effects the harness currently binds.
+describe("scanProcs compiles the REPLAY's event order, not the raw log", () => {
+  // The sim emits a clash-inline self-buff as `dmg(defender) · buff(defender) · dmg(attacker-retaliation)`
+  // (see `clashOrder.ts`'s own doc comment for why). `replayOrder` slides the buff to the clash's tail, which
+  // merges the two `dmg`s into one impact moment. Two such clashes back to back make raw vs. reordered
+  // disagree about more than one moment's worth of offset, so a bug that reads the raw log doesn't just
+  // point one moment off — it can point PAST the end of the real (reordered) moment list entirely.
+  const clash = (): CombatEvent[] => ([
+    { type: 'attack', attacker: 'p1', defender: 'e1', step: 1 },
+    { type: 'dmg', target: 'e1', amount: 1, step: 1 },
+    { type: 'buff', target: 'e1', source: 'e1', attack: 1, health: 0, step: 1 },
+    { type: 'dmg', target: 'p1', amount: 1, step: 1 },
+  ] as unknown as CombatEvent[]);
+  const events = [...clash(), ...clash()];
+  const combat = combatOf([snap('p1', 'bloodbinder')], [snap('e1', 'sandbag')], events);
+
+  it('the fixture really does reorder, and the moment COUNT genuinely differs (sanity check)', async () => {
+    const { compileMoments } = await import('../../choreo/compile');
+    const { replayOrder } = await import('../../choreo/replayOrder');
+    const reordered = replayOrder(events);
+    expect(reordered).not.toEqual(events);
+    // Raw compiles each clash into 4 moments (attack, e1's dmg, the buff, p1's dmg); reordered merges the
+    // two dmgs into one impact moment, so each clash compiles to 3. If this ever stops being true, the
+    // fixture has stopped exercising the bug it was built to catch.
+    expect(compileMoments(events).length).toBe(8);
+    expect(compileMoments(reordered).length).toBe(6);
+  });
+
+  it("scanProcs's indices land in the REORDERED moment list — where seekTo actually looks", async () => {
+    const { compileMoments } = await import('../../choreo/compile');
+    const { replayOrder } = await import('../../choreo/replayOrder');
+    const reorderedMoments = compileMoments(replayOrder(events));
+
+    const procs = scanProcs(combat, 'sandbag');
+    const buffProcs = procs.filter((p) => p.sourceUid === 'e1');
+    expect(buffProcs.length).toBe(2); // one self-buff per clash
+
+    for (const p of buffProcs) {
+      // Compiling the RAW log instead puts the second clash's buff at index 6 — past the end of the real
+      // (reordered) 6-moment list (indices 0–5) — which this bounds check alone would have caught.
+      expect(p.index).toBeLessThan(reorderedMoments.length);
+      expect(reorderedMoments[p.index]!.primary.type).toBe('buff');
+      expect(actingUid(reorderedMoments[p.index]!.primary)).toBe('e1');
+    }
+  });
+});

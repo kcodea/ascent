@@ -489,6 +489,14 @@ export interface CombatReplay {
   /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — drives the live Buffs window. */
   combatBuffs: CombatBuffDelta;
   skip: () => void;
+  /**
+   * DEV (proc harness): jump the replay to `index` in the compiled moment list, clearing per-beat transient
+   * state as a fresh fight would. Playback continues forward from there on the normal clock.
+   *
+   * Safe for any index because the board is a pure fold of `(initial, events, upto)` — see
+   * `computeFrame.purity.test.ts`, which exists to keep that true.
+   */
+  seekTo: (index: number) => void;
 }
 
 /** Death read-lead (ms, at 1× speed) held BEFORE a death's on-screen CONSEQUENCE so the death reads FIRST and
@@ -698,9 +706,19 @@ export function useCombatReplay(
   const replayComplete = beatIdx >= beats.length;
   const done = finished;
 
-  // A fresh combat resets the replay to the top (the hook persists across fights).
-  useEffect(() => {
-    setBeatIdx(0);
+  /**
+   * Put the replay at `index` and clear every piece of transient per-beat state.
+   *
+   * Extracted from the fresh-combat reset so a SEEK can reuse it: jumping to an arbitrary beat needs exactly
+   * the same clearing that starting a new fight does. The board itself needs no repair — `computeFrame`
+   * rebuilds from `initial` on every call (see `computeFrame.purity.test.ts`) — but this transient state is
+   * accumulated per beat and would otherwise carry stale floats, pulses and holds across the jump.
+   *
+   * `useCallback` with no deps: every setter here is stable, so the identity never changes and callers can
+   * hold it without re-subscribing.
+   */
+  const resetTo = useCallback((index: number): void => {
+    setBeatIdx(index);
     setFloats([]);
     setDeathFloats([]);
     // …and drop the pulse holds with it, or a timer from the last fight clears a uid mid-pulse in this one.
@@ -722,7 +740,12 @@ export function useCombatReplay(
     setHandGrant(null);
     setStatHold(new Map());
     setStatFlash(new Map());
-  }, [combat]);
+  }, []);
+
+  // A fresh combat resets the replay to the top (the hook persists across fights).
+  useEffect(() => {
+    resetTo(0);
+  }, [combat, resetTo]);
 
   // uid → cardId for the whole fight (initial boards + everything summoned) — used to spot which dying
   // unit has a Deathrattle (so its medallion pulses) and which is a Blaster (purple blast bolts).
@@ -1551,5 +1574,12 @@ export function useCombatReplay(
     statFlashFor: (uid: string) => statFlash.get(uid),
     done, result: combat ? combat.result : null, shaking, critShaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
+    // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
+    // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the
+    // replay past its end. The outer `max` also floors the no-combat case (`beats.length === 0`, where the
+    // inner `min` yields -1) at 0 — a negative `beatIdx` would read `beats[beatIdx - 1]` off the front AND
+    // slip past every `beatIdx === 0` guard, and `replayComplete` (`beatIdx >= beats.length`) would never
+    // become true.
+    seekTo: (index: number) => resetTo(Math.max(0, Math.min(beats.length - 1, index))),
   };
 }

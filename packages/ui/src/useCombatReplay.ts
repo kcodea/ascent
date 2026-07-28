@@ -490,8 +490,17 @@ export interface CombatReplay {
   combatBuffs: CombatBuffDelta;
   skip: () => void;
   /**
-   * DEV (proc harness): jump the replay to `index` in the compiled moment list, clearing per-beat transient
-   * state as a fresh fight would. Playback continues forward from there on the normal clock.
+   * DEV (proc harness): jump the replay to `index`, clearing per-beat transient state as a fresh fight would,
+   * then continue forward on the normal clock.
+   *
+   * **Follows the hook's index convention:** `beatIdx = N` is the moment ABOUT TO PLAY, and the one on screen
+   * is `beats[N - 1]`. So `seekTo(N)` does not "show moment N" — it plays *into* moment N, which is what you
+   * want when the point is to watch that moment's effect fire.
+   *
+   * Re-seeking the index you are already on replays it (a seek nonce drives the cue effects, since `beatIdx`
+   * itself would not change). The index is clamped to `beats.length - 1`, so the last moment can be played
+   * into but can never be the resting displayed state — that is `beatIdx === beats.length`, what `skip`
+   * produces.
    *
    * Safe for any index because the board is a pure fold of `(initial, events, upto)` — see
    * `computeFrame.purity.test.ts`, which exists to keep that true.
@@ -656,6 +665,11 @@ export function useCombatReplay(
   // tested), now carrying stepGroups for later phases. buildBeats itself remains only as the test oracle.
   const beats = useMemo(() => compileMoments(events), [events]);
   const [beatIdx, setBeatIdx] = useState(0);
+  // Bumped by every seek. `beatIdx` alone cannot express "replay the beat you are already on": React bails
+  // out of an identical setState, so no cue effect re-runs and the board just clears. Re-watching one moment
+  // while tuning is the harness's whole workflow, so the nonce gives those effects something that always
+  // changes. It never moves during ordinary playback, so the normal path is untouched.
+  const [seekNonce, setSeekNonce] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
@@ -718,6 +732,11 @@ export function useCombatReplay(
    * hold it without re-subscribing.
    */
   const resetTo = useCallback((index: number): void => {
+    // FIRST, before the index is set. Killing a live lunge timeline makes GSAP re-render it and re-fire the
+    // `.add()` callbacks at its endpoint (see channels/lunge.ts) — including `ctx.advance()`, whose
+    // `setBeatIdx(k => k + 1)` would otherwise queue AFTER our absolute set and land the seek one beat late.
+    // Killing first puts the functional update ahead of the absolute one, so the absolute value wins.
+    gsap.killTweensOf('[data-zone] .unit');
     setBeatIdx(index);
     setFloats([]);
     setDeathFloats([]);
@@ -728,7 +747,8 @@ export function useCombatReplay(
     setRallyPulse(new Map());
     setFinished(false);
     setAttackUid(null);
-    gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
+    // (the `[data-zone] .unit` kill that stopped any lunge left mid-flight by the previous fight now runs
+    //  first, at the top of this callback — see the comment there for why the ordering is load-bearing)
     setProjectiles([]);
     setShake(0);
     // …and drop the shake FLAGS with the counters. The shake effects bail on `!shake`, so zeroing the counter
@@ -1028,7 +1048,9 @@ export function useCombatReplay(
         });
       }, 1150));
     }
-  }, [active, beatIdx, beats, events, cardIds]);
+    // `seekNonce`: re-seeking the beat you are already on leaves `beatIdx` identical, so without it this
+    // per-beat cue would not re-run and the pulse would never replay. Constant during normal playback.
+  }, [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
   // resolved, dispatched via the Score's channel registry (choreo/score.ts). The melee smack/impact-FX/
@@ -1191,7 +1213,8 @@ export function useCombatReplay(
       setStatFlash((m) => (m.size ? new Map() : m));
       stop();
     };
-  }, [active, beatIdx, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+    // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
+  }, [active, beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -1360,7 +1383,8 @@ export function useCombatReplay(
     }
     setProjectiles(ps);
     return () => { windupTimers.forEach((id) => window.clearTimeout(id)); };
-  }, [beatIdx, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+    // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
+  }, [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -1580,6 +1604,9 @@ export function useCombatReplay(
     // inner `min` yields -1) at 0 — a negative `beatIdx` would read `beats[beatIdx - 1]` off the front AND
     // slip past every `beatIdx === 0` guard, and `replayComplete` (`beatIdx >= beats.length`) would never
     // become true.
-    seekTo: (index: number) => resetTo(Math.max(0, Math.min(beats.length - 1, index))),
+    seekTo: (index: number) => {
+      setSeekNonce((n) => n + 1); // here, not in `resetTo` — a fresh combat already changes `combat` identity
+      resetTo(Math.max(0, Math.min(beats.length - 1, index)));
+    },
   };
 }

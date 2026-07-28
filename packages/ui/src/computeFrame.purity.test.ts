@@ -47,6 +47,12 @@ describe('computeFrame is a from-scratch fold', () => {
     expect(computeFrame(initial, events, 1, 0, names)).toEqual(early);
   });
 
+  // Guards the guard: every case above compares computeFrame against itself, which an inert function
+  // returning a constant would also satisfy. This is what makes the suite prove it is actually folding.
+  it('produces different frames for different upto values', () => {
+    expect(computeFrame(initial, events, 4, 2, names)).not.toEqual(computeFrame(initial, events, 1, 0, names));
+  });
+
   it('does not mutate the initial snapshots it is given', () => {
     const before = JSON.stringify(initial);
     computeFrame(initial, events, 4, 2, names);

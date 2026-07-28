@@ -60,6 +60,26 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
    * So this DOES still leave a ~17-stage ceiling per sandbox run: Resolve stops being the limiter, but the
    * course length isn't. Starting a fresh sandbox run (Scene Builder's hero/set pickers already do this)
    * resets the wave for another ~17 stages. Acceptable for a dev-only harness.
+   *
+   * `phase` is reset to `'recruit'` in the SAME `setState`, alongside `resolve` — this is load-bearing, not
+   * defensive noise. `reduceCore` (reducer.ts:482) drops every dispatch outright once `phase` is
+   * `'gameover'`/`'victory'`, and `faceOmen` itself only runs in `phase === 'recruit'` (:485). A staged fight
+   * that goes to 0 Resolve flips `s.resolve <= 0` in `advanceCombat` to `'gameover'` BEFORE the wave is
+   * touched (:2237) — restoring `resolve` alone left `phase` at `'gameover'`, so the very next `faceOmen`
+   * dispatch was silently swallowed and `stage()` re-scanned the stale previous fight, indistinguishable from
+   * a genuine empty scan. The same silent no-op happens if Stage is clicked again while the last staged
+   * fight is still `phase === 'combat'` (never watched/settled). Forcing `phase: 'recruit'` here makes
+   * `faceOmen` always eligible to run regardless of what the previous stage left behind.
+   *
+   * Nothing else needs resetting for `faceOmen` to be accepted: `combatSettled` is set unconditionally by
+   * `faceOmen` itself (reducer.ts:1704), and `pendingTarget` is specifically EXEMPTED from the modal-block
+   * check for `faceOmen` (`endTurnEscapesAim`, :502) — it auto-resolves onto the highest-Attack legal carry
+   * rather than blocking. The other modal fields (`discover`/`chooseOne`/`questOffer`/`runeforgeOffer`/
+   * `scoutedNextOpponent`, `modalOpen()` in recruit.ts) are deliberately left alone: they can only be set
+   * while `phase === 'recruit'` (every action that opens one is itself phase-gated), so they can't be a
+   * stale leftover from a previous STAGE the way `phase`/`resolve` can — and if one is genuinely open (the
+   * user had a live Discover pending in the real game), that's real game state whose semantics `faceOmen`
+   * should honor exactly as a normal End Turn would, not blow away.
    */
   const stage = (): void => {
     const run = useGame.getState().run;
@@ -68,6 +88,7 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
     useGame.setState({
       run: {
         ...run,
+        phase: 'recruit',
         resolve: run.maxResolve,
         servedBoards: { ...(run.servedBoards ?? {}), [run.wave]: board },
       },
@@ -94,12 +115,17 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
       <span className="fxharness-val">{spec.count}</span>
 
       {/* Health is the real knob: it sets how LONG the fight runs, which is what decides whether a periodic
-          proc gets to fire at all. */}
+          proc gets to fire at all. The slider tops out at 200, well under `SANDBAG_LIMITS.maxHp` (9999) —
+          that ceiling is `sandbagBoard`'s safety clamp against garbage input, not an ergonomic range,
+          and nobody drags a slider to 9999 to test a proc. Deliberate divergence; don't "fix" the two
+          numbers into agreement. */}
       <label htmlFor="fxh-hp">Sandbag HP</label>
       <input id="fxh-hp" type="range" min={1} max={200} step={1}
         value={spec.hp} onChange={(e) => setSpec({ ...spec, hp: Number(e.target.value) })} />
       <span className="fxharness-val">{spec.hp}</span>
 
+      {/* Same deliberate divergence as HP above: 20 is a usable range, `SANDBAG_LIMITS.maxAttack` (99) is
+          the clamp. */}
       <label htmlFor="fxh-atk">Sandbag Attack</label>
       <input id="fxh-atk" type="range" min={0} max={20} step={1}
         value={spec.attack} onChange={(e) => setSpec({ ...spec, attack: Number(e.target.value) })} />

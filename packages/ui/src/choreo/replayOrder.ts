@@ -1,6 +1,7 @@
 import type { CombatEvent } from '@game/core';
 import { deferAvengeAfterSummons } from './avengeOrder';
 import { deferClashBuffs } from './clashOrder';
+import { compileMoments, type Moment } from './compile';
 
 /**
  * The event order the REPLAY walks — not the raw log.
@@ -15,4 +16,17 @@ import { deferClashBuffs } from './clashOrder';
  */
 export function replayOrder(events: CombatEvent[]): CombatEvent[] {
   return deferAvengeAfterSummons(deferClashBuffs(events));
+}
+
+/**
+ * The MOMENT LIST the replay walks — the only correct source of a moment index.
+ *
+ * `replayOrder` alone was not a sufficient seam: what has to match between the replay and anything computing
+ * an index for `seekTo` is the whole `compileMoments(replayOrder(events))` composition, and leaving that
+ * composition duplicated at two call sites left the door open for exactly the drift it was extracted to
+ * prevent — `compileMoments` takes optional `GroupingRules`, so the two could diverge without either side
+ * looking wrong. Both the replay and the proc scan call THIS.
+ */
+export function replayBeats(events: CombatEvent[]): Moment[] {
+  return compileMoments(replayOrder(events));
 }

@@ -177,7 +177,21 @@ window.__fx.play('ruby-lance', window.__fx.anchors('<sourceUid>', '<targetUid>')
 
 ---
 
-## 9. Commit
+## 9. Watch in combat (rail mode)
+
+The **Watch in combat** button (top toolbar, next to "Browse all") collapses the editor to a narrow rail
+along one side and hosts the proc harness in the space it vacates: pick a card, stage a controlled fight
+against tunable sandbags, get the list of moments that card actually caused, and seek the replay to any one
+of them on the real board. Click **Full editor** to collapse the harness back and restore the full workbench.
+
+While in rail mode, `.fxwb-rail .fxwb-top { display: none }` hides the whole transport bar — Fire, scrub,
+seed lock — **and the workbench's close button along with it**, since both live in the same `fxwb-top`
+container. That's not a trap: the mode toggle itself lives in `.fxwb-side`, which stays visible in rail mode,
+so "Full editor" always gets you back to the transport bar and the close button in one click.
+
+---
+
+## 10. Commit
 
 `git add` the def **and** `bindings.json` together — a def with no binding is inert, and a binding naming a
 def that doesn't exist is a silent no-op that a test will catch but a player never would.

@@ -120,8 +120,14 @@ is an overlay — so today, opening it freezes combat. Rail mode must exempt its
 permanently-still board. One condition, but the kind of thing that otherwise surfaces in the browser at the
 end rather than in the design at the start.
 
+> **SUPERSEDED (2026-07-28):** false — `overlayOpen` never included the workbench, whose open state lives in
+> local `DevMenu` state, so there was no exemption to make. See the devlog's 2026-07-28 proc-harness entry.
+
 **Auto-pause after the moment** reuses that same `paused` plumbing: `seekTo` records a stop beat; when
 `beatIdx` reaches it the harness pauses. No new clock machinery.
+
+> **SUPERSEDED (2026-07-28):** not built — after a seek, playback runs on to the end of the fight instead of
+> stopping at the moment. See the devlog's 2026-07-28 proc-harness entry (Follow-ups).
 
 **Failure is loud.** A staged fight containing no moments for the chosen card says so explicitly — *"no
 moments from Bloodbinder in this fight; try more sandbag HP"* — rather than rendering an empty list, which

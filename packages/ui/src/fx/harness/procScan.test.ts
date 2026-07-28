@@ -144,9 +144,12 @@ describe("scanProcs compiles the REPLAY's event order, not the raw log", () => {
   });
 
   it("scanProcs's indices land in the REORDERED moment list — where seekTo actually looks", async () => {
-    const { compileMoments } = await import('../../choreo/compile');
-    const { replayOrder } = await import('../../choreo/replayOrder');
-    const reorderedMoments = compileMoments(replayOrder(events));
+    const { replayBeats } = await import('../../choreo/replayOrder');
+    // The oracle here is `replayBeats` itself — the SAME function `scanProcs` and `useCombatReplay` both call
+    // — not a locally re-composed `compileMoments(replayOrder(...))`. Composing it locally would let this
+    // test keep passing even if `scanProcs` (or `useCombatReplay`) reverted to its own inline composition,
+    // which is exactly the drift `replayBeats` exists to make impossible.
+    const reorderedMoments = replayBeats(events);
 
     const procs = scanProcs(combat, 'sandbag');
     const buffProcs = procs.filter((p) => p.sourceUid === 'e1');

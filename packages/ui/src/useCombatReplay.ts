@@ -13,8 +13,8 @@ import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
-import { compileMoments, type Moment } from './choreo/compile';
-import { replayOrder } from './choreo/replayOrder';
+import type { Moment } from './choreo/compile';
+import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { runMomentCues } from './choreo/score';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
@@ -658,7 +658,9 @@ export function useCombatReplay(
   const combatSpeed = opts.combatSpeed && opts.combatSpeed > 0 ? opts.combatSpeed : 1;
   // Slide onDamaged buffs (Target Dummy et al.) to the tail of their clash so a +N stat gain never splits the
   // impact — the whole exchange lands at its real values, then the buff floats. Presentation-only; the sim
-  // event log is untouched (see deferClashBuffs). Both compileMoments AND computeFrame fold THIS array.
+  // event log is untouched (see deferClashBuffs). Both `beats` below AND `computeFrame` fold THIS array —
+  // `computeFrame` needs the ordered EVENTS on their own (not just the compiled moments), so `replayOrder` is
+  // still called here directly rather than only through `replayBeats`.
   // …then hold every Avenge payoff beat until AFTER the death cascade's summons deploy (deferAvengeAfterSummons):
   // a multi-death clash or a deferred attack-on-summon token would otherwise show the Avenge (a buff pulse, a
   // coin burst) before the token pops in. Composed on the clash-normalized copy; both folds see THIS array.
@@ -668,7 +670,9 @@ export function useCombatReplay(
   const events = useMemo(() => replayOrder(combat?.events ?? []), [combat]);
   // Moments are Beat-shaped (choreographer phase 1): identical grouping to the old buildBeats (equivalence-
   // tested), now carrying stepGroups for later phases. buildBeats itself remains only as the test oracle.
-  const beats = useMemo(() => compileMoments(events), [events]);
+  // `replayBeats` folds `compileMoments(replayOrder(events))` as ONE definition — see its doc comment for why
+  // that composition, not `replayOrder` alone, is the seam the proc harness must also call.
+  const beats = useMemo(() => replayBeats(combat?.events ?? []), [combat]);
   const [beatIdx, setBeatIdx] = useState(0);
   // Bumped by every seek. `beatIdx` alone cannot express "replay the beat you are already on": React bails
   // out of an identical setState, so no cue effect re-runs and the board just clears. Re-watching one moment

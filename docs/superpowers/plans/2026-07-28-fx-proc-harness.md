@@ -50,6 +50,9 @@ Lint passes at **0 errors**; there are 3 known pre-existing warnings (`CARD_INDE
 | **Modify** `packages/ui/src/styles.css` | Rail-mode layout. |
 | **Modify** `docs/devlog.md`, `docs/roadmap.md`, `README.md` | Required by CLAUDE.md on every commit. |
 
+> **SUPERSEDED (2026-07-28):** the `Recruit.tsx` row's premise was false — `overlayOpen` never included the
+> workbench, so there was nothing to exempt. See the devlog's 2026-07-28 proc-harness entry.
+
 Tasks 1–3 are independent and testable. Task 4 depends on 1–3. Task 5 wires it in. Task 6 is the gate and docs.
 
 ---
@@ -778,6 +781,10 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ### Task 5: Rail mode — host it, and stop pausing the fight
 
+> **SUPERSEDED (2026-07-28):** "and stop pausing the fight" turned out to be a no-op — `overlayOpen` never
+> included the workbench, so there was no existing pause to stop. See the devlog's 2026-07-28 proc-harness
+> entry.
+
 **Files:**
 - Modify: `packages/ui/src/fx/ui/Workbench.tsx`
 - Modify: `packages/ui/src/Recruit.tsx`
@@ -821,9 +828,18 @@ And render the harness inside that root, beside the `{browsing && …}` block:
 
 **The `replay` reference is the one thing this task must resolve.** The workbench does not currently have access to the live `CombatReplay`. Read how `Recruit.tsx` holds it (`const replay = useCombatReplay(...)` at ~line 1072) and pick the smaller of these two: pass `seekTo` down as a prop from wherever the workbench is mounted, or publish `seekTo` on the store when a replay is active. **Prefer the prop** — it keeps the dependency explicit and avoids a new store slot. Add the import for `ProcHarness` and `useGame` at the top of the file.
 
+> **SUPERSEDED (2026-07-28):** "prefer the prop" turned out to be impossible — `DevMenu` renders the
+> workbench as a *sibling* of `Recruit`, so no ancestor sees the replay to pass it down. Wired instead through
+> a DEV-only `window.__fxSeek` handle, matching the existing `__pixiFx` / `__perfHud` pattern. See the
+> devlog's 2026-07-28 proc-harness entry.
+
 - [ ] **Step 2: Stop the workbench pausing combat in rail mode**
 
 `Recruit.tsx` passes `paused: overlayOpen` to `useCombatReplay` (~line 1072), and the workbench counts as an overlay — so today, opening it freezes the fight and rail mode would watch a still board.
+
+> **SUPERSEDED (2026-07-28):** false — `overlayOpen` never included the workbench (its open state lives in
+> local `DevMenu` state), so this step was a no-op; nothing pauses in rail mode because nothing paused for
+> the workbench at all. See the devlog's 2026-07-28 proc-harness entry.
 
 Find where `overlayOpen` is computed in `Recruit.tsx` and exclude the workbench-in-rail-mode case. Add a comment at the change site:
 
@@ -887,6 +903,9 @@ which otherwise freezes the fight the moment the workbench opens.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
+> **SUPERSEDED (2026-07-28):** the commit message's premise was false — `overlayOpen` never included the
+> workbench, so there was no pause to exempt rail mode from. See the devlog's 2026-07-28 proc-harness entry.
+
 ---
 
 ### Task 6: Full gate and docs
@@ -942,6 +961,9 @@ file every fight runs through — to avoid advancing a wave counter in a sandbox
 counts as an overlay and `Recruit.tsx` passes `paused: overlayOpen`, so rail mode had to exempt itself or the
 harness would watch a permanently-still board; and rail mode is a *mode* on the workbench, not a second
 overlay, because the loop being served is tune → watch → tune and two windows put those a click apart.
+
+> **SUPERSEDED (2026-07-28):** the first premise was false — `overlayOpen` never included the workbench, so
+> there was no pause and no exemption needed. See the devlog's 2026-07-28 proc-harness entry.
 
 **How it was verified.** `procScan` and `procStage` have real unit tests (attribution across both rosters and
 summons, an attack credited to its attacker, a `dmg` credited to nobody, indices valid against the compiled

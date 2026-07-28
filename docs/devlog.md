@@ -73,7 +73,11 @@ scope — is now unblocked. Also open: `questDelta` is in `useCombatReplay`'s re
 `CombatReplay` interface (pre-existing, invisible because `typecheck:web` is red on `main` anyway);
 `SceneBuilder.setEnemies` still duplicates `sandbagBoard`'s board-building and the two could drift; rail mode
 costs 640px of width, which is tight below ~1400px; and the harness stages sandbags only, so a final
-look-check against a real pooled opponent stays manual.
+look-check against a real pooled opponent stays manual. The spec also called for **auto-pause after the
+seeked moment** — `seekTo` records a stop beat, and playback pauses when `beatIdx` reaches it — and it was
+never built: a seek plays through to the end of the fight instead of stopping. That's the difference between
+watching a moment once and the stated tune → watch → tune workflow of watching it repeatedly without
+re-seeking each time; worth picking up alongside phase ③.
 
 
 ## 2026-07-28 — an end-to-end guide for the FX workbench, and the arc can be turned off

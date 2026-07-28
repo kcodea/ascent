@@ -1,25 +1,25 @@
 import type { CombatEvent, CombatResult } from '@game/core';
 import { bindingFor } from '../../choreo/bindings';
-import { compileMoments } from '../../choreo/compile';
 import type { MomentKind } from '../../choreo/kinds';
-import { replayOrder } from '../../choreo/replayOrder';
+import { replayBeats } from '../../choreo/replayOrder';
 
 /**
  * Which moments in a fought combat a given card caused — the list the proc harness offers you to replay.
  *
  * Pure and React-free on purpose: it is the piece worth testing, and it works on any `CombatResult`,
- * including a fixture. `compileMoments` is documented as pure and cheap, so calling it here rather than
+ * including a fixture. `replayBeats` is documented as pure and cheap, so calling it here rather than
  * reaching into the replay hook's memo costs nothing and keeps this module standalone.
  */
 export interface ProcMoment {
   /**
    * Index into the REPLAY's compiled moments array — exactly what `seekTo` takes.
    *
-   * Compiled from `replayOrder(combat.events)`, NOT the raw log: `useCombatReplay` walks
-   * `compileMoments(replayOrder(combat.events))`, and `replayOrder`'s two presentation reorderings
-   * (`deferClashBuffs`, `deferAvengeAfterSummons`) move moment-grouping boundaries. Compiling from the raw
-   * log here would produce indices into a DIFFERENT moment list than the one `seekTo` addresses — a seek
-   * that looks right would silently land on an unrelated beat.
+   * Built from `replayBeats(combat.events)`, NOT a locally-composed `compileMoments(replayOrder(...))`:
+   * `useCombatReplay` walks `replayBeats` too, so the two call sites share ONE definition of the composition
+   * (ordering transforms, then grouping) rather than duplicating it. Duplicating it is exactly what let the
+   * original bug happen — the two sides were separately correct and jointly wrong. Compiling from the raw
+   * log, or from a differently-composed pairing, would produce indices into a DIFFERENT moment list than the
+   * one `seekTo` addresses — a seek that looks right would silently land on an unrelated beat.
    */
   index: number;
   kind: MomentKind;
@@ -63,15 +63,15 @@ export function actingUid(e: CombatEvent): string | null {
 /**
  * The card's moments, in replay order. Empty (never throwing) when the card never acted.
  *
- * Compiles `compileMoments(replayOrder(combat.events))` — the SAME array `useCombatReplay` walks — so an
- * `index` handed back here addresses the same moment `seekTo` would show, not a moment from a differently-
- * ordered raw-log compilation.
+ * Calls `replayBeats(combat.events)` — the SAME definition `useCombatReplay` walks — so an `index` handed
+ * back here addresses the same moment `seekTo` would show, not a moment from a differently-composed or
+ * differently-ordered compilation.
  */
 export function scanProcs(combat: CombatResult, cardId: string): ProcMoment[] {
   const uids = uidsForCard(combat, cardId);
   if (uids.size === 0) return [];
   const out: ProcMoment[] = [];
-  const moments = compileMoments(replayOrder(combat.events));
+  const moments = replayBeats(combat.events);
   for (let i = 0; i < moments.length; i++) {
     const m = moments[i];
     const actor = actingUid(m.primary);

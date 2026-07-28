@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **UI hover sound.** Menu / navigation buttons, hero-select cards, and Discover options now play a soft cue on
+  hover. The in-game shop/combat HUD controls (hero power, freeze, refresh, tavern-up, end-turn, …) and minion
+  cards stay silent. Level is tunable in the dev Mixing Desk under the `uihover` category.
 - **Four stuck visual cues fixed** — the Karwind flame, the hero-power refresh flash, the damage float on
   the Resolve chip, and screen shake could all latch on permanently.
 - **The hand glides open and closed** when you buy or play a card, instead of cards blinking to new spots.

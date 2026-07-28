@@ -25,12 +25,13 @@ export const CATEGORY_GAINS: Record<string, number> = {
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
   cardEffect: 0.18, cardDeath: 0.18, heroSelect: 0.5, heroPower: 0.5, summon: 0.24, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
+  uihover: 0.09,
 };
 
 /** Which bus each category feeds (seeded default; reassignable live in the desk). */
 export const CATEGORY_BUS: Record<string, BusName> = {
   buy: 'ui', sell: 'ui', roll: 'ui', freeze: 'ui', unfreeze: 'ui', discover: 'ui', inspect: 'ui',
-  clickthock: 'ui', cardtouch: 'ui', reorder: 'ui', upgrade: 'ui', deny: 'ui', pulse: 'ui',
+  clickthock: 'ui', cardtouch: 'ui', reorder: 'ui', upgrade: 'ui', deny: 'ui', pulse: 'ui', uihover: 'ui',
   cardlanding: 'ui', castspell: 'ui', triple: 'ui', combatStart: 'ui', turncharge: 'ui', turnexplosion: 'ui',
   smack: 'combat', crit: 'combat', attack: 'combat', death: 'combat', cast: 'combat', divineshieldbreak: 'combat', rebornshatter: 'combat', rebornsummon: 'combat',
   skullburst: 'combat', triggerpulse: 'combat', triggerglow: 'combat', buff: 'combat', maxgold: 'combat',

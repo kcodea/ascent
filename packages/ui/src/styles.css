@@ -7,7 +7,7 @@
   /* tribe hues (drive each card's accent --c): Beast green · Dragon red/orange · Mech blue ·
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
-  --t-beast: #4ea83b; --t-dragon: #ff6a3c; --t-mech: #27a9dd; --t-undead: #5c6f8c; --t-demon: #b15cf0; --t-neutral: #9a8d79;
+  --t-beast: #4ea83b; --t-dragon: #ffffff; --t-mech: #27a9dd; --t-undead: #22b8a8; --t-demon: #b15cf0; --t-neutral: #9a8d79;
   --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;
@@ -496,6 +496,22 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .statcell + .statcell { border-left: 2px solid color-mix(in srgb, var(--gold) 42%, transparent); }
 .statcell .sc-l { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink3); }
 .statcell .sc-ic { display: grid; place-items: center; }
+/* PRACTICE shop-timer multiplier — a small select tucked into the time cell (owner 2026-07-25). Styled to sit in
+   the plaque rather than look like a browser control: the strip is a decorative surface, so a default select
+   reads as a bug. `appearance: none` + the dark pill matches the tuner/dev selects. Practice only, so it never
+   appears in a scored run. */
+.statcell .timermult {
+  appearance: none; -webkit-appearance: none;
+  margin-left: calc(4 * var(--u));
+  padding: calc(1 * var(--u)) calc(6 * var(--u));
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u));
+  color: #f4ecdb; background: linear-gradient(180deg, #241a13, #17110c);
+  border: 1px solid color-mix(in srgb, var(--gold) 50%, #000);
+  border-radius: calc(7 * var(--u));
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+.statcell .timermult:hover { border-color: var(--acc); }
+.statcell .timermult option { background: #17110c; color: #f4ecdb; } /* the popup list is OS-drawn — keep it legible */
 .statcell .sc-ic svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--acc-dk); }
 .statcell .sc-v { font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #4a3410; font-variant-numeric: tabular-nums; }
 /* Gold cell — soft gold tint + a tangerine coin. Keeps the `.gold` hook the coin-sprinkle FX anchors to. */
@@ -1338,13 +1354,40 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 /* --u-scaled (was fixed 60px etc.) so the coin tracks the card at ANY stage size — raw px read fine on desktop
    (--u ≈ 1px there) but rendered ~3× oversized at phone scale (owner's mobile itch test). */
-.cost { position: absolute; top: calc(-20 * var(--u)); left: calc(-16 * var(--u)); width: calc(60 * var(--u)); height: calc(60 * var(--u)); z-index: 6; border-radius: 50%; background: var(--mana); border: calc(3 * var(--u)) solid var(--card); display: grid; place-items: center; box-shadow: 0 calc(3 * var(--u)) calc(7 * var(--u)) rgba(0, 0, 0, 0.3); }
-.cost .costn { font-family: var(--font-ui); font-weight: 800; font-size: calc(29 * var(--u)); color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+/* Cost coin — the SAME minted-coin treatment as the hero-power cost (`.hpcost`, owner ask 2026-07-24): a gold
+   radial gradient with a dark rim and inset highlight/shade, rather than the old flat `--mana` disc. Kept as
+   its own rule instead of sharing a class with `.hpcost` because the two sit on different anchors and sizes;
+   only the SKIN is shared. Position/scale are tunable via `--cpl-cost-t` (🏷️ Card Pills tuner). */
+.cost { position: absolute; top: calc(-20 * var(--u)); left: calc(-16 * var(--u)); width: calc(60 * var(--u)); height: calc(60 * var(--u)); z-index: 6; border-radius: 50%; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: calc(3 * var(--u)) solid #1b1d22; display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); transform: var(--cpl-cost-t, none); transform-origin: center; }
+.cost .costn { font-family: var(--font-ui); font-weight: 900; font-size: calc(29 * var(--u)); color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
 /* Changed price (Moe's discounted Attachment) — a green coin so the cheaper cost reads as a deal at a glance. */
-.cost.discount { background: #1aa86f; }
-/* Spell cast multiplier (Nimbus / Yazzus): a bold "×N" pill top-right of the spell card. */
-.castmult { position: absolute; top: -14px; right: -14px; min-width: 46px; height: 46px; padding: 0 8px; border-radius: 23px; background: var(--acc); border: 3px solid var(--card); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 24px; display: grid; place-items: center; z-index: 9; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
-.tierbadge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
+/* Discounted price (a shop minion cheaper than the flat rate, or Moe's Attachment) — the GREEN variant of the
+   same minted coin, so "this is cheaper" reads at a glance without changing the badge's language. */
+.cost.discount { background: radial-gradient(circle at 38% 30%, #c8f7d5, #35b06a 58%, #17703f); box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -3px 4px rgba(10, 80, 40, 0.45); }
+.cost.discount .costn { color: #0d3a20; }
+/* Cast multiplier (Nimbus / Yazzus / a Prismcaster'd Ruby): the ×N badge top-RIGHT. Wears the same minted-coin
+   skin as the hero-power cost + the `.cost` coin (owner ask 2026-07-24) but in ORANGE, so it reads as the same
+   family of badge while staying instantly distinguishable from the gold cost coin on the opposite corner.
+   Circular like its siblings — `min-width` + a pill radius let a two-digit ×N stretch without going lozenge. */
+.castmult {
+  position: absolute; top: calc(-20 * var(--u)); right: calc(-16 * var(--u));
+  min-width: calc(60 * var(--u)); height: calc(60 * var(--u)); padding: 0 calc(6 * var(--u));
+  border-radius: calc(30 * var(--u)); z-index: 9;
+  /* The coin's three stops are MIXED from one tunable colour (`--cpl-mult-bg`, 🏷️ Card Pills tuner), so picking
+     a hue keeps the minted highlight + shade instead of flattening it to a solid disc. Fallbacks are the
+     shipped orange, so production renders identically with no vars set. */
+  background: radial-gradient(circle at 38% 30%,
+    color-mix(in srgb, var(--cpl-mult-bg, #f08a2c) 42%, #fff),
+    var(--cpl-mult-bg, #f08a2c) 58%,
+    color-mix(in srgb, var(--cpl-mult-bg, #f08a2c) 62%, #000));
+  border: calc(3 * var(--u)) solid #1b1d22;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -3px 4px rgba(120, 55, 10, 0.42);
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(29 * var(--u)); line-height: 1;
+  color: var(--cpl-mult-fg, #4a2708); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  display: grid; place-items: center;
+  transform: var(--cpl-mult-t, none); transform-origin: center;
+}
+.tierbadge { position: absolute; top: -11px; left: 50%; transform: var(--cpl-tier-t, translateX(-50%)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
 .tierbadge[data-tier="1"] { background: var(--tier-1); }
 .tierbadge[data-tier="2"] { background: var(--tier-2); }
@@ -1487,7 +1530,131 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   100% { opacity: 1; clip-path: inset(0 0 0 0); }
 }
 /* tier pill rides the arch top */
+/* SPELL tier badge gets its OWN nudge. A spell's frame is a square whose banner seat differs from the minion
+   oval's, so one shared offset can't serve both (owner 2026-07-26). `.spellcard` covers spells AND Rubies, and
+   at (0,3,0) this outranks the base `.tierbadge` transform (0,1,0). Falls back to plain centring if unset. */
+.card.compact.spellcard .tierbadge { transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-stier-n, translate(0, 0)); }
+/* TAUNT tier badge — third seat. The heater's banner is higher and narrower than the oval's or the spell
+   square's, so it gets its own nudge. Same (0,3,0) as the spell rule and they never co-occur on one card. */
+.card.compact.taunt .tierbadge { transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-ttier-n, translate(0, 0)); }
+/* CIRCLE (oval) frame tier badge — its own seat. The oval used to fall through to the generic `.tierbadge`
+   transform; giving it a rule means all four families are independently dialable. No card is both `.stdframe`
+   and `.spellcard`/`.taunt` (see `useStdFrame`), so these three (0,3,0) rules can never fight each other. */
+.card.compact.stdframe .tierbadge { transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-otier-n, translate(0, 0)); }
 .card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: calc(var(--ccw) * 0.014) solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
+/* TIER STARS — the tier badge as N steel stars instead of a coloured "TIER N" pill. The img carries BOTH
+   `tierbadge` (so every already-tuned per-frame-type anchor applies: the oval's `--tier` seat, the heater's
+   banner nudge, the plain card's top offset) and `tierstars`, which strips the pill chrome the text version
+   needed. Specificity is deliberate: `.card.compact img.tierbadge.tierstars` (0,3,1) has to outrank BOTH
+   `.tierbadge[data-tier="N"]` (0,2,0 — the per-tier background colours) and `.card.compact .tierbadge`
+   (0,3,0 — the padding/border/radius), so a plain 2-class selector would lose. HEIGHT is pinned and width is
+   auto: the art is 78px tall and 55px wider per star, so width scales with tier on its own. */
+/* TIER PLATE — the steel plaque the stars sit on. It carries `tierbadge` too, so it inherits every per-frame-type
+   `top` anchor for free (oval seat / heater banner nudge / plain-card offset) and only needs its chrome, its size
+   and its transform overridden. It is rendered immediately BEFORE the stars and both are positioned, so TREE ORDER
+   puts the plate behind them — no z-index needed (and none wanted: z-index here would lift it past the frame).
+   Sized by WIDTH with `height: auto` so the art's 4.09 ratio holds at any card size; 0 hides it.
+   The three transform rules below re-apply whichever tier SEAT the card uses and append the plate's own nudge, so
+   one set of plate knobs serves minions, spells and Taunts. Specificity is deliberate — `.card.compact
+   img.tierbadge.tierplate` (0,3,1) must beat `.card.compact .tierbadge` (0,3,0), and the spell/taunt variants
+   (0,4,1) must beat their own `.card.compact.spellcard/.taunt .tierbadge` seat rules (0,3,0). */
+/* TIER 7 GLOW — a pulsing halo behind the stars, on top-tier cards only. It carries `tierbadge`, so the
+   per-family star transforms above ALSO match it and it tracks the stars for free — no extra seat needed.
+   PERF: the gradient is STATIC and only OPACITY animates, per docs/performance.md (a looping box-shadow or
+   filter repaints every frame). Sized by --ccw so it scales with the card; 0 hides it. Selector is (0,4,0) to
+   beat `.card.compact .tierbadge`'s padding/border/radius. */
+.card.compact .tierbadge.tierglow {
+  width: calc(var(--ccw) * var(--cpl-glow-w, 0.945));
+  height: calc(var(--ccw) * var(--cpl-glow-h, 0.47));
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  /* Explicit stacking, glow LOWEST: glow 5 · plate 6 · stars 7 (owner 2026-07-26 — the halo belongs behind the
+     plaque, so only the part spilling past its silhouette shows). All three stay above the frame (z3), exactly
+     as when they shared z6, so nothing changes relative to the artwork. */
+  z-index: 5;
+  background: radial-gradient(ellipse closest-side,
+    color-mix(in srgb, var(--cpl-glow-color, #ff7ae7) 85%, transparent) 0%,
+    color-mix(in srgb, var(--cpl-glow-color, #ff7ae7) 45%, transparent) 42%,
+    transparent 72%);
+  box-shadow: none;
+  pointer-events: none;
+  animation: tiersevenpulse var(--cpl-glow-speed, 0.7s) ease-in-out infinite;
+}
+.card.compact img.tierbadge.tierplate { z-index: 6; }
+.card.compact img.tierbadge.tierstars { z-index: 7; }
+/* The glow rides the same per-family seat as the stars, then adds its own offset — mirroring how the plate
+   composes, so it can be nudged off the stars without touching them. (0,4,0)/(0,5,0) beat the star rules. */
+.card.compact .tierbadge.tierglow {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-glow-t, translate(0, 0));
+}
+.card.compact.stdframe .tierbadge.tierglow {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-otier-n, translate(0, 0)) var(--cpl-glow-t, translate(0, 0));
+}
+.card.compact.spellcard .tierbadge.tierglow {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-stier-n, translate(0, 0)) var(--cpl-glow-t, translate(0, 0));
+}
+.card.compact.taunt .tierbadge.tierglow {
+  transform: var(--cpl-tier-t, translateX(-50%)) var(--cpl-ttier-n, translate(0, 0)) var(--cpl-glow-t, translate(0, 0));
+}
+@keyframes tiersevenpulse {
+  0%, 100% { opacity: calc(var(--cpl-glow-a, 1) * var(--cpl-glow-dip, 0.83)); }
+  50%      { opacity: var(--cpl-glow-a, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.compact .tierbadge.tierglow { animation: none; opacity: var(--cpl-glow-a, 1); }
+}
+img.tierbadge.tierplate,
+.card.compact img.tierbadge.tierplate {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+  height: auto;   /* width is set per family below */
+  max-width: none;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+/* Per-family plate seats — one per frame family, each with its own nudge AND width.
+   The plate does NOT re-apply the family's STAR seat: it is anchored independently (`translateX(-50%)` off the
+   shared `.tierbadge` `top`) and offset only by its own knobs. That decoupling is the point — with the star
+   seat folded in, nudging the stars dragged the plate along and you could never align the two against each
+   other (caught while verifying, 2026-07-26).
+
+   Each family rule COMPOSES the ALL row rather than replacing it: `…-all-t` then the family delta, and width is
+   `all × family` (family defaults to 1). Without that the family rules, being more specific, shadowed the ALL
+   row entirely and its knobs did nothing at all — every real card matches one of the three families (owner
+   report 2026-07-26). Base is (0,3,1) to beat `.card.compact .tierbadge`; the variants are (0,4,1). */
+.card.compact img.tierbadge.tierplate {
+  transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765));
+}
+.card.compact.stdframe img.tierbadge.tierplate {
+  transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-ov-t, translate(0, 0));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-ov-w, 1));
+}
+.card.compact.spellcard img.tierbadge.tierplate {
+  transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-sp-t, translate(0, 0));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-sp-w, 1));
+}
+.card.compact.taunt img.tierbadge.tierplate {
+  transform: translateX(-50%) var(--cpl-plate-all-t, translate(0, 0)) var(--cpl-plate-ta-t, translate(0, 0));
+  width: calc(var(--ccw) * var(--cpl-plate-all-w, 0.765) * var(--cpl-plate-ta-w, 1));
+}
+img.tierbadge.tierstars,
+.card.compact img.tierbadge.tierstars {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+  height: calc(var(--ccw) * var(--tier-stars-h, 0.115));
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
 /* circular, gold-set attack / health badges in the arch's bottom corners (relative to .archbox) */
 /* Border + ring track the badge size (were fixed 3px/2px — on a ~16px phone-scale badge that read as a huge
    goofy outline, owner's mobile test). Ratios = the tuned px at the desktop badge (~141px --ccw). */
@@ -1554,7 +1721,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   100% { opacity: 0; transform: scale(3.4); }
 }
 /* spell label — a readable white banner over the arch base (spells have no stat badges) */
-.card.compact.spellcard .ctype.spell { position: absolute; bottom: calc(var(--ccw) * -0.05); left: 50%; transform: translateX(-50%); z-index: 6; background: color-mix(in srgb, var(--t-demon) 88%, #000); color: #fff; padding: calc(var(--ccw) * 0.02) calc(var(--ccw) * 0.08); border-radius: 999px; border: 2px solid #f6e3ad; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); font-size: calc(var(--ccw) * 0.075); white-space: nowrap; }
+/* The type pill's seat is owned by the 🏷️ Card Pills tuner, not by this `bottom` — `--cpl-spell-t` composes a
+   nudge onto the centring translate, so there's ONE control for it (the `spellY` default carries the owner's
+   2026-07-24 "put it at the bottom of the art" ask). NB `bottom` grows UPWARD, so raising it here would move
+   the pill up; use the tuner's +y (down) instead. */
+.card.compact.spellcard .ctype.spell { position: absolute; bottom: calc(var(--ccw) * -0.05); left: 50%; transform: var(--cpl-spell-t, translateX(-50%)); z-index: 6; background: color-mix(in srgb, var(--t-demon) 88%, #000); color: #fff; padding: calc(var(--ccw) * 0.02) calc(var(--ccw) * 0.08); border-radius: 999px; border: 2px solid #f6e3ad; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); font-size: calc(var(--ccw) * 0.075); white-space: nowrap; }
 
 /* --- Text drawer: a DETACHED dark-glass info panel floating beneath the card — rounded on all four corners,
    the hero/quest-panel dark pill/glass recipe (owner call 2026-07-19). No longer welded to the frame (the old
@@ -1576,8 +1747,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
      would make a stacking context and put the panel back on top of the FRAME, whose oval art overflows the
      archbox down past the panel's top edge. Painting by tree order instead lets `.archbox` (z1) lap over the
      panel and the hand hover-bridge (z-1) sit under it. */
-  position: absolute; top: calc(var(--ccw) * 1.09); left: 0; right: 0;
-  padding: calc(var(--ccw) * 0.065) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
+  /* Box boundaries are tunable via the 🔤 Card Text tuner (`--ctx-*`); fallbacks MUST mirror
+     cardTextConfig.ts DEFAULTS. */
+  position: absolute; top: calc(var(--ccw) * var(--ctx-top, 1.085)); left: 0; right: 0;
+  padding: calc(var(--ccw) * var(--ctx-pad-top, 0.075)) calc(var(--ccw) * var(--ctx-pad-x, 0)) calc(var(--ccw) * var(--ctx-pad-bottom, 0.07));
 }
 /* With the backing removed entirely, this shadow is the ONLY thing separating the panel's text from the
    plate's stone — it's load-bearing for legibility, not decoration (owner 2026-07-21). Tuned dark and TIGHT:
@@ -1609,8 +1782,41 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    Unset the clip and the radius too — on the full card the name wraps instead of ellipsing, so neither the
    overflow nor the ellipsis has anything left to do. */
 .card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1056); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; overflow: visible; text-overflow: clip; border-radius: 0; }
-.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: #d8ccb6; text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
-.card.compact.showtext .drawer .desc b { color: #fff; } /* bold numbers/keywords pop white on the dark glass (base .desc b is dark ink) */
+/* BACKBOX — the authored dark shape behind the rules-text panel. Its whole job is contrast: it darkens the
+   plate's stone under the text so the copy reads without needing a hard slab. Sized by WIDTH (× --ccw) with
+   `height: auto`, so the art's 853×621 ratio is preserved at any card size. Centred on the panel and nudged by
+   `--ctx-box-x/y`. Blends against the plate via `mix-blend-mode` — `.card.plated`'s `isolation: isolate`
+   contains that to the card, so it can never blend with the board behind. Painted behind the text by TREE
+   ORDER (it's the drawer's first child) rather than a z-index, because the drawer deliberately has none. Hidden
+   entirely at size 0 or opacity 0. All five knobs live in the 🔤 Card Text tuner; fallbacks mirror
+   cardTextConfig.ts DEFAULTS. */
+.card.compact.showtext .drawer .descbox {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--ccw) * var(--ctx-box-y, -1.235));
+  width: calc(var(--ccw) * var(--ctx-box-w, 1.08));
+  height: auto;
+  transform: translateX(-50%) translateX(calc(var(--ccw) * var(--ctx-box-x, 0)));
+  opacity: var(--ctx-box-a, 0.47);
+  mix-blend-mode: var(--ctx-box-blend, overlay);
+  pointer-events: none;
+  user-select: none;
+}
+/* …and the text has to sit IN FRONT of it. Tree order alone doesn't do that: `.descbox` is POSITIONED
+   (absolute) while the text nodes are static, and CSS paints positioned/z-auto boxes in a LATER step than
+   in-flow blocks — so the backbox covered the copy no matter that it comes first in the DOM (owner report
+   2026-07-26). Making the text `position: relative` puts every one of them in that same later step, where tree
+   order DOES decide: backbox first → behind, text after → in front. Deliberately NO z-index on any of them —
+   z-index here would lift the text out past the frame, whose oval overflows down over the panel's top edge
+   (the same trap documented on `.drawer` itself). `position: relative` on a flex child changes no layout. */
+.card.compact.showtext .drawer .cn,
+.card.compact.showtext .drawer .desc,
+.card.compact.showtext .drawer .dtribe,
+.card.compact.showtext .drawer .plate-tribe { position: relative; }
+.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: var(--ctx-line, 1.43); color: var(--card-desc-color, #fff); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
+/* Bold keywords/numbers take the card's TRIBE colour so they pop off the pure-white body text (owner
+   2026-07-25). `--c` is the primary tribe hue the card already sets inline. */
+.card.compact.showtext .drawer .desc b { color: var(--c); }
 .card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #f4ecdb); }
 .card.compact.showtext .drawer .dtribe svg { width: calc(var(--ccw) * 0.075); height: calc(var(--ccw) * 0.075); color: var(--c); }
 .card.compact.showtext .drawer .dtribe svg:last-of-type { color: var(--c2); }   /* 2nd tribe in its own hue */
@@ -1661,6 +1867,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.triplecard .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
 .card.triplecard .cfoot { background: color-mix(in srgb, #f4cf6a 30%, var(--card)); }
 .card.triplecard .ctype.spell { color: var(--acc-dk); }
+/* IN HAND the Triple Reward files in like any other card. The `z-index: 5` above lifted it over its
+   neighbours, so a reward sitting mid-fan painted on top of the cards to its right instead of tucking under
+   them (owner report 2026-07-25). Hand cards stack by DOM order (no explicit z), so drop back to `auto` here;
+   the `:hover` bump (z50) and the z5 elsewhere (tavern / board) are untouched. */
+.row.hand .card.triplecard { z-index: auto; }
 
 /* Discover overlay (triple reward) */
 /* z160: discover / choose-one must sit above ALL effects — the FX overlay (.pixifx z110), a freshly-placed
@@ -1682,9 +1893,6 @@ body.modalup .statusbar .questbadges {
   pointer-events: none;
 }
 .statusbar .hero, .statusbar .heropanel, .statusbar .questbadges { transition: filter 0.2s ease; }
-.discover-box { background: var(--card); border: 3px solid var(--acc); border-radius: calc(20 * var(--u)); padding: calc(22 * var(--u)) calc(26 * var(--u)); box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.4); }
-.discover-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); text-align: center; margin-bottom: calc(16 * var(--u)); color: var(--ink); }
-.discover-title b { color: var(--acc-dk); }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 /* Runeforge: the current-Gold chip under the banner — the runes charge Gold, so the purse must be visible. */
 .forge-gold {
@@ -1706,9 +1914,14 @@ body.modalup .statusbar .questbadges {
   padding: calc(46 * var(--u)) calc(40 * var(--u)) calc(34 * var(--u));
 }
 /* B2: minimize the Discover to inspect the board, then return — ONE orange button, pinned to the same fixed
-   spot just below the cards for both states, so the player flips between them without moving the mouse. */
+   spot just below the cards for both states, so the player flips between them without moving the mouse.
+   It stays VIEWPORT-relative (not anchored under the panel) precisely because of that two-state requirement:
+   when minimized the panel is unmounted, so there is nothing to hang it off.
+   `top` moved 61% → 67% (owner 2026-07-24). 61% only cleared the cards on tall windows — measured at 1400x760
+   it OVERLAPPED them by 4px, which is what the report showed; 67% leaves a 42px gap there and still keeps
+   ~216px of room beneath the button. The Farseer scout panel's Close button reuses this spot, so it moves too. */
 .disc-toggle {
-  position: fixed; left: 50%; top: 61%; transform: translateX(-50%); z-index: 200;
+  position: fixed; left: 50%; top: 67%; transform: translateX(-50%); z-index: 200;
   display: inline-flex; align-items: center; gap: calc(7 * var(--u));
   font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.03em;
   color: #f4ecdb; background: linear-gradient(180deg, #241a13, #17110c);
@@ -1866,10 +2079,8 @@ body.modalup .statusbar .questbadges {
   50% { transform: translateY(-4px); }
 }
 /* Choose One — two big option buttons */
-.chooseone-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
-.chooseopt { width: calc(240 * var(--u)); min-height: calc(96 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); border-radius: 15px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: calc(16 * var(--u)); line-height: 1.35; text-align: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; display: grid; place-items: center; }
-.chooseopt:hover { border-color: var(--acc); transform: translateY(-3px); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35); }
-.chooseopt b { color: var(--acc-dk); font-weight: 800; }
+/* (`.chooseone-opts` / `.chooseopt` — the old cream text-button Choose One prompt — removed 2026-07-24 when
+   the prompt became two real cards on the Discover chrome. `.discover-box`/`.discover-title` went with it.) */
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */
@@ -1905,7 +2116,14 @@ body.modalup .statusbar .questbadges {
 /* z115: above the FX overlay (.pixifx z110) so the dragged card always rides ON TOP of other units' auras
    (divine-shield bubbles, reborn wisps) as it passes over them. Its own aura sits on the FX canvas behind it —
    the bubble still reads around the card's edges. Below discover (z160) / inspect (z500). */
-.dragcard { position: fixed; left: 0; top: 0; z-index: 115; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
+/* PARKED OFF-SCREEN BY DEFAULT. The floating card is pinned at left/top 0 and placed entirely by an inline
+   transform — written per frame by the drag rAF, or by React during a snap/magnet-slide. Any frame where
+   neither has written one yet (a remount the rAF's deps didn't anticipate; React clearing a transform IT set
+   during a snap) paints a full-size card in the screen's top-left corner: the "ghost card" blip, most visible
+   at the drop that completes a triple, right before the gild. The rAF/React inline transform always outranks
+   this, so parking it here costs nothing and makes that whole class of flash impossible rather than
+   whack-a-mole per remount path. */
+.dragcard { position: fixed; left: 0; top: 0; transform: translate(-9999px, -9999px); z-index: 115; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
 .dragcard.snap { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
 /* a Magnetic card shrinking straight into its Mech before it merges — snappy, so it reads as an
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */
@@ -1958,6 +2176,78 @@ body.modalup .statusbar .questbadges {
   0% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
   32% { box-shadow: 0 0 0 4px #2bd897, 0 0 30px 8px rgba(43, 216, 151, 0.85); transform: translateY(-7px) scale(1.06); filter: brightness(1.2); animation-timing-function: ease-out; }
   100% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; }
+}
+/* SPELL BUFF (owner 2026-07-23) — a hand spell (or Ruby) whose printed value just went UP: the card GROWS then
+   SHRINKS back in place while coloured sparks blast outward off it (the hues are tuner dials). One-shot (~1s) and scale/transform/
+   opacity only (no looping paint), so the whole cue composites.
+
+   TWO structural rules here, both load-bearing — don't undo them casually:
+
+   1. The card animates the standalone `scale` PROPERTY, never `transform`. A hand card carries its own inline
+      `transform` (the fan's slide/tuck); animating `transform` clobbers that for the animation's life — and with
+      a forwards fill, for as long as the class is on. `scale` composes with `transform` instead, so the fan is
+      never disturbed and nothing needs restoring afterwards. This permanently retires the whole "the pop is tied
+      to spark ms / the card jumps out of the fan" class of bug.
+   2. Grow and shrink are TWO animations — the shrink merely delayed by the grow's duration — because each needs
+      its OWN duration and easing (owner ask). A single keyframe animation cannot do that: keyframe offsets can't
+      be `var()`, and `animation-timing-function` inside a `@keyframes` block silently ignores `var()` (verified
+      live — every keyframe fell back to `ease`).
+
+   Both phases use `forwards`. During the grow the shrink is still in its delay, so it contributes nothing (only
+   a `backwards`/`both` fill would apply early). Once the shrink starts it wins, being later in the list. Its
+   final state is `scale: 1` — the card's NATURAL scale — so the held fill is a no-op and can never strand the
+   card mid-grow, however long the class lingers for the sparks.
+
+   And NO `cardpop` in this list. `.cardbuff` leads with it claiming it "matches the base .card" so re-adding the
+   class can't replay it — but the base `.card` has no animation at all (only `.card.popin` does), so naming it
+   here STARTS a 0.26s opacity 0->1 + scale(0.96) entry pop on every buff, governed by no dial. That was the
+   "every value is at 0 and it still pops" bug. Shape/timing come from the Spell Buff tuner as `--sb-*` vars;
+   the fallbacks below are the shipped defaults. */
+.card.spellbuff {
+  animation:
+    sbgrow var(--sb-grow-ms, 160ms) var(--sb-grow-ease, ease-out) forwards,
+    sbshrink var(--sb-shrink-ms, 380ms) var(--sb-shrink-ease, ease-in-out) var(--sb-grow-ms, 160ms) forwards;
+  z-index: 21;
+}
+@keyframes sbgrow { from { scale: 1; } to { scale: var(--sb-grow, 1.12); } }
+@keyframes sbshrink { from { scale: var(--sb-grow, 1.12); } to { scale: 1; } }
+/* The spark layer is anchored to the card and allowed to overflow, so motes fly out past every edge. */
+.sbsparks { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 22; }
+.sbspark {
+  /* `--sb-oy` is the blast's origin height measured UP from the card's bottom (owner ask 2026-07-24), so the
+     dial reads the way a card does: 0 = bottom edge, 50 = centre, 100 = top. `top` measures DOWN from the top,
+     hence the flip. Values outside 0–100 are allowed and throw the origin off the card entirely. */
+  position: absolute; left: 50%; top: calc(100% - var(--sb-oy, 50%));
+  width: var(--sb-size, 7px); aspect-ratio: 1; border-radius: 50%;
+  /* A solid hot core out to 30% before the falloff — a pure-falloff dot reads washed out over bright art.
+     The glow halo (`--sb-glow`) is what actually sells it against the card, so it's a tuner dial. */
+  background: radial-gradient(circle at 50% 50%, #fff 0%, var(--sb-hue) 30%, transparent 76%);
+  filter: drop-shadow(0 0 var(--sb-glow, 7px) var(--sb-hue));
+  animation: sbblast var(--sb-ms, 760ms) var(--sb-ease, cubic-bezier(0.19, 0.57, 0.36, 1)) both;
+  will-change: transform, opacity;
+}
+/* The TAIL streams back toward the card. It hangs below the mote in the MOTE's own frame, and the blast
+   transform rotates that frame to the flight angle — so the tail trails behind whatever direction the mote flew,
+   with no per-mote maths. Length rides `--sb-tail` (baked per mote as size x the tuner's multiple). */
+.sbspark::after {
+  content: ''; position: absolute; left: 50%; top: 45%;
+  width: calc(var(--sb-size, 7px) * 0.5); height: var(--sb-tail, 15px);
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, var(--sb-hue), transparent 92%);
+  border-radius: 50% 50% 46% 46% / 30% 30% 70% 70%;
+}
+/* The BLAST — an explosion outward rather than a rise (owner 2026-07-23). Transform order is load-bearing:
+     translate(-50%, -50%)   centre the mote on the card
+     translateY(--sb-grav)   gravity sag, OUTSIDE the rotation so it is always truly world-space "down"
+     rotate(--sb-ang)        turn to this mote's flight angle
+     translateY(-dist)       fly outward along it — inside the rotation, so the travel is radial
+   `--sb-dist` is in PIXELS: a % here would resolve against the mote's own ~7px box, which is exactly what made
+   the travel read as barely moving back when this was a rise. */
+@keyframes sbblast {
+  0%   { transform: translate(-50%, -50%) rotate(var(--sb-ang, 0deg)) translateY(0) scale(0.4); opacity: 0; }
+  16%  { opacity: var(--sb-alpha, 1); }
+  100% { transform: translate(-50%, -50%) translateY(var(--sb-grav, 0px)) rotate(var(--sb-ang, 0deg))
+                    translateY(calc(-1 * var(--sb-dist, 120px))) scale(1); opacity: 0; }
 }
 /* Karwind flame flash — a quick, minimal burn along the BOTTOM edge of a Dragon that Karwind's
    battlecry trigger just buffed (a small "Karwind is working" indicator, on top of the green buff
@@ -2668,6 +2958,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
 .card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.76; --fovl: #655449; --fovl-blend: overlay; }
+/* PER-TRIBE OVAL — the art is authored in its tribe's colours (and has its own gilded variant), so BOTH of the
+   shared oval's recolour passes must stand down or the authored colour is destroyed:
+     • `--frame-tone: grayscale(0.92) brightness(1.2) contrast(0.9)` (set on `.stdframe` above) desaturates the
+       gold master to silver → it would wash a coloured frame out to grey.
+     • the baked `--fovl` overlay (#655449 @ 0.76, `overlay` blend) is what tints the silver toward stone → it
+       would smear brown over the tribe hue.
+   Both are vars, so neutralising them here flows into every rule that reads them (the keyword-state rims
+   below included). Geometry knobs are deliberately left alone: the art matches the shared oval's window. */
+.card.compact.stdframe.tribeframe,
+.card.compact.taunt.tribeframe { --frame-tone: brightness(1); --fovl-a: 0; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));
@@ -2858,6 +3158,37 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   user-select: none;
 }
 .card.plated .cardplate { border-radius: var(--plate-radius, 10px); }
+/* TRIBE NAME on the plate's bottom gem (tribe-plated cards only — the drawer label is suppressed for them).
+   Positioned down the plate by the SAME geometry the plate uses, so it tracks the bottom diamond at any size;
+   `--plate-tribe-yf` (fraction of plate height) nudges it onto the gem. No icon; text only. Above the plate
+   (z0) so it reads over the diamond. */
+.card.plated .plate-tribe {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * var(--plate-tribe-yf, 1.015));
+  transform: translate(calc(-50% + var(--ccw) * var(--plate-tribe-xf, 0)), -50%);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: calc(var(--ccw) * var(--plate-tribe-sf, 0.072));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c) 55%, #f4ecdb);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.75);
+}
+.card.plated .plate-tribe .ctype-sep { opacity: 0.6; margin: 0 0.1em; }
+/* GOLDEN PLATE — a gilded card's stone body reads GOLD, mirroring the frame's silver→gold. The frame does it
+   by un-graying a gold PNG (`--frame-tone`); the plate art is stone, so we push it gold with a colour filter
+   instead (keeps the relief/engraving, just recolours it). Tunable via `--plate-gold-tone` (🂠 Card Plate
+   tuner, gold · … rows). The fallback here MUST mirror the composed default in cardPlateConfig.ts. Covers
+   hand, the drag copy and the inspect overlay — all `.plated`. (A masked-overlay alternative was prototyped
+   and the owner chose this filter, 2026-07-24.) */
+.card.plated.golden .cardplate {
+  filter: var(--plate-gold-tone, sepia(0) saturate(2.6) brightness(1.13) contrast(0.95) hue-rotate(3deg));
+}
 
 /* HOVER GLOW, plate edition. On a plated card the white highlight rings the PLATE, not the oval frame —
    the plate is the card's outer edge now, so glowing the frame inside it read as a halo floating in the
@@ -2981,14 +3312,16 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
 /* A combat-granted card (Arcane Weaver → Spirit Fire) pops in centre-screen, then flies down + fades
    toward the hand, so the player sees it being added. */
-.handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; animation: tohandfly 1.15s cubic-bezier(0.4, 0, 0.5, 1) forwards; }
+/* The in-combat grant. It used to POP in at centre and fly 52vh down the screen, shrinking as it went
+   (`tohandfly`) — which competed with the arcane coalesce that now plays on this same card, two different
+   stories about one event (owner 2026-07-22). The travel is gone: the card materialises here via the
+   coalesce, holds, and fades. Transform is static on the rule so the animation is opacity-only, and the
+   coalesce's `!important` fade-in outranks it for the first beat. */
+.handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; transform: translate(-50%, -50%); animation: tohandhold 1.15s ease forwards; }
 .hg-label { font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: calc(4 * var(--u)) calc(13 * var(--u)); border-radius: 999px; border: 2px solid var(--acc); white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.5); }
-@keyframes tohandfly {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
-  16% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
-  34% { transform: translate(-50%, -50%) scale(1); }
-  72% { opacity: 1; transform: translate(-50%, calc(-50% + 22vh)) scale(0.78); }
-  100% { opacity: 0; transform: translate(-50%, calc(-50% + 52vh)) scale(0.42); }
+@keyframes tohandhold {
+  0%, 78% { opacity: 1; }
+  100% { opacity: 0; }
 }
 /* NOTE: we intentionally do NOT gate animations on `prefers-reduced-motion`. ASCENT's animations carry
    essential gameplay INFORMATION — damage numbers, death pops, the Fodder-consume swirl, buff flashes — not
@@ -3702,6 +4035,10 @@ svg { width: 18px; height: 18px; }
 .sfxmix-row input[type='range'] { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; outline: none; cursor: pointer; }
 .sfxmix-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--acc); cursor: pointer; }
 .sfxmix-val { flex: 0 0 26px; text-align: right; font-size: 12px; font-weight: 800; color: var(--acc-dk); font-variant-numeric: tabular-nums; }
+/* Colour-picker rows (Card Pills' ×N badge): the swatch takes the slider's slot, and the readout needs room for
+   a 7-char hex — the numeric 26px basis truncates it. */
+.sfxmix-row input[type='color'] { flex: 1; height: 20px; min-width: 0; padding: 0; border: 1px solid var(--line); border-radius: 5px; background: none; cursor: pointer; }
+.sfxmix-val.hex { flex: 0 0 62px; font-variant-numeric: normal; text-transform: uppercase; }
 .sfxmix-play { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 10px; color: var(--ink); }
 .sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
 .sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
@@ -4570,17 +4907,17 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
   width: calc(100% * var(--rfb-glow-w, 0.85)); height: calc(100% * var(--rfb-glow-h, 0.85));
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  box-shadow: var(--rfb-glow-shadow, 0 0 22px rgba(255, 255, 255, 1));
+  box-shadow: var(--rfb-glow-shadow, 0 0 22px rgba(82, 189, 255, 1));
   opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
 }
 .rfbwrap:hover:not(:disabled) .rfb-glow,
 body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one pointer can't hover AND drag a slider */
-  animation: rfbbreath var(--rfb-glow-pulse, 4s) ease-in-out infinite;
-  opacity: var(--rfb-glow-alpha, 0.57);
+  animation: rfbbreath var(--rfb-glow-pulse, 1.5s) ease-in-out infinite;
+  opacity: var(--rfb-glow-alpha, 1);
 }
 @keyframes rfbbreath {
-  0%, 100% { opacity: var(--rfb-glow-alpha, 0.57); }
-  50% { opacity: var(--rfb-glow-dim, 0.32); }
+  0%, 100% { opacity: var(--rfb-glow-alpha, 1); }
+  50% { opacity: var(--rfb-glow-dim, 0.75); }
 }
 
 /* Ambient sheen — a glare bar sweeping the crystal, clipped to its box. Transform-only. */
@@ -4605,13 +4942,13 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
     var(--rfb-shine-color, #ffffff) 0%,
     color-mix(in srgb, var(--rfb-shine-color, #ffffff) 55%, transparent) 42%,
     transparent 70%);
-  filter: blur(var(--rfb-shine-blur, 24px));
-  animation: rfbshine var(--rfb-shine-ms, 1050ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
+  filter: blur(var(--rfb-shine-blur, 7px));
+  animation: rfbshine var(--rfb-shine-ms, 280ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
 }
 @keyframes rfbshine {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
-  22% { opacity: var(--rfb-shine-alpha, 0.7); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--rfb-shine-size, 1.9)); }
+  22% { opacity: var(--rfb-shine-alpha, 1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--rfb-shine-size, 3)); }
 }
 
 /* Live Gold cost — the SAME gold coin pill the Tavern stone wears (owner request), so the two board
@@ -4619,7 +4956,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
    mid-stop, so the picker still recolours the whole pill rather than just the text. */
 .rfb-cost {
   position: absolute; left: 50%; top: 100%; z-index: 4;
-  transform: translate(calc(-50% + var(--rfb-cost-x, 87) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 1.42));
+  transform: translate(calc(-50% + var(--rfb-cost-x, 87) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 1.6));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
   padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
   background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 55%, #fff),
@@ -4656,7 +4993,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
    Discover banner and the Rift button use, so the board's chrome stays one family. */
 .rfb-label {
   position: absolute; left: 50%; top: 0;
-  transform: translate(-50%, calc(var(--rfb-label-y, -46) * var(--u))) scale(var(--rfb-label-s, 1));
+  transform: translate(-50%, calc(var(--rfb-label-y, -64) * var(--u))) scale(var(--rfb-label-s, 1.42));
   white-space: nowrap; pointer-events: none;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.08em;
   text-transform: uppercase; color: #f4ecdb;
@@ -4841,7 +5178,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    One-shot element appended to <body> for a single cast, animated by WAAPI (transform + opacity only) and
    removed on finish — so there is never a persistent node or a looping animation here. `position: fixed`
    because the caller passes VIEWPORT coords straight from getBoundingClientRect. */
-.spellpower-float {
+/* `.rubypower-float` shares this block: the Ruby Power float is the same one-shot element with the same inline
+   `--spf-*` colour vars set from its OWN tuner, so the two diverge through those values, not through CSS. */
+.spellpower-float,
+.rubypower-float {
   position: fixed;
   z-index: 120;
   pointer-events: none;
@@ -4859,7 +5199,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   will-change: transform, opacity;
 }
 @media (prefers-reduced-motion: reduce) {
-  .spellpower-float { transition: none; }
+  .spellpower-float, .rubypower-float { transition: none; }
 }
 
 /* ---- HERO-PORTRAIT BUFF FLASH (`.herobuff-blast`, StatusBar.tsx) — a shard/blast pop with a small eased

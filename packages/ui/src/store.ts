@@ -168,6 +168,10 @@ interface GameStore {
   /** Combat replay speed multiplier (0.5×–5×). 1 = the tuned default. Set by the in-combat slider; persisted. */
   combatSpeed: number;
   setCombatSpeed: (speed: number) => void;
+  /** PRACTICE-only shop-timer multiplier (1–4×), chosen from the dropdown beside the clock. 1× is the scored
+   *  mode's clock exactly; 3× is the default (what practice was fixed at before). Persisted. */
+  practiceTimer: number;
+  setPracticeTimer: (mult: number) => void;
   /** The current run's action log (only state-changing actions), reset on a fresh run. With the run
    *  seed it forms a deterministic replay — the basis for board capture + async-PvP snapshots. */
   replayActions: Action[];
@@ -262,6 +266,16 @@ function loadPlayerAvatar(): string | null {
 }
 function loadPlayerName(): string {
   try { return localStorage.getItem('ascent.playername') ?? ''; } catch { return ''; }
+}
+
+/** Persisted PRACTICE shop-timer multiplier (1–4×), defaulting to 3 — the fixed multiplier practice used before
+ *  it was made choosable (owner 2026-07-25), so an existing player's practice runs feel unchanged. 1× is exactly
+ *  the scored mode's clock. Best-effort, like the combat speed. */
+function loadPracticeTimer(): number {
+  try {
+    const v = Number(localStorage.getItem('ascent.practicetimer'));
+    return v >= 1 && v <= 4 ? Math.round(v) : 3;
+  } catch { return 3; }
 }
 
 /** Persisted combat speed (0.5–5×), defaulting to 1 on anything missing/out-of-range. Best-effort. */
@@ -422,6 +436,12 @@ export const useGame = create<GameStore>((set, get) => ({
   avatarPickerOpen: false,
   openAvatarPicker: () => set({ avatarPickerOpen: true }),
   closeAvatarPicker: () => set({ avatarPickerOpen: false }),
+  practiceTimer: loadPracticeTimer(),
+  setPracticeTimer: (mult) => {
+    const practiceTimer = Math.min(4, Math.max(1, Math.round(mult)));
+    try { localStorage.setItem('ascent.practicetimer', String(practiceTimer)); } catch { /* ignore */ }
+    set({ practiceTimer });
+  },
   combatSpeed: loadCombatSpeed(),
   setCombatSpeed: (speed) => {
     const combatSpeed = Math.min(5, Math.max(0.5, Math.round(speed * 10) / 10)); // clamp 0.5–5×, snap to 0.1
@@ -646,7 +666,9 @@ if (typeof window !== 'undefined') {
 }
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
-// Discover / game-over / End-of-Turn UI). Stripped from production builds.
-if (import.meta.env.DEV) {
+// Discover / game-over / End-of-Turn UI). Stripped from production builds. The `typeof window` guard matters:
+// vitest runs with `DEV` true but in a Node (no-window) environment, so any test that transitively imports
+// this module would otherwise crash here with `window is not defined`.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { useGame?: typeof useGame }).useGame = useGame;
 }

@@ -137,18 +137,60 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
 export const DRAG_KEYS = Object.keys(DEFAULTS) as (keyof DragFeel)[];
 
 const KEY = 'ascent.dragfeel';
+
+/**
+ * Bump this WHENEVER you change `DEFAULTS` — it is what makes tuned values shareable.
+ *
+ * The problem it solves (owner 2026-07-26): two devs on dev servers, "identical" tuner settings, visibly
+ * different feel. In dev the localStorage override WINS over the shipped defaults, so syncing main gets you
+ * the new code and none of the new feel — your stale save keeps shadowing it, silently and forever.
+ *
+ * With a version stamp, a save from an older `DEFAULTS` is discarded on load, so pulling main is all it takes
+ * for everyone to be on the same physics. The workflow is then:
+ *
+ *   1. tune by eye → **Copy values** in the tuner
+ *   2. paste over `DEFAULTS` below and bump this number
+ *   3. PR → merge → everyone syncs; their stale overrides self-clear and the new feel is live
+ *
+ * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
+ * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
+ */
+export const DRAG_DEFAULTS_VERSION = 1;
+
+/** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
+type SavedDragFeel = Partial<DragFeel> & { __v?: number };
+
 let cfg: DragFeel = (() => {
   // DEV-ONLY localStorage override: the tuner's saved tweaks must never beat the shipped DEFAULTS in a
   // production build (they did — a player/dev with stale 'ascent.dragfeel' got old drag physics over what's
   // on main; owner report 2026-07-21). Prod always runs the baked defaults.
   if (!import.meta.env.DEV) return { ...DEFAULTS };
   try {
-    const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<DragFeel>) : {}) };
+    const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}') as SavedDragFeel | null;
+    if (!saved || typeof saved !== 'object') return { ...DEFAULTS };
+    // A save tuned against an OLDER defaults version is stale: main has moved on and the whole point of the
+    // bump is that main wins. Drop it (and clear it, so the tuner doesn't keep reporting an override).
+    if (saved.__v !== DRAG_DEFAULTS_VERSION) {
+      try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+      return { ...DEFAULTS };
+    }
+    const values: SavedDragFeel = { ...saved };
+    delete values.__v; // the stamp is bookkeeping, not a tunable
+    return { ...DEFAULTS, ...values };
   } catch {
     return { ...DEFAULTS };
   }
 })();
+
+/** True when this machine is running a LOCAL tuner override rather than the values on main. Surfaced in the
+ *  tuner so "why does mine feel different?" is answerable at a glance instead of by console archaeology. */
+export function hasLocalDragOverride(): boolean {
+  try {
+    return import.meta.env.DEV && localStorage.getItem(KEY) !== null;
+  } catch {
+    return false;
+  }
+}
 
 export function getDragFeel(): DragFeel {
   return cfg;
@@ -170,7 +212,7 @@ export function setDragValue(key: keyof DragFeel, value: number): void {
   cfg = { ...cfg, [key]: value };
   applyDragFeelVars();
   try {
-    localStorage.setItem(KEY, JSON.stringify(cfg));
+    localStorage.setItem(KEY, JSON.stringify({ ...cfg, __v: DRAG_DEFAULTS_VERSION }));
   } catch {
     /* ignore */
   }

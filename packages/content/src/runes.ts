@@ -342,7 +342,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Scales',
     cost: 1,
     epic: true,
-    text: 'Whenever you cast a spell, give your **Dragons +1/+1**.',
+    text: 'Whenever you cast a **Shop spell**, give your **Dragons +1/+1**.',
     reward: { kind: 'runeScales' },
   },
   {

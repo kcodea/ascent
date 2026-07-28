@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DRAG_KEYS, DRAG_RANGES, DRAG_DESC, getDragFeel, resetDragFeel, setDragValue, type DragFeel } from './dragFeel';
+import { DRAG_KEYS, DRAG_RANGES, DRAG_DESC, DRAG_DEFAULTS_VERSION, getDragFeel, hasLocalDragOverride, resetDragFeel, setDragValue, type DragFeel } from './dragFeel';
 import { useDraggablePanel } from './useDraggablePanel';
 
 /**
@@ -46,16 +46,18 @@ export function DragTuner() {
   }, [preview]);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('dragfeel');
 
+  const [override, setOverride] = useState(hasLocalDragOverride());
   const set = (k: keyof DragFeel, v: number): void => {
     setDragValue(k, v);
     setCfg({ ...getDragFeel() });
+    setOverride(true); // touching a slider is what creates the local save
   };
   const copy = (): void => {
     void navigator.clipboard?.writeText(JSON.stringify(getDragFeel(), null, 2));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   };
-  const reset = (): void => { resetDragFeel(); setCfg({ ...getDragFeel() }); };
+  const reset = (): void => { resetDragFeel(); setCfg({ ...getDragFeel() }); setOverride(hasLocalDragOverride()); };
 
   return (
     <div className="sfxmix lunge dragfeel" ref={panelRef} style={panelStyle}>
@@ -77,9 +79,20 @@ export function DragTuner() {
           </div>
         );
       })}
+      {/* WHOSE VALUES AM I RUNNING? Two devs on dev servers with "identical" sliders can still feel different
+          drag, because a local save shadows the values on main (owner 2026-07-26). Say which one is live, so
+          that question is answerable at a glance instead of from the console. */}
+      <div className="sfxmix-row">
+        <span className="sfxmix-name" title="A local override beats the values on main until you Reset. Reset = run exactly what main ships.">
+          running
+        </span>
+        <span className="sfxmix-val">{override ? 'LOCAL override' : `main · v${DRAG_DEFAULTS_VERSION}`}</span>
+      </div>
       <div className="lunge-btns">
         <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
+        <button className="sfxmix-copy" onClick={reset} title="Drop this machine's saved override and run the values on main.">
+          Reset to main
+        </button>
       </div>
     </div>
   );

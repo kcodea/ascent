@@ -89,7 +89,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
   });
 
-  it('Kennelmaster Start of Combat: buffs your minions +2 Attack, and a minion summoned later inherits the aura', () => {
+  it('Kennelmaster Start of Combat: buffs your Beasts +2 Attack, and a Beast summoned later inherits the aura', () => {
     // The SoC aura buffs the living Beasts now (Kennelmaster + Mama Pup), then Mama Pup dies and its Pups —
     // summoned AFTER the aura registered — pick it up too ("wherever they are, incl. combat summons").
     const p: BoardMinion[] = [
@@ -101,27 +101,28 @@ describe('simulate (handoff A.3)', () => {
     const summonEvents = r.events.filter((ev) => ev.type === 'summon');
     expect(summonEvents.length).toBeGreaterThanOrEqual(1); // Mama Pup's Pups spawned
     const summonedUids = new Set(summonEvents.flatMap((ev) => (ev.type === 'summon' ? [ev.minion.uid] : [])));
-    // A minion summoned after Kennelmaster's SoC still receives the +2/+0 aura.
+    // A Beast summoned after Kennelmaster's SoC still receives the +1/+0 aura.
     const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 0 && summonedUids.has(ev.target));
     expect(summonAura).toBe(true);
   });
 
-  it('Kennelmaster aura is board-wide Attack — a NON-Beast gets it too, and Health is untouched', () => {
-    // The 2026-07-21 balance pass moved it from a Beast +1/+1 aura to `tribe: 'any'` +2 Attack. The load-bearing
-    // change is the scope: a Mech/Dragon on the board must now receive it, and nothing should gain Health.
+  it('Kennelmaster aura is BEAST-only Attack — a non-Beast does not get it, and Health is untouched', () => {
+    // Re-spec (owner 2026-07-24): back to a Beast aura, now +1 Attack ("give your Beasts wherever they are").
+    // The load-bearing scope check: a Dragon on the board must NOT receive it, and nothing gains Health.
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 1, health: 40 },
-      { cardId: 'cleric', attack: 3, health: 30 }, // a Dragon — would NOT have been buffed before
+      { cardId: 'alley', attack: 3, health: 30 },  // a Beast — DOES get the aura
+      { cardId: 'cleric', attack: 3, health: 30 }, // a Dragon — must NOT
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }];
     const r = run(p, e, 1);
-    const dragonUid = r.initial.player[1]!.uid;
-    const auraOnDragon = r.events.filter((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 2 && ev.health === 0);
-    expect(auraOnDragon.length).toBeGreaterThanOrEqual(1); // the non-Beast inherits the board-wide aura
+    const beastUid = r.initial.player[1]!.uid;
+    const dragonUid = r.initial.player[2]!.uid;
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === beastUid && ev.attack === 2 && ev.health === 0)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 2 && ev.health === 0)).toBe(false);
     // No Kennelmaster buff ever grants Health (stepHealth 0 keeps the Avenge accrual off Health too).
     const kennelUid = r.initial.player[0]!.uid;
-    const anyHealth = r.events.some((ev) => ev.type === 'buff' && ev.source === kennelUid && ev.health !== 0);
-    expect(anyHealth).toBe(false);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === kennelUid && ev.health !== 0)).toBe(false);
   });
 
   it('Kennelmaster aura buffs EVERY Deathrattle summon, not just the first (repro: both Pups)', () => {
@@ -134,7 +135,7 @@ describe('simulate (handoff A.3)', () => {
     const pupUids = r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : []));
     expect(pupUids.length).toBe(2); // both Pups summoned
     const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 2 && ev.health === 0));
-    expect(buffed.length).toBe(2); // BOTH inherit the +2/+0 aura, not only the first
+    expect(buffed.length).toBe(2); // BOTH inherit the +1/+0 aura, not only the first
   });
 
   it('Pack Mentality grows the Beast aura LIVE in combat — a per-N summon buffs living Beasts immediately + carries back', () => {
@@ -498,7 +499,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSpellPower).toBeUndefined(); // defender's retaliation kill is not a Slaughter
   });
 
-  it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
+  it('Spark Capacitor Avenge (4) adds a Waking Rift to hand', () => {
     const p: BoardMinion[] = [
       { cardId: 'sparkcapacitor', attack: 4, health: 40 },
       { cardId: 'stray', attack: 1, health: 1 },
@@ -508,7 +509,7 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 80 }];
     const r = run(p, e, 4);
-    expect(r.playerHandGrants).toContain('sparkplug'); // 4 friendly deaths → Avenge (4) → get a Spark Plug
+    expect(r.playerHandGrants).toContain('sparkplug'); // 4 friendly deaths → Avenge (4) → get a Waking Rift
   });
 
   it('Imp Overseer Echo summons an Imp when it dies in combat', () => {
@@ -662,7 +663,7 @@ describe('simulate (handoff A.3)', () => {
     const rebornIdx = r.events.findIndex((ev) => ev.type === 'reborn');
     expect(rebornIdx).toBeGreaterThanOrEqual(0); // the Gryphon Rose
     const gUid = (r.events[rebornIdx] as { target: string }).target;
-    // A +2/+0 aura buff lands on the Gryphon AFTER it Rises (the bug: reborn bodies were skipped).
+    // A +1/+0 aura buff lands on the Gryphon (a Beast) AFTER it Rises (the bug: reborn bodies were skipped).
     const auraAfterRise = r.events.slice(rebornIdx + 1).some(
       (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 2 && ev.health === 0,
     );
@@ -1529,6 +1530,69 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'summon' && e.minion.cardId === 'stray')).toBe(true);
   });
 
+  it("Ryme's trigger on Field Mechanic DEFERS its economy Battlecry to settle (it is not lost)", () => {
+    // The owner reported this as "it didn't proc". It does — just not during the fight. A Battlecry with no
+    // combat surface (adding a card to hand, gaining Gold) is recorded in `playerDeferredBattlecries` and
+    // re-fired through the real recruit factory at settle, which is where the Patch Job actually appears.
+    // Pinning it here so the deferral isn't mistaken for a dropped trigger again.
+    const r = run(
+      [
+        { cardId: 'fieldmechanic', attack: 0, health: 100 },
+        { cardId: 'ryme', attack: 1, health: 1 },
+      ],
+      [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
+      1,
+    );
+    expect(r.events.some((e) => e.type === 'sc' && /triggers Field Mechanic/.test(e.text)), 'Ryme named it').toBe(true);
+    expect(r.playerDeferredBattlecries?.map((d) => d.cardId), 'and it is queued for settle, not dropped')
+      .toContain('fieldmechanic');
+  });
+
+  it("Ryme's trigger on Field Mechanic ANNOUNCES the Patch Job during the fight (owner report 2026-07-27)", () => {
+    // The deferral above is correct, but it left the replay silent: the card only appeared once combat was
+    // over, so its arrival FX played at the very end instead of on the Deathrattle beat. The economy branch
+    // now logs a `toHand` for a NAMED deferred grant so the replay can materialise it at the right moment.
+    const r = run(
+      [
+        { cardId: 'fieldmechanic', attack: 0, health: 100 },
+        { cardId: 'ryme', attack: 1, health: 1 },
+      ],
+      [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
+      1,
+    );
+    const grants = r.events.filter((e) => e.type === 'toHand');
+    expect(grants.map((e) => (e as { cardId: string }).cardId), 'the replay sees the Patch Job arrive')
+      .toEqual(['patchjob']);
+    // …and it is announced ON the Deathrattle, not tacked on at the end of the log.
+    const death = r.events.findIndex((e) => e.type === 'death');
+    const trigger = r.events.findIndex((e) => e.type === 'sc' && /triggers Field Mechanic/.test(e.text));
+    const grantAt = r.events.findIndex((e) => e.type === 'toHand');
+    expect(grantAt).toBeGreaterThan(death);
+    expect(grantAt).toBeGreaterThanOrEqual(trigger);
+    // The announcement must NOT also grant it — the settle deferral stays the single source of truth.
+    expect(r.playerHandGrants, 'not double-granted').toBeUndefined();
+    expect(r.playerDeferredBattlecries?.map((d) => d.cardId)).toContain('fieldmechanic');
+  });
+
+  it('Ryme reaches PAST a corpse to the next living neighbour (owner report 2026-07-26)', () => {
+    // The reported asymmetry: Soren destroying Ryme at Start of Combat fired both flanking Battlecries, but a
+    // death later in the fight fired only one. Dead minions stay in `boards[side]`, so a body that died earlier
+    // sat between Ryme and the second Battlecry and blocked it — invisible to the player, since corpses are
+    // gone from the board. A 1-HP filler on Ryme's left dies to the first swing and reproduces exactly that.
+    const r = run(
+      [
+        { cardId: 'alley', attack: 0, health: 100 },   // the far Battlecry, behind the corpse
+        { cardId: 'sandbag', attack: 1, health: 1 },   // attacks first, dies to retaliation → the corpse
+        { cardId: 'ryme', attack: 1, health: 1 },   // …then Ryme swings and dies, with a corpse on its left
+        { cardId: 'alley', attack: 0, health: 100 },   // the near Battlecry
+      ],
+      [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
+      1,
+    );
+    const fired = r.events.filter((e) => e.type === 'sc' && /triggers .*Battlecry/.test(e.text));
+    expect(fired.length, 'both flanking Battlecries fire, not just the unblocked one').toBe(2);
+  });
+
   it('a golden Ryme re-fires BOTH adjacent Battlecries TWICE each', () => {
     const r = run(
       [
@@ -1573,8 +1637,12 @@ describe('simulate (handoff A.3)', () => {
     );
     // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one sc narration each.
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
-    // Karwind procs once per trigger → +2/+2 to both Dragons (Karwind + Hoard Cleric), 8× = 16 buff events.
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(16);
+    // Karwind procs once per trigger. Since the 2026-07-25 rework the two grants differ, and this board shows
+    // all three cases at once: Karwind itself takes the BASE +2/+2 (it is never its own neighbour); the Hoard
+    // Cleric is an ADJACENT Dragon so it takes +4/+4 instead; Drakko sits on the other side but is NEUTRAL, so
+    // the adjacency clause passes it over entirely.
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(8);
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length).toBe(8);
   });
 
   it("Bane reacting to Ryme's battlecry trigger carries the Fodder enchant back to the run", () => {
@@ -2685,25 +2753,161 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
-  it('set 2 — Gemheart Carver: Echo summons a token (its Rubies) on death', () => {
-    const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],
-      effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }], text: '' };
+  it('set 2 — Thunderous Sovereign: Start of Combat triggers your Dragons’ Shouts', () => {
+    // A combat-meaningful Shout (battlecryBuffTribe) so the re-fire is observable as a buff event.
+    const shouter: CardDef = { id: 'tsshout', name: 'SH', tribe: 'dragon', tier: 3, attack: 2, health: 20, keywords: [],
+      effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3, includeSelf: false } }], text: '' };
+    const sov: CardDef = { id: 'tssov', name: 'SOV', tribe: 'dragon', tier: 6, attack: 8, health: 20, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }], text: '' };
+    const r = simulate([
+      { cardId: 'tssov', attack: 8, health: 20, sourceUid: 'SOV' },
+      { cardId: 'tsshout', attack: 2, health: 20, sourceUid: 'SH' },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout: shouter, tssov: sov },
+      combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    // the Shout re-fired: a +3/+3 buff landed, and it was narrated so the replay can show it
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+    expect(r.events.some((e) => e.type === 'sc' && /triggers .*Battlecry/.test(e.text ?? ''))).toBe(true);
+  });
+
+  it('set 2 — a triggered Shout procs KARWIND (the tribe’s own combo)', () => {
+    // The bus emit is easy to forget and invisible without a watcher — Karwind is the watcher, and it's a
+    // Dragon in this same tribe, so a missing emit would silently break the tribe's headline pairing.
+    const shouter: CardDef = { id: 'tsshout2', name: 'SH', tribe: 'dragon', tier: 3, attack: 2, health: 20, keywords: [],
+      effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'whelpling', count: 1 } }], text: '' };
+    const sov: CardDef = { id: 'tssov2', name: 'SOV', tribe: 'dragon', tier: 6, attack: 8, health: 20, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }], text: '' };
+    const r = simulate([
+      { cardId: 'tssov2', attack: 8, health: 20, sourceUid: 'SOV' },
+      { cardId: 'tsshout2', attack: 2, health: 20, sourceUid: 'SH' },
+      { cardId: 'karwind', attack: 4, health: 60, sourceUid: 'KW' },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout2: shouter, tssov2: sov },
+      combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    // Karwind answers a triggered Battlecry with +2/+2 to your Dragons.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+  });
+
+  it('set 2 — Scalefeather Drake: its Echo carries back a next-turn spell-copy count', () => {
+    const sftest: CardDef = { id: 'sftest', name: 'SF', tribe: 'dragon', tier: 4, attack: 4, health: 1, keywords: [],
+      effects: [{ on: 'onDeath', do: 'deathrattleQueueNextSpellCopy', params: { count: 1 } }], text: '' };
+    const r = simulate([{ cardId: 'sftest', attack: 4, health: 1, sourceUid: 'SF' }], // 1 HP → dies, Echo fires
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, sftest },
+      combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    expect(r.playerNextTurnSpellCopies).toBe(1);
+  });
+
+  it('set 2 — Vault Curator: Avenge (4) copies the left-most hand spell (from the combat snapshot)', () => {
+    const vctest: CardDef = { id: 'vctest', name: 'VC', tribe: 'dragon', tier: 4, attack: 4, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'f' + i }));
+    // handSpellIds is the snapshot the reducer builds from the run hand — left-most spell is 'growth'.
+    const r = simulate([...fodder, { cardId: 'vctest', attack: 4, health: 200, sourceUid: 'VC' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, vctest },
+      combatSide({ tier: 4, tribes: ['dragon'], handSpellIds: ['growth', 'spiritfire'] }), combatSide({ tier: 1 }));
+    // the Avenge fired and granted a copy of the LEFT-MOST ('growth'), carried back to hand.
+    expect(r.playerHandGrants).toContain('growth');
+    expect(r.playerHandGrants).not.toContain('spiritfire');
+  });
+
+  it('set 2 — Vault Curator: an empty hand is a clean no-op (no random grant)', () => {
+    const vctest: CardDef = { id: 'vctest2', name: 'VC', tribe: 'dragon', tier: 4, attack: 4, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'g' + i }));
+    const r = simulate([...fodder, { cardId: 'vctest2', attack: 4, health: 200, sourceUid: 'VC' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, vctest2: vctest },
+      combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 })); // no handSpellIds
+    expect(r.playerHandGrants ?? []).toHaveLength(0);
+  });
+
+  it('set 2 — Ashen Broodlord: Avenge (4) improves your spells and narrates the gain', () => {
+    // Four friendly deaths with the Broodlord alive → a +1/+1 spell-power grant, carried back to the run.
+    // It must also NARRATE, since the combat replay drives both the flourish and the hand-spell cue off that.
+    const abtest: CardDef = { id: 'abtest', name: 'AB', tribe: 'dragon', tier: 5, attack: 6, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeBuffSpellPower', params: { count: 4, attack: 1, health: 1 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'f' + i }));
+    const r = simulate([...fodder, { cardId: 'abtest', attack: 6, health: 200, sourceUid: 'AB' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, abtest },
+      combatSide({ tier: 5, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    expect(r.playerSpellPower).toMatchObject({ attack: 1, health: 1 }); // carried back to the run
+    expect(r.events.some((e) => e.type === 'sc' && /Spell Power$/.test(e.text ?? ''))).toBe(true);
+  });
+
+  // Gemheart Carver's Shard is a 1/1 PLUS the Rubies on the Carver — from the shop AND from mid-combat
+  // (owner 2026-07-24). It used to summon nothing at all with no Rubies, and to copy only the shop Rubies.
+  const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }], text: '' };
+  /** The Gemheart Golem the Carver's Echo summoned, if any. */
+  const shardOf = (r: { events: CombatEvent[] }) =>
+    r.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'gemheart-shard' ? [e.minion] : []))[0];
+
+  it('set 2 — Gemheart Carver: Echo summons a 1/1 Shard EVEN WITH NO RUBIES on it', () => {
+    const r = simulate([{ cardId: 'ghtest', attack: 5, health: 1, sourceUid: 'GH' }], // no Ruby buff at all
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, ghtest },
+      combatSide({ tier: 4, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    const shard = shardOf(r);
+    expect(shard).toBeDefined(); // it used to bail out and summon nothing
+    expect([shard!.attack, shard!.health]).toEqual([1, 1]);
+  });
+
+  it('set 2 — Gemheart Carver: the Shard is 1/1 PLUS its shop Rubies', () => {
     const r = simulate([{ cardId: 'ghtest', attack: 5, health: 1, sourceUid: 'GH', buffs: [{ source: 'Ruby', attack: 3, health: 3, count: 3 }] }],
       [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, ghtest },
       combatSide({ tier: 4, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    expect(r.events.some((e) => e.type === 'summon')).toBe(true); // the Echo summoned the Gem Shard
+    const shard = shardOf(r);
+    expect([shard!.attack, shard!.health]).toEqual([4, 4]); // 1/1 base + 3/3 of Rubies (was 3/3)
   });
 
-  it('set 2 — Deepdelve Paragon: Rubies give 3× stats in combat (adds 2× the Ruby buff)', () => {
-    const dptest: CardDef = { id: 'dptest', name: 'DP', tribe: 'kobold', tier: 6, attack: 4, health: 100, keywords: ['SC'],
-      effects: [{ on: 'startOfCombat', do: 'scTripleRubyStats' }], text: '' };
+  it('set 2 — Gemheart Carver: Rubies played DURING combat count toward the Shard', () => {
+    // A Start-of-Combat "play N Rubies on your minions" source puts 3 Rubies (1/1 each, no rubyBonus) onto the
+    // Carver mid-fight. Those are plain `ctx.buff`s, so they were invisible to an Echo reading only `buffs`.
+    const gifter: CardDef = { id: 'ghgift', name: 'GIFT', tribe: 'kobold', tier: 5, attack: 1, health: 100, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scPlayRubies', params: { count: 3 } }], text: '' };
+    const r = simulate([
+      { cardId: 'ghgift', attack: 1, health: 100, sourceUid: 'GIFT' },
+      { cardId: 'ghtest', attack: 5, health: 1, sourceUid: 'GH' }, // dies; no SHOP Rubies
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, ghtest, ghgift: gifter },
+      combatSide({ tier: 5, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    const shard = shardOf(r);
+    expect(shard).toBeDefined();
+    expect([shard!.attack, shard!.health]).toEqual([4, 4]); // 1/1 base + 3 Rubies played in combat
+  });
+
+  // Deepdelve Paragon, final spec 2026-07-25 (owner): it does exactly one thing — Rubies APPLIED DURING
+  // COMBAT are worth double (triple Gilded). No Start-of-Combat step, and Rubies already on the board are
+  // untouched. Both of those were wrong in the previous version, so both are pinned below.
+  const dptest: CardDef = { id: 'dptest', name: 'DP', tribe: 'kobold', tier: 6, attack: 4, health: 100, keywords: [],
+    effects: [{ on: 'passive', do: 'rubyStatMultiplier' }], text: '' };
+  const gdmid: CardDef = { id: 'gdmid', name: 'GD', tribe: 'kobold', tier: 2, attack: 2, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };
+  const nbmid: CardDef = { id: 'nbmid', name: 'NB', tribe: 'kobold', tier: 1, attack: 1, health: 100, keywords: [], effects: [], text: '' };
+
+  it('set 2 — Deepdelve Paragon doubles a Ruby applied MID-COMBAT', () => {
+    const fight = (paragon: boolean, golden = false) => simulate(
+      [
+        ...(paragon ? [{ cardId: 'dptest', attack: 4, health: 100, sourceUid: 'DP', golden }] : []),
+        { cardId: 'gdmid', attack: 2, health: 1, sourceUid: 'GD' },
+        { cardId: 'nbmid', attack: 1, health: 100, sourceUid: 'NB' },
+      ] as never,
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, dptest, gdmid, nbmid },
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    const best = (r: ReturnType<typeof simulate>) =>
+      Math.max(...(r.events.filter((e) => e.type === 'buff') as { attack: number }[]).map((b) => b.attack));
+    const plain = best(fight(false));
+    expect(best(fight(true)), 'with a Paragon out the in-combat Ruby is worth double').toBe(plain * 2);
+    expect(best(fight(true, true)), 'Gilded → triple').toBe(plain * 3);
+  });
+
+  it('set 2 — Deepdelve Paragon does NOTHING to Rubies already on the board', () => {
+    // The behaviour the owner corrected: no Start-of-Combat top-up, no touching existing Ruby stats.
+    // Precise assertion: other systems buff during a fight, so what matters is that NONE of the buffs on the
+    // Ruby carrier are SOURCED from the Paragon. That's exactly the old Start-of-Combat top-up this removed.
     const r = simulate([
       { cardId: 'dptest', attack: 4, health: 100, sourceUid: 'DP' },
       { cardId: 'sandbag', attack: 5, health: 100, sourceUid: 'M', buffs: [{ source: 'Ruby', attack: 2, health: 2, count: 2 }] },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, dptest },
       combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    // Deepdelve adds 2× the +2/+2 Ruby buff → a +4/+4 Start-of-Combat buff.
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+    const fromParagon = (r.events.filter((e) => e.type === 'buff') as { source?: string }[])
+      .filter((b) => b.source === 'm0');
+    expect(fromParagon, 'the Paragon grants nothing itself — it only scales Rubies as they land').toEqual([]);
   });
 
   it('set 2 — Geode Guardian: on death, plays a Ruby on each adjacent minion (carry-back)', () => {

@@ -27,6 +27,22 @@ export interface CardPlateConfig {
   bucketM: number;
   bucketL: number;
   bucketXl: number;
+  /* GOLDEN plate tint — the filter that recolours a gilded card's stone plate to gold. Composed into
+     `--plate-gold-tone` (see applyCardPlateVars). Dial these five to taste; the CSS fallback in styles.css
+     must mirror the composed default. */
+  goldSepia: number;
+  goldSat: number;
+  goldBright: number;
+  goldContrast: number;
+  /** Hue rotation, degrees. POSITIVE = toward yellow-gold, NEGATIVE = toward orange-red. */
+  goldHue: number;
+  /** Tribe-name label position on a tribe-plate's bottom gem — fraction DOWN the plate height. 1 = very
+   *  bottom. Only affects tribe-plated cards (see `.plate-tribe`). */
+  tribeNameY: number;
+  /** Tribe-name label — horizontal offset from the plate centre (× --ccw; + = right). */
+  tribeNameX: number;
+  /** Tribe-name label — font size (× --ccw). */
+  tribeNameSize: number;
 }
 
 const DEFAULTS: CardPlateConfig = {
@@ -39,6 +55,14 @@ const DEFAULTS: CardPlateConfig = {
   bucketM: 89,
   bucketL: 90,
   bucketXl: 150,
+  goldSepia: 0,
+  goldSat: 2.6,
+  goldBright: 1.13,
+  goldContrast: 0.95,
+  goldHue: 3,
+  tribeNameY: 1.015,
+  tribeNameX: 0,
+  tribeNameSize: 0.072,
 };
 
 /** Font-size buckets, LARGEST first. `id` is appended to a `.plate-txt-` class on the card. */
@@ -58,6 +82,14 @@ export const PLATE_RANGES: Record<keyof CardPlateConfig, [number, number, number
   bucketM: [20, 140, 1],
   bucketL: [40, 200, 1],
   bucketXl: [60, 280, 1],
+  goldSepia: [0, 1, 0.02],
+  goldSat: [1, 6, 0.05],
+  goldBright: [0.7, 1.5, 0.01],
+  goldContrast: [0.7, 1.5, 0.01],
+  goldHue: [-40, 60, 1],
+  tribeNameY: [0.7, 1.05, 0.005],
+  tribeNameX: [-0.5, 0.5, 0.005],
+  tribeNameSize: [0.02, 0.12, 0.002],
 };
 
 export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
@@ -71,6 +103,14 @@ export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
     'on screen — see bucketM.',
   bucketXl: 'Character count at which rules text steps down to the SMALLEST font size. NOT live on cards ' +
     'already on screen — see bucketM.',
+  goldSepia: 'Golden plate tint — sepia amount. Higher = warmer/more uniform gold base.',
+  goldSat: 'Golden plate tint — saturation. Higher = more vibrant.',
+  goldBright: 'Golden plate tint — brightness.',
+  goldContrast: 'Golden plate tint — contrast.',
+  goldHue: 'Golden plate tint — hue rotation (deg). POSITIVE = toward yellow-gold, NEGATIVE = toward orange-red.',
+  tribeNameY: 'Tribe-name label — how far DOWN a tribe plate it sits (fraction; 1 = the very bottom gem).',
+  tribeNameX: 'Tribe-name label — horizontal offset from centre (× card width; + = right).',
+  tribeNameSize: 'Tribe-name label — font size (× card width).',
 };
 
 export const PLATE_KEYS = Object.keys(DEFAULTS) as (keyof CardPlateConfig)[];
@@ -117,6 +157,14 @@ export function applyCardPlateVars(): void {
   root.setProperty('--plate-scale', String(cfg.scale));
   root.setProperty('--plate-top', `${cfg.top}px`);
   root.setProperty('--plate-radius', `${cfg.radius}px`);
+  root.setProperty(
+    '--plate-gold-tone',
+    `sepia(${cfg.goldSepia}) saturate(${cfg.goldSat}) brightness(${cfg.goldBright}) ` +
+      `contrast(${cfg.goldContrast}) hue-rotate(${cfg.goldHue}deg)`,
+  );
+  root.setProperty('--plate-tribe-yf', String(cfg.tribeNameY));
+  root.setProperty('--plate-tribe-xf', String(cfg.tribeNameX));
+  root.setProperty('--plate-tribe-sf', String(cfg.tribeNameSize));
 }
 
 export function setCardPlateValue(key: keyof CardPlateConfig, value: number): void {

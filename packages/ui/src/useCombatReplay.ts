@@ -3,12 +3,15 @@ import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
+import { fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
+import { useGame } from './store'; // `useGame.getState()` — read the live hand for the mid-combat spell/Ruby buff cue
 import { pixiFx } from './pixiFx';
 import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
-import { attackerOfImpact, meleePairOfImpact } from './combatBeats';
+import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -84,6 +87,8 @@ export interface UnitFrame {
 /** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
  *  beats and the memoized Unit can skip re-rendering them (a fresh `[]` each render would defeat it). */
 const EMPTY_FLOATS: Float[] = [];
+// Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
+const EMPTY_GRANTS: string[] = [];
 
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
@@ -106,6 +111,58 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
   const e = buffs.find((b) => b.source === source);
   if (e) { e.attack += attack; e.health += health; e.count += 1; }
   else buffs.push({ source, attack, health, count: 1 });
+}
+
+/**
+ * Each buff target's PRE-buff displayed stats for one beat: its post-beat value minus everything the beat granted
+ * it. The badge holds this until the tendril lands, so the number ticks up when the FX says it should.
+ *
+ * Pure so it can be tested directly — the bug it fixes (paint the new value, snap back, tick up again) was a
+ * TIMING mistake around this arithmetic, not the arithmetic itself, and a regression here is silent on screen.
+ * Sums the WHOLE beat per target: a target can take an incoming tendril and a self-buff in the same beat, and
+ * subtracting only one leaves the badge on a number that was never real.
+ */
+export function preBuffHolds(
+  beat: { start: number; end: number },
+  events: CombatEvent[],
+  frame: { player: UnitFrame[]; enemy: UnitFrame[] },
+): Map<string, { atk: number; hp: number }> {
+  const totals = new Map<string, { atk: number; hp: number }>();
+  for (let i = beat.start; i < beat.end; i++) {
+    const e = events[i];
+    if (!e || e.type !== 'buff') continue;
+    const t = totals.get(e.target) ?? { atk: 0, hp: 0 };
+    totals.set(e.target, { atk: t.atk + e.attack, hp: t.hp + e.health });
+  }
+  const out = new Map<string, { atk: number; hp: number }>();
+  for (const [uid, t] of totals) {
+    if (t.atk === 0 && t.hp === 0) continue;
+    const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
+    if (!u) continue; // not on the board this frame → nothing to hold
+    out.set(uid, { atk: u.attack - t.atk, hp: u.health - t.hp });
+  }
+  return out;
+}
+
+/**
+ * The cardIds a combat has put in the player's hand as of `beatIdx` — every `toHand` through the beat that
+ * is CURRENTLY ON SCREEN. The recruit hand stays the pre-combat hand until `resolveCombat`, so the combat
+ * view appends these and the hand grows as the cards arrive.
+ *
+ * **`beatIdx` is the beat about to play; the one on screen is `beats[beatIdx - 1]`** (see the scheduler's
+ * `shown`/`next` split, and `processedEnd` — the same index the live frame folds through). Everything here
+ * hangs off that: the card must materialise on the beat whose effect granted it, in lockstep with that
+ * unit's trigger-medallion pulse, which is derived from the same `beats[beatIdx - 1]` window.
+ *
+ * Slicing one beat further (`beats[beatIdx].end`) puts the card in hand a beat BEFORE its own pulse. With two
+ * Avenge granters that desynchronises the whole read — the pulses and the coalesces stop pairing up, which is
+ * exactly what the owner reported on 2026-07-27. Don't "fix" a late-looking grant by widening this window; if
+ * a card seems to arrive only after combat, check first that the effect emits a `toHand` event at all (a
+ * DEFERRED economy Battlecry did not, until `replayCombatBattlecry` began announcing named grants).
+ */
+export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): string[] {
+  const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
+  return events.slice(0, through).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
 }
 
 /**
@@ -594,6 +651,9 @@ export function useCombatReplay(
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
+  // Per-uid clear timers for that pulse. In a ref, not the effect's cleanup, so a hold outlives the beat that
+  // started it — see the trigger effect for what cancelling them on every beat cost.
+  const pulseTimersRef = useRef<Map<string, number>>(new Map());
   // uid → a monotonic nonce, bumped on EACH Rally fire. The nonce is used as a React `key` on the medallion
   // (see Card) so it REMOUNTS every fire and the gold pulse animation restarts — a rally unit's own Rally also
   // sets the normal trigger pulse, so `.pulsing` never leaves the element between swings and a plain class
@@ -643,6 +703,9 @@ export function useCombatReplay(
     setBeatIdx(0);
     setFloats([]);
     setDeathFloats([]);
+    // …and drop the pulse holds with it, or a timer from the last fight clears a uid mid-pulse in this one.
+    for (const t of pulseTimersRef.current.values()) window.clearTimeout(t);
+    pulseTimersRef.current.clear();
     setTriggers(new Set());
     setRallyPulse(new Map());
     setFinished(false);
@@ -650,6 +713,12 @@ export function useCombatReplay(
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
     setProjectiles([]);
     setShake(0);
+    // …and drop the shake FLAGS with the counters. The shake effects bail on `!shake`, so zeroing the counter
+    // cancelled their 300ms clear (effect cleanup) and then early-returned — leaving `.shaking` latched on
+    // into the next fight. Only reachable when a fight starts within 300ms of a shake (a Skip), but it is the
+    // same cleanup-cancels-the-clear defect as #735 / #736.
+    setShaking(false);
+    setCritShaking(false);
     setHandGrant(null);
     setStatHold(new Map());
     setStatFlash(new Map());
@@ -698,8 +767,10 @@ export function useCombatReplay(
     for (const [target, { atk: sumAtk, hp: sumHp, strikeMs }] of perTarget) {
       const tgt = unitOf(target);
       if (!tgt) continue;
-      const held = { atk: tgt.attack - sumAtk, hp: tgt.health - sumHp };
-      setStatHold((m) => new Map(m).set(target, held));
+      // The HOLD is installed pre-paint by the layout effect below — deliberately NOT here. Setting it from
+      // this post-paint effect meant the browser painted the already-buffed number for one frame, then the
+      // hold snapped it back to the pre-buff value, then the strike released it again: the "stat goes up,
+      // down, then up with the tendrils" the owner filmed (2026-07-25). This path now owns only the RELEASE.
       const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
       timers.push(window.setTimeout(() => {
         setStatHold((m) => { const n = new Map(m); n.delete(target); return n; });
@@ -729,9 +800,8 @@ export function useCombatReplay(
       pixiFx.pulse(cx, cy, cfg);
 
       const tgt = unitOf(s.uid);
-      if (!tgt) continue; // no frame entry → fall back to normal display (no negative held value)
-      const held = { atk: tgt.attack - s.attack, hp: tgt.health - s.health };
-      setStatHold((m) => new Map(m).set(s.uid, held));
+      if (!tgt) continue; // no frame entry → nothing to release
+      // Hold installed pre-paint by the layout effect below (see the note in `fireBuffCasts`); release only.
       const holdMs = cfg.holdMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
       timers.push(window.setTimeout(() => {
         setStatHold((m) => { const n = new Map(m); n.delete(s.uid); return n; });
@@ -864,6 +934,33 @@ export function useCombatReplay(
       const { cx, cy, h } = layoutRectOf(el); // SLOT — the source can be mid-lunge when its spell power rises
       pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
       floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
+      // …and pop the held SPELLS, whose printed values just moved. Without this the cards themselves only
+      // reacted at combat RESOLUTION (owner report): the hand-card cue is driven by a diff of the rendered live
+      // text, and run state doesn't change until settle — so mid-fight there is nothing for that diff to see.
+      // Firing from the narration beat puts it on the moment the gain actually happens.
+      fireSpellBuffOnHandSpells(useGame.getState().run.hand);
+    }
+    // RUBY POWER gained mid-combat (owner ask 2026-07-24) — Veinbreaker's Avenge and friends. `gainRubyBonus`
+    // used to accumulate silently and only surface at settle, so there was nothing to hang a cue on at the
+    // moment it fired; it now emits the same `sc` narration shape spell power does, which is what this reads.
+    // Player-side gating is identical and for the same reason: `sc` carries no `side`, so an enemy source would
+    // otherwise draw the flourish on the opponent's half of the board.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'sc' || !e.source || !e.text) continue;
+      const m = /^\+(-?\d+)\/\+(-?\d+) Ruby Power$/.exec(e.text);
+      if (!m) continue;
+      const gA = Number(m[1]), gH = Number(m[2]);
+      if (gA <= 0 && gH <= 0) continue;
+      if (!playerUids.has(e.source)) continue;
+      const el = findEl(e.source);
+      if (!el) continue;
+      const { cx, cy, h } = layoutRectOf(el);
+      pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
+      floatRubyPowerNumber(cx, cy - h * 0.3, gA, gH);
+      // …and pop the held Rubies themselves, so the player sees WHICH cards the gain lands on. The spell-buff
+      // bus is callable from here precisely because it no longer lives in Recruit's state.
+      fireSpellBuffOnHandRubies(useGame.getState().run.hand);
     }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
     // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a
@@ -888,12 +985,26 @@ export function useCombatReplay(
       if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
     }
     setTriggers((prev) => new Set([...prev, ...trig]));
-    const t = window.setTimeout(() => setTriggers((prev) => {
-      const next = new Set(prev);
-      for (const uid of trig) next.delete(uid);
-      return next;
-    }), 1150);
-    return () => window.clearTimeout(t);
+    /* The ~1150ms hold is PER UID and must outlive the beat. This used to be one timeout cancelled by the
+       effect's own cleanup, which was invisible only while every beat ran longer than the hold: the moment
+       `toHand` dropped to 410 (×1.5 ≈ 615ms) the beat advanced first, the cleanup killed the pending clear,
+       and the uid was never removed from the set. A unit that had pulsed once stayed flagged forever, so its
+       next trigger couldn't toggle the class off→on and simply did not animate — the owner's "the effect icon
+       doesn't pulse every time" (the Avenge counter, driven separately, kept firing). Keyed timers in a ref
+       survive the beat change; a re-trigger inside the window restarts its own hold. */
+    for (const uid of trig) {
+      const prevT = pulseTimersRef.current.get(uid);
+      if (prevT !== undefined) window.clearTimeout(prevT);
+      pulseTimersRef.current.set(uid, window.setTimeout(() => {
+        pulseTimersRef.current.delete(uid);
+        setTriggers((prev) => {
+          if (!prev.has(uid)) return prev;
+          const next = new Set(prev);
+          next.delete(uid);
+          return next;
+        });
+      }, 1150));
+    }
   }, [active, beatIdx, beats, events, cardIds]);
 
   // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
@@ -1251,6 +1362,30 @@ export function useCombatReplay(
   );
   frameRef.current = frame;
 
+  // ── Buff stat HOLDS, installed BEFORE the browser paints this beat ────────────────────────────────────
+  //
+  // `frame` already includes the buffs of the beat now being cued (`processedEnd` = the previous beat's end),
+  // because the FX for a beat plays while the frame shows that beat's outcome. The display is meant to lag —
+  // a buffed badge holds its PRE-buff number until the tendril lands, then ticks up. That hold used to be
+  // installed from the post-paint cue effect, which meant every buff painted three times: the new value for
+  // one frame, then the hold snapping back to the old value, then the release ticking up again. That is the
+  // "attack goes up, then down, then up when the tendrils come out" the owner filmed (2026-07-25).
+  //
+  // A LAYOUT effect commits the hold in the same paint as the frame advance, so the intermediate value is
+  // never shown. Cheap by construction — arithmetic over one beat's buff events, no DOM measurement — so it
+  // doesn't put layout work on the beat boundary. The FX path (`fireBuffCasts` / `fireSelfBuffs`) still owns
+  // the RELEASE, which is what has to be timed to the animation.
+  //
+  // Rebuilt wholesale each beat rather than merged, which also means a hold whose release timer was lost
+  // (a skip, a speed change mid-flight) can never outlive its beat and freeze a badge.
+  useLayoutEffect(() => {
+    if (!active || beatIdx === 0) { setStatHold((m) => (m.size ? new Map() : m)); return; }
+    const beat = beats[beatIdx - 1];
+    if (!beat) return;
+    const next = preBuffHolds(beat, events, frame);
+    setStatHold((m) => (m.size === 0 && next.size === 0 ? m : next));
+  }, [active, beatIdx, beats, events, frame]);
+
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.
   const enemyDeaths = useMemo(() => {
@@ -1394,13 +1529,19 @@ export function useCombatReplay(
     [events, names],
   );
   const procs = useMemo(() => procReport(events, names), [events, names]);
-  // Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire) that have already
-  // "landed" — every `toHand` before the current beat. The recruit hand stays the pre-combat hand until
-  // `resolveCombat`, so the combat view appends these so the hand visibly grows as cards arrive.
-  const handGrantsShown = useMemo(() => {
-    const before = beats[beatIdx]?.start ?? events.length;
-    return events.slice(0, before).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
-  }, [beatIdx, beats, events]);
+  /* Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire, a Deathrattle's Patch Job) —
+     see `grantsShownThrough` for the beat window and why it is the beat ON SCREEN.
+
+     Gated on `active`, which is false through the shop-closing intro. The hook persists across fights and
+     `beatIdx` is reset in an effect, so on the first commit of a new combat it still holds the PREVIOUS
+     fight's value — usually past the new `beats` array, where the `?? events.length` fallback means "the
+     replay is done" and hands back EVERY grant at once. That painted the whole fight's grants into the hand
+     for one frame the instant you pressed Start Combat, coalesce and all, before the reset wiped them (owner
+     clip 2026-07-27). `active` only turns true after the intro, by which point the reset has landed. */
+  const handGrantsShown = useMemo(
+    () => (active ? grantsShownThrough(events, beats, beatIdx) : EMPTY_GRANTS),
+    [active, beatIdx, beats, events],
+  );
 
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,

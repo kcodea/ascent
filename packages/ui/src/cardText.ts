@@ -115,6 +115,49 @@ export function ascendProgressText(cardId: string, ascendProgress: number): stri
  * lands at THIS turn's End of Turn (eotTick is one shy of a multiple), so it reads "End of this turn."
  * instead of a count. Returns null for non-cadence cards so callers fall back to the printed text.
  */
+/**
+ * Roaring Matriarch alternates WHICH stat it pumps every turn (Attack on its first turn, then Health, …). The
+ * card-text rule is absolute here: a card that alternates must never print the stat it isn't currently giving,
+ * so this rewrites "+N Attack" to the live stat AND appends what's coming next turn.
+ *
+ * The phase mirrors `alternateModeOf` in the sim (even tick = Attack). Both read `eotTick`, so a change to the
+ * cadence can't leave the text and the effect disagreeing.
+ */
+export function alternatingBuffText(cardId: string, eotTick: number, golden = false): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onBattlecryBuffTribeAlternating');
+  if (!def || !eff) return null;
+  const amount = Number((eff.params as { amount?: number })?.amount ?? 2) * (golden ? 2 : 1);
+  const health = (eotTick % 2) !== 0;
+  const now = health ? 'Health' : 'Attack';
+  const next = health ? 'Attack' : 'Health';
+  const base = golden ? (def.goldenText ?? def.text) : def.text;
+  return base
+    .replace(/\*\*\+\d+ Attack\*\*/, `{{+${amount} ${now}}}`)
+    .replace(/This alternates every turn\./, `{{+${amount} ${next} next turn.}}`);
+}
+
+/**
+ * Groveweaver's summon grant GROWS with every spell cast while it's on board (`summonBonus`), but its printed
+ * "+2/+4" never moved — so the card advertised its base rate forever (owner report 2026-07-25). Fold the live
+ * value in, the same way `summonBuffText` does for the Start-of-Combat auras.
+ *
+ * Deliberately shaped as its own helper rather than folded into `summonBuffText`: that one injects into an
+ * Attack-only or symmetric "+N/+N", while this grant is ASYMMETRIC (+2/+4) and each stat picks up the bonus.
+ */
+export function asymSummonBuffText(cardId: string, summonBonus: number, golden = false): string | null {
+  if (summonBonus <= 0) return null; // at base the printed text is already accurate
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'summonBuffTribeAsym');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; health?: number } | undefined;
+  const g = golden ? 2 : 1;
+  const a = (Number(p?.attack ?? 2) + summonBonus) * g;
+  const h = (Number(p?.health ?? 4) + summonBonus) * g;
+  const base = golden ? (def.goldenText ?? def.text) : def.text;
+  return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
+}
+
 export function cadenceProgressText(cardId: string, eotTick: number): string | null {
   const def = CARD_INDEX[cardId];
   // Any "every N turns" End-of-Turn effect: Frontdrake's Dragon conjure or Money Maker's card grant.
@@ -535,12 +578,26 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; shoutTick?: number; grimoireCharged?: boolean },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
   const n = (v: unknown, d: number): number => (typeof v === 'number' ? v : d);
   const cyc = (v: number, total: number): StepProgress => ({ current: v <= 0 ? 0 : ((v - 1) % total) + 1, total });
+
+  // Living Grimoire: the Shout meter toward its next charge (owner ask 2026-07-24 — 0/3 once SPENT, counting up
+  // to 3). While CHARGED there is no counter at all (owner correction: a 3/3 read as a meter you still had to
+  // fill, when in fact the card was ready) — the meter appears only once the charge is used, which is exactly
+  // when it carries information.
+  //
+  // Because the counter now UNMOUNTS on recharge rather than landing on `total`, it can't drive Card's built-in
+  // step-proc burst; the "ready again" flourish is fired separately in `Card` off the counter disappearing.
+  const rearm = def.effects.find((e) => e.do === 'onBattlecryRearmGrimoire');
+  if (rearm) {
+    if (p.grimoireCharged) return null; // charged = ready = nothing to show
+    const total = Math.max(1, n((rearm.params as { every?: number })?.every, 3));
+    return { current: Math.min(p.shoutTick ?? 0, total), total };
+  }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
   const monk = def.effects.find((e) => e.do === 'overflowBuffRandom');
@@ -581,4 +638,40 @@ export function stepProgress(
   if (pup) { const at = Math.max(1, n((pup.params as { at?: number })?.at, 10)); return { current: Math.min(p.spellProgress ?? 0, at), total: at }; }
   if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }
   return null;
+}
+
+/**
+ * Mage-Pup: its Shout casts whatever spell Moonhowl Mentor TAUGHT it, so the printed line must name that
+ * spell's actual rule rather than the placeholder "cast the spell this was taught" — which tells the player
+ * nothing about what clicking it will do (owner 2026-07-24). The spell id rides on the instance
+ * (`taughtSpellId`), so this can only resolve for a real Pup in hand / on the board; an untaught token (or a
+ * Compendium preview, which has no instance) falls back to the printed text.
+ *
+ * `spellText` is the taught spell's OWN live text, passed in already resolved — the Pup inherits the spell's
+ * scaling (spell power, per-turn escalation, …) rather than restating a stale base, per the live-text rule.
+ */
+export function taughtSpellText(cardId: string, taughtSpellId: string | undefined, spellText: string): string | null {
+  if (cardId !== 'b2_magepup' || !taughtSpellId) return null;
+  const spell = CARD_INDEX[taughtSpellId];
+  if (!spell?.spell) return null;
+  // Name the spell as well as its rule: the name is how the player recognises what they bought, and the rule
+  // is what it does. Mirrors how the shop reads a spell.
+  return `**Shout:** cast **${spell.name}** — ${spellText}`;
+}
+
+/**
+ * Sunmane Herald: a rally carrier grants its printed base PLUS everything it has accumulated, so the printed
+ * "+3" understates it the moment the buff has spread. Prints what this body will actually grant next, green via
+ * `{{…}}` once it exceeds the base — the live-text rule applied to a value that lives on the combat instance.
+ *
+ * Returns null in the shop (nothing accumulated yet), so that falls back to the printed text.
+ */
+export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'rallySpreadTribeBuff');
+  if (!eff || !rallySpreadAtk) return null;
+  const base = ((eff.params as { attack?: number } | undefined)?.attack ?? 3) * (golden ? 2 : 1);
+  const grant = base + rallySpreadAtk; // what the next rally attack actually hands out
+  const src = golden ? (def!.goldenText ?? def!.text) : def!.text;
+  return src.replace(`+${base} Attack`, `{{+${grant} Attack}}`);
 }

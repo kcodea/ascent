@@ -86,16 +86,22 @@ describe('recruitBuffFx capture (source → target)', () => {
     // Pennycat's Battlecry summons a Stray (a Beast) — it never buffs Dragons, so Karwind's +2/+2 to `dragon` is
     // the ONLY thing touching it. That isolates the reaction's source.
     const pennycat: BoardCard = { uid: 'pc', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
-    const s: RunState = { ...createRun(1), board: [karwind, dragon, pennycat] };
+    // A SECOND Dragon, deliberately not adjacent to Karwind, so this also pins the 2026-07-25 adjacency rule:
+    // neighbours get +4/+4 INSTEAD of the base +2/+2.
+    const farDragon: BoardCard = { uid: 'far', cardId: 'frontdrake', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false };
+    const s: RunState = { ...createRun(1), board: [karwind, dragon, pennycat, farDragon] };
 
-    playCard(s, pennycat); // a Battlecry fires → Karwind reacts, buffing your Dragons +2/+2
+    playCard(s, pennycat); // a Battlecry fires → Karwind reacts
 
     const drFx = s.recruitBuffFx.filter((e) => e.targetUid === 'dr');
     expect(drFx.length).toBe(1);              // one reaction event, no duplicate
     expect(drFx[0]!.sourceUid).toBe('kw');    // Karwind, not the played Pennycat
     expect(drFx[0]!.sourceCardId).toBe('karwind');
-    expect(drFx[0]!.attack).toBe(2);
-    expect(drFx[0]!.health).toBe(2);
+    expect(drFx[0]!.attack, 'adjacent to Karwind → the bigger grant').toBe(4);
+    expect(drFx[0]!.health).toBe(4);
+    const farFx = s.recruitBuffFx.filter((e) => e.targetUid === 'far');
+    expect(farFx[0]!.attack, 'not adjacent → the base grant').toBe(2);
+    expect(farFx[0]!.health).toBe(2);
     // The played minion never gets attributed the Dragon's gain.
     expect(s.recruitBuffFx.some((e) => e.sourceUid === 'pc')).toBe(false);
   });

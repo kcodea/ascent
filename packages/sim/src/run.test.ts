@@ -276,13 +276,38 @@ describe('run loop (@game/sim)', () => {
       embers: 10,
     };
     s = reduce(s, { type: 'play', uid: 'n1' }); // Nimbus battlecry arms the charge
-    expect(s.nextSpellMult).toBe(2);
+    expect(s.nextSpellExtraCasts).toBe(1); // +1 extra cast (was a x2 multiplier)
     s = reduce(s, { type: 'play', uid: 'g1' }); // cast Growth (+1/+1) — doubled to +2/+2
     const m = s.board.find((c) => c.uid === 'm1')!;
     expect([m.attack, m.health]).toEqual([2 + 2, 3 + 2]); // two casts of +1/+1
-    expect(s.nextSpellMult).toBeUndefined(); // charge spent
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // charge spent
   });
 
+  it('Nimbus + Drakko: each Battlecry FIRE banks its own extra cast (owner 2026-07-24)', () => {
+    // The point of making the charge additive. Drakko fires Battlecries one extra time; Nimbus used to SET a
+    // multiplier, so the second fire re-set the same value and Drakko did nothing for it.
+    let s: RunState = {
+      ...createRun(1), tier: 6, embers: 20,
+      board: [
+        { uid: 'd1', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'm1', cardId: 'stray', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false },
+      ],
+      hand: [
+        { uid: 'n1', cardId: 'nimbus', tribe: 'neutral', attack: 4, health: 3, keywords: [], golden: false },
+        { uid: 'g1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'n1' });
+    expect(s.nextSpellExtraCasts).toBe(2); // Drakko → the Battlecry fires twice → +1 each
+
+    const before = s.board.find((c) => c.uid === 'm1')!;
+    const [a0, h0] = [before.attack, before.health];
+    s = reduce(s, { type: 'play', uid: 'g1' }); // Growth: +1/+1 per cast
+    const after = s.board.find((c) => c.uid === 'm1')!;
+    // 1 base cast + 2 banked = 3 resolutions of +1/+1.
+    expect([after.attack - a0, after.health - h0]).toEqual([3, 3]);
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // the whole charge is spent by one spell
+  });
 
   it('Wayfinder: Battlecry discovers from an active tribe you do not control', () => {
     let s: RunState = {
@@ -582,7 +607,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true);
   });
 
-  it('Spark Plug: casting gives your entire board +5/+5 twice (+10/+10)', () => {
+  it('Waking Rift: casting gives your entire board +5/+5 twice (+10/+10)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
@@ -679,8 +704,9 @@ describe('run loop (@game/sim)', () => {
 
   it("a Kennelmaster triple folds its accrued Avenge bonus into the golden's summon bonus", () => {
     // Kennelmaster's Beast buff is now a Start-of-Combat aura (+(1 + summonBonus)/+(same)); the recruit
-    // triple still carries the accrual, so the golden's summonBonus = base (1) + the two highest copies'
-    // bonuses. Three copies (bonuses 2 / 1 / 0) → golden summonBonus 1 + 2 + 1 = 4.
+    // triple still carries the accrual, so the golden's summonBonus = base + the two highest copies'
+    // bonuses. Three copies (bonuses 2 / 1 / 0) → golden summonBonus 2 + 2 + 1 = 5.
+    // Kennelmaster rebalance 2026-07-25 (owner): base +2 Attack, and each Avenge improves by +2 as well.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [
@@ -746,8 +772,8 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('tripling a Kennelmaster combines its accrued Avenge buffs', () => {
-    // Two Kennelmasters at +6/+6 (summonBonus 5) and +4/+4 (summonBonus 3) + a fresh one →
-    // the golden's buff is the combined +10/+10 (summonBonus 9 = base 1 + top-two 5 + 3).
+    // Two Kennelmasters at summonBonus 5 and 3 + a fresh one → the golden folds the two highest
+    // (summonBonus 10 = base 2 + top-two 5 + 3).
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -759,7 +785,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
     const golden = s.hand.find((c) => c.cardId === 'kennel' && c.golden);
-    expect(golden?.summonBonus).toBe(10); // base 2 + (5 + 3) → grants +12 Attack
+    expect(golden?.summonBonus).toBe(10); // base 2 + (5 + 3)
   });
 
   it("tripling a Flowing Monk combines the two highest copies' CURRENT grants into the golden's start", () => {
@@ -1577,29 +1603,29 @@ describe('run loop (@game/sim)', () => {
   it('Nimbus doubles a Discover-spell: Tribe Portal under a Nimbus charge opens two Discovers', () => {
     let s: RunState = {
       ...createRun(1), tier: 4, embers: 0, shop: [],
-      nextSpellMult: 2, // a Nimbus charge is active
+      nextSpellExtraCasts: 1, // a Nimbus charge is active (+1 cast)
       board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }], // gives Tribe Portal a dominant type
       hand: [{ uid: 'tp', cardId: 'tribeportal', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'tp' });
     expect(s.discover).toBeDefined(); // first Discover opens
     expect(s.discoverQueue?.length ?? 0).toBe(1); // the 2nd is queued (Nimbus doubled the cast)
-    expect(s.nextSpellMult).toBeUndefined(); // charge spent
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // charge spent
   });
 
   it('Nimbus charge PERSISTS through combat — survives faceOmen + resolveCombat, spent only on the next hand spell', () => {
     let s: RunState = {
       ...createRun(1), resolve: 100, maxResolve: 100,
-      nextSpellMult: 2, // armed by Nimbus this turn; NO spell cast yet
+      nextSpellExtraCasts: 1, // armed by Nimbus this turn; NO spell cast yet
       board: [{ uid: 'w', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
       hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.nextSpellMult).toBe(2); // still armed after a full combat — the per-turn resets never touch it
+    expect(s.nextSpellExtraCasts).toBe(1); // +1 extra cast (was a x2 multiplier) // still armed after a full combat — the per-turn resets never touch it
     const before = s.board.find((c) => c.uid === 'w')!.attack;
     s = reduce(s, { type: 'play', uid: 'g' }); // cast Growth from hand next turn
-    expect(s.nextSpellMult).toBeUndefined(); // NOW the charge is spent
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // NOW the charge is spent
     expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(before + 2); // doubled: Growth +1 Attack × 2 casts
   });
 
@@ -2223,7 +2249,7 @@ describe('run loop (@game/sim)', () => {
     expect(bought.keywords).toContain('T');
   });
 
-  it('Front to Back improves every OTHER cast (+2/+2, +2/+2, then +4/+4, …)', () => {
+  it('Front to Back improves EACH cast (+2/+2, then +4/+4, then +6/+6, …)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [oneNeutral('m', { attack: 0, health: 1 })],
@@ -2232,32 +2258,32 @@ describe('run loop (@game/sim)', () => {
         { uid: 's2', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' }); // cast 1 → +2/+2, no improve yet
-    expect(s.frontToBackBonus).toBe(0);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2, 3]);
-    s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' }); // cast 2 → still +2/+2, THEN improves to +4/+4
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' }); // cast 1 → +2/+2, THEN improves to +4/+4
     expect(s.frontToBackBonus).toBe(2);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 5]); // 2/3 + 2/2
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2, 3]);
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' }); // cast 2 → +4/+4, THEN improves to +6/+6
+    expect(s.frontToBackBonus).toBe(4);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 7]); // 2/3 + 4/4
   });
 
   it('Front to Back adds spell power to both the grant AND the escalation step (owner 2026-07-09)', () => {
     // Rohan's amplify is +1 at wave 1 → first cast is +(step 2 + escalation 0 + power 1) = +3/+3.
     const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
-    expect(s.frontToBackBonus).toBe(0); // improves only every OTHER cast — after one cast, no step yet
+    expect(s.frontToBackBonus).toBe(3); // improves EACH cast → after one cast the step (2 + power 1) has landed
     // The grant (slot 0) scales with escalation + spell power; the improvement (slot 1) now ALSO folds in spell power.
-    expect(spellDisplayText('fronttoback', 0, 0)).toBe('Give a minion **+2/+2**. Improve this by **+2/+2** every other cast.'); // base — no boost
+    expect(spellDisplayText('fronttoback', 0, 0)).toBe('Give a minion **+2/+2**. Improve this by **+2/+2** each cast.'); // base — no boost
     // +1 spell power, no escalation: grant 2+0+1=3 green; improve step 2+1=3 green.
-    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **{{+3/+3}}** every other cast.');
+    expect(spellDisplayText('fronttoback', 1, 0)).toBe('Give a minion **{{+3/+3}}**. Improve this by **{{+3/+3}}** each cast.');
     // Escalated (+2) AND +1 power: grant 2+2+1=5 green; improve step 2+1=3 green.
-    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **{{+3/+3}}** every other cast.');
+    expect(spellDisplayText('fronttoback', 1, 2)).toBe('Give a minion **{{+5/+5}}**. Improve this by **{{+3/+3}}** each cast.');
     // Escalated only (+4), no power: grant 2+4=6 green; improve stays +2/+2 (no spell power).
-    expect(spellDisplayText('fronttoback', 0, 4)).toBe('Give a minion **{{+6/+6}}**. Improve this by **+2/+2** every other cast.');
+    expect(spellDisplayText('fronttoback', 0, 4)).toBe('Give a minion **{{+6/+6}}**. Improve this by **+2/+2** each cast.');
   });
 
-  it('Front to Back: two casts with spell power — improves only after the 2nd cast', () => {
-    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3 (no improve — cast 1 is odd).
-    // Cast 2: still +(2+0+1)=+3/+3, THEN the step grows by 2+1=3. So the target ends at 3/3 + 3/3 = 6/6.
+  it('Front to Back: two casts with spell power — improves each cast', () => {
+    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3, THEN the step grows by 2+1=3.
+    // Cast 2: +(2 + escalation 3 + power 1)=+6/+6. So the target ends at 3/3 + 6/6 = 9/9.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], heroId: 'rohan',
       board: [oneNeutral('m', { attack: 0, health: 0 })],
@@ -2269,12 +2295,12 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' });
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // +3/+3
     s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' });
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 6]); // 3/3 + 3/3 (improves only after the 2nd cast)
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]); // 3/3 + 6/6 (escalated each cast)
   });
 
   it('Front to Back scales Attack and Health INDEPENDENTLY (owner 2026-07-09)', () => {
     // ASYMMETRIC spell power +0/+2 (Cinderwing-style). Cast 1: a = 2+0+0 = 2, h = 2+0+2 = 4 → +2/+4;
-    // the steps grow independently (Attack +2, Health +4).
+    // the steps grow independently (Attack +2, Health +4) EACH cast.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], spellBonus: { attack: 0, health: 2 },
       board: [oneNeutral('m', { attack: 0, health: 0 })],
@@ -2285,13 +2311,13 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 'm' });
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2, 4]);
-    expect([s.frontToBackBonus, s.frontToBackBonusH]).toEqual([0, 0]); // no improve after the 1st (odd) cast
-    // Cast 2: still a = 2+0+0 = 2, h = 2+0+2 = 4 → +2/+4, THEN the steps grow independently (+2 / +4). Target 2/4 + 2/4 = 4/8.
+    expect([s.frontToBackBonus, s.frontToBackBonusH]).toEqual([2, 4]); // the independent steps land each cast
+    // Cast 2: a = 2 + esc 2 + 0 = 4, h = 2 + esc 4 + 2 = 8 → +4/+8. Target 2/4 + 4/8 = 6/12.
     s = reduce(s, { type: 'play', uid: 's2', targetUid: 'm' });
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 8]);
-    expect([s.frontToBackBonus, s.frontToBackBonusH]).toEqual([2, 4]); // now the independent steps land
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([6, 12]);
+    expect([s.frontToBackBonus, s.frontToBackBonusH]).toEqual([4, 8]); // the independent steps keep landing
     // Live text with +0/+2 spell power: grant + improvement both green to +2/+4.
-    expect(spellDisplayText('fronttoback', 0, 0, 2, 0, 0)).toBe('Give a minion **{{+2/+4}}**. Improve this by **{{+2/+4}}** every other cast.');
+    expect(spellDisplayText('fronttoback', 0, 0, 2, 0, 0)).toBe('Give a minion **{{+2/+4}}**. Improve this by **{{+2/+4}}** each cast.');
   });
 
   it('Mana Font raises max Mana permanently but does NOT refill current Mana', () => {
@@ -4341,6 +4367,25 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(card.buffs?.some((b) => b.source === 'Engraved' && b.attack === 5 && b.health === 5)).toBe(true);
   });
 
+  it('a combat RUBY carries back labelled "Ruby", not "Flowing Monk"', () => {
+    // Owner report 2026-07-25: Ruby stats gained in combat showed on the run board attributed to Flowing Monk,
+    // a card that need not even be in the run — because before Set 2 the only non-Engraved permaGain WAS the
+    // Monk's gift. The label also matters mechanically: Deepdelve Paragon finds Rubies by that exact source.
+    let s: RunState = {
+      ...createRun(1), phase: 'combat', combatSettled: false,
+      board: [{ uid: 'k', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      lastCombat: {
+        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+        initial: { player: [], enemy: [] },
+        playerPermaBuffs: [{ sourceUid: 'k', attack: 3, health: 3, engraved: false, ruby: true }],
+      },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    const card = s.board.find((c) => c.uid === 'k')!;
+    expect(card.buffs?.some((b) => b.source === 'Ruby' && b.attack === 3)).toBe(true);
+    expect(card.buffs?.some((b) => b.source === 'Flowing Monk')).toBe(false);
+  });
+
   it('Flowing Monk gift (engraved: false) still labels the carry-back "Flowing Monk"', () => {
     // Regression guard: a non-EG carrier that received Flowing Monk's overflow gift carries back labelled
     // "Flowing Monk", exactly as before the refactor (the `engraved` flag steers only the label).
@@ -5965,11 +6010,11 @@ describe('Rulebreaker quests — dupes, spell doubling, compound objective, cost
       ...createRun(1), tier: 6, phase: 'recruit', embers: 20,
       board: [mk('d1', 'feed', 'demon'), mk('d2', 'feed', 'demon')],
       hand: [mk('imp', 'implosion', 'neutral')],
-      nextSpellMult: 2,
+      nextSpellExtraCasts: 1,
     };
     s = reduce(s, { type: 'play', uid: 'imp' });
     expect(s.impBuff).toEqual({ attack: 12, health: 12 }); // 6 casts × +2/+2
-    expect(s.nextSpellMult).toBeUndefined(); // Nimbus charge spent
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // Nimbus charge spent
 
     // Spell Thesis: the reducer consumes the freebie once (the read-only spellCasts no longer does).
     let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, spellFirstDoubleEachTurn: true, board: [mk('d1', 'feed', 'demon')], hand: [mk('g', 'emberpouch', 'neutral')] };

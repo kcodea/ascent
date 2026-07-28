@@ -81,18 +81,72 @@ describe('card sets — set 2 carries set 1 spells', () => {
       if (DROPPED.includes(id)) expect(s2.has(id), `${id} should be dropped from set 2`).toBe(false);
       else expect(s2.has(id), `${id} should carry into set 2`).toBe(true);
     }
-    // ...and every set-2 spell is EITHER carried from set 1 or one of set 2's own Ruby spells (no leaks).
-    const SET2_OWN_SPELLS = ['rubyshipment', 'facetwright', 'openthegates', 'veinstorm'];
+    // ...and every set-2 spell is EITHER carried from set 1 or one of set 2's OWN spells (no leaks). This list
+    // is deliberately explicit: adding a set-2 spell should have to be declared here, so a card that leaks in
+    // from the wrong file is caught rather than silently absorbed.
+    const SET2_OWN_SPELLS = [
+      'rubyshipment', 'facetwright', 'openthegates', 'veinstorm',
+      // The Ales (owner batch 2026-07-25, renamed 2026-07-26) — a set-2-only cycle of five Tier-3 spells.
+      'wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack',
+    ];
     for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });
 
-  it('a Discover in a set-2 run pulls only Kobolds (+ neutral), never a set-1 minion', () => {
-    // The pool a Discover draws from is poolOf(run).buyable ∩ the run's tribes. A set-2 run's tribes are
-    // Kobold-only, and set 2's buyable pool is Kobolds only — so no set-1 minion can ever surface.
+  it('set 2 carries the owner roster of set-1 NEUTRALS, at their set-1 stats', () => {
+    // Owner roster 2026-07-25, opted in UNCHANGED (owner decision): the table listed different tier/stats for
+    // seven of them, but these are shared definitions and re-speccing would have rebalanced set 1 too.
+    const ROSTER = [
+      'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
+      'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'taurus', 'yazzus', 'lazarus',
+      'jenkins', 'uron', 'salvatore', 'zyff',
+    ];
+    const all = new Set(poolFor('set2').all.map((c) => c.id));
+    for (const id of ROSTER) expect(all.has(id), `${id} in set 2`).toBe(true);
+    // `lazarus` is a quest REWARD (token: true), so it is in the set but not shop-buyable — which matches the
+    // blank Source column it (and the Tier 7s) carry on the owner's table.
+    const buyable = new Set(poolFor('set2').buyable.map((c) => c.id));
+    expect(buyable.has('lazarus')).toBe(false);
+    expect(buyable.has('yazzus')).toBe(true);
+  });
+
+  it('carrying them over did NOT re-spec the set-1 cards', () => {
+    // The seven the owner's table listed differently must be untouched — the guard on the "opt in at current
+    // stats" decision, since a later edit here would silently rebalance set 1.
+    const spec = (id: string): string => { const c = CARD_INDEX[id]!; return `T${c.tier} ${c.attack}/${c.health}`; };
+    expect(spec('buddy')).toBe('T3 2/2');
+    expect(spec('nimbus')).toBe('T5 4/3');
+    expect(spec('ropewrangler')).toBe('T4 5/4');
+    expect(spec('yazzus')).toBe('T6 5/7');
+    expect(spec('lazarus')).toBe('T4 5/4');
+    expect(spec('zyff')).toBe('T7 6/6');
+    // And Nimbus keeps the "additional time" wording from the 2026-07-24 ruling (stacks with Drakko), not the
+    // older "casts twice" the roster table still carried.
+    expect(CARD_INDEX['nimbus']!.text).toMatch(/additional/);
+  });
+
+  it('a Discover in a set-2 run pulls only its own tribes + neutrals — never a set-1 TRIBAL minion', () => {
+    // The pool a Discover draws from is poolOf(run).buyable ∩ the run's tribes. Set 2 now carries NEUTRAL
+    // minions too (the owner's 2026-07-25 roster), so the old "Kobolds only" reading no longer holds — the real
+    // invariant is that no tribe OUTSIDE set 2's roster can surface. Undead / Mech / Demon are the set-1-only
+    // tribes, so their absence is what proves nothing leaked.
     const run: RunState = { ...createRun(6, 'warden'), setId: 'set2', tribes: ['kobold'] };
     const buyable = poolOf(run).buyable.filter((c) => c.tribe === 'neutral' || run.tribes.includes(c.tribe));
     expect(buyable.length).toBeGreaterThan(0);
-    expect(buyable.every((c) => c.tribe === 'kobold' || c.tribe2 === 'kobold')).toBe(true);
+    expect(buyable.every((c) => c.tribe === 'kobold' || c.tribe2 === 'kobold' || c.tribe === 'neutral')).toBe(true);
+    // The load-bearing half: the ONLY set-1 minions in set 2's pool are the ones its manifest explicitly opts
+    // in. Asserted by id rather than by tribe, because several set-2 cards legitimately carry a set-1 SECONDARY
+    // tribe (Gemgorge Fiend is Kobold/Demon, Ashen Broodlord is Dragon/Undead), so a tribe-based check would
+    // flag those as leaks.
+    const OPTED_IN = new Set([
+      'karwind',
+      'badgington', 'seaurchin', 'sporebat', 'manasaber', 'kennel', 'beetle',
+      'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
+      'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'taurus', 'yazzus', 'lazarus',
+      'jenkins', 'uron', 'salvatore', 'zyff',
+    ]);
+    const set1Ids = new Set(poolFor('set1').buyable.map((c) => c.id));
+    const leaked = poolFor('set2').buyable.filter((c) => set1Ids.has(c.id) && !OPTED_IN.has(c.id));
+    expect(leaked.map((c) => c.id)).toEqual([]);
   });
 });
 

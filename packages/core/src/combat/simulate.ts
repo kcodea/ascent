@@ -33,6 +33,12 @@ const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps 
  * UI can replay. Pure: depends only on its inputs and the seeded `rng`. Clones
  * every minion — shared CardDefs are never mutated.
  */
+/** Set 2 — does this combat minion count as `tribe`? Reads its snapshot tribes plus the CardDef's
+ *  `universalTribe` (Lab Experiment counts as every tribe), matching the tribe checks in the effect factories. */
+function isTribeOf(m: Minion, tribe: string, cards: Record<string, CardDef>): boolean {
+  return m.tribe === tribe || m.tribe2 === tribe || !!cards[m.cardId]?.universalTribe;
+}
+
 export function simulate(
   player: BoardMinion[],
   enemy: BoardMinion[],
@@ -85,9 +91,11 @@ export function simulate(
   // shieldUp / summon / …) is stamped `avenge:true`. try/finally guarantees the flag clears even if a handler
   // throws. The two call sites are the two friendly-death tallies (a true death, and a board-full Rise that
   // stays dead). Presentation-only tag; resolution is unchanged.
-  const emitAvenge = (side: Side, count: number): void => {
+  const emitAvenge = (side: Side, count: number, victim?: Minion): void => {
     inAvenge = true;
-    try { bus.emit('avenge', { side, count }); } finally { inAvenge = false; }
+    // `victim` is ADDITIVE: every existing Avenge consumer reads only side/count, so passing the dead body is
+    // free, and a watcher that cares WHAT died (Endless Overseer: only Imps) can now ask.
+    try { bus.emit('avenge', { side, count, victim }); } finally { inAvenge = false; }
   };
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
@@ -96,6 +104,7 @@ export function simulate(
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
   const rubyBonusGain = { attack: 0, health: 0 }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
+  const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
@@ -388,6 +397,9 @@ export function simulate(
     golden: m.golden,
     summonBonus: m.summonBonus,
     eotBonus: m.eotBonus,
+    chosenOption: m.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
+    rallySpreadAtk: m.rallySpreadAtk, // Sunmane: the live escalating rally value, for the card text
+    taughtSpellId: m.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: m.sellBonus,
     eotTick: m.eotTick,
     overflowBonus: m.overflowBonus,
@@ -430,6 +442,7 @@ export function simulate(
     enemySpellPower,
     spellPowerFor: (side) => (side === 'player' ? spellPower : enemySpellPower),
     rubyBonusFor: (side) => (side === 'player' ? playerState.rubyBonus : enemyState.rubyBonus),
+    leftmostHandSpellFor: (side) => (side === 'player' ? playerState.handSpellIds : enemyState.handSpellIds)?.[0],
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -562,12 +575,22 @@ export function simulate(
       rubyGrants.n += count;
       for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
     },
-    gainRubyBonus: (attack, health, side) => {
+    queueNextTurnSpellCopy: (count, side) => {
+      // Player-only (enemies have no run state to arm) — accumulated and carried back via
+      // `playerNextTurnSpellCopies`, applied to the run at settle.
+      if (side !== 'player' || count <= 0) return;
+      nextTurnSpellCopies.n += count;
+    },
+    gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
       // `playerRubyBonusGain`; grows held + future Rubies at settle).
       if (side !== 'player') return;
       rubyBonusGain.attack += attack;
       rubyBonusGain.health += health;
+      // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain, and so the
+      // UI has something to hang the Ruby Power FX on at the moment the Echo/Avenge fires rather than at settle.
+      // Same channel + text shape as `grantSpellPower` above, so the replay parses both the same way.
+      if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Ruby Power` });
     },
     grantCardBuff: (cardId, attack, health, side) => {
       // Player-only — accumulate per cardId and carry back via playerCardBuffs.
@@ -922,6 +945,10 @@ export function simulate(
     // Sylus (stacking) + Uron (best-copy) both live here now — resolved from card DATA rather than a
     // hardcoded id, so a new multiplier is a card field and not another branch in this function.
     bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+    // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
+    if (isTribeOf(minion, 'beast', cards)) {
+      bonus += minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0;
+    }
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
     bonus += mods.echoExtraAlways ?? 0;
     const first = mods.echoFirstEachCombat ?? 0;
@@ -997,7 +1024,7 @@ export function simulate(
         if (minion.side === 'enemy') enemyDeaths++;
         deaths[minion.side] += 1;
         if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
-        emitAvenge(minion.side, deaths[minion.side]);
+        emitAvenge(minion.side, deaths[minion.side], minion);
         return;
       }
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
@@ -1069,7 +1096,7 @@ export function simulate(
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
-    emitAvenge(minion.side, deaths[minion.side]);
+    emitAvenge(minion.side, deaths[minion.side], minion);
     // The Bone Throne: every N friendly deaths, trigger your leftmost living Echo (like Echoing Coop, but
     // paced by the death counter). Fires the leftmost minion that HAS a Deathrattle — its own doublers apply.
     const side = minion.side; // per-side quest/rune death effects — a served enemy runs its own
@@ -1233,8 +1260,13 @@ export function simulate(
       // watchers (Crypt Drake counts every ally swing). Only the former are "Rallies" — repeating the
       // latter would inflate a counter Uron has no business touching. Caught by a test that asserts
       // Crypt Drake's payout count is unchanged with Uron on board.
+      // Elderhorn (Hunt) adds extra fires for BEAST rallies only — tribe-scoped, unlike the board-wide
+      // card multipliers (Drakko/Uron) that `extraTriggerFires` reads.
+      const huntExtra = isTribeOf(attacker, 'beast', cards)
+        ? (attacker.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
+        : 0;
       const rallyExtra = attacker.keywords.includes('RL')
-        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id])
+        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]) + huntExtra
         : 0;
       for (let i = 0; i < rallyExtra; i++) {
         for (const effect of attacker.effects) {
@@ -1395,7 +1427,10 @@ export function simulate(
           bus.emit('onKill', { attacker: killer, victim: m });
           // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only. The KILL
           // count (`slaughter`) still counts one, but each re-trigger bumps the "Trigger N Slaughters" tally.
-          const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]);
+          const huntKill = isTribeOf(killer, 'beast', cards)
+            ? (killer.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
+            : 0; // Elderhorn (Hunt): Beast Slaughters fire extra
+          const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]) + huntKill;
           const killerHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
           for (let i = 0; i < killExtra; i++) {
             for (const effect of killer.effects) {
@@ -2031,12 +2066,22 @@ export function simulate(
   // carry-back, which the reducer applies regardless.
   const playerPermaBuffs = boards.player
     .filter((m) => m.sourceUid !== undefined && m.permaGain && (m.permaGain.attack > 0 || m.permaGain.health > 0))
-    .map((m) => ({
-      sourceUid: m.sourceUid!,
-      attack: m.permaGain!.attack,
-      health: m.permaGain!.health,
-      engraved: m.keywords.includes('EG'),
-    }));
+    .flatMap((m) => {
+      // Split the permanent gain into its RUBY share and the rest, so each carries its own label. Before this
+      // every non-Engraved permaGain was attributed to Flowing Monk, which made a combat Ruby show up on the
+      // run board as a Flowing Monk gift (owner report 2026-07-25).
+      const ruby = m.permaRuby ?? { attack: 0, health: 0 };
+      const restA = m.permaGain!.attack - ruby.attack;
+      const restH = m.permaGain!.health - ruby.health;
+      const out: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[] = [];
+      if (ruby.attack > 0 || ruby.health > 0) {
+        out.push({ sourceUid: m.sourceUid!, attack: ruby.attack, health: ruby.health, engraved: false, ruby: true });
+      }
+      if (restA > 0 || restH > 0) {
+        out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') });
+      }
+      return out;
+    });
 
   return {
     events,
@@ -2064,6 +2109,7 @@ export function simulate(
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
+    playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.attack > 0 || rubyBonusGain.health > 0) ? { ...rubyBonusGain } : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,

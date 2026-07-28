@@ -1,5 +1,2825 @@
 # ASCENT — development log
 
+
+
+## 2026-07-27 (stuck-cue timer audit)
+
+### fix(ui): audit every cleanup-cancelled cue timer — four stuck cues
+
+Follow-up to the two medallion-pulse bugs (#735, #736). Both were the same shape: a transient cue sets state,
+schedules a `setTimeout` to clear it, and returns `() => clearTimeout(t)` — so the effect's own **cleanup
+cancels the clear** whenever a dependency changes. If the effect then early-returns on its guard, nothing
+reschedules and the cue **latches on**. Swept all 11 such sites in `packages/ui`.
+
+**The reason this is common here:** the reducer `structuredClone`s state on every dispatch
+(`packages/sim/src/reducer.ts`). Every state array/object therefore gets a **fresh identity on every action**,
+so any effect with one in its deps re-runs on *every dispatch* — not just when its own data changed.
+
+**Fixed (4):**
+
+- **Karwind flame flash** (`Recruit`) — the confirmed case. Deps include `run.karwindFlash`, so per the clone
+  above the effect re-ran on every dispatch; the seq guard early-returned and the flames stayed lit until the
+  next Karwind proc. Any action within 520 ms of the flash triggered it, which is most of them.
+- **Hero-power refresh flash** (`StatusBar`) — `flashSignal` going true→false inside the hold cancelled the
+  clear, and the rising-edge guard then early-returns. The flash stayed lit permanently.
+- **Effective-HP hit float** (`StatusBar`) — HP moving again inside the 1100 ms hold (armor gained, Resolve
+  healed) cancelled the clear and took the `now < prev` branch out of play, parking the −X on the chip.
+- **Screen shake / crit shake** (`useCombatReplay`) — the fresh-combat reset zeroed `shake` but not `shaking`;
+  the effects bail on `!shake`, so the reset cancelled their clear and latched `.shaking` into the next fight.
+  Reachable when a fight starts within 300 ms of a shake (a Skip). Fixed by clearing the flags with the counters.
+
+All three cue fixes use the same ref-held-timer idiom as #735/#736, so the codebase has one recognisable shape
+for "a hold that must outlive its effect".
+
+**Examined and deliberately left alone (7)** — the cancellation is correct in each:
+
+- `Card.popin` — deps `[popin]`, and `popin` only changes when the timer itself fires. Nothing else can cancel it.
+- The **beat clock** and the **final hold** (`useCombatReplay`) — these *drive* the replay rather than clearing a
+  cue, and every re-run reschedules unconditionally. Cancelling is the point.
+- The **turn-charge fade** (`Recruit`) — deps `[lit, mounted]`; a `lit` flip inside the fade is explicitly
+  handled by the branch above it.
+- The **1s timer tick** (`Recruit`) — self-rescheduling clock.
+- The **delayed `syncShields` re-measure** (`Recruit`) — a cancelled pass leaves no state set, and the
+  synchronous `syncShields()` at the top of the effect runs every render anyway. A missed correction, not a
+  latch. (Left as-is; noted in case aura placement is ever reported askew after a fast render burst.)
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green. These are
+timing latches under specific interleavings, so the checks prove no regression rather than proving the fix —
+the reasoning above is the evidence, and each was traced to a concrete trigger.
+
+## 2026-07-27 (the errant reorder pulse)
+
+### feat(ui): the hand glides when its card count changes in the shop
+
+**Owner ask:** extend the "make room" slide from the in-combat coalesce to the shop — buying or playing a card
+changes the hand count, and the other cards blinked to their new slots.
+
+Same motion, same duration source (`getFlipConfig().commitMs`), reusing the hand's existing GSAP Flip glide
+rather than a second mechanism: the hand's fan rotation and translateY tuck live *in* its transform, and a
+manual x-tween wipes both — which is why the reorder path already uses Flip. The reorder branch is untouched;
+this is a fallback for a composition change that no drag-reorder claimed.
+
+**The capture timing is the whole trick.** `handCompFlipRef` is re-captured on **every commit** (a second layout
+effect declared *after* the glide, so within one commit the glide reads the previous frame's capture and the
+recapture then overwrites it). Capturing only on hand changes would have been cheaper but wrong mid-drag: the
+hand is already sliding to make room via `handSlidePx`, so animating from a state taken before the drag began
+rewinds those cards to their resting spots and re-glides them — a visible snap back. One frame back is the true
+previous position in every case, drag or not.
+
+Entering cards aren't in the captured state, so Flip leaves them alone and `playBuySlide` still owns the bought
+card's motion. Skipped entirely in combat, where the hand is frozen and the grant previews have their own
+capture (`handGrowFlipRef`).
+
+**Perf:** this is a per-commit `Flip.getState` over at most `CONFIG.handMax` cards — the same class of work the
+warband/tavern row already does every commit, and it no-ops in combat. Wrapped in
+`perfMonitor.measure('layout:handflip')` so it shows up by name if it ever matters rather than hiding inside a
+generic frame cost.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green. Feel
+still wants an eyeball — automated checks can't see a rewind.
+
+### fix(ui): a Shout minion stops re-pulsing when you shuffle cards past it
+
+**Owner report:** Shout minions occasionally fire their medallion pulse again while you reorder cards around
+them on the warband. Asked whether the combat medallion fix (#735) covered it — it did not: that one lives in
+`useCombatReplay` and only runs during a fight. But it is the **same defect**, in the recruit-side twin.
+
+Two facts combine:
+
+1. The battlecry flourish's 760 ms clear was a single `setTimeout` **cancelled by its own effect's cleanup**,
+   and the effect's deps are `[run.board, inCombat]`. Any board change inside that window — a buff writing a
+   new array, a sell, a reorder — killed the clear, and the minion stayed in `battlecryUids` **forever**. The
+   watcher itself is uid-diffed and correct; nothing re-fires it. The flag just never comes off.
+2. A stuck flag means the medallion keeps its `.pulsing` class. React moving a keyed child on a reorder
+   re-inserts that DOM node, and **re-inserting an element restarts its CSS animations**. So a long-dead
+   Battlecry flashed again every time the row shuffled it past a neighbour.
+
+That also explains "occasionally": it needs a board change within 760 ms of the Shout to arm it, and then a
+reorder that actually moves that node to show it.
+
+Fixed the same way as #735 — **per-uid timers in a ref**, so a hold outlives the effect's next run and a
+re-trigger restarts its own. Also dropped on the way into combat, since the flourish belongs to the shop and a
+timer crossing the phase would clear a uid the next recruit phase had legitimately re-flagged.
+
+**Follow-up, not fixed here (scope):** the Karwind flame flash (`karwindFlashSeq`) has the same shape — it
+early-returns when the seq is unchanged, but the cleanup still cancels its 520 ms clear on any dep change, so
+`karwindFlameUids` can stick. Worth its own pass, along with a sweep for other `return () => clearTimeout`
+cues whose deps change faster than their hold.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+## 2026-07-27 (combat hand-grants materialise where they land)
+
+### fix(ui): the medallion pulse survives a short beat + no grant flash at Start Combat
+
+Two defects the faster pacing exposed.
+
+**1. The effect icon stopped pulsing every time.** (Owner: the Avenge *counter* still pulsed — that is a
+separate cue — but the medallion did not.) The ~1150 ms pulse hold was a single `setTimeout` cancelled by its
+own effect's cleanup, which was harmless only while every beat ran LONGER than the hold. The moment `toHand`
+dropped to 410 (×1.5 ≈ 615 ms) the beat advanced first, the cleanup killed the pending clear, and the uid was
+never removed from `triggers`. A unit that had pulsed once stayed flagged forever, so its next trigger could
+not toggle the class off→on and simply did not animate.
+
+The holds are now **per-uid timers in a ref**, so a hold outlives the beat that started it and a re-trigger
+restarts its own. Cleared on a fresh combat, or a timer from the last fight would cut a pulse short in this
+one. This bug was latent in every beat type shorter than 1150 ms — the pacing change only made it obvious.
+
+**2. A full hand of cards flashed and faded the instant you pressed Start Combat.** (Owner clip.) The replay
+hook persists across fights and `beatIdx` is reset in an *effect*, so on the first commit of a new combat it
+still holds the previous fight's value — usually past the new `beats` array, where `grantsShownThrough`'s
+`?? events.length` fallback means "the replay is done" and returns EVERY grant at once. That painted the whole
+fight's grants into the hand for one frame, coalesce and all, until the reset wiped them.
+
+`handGrantsShown` is now gated on the replay's `active` flag, which is false through the shop-closing intro
+and only turns true once the reset has landed.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green — run
+with the worktree pinned (see the note below).
+
+*Process note: the shell's working directory silently reverted to the primary checkout mid-session twice, and
+a gate run reported green against old `main`. The tell was the test count DROPPING while code was only added.
+Every gate run now prints `pwd` + branch first.*
+
+### tweak(ui): grant beats play twice as fast
+
+**Owner 2026-07-27:** the spacing between an effect pulse, its coalesce, and the next effect pulse should be
+50% faster.
+
+That spacing is one number: `choreoConfig`'s **`toHand`** beat delay, **820 → 410**. `holdMs` computes a
+moment's hold from the NEXT moment's type, and `toHand` is deliberately *not* in `OVERLAP_INTO` (a grant gets
+its own read rather than riding the preceding FX), so this single delay governs both the gap *into* the first
+grant beat and the gap *between* consecutive ones. Two Avenge granters now read pulse→coalesce,
+pulse→coalesce at twice the pace.
+
+At `speed` 1.5 that is ~615 ms per grant beat (was ~1230), which still leaves a clear read for the
+materialise. The coalesce FX itself is untouched — it has its own duration and is not derived from the beat.
+
+Nothing else moves: only `toHand` changed, and the End-of-Turn sequence runs on its own `BEAT`/`GAP` in
+`Recruit.endTurn` (the owner confirmed that pacing is already right).
+
+Pacing has no live tuner by design — an accidental slider nudge used to persist silently and skew every future
+combat — so this is a committed change to `DEFAULTS`, which is the intended way to retune.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### fix(ui): grants land in lockstep with their pulse again (correcting my own regression)
+
+**Owner:** "both avenge pulses occur and THEN coalesce 1 and 2 occur." Correct, and I caused it.
+
+Earlier this session I widened `handGrantsShown` from `beats[beatIdx].start` to `beats[beatIdx].end`,
+reasoning that slicing to `start` excluded the granting beat. **That reasoning was wrong.** `beatIdx` is the
+beat *about to play* — the moment on screen is `beats[beatIdx - 1]` (the scheduler's own `shown`/`next` split;
+`processedEnd`, which the live frame folds through, is `beats[beatIdx - 1].end`). Moments are contiguous, so
+`beats[beatIdx].start === beats[beatIdx - 1].end`: the original slice already meant "through the beat on
+screen" and was right all along.
+
+Widening it by one beat put every granted card in hand BEFORE its own trigger-medallion pulse — and that pulse
+is derived from the same `beats[beatIdx - 1]` window. With a single grant that just looks slightly eager; with
+two Avenge granters it desynchronises the whole read, which is what the owner saw.
+
+Restored to the on-screen beat, written as `beats[beatIdx - 1].end` so the invariant is explicit rather than
+resting on contiguity, with the off-by-one documented at the function and a warning not to widen it again.
+
+**The thing I misdiagnosed:** the original "the card only coalesces after combat" report was NOT a windowing
+problem. It was the deferred Battlecry emitting no `toHand` event at all during the fight — fixed properly in
+the `fix(core)` entry above. The window change was a second, wrong fix layered on the first.
+
+Tests updated to pin the off-by-one from both sides: a Deathrattle grant is in hand when its beat is on screen
+and **not** a beat sooner; a final-beat grant is empty at `beats.length - 1` and present at `beats.length`;
+and neither Avenge card's grant appears before its own beat is the one showing.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### test(ui): lock the one-at-a-time ordering for multiple Avenge grants
+
+**Owner spec 2026-07-27:** two Avenge cards that each grant a card should read like the End-of-Turn beats —
+card 1 (left to right) pulses, its card coalesces, THEN card 2 pulses and its card coalesces.
+
+Checked against the real pipeline before changing anything, and it already behaves that way. Two Arcane
+Weavers (Avenge 2) proccing off the same pair of deaths produce two `toHand` events that `compileMoments`
+gives **separate single-event moments** — `toHand` is in neither the collapse nor the collapse-runs set, so
+consecutive grants can never fold into one beat. Each carries its own `source` (`m2`, then `m3`), which is
+what drives the proc pulse, so beat order is board order. The `toHand` moment holds **820 ms**
+(`choreoConfig`), so the two are plainly sequential rather than a smear. And `grantsShownThrough` returns one
+card at the first beat and two at the second, so the hand grows a card at a time and the coalesces cannot
+fire together.
+
+No production change — a test now pins all four properties (two separate beats, consecutive, sourced in board
+order, one card added per beat) against **both** presentation transforms in the hook's own order
+(`deferAvengeAfterSummons(deferClashBuffs(...))`), so a future grouping-rule change can't silently collapse
+them.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### fix(core): a deferred Battlecry's named card is announced during the fight
+
+**Owner:** "Field Mechanic's Shout is adding a Patch Job to hand — paired with Ryme's Deathrattle that should
+add a Patch Job if the Mechanic is still alive and next to it when Ryme dies. This qualifies for the coalesce."
+
+Correct, and it *does* grant — I was wrong to say that pairing grants nothing. Tracing the real event log:
+Ryme's Deathrattle fires, `sc` logs **"Ryme triggers Field Mechanic's Battlecry"**, and then… nothing. The
+reason is `replayCombatBattlecry`: `battlecryGrantSpell` isn't in `COMBAT_REPLAYABLE_BATTLECRIES`, so it falls
+to the `economy` branch and is recorded in `playerDeferredBattlecries`. `settleCombat` re-fires it through the
+real recruit factory, which is where the Patch Job actually lands. Nothing is lost — but there was **no event
+during the fight**, so the replay had nothing to animate and the arrival FX only played once combat was over.
+
+The economy branch now logs a `toHand` for a deferred grant that names its card:
+
+- **Presentation only** — `ctx.log` directly, NOT `ctx.grantToHand`, so the card isn't granted twice. The
+  deferral stays the single source of truth for what you receive. (Same split `simulate.ts` already uses for a
+  quest `rewardCardId`: announce without pushing.)
+- Count mirrors the recruit factory's `count * golden`, so a golden Mechanic announces both Patch Jobs.
+- **Only `battlecryGrantSpell`**, because it names its card in params. A random grant
+  (`battlecryGainRandomMinion`, the Discover fallbacks) can't be announced without rolling the pick here, and
+  rolling it would move the rng so the replay would stop matching the settle.
+
+Downstream this needed no UI work — the existing pipeline picks it up: the card materialises in hand on the
+Deathrattle beat, respects the hand cap, and `grantPlayedRef` suppresses the settle-side duplicate.
+
+**Verified:** a new test pins that the Patch Job is announced exactly once, *after* the death and at/after the
+trigger, and that `playerHandGrants` stays undefined while `playerDeferredBattlecries` still carries the
+Mechanic — i.e. announced, not double-granted. `typecheck` clean, `lint` 0 errors, **1784 tests** / 108 files
+green (no golden/determinism replay broke on the added event), `build:web` green.
+
+*Ownership note: `packages/core/src/effects/factories.ts` is Kevin's side — flagged for review alongside the
+`EotStepFx` field.*
+
+### fix(ui): hand-grant previews respect the 10-card hand cap
+
+**Owner report:** the in-combat coalesce would push the hand past its 10-card limit during the replay, then
+snap back down to 10 once combat ended.
+
+The previews were rendering the whole grant list, but the sim only *keeps* grants while there is room —
+`settleCombat` and the End-of-Turn commit both walk the grant list in order and drop everything past
+`CONFIG.handMax`. So the replay was promising cards that were never going to be yours.
+
+`handPreviews` now slices to `CONFIG.handMax - run.hand.length` — the same first-N rule the reducer uses, so
+the cards that materialise are exactly the ones that survive the commit. A hand that is already full has zero
+room, which means it shows nothing and coalesces nothing for the rest of the round, as the owner asked. The
+real hand can't change mid-combat or mid-End-of-Turn (grants land at `settleCombat` / `faceOmen`), so the room
+figure is stable across the whole beat sequence.
+
+Applies to both preview sources, since they share the one list.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1783 tests** / 108 files green, `build:web` green.
+
+### fix(ui): a combat grant materialises ON the beat that procs it, and the hand makes room
+
+Two follow-ups from the owner on the same session's work.
+
+**1. Combat grants were still only coalescing after the fight.** `handGrantsShown` sliced the event log to the
+current beat's **`start`** — i.e. strictly *before* it — so the beat that actually emitted the `toHand` was
+excluded. Two consequences: every grant appeared a beat late, and a grant on the **last** beat (the common
+shape — the final minion dies, its Deathrattle fires, the fight is over) never appeared during the replay at
+all, leaving the settle-time materialise as its only announcement. That is exactly what the owner was seeing.
+
+~~Now it slices through the beat's **`end`**~~ — **superseded, see the correction entry above: this was
+wrong.** `beatIdx` is the beat about to play, so `start` already meant "through the beat on screen"; widening
+it put grants a beat ahead of their pulse. The rule is extracted as **`grantsShownThrough(events, beats, beatIdx)`** and covered by
+two tests: a real Scrap Vendor Deathrattle is shown ON its beat and *not* on the one before it, and a grant on
+the final beat is shown during the replay. Both fail under the old `start` slice.
+
+Diagnosed headlessly rather than by eye — `simulate` + `compileMoments` in a throwaway probe printed the event
+log with beat boundaries, which is what located the off-by-one-beat. Worth noting for next time: the owner's
+example (Ryme's Deathrattle replaying an adjacent **Field Mechanic**) turns out to grant *nothing* — the combat
+sim's battlecry replay casts economy battlecries instead of granting, so that pairing emits no `toHand` and no
+`playerHandGrants` at all.
+
+**2. The mid-screen "To your hand" flyer is retired.** With the card now materialising in hand at the instant
+of the proc, the flyer showed a *second* copy of the same card, at the same moment, in the middle of the
+screen — the duplicate announcement this whole thread was about. `replay.handGrant` and the `.handgrant` CSS
+are deliberately kept, so restoring it is putting the render block back. *(Judgement call — flagged.)*
+
+**3. The hand glides to make room.** A coalescing card was appended to the row and every card already in hand
+snapped to its new slot. The row's layout is now captured on the commit *before* a grant lands and replayed
+with **GSAP Flip** — not the warband/shop manual x-tween, because hand cards carry their fan rotation and
+translateY tuck *in* their transform and a bare x-tween wipes both (the same reason the reorder glide next to
+it uses Flip). The End-of-Turn path captures at its own call site, where it knows a grant is coming; the combat
+path re-captures each beat, one commit ahead. Duration comes from `getFlipConfig().commitMs`, so it matches
+the warband's "make room" feel and stays tunable.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1783 tests** / 108 files green, `build:web` green.
+
+### feat(ui/sim): End-of-Turn grants arrive on their own beat, not all at once
+
+**Owner ask:** with two End-of-Turn cards that each add a card to hand, every pulse fired first and *then*
+the whole batch of cards appeared at once. Wanted: card A pulses → card A's grant coalesces → card B pulses →
+card B's grant coalesces.
+
+The cause is structural. The recruit screen plays the End-of-Turn beats itself (`endTurn` in `Recruit.tsx`,
+one beat per card × repeat), but the *effects* only resolve when `faceOmen` commits — a single dispatch after
+the last beat. So the hand could not grow until every pulse was already over. The stat climb had solved this
+years-equivalent ago by projecting per-proc snapshots; grants just weren't part of the projection.
+
+- **`packages/sim`** — `EotStepFx` gains **`handGrants: string[]`**, the cardIds a beat put in hand, diffed
+  off the projection clone's hand per beat (`projectEndOfTurnSteps`). cardIds rather than uids: the clone's
+  uids aren't the ones `faceOmen` will mint. Additive; nothing else in the shape changed.
+- **`packages/ui`** — the beat loop appends `bfx.handGrants` to `eotGrants` as each beat fires, and those
+  render as preview cards after the real hand. The coalesce watcher (see the fix above) then materialises
+  each one *on the beat that produced it*, and records it in `grantPlayedRef` so the real card doesn't
+  materialise a second time when `faceOmen` commits. Previews are dropped in the same commit as the
+  `faceOmen` dispatch so the hand never briefly doubles.
+- The in-combat and End-of-Turn preview paths are now **one list** (`handPreviews`) behind one watcher —
+  they can't overlap (End-of-Turn is `recruit`, cleared as the phase flips) and both want identical
+  behaviour, so one `plated` render site and one materialise rule serves both.
+
+**Verified:** two new sim tests — grants are attributed one-per-beat across two Hoard Whelps rather than all
+landing on the last beat, **and the projection's grants match what `reduce(faceOmen)` actually puts in hand**
+(same clone, same rng state), plus a beat that grants nothing carries an empty list. Full suite **1781
+tests** / 108 files green, `typecheck` clean, `lint` 0 errors, `build:web` green.
+
+*Ownership note: `packages/sim/src/recruit.ts` is Kevin's side of the map — the change is one additive field
+on a projection type that exists purely to feed recruit-screen FX, flagged for review.*
+
+### fix(ui): a card granted mid-combat coalesces in the hand, not in the middle of the screen
+
+**Owner report:** granting a card during a fight played the arcane coalesce *centre screen*, the card then
+"warped" into the hand a beat later, and finally blinked out and back in as the combat ended — three separate
+arrivals for one card.
+
+All three were the same design mistake plus one stale hand-off:
+
+- The in-combat watcher materialised the **mid-screen "To your hand" flyer** (`.handgrant .card`, a ruling
+  from #671). The flyer is a labelled announcement pinned at 50%/46% — coalescing *it* put the effect nowhere
+  near where the card actually arrives, and the hand-row copy (`handGrantsShown`, which appears one beat
+  later) then just popped in cold. That's the "coalesce in the middle, then warp to hand".
+- The settle-side suppression was **one dispatch too late**. `grantPlayedRef` → `coalesceSkipRef` was built at
+  the **combat → recruit phase flip**, but combat grants reach the real `run.hand` at `settleCombat` — which
+  fires while the phase is still `'combat'`. So the generic coalesce watcher saw a brand-new hand uid, found
+  an empty skip set, and materialised the card a *third* time. That's the "disappears and reappears when
+  combat ends".
+- The preview card rendered **unplated** while the committed hand card renders `plated`, so even the swap
+  itself read as a flicker.
+
+**The fix**, per the owner's ask — the coalesce should look exactly like a shop-phase conjure:
+
+- The in-combat watcher now keys on **`replay.handGrantsShown`** and materialises the card **in the hand row**,
+  measuring `.cardplate` and calling `playPlateCoalesce` on the same element the player will keep. Preview
+  grants are the only cards in `.row.hand` with no `data-uid`, which is how they're addressed; the shown-count
+  is tracked in a ref so a **Skip** that reveals several at once materialises each exactly once.
+- `coalesceSkipRef` / `handBeforeCombatRef` and the phase-flip block that built them are **gone**. The main
+  coalesce watcher now consumes `grantPlayedRef` (a cardId list) directly in its `fresh` filter, one match per
+  card. That's correct on **both** settle paths — `settleCombat` on a win, `resolveCombat` on a loss — where
+  the phase-flip version could only ever catch the loss path.
+- Preview grants render `plated`, matching the committed card exactly.
+- The mid-screen flyer keeps its "To your hand" label and `tohandhold` animation; it just no longer claims the
+  coalesce.
+
+Skipped replays still behave: nothing renders mid-fight, so `grantPlayedRef` stays empty and those grants get
+their coalesce on arrival in hand rather than losing the effect entirely (the regression #674 fixed).
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1779 tests** across 108 files pass, `build:web` green.
+
+
+## 2026-07-26 (bake the tuned card-text + backbox values)
+
+### chore(ui): second pass on the Card Text defaults
+
+Owner re-dialed after seeing the first bake in place: side inset `padX 0.08 → 0` (the text column now runs the
+full panel width), `padTop 0.105 → 0.075`, `line 1.42 → 1.43`. Backbox values and the `overlay` blend are
+unchanged. Both sources updated as always — DEFAULTS and the three affected `--ctx-*` CSS fallbacks.
+
+**Verified from a CLEARED config:** all ten vars resolve to the new numbers and the drawer's computed padding
+reads `3.86px 0px 3.60px` — the side inset is genuinely zero, not just a changed variable.
+
+### chore(ui): commit the owner's Card Text defaults
+
+Baked from the 🔤 Card Text tuner into `cardTextConfig.ts` DEFAULTS, with all ten `--ctx-*` CSS fallbacks
+mirrored (double-source rule): text box `top 1.085`, `padTop 0.105`, `line 1.42` (padX/padBottom unchanged);
+backbox `size 1.08`, `y -1.235`, `opacity 0.47`, and blend switched `multiply → overlay` — overlay keeps the
+plate's stonework reading through the silhouette where multiply was flattening it.
+
+**Verified from a CLEARED saved config** (what production renders): all ten root vars resolve to the tuned
+numbers, the backbox renders `mix-blend-mode: overlay` at 0.47 with its 0.551 art ratio intact, and the drawer
+padding reflects the new insets. Confirmed on `main`, so the backbox, tier plate and tier-7 glow were all live
+on the same card while checking.
+
+
+## 2026-07-26 (a steel plaque behind the tier stars)
+
+### 2026-07-26 — dev: `scripts/drag-probe.js` — measure drag feel instead of arguing about it
+
+Follow-up to the drag-feel divergence. My first theory (stale localStorage shadowing the shipped defaults) was
+wrong for THIS case: the two devs compared their tuner values directly and they match. The version-stamp work
+still stands on its own — it makes tuned values shareable through main — but it does not explain the report.
+
+So: stop theorising, measure. The probe samples the PIXEL GAP between the cursor and the card chasing it,
+every frame, which is what "snappy" actually means. It also reports the three things that can differ between
+two machines running identical values:
+
+- `frameMs` — the display's frame budget (16.7 = 60Hz, 6.9 = 144Hz).
+- `pointerHz` — how often the OS hands the page a new cursor position. A 125Hz mouse feeds the drag
+  8ms-stale targets where a 1000Hz mouse feeds fresh ones, and NO tuner value compensates for a stale target.
+- `longFrames` / `p95FrameMs` — whether the page is janking rather than the drag being heavy.
+
+`gapAtSameSpeed` normalises the gap by cursor speed, so a gentle drag on one machine and a fast one on the
+other stay comparable — that's the number to diff.
+
+Two measurement bugs found by running it rather than trusting it: `pointerHz` divided by the probe's whole
+lifetime (idle included), reading 4Hz on a 60Hz stream, and the first cut sampled parked frames where the gap
+is ~0 and flatters everyone. Both fixed; verified against a synthetic 60Hz drag (378 dragged frames, median
+gap 11.2px, pointerHz 52).
+
+### 2026-07-26 — dev: drag-feel values are now SHAREABLE through main
+
+Owner 2026-07-26: two devs, both on dev servers, "identical" tuner settings, visibly different drag. And the
+follow-up ask — we want to tune by eye, push the values, and both machines pick them up on sync.
+
+**Why they diverged.** In dev the localStorage override WINS over the shipped `DEFAULTS` (prod ignores it —
+`dragFeel.ts:144`, from the 2026-07-21 report). So once you have ever touched the tuner, syncing main gets you
+the new code and NONE of the new feel: your stale save shadows it, silently and indefinitely. Nothing in the
+tuner said which of the two you were running.
+
+**The fix — a version stamp.** `DRAG_DEFAULTS_VERSION` is written into every save. On load, a save tuned
+against an older version is discarded (and cleared), so pulling main is all it takes for everyone to be on the
+same physics. That makes the workflow the owner asked for actually work:
+
+1. tune by eye → **Copy values**
+2. paste over `DEFAULTS` and bump `DRAG_DEFAULTS_VERSION`
+3. PR → merge → everyone syncs; stale overrides self-clear and the new feel is live
+
+**The bump is the whole mechanism, so it can't be left to memory.** `dragFeel.test.ts` fingerprints the
+`DEFAULTS` block: change the numbers without bumping and the test fails, naming both steps. Comments are
+stripped from the fingerprint, so editing the prose isn't a false alarm.
+
+**And the tuner now says whose values it is running** — `main · vN` or `LOCAL override` — with the Reset button
+relabelled **Reset to main**. That turns "why does mine feel different?" into a glance instead of console
+archaeology.
+
+**Verified:** typecheck / lint / test / build:web green, 1779 tests (+2). Live-checked in the tuner: it opens
+reading `main · v1`, and moving one slider flips it to `LOCAL override` with `__v: 1` stamped on the save.
+
+### 2026-07-26 — fix(ui): Ruby / Ward Echoes had NO combat animation at all
+
+Owner report: the in-combat Ruby buff animations don't play, though Set 1's (Ryme, Cinderwing) do.
+
+Not a missing FX — a **dropped** one. `fireBuffCasts` draws a source→target tendril, and for a buff whose
+source is a DEATHRATTLE it draws a sourceless "descend" instead. Which of the two it picks comes from
+`DEATHRATTLE_BUFF_FACTORIES`, a hand-maintained list carrying a "KEEP IN SYNC" note. Set 2 shipped two
+stat-granting Echoes without touching it:
+
+- **Geode Guardian** (`deathrattlePlayRubiesAdjacent`) — plays Rubies on each neighbour as it dies.
+- **Lastlight Marshal** (`deathrattleGrantWardRandom`).
+
+Missing from the list, they took the living-source path — and a living-source cast whose source element can't
+be found is `continue`d, not downgraded. The source is dead by strike time, so the cue wasn't merely wrong, it
+never fired. That's exactly why Set 1's cards look fine: theirs are on the list.
+
+The "KEEP IN SYNC" comment is now **enforced**: a test fails when any `onDeath` factory whose name grants stats
+(`Buff` / `PlayRubies` / `GiveHealth`) is absent from the list, with the one documented exclusion (Spear
+Warden's run-wide enchant). Confirmed load-bearing by removing the two new entries — it names the missing
+factory.
+
+**Verified:** typecheck / lint / test / build:web green, 1777 tests (+2).
+
+**Still open on this:** only the DEATHRATTLE ruby path is fixed. Rubies played by a LIVING source mid-combat
+(Frenzied Excavator's Start of Combat, Resonance Idol's bounce) take the ordinary tendril and should already
+draw — worth a look on stream to confirm they read, since they share none of this bug's cause.
+
+### tweak(ui): the tier-7 glow moves BEHIND the plaque
+
+Owner call: the halo belongs behind the tier plate, not over its face. Stacking flipped from
+`plate 5 · glow 6 · stars 7` to **`glow 5 · plate 6 · stars 7`**, and the glow is now rendered FIRST in the
+JSX so DOM order matches paint order rather than relying on z-index alone to contradict it. All three still
+sit above the frame (z3), so nothing moved relative to the artwork.
+
+Practical effect: only the part of the halo spilling past the plaque's silhouette is visible, so it reads as
+light radiating out from behind it. The baked 1.025 × 0.63 ellipse is wider and taller than the ~0.765-wide
+plate, so there is plenty of spill.
+
+**Verified live:** DOM order `tierglow → tierplate → tierstars` with computed z-indexes 5 / 6 / 7.
+
+### chore(ui): bake the owner's tuned tier-7 glow
+
+Glow dialed and baked: `1.025 × 0.63` (a wide flat ellipse rather than the near-circle default), offset
+`x -1.5 / y -28`, peak opacity `1` dipping to `0.49` over a `2.1 s` cycle, colour `#ffe27a`. All six
+`--cpl-glow-*` CSS fallbacks mirrored alongside the DEFAULTS (double-source rule) — six values, all six checked
+for stale copies afterwards.
+
+**Verified from a CLEARED config** (what production renders): every glow var resolves from DEFAULTS, the halo
+renders 115×71 (ratio 1.63, matching 1.025/0.63), and the pulse reads 2100 ms cycling opacity 0.49 ↔ 1 — still
+`keyframeProps: ["opacity"]` only, so it stays compositor-cheap at the new brightness.
+
+### tweak(ui): glow gets width/height/x/y, and the tier sandwich is stacked explicitly
+
+Owner follow-up. The glow was already painting in front of the plate and behind the stars (all three shared
+z6, so tree order decided) — but it was a 73×73 CIRCLE over a 72×**18** plaque, so most of it spilled past the
+plate and read as a blob rather than light on the plaque. Fixes:
+
+- **Shape**: `glowW` and `glowH` are now independent (`radial-gradient(ellipse …)`), defaulting to 0.62 × 0.26
+  — a flat haze that hugs the plaque. Previously one knob drove both axes.
+- **Position**: `glowX` / `glowY`. The glow rides the same per-family seat as the stars and then adds its own
+  offset (mirroring how the plate composes), so it can be nudged off the stars without moving them.
+- **Stacking made explicit**: plate `z5` · glow `z6` · stars `z7`. It relied on tree order before, which was
+  correct but silent; all three stay above the frame (z3) exactly as when they shared z6, so nothing moved
+  relative to the artwork.
+- Colour was already exposed as `tier7 glow · colour`.
+
+**Verified live** on a tier-7 minion and a tier-7 Taunt from a cleared config: each knob moves exactly its own
+axis (`glowH 0.5` → h 30→59 with width held; `glowW 1.0` → w 73→117 with height held; `glowX 20` → x +16;
+`glowY 15` → y +12), the z-order reads 5/6/7, and the Taunt's glow tracks its own family seat.
+
+### chore(ui) + feat(ui): bake the tuned tier values; tier-7 stars get a pulsing glow
+
+Baked the owner's dialed pass into `cardPillsConfig.ts` DEFAULTS — stars ALL row at
+`x -0.25 / y -0.25 / size 1.24` with family deltas (spell y 4, taunt y 2.75, circle y 4), plate ALL width
+0.765 with the taunt plate nudged `y -1.5`. The `--cpl-plate-all-w` CSS fallback was mirrored to 0.765 (the
+double-source rule).
+
+**Tier 7 glow.** Top-tier cards now carry a soft pulsing halo behind the stars. It's a `<span>` with the
+`tierbadge` class, so the per-family star transforms already match it and it tracks the stars for free — no
+extra seat. Rendered between the plate and the stars, so it reads as light off the plaque.
+
+Built to the perf rule: the radial gradient is **static** and **opacity is the only animated property** — a
+looping `box-shadow`/`filter` would repaint every frame (docs/performance.md). Verified by reading the running
+animation's keyframes back: `keyframeProps: ["opacity"]`, pulsing 0.28 ↔ 0.8 over 2.2 s. Also honours
+`prefers-reduced-motion` by holding steady at peak instead of pulsing.
+
+Five knobs on the 🏷️ Card Pills tuner: `tier7 glow · size / opacity / speed / dip / colour` (dip 0 fades right
+out, 1 = steady).
+
+**Verified live:** tiers 5 and 6 render no glow at all, tier 7 renders a 70×70 radial halo with
+`tiersevenpulse` running, and the DOM order is `tierplate → tierglow → tierstars`.
+
+### fix(ui): the ALL rows did nothing — families now COMPOSE them instead of shadowing
+
+Owner report: `plate · all · x/y/size` had no effect. Cause: every real card matches one of the three family
+rules (`.stdframe` / `.spellcard` / `.taunt`), which are MORE SPECIFIC than the base rule the ALL knobs drove —
+so the ALL row only applied to a card that is none of them, i.e. never in practice. `stars · all` was dead the
+same way, from the moment the circle frame got its own seat. My isolation matrix probed the three families and
+never the ALL row, which is exactly why it passed while two knob rows were inert.
+
+Fixed by making ALL a genuine global that families **compose onto** rather than replace: each family rule is
+now `var(--cpl-tier-t) var(--cpl-<fam>-n)` for the stars and `…-all-t …-<fam>-t` with width `all × family` for
+the plate. Transforms multiply, so a family row of `0 / 0 / 1` means "same as all", and the family knobs are
+DELTAS (offset added, size multiplied) — family size ranges now centre on 1.
+
+Defaults were re-pointed so nothing shifted: the common part moved to the ALL row (scale 0.74) and each family
+keeps only its delta (spell y 3.25, circle y 2, taunt 0). Verified the products match the previously-baked
+values exactly.
+
+**Verified live** from a cleared config, probing the ALL rows this time: `plateAllY` and `plateAllW` moved and
+resized the plate on ALL THREE families; `tierY` and `tierScale` moved and resized the stars on all three; and
+the family rows still isolate (`plateOvY` → circle plate only, `stierY` → spell stars only). Default snapshot
+confirms the preserved relationships (spell stars 3.25 lower, every plate 62.4 px).
+
+### feat(ui): per-family seats for BOTH the stars and the plate (8 seats, 24 knobs)
+
+Owner needs to align the tier badge per frame family, for the stars AND the plaque separately. Two gaps closed:
+
+- **The CIRCLE (oval) frame had no seat of its own** — it fell through to the generic `tier*` one, so it
+  couldn't be dialed apart from the catch-all. Added `otier*` + a `.card.compact.stdframe .tierbadge` rule. Its
+  defaults mirror what the oval already rendered with (y 2, scale 0.74), so nothing shifted.
+- **The plate had ONE set of knobs for every family** — now four (`plateAll/Ov/Sp/Ta` × x/y/width), each rule
+  setting that family's own transform and width.
+
+Result: 4 families × 2 elements × 3 knobs = **24 knobs**, labelled `stars · <family> · x/y/size` and
+`plate · <family> · x/y/size` so the panel stays readable. No card is both `.stdframe` and `.spellcard`/`.taunt`
+(see `useStdFrame`), so the family rules can never fight.
+
+**The plate is deliberately DECOUPLED from the star seat.** The first cut had each plate rule re-apply its
+family's star seat and append the plate nudge; verification showed that nudging the stars dragged the plate with
+them, so the two could never be aligned against each other. The plate now anchors independently
+(`translateX(-50%)` off the shared `.tierbadge` top) and is offset only by its own knobs.
+
+**Verified live** with an oval minion, a Taunt and a spell on screen at once, probing all six representative
+knobs one at a time from a cleared config: every knob moved **exactly one element on exactly one family** and
+left the other five cells untouched — a clean 6×6 isolation matrix.
+
+### feat(ui): tier plate behind the stars, on every card type
+
+Owner art: a steel hexagonal plaque seated behind the tier stars, with a **gilded variant** for golden cards.
+Renders on all three frame families — minion oval, spell square and Taunt heater.
+
+The plate img carries `tierbadge` as well as `tierplate`, so it inherits every already-tuned per-frame-type
+`top` anchor for free and only its chrome, size and transform are overridden. It's rendered immediately BEFORE
+the stars, and since both are positioned the plate paints behind them by TREE ORDER — no z-index (which would
+lift it past the frame). Sized by WIDTH with `height: auto`, so the art's 4.09 ratio holds at any card size;
+size 0 hides it.
+
+Three transform rules re-apply whichever tier SEAT the card uses (`--cpl-tier-t` / `-stier-t` / `-ttier-t`) and
+append the plate's own nudge, so ONE set of plate knobs serves minions, spells and Taunts. Specificity is
+deliberate: `.card.compact img.tierbadge.tierplate` (0,3,1) must beat `.card.compact .tierbadge` (0,3,0), and
+the spell/taunt variants (0,4,1) must beat their own seat rules.
+
+Knobs on the 🏷️ Card Pills tuner: `tier plate · x / y / size`.
+
+Assets: `tierplate.webp` + `tierplate-gilded.webp`, 1200×293 (downscaled from the 3812×932 masters — still
+~10× the rendered size), 40/44 KB.
+
+**Verified live** on a minion, a Taunt, a golden and a spell: each renders the plate with the right variant
+(golden → `tierplate-gilded.webp`), ratio 4.10 held, plate before the stars in tree order, and the seat
+transform applied. All three knobs drive it (x 16→23, y 135→130, size → 38px, 0 → hidden). Re-measured from a
+CLEARED config so the numbers are what ships: at the default 0.66 every tier fits inside the plate — tier 7
+snug (2.1 px margin), tier 4 comfortable (10.9), tier 1 loose (19.7).
+
+**Known tradeoff:** the plate is a FIXED width while the star row grows ~55 px per tier, so it can't hug every
+tier — it's sized to contain tier 7, which leaves tier 1 sitting in a much wider plaque. Fine if the plaque is
+meant to be a constant nameplate; if it should hug the stars, the options are per-tier width scaling (uniform,
+so low tiers get a smaller plaque overall) or a 9-slice (fixed decorative caps, stretched middle — hugs every
+tier at constant height). Owner's call.
+
+## 2026-07-26 (a dark backbox behind the rules text)
+
+### feat(ui): authored backbox behind the text panel, fully tunable
+
+Owner art: a dark shape seated BEHIND the rules-text panel to darken the plate's stone under it so the copy
+reads cleanly. This is the readable middle ground between the old hard slab (removed 2026-07-21) and bare text
+on stone — a shaped, blended wash rather than a rectangle.
+
+`.descbox` is the drawer's FIRST child, and the text nodes are given `position: relative` so they land in the
+SAME paint step, where tree order decides: backbox first → behind, text after → in front. Being first in the
+DOM is NOT enough on its own — the backbox is positioned (absolute) while the text was static, and CSS paints
+positioned/z-auto boxes in a LATER step than in-flow blocks, so it covered the copy (owner report, fixed same
+day). No z-index on any of them, deliberately, because `.drawer` having none is load-bearing (a z-index there would restack the panel above the
+frame, whose oval overflows down past the panel's top edge). Sized by WIDTH (× --ccw) with `height: auto`, so
+the art's 853×621 ratio holds at any card size. `mix-blend-mode` blends it against the plate, and
+`.card.plated`'s `isolation: isolate` contains that to the card so it can never blend with the board behind.
+
+Five knobs on the 🔤 Card Text tuner: `backbox · size / x / y / opacity / blend`, the last a select over the
+four modes the owner asked for (normal / overlay / multiply / soft-light). Defaults: size 1.02, centred,
+opacity 0.55, `multiply`. Size 0 or opacity 0 hides it entirely.
+
+Asset: `frames/desc-backbox.webp`, 676×1228, **4.1 KB**.
+
+**Shape replaced (owner, same day):** the first pass was a wide 853×621 strip; the shipped art is a full card-BODY
+silhouette (arched top, notched bottom) at 676×1228 — ratio **0.55**, so it now renders ~1.8× TALLER than wide
+instead of ~1.4× wider than tall. Because it's anchored inside the text panel but has to cover the body above
+it, the offset ranges were opened right up (x ±1.5, y −2.5…1.5 card-widths, width up to 2.5) — the old
+±0.6 fractions couldn't reach. Defaults re-pointed to `width 1.34 / y −1.06` so it lands roughly on the card
+body out of the gate, with the CSS fallbacks mirrored.
+
+**Verified live** on a plated hand card: `.descbox` is the drawer's first child (order `descbox, cn, desc`),
+overlaps the description text, ratio 1.374 matches the source exactly, and `pointer-events: none`. Every knob
+drives it — size 1.6 grew it 52×38 → 82×60 (ratio held, stayed centred), x 0.3 moved it right 614→629, y 0.2
+down 703→714, opacity → 1, all four blend modes applied, and size 0 collapsed it to 0×0.
+
+### 2026-07-26 — art fix: Gemheart Carver was wearing the Gemheart Golem's art
+
+Owner catch. Two cards share the "Gemheart" name and I had them crossed:
+
+- `k_gemheart` is **Gemheart Carver**, the Kobold minion.
+- `gemheart-shard` is **Gemheart Golem**, the token that was renamed from Gem Shard.
+
+The art matcher carried an alias `'gemshard' -> 'k_gemheart'`, written when the Gem Shard rename landed. It
+looked right — the rename note said "Gem Shard → Gemheart Golem", and `k_gemheart` is the id that *reads* like
+Gemheart — but the renamed card was the TOKEN, whose id is `gemheart-shard`. So the token's art went onto the
+minion, and the Carver had no un-suffixed master of its own at the time to contradict it.
+
+`GemheartCarver.png` now exists, so the Carver is wired to it, and the alias is corrected to
+`'gemshard' -> 'gemheart-shard'` plus an explicit `'gemheartcarver' -> 'k_gemheart'` so a future rewire can't
+reintroduce the swap.
+
+**Verified:** the two art files now hash differently (they were distinct masters all along — the wrong one was
+simply copied twice), both load at 512×512, and a live board shows the Carver and the Golem with visibly
+different art. Only `k_gemheart.webp` changed.
+
+**The lesson for the next rename:** an id that merely *resembles* the new name is not evidence. `k_gemheart`
+vs `gemheart-shard` needed one grep to settle, and the alias comment asserted the mapping instead of checking
+it.
+
+### 2026-07-26 — content: the Dwarf Work Orders become Ales, with new art
+
+Owner rename. Work Order: Mine → **Golden Ale**, Health → **Defensive Ale**, Champion → **Champion's Ale**,
+Reinforcement → **Reinforcing Ale**, Attack → **Bloody Ale**. Art wired from `Ascent Art/Spells`.
+
+**Ids keep their `wo_` prefix** — art files and saved runs key off them, the same rule every rename here has
+followed. Worth knowing when grepping: the cycle is called the Ales but still lives under `wo_*`.
+
+The rename had to reach further than the five `name:` fields. `addBuff(target, 'Work Order', …)` was the
+**buff-source label**, which the player reads in the inspect breakdown — a stat gain would have kept saying
+"Work Order" long after the cards stopped being called that. That's now 'Ale'. Also updated the stale
+`EffectFactoryId` comments and renamed `workOrders.test.ts` → `ales.test.ts` with its describes.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1775 tests. Live-checked: all five render in
+hand with the right name and their own art, loading at 512×512. Only those five art files changed — the
+optimizer has swept unrelated PNGs before, so the change set was reconciled.
+
+### 2026-07-26 — content+fix: five Dragon renames, spell-power text, corpse-blocked adjacency, art rewire
+
+**Renames** (ids unchanged — art and saved runs key off them): Ashscribe Whelp → **Ashscribe**, Hoard
+Chronicler → **Drachronicler**, Mirrorwing Hatchling → **Mirrorwing**, Spellkeeper Drake → **Spell Warden**,
+Scalechanter → **Enchanter**. The owner's note spelled the first "Ashscrbibe"; the art master they shipped is
+`Ashscribe.png`, which settles it.
+
+**Hoardflame was broken in the engine, not just the text.** `spellBuffPerDragonPlayed` never applied spell
+power at all — a Spellbinder's +0/+1 did nothing — and the printed text matched the broken effect, so the two
+agreed on the wrong number. Spell power now applies once, like every other stat spell (deliberately NOT
+multiplied by the Dragon count), and the text shows the live value: +4/+5 with a +0/+1 buff.
+
+**The owner asked whether other spells shared it.** `spellPowerText.test.ts` derives the answer instead of
+hand-listing: it reads `recruit.ts`, finds which cast factories actually call `spellAttackBonus`/
+`spellHealthBonus`, and requires every spell using one to print a live value. Exactly one other did —
+**Lantern Light**, whose "+1/+1 for each Tavern Tier" showed neither the tier scaling nor spell power. Its
+whole rate clause is now replaced by the live total, since injecting a number and leaving "for each Tavern
+Tier" standing would have read "+5/+4 for each Tavern Tier" — a bigger lie than the one being fixed.
+
+*A false-positive worth recording:* the first version of that audit bounded each factory body at the first
+`
+  },`, which overruns any factory containing a nested object — so it attributed a NEIGHBOUR's spell power
+to five innocent spells (Devour, Mend, Lasso, Last Stand, Executioner's Edge). Bounding by the next factory
+declaration fixed it. A false positive in an audit is worse than none: it sends you rewriting correct text.
+
+**Ryme: corpses were blocking adjacency.** A dead minion keeps its slot in `boards[side]`, so indexing
+`arr[i ± 1]` and discarding corpses meant a body that died earlier stopped Ryme reaching the live Battlecry
+just past it. That's the owner's exact report — Soren destroying Ryme at Start of Combat fired both flanking
+Clerics (no corpses yet), while a later death fired one. Corpses are invisible to the player, so "adjacent"
+now means adjacent among the LIVING, via a shared `livingNeighbours` helper. Applied to all three raw-board
+sites (Ryme, Geode Guardian, Resonance Idol) — Karwind already used `ctx.living()`, so adjacency meant two
+different things in the same file until now.
+
+**Field Mechanic is NOT broken.** Traced end-to-end: Ryme's trigger records it in `playerDeferredBattlecries`
+and settle re-fires it through the real recruit factory — the Patch Job does land in hand, just after the
+fight, which is how every economy Battlecry has always worked. I'd started adding a combat implementation
+before checking, and removed it: `replayCombatBattlecry` is a hardcoded chain that never consults `FACTORIES`,
+so the entry would have been dead code that merely looked like a fix. A test now pins the deferral.
+
+**Art:** Set-1 Whelpling and Buddy Buddy remapped; Set-2 minions re-wired (107 masters, 16 actually changed).
+Set 1 having its own `Whelpling.png` resolves the Whelp ambiguity — the Set-2 folder's `Whelp.png` is
+`n2_whelp`, now wired.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1775 tests. Live-checked the renames (all
+five carry their art), Hoardflame (+4/+5, and +6/+7 with two Dragons) and Lantern Light. The corpse fix was
+confirmed load-bearing by restoring the old indexing — the new test fails 1-vs-2.
+
+**Still un-attributed** (reported, not guessed): `GemforgeFiend.png`, six `…2` alternates, six new `…Alt`
+masters, and seven raw-export UUID filenames. `Fatecarver.png` and `PitDrillmaster.png` are also present but
+those cards were removed yesterday.
+
+## 2026-07-26 (tier is shown as stars)
+
+### chore(ui): bake the owner's tuned pill values
+
+All three tier seats dialed to scale **0.74** with the oval nudged `y 2`, the spell square `y 3.25` and the
+heater at `y 0`; the spell type pill picked up `x -2`. Baked into `cardPillsConfig.ts` DEFAULTS — `Card.tsx`
+imports that module, so `applyCardPillVars()` runs in production and DEFAULTS are what players get. No CSS
+fallback to mirror here: the `var(--cpl-*-t, translateX(-50%))` fallbacks are deliberately the *un-nudged*
+centring, i.e. a safety net rather than a duplicated number.
+
+**Verified from a CLEARED saved config** (`localStorage` key removed → exactly what production renders): all
+four vars resolve from DEFAULTS with the tuned numbers and each retains its `translateX(-50%)` centring.
+
+### feat(ui): three independent tier-badge seats + finer nudge steps
+
+The tier badge sits on three different frame families whose banners don't line up — the minion oval, the spell
+square and the Taunt heater — so one shared nudge couldn't serve them. Added two more seats to the 🏷️ Card
+Pills tuner: `spell tier · x/y/scale` (`--cpl-stier-t`, via `.card.compact.spellcard`, covering spells AND
+Rubies) and `taunt tier · x/y/scale` (`--cpl-ttier-t`, via `.card.compact.taunt`). Both are (0,3,0) so they
+outrank the base `.tierbadge` transform, and they can't collide — no card is both a spell and a Taunt.
+
+Also made every pill nudge finer, per owner: all X/Y steps 1 → **0.25** design px and all scale steps
+0.01 → **0.005**. Existing baked values stay reachable; only slider granularity changed.
+
+**Verified live** with a minion, a Taunt minion and a spell on screen at once, moving one seat at a time:
+`stierY 30` moved only the spell badge (587→606), `ttierY 30` only the Taunt badge (366→385), `tierY 30` only
+the plain minion (364→384) — the other two unchanged in each case. The 0.25 step renders a real sub-pixel
+delta (383.83 vs 384.00). NB a design-px nudge is × `--u`, so 30 design px ≈ 20 real px at that viewport.
+
+### feat(ui): the tier badge is N steel stars, not a "TIER N" pill
+
+Owner art: the card's tier now reads as **N stars** instead of a per-tier coloured text pill. One image per
+tier (78 px tall, +55 px per star → 81…410 wide), so the badge's WIDTH scales with tier and only the height is
+pinned (`--tier-stars-h`, default 0.115 × card width); `width: auto` does the rest.
+
+The img carries BOTH `tierbadge` and `tierstars`: the first inherits every already-tuned per-frame-type anchor
+(the oval's `--tier` seat, the heater's banner nudge, the plain card's top offset), so nothing needed
+re-positioning; the second strips the pill chrome the text version needed. **Specificity is load-bearing** —
+`.card.compact img.tierbadge.tierstars` (0,3,1) must outrank both `.tierbadge[data-tier="N"]` (0,2,0, the
+per-tier background colours) and `.card.compact .tierbadge` (0,3,0, the padding/border/radius); a plain
+two-class selector loses to the latter and the stars would keep the pill's padding and border.
+
+Degrades like the frames: a 404 flips `tierStarsAvailable` and the text pill comes back.
+
+Assets: 7 webp at native size, 72 KB total.
+
+**Verified live** on real cards of every tier (sandbag→thundeer): each resolves to its own `tier-stars-N.webp`
+and the rendered aspect ratios match the source art exactly (1.04, 1.74, 2.45, 3.15, 3.86, 4.55, 5.25) —
+proving width tracks tier while height stays pinned. Chrome overrides confirmed: transparent background, zero
+padding, no border.
+## 2026-07-26 (per-tribe card frames)
+
+### feat(ui): per-tribe TAUNT shields too
+
+Same treatment for the heater shield: all seven tribes get their own Taunt frame plus a gilded variant, so a
+Taunt minion is themed like its non-Taunt kin instead of falling back to the shared gold shield. `TRIBE_TAUNTS`
++ `tauntFrameSrcFor(tribe, golden)` mirror the oval's map exactly, and Taunt cards now also carry `.tribeframe`
+(the CSS neutraliser is a two-selector list now). The art is 1086×1448 with the same window silhouette as
+`taunt-shield.png`, so the `--heater` clip-path and every geometry knob are untouched. NB `.taunt` carries only
+the `--frame-tone` grayscale, no baked `--fovl` overlay, so that one var was all it needed.
+
+Assets: 14 more webp at native 1086×1448 (q92) — 2.47 MB vs ~15.6 MB as PNG.
+
+**Verified live:** all seven Taunt tribes resolve to `taunt-<tribe>.webp` with `.tribeframe` and
+`--frame-tone: brightness(1)`; all seven golden Taunts resolve to `taunt-<tribe>-gilded.webp`.
+
+### feat(ui): every tribe wears its own oval frame, with a dedicated gilded variant
+
+The shared silver oval is now per-tribe: all seven tribes (beast, dragon, mech, undead, demon, neutral,
+kobold) get owner-authored coloured art, each with its own GILDED variant used when the minion is golden.
+`TRIBE_OVALS` maps tribe → `{ base, gold }` and `stdFrameSrcFor(tribe, golden)` picks the src; a card wearing
+one also gets the `.tribeframe` class. Falls back to `standard-oval-v2.png` for any tribe without art.
+
+**The load-bearing part is what `.tribeframe` turns OFF.** The shared oval is authored neutral gold and gets
+its silver-stone look from TWO recolour passes, both of which would destroy authored colour:
+`--frame-tone: grayscale(0.92) brightness(1.2) contrast(0.9)` desaturates it, and a baked `--fovl` overlay
+(`#655449` @ 0.76, `overlay` blend) washes it brown. `.card.compact.stdframe.tribeframe` neutralises both
+(`brightness(1)` / `--fovl-a: 0`). Both are vars, so the override flows into every rule that reads them —
+including the keyword-state rims (Divine Shield etc.) further down the file. Geometry knobs are untouched:
+the art is 1059×1427 with the same window as the shared oval, so "AUTHORED FRAMES" needed no retuning.
+
+Assets: 14 webp at native 1059×1427 (sharp q92) — **1.84 MB total vs ~9.8 MB as PNG**, matching the repo's
+webp-for-art convention.
+
+**Verified live** across all seven tribes: each resolves to its own `oval-<tribe>.webp` with `.tribeframe`
+applied, `--frame-tone: brightness(1)` and `--fovl-a: 0`; all seven golden cards resolve to
+`oval-<tribe>-gilded.webp`. Frame precedence is unchanged — a spell still shows the purple square
+(`spell-frame-v2.png`, no `tribeframe`) and a **Taunt** minion shows its tribe's heater shield rather than the
+oval — see the Taunt entry above; the two frame families are themed in parallel.
+
+Not wired: the owner also supplied `dwarf frame.png` / `dwarf gilded frame.png`, but there is no `dwarf` tribe
+in the `Tribe` union — held aside pending that tribe existing.
+
+### 2026-07-26 — content: removed four minions (Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte, Fatecarver)
+
+Owner cut. Removed the card defs, their art, and everything that existed only to serve them:
+
+- **Three orphaned effect factories** went with them — `onSpellCastFirstBuffTribe` (Mosswhisker),
+  `deathrattleGiveOwnStats` (Aeon Acolyte) and `onSummonDoubleStats` (Fatecarver) — along with their
+  `EffectFactoryId` union and content-schema entries. `battlecryBuffImps` deliberately STAYS: Pit Drillmaster
+  used it, but so do three Set-1 Demons.
+- Their art files, and the tests that covered them.
+- Stale roster counts: Set 2's Demons are 22 rather than 23, and its own neutrals 5 rather than 7.
+
+**Checked, and clean:** nothing referenced them in the generated `opponentPool.data.ts` (so no re-run of
+`npm run pool` is needed), no quest or rune granted them, and `CARD_REFERENCES` never named them.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1758 tests. A throwaway assertion confirmed
+all four are absent from `CARD_INDEX` and from BOTH set pools — removing a card def is not the same as removing
+it from a set, and only checking the file would have missed a lingering id list. Set 2 still fields 113 minions
+(112 buyable).
+
+**Noted, not touched:** `docs/CONTENT.md` says 37 shop spells where the real figure is 59. That drift predates
+this change and is Set-1-scoped bookkeeping (`BUYABLE_CARDS` excludes Set 2 entirely, so the minion count there
+is unaffected by this removal) — flagging rather than silently widening this commit.
+
+### 2026-07-25 — art: re-wired all Set-2 minion art (110 masters)
+
+Full re-wire from `C:\Game Assets\Ascent Art\Set 2 Minions`. 110 masters matched to card ids by normalised
+name, 239.6MB → 6.17MB as WebP.
+
+**Two long-standing gaps closed:** Broodwright and Feastmaster Vhal finally have masters — they'd been
+falling back since the Demon tribe shipped. Also picked up `n2_spellsword`, and re-pointed `GemShard.png` at
+`k_gemheart` after the Gem Shard → Gemheart Golem rename.
+
+**Four filename aliases**, each a deliberate call rather than a fuzzy match: `BabyRex` → "T-Rex Baby" (the
+file reverses the words), `JenkinsAndFi` → `jenkins` (the card reads "Jensen & Fi"), `SalvatoreMcKluskey` →
+`salvatore` (the card spells it McKlusky), `ZyffBetrayer` → "Zyff, the Betrayer".
+
+**Reported, not guessed at** (the standing rule — never attribute art from a filename that doesn't match a
+card):
+- `GemforgeFiend.png` — no card by that name. "Gemgorge Fiend" is one letter away but already has art, so
+  overwriting it on a spelling guess would be exactly the wrong move.
+- `Whelp.png` — TWO cards are literally named Whelp (set-1's `whelpling` token and set-2's `n2_whelp`).
+- Six alternate `…2` masters (CinderChancellor2, ErrandFiend2, FeastmasterVhal2, GemheartCarver2,
+  GemstormInstigator2, Veinbreaker2). None of those cards is a Choose One, so they aren't branch art either.
+- `extra.png`, `unknown.png` and one raw-export filename — un-attributed.
+
+**Six Set-2 minions still have no master:** Blazing Keeper and Storm Chaser (new this session), plus Aeon
+Acolyte, Bellringer Voss, Lastlight Marshal and Oathbound Avenger. All fall back cleanly.
+
+**Verified** after a dev-server RESTART (the eager `import.meta.glob` needs one — a reload isn't enough):
+111 of 117 Set-2 minions resolve art, all 111 images load at 512px with zero failures, and the newly wired
+ones render distinctly on a live board.
+
+**Sweep check:** the optimizer once swept up unrelated tracked PNGs, so the change set was reconciled against
+the match list — 109 files changed, every one of them in the list, nothing extra. (`taurus` re-encoded
+byte-identically; its master hadn't changed.)
+
+### 2026-07-25 — content: the owner's card batch (17 changes, 2 new minions, Deepdelve fix, Ruby hover)
+
+**Part 1 — reworks on existing primitives.** Scalechanter (every Shop spell gives your whole board +1 Attack;
+the `spellCast` event is already Ruby-blind, so the printed "Shop spell" needs no extra check), Traveling
+Skald (a friendly Dragon that attacks gets +2/+1), Scalefeather Drake (Echo: Beasts AND Dragons +4/+4 — one
+multi-tribe pass so a Beast/Dragon dual-type is buffed once, not twice), Faultline Scrapper (Echo instead of
+on-damage), Lancel (Ward only, no free opening swing), Pouchpincher moved to the neutral file and tribe.
+
+**New:** Blazing Keeper (T5 Dragon 5/3 — "Shout Dragon" means a Dragon with an `onPlay`, which correctly
+excludes watchers like Karwind) and Storm Chaser (T2 Kobold 2/2, hands you a Veinstorm).
+
+**Part 2 — reworks needing new wiring.** Kennelmaster +2 Attack improving by +2 per Avenge; Karwind's Shout
+payoff gives neighbouring Dragons +4/+4 *instead of* the base +2/+2 (needed BOTH a recruit and a combat twin —
+most of Karwind's procs happen in the shop); Runic Archivist recasts the LAST spell of the turn; Denkeeper
+Oona grants +1/+1 then DOUBLES (order is load-bearing and pinned by a test); Roaring Matriarch is 2/7 and
+alternates Attack/Health each turn, phase tracked **per-instance** so it always opens on Attack no matter when
+you bought it — the same reasoning as Revolving Maw counting refreshes from its own arrival.
+
+**Part 3 — the Deepdelve Paragon bug.** Three separate faults, and the owner's clarification reshaped it twice:
+- It had a Start-of-Combat pass that topped up Rubies already on the board. That is now **gone entirely** — the
+  card does exactly one thing: Rubies APPLIED DURING COMBAT are worth 2× (3× Gilded).
+- The magnitude was 3× flat (it *added* 2×). Now a true multiplier.
+- Its combat Ruby stats carried back to the run board labelled **"Flowing Monk"** — because before Set 2 the
+  only non-Engraved permanent gain WAS the Monk's gift. `permaGain` now tracks its Ruby share separately, so
+  each carries its own label. That also matters mechanically: the label is how a Ruby is recognised later.
+
+Implemented as a `passive` marker effect (a new, never-dispatched event) that `playRubyOn` reads — the
+alternative was hardcoding a card id inside core.
+
+**Groveweaver.** Now +2/+2 improving by +2/+2 per spell. Two real findings: its `summonBuffTribeAsym` existed
+**only in the recruit table**, so it silently did nothing for combat summons (the Echo tokens that make up most
+of a summon board); and its printed number never moved as the accrual grew. The mechanic itself was fine — a
+spell really did raise the grant — so "not improving" was the *text* lying.
+
+**The audit** the owner asked for is now a test (`liveTextAudit.test.ts`) rather than a chat message: every
+factory that sizes a grant from a per-instance accrual must have a cardText helper or an explicit exemption
+with a reason. It fails when a new scaling card ships without one.
+
+**Ruby hover.** Any card whose text mentions Rubies now previews the Ruby at its live value. Derived from the
+text rather than hand-listed, so a new Ruby card can't be forgotten.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1763 tests. Live-checked in the browser:
+the Ruby preview renders beside Deepdelve showing +3/+3 against a +2/+2 run bonus.
+
+**A debugging note worth keeping.** The Ruby preview silently did nothing, and the cause was mine: writing the
+regex through a shell heredoc turned `` into a literal **backspace byte**, so `/Rub(y|ies)/i` was really
+`/<BS>Rub…/` and never matched. Nothing failed loudly — typecheck, lint and tests were all green. I only found
+it by instrumenting the running app and dumping the line through `cat -A`. Swept the repo for other stray
+0x08 bytes; that was the only one. Regexes with escapes now go through a file, not a heredoc.
+
+### 2026-07-25 — content: Chorus Drake drops "other" from its Rally
+
+Owner text change: **"Rally: trigger your left-most Dragon's Shout"** (was "left-most **other** Dragon's").
+
+The `m !== self` guard came off with the word. In practice that's inert — the Drake has no Shout of its own,
+and the search already skips anything without one — but it matters the moment the Drake is *given* a Shout,
+and the code should say what the card says. No recursion risk: `replayCombatBattlecry` fires `onPlay`
+effects and this is an `onAttack` one.
+
+Left in place deliberately: the search still **skips Dragons that have no Shout** rather than stopping at the
+left-most Dragon and doing nothing. A strict reading would let any Shout-less Dragon parked on the left blank
+the card.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1734 tests (+4). The card had **no coverage
+at all** before this, which is what the text change surfaced — it now has three behavioural tests plus a text
+assertion, reading the `sc` log line so they work for any Shout rather than only combat-visible ones.
+
+**A revert-check that nearly fooled me, worth recording.** My first attempt to prove the golden test was
+load-bearing patched `const repeats = drakkoRepeats(ctx, self.side) * mul(self);` — a line that appears
+**twice**, so the edit hit a different factory and the test still passed. It looked like a vacuous test; it
+was a bad revert. Line-targeted the Drake's own copy and it fails correctly (4 vs 8). When a revert-check
+comes back green, suspect the revert before the test.
+
+### 2026-07-25 — fix(content/sim): Market Tormentor buffs every fresh Shop's right-most minion
+
+Owner report: the card wasn't working. Its spec is a **standing effect** — while it's on board, the right-most
+minion of every FRESH Shop roll comes in buffed, decided at refresh time, before any consume triggers fire.
+
+Three separate faults, each enough on its own:
+
+1. **It was a one-shot Shout.** `on: 'onPlay'` fired once when played and never again.
+2. **It buffed the card id, not the offer.** `buffCardTypeRunWide` meant every future copy of whatever minion
+   happened to be right-most was buffed for the rest of the run. Now `addOfferBuff`, which bumps that one
+   offer; `offerBuyStats` folds offer buffs into the bought card, so "permanently" means the minion keeps it
+   once you buy it, while an unbought offer rolls away with the shop. That also gives the owner's rule for
+   free — the buff rides the CARD, so re-ordering the shop afterwards doesn't move it.
+3. **`shopRefreshed` never fired on a new turn.** Only the manual reroll raised it, so the turn-start row —
+   the most common fresh shop there is — was untouched. Now fired from the start-of-turn refresh too. A FROZEN
+   shop is deliberately excluded: it wasn't re-rolled, so there's no new right-most to buff.
+
+**Ordering is now explicit.** `applyShopRefreshed` runs in two passes — stat-buffing watchers before consuming
+ones — so anything eating the right-most eats the BUFFED body, per the owner's ruling. Board order can't carry
+this: a Revolving Maw sitting left of a Market Tormentor would otherwise eat the offer a moment early.
+
+**Ashen Broodlord loses Rise** (owner call, answering the flag from #721) — the consume payoff is the whole
+card now.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1730 tests (+6). The two subtle guards were
+each confirmed load-bearing by reverting them: without the two-pass ordering the Maw eats unbuffed stats,
+without the turn-start firing the new shop's right-most is unbuffed.
+
+**Knock-on worth knowing:** raising `shopRefreshed` on turn-start rolls also means **Revolving Maw** now counts
+them. That reads correct — a new turn's shop is a refresh — but it does make the Maw fire more often than
+before, and it's a behaviour change nobody asked for directly.
+
+### 2026-07-25 — feat(ui): Choose One cards wear the art of the branch they became
+
+Owner request: a Choose One minion gets two illustrations, and picking an option picks its art.
+
+Wired as a **naming convention rather than a data field** — option index N renders `<cardId><N+1>`, so option 0
+keeps the base file and Wildwood Shaper's Stray branch (index 1) is `shaper2`, matching the master's
+`WildwoodShaper2.png`. New art is a drag-and-drop with no code change, and a branch without its own art falls
+back to the base file, so partial art is fine (every other Choose One card ships one illustration today).
+
+`CardView` gains `chosenOption`, fed from `instView` (shop/board/hand) and `Unit` (combat) — both already
+carried the field for TEXT, so the art rides the same resolution the printed branch does. The Choose One
+**prompt** also previews each option with its own art: the picture is half of what's being chosen.
+
+`WildwoodShaper2.png` → `shaper2.webp` (2.0MB → 51KB) is the first wired pair.
+
+**Note for the earlier `2` files:** the Set-2 masters I'd been skipping under the ambiguity rule
+(CinderChancellor2, ErrandFiend2, LegionShepherd2, VelvetRopeFiend2, FaultlineScrapper2, GemstormInstigator2,
+Veinbreaker2) are NOT branch art — none of those cards is a Choose One. They're still awaiting a ruling.
+
+**Verified:** typecheck / lint / test / build:web green, 1724 tests (+3). Live-checked on a throwaway run
+against a freshly started dev server (new art needs a restart, not a reload): the prompt renders
+`shaper.webp` / `shaper2.webp` on the two options, picking the Stray branch leaves `shaper2` on the board,
+picking the buff branch leaves `shaper`, console clean.
+
+The new test guards the convention, which typecheck can't see — a file numbered past the option count would
+silently never render. Confirmed it fails both ways: on a bogus `shaper3`, and on the art going missing.
+
+### 2026-07-25 — content: three owner card changes (Ashen Broodlord, Aeon Acolyte, Lastlight Marshal)
+
+**Ashen Broodlord** drops the Avenge-spell-power line for *"When this Consumes a minion, get a Shop spell"*
+(`onConsumeSelfGrantSpell`). `onConsume` fires board-wide with the eater in the payload, so the
+`payload.minion !== self` guard is what makes it "when **this** Consumes" rather than Avarice's "the first
+time **you** consume". Broodlord has no consume of its own — as a Demon it eats through the shared sources
+(a Fodder sell's left-most Demon, Feastmaster Vhal's neighbours), which is how the trigger turns on. The
+"Shop spell" promise costs no explicit Ruby check: `poolOf().spells` filters `!token`, and a Ruby is a token.
+Rise and the statline are unchanged — the change rewrote the effect, not the keywords.
+
+**Gravelight Acolyte → Aeon Acolyte** (owner: it's a rename), re-pointed off the summon line to
+*"Echo: give a friendly minion this minion's stats"* (`deathrattleGiveOwnStats`). Uses **`maxHealth`, not
+`health`** — by the time an Echo runs the body is at or below 0, so `health` would grant nothing; `maxHealth`
+is the statline as it stood, buffs included. Deliberately not multiplied by `mul(self)`: a Gilded Acolyte
+already carries doubled stats, so the grant doubles on its own and the multiplier would quadruple it. The
+**id stays `n2_gravelight`** — art files and saved runs key off the id, and set 2's vocabulary rename set the
+precedent that display names move while ids stay put.
+
+**Lastlight Marshal** drops the positional Start of Combat for *"Echo: give 2 friendly minions Ward"*
+(`deathrattleGrantWardRandom`, golden 4). Picks are distinct and prefer unshielded bodies — a random grant
+onto an already-shielded minion is wasted. `scGrantEndsFlurryWard` had no other user and was removed rather
+than left as dead code.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1721 tests (+12). Each new guard was
+confirmed load-bearing by reverting it and re-running.
+
+**A test-quality note worth keeping.** The distinct-pick assertion first passed against a *broken*
+implementation, because on seed 3 the RNG happened not to collide. It's now an `it.each` sweep across eight
+seeds, which fails on two of them without the guard. Single-seed assertions on RNG behaviour are close to
+worthless — that's the fifth vacuous-test catch in this stretch of work.
+
+## 2026-07-25 (reward previews get the card plate)
+
+### feat(ui): quest + rune reward previews render on the card plate
+
+The hover preview in the Quest Shop showed its reward card bare — no backplate — while the card's own hover
+reference (`Card.tsx`) and the inspect overlay had been plated for a while. Added `plated` to the reward
+preview in `QuestCard.tsx`, and to the identical preview in `RuneCard.tsx` (same `.cardref questref` portal,
+same reward-card `.map`) so the Runeforge matches rather than becoming the new odd one out.
+
+No CSS was needed: `.cardref .card.plated` already reserves the plate's horizontal overhang as margin — a rule
+written for exactly this multi-card case — and `.cardref` has no overflow clip.
+
+Verified live on the real Quest Shop: seeded a 3-quest offer, hovered "Forager's Trail", and the portal's card
+carries `.plated` with the plate img rendered at 100×156 — resolving to `cardplate-beast.webp`, so the
+per-tribe plate selection flows through the preview too.
+
+### fix(ui): QuestCard's tribe-icon map was missing Kobold
+
+`TRIBE_ICON` in `QuestCard.tsx` still had the six pre-Set-2 tribes, so a Kobold-tribe quest would look up
+`undefined` and render no emblem (and it was a live `typecheck:web` error). Added `kobold: 'crown'`, matching
+`Card.tsx` / `QuestBadges.tsx` / `OpponentFrame.tsx`. Repo `typecheck:web` count 63 → 62.
+
+
+## 2026-07-25 (coalesce 20% faster; Triple Reward files into the hand fan)
+
+### tweak(ui): the coalesce runs 20% faster
+
+Every timing beat scaled ×0.8, so the choreography is identical and only the pace changes: `gatherMs` 410→328,
+`wireIn` 90→72, `holdMs` 45→36, `cardIn` 185→148, `total` 460→368. Visible length **640ms → 512ms**.
+
+NB `total` is NOT the animation length — it only drives the teardown guard (`ms >= total + 200`). The real
+visible end is `gatherMs + holdMs + cardIn` (`wireIn` overlaps the tail of the gather). Post-change the guard
+fires at 568ms against a 512ms end, so the slack is preserved.
+
+### fix(ui): the Triple Reward token no longer overlays the hand
+
+`.card.triplecard` carries `z-index: 5`, which lifted the reward above its neighbours — a token sitting
+mid-fan painted on top of the cards to its right instead of tucking under them. Hand cards stack by DOM order
+(no explicit z; `:hover` bumps to 50), so `.row.hand .card.triplecard` now resets to `auto`. The z5 elsewhere
+(tavern / board) is untouched. Verified live: the token and both neighbours all report `z-index: auto`.
+
+### 2026-07-25 — fix: a bad `params.cardId` crashed the Recruit render; Gemgorge bypassed the consume primitive
+
+**The crash.** Velvet Rope Fiend's Echo passed `params: { spellId: 'staffofguel' }`, but
+`deathrattleGrantSpell` reads **`params.cardId`**. `str(params.cardId)` returned `''`, so combat granted the
+EMPTY id to hand and `tokenRefView` threw on `CARD_INDEX[''].spell` — taking down the whole Recruit tree
+(`TypeError: Cannot read properties of undefined (reading 'spell')`). A wrong param key is silent: schema
+validation doesn't know which keys a factory reads, so nothing caught it.
+
+Fixed the key, and **hardened the render**: the combat hand-grant map now filters against `CARD_INDEX`, the
+way the other `tokenRefView` call site already did. A card-data typo should show nothing, not white-screen.
+
+**The audit that found a second bug.** Cross-checking every Set-2 card's effect params against the keys its
+factory actually reads surfaced four mismatches; three were false positives (`every`/`count` are read by the
+*dispatch* sites, not the factory bodies). The fourth was real: **Gemgorge Fiend** hand-rolled its own shop
+consume instead of calling the shared `consumeShopMinion`, so it skipped everything that primitive does —
+no return-to-pool (the permanent pool drain fixed last PR), no `shopEaten` record so no consume animation,
+no `onConsume` fire (Avarice Incarnate never paid for it) — and it excluded only spells, **not Rubies**, so
+it could eat a Ruby offer. Now routed through the primitive, with matching eligibility so it can't pick an
+index the primitive then refuses.
+
+**Verified:** typecheck / lint / test / build:web green, 1709 tests (+5). Both new regression tests were
+confirmed to FAIL against the pre-fix code and pass after. Added a sweep asserting every `params.cardId` in
+Set 2 names an id the index knows, so this class of typo can't reach the UI again.
+
+### refactor(sim/ui): Shop-consume gets its OWN channel; full audit of the Demon consume line
+
+**Separated from Fodder consume** (owner 2026-07-25: "they are very different mechanics and will have different
+animations"). Shop-minion consumes now write `shopEaten` / `shopEatenSeq` instead of borrowing `fodderEaten`,
+with their own UI effect and tracker. Same payload shape for now, so the choreography is shared until the
+animations actually diverge — the point of the split is that either can be restyled without touching the other.
+Both clear per action, so neither can accumulate.
+
+With that, the two mechanics are now separated at every layer, which the earlier fixes had started:
+* **FX** — separate payload + sequence (this change).
+* **Tallies** — shop consumes don't call `noteFodderConsumed`, so they don't feed Abhorrent Horror or the
+  run-wide Fodder totals.
+* **Quests** — `consumeFodder` / `consumeStats` read `runFodderConsumed`, which shop consumes no longer touch.
+* **Runes** — Transfusion and Endless Appetite live inside `noteFodderConsumed`, so they're excluded too.
+* **`onConsume`** — still fires for both, deliberately: "a Demon consumed" is the shared event, and the only
+  card listening is Avarice Incarnate, whose own text says "a Shop minion".
+
+**Audit of all nine interacting cards — every one behaves correctly.** Traced rather than eyeballed:
+
+| Card | Verified |
+| --- | --- |
+| Cinder Clerk | eats one random offer; golden doubles the STATS, not the count |
+| Hungerling | eats the right-most, once per End of Turn |
+| Revolving Maw | eats exactly ONE on its 4th refresh (the "ate all of them" was the old accumulating FX) |
+| Appetite Agent | prompts for a target; the TARGET eats and gains — the Agent itself does not |
+| Selective Glutton | fires on a DEMON play (1 extra eat), not on a Beast play |
+| Feastmaster Vhal | both NEIGHBOURS eat; Vhal itself gains nothing |
+| Malphas (Feast) | the left-most and right-most DEMONS eat 2 each, from opposite ends of the row |
+| Avarice Incarnate | pays 3 Gold for a consume by ANOTHER card, capped once per turn |
+| Grand Gourmand | takes the right-most's stats and does NOT eat it — the offer stays buyable |
+
+Also confirmed: a shop of only spells/Rubies is left untouched, an empty shop is a clean no-op, and every golden
+eater doubles the stats gained rather than the number eaten.
+
+**One thing worth knowing, not a bug:** the Imp token is a DEMON, and Selective Glutton hooks the recruit
+`onSummon` event, which today only fires on a PLAY. If a future card summons an Imp directly onto the board
+during the shop phase, Glutton would trigger on it even though the card says "whenever you PLAY a Demon". Noted
+rather than pre-emptively guarded, since no such path exists yet and the guard would need a play-vs-summon
+distinction the recruit event doesn't currently carry.
+
+Verified: typecheck / lint / test (1705) / build:web / harness green.
+
+### fix(sim/ui): consume hygiene audit; permanent shop buffs; practice timer dial; Choose One wording
+
+Four owner items (2026-07-25), the first being a real bug hunt.
+
+**Consume audit — three bugs, one visible, two silent.** The report was "Revolving Maw stacks the minions up and
+eats all of them, and Hungerling sometimes consumes when it does".
+
+1. **The swirl payload accumulated across actions.** `fodderEaten` was cleared only by the handful of call sites
+   that ASSIGNED it wholesale, while everything else appended — so each new consume replayed every previous one.
+   That is both symptoms at once: ghost minions stacking over the shop, and a card that hadn't eaten
+   (Hungerling) appearing to eat alongside one that had (Revolving Maw). It's a per-action FX payload, so it now
+   clears with the other transient FX lists at the top of the reducer. Multi-consume ACTIONS still animate fully
+   — Feastmaster Vhal's two neighbours have a test.
+2. **Eaten minions never returned to the shared pool.** `rollShop` returns every unbought offer, but an eaten one
+   is spliced out before that — so each consume permanently shrank the run's pool. With eight eating Demons, two
+   of them every turn, a long run would visibly run dry. An eaten minion is DESTROYED, not owned, so it goes back.
+3. **It fed the FODDER tallies.** `noteFodderConsumed` drives Abhorrent Horror's "stats from Fodder consumed"
+   window AND Rune of Consumption's permanent Fodder-aura improve — both were paying out for eating something
+   that isn't Fodder. Dropped; `onConsume` still fires, since "a Demon consumed" is the real event. This was the
+   owner's own hunch ("maybe something broken from the fodder connection") and it was right.
+
+Revolving Maw itself was fine: it eats the right-most, once. There's now a test asserting exactly one consume on
+its fourth refresh.
+
+**"Give minions in the Shop" is a PERMANENT buy-buff.** Owner ruling: that phrasing means the Staff of Guel
+channel; only "THIS shop" / "the NEXT shop" is scoped to one roll. Contract Butcher and Display Curator were
+using the per-offer channel, so their buff died on the next refresh — which made Curator's escalating version
+nearly worthless, since each turn's grant expired before the next arrived. Both now use `tavernBuyBonus` (and
+feed the Fodder enchant, as the Staff does, so a bought Fodder isn't silently excluded). **Apples** now says
+"give **this shop** +1/+3", because a bare "the shop" reads as the permanent buff it isn't.
+
+**A practice-mode timer dial.** A 1-4x dropdown beside the clock, practice only — 1x is exactly the scored
+mode's clock. Practice was a fixed 3x, which stays the default so existing practice runs feel unchanged.
+Persisted like the combat-speed slider. Deliberately absent in scored runs, where the timer is part of the
+challenge.
+
+**Choose One wording, part two.** Orivax's OPTIONS were already clean but its combined card text still read
+"Choose One — Chorus: … Spellweave: …", so the first guard missed it — it only checked options. The guard now
+covers the card's own text too. That widening immediately flagged Coppercoat Spellsword's "Choose One — Shout:",
+a legitimate KEYWORD rather than a flavour name, but it reads identically to the labels being removed and a
+Choose One already implies it resolves on play, so it's phrased like the rest now. All five set-2 Choose Ones
+print the mechanic alone.
+
+Verified: typecheck / lint / test (1705) / build:web / harness green. Every consume fix confirmed to bite by
+reverting it. The pool-drain and Fodder-tally bugs were both SILENT — no error, no visible symptom, just a run
+slowly getting worse — which is why they get tests rather than a comment.
+
+### tweak(content): Choose One options print the MECHANIC, not a flavour name
+
+Owner 2026-07-25: the flavour labels on set-2 Choose One options read as extra rules to decode. Two cards
+carried them — Elderhorn ("**Hunt:**" / "**Ritual:**") and Malphas ("**Feast:**" / "**Legion:**") — and both now
+print the effect alone. Their combined card text is reworded to match, since it named the branches too.
+
+Audited the rest rather than assuming: Orivax, Coppercoat Spellsword and Facetwright's Choice were already clean.
+
+The FACTORY ids keep the names (`battlecryGrantBeastHunt`, and Malphas's `option: 0`/`option: 1` gates). Those
+are internal, and renaming them would churn the run-state fields — `beastHuntExtra` / `beastRitualExtra` — for a
+display-only change, the same rule the Gem Shard rename followed.
+
+A set-wide guard came with it: a test walking every set-2 Choose One option and rejecting a leading `**Word:**`
+label, so a future card can't quietly reintroduce the pattern. Verified it bites by putting "Hunt:" back.
+
+Also retargeted the Malphas Choose One test, which had asserted on the words "Feast" and "Legion" and so broke on
+a pure wording change. It now matches the MECHANIC ("Consume" / "Imp") — which is what actually distinguishes the
+two options, and what the `option:` gates key on by ORDER.
+
+Verified: typecheck / lint / test (1700) / build:web / harness green. Live-checked the prompt in a throwaway run:
+Elderhorn's two options read "Your Beast Rallies and Slaughters trigger an additional time." and "Your Beast
+Echoes trigger an additional time.", and the picked branch carries through to the board card unchanged.
+
+### tweak(content/core/sim): Avarice pays flat Gold; Endless Overseer is a capped death trigger
+
+Three owner items on the Demon tribe (2026-07-25).
+
+**Avarice Incarnate WAS working** — verified before changing anything: it paid 1 Gold for a Tier-1 consume and
+correctly capped once per turn. But that's the problem, not a bug: 1 Gold off a Tier-1 offer is negligible on a
+Tier-6 card, and the payout swung with whatever the shop happened to be showing. Now a flat **3 Gold (6 golden)**,
+which is both stronger and predictable. Golden doubles the GOLD rather than raising the cap, matching the new text.
+
+**Endless Overseer is now "your first 3 Imps that die summon an Imp"** (6 golden), replacing the version that
+grafted an Echo onto every living Imp. The new shape is better on two counts beyond reading more simply: it
+catches Imps summoned MID-combat (a graft can only reach bodies that already exist), and the budget is an
+explicit cap rather than relying on "don't grant to the ones you just made" to avoid recursion. Without the cap
+the same fixture produces **48** summons instead of 3, so it's load-bearing and has a test.
+
+It hooks `avenge` — the per-friendly-death signal — which previously carried only `{ side, count }`. The payload
+now also carries the **victim**, so a watcher can ask WHAT died. Additive: every existing Avenge consumer reads
+side/count only. Its budget param is named `imps`, NOT `count`, deliberately: by convention an avenge factory's
+`params.count` is the every-N threshold (see `avengeShieldAttack`), and this card has no threshold — it pays on
+every Imp death until the budget is spent.
+
+*Also found:* `onFriendDeathBuffRandom` is dead code — registered in the union and the schema, implemented in
+factories, used by no card and dispatched by nothing. Left alone (out of scope), noted for a future sweep.
+
+**Malphas needed no change.** The owner's clarification — "if they choose the Imp one, that version is on their
+board and active while it's alive" — is exactly what the printed-effects-gated-on-`chosenOption` implementation
+already does. Verified rather than assumed: Feast fired on three consecutive End of Turns while he was on the
+board, and stopped the moment he was removed.
+
+Verified: typecheck / lint / test (1699) / build:web / harness green. The Overseer's new tests cover the exact
+budget (3, not 4, not unbounded), that a NON-Imp death pays nothing, and that the cap bites when removed.
+
+*Fixture lesson:* the first Overseer test gave it 60 HP against a 20-attack enemy, so it died on the second death
+and only one summon landed — the test read as a bug in the card when it was a bug in the setup. A card that pays
+out over several deaths needs a body that survives them.
+
+### feat(content/sim/core/ui): set 2's DEMON tribe is COMPLETE (23/23), art wired
+
+Owner roster 2026-07-25. The tribe's identity is **Consume from the Shop** — eight cards eat a tavern minion for
+its stats — braided with an **Imp** swarm line. `demon` is now a playable set-2 tribe.
+
+**The shared primitive first, because eight cards ride it.** Set 1's Demons already ate from the shop, but only
+offers carrying `FD` (Fodder); `consumeShopMinion` eats any minion. Stats come from `offerBuyStats`, the same
+helper the BUY path uses, so an eaten offer is worth exactly what it would have been worth bought — run buffs,
+per-offer buffs and a golden offer's doubling included. Reading the raw CardDef instead would have silently
+ignored every shop buff the player had invested. The recurring Gilded rider "and gain double its stats" is that
+primitive's `times` multiplier, not a second effect, so four cards' golden text is a number change and no extra
+code path.
+
+*A real ordering bug the tests caught:* the primitive fired `onConsume` BEFORE appending the consume record, so
+Avarice Incarnate — which pays Gold equal to the eaten minion's tier — read an empty list and paid nothing. The
+record is now written first, since a watcher has to be able to see WHAT was eaten.
+
+**23 cards**, needing 21 new factories. Two design notes:
+* **Cinderwall Captain** ("Start of Combat: the first 2 Imps you summon gain Ward") is implemented as an
+  `onSummon` watcher with a per-instance cap, NOT a Start-of-Combat pre-pass — at Start of Combat the Imps don't
+  exist yet, so a pre-pass would have nothing to shield. Per-instance means the cap resets each fight, which is
+  what "this combat" requires, and it needed no new context plumbing.
+* **Grand Gourmand** deliberately does NOT use the consume primitive: it takes the right-most offer's stats and
+  leaves it in the tavern, so no `onConsume` fires and the minion is still buyable. That's the whole difference
+  from Hungerling, and it has a test asserting the offer survives.
+
+**The last three landed in the same PR.**
+
+* **Revolving Maw** counts refreshes. Rather than a run-wide counter, a new `shopRefreshed` event fires after
+  `refreshTavern` and the tally lives PER-INSTANCE — "every 4 refreshes" should mean four since that body
+  arrived, so a Maw bought on turn 8 doesn't immediately fire off rolls it was never present for. Fired after the
+  refresh so a watcher that eats sees the NEW row, not the one that just rolled away.
+* **Endless Overseer** grafts "Echo: summon an Imp" onto each Imp ALIVE at Start of Combat, via the same
+  `grantDeathrattle` path Grave Body and Sunmane use. Imps summoned later deliberately do NOT inherit it — a
+  self-granting Echo that summons more of itself would recur until the board cap and the stack both gave out.
+  There's a test asserting the fight terminates and the summons stay bounded.
+* **Malphas** exposed a real design limit worth recording. `applyChooseOne` fires an option's effects ONCE, as a
+  battlecry — fine for Elderhorn's permanent grants, but Malphas's halves are PERSISTENT (Feast every End of
+  Turn, Legion on every Imp attack), so putting them in `chooseOne[].effects` meant they fired at pick time and
+  never again. Both halves are now PRINTED effects gated on `chosenOption`, the per-instance pick I added
+  earlier this session — which already rides into combat, so one mechanism covers both phases with no new
+  plumbing. My first Malphas test passed vacuously (a Hungerling on the fixture board was eating the shop, not
+  Malphas); it now has Malphas on the board and a CONTROL with no pick recorded, proving the shrink is his.
+
+**Art.** 21 of the 23 wired and verified (Malphas needed an alias — the file drops his epithet, like Orivax).
+Broodwright and Feastmaster Vhal have no master in the folder yet. Four
+`2` variants (CinderChancellor2, ErrandFiend2, LegionShepherd2, VelvetRopeFiend2) are skipped under the standing
+rule — each has an un-suffixed sibling, and mtime is not a safe tiebreak after Sunmane.
+
+Verified: typecheck / lint / test (1698, +23) / build:web / harness green. The primitive carries the heaviest
+coverage — leaves-the-shop, golden doubling, current-buffed-stats, never eats a spell, empty-shop no-op — since
+a bug there is a bug in eight cards at once. Live-checked after a dev-server RESTART (new art files need more
+than a reload): 20 Demons in the pool, `demon` in set 2's tribes, 18/18 arts resolving at 512x512, none leaked
+into set 1: 23 Demons, 21/21 arts resolving at 512x512, and a sane tier curve (2/2/5/4/4/5/1 across T1-T7).
+
+### feat(ui): tribe-name size dial
+
+Added a `tribe name · size` slider (`--plate-tribe-sf`, font size × card width, default 0.062) to the 🂠 Card
+Plate tuner, next to the X/Y position dials. Verified live: 0.062 → 0.1 grew the label 5.9 → 9.4px.
+
+### tweak(ui): bake tribe-name defaults + Dragon tribe colour → white
+
+Owner-dialed: tribe-name defaults baked to Y 1.015 / X 0 / size 0.072 (`cardPlateConfig.ts` + the
+`--plate-tribe-*` CSS fallbacks). Dragon's tribe colour changed from red-orange `#ff6a3c` to white `#ffffff`
+(`--t-dragon`, single source — flows to its borders, icons, bold keywords and tribe-name label).
+
+### feat(ui): Neutral tribe plate + dragon re-exported clean (all SIX plated)
+
+Added Neutral to `TRIBE_PLATES` (`cardplate-neutral.webp`, 945×1469 native) — so every tribe including
+neutral now has its own plate; the default `cardplate.webp` remains only as the safety fallback. Neutral gets
+the same treatment as the others: its name ("NEUTRAL") on the plate gem, drawer label suppressed. Also
+re-exported Dragon from the owner's fresh 945×1469 export (ratio 1.5545), so it's now pixel-clean like the
+rest — the earlier ~3% fill-stretch is gone. Verified live: neutral → `cardplate-neutral.webp` with "Neutral"
+on the gem.
+
+### feat(ui): Demon + Undead tribe plates (all five tribes now plated)
+
+Added Demon and Undead to `TRIBE_PLATES` and refreshed Mech from the owner's final v2 art — so every
+non-neutral tribe now has its own plate (beast/dragon/mech/demon/undead); neutral keeps `cardplate.webp`.
+Demon, Undead and Mech-v2 sources were all 945×1469 (ratio 1.5545 ≈ the plate's 1.5550), so they convert
+pixel-clean; Dragon remains the 1.5113 export (~3% fill-stretch, unchanged). Verified live: each tribe's
+`.cardplate` src resolves to its own webp, neutral to the default.
+
+### feat(ui): Dragon + Mech tribe plates
+
+Wired the Dragon and Mech plates into the `TRIBE_PLATES` map — each a one-line entry plus a webp, exactly as
+the map was set up for. Both converted from the owner's PNGs to `frames/cardplate-{dragon,mech}.webp` at
+800×1244 (sharp q92). Verified live: a Dragon-primary card → `cardplate-dragon.webp`, Mech → `cardplate-mech.webp`,
+each with the drawer tribe label suppressed and the tribe NAME on the plate gem; Undead still shows the neutral
+plate. typecheck + lint + 1649 tests + build:web green.
+
+NB the Dragon source was 972×1469 (ratio 1.5113) vs the plate's 1.5550 — fill-resized to 800×1244, so it took a
+~3% vertical stretch to share the frame geometry. Eyeball the window/gem alignment; re-export at ~945×1469 if it
+reads off.
+
+## 2026-07-25 (tribe-plate cards: name on the gem, white body text, tribe-coloured keywords, a text-box tuner)
+
+### feat(ui): relocate the tribe name, recolour the body text, add a Card Text tuner
+
+- **Tribe-name X dial + Undead → teal.** Added a `tribe name · x` slider (horizontal offset, `--plate-tribe-xf`)
+  alongside the existing Y on the 🂠 Card Plate tuner. Changed the Undead tribe colour from slate `#5c6f8c` to
+  teal `#22b8a8` (the single `--t-undead` source, so it flows to borders, icons, and now the tribe-coloured
+  bold keywords). Verified live: undead bold reads `rgb(34,184,168)`, the X slider shifts the label right.
+
+Follow-ups on the per-tribe plates:
+
+- **Tribe name on the plate gem.** A tribe-plated card (Beast today) drops its in-drawer tribe icon+label and
+  prints the tribe NAME on the plate's bottom diamond instead (`.plate-tribe`, no icon). Positioned by the
+  same geometry the plate uses so it tracks the gem at any size; `--plate-tribe-yf` (a new `tribe name · y`
+  dial on the 🂠 Card Plate tuner) nudges it onto the gem. Unplated board cards keep the normal drawer label.
+- **Body text pure white, keywords tribe-coloured.** The rules text was a tan `#d8ccb6`; it's now pure white
+  (`--card-desc-color`, default `#fff`) so it stands out, and bold keywords/numbers take the card's tribe
+  hue (`var(--c)`) instead of white — Beast keywords read green, Mech blue, etc. Verified live: white body,
+  `rgb(78,168,59)` bold on a Beast, `rgb(39,169,221)` on a Mech.
+- **🔤 Card Text tuner.** A new DEV tuner for the rules-text BOX boundaries (not the title): box top offset,
+  side inset (column width), top/bottom padding, and line height — live via `--ctx-*` vars, `cardTextConfig.ts`
+  DEFAULTS mirrored into the styles.css fallbacks. Verified live: dragging `top` moved the box 103→118px,
+  `padX` widened the inset 7.6→15.1px, `line` opened 9→10.9px.
+
+Engine typecheck + lint + 1649 tests + `build:web` green.
+
+## 2026-07-25 (Beast tribe gets its own card plate)
+
+### feat(ui): Beast-primary cards use a green-gem plate
+
+Beast tribe now renders on its own backplate — the same ornate stone/gold body as the neutral plate but with
+GREEN gem accents (side runes + the bottom diamond). Keyed on the PRIMARY tribe only (owner call): a
+Beast-primary card gets it; a Beast/Dragon or Dragon/Beast keeps the neutral plate. `Card.tsx` picks the src
+via `plateSrcFor(card.tribe)` for both the plate and its hover-glow copy; everything else (geometry, text
+buckets, gold tint, dissolve/coalesce) is unchanged because the art is the same 800×1244 dims.
+
+Asset: `frames/cardplate-beast.webp`, converted from the owner's 945×1469 PNG (ratio 1.5545 ≈ the plate's
+1.5550) down to 800×1244 via sharp, quality 92 (263 KB). Verified live: a Beast-primary card's `.cardplate`
+src is `cardplate-beast.webp`, a Mech's and a Dragon/Beast's are `cardplate.webp`; the asset serves (200) and
+bundles into `dist/`.
+
+Follow-up (owner to decide): a golden Beast card gets this plate PLUS the gold tint filter, which pushes the
+green gems toward gold — leave as-is, or author a bespoke gold-beast plate.
+
+### feat(content/sim/ui): set 2 gains the owner's 28-card NEUTRAL roster
+
+Owner roster 2026-07-25. 21 of the 28 names already existed as set-1 neutrals; 7 are new.
+
+**The 21 carry over UNCHANGED** (owner decision). Their table listed different tier/stats for seven — Buddy Buddy
+3/3, Nimbus T4 5/4, Rope Wrangler T5 5/6, Yazzus T7 9/9, Lazarus T7 8/8, Zyff 12/10, and "Jenkins" vs the card's
+"Jensen & Fi" — but these are SHARED definitions, so re-speccing would have rebalanced set 1 too. Opted in via
+`SET1_NEUTRALS_IN_SET2` + `SET1_TIER7_IN_SET2` (separate so the Tier 7s stay appended last, matching set 1's
+ordering rule). A test pins that those seven are still at their set-1 stats, so a later edit can't drift them
+silently. The deltas are listed in the PR to apply deliberately if wanted.
+
+Nimbus also keeps the "additional time" wording from the 2026-07-24 ruling (it stacks with Drakko) rather than
+the roster table's older "casts twice" — the table predates that change.
+
+`lazarus` is a quest reward (`token: true`), so it joins the set but not the shop. That matches the blank Source
+column it and the Tier 7s carry on the roster.
+
+**The 7 new cards** live in `cards/set2/neutral.ts`, so they're set-2-only by construction. Six needed a new
+effect primitive:
+
+| Card | | Primitive |
+| --- | --- | --- |
+| Tamer | T1 1/1 | reuses `deathrattleSummon` + a new 3/3 `n2_whelp` token (`attackOnSummon`) |
+| Coppercoat Spellsword | T2 3/4 | `battlecryGrantSpellPowerRun` — Choose One, mirrored params |
+| Gravelight Acolyte | T2 2/2 | `deathrattleSummonRandomTier` |
+| Oathbound Avenger | T3 2/5 | `avengeBuffRandomFriendlyShield` |
+| Bellringer Voss | T4 4/6 | `endOfTurnCopyNeighbour` |
+| Lastlight Marshal | T5 5/7 | `scGrantEndsFlurryWard` |
+| Fatecarver | T6 5/10 | `onSummonDoubleStats` |
+
+Notes on the two with real subtlety. **Bellringer** follows Frontdrake's cadence contract exactly (`eotTick`
+advances once per turn on proc 0), so a Chronos repeat fires an extra copy on the cadence turn without advancing
+the count and a Djinn replay pays on the turn it would naturally land — getting that wrong is how a cadence card
+ends up firing every turn. **Fatecarver** hooks the SUMMONED body's `onSummon`, so it catches every source (Echo
+tokens, spell summons, Rise) rather than enumerating them, and is guarded against the other side and itself.
+
+A new 3/3 Whelp token rather than reusing set 1's 3/2 `whelpling`, because the roster's stat line differs. Kept a
+DRAGON like every other Whelp, which matters in set 2 where Dragons are playable.
+
+**Art.** The Neutral art folder — empty earlier today — now holds 21 masters; 20 wired, 16 by name and 4 by
+hand-confirmed alias (`JenkinsAndFi` → `jenkins`, `SalvatoreMcKluskey` → `salvatore`, `ZyffBetrayer` → `zyff`,
+`Whelpling` → the ID, since TWO cards are now named "Whelp"). `TaurusTheAncient.png` is **not** wired: it matches
+neither "Taurus" nor "Taurus the Truth Bringer", both of which already have art, so guessing would overwrite one.
+Five of the seven new cards still await art (Coppercoat, Gravelight, Oathbound, Bellringer, Lastlight) and fall
+back cleanly.
+
+Verified: typecheck / lint / test (1675, +13) / build:web / harness green. Live-checked: all 28 present in set 2,
+none leaked into set 1, set-1 stats untouched, and all 20 arts resolve from `art/minions/` at 512x512.
+
+*Three test traps worth recording.* (1) The set-2 Discover test asserted "Kobolds only", which the roster makes
+false — rewritten to the real invariant (only EXPLICITLY opted-in set-1 cards appear), asserted by ID because
+several set-2 cards legitimately carry a set-1 SECONDARY tribe (Gemgorge Fiend is Kobold/Demon) and a tribe check
+flagged those as leaks. (2) My Gravelight test asserted exactly one summon; the roll legitimately CHAINS (it drew
+Tamer, whose own Echo summons a Whelp), so it now asserts the FIRST summon's tier. (3) My Fatecarver
+"doesn't double itself" test passed with the guard REMOVED — initial-board minions fire no `onSummon`, so it was
+vacuous. Replaced with the reachable side-guard case (an enemy summon), confirmed to fail when broken.
+
+### feat(content/sim/ui): the Work Orders — five Set-2-only utility spells, art wired
+
+A five-card cycle on one template (owner batch 2026-07-25): Tier 3, cost 2, each paying a different axis.
+Authored in `cards/set2/spells.ts`, so they're in `SET2_SPELLS` and unreachable from a set-1 run.
+
+| Card | Effect |
+| --- | --- |
+| Work Order: Mine | Gain 2 Gold |
+| Work Order: Reinforcement | Get a minion of your most common type |
+| Work Order: Champion | Give your left-most minion +6/+6 |
+| Work Order: Health | Give 3 random friendly minions +4 Health |
+| Work Order: Attack | Give 3 random friendly minions +4 Attack |
+
+Mine reuses the existing `gainEmbers`; the other four needed three new factories (Health and Attack share one,
+differing only in params).
+
+Two decisions worth recording:
+* **Reinforcement routes through the existing `grantTopTypeMinion`** rather than re-deriving "most common type".
+  That helper already resolves dominant tribe, caps at the tavern tier and respects the shared pool, so the
+  phrase means one thing everywhere instead of two implementations drifting.
+* **"3 random friendly minions" picks 3 DISTINCT bodies**, not three rolls that can land twice on the same
+  minion. With-replacement would let a 2-minion board put +8 on one and nothing on the other, which isn't what
+  the card says. A board smaller than 3 simply buffs everyone. Seeded off the run cursor, so a reload or replay
+  picks identically.
+
+Champion is deliberately untargeted: you choose the recipient by ARRANGING your line, which also keeps it
+deterministic (board order, no RNG).
+
+**Art.** Five masters, five cards. Three match by name; the other two are the art's own wording for the same
+cards — `WorkOrderAssault` → Attack and `WorkOrderFortitude` → Health — unambiguous both semantically and by
+elimination. Both are recorded as explicit aliases in the matcher rather than resolved by guesswork, so a future
+full re-wire keeps them. **Flagging in case the ART names are the intended card names** — trivial to flip.
+
+Verified: typecheck / lint / test (1660, +12) / build:web / harness green. Live-checked in a throwaway run:
+Champion took the left-most 1/1 to 7/7 and left the rest alone; Attack buffed three DISTINCT bodies (+4 each,
+the fourth untouched); Mine paid 20 → 22 Gold; all five arts resolve from `art/spells/` at 512x512. Console clean.
+
+*Two traps hit on the way, both already-known ones:* three identical `stray`s on a test board TRIPLE-COMBINE into
+a golden and vanish, which produced four false failures until the fixtures used distinct bodies; and the
+`sets.test.ts` manifest has an explicit `SET2_OWN_SPELLS` allowlist that correctly rejected the new ids until
+they were declared — exactly the guard it exists to be, so it was extended rather than loosened.
+
+### fix(core/ui): Sunmane's rally ACCUMULATES (not doubles); buff badges no longer flash up-down-up
+
+Two things from the owner's screen capture and the correction that followed.
+
+**1. The rally model was wrong — twice, in opposite directions.** The correct rule (owner 2026-07-25): a carrier
+grants its printed base PLUS everything it has been GRANTED, and it never buffs itself. The escalation players
+see is **emergent** — later carriers hand out more purely because they were handed more. Nothing doubles anything.
+
+The discriminating case is Flurry: *"it only buffs the rest of the beast minions +3 attack 4 times, so +12
+attack. this DOES mean that the next beast that attacks would rally: +12"*. My previous version doubled the value
+on every rally attack, so four Sunmane swings would have escalated 3 → 6 → 12 → 24 instead of granting +3 four
+times. Because Sunmane never accumulates, it keeps granting its printed +3 forever while the Beasts it feeds grow
+— which is exactly why the self-exclusion is load-bearing rather than incidental (I briefly "fixed" it in #712,
+now closed; that was wrong).
+
+This model reproduces BOTH of the owner's descriptions, including the repeated `+3` in the first one that the
+doubling reading couldn't produce: with each Beast attacking once the raw grants run
+`3,3,3, 3,3,3, 6,6,6, 12,12,12`. Only the printed card carries a base; the graft is written with `attack: 0` so a
+converted Beast passes on exactly what it was given.
+
+*A testing lesson worth keeping.* My first attempt at the discriminating test collapsed duplicate values into
+"rungs" and asserted `[3, 6, 12, 24]` — which **passes against the wrong model too**, because collapsing hides
+the six-vs-three `+3`s that actually separate them. I only caught it by regressing the implementation on purpose
+and watching the test still pass. The test now asserts the RAW grant sequence, and I re-confirmed it fails
+against the doubling version.
+
+**2. The reported visual bug: buff badges flashed the new value, snapped back, then ticked up.** A buffed badge is
+*meant* to hold its pre-buff number until the tendril lands. That hold was installed from the post-paint cue
+effect, so every buff painted three times — new value for one frame, hold snapping back, release ticking up. It
+now installs in a **layout** effect, committing in the same paint as the frame advance, so the intermediate value
+is never shown. The FX path keeps the RELEASE, which is what has to be timed to the animation.
+
+The arithmetic moved into a pure exported `preBuffHolds`, tested directly — the failure mode is silent (the badge
+just lands on a plausible number that was never real), and it now also sums the WHOLE beat per target, fixing a
+latent inconsistency where a target taking both a tendril and a self-buff in one beat had only one of them
+subtracted. Holds are rebuilt wholesale each beat, so a lost release timer can no longer freeze a badge.
+
+Verified: typecheck / lint / test (1649) / build:web / harness green. Both fixes confirmed to bite by regressing
+them. Frame-accurate visual confirmation of the badge fix wasn't possible from here (the Browser pane isn't
+compositing, so rAF and screenshots are throttled) — the pure function is under test and a MutationObserver over
+a live replay showed no decreases, but **it's worth an eyeball in the exe**.
+
+*Tooling note:* read the owner's clip by installing `ffmpeg-static` into the scratchpad (NOT the repo), extracting
+frames, and tiling crops of the stat badges into filmstrips. That is what made the up/down/up sequence legible
+and located the bug.
+
+### fix(content/core/ui): Sunmane Herald's rally escalates board-wide; Dawnclaw gains Taunt
+
+**Sunmane Herald, reworked to the owner's actual model (2026-07-25).** My previous pass read "stacks
+multiplicatively" as *each recipient learns a copy worth 2x what it was handed, once* — which needed new BODIES
+to escalate, so on a static board it oscillated at 3, 6, 3, 6 forever. The owner's spec is a single value that
+**doubles on every rally attack, board-wide**: 3 -> 6 -> 12 -> 24 -> 48 -> …, compounding with attack count, so
+Flurry and Solaris-style extra attacks are the payoff rather than an edge case.
+
+The magnitude now lives on the combat INSTANCE (`Minion.rallySpreadAtk`), which is what makes the owner's two
+edge rules fall out for free rather than needing special cases:
+* **Death loses the stacks** — a Rise/resummon is a fresh body with no magnitude, so it re-enters at the printed
+  base and does not inherit the chain.
+* **A Beast summoned mid-combat joins at full strength** — it has no magnitude until a carrier attacks, then
+  takes the current value and can carry the chain onward.
+
+Each rally attack grants the current value to your Beasts, then moves **every carrier including the attacker** to
+the next rung — which is why a Flurry body escalates twice in one turn. The effect is still grafted only once per
+body (a second copy would double-fire the same attack); the magnitude is refreshed every time, and that refresh
+is the actual carrier of the escalation.
+
+Unbounded doubling is the design, but the arithmetic isn't: ~50 rally attacks reaches Infinity and turns every
+downstream stat into NaN. Clamped at 1e9 — far past any reachable board strength, so it never binds in play and
+only stops the maths from breaking. That clamp has its own test.
+
+Card text updated to describe the real rule ("Each **Rally doubles** the Attack"), and the printed +3 is now
+folded to the live value in combat via a new `rallySpreadText` helper — the live-text rule applies here because
+the grant genuinely depends on combat state, and a card reading "+3" while granting +768 would be a lie.
+
+**Dawnclaw gains Taunt** (owner ask). Its Echo triggers adjacent Shouts, so it has to be attacked INTO to pay
+off — guarding the line is what lets the card do its own job. Text + goldenText updated; verified the edit hit
+only Dawnclaw (its goldenText line is one another card could plausibly share).
+
+Verified: typecheck / lint / test (1641, +5) / build:web / harness green. Confirmed the rework bites by
+restoring the old per-generation behaviour — the sequence test then reads `[3, 6, 3, 6]`, the exact stall the
+owner reported. Observed the real fight sequence: **3, 6, 12, 24, 48, 96, 192, 384, 768** (each rung appears
+twice with three Beasts, since one attack grants to two recipients). Live-checked Dawnclaw renders the Taunt
+frame.
+
+*Left as-is, worth a second look:* the rally still excludes the ATTACKER from its own Attack buff (pre-existing
+behaviour), even though Sunmane is itself a Beast and the text reads "give your Beasts". Not part of this fix, so
+I didn't change it.
+
+### chore(ui): re-wire all Set-2 minion + spell art in one pass (133 files)
+
+One unified matcher (`matchall.py`) over every `Set 2 Minions/*` subfolder plus `Spells/`, replacing the
+per-tribe scripts. 172 masters seen → **133 wired** (68 minions, 65 spells), 4 skipped, 35 reported unwired.
+
+Of the 133, only **5 images actually changed content** — `d2_chronicler`, `d2_scalechanter`, `fleetingvigor`,
+`growth`, `sprout`. Everything else re-encoded byte-identically (sharp is deterministic and the earlier passes
+already used 512px / q82), so the diff is honest about what's new instead of churning 133 blobs.
+
+**The 22 Kobold masters converted PNG → WebP.** They were the last unoptimized art in the repo — wired before
+the optimizer step existed — and including the Kobolds folder in this pass fixed that as a side effect.
+
+Two things the matcher caught that a per-folder script wouldn't have:
+
+* **A routing bug.** The matcher decides `art/minions/` vs `art/spells/` from the CARD's own type, not the source
+  folder, and cross-checks the two. That flagged `discoverspell` (the triple-reward Discover token), which
+  carries neither `spell: true` nor `ruby: true` — the UI special-cases it by id — so it would have been filed
+  under `art/minions/` while its art actually lives in `art/spells/`, and silently stopped resolving.
+* **Six near-misses that are real cards**, now explicit hand-confirmed aliases rather than silent drops:
+  `Orivax.png` → `d2_orivax` (the card carries an epithet), `GemShard.png` → `gemheart-shard` (the token was
+  just renamed to Gemheart Golem; its id is unchanged), `RivalsReflections.png` → `rivalsreflection` (plural
+  master), `GemheartCarver2.png` → `k_gemheart` (the ONLY Carver master, so the suffix is meaningless), and two
+  filename variances where the file is the sole candidate for the sole such card: `GemforgeFiend.png` →
+  `k_gemgorge` (card is "Gem**gorge** Fiend"; the owner has used both spellings) and `CandlelightBulwark.png` →
+  `k_candleback` (card is "Candle**back** Bulwark").
+
+**Deliberately NOT wired, and why** — these need an owner call, not a guess:
+* **All 23 Demon masters.** There are no Set-2 Demon cards yet; the art is ahead of the content.
+* **3 ambiguous "2" variants** — `FaultlineScrapper2`, `GemstormInstigator2`, `Veinbreaker2` — each of which has
+  an un-suffixed sibling. mtime is NOT a safe tiebreak here: with Sunmane Herald the newer "2" turned out to be
+  the reject, which the owner signalled by renaming it `extra.png`. The base names stay wired.
+* **12 spell masters with no card**: the 5 Work Orders, Cupcakes, Deepdelve Writ, Ironclad Requisition,
+  Preemptive Attack, Road to the Summit, Spark Plug (the card was renamed Waking Rift, which has its own
+  master), Timepiece.
+
+Verified: typecheck / lint / test (1636) / build:web green. Dev server RESTARTED (22 filenames changed
+extension, so the eager `import.meta.glob` needs more than a reload) and all 133 ids checked through `artFor()`
+— asserting the full resolved path lands in the right subdirectory, that each fetches 200, and that none decode
+above 512px. 133/133 OK, and no `.png` remains anywhere under `art/`.
+
+### fix(core): a Ruby played in COMBAT fires the target's onRubyPlayed; rename Gem Shard → Gemheart Golem
+
+**"Geode Guardian rubies played on Resonance Idol do not bounce to adjacent minions" — confirmed NOT fixed, now
+fixed.** The cause was a clean split across the recruit/combat seam: Geode Guardian's Echo is a **combat**
+factory (`deathrattlePlayRubiesAdjacent` in `core/effects/factories.ts`), while Resonance Idol's bounce existed
+only as a **recruit** factory (`rubyPlayedBounce` in `sim/recruit.ts`). So a Ruby played mid-fight had nobody
+listening — combat's `playRubyOn` applied stats and returned, and no `onRubyPlayed` equivalent was ever fired.
+
+Two halves to the fix. Combat's `playRubyOn` now notifies the target, running its own `onRubyPlayed` effects the
+way recruit's `fireOnRubyPlayed` does; and Resonance Idol gained a combat implementation so there's something to
+run. This fixes the bounce for **every** combat Ruby source, not just Geode Guardian — Frenzied Excavator's
+per-buy Rubies and Candle Conduit's casts route through the same helper.
+
+The stat application was split out as `applyRubyStats`, and the bounce deliberately calls THAT rather than
+`playRubyOn`. That guard is load-bearing: a bounced Ruby must not itself count as "a Ruby played on" the
+neighbour, or two adjacent Idols ping-pong until the stack blows. It's the same property the recruit half gets by
+calling `addBuff` directly, and it now has a test whose passing at all is the assertion.
+
+Only factories with a combat implementation respond to the new notification — Ruby Broker's Gold, for instance,
+is meaningless mid-fight and simply has no combat entry, so it no-ops rather than needing a guard.
+
+**Gem Shard → Gemheart Golem** (owner rename). DISPLAY name only: the id stays `gemheart-shard`, which is what
+the art file, the summon reference and any captured opponent board key off — the same rule the vocabulary rename
+followed, since renaming ids would invalidate saved runs for a cosmetic change. Gemheart Carver's text and
+goldenText updated to match.
+
+Verified: typecheck / lint / test (1636, +2) / build:web / harness green. The new tests assert the exact event
+chain — a +1/+1 Ruby buff on the Idol sourced from Geode, then a second on the Idol's *other* neighbour sourced
+from the Idol — and that two adjacent Idols terminate. Confirmed the first bites by removing the notification.
+Live-checked the rename in the browser: the token reads "Gemheart Golem", the Carver's text follows, and the art
+still resolves from `minions/gemheart-shard.webp` at 512x512.
+
+## 2026-07-24 (buy slide no longer blinks the card out and back in)
+
+### fix(ui): the buy/place slide re-armed the card's mount-pop
+
+A bought (or placed/reordered) card briefly blinked, faded out, then back in as it settled into hand — a
+regression owner spotted on main. `buySlide` suppressed the card's mount-pop with `animation: none !important`
+for the slide, then removed that override in `done()`. Because `.popin` persists on a hand card
+(`animation: handpop`, frozen at mount), clearing the inline override re-applied `handpop` FROM ZERO — a fresh
+0→1 fade firing right as the slide ended. Proven in-DOM: after the old cleanup, `getAnimations()` showed
+`handpop, running, currentTime 0`.
+
+Fix: `buySlide` now FINISHES the mount-pop (`handpop` / `cardpop`) up front via the Web Animations API instead
+of toggling the `animation` property. That (1) settles the card so `base` reads the true resting transform —
+the slide was previously ending on a mid-pop frame (scale 0.9) — and (2) leaves the pop done for good, so
+nothing re-arms when the slide ends; the slide is the card's entrance. `done()` now only clears the opacity
+override. Verified in-DOM: post-slide, no re-armed `handpop`, no stray inline `animation`. Motion itself is
+owner-eyeballed — the preview pane freezes the animation clock.
+
+### feat(ui): the ×N multicast badge joins the Card Pills tuner (position, scale + two colours)
+
+The ×N badge is now the fourth pill in 🏷️ Card Pills, with its own x/y/scale like the other three, plus two
+COLOUR pickers — the badge fill and the numeral. It's the one pill whose hue is a live design question (the
+others are fixed by tribe or tier), which is why it gets pickers at all.
+
+**The fill is ONE colour, not three.** The badge is a minted coin — a radial gradient with a highlight, a base
+and a shade — so a naive single-colour picker would have flattened it to a solid disc. The CSS instead mixes the
+outer stops out of the picked colour with `color-mix` (`42% white` for the highlight, `62% black` for the shade),
+so any hue keeps the coin's shading. Var fallbacks are the shipped orange, so nothing changes if the vars are
+absent.
+
+Structurally this splits the config's key list in two: `CARD_PILLS_KEYS` (sliders) and `CARD_PILLS_COLOR_KEYS`
+(pickers), with `setCardPillsColor` alongside `setCardPillsValue` — the existing setter was typed to `number`,
+and widening it to `number | string` would have let a colour be dropped into a scale with no complaint.
+
+**Owner's tuned values baked as the shipped defaults** (2026-07-24): `multX: 9, multY: -13, multScale: 0.81` —
+the exact MIRROR of the cost coin (`costX: -9`, same y and scale), so the two badges sit symmetrically in the
+card's top corners. Colours unchanged from the shipped orange.
+
+Small fix on the way: the tuner's value readout is `flex: 0 0 26px`, which truncates a 7-character hex, so
+colour rows use a wider `.hex` variant.
+
+Verified: typecheck / lint / test (1634) / build:web / harness green. Checked in the browser through the real
+tuner API — moving the sliders applies `scale(1.4)` + the expected translate, the pickers recolour both the
+gradient (mixed from `#3355ff`) and the numeral, and Reset restores the shipped values. The panel renders all
+14 rows with the ×N block as 3 sliders + 2 swatches showing their hex. Then cleared the localStorage override
+and reloaded to confirm the BAKED defaults apply to a fresh player: `matrix(0.81, 0, 0, 0.81, 6.92, -10.0)`.
+
+### fix(sim/ui): Rubies show their ×N badge; the Grimoire meter hides while charged; ×N wears the coin skin
+
+Three owner asks (2026-07-24), all on the same corner of the card.
+
+**Rubies had no multicast badge.** Two independent reasons, both needed fixing. (1) The Ruby cast count only
+existed INLINE at the reducer's cast site, so there was no side-effect-free way for the UI to preview it — now
+extracted as `rubyCastCount` and used by both, so the number shown and the number resolved can't drift. (2) All
+four `castMult` gates tested `def.spell`, and a Ruby carries `ruby: true` **without** `spell: true` (it isn't a
+Shop Spell), so even a correct count would have been thrown away. A Prismcaster'd Ruby under a live Grimoire
+charge now reads ×4.
+
+**The Grimoire meter no longer shows 3/3 while charged.** The previous pass showed a full meter as the "ready"
+state; the owner's correction is that a 3/3 reads as a meter you still have to fill, when the card is in fact
+ready. There is now no counter at all while charged — it appears as 0/3 the moment the charge is spent, which is
+when it carries information, and climbs 1/3 → 2/3 as Shouts land.
+
+That cost the free animation. Showing 3/3 made recharging LAND on `total`, which is what `Card`'s built-in
+step-proc burst fires on; with the counter unmounting instead, that signal is gone. So the flourish is now fired
+explicitly off the counter DISAPPEARING, from the position it last occupied (cached per render — by the time it
+vanishes the element has no rect to read). Guarded on having had a previous value, so a card that mounts already
+charged doesn't burst.
+
+**The ×N badge wears the minted-coin skin** of the hero-power cost and the `.cost` coin, in ORANGE — same badge
+family as the gold cost coin on the opposite corner, instantly distinguishable from it. Kept circular like its
+siblings, with `min-width` + a pill radius so a two-digit ×N stretches without going lozenge.
+
+*Process note:* the new test file first failed to COLLECT (an unescaped apostrophe in a describe name), and
+`Tests: no tests` is not something a grep for failures would surface — this is the same trap that once hid an
+11-test drop. Checking exit codes and the Test Files line is what caught it.
+
+Verified: typecheck / lint / test (1634, +4) / build:web green, console clean. New tests pin `rubyCastCount` at
+1 on a bare board, +1 per Prismcaster (doubled golden, additive across two), ×2 under a Grimoire charge, and —
+the one that matters — that the predicted count EQUALS the buff the reducer actually applies, so the badge can't
+promise a number the cast doesn't deliver. Live-checked in a throwaway run: the Ruby badge reads ×4 with the
+orange coin styling, and the Grimoire cycles none → 0/3 → 1/3 → 2/3 → none across a spend and three Shouts.
+
+### fix(sim/ui): Living Grimoire re-arms each turn; its Shout meter reads 0/3 while spent
+
+**The "only targeted spells" report was a misdiagnosis on my side worth writing down.** I probed it before
+changing anything: `spellCasts` already applies the Grimoire multiplier to every spell, and both the sim and
+the ×N badge doubled an untargeted Ember Pouch (1 Gold → 2) exactly like an aimed Spirit Fire. So the
+multiplier was never targeted-only.
+
+The real defect is WHEN it's armed. It armed on play and via the 3-Shout reset — and nowhere else. So on any
+later turn where you hadn't triggered 3 Shouts, the card did nothing at all. The turn it was played happened to
+be a targeted cast, which is why it read as "targeted works, untargeted doesn't". Its printed rule — "the first
+spell you cast **each turn** casts twice" — was simply false from turn 2 onward.
+
+It now **re-arms at the start of every turn**, which makes the printed rule true; the 3-Shout reset still gives
+a SECOND charge within the same turn. Re-armed to the strongest Grimoire on board (golden = ×3) so two copies
+don't compound, and to nothing if you've sold them all.
+
+**The Shout meter is now visible** (owner ask): the card shows a 0/3 counter while spent, climbing 1/3 → 2/3 as
+you trigger Shouts. It reads FULL (3/3) while charged rather than hiding, and that choice is load-bearing
+rather than cosmetic: recharging then LANDS on `total`, which is exactly the signal `Card`'s existing
+step-counter proc burst fires on — so "animate showing it's ready again" needed no new animation, just the
+right numbers. Dropping back to 0/3 when spent is a wrap FROM full, which that burst's `prev !== total` guard
+already ignores, so it can't double-fire.
+
+This also required an explicit exception to the "hide a fresh 0/N counter as noise" rule: for the Grimoire, 0/3
+is the whole point — it's how you see the card is spent and how far the recharge has come.
+
+Verified: typecheck / lint / test (1630, +4) / build:web / harness green. Tests cover the untargeted doubling
+(Ember Pouch's Gold is directly countable), the per-turn re-arm across a real combat cycle, a golden re-arming
+to 3 with two copies NOT compounding, and no arming with no Grimoire on board. Confirmed the re-arm tests bite
+by deleting the block. Live-checked in a throwaway run: an untargeted spell paid double, and the counter walked
+0/3 → 1/3 → 2/3 → 3/3 with the charge back to ×2 on the third Shout.
+
+### fix(content/sim): every Ruby-excluding Dragon says "Shop spell"; Runefire gains its Ruby half
+
+Owner ruling 2026-07-24: "every Dragon effect intended to exclude Rubies must explicitly say **Shop spell**."
+Living Grimoire and Runefire are the two deliberate exceptions — they work with all spells, Shop and Ruby alike.
+
+**The behaviour was already correct on all ten excluding cards.** I audited each rather than assuming: a Ruby
+never routes through `castSpell`, so it fires no `spellCast` hook (Ashscribe, Spellkeeper, Rune of Scales),
+records no `firstSpellThisTurnId` / `lastSpellCastId` (Spellvault, Runic Archivist, Recaller, and Scalefeather's
+armed charge, which is consumed inside `castSpell`), never reaches `spellCastOnThis` (Mirrorwing), and draws its
+stats from `rubyBonus` rather than spell power (Ashen Broodlord). Orivax's Spellweave sets
+`spellFirstMultEachTurn`, which the Ruby branch doesn't read — it computes its own count from `rubyExtraCast`.
+So this half is **text only**: nine card texts (each with its golden variant) plus Rune of Scales and Orivax's
+Spellweave option now say "Shop spell".
+
+Because nothing needed fixing there, the new tests exist to **lock it in** — "already correct by accident of
+plumbing" is exactly the property a later refactor breaks silently, and the printed text is now a promise. A
+text-audit test asserts every excluding card carries the wording in both its text and goldenText, plus the
+INVERSE for Grimoire and Runefire, so a well-meaning consistency sweep can't quietly restrict them later.
+
+**Runefire, on the other hand, genuinely didn't work with Rubies** — the same reason: no `castSpell`, so its
+`spellCastOnThis` hook was unreachable. It now has a second effect on `onRubyPlayed`, so a Ruby played on it
+also lands on its adjacent Dragons (including firing those neighbours' own `onRubyPlayed` watchers — a spread
+Ruby is a Ruby landing on them). Its text says "the first spell or **Ruby**".
+
+*The design decision worth flagging:* Rubies get their OWN per-instance counter (`rubiesOnThisTurn`) rather
+than sharing `spellsOnThisTurn`. Runefire reads the sum, so a Ruby and then a Shop spell pay out once; but
+Mirrorwing keeps reading spells only. Sharing one counter looks simpler and is a trap — a Ruby landing on
+Mirrorwing would consume its once-per-turn slot without triggering it, so playing a Ruby would effectively
+DISABLE the card for the turn. That's worse than either intended behaviour, and it's now a test.
+
+Verified: typecheck / lint / test (1626, +9) / build:web / harness green. Both halves confirmed to bite:
+removing Runefire's Ruby effect fails its two tests, and implementing the naive shared-counter version fails
+the Mirrorwing slot test. Two of my own initial expectations were wrong and worth recording — Spirit Fire is
++2/+3 (not +2/+2), and my first Runefire test used Ashscribe as the neighbour, whose own spell reaction moved
+its stats for reasons unrelated to the spread; the inert Guardian Drake is the right control body.
+
+### fix(sim): Ashscribe Whelp counts its "first spell" from PLACEMENT, like Grimoire and Spellkeeper
+
+Applying an existing owner ruling to the one card that still had the old shape. Living Grimoire and Spellkeeper
+Drake were corrected on 2026-07-24 to count "the first spell cast **while this is on your board**" rather than
+the first of the turn; Ashscribe Whelp kept reading the turn-global `spellsThisTurn === 1`. So a Whelp bought
+and played after you'd already cast that turn did nothing until next turn — which reads as the card being
+broken rather than as a cost of sequencing, and is inconsistent with its two tribe-mates doing the same thing.
+
+It now uses the same per-instance `boardSpellCount` Spellkeeper does (reset each turn, undefined on a fresh
+body, so placement is the natural floor). No new state, no reducer change — the reset already clears it for
+every card that carries it.
+
+**Flagging this as a judgement call**, since the owner ruled on Grimoire/Spellkeeper specifically and not on
+this card: I read it as the same defect rather than three separate decisions, and it's a two-line revert if the
+per-turn reading was deliberate for a Tier 1.
+
+Also corrected a comment the immediate-mint change made stale (`moonhowlTeachesThisTurn` no longer resets
+"the queued Pups already minted at EoT" — they mint on the buy).
+
+Verified: typecheck / lint / test (1617, +1) / build:web / harness green. The new test mirrors the existing
+Spellkeeper placement test — cast a spell, THEN play the Whelp, and it still grows on the next cast. Confirmed
+it bites by restoring the turn-global gate. The pre-existing "first but not the second spell" test passes both
+before and after, so the per-turn once-only property is intact.
+
+### fix(sim): Moonhowl fires from BOTH spell-buy paths; a taught aimed spell lets you pick the target
+
+Two owner reports on the Mage-Pup mechanic (2026-07-24).
+
+**"Moonhowl isn't proccing when I buy Spirit Fire."** There are *two* ways to buy a spell — the right-hand
+spell SLOT and a spell offer sitting in the minion ROW (the Spell Cart / set-2 shop path) — and the new
+`spellBought` event only fired from the slot. Any spell bought from the row taught nothing. Both paths fire it
+now. Worth noting for future buy-triggers: the two branches sit ~15 lines apart in the same `case 'buy'` and
+each maintains its own list of post-buy hooks, so anything added to one needs a conscious look at the other.
+
+**A taught AIMED spell now opens the target picker.** Playing a Pup that learned Spirit Fire used to
+seeded-random the target; you now aim it like any targeted Shout, and the spell lands on the minion you pick.
+
+The wrinkle is that this is a **per-instance** property. Every existing deferral reads `def.target ===
+'friendly'`, but the Mage-Pup CardDef is untargeted — whether a given Pup needs an aim depends on the spell
+stamped on its instance. So it needed its own predicate (`taughtAimSpell`), checked in the reducer's play case
+*before* the def-level test, with `playCard` skipping the Shout the same way it does for a real targeted
+Battlecry so it isn't fired twice. `applyBattlecryTarget` then fires it with the chosen target, and the factory
+prefers `payload.target` while keeping the seeded-random fallback for paths that can't prompt (a Shout-repeater
+re-firing the Pup). An untargeted taught spell is unaffected — no stray prompt.
+
+One narrowing, called out in the code rather than hidden: a taught `'any'` spell aims at your BOARD. Cast from
+hand an `'any'` spell can also hit a tavern offer, but the deferred-Battlecry path resolves to a `BoardCard`;
+widening it means teaching `pendingTarget` about shop offers, which is a bigger change than this fix warrants.
+
+Verified: typecheck / lint / test (1616, +5) / build:web / harness green. Tests cover both buy paths, the
+picker opening (and NOT resolving early), the picked minion being the only one buffed, and an untargeted
+taught spell still resolving immediately. Confirmed the row-buy test bites by reverting just that call — it
+fails alone, which is what isolates the bug to the row path. Live-checked in a throwaway run: buying Spirit
+Fire from the minion row mints a Pup taught `spiritfire`; playing it opens the picker with aim highlights, and
+aiming at one of two identical 1/1 Strays buffs that one to 3/4 and leaves the other untouched.
+
+### fix(content/sim/ui): Mage-Pups can never be tripled
+
+Owner ruling 2026-07-24: "mage pups cannot be tripled in any circumstance." A Pup's identity lives on the
+INSTANCE — `taughtSpellId` is the spell it will cast — so three Pups are three different cards wearing one id,
+and a combine would have to silently pick one taught spell and bin the other two.
+
+Expressed as data, not a hard-coded id check: a new `CardDef.noTriple` flag (schema-validated), set on
+`b2_magepup`. `checkTriples` excludes such cards from the COUNT rather than just from the combine, so three
+Pups don't sit at a permanent phantom "3/3 triple" that never resolves. The UI's shop pip mirrors the same
+eligibility rule (it was already missing the Ruby exclusion the reducer has), so nothing can light up a
+"completes a triple" hint for a combine that will never happen.
+
+*Testing note worth recording.* The first version of these tests fired a `roll` to trigger the check and all
+four passed — including a CONTROL that should have gilded three Strays. `checkTriples` runs on buy / play /
+grant and **never on a roll**, so those assertions proved nothing: they'd have passed with no guard at all.
+The tests now buy a shop minion (the realistic trigger — you're holding Pups and buy something else) and the
+control gilds, which is what makes the other three meaningful. The control is deliberately kept as the
+tripwire against exactly this class of fake pass.
+
+Verified: typecheck / lint / test (1611, +4) / build:web / harness green. Confirmed the guard tests bite by
+removing the `noTriple` check and watching all three Pup cases fail while the control still passed. Covers
+three-in-hand, split across hand and board, and **Rune of Twin Gilding** (which Gilds at 2 — the case most
+likely to slip past a fix written against 3).
+
+### fix(content/sim/ui): Moonhowl Mentor's taught spells behave like real casts; Sunmane stacks multiplicatively
+
+Two Set-2 Beast fixes from the owner's 2026-07-24 batch.
+
+**Moonhowl Mentor — a full pass on the taught-spell mechanic** ("this will be extremely important for the set").
+
+*Timing.* The Pup now appears the instant a Shop Spell is bought, not at End of Turn. It used to queue into
+`taughtSpellsThisTurn` and mint later, so the turn you spent Gold on the spell you got nothing back. The teach
+is now a first-class event: **`spellBought`** (new `GameEvent`, fired from the reducer's spell-buy branch) with
+Moonhowl watching it via `grantMagePupTaught`. Deliberately its own event rather than widening `onBuy` to
+include spells — `onBuy` is minions-only on purpose ("a spell isn't a minion"), and widening it would change
+what every existing buy-trigger sees. The dead `taughtSpellsThisTurn` queue and the End-of-Turn mint are gone.
+
+*Fidelity — the actual bug.* The Pup's Shout called `castSpell` directly, which only ever runs a spell's
+`effects[]`. That silently did NOTHING for a whole class of spells whose behaviour lives elsewhere in the play
+path. **Beyond the Summit** (the reported failure) has `effects: []` and works entirely through
+`discoverOnPlay`, so a taught copy was a blank. The Shout now mirrors the reducer's own spell resolution:
+
+* **Discover spells** open the real Discover. The spec builder was extracted out of the reducer into a shared
+  `discoverSpecFor`, so the hand path and the taught path resolve the same offer by construction — they can't
+  drift, which is what would have re-broken this later. A taught Beyond the Summit now peeks a tier up, and
+  Hourglass Reserve's lock / Funeral on Loan's borrow ride along for free.
+* **Cast count** comes from `spellCasts`, so a taught spell respects Nimbus, Ancient Runes, Spell Thesis and
+  Yazzus, and spends those one-shot charges exactly once. Previously it ignored all of them.
+* **Aimed spells** re-target a seeded-random friendly (the Rune of Recurrence / Runic Archivist rule) and
+  fizzle cleanly on an empty board rather than half-casting.
+
+Shout-modifying cards needed nothing: the Shout is a real `onPlay` effect, so anything that re-fires Shouts
+already re-fires the whole cast. One deliberate divergence, called out in the code: a taught **Choose One**
+spell casts its first option, because resolving one properly means opening a modal and waiting for a decision
+that a Battlecry mid-resolution can't wait for. Better than doing nothing; flagging it as a judgement call.
+
+*Text.* A Mage-Pup printed "cast the spell this was taught", which tells the player nothing about what clicking
+it does. It now reads **"Shout: cast <Spell> — <that spell's live text>"**, resolved through the same
+`spellDisplayText` chain the shop uses, so a taught Spirit Fire shows its spell-power-boosted numbers rather
+than a stale base — the live-text rule applies to the borrowed line too. `taughtSpellId` rides the same five
+paths `chosenOption` does (board→combat, instantiate, snapshot, opponents, `Unit`) so the Pup names its spell
+everywhere, including a restored or served board.
+
+**Sunmane Herald now stacks multiplicatively.** Owner: each generation of the spreading Rally should be worth
+more, "to scale with the right build". It was flat — every Beast that learned the rally granted the same +3.
+The copy a recipient learns is now worth **double** what it was handed: +3 → +6 → +12 as it travels. The
+existing "each body learns it only once" guard is what keeps that bounded — without it the magnitude would
+compound with ATTACK COUNT rather than spread depth and diverge, and with it the ceiling is `atk × 2^6` on a
+full board. Both properties are now spelled out in the factory, because dropping either overflows a long
+fight. The card text says "doubling each time it spreads" so the mechanic is visible.
+
+*Worth knowing for balance:* one Sunmane attack converts every Beast already on board at once, so depth beyond
+generation 1 comes from Beasts that arrive LATER (summons, token floods) — the tribe's own summon package is
+what turns this from +6 into the escalation the ruling describes.
+
+Verified: typecheck / lint / test (1607) / build:web / harness all green. New tests pin the doubling sequence,
+the once-each bound (a 12 with two bodies is the runaway signature), the immediate mint, the taught cast being
+a real tallied cast, and the Discover case. Each was confirmed to genuinely bite by reverting the fix and
+watching it fail — flat spreading fails 2, disabling the Discover branch fails the Beyond the Summit test.
+Live-checked in a throwaway run: buying Beyond the Summit with Moonhowl out puts a Pup in hand immediately
+reading "Shout: cast Beyond the Summit — Discover a minion from one tier higher", and playing it opens a real
+Tier-5 Discover.
+
+### feat(sim/ui): a resolved Choose One shows only the branch it became; the prompt is two real cards
+
+Three owner reports (2026-07-24), one theme — a Choose One card was lying about what it does.
+
+**1. On board, a resolved Choose One now prints only the option it picked.** It used to keep listing both, so
+an Elderhorn that took Hunt still advertised Ritual. The pick is recorded per-instance as
+`BoardCard.chosenOption` (the reducer stamps it at pick time, including on the TARGETED path — Runic Beetle
+decides its branch before it aims, so waiting for the target would leave it showing both mid-pick), and
+`liveCardText` narrows to `chooseOne[i]` when it's set. Applies to every Choose One card, not just Elderhorn.
+A `chooseBothWhenGolden` golden (Orivax) genuinely gained both, so it records nothing and keeps its combined
+text — the honest read there.
+
+The field rides all four instance paths so the card reads the same everywhere: board→combat (`reducer`),
+combat instantiate (`minion.ts`), the combat snapshot the UI renders (`simulate.ts` → `Unit.tsx`), and BOTH
+persistence paths — `snapshot.ts` (so a restored run doesn't revert to both-options) and `opponents.ts` (so a
+board served as someone's opponent reads true). Dropping it from the snapshot pair is exactly the fidelity bug
+class PR #453 cleaned up, so it went in with them rather than after another audit.
+
+**2. The Choose One prompt is now two CARDS.** It was two cream text-buttons; a Choose One is the same kind of
+decision as a Discover, so it now reuses the Discover chrome (dark-glass banner, transparent panel, card row)
+and renders the real card twice, each printing only its own branch — you pick the version of the card you want.
+Cards are `forceFull` regardless of the compact-tiles preference: everywhere else the text drawer is optional
+detail you hover for, but here the two texts ARE the decision, and two collapsed drawers is two identical
+portraits. The dead `.chooseopt` / `.chooseone-opts` / `.discover-box` / `.discover-title` rules are deleted.
+
+*Found on the way:* `Card.tsx` had a **conditionally-called hook** — `forceFull || !useGame(…)` short-circuits
+the `useGame` subscription whenever `forceFull` is set. Harmless while every call site passed a constant, but
+the new force-full cards render at a tree position that previously held non-force-full ones, which shifts the
+hook order and crashes the render with React's "Should have a queue". Now read unconditionally. This was a live
+landmine for any future force-full call site, not something my change introduced.
+
+**3. Spirit Worgen no longer shows in a Set-2 Compendium.** `EVOLUTION_CARDS` walked the global `CARD_INDEX` to
+find ascend/transform targets. `CARD_INDEX` is deliberately set-agnostic (id→def needs no set), so that leaked
+every set's evolution forms into every other set. It's now derived from the SOURCE cards in the set's own pool:
+an evolution form is in scope exactly when the card that evolves into it is. Spirit Pup isn't in Set 2, so
+Spirit Worgen isn't either.
+
+Verified: typecheck / lint / test (1603, +4) / build:web / harness all green. The new
+`chooseOneMemory.test.ts` covers the untargeted pick, the deferred-target pick, a `chooseOption: 0` guard (a
+truthiness test would silently drop the first branch — the common pick), and asserts every Choose One option in
+the pool has non-empty text so a narrowed card can never render an empty rule box. Confirmed the tests really
+bite by removing the recording and watching 2 fail. Live-checked in a throwaway run: the prompt renders both
+branch texts on-screen with no overflow, and picking Ritual leaves the board card reading only
+"Ritual: your Beast Echoes trigger an additional time."
+
+Follow-ups: the remaining owner items from this batch (Moonhowl Mentor's taught-spell fidelity, Sunmane
+Herald's multiplicative Rally stacking) are their own change and not in here.
+
+### chore(ui): re-wire the Beast + spell art (owner refreshed the masters)
+
+Second art pass over the same two folders. **Beasts: 24 files** (was 21) — the 21 minions plus three tokens
+the owner has since drawn: Mage-Pup, T-Rex Baby, and Void Cub (`sabercub`, a Set-1 id). **Spells: 66 files**,
+of which Gold Font, Spirit Fire and Marked Target are freshly redrawn.
+
+**Corrects the Sunmane Herald call from earlier in this branch.** That pass wired `SunmaneHerald2.png` over the
+original because the "2" had the newer mtime. The owner has since renamed that file to `extra.png` — an explicit
+signal it's the reject — so `SunmaneHerald.png` is the keeper and `extra.png` is skipped. Newer mtime alone was
+the wrong tiebreak; a rename is the real signal.
+
+Same matcher discipline: normalised card name against every id/name pair in `packages/content`, unmatched files
+reported rather than guessed. Two hand-confirmed aliases — `VoidPanther.png -> manasaber` (historical id) and
+`BabyRex.png -> b2_trexbaby` (the card is "T-Rex Baby"). The 7 unchanged spell files with no card (Cupcakes,
+Deepdelve Writ, Ironclad Requisition, Preemptive Attack, Road to the Summit, Spark Plug, Timepiece) stay
+unwired — same list as before, so nothing new drifted.
+
+*Near-miss worth recording:* the first attempt ran the WebP optimizer over the whole `art/minions` directory,
+which swept up 22 tracked-as-`.png` Kobold arts that aren't part of this task. Reverting that with a blanket
+`git checkout -- art/minions/` then also threw away the fresh Beast copies. The optimizer now iterates **only
+the ids the matcher copied**, and the Kobold PNGs are verified byte-intact.
+
+Verified: `build:web` green; dev server restarted (eager glob) and all **90** ids checked through `artFor()` —
+asserting the full resolved path lands in the right subdirectory (`art/minions/` vs `art/spells/`, the check
+that once missed 38 shadowed spell arts), that each fetches 200, and that none decode above 512px. 90/90 OK.
+
+### chore(ui): wire the Set-2 Beast art — all 21 cards
+
+Art pass for the Beast tribe. 21 masters from `Ascent Art/Set 2 Minions/Beasts` copied into
+`packages/ui/src/art/minions/<id>.webp` and resized/encoded to the house 512x512 / q82 WebP, so the
+eager `import.meta.glob` in `art.ts` picks them up by card id with no code change.
+
+Matching was done by NORMALISED CARD NAME against every `id`/`name` pair parsed out of `packages/content`,
+not by eye — the script reports anything it can't match rather than guessing (the standing art rule). Two
+files needed a hand-confirmed decision, both recorded explicitly in the matcher:
+* **`VoidPanther2.png` -> `manasaber`** — the card is "Void Panther"; the id is historical.
+* **`SunmaneHerald2.png` -> `b2_sunmane`**, and `SunmaneHerald.png` deliberately NOT wired. Two masters exist
+  for the same card and the "2" is the NEWER of the pair (Jul 24 14:22 vs Jul 23 23:40), so it's the
+  replacement — the same call we made for Scalefeather Drake.
+
+**Six of the 21 replace existing Set-1 art**: `badgington`, `beetle`, `kennel`, `manasaber`, `seaurchin`,
+`sporebat`. These are carried-over cards sharing one id across both sets, so there's one art slot — the new
+master shows up in Set 1 too. That's consistent with how their re-specs were handled; flagging it because it
+changes Set-1 visuals as a side effect.
+
+The two Beast tokens (`b2_trexbaby`, `b2_magepup`) have no master in the folder and keep their fallback.
+
+Verified: `build:web` green; the dev server restarted (an eager glob needs a restart, not a reload) and each
+of the 21 ids checked through `artFor()` — asserting the **full** resolved path lands in `art/minions/`, not
+just the basename (the check that missed 38 spell arts shadowed by same-named minion files), and that every
+one fetches 200 and decodes at 512x512. `git status` shows exactly 21 changed files.
+
+### feat(content/sim/core): Beast tranche 6 — Moonhowl Mentor; the Beast tribe is COMPLETE (21/21)
+
+Moonhowl Mentor (T6 4/9) — the last card. **All 21 Set-2 Beasts are in**: 15 authored + 6 carried from set 1
+(Badgington, Sea Urchin, Sporebat, Void Panther, and the re-spec'd Kennelmaster + Runic Beetle).
+
+Moonhowl is the tribe's most novel mechanic, built to the owner's ruling ("Mage-Pup gains Shout: cast X spell"):
+buying a Shop spell teaches it to a Mage-Pup; End of Turn mints that Pup into your hand; playing it casts the
+spell it learned. Four pieces:
+* a **Mage-Pup token** whose Shout is per-INSTANCE — the spell id rides on `taughtSpellId` (a new BoardCard
+  field), so one token type covers every spell it can learn rather than needing a token per spell.
+* `teachSpellToMagePup`, called from the reducer's SPELL-buy branch. That path deliberately doesn't fire the
+  normal `onBuy` trigger ("a spell isn't a minion"), so this is a narrow dedicated hook rather than widening
+  that contract for one card.
+* a per-turn cap read off the board (1 base, 2 golden), reset with the other per-turn counters.
+* `battlecryCastTaughtSpell` — a real `castSpell`, so it tallies and fires spell-cast watchers like any cast.
+  An AIMED spell re-targets a seeded-random friendly, the same rule Rune of Recurrence and Runic Archivist use,
+  so "cast a spell without choosing a target" behaves consistently across every card that does it.
+
+Tests walk the whole chain (buy → taught → EoT mint → the Pup remembers its spell) plus the two negative cases:
+no Mentor on board teaches nothing, and a second buy in the same turn is capped out.
+
+Final roster spread: 1/2/2/1/4/4/1 across T1–T7. Suite 1599 + typecheck + lint + build:web + harness green.
+
+### feat(content/sim): Beast tranche 2 — Mosswhisker, Runebloom, Dawnclaw (spell + combat payoffs)
+
+Three more Set-2 Beasts, now that the owner supplied the full stat table.
+
+* **Mosswhisker Adept** (T2 1/2) — the first spell each turn washes your Beasts +1/+1 board-wide. New
+  `onSpellCastFirstBuffTribe`, gated on `spellsThisTurn === 1` like Ashscribe Whelp.
+* **Runebloom Matriarch** (T6 5/9) — every spell buffs 3 random Beasts +3/+3. New `onSpellCastBuffRandomTribe`
+  (seeded pick via the shop cursor so replays stay faithful).
+* **Dawnclaw** (T4 5/3) — Echo re-fires adjacent Battlecries, reusing Ryme's `deathrattleReplayAdjacentBattlecry`
+  VERBATIM. No new primitive; its combat behaviour is already covered by the Ryme tests, so the Dawnclaw test
+  pins the card WIRING rather than re-simulating a proven factory.
+
+Test traps re-hit and recorded: three identical Strays TRIPLE-COMBINE and vanish (so the Runebloom test uses
+distinct Beasts), `growth`/`emberpouch` aren't the simple buffs I reached for (growth reshuffles the board;
+emberpouch doesn't fire the `spellCast` watcher) — so the isolating spell is a targeted Spirit Fire, and the
+board-sum delta (23 = Spirit Fire 5 + Runebloom 18) is pick-independent. The Ashscribe-style delta trick
+(compare between two casts) is used for Mosswhisker since spells buff the board too. Suite 1591 + typecheck +
+lint + build:web + harness green.
+
+Roster: 8 of 21 in (Packstrider, Mosswhisker, Runebloom, Dawnclaw + carried Badgington/Sea Urchin/Sporebat/Void
+Panther + the two re-specs). Still ahead: the token-summon cards (T-Rex, Menagerie Mammoth), the combat-trigger
+cards (Echohorn Stag, Solaris, Lancel), summon auras (Denkeeper Oona, Groveweaver), Sunmane Herald's
+self-replicating Rally, Moonhowl Mentor's Mage-Pup (ruled: Mage-Pup gains "Shout: cast X spell"), and Elderhorn
+(Choose-One, Gilded = 2 additional triggers per mode — NOT gain-both).
+
+## 2026-07-24 (Set 2's Beast tribe — foundation + Packstrider)
+
+### feat(content/sim): open the Set-2 Beast tribe (carry-over + Packstrider)
+
+Owner handed over a 21-card Beast roster. Unlike the Dragons (a new identity), these are the SET-1 Beasts
+brought into set 2 with a spell/summon tilt: 6 of the 21 already exist in set 1, the rest are new or re-spec'd.
+
+Wired the tribe in — `beast` joins set 2's `tribes`, `SET2_BEASTS` joins its `own` manifest, and the set-1
+Beasts whose table spec matches their existing card carry over via `SET1_BEASTS_IN_SET2` (Badgington, Sea
+Urchin, Sporebat, Void Panther) — the same opt-in-by-id pattern Karwind uses.
+
+Built Packstrider (T1 2/2, the one fully-specified NEW card): a go-wide Rally finisher that buffs ITSELF by
++1/+1 (golden +2/+2) per Beast you control, via a new `rallyBuffSelfPerTribe` combat factory. Tested against a
+3-Beast board (+3/+3), with a note that a BoardMinion tribe override doesn't reach the combat minion (it reads
+the CardDef tribe) — so the test uses real Strays, not tribe-cast sandbags. Suite 1588 + typecheck + lint +
+build:web + harness green.
+
+**Blocked on owner input — the bulk of the roster:**
+* 14 of 21 cards list NO Attack/Health in the table (T-Rex, Mosswhisker Adept, Lancel, Echohorn Stag, Dawnclaw,
+  Sunmane Herald, Denkeeper Oona, Groveweaver, Moonlit Scavenger, Solaris, Runebloom Matriarch, Menagerie
+  Mammoth, Moonhowl Mentor, Elderhorn) — can't be authored without stats.
+* Two existing cards are RE-SPEC'd vs their set-1 versions and need the same "re-spec the shared card vs a set-2
+  variant" call Karwind got: Kennelmaster (base +2→+1 Attack, adds Avenge 3) and Runic Beetle (its Choose-One
+  now also grants +1/+1 or +3 Attack). Left at their set-1 spec for now.
+* New tokens (T-Rex Baby, Mage-Pup) and a genuinely novel mechanic — Moonhowl Mentor's "when you buy a Shop
+  spell, teach it to a Mage-Pup; End of Turn, get that Mage-Pup" — need rulings before they're built.
+## 2026-07-24 (PROD CRASH — `useGame is not defined` in the packaged exe)
+
+### fix(ui): import useGame in useCombatReplay; make store.ts test-safe
+
+Owner's friend hit `ReferenceError: useGame is not defined` (`app://ascent/…` — the packaged exe) the moment a
+combat resolved a spell-power / Ruby-power gain. The mid-combat spell-buff cue I added earlier called
+`useGame.getState()` in `useCombatReplay.ts` WITHOUT importing it.
+
+Why it only crashed in prod: `store.ts` exposes `window.useGame` as a DEV-only debug handle (stripped from
+production). In dev + localhost the bare `useGame` resolved to that global; in the prod build the global doesn't
+exist → crash. `typecheck:web` DOES catch it (`TS2304: Cannot find name 'useGame'` on both lines, verified), but
+that gate isn't in CI yet — it's blocked on the pre-existing UI type backlog (unmerged #676). Added the import.
+
+Adding it surfaced two LATENT test-infra gaps, because two suites (`useCombatReplay.test.ts`,
+`avengeOrder.fold.test.ts`) now pull `store.ts` into their import graph:
+* `store.ts` uses the build-time defines `__APP_VERSION__` / `__BUILD_SHA__`, which `vitest.config.ts` never
+  provided → `ReferenceError: __APP_VERSION__ is not defined`. Mirrored the build's `define` block into the
+  vitest config (placeholder values; nothing asserts on them).
+* `store.ts`'s DEV-only `window.useGame = …` assumed a browser `window`, but vitest runs with `DEV` true in a
+  Node environment → `window is not defined`. Guarded with `typeof window !== 'undefined'`.
+
+Both were dormant only because no test previously reached `store.ts`; they'd have bitten the next such import
+regardless. With all three fixes the full suite is back to 1586 (the missing import had silently dropped the 11
+tests in those two suites). typecheck + lint + build:web green.
+
+Process note to self: my gate check grepped `× ` for failures, which misses FAILED SUITES (collection errors) —
+those need an exit-code check. That's how a 1586→1575 drop nearly slipped by.
+## 2026-07-24 (bake the owner's tuned Refresh button)
+
+### chore(ui): commit the tuned Refresh FX defaults
+
+Owner's values from the 🔄 Refresh tuner, baked into `refreshConfig.ts` DEFAULTS and mirrored into the
+styles.css `--rfb-*` fallbacks (double-source discipline). Changed vs the prior defaults: a bigger cost coin
+(`costS 1.42 → 1.6`), the label pill higher and larger (`labelY -46 → -64`, `labelS 1 → 1.42`), a fuller,
+faster, blue-tinted hover glow (`glowAlpha 0.57 → 1`, `glowStrength 6 → 7`, `glowPulse 4 → 1.5`,
+`glowPulseDepth 0.43 → 0.25`, `glowColor #ffffff → #52bdff`), a snappier tighter click shine (`shineMs 1050 →
+280`, `shineAlpha 0.7 → 1`, `shineSize 1.9 → 3`, `shineBlur 24 → 7`), no click dust (`dustCount 0.1 → 0`), and
+longer, smaller blast shards (`blastLife 660 → 880`, `blastSize 0.7 → 0.45`). Position/scale unchanged.
+typecheck + lint + 1586 tests + build:web green.
+
+
+## 2026-07-24 (triple-reward cards coalesce in gold + a plate mask A/B)
+
+### feat(ui): the Triple Reward token materialises in gold
+
+The gold coalesce keyed only off `.golden`; the "Triple Reward" token (`discoverspell`, granted to hand when
+you play a Gilded minion) isn't a golden minion, so it still coalesced blue. It's rendered with the
+`.triplecard` class, so `plateCoalesce` now reads gold for `.golden` OR `.triplecard` — a triple reward
+materialises in the gild's gold (dust + wireframe) however it lands. Verified live: the token carries
+`.triplecard` and its imprint gradient came back gold (`rgb(169,112,15)…`).
+
+### feat(ui): golden plate stays the colour filter (mask prototype dropped)
+
+The plate gold has been a colour FILTER; the owner wanted the literal MASK approach compared, so both were
+wired behind a `goldMode` A/B toggle on the 🂠 Card Plate tuner — filter (the five-knob colour filter) vs a
+gold gradient masked to the plate silhouette with `mix-blend-mode: color`. The owner chose the FILTER, so the
+mask overlay, the toggle and their scaffolding were removed; the plate keeps `--plate-gold-tone` (sepia 0,
+saturate 2.6, brightness 1.13, contrast 0.95, hue 3), unchanged from what shipped in #690.
+
+Engine typecheck + lint + 1586 tests + `build:web` green (the 3 `typecheck:web` errors are pre-existing on
+main from the Set 2 Kobold/Dragon work, not this change).
+
+## 2026-07-24 (bake the owner's tuned Card Pills layout)
+
+### chore(ui): commit the tuned Card Pills defaults (cost coin + type pill)
+
+Owner's values from the 🏷️ Card Pills tuner, baked into `cardPillsConfig.ts` DEFAULTS: the cost coin nudged up
+and in toward the corner and shrunk (`costX -9`, `costY -13`, `costScale 0.81`); the type pill dropped to the
+bottom of the art icon and slightly smaller (`spellY 34`, `spellScale 0.91`). Tier badge stays identity.
+
+Verified from a CLEARED saved config (what production renders): all three `--cpl-*-t` vars resolve from DEFAULTS
+alone, with the type pill's centring `translateX(-50%)` preserved under the offset. typecheck + lint + build:web
+green.
+
+## 2026-07-24 (Dragon fixes — Grimoire/Spellkeeper count from placement, Grimoire hits Rubies)
+
+### fix(sim/content): Living Grimoire + Spellkeeper count from when they hit the board, not turn start
+
+Three owner corrections, all the same root idea: these "first/second spell each turn" Dragons should count from
+when the card is ON YOUR BOARD, so one found and played mid-turn still works.
+
+**Living Grimoire — fires on the first spell after it's played.** It was gated on `spellsThisTurn === 0` (the
+turn's literal first spell), so playing it after an earlier cast pushed the payout to next turn. Dropped the
+gate: the charge is armed on the Grimoire's Shout, so `grimoireMultActive` naturally applies to the first spell
+cast WHILE IT'S ON BOARD. The consume moved to a shared `consumeGrimoireCharge` so every real cast path spends
+it; the read stays side-effect-free for the UI's cast preview, and still requires a live Grimoire on board so
+selling it can't strand a permanent multiplier.
+
+**Living Grimoire multiplies a Ruby too.** The Ruby cast path computes its own count (Prismcaster) and never
+went through `spellCasts`, so the charge missed it — but the card doesn't say "shop spell", and a Ruby is a
+spell here (owner). The Ruby path now folds in `grimoireMultActive` and consumes the charge, so whichever comes
+first after arming — a Shop Spell or a Ruby — gets the extra casts.
+
+**Spellkeeper Drake — counts shop spells since PLACEMENT, and its text now says so.** It read the run-wide
+`spellsThisTurn === 2`, so a mid-turn play never fired. Now a per-instance `boardSpellCount` (+ the first spell's
+id), reset each turn and undefined-on-fresh — so placement is the natural floor. The `spellCast` notify now
+carries the cast `spellDef`, letting it remember which spell was "the first" since it landed. It only counts SHOP
+SPELLS (Rubies don't route through `castSpell`, so they never fire this watcher), and the text was updated to
+"second **shop spell**" to match.
+
+Existing tests still pass (they placed both cards from turn start, where old and new agree). Three new tests pin
+the fixes; the mid-turn Grimoire one was verified to FAIL against the old `spellsThisTurn === 0` gate
+(`[2,3]` single vs `[4,6]` doubled). One test trap re-hit and noted: a targeted spell (Spirit Fire) with no
+target fizzles and stays in hand, so the "spell before" must be UNTARGETED to actually cast. Suite 1586 +
+typecheck + lint + build:web green.
+
+Flagged, NOT changed (out of scope — owner listed only these two): Ashscribe Whelp has the same "first spell each
+turn" gate (`spellsThisTurn === 1`) and so also won't fire if played mid-turn after a cast. Same one-line fix if
+wanted.
+
+### feat(ui): wire the Set-2 Dragon art (21 minions incl. Karwind)
+
+All 21 Dragon masters wired — 20 `d2_*` cards plus Karwind, whose art slot was empty before (it's a set-1 card
+carried into set 2, so it never had a portrait).
+
+Matched by normalised card name, same as the spell-art pass: 21/23 files matched, the two extras reported and
+deliberately skipped — `ScalefeatherDrake2.png` (a superseded variant) and `Vaeloryx.png` (no card of that
+name). `Orivax.png` needed an explicit hand-confirmed alias, since the card is "Orivax, the Spellchoir" and the
+filename is just the short name.
+
+Optimized only these 21 files (~2.3MB each PNG → WebP), leaving the rest of the art tree untouched to keep the
+diff scoped. Verified after a dev-server restart (an eager glob needs it): a sample across the tier range
+resolves from `/art/minions/`, decodes at full size, and — checked by FULL path, not just filename — none is
+shadowed by a stray PNG, the trap that hid the spell art earlier. build:web green.
+
+## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
+
+### feat(core/sim/content): Dragon tranche 11 — Vault Curator; the Dragon tribe is COMPLETE (21/21)
+
+Vault Curator (T4 4/6) — the last card. **All 21 Set-2 Dragons are in** (20 authored + Karwind carried from
+set 1).
+
+It needed the one seam I'd deferred: the run's HAND inside combat. `CombatSideState` carried spell/tribe/rune
+aggregates but no hand, so the reducer now snapshots the hand's SPELL ids (in hand order) into a new
+`handSpellIds`, and `ctx.leftmostHandSpellFor(side)` reads it. The Avenge copies that left-most spell via the
+existing `grantToHand` carry-back — a spell-less or empty hand is a clean no-op, never a random grant.
+
+This is the change I'd earlier flagged as "own PR, shared types.ts seam". It landed on the Dragon branch after
+all, because the branch had already been extending that same file throughout the tribe (every factory whitelist,
+the Scalefeather carry-back) — a separate PR would have conflicted on `types.ts` for no isolation benefit. The
+addition is read-only in combat (the sim never touches the run hand), so it can't affect determinism, which the
+harness confirms.
+
+Two tests at the sim boundary where the behaviour actually lives: the Avenge copies the left-most held spell and
+skips the second; an empty hand grants nothing. A reducer-level test was written and then REMOVED rather than
+kept vacuous — `handSpellIds` isn't observable off `CombatResult` (which carries only board snapshots), so the
+only honest reducer assertion was "a fight happened", which implies coverage that isn't there. The plumbing is a
+one-line filter and the behaviour is fully pinned at the simulate boundary.
+
+Roster: 2/1/4/4/4/3/1 across T1–T7 + Karwind. Suite 1583 + typecheck + lint + build:web + harness green.
+
+### feat(sim/content): Dragon tranche 10 — Orivax, the Spellchoir (the capstone)
+
+Orivax (T7 10/14, Choose One) — **20 of 21 Dragons built**; the whole shop-buildable roster is done, only Vault
+Curator remains (own PR, shared combat seam).
+
+Orivax installs a PERMANENT global mode and Gilds into both:
+* **Chorus** — your Shouts trigger an additional time. Reuses `shoutExtraAlways`, the counter Hoardwake already
+  feeds, so it reads through `playedShoutRepeats` for free.
+* **Spellweave** — your first spell each turn casts 3 times. Needed a new `spellFirstMultEachTurn` (there was
+  only Spell Thesis's fixed ×2); it's a separate field so the two STACK rather than clobber, gated on
+  `spellsThisTurn === 0` so it stays side-effect-free in the UI's cast preview (the same discipline the Grimoire
+  established).
+
+"Gilded: Gain both" is a GENERAL new flag, `chooseBothWhenGolden`, not an Orivax special-case: a golden
+Choose-One applies every option instead of the one picked. The prompt still opens and you still click a side —
+both resolve, in option order for determinism.
+
+One design call worth recording: golden Orivax's factories use BASE magnitude, NOT the usual golden doubling.
+Its Gilded benefit is literally "gain both modes" — the goldenText replaces the doubled-numbers convention
+rather than stacking on it, so golden Chorus is +1 trigger (not +2) plus Spellweave, which is what "gain both"
+reads as. A test asserts exactly that (`shoutExtraAlways === 1`, `spellFirstMultEachTurn === 3` from one golden
+play).
+
+Three tests: Chorus compounds a played Shout through Roaring Matriarch (+2 Attack fires twice = +4); Spellweave
+triples the turn's first spell and leaves the second single; golden gains both from one play. The tier spread
+now reads clean — 2/1/4/4/4/3/1 across T1–T7, plus Karwind at T6. Suite 1581 + typecheck + lint + build:web green.
+
+### feat(core/sim/content): Dragon tranche 9 — Scalefeather Drake (cross-turn spell copy)
+
+Scalefeather Drake (T4 4/6, Dragon/Beast) — **19 of 21 Dragons built**. The most plumbing of the tribe, because
+its Echo fires in one turn's COMBAT but pays out on the NEXT turn's first spell.
+
+Full carry-back chain: a new combat ctx method `queueNextTurnSpellCopy` accumulates per combat, surfaces as
+`CombatResult.playerNextTurnSpellCopies`, and settle arms `RunState.nextTurnSpellCopies`. `castSpell` then copies
+the turn's first spell to hand while a charge is active, and clears it.
+
+"Next turn" is made EXACT with an activation wave rather than a bare flag: the charge stores `wave + 1` (the
+same marker Hourglass Reserve uses), and the watcher gates on `state.wave >= activateWave`. So a charge armed in
+this turn's combat can't pay out until the following turn — verified by deleting the gate, which makes the copy
+fire a turn early (`expected 1 to be 0`). Multiple Scalefeathers sum, keeping the earliest activation wave so no
+copy is dropped.
+
+Registered in BOTH factory tables under one `do` id — the combat half (carry-back) and a recruit half that arms
+the run charge directly — so Ryme re-firing the Echo in the shop works too, and still means the FOLLOWING turn,
+never the current one.
+
+Three tests: the copy fires on/after the activation wave and is spent; a charge armed for next turn does NOT
+fire this turn; and the Echo carries `playerNextTurnSpellCopies` back from a real `simulate()`. Suite 1578 +
+typecheck + lint + build:web + harness (determinism — new combat factory + CombatResult field) green.
+
+Remaining: Orivax (two persistent Choose-One global modes), and Vault Curator (needs the run hand exposed to
+combat — its own PR on the shared `CombatSideState` seam).
+
+### feat(sim/content): Dragon tranche 8 — Living Grimoire (charge, spend, re-arm)
+
+Living Grimoire (T6 7/9) — **18 of 21 Dragons built**.
+
+A rechargeable spell amplifier: it multiplies the turn's FIRST spell, discharges, and needs 3 Shouts to come
+back. Three details decided the shape:
+
+**The charge is run-level, not per-instance.** `spellCasts` is what applies a multiplier, and the UI also calls
+it to PREVIEW a cast count — so it can only read run state. Hence `grimoireMult` (2 base, 3 golden, via
+`1 + gold(self)`), rather than a flag on the card.
+
+**It's spent in `castSpell`, not in `spellCasts`.** `spellCasts` must stay side-effect free precisely BECAUSE
+the UI previews with it — discharging there would consume the charge every time a tooltip rendered. The spend
+happens at the real cast, keyed on the turn's first.
+
+**`spellCasts` additionally requires a live Grimoire on board.** Without that, selling the Grimoire while
+charged leaves a permanent free multiplier on every future first-spell — a run-level flag with no owner. The
+board is ≤7 cards so the scan is free, and there's a test that sells it mid-charge and asserts the next spell
+casts once.
+
+Re-arm counting is skipped while already charged, so Shouts aren't banked toward a charge you haven't spent —
+"once USED, trigger 3 Shouts to reset this". Tested both ways: 3 Shouts while charged leaves `shoutTick` at 0.
+
+(The re-arm test again uses three DISTINCT Shout Dragons — three copies of one card would triple-combine and
+fail for an unrelated reason, the trap recorded in tranche 4.) Suite 1575 + typecheck + lint + build:web green.
+
+### feat(sim/content): Dragon tranche 7 — Voicekeeper (board-wide on-sell watcher)
+
+Voicekeeper (T5 5/9) — **17 of 21 Dragons built**.
+
+Needed a hook that didn't exist: `fireOnSell` fires the SOLD card's own `onSell` effects, but nothing let a
+minion react to ANOTHER minion leaving. Added `minionSold`, notified across the board with the sold card as
+`target`, plus `soldThisTurn` — the symmetric twin of the existing `playedThisTurn`, reset alongside it.
+
+"The FIRST Dragon you sell each turn" is read off that list rather than a boolean, which keeps it composable:
+the reducer appends the sale BEFORE notifying, so a watcher counting Dragons in `soldThisTurn` sees the sale
+it's reacting to already included — exactly 1 means it was the first. Two Voicekeepers both react to the same
+first sale, which is right, and no per-instance "already used" flag is needed.
+
+The copy is PLAIN — a fresh card from the index — so buffs and golden on the sold minion are deliberately not
+carried. Tested with a 30/40 buffed Dragon: the copy comes back at its base 3/5, and a non-Dragon sale is
+ignored entirely. Suite 1572 + typecheck + lint + build:web green.
+
+### feat(sim/content): Dragon tranche 6 — spells cast ON a minion (Mirrorwing + Runefire)
+
+Mirrorwing Hatchling (T2 2/4) and Runefire (T5 5/8) — **16 of 21 Dragons built**.
+
+New mechanism, modelled on the Ruby one that already existed (`fireOnRubyPlayed`): a `spellCastOnThis` event
+fired from `castSpell` when a TARGETED spell resolves on a board minion, plus a per-instance
+`spellsOnThisTurn` counter that resets with the other per-turn state.
+
+**The counter is incremented BEFORE the effects run, and that ordering is the whole safety story.** Mirrorwing's
+effect is to cast the same spell on itself again, which re-enters the hook — with the bump first, the re-cast
+sees a count of 2 and the "first spell each turn" guard stops it. Verified by deleting the guard: the test dies
+with `RangeError: Maximum call stack`, so it's genuinely load-bearing rather than incidentally fine. Anything
+hooking this event must key off `spellsOnThisTurn === 1` for the same reason, which is noted at the emitter.
+
+The counter is cleared on HAND cards as well as board ones at turn start — a minion can be bounced to hand and
+replayed, and a stale count would silently eat its first proc the following turn.
+
+Runefire deliberately does NOT re-cast on itself, only on its board-adjacent Dragon neighbours: the original
+cast already landed on it, so including itself would double-dip. Tested explicitly (both neighbours +2/+3,
+Runefire itself exactly +2/+3 once).
+
+Two schema notes for the next new event: the content schema validates the `on:` name as well as the `do:` id, so
+a new event needs adding in BOTH places, and the recruit payload type needed a `spellDef` field to carry the
+cast through. Suite 1570 + typecheck + lint + build:web green.
+
+### feat(core/content): Dragon tranche 5 — combat Shout re-triggering (Sovereign + Chorus Drake)
+
+Thunderous Sovereign (T6 8/8, Start of Combat) and Chorus Drake (T3 3/4, Rally) — **14 of 21 Dragons built**.
+
+One primitive unlocked both. `replayCombatBattlecry` already existed for Ryme's Deathrattle but was
+module-private; the two new factories (`scTriggerTribeShouts`, `rallyTriggerLeftmostTribeShout`) drive it for a
+tribe instead of a neighbour. Economy battlecries stay a no-op in combat by design — `replayCombatBattlecry`
+defers those to settle, so nothing double-fires.
+
+Ryme's trigger convention was copied in full rather than just the re-fire call, and each part earns its place:
+`drakkoRepeats` so Drakko doubles a trigger in combat exactly as it does in the shop; an `sc` narration so the
+replay can show it; and the `battlecryTriggered` bus emit per fire so KARWIND and Bane proc. That last one is
+the easy omission — it's invisible without a watcher — and Karwind is a **Dragon in this very tribe**, so
+dropping it would have silently broken the tribe's own headline pairing. There's a test specifically for that
+combo rather than only for the re-fire.
+
+Chorus Drake targets the LEFT-MOST other Dragon: "other" is in the printed text, and left-most is board order,
+so it's deterministic and consumes no RNG.
+
+Two content gotchas: Rally is authored as `on: 'onAttack'` (there is no `'rally'` GameEvent), and the test's
+summon token had to be a real id (`whelpling`) — the schema doesn't validate token ids inside test-only defs, so
+a wrong one only surfaces at runtime as "Unknown card". Suite 1567 + typecheck + lint + build:web + harness
+(determinism, two new combat factories) green.
+
+### feat(content/sim): Dragon tranche 4 — Scalechanter (improves on a Shout cadence)
+
+Scalechanter (T3 4/3) — **12 of 21 Dragons built** (Karwind included).
+
+Two effects, one card: an `onPlay` Shout that buffs your Dragons by its CURRENT magnitude, and a
+`battlecryTriggered` hook that improves that magnitude every 3 Shout FIRES. Riding `battlecryTriggered` rather
+than "played a Shout minion" is what makes the printed "Shouts you trigger" literally true — Drakko repeats and
+re-fires count.
+
+It reuses the established improve machinery rather than inventing any: `summonBonus` is the same per-instance
+accumulator Kennelmaster and Amun Rab use, and the step is scaled by `improveReps` so Rune of Mastery doubles it
+like every other "improve this". New per-instance `shoutTick` (the Shout twin of `eotTick`) holds the cadence
+and rolls back to 0 on each improvement, so it's every-3 rather than a running total.
+
+Golden is applied at BUFF time, not at storage time — `(base + summonBonus) * gold(self)` — so base and step
+each double exactly once ("starts at +2/+2 and improves by +2/+2") instead of compounding as the improvements
+accrue.
+
+**A test trap worth recording:** the first version played three copies of ONE Shout minion to reach the 3-fire
+cadence. Three identical minions TRIPLE-COMBINE — they're consumed, a Triple Reward lands in hand, and the board
+looks untouched, so the test failed for a reason that had nothing to do with the card. (Same trap as the
+sandbags in the Open the Gates cap test.) The test now uses three DISTINCT Shout Dragons, with the reason in a
+comment so the next person doesn't "simplify" it back. Suite 1565 + typecheck + lint + build:web green.
+
+### feat(content/sim): Dragon tranche 3 — Ashen Broodlord (Avenge spell power)
+
+Ashen Broodlord (T5 6/8, Dragon/Demon, Rise) — **10 of 21 Dragons built** (Karwind included).
+
+`avengeBuffSpellPower` is the combat twin of `battlecryBuffSpellPower`: every 4 friendly deaths it grants
+spell power via `ctx.grantSpellPower` WITH `self.uid`, so it emits the `+A/+H Spell Power` narration the combat
+replay already rides. That matters beyond tidiness — the replay drives both the spell-power flourish AND the
+hand-spell buff cue off that event, so a silent grant would have paid out correctly while showing nothing until
+settle (the exact bug fixed on 2026-07-24 for the mid-combat path).
+
+**Vault Curator was started and deliberately backed out.** Its "copy the left-most spell in your hand" needs the
+run's HAND inside combat, and `CombatSideState` carries no hand — only spell/tribe/rune aggregates. The
+version I'd written reached for an optional `ctx.leftmostHandSpellFor?.()` that nothing implements, which
+would have shipped a card whose Avenge silently never did anything. Threading the hand through the combat
+contract is a real change to the shared `types.ts` seam, so it belongs in its own PR rather than smuggled into
+a content tranche. Noted in the file's "still to come" list with the reason.
+
+Test asserts both halves: the +1/+1 is carried back via `playerSpellPower`, AND an `sc` narration is emitted —
+because the carry-back alone would pass while the on-proc cue stayed broken. Suite 1563 + typecheck + lint +
+build:web + harness (determinism, since this adds a combat factory) green.
+
+### feat(content/sim): Dragon tranche 2 — the first/second-spell-this-turn hooks (3 cards)
+
+Ashscribe Whelp, Spellkeeper Drake and Runic Archivist — 9 of 21 Dragons now built.
+
+All three hang off ONE observation: `castSpell` increments `spellsThisTurn` BEFORE it notifies `spellCast`
+watchers, so a factory reading `spellsThisTurn === 1` is exactly "this was the first spell this turn", and
+`=== 2` is the second. No new bookkeeping, no per-minion state — the count the engine already keeps IS the
+trigger. `firstSpellThisTurnId` is likewise recorded before the tally, so the "first" is known by the time the
+second lands.
+
+* **Ashscribe Whelp** (T1 1/3) — the first spell each turn permanently grows it +2/+2 (owner ruling: permanent,
+  so a plain `addBuff` that accumulates and itemises in the inspect breakdown).
+* **Spellkeeper Drake** (T3 3/4) — your SECOND spell each turn hands you a copy of the FIRST.
+* **Runic Archivist** (T6 6/10) — End of Turn, re-CASTS this turn's first spell for free.
+
+Runic Archivist deliberately mirrors Rune of Recurrence's `recastFirstSpell` rather than inventing its own
+rule, including the owner's 2026-07-17 call that an AIMED re-cast picks a seeded-random friendly minion (an
+untargeted one just resolves). Two cards doing "cast your first spell again" differently would read as a bug,
+not a feature.
+
+Four tests. The Ashscribe one is written against the DELTA between the two casts rather than absolute stats,
+because Growth buffs the whole board too — asserting absolutes would have passed for the wrong reason. The
+Archivist pair pins that it re-casts rather than copying to hand (`spellsCast` rises, hand size doesn't) and
+that no spell cast this turn is a clean no-op. Suite 1562 + typecheck + lint + build:web green.
+
+### fix(sim/content): Veinstorm is permanent, the cast meter is the Ruby+Spell umbrella, Skald re-spec
+
+Three owner items on the Set-2 branch. Both "bugs" turned out to describe the INTENDED behaviour rather than
+the current one — probes confirmed the code did neither, so both are real gaps rather than misreports.
+
+**Veinstorm is a permanent Shop buff.** It was calling `addOfferBuff` on the offers standing at cast time, so a
+single reroll wiped it (probed: after a roll every offer was back to `atk: 0` with no buff entries). It now
+adds to `tavernBuyBonus` — the run-level tavern buff Staff of Guel already uses — which `offerBuyStats` folds
+into EVERY offer. The current shop updates immediately and every future shop inherits it. Text updated to say
+"permanently", since the old wording implied a one-shot.
+
+**The `rubyCast` trigger is the umbrella of Rubies + Shop Spells.** Gemgorge Fiend's "every 3 casts" read the
+Ruby counter alone, so shop spells never advanced it (probed: `rubyCasts=undefined` after three Growths). It now
+fires off `spellsCast + rubyCasts` — the umbrella already documented on `RunState.rubyCasts`, which existed as a
+contract with nothing honouring it. Both cast paths pass the SAME meter: measuring rubies on their own counter
+in one path would let the two drift and make a 3-cast threshold fire early or late depending on the mix. The
+event name stays `rubyCast` (it's the content-schema key) with the real meaning documented at the emitter.
+
+**Traveling Skald re-spec** (owner): Tier 2 3/2 Slaughter → **Tier 4 4/5 Shout: get a random Tier 1 Dragon AND
+a random spell** (gilded: two of each). New `battlecryGrantTribeAndSpell` factory — the two halves are
+independent, so a dry pool on one side still delivers the other. This also resolves the roster's only missing
+Gilded text.
+
+The existing Veinstorm test asserted the OLD per-offer behaviour and correctly failed; it now pins the new
+contract on both halves — current offers AND a shop drawn after a reroll, asserted through `offerBuyStats`
+rather than the raw offer fields, since that's what the player actually sees. A new test pins the umbrella:
+two shop spells don't trigger Gemgorge, the third does. Suite 1558 + typecheck + lint + build:web green.
+
+### feat(content/sim): open the Set-2 Dragon tribe (spell recursion), 5 cards + Karwind re-spec
+
+Owner handed over a 21-card Dragon roster. Set 2's Dragons are the SPELL-RECURSION tribe — where Set 1's
+Dragons scaled off Battlecries, these copy, re-cast and pay off the spells you cast.
+
+**Wired the tribe in.** `dragon` joins set 2's `tribes` roster, `SET2_DRAGONS` joins its `own` manifest, and
+Karwind carries over via `SET1_DRAGONS_IN_SET2` — the same filter-by-id pattern the neutral spells already use,
+since set 2 opts cards IN rather than inheriting. No `Tribe` union change was needed: `dragon` already exists.
+
+**Karwind was re-spec'd in place** (Tier 5 5/10 → Tier 6 4/12, golden text "+2/+2 twice" → "+4/+4") on the
+owner's call, so it changes in SET 1 too. Worth noting the golden wording: `onBattlecryBuffTribe` applies the
+buff `gold(self)` TIMES at base magnitude, so golden really is a net +4/+4 — both the old and new wording are
+true, the new one is just clearer.
+
+**Five cards this tranche**, chosen because they build on state the engine already maintains rather than needing
+new bookkeeping: Embermouth Whelp, Hoard Chronicler, Recaller, Spellvault Drake, Roaring Matriarch. Four small
+recruit factories back them (`battlecryGrantRandomSpell`, `battlecryCopyCastSpell`, `endOfTurnCopyCastSpell`,
+`battlecryBuffOtherTribe`), whitelisted in both the `EffectFactoryId` union and the content schema.
+
+The recursion line reads `firstSpellThisTurnId` / `lastSpellCastId`, which `castSpell` already records for the
+Runes — so Recaller and Spellvault Drake are pure reads. `battlecryBuffOtherTribe` picks the LEFT-MOST eligible
+friend rather than a random one on purpose: a Shout that spent the shop RNG cursor would desync every later
+draw that turn.
+
+Three data conflicts in the table were resolved by the owner rather than guessed: Traveling Skald / Vault
+Curator have a Keyword column reading "Shout" against "Slaughter:" / "Avenge (4):" text (→ trust the TEXT),
+Karwind's stat clash (→ re-spec the shared card), and Ashscribe Whelp's buff being permanent (→ permanent).
+
+Seven new tests cover both halves of the risk: that the tribe is REACHABLE in a set-2 run (a card can typecheck
+and still never appear if the manifest or tribe roster misses it — the failure `poolOf` scoping exists to
+prevent), and each effect, including the no-op paths (Recaller before any spell is cast) and the negative case
+(Embermouth never buffing itself; Matriarch granting Attack but no Health). Suite 1557 (+7) + typecheck + lint +
+build:web green.
+
+Also wired the **Gem Shard** token's art (`gemheart-shard.webp`), which Gemheart Carver's Echo summons.
+
+**Remaining 15 cards, each needing a genuinely new primitive** — grouped by what they need, so they can land as
+focused tranches:
+* per-minion "first spell cast ON THIS each turn" tracking — Mirrorwing Hatchling, Runefire
+* Shout re-triggering inside COMBAT (`replayBattlecry` is recruit-only) — Thunderous Sovereign, Chorus Drake
+* first/second-spell-this-turn hooks on a minion — Ashscribe Whelp, Spellkeeper Drake
+* cross-turn pending effects — Scalefeather Drake; a spend-and-reset counter — Living Grimoire
+* an on-sell per-turn flag — Voicekeeper; improve-per-N-Shouts — Scalechanter
+* persistent Choose-One global modes — Orivax; plus Traveling Skald (Slaughter) and Vault Curator (Avenge)
+* Ashen Broodlord needs an Avenge spell-power grant (the combat twin of `battlecryBuffSpellPower`)
+
+## 2026-07-24 (Gemheart Carver's Shard: no base, and blind to combat Rubies)
+
+### fix(core/content): the Gem Shard is 1/1 + the Carver's Rubies, counting ones played mid-combat
+
+Owner report, three parts, all in `deathrattleSummonRubyStats`.
+
+**1. No Rubies meant no Shard at all.** The factory opened with `if (a <= 0 && h <= 0) return;`, so a Carver
+that died with nothing on it summoned nothing. The Shard is now always summoned.
+
+**2. The Shard had no base.** Its stats were the Rubies alone; they're now `1/1 + the Rubies`. Golden doubles
+the whole Shard, base included — `(1 + gems) * mul(self)` — which is the ordinary golden rule here rather than
+a special case for the gems.
+
+**3. Rubies played in COMBAT didn't count.** This was the real one. `playRubyOn` applies a plain `ctx.buff`,
+which is indistinguishable from any other combat buff, while the Echo read only the recruit-phase `Ruby` entry
+in `buffs` — so three Rubies gifted mid-fight contributed nothing to the Shard.
+
+The obvious fix — appending a `Ruby` entry to `minion.buffs` in combat — would have been a **purity bug**:
+`combat/minion.ts` sets `buffs: board.buffs`, sharing the array BY REFERENCE with the run's board card, so the
+simulation would have mutated run state (the exact hazard CLAUDE.md's "never mutate shared defs" rule covers,
+and it would have corrupted replays). Instead combat-played Rubies accumulate into a new combat-local
+`Minion.rubyGain`, alongside the existing `permaGain`, and the Echo reads both sources.
+
+Card text updated — it now reads "Summon a **1/1 Gem Shard**, plus this minion's Rubies" (golden: 2/2 plus
+double), since the old wording described neither the base nor the combat half.
+
+Three new tests, each verified to FAIL against the old code with the right symptom: no summon at all
+(`expected undefined to be defined`), `[3, 3]` instead of `[4, 4]` for the missing base, and the combat-Ruby
+case summoning nothing. Suite 1550 (+2 net) + typecheck + lint + build:web + `npm run harness` (determinism)
+green — the harness matters here because the change touches a combat factory.
+
+Known gap, unchanged by this: the printed text names "this minion's Rubies" without folding in the live number,
+which the card-text rule would normally want. Pre-existing, and a live-value helper for a per-instance combat
+buff is its own piece of work.
+
+## 2026-07-24 (a borrowed minion's Shout never fired)
+
+### fix(sim): Funeral on Loan's borrowed minion fires its SHOUT as well as its Echo
+
+Owner report: "the card is played and then destroyed, so any on-play effects should also trigger."
+
+`triggerBorrowedEcho` did exactly one thing — `fireRecruitDeathrattles`. A borrowed minion carrying BOTH a
+Shout and an Echo therefore lost half its printed text on play. Only three cards in the pool have both (Imp
+Overseer, Lab Experiment, Alchemist Brisbane), which is presumably why it went unnoticed.
+
+Now the Shout fires FIRST, then the Echo — matching the card's own wording: it is PLAYED, then destroyed.
+
+Two details make it behave like a real play rather than a re-trigger:
+
+* It routes through **`playedShoutRepeats`**, the helper the normal play path uses — so Drakko's repeats apply,
+  a Warm Embers charge is SPENT, and `lastShoutFires` is stamped so Shout objectives (Echoing Roar, Tooth and
+  Tempo, The Author's Hand) advance. Reaching for `replayBattlecry` instead would have been the easy mistake:
+  it uses the non-consuming `drummerRepeats`, which would have quietly made this a free re-trigger.
+* Each fire notifies the Battlecry-triggered watchers (Karwind), with the flash seq bumped, exactly as
+  `playCard` does.
+
+A TARGETED Battlecry fires with no explicit target, so its factory's auto-pick fallback chooses. That's forced
+rather than chosen: the normal play path defers a targeted Shout to a `pendingTarget` prompt, which needs the
+card to still exist to resolve against — and a borrowed card is already out of hand and never reaches the board.
+It's the same contract `replayBattlecry` documents.
+
+The new test uses Imp Overseer (Shout: Imps +2/+2; Echo: summon an Imp) and was verified to FAIL against the old
+behaviour — `expected [ +0, +0 ] to deeply equal [ 2, 2 ]` — before passing. The existing borrowed tests still
+pass unchanged, so the never-boarded / consumed-from-hand contract is intact. Suite 1548 (+1) + typecheck + lint
++ build:web green.
+
+## 2026-07-24 (Nimbus banks ADDITIONAL casts, and now stacks with Drakko)
+
+### feat(content/sim): Nimbus grants +1 extra cast per Battlecry fire (golden +2)
+
+Owner change: "Shout: Your next spell casts an additional time (Gilded: 2 additional times) — this now works
+with Drakko."
+
+Both halves come from the same root. `battlecryDoubleNextSpell` did `state.nextSpellMult = 1 + gold(self)` — it
+SET a multiplier. Drakko already fires Nimbus's Battlecry an extra time (Nimbus has an `onPlay`, so
+`playedShoutRepeats` repeats it), but a second fire just re-set the same value, so Drakko did nothing for it.
+Making the charge ADDITIVE fixes the wording and the Drakko interaction in one move: each FIRE banks its own
+extra cast, so two fires bank +2.
+
+Renamed `nextSpellMult` → `nextSpellExtraCasts`, because it now counts extra casts rather than multiplying. The
+name mattered more than usual here: three `useMemo` dependency arrays in `Recruit.tsx` still listed the old
+field, and a stale dep would have silently stopped the live cast-count preview from invalidating.
+
+`spellCasts` now ADDS the charge, last, after the multiplicative sources. **This is a real balance change worth
+knowing about:** Nimbus no longer multiplies with Yazzus / Ancient Runes / Spell Thesis. An aimed spell under
+Yazzus used to be ×2 × ×2 = 4 casts; it is now 2 + 1 = 3. That follows directly from the new wording ("an
+ADDITIONAL time"), but it is a nerf in those combinations — flagged for the owner rather than assumed.
+
+Note for anyone with a run in flight at update time: the renamed field means a pending Nimbus charge is dropped
+on restore (`deserialize` heals older-schema saves by ignoring unknown fields). One spell's bonus in one run,
+self-correcting; not worth a migration.
+
+The new test was verified to FAIL against the old set-semantics (`expected 1 to be 2`) before passing. Confirmed
+live too: Nimbus prints "your next spell casts an additional time", playing it with Drakko on board banks
+`nextSpellExtraCasts: 2`, and Spirit Fire's cast badge reads ×3 (1 base + 2 banked). Suite 1547 (+1) +
+typecheck + lint + build:web green.
+
+## 2026-07-24 (Elevation Ritual did nothing at the tier cap)
+
+### fix(sim): Elevation Ritual re-rolls a capped offer in place instead of skipping it
+
+Owner report: a Tier-6 minion should become another random Tier-6 when Tier 7 isn't available.
+
+`elevateShop` computed `target = tier + 1` and, when that exceeded the cap, fell through a "can't upgrade"
+branch that pushed the offer back UNCHANGED. So at the top of the curve — exactly where the spell is most
+likely to be cast — it silently did nothing to those offers.
+
+`Math.min(def.tier + 1, cap)` now expresses both cases in one line: below the cap it steps up, AT the cap it
+re-rolls within its own tier. The cap is `maxTierFor(state.rift)` (Tier 7 only with the Summit rift), and no
+HERO raises it — Brackus's `summitLock` grants a single turn-1 Tier-7 Discover, not a higher shop tier, so
+there's no extra condition to thread through.
+
+Per the owner's ruling a cap re-roll MAY land on the same minion and still counts as a refresh. Two details
+make that work: the outgoing copy is counted as an available candidate (it isn't in `state.pool` while the offer
+holds it, so it would otherwise be excluded from its own re-roll), and every slot gets a FRESH uid even when the
+card id repeats, so the UI re-renders it as a new offer. Pool accounting nets to zero when the pick is the
+outgoing card, which is exactly right.
+
+The new test pins the behaviour and was verified to FAIL against the old code (`expected false to be true` on
+the fresh-uid assertion) before passing with the fix — uid is the honest signal here, since cardId can legally
+repeat. Suite 1546 (+1) + typecheck + lint + build:web green.
+
+Follow-up for the owner: the card text still reads "Upgrade each minion in the Shop to a random minion **one
+tier higher**", which is now only true below the cap. Left as-is — rewording printed card text is a content
+call, not a bug fix.
+
+## 2026-07-24 (Discover minimize button sat on the cards at short viewports)
+
+### fix(ui): move the Discover minimize button down (61% → 67%)
+
+Owner report: the Minimize button crowds the Discover cards.
+
+It didn't reproduce at first — on a tall window the button already cleared the cards by 57px. The cause is that
+`.disc-toggle` is `position: fixed` at a VIEWPORT percentage while the cards' bottom edge isn't, so the gap
+shrinks as the window gets shorter. Measured at 1400x760 the button OVERLAPPED the cards by 4px, which is the
+reported state; 67% leaves a 42–52px gap there while still keeping ~220px of room beneath it.
+
+It stays viewport-relative rather than being anchored under the panel, and that's deliberate: the same button
+serves the MINIMIZED state, where the panel is unmounted and there is nothing to hang it off. Keeping one fixed
+spot is what lets the player flip between the two states without moving the mouse — verified that the button's
+top is byte-identical (509px) open vs minimized, with the panel confirmed gone in the second case.
+
+Checked at both extremes: 1400x760 → 52px gap, no overlap; 1531x1316 → 147px gap, still on screen with 404px
+beneath. The Farseer scout panel's Close button reuses this spot, so it moves with it. Suite 1545 + typecheck +
+lint + build:web green.
+
+### fix(ui/sim): discovered spells drop their stats, Hourglass picks show locked, Quick Sale floats its real value
+
+Three follow-ups in the same PR.
+
+**Discovered spells no longer show Attack/Health.** The Discover panel builds its card view BY HAND rather than
+through `instView`, and never passed `spell`/`ruby` — so a discovered spell fell through to the minion treatment
+and printed a meaningless 0/1. Passing the flags routes it down the existing `spellLike` path, which swaps the
+stat badges for the type pill and applies the spell frame, exactly as every other surface already does.
+
+**An Hourglass Reserve pick now looks locked.** `lockedUntilWave` was fully wired in the sim — the reducer
+refuses to play the card (`reducer.ts:658`) and Hourglass stamps it on the pick — but the UI's lock computation
+only tested `lockedUntilTier` and `lockedUntilGoldSpent`. The card was therefore functionally locked while
+LOOKING playable. It now wears the same greyed padlock treatment as Disco Dan's tier lock and Brackus's gold
+lock, captioned "Next turn".
+
+**Quick Sale's sell float shows the real number.** `sellValueOf` is documented as the shared helper "so the two
+never drift" — but Quick Sale's `nextSellBonus` was added INLINE in the reducer, outside it, so they drifted:
+selling under Quick Sale paid 3 Gold while floating a plain-gold "+1". Since the float already styles itself off
+the amount (`> 1` renders green), the wrong number also meant the wrong colour. Added `sellValueWithBonus`, the
+one helper the reducer's payout and the UI's float both read.
+
+That helper is deliberately SEPARATE from `sellValueOf` rather than folded into it: two Consume-style
+self-sacrifice paths ("counts as a sell") also call `sellValueOf` and neither apply nor CLEAR the one-shot bonus,
+so folding it in would silently make them consume Quick Sale — a rules change, not the display fix this is.
+
+Verified live: a Discover holding two spells + one minion renders the spells with no stat badges and a "✦ Spell"
+pill while the minion keeps its 1/1; an Hourglass pick lands in hand with `lockedUntilWave: 2` at wave 1, the
+`locked` class, a "🔒 Next turn" caption and `grayscale(0.72) brightness(0.82)`. Three new sim tests pin the
+Quick Sale value: the display equals the Gold banked (3), it crosses the >1 green threshold, and it's unchanged
+without the bonus. Suite 1545 (+3) + typecheck + lint + build:web green.
+
+Noted in passing, NOT fixed (pre-existing, out of scope): an unknown card id in `run.discover` hard-crashes the
+Discover map on `CARD_INDEX[id].id` and the ErrorBoundary then keeps Recruit dead. Only reachable from bad
+dev/test data today, but a `.filter(Boolean)` there would be cheap insurance.
+
+## 2026-07-24 (spell card UI — minted cost coin, seated type pill, a pills tuner)
+
+### feat(ui): cost coin adopts the hero-power coin skin, type pill seats at the art's bottom, + 🏷️ Card Pills tuner
+
+Owner ask, four parts.
+
+**1. The cost circle now wears the hero-power coin skin.** `.cost` was a flat `--mana` disc with a card-coloured
+rim and white text; it now uses the same minted treatment as `.hpcost` — a gold radial gradient, a dark rim, and
+inset highlight/shade — with the dark-gold numeral. Kept as its own rule rather than sharing a class, because
+the two sit on different anchors at different sizes; only the SKIN is shared.
+
+**2. Discounted shop minions get the GREEN variant of that same coin.** `.cost.discount` was already wired
+(`costChanged` is set for any offer below the flat rate, and for Moe's Attachment), so this is purely the new
+green gradient + dark-green numeral — "this is cheaper" still reads at a glance, in the same visual language.
+
+**3. The Spell/Ruby type pill moved to the bottom of the art icon.** Two traps here, both worth recording. The
+compact spell card's `bottom` is NOT the rule you'd find first: `.card.compact.spellframe .ctype.spell` (line
+~2813) derives the seat from the authored frame's window geometry and overrides the base rule entirely — editing
+the base did nothing. And `bottom` grows UPWARD, so raising it moves the pill up, not down. The offset is
+therefore expressed as the tuner's `spellY` default instead, which is the one control that works on the right
+axis and doesn't fight the frame geometry.
+
+**4. A 🏷️ Card Pills tuner** — x/y/scale for each of the cost coin, Tier badge and type pill, all nine dials
+independent. Same architecture as the hero-panel/diamond configs: dev-only localStorage, values reflected as
+COMPOSED transform strings on `:root` (`--cpl-*-t`) that the CSS reads with its own transform as the fallback.
+Composed in JS because two of the three carry a `translateX(-50%)` centring transform an offset must stack ONTO
+— writing raw offsets would silently drop the centring and throw the pill to the card's left edge.
+
+`cardPillsConfig` is side-effect imported from `Card.tsx`, not just from the tuner: the tuner is stripped from
+production, so without that any baked non-identity default (like `spellY`) would silently never reach players.
+
+Verified live from a CLEARED config (what a player gets): the type pill's bottom edge sits at **95.7%** of the
+card against the art's 98.4% — seated at the bottom with a hair of margin, up from 82.8% — and it stays
+horizontally centred. The spell coin renders gold (`#ffe293→#eab63f`, numeral `#4a3208`, rim `#1b1d22`, matching
+`.hpcost` exactly) while the discounted minion renders green. Each of the nine dials was moved in isolation and
+confirmed to affect ONLY its own pill, with the centring preserved in every case. Suite 1542 + typecheck + lint
++ build:web green.
+
+## 2026-07-24 (spell art was being shadowed by misfiled minion copies)
+
+### fix(ui): delete 38 spell arts misfiled under minions/, which shadowed the new masters
+
+Owner report: "waking rift's artwork isn't wired." It was wired — and then silently overridden.
+
+`artFor` resolves `MINION_ART[cardId] ?? SPELL_ART[cardId]`. Ids are globally unique, so a card should only ever
+live in ONE directory and the order shouldn't matter. But **38 of the 66 newly-wired spells already had an older
+master misfiled under `art/minions/`**, so the minions copy won every time and the new spells/ file never
+rendered. Waking Rift was showing the old Spark Plug art from `minions/sparkplug.webp`.
+
+This was a partial fix compounding into a bigger miss: the same shadowing was caught for `ruby` and
+`warding-ruby` during the original wiring and fixed BY HAND for those two, instead of sweeping for the whole
+class. All 38 misfiled copies are now deleted (each confirmed to be a spell/Ruby card first — `discoverspell`
+/ "Triple Reward" is a spell-like token and was included deliberately; no real minion art was touched).
+
+Added a DEV-only console warning in `artFor` when a card id has art in both directories, so the next misfile is
+a visible message instead of an invisible override. The fix is always to delete the misfiled copy, never to
+reorder the lookup.
+
+**Verification lesson worth recording:** the original check logged `src.split('/').pop()` — just the FILENAME —
+which is identical for `minions/sparkplug.webp` and `spells/sparkplug.webp`. It reported a pass while the wrong
+file was loading. Re-verified by full PATH across a sample of seven previously-shadowed spells: all now resolve
+under `/art/spells/`, all decode at 512x512, and the new duplicate warning stays silent. Suite 1542 + typecheck
++ lint + build:web green.
+
+
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
@@ -1638,6 +4458,828 @@ P4 (opportunistically migrate the 34 existing tuners onto the schema). Also trac
 `typecheck:web` into CI, without which these type-level tests aren't enforced there (and the ~50
 pre-existing `packages/ui` type errors stay invisible). Swapping the shipped `pixiFx.trail` wisps for the
 ribbon is a deliberate later PR, once the owner has tuned the look.
+## 2026-07-24 (gilded cards materialise in gold)
+### feat(ui): the golden plate tint is on the Card Plate tuner
+### tweak(ui): lock in the owner's golden plate tone
+
+Baked the dialed values as defaults: `sepia 0, saturate 2.6, brightness 1.13, contrast 0.95, hue 3` — in
+`cardPlateConfig.ts` DEFAULTS and mirrored into the styles.css `--plate-gold-tone` fallback.
+
+
+Rather than trade "more/less orange" over chat, the golden plate's filter is now five live sliders on the
+existing 🂠 Card Plate tuner (`gold · sepia / saturate / brightness / contrast / hue`). They compose into
+`--plate-gold-tone` on :root via `applyCardPlateVars`, so a gilded card recolours in real time as you drag;
+"Copy values" grabs the JSON to bake as defaults. Hue is signed and labelled (+ = yellow-gold, − = orange).
+Config in `cardPlateConfig.ts` (ships in prod, so DEFAULTS drive the var there too); the CSS fallback mirrors
+the composed default. Verified live: the five keys render, and dragging hue 12→30 updated the root var.
+
+
+### feat(ui): a triple reward coalesces in gold + its plate reads gold
+
+Two changes so a gilded card looks gold however it arrives:
+
+- **Gold coalesce.** When the card being generated is `.golden`, `plateCoalesce` swaps the arcane-blue palette
+  (and its mote sprites) for the gild's gold — `#a9700f / #f1cb5e / #fff6d5` — so the dust → wireframe →
+  reveal reads as "gold from nothing". Detected off the target card's `.golden` class; geometry, motes and
+  timing are identical, only the colours differ. Non-golden generations still coalesce blue. Verified live: a
+  golden card's imprint gradient came back gold (`rgb(169,112,15)…`), a normal one blue (`rgb(117,214,255)…`).
+- **Gold plate.** A gilded card's stone backplate now reads gold, mirroring the frame's silver→gold. The frame
+  un-grays a gold PNG via `--frame-tone`; the plate art is stone, so `.card.plated.golden .cardplate` pushes it
+  gold with a colour filter (`--plate-gold-tone`, keeps the relief, just recolours). Covers hand, the drag copy
+  and the inspect overlay. Verified live: golden plate computed `sepia(.78) saturate(2.3)…`, normal `none`.
+
+Both tint values are dialable (`GOLD` palette in `plateCoalesce`, `--plate-gold-tone` var) if the gold wants
+warming/cooling. Engine typecheck + lint + 1538 tests + `build:web` green.
+
+## 2026-07-24 (the gild's top-left flash — a THIRD cause)
+
+### tweak(ui): the gild sigil sits lower and smaller
+
+Owner: the seal flourish behind the card read a touch too high and too large. Dropped the default `flSize`
+1.66 → 1.35 and added a `flY` knob (vertical offset, × plate width, + = lower; default 0.12) wired into
+`drawFlourish`, the tuner, and the config schema so it can be dialed further.
+
+### fix(ui): a freshly-popped golden made the gild clones inherit `cardpop`
+
+Owner still saw a card flash in the screen's top-left at the *start* of the gild, specifically when completing
+a triple by **buying** the third copy. A third distinct cause of the same symptom, after the `.dragcard` park
+and the `data-flip-id` strip.
+
+Completing a triple mounts the golden card **fresh, with `.popin`** — whose `cardpop` / `handpop` keyframes
+animate `transform` (`translateY(8px) scale(.96)`). `cloneCard` copies that class onto the three flyers, and a
+**running CSS animation outranks a plain inline `transform`**. The gild writes each clone's centre position as
+a plain inline transform every frame, so `cardpop` won: the clones rendered at `translate(0, 8)` — the top-left
+corner — for cardpop's 0.16s. Opacity was still driven by the module's own `!important` writes, so they were
+visible while mispositioned. Only on a freshly-popped card (right after a buy/play completes the triple), which
+is why isolation harnesses that cloned an already-settled card never showed it.
+
+Fix: `cloneCard` now removes `.popin` and sets `animation: none !important` on each clone, so nothing the
+source card was mid-animation fights the gild's positioning.
+
+**Verified live** by driving a real buy-triple in the browser and reading the clones back: pre-fix, computed
+transform was `matrix(.96,0,0,.96,0,8)` while the inline transform was the correct centre (`translate(597,289)`)
+— proof the animation was overriding it; post-fix, `animationName: none`, `.popin` gone, and computed transform
+**equals** the inline centre on all three. Engine typecheck + lint + 1538 tests + `build:web` green; 57
+`typecheck:web` baseline unchanged.
+
+## 2026-07-24 (Waking Rift rename + all spell art wired)
+
+### feat(content/ui): wire Beyond the Summit + Hourglass Reserve art, remove the Encore spell
+
+**Two more spell arts.** Both were in the previous pass's UNMATCHED list, because their masters were named for
+older versions of the cards (`RoadToTheSummit.png`, `Timepiece.png`). The owner then supplied correctly-named
+`BeyondTheSummit.png` / `HourglassReserve.png`, which match by name on their own — so the manual aliases I'd
+briefly added were removed rather than kept. That mattered: with both the old and new names mapped to one card
+id, two masters collided on one output file and whichever copied last silently won. The superseded masters now
+simply report as unwired, alongside `SparkPlug.png`. 66 spells wired.
+
+**Encore removed** (owner 2026-07-24). Deleted the card def, the `spellEncore` recruit factory, its
+`EffectFactoryId` union member, its content-schema whitelist entry, and its test. Nothing else referenced the
+card id.
+
+Care was needed on the name: **"Encore" is also Myra's HERO POWER** (kind `replayBattlecry`), and the Chronos
+hero has an "Encore" quest. The two `Recruit.tsx` comments mentioning Encore describe the hero power's targeting
+rules, not the spell, so they were deliberately left untouched — deleting them would have been a silent
+documentation regression for an unrelated feature.
+
+Verified live after a dev-server restart: both cards render their new art under the right names, `encore` is
+absent from `CARD_INDEX`, and no card carries a `spellEncore` effect. Suite 1542 (one fewer — the Encore test) +
+typecheck + lint + build:web green.
+
+### feat(content/ui): rename Spark Plug -> Waking Rift, and wire spell art
+
+**Rename.** Display name only — the ID stays `sparkplug`. It's referenced by Spark Capacitor's
+`avengeGrantSpell` params, by saved runs and by pinned replays, so changing it would break restores for what is
+a cosmetic change (same call as the 2026-07-17 vocab pass). Updated the two Spark Capacitor text lines that name
+the card, plus four test descriptions.
+
+**Spell art — the first time spells have had any.** There was no `SPELL_ART` glob and no `art/spells/`
+directory at all; `artFor` only ever looked at minions. Added the glob alongside the existing ones and made
+`artFor` fall through minions → spells. Card ids are globally unique, so that's a fallback rather than a
+precedence, and no caller changes.
+
+Masters were matched to cards by NORMALISED NAME, not by eyeballing: 64 of 71 wired, each an exact name match.
+The 7 skipped are listed rather than guessed —
+* `Cupcakes`, `PreemptiveAttack`, `RoadToTheSummit`, `Timepiece` — no card of that name exists (art ahead of content)
+* `DeepdelveWrit`, `IroncladRequisition` — the two Dwarf spells deferred pending a Dwarf tribe
+* `SparkPlug` — correctly superseded by `WakingRift.png`, which matched the renamed card. A nice self-check on
+  the rename: the old master stopped matching and the new one took over.
+
+One master needed an explicit, hand-confirmed fix rather than fuzzy matching: `RivalsReflections.png` is plural
+while the card is "Rival's Reflection". It's wired through a documented one-entry map so an unknown file still
+reports as unmatched instead of being silently guessed onto the wrong card. **Worth renaming the master.**
+
+Two stale copies removed: `art/minions/ruby.png` and `art/minions/warding-ruby.png` were shadowing the new
+masters (minions are checked first), so the freshly supplied Ruby art would never have rendered. Rubies aren't
+minions, so those were misfiled to begin with. `k_rubybroker.png` is a genuine Kobold minion and was left alone.
+
+The optimizer now covers `spells/` — 134MB of PNG masters became **3.6MB of WebP**, which is the difference
+between this being committable and not. It also offered to convert 24 unrelated Kobold minion PNGs still sitting
+unoptimized; those were reverted to keep this change scoped, and remain a one-command follow-up
+(`npm run optimize-art`) worth its own PR.
+
+Verified after a dev-server RESTART (a reload doesn't re-run an eager glob): the card renders as "Waking Rift"
+with `sparkplug.webp`, and Ruby / Warding Ruby now resolve to the new `ruby.webp` / `warding-ruby.webp` rather
+than the shadowed copies. Suite 1543 + typecheck + lint + build:web green.
+
+## 2026-07-24 (Ruby Power FX — the Ruby-side twin of the Spell Power flourish)
+
+### fix(ui): no second buff cue at end of combat for a mid-combat buff
+
+Owner report: "the cards play an additional buffed animation at the end of combat if they were buffed
+mid-combat."
+
+Exactly what it looked like — the cue played twice for one gain. `settleCombat` applies the combat carry-back
+(spell power, Ruby strength) **while the phase is still `combat`**; the phase only flips in the later
+`resolveCombat`. So the printed text finally changes at settle, and the text-diff watcher fired on it a second
+time — the first having already played on the mid-combat narration beat. The phase-flip guard didn't catch it
+because no flip happens on that render.
+
+Fixed by making the ownership split explicit rather than adding another special case: **the watcher owns
+SHOP-phase buffs only**; End of Turn and mid-combat are owned by their beats (the EoT beat runner, and the `sc`
+handler in `useCombatReplay`), which is where they have to live anyway since run state doesn't move at the
+moment those buffs happen. The watcher now fires only in steady-state recruit, so the settle carry-back — and
+both phase-flip renders — are skipped. Signatures are still recorded on every render, so the baseline stays
+current and a real shop buff on the very next render fires normally. Note this restores something close to the
+old `inCombat` guard, but it is only correct NOW: before the beat-driven paths existed, that guard is what made
+mid-combat show nothing at all.
+
+The Ruby Power FLOURISH had the identical double-fire (beat, then the `rubyPowerFxSeq` bump at settle) and now
+carries the same guard its spell-power twin already had: a SOURCELESS bump outside the shop is the carry-back,
+which the narration beat already showed. A sourced bump — a card you played — still fires in any phase.
+
+Verified with a positive control, using app-internal paths only: in RECRUIT a spell-power rise still pops the
+card (text +2/+3 → +6/+7, burst YES); in COMBAT the carry-back changes the text just as much (+6/+7 → +11/+12)
+and produces NO burst. Suite 1543 + typecheck + lint + build:web green.
+
+Measurement note for next time: a dynamic `import('/@fs/…')` of a UI module in the dev server can resolve to a
+SEPARATE module instance from the app's, so a store written through it looks live (`seq` increments) while no
+component ever re-renders. Verify store-backed behaviour through app-internal paths, not a re-imported module.
+
+### fix(ui/core): End-of-Turn and mid-combat buffs now cue on the PROC, not at the commit
+
+Owner report: "the spell buffs/ruby buffs end of turn are not triggering the animation, and the mid combats
+don't trigger until combat resolution." Both are the same root cause wearing two hats — the cue was driven by a
+diff of the rendered live text, and RUN STATE doesn't change at the moment the buff happens.
+
+**End of Turn.** `faceOmen` (the real commit) only dispatches after every EoT beat has played, and it flips the
+phase as it lands. So a state-driven cue can't arrive on the proc — it arrives at Start of Combat. This trap is
+already documented in this file for the spell-power FLOURISH (owner report 2026-07-21, Aeon Guard), which is why
+that one is fired from the BEAT. The card cue now rides the same beat: when a beat's card has an `endOfTurn`
+effect that raises spell power, the held spells pop right there. Ruby strength is wired the same way and is
+ready for whenever a card grants it at End of Turn (none does today — `rubyStatGain` is Shout/cast-only).
+Compounding it, the phase-flip guard added earlier also suppressed the `faceOmen` render, so End of Turn was
+blocked twice over; that guard is now correct rather than harmful, because it's what stops the beat-driven cue
+double-firing at Start of Combat.
+
+**Mid-combat.** Same shape: run state doesn't move until settle, so the text diff had nothing to see until the
+fight ended. The spell-power path now pops the held spells from the `sc` narration beat — the exact moment the
+existing flourish fires. The Ruby path already did, and `gainRubyBonus`'s narration (added in the Ruby Power FX
+work) is what makes it possible at all.
+
+**A real bug found while fixing this:** the Ruby cue matched on `cardId === 'ruby'`, but there are TWO Ruby card
+ids (`ruby` and `warding-ruby`, both carrying the def's `ruby: true` flag), so Warding Rubies never popped.
+Replaced with flag-based helpers (`fireSpellBuffOnHandSpells` / `fireSpellBuffOnHandRubies`) that can't drift as
+Ruby variants are added.
+
+Verified End of Turn live with an Aeon Guard on board and a spell in hand: the spell bursts at **1064ms while
+still `phase=recruit`** (mid-beats), then the phase flips at 3059ms and the text updates +2/+3 → +3/+4 with NO
+second burst — on the proc, once. Mid-combat is pinned by two new core tests (`rubyPowerNarration.test.ts`)
+rather than a browser timing test, because a backgrounded preview tab throttles timers to ~1Hz: they assert the
+`sc` event fires DURING the fight, in the exact `+A/+H Ruby Power` format and with the source uid the replay's
+handler matches on, and that the narrated total equals the strength carried back. Suite 1543 (+2) + typecheck +
+lint + build:web green.
+
+Known gap (inherent to the beat architecture, not new): at End of Turn the card POPS on the proc while its
+printed number only updates at the commit a beat or two later, because the hand's live text reads run state
+rather than the projected per-beat totals the board uses (`eotAnimStats`). The existing spell-power float has
+the same property. Closing it means projecting spell/ruby power through the beats into `handViews`.
+
+### chore(ui): bake the owner's tuned Ruby Power / Spell Power / Spell Buff values
+
+Three tuner passes taken verbatim from Copy values (48 keys, all matched — no stale or renamed dials).
+
+**Ruby Power** diverges hard from its Spell Power parent, which is the whole point of cloning the config rather
+than sharing one: a SINGLE arrow instead of seven, a much heavier and slower blast (60 motes, 1100ms life, spin
+120, stagger 3) against Spell Power's 36 fast light ones, and its own red/violet/white palette with a pink
+number on a near-black outline. Sharing the Pixi renderer costs nothing here precisely because all of that lives
+in values.
+
+**Spell Power** got a punchier, sparser blast (36 motes at 430 speed, size 2, gravity 470) and a longer-held,
+larger number.
+
+**Spell Buff** grew its pop (1.18) and slowed the return (630ms), thinned the blast to 25 motes over a shorter
+30–240px throw with the glow off and a light 1.1 tail, and moved to an amber/blue/teal palette — the THIRD
+palette this cue has had, which is why its colour keys are treated as hue slots rather than colour names.
+
+Verified with all three saved configs cleared, which is what production renders: every asserted key resolves
+from DEFAULTS with zero mismatches, and Ruby vs Spell confirmed diverging live (arrows 1 vs 7, blast 60 vs 36,
+spin 120 vs 0). Suite 1541 + typecheck + lint + build:web green.
+
+### feat(ui/sim/core): Ruby Power FX, on the same ruleset as Spell Power FX
+
+Owner ask: copy the Spell Power FX into a "Ruby Power FX" that can be modified separately, procing on the same
+ruleset but for RUBIES getting buffed — across shop, combat and End of Turn.
+
+**The ruleset.** Spell Power FX bumps once per ACTION in which spell power went up, by any source and any
+amount, derived from a before/after state delta rather than a per-effect scratch field (so React batching can't
+swallow it, and new sources are picked up for free). Ruby Power FX is the same contract keyed on `rubyBonus`:
+`rubyPowerFxSeq` / `Atk` / `Hp` / `Uid` stamped from the delta in `reduce`. That single delta covers the shop,
+End of Turn AND the combat carry-back, since Veinbreaker's Avenge settles onto `rubyBonus` like any other source.
+
+**Mid-combat needed a new signal in core.** `grantSpellPower` emits an `sc` narration the replay parses to fire
+the flourish at the moment it happens; `gainRubyBonus` emitted nothing at all — it accumulated silently and only
+surfaced at settle. It now takes an optional `sourceUid` and emits `+A/+H Ruby Power` in the same channel and
+text shape, so the replay reads both identically (player-side gated for the same reason: `sc` carries no `side`,
+so an enemy source would otherwise draw the flourish on the opponent's half of the board). All four
+`ctx.gainRubyBonus` call sites now pass `self.uid`. The `sourceUid` is presentation-only — omit it and the gain
+still applies, just silently.
+
+**What's cloned vs shared.** `rubyPowerFxConfig.ts` and `RubyPowerFxTuner.tsx` are full copies with their own
+defaults, their own localStorage key (`ascent.rubyPowerFx`) and their own 36 dials — that's the point of the ask.
+The Pixi RENDERER is shared via `powerFlourish`, because every visual property (arrow count/rise/spread/length/
+width/head/timing/drift/fade, the whole origin blast, all five colours) already comes from the config object, so
+the two cues diverge entirely through values. Duplicating the ~55 lines of particle code would buy no extra
+freedom and would guarantee the copies drift apart on the next fix; if Ruby Power ever needs a structurally
+different shape rather than different numbers, fork `powerFlourish` then.
+
+The held Rubies also play the spell-buff cue when their strength rises, on both the shop and mid-combat paths —
+possible only because that cue now lives on a bus rather than in Recruit's state.
+
+Three new reducer tests (`rubyPowerFx.test.ts`) pin the ruleset: the delta is reported rather than the running
+total, an unchanged action does NOT bump, and the undefined→value transition counts. Verified live: the tuner
+registers in the dev menu with 36 dials, its Test FX fires and renders `.rubypower-float` (0 `.spellpower-float`,
+so the DOM path is genuinely separate), and editing a Ruby dial left the Spell Power config untouched. Suite
+1541 (+3) + typecheck + lint + build:web green.
+
+## 2026-07-24 (spell-buff cue — fire it from anywhere)
+
+### feat(ui): move the spell-buff burst into a module bus so any phase/surface can play it
+
+Owner ask: the cue has to play at END OF TURN, START OF COMBAT and MID-COMBAT off an Echo/Avenge — not just
+from Recruit's hand watcher.
+
+The blocker was ownership, not timing: the burst was React state inside `Recruit`, so only Recruit could ever
+start it, and the watcher additionally bailed out with `if (inCombat) return`. Both are gone. The burst state now
+lives in `packages/ui/src/spellBuffFx.ts`, a ~40-line module store with one public verb —
+**`fireSpellBuff([uid])`, callable from anywhere**: a React effect, a combat-replay beat, an imperative store
+callback, the dev tuner. Cards subscribe to it directly through `useSyncExternalStore`, so a NEW surface that
+renders cards costs zero plumbing, and unknown/unmounted uids are a harmless no-op that expires on its own.
+
+Re-render cost stays per-card despite the shared store: every subscriber is notified, but `useSyncExternalStore`
+only re-renders the ones whose own snapshot changed, so the other cards bail on an unchanged number.
+
+Removing the `inCombat` guard needed one piece of care. A card's printed text can legitimately differ between
+phases, so the render where the phase FLIPS would diff against a shop-phase signature and flash the whole hand
+for no buff. Rather than suppress all of combat, the watcher now suppresses exactly that one render (signatures
+are still recorded, so a real buff on the very next render fires normally). Notably the stat-diff watcher already
+carries its own `prevPhaseRef` for the same class of reason — this hazard is real and pre-existing, not
+hypothetical.
+
+Verified live by importing the bus module directly in the browser (the same entry any caller uses): firing
+`['RB']` burst ONLY the Ruby, then `['SF']` brought the second card in — per-uid targeting from outside Recruit
+entirely. With `phase: 'combat'` both hand cards stayed mounted and both burst, which the old guard made
+impossible. Flipping combat→recruit produced zero bursts across six samples, confirming the flash guard. Full
+suite (1538) + typecheck + lint + build:web green.
+
+Follow-up: Ruby Power FX (a Spell-Power-FX sibling keyed on `rubyBonus`) is the other half of the owner's ask and
+lands separately — `gainRubyBonus` currently emits no combat narration, so mid-combat it has no signal to ride.
+
+## 2026-07-24 (spell-buff FX — grow/shrink in place + an outward spark blast)
+
+### chore(ui): bake the owner's tuned spell-buff values as the shipped defaults
+
+Owner's tuner pass, taken verbatim from Copy values. The read: a gentle, slow swell on the card (grow 1.04 over
+210ms, shrink 460ms) so the motion is carried by the SPARKS rather than the pop — 44 motes, sizes 3–13.5, thrown
+65–335px across a 270° arc from high on the card (origin Y 76%), with a hard 0.76 launch punch, 15px glow and a
+long 1920ms life.
+
+The palette moved off pink/gold/purple to cyan `#00ccff` / amber `#ffaa00` / violet `#7300ff`. The config KEYS
+(`pinkColor`/`goldColor`/`purpleColor`) are deliberately NOT renamed — they are the localStorage schema, and
+renaming would silently orphan every saved tuner config. Instead the tuner labels became slot names ("spark hue
+1–3") and every comment claiming a specific palette was corrected, so nothing in the code asserts a colour that
+the dials can change out from under it.
+
+Note the cue's hold is now driven by the sparks: `max(210 + 460, 100 + 1920) + 160` = **2180ms**. That's a long
+tail, which is why the retrigger/restart work landing alongside it matters — a second buff inside that window
+restarts cleanly instead of being swallowed.
+
+Verified with localStorage cleared (what a real player gets — production ignores saved config entirely): 44
+sparks in the three new hues, angles spanning -130.7° to +132.4° (inside the 270° arc), origin resolving to 76.4%
+up a 115px card, grow 210ms @ 1.04, shrink 460ms, spark life 1920ms, glow 15px. Full suite (1538) + typecheck +
+lint + build:web green.
+
+### fix(ui): spell-buff — restart on every trigger, add a blast origin Y, unbreak the Test button
+
+Three things on top of the grow/shrink + blast rework, all from the same session.
+
+**The Test button was dead.** The rework renamed the card dials, but the hold expression existed in TWO places
+and only one was updated — the dev Test hook still read `c.wiggleMs`, which no longer exists. `Math.max(undefined,
+…)` is NaN, and `setTimeout(fn, NaN)` fires at 0ms, so the clear raced the `requestAnimationFrame` that adds the
+class and the cue either never showed or stuck on permanently. The hold now lives in ONE exported helper,
+`spellBuffHoldMs()`, used by both callers so they can't drift again.
+
+**Retriggering now restarts the cue** (owner ask): re-applying a class that's already on does not replay a CSS
+animation, so a second buff landing mid-burst used to be swallowed entirely. `spellBuffedUids: Set<string>` became
+`spellBuffSeq: Map<string, number>` — a per-uid burst id that increments on each trigger. `Card` keys the spark
+layer on it (remount = fresh jitter + every mote animating from zero) and restarts the card's `sbgrow`/`sbshrink`
+via `cancel()` + `play()` in a layout effect. Cutting the previous burst short is intended: each trigger has to
+read as its own hit.
+
+That also fixed a related timer bug this exposed. Clears were fire-and-forget, so an EARLIER burst's timeout would
+land mid-way through a LATER burst and end it early — measured directly: a 1010ms hold clearing after 404ms. Each
+uid's pending clear is now tracked and cancelled on retrigger.
+
+**New dial — `blast origin Y%`**: where on the card the blast starts, measured up from the bottom so it reads the
+way a card does (0 = bottom edge, 50 = centre, 100 = top; the slider allows -20–120 to throw it off the card).
+
+Verified live: three Test clicks in a row produced three different spark-angle sets (-167.6°, -178.7°, -179.7° —
+proving remount + fresh jitter) with `sbgrow.startTime` reset each time, and the class cleared and STAYED cleared
+afterwards. The Y dial on a 113px card resolved to `top: 113px` at 0, `56.5px` at 50 and `0px` at 100. Full suite
+(1538) + typecheck + lint + build:web green.
+
+### feat(ui): spell-buff cue reworked — wiggle out, grow/shrink in, sparks explode outward
+
+Owner ask: drop the pop/wiggle, replace it with a grow/shrink that has its own speed AND ease for *each* phase,
+and turn the rising sparks into a blast that explodes outward off the affected card.
+
+**The card — grow, then shrink.** The rotation / wobble / spring / settle dials are gone, replaced by five that
+map directly onto what was asked: `grow scale`, `grow ms`, `grow ease`, `shrink ms`, `shrink ease`. Two
+structural choices carry it, both worth keeping:
+
+* It animates the standalone **`scale` property, not `transform`.** A hand card carries its own inline
+  `transform` (the fan's slide/tuck), so animating `transform` clobbers the fan for the animation's life — and
+  with a forwards fill, for as long as the class is on. `scale` composes with `transform` instead, so the fan is
+  never disturbed and nothing needs restoring. This retires the entire "the pop is tied to spark ms / the card
+  jumps out of the fan" bug family at the root rather than working around it a third time.
+* Grow and shrink are **two animations**, the shrink delayed by the grow's duration, because each needs its own
+  duration *and* easing. One keyframe animation can't express that: keyframe offsets can't be `var()`, and
+  `animation-timing-function` inside `@keyframes` silently ignores `var()`. Both use `forwards`; the shrink is
+  later in the list so it wins once it starts, and its final `scale: 1` is the card's natural scale, so the held
+  fill is a no-op that can't strand the card mid-grow however long the class lingers for the sparks.
+
+**The sparks — a blast, not a rise.** Each mote now gets an ANGLE and a DISTANCE instead of a climb: motes are
+distributed evenly around `blast arc` degrees (360 = every direction, smaller focuses a cone upward), jittered
+within their slice so the ring never looks banded, and fly out from the card's centre. The transform order does
+the work — centre, then world-space gravity sag *outside* the rotation, then rotate to the flight angle, then
+translate outward *inside* it, so travel is radial while gravity stays truly "down". The tail hangs below the
+mote in its own rotated frame, so it trails behind whatever direction the mote took with no per-mote maths.
+Replaced dials: `rise min/max` to `blast dist min/max`; `spawn spread/low/high` + `drift` to `blast arc`.
+
+Verified by scrubbing the animation timelines directly (the preview tab throttles `setInterval` to ~1Hz when
+backgrounded, so wall-clock sampling is useless here): the card's scale runs 1 to a peak of 1.12 at **exactly
+160ms** (`growMs`), then back to 1 at **540ms** (`growMs + shrinkMs`), while its `transform` holds constant at
+the fan's `matrix(1, 0, 0, 1, 0, 33.3856)` for the whole burst. The animations resolve as `sbgrow@160+0` /
+`sbshrink@380+160`. The 18 motes finish at angles spanning -172 to +172 degrees (all the way around) at radii
+77-165px, each traveling outward monotonically. Full suite (1538) + typecheck + lint + build:web green.
+
+Follow-up: defaults are a starting point — bake the owner's tuned values once they land.
+
+## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
+## 2026-07-24 (placing / rearranging a card slides it home)
+
+### feat(ui): placing or rearranging a minion slides it into the slot
+
+Extends the `buySlide` motion to two more cases: PLACING a minion on the board (hand → warband) and
+REARRANGING one (board / hand / shop reorder). The dragged card was already excluded from the settle FLIP
+(`handFlipRef` skips `uid === d.uid`) so it just teleported to its committed slot while its neighbours glided;
+now it glides the last stretch too, from where you released it, using the same compositor-only transform tween
+a buy uses — **30% faster** (`durationScale` 0.7 → ~119ms), since placement has no "reveal" to read, you
+already know where it's going.
+
+Mechanics:
+- `playBuySlide` takes an optional `durationScale` (default 1; place/rearrange pass 0.7). Buy is unchanged.
+- At the drop, for `handMinionDrop` / `boardReorderDrop` / `shopReorderDrop` only (NOT buy — it has its own
+  slide — and NOT sell — the card leaves), `placePendingRef` records the dragged card's uid, its destination
+  row selector, and the **live `.dragcard` rect** (its true visual release point, drag-lag included, captured
+  before `setDrag(null)` unmounts it). The played card keeps its uid across the `play` reducer (line 875
+  splices the same object onto the board), so the post-commit lookup finds it.
+- Consumed inside the same `handPlaySnapRef` settle branch, right after the neighbour glide, so it is
+  guaranteed to run once the card is at its final slot. WAAPI transform, so it never fights the neighbours'
+  GSAP x-tween; the played card's `.popin` is suppressed by the slide's `animation: none !important`.
+
+**Verified:** engine typecheck + lint (0 errors) + 1538 tests + `build:web` green; zero new `typecheck:web`
+errors (57 baseline unchanged). Motion itself is owner-eyeballed — rAF/WAAPI don't advance in this
+environment's hidden preview pane. **Judgement call to confirm:** applied to board place + board/hand/shop
+reorder; hand-internal reorder also gets it (it reads the card's fanned/tucked base transform, so the tuck is
+preserved). Say if any of those should stay on the old instant-settle.
+
+## 2026-07-24 (the shop→hand slide + the top-left ghost card)
+### fix(ui): the REAL top-left blip — GSAP Flip was grabbing the gild's clones
+
+The `.dragcard` park (above) fixed one origin blip; this was a second, different one, only ever visible on a
+triple. `cloneNode` copies **every** attribute, including GSAP Flip's identity stamp `data-flip-id`. So all
+three gild clones carried the same `data-flip-id` as the real gilded card. The instant the triple re-rendered
+the hand row, `Flip.from` matched the clones by that id, cleared their transform and set opacity to 1 —
+dropping a `position:fixed; left:0; top:0` clone onto the screen's top-left corner, full opacity, for the
+length of the Flip.
+
+It was invisible to four separate isolation harnesses (append probe, WAAPI trajectory sampling, virtual-clock
+frame stepping, all-element origin scan) because none of them triggered a Flip. It only reproduced by driving
+a REAL triple in-page and freezing the DOM: three `body > .card` clones sitting at `(-28, 0)` at opacity 1,
+each stamped `data-flip-id=auto-1`. `cloneCard` now strips `data-flip-id`, `data-uid` and `id` from the clone
+and its descendants, so nothing outside the module can address them. Re-verified through the same real-triple
+path: clones back at centre (`translate(828, 393) scale(1.32)`), no flip-id, nothing visible at the origin.
+
+
+### feat(ui): the gild hands off to the buy slide
+
+The gilded card no longer flies home on the gild's own clock. At the end of the crown the survivor clone is
+dropped and the REAL card takes over with `playBuySlide` — the same motion a card bought from the tavern
+makes on its way into a slot (owner call 2026-07-23). One vocabulary for "a card is entering your hand"
+however it got there, and the slide lands on the real element, so there is no clone-to-card swap to get
+wrong. `DEST`, the fly-home interpolation and the reveal-on-landing all went with it.
+
+### fix(ui): the buy slide was eating the gild's ending
+
+Completing a triple by BUYING the third copy ran both effects over the same card. `checkTriples` runs inside
+the `buy` action, so the copy you bought is consumed on the spot and the only new hand card is the gilded
+one — which the buy handler then took for a normal purchase. The slide's `opacity: 1 !important` cancelled
+the gild's hide, so the gilded card sat in its hand slot from the first frame and the flight home had
+nothing left to deliver: the owner saw the converge, then the card was simply there.
+
+The buy handler now compares `triplesMade` across the dispatch and stands down when the buy completed a
+triple — that moment belongs to the gild, which hands off to the slide itself.
+
+### fix(ui): the gild converged only two cards when you bought the third copy
+
+The flyer count came from diffing the uids that vanished this commit, which undercounts by exactly one
+whenever the triple is completed by BUYING the third copy: that copy arrives and is consumed inside the same
+commit, so it was never in a previous render's uid set and never registers as "gone". Three cards became
+two and the right-hand flyer was missing.
+
+It now takes the count from the sim's own rule instead of inferring it — `checkTriples` pulls
+`runeTwinGilding ? 2 : 3`, and that single call site covers Gildmaster's two-copy gild too (it goes through
+the same rune flag), so there is nothing left to infer.
+
+### feat(ui): buying a card slides it into hand from where you released it
+
+The fourth and last of the card transitions, and deliberately the quietest. A bought card was already
+sitting in the tavern in front of you — it is **acquired, not conjured** — so it gets no arcane dust (owner
+ruling 2026-07-22). `buySlide.ts` is a single compositor-only transform tween on the real card element:
+170ms, `cubic-bezier(.22,.9,.28,1)`, no clone, no canvas, no per-frame layout read.
+
+Two things it has to work around. A hand card carries a resting transform (the tuck, plus fan rotation), so
+animating `transform` outright would drop that for the length of the slide and the card would visibly jump
+to an untucked pose — the current computed matrix is read once and every keyframe is written *outside* it
+(`translate(…) scale(…) <base>`). And a freshly bought card mounts with `.popin`, whose `handpop` keyframes
+animate the same property; a running CSS animation outranks a plain inline style, so the slide suppresses it
+with `animation: none !important` for its duration and the card slides in solid instead of fading.
+
+### fix(ui): every bought card was still coalescing
+
+The exclusion added in #674 never matched anything. A buy **mints a fresh `b<n>` uid** for the hand copy
+(`reducer.ts` `case 'buy'`), so `buyPendingRef`, which held the *shop* uid that was dragged, could never
+match the card that actually landed in hand. It now reads the new uid back off the store immediately after
+the dispatch (the same synchronous pattern `playWithSummonDelay` uses) and carries the release point with
+it, so the same ref both suppresses the coalesce and feeds the slide.
+
+### fix(ui): the "ghost card" blip in the screen's top-left corner
+
+Owner reported a card blipping in the top-left corner just before the gild — twice, the second time after a
+fix that turned out to address a different instance of the same class of bug.
+
+`.dragcard` is pinned at `left/top: 0` and placed **entirely** by an inline transform, written per frame by
+the drag rAF or by React during a snap/magnet-slide. Any frame where neither has written one yet paints a
+full-size card at the screen origin. The rAF's effect deps (`[drag?.active, castingSpell]`) covered the
+remount paths we knew about; the comment on that effect has warned about "the top-left ghost card bug" since
+it was written, which is the tell that patching remount paths one at a time wasn't converging.
+
+Fixed at the root instead: `.dragcard` now has a default `transform: translate(-9999px, -9999px)`. Any
+inline transform outranks it, so the rAF and React are unaffected and the drag feel is untouched — but an
+unpositioned frame parks off-screen instead of at the origin, and the entire class of flash becomes
+impossible rather than one-remount-path-at-a-time.
+
+**Verified live in a browser rather than by reasoning**, since the previous fix had missed. A wrapped
+`appendChild` recorded computed opacity/transform/rect for everything added to `<body>`. It caught the drag
+card red-handed — appended with **no inline transform**, resolving to the new park — and confirmed the gild's
+own clones now append at `opacity: 0`, centred (`matrix(1.32,0,0,1.32,592.8,284.0)`), never at the origin. A
+synthesised pointer drag from tavern to hand then bought a card: hand uid `b4` (≠ the dragged `s0`, proving
+the uid fix), one 170ms animation on it, and no dust canvas appended.
+
+## 2026-07-22 (coalesce coverage + a hole in our verification)
+
+### fix(ui): the coalesce was missing whole classes of generated card
+
+Owner reported end-of-turn grants never materialising, and deathrattle grants playing a *competing*
+animation. An audit of all 25 `hand.push` sites turned up four real bugs.
+
+**1. End-of-turn grants never fired.** `faceOmen` is a single reducer action that runs the EoT effects AND
+flips `phase = 'combat'` ~200 lines later, so the store only ever publishes the final state: the granted
+cards are in hand and the phase is already combat. There is no intermediate commit — the UI never once
+renders them at `phase === 'recruit'`. The watcher's `if (run.phase !== 'recruit') return;` therefore
+dropped every one.
+
+Worse, that early return sat *after* the `prevHandUidsRef` write, so the uids were consumed as "seen" while
+playback was suppressed — by the time the phase was recruit again they were no longer new, so the trip back
+didn't catch them either. They fell through both paths. Guard removed; the real gate is whether the card is
+on screen, which the element lookup already does.
+
+**2. A buy or a triple discarded the WHOLE batch.** `if (!fresh.length || tripled || bought) return;` threw
+away every fresh card in that commit, not just the excluded one. So anything conjured alongside a buy lost
+its effect: **Dupes**, Gorr's Four Peat, the Drakko and Chronos quest rewards, the Spellslinging gold drip.
+Exclusions are per-card now — `buyPendingRef` carries the bought UID rather than a boolean, and a triple
+excludes only the golden card the gild owns.
+
+**3. Skipped replays left combat grants with nothing.** `coalesceSkipRef` was built from
+`lastCombat.playerHandGrants`, i.e. every grant the combat produced — but on a skipped replay nothing plays
+mid-fight, so the skip suppressed the settle-side effect and the grant got no effect at all. The skip is now
+built from `grantPlayedRef`: what the in-combat watcher *actually* fired.
+
+**4. The competing flight is gone.** `tohandfly` flew the granted card 52vh down the screen while shrinking
+it to 0.42 — a second story about the same event the coalesce was already telling. Replaced with an
+opacity-only hold-and-fade on a static transform, so the card materialises where it appears and the coalesce
+is the whole animation. The "To your hand" label stays; it carries information the effect doesn't.
+
+### The verification hole
+
+`npm run typecheck` **excludes `packages/ui`** (`tsconfig.json`: `"exclude": ["packages/ui"]`) — React/DOM is
+checked by `npm run typecheck:web`, which **CI does not run**. So every "typecheck green" reported on this
+UI work checked none of it, and `build:web` doesn't catch type errors either (Vite strips types via esbuild).
+That is how a `ReferenceError: starts is not defined` — a variable removed in a refactor but still
+referenced — reached the owner's browser.
+
+Two type errors from the *already-merged* coalesce PR were found this way: `hide`/`unhide` returning a value
+where `void` was declared, and `PlateCoalesceTuner`'s demo button reading `panelRef.current` when
+`useDraggablePanel` returns a **callback ref** — so that button had been silently doing nothing since it
+shipped. Both fixed; the repo's `typecheck:web` error count went 58 → 57.
+
+**Follow-up worth taking seriously:** `typecheck:web` has 57 pre-existing errors and no gate, so it will keep
+rotting and will keep letting UI type errors ship. Getting it to zero and adding it to CI is its own PR.
+
+### Known gaps, deliberately not fixed here
+
+- **Hand-full conjures land on the BOARD** (`recruit.ts:676`) and the watcher only diffs `run.hand`, so they
+  never coalesce. Distinguishing a board-overflow conjure from a played minion or a summoned token needs
+  more signal than the UI currently has.
+- **The run-start Chaos token** doesn't coalesce — `prevHandUidsRef` is seeded from the initial hand.
+  Arguably correct: run start isn't a generation moment.
+- **The flip skip matches by `cardId`, not uid**, so a start-of-turn grant of the same card as a combat grant
+  is theoretically indistinguishable. Ordering makes it resolve correctly today.
+
+## 2026-07-22 (plate gild)
+
+### feat(ui): three become one — the gild is a run highlight now
+
+A triple had **no visual feedback at all**: three cards blinked out, one gold card popped in. It now plays
+the loudest of the three plate effects. The copies leave their slots, meet centre screen, merge into one,
+the survivor erupts gold — the plate wireframe in gold plus a flourish only gilding gets — and the gilded
+card flies home to its slot. ~936ms. Owner's shape: *fuse then crown*, wireframe family plus a signature,
+and the three **meet in the middle** rather than fusing in place. Authored on
+`fx/plate-gild-preview.html`.
+
+**The three cards you see are clones.** By the time the UI can detect a triple, the sim has spliced the
+consumed copies out and React has unmounted them — their DOM is gone and their positions are unrecoverable.
+So the flyers are clones of the surviving gilded card with `.golden` stripped, so they render as the plain
+minion they were; the survivor regains it at the crown, which makes the transformation something you watch
+rather than infer. `cloneNode` yields a BLANK canvas and sprite-art cards draw into one, so every canvas in
+a clone is repainted from its original — without that, those cards fly as empty frames.
+
+**Where the copies WERE needed a cache.** `cardRectsRef` holds the last-known rect of every hand / board /
+shop card by uid; the gild watcher reads it *before* refreshing it, so it always sees the frame before the
+copies vanished. The refresh is guarded on the visible uid set plus a 250ms floor and is recruit-phase only,
+so hover-driven re-renders can't turn it into a per-render layout read (~20 rects).
+
+**Timing is expressed as beats, not sub-steps.** Each of the four beats has ONE total and its internals are
+shares of it, so tightening a beat can never silently lengthen the effect — the rig's earlier eight
+independent ms sliders made hitting a duration target guesswork. `crownLead` overlaps the crown into the
+fuse and genuinely SHORTENS the run; a flourish longer than its beat extends it. Both are reflected in the
+derived total shown in the tuner header.
+
+Fires off the same `run.triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
+claim a card. The gilded card is normally in hand but lands on the BOARD when the hand is full, so both are
+searched.
+
+The owner's dial: the **seal** flourish spinning at 150°/s, the crown burst switched off entirely, and the
+fuse reduced to 90 tiny motes on a strong reverse arc — a thin bright thread rather than a cloud. Palette
+deliberately avoids two neighbours the codebase map turned up: the sell **coins** (reads as money) and the
+Divine Shield aura gold (a persistent keyword state).
+
+New dev tuner **👑 Plate Gild** with a "Play here" button and the live total in its header.
+
+**Then the fly-in was cut entirely (owner, same session).** Rather than reconstruct where each copy had
+been, the effect now OPENS with the three already gathered centre screen, fading in at their cluster seats.
+That deleted `cardRectsRef`, the per-render layout reads that fed it, the DEV warning that guarded it, and
+the whole class of bug that comes with reconstructing positions after the fact — all the call site needs now
+is how many copies were consumed (3, or 2 under Twin Gilding) and where the gilded card lives. The rig was
+updated to match, so what's tuned is what ships.
+
+**Two bugs on the owner's first play-test, both one root cause.** The flyers came in from the top-left
+corner rather than their slots, and the frame sat off-centre inside the plate — before AND after they
+converged.
+
+Card sizing is driven by CSS vars set **per zone** (`.zone[data-zone='hand'] { --ccw: … }`), not by the
+element's own width. A clone appended to `<body>` loses them, so it laid out at some unrelated size; and the
+plate, positioned `left: 50%` of the card box, slid out of register with the frame inside it. On top of
+that the clone was being forced to *plate* dimensions while being a *card*, which widened the box further.
+
+Fixed by copying the resolved sizing vars onto the clone, dropping the forced width/height so it sizes
+itself exactly as it did in its row, measuring CARD rects (not plate rects) for both the cache and the
+destination, and giving the gold wireframe `class="cardplate"` so it inherits the plate's own geometry
+inside the clone instead of stretching over the whole card box. The effect's px quantities still scale off
+plate width, measured from the clone, since that's what the rig was dialed against.
+
+Also set the opening transform BEFORE the clone is appended, so there is no frame painted at (0,0), and
+added a DEV warning when a consumed copy has no cached rect — that path degrades to flying fewer cards, and
+it should be loud rather than silent.
+
+**Verified:** typecheck + lint + 1538 tests + `build:web` green. Timeline verified numerically against the
+rig. **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
+owner-eyeballed.
+
+## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
+
+### fix(ui): drop `cardpop` from `.spellbuff` — that was the pop no dial could turn off
+
+Owner: "the values are all at 0 but it is still popping." They were right, and no tuner dial could have fixed
+it — the movement wasn't coming from the wiggle at all.
+
+`.card.spellbuff` led its animation list with `cardpop 0.26s`, copied from `.cardbuff`, whose comment claims
+cardpop is "kept first in the list (matching the base .card) so toggling the class does NOT re-add it." That
+premise is false: the base `.card` has **no** animation — only `.card.popin` / `.row.hand .card.popin` do. So on
+a card that has been sitting in hand, naming cardpop STARTS it: a fresh `opacity 0→1` + `translateY(8px)` +
+`scale(0.96)` entry pop on every single spell buff, driven by nothing in the config.
+
+Removed it; the wiggle now stands alone. Verified with every card dial at its off value (wiggle° 0, pop scale 1,
+wobble 0, spring 0, softness 0): the transform is byte-identical across the whole burst
+(`matrix(1, 0, 0, 1, 0, 33.3856)` — just the hand tuck) and opacity holds at 1. A burst now reports exactly one
+animation, `spellwiggle`, at the tuned duration.
+
+**Known adjacent issue (untouched, pre-existing):** `.card.cardbuff` — the green MINION buff flash — has the
+same construction, so it also fires that entry pop. Left alone deliberately (its look is long-established and
+out of this change's scope); worth its own PR if the pop there is unwanted too.
+
+Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff tuner — authority pass on every dial)
+
+### fix(ui): widen the ranges AND the 0-to-1 mappings so the dials actually bite
+
+Owner: "it's really not giving a strong enough control." Two separate ceilings were capping every dial long
+before the effect got interesting, so this widens both:
+
+**Slider ranges** — pop scale 1.4 → **2.0**, wiggle° 15 → **30**, pop spring 0.8 → **2.0**, wiggle ms → 80–2500,
+spark count 40 → **80**, spark size max 30 → **48**, rise max 500 → **900px**, gravity 200 → **600**, drift 120 →
+**300**, glow 30 → **60**, tail 8 → **20**, stagger 600 → **1200**, spread 140 → **240**, spark ms → 80–3000.
+
+**Normalized mappings** — the 0–1 dials now swing their curve control points across the FULL range instead of a
+narrow slice:
+- pop softness: `y1` 0.92 → 0.01 (instant leap ↔ flat crawl), `x1` 0.01 → 0.89
+- settle softness: `x2` 0.98 → 0.05 (slams into the target ↔ arrives early and glides)
+- launch punch: `y1` 0.04 → 0.98 (crawls off the card ↔ nearly all travel in the first instant)
+
+**Wobble geometry** — the counter-swing legs topped out at 42% of the peak, so wobble 1 was still mild; now 90%
+/ 40%, a genuine oscillation. Default trimmed 0.3 → 0.18 to keep the shipped feel roughly where it was.
+
+Verified at the extremes: `cubic-bezier(0.01, 0.92, 0.98, 1)` (snap) vs `cubic-bezier(0.89, 0.01, 0.05, 3)`
+(slow crawl + big spring). Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff pop — the softness dial had no authority)
+
+### fix(ui): widen the pop-softness curve mapping (triage)
+
+Owner: "the softness doesn't seem to do anything." Triaged by sampling the card's actual transform trajectory
+(scale magnitude from the computed matrix) at softness 0 vs 1, with the amplitude cranked so any difference
+would be measurable.
+
+It WAS working, but barely: the mapping only moved the curve's head control point between `y1` 0.02 and 0.12,
+so every setting left rest slowly — the dial only shifted timing slightly. Measured gap at 60ms: **0.098**. At
+the shipped amplitude (1.06 scale) that is invisible.
+
+Fixed by swinging the head control point across its full range — at 0 the curve leaves rest almost vertically
+(an instant leap), at 1 it crawls out flat (a long gentle ramp): `y1` now spans 0.70 → 0.01 and `x1` 0.02 →
+0.80. Re-measured gap at 60ms: **0.206** (2.1× stronger), and the trajectories now diverge obviously — softness
+0 is at 1.211 by 60ms and already falling by 300ms, softness 1 is still at 1.005 at 60ms and doesn't peak until
+~300ms. Default pop scale also raised 1.06 → 1.10 so the easing is legible at shipped values.
+
+Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff pop — smoothing dials + the keyframe-var limitation)
+
+### fix(ui): the pop sprang on EVERY leg; split shake from smoothness
+
+Owner: still jarring. The cause was that ONE overshoot cubic-bezier was applied across the whole animation, so
+every leg of the wiggle sprang past its target — a shake, not a pop.
+
+Tried per-segment curves first (`animation-timing-function` inside each keyframe, driven by a var). **That does
+not work:** a keyframe's `animation-timing-function` does NOT accept `var()` — the browser drops the declaration
+(verified live: every keyframe reported `ease`). Documented in the CSS so nobody re-attempts it.
+
+So the smoothing is split two ways instead:
+- **One element-level curve, shaped by three dials** (`wiggleEaseCss`): `wiggleEase` owns the head (x1/y1, how
+  gently it leaves rest), `wiggleSettle` owns the tail (x2, how long it glides home), `wiggleOvershoot` owns
+  y2 past 1 (the spring). Element-level `var()` DOES resolve — verified `cubic-bezier(0.45, 0.1, 0.304, 1.12)`.
+- **Oscillation moved into keyframe GEOMETRY** via a new `--sb-wobble`, so shake and smoothness are independent.
+  At **wobble 0** the return stops collapse onto rest — verified: the transform mid-return is exactly
+  `matrix(1,0,0,1,0,0)`, i.e. one clean pop that glides home with no oscillation at all.
+
+Defaults softened too (deg 3.4 → 2.2, scale 1.09 → 1.06, ms 660 → 720, overshoot 0.28 → 0.12, wobble 0.3).
+Tuner is now 26 controls. Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff FX — rise in PIXELS, launch/gravity + pop easing dials)
+
+### fix(ui): the spark rise was a % of the MOTE, not the card — plus speed/gravity/ease controls
+
+The real reason the sparks "weren't moving up fast enough": `--sb-rise` was a percentage fed to `translate`,
+and a percentage there resolves against the **element's own box** — a ~7px mote. So the previous 140–280% dial
+was buying ~10–20px of actual travel. Rise is now in **PIXELS** (default 80–170px), which is what the dial
+implied all along.
+
+New dials for the vertical movement the owner asked for:
+- **launch punch** (`sparkSpeed`, 0–1) — builds the climb's cubic-bezier (`sparkEaseCss`): 0 eases up evenly,
+  1 fires off hard and coasts.
+- **gravity px** (`sparkGravity`) — the mote climbs to its full rise by 72%, then SAGS back by this much, so the
+  burst can arc instead of hanging.
+
+And the pop is properly eased instead of snapping:
+- The 6-stop shake (14/30/48/66/84%) read as a jitter — replaced with a swing-out → softer swing-back → settle
+  (32/64/84%).
+- **pop softness** (`wiggleEase`, 0–1) and **pop spring** (`wiggleOvershoot`) build the wiggle's curve
+  (`wiggleEaseCss`), the overshoot riding the second control point past 1 so each leg sails slightly beyond its
+  target and settles — what turns an instant snap into a pop. Default `cubic-bezier(0.374, 0.104, 0.452, 1.28)`.
+
+Tuner is now 24 controls. Verified live: rise resolves to 159px, the wiggle runs the tuned bezier with
+`fill: none` (still decoupled from spark life), and all six new dials render with their defaults. Full suite
+(1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff FX — decouple the pop, speed up the rise)
+
+### fix(ui): the card pop was pinned to the spark life via the wiggle's fill-mode
+
+Owner report: "the pop is still tied to spark ms" — and it was, through a non-obvious path. The card carries its
+OWN inline `transform` (the hand fan's rotation/tuck), and `spellwiggle` ran with `both` fill. A forwards fill
+keeps applying the animation's final `transform: none` for as long as the class is on — and the class is held
+for `max(wiggleMs, sparkMs + stagger)`. So after the wiggle finished, the card stayed yanked out of its fan
+position for the rest of the burst, i.e. for the SPARK life. Dropping the fill ends the override exactly at
+`--sb-wiggle-ms`. Measured: the card's transform now restores at ~700ms (wiggle 660) instead of the 1180ms hold.
+
+Also: **the sparks climb properly now.** They ran on `ease-out`, which dumps most of the travel in the first
+~20% and then crawls — reading as "not moving." Swapped to a near-linear curve with only a light settle, and
+raised the default rise from 55–130% to 140–280% (dial headroom now 0–400 / 0–600). Same 900ms life, roughly
+double the distance.
+
+Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (Spell Buff FX tuner + Ruby green value)
+
+### feat(ui): a ✨ Spell Buff tuner, spark tails, and green Ruby values
+
+**Tuner.** The spell-buff cue now follows the house FX contract instead of hardcoded numbers: `spellBuffFxConfig.ts`
+(localStorage-backed, dev-only persistence, production renders the shipped DEFAULTS) + `SpellBuffFxTuner.tsx`
+registered in `DevMenu` as **✨ Spell Buff FX**. 17 controls — spark count / size range / spawn spread + band /
+rise range / drift / alpha / glow / tail / life / stagger, the three hues, and the card's wiggle°, pop scale and
+duration — with **Test** (fires the cue on every spell + Ruby in hand), **Copy values** and **Reset**. Because
+this cue is CSS rather than Pixi, `Card.tsx` reads the config at FIRE TIME to bake the per-mote jitter and
+pushes the timing/shape dials down as `--sb-*` custom properties, so an edit applies to the NEXT burst.
+
+**Visibility + tails (owner: "too hard to see").** Dropped `mix-blend-mode: screen` — the main culprit, it
+washed the motes out over bright card art — and gave each mote a white-hot core, a tunable glow halo, a tunable
+peak alpha, and a **tapering tail** that trails below it as it climbs (length = mote size × the tail dial, so
+bigger motes streak longer).
+
+**Independent timing.** The card pop and the spark life were already separate dials, but the class was held for
+a hardcoded 850ms, which silently CLIPPED any spark life longer than that. The hold now derives from
+`max(wiggleMs, sparkMs + stagger)`, so a snappy wiggle with a long slow rise works as intended.
+
+**Ruby green value.** A Ruby minted or grown above its printed 1/1 now shows its grant in green via the standard
+`{{…}}` modified-value marker — the same cue every other scaled number uses.
+
+Verified live: buffed Ruby renders a green `+4/+4` while a base Ruby stays plain; the tuner renders 17 controls
+and a slider change (count 5, wiggle 12°) applied to the very next burst; tails measured 23.6px with the hue
+gradient; the flash now holds 1282ms against a 900ms spark life (no clipping). Full suite (1538) + lint +
+build:web green.
+
+## 2026-07-23 (spell-buff cue — hand spells + Rubies react when they get stronger)
+
+### feat(ui): a wiggle + spark burst on hand spells whose value just went up
+
+When a spell buff lands, the affected cards in HAND now say so: a quick **wiggle + grow/shrink pop**, plus
+**pink / gold / purple sparks** that burst off the card and rise. Covers Rubies too (previously excluded from
+the green minion flash entirely, so a Ruby growing had no cue at all).
+
+**Detection** — a spell's stats never move (it's a 0/1 card); its printed VALUE is what changes. So the watcher
+diffs each hand card's rendered live text + stats per uid and fires on a change for `spell || ruby` cards. That
+catches every scaling source at once — spell power, Front to Back's escalation, the Ruby stat line, Rune of
+Pillaging's pouch — without enumerating them, and picks up future ones for free. Only cards already in hand can
+fire it, so drawing never flashes; minions keep the existing green buff flash.
+
+**Render** — `Card.spellBuffed` adds a `.spellbuff` class (`cardpop` + a new `spellwiggle`) and spawns 15
+`.sbspark` motes with fixed per-mote jitter (position / delay / size / rise / drift / hue), mirroring the
+`REBORN_WISPS` idiom. One-shot (~0.8s), transform/opacity only, so the burst composites rather than repainting.
+
+Verified live: buffing spell power with a Spirit Fire + Ruby + minion in hand flagged exactly the spell and the
+Ruby (`cardpop, spellwiggle`, 15 sparks each, hues pink/gold/purple) and left the minion untouched. Full suite
+(1538) + lint + build:web green.
+
+## 2026-07-23 (Front to Back — improve each cast)
+
+### balance(content): Front to Back escalates every cast, not every other
+
+Owner tuning: Front to Back's +2/+2 improvement now lands on EVERY cast instead of every other — so casts go
++2/+2, +4/+4, +6/+6, … (× spell power on both stats, still independent per stat). Dropped the `frontToBackCasts`
+`% 2` gate in `spellBuffTargetEscalating`; text now reads "Improve this by +2/+2 each cast." Live text unchanged
+(reads the running `frontToBackBonus`). Updated 4 `run.test.ts` cases + the display-text assertions. Full suite
+(1538) + lint + build green.
 
 ## 2026-07-22 (plate coalesce — cards being generated)
 

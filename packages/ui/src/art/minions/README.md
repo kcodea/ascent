@@ -49,3 +49,19 @@ picks one per instance, stable by uid (~50/50), for flavour.
 | `stray` | Stray ✅ | `sylus` | Sylus the Reaper ✅ |
 | `impscrap` | Imp ✅ | `chronos` | Chronos ✅ |
 | `discoverspell` | Triple Reward ✅ | `fred` | Fred (Fodder) ✅ |
+
+## Choose One: per-branch art
+
+A Choose One card can ship a **different illustration per branch**, and the instance wears the art of the
+branch it became (owner 2026-07-25). The wiring is pure naming — no card-data change:
+
+| Option index | File | Example |
+| --- | --- | --- |
+| 0 | `<id>` (the base file) | `shaper.webp` — "Give your Beasts +1/+3" |
+| 1 | `<id>2` | `shaper2.webp` — "Summon a 1/1 Stray" |
+| N | `<id><N+1>` | … |
+
+Drop the file and it's live — the Choose One prompt previews each option with its own art, and the pick
+carries onto the board and into combat. A branch with no art falls back to the base file, so partial art is
+fine. `chooseOneArt.test.ts` fails the build on a file numbered past the card's option count (dead art) or
+on a stray `<id>1` (option 0 uses the base name).

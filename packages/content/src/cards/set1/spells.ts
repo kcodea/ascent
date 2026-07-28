@@ -199,7 +199,7 @@ export const SPELLS: CardDef[] = [
     text: 'Get a random **Tier 1** minion.',
   },
   {
-    // Escalation: +2/+2, improving by +2/+2 every OTHER cast this run (owner 2026-07-13; plus spell power).
+    // Escalation: +2/+2, improving by +2/+2 EACH cast this run (owner 2026-07-23; plus spell power).
     id: 'fronttoback',
     name: 'Front to Back',
     tribe: 'neutral',
@@ -211,7 +211,7 @@ export const SPELLS: CardDef[] = [
     cost: 1,
     target: 'any',
     effects: [{ on: 'cast', do: 'spellBuffTargetEscalating' }],
-    text: 'Give a minion **+2/+2**. Improve this by **+2/+2** every other cast.',
+    text: 'Give a minion **+2/+2**. Improve this by **+2/+2** each cast.',
   },
   {
     // Discover a Battlecry minion (filtered Discover via the reducer's play path).
@@ -364,10 +364,12 @@ export const SPELLS: CardDef[] = [
     cost: 1,
     effects: [],
     chooseOne: [
-      { text: 'Give the shop **+1/+3**.', effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 1, health: 3 } }] },
+      { text: 'Give **this shop +1/+3**.', effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 1, health: 3 } }] },
       { text: 'Give the next shop **+2/+4**.', effects: [{ on: 'cast', do: 'spellBuffNextShop', params: { attack: 2, health: 4 } }] },
     ],
-    text: '**Choose One:** Give the shop **+1/+3**, or the next shop **+2/+4**.',
+    // "THIS shop" is load-bearing vocabulary (owner 2026-07-25): a bare "the shop" reads as the permanent
+    // buy-buff Staff of Guel gives, but this option only touches the offers currently on the board.
+    text: '**Choose One:** Give **this shop +1/+3**, or the **next shop +2/+4**.',
   },
   {
     // Tier-scaled buff: +Tavern Tier / +Tavern Tier, plus the run's spell power on top of both stats
@@ -614,8 +616,11 @@ export const SPELLS: CardDef[] = [
   {
     // Spark Capacitor's Avenge payoff (also a T6 Tavern spell): buff your entire board +5/+5, twice — two
     // spellBuffAll casts, so each picks up spell power. A board-wide finisher.
+    // Renamed Spark Plug -> Waking Rift (owner 2026-07-24). The ID stays `sparkplug` deliberately: it's
+    // referenced by Spark Capacitor's `avengeGrantSpell` params, by saved runs and by pinned replays, so
+    // changing it would break restores for a display-only rename (same call as the 2026-07-17 vocab pass).
     id: 'sparkplug',
-    name: 'Spark Plug',
+    name: 'Waking Rift',
     tribe: 'neutral',
     tier: 6,
     attack: 0,
@@ -962,23 +967,6 @@ export const SPELLS: CardDef[] = [
     cost: 3,
     effects: [{ on: 'cast', do: 'spellMarkEnemyTaunt' }],
     text: "At the start of next combat, give the enemy's **right-most** minion **Taunt**.",
-  },
-  {
-    // Re-trigger a friendly minion's Shout (Battlecry) and Echo (Deathrattle, without destroying it). Rally is
-    // combat-only, so it's a no-op out of combat. singleCast — a Yazzus can't multiply the re-trigger.
-    id: 'encore',
-    name: 'Encore',
-    tribe: 'neutral',
-    tier: 6,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    singleCast: true,
-    cost: 4,
-    target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellEncore' }],
-    text: 'Choose a friendly minion. Trigger its **Shout** or **Echo**.',
   },
   {
     // +4/+4, plus +1/+1 for each Dragon you PLAYED this turn (flat — no spell power, so the printed value stays

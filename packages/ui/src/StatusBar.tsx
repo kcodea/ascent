@@ -158,6 +158,7 @@ export function StatusBar() {
   const [refreshFlash, setRefreshFlash] = useState(false);
   const flashSignal = canHero && run.phase === 'recruit';
   const prevFlashSignal = useRef(false);
+  const flashTimerRef = useRef<number | undefined>(undefined);   // see below — must outlive the effect
   useEffect(() => {
     const was = prevFlashSignal.current;
     prevFlashSignal.current = flashSignal;
@@ -165,8 +166,14 @@ export function StatusBar() {
     const ms = getHeroPowerBtnConfig().refreshFlash;
     if (ms <= 0) return;
     setRefreshFlash(true);
-    const id = window.setTimeout(() => setRefreshFlash(false), ms + 280);
-    return () => window.clearTimeout(id);
+    /* Clear timer in a REF, not this effect's cleanup: `flashSignal` going true→false inside the hold made the
+       cleanup cancel the clear, and the rising-edge guard above then early-returns — so the flash stayed lit
+       for good. Same defect as the medallion pulses (#735, #736). */
+    if (flashTimerRef.current !== undefined) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => {
+      flashTimerRef.current = undefined;
+      setRefreshFlash(false);
+    }, ms + 280);
   }, [flashSignal]);
   // Pill text auto-fits its box (no ellipsis / no tooltip needed — owner note 2026-07-16).
   const heroNameRef = useFitText(hero.name);
@@ -174,16 +181,22 @@ export function StatusBar() {
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);
+  const hitTimerRef = useRef<number | undefined>(undefined);   // see below — must outlive the effect
   useEffect(() => {
     const prev = prevHp.current;
     const now = run.resolve + run.armor;
     prevHp.current = now;
     if (now < prev) {
       setHit({ amt: prev - now, key: prev });
-      const t = window.setTimeout(() => setHit(null), 1100);
-      return () => window.clearTimeout(t);
+      /* Ref timer, same reason as the refresh flash: effective HP moving again inside the 1100ms hold — armor
+         gained, Resolve healed — cancelled the clear via the cleanup and took the `now < prev` branch out of
+         play, leaving the −X float parked on the chip permanently. */
+      if (hitTimerRef.current !== undefined) window.clearTimeout(hitTimerRef.current);
+      hitTimerRef.current = window.setTimeout(() => {
+        hitTimerRef.current = undefined;
+        setHit(null);
+      }, 1100);
     }
-    return undefined;
   }, [run.resolve, run.armor]);
 
   // Hero-portrait buff FLASH — a blast/shard pop with a small eased ripple whenever ANY run buff grows (spell

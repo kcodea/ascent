@@ -10,7 +10,7 @@ import { questObjectiveLines, questObjectiveText, questRewardText } from './ques
 
 const TIER_LABEL: Record<QuestDef['tier'], string> = { lesser: 'Lesser', greater: 'Greater', capstone: 'Capstone' };
 /** Each tribe's emblem glyph — the canonical set (mirrors Card.tsx's footer icons). */
-const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star' };
+const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown' };
 
 /** The specific card ids a reward GRANTS (named minions/spells) — for the hover preview. Random-tribe /
  *  random-filter grants have no fixed card, so they contribute nothing. `multi` recurses into its sub-rewards. */
@@ -104,7 +104,7 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
         <div className="cardref questref" style={{ left: tip.left, top: tip.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${tip.origin} center` } as CSSProperties}>
             {rewardCards.map((rv, i) => (
-              <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop />
+              <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop plated />
             ))}
           </div>
         </div>,

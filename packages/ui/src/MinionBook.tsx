@@ -11,18 +11,25 @@ import { Icon } from './Icon';
 import { useGame } from './store';
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
- *  Tara → Taragosa). Detected from the card set (ascend targets + `spellCastTransform` destinations) so the
- *  Compendium can show these "secret" payoff forms even though they never appear in the shop. */
-const EVOLUTION_CARDS: CardDef[] = (() => {
+ *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +
+ *  `spellCastTransform` destinations), so the Compendium can show these "secret" payoff forms even though they
+ *  never appear in the shop.
+ *
+ *  Scanning the set's pool rather than the global `CARD_INDEX` is load-bearing: the index is set-agnostic by
+ *  design (id→def needs no set), so the old global walk leaked every set's evolution targets into every other
+ *  set — Spirit Worgen showed up under a Set-2 run's Beasts even though Spirit Pup, the only card that can
+ *  transform into it, isn't in Set 2 at all (owner report 2026-07-24). An evolution form is in scope exactly
+ *  when the card that evolves into it is. */
+const evolutionCardsFor = (buyable: readonly CardDef[]): CardDef[] => {
   const ids = new Set<string>();
-  for (const c of Object.values(CARD_INDEX)) {
+  for (const c of buyable) {
     if (c.ascendInto) ids.add(c.ascendInto);
     for (const e of c.effects) {
       if (e.do === 'spellCastTransform' && typeof e.params?.into === 'string') ids.add(e.params.into);
     }
   }
   return [...ids].map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
-})();
+};
 
 /** Quest-reward cards — the token minions/spells a completed quest grants. They're reward-exclusive
  *  (`token: true`), so they never appear in `BUYABLE_CARDS`/`SPELL_CARDS`; the Compendium surfaces them in
@@ -72,14 +79,16 @@ const RUNE_REWARD_IDS = new Set(RUNE_REWARD_CARDS.map((c) => c.id));
  *  Quest Rewards category. Membership sets keep those overlaps correct instead of hiding a real minion. */
 /** Which gallery a card belongs to, per SET — the Compendium shows the pool of the set the player is
  *  actually in (title screen = the live set), not a hardcoded one. Memoized; sets are immutable at runtime. */
-const poolIdsBySet = new Map<string, { minions: Set<string>; spells: Set<string> }>();
-function poolIds(setId: Parameters<typeof poolFor>[0]): { minions: Set<string>; spells: Set<string> } {
+const poolIdsBySet = new Map<string, { minions: Set<string>; spells: Set<string>; evolutions: CardDef[] }>();
+function poolIds(setId: Parameters<typeof poolFor>[0]): { minions: Set<string>; spells: Set<string>; evolutions: CardDef[] } {
   const hit = poolIdsBySet.get(setId);
   if (hit) return hit;
   const p = poolFor(setId);
+  const evolutions = evolutionCardsFor(p.buyable);
   const ids = {
-    minions: new Set([...p.buyable, ...EVOLUTION_CARDS].map((c) => c.id)),
+    minions: new Set([...p.buyable, ...evolutions].map((c) => c.id)),
     spells: new Set(p.spells.map((c) => c.id)),
+    evolutions,
   };
   poolIdsBySet.set(setId, ids);
   return ids;
@@ -248,7 +257,7 @@ export function MinionBook() {
   const run = useGame((s) => s.run);
   const setId = run.setId ?? 'set1'; // the Compendium shows the pool of the set this run is playing
   const pool = poolFor(setId);
-  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS } = poolIds(setId);
+  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS } = poolIds(setId);
   const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
 
@@ -304,6 +313,7 @@ export function MinionBook() {
     const inScope = (c: CardDef): boolean => c.tribe === 'neutral' || tribes.includes(c.tribe);
     const minions = pool.buyable.filter(inScope);
     // Evolution units (Spirit Worgen, Taragosa) — shown alongside their tribe's minions though never buyable.
+    // Already scoped to THIS set (their source card is in its pool); `inScope` then narrows to the run's tribes.
     const evolutions = EVOLUTION_CARDS.filter(inScope);
     const rewards = QUEST_REWARD_CARDS.filter((x) => x.tribe === 'neutral' || tribes.includes(x.tribe)).map((x) => x.card);
     // De-dupe by id: a card can appear in more than one bucket (Badgington is a buyable Beast AND an Apex Hunt

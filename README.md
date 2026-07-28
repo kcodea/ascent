@@ -67,6 +67,88 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   blob — Save writes a committed def you can load, duplicate as a template, and share by pushing a branch,
   with autosave so a hot-reload can't eat a tuning session. The whole workbench tree-shakes out of the
   production build. See the [devlog](docs/devlog.md).
+- **Four stuck visual cues fixed** — the Karwind flame, the hero-power refresh flash, the damage float on
+  the Resolve chip, and screen shake could all latch on permanently.
+- **The hand glides open and closed** when you buy or play a card, instead of cards blinking to new spots.
+- **Shout minions no longer flash when you reorder cards past them.**
+- **End-of-turn cards hand you their reward on their own beat** — each pulse now lands its card as it
+  fires, instead of the whole turn's batch appearing at once after every pulse was over.
+- **Cards granted in combat arrive twice as fast** — the beat spacing between an effect's pulse, its card
+  coalescing into hand, and the next pulse is halved.
+- **Ryme triggering Field Mechanic now shows you the Patch Job during the fight** — the card was always
+  granted, but only appeared once combat was over.
+- **Cards granted mid-combat materialise in your hand as the effect procs** — on the same beat as the
+  Deathrattle skull, with the hand gliding open to make room. The mid-screen "To your hand" card is gone.
+- **Cards granted mid-combat now materialise in your hand** — the arcane coalesce used to play in the
+  middle of the screen, then the card warped into hand and blinked once more as the fight ended.
+- **Ruby and Ward Echoes animate in combat** — Geode Guardian and Lastlight Marshal were landing their buffs
+  with no cue at all.
+- **The Dwarf Work Orders are now Ales** — Golden, Defensive, Champion's, Reinforcing and Bloody, with new art.
+- **Spell power now shows on every spell that gets it** — Hoardflame wasn't even applying it, and Lantern
+  Light hid it too.
+- **Ryme reaches past corpses** — a minion that died earlier no longer blocks an adjacent Battlecry.
+- **Five Dragon renames** — Ashscribe, Drachronicler, Mirrorwing, Spell Warden, Enchanter.
+- **Tier is shown as stars.** A card's tier now reads as N steel stars instead of a coloured "TIER N" pill.
+- **Every tribe has its own card frame.** Both the oval and the Taunt shield are now themed per tribe — beast,
+  dragon, mech, undead, demon, neutral and kobold each have their own colours, plus a dedicated gilded version
+  for golden minions.
+- **Four minions cut** — Mosswhisker Adept, Pit Drillmaster, Aeon Acolyte and Fatecarver, along with the
+  effect primitives that existed only for them.
+- **All Set-2 minion art re-wired** (110 masters) — Broodwright and Feastmaster Vhal finally have their own.
+- **A 19-card balance batch** — Kennelmaster, Karwind, Groveweaver, Denkeeper Oona, Roaring Matriarch (which
+  now alternates Attack/Health each turn) and more, plus two new minions: Blazing Keeper and Storm Chaser.
+- **Deepdelve Paragon works** — it doubles Rubies applied *in combat*, and Ruby gains no longer carry back
+  mislabelled as Flowing Monk.
+- **Hovering a card that mentions Rubies previews the Ruby** at its current value.
+- **Chorus Drake** now reads "trigger your left-most Dragon's Shout" — the "other" exclusion is gone.
+- **Market Tormentor works** — every fresh Shop's right-most minion now comes in buffed, and a consume that
+  eats it gets the buffed body.
+- **Choose One cards can ship art per branch** — pick the Stray and Wildwood Shaper *looks* like the Stray
+  version, on the board and in combat. Drop `<id>2.png` next to `<id>.png` and it's wired.
+- **Three Set-2 card reworks** — Ashen Broodlord pays off Consume with a Shop spell, Aeon Acolyte (was
+  Gravelight Acolyte) wills its stats to a friend, Lastlight Marshal hands out Ward on death.
+- **Fixed a crash on the combat hand-grant** — a card passing the wrong effect param granted an unknown card id;
+  the render now degrades instead of white-screening, and a test sweep blocks the whole class of typo.
+- **Practice mode gets a timer dial** — pick 1–4x beside the clock (1x matches a scored run).
+- **Set 2's Demon tribe is complete** — all 23 cards, built on a new Consume-from-the-Shop primitive plus an Imp swarm line.
+
+- **Beast cards have their own plate.** Beast-primary minions now render on a green-gem variant of the card
+  backplate; other tribes keep the neutral one.
+- **Set 2 gains a 28-card neutral roster** — 21 carried from Set 1 unchanged, plus 7 new cards (Tamer, Coppercoat Spellsword, Gravelight Acolyte, Oathbound Avenger, Bellringer Voss, Lastlight Marshal, Fatecarver).
+- **The Work Orders** — five Set-2-only Tier-3 spells (Mine, Reinforcement, Champion, Health, Attack), art wired.
+- **Sunmane Herald's rally accumulates properly** — a carrier passes on what it was given (so the growth compounds as it spreads), and Sunmane keeps granting its own +3. Buff badges no longer flash the new number, snap back, then tick up.
+- **Sunmane Herald's rally really escalates now** — the granted Attack doubles on every rally attack (3 -> 6 -> 12 -> 24 …) instead of stalling, and the card shows its live value. Dawnclaw has Taunt.
+- **All Set-2 minion and spell art re-wired** in one pass (133 files), and the last unoptimized art in the repo — the 22 Kobold PNGs — is now WebP.
+- **Rubies played mid-combat now trigger the minion they land on** — Geode Guardian's Echo finally bounces off a Resonance Idol. Gem Shard is now **Gemheart Golem**.
+- **The ×N multicast badge is tunable** — position, scale and two colour pickers in the Card Pills dev tuner; shipped mirroring the cost coin in the opposite corner.
+- **Rubies show their ×N multicast badge**, now an orange minted coin matching the hero-power cost. Living Grimoire's Shout meter stays hidden while it's charged and appears at 0/3 once spent.
+- **Living Grimoire recharges every turn** (its rule always said "each turn" — now it's true), and shows a 0/3 Shout meter while spent that fills and flashes when it's ready again.
+- **Dragons that ignore Rubies now say so.** Every spell-reactive Dragon meant to exclude Rubies prints "Shop spell"; Living Grimoire and Runefire still take both, and Runefire finally spreads a Ruby to its neighbours.
+- **A Mage-Pup taught a targeted spell lets you aim it**, and Moonhowl now procs on spells bought from the minion row as well as the spell slot.
+- **Mage-Pups never combine into a golden** — each one carries the spell it was taught, so a triple would throw two of them away.
+- **Mage-Pups cast what they were taught, properly.** Moonhowl Mentor hands you the Pup the moment you buy the
+  spell, the Pup's text names the spell it learned, and taught Discover spells now actually Discover.
+- **Sunmane Herald's Rally doubles as it spreads** (+3 → +6 → +12) instead of handing out a flat +3.
+- **Choose One cards stop advertising the option they didn't take.** Once resolved, the card on your board
+  prints only the branch it became — and the prompt itself is now two real cards, so you pick the version of
+  the card you want instead of reading two paragraphs.
+- **The Set-2 Beast tribe has its art**, tokens included (Mage-Pup, T-Rex Baby, Void Cub), plus a refresh of
+  the spell art. Six Beasts are carried-over cards, so their Set-1 portraits update too.
+- **Gilded cards materialise in gold.** A triple reward now coalesces in gold (not the arcane blue) and its
+  backplate reads gold to match the golden frame.
+- **Gild no longer flashes a card in the top-left.** Completing a triple by buying the third copy made the
+  gild's clones inherit the fresh card's mount-pop, which pinned them to the corner for a moment; the clones
+  now suppress it.
+- **Placing and rearranging a card slides it home.** Dropping a minion onto the board — or reordering one —
+  now glides it into its slot from where you released it, the same motion a buy uses but 30% faster, instead
+  of snapping into place.
+- **Gilding a card plays out.** Completing a triple now shows the three copies converge centre-screen into
+  one, erupt gold, and slide home into the hand — the third of the plate effects, alongside the play-dissolve
+  and the generated-card coalesce.
+- **Buying a card slides it into hand.** A bought card was already in front of you in the tavern, so it is
+  acquired rather than conjured: it slides into its slot from the point you released it (170ms) instead of
+  materialising out of arcane dust the way a *generated* card does. Also fixes the "ghost card" that could
+  blip in the screen's top-left corner.
 - **The buff breakdown sits in front of the card again.** Inspecting a unit drew its buffs panel behind the
   card plate — the plate is wider than the card and reached back over the panel's edge.
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),
@@ -96,6 +178,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **Djinni's Cadence now triggers your quest and rune End of Turns too.** It read "trigger all friendly End of
   Turn effects" but only ever fired the board half, skipping quest/rune rewards like Echoing Roar, The Hoard
   Wakes and Rune of Spending — and did nothing at all on an empty board.
+- **Gilding is a moment now.** Combining three copies used to be silent — they blinked out and a gold card
+  appeared. The three now fly to centre screen, merge into one, erupt gold with a spinning rune seal, and
+  the gilded card returns to your hand.
 - **Generated cards materialise out of arcane dust.** When a card comes from nowhere — a Deathrattle grant
   mid-combat, a Discover pick, a spell conjure, a quest reward — dust rushes in, forms the card plate's
   glowing wireframe, and resolves into the card. The mirror of the dissolve, sharing its palette.

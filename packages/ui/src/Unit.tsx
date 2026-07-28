@@ -74,6 +74,9 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
         undeadBuyAtk: foe ? 0 : run.undeadBuyAtk, soulsmanGold: foe ? 0 : (run.soulsmanGold ?? 0),
         impAura: foe ? undefined : run.impBuff, // enemyScalers carries no Imp Aura → an enemy Raag reads its printed text
         cardBuffs: foe ? undefined : run.cardBuffs,
+        chosenOption: u.chosenOption, // a resolved Choose One prints only the branch it became
+        rallySpreadAtk: u.rallySpreadAtk, // Sunmane: the rally's live escalating grant
+        taughtSpellId: u.taughtSpellId, // a Mage-Pup names the spell it was taught
         spellProgress: u.spellProgress, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,
         sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,
@@ -84,6 +87,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     : { text: '', goldenText: undefined };
   const view: CardView = {
     name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2,
+    chosenOption: u.chosenOption, // the branch's ART rides into combat with it, same as its text
     // Buff-tendril: hold the pre-buff value while the tendril flies; on strike, release + flash the changed badge(s).
     attack: statHold?.atk ?? u.attack,
     health: statHold ? statHold.hp : Math.max(0, u.health),

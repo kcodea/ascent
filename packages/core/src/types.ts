@@ -90,6 +90,8 @@ export type GameEvent =
   | 'onKill'
   | 'startOfCombat'
   | 'avenge' // after X friendly minions have died in combat
+  | 'minionSold' // Set 2: another minion was sold (Voicekeeper watches)
+  | 'spellCastOnThis' // Set 2: a targeted spell resolved ON this minion (Mirrorwing / Runefire)
   | 'onBuy'
   | 'endOfTurn' // recruit phase: the turn ends (End Turn / timer hits 0)
   | 'battlecryTriggered' // recruit phase: a Battlecry just resolved (fires per Drakko repeat) — Karwind
@@ -101,7 +103,14 @@ export type GameEvent =
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
-  | 'rubyCast'; // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
+  | 'rubyCast' // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
+  | 'shopRefreshed' // set 2 recruit phase: the tavern was rolled (Revolving Maw counts refreshes)
+  | 'passive' // declared but NEVER dispatched: marks a card whose effect is read by another system rather
+  //  than fired by an event (Deepdelve Paragon — `playRubyOn` scans the board for it). Keeping it in the
+  //  effects list means the card is still data-driven and greppable, instead of a card id hardcoded in core.
+  | 'spellBought'; // set 2 recruit phase: a Shop Spell was PURCHASED (Moonhowl Mentor teaches it to a Mage-Pup).
+  //  Distinct from `onBuy`, which is minions only ("a spell isn't a minion") — widening onBuy would have
+  //  changed what every existing buy-trigger sees.
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -140,6 +149,77 @@ export type EffectFactoryId =
   | 'rallyGrantMagnetic' // Mechanical Jouster — Rally: when this attacks, add a random Magnetic Mech to hand
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
+  | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
+  | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
+  | 'deathrattleQueueNextSpellCopy' // Scalefeather Drake: Echo — copy the first spell you cast next turn
+  | 'battlecryArmGrimoire' // Living Grimoire: Shout — charge the first-spell multiplier
+  | 'onBattlecryRearmGrimoire' // Living Grimoire: every 3 Shouts, recharge it
+  | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
+  | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
+  | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
+  | 'onRubyPlayedSpreadAdjacent' // Runefire: a RUBY played on it also lands on adjacent Dragons
+  | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
+  | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
+  | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions
+  | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
+  | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
+  | 'battlecryCastTaughtSpell' // Mage-Pup: Shout — cast the spell this token was taught
+  | 'grantMagePupTaught' // Moonhowl Mentor: a Shop Spell was bought — mint a Mage-Pup taught that spell, NOW
+  | 'battlecryGrantBeastHunt' // Elderhorn (Hunt): your Beast Rallies + Slaughters fire an extra time
+  | 'battlecryGrantBeastRitual' // Elderhorn (Ritual): your Beast Echoes fire an extra time
+  | 'rallySpreadTribeBuff' // Sunmane Herald: Rally — buff your tribe AND graft this rally onto them
+  | 'scShieldAttackLeftmostTribe' // Lancel: SC — left-most Beasts gain Ward and attack immediately
+  | 'scSummonOnlyTribeAura' // Denkeeper Oona: minions you summon in combat enter buffed
+  | 'avengeBuffTribeLasting' // Moonlit Scavenger: Avenge — buff your tribe for the rest of the fight
+  | 'rallyProcLeftmostEcho' // Echohorn Stag: Rally — trigger your left-most friendly Echo
+  | 'deathrattleSummonRandomTribe' // Menagerie Mammoth: Echo — summon N random minions of a tribe
+  | 'battlecryGrantSpellPowerRun' // Set 2 — Coppercoat Spellsword (Choose One): permanently raise run-wide spell power
+  | 'endOfTurnCopyNeighbour' // Set 2 — Bellringer Voss: every N turns, a plain copy of the board neighbour(s) to hand
+  | 'deathrattleSummonRandomTier' // Set 2 — Gravelight Acolyte (Echo): summon N random minions of an exact tier
+  | 'summonImps' // Set 2 — Imp Wrangler / Errand Fiend: summon N Imps
+  | 'rallyImpsAttackNow' // Set 2 — Riot Caller (Rally): your N left-most Imps attack immediately
+  | 'onSummonImpWard' // Set 2 — Cinderwall Captain: the first N Imps summoned this combat gain Ward
+  | 'onTribePlayedConsumeShop' // Set 2 — Selective Glutton: playing a Demon makes a friendly Demon eat a Shop minion
+  | 'onImpDeathSummonImp' // Set 2 — Endless Overseer: your first N Imp deaths each summon an Imp
+  | 'onImpAttackSummonCopy' // Set 2 — Malphas (Legion): an attacking Imp summons a copy
+  | 'endOfTurnEndDemonsConsumeSides' // Set 2 — Malphas (Feast): the end Demons eat their side of the row
+  | 'onShopRefreshConsume' // Set 2 — Revolving Maw: every N refreshes, eat the right-most Shop minion
+  | 'avengeImproveSummonBuff' // Set 2 — Broodwright: Avenge improves its own summon grant
+  | 'onSummonImpBuff' // Set 2 — Broodwright: an Imp you summon gains +X/+Y (improvable via summonBonus)
+  | 'scFillWithImpsAndBuff' // Set 2 — Legion Shepherd: fill the warband with Imps, then buff Imps per one summoned
+  | 'onImpAttackBuffImps' // Set 2 — Cinder Chancellor: an Imp attacking buffs your Imps, escalating
+  | 'battlecryConsumeShopRandom' // Set 2 — Cinder Clerk: Shout — consume a random Shop minion
+  | 'consumeShopRightmost' // Set 2 — Hungerling / Revolving Maw: consume the right-most Shop minion
+  | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
+  | 'buffShopPermanent' // Set 2 — Contract Butcher / Display Curator: permanent buff to minions bought from the Shop
+  | 'shopRefreshedBuffRightmost' // Set 2 — Market Tormentor: each fresh Shop's right-most minion comes in buffed
+  | 'endOfTurnGainRightmostShopStats' // Set 2 — Grand Gourmand: gain the right-most shop minion's stats (no consume)
+  | 'endOfTurnBuffSpellsAndImps' // Set 2 — Tallymonger: buff your spells and Imps
+  | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
+  | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
+  | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
+  | 'onBattlecryBuffTribeAlternating' // Set 2 — Roaring Matriarch: alternates Attack/Health each turn
+  | 'endOfTurnAlternateMode' // …and the tick that flips it
+  | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
+  | 'onSummonTribeBuffThenDouble' // Set 2 — Denkeeper Oona: a summoned Beast gets +1/+1, then doubles
+  | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
+  | 'battlecryGrantShoutDragon' // Set 2 — Blazing Keeper: get a random Dragon that has a Shout
+  | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
+  | 'deathrattleGrantWardRandom' // Set 2 — Lastlight Marshal: Echo — give N friendly minions Ward
+  | 'onConsumeSelfGrantSpell' // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
+  | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
+  | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
+  | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
+  | 'onSpellCastFirstBuffSelf' // Ashscribe Whelp: the first spell each turn permanently grows this
+  | 'onSpellCastSecondCopyFirst' // Spellkeeper Drake: your 2nd spell each turn copies the 1st
+  | 'endOfTurnRecastFirstSpell' // Runic Archivist: End of Turn — re-cast this turn's first spell
+  | 'battlecryGrantShoutExtra' // Orivax (Chorus): your Shouts trigger an additional time
+  | 'battlecryGrantFirstSpellMult' // Orivax (Spellweave): first spell each turn casts N times
+  | 'battlecryGrantTribeAndSpell' // Traveling Skald: Shout — a random tribe minion AND a random spell
+  | 'battlecryGrantRandomSpell' // Hoard Chronicler: Shout — add random Tavern spells to hand
+  | 'battlecryCopyCastSpell' // Recaller: Shout — copy the first/last spell you cast this turn
+  | 'endOfTurnCopyCastSpell' // Spellvault Drake: End of Turn — the same copy, on the EoT beat
+  | 'battlecryBuffOtherTribe' // Embermouth Whelp: Shout — buff one OTHER friendly of a tribe
   | 'deathrattleGrantMagnetic' // Deathrattle: add a random Magnetic minion to your hand after combat (Junkyard Titan)
   | 'deathrattleBuffSpellPower' // Deathrattle: permanently raise the run-wide spell power (+atk/+hp to spells), carried back (Skullblade)
   | 'deathrattleBuffCardTypeRunWide' // Deathrattle: permanently buff a card type run-wide (board/hand/future), carried back (Grave Knit)
@@ -233,7 +313,6 @@ export type EffectFactoryId =
   | 'spellReturnToHand' // Second Draft: cast — return a friendly non-Gilded minion to hand
   | 'spellTransformSameTier' // Strange Revision: cast — transform a friendly minion into a random same-tier one, keeping its bonus stats
   | 'spellMarkEnemyTaunt' // Marked Target: cast — the enemy's right-most minion gets Taunt next combat
-  | 'spellEncore' // Encore: cast — re-trigger a friendly minion's Shout and Echo
   | 'spellSummonImpsNextCombat' // Open the Gates: cast — bank Imps to enter the next combat
   | 'spellBuffShopByRuby' // Veinstorm: cast — give every shop offer stats equal to your Rubies
   | 'spellBuffPerDragonPlayed' // Hoardflame: cast — +4/+4 plus +1/+1 per Dragon played this turn
@@ -301,6 +380,9 @@ export type EffectFactoryId =
   | 'spellReplayBattlecry' // Resonance: cast — re-trigger a friendly Battlecry minion's Battlecry (recruit)
   | 'spellExtraEndOfTurn' // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
   | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
+  | 'spellBuffLeftmost' // Set 2 — Champion's Ale: buff your left-most board minion
+  | 'spellBuffRandomFriendlies' // Set 2 — Defensive / Bloody Ale: buff N distinct random friendly minions
+  | 'spellGrantTopTypeMinion' // Set 2 — Reinforcing Ale: get a minion of your most common tribe
   | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)
   | 'spellCopyRecent' // Steward of Spells: End of Turn — copy the most recent spell cast to hand (recruit)
   | 'spellRefreshToSpells' // Spell Cart: cast — refresh the tavern full of spells (recruit)
@@ -373,7 +455,7 @@ export type EffectFactoryId =
   | 'deathrattlePlayRubiesAdjacent' // Set 2 — Geode Guardian (Echo): on death, play N Rubies on each neighbour
   | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies
-  | 'scTripleRubyStats' // Set 2 — Deepdelve Paragon: Start of Combat, Rubies give 3× stats
+  | 'rubyStatMultiplier' // Set 2 — Deepdelve Paragon: Rubies applied IN COMBAT are worth 2× (3× Gilded)
   | 'rubyCastConsumeShop'; // Set 2 — Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
 
 export interface EffectDef {
@@ -411,6 +493,11 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** This card NEVER combines into a golden, however many copies you hold. For cards whose identity lives on
+   *  the INSTANCE rather than the def: a Mage-Pup carries the spell it was taught (`taughtSpellId`), so three
+   *  of them are three different cards wearing one id, and a triple would have to silently pick one spell and
+   *  bin the other two (owner ruling 2026-07-24: Mage-Pups cannot be tripled in any circumstance). */
+  noTriple?: boolean;
   /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
    *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
   ascendAt?: number;
@@ -490,6 +577,9 @@ export interface CardDef {
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; goldenText?: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
+  /** Set 2 — Orivax: when GOLDEN, a Choose-One applies ALL its options instead of the one picked ("Gilded:
+   *  Gain both"). General flag, not Orivax-specific. Only meaningful with `chooseOne`. */
+  chooseBothWhenGolden?: boolean;
   /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
    *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
    *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe
@@ -960,6 +1050,13 @@ export interface BoardMinion {
   /** Bloodlust weld: the Bloodlust spell also grants its target a Rally — on each of its own attacks, give a
    *  random friendly minion Attack equal to this minion's Attack. One-fight, like `bloodlust` (stripped at settle). */
   bloodlustRally?: boolean;
+  /** Choose One: the branch this instance picked in the shop (`BoardCard.chosenOption`). Display-only in
+   *  combat — the chosen effects were already baked in during recruit — but carried so the combat card reads
+   *  the SAME single branch the board showed, instead of reverting to the both-options printed text. */
+  chosenOption?: number;
+  /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
+   *  instead of the "the spell this was taught" placeholder. */
+  taughtSpellId?: string;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -1027,6 +1124,18 @@ export interface Minion {
   summonBonus: number;
   /** Ritualist: accrued End-of-Turn grant seeded from the run board — read (not changed) in combat for live text. */
   eotBonus?: number;
+  /** Choose One: the branch this body picked in the shop — display-only in combat (the effects already baked
+   *  in during recruit), carried so the combat card prints that single branch, not both options. */
+  chosenOption?: number;
+  /** Sunmane Herald's escalating rally: the Attack this body grants on its NEXT rally attack. Doubles for every
+   *  carrier each time any of them attacks. Per-INSTANCE and combat-only, deliberately: a body that dies loses
+   *  its stacks (a Rise/resummon re-enters at the printed base), and one summoned mid-fight has none until a
+   *  carrier attacks — both owner rules (2026-07-25), and both fall out of living on the instance.
+   *  Absent = "use the printed base". Never carried back to the run. */
+  rallySpreadAtk?: number;
+  /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
+   *  instead of the "the spell this was taught" placeholder. */
+  taughtSpellId?: string;
   /** Trail Forager sell bonus / cadence End-of-Turn counter — seeded from the run board, read (not changed) in
    *  combat, purely for the live card text. */
   sellBonus?: number;
@@ -1061,6 +1170,16 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** The RUBY share of `permaGain`. Rubies applied in combat are permanent, and without knowing which part of
+   *  the carry-back came from them the run board labelled the gain "Flowing Monk" — the only non-Engraved
+   *  source that existed before Set 2. Subtracted out at collection so each share is labelled correctly. */
+  permaRuby?: { attack: number; health: number };
+  /** Set 2 — stats from RUBIES played onto this minion during COMBAT (`playRubyOn`). Tracked separately from
+   *  the recruit-phase `Ruby` entry in `buffs` because `buffs` is SHARED BY REFERENCE with the run's board card
+   *  (see `combat/minion.ts`) — appending to it from inside the simulation would mutate run state and break the
+   *  pure-function contract. Read alongside that entry by anything that scales off "the Rubies on this minion"
+   *  (Gemheart Carver), so a Ruby counts the same whether it was played in the shop or mid-fight. */
+  rubyGain?: { attack: number; health: number };
   /** Set 2 — Candleback Bulwark: times this minion's on-damage Ruby has fired THIS combat (its per-fight cap).
    *  A fresh Minion per fight, so it resets naturally between combats. */
   rubyRecvTick?: number;
@@ -1106,6 +1225,15 @@ export interface MinionSnapshot {
   summonBonus?: number;
   /** Ritualist: current End-of-Turn grant step (seeded) — for the live combat card text (per-tick Fodder/Imp value). */
   eotBonus?: number;
+  /** Choose One: the branch this body picked in the shop — display-only in combat (the effects already baked
+   *  in during recruit), carried so the combat card prints that single branch, not both options. */
+  chosenOption?: number;
+  /** Sunmane Herald's escalating rally — the Attack it grants on its next rally attack, so the combat card can
+   *  print its CURRENT value rather than the printed base. Display-only. */
+  rallySpreadAtk?: number;
+  /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
+   *  instead of the "the spell this was taught" placeholder. */
+  taughtSpellId?: string;
   /** Trail Forager sell bonus / cadence End-of-Turn counter (seeded) — for the live combat card text. */
   sellBonus?: number;
   eotTick?: number;
@@ -1203,6 +1331,15 @@ export interface CombatSideState {
    *  base 1/1, so a combat-cast Ruby (Avenge / Rally / Start-of-Combat "Play a Ruby") applies the same amount
    *  the shop does. Default zero (a Ruby is 1/1). Player-authoritative today. */
   rubyBonus: { attack: number; health: number };
+  /** Set 2 — the card ids of the SPELLS in this side's hand at combat start, in hand order (Vault Curator
+   *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
+   *  the sim never mutates the run hand. */
+  handSpellIds?: readonly string[];
+  /** Set 2 — Elderhorn's chosen mode(s): extra fires for this side's BEAST triggers. `beastHuntExtra` applies
+   *  to Rally + Slaughter, `beastRitualExtra` to Echo (Deathrattle). Tribe-scoped by design — unlike the
+   *  card-level `triggerMultiplier` (Drakko/Uron), which is board-wide. */
+  beastHuntExtra?: number;
+  beastRitualExtra?: number;
   /** This side's tavern tier. The player's drives token/spell generation; the enemy's drives loss-damage. */
   tier: number;
   /** This side's active tribes — the generation pool filter. */
@@ -1327,7 +1464,7 @@ export interface CombatResult {
    *  false` — a one-off gift to a non-EG carrier) and Engraved minions keeping their own combat gains
    *  (`engraved: true` — native EG like Gnasher/Flowing-Monk-recipient, or EG granted at Start of Combat
    *  by Taurus). `engraved` only drives the inspect-panel source label; the stats apply either way. */
-  playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean }[];
+  playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
   /** Set 2 — Rubies to mint into the hand after combat (Rikk / Gemline "Get N Rubies" in combat). Minted with
@@ -1336,6 +1473,8 @@ export interface CombatResult {
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
+  /** Set 2 — Scalefeather Drake Echoes that fired this combat: how many next-turn first-spell copies to queue. */
+  playerNextTurnSpellCopies?: number;
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is
    *  conjured to hand in settleCombat ("get a copy of it next Shop"). Absent when no Slaughter fired. */
   playerSlaughterCopy?: string;
@@ -1470,7 +1609,14 @@ export interface CombatContext {
   /** Set 2 — mint `count` Rubies into hand after combat (Rikk / Gemline). Player-only; carried back. */
   grantRubies(count: number, side: Side, sourceUid?: string): void;
   /** Set 2 — raise the run's Ruby strength after combat (Veinbreaker). Player-only; carried back. */
-  gainRubyBonus(attack: number, health: number, side: Side): void;
+  /** Set 2 — raise the run's RUBY strength (player-only; carried back at settle). `sourceUid` is optional and
+   *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
+   *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
+  gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
+  /** Set 2 — Scalefeather Drake: queue `count` next-turn first-spell copies (player-only; carried back). */
+  queueNextTurnSpellCopy(count: number, side: Side): void;
+  /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
+  leftmostHandSpellFor(side: Side): string | undefined;
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;

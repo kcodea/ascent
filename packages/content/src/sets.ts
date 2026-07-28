@@ -8,6 +8,10 @@ import { DEMONS } from './cards/set1/demons';
 import { SPELLS } from './cards/set1/spells';
 import { TIER7 } from './cards/set1/tier7';
 import { SET2_KOBOLDS } from './cards/set2/kobolds';
+import { SET2_DEMONS } from './cards/set2/demons';
+import { SET2_NEUTRAL } from './cards/set2/neutral';
+import { SET2_DRAGONS } from './cards/set2/dragons';
+import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
 
 /**
@@ -24,6 +28,37 @@ const SET2_DROPPED_SPELLS = new Set<string>([
   'consume', //        "A Demon consumes a Fodder" — no Demon payoff line in Set 2
   'foddertreatment', //"Give a minion's stats to your left-most Demon" — no Demons in Set 2
 ]);
+/** Set 1 Dragons that carry into Set 2. Just Karwind for now — the owner's Set-2 Dragon roster lists it, and
+ *  it was re-spec'd in place (Tier 6 4/12) rather than forked, so BOTH sets draw the same card. Filtered out of
+ *  `DRAGONS` by id for the same reason the spells are: the set manifest opts cards IN, one list per source. */
+const SET1_DRAGONS_IN_SET2: readonly CardDef[] = DRAGONS.filter((d) => d.id === 'karwind');
+/** Set 1 Beasts that carry into Set 2 unchanged — the ones whose owner-table spec matches their set-1 card
+ *  (2026-07-24). The re-spec'd ones (Kennelmaster, Runic Beetle) and the 15 new Beasts land as their stats /
+ *  rulings are confirmed. Same opt-in-by-id pattern as Karwind + the neutral spells. */
+const SET1_BEASTS_IN_SET2: readonly CardDef[] = BEASTS.filter((b) =>
+  ['badgington', 'seaurchin', 'sporebat', 'manasaber', 'kennel', 'beetle'].includes(b.id),
+);
+/**
+ * Set 1 NEUTRAL minions that carry into Set 2 (owner roster 2026-07-25), plus the Tier-7 neutrals from the same
+ * list. Opted in AT THEIR CURRENT STATS — the owner's table listed different tier/stats for seven of them
+ * (Buddy Buddy 3/3, Nimbus T4 5/4, Rope Wrangler T5 5/6, Yazzus T7 9/9, Lazarus T7 8/8, Zyff 12/10, and
+ * "Jenkins" vs the card's "Jensen & Fi"), and the owner's call was to carry them UNCHANGED rather than re-spec
+ * (owner decision 2026-07-25). These are shared definitions, so re-speccing would have rebalanced Set 1 too;
+ * the deltas are recorded in the devlog to be applied deliberately if wanted.
+ *
+ * Same opt-in-by-id pattern as Karwind and the Beasts: the manifest names what it takes, so a new Set-1 neutral
+ * never leaks into Set 2 by being added to `NEUTRAL`.
+ */
+const SET1_NEUTRALS_IN_SET2: readonly CardDef[] = NEUTRAL.filter((c) =>
+  [
+    'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
+    'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'taurus', 'yazzus', 'lazarus',
+    'jenkins',
+  ].includes(c.id),
+);
+/** The Tier-7 neutrals on the same owner roster. Kept separate so they can stay APPENDED last, matching set 1's
+ *  ordering rule (declaration order drives seeded pool picks). */
+const SET1_TIER7_IN_SET2: readonly CardDef[] = TIER7.filter((c) => ['uron', 'salvatore', 'zyff'].includes(c.id));
 /** Set 1's drawable neutral spells that carry over into Set 2 (drops the tribe-locked ones + reward tokens). */
 const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token && !SET2_DROPPED_SPELLS.has(s.id));
 
@@ -115,12 +150,12 @@ export const SETS: Record<SetId, SetDef> = {
     name: 'Set 2',
     blurb: 'In development.',
     enabled: false,
-    tribes: ['kobold'], // WIP — the Kobold set; more tribes join as set 2 grows
+    tribes: ['kobold', 'dragon', 'beast', 'demon'], // WIP — Kobolds (Ruby) + Dragons (spell recursion) + Beasts; more as set 2 grows
     // Starts EMPTY and opts cards IN (owner call 2026-07-19) — set 2 is being authored externally and
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
-    own: [...SET2_KOBOLDS, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS], // → packages/content/src/cards/set2/*.ts (Kobold / Ruby tribe, WIP)
+    own: [...SET2_KOBOLDS, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2], // → packages/content/src/cards/set2/*.ts (WIP)
   },
 };
 

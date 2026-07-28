@@ -1,13 +1,15 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
-import { Card, mdBold, type CardView } from './Card';
+import { rubyCastCount, CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { Card, type CardView } from './Card';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
+import { getSpellBuffFxConfig } from './spellBuffFxConfig';
+import { fireSpellBuff, fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -20,6 +22,7 @@ import { pixiFx, discoverFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
@@ -29,6 +32,8 @@ import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { playPlateDissolve } from './plateDissolve';
 import { playPlateCoalesce } from './plateCoalesce';
+import { playPlateGild } from './plateGild';
+import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
 import { buffPreset, wavePalette } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -94,6 +99,10 @@ const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / tim
  *  implosionCasts). Every other spell just uses the run-wide `spellCasts` multiplier. `spellCasts` is side-effect
  *  free, so calling it here to preview the count is safe. */
 const spellCastCount = (run: Parameters<typeof spellCasts>[0], def: Parameters<typeof spellCasts>[1]): number =>
+  // A RUBY has its own count (Prismcaster's per-Ruby recasts × a live Grimoire charge) and does NOT route
+  // through `spellCasts` — it isn't a Shop Spell. Reading `spellCasts` for one showed no badge at all, which is
+  // what the owner reported (2026-07-24). `rubyCastCount` is the same helper the reducer casts with.
+  def.ruby ? rubyCastCount(run) :
   def.id === 'implosion' ? spellCasts(run, def) * implosionCasts(run) : spellCasts(run, def);
 
 /** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
@@ -106,14 +115,34 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-function ShopTimer({ label }: { label: string }) {
+function ShopTimer({ label, practice }: { label: string; practice?: boolean }) {
   const s = Math.max(0, useTurnSeconds());
+  const practiceTimer = useGame((st) => st.practiceTimer);
+  const setPracticeTimer = useGame((st) => st.setPracticeTimer);
   return (
     <div className={`statcell time${s <= 5 ? ' low' : ''}`}>
       <span className="sc-l">{label}</span>
       <span className="sc-ic"><Icon name="clock" /></span>
       <span className="sc-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
-      <span className="sbtip">Time left this turn — at 0 your actions lock; hit End Turn</span>
+      {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
+          Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`
+          on the pointer keeps a click on the select from reaching the board's drag handler. */}
+      {practice && (
+        <select
+          className="timermult"
+          value={practiceTimer}
+          onChange={(e) => setPracticeTimer(Number(e.target.value))}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Practice shop timer speed"
+        >
+          {[1, 2, 3, 4].map((m) => <option key={m} value={m}>{m}×</option>)}
+        </select>
+      )}
+      <span className="sbtip">
+        {practice
+          ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run).'
+          : 'Time left this turn — at 0 your actions lock; hit End Turn'}
+      </span>
     </div>
   );
 }
@@ -269,13 +298,30 @@ function tokenRefView(
   cardBuffs?: Record<string, { attack: number; health: number }>,
   impBuff?: { attack: number; health: number },
   spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number },
+  rubyBonus?: { attack: number; health: number },
 ): CardView {
   const c = CARD_INDEX[id];
+  // A RUBY previews at what it is worth RIGHT NOW — base 1/1 plus the run's accrued `rubyBonus` (owner
+  // 2026-07-25: hovering a card that mentions Rubies should show the Ruby at its current value). Handled
+  // before the generic spell branch because a Ruby is flagged `spell` but has no spell-power text of its own.
+  if (c.ruby) {
+    const a = c.attack + (rubyBonus?.attack ?? 0);
+    const h = c.health + (rubyBonus?.health ?? 0);
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, universalTribe: !!c.universalTribe,
+      attack: a, health: h, keywords: c.keywords, tier: c.tier,
+      // The Ruby's own text has to read live too, or the preview would promise "+1/+1" while granting +3/+3.
+      // Same helper the shop's spell slot uses, so the two surfaces can't disagree.
+      text: spellDisplayText(c.id, 0, 0, 0, 0, 0, 0, { rubyBonus }),
+      spell: c.spell, ruby: true, target: c.target,
+      baseAttack: c.attack, baseHealth: c.health, // so the gain reads green against the printed 1/1
+    };
+  }
   if (c.spell && spellLive) {
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: c.attack, health: c.health, keywords: c.keywords,
-      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0),
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier }),
       tier: c.tier, spell: c.spell, target: c.target,
       baseAttack: c.attack, baseHealth: c.health,
     };
@@ -528,7 +574,11 @@ export function Recruit() {
   // Rounds 6+ get a flat +6s on top of the +4s/wave ramp, and rounds 12–17 a further +12s ON TOP OF the
   // 80s cap (owner 2026-07-16 ×2): late boards have the most to think about. w12 80s, w13 84s … w15+ 92s.
   // Sandbox (Scene Builder): a huge fixed clock so the turn never times out while you build.
-  const turnSeconds = run.sandbox ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? 3 : 1));
+  // Practice's shop timer is a PLAYER CHOICE (owner 2026-07-25): the dropdown beside the clock picks 1-4x, with
+  // 1x being exactly the scored mode's clock. Was a fixed 3x, which is still the default so existing practice
+  // runs feel unchanged. Scored modes always run at 1x — the multiplier is never consulted outside practice.
+  const practiceTimer = useGame((st) => st.practiceTimer);
+  const turnSeconds = run.sandbox ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -554,6 +604,17 @@ export function Recruit() {
   // the rAF-coalesced move handlers, so pointer movement no longer re-renders this component.
   const [aimTargetUid, setAimTargetUid] = useState<string | null>(null);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
+  // Hand spells / Rubies whose printed value just went up — they play the grow/shrink + spark blast (see the
+  // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
+  // The burst state itself lives in `spellBuffFx.ts`, NOT here — any phase or surface has to be able to start
+  // this cue (end of turn, start of combat, a mid-combat Echo/Avenge), and state owned by Recruit could only
+  // ever be started by Recruit. Cards subscribe to that store directly; this component just detects the buffs
+  // it can see and calls `fireSpellBuff`.
+  const prevSpellSigRef = useRef<Map<string, string>>(new Map());
+  // Last phase the spell-buff watcher saw — lets it skip the single render where the phase flips (see below).
+  // Named apart from the stat-diff watcher's own `prevPhaseRef`, which exists lower down for the same class of
+  // reason (suppressing a spurious flash across the combat↔recruit transition) but tracks its own cadence.
+  const spellBuffPhaseRef = useRef(run.phase);
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
   const weldStatSeqRef = useRef<number | undefined>(undefined);
@@ -689,6 +750,41 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.spellPowerFxSeq, run.spellPowerFxAtk, run.spellPowerFxHp, run.spellPowerFxUid]);
+  // RUBY POWER FX (owner ask 2026-07-24) — the Ruby-side twin of the effect above, on the same one-shot seq
+  // contract. `rubyPowerFxSeq` is stamped from the reducer's `rubyBonus` before/after delta, so this one effect
+  // covers the shop, End of Turn AND the combat carry-back (Veinbreaker's Avenge settles onto `rubyBonus`).
+  // Guarded like the spell-power twin: a SOURCELESS bump outside the shop is the combat CARRY-BACK, which the
+  // mid-combat narration beat has already shown — firing it again is the end-of-combat double-play the owner
+  // reported. A sourced bump (a card you played) still fires in any phase.
+  const prevRubyPowerSeq = useRef(run.rubyPowerFxSeq);
+  useEffect(() => {
+    const seq = run.rubyPowerFxSeq;
+    if (seq === undefined || seq === prevRubyPowerSeq.current) return;
+    prevRubyPowerSeq.current = seq;
+    const gainA = run.rubyPowerFxAtk ?? 0;
+    const gainH = run.rubyPowerFxHp ?? 0;
+    const uid = run.rubyPowerFxUid;
+    if (uid === undefined && run.phase !== 'recruit') return;
+    const raf = requestAnimationFrame(() => {
+      // Over the card that caused it when there is one; otherwise over the player's HAND, because that's where
+      // the Rubies that just got stronger actually are (the spell-power twin falls back to the tavern instead,
+      // which is the right anchor for ITS "your spells got stronger" read but the wrong one here).
+      const el = (uid && document.querySelector(`[data-uid="${uid}"]`))
+        ?? document.querySelector('.row.hand .card.rubycard')
+        ?? document.querySelector('.row.hand')
+        ?? document.querySelector('[data-zone="tavern"]');
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
+      floatRubyPowerNumber(x, y - r.height * 0.3, gainA, gainH);
+      // The held Rubies themselves also play the spell-buff cue, so the "these cards got stronger" read is on
+      // the cards and not only in the flourish. Fires through the shared bus, hence any phase.
+      fireSpellBuffOnHandRubies(useGame.getState().run.hand);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.rubyPowerFxSeq, run.rubyPowerFxAtk, run.rubyPowerFxHp, run.rubyPowerFxUid]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -833,6 +929,7 @@ export function Recruit() {
     } | null
   >(null);
   const prevFodderSeq = useRef(run.fodderEatenSeq);
+  const prevShopEatSeq = useRef(run.shopEatenSeq); // Set 2's shop-minion consume — its own channel (see state.ts)
   const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
   const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
@@ -840,22 +937,58 @@ export function Recruit() {
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
   const [endTurnFlash, setEndTurnFlash] = useState(false);
-  // Cards a combat Deathrattle just added to the hand (Arcane Weaver → Spirit Fire) — pop them
-  // in when they arrive. Snapshot the hand on entering combat; the new uids afterwards are grants.
-  const handBeforeCombatRef = useRef<Set<string>>(new Set());
-  // Cards the COMBAT granted, which already materialised mid-fight (see the handGrant watcher) and so must
-  // not coalesce a second time as they settle into hand. Populated at the combat→recruit flip.
-  const coalesceSkipRef = useRef<Set<string>>(new Set());
   // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
   const [battlecryUids, setBattlecryUids] = useState<Set<string>>(new Set());
+  // Per-uid clear timers for that flourish. In a ref, not the effect's cleanup, so a hold survives the next
+  // board change — see the battlecry effect for what cancelling them cost.
+  const bcTimersRef = useRef<Map<string, number>>(new Map());
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
   // COALESCE watcher state. A card that appears in hand from nowhere gets the arcane materialise; see the
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
   const prevHandUidsRef = useRef<Set<string>>(new Set(run.hand.map((c) => c.uid)));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
-  // Set immediately before a `buy` dispatch: a bought card was already visible in the tavern, so it is
-  // acquired rather than conjured and gets its own shop→hand transition instead (owner ruling 2026-07-22).
-  const buyPendingRef = useRef(false);
+  /* Set at the `buy` dispatch: a bought card was already visible in the tavern, so it is acquired rather
+     than conjured. It gets its own shop→hand slide (`buySlide`) instead of the arcane coalesce, so this
+     carries the release point the slide starts from (owner ruling 2026-07-22).
+
+     It holds the HAND uid, resolved from the store right after the dispatch — NOT the shop uid that was
+     dragged. A buy mints a fresh `b<n>` uid for the hand copy (`reducer.ts` `case 'buy'`), so matching on
+     the shop uid never matched anything and every bought card still coalesced (owner report 2026-07-23).
+
+     A uid rather than a bare flag, too: as a flag it discarded every fresh card in the commit, so anything
+     a buy ALSO conjures in the same tick lost its coalesce — Dupes, Gorr's Four Peat, the Drakko and
+     Chronos quest rewards, the Spellslinging gold drip. */
+  const buyPendingRef = useRef<{ uid: string; from: BuyFrom } | null>(null);
+  /* Set at a drag-drop that PLACES a minion on the board or REARRANGES one (board / hand / shop reorder).
+     The dragged card is excluded from the settle FLIP (it appears at its committed slot with no glide — see
+     `handFlipRef`'s `uid !== d.uid`), so it's ours to slide the last stretch home from where you released
+     it, using the same `buySlide` motion a buy uses but 30% faster (owner call 2026-07-24). Carries the
+     card's uid (kept across a play/reorder, unlike a buy which mints a new one), the row selector to find it
+     in, and the release box. Buy + sell are deliberately NOT set here: buy has its own slide, sell removes
+     the card. */
+  const placePendingRef = useRef<{ uid: string; sel: string; from: BuyFrom } | null>(null);
+  /* cardIds whose in-combat coalesce actually played (see the hand-grant watcher), so the settle-side
+     coalesce suppresses exactly those and nothing else. Consumed one-per-card by the coalesce watcher as
+     the grants land in the real hand, which happens at `settleCombat` on a win but not until
+     `resolveCombat` on a loss — matching there rather than at the phase flip is what keeps both paths
+     single-fire. On a SKIPPED replay nothing renders mid-fight, so this stays empty and those grants
+     coalesce on arrival instead of losing their effect entirely. */
+  const grantPlayedRef = useRef<string[]>([]);
+  // How many hand-grant previews have already materialised (index into `handPreviews`).
+  const grantsShownRef = useRef(0);
+  /* The hand row's layout captured on the commit BEFORE a grant lands. Appending a card re-centres the fan,
+     so every card already in hand snaps to a new slot the instant the new one appears — this glides them
+     instead (owner ask 2026-07-27), the same "make room" read the warband has.
+     GSAP Flip rather than the warband/shop manual x-tween: hand cards carry their fan rotation and the
+     translateY tuck IN their transform, and a bare x-tween wipes both — the same reason the reorder glide
+     next to it uses Flip. */
+  const handGrowFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  /* cardIds an End-of-Turn BEAT has granted to hand so far, appended one beat at a time. `faceOmen` commits
+     every End-of-Turn grant in a single dispatch after the LAST beat, so the whole batch used to appear at
+     once, after every pulse had already fired. Showing the projection's per-beat grants (`EotStepFx.handGrants`)
+     as the beats run puts each card's arrival on its own pulse (owner ask 2026-07-27); the real cards replace
+     them at `faceOmen`, and `grantPlayedRef` keeps them from materialising twice. */
+  const [eotGrants, setEotGrants] = useState<string[]>([]);
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
@@ -885,6 +1018,8 @@ export function Recruit() {
   const [eotAnimTick, setEotAnimTick] = useState<Record<string, number> | null>(null);
   // Dragons Karwind just flame-buffed (keyed off run.karwindFlashSeq) — a one-shot flame flash.
   const [karwindFlameUids, setKarwindFlameUids] = useState<Set<string>>(new Set());
+  // The flame's clear timer, held in a ref so a dispatch can't cancel it — see the Karwind effect.
+  const karwindTimerRef = useRef<number | undefined>(undefined);
   const prevKarwindSeq = useRef(run.karwindFlashSeq);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
@@ -1151,7 +1286,8 @@ export function Recruit() {
       setShowLog(false); // close the log when the fight is over
       return;
     }
-    handBeforeCombatRef.current = new Set(run.hand.map((c) => c.uid));
+    grantsShownRef.current = 0;   // a fresh fight — no hand-grant preview has materialised yet
+    grantPlayedRef.current = [];
     setEotAnimStats(null); // the End-of-Turn climb is done + baked in; combat shows the real units
     setEotAnimTick(null); // projected cadence tick is now committed (faceOmen) — drop the override
     setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
@@ -1323,20 +1459,10 @@ export function Recruit() {
       // Retired 2026-07-22: the coalesce is the arrival announcement now, and a combat-granted card was
       // getting BOTH — materialising mid-fight, then flashing gold again on the way back to the shop.
       //
-      // What survives is the discrimination that flash was doing for free. Cards granted BY THE COMBAT
-      // already had their moment on the flying "To your hand" card, so they must not coalesce again as they
-      // settle. Everything ELSE that lands in this same window — start-of-turn conjures, the Chaos token,
-      // delayed quest repeats — never had one, so it still coalesces. `lastCombat.playerHandGrants` is a
-      // cardId list, so match is consumed one-per-card to stay correct when the same card is granted twice.
-      const before = handBeforeCombatRef.current;
-      const pending = [...(run.lastCombat?.playerHandGrants ?? [])];
-      const skip = new Set<string>();
-      for (const c of run.hand) {
-        if (before.has(c.uid)) continue;
-        const i = pending.indexOf(c.cardId);
-        if (i >= 0) { pending.splice(i, 1); skip.add(c.uid); }
-      }
-      coalesceSkipRef.current = skip;
+      // Nothing replaces it here. Suppressing the second materialise for cards the combat granted is the
+      // coalesce watcher's own job now (it consumes `grantPlayedRef` as they land), because the grants hit
+      // the real hand at `settleCombat` — while the phase is still 'combat' — so a skip set built at this
+      // flip was always one dispatch too late (owner report 2026-07-27).
     }
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
@@ -1355,25 +1481,66 @@ export function Recruit() {
        - REFRAIN BOUNCES, where a played minion returns to hand. The uid was on the BOARD last render, so
          it's a return rather than something new.
 
-     Combat grants are handled by the separate watcher below — they materialise at the moment the effect
-     procs, mid-fight, not when they settle into hand afterwards (owner ruling 2026-07-22). */
+       - COMBAT GRANTS that already materialised mid-fight, in the hand row, via the watcher below. They
+         reach the REAL hand later (at `settleCombat` on a win, `resolveCombat` on a loss) and would
+         otherwise materialise a second time there. `grantPlayedRef` is a cardId list, so the match is
+         consumed one-per-card and stays correct when the same card is granted twice. */
   useLayoutEffect(() => {
     const prevHand = prevHandUidsRef.current;
     const prevBoard = prevBoardUidsRef.current;
     const tripled = (run.triplesMade ?? 0) > prevTriplesRef.current;
     const bought = buyPendingRef.current;
     prevTriplesRef.current = run.triplesMade ?? 0;
-    buyPendingRef.current = false;
-    const skip = coalesceSkipRef.current;
-    const fresh = run.hand.filter((c) => !prevHand.has(c.uid) && !prevBoard.has(c.uid) && !skip.has(c.uid));
-    // consumed exactly once — the flip effect is declared above this one, so it always populates first
-    if (skip.size) coalesceSkipRef.current = new Set();
+    buyPendingRef.current = null;
+    const granted = grantPlayedRef.current;
+    /* Exclusions are PER CARD, not per commit. A blanket `bought`/`tripled` return threw away every fresh
+       card in that tick, so anything conjured alongside a buy or a triple silently lost its effect. */
+    const fresh = run.hand.filter((c) => {
+      if (prevHand.has(c.uid) || prevBoard.has(c.uid)) return false;
+      if (bought && c.uid === bought.uid) return false;             // the card you bought — it slides in
+      if (tripled && c.golden) return false;                        // the gild owns its own card
+      const g = granted.indexOf(c.cardId);
+      if (g >= 0) { granted.splice(g, 1); return false; }           // already materialised mid-fight
+      return true;
+    });
+    // The bought card slides into its slot from where you released it, instead of materialising.
+    if (bought) {
+      const el = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${bought.uid}"]`);
+      if (el) playBuySlide(bought.from, el);
+    }
     prevHandUidsRef.current = new Set(run.hand.map((c) => c.uid));
-    // Nothing new, or the new card came from a route that isn't a generation.
-    if (!fresh.length || tripled || bought) return;
-    // Not during combat — the in-flight grant has its own beat (see below), and the hand row is showing
-    // view-only placeholders at that point anyway.
-    if (run.phase !== 'recruit') return;
+    /* ---- GILD: three become one ----------------------------------------------------------------
+       Fires on the same `triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
+       claim a card. The new gilded card is normally in hand, but lands on the BOARD when the hand is full,
+       so both are searched. */
+    if (tripled && run.phase === 'recruit') {
+      const goldUid = [...run.hand, ...run.board]
+        .find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid))?.uid;
+      const el = goldUid
+        ? document.querySelector<HTMLElement>(`.row .card[data-uid="${goldUid}"]`)
+        : null;
+      if (el) {
+        /* The effect opens with the copies already gathered centre screen, so all it needs is HOW MANY were
+           consumed and where the gilded card lives. Take that from the SIM'S OWN RULE — `checkTriples` pulls
+           `runeTwinGilding ? 2 : 3` — rather than counting the uids that disappeared this commit.
+
+           Counting them undercounts by exactly one, every time you complete a triple by BUYING the third
+           copy: that copy arrived and was consumed inside the same commit, so it was never in a previous
+           render's uid set and never shows up as "gone". Three cards became two, and the right-hand flyer
+           was missing (owner report 2026-07-23). */
+        const dest = el.getBoundingClientRect();
+        if (dest.width > 0) playPlateGild(dest, el, run.runeTwinGilding ? 2 : 3);
+      }
+    }
+
+    if (!fresh.length) return;
+    /* Deliberately NOT gated on `run.phase`. END-OF-TURN grants (Money Maker, Crypt Scribe, Steward of
+       Spells, the Chaos token) land while the phase has ALREADY flipped to combat — see the sibling comment
+       on the Maw stamp effect above — so a `phase === 'recruit'` guard silently dropped every one of them
+       (owner report 2026-07-22). They were then invisible on the way back too, because the pre-combat hand
+       snapshot is taken after they land, so the flip doesn't see them as granted either.
+       The real gate is whether the card is actually on screen, which the element lookup below does. Combat
+       grants can't double-fire here: the filter above consumed them out of `grantPlayedRef`. */
     for (const c of fresh) {
       const card = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${c.uid}"]`);
       if (!card) continue;
@@ -1383,26 +1550,84 @@ export function Recruit() {
     }
   });
 
-  /* In-combat grants (Deathrattle / Rally / Avenge / quest). The replay already flies a "To your hand" card
-     at the beat the effect procs; we materialise THAT card out of dust rather than announcing it a second
-     time when it settles into hand after the fight. Keyed on `handGrant.key`, which the replay bumps per
-     grant, so repeat grants of the same card still each get their moment. */
-  const grantFxKeyRef = useRef<number | null>(null);
+  /* Cards showing in the hand row that the run state doesn't own yet — rendered after the real hand so it
+     visibly grows at the moment the effect fires, rather than when the dispatch that commits them lands.
+     Two sources, and they can't overlap: End-of-Turn beats (still `recruit`, cleared as `faceOmen` flips the
+     phase) and in-combat grants. Filtered against CARD_INDEX — a grant of an id the index doesn't know (a
+     card-data typo: Velvet Rope Fiend once granted the empty string) used to throw inside the map and
+     white-screen the whole Recruit tree. A bad grant should show nothing, not take down the game.
+
+     CAPPED AT THE HAND LIMIT. A preview is a promise that the card is yours, and the sim only keeps grants
+     while there's room — `settleCombat` / the End-of-Turn commit walk the grant list in order and drop
+     everything past `CONFIG.handMax`. Without the same cap here the hand visibly overflowed past 10 during
+     the replay and then snapped back as combat ended (owner report 2026-07-27). Same first-N rule as the
+     reducer, so the cards that materialise are exactly the ones that survive the commit — and a hand that is
+     already full shows (and coalesces) nothing at all for the rest of the round. */
+  const handRoom = Math.max(0, CONFIG.handMax - run.hand.length);
+  const handPreviews = useMemo(
+    () => (inCombat && !run.combatSettled ? replay.handGrantsShown : eotGrants)
+      .filter((id) => !!CARD_INDEX[id])
+      .slice(0, handRoom),
+    [inCombat, run.combatSettled, replay.handGrantsShown, eotGrants, handRoom],
+  );
+
+  /* In-combat grants (Deathrattle / Rally / Avenge / quest) and End-of-Turn grants alike. The hand visibly
+     grows as each one arrives, so the card materialises out of arcane dust RIGHT THERE, identical to a
+     shop-phase conjure.
+
+     It used to coalesce on the mid-screen "To your hand" flyer instead, which played as a materialise in
+     the middle of the screen, then the card warping into hand a beat later, then a THIRD appearance as the
+     settle-side coalesce re-fired on the real card (owner report 2026-07-27). The flyer keeps its labelled
+     announcement; the coalesce belongs where the card lands.
+
+     Preview grants are the only cards in the hand row with no `data-uid`, which is how they're addressed;
+     the index is tracked so a batch that reveals several at once (a Skipped replay) materialises each of
+     them exactly once. The list emptying just resets the index, so it re-arms for the next fight/turn. */
   useLayoutEffect(() => {
-    const g = replay.handGrant;
-    if (!g || grantFxKeyRef.current === g.key) return;
-    grantFxKeyRef.current = g.key;
-    const el = document.querySelector<HTMLElement>('.handgrant .card');
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    if (r.width > 0) playPlateCoalesce(r, el);
-  }, [replay.handGrant]);
+    const prev = grantsShownRef.current;
+    grantsShownRef.current = handPreviews.length;
+    const grew = handPreviews.length > prev;
+    // MAKE ROOM: glide everything that was already in hand from where it sat to its new slot. The card that
+    // just arrived is not in the captured state, so Flip leaves it alone and the coalesce owns it. The base
+    // `.card { transition: transform }` is killed for the glide or it fights Flip (the reorder judder).
+    const st = handGrowFlipRef.current;
+    handGrowFlipRef.current = null;
+    if (grew && st) {
+      const settled = gsap.utils.toArray<HTMLElement>('.row.hand > .card');
+      gsap.set(settled, { transition: 'none' });
+      Flip.from(st, {
+        duration: getFlipConfig().commitMs / 1000,
+        ease: 'power2.out',
+        onComplete: () => gsap.set(settled, { clearProps: 'transition' }),
+      });
+    }
+    // Re-arm for the NEXT beat's grant. Only during a fight: this effect re-runs every beat there (the
+    // replay hands back a fresh `handGrantsShown`), so the capture stays one commit ahead. The End-of-Turn
+    // path captures at its own call site instead, where it knows a grant is coming.
+    if (inCombat && !run.combatSettled) handGrowFlipRef.current = Flip.getState('.row.hand > .card');
+    if (!grew) return;
+    const els = document.querySelectorAll<HTMLElement>('.row.hand > .card:not([data-uid])');
+    for (let i = prev; i < handPreviews.length; i++) {
+      const el = els[i];
+      if (!el) continue;   // committed in the same commit — the settle-side coalesce covers it instead
+      const plate = el.querySelector<HTMLElement>('.cardplate');
+      const r = (plate ?? el).getBoundingClientRect();
+      if (r.width > 0) {
+        playPlateCoalesce(r, el);
+        grantPlayedRef.current.push(handPreviews[i]!);   // so it doesn't materialise again as it commits
+      }
+    }
+  }, [handPreviews, inCombat, run.combatSettled]);
 
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
   const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // The hand's layout as of the PREVIOUS commit, so a buy / play / cast that changes the card count can glide
+  // the survivors to their new slots instead of blinking them there. Re-captured every commit — see the pair
+  // of layout effects near `handOrderKey`.
+  const handCompFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
   const commitRectsRef = useRef<Map<string, number> | null>(null);
@@ -1679,19 +1904,19 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
-    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(
     () => {
-      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: run.rubyBonus, playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
+      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: run.rubyBonus, playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
-    [run.spell, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.goldPouchValue],
+    [run.spell, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
@@ -1702,26 +1927,33 @@ export function Recruit() {
       // Fodder), then every card the effects actually name (summoned tokens, granted/transformed cards) so ANY
       // card that mentions another in its text surfaces it. De-duped, manual order wins.
       const def = CARD_INDEX[cardId];
-      const refs = [...new Set([...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])])]
-        .filter((id) => CARD_INDEX[id]);
-      const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue };
+      // …plus a DERIVED rule: any card whose text talks about Rubies previews the Ruby itself, at its live
+      // value (owner 2026-07-25). Derived rather than hand-listed so a new Ruby card can never be forgotten —
+      // there are ~20 of them across the Kobold line and the list would rot on the first one added.
+      const mentionsRuby = !!def && !def.ruby && /\bRub(y|ies)\b/i.test(`${def.text} ${def.goldenText ?? ''}`);
+      const refs = [...new Set([
+        ...(CARD_REFERENCES[cardId] ?? []),
+        ...(def ? referencedCardIds(def) : []),
+        ...(mentionsRuby ? ['ruby'] : []),
+      ])].filter((id) => CARD_INDEX[id]);
+      const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
       // `cardBuff()`; this popup was the last raw reader.
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive)));
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus)));
     };
     for (const c of run.board) add(c.uid, c.cardId);
     for (const c of run.hand) add(c.uid, c.cardId);
     for (const o of run.shop) add(o.uid, o.cardId);
     refViewCache.current = stabilizeRefMap(m, refViewCache.current); // reuse unchanged ref-popup arrays (memo bailout)
     return refViewCache.current;
-  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn]);
+  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn, run.rubyBonus]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus }),
-    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery, run.rubyBonus],
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, grimoireCharged: (run.grimoireMult ?? 0) > 1 }),
+    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -1736,12 +1968,59 @@ export function Recruit() {
   );
   const handViews = useMemo(
     () => perfMonitor.measure('view:hand', () => {
-      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
+      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
       handViewCache.current = stabilizeViewMap(fresh, handViewCache.current);
       return handViewCache.current;
     }),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellMult],
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
   );
+  // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, grow/shrink it and blast
+  // sparks outward, so the player sees exactly which cards a spell buff touched. A spell's stats never
+  // change (it's a 0/1 card) — its printed VALUE is the thing that moves — so we diff the rendered live text
+  // (plus stats, which is what moves on a Ruby) per uid. That catches every scaling source at once (spell power,
+  // Front to Back's escalation, the Ruby stat line, Rune of Pillaging's pouch, …) without enumerating them, and
+  // picks up future ones for free. Only cards ALREADY in hand can fire it, so drawing a card never flashes.
+  useEffect(() => {
+    const next = new Map<string, string>();
+    const changed: string[] = [];
+    for (const [uid, v] of handViews) {
+      if (!v.spell && !v.ruby) continue; // minions keep the existing green buff flash
+      const sig = `${v.text}|${v.attack}/${v.health}`;
+      next.set(uid, sig);
+      const prev = prevSpellSigRef.current.get(uid);
+      if (prev !== undefined && prev !== sig) changed.push(uid);
+    }
+    prevSpellSigRef.current = next;
+    // This watcher owns SHOP-PHASE buffs only. End of Turn and mid-combat are driven from their BEATS instead
+    // (the EoT beat runner below, and the `sc` narration handler in `useCombatReplay`), because run state
+    // doesn't move at the moment those buffs happen — it moves at the commit, which is too late to read as
+    // "this card just got stronger".
+    //
+    // That split is what fixes the double-play (owner report 2026-07-24: "cards play an additional buffed
+    // animation at the end of combat if they were buffed mid-combat"). A mid-combat gain is announced once, on
+    // its beat; then `settleCombat` applies the carry-back — while the phase is STILL `combat` — and the
+    // printed text finally changes, which this diff would otherwise fire on a second time.
+    //
+    // So: fire only in steady-state recruit. Skipping the phase-FLIP renders matters too, in both directions —
+    // a card's printed text can legitimately differ between phases, so diffing across a flip would flash the
+    // whole hand for no buff at all. Signatures above are recorded on every render regardless, so the baseline
+    // stays current and a real shop buff on the very next render fires normally.
+    const phaseFlipped = spellBuffPhaseRef.current !== run.phase;
+    spellBuffPhaseRef.current = run.phase;
+    if (phaseFlipped || run.phase !== 'recruit' || changed.length === 0) return;
+    fireSpellBuff(changed);
+  }, [handViews, run.phase]);
+  // DEV: the ✨ Spell Buff tuner's Test button fires the cue on every spell / Ruby currently in hand, so the
+  // effect can be dialed without waiting for a real buff. It goes through the SAME `fireSpellBuff` the real
+  // watcher uses, so mashing Test exercises the retrigger/restart path exactly as a rapid buff chain would.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    const w = window as { __spellBuffTest?: () => void };
+    w.__spellBuffTest = (): void => {
+      fireSpellBuff([...handViews].filter(([, v]) => v.spell || v.ruby).map(([uid]) => uid));
+    };
+    return () => { delete w.__spellBuffTest; };
+  }, [handViews]);
   // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
   // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
   // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.
@@ -1751,11 +2030,15 @@ export function Recruit() {
   const tripleReadyUids = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of [...run.board, ...run.hand]) {
-      if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      // Mirrors the reducer's `checkTriples` eligibility (spells/Rubies/`noTriple` never combine) so the shop
+      // can't light up a "this completes a triple" pip for a combine that will never happen.
+      const cd = CARD_INDEX[c.cardId];
+      if (!c.golden && !cd?.spell && !cd?.ruby && !cd?.noTriple) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     const out = new Set<string>();
     for (const o of run.shop) {
-      if (!CARD_INDEX[o.cardId]?.spell && (counts.get(o.cardId) ?? 0) >= 2) out.add(o.uid);
+      const cd = CARD_INDEX[o.cardId];
+      if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= 2) out.add(o.uid);
     }
     return out;
   }, [run.board, run.hand, run.shop]);
@@ -2085,6 +2368,17 @@ export function Recruit() {
       // row's live spots above and glides only the cards that actually shifted (the dragged card is excluded,
       // so it never re-slides; on a sell/buy the survivors already sat re-centred, so they barely move).
       if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop || sellDrop || buyDrop)) handPlaySnapRef.current = true;
+      // Slide the DRAGGED card the last stretch into its committed slot (the settle FLIP excludes it, so it
+      // would otherwise teleport). Same motion as a buy, 30% faster. Only place/reorder — a buy runs its own
+      // slide, a sell removes the card. The release box is the live `.dragcard` rect (its true visual spot,
+      // lag included), captured before `setDrag(null)` unmounts it below.
+      if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel) {
+        const dc = document.querySelector<HTMLElement>('.dragcard');
+        const b = dc?.getBoundingClientRect();
+        if (b && b.width > 0) {
+          placePendingRef.current = { uid: d.uid, sel: flipZoneSel, from: { x: b.left, y: b.top, w: b.width, h: b.height } };
+        }
+      }
       if (acted || d.view.spell || d.view.ruby) {
         // a spell / Ruby that misses just ends — it was never lifted from the hand
         setDrag(null);
@@ -2358,6 +2652,7 @@ export function Recruit() {
     if (run.fodderEatenSeq !== prevEatFlashSeq.current) {
       prevEatFlashSeq.current = run.fodderEatenSeq;
       for (const ev of run.fodderEaten ?? []) eatUids.add(ev.eaterUid);
+      for (const ev of run.shopEaten ?? []) eatUids.add(ev.eaterUid); // shop consumes suppress the pop the same way
     }
     // Cards that gained stats, with the exact delta — drives the +X/+X float (board + hand minions).
     const gained: { uid: string; attack: number; health: number }[] = [];
@@ -2516,6 +2811,10 @@ export function Recruit() {
   useEffect(() => {
     if (inCombat) {
       prevBoardUidsRef.current = new Set(run.board.map((c) => c.uid));
+      // Drop any pending holds on the way into a fight — the flourish belongs to the shop, and a timer that
+      // outlives the phase would clear a uid that the next recruit phase has legitimately re-flagged.
+      for (const t of bcTimersRef.current.values()) window.clearTimeout(t);
+      bcTimersRef.current.clear();
       return;
     }
     const prev = prevBoardUidsRef.current;
@@ -2530,14 +2829,26 @@ export function Recruit() {
     if (fresh.length === 0) return;
     setBattlecryUids((s) => new Set([...s, ...fresh]));
     sfx.triggerPulse(); // a Battlecry officially fires → the medallion pulse cue (deduped)
-    const t = window.setTimeout(() => {
-      setBattlecryUids((s) => {
-        const n = new Set(s);
-        for (const u of fresh) n.delete(u);
-        return n;
-      });
-    }, 760);
-    return () => window.clearTimeout(t);
+    /* The 760ms clear is PER UID and must outlive this effect's next run. It used to be a single timeout
+       cancelled by the effect's own cleanup — and the deps are `[run.board, inCombat]`, so ANY board change
+       inside that window (a buff writing a new array, a sell, a reorder) killed the clear and left the minion
+       flagged in `battlecryUids` forever. That is what produced the errant reorder pulses the owner reported:
+       the medallion keeps `.pulsing`, and React moving a keyed child on a warband reorder re-inserts its DOM
+       node — which RESTARTS the CSS animation. So a long-dead Battlecry flashed again every time you shuffled
+       cards past it. Same defect, and same fix, as the combat medallion hold (#735). */
+    for (const uid of fresh) {
+      const prevT = bcTimersRef.current.get(uid);
+      if (prevT !== undefined) window.clearTimeout(prevT);
+      bcTimersRef.current.set(uid, window.setTimeout(() => {
+        bcTimersRef.current.delete(uid);
+        setBattlecryUids((s) => {
+          if (!s.has(uid)) return s;
+          const n = new Set(s);
+          n.delete(uid);
+          return n;
+        });
+      }, 760));
+    }
   }, [run.board, inCombat]);
 
   // Gilded (golden) minion deploys → fire the self-buff pulse ON it — the moment a unit turns gold (played from
@@ -2599,8 +2910,16 @@ export function Recruit() {
     const uids = run.karwindFlash ?? [];
     if (uids.length === 0) return;
     setKarwindFlameUids(new Set(uids));
-    const t = window.setTimeout(() => setKarwindFlameUids(new Set()), 520);
-    return () => window.clearTimeout(t);
+    /* The 520ms clear lives in a REF, not this effect's cleanup. `run.karwindFlash` is in the deps and the
+       reducer `structuredClone`s state on every dispatch (reducer.ts), so that array gets a fresh identity on
+       EVERY action — this effect re-runs constantly, and a cleanup-owned timer was cancelled by the next
+       dispatch. The seq guard above then early-returns, so nothing rescheduled it and the flames stuck on
+       until the next Karwind proc. Same defect as the two medallion pulses (#735, #736). */
+    if (karwindTimerRef.current !== undefined) window.clearTimeout(karwindTimerRef.current);
+    karwindTimerRef.current = window.setTimeout(() => {
+      karwindTimerRef.current = undefined;
+      setKarwindFlameUids(new Set());
+    }, 520);
   }, [run.karwindFlashSeq, run.karwindFlash]);
 
   // The living aim line (owner redesign 2026-07-16): sync the Pixi curved line to whichever targeting
@@ -2738,6 +3057,17 @@ export function Recruit() {
     // would re-run this effect (and its cleanup) on unrelated actions, stranding the ghost. The seq only
     // changes when Fodder is actually eaten, so the snapshot read of `run.fodderEaten` here is current.
   }, [run.fodderEatenSeq]);
+
+  // A SHOP MINION was consumed (Set 2's Demons) — its own sequence, so it can't be confused with a Fodder eat.
+  // Shares `playFodderEat`'s choreography for now: the payload shapes match, and the owner's plan is a distinct
+  // animation later — this split is what makes that possible without disturbing the Fodder cue.
+  useEffect(() => {
+    if (run.shopEatenSeq === prevShopEatSeq.current) return;
+    prevShopEatSeq.current = run.shopEatenSeq;
+    const events = (run.shopEaten ?? []).map((e) => ({ ...e, fodderId: e.cardId }));
+    if (events.length === 0) return;
+    return playFodderEat(events, run.shopEatenSeq);
+  }, [run.shopEatenSeq]);
 
   // --- Live warband drag: a dragged board minion is *lifted out* of the row entirely
   // (the floating copy IS the card) for the whole drag; the rest physically close up,
@@ -2900,6 +3230,18 @@ export function Recruit() {
             { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
           );
         }
+        // The dragged card itself now sits at its committed slot (excluded from the FLIP above). Slide IT the
+        // last stretch from where you released it — same motion as a buy, 30% faster. WAAPI transform, so it
+        // doesn't fight the neighbours' GSAP x-tween. Runs here (not a separate effect) to guarantee it fires
+        // AFTER the card is at its final slot in this same commit.
+        const place = placePendingRef.current;
+        placePendingRef.current = null;
+        if (place) {
+          const card = document.querySelector<HTMLElement>(
+            place.sel.replace('[data-uid]', `[data-uid="${place.uid}"]`),
+          );
+          if (card) playBuySlide(place.from, card, 0.7);
+        }
       } else if (flipCfg.commitMs > 0) {
         // A COMMITTED move with NO drag (a SELL / buy-back, a summoned token, an effect repositioning) — opt-in
         // via commitMs > 0. We do a MANUAL per-card FLIP off `commitRectsRef` (the prior frame's left edges)
@@ -2943,21 +3285,49 @@ export function Recruit() {
   // pop-in.
   const handOrderKey = run.hand.map((c) => c.uid).join(',');
   useLayoutEffect(() => {
-    const st = handReorderFlipRef.current;
-    if (!st) return;
-    handReorderFlipRef.current = null;
     // Kill the hand cards' CSS `transition: transform` first (like the warband/shop commit does): on drop the
     // dragged card's slide resets to 0 and the neighbours' slides clear, and if the base transition is live it
     // animates those resets AT THE SAME TIME as this Flip — the two fight and that's the drop judder. Flip owns
     // the settle; restore the transition on complete.
-    const targets = gsap.utils.toArray<HTMLElement>('.row.hand .card[data-uid]');
-    gsap.set(targets, { transition: 'none' });
-    Flip.from(st, {
-      duration: getFlipConfig().commitMs / 1000,
-      ease: 'power2.out',
-      onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
+    const glide = (st: ReturnType<typeof Flip.getState>): void => {
+      const targets = gsap.utils.toArray<HTMLElement>('.row.hand > .card');
+      gsap.set(targets, { transition: 'none' });
+      Flip.from(st, {
+        duration: getFlipConfig().commitMs / 1000,
+        ease: 'power2.out',
+        onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
+      });
+    };
+    const st = handReorderFlipRef.current;
+    if (st) { handReorderFlipRef.current = null; glide(st); return; }
+    /* ---- MAKE ROOM / CLOSE THE GAP on any other hand-count change (owner ask 2026-07-27) ------------
+       A buy, a play, a cast — anything that adds or removes a hand card — re-centres the fan, and every
+       other card used to blink to its new slot. Glide them instead, the same read the warband has and the
+       same motion the in-combat coalesce got.
+
+       `handCompFlipRef` is re-captured EVERY commit (see the effect just below), so the state we animate
+       from is always the immediately-preceding frame. That matters mid-drag: the hand is already sliding to
+       make room via `handSlidePx`, and animating from a state captured before the drag began would rewind
+       those cards to their resting spots and re-glide them — a visible snap back. One frame back is the
+       real previous position in every case.
+
+       Entering cards (the one you just bought) aren't in the captured state, so Flip leaves them alone and
+       `playBuySlide` still owns that motion. Skipped in combat, where the hand is frozen and the preview
+       previews have their own capture (`handGrowFlipRef`). */
+    const comp = handCompFlipRef.current;
+    if (comp && !inCombat) glide(comp);
+  }, [handOrderKey, inCombat]);
+
+  /* The hand's layout, refreshed every commit for the glide above. Declared AFTER it so that within one
+     commit the glide reads the PREVIOUS frame's capture and this then overwrites it. Bounded work — the hand
+     is at most `CONFIG.handMax` cards — and it is the same per-commit `Flip.getState` the warband/tavern row
+     already pays for. */
+  useLayoutEffect(() => {
+    if (inCombat) { handCompFlipRef.current = null; return; }   // hand is frozen in a fight — don't pay for it
+    perfMonitor.measure('layout:handflip', () => {
+      handCompFlipRef.current = Flip.getState('.row.hand > .card');
     });
-  }, [handOrderKey]);
+  });
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
   const fireSpark = (x: number, y: number): void => {
@@ -3057,6 +3427,9 @@ export function Recruit() {
         setElectrifyUids(new Set());
         endTurnPendingRef.current = false;
         setEndTurnAnimating(false);
+        // Drop the previews in the SAME commit `faceOmen` puts the real cards in hand, or the two lists
+        // would both render for a frame and the hand would visibly double.
+        setEotGrants([]);
         dispatch({ type: 'faceOmen' });
         return;
       }
@@ -3092,6 +3465,26 @@ export function Recruit() {
           const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
           pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
           floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+          // …and pop the held SPELLS, whose printed values this proc just raised. Same reason the flourish is
+          // driven from the beat rather than reducer state: `faceOmen` commits AFTER every beat has played and
+          // flips the phase as it lands, so a state-driven cue arrives at Start of Combat instead of on the
+          // proc — which is why End of Turn showed no card cue at all (owner report 2026-07-24).
+          fireSpellBuffOnHandSpells(run.hand);
+        }
+        // RUBY strength raised at End of Turn — same beat-driven treatment, so it's already wired for whenever
+        // a card grants it on an End of Turn (no shipped card does today; `rubyStatGain` is Shout/cast-only).
+        for (const eff of bd?.effects ?? []) {
+          if (eff.on !== 'endOfTurn' || eff.do !== 'rubyStatGain') continue;
+          const gA = Number(eff.params?.attack ?? 0) * gold;
+          const gH = Number(eff.params?.health ?? 0) * gold;
+          if (gA <= 0 && gH <= 0) continue;
+          const el = document.querySelector(`[data-uid="${b.uid}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
+          floatRubyPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+          fireSpellBuffOnHandRubies(run.hand);
         }
       }
       // QUEST TENDRIL — fired from the BEAT, not from reducer state. The End-of-Turn commit (`faceOmen`)
@@ -3133,6 +3526,14 @@ export function Recruit() {
           replayBuffFxEvents(bfx.buffFx, waveGapFor(Math.min(waveCount, getBuffFxConfig().waveMaxCount)));
         }
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
+        // Cards this beat grants to hand arrive ON the beat — each coalesces beside the pulse that produced
+        // it, instead of the whole turn's batch materialising at once when `faceOmen` finally commits.
+        // Capture the hand's layout FIRST: React hasn't flushed this state update yet, so the row is still
+        // at its old width and the watcher can glide the existing cards out to make room.
+        if (bfx.handGrants.length > 0) {
+          handGrowFlipRef.current = Flip.getState('.row.hand > .card');
+          setEotGrants((g) => [...g, ...bfx.handGrants]);
+        }
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');
       }
@@ -3248,8 +3649,24 @@ export function Recruit() {
     // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
     const cx = x - d.ox + d.w / 2;
     if (d.source === 'shop' && zone === 'hand') {
-      buyPendingRef.current = true; // not a generation — see the coalesce watcher
+      // The hand copy is a NEW uid, so read it back off the store rather than assuming the shop one carries
+      // over. Synchronous, like `playWithSummonDelay` above — the dispatch has already reduced by here, and
+      // the card's own layout effect (which plays the slide) runs after this commit.
+      const s0 = useGame.getState().run;
+      const before = new Set(s0.hand.map((c) => c.uid));
+      const triples0 = s0.triplesMade ?? 0;
       dispatch({ type: 'buy', uid: d.uid });
+      const s1 = useGame.getState().run;
+      const added = s1.hand.find((c) => !before.has(c.uid));
+      /* Nothing added = the buy was refused (Gold, hand full).
+         Triples ticked = this buy COMPLETED A TRIPLE, and `checkTriples` runs inside the same `buy` action:
+         the copy you bought was consumed on the spot and the only new hand card is the GILDED one. Sliding
+         that card would hand the gild's own card two owners — and worse, the slide's `opacity: 1 !important`
+         would cancel the gild's hide, so the gilded card sat in hand from the first frame and its flight home
+         had nothing left to deliver (owner report 2026-07-23). The gild owns that moment; no slide. */
+      if (added && (s1.triplesMade ?? 0) === triples0) {
+        buyPendingRef.current = { uid: added.uid, from: { x: x - d.ox, y: y - d.oy, w: d.w, h: d.h } };
+      }
       return true;
     }
     // A shop offer dropped back in the tavern reorders it (so it lands where you drop it,
@@ -3270,7 +3687,7 @@ export function Recruit() {
       if (card) {
         const id = ++sellFloatId.current;
         const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
-        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card, run) }]); // bartering-aware
+        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueWithBonus(card, run) }]); // bartering- AND Quick-Sale-aware
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
       // Sprinkle gold coins out of the Gold counter (the GOLD cell in the info strip up top) to sell the income.
@@ -3415,7 +3832,7 @@ export function Recruit() {
             <span className="sc-v">{run.tier}</span>
             <span className="sbtip">Shop tier — higher tiers offer stronger minions (Upgrade Tavern to raise it)</span>
           </div>
-          <ShopTimer label={isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} />
+          <ShopTimer label={isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} practice={run.mode === 'practice'} />
         </div>
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
             shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,
@@ -3658,12 +4075,19 @@ export function Recruit() {
             const goldSpent = run.goldSpent ?? 0;
             const tierLocked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
             const goldLocked = !!m.lockedUntilGoldSpent && goldSpent < m.lockedUntilGoldSpent;
-            const locked = tierLocked || goldLocked;
+            // Hourglass Reserve's pick is "locked in hand until next turn" (`lockedUntilWave`). The reducer
+            // already refuses to play it, but this lock was missing here — so it was functionally locked while
+            // still LOOKING playable (owner 2026-07-24). It now wears the same greyed padlock treatment as
+            // Disco Dan's tier lock and Brackus's gold lock.
+            const waveLocked = !!m.lockedUntilWave && run.wave < m.lockedUntilWave;
+            const locked = tierLocked || goldLocked || waveLocked;
             const lockLabel = tierLocked
               ? `Tier ${m.lockedUntilTier}`
               : goldLocked
                 ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
-                : undefined;
+                : waveLocked
+                  ? 'Next turn'
+                  : undefined;
             return (
               <Card
                 key={m.uid}
@@ -3684,10 +4108,12 @@ export function Recruit() {
               />
             );
           })}
-          {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
-              committed to the real hand at `resolveCombat`). */}
-          {inCombat && !run.combatSettled && replay.handGrantsShown.map((cardId, i) => (
-            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff)} suppressPop forceFull />
+          {/* Cards an End-of-Turn beat or a combat effect just granted, so the hand grows at the moment the
+              effect fires (the real commit lands later, at `faceOmen` / `settleCombat`). See `handPreviews`. */}
+          {handPreviews.map((cardId, i) => (
+            /* `plated` to match the real hand cards exactly — the preview is swapped for the committed card,
+               and an unplated preview made that swap read as a flicker. */
+            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff)} suppressPop forceFull plated />
           ))}
         </div>
       </div>
@@ -3742,19 +4168,11 @@ export function Recruit() {
         </div>
       ))}
 
-      {/* A card a combat effect just granted (Arcane Weaver → Spirit Fire) flies into your hand. */}
-      {fighting && replay.handGrant && (() => {
-        // Same helper as the hand preview and the reducer's settle — the card that flies in must carry the
-        // stats it will actually have (it previously showed raw base stats, so it visibly jumped at settle).
-        const view = conjuredView(replay.handGrant.cardId, run);
-        if (!view) return null;
-        return (
-          <div className="handgrant" key={replay.handGrant.key} aria-hidden="true">
-            <span className="hg-label">To your hand</span>
-            <Card card={view} suppressPop />
-          </div>
-        );
-      })()}
+      {/* The mid-screen "To your hand" flyer used to live here. Retired 2026-07-27: the granted card now
+          materialises IN THE HAND on the very beat its effect procs, so the flyer showed a second copy of the
+          same card, at the same instant, in the middle of the screen — the duplicate announcement the owner
+          asked us to get rid of. `replay.handGrant` and the `.handgrant` CSS are kept, so restoring this is
+          just putting the block back. */}
 
       {/* A clear "End of Turn" beat as the turn ends (end-of-turn effects have resolved). */}
       {endTurnFlash && (
@@ -3910,24 +4328,46 @@ export function Recruit() {
 
       {run.chooseOne && (
         <div className="discover-ov" role="dialog" aria-label="Choose One">
-          <div className="discover-box">
-            <div className="discover-title">
-              <b>Choose One</b> — {CARD_INDEX[run.chooseOne.cardId]?.name}
-            </div>
-            <div className="chooseone-opts">
+          {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
+              bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the
+              player picks a CARD, not a paragraph (owner 2026-07-24). Each option renders the real card with
+              only that branch's text printed, so what you click is exactly what lands on your board. */}
+          <div className="disc-panel">
+            <div className="disc-banner"><span className="disp">Choose One</span></div>
+            <div className="disc-sub">{CARD_INDEX[run.chooseOne.cardId]?.name}</div>
+            <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
                 // option's `goldenText` (Wildwood Shaper: +2/+6 / two Strays). The card is on the board (Battlecry
                 // Choose One) or in hand (spell Choose One).
                 const co = run.chooseOne!;
-                const golden = !!(run.board.find((c) => c.uid === co.uid)?.golden ?? run.hand.find((c) => c.uid === co.uid)?.golden);
-                return (CARD_INDEX[co.cardId]?.chooseOne ?? []).map((opt, i) => (
-                  <button
-                    className="chooseopt"
-                    key={i}
-                    onClick={() => dispatch({ type: 'chooseOne', index: i })}
-                    dangerouslySetInnerHTML={{ __html: mdBold(golden ? (opt.goldenText ?? opt.text) : opt.text) }}
-                  />
+                const c = CARD_INDEX[co.cardId];
+                if (!c) return null;
+                const inst = run.board.find((x) => x.uid === co.uid) ?? run.hand.find((x) => x.uid === co.uid);
+                const golden = !!inst?.golden;
+                return (c.chooseOne ?? []).map((opt, i) => (
+                  <div className="disc-slot" key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                    <Card
+                      // The option's own text IS the card's text here — the whole point of showing two cards is
+                      // that each reads as the thing it would become. Stats come from the live instance when
+                      // there is one (a played minion may already be buffed), else the printed base.
+                      card={{
+                        name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+                        golden, attack: inst?.attack ?? c.attack, health: inst?.health ?? c.health,
+                        keywords: inst?.keywords ?? c.keywords, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+                        text: golden ? (opt.goldenText ?? opt.text) : opt.text,
+                        goldenText: opt.goldenText ?? opt.text,
+                        // Each option previews the ART it would become, not just its text — the picture is half
+                        // of what's being chosen (owner 2026-07-25).
+                        chosenOption: i,
+                      }}
+                      // `forceFull` regardless of the compact-cards preference: on every other surface the text
+                      // drawer is optional detail you can hover for, but here the two texts ARE the decision —
+                      // a Choose One with both drawers collapsed is two identical portraits.
+                      forceFull
+                      onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                    />
+                  </div>
                 ));
               })()}
             </div>
@@ -3971,7 +4411,11 @@ export function Recruit() {
                 return (
                   <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier }}
+                      // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
+                      // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
+                      // 0/1 here). Every other surface passes these through `instView`; this panel builds its
+                      // card view by hand, which is how they got dropped.
+                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby }}
                       onClick={() => dispatch({ type: 'discover', index: i })}
                     />
                   </div>

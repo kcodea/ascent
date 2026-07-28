@@ -1,8 +1,14 @@
-import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
+import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
+import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
+// Side-effect import: `cardPillsConfig` applies the pill layout vars (`--cpl-*-t`) to :root at module
+// load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
+// without this, any non-identity default baked into that file would silently never apply to players.
+import './cardPillsConfig';
 import { artFor } from './art';
 import { renameTerms } from './terms';
 import { Icon } from './Icon';
@@ -23,6 +29,25 @@ import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
 // CSS url(/…) to relative at build, but it can't rewrite JS string literals — these must carry the base
 // themselves (BASE_URL is '/' in dev, './' in the build).
 const TAUNT_FRAME_SRC = `${import.meta.env.BASE_URL}frames/taunt-shield.png`;
+/* PER-TRIBE TAUNT SHIELDS (owner-authored, 2026-07-26) — the heater equivalent of `TRIBE_OVALS` below, so a
+   Taunt minion is themed like its non-Taunt kin instead of falling back to the shared gold shield. Same
+   1086×1448 dims and window silhouette as `taunt-shield.png`, so the `--heater` clip + geometry are unchanged. */
+const TRIBE_TAUNTS: Partial<Record<Tribe, { base: string; gold: string }>> = {
+  beast: { base: 'taunt-beast.webp', gold: 'taunt-beast-gilded.webp' },
+  dragon: { base: 'taunt-dragon.webp', gold: 'taunt-dragon-gilded.webp' },
+  mech: { base: 'taunt-mech.webp', gold: 'taunt-mech-gilded.webp' },
+  undead: { base: 'taunt-undead.webp', gold: 'taunt-undead-gilded.webp' },
+  demon: { base: 'taunt-demon.webp', gold: 'taunt-demon-gilded.webp' },
+  neutral: { base: 'taunt-neutral.webp', gold: 'taunt-neutral-gilded.webp' },
+  kobold: { base: 'taunt-kobold.webp', gold: 'taunt-kobold-gilded.webp' },
+};
+/** The heater a Taunt card should wear: its tribe's shield (gilded variant when golden), else the shared gold. */
+function tauntFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
+  const t = tribe && TRIBE_TAUNTS[tribe];
+  if (!t) return TAUNT_FRAME_SRC;
+  return `${import.meta.env.BASE_URL}frames/${golden ? t.gold : t.base}`;
+}
+const hasTribeTaunt = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_TAUNTS[tribe]);
 let tauntFrameAvailable = true;
 // STANDARD frame (every non-Taunt MINION) — the authored gold OVAL, and SPELL frame — the authored purple SQUARE.
 // Same pipeline as Taunt (portrait clipped to the frame's window → PNG over it → per-tribe tint → DOM data). Each
@@ -34,6 +59,28 @@ let tauntFrameAvailable = true;
 // grayscale(...)` on `.stdframe` (Gilded minions still show it gold).
 const STD_FRAME_SRC = `${import.meta.env.BASE_URL}frames/standard-oval-v2.png`;
 let stdFrameAvailable = true;
+/* PER-TRIBE OVAL FRAMES (owner-authored, 2026-07-26). Each tribe has its own coloured oval plus a dedicated
+   GILDED variant, all 1059×1427 with the same window as `standard-oval-v2.png`, so the "AUTHORED FRAMES"
+   geometry drops in unchanged. A card with a tribe frame also gets the `.tribeframe` class, which neutralises
+   BOTH recolour passes the shared silver oval relies on (`--frame-tone: grayscale(0.92)…` and the baked
+   `--fovl` brown overlay) — without that the authored colour is desaturated and washed brown. Taunt minions
+   keep the shared heater shield and spells the square, per the frame precedence below. */
+const TRIBE_OVALS: Partial<Record<Tribe, { base: string; gold: string }>> = {
+  beast: { base: 'oval-beast.webp', gold: 'oval-beast-gilded.webp' },
+  dragon: { base: 'oval-dragon.webp', gold: 'oval-dragon-gilded.webp' },
+  mech: { base: 'oval-mech.webp', gold: 'oval-mech-gilded.webp' },
+  undead: { base: 'oval-undead.webp', gold: 'oval-undead-gilded.webp' },
+  demon: { base: 'oval-demon.webp', gold: 'oval-demon-gilded.webp' },
+  neutral: { base: 'oval-neutral.webp', gold: 'oval-neutral-gilded.webp' },
+  kobold: { base: 'oval-kobold.webp', gold: 'oval-kobold-gilded.webp' },
+};
+/** The oval a card should wear: its tribe's frame (gilded variant when golden), else the shared silver oval. */
+function stdFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
+  const t = tribe && TRIBE_OVALS[tribe];
+  if (!t) return STD_FRAME_SRC;
+  return `${import.meta.env.BASE_URL}frames/${golden ? t.gold : t.base}`;
+}
+const hasTribeOval = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_OVALS[tribe]);
 // New spell frame art (owner-supplied, session 42). Filename-swapped for one-line revert (original untouched).
 // Same 1122×1346 dims + window as the original → geometry unchanged. NOTE: spells carry NO `--frame-tone`
 // (it's a no-op `brightness(1)`), so this renders as-authored — the new art is GOLD w/ purple gems. Add the
@@ -43,7 +90,38 @@ let spellFrameAvailable = true;
 // HAND CARD BACKPLATE — the ornate stone/gold card body behind a card in hand (and on the dragged copy).
 // Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
 // module-level availability flag flipped on the first 404, so a missing asset degrades to today's look.
+/* TIER STARS — the tier is shown as N steel stars (owner art, 2026-07-26) instead of a "TIER N" text pill.
+   One image per tier, 78px tall and 55px wider per star (81→410), so the badge's WIDTH scales with tier and
+   the height is what we pin. Rendered with the `tierbadge` class as well as `tierstars`, so it inherits every
+   already-tuned per-frame-type anchor (oval / heater / plain) and only the pill chrome is overridden in CSS.
+   Falls back to the text pill if the asset 404s, same degrade-gracefully pattern as the frames. */
+const tierStarsSrc = (tier: number): string =>
+  `${import.meta.env.BASE_URL}frames/tier-stars-${tier}.webp`;
+let tierStarsAvailable = true;
+/* TIER PLATE — the steel plaque the stars sit ON. Rendered immediately BEFORE the stars so tree order paints
+   it behind them (both are positioned, so tree order is what decides — see the note on `.tierplate`). Gilded
+   cards get the gold variant. Shows on every card type: minion oval, spell square and Taunt heater alike. */
+const tierPlateSrc = (golden: boolean): string =>
+  `${import.meta.env.BASE_URL}frames/tierplate${golden ? '-gilded' : ''}.webp`;
+/** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
+const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
+// Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
+// dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
+// shows the neutral plate, only a Beast-PRIMARY card gets the beast one. Add a tribe here + drop its webp in
+// `frames/` to give it a plate (dragon / mech pending art). A tribe-plated card also relocates its tribe
+// LABEL to the plate's bottom gem (no icon) — see `TRIBE_PLATE_SET` / `.plate-tribe`.
+const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
+  beast: `${import.meta.env.BASE_URL}frames/cardplate-beast.webp`,
+  dragon: `${import.meta.env.BASE_URL}frames/cardplate-dragon.webp`,
+  mech: `${import.meta.env.BASE_URL}frames/cardplate-mech.webp`,
+  demon: `${import.meta.env.BASE_URL}frames/cardplate-demon.webp`,
+  undead: `${import.meta.env.BASE_URL}frames/cardplate-undead.webp`,
+  neutral: `${import.meta.env.BASE_URL}frames/cardplate-neutral.webp`,
+};
+const plateSrcFor = (tribe: Tribe | undefined): string =>
+  (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;
+const isTribePlated = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_PLATES[tribe]);
 let cardPlateAvailable = true;
 
 // (KW_LABEL — the keyword→display-name map — was removed with the pill row it fed, owner 2026-07-21.
@@ -90,6 +168,9 @@ export interface CardView {
   name: string;
   /** Card id — used to look up illustrated art (falls back to the tribe sprite). */
   cardId?: string;
+  /** Choose One: the branch this instance picked. Drives ART only here — the per-branch TEXT is already
+   *  resolved upstream (`instView` / `Unit`). Option N renders `<cardId><N+1>` when that art exists. */
+  chosenOption?: number;
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
@@ -214,6 +295,8 @@ export const Card = memo(function Card({
   dimmed?: boolean;
   /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
   buffed?: boolean;
+  /** Play the one-shot SPELL-buff cue — an in-place grow/shrink plus an outward spark blast. Fired
+   *  when a hand spell's (or Ruby's) printed value just went UP, so the player sees which cards were affected. */
   /** A recruit-phase stat buff just landed — float its `+atk/+hp` above the card (like combat). `key`
    *  changes per buff so the float remounts and re-runs its rise animation. */
   buffFloat?: { attack: number; health: number; key: number } | null;
@@ -275,10 +358,38 @@ export const Card = memo(function Card({
   plated?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
+  // Spell-buff cue: build this burst's motes (and read its timing/shape dials) at FIRE TIME, so a ✨ Spell Buff
+  // tuner edit shows on the NEXT burst without a reload. Re-keyed on `spellBuffed` so each burst gets fresh
+  // jitter and the same burst never re-randomises mid-animation.
+  // The SPELL-buff burst id comes from a module-level store rather than a prop, so ANY surface or phase can
+  // start the cue (end of turn, start of combat, a mid-combat Echo/Avenge) without this card's renderer having
+  // to thread state down — see `spellBuffFx.ts`. `undefined` = not bursting; the number INCREASES on every
+  // retrigger so a buff landing mid-burst restarts the cue instead of being swallowed (owner 2026-07-24: each
+  // trigger must read as its own hit, and cutting the previous one off is fine).
+  const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => getSpellBuffSeq(uid), () => undefined);
+  const spellSparks = useMemo(() => (spellBuffSeq !== undefined ? makeSpellBuffSparks() : []), [spellBuffSeq]);
+  const spellBuffed = spellBuffSeq !== undefined;
+  const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;
+  // Restart the card's grow/shrink on EVERY new burst id. Re-applying a class that's already on does not replay
+  // a CSS animation, so without this a second buff landing mid-cue would show sparks but a motionless card.
+  // cancel() + play() rewinds both phases (delay included) — deliberately cutting the previous pop short.
+  const sbRootRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (spellBuffSeq === undefined) return;
+    for (const a of sbRootRef.current?.getAnimations() ?? []) {
+      const name = (a as Animation & { animationName?: string }).animationName;
+      if (name === 'sbgrow' || name === 'sbshrink') { a.cancel(); a.play(); }
+    }
+  }, [spellBuffSeq]);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
   // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.
-  const showText = forceFull || !useGame((s) => s.compactCards);
+  // `||` here SHORT-CIRCUITED the `useGame` call whenever `forceFull` was set — a conditionally-called hook.
+  // It went unnoticed while every call site passed a constant `forceFull`, but any tree position where a card
+  // renders force-full after a non-force-full one shifts the whole hook order and React throws "Should have a
+  // queue" (hit 2026-07-24 adding force-full cards to the Choose One prompt). Read the store unconditionally.
+  const compactCards = useGame((s) => s.compactCards);
+  const showText = forceFull || !compactCards;
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
   const [popin, setPopin] = useState(() => !suppressPop);
   // Drop the `popin` class once the mount-pop has played. It must not linger: `.card.popin` carries the
@@ -314,14 +425,32 @@ export const Card = memo(function Card({
   // Its own config (`stepProcFxConfig`), NOT the spell-power one — same primitive, independently tunable.
   const stepCounterRef = useRef<HTMLSpanElement>(null);
   const prevStepRef = useRef<number | null>(null);
+  // The counter's last laid-out CENTRE. Kept because one card fires its flourish as the counter DISAPPEARS
+  // (see below), by which point the element is unmounted and has no rect of its own to read.
+  const lastStepPtRef = useRef<{ x: number; y: number } | null>(null);
   const stepCur = card.stepProgress?.current;
   const stepTotal = card.stepProgress?.total;
   useEffect(() => {
     const prev = prevStepRef.current;
     prevStepRef.current = stepCur ?? null;
-    if (stepCur === undefined || stepTotal === undefined) return;
-    if (!isStepProcTick(prev, stepCur, stepTotal)) return;      // see the rule (+ its tests) in stepProcFxConfig
     const el = stepCounterRef.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width || r.height) lastStepPtRef.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    // Living Grimoire: its meter is hidden while CHARGED, so "recharged" shows up as the counter vanishing
+    // rather than as a tick landing on `total` (owner correction 2026-07-24 — a 3/3 read as still-to-fill).
+    // Fire the same flourish from where the counter just was, so becoming ready still reads as an event.
+    // Guarded on `prev !== null` so a card that mounts already charged doesn't burst.
+    if (stepCur === undefined) {
+      if (prev !== null && lastStepPtRef.current) {
+        const { x, y } = lastStepPtRef.current;
+        pixiFx.spellPower(x, y, getStepProcFxConfig());
+      }
+      return;
+    }
+    if (stepTotal === undefined) return;
+    if (!isStepProcTick(prev, stepCur, stepTotal)) return;      // see the rule (+ its tests) in stepProcFxConfig
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (!r.width && !r.height) return;             // not laid out (hidden/unmounted) — nothing to fire from
@@ -379,9 +508,10 @@ export const Card = memo(function Card({
   // While a card is being held/dragged, you're not "hovering" anything — drop any popup + don't open one.
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   // Illustrated art (if any). `uid` lets multi-variant cards (Pup) pick a stable per-instance image.
-  const artUrl = artFor(card.cardId, uid);
+  const artUrl = artFor(card.cardId, uid, card.chosenOption);
   // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
+  const [starsOk, setStarsOk] = useState(tierStarsAvailable);
   // STANDARD / SPELL frames: same load-or-fallback guard. A card wears exactly one authored frame — Taunt wins
   // for a Taunt minion; regular spells (but NOT the golden Triple-Reward token) get the purple square; every other
   // minion gets the oval. On 404 the flag flips and the card renders its original arch/spell look.
@@ -395,14 +525,21 @@ export const Card = memo(function Card({
   // A Ruby (set 2) is a spell-LIKE card: it wears the SPELL treatment (purple square frame, spell pill, no
   // stat footer / tribe line) even though it's its own class mechanically. `spellLike` gates the visual only.
   const spellLike = !!card.spell || !!card.ruby;
+  // A plated card whose PRIMARY tribe has its own plate: drop the in-drawer tribe icon+label and print the
+  // tribe name on the plate's bottom gem instead (owner 2026-07-25). Only on the plate itself (hand / drag),
+  // never on an unplated board card, a spell, or the "All"-tribe case.
+  const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike && !card.universalTribe;
   const useSpellFrame = spellLike && card.cardId !== 'discoverspell' && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      ref={sbRootRef}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
+        // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
+        ...(sbCfg ? { '--sb-grow': sbCfg.growScale, '--sb-grow-ms': `${sbCfg.growMs}ms`, '--sb-grow-ease': growEaseCss(sbCfg), '--sb-shrink-ms': `${sbCfg.shrinkMs}ms`, '--sb-shrink-ease': shrinkEaseCss(sbCfg), '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-oy': `${sbCfg.blastOriginY}%`, '--sb-ease': sparkEaseCss(sbCfg) } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
@@ -441,15 +578,23 @@ export const Card = memo(function Card({
               static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
               handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
               src, so the browser serves it from cache — no second decode. */}
-          <img className="plateglow" src={CARD_PLATE_SRC} alt="" aria-hidden="true" draggable={false} />
+          <img className="plateglow" src={plateSrcFor(card.tribe)} alt="" aria-hidden="true" draggable={false} />
           <img
             className="cardplate"
-            src={CARD_PLATE_SRC}
+            src={plateSrcFor(card.tribe)}
             alt=""
             aria-hidden="true"
             draggable={false}
             onError={() => { cardPlateAvailable = false; setPlateOk(false); }}
           />
+          {/* Tribe NAME on the plate's bottom gem — the tribe-plated card's tribe label lives here (no icon)
+              instead of in the drawer (owner 2026-07-25). Positioned over the plate's bottom diamond. */}
+          {tribePlated && (
+            <div className="plate-tribe" aria-hidden="true">
+              {TRIBE_LABEL[card.tribe]}
+              {card.tribe2 && <> <span className="ctype-sep">/</span> {TRIBE_LABEL[card.tribe2]}</>}
+            </div>
+          )}
         </>
       )}
       {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).
@@ -477,7 +622,33 @@ export const Card = memo(function Card({
           A plain element rather than a pseudo-element: `::before` is already the keyword-glow layer on
           Venomous / Reborn / triple-ready cards, and `::after` is the drawer bridge. */}
       <span className="handpad" aria-hidden="true" />
-      {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
+      {card.tier !== undefined && (starsOk && card.tier >= 1 && card.tier <= 7 ? (
+        <>
+        {/* TIER 7 ONLY — a soft pulsing halo marking the top tier. It carries `tierbadge`, so it inherits the
+            very same per-family transform the stars use and tracks them for free. Rendered FIRST and stacked
+            lowest, so it sits BEHIND the plaque (owner 2026-07-26) and reads as light radiating out from
+            behind it rather than washing over its face. Opacity is the only animated property (`.tierglow`). */}
+        {card.tier === 7 && <span className="tierbadge tierglow" aria-hidden="true" />}
+        <img
+          className="tierbadge tierplate"
+          src={tierPlateSrc(!!card.golden)}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+        <img
+          className="tierbadge tierstars"
+          data-tier={card.tier}
+          src={tierStarsSrc(card.tier)}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          onError={() => { tierStarsAvailable = false; setStarsOk(false); }}
+        />
+        </>
+      ) : (
+        <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>
+      ))}
       {/* Disco Dan's Setlist lock — a padlock ribbon across a greyed card, captioned with the tier it unlocks at. */}
       {locked && (
         <span className="cardlock" aria-label={`Locked${lockLabel ? ` until ${lockLabel}` : ''}`}>
@@ -580,14 +751,14 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW"): a black, blurred copy of the frame seated
                 behind the art, so the shield reads as sitting on the board rather than floating. */}
-            <img className="tframe tframe-img cshadow" src={TAUNT_FRAME_SRC} alt="" aria-hidden="true" />
+            <img className="tframe tframe-img cshadow" src={tauntFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="tframe tframe-img"
-              src={TAUNT_FRAME_SRC}
+              src={tauntFrameSrcFor(card.tribe, !!card.golden)}
               alt=""
               aria-hidden="true"
               onError={() => {
@@ -627,14 +798,14 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the oval seated
                 behind the art so the card sits on the board. */}
-            <img className="cframe cframe-img cshadow" src={STD_FRAME_SRC} alt="" aria-hidden="true" />
+            <img className="cframe cframe-img cshadow" src={stdFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="cframe cframe-img"
-              src={STD_FRAME_SRC}
+              src={stdFrameSrcFor(card.tribe, !!card.golden)}
               alt=""
               aria-hidden="true"
               onError={() => {
@@ -691,13 +862,18 @@ export const Card = memo(function Card({
           click inspect, or the always-on-text setting): name, rules text, tribe. Hidden
           (display:none) on a resting compact tile. */}
       <div className="drawer">
+        {/* BACKBOX — an authored dark shape behind the text panel, darkening the plate under it so the rules
+            text reads cleanly. FIRST child so tree order paints it behind every text sibling; `.drawer` keeps
+            NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
+            tuner (backbox · size/x/y/opacity/blend). */}
+        <img className="descbox" src={DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
         <div className="cn">{card.name}</div>
         {card.text && (
           <div className="desc">
             <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
           </div>
         )}
-        {!spellLike && (
+        {!spellLike && !tribePlated && (
           <div className="dtribe">
             {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data
                 but counts as every tribe, and showing NEUTRAL made it look like it took no tribal buffs. */}
@@ -724,6 +900,21 @@ export const Card = memo(function Card({
           <span className="bb-spark" style={{ '--a': '170deg' } as CSSProperties} />
           <span className="bb-spark" style={{ '--a': '250deg' } as CSSProperties} />
           <span className="bb-spark" style={{ '--a': '320deg' } as CSSProperties} />
+        </span>
+      )}
+      {/* Spell buff — this hand spell / Ruby just got stronger: coloured sparks blast outward off it (the three
+          hues are tuner dials). Pairs with the `.spellbuff` grow/shrink on the card itself. */}
+      {spellBuffed && (
+        /* Keyed on the burst id so a retrigger REMOUNTS the motes: new jitter, and every animation restarts
+           from zero rather than continuing the previous burst's flight. */
+        <span className="sbsparks" key={spellBuffSeq} aria-hidden="true">
+          {spellSparks.map((s, i) => (
+            <span
+              key={i}
+              className="sbspark"
+              style={{ animationDelay: s.delay, '--sb-size': s.size, '--sb-ang': s.angle, '--sb-dist': s.dist, '--sb-hue': s.hue, '--sb-tail': s.tail } as CSSProperties}
+            />
+          ))}
         </span>
       )}
       {/* Karwind — a Dragon just got Karwind's battlecry-triggered buff: flames sweep up the card

@@ -2,10 +2,10 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
-  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
+  abhorrentHorrorText, alternatingBuffText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
-  trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
+  rallySpreadText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
+  taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -48,6 +48,15 @@ export interface LiveTextParams {
   maxTier?: number;
   /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line (1/1 + this) it grants the shop. */
   rubyBonus?: { attack: number; health: number };
+  /** Sunmane Herald's live escalating rally value (combat-only) — its printed "+3" is only the opening rung. */
+  rallySpreadAtk?: number;
+  /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
+   *  rule instead of "the spell this was taught". Absent on every other card. */
+  taughtSpellId?: string;
+  /** Choose One: the branch this INSTANCE picked (`BoardCard.chosenOption`). Once chosen, the card only does
+   *  that one thing, so it prints only that branch — listing the road not taken is a lie about what the body
+   *  on your board now does (owner 2026-07-24). Absent for a shop/Discover preview, which still shows both. */
+  chosenOption?: number;
 }
 
 /**
@@ -57,14 +66,31 @@ export interface LiveTextParams {
  */
 export function liveCardText(cardId: string, p: LiveTextParams): { text: string; goldenText: string | undefined } {
   const c = CARD_INDEX[cardId];
+  // A RESOLVED Choose One prints only the branch it became — the other option is no longer something this body
+  // can do. Applies to every Choose One card, golden included (a golden reads its option's `goldenText`, which
+  // is where the doubled magnitude lives). Returned before the scaling chain below because no Choose One option
+  // currently carries a live-scaling value; when one does, its helper must be threaded through here too.
+  const picked = p.chosenOption !== undefined ? c.chooseOne?.[p.chosenOption] : undefined;
+  if (picked) return { text: picked.text, goldenText: picked.goldenText ?? picked.text };
+  // A taught Mage-Pup prints the spell it will cast, resolved through the SAME live spell-text chain the shop
+  // uses — so a taught Spirit Fire shows its spell-power-boosted numbers, not the printed base.
+  if (p.taughtSpellId) {
+    const taught = taughtSpellText(c.id, p.taughtSpellId, spellDisplayText(
+      p.taughtSpellId, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0,
+      p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0,
+      { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier },
+    ));
+    if (taught) return { text: taught, goldenText: taught };
+  }
   const text =
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined })
+        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
+            rallySpreadText(c.id, p.golden, p.rallySpreadAtk) ?? // Sunmane: the rally's CURRENT (doubled) grant
             karthusText(c.id, p.golden, p.summonBonus ?? 0) ?? // Karthus: live per-Slaughter grant
             engraveTallyText(c.id, p.permaGain) ?? // combat-only: null in the shop (no permaGain)
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
@@ -74,6 +100,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
+            asymSummonBuffText(c.id, p.summonBonus ?? 0, p.golden) ?? // Groveweaver: live asymmetric grant
             summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             hunterText(c.id, p.summonBonus ?? 0, p.golden) ??
@@ -86,6 +113,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
+            alternatingBuffText(c.id, p.eotTick ?? 0, p.golden) ?? // Matriarch: name the stat it is giving THIS turn
             cadenceProgressText(c.id, p.eotTick ?? 0) ??
             escalatingCastText(c.id, p.golden, p.eotTick ?? 0, p.spellBonus, p.spellBonusH) ??
             c.text;
@@ -123,7 +151,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number } },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -143,6 +171,8 @@ export function instView(
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rubyBonus: live?.rubyBonus,
+    chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
+    taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
@@ -156,17 +186,24 @@ export function instView(
   // A Ruby renders with the spell look (no stat footer), so its GRANT must live in the text — "+A/+H" where
   // A/H are the stats it was minted with (base 1/1 + the run's rubyBonus). Live by construction: the numbers
   // ARE the card's current stats.
+  // A BUFFED Ruby (minted above its printed 1/1 by the run's `rubyBonus`, or grown in hand) shows its grant in
+  // green via the standard `{{…}}` modified-value marker — the same cue every other scaled number uses.
+  const rubyVal = `+${shownAtk}/+${shownHp}`;
   const shownText = c.ruby
-    ? `Give a minion **+${shownAtk}/+${shownHp}**${c.rubyGrantKeyword === 'DS' ? ' and **Ward**' : ''}.`
+    ? `Give a minion **${shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal}**${c.rubyGrantKeyword === 'DS' ? ' and **Ward**' : ''}.`
     : text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
+    chosenOption: inst.chosenOption, // a resolved Choose One also wears the ART of the branch it became
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,
     attack: shownAtk, health: shownHp,
     keywords: inst.keywords, text: shownText,
     goldenText,
     golden: inst.golden,
-    tier: c.tier, spell, ruby: c.ruby, target: c.target, castMult: spell ? live?.castMult : undefined,
+    tier: c.tier, spell, ruby: c.ruby, target: c.target,
+    // Rubies show the ×N badge too (owner 2026-07-24) — this gate dropped it for anything not flagged `spell`,
+    // and a Ruby carries `ruby: true` WITHOUT `spell: true`, so a multi-cast Ruby showed no badge at all.
+    castMult: spell || c.ruby ? live?.castMult : undefined,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,
@@ -177,8 +214,13 @@ export function instView(
           const sp = stepProgress(inst.cardId, {
             spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
             ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick,
+            shoutTick: inst.shoutTick, grimoireCharged: live?.grimoireCharged,
           });
-          return sp && sp.current > 0 ? sp : null;
+          // Normally a fresh 0/N is hidden as noise (owner ruling). The Living Grimoire is the deliberate
+          // exception: 0/3 is the whole point there — it's how you see the card is SPENT and how far the
+          // recharge has come (owner ask 2026-07-24).
+          const showsZero = inst.cardId === 'd2_grimoire';
+          return sp && (sp.current > 0 || showsZero) ? sp : null;
         })() ?? undefined
       : undefined,
   };

@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -327,6 +327,21 @@ export function reduce(state: RunState, action: Action): RunState {
       // flourish to the minion that caused it. Left undefined for sourceless gains (quest/rune ticks).
       next.spellPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
     }
+    // RUBY POWER FX: the exact same contract for Ruby strength (owner ask 2026-07-24) — one bump per action in
+    // which `rubyBonus` WENT UP, by any source and any amount. Derived from the before/after delta rather than a
+    // scratch field for the same reason spell power is: React batching can otherwise swallow it. This one delta
+    // covers the shop, End of Turn AND the combat carry-back, because Veinbreaker's mid-fight Avenge lands on
+    // `rubyBonus` when the fight settles and so shows up here like any other source.
+    const rbBefore = state.rubyBonus ?? { attack: 0, health: 0 };
+    const rbAfter = next.rubyBonus ?? { attack: 0, health: 0 };
+    const rpDeltaA = rbAfter.attack - rbBefore.attack;
+    const rpDeltaH = rbAfter.health - rbBefore.health;
+    if (rpDeltaA > 0 || rpDeltaH > 0) {
+      next.rubyPowerFxSeq = (next.rubyPowerFxSeq ?? 0) + 1;
+      next.rubyPowerFxAtk = Math.max(0, rpDeltaA);
+      next.rubyPowerFxHp = Math.max(0, rpDeltaH);
+      next.rubyPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
+    }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
     // identical to the minion instead of a separate Lantern-style aura.
@@ -509,6 +524,14 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
   s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
+  // The consume swirl is a PER-ACTION payload too. It used to be cleared only by the handful of call sites that
+  // assigned it wholesale, while every other consumer APPENDED — so Set 2's shop-eating Demons grew the list
+  // across actions and the UI replayed every past consume on each new one. That showed up as ghost minions
+  // stacking over the shop, and as a card that hadn't eaten (Hungerling) appearing to eat alongside one that had
+  // (Revolving Maw) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
+  // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
+  s.fodderEaten = [];
+  s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
 
   switch (action.type) {
     case 'buy': {
@@ -531,6 +554,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         });
         s.spell = null; // bought — the slot stays empty until the next roll
         tiffBuyDiscount(s, spellDef); // Tiff: a spell buy banks a Dragon Tamer discount
+        applySpellBought(s, spellDef.id); // Set 2 — fires `spellBought` (Moonhowl Mentor mints a Mage-Pup taught this spell)
         return s;
       }
       const i = s.shop.findIndex((c) => c.uid === action.uid);
@@ -547,6 +571,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.shop.splice(i, 1);
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount
+        // There are TWO ways to buy a spell — the right-hand spell slot and a spell offer in the minion row —
+        // and `spellBought` must fire from both. It only fired from the slot, so Moonhowl Mentor silently did
+        // nothing for any spell bought from the row (owner report 2026-07-24: buying Spirit Fire didn't proc).
+        applySpellBought(s, card.id);
         return s;
       }
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
@@ -668,37 +696,24 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (dop.spell) {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def);
           for (let n = 0; n < spellCastsN; n++) queueDiscover(s, { kind: 'spell' });
-          if (!def.singleCast) s.nextSpellMult = undefined;
+          if (!def.singleCast) s.nextSpellExtraCasts = undefined;
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
           return s;
         }
-        // `exactCurrentTier` (Key Findings) locks the pool to the live tavern tier; `exactTier` is a fixed tier
-        // (Sprout); otherwise the offer tier is current + `tierOffset`.
-        const exactTier = dop.exactCurrentTier ? s.tier : dop.exactTier;
         // A triple-reward Discover carries the tier it was GRANTED at (`grantedTier`) so its "one tier up" is
         // frozen — taverning up with it in hand no longer bumps the offer. Other Discovers read the live tier.
-        const baseTier = card.grantedTier ?? s.tier;
-        const tier = exactTier ?? baseTier + (dop.tierOffset ?? 0);
-        const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(s) ?? undefined) : dop.tribe;
-        const spec = {
-          kind: 'minion' as const,
-          tier,
-          ...(exactTier !== undefined ? { exactTier } : {}),
-          ...(dop.filter ? { filter: dop.filter } : {}),
-          ...(tribe ? { tribe } : {}),
-          ...(dop.topTierFirst ? { topTierFirst: true } : {}),
-          ...(dop.maxTier !== undefined ? { maxTier: dop.maxTier } : {}),
-          ...(dop.lockUntilNextTurn ? { lockWave: s.wave + 1 } : {}), // Hourglass Reserve: locked until next turn
-          ...(dop.borrowed ? { borrowed: true } : {}), // Funeral on Loan: play → trigger Echo + destroy
-        };
+        // The spec itself is built by the shared `discoverSpecFor` so a taught (Mage-Pup) cast of the same
+        // spell offers exactly the same thing.
+        const spec = discoverSpecFor(s, def, card.grantedTier);
+        if (!spec) return s;
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
-        // queued behind the first. `spellCasts` folds in Nimbus (nextSpellMult), Ancient Runes (spellDoubleAlways)
+        // queued behind the first. `spellCasts` folds in Nimbus (nextSpellExtraCasts), Ancient Runes (spellDoubleAlways)
         // and Spell Thesis (first-spell-each-turn); Yazzus is aimed-only so it's auto-excluded (a Discover spell is
         // untargeted). `singleCast` never multiplies. Bug fix (owner 2026-07-09): the old code read only
-        // `nextSpellMult`, so Ancient Runes' "spells cast twice" silently did nothing for Discover spells.
+        // `nextSpellExtraCasts`, so Ancient Runes' "spells cast twice" silently did nothing for Discover spells.
         const casts = def.singleCast ? 1 : spellCasts(s, def);
         for (let n = 0; n < casts; n++) queueDiscover(s, { ...spec });
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         return s;
       }
@@ -715,7 +730,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         const boardTarget = s.board.find((c) => c.uid === action.targetUid);
         const offer = s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell);
         // Prismcaster: a Ruby played from hand casts `1 + Σ rubyExtraCast` times (× golden per Prismcaster).
-        const casts = 1 + s.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+        // Living Grimoire multiplies a RUBY too — it charges "the first spell", and a Ruby is a spell (owner
+        // 2026-07-24: the card doesn't say "shop spell"). `grimoireMultActive` reads the charge; it's spent
+        // below so the next cast of either kind is single.
+        // Shared with the UI's ×N badge (`rubyCastCount`), so the number shown and the number resolved can't drift.
+        const casts = rubyCastCount(s);
         if (boardTarget) {
           for (let n = 0; n < casts; n++) {
             addBuff(boardTarget, 'Ruby', card.attack, card.health);
@@ -729,9 +748,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         else return state;
         s.hand.splice(i, 1);
         const rubyCastsBefore = s.rubyCasts ?? 0;
+        // The trigger meter is the UMBRELLA of Rubies + Shop Spells (see `fireOnRubyCast`), so both paths must
+        // measure the SAME number — counting rubies on their own meter here would let the two drift and a
+        // 3-cast threshold fire early or late depending on the mix.
+        const umbrellaBefore = s.spellsCast + rubyCastsBefore;
         s.rubyCasts = rubyCastsBefore + casts;
         s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
-        fireOnRubyCast(s, rubyCastsBefore, s.rubyCasts); // Gemgorge Fiend: every 3 casts → Consume a Shop minion
+        consumeGrimoireCharge(s); // a Ruby spends the Grimoire charge, same as a Shop Spell
+        fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
 
@@ -786,7 +810,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         } else {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
@@ -930,6 +954,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       // (resolved in `battlecryTarget`) — but only if a *viable* target exists. The tribe-restricted pick
       // needs another matching friend; with none, the Battlecry simply doesn't fire and the minion plays
       // as-is (no prompt).
+      // A Mage-Pup taught an AIMED spell opens the picker too (owner 2026-07-24). Checked BEFORE the def-level
+      // test because the Pup's own CardDef is untargeted — the taught spell on the INSTANCE is what needs an
+      // aim, so the usual `def.target` route can't see it. `playCard` skips its Shout for the same reason, and
+      // `applyBattlecryTarget` fires it with the chosen target.
+      if (taughtAimSpell(card)) {
+        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
+        return s;
+      }
       const playedDef = CARD_INDEX[card.cardId];
       if (playedDef?.target === 'friendly') {
         const hasTarget = playedDef.targetTribe
@@ -972,7 +1004,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (offer) castSpellOnOffer(s, synthetic, offer);
           else castSpell(s, synthetic, target);
         }
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(hi, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), co.cardId]; // Choose One spell counts as a card played (Rune of Action)
@@ -994,11 +1026,19 @@ function reduceCore(state: RunState, action: Action): RunState {
           : s.board.some((c) => c.uid !== card.uid);
         if (hasTarget) {
           s.chooseOne = undefined;
+          card.chosenOption = action.index; // the branch is already decided; only its TARGET is still pending
           s.pendingTarget = { uid: card.uid, cardId: card.cardId, optionIndex: action.index };
           return s;
         }
       }
-      applyChooseOne(s, card, option.effects); // the chosen Battlecry resolves now
+      // Orivax when GOLDEN gains BOTH options (`chooseBothWhenGolden`), not just the one picked. The prompt
+      // still opens and you still click a side — both apply on resolve, which is the honest reading of
+      // "Gilded: Gain both". Applied in option order so the log/FX are deterministic.
+      const chosen = card.golden && def.chooseBothWhenGolden ? def.chooseOne! : [option];
+      // Record WHICH branch this instance became so its printed text can narrow to just that one. A
+      // `chooseBothWhenGolden` golden gained both, so it records nothing and keeps the combined text.
+      if (chosen.length === 1) card.chosenOption = action.index;
+      for (const opt of chosen) applyChooseOne(s, card, opt.effects); // the chosen Battlecry (or all, if golden) resolves now
       s.chooseOne = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
@@ -1070,11 +1110,19 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Bartering (Shout minions sell for 2) is folded into the shared helper, so the UI coin matches.
       // Quick Sale: the next minion sold this turn gets a one-shot bonus on top, then the bonus is spent.
       if (sold) {
-        s.embers += sellValueOf(sold, s) + (s.nextSellBonus ?? 0);
+        // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
+        // floated can't drift (they did: the bonus used to be added inline here only).
+        s.embers += sellValueWithBonus(sold, s);
         if (s.nextSellBonus) s.nextSellBonus = 0;
       }
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
       if (sold) fireOnSell(s, sold);
+      // Set 2 — record the sale, then tell the BOARD about it (Voicekeeper). Recorded FIRST so a watcher
+      // counting "the first Dragon sold this turn" sees this sale included, the way `playedThisTurn` works.
+      if (sold) {
+        s.soldThisTurn = [...(s.soldThisTurn ?? []), sold.cardId];
+        fireOnMinionSold(s, sold);
+      }
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
       // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
       if (sold && getHero(s.heroId).power.kind === 'sellGold') s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
@@ -1094,6 +1142,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       s.frozen = false;
       refreshTavern(s);
+      // Set 2 — tell the board a refresh happened (Revolving Maw counts them). Fired AFTER `refreshTavern`, so a
+      // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
+      applyShopRefreshed(s);
       return s;
     }
 
@@ -1475,6 +1526,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(b.addedTribes && b.addedTribes.length ? { addedTribes: [...b.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (→ combat tribe2) — was dropped, so the tribe stopped counting in the player's own fights
         ...(b.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a Start-of-Combat immune out-of-turn strike — was dropped, so it never fired
         ...(b.bloodlustRally ? { bloodlustRally: true } : {}), // Bloodlust's welded Rally (give a friendly minion this minion's Attack)
+        ...(b.chosenOption !== undefined ? { chosenOption: b.chosenOption } : {}), // Choose One: display-only, so the combat card prints the same single branch
+        ...(b.taughtSpellId ? { taughtSpellId: b.taughtSpellId } : {}), // Mage-Pup: display-only, so the combat card names the spell it cast
         summonBonus: b.summonBonus ?? 0,
         overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
@@ -1566,6 +1619,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         tier: s.tier,
         tribes: s.tribes,
         cardBuffs: s.cardBuffs ?? {},
+        // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
+        handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
+        // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
+        beastHuntExtra: s.beastHuntExtra ?? 0,
+        beastRitualExtra: s.beastRitualExtra ?? 0,
         questMods: questCombatMods(s),
         pendingQuests: buildPendingCombatQuests(s),
       });
@@ -1696,8 +1754,11 @@ function checkTriples(s: RunState): void {
     for (const c of [...s.board, ...s.hand]) {
       // Spells + Rubies are never minions — they don't triple (they're cast for their effect; owner: Rubies
       // are spells for this purpose). Both play from hand for an effect, never combine into a golden.
+      // `noTriple` opts a MINION out too (Mage-Pup): its identity is per-instance, so copies aren't
+      // interchangeable and a combine would destroy information. Excluded from the COUNT, not just from the
+      // combine, so three Pups don't sit at a permanent phantom 3/3 triple that never fires.
       const cd = CARD_INDEX[c.cardId];
-      if (!c.golden && !cd?.spell && !cd?.ruby) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      if (!c.golden && !cd?.spell && !cd?.ruby && !cd?.noTriple) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     const need = s.runeTwinGilding ? 2 : 3; // Rune of Twin Gilding: Gild at 2 copies
     let tripleId: string | undefined;
@@ -1943,13 +2004,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Engraved only at Start of Combat (Taurus's neighbor) carries its gains back and is labelled "Engraved",
   // even though its run-board card never had the EG keyword. A non-Engraved carrier got Flowing Monk's gift.
   if (result.playerPermaBuffs) {
-    for (const { sourceUid, attack, health, engraved } of result.playerPermaBuffs) {
+    for (const { sourceUid, attack, health, engraved, ruby } of result.playerPermaBuffs) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (!card) continue;
       // Taragosa's Heir amplifies stat gains from ALL sources — combat included. It's Engraved, so its combat
       // gains reach here; multiply its carry-back ×2 (golden ×3) so combat matches its recruit-phase amplifier.
       const mult = card.cardId === 'taragosaheir' ? (card.golden ? 3 : 2) : 1;
-      addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
+      // 'Ruby' keeps the inspect breakdown honest AND makes the gain visible to Deepdelve Paragon next fight,
+      // which looks for exactly that source.
+      addBuff(card, ruby ? 'Ruby' : engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
     }
   }
   // Set 2 — Rubies gained IN COMBAT (Rikk's Rally, Gemline's Avenge): mint them into hand now, baked with the
@@ -1957,6 +2020,17 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerRubyGrants) mintRubies(s, result.playerRubyGrants);
   // Set 2 — Ruby STRENGTH gained in combat (Veinbreaker's Avenge "buff your Rubies"): raise the run's rubyBonus
   // AND grow every held Ruby — the same effect as the recruit-phase `rubyStatGain`.
+  if (result.playerNextTurnSpellCopies) {
+    // Scalefeather Echoes fired this combat → arm the copy for NEXT turn. `s.wave` is still this combat's wave
+    // at settle (advanceCombat increments it later), so `s.wave + 1` is exactly next turn — the same "next
+    // turn" marker Hourglass Reserve uses. Multiple Scalefeathers sum; the earliest activation wave wins so a
+    // pending copy is never dropped.
+    const prev = s.nextTurnSpellCopies;
+    s.nextTurnSpellCopies = {
+      activateWave: prev ? Math.min(prev.activateWave, s.wave + 1) : s.wave + 1,
+      count: (prev?.count ?? 0) + result.playerNextTurnSpellCopies,
+    };
+  }
   if (result.playerRubyBonusGain && (result.playerRubyBonusGain.attack > 0 || result.playerRubyBonusGain.health > 0)) {
     const g = result.playerRubyBonusGain;
     const b = s.rubyBonus ?? { attack: 0, health: 0 };
@@ -2187,7 +2261,20 @@ function advanceCombat(s: RunState): void {
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
+  // Set 2 — the per-minion "spells cast on this" counter is per TURN too (Mirrorwing / Runefire read "first
+  // spell each turn"), so it clears with the rest. Cleared on hand cards as well: a minion can be bounced back
+  // to hand and replayed, and a stale count would eat its first proc next turn.
+  for (const c of [...s.board, ...s.hand]) {
+    if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
+    if (c.rubiesOnThisTurn) c.rubiesOnThisTurn = 0; // Runefire counts Rubies landed on it per TURN too
+    // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
+    // — clear both halves.
+    if (c.boardSpellCount) c.boardSpellCount = 0;
+    if (c.boardFirstSpellId) c.boardFirstSpellId = undefined;
+  }
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
+  s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)
+  s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
@@ -2199,6 +2286,20 @@ function advanceCombat(s: RunState): void {
   s.firstShoutUid = undefined;
   s.consumesThisTurn = 0; // Endless Appetite's "first Consume each turn" gate resets each wave
   s.firstSpellThisTurnId = undefined; // Rune of Recurrence's first-spell record resets each wave
+  // Set 2 — Living Grimoire RE-ARMS at the start of each turn, which is what makes its printed rule ("the
+  // first spell you cast EACH TURN casts twice") true. It used to arm only on play and via the 3-Shout reset,
+  // so on any later turn where you hadn't triggered 3 Shouts the card silently did nothing — the owner read
+  // that as "it only works on targeted spells" (2026-07-24), since the turn it was played happened to be a
+  // targeted cast. The 3-Shout reset still exists for a SECOND charge within the same turn.
+  // Re-armed to the strongest Grimoire on board (golden = 3) so two copies don't compound; selling them all
+  // leaves nothing to arm.
+  {
+    const grimoires = s.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'battlecryArmGrimoire'));
+    if (grimoires.length) {
+      s.grimoireMult = Math.max(...grimoires.map((c) => (c.golden ? 3 : 2)));
+      for (const c of grimoires) c.shoutTick = 0; // a fresh turn's charge restarts the Shout count
+    }
+  }
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
@@ -2249,7 +2350,13 @@ function advanceCombat(s: RunState): void {
     topUpTavern(s);
     injectPendingTavern(s, true); // defer the eat — a Runeforge / queued modal may be about to open (see holdFodderConsume)
     s.frozen = false;
-  } else refreshTavern(s, true);
+  } else {
+    refreshTavern(s, true);
+    // A NEW TURN's shop is a fresh roll too — the most common one. Firing the event only on the manual reroll
+    // meant Market Tormentor never touched the turn-start row (owner report 2026-07-25). A FROZEN shop is
+    // deliberately excluded above: it wasn't re-rolled, so there's no new right-most to buff.
+    applyShopRefreshed(s);
+  }
   // Start-of-turn modals resolve ONE AT A TIME, in priority order (Quest > Runeforge > Discover/other). A quest
   // offer or the Runesmith forge (set above) shows first; the Epic Runeforge + any queued Discovers wait their
   // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
@@ -2357,6 +2464,7 @@ function advanceCombat(s: RunState): void {
       s.frozen = false;
     } else {
       refreshTavern(s, true);
+      applyShopRefreshed(s); // same fresh-roll rule as the main start-of-turn path above
     }
   }
 }

@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type MinionSnapshot } from '@game/core';
+import { compileMoments } from './choreo/compile';
+import { deferAvengeAfterSummons } from './choreo/avengeOrder';
 import { CARD_INDEX } from '@game/content';
-import { computeFrame, layoutRectOf } from './useCombatReplay';
+import { computeFrame, grantsShownThrough, layoutRectOf } from './useCombatReplay';
 import { deferClashBuffs } from './choreo/clashOrder';
 
 const snap = (over: Partial<MinionSnapshot> & { uid: string; cardId: string }): MinionSnapshot => ({
@@ -34,9 +36,9 @@ describe('computeFrame — ascend fold (live mid-combat transform)', () => {
 });
 
 describe('computeFrame — Kennelmaster aura on multi-summon Deathrattles', () => {
-  it('shows the +2 Attack on BOTH Deathrattle-summoned Pups in the replay frame (not just the first)', () => {
+  it('shows the Kennelmaster Attack aura on BOTH Deathrattle-summoned Pups in the replay frame (not just the first)', () => {
     const p: BoardMinion[] = [
-      { cardId: 'kennel', attack: 1, health: 40 }, // SoC board-wide aura +2/+0
+      { cardId: 'kennel', attack: 1, health: 40 }, // SoC Beast aura, Attack-only
       { cardId: 'pack', attack: 2, health: 1 },    // Mama Pup → two 1/1 Pups on death
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
@@ -51,7 +53,7 @@ describe('computeFrame — Kennelmaster aura on multi-summon Deathrattles', () =
     const pups = player.filter((u) => pupUids.includes(u.uid));
     expect(pups.length).toBe(2);
     for (const pup of pups) {
-      expect(pup.attack).toBe(3); // base 1 + Kennelmaster +2 Attack
+      expect(pup.attack).toBe(3); // base 1 + Kennelmaster +2 Attack (owner rebalance 2026-07-25)
       expect(pup.health).toBe(1); // Health untouched — the aura is Attack-only
     }
   });
@@ -83,5 +85,73 @@ describe('layoutRectOf', () => {
     const r = layoutRectOf(stub({ scaleX: 2, scaleY: 2 }));
     expect(r.w).toBe(67);
     expect(r.h).toBe(67);
+  });
+});
+
+/* WHEN a combat grant shows up in hand. The card must materialise on the beat its effect PROCS — in lockstep
+   with that unit's trigger-medallion pulse, which is derived from the same window. `beatIdx` is the beat about
+   to play, so the beat ON SCREEN is `beats[beatIdx - 1]`; these tests pin that off-by-one, because widening it
+   by a beat puts every card in hand BEFORE its own pulse (owner report 2026-07-27: with two Avenge granters,
+   both pulses fired and only then did the two cards coalesce). */
+describe('grantsShownThrough — a combat grant appears ON its own beat', () => {
+  it('a real Deathrattle grant is shown at the beat that emits it, not the one after', () => {
+    // Scrap Vendor dies early and its Deathrattle grants a Patch Job.
+    const p: BoardMinion[] = [
+      { cardId: 'scrapvendor', attack: 3, health: 1 },
+      { cardId: 'sandbag', attack: 1, health: 40 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 40 }];
+    const combat = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    const events = deferClashBuffs(combat.events);
+    const beats = compileMoments(events);
+    const grantBeat = beats.findIndex((b) => events.slice(b.start, b.end).some((ev) => ev.type === 'toHand'));
+    expect(grantBeat).toBeGreaterThanOrEqual(0);
+    // On screen during beat `grantBeat` — i.e. beatIdx one past it — and not a moment sooner.
+    expect(grantsShownThrough(events, beats, grantBeat + 1)).toContain('patchjob');
+    expect(grantsShownThrough(events, beats, grantBeat)).not.toContain('patchjob');
+  });
+
+  it('two Avenge granters resolve ONE AT A TIME, in board order', () => {
+    /* Owner spec 2026-07-27: card 1 (left to right) signals its proc pulse and its card coalesces, THEN
+       card 2 pulses and its card coalesces — the same read as the End-of-Turn beats. Two Arcane Weavers
+       (Avenge 2) both proc off the same pair of friendly deaths. */
+    const p: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'weaver', attack: 4, health: 60 },  // m2 — the left Weaver
+      { cardId: 'weaver', attack: 4, health: 60 },  // m3 — the right one
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
+    const combat = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    // The exact array the hook folds — BOTH presentation transforms, in the hook's order.
+    const events = deferAvengeAfterSummons(deferClashBuffs(combat.events));
+    const beats = compileMoments(events);
+    const grantBeats = beats
+      .map((b, i) => ({ i, ev: events[b.start]! }))
+      .filter((x) => x.ev.type === 'toHand');
+    expect(grantBeats.length, 'each grant gets its OWN beat — never collapsed together').toBe(2);
+    expect(grantBeats[0]!.i, 'and they are consecutive beats, in order').toBeLessThan(grantBeats[1]!.i);
+    // The proc pulse is derived from the event's `source`, so beat order == board order, left to right.
+    expect((grantBeats[0]!.ev as { source?: string }).source).toBe('m2');
+    expect((grantBeats[1]!.ev as { source?: string }).source).toBe('m3');
+    // …and the hand grows one card per beat, so the coalesces can't fire together.
+    expect(grantsShownThrough(events, beats, grantBeats[0]!.i + 1)).toHaveLength(1);
+    expect(grantsShownThrough(events, beats, grantBeats[1]!.i + 1)).toHaveLength(2);
+    // …and neither card is in hand before its own beat is the one on screen — that early arrival is what
+    // made both pulses fire before either coalesce.
+    expect(grantsShownThrough(events, beats, grantBeats[0]!.i)).toHaveLength(0);
+  });
+
+  it('a grant on the FINAL beat is shown once that beat is on screen', () => {
+    // The regression that left the owner seeing the coalesce only after combat: the last minion dies, its
+    // Deathrattle grants, the fight ends — slicing to `start` never reached that beat's events.
+    const events = [
+      { type: 'attack', attacker: 'a', defender: 'b' },
+      { type: 'death', uid: 'a' },
+      { type: 'toHand', cardId: 'patchjob', side: 'player' },
+    ] as CombatEvent[];
+    const beats = compileMoments(events);
+    expect(grantsShownThrough(events, beats, beats.length - 1)).toEqual([]);   // still one beat out
+    expect(grantsShownThrough(events, beats, beats.length)).toEqual(['patchjob']);
   });
 });

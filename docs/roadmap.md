@@ -201,6 +201,13 @@ The career surface exists; deepen what a finished run *remembers*.
   (`buyPendingRef` at the `buy` dispatch), so this is purely the new effect.
 - **Gild / triple effect.** Also deliberately excluded from the coalesce, and also wants its own treatment.
   Detection is already in place (`run.triplesMade` diff).
+- **Dwarf tribe: the card frame art already exists.** When the `dwarf` tribe lands in the `Tribe` union, its
+  oval frame + gilded variant are already authored and waiting at
+  `Desktop/Reference Art/card frames/dwarf frame.png` + `dwarf gilded frame.png` (1059×1427) AND the Taunt pair
+  in `card taunt frames/DWARF TAUNT{,  GILDED}.png` (1086×1448) — all with the same windows as every other tribe
+  frame. Wiring is two conversions + two lines: convert to `oval-dwarf{,-gilded}.webp` and
+  `taunt-dwarf{,-gilded}.webp` (sharp, q92), then add a `dwarf:` entry to BOTH `TRIBE_OVALS` and `TRIBE_TAUNTS`
+  in `Card.tsx`. Don't re-author the art.
 
 - **Re-tune the hand row for the plated card.** The backplate makes hand cards taller than they were, so
   `handY` / `handGap` (📐 Scale & Layout) and probably `handPop` (🎴 Drag Feel) want dialing by eye. Shipped
@@ -220,8 +227,10 @@ The career surface exists; deepen what a finished run *remembers*.
 - **Set 2 content.** Foundation is in (`docs/card-sets.md`): author cards in `packages/content/src/cards/set2/`,
   list them in `SETS.set2.own`, trim the inherited set-1 pool with `excludes`. Before flipping it live, run
   `SET=set2 npm run pool` — an unbaked set has no captured opponents and falls back to procedural boards.
-  Shipped so far: the 22-Kobold tribe + Ruby engine, and Set 1's neutral spell toolkit carried over (minus the
-  four tribe-locked ones). Still needed before flipping live: more tribes/minions to cover the enemy curve,
+  Shipped so far: the 22-Kobold tribe + Ruby engine, the 21-card Dragon tribe (spell recursion), the 21-card
+  Beast tribe (spell/summon synergy, art wired),
+  and Set 1's neutral spell toolkit carried over (minus the four tribe-locked ones). Still needed before flipping
+  live: more tribes/minions to cover the enemy curve,
   set-scoped quests/runes, and a baked opponent pool.
 - **New spell batch (owner spec 2026-07-23, 28 spells) — building in tranches.** ✅ Tranche A shipped (8:
   Crest of the Climb, Turnabout, Insurance Policy, Rift-Sunk Codex, Beyond the Summit, Invitation Above +

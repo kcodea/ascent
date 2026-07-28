@@ -77,7 +77,11 @@ const DEFAULTS: ChoreoConfig = {
   // 300 (=450ms, hold 670) — two passes closing the dead time between swings. The floor here is the attacker's
   // 340ms elastic settle, which plays after contact fire-and-forget: hold below that and the next wind-up
   // starts while the previous attacker is still visibly settling.
-  attack: 240, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 820,
+  // `toHand` 820 → 410 (owner 2026-07-27): halves the gap into a grant beat AND between consecutive ones, so
+  // two Avenge granters read pulse→coalesce, pulse→coalesce at twice the pace. It is not in OVERLAP_INTO, so
+  // this delay is the whole spacing; ×`speed` 1.5 it lands at ~615ms per grant, still a clear read for the
+  // materialise. The card ITSELF is unaffected — the coalesce FX has its own duration.
+  attack: 240, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 410,
   maxGold: 560, hpGrant: 0,
   // result beats (ms)
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,

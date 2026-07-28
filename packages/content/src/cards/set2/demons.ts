@@ -1,0 +1,317 @@
+import type { CardDef } from '@game/core';
+
+/**
+ * Set 2's DEMON tribe (owner roster 2026-07-25). The tribe's identity is **Consume from the Shop** — eight cards
+ * eat a tavern minion for its stats — braided with an **Imp** swarm line. Set 1's Demons consume FODDER; these
+ * eat any Shop minion, which is what `consumeShopMinion` adds.
+ *
+ * A recurring Gilded rider, "and gain double its stats", is the shared primitive's `times` multiplier rather than
+ * a separate effect — so the golden text is a number change, not a second code path.
+ */
+export const SET2_DEMONS: CardDef[] = [
+  {
+    // The tribe's Tier-1 statement of intent: a 1/1 that turns a tavern minion into stats.
+    id: 'dm_clerk',
+    name: 'Cinder Clerk',
+    tribe: 'demon',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryConsumeShopRandom', params: { times: 1 } }],
+    text: '**Shout:** Consume a minion in the Shop.',
+    goldenText: '**Shout:** Consume a minion in the Shop and gain **double** its stats.',
+  },
+  {
+    id: 'dm_wrangler',
+    name: 'Imp Wrangler',
+    tribe: 'demon',
+    tier: 1,
+    attack: 2,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'summonImps', params: { count: 1 } }],
+    text: '**Start of Combat:** summon an **Imp**.',
+    goldenText: '**Start of Combat:** summon **2 Imps**.',
+  },
+  {
+    id: 'dm_butcher',
+    name: 'Contract Butcher',
+    tribe: 'demon',
+    tier: 2,
+    attack: 2,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'buffShopPermanent', params: { attack: 1, health: 1 } }],
+    text: '**Shout:** give minions in the Shop **+1/+1**.',
+    goldenText: '**Shout:** give minions in the Shop **+2/+2**.',
+  },
+  {
+    // Flurry doubles the Rally, so this makes two Imps a turn on its own.
+    id: 'dm_errand',
+    name: 'Errand Fiend',
+    tribe: 'demon',
+    tier: 2,
+    attack: 1,
+    health: 3,
+    keywords: ['W', 'RL'],
+    effects: [{ on: 'onAttack', do: 'summonImps', params: { count: 1 } }],
+    text: '**Flurry. Rally:** summon an **Imp**.',
+    goldenText: '**Flurry. Rally:** summon **2 Imps**.',
+  },
+  {
+    // The eater is the TARGET, not this card — so it can feed whichever body you want to grow.
+    id: 'dm_agent',
+    name: 'Appetite Agent',
+    tribe: 'demon',
+    tier: 3,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    target: 'friendly',
+    effects: [{ on: 'onPlay', do: 'battlecryTargetConsumesShop', params: { count: 1 } }],
+    text: '**Shout:** target a minion. It Consumes a minion in the Shop.',
+    goldenText: '**Shout:** target a minion. It Consumes **2** minions in the Shop.',
+  },
+  {
+    id: 'dm_hungerling',
+    name: 'Hungerling',
+    tribe: 'demon',
+    tier: 3,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'consumeShopRightmost', params: { times: 1 } }],
+    text: '**End of Turn:** Consume the **right-most** Shop minion.',
+    goldenText: '**End of Turn:** Consume the **right-most** Shop minion and gain **double** its stats.',
+  },
+  {
+    // PERMANENT, so it goes through the run-wide per-card channel rather than the per-offer one — the buff
+    // follows that card for the rest of the run instead of dying on the next refresh.
+    id: 'dm_tormentor',
+    name: 'Market Tormentor',
+    tribe: 'demon',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'shopRefreshed', do: 'shopRefreshedBuffRightmost', params: { attack: 4, health: 4 } }],
+    text: 'After each Shop refresh, give the **right-most** minion **+4/+4** permanently.',
+    goldenText: 'After each Shop refresh, give the **right-most** minion **+8/+8** permanently.',
+  },
+  {
+    id: 'dm_riotcaller',
+    name: 'Riot Caller',
+    tribe: 'demon',
+    tier: 3,
+    attack: 2,
+    health: 5,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyImpsAttackNow', params: { count: 1 } }],
+    text: '**Rally:** your **left-most Imp** attacks immediately.',
+    goldenText: '**Rally:** your **2 left-most Imps** attack immediately.',
+  },
+  {
+    // An escalating shop buff: the longer it lives, the bigger every offer gets.
+    id: 'dm_curator',
+    name: 'Display Curator',
+    tribe: 'demon',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'buffShopPermanent', params: { attack: 1, health: 1, improve: 1 } }],
+    text: '**End of Turn:** give minions in the Shop **+1/+1**. Improves by **+1/+1** each time this triggers.',
+    goldenText: '**End of Turn:** give minions in the Shop **+2/+2**. Improves by **+2/+2** each time this triggers.',
+  },
+  {
+    // A Demon eats every time you play a Demon — the tribe's engine card.
+    id: 'dm_glutton',
+    name: 'Selective Glutton',
+    tribe: 'demon',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'onTribePlayedConsumeShop', params: { tribe: 'demon', times: 1 } }],
+    text: 'Whenever you play a **Demon**, a friendly Demon Consumes a minion in the Shop.',
+    goldenText: 'Whenever you play a **Demon**, a friendly Demon Consumes a minion in the Shop and gains **double** its stats.',
+  },
+  {
+    id: 'dm_broodwright',
+    name: 'Broodwright',
+    tribe: 'demon',
+    tier: 4,
+    attack: 3,
+    health: 6,
+    keywords: [],
+    effects: [
+      { on: 'onSummon', do: 'onSummonImpBuff', params: { attack: 2, health: 2 } },
+      { on: 'avenge', do: 'avengeImproveSummonBuff', params: { count: 3, step: 1 } },
+    ],
+    text: 'Whenever you summon an **Imp**, give it **+2/+2**. **Avenge (3):** improve this by **+1/+1**.',
+    goldenText: 'Whenever you summon an **Imp**, give it **+4/+4**. **Avenge (3):** improve this by **+2/+2**.',
+  },
+  {
+    id: 'dm_captain',
+    name: 'Cinderwall Captain',
+    tribe: 'demon',
+    tier: 4,
+    attack: 5,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'onSummonImpWard', params: { count: 2 } }],
+    text: '**Start of Combat:** the first **2 Imps** you summon gain **Ward**.',
+    goldenText: '**Start of Combat:** the first **4 Imps** you summon gain **Ward**.',
+  },
+  {
+    // Takes the stats WITHOUT eating — the offer stays buyable, which is the difference from Hungerling.
+    id: 'dm_gourmand',
+    name: 'Grand Gourmand',
+    tribe: 'demon',
+    tier: 5,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnGainRightmostShopStats', params: { times: 1 } }],
+    text: "**End of Turn:** gain the **right-most** Shop minion's stats.",
+    goldenText: "**End of Turn:** gain the **right-most** Shop minion's stats **twice**.",
+  },
+  {
+    id: 'dm_velvet',
+    name: 'Velvet Rope Fiend',
+    tribe: 'demon',
+    tier: 5,
+    attack: 5,
+    health: 2,
+    keywords: [],
+    // `cardId`, NOT `spellId` — the factory reads `params.cardId`, so the wrong key granted the EMPTY string and
+    // the hand-grant preview then crashed on `CARD_INDEX['']` (owner report 2026-07-25). `count` is likewise not
+    // a param here: the factory grants `mul(self)` copies, which is already the golden "2 Staves".
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'staffofguel' } }],
+    text: '**Echo:** get a **Staff of Guel**.',
+    goldenText: '**Echo:** get **2 Staves of Guel**.',
+  },
+  {
+    // The pay-off scales with the room you LEFT — a lone Shepherd fills six slots and buffs six times.
+    id: 'dm_shepherd',
+    name: 'Legion Shepherd',
+    tribe: 'demon',
+    tier: 5,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scFillWithImpsAndBuff', params: { attack: 1, health: 1 } }],
+    text: '**Start of Combat:** fill your warband with **Imps**. Give your Imps **+1/+1** for each one summoned.',
+    goldenText: '**Start of Combat:** fill your warband with **Imps**. Give your Imps **+2/+2** for each one summoned.',
+  },
+  {
+    id: 'dm_tallymonger',
+    name: 'Tallymonger',
+    tribe: 'demon',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffSpellsAndImps', params: { attack: 1, health: 1 } }],
+    text: '**End of Turn:** give your **spells** and **Imps +1/+1**.',
+    goldenText: '**End of Turn:** give your **spells** and **Imps +2/+2**.',
+  },
+  {
+    id: 'dm_avarice',
+    name: 'Avarice Incarnate',
+    tribe: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 7,
+    keywords: [],
+    // Flat Gold rather than the eaten minion's tier (owner change 2026-07-25): the tier version paid 1 Gold off
+    // a Tier-1 offer, which is negligible on a Tier-6 card and swingy depending on what the shop showed.
+    effects: [{ on: 'onConsume', do: 'onConsumeGoldFlat', params: { gold: 3 } }],
+    text: 'The **first time** you Consume a Shop minion each turn, gain **3 Gold**.',
+    goldenText: 'The **first time** you Consume a Shop minion each turn, gain **6 Gold**.',
+  },
+  {
+    // Its NEIGHBOURS eat, so the stats land on them — seating is the card.
+    id: 'dm_vhal',
+    name: 'Feastmaster Vhal',
+    tribe: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnNeighboursConsumeShop', params: { count: 1 } }],
+    text: '**End of Turn:** adjacent minions each Consume a random Shop minion.',
+    goldenText: '**End of Turn:** adjacent minions each Consume **2** random Shop minions.',
+  },
+  {
+    id: 'dm_chancellor',
+    name: 'Cinder Chancellor',
+    tribe: 'demon',
+    tier: 6,
+    attack: 4,
+    health: 12,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onImpAttackBuffImps', params: { attack: 3, improve: 1, improveEvery: 3 } }],
+    text: 'Whenever an **Imp** attacks, give your Imps **+3/+3** this combat. Improves by **+1/+1** every **3** Imp attacks.',
+    goldenText: 'Whenever an **Imp** attacks, give your Imps **+6/+6** this combat. Improves by **+2/+2** every **3** Imp attacks.',
+  },
+  {
+    // Owner change 2026-07-25. Was "your Imps have an Echo this combat"; now a capped death trigger, which also
+    // catches Imps summoned MID-combat (a graft can only reach bodies that already exist). The budget is what
+    // bounds the chain — a replacement Imp dying can pay out, but only while it lasts.
+    id: 'dm_overseer',
+    name: 'Endless Overseer',
+    tribe: 'demon',
+    tier: 6,
+    attack: 5,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'onImpDeathSummonImp', params: { imps: 3 } }],
+    text: '**Start of Combat:** your first **3 Imps** that die summon an **Imp**.',
+    goldenText: '**Start of Combat:** your first **6 Imps** that die summon an **Imp**.',
+  },
+  {
+    id: 'dm_maw',
+    name: 'Revolving Maw',
+    tribe: 'demon',
+    tier: 6,
+    attack: 8,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshConsume', params: { every: 4, times: 1 } }],
+    text: 'Every **4 refreshes**, Consume the **right-most** minion in the Shop.',
+    goldenText: 'Every **4 refreshes**, Consume the **right-most** minion in the Shop and gain **double** its stats.',
+  },
+  {
+    // The tribe capstone: a Choose One splitting the two halves of the tribe — Feast is the Consume line,
+    // Legion is the Imp line. Gilded doubles whichever you picked.
+    id: 'dm_malphas',
+    name: 'Malphas, Lord of Want',
+    tribe: 'demon',
+    tier: 7,
+    attack: 10,
+    health: 6,
+    keywords: [],
+    // Both halves are PRINTED effects gated on `option`, not `chooseOne[].effects`. A Choose One's option
+    // effects fire ONCE at pick time (they're battlecries), which works for Elderhorn's permanent grants but
+    // not for a persistent trigger — Feast has to fire every End of Turn and Legion on every Imp attack. The
+    // pick is recorded per-instance as `chosenOption` and already rides into combat, so each printed effect
+    // simply checks which branch this body became.
+    effects: [
+      { on: 'endOfTurn', do: 'endOfTurnEndDemonsConsumeSides', params: { count: 2, option: 0 } },
+      { on: 'onAttack', do: 'onImpAttackSummonCopy', params: { count: 1, option: 1 } },
+    ],
+    // No flavour names on the options (owner 2026-07-25) — see the note on Elderhorn. `option: 0` is still Feast
+    // and `option: 1` still Legion in the gates above; only the printed wording changed.
+    chooseOne: [
+      { text: '**End of Turn:** your left and right-most Demons each Consume the **2** Shop minions on their side.',
+        goldenText: '**End of Turn:** your left and right-most Demons each Consume the **4** Shop minions on their side.',
+        effects: [] },
+      { text: 'When an **Imp** attacks, summon a copy if you have room.',
+        goldenText: 'When an **Imp** attacks, summon **2** copies if you have room.',
+        effects: [] },
+    ],
+    text: '**Choose One:** your end Demons Consume the Shop at **End of Turn**, or an attacking **Imp** summons a copy.',
+  },
+];

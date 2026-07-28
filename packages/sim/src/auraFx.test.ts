@@ -101,4 +101,31 @@ describe('projectEndOfTurnSteps per-beat FX capture', () => {
     const all = fx.flatMap((f) => f.buffFx);
     expect(all.some((e) => e.sourceCardId === 'hunter' && e.sourceUid === 'hu' && e.targetUid === 'st')).toBe(true);
   });
+
+  it('hand grants are attributed to the beat that produced them, one card each', () => {
+    // Two Hoard Whelps, each granting a random Tier-1 card at End of Turn. `faceOmen` commits both in one
+    // dispatch, so the per-beat attribution is the only way the recruit screen can land each card's arrival
+    // on its own pulse (owner ask 2026-07-27).
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [card('a', 'hoardwhelp', 'dragon', 3, 2), card('b', 'hoardwhelp', 'dragon', 3, 2)],
+    };
+    const { fx } = projectEndOfTurnSteps(s);
+    expect(fx.length).toBe(2);                       // one beat per Whelp
+    expect(fx[0]!.handGrants.length).toBe(1);        // …and one grant on each, not both on the last
+    expect(fx[1]!.handGrants.length).toBe(1);
+    // The projection must agree with what the real commit puts in hand (same clone, same rng state).
+    const after = reduce(s, { type: 'faceOmen' });
+    expect(after.hand.map((c) => c.cardId).sort())
+      .toEqual([...fx[0]!.handGrants, ...fx[1]!.handGrants].sort());
+  });
+
+  it('a beat that grants nothing carries an empty handGrants', () => {
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [card('sk', 'skybound', 'dragon', 5, 4), card('st', 'stray', 'beast')],
+    };
+    const { fx } = projectEndOfTurnSteps(s);
+    expect(fx.every((f) => f.handGrants.length === 0)).toBe(true);
+  });
 });

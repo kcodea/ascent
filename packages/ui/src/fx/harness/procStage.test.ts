@@ -35,4 +35,18 @@ describe('sandbagBoard', () => {
   it('stamps the wave it was built for', () => {
     expect(sandbagBoard(7, { count: 1, hp: 1, attack: 1 }).wave).toBe(7);
   });
+
+  // `clamp` has a dedicated non-finite branch, and it must fall to the LOW bound: a NaN that resolved to
+  // the maximum would silently stage 7 sandbags at 9999 HP and a fight that never ends.
+  it('falls to the low bound for non-finite input', () => {
+    const b = sandbagBoard(1, { count: Number.NaN, hp: Number.POSITIVE_INFINITY, attack: Number.NaN });
+    expect(b.minions).toHaveLength(1);
+    expect(b.minions[0].health).toBe(1);
+    expect(b.minions[0].attack).toBe(0);
+  });
+
+  it('reports power for the board it actually built', () => {
+    const b = sandbagBoard(1, { count: 3, hp: 20, attack: 2 });
+    expect(b.power).toBe(60); // mirrors SceneBuilder's hp * n — see the note on `power` in procStage.ts
+  });
 });

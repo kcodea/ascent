@@ -1,10 +1,23 @@
-import { useCallback, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  createContext, useCallback, useContext, useRef, useState,
+  type CSSProperties, type PointerEvent as ReactPointerEvent,
+} from 'react';
+
+/**
+ * Lets a floating DEV panel close itself. DevMenu (which owns the open/closed set) provides `close`; every panel
+ * gets a ✕ button + click-outside-to-close for free through `useDraggablePanel`, keyed by its panel id.
+ */
+export const DevPanelContext = createContext<{ close: (key: string) => void }>({ close: () => { /* no-op */ } });
 
 /**
  * Drag-by-header + resize for the floating DEV panels (SFX mixer, Lunge tuner). Position (left/top) is
  * React-controlled via the returned `panelStyle` (set on header drag); size is left to the browser's native
  * CSS `resize: both` and only *recorded* (never re-applied by React), so the two never fight. Both persist to
  * `localStorage['ascent.devpanel.<key>']` and restore when the panel re-opens.
+ *
+ * Also injects a top-right ✕ close button into every panel and tags its root `data-devpanel="<key>"` so the
+ * shared click-outside handler (DevMenu) can tell a click landed inside SOME panel. Both go through this hook so
+ * every tuner gets them with no per-panel wiring — the panel just needs `ref={panelRef}` on its root.
  *
  * Usage: `const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('sfx');` then
  *   `<div className="sfxmix" ref={panelRef} style={panelStyle}>`
@@ -17,6 +30,10 @@ export function useDraggablePanel(key: string): {
   headerPointerDown: (e: ReactPointerEvent) => void;
   panelStyle: CSSProperties;
 } {
+  const { close } = useContext(DevPanelContext);
+  const closeRef = useRef(close);
+  closeRef.current = close;
+
   const storageKey = `ascent.devpanel.${key}`;
   const read = useCallback((): Saved => {
     try { return (JSON.parse(localStorage.getItem(storageKey) ?? 'null') as Saved | null) ?? {}; } catch { return {}; }
@@ -43,6 +60,22 @@ export function useDraggablePanel(key: string): {
     roRef.current?.disconnect();
     roRef.current = null;
     if (!el) return;
+    // Tag the root so the shared click-outside handler can detect clicks inside ANY dev panel, and inject a
+    // top-right ✕ close button once (idempotent). Done imperatively here so every tuner gets it via the hook
+    // alone — no per-panel JSX. The button is appended as a trailing child (outside React's fiber tree, so
+    // reconciliation leaves it alone) and rides along when React removes the root on close.
+    el.dataset.devpanel = key;
+    if (!el.querySelector(':scope > .devpanel-close')) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'devpanel-close';
+      btn.title = 'Close panel';
+      btn.setAttribute('aria-label', 'Close panel');
+      btn.textContent = '✕';
+      btn.addEventListener('pointerdown', (ev) => ev.stopPropagation()); // don't start a header drag
+      btn.addEventListener('click', () => closeRef.current(key));
+      el.appendChild(btn);
+    }
     const s = read();
     if (s.width) el.style.width = `${s.width}px`;     // restore size imperatively → native CSS resize owns it
     if (s.height) el.style.height = `${s.height}px`;  //   afterward, with no React style fighting the grip
@@ -51,7 +84,7 @@ export function useDraggablePanel(key: string): {
       ro.observe(el);
       roRef.current = ro;
     }
-  }, [read, write]);
+  }, [read, write, key]);
 
   const headerPointerDown = useCallback((e: ReactPointerEvent): void => {
     if (e.button !== 0) return;

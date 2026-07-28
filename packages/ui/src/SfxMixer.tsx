@@ -109,7 +109,7 @@ export function SfxMixer() {
       {/* Categories — grouped by bus; each: vertical fader, typed number, ▶, bus reassign, name. gain 0..1 */}
       <div className="desk-cats">
         {BUS_NAMES.map((b) => (
-          <div className="cat-group" key={b}>
+          <div className={`cat-group bus-${b}`} key={b}>
             <div className={`cat-group-h bus-${b}`}>{b}</div>
             <div className="cat-strips">
               {catsByBus(b).map(([cat, c]) => (

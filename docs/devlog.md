@@ -4,6 +4,16 @@
 
 ## 2026-07-27 (UI hover sound)
 
+### feat(ui): dev panels — ✕ close button + click-outside-to-close; Mixing Desk section colours
+
+- **Every dev tuner** now gets a top-right **✕ close button** and **click-outside-to-close**, wired once in the
+  shared `useDraggablePanel` hook (+ a `DevPanelContext` from `DevMenu`) — no per-tuner edits. The hook tags each
+  panel root `data-devpanel` and injects the ✕ (imperative trailing child); `DevMenu` provides `close(key)` and a
+  single `pointerdown` listener that closes all open panels when the click lands outside every panel and the dev
+  menu. Covers all ~45 tuners + any future one automatically.
+- **Mixing Desk:** each bus section (ui / combat / voice / hero) is now tinted + left-accented in **its own
+  category colour** (the colour of its label), and the category/bus **labels are much larger** (9px → 17px).
+
 ### feat(ui): Mixing Desk — every fader gets a typed numeric field (read + edit exact values)
 
 The desk's per-category faders showed no value and nothing was typeable, so setting a precise level (e.g. an

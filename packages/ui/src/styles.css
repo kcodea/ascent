@@ -4130,6 +4130,13 @@ svg { width: 18px; height: 18px; }
 .desk-h.drag { cursor: move; user-select: none; touch-action: none; }
 .desk-h span { font-size: 10px; font-weight: 700; color: #8a7f6d; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 8px; }
 
+/* ✕ close button injected into every dev panel (top-right) by useDraggablePanel. */
+.devpanel-close { position: absolute; top: 5px; right: 6px; z-index: 20; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;
+  background: rgba(0,0,0,0.4); color: #d8ccbb; border: 1px solid #5a4f40; border-radius: 6px;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 800; cursor: pointer; }
+.devpanel-close:hover { color: #ffd9a8; border-color: #ff8a3c; background: rgba(0,0,0,0.62); }
+
 /* the top row of channel strips (master + buses) */
 .console { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 4px; flex: none; }
 .strip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px 6px;
@@ -4182,11 +4189,16 @@ svg { width: 18px; height: 18px; }
 /* categories — grouped by bus, each a mini vertical strip; horizontally scrollable */
 /* Bus groups are STACKED VERTICALLY — each bus (ui / combat / voice / hero) is its own row, its sound
    strips wrapping across the available width; the whole area scrolls vertically. */
-.desk-cats { display: flex; flex-direction: column; gap: 10px; overflow: auto; align-items: stretch;
+.desk-cats { display: flex; flex-direction: column; gap: 12px; overflow: auto; align-items: stretch;
   padding-bottom: 6px; border-top: 1px solid #33302a; padding-top: 8px; flex: 1 1 auto; min-height: 130px; }
-.cat-group { display: flex; flex-direction: column; gap: 6px; }
-.cat-group:not(:last-child) { border-bottom: 1px solid #2a2723; padding-bottom: 9px; }
-.cat-group-h { color: var(--acc); align-self: flex-start; }
+/* Each bus section is tinted + accented in its own category colour (the same colour as its label). */
+.cat-group { display: flex; flex-direction: column; gap: 8px; border-left: 4px solid var(--acc, #555);
+  background: color-mix(in srgb, var(--acc, #888) 11%, transparent); border-radius: 9px; padding: 9px 11px; }
+.cat-group.bus-ui { --acc: var(--ui); } .cat-group.bus-combat { --acc: var(--combat); }
+.cat-group.bus-voice { --acc: var(--voice); } .cat-group.bus-hero { --acc: var(--hero); }
+/* Category / bus label — much larger, in its own colour. */
+.cat-group-h { color: var(--acc); align-self: flex-start; font-size: 17px; font-weight: 800;
+  letter-spacing: 0.03em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
 .cat-group-h.bus-ui { --acc: var(--ui); } .cat-group-h.bus-combat { --acc: var(--combat); }
 .cat-group-h.bus-voice { --acc: var(--voice); } .cat-group-h.bus-hero { --acc: var(--hero); }
 .cat-strips { display: flex; flex-wrap: wrap; gap: 10px; }

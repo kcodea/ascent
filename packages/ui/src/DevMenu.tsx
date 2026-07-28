@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { DevPanelContext } from './useDraggablePanel';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
@@ -117,6 +118,23 @@ export function DevMenu() {
       return next;
     });
 
+  // Close one panel (its ✕ button, via context) — no-op if already closed.
+  const close = useCallback((key: string): void =>
+    setShown((s) => { if (!s.has(key)) return s; const n = new Set(s); n.delete(key); return n; }), []);
+
+  // Click-outside-to-close: a pointerdown that lands in neither an open panel (`[data-devpanel]`) nor the dev
+  // menu itself closes every open panel at once. Only active while something is open.
+  useEffect(() => {
+    if (shown.size === 0) return;
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as Element | null;
+      if (t?.closest('[data-devpanel], .devmenu, .devmenu-btn')) return;
+      setShown(new Set());
+    };
+    window.addEventListener('pointerdown', onDown);
+    return () => window.removeEventListener('pointerdown', onDown);
+  }, [shown]);
+
   return (
     <>
       <button className="devmenu-btn" onClick={() => setOpen((o) => !o)} title="Dev tuning menu">🛠️</button>
@@ -142,7 +160,9 @@ export function DevMenu() {
           </div>
         </div>
       )}
-      {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}
+      <DevPanelContext.Provider value={{ close }}>
+        {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}
+      </DevPanelContext.Provider>
     </>
   );
 }

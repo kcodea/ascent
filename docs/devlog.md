@@ -1,5 +1,81 @@
 # ASCENT — development log
 
+## 2026-07-28 — the proc harness: replay any moment a card caused
+
+**What changed.** Phase ② of live FX authoring. Pick a card, stage a controlled fight against tunable
+sandbags, get the list of moments that card actually caused, and jump the replay to any one of them with a
+run-up — on the real board, at real scale, as many times as you like. Reached from the FX workbench's new
+**Watch in combat** rail mode, which collapses the editor to one column so the fight plays in the space it
+vacates.
+
+Four pieces. `fx/harness/procScan.ts` is pure: it inverts the uid→cardId map the replay already builds
+(reading BOTH starting rosters and every `summon`, so a token's moments aren't dropped), compiles the
+moments, and keeps the ones whose acting unit belongs to the card. An `attack` is attributed to its attacker
+and a `dmg` to nobody — attributing damage would credit the moment to the unit that was hit. Each row carries
+what `bindingFor` says would play, including `null`, so "no effect here yet" is visible rather than something
+you discover by watching nothing happen. `fx/harness/procStage.ts` is the pure half of SceneBuilder's
+`setEnemies`, extracted so the clamping rules are testable. `ProcHarness.tsx` is the rail panel.
+
+**Seeking, and why it's safe.** `useCombatReplay`'s fresh-combat effect already cleared fourteen pieces of
+transient per-beat state and killed stray GSAP tweens; that body became `resetTo(index)`, the effect calls
+`resetTo(0)`, and the hook exports a clamped `seekTo`. The board needs no repair on a jump because
+`computeFrame` rebuilds from `initial` on *every* call rather than folding from the previous frame — that
+property is now pinned by `computeFrame.purity.test.ts`, written and committed **before** the extraction.
+Optimising `computeFrame` into an incremental update is a reasonable-looking change that would break seeking
+silently; now it's a red build.
+
+**Four defects review caught, all of the same family — a fix that relocated a failure rather than removing
+it.** (1) `resetTo` kills GSAP tweens, and killing a live timeline re-renders it and fires its `.add()`
+callbacks — including `ctx.advance()`. Queued after an absolute `setBeatIdx(index)`, that landed every seek
+one beat late whenever it interrupted a wind-up. Killing *first* puts the functional update ahead of the
+absolute one, so the absolute value wins. (2) `seekTo` on the beat you were already sitting on did nothing:
+React bails out of an identical `setState`, so no cue effect re-ran while `resetTo` still cleared the floats
+and pulses — the board wiped and sat there. That is the harness's primary workflow. A `seekNonce`, threaded
+into all six `beatIdx`-keyed effects (found by enumerating what `resetTo` clears, not by judgement), fixes
+it. (3) Staging restored Resolve so a lost fight couldn't end the run — but never reset `phase`, so once
+Resolve *had* hit zero the reducer's terminal-phase guard silently swallowed every subsequent dispatch and
+the panel rescanned the stale previous fight. (4) A genuinely open Discover or Choose-One blocks `faceOmen`
+the same way; the Stage button now disables itself and says which modal to close.
+
+**The one that mattered most: `scanProcs` and the replay were indexing different lists.** `scanProcs`
+compiled moments from the raw event log; the replay compiles from
+`deferAvengeAfterSummons(deferClashBuffs(events))`. Both transforms reorder events, which moves
+`compileMoments`'s grouping boundaries — so a `ProcMoment.index` could address a different moment than
+`beats[index]`, and clicking a row would seek to an unrelated beat. Not hypothetical: `deferClashBuffs`
+exists for inline clash buffs, which is the Target Dummy self-buff case, and `self-buff-gold` is one of only
+two effects currently bound — the harness would have been wrong about one of the two things it exists to
+show. Fixed by extracting `choreo/replayOrder.ts` and having **both** the replay and the scan call it, so
+they cannot drift apart again. The regression test was verified by reverting the fix and confirming it fails
+(`expected 6 to be less than 6`) before restoring it.
+
+**Two design premises turned out to be wrong, and were corrected during implementation rather than shipped.**
+The spec claimed the workbench pauses combat via `overlayOpen` and that rail mode would need an exemption —
+it doesn't; `overlayOpen` never included the workbench, whose open state lives in local `DevMenu` state. And
+the plan expected `seekTo` to reach the workbench as a prop; that is impossible, because `DevMenu` renders
+the workbench as a *sibling* of `Recruit`, so no ancestor sees the replay. It goes through a DEV-only
+`window.__fxSeek` handle instead, matching the existing `__pixiFx` / `__perfHud` pattern.
+
+**Also found: a served board's `tier` is not inert.** `simulate.ts` computes loss damage as
+`enemyState.tier + Σ(surviving enemy minion tiers)`, and the sandbag board uses `tier: 7` — so a lost harness
+fight costs ~11 Resolve out of ~30, and three of them would end a sandbox run. Staging restores Resolve for
+exactly that reason. The wave is deliberately *not* wound back: wave-keyed systems (Runeforge offers at 6/7/9,
+Second Hand's every-third-wave grant) would re-fire on each re-crossing, which is a worse and less predictable
+disruption than the ~17-stage ceiling it would remove.
+
+**How it was verified.** `procScan` and `procStage` have real unit tests; `seekTo` cannot be unit-tested (no
+jsdom in this repo) so it is covered by the `computeFrame` purity suite plus a full manual browser pass: rail
+mode narrows and the board stays reachable through the transparent root, the harness's controls respond,
+a staged fight animates (745 rAF frames over an 8s window, 194 distinct card layouts, card count falling 7→4
+as units died), rows seek, and a same-row re-seek genuinely replays. Full gate green.
+
+**Follow-ups.** Phase ③ — the authoring panel with a "commit animation" button offering card-only or global
+scope — is now unblocked. Also open: `questDelta` is in `useCombatReplay`'s returned object but not on its
+`CombatReplay` interface (pre-existing, invisible because `typecheck:web` is red on `main` anyway);
+`SceneBuilder.setEnemies` still duplicates `sandbagBoard`'s board-building and the two could drift; rail mode
+costs 640px of width, which is tight below ~1400px; and the harness stages sandbags only, so a final
+look-check against a real pooled opponent stays manual.
+
+
 ## 2026-07-28 — an end-to-end guide for the FX workbench, and the arc can be turned off
 
 **`docs/fx-workbench-guide.md`.** The workbench had a request-loop doc (`fx-requests.md`, the brief → build →

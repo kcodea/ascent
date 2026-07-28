@@ -21,11 +21,9 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Live FX authoring, phase ② — the proc harness.** Scan a run combat's event log for the moments a chosen
-  card caused, and replay any one of them on demand, so an effect can be watched on the real card at real
-  scale. Phase ① (bindings as data) shipped 2026-07-27.
 - **Live FX authoring, phase ③ — the authoring panel.** Tie ① and ② together: pick a card, tune its effect
-  against a live replay, and commit with a choice of card-only or global scope.
+  against a live replay, and commit with a choice of card-only or global scope. Phase ① (bindings as data)
+  shipped 2026-07-27; phase ② (the proc harness) shipped 2026-07-28.
 
 ### FX authoring loop (owner test run — 2026-07-26)
 The FX workbench is built; the next step is authoring a real effect through it end to end.
@@ -450,6 +448,9 @@ effects (the `.dr` collapse hold can trail them) — tune live against the skull
 - **Close the `apps/web` typecheck gap.** `fxDefsPlugin.ts` and `vite.config.ts` are in no TS program;
   `npm run typecheck:web` is red on `main` and not in CI. Needs a node-side tsconfig wired into the gated
   `typecheck` script, plus a pass over the ~66 pre-existing `packages/ui` errors.
+- **`CombatReplay.questDelta` is returned but not declared.** `useCombatReplay` returns `questDelta` in its
+  object while the `CombatReplay` interface omits it — a real mismatch, invisible because `typecheck:web` is
+  red on `main` and absent from CI. Fix alongside the wider `apps/web` typecheck gap.
 
 ### Tech-debt watch (fold into whichever PR touches it)
 Split `Recruit.tsx` (~2.7k — proposed seams: `recruitViews` / `useCardDrag` / `useAuraTracker` /

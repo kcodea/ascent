@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Replay any moment a card caused.** Stage a controlled fight, pick from the list of moments your card
+  actually produced, and jump the replay to any of them with a run-up — so an authored effect can be judged
+  on the real card at real scale, on demand, instead of by playing until its moment happens to occur.
 - **A guide for driving the FX workbench**, end to end — author, stage, tune, save, bind, verify in a real
   fight. See [`docs/fx-workbench-guide.md`](docs/fx-workbench-guide.md).
 - **A travelling effect can fly straight.** The arc's bow was a hardcoded constant nothing could reach; it is
@@ -71,12 +74,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   blob — Save writes a committed def you can load, duplicate as a template, and share by pushing a branch,
   with autosave so a hot-reload can't eat a tuning session. The whole workbench tree-shakes out of the
   production build. See the [devlog](docs/devlog.md).
-- **Four stuck visual cues fixed** — the Karwind flame, the hero-power refresh flash, the damage float on
-  the Resolve chip, and screen shake could all latch on permanently.
 - **The hand glides open and closed** when you buy or play a card, instead of cards blinking to new spots.
 - **Shout minions no longer flash when you reorder cards past them.**
-- **End-of-turn cards hand you their reward on their own beat** — each pulse now lands its card as it
-  fires, instead of the whole turn's batch appearing at once after every pulse was over.
 - **Cards granted in combat arrive twice as fast** — the beat spacing between an effect's pulse, its card
   coalescing into hand, and the next pulse is halved.
 - **Ryme triggering Field Mechanic now shows you the Patch Job during the fight** — the card was always

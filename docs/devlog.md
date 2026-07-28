@@ -15,11 +15,12 @@ reassignments; buses/limiter unchanged.
 
 ### feat(ui): dev panels — ✕ close button + click-outside-to-close; Mixing Desk section colours
 
-- **Every dev tuner** now gets a top-right **✕ close button** and **click-outside-to-close**, wired once in the
-  shared `useDraggablePanel` hook (+ a `DevPanelContext` from `DevMenu`) — no per-tuner edits. The hook tags each
-  panel root `data-devpanel` and injects the ✕ (imperative trailing child); `DevMenu` provides `close(key)` and a
-  single `pointerdown` listener that closes all open panels when the click lands outside every panel and the dev
-  menu. Covers all ~45 tuners + any future one automatically.
+- **Every dev tuner** now gets a top-right **✕ close button**, wired once in the shared `useDraggablePanel` hook
+  (+ a `DevPanelContext` from `DevMenu`) — no per-tuner edits; the hook injects the ✕ as an imperative trailing
+  child and `DevMenu` provides `close(key)`. Covers all ~45 tuners + any future one automatically. A panel closes
+  **only** via its ✕ (a click outside a panel does not dismiss it).
+- **Click-outside closes the Dev Tuning dropdown itself** (the 🛠️ list) — a pointerdown outside the menu + its
+  toggle collapses the list; open tuner panels are untouched.
 - **Mixing Desk:** each bus section (ui / combat / voice / hero) is now tinted + left-accented in **its own
   category colour** (the colour of its label), and the category/bus **labels are much larger** (9px → 17px).
 

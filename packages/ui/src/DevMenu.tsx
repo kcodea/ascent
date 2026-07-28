@@ -118,22 +118,23 @@ export function DevMenu() {
       return next;
     });
 
-  // Close one panel (its ✕ button, via context) — no-op if already closed.
+  // Close one tuner panel — invoked by that panel's ✕ button (via DevPanelContext). No-op if already closed.
+  // Individual panels close ONLY via their ✕; a click outside them does NOT dismiss them.
   const close = useCallback((key: string): void =>
     setShown((s) => { if (!s.has(key)) return s; const n = new Set(s); n.delete(key); return n; }), []);
 
-  // Click-outside-to-close: a pointerdown that lands in neither an open panel (`[data-devpanel]`) nor the dev
-  // menu itself closes every open panel at once. Only active while something is open.
+  // Click-outside closes the DEV TUNING DROPDOWN itself (not the tuner panels): a pointerdown outside the menu
+  // and its 🛠️ toggle collapses the list. Only active while the dropdown is open.
   useEffect(() => {
-    if (shown.size === 0) return;
+    if (!open) return;
     const onDown = (e: PointerEvent): void => {
       const t = e.target as Element | null;
-      if (t?.closest('[data-devpanel], .devmenu, .devmenu-btn')) return;
-      setShown(new Set());
+      if (t?.closest('.devmenu, .devmenu-btn')) return;
+      setOpen(false);
     };
     window.addEventListener('pointerdown', onDown);
     return () => window.removeEventListener('pointerdown', onDown);
-  }, [shown]);
+  }, [open]);
 
   return (
     <>

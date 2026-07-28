@@ -67,14 +67,31 @@ describe('scanProcs', () => {
     expect(scanProcs(combat, 'bloodbinder').some((p) => p.kind === 'attackExchange')).toBe(false);
   });
 
-  // The index is what `seekTo` consumes — if it isn't a valid index into the compiled moments the
-  // harness seeks to the wrong beat, or throws.
-  it('returns indices that are real positions in the compiled moment list', async () => {
+  // The index is what `seekTo` consumes, so it must be an index into the MOMENT list, not into the event
+  // log. Those two domains coincide whenever every event is its own moment, which makes an off-by-domain
+  // bug invisible — so this fixture deliberately collapses several events into one moment, making the
+  // moment index strictly smaller than the event index it came from.
+  it('returns indices into the moment list, not into the event log', async () => {
     const { compileMoments } = await import('../../choreo/compile');
-    const total = compileMoments(events).length;
-    for (const p of scanProcs(combat, 'bloodbinder')) {
+    const collapsing = [
+      { type: 'attack', attacker: 'p1', defender: 'e1', step: 1 },
+      { type: 'dmg', target: 'e1', amount: 1, step: 1 },
+      { type: 'dmg', target: 'p1', amount: 1, step: 1 },
+      { type: 'sc', source: 'p1', text: 'bleeds', cast: true, step: 2 },
+    ] as unknown as CombatEvent[];
+    const c = combatOf([snap('p1', 'bloodbinder')], [snap('e1', 'sandbag')], collapsing);
+    const moments = compileMoments(collapsing);
+    // Guard the fixture itself: if grouping ever changes so nothing collapses, this test silently stops
+    // testing what it claims, exactly like the version it replaces.
+    expect(moments.length).toBeLessThan(collapsing.length);
+
+    const procs = scanProcs(c, 'bloodbinder');
+    expect(procs.length).toBeGreaterThan(0);
+    for (const p of procs) {
       expect(p.index).toBeGreaterThanOrEqual(0);
-      expect(p.index).toBeLessThan(total);
+      expect(p.index).toBeLessThan(moments.length);
+      // The moment at this index must be the one whose actor really is our card.
+      expect(actingUid(moments[p.index].primary)).toBe(p.sourceUid);
     }
   });
 

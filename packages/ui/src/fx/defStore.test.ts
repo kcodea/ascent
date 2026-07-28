@@ -441,3 +441,48 @@ describe('session autosave', () => {
     expect(() => clearSession()).not.toThrow();
   });
 });
+
+/**
+ * The travel arc's bow. This one gets its own block because `0` is a MEANINGFUL value here — it is the
+ * straight-line laser the field exists to make expressible — so every "is it set?" check in this path has to
+ * be `!== null` rather than truthy. A truthiness bug would look exactly like the control doing nothing.
+ */
+describe('coerceDef — layer bow', () => {
+  const withBow = (bow: unknown): unknown =>
+    coerceDef({
+      duration: 100,
+      layers: [{ primitive: 'test-prim', anchor: 'travel', at: 0, bow, params: {} }],
+    })?.layers[0].bow;
+
+  it('keeps an explicit 0 — the straight line must survive coercion', () => {
+    expect(withBow(0)).toBe(0);
+  });
+
+  it('keeps ordinary and negative bows', () => {
+    expect(withBow(0.5)).toBe(0.5);
+    expect(withBow(-0.4)).toBe(-0.4);
+  });
+
+  it('clamps an out-of-range bow instead of rejecting it', () => {
+    expect(withBow(50)).toBe(1);
+    expect(withBow(-50)).toBe(-1);
+  });
+
+  // A junk value must become an OMISSION (→ the default arc), never a 0 — falling back to a laser nobody
+  // asked for would silently restyle an effect on a hand-edit typo.
+  it('drops a junk bow so the default arc applies', () => {
+    expect(withBow('straight')).toBeUndefined();
+    expect(withBow(Number.NaN)).toBeUndefined();
+    expect(withBow(null)).toBeUndefined();
+    expect(withBow(undefined)).toBeUndefined();
+  });
+
+  // Every def written before this field existed must keep the arc it was authored with.
+  it('leaves bow absent when the layer never mentioned it', () => {
+    const def = coerceDef({
+      duration: 100,
+      layers: [{ primitive: 'test-prim', anchor: 'travel', at: 0, params: {} }],
+    });
+    expect(def?.layers[0]).not.toHaveProperty('bow');
+  });
+});

@@ -177,6 +177,19 @@ export function setLayerTravel(layers: EditorLayer[], index: number, travelMs: n
   });
 }
 
+/** Set the travel arc's bow for the layer at `index` (see `FxLayer.bow`). `null` OMITS the field — "use the
+ *  default arc" — which is NOT the same as `0`, the explicit straight line. Keeping those distinct is the
+ *  whole point of the field, so this must never collapse one into the other. Returns a NEW array. */
+export function setLayerBow(layers: EditorLayer[], index: number, bow: number | null): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    const next = { ...l };
+    if (bow === null) delete next.bow;
+    else next.bow = bow;
+    return next;
+  });
+}
+
 /** Set the mute flag of the layer at `index`. Returns a NEW array. `false` is stored as an ABSENT `muted`
  *  rather than `muted: false`, so an untouched composition serialises byte-for-byte as it did before mute
  *  existed. */

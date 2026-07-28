@@ -21,6 +21,17 @@ export interface FxLayer {
    * burst timed to the arrival goes off, which is the "arrive, drain, detonate" shape.
    */
   travelMs?: number;
+  /**
+   * `travel`-anchored layers only: how far the arc bows perpendicular to the source→target line, as a
+   * fraction of the span. Omitted = `TRAVEL_BOW` (0.28), which is what every def looked like before this
+   * existed.
+   *
+   * **`0` is a dead-straight line** — a laser, a bolt, a thrown spear. The arc was hardcoded because a bowed
+   * trail is what makes an effect whip between two units, and that is the right default; but it was a
+   * module-private constant with no way to reach it, so "travels in a straight line" was simply not
+   * expressible. Negative bows the other way (the arc mirrors across the line).
+   */
+  bow?: number;
   params: Record<string, unknown>;
 }
 

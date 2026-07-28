@@ -11,8 +11,14 @@ export type FxAnchors = Partial<Record<Exclude<FxAnchorId, 'travel'>, FxPoint>>;
 const ORIGIN: FxPoint = { x: 0, y: 0 };
 
 /** Default perpendicular bow for a `travel` anchor. A straight line reads as a laser; the arc is what
- *  makes a trail whip between two units. */
-const TRAVEL_BOW = 0.28;
+ *  makes a trail whip between two units — so this stays the default, and a layer that wants the laser sets
+ *  `bow: 0` explicitly (see `FxLayer.bow`). Exported so the inspector can show what "default" means rather
+ *  than hardcoding 0.28 a second time. */
+export const TRAVEL_BOW = 0.28;
+
+/** How far a layer's `bow` may be pushed either way. Past ±1 the control point is further from the line than
+ *  the two anchors are from each other and the arc stops reading as a path between them. */
+export const BOW_LIMIT = 1;
 
 /** Quadratic arc between two anchors. `bow` is the perpendicular offset as a fraction of the span. */
 export function pointOnTravel(a: FxPoint, b: FxPoint, t: number, bow: number): FxPoint {
@@ -55,6 +61,9 @@ export interface FxAnchoredLayer {
   life?: number | null;
   /** Overrides `life` as the travel window — see `FxLayer.travelMs`. */
   travelMs?: number | null;
+  /** Perpendicular bow of the `travel` arc; `0` is a straight line — see `FxLayer.bow`. Absent (or null)
+   *  means the default `TRAVEL_BOW`, so every existing caller and test fake keeps the arc it had. */
+  bow?: number | null;
 }
 
 /** The composition clock `driveLayerHeads` needs to resolve per-layer travel. */
@@ -129,7 +138,12 @@ export function driveLayerHeads(
     // per-layer travel existed. `progress` still drives a scenario's custom `head` path, which is
     // deliberately composition-wide — it describes where the EFFECT is going, not any one layer.
     const travelAt = clock !== null ? layerTravelProgress(layer, clock.timeMs, clock.durationMs) : progress;
-    const pt = head !== null && anchor === 'travel' ? head : resolveAnchor(anchors, anchor, travelAt);
+    // `layer.bow ?? TRAVEL_BOW` and not `|| ` — a bow of literally 0 is the whole point of the field (a
+    // dead-straight laser), and `||` would swallow it back into the default arc.
+    const pt =
+      head !== null && anchor === 'travel'
+        ? head
+        : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW);
     sink.setHead(i, pt.x, pt.y);
   }
 }

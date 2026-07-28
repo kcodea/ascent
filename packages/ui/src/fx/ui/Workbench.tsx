@@ -3,7 +3,7 @@ import { Container } from 'pixi.js';
 import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, hasPrimitives, listPrimitives } from '../registry';
-import { driveLayerHeads, type FxAnchors, type FxPoint } from '../anchors';
+import { BOW_LIMIT, driveLayerHeads, TRAVEL_BOW, type FxAnchors, type FxPoint } from '../anchors';
 import { playDef } from '../playDef';
 import { invalidateBoardAnchors } from '../boardAnchors';
 import type { FxAnchorId } from '../def';
@@ -39,6 +39,7 @@ import {
   moveLayer,
   removeLayer,
   setLayerAnchor,
+  setLayerBow,
   setLayerMuted,
   setLayerName,
   setLayerParam,
@@ -901,6 +902,17 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   };
 
   /**
+   * How far the travel arc bows off the source→target line. `null` omits the field (the default arc); `0` is
+   * an explicit dead-straight line, which is the reason the control exists — the bow used to be a hardcoded
+   * constant with no way to reach it, so "travels in a straight line" simply could not be authored (owner
+   * report 2026-07-27).
+   */
+  const changeLayerBow = (bow: number | null): void => {
+    record('timing', `${selected}:bow`);
+    commitLayers(setLayerBow(layersRef.current, selected, bow));
+  };
+
+  /**
    * Retime ANY layer by index — what the timeline drags need, since a drag can grab a bar that isn't the
    * selected one. `changeLayerTiming` is this with `selected` baked in, for the sliders.
    *
@@ -1486,6 +1498,32 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
                   />
                   <span className="fxwb-val">{selLayer.travelMs} ms</span>
                 </>
+              )}
+              {/* The arc's bow. Pinned at 0 this is a laser — a bolt, a beam, a thrown spear — which was
+                  simply not authorable before: the bow was a module-private constant. The slider reads 0 as
+                  "Straight" rather than a bare number, because that is the value people come here for. */}
+              <label htmlFor="fxwb-layer-bow" title="How far the arc bows off the straight source→target line. 0 = a dead-straight laser; negative bows the other way.">
+                Arc
+              </label>
+              <input
+                id="fxwb-layer-bow"
+                type="range"
+                min={-BOW_LIMIT}
+                max={BOW_LIMIT}
+                step={0.02}
+                value={selLayer.bow ?? TRAVEL_BOW}
+                onChange={(e) => changeLayerBow(Number(e.target.value))}
+              />
+              <span className="fxwb-val">
+                {(selLayer.bow ?? TRAVEL_BOW) === 0 ? 'Straight' : (selLayer.bow ?? TRAVEL_BOW).toFixed(2)}
+              </span>
+              {/* An explicit way back to the authored default, since dragging a float slider onto exactly
+                  0.28 by hand is luck. Hidden while the layer is already on the default, so it never reads
+                  as an action with no effect. */}
+              {selLayer.bow !== undefined && (
+                <button className="fxwb-btn fxwb-timing-full" onClick={() => changeLayerBow(null)}>
+                  Reset arc to default
+                </button>
               )}
             </>
           )}

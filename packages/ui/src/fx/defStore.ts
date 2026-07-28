@@ -1,3 +1,4 @@
+import { BOW_LIMIT } from './anchors';
 import type { FxAnchorId, FxLayer } from './def';
 import { coerceParams } from './params';
 import { getPrimitive } from './registry';
@@ -146,6 +147,12 @@ function coerceLayer(raw: unknown): StoredFxLayer | null {
   // zero-length arc (which would park the head at the target from frame one).
   const travelMs = finite(raw.travelMs);
   if (travelMs !== null && travelMs > 0) layer.travelMs = travelMs;
+  // The travel arc's bow. Unlike every other optional field here, `0` is MEANINGFUL — it is the straight
+  // line the field exists to make expressible — so the guard is `!== null`, never a truthiness check, and a
+  // junk value falls back to the default arc rather than to a laser nobody asked for. Clamped rather than
+  // rejected: a hand-edited 50 is a typo, not an instruction to fling the head off-screen.
+  const bow = finite(raw.bow);
+  if (bow !== null) layer.bow = Math.max(-BOW_LIMIT, Math.min(BOW_LIMIT, bow));
   // Authoring state, kept ONLY when it is literally `true` — anything else (absent, false, 'yes', 1) means
   // "not muted", which is the default and must serialise as an omission.
   if (raw.muted === true) layer.muted = true;

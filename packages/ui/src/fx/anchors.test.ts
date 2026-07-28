@@ -5,6 +5,7 @@ import {
   layerTravelProgress,
   pointOnTravel,
   resolveAnchor,
+  TRAVEL_BOW,
   type FxAnchors,
   type FxHeadSink,
 } from './anchors';
@@ -237,5 +238,42 @@ describe('driveLayerHeads with a composition clock', () => {
       durationMs: 800,
     });
     expect(sink.heads[0]).toEqual({ index: 0, x: 100, y: 0 });
+  });
+});
+
+// ── per-layer bow: the straight-line laser ──────────────────────────────────────────────────────────────
+describe('per-layer bow', () => {
+  // THE case the field exists for. With source (0,0) → target (100,0), a straight line puts the halfway
+  // point exactly on the line at (50, 0); the default arc pushes it off. If `bow: 0` were ever swallowed by
+  // a truthiness check it would silently fall back to the arc, which is the one failure mode that would look
+  // like "the control does nothing".
+  it('bow 0 is a dead-straight line, and the default is not', () => {
+    const straight = pointOnTravel(ANCHORS.source!, ANCHORS.target!, 0.5, 0);
+    expect(straight).toEqual({ x: 50, y: 0 });
+    const arced = pointOnTravel(ANCHORS.source!, ANCHORS.target!, 0.5, TRAVEL_BOW);
+    expect(arced.y).not.toBe(0);
+  });
+
+  it('a negative bow mirrors the arc across the line', () => {
+    const up = pointOnTravel(ANCHORS.source!, ANCHORS.target!, 0.5, 0.4);
+    const down = pointOnTravel(ANCHORS.source!, ANCHORS.target!, 0.5, -0.4);
+    expect(up.y).toBeCloseTo(-down.y, 10);
+    expect(up.x).toBeCloseTo(down.x, 10);
+  });
+
+  // Both ends are anchors, so bow can only ever move the middle — an effect must still start and land on
+  // its units whatever the author does to the curve.
+  it('never moves the endpoints, at any bow', () => {
+    for (const bow of [-1, -0.28, 0, 0.28, 1]) {
+      expect(pointOnTravel(ANCHORS.source!, ANCHORS.target!, 0, bow), `bow ${bow}`).toEqual({ x: 0, y: 0 });
+      expect(pointOnTravel(ANCHORS.source!, ANCHORS.target!, 1, bow), `bow ${bow}`).toEqual({ x: 100, y: 0 });
+    }
+  });
+
+  it('driveLayerHeads honours a layer bow of 0 instead of the default arc', () => {
+    const sink = fakeSink();
+    driveLayerHeads(sink, [{ anchor: 'travel', bow: 0 }, { anchor: 'travel' }], ANCHORS, 0.5);
+    expect(sink.heads[0]).toEqual({ index: 0, x: 50, y: 0 }); // straight
+    expect(sink.heads[1].y).not.toBe(0);                       // default arc, untouched
   });
 });

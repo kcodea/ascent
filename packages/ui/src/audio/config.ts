@@ -16,16 +16,17 @@ export interface AudioConfig {
 }
 
 /** Per-category gains — the owner's by-ear mix, exported from the dev SFX desk and pasted here as the shipped
- *  defaults (2026-07-15; `cleave` retuned 0.4 → 0.27 → 0.11 on 2026-07-21). `buff` is a synth-only cue so its gain is
- *  inert (see buildCategories) but kept to match the exported config. */
+ *  defaults (2026-07-15; `cleave` retuned 0.4 → 0.27 → 0.11 on 2026-07-21; whole-mix rebalance on 2026-07-28
+ *  alongside masterGain → 0.61). `buff` is a synth-only cue so its gain is inert (see buildCategories) but kept
+ *  to match the exported config. */
 export const CATEGORY_GAINS: Record<string, number> = {
-  buy: 0.5, sell: 0.27, smack: 0.29, crit: 0.44, attack: 0.1875, death: 0.54, shield: 0.45, triple: 0.47, cast: 0.5, maxgold: 0.22, cardlanding: 0.33, castspell: 0.68, discover: 0.5, taunt: 0.3,
-  reorder: 0.225, deny: 0.5, freeze: 0.31, unfreeze: 0.35, pulse: 0.5, triggerpulse: 0.21, triggerglow: 0.5,
-  clickthock: 0.39, cardtouch: 0.27, divineshieldbreak: 0.21, rebornshatter: 0.16, rebornsummon: 0.28,
+  buy: 0.5, sell: 0.27, smack: 0.33, crit: 0.34, attack: 0.29, death: 0.26, shield: 0.37, triple: 0.47, cast: 0.5, maxgold: 0.22, cardlanding: 0.33, castspell: 0.68, discover: 0.5, taunt: 0.3,
+  reorder: 0.225, deny: 0.5, freeze: 0.31, unfreeze: 0.35, pulse: 0.5, triggerpulse: 0.21, triggerglow: 0.45,
+  clickthock: 0.39, cardtouch: 0.27, divineshieldbreak: 0.29, rebornshatter: 0.24, rebornsummon: 0.24,
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
-  cardEffect: 0.18, cardDeath: 0.18, heroSelect: 0.5, heroPower: 0.5, summon: 0.24, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
+  cardEffect: 0.18, cardDeath: 0.18, heroSelect: 0.5, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
-  uihover: 0.09,
+  uihover: 0.08,
 };
 
 /** Which bus each category feeds (seeded default; reassignable live in the desk). */
@@ -56,7 +57,7 @@ function buildCategories(): Record<string, CategoryConfig> {
 }
 
 export const DEFAULT_AUDIO_CONFIG: AudioConfig = {
-  masterGain: 0.8,
+  masterGain: 0.61,
   master: { threshold: -6, knee: 0, ratio: 20, attack: 0.001, release: 0.25 },
   buses: { ui: { gain: 1, comp: null }, combat: { gain: 1, comp: null }, voice: { gain: 1, comp: null }, hero: { gain: 1, comp: null } },
   categories: buildCategories(),

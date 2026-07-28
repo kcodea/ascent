@@ -4,6 +4,15 @@
 
 ## 2026-07-27 (UI hover sound)
 
+### chore(audio): whole-mix rebalance (owner by-ear export) + masterGain 0.8 → 0.61
+
+Baked the owner's latest Mixing-Desk export into `DEFAULT_AUDIO_CONFIG`. `masterGain` drops `0.8 → 0.61`
+(whole output quieter) and the per-category gains were rebalanced against that new headroom — notably
+`smack 0.29→0.33`, `crit 0.44→0.34`, `attack 0.1875→0.29` (supersedes the #500 wind-up cut, now louder relative
+to a quieter master), `death 0.54→0.26`, `shield 0.45→0.37`, `triggerglow 0.5→0.45`, `divineshieldbreak
+0.21→0.29`, `rebornshatter 0.16→0.24`, `rebornsummon 0.28→0.24`, `summon 0.24→0.2`, `uihover 0.09→0.08`. No bus
+reassignments; buses/limiter unchanged.
+
 ### feat(ui): dev panels — ✕ close button + click-outside-to-close; Mixing Desk section colours
 
 - **Every dev tuner** now gets a top-right **✕ close button** and **click-outside-to-close**, wired once in the

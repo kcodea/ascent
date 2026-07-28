@@ -5315,7 +5315,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    opt back into pointer-events so they stay clickable. Sits above every tuner panel/DevMenu (z200/201) but
    below the boot screens (z9999+). */
 .fxwb { position: fixed; inset: 0; z-index: 500; pointer-events: none; font-family: var(--font-ui); color: #d9d3ea; }
-.fxwb-top, .fxwb-transport, .fxwb-side { pointer-events: auto; }
+/* `.fxlib` is in this list because the browse overlay renders INSIDE the `.fxwb` root and so inherits its
+   `pointer-events: none`. Without it the overlay paints normally and is completely inert — every row, the
+   search box and its own Close button all dead, with no way out of the screen (owner report 2026-07-27).
+   It reads as a frozen UI rather than a CSS problem, which is why it survived review: nothing about the
+   markup or the component looks wrong, and no test can see it. */
+.fxwb-top, .fxwb-transport, .fxwb-side, .fxlib { pointer-events: auto; }
 /* ONE source for the rail's width. It was hardcoded twice — on `.fxwb-side` and again as the transport
    bar's `right` offset — which have to agree exactly or the transport slides under the rail (or leaves a
    gap). Widened from 288px: at that width the param rows had ~150px of slider left after the label and

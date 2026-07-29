@@ -459,6 +459,20 @@ export function buffImpsRunWide(state: RunState, a: number, h: number, source: s
  * on the board / in the hand. `source` labels the buff in the inspect breakdown. Mirrors the Cling Drone
  * enchant (`improveClingDrones`) but with an explicit source + separate atk/hp.
  */
+/**
+ * The run-wide per-cardId enchant riding on this minion — Spear Warden's "+3/+2 to all Spear Wardens", and any
+ * other `buffCardTypeRunWide` accrual. Conceptually an AURA: it belongs to the card TYPE for the rest of the
+ * run, not to this instance, and every copy (including ones bought later) carries it.
+ *
+ * It is baked into `card.attack`/`card.health` for display and combat, which is what makes it invisible to a
+ * spell that SETS stats — see `spellSetStats` / `spellAverageStats`, where overwriting the total silently ate
+ * the aura and the minion came out weaker than an unbuffed copy.
+ */
+export function runWideAuraOf(state: RunState, card: BoardCard): { attack: number; health: number } {
+  const a = state.cardBuffs?.[card.cardId];
+  return { attack: a?.attack ?? 0, health: a?.health ?? 0 };
+}
+
 export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, h: number, source: string): void {
   state.cardBuffs ??= {};
   const cur = (state.cardBuffs[cardId] ??= { attack: 0, health: 0 });
@@ -3221,10 +3235,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Perfect Vision — cast: SET the target's stats to a/h (absolute, not additive). Records the delta as a
    *  tracked buff so the inspect breakdown shows it and the stats land exactly at a/h. No spell-power scaling
    *  (it's a set, not a grant); a repeat cast (Yazzus) is a harmless no-op once the target is already there. */
-  spellSetStats: (_ctx, self, params) => {
+  spellSetStats: (ctx, self, params) => {
     const a = num(params.attack, 20);
     const h = num(params.health, 20);
-    addBuff(self, str(params._source) || 'Perfect Vision', a - self.attack, h - self.health);
+    // AURAS SURVIVE A SET (owner ruling 2026-07-29). A stat-setting spell writes the minion's TRUE stats; the
+    // run-wide card-type enchant then re-applies on top. So Perfect Vision on a Spear Warden showing 20/20
+    // (3/3 of its own, +17/17 from the aura) sets true stats to 20/20 and the aura lifts it to 37/37 — it does
+    // not overwrite the accrual and leave the minion at 20/20, which made the spell a DOWNGRADE on exactly the
+    // minions it should reward.
+    const aura = runWideAuraOf(ctx.state, self);
+    addBuff(self, str(params._source) || 'Perfect Vision', (a + aura.attack) - self.attack, (h + aura.health) - self.health);
   },
 
   /** Common Ground — cast with TWO friendly targets (the second is `self`; the first is stashed on
@@ -3233,10 +3253,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellAverageStats: (ctx, self) => {
     const first = ctx.state.board.find((c) => c.uid === ctx.state.pendingTarget?.spellFirstUid);
     if (!first || first.uid === self.uid) return;
+    // The average is taken over DISPLAYED stats (aura included — that is what the player reads on the card),
+    // and the result is written as each minion's TRUE stats, with its own aura re-applied on top. Worked
+    // example from the owner: a Spear Warden showing 20/20 averaged with a 1/1 gives 10/10 true, and the
+    // Warden's +17/17 aura puts it back to 27/27 while the other minion sits at 10/10.
     const avgA = Math.round((first.attack + self.attack) / 2);
     const avgH = Math.round((first.health + self.health) / 2);
-    addBuff(first, 'Common Ground', avgA - first.attack, avgH - first.health);
-    addBuff(self, 'Common Ground', avgA - self.attack, avgH - self.health);
+    const auraFirst = runWideAuraOf(ctx.state, first);
+    const auraSelf = runWideAuraOf(ctx.state, self);
+    addBuff(first, 'Common Ground', (avgA + auraFirst.attack) - first.attack, (avgH + auraFirst.health) - first.health);
+    addBuff(self, 'Common Ground', (avgA + auraSelf.attack) - self.attack, (avgH + auraSelf.health) - self.health);
   },
 
   /** Turnabout — cast: swap the target's Attack and Health. Applied as a delta buff (like `spellSetStats`) so

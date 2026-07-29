@@ -463,3 +463,77 @@ describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
     expect([heldAfter.attack, heldAfter.health]).toEqual([2, 1]); // held Ruby grew
   });
 });
+
+describe('run-wide card-type auras survive stat-setting spells (owner ruling 2026-07-29)', () => {
+  /**
+   * A `buffCardTypeRunWide` accrual (Spear Warden's "+X/+X to all Spear Wardens") belongs to the CARD TYPE for
+   * the rest of the run, and it is baked into the instance's displayed stats. A spell that SETS stats used to
+   * overwrite that total, silently eating the accrual — so casting Perfect Vision on a heavily-buffed Warden
+   * made it WEAKER than an unbuffed copy. The rule: the spell writes TRUE stats, the aura re-applies on top.
+   */
+  const wardenWithAura = (auraAtk: number, auraHp: number, trueAtk = 3, trueHp = 3): RunState => {
+    const warden: BoardCard = {
+      uid: 'w', cardId: 'knit', tribe: 'undead',
+      attack: trueAtk + auraAtk, health: trueHp + auraHp, // displayed = true + aura, as the run bakes it
+      keywords: [], golden: false,
+      buffs: [{ source: 'Spear Warden', attack: auraAtk, health: auraHp, count: 1 }],
+    };
+    return { ...createRun(1), board: [warden], cardBuffs: { knit: { attack: auraAtk, health: auraHp } } };
+  };
+
+  it("Perfect Vision on a 20/20 aura'd Spear Warden leaves it at 37/37, not 20/20", () => {
+    // The owner's worked example: 3/3 of its own + 17/17 aura reads as 20/20; Perfect Vision sets TRUE stats
+    // to 20/20, then the aura lifts it to 37/37.
+    let s = wardenWithAura(17, 17);
+    const pv = CARD_INDEX['perfectvision']!;
+    s.hand = [{ uid: 'pv', cardId: pv.id, tribe: pv.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'pv', targetUid: 'w' });
+    const w = s.board.find((c) => c.uid === 'w')!;
+    expect(w.attack, 'the aura was eaten by the set').toBe(37);
+    expect(w.health).toBe(37);
+  });
+
+  it('Common Ground averages DISPLAYED stats, then re-applies each aura', () => {
+    // Warden shows 20/20 (3/3 + 17/17), partner is a 1/1 with no aura. Average is 10/10 (rounded 10.5 → 11
+    // for the raw average of 21; the assertion pins whatever the shared rounding produces, plus the aura).
+    let s = wardenWithAura(17, 17);
+    const partner: BoardCard = { uid: 'p', cardId: 'impscrap', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false };
+    s = { ...s, board: [...s.board, partner] };
+    const cg = CARD_INDEX['commonground']!;
+    s.hand = [{ uid: 'cg', cardId: cg.id, tribe: cg.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'cg', targetUid: 'w' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'p' });
+    const w = s.board.find((c) => c.uid === 'w')!;
+    const p = s.board.find((c) => c.uid === 'p')!;
+    const avg = Math.round((20 + 1) / 2);
+    expect(p.attack, 'the un-aura’d partner should sit at the plain average').toBe(avg);
+    expect(w.attack, 'the Warden should be the average PLUS its aura').toBe(avg + 17);
+  });
+
+  it('a minion with no run-wide aura is unaffected by the rule', () => {
+    // Guard against the fix leaking a phantom bonus onto ordinary minions.
+    let s: RunState = { ...createRun(1), board: [{ uid: 'm', cardId: 'impscrap', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false }] };
+    const pv = CARD_INDEX['perfectvision']!;
+    s.hand = [{ uid: 'pv', cardId: pv.id, tribe: pv.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'pv', targetUid: 'm' });
+    expect(s.board.find((c) => c.uid === 'm')!.attack).toBe(20);
+  });
+});
+
+describe('Funeral on Loan keeps an unplayed borrowed card (owner 2026-07-29)', () => {
+  it('a borrowed card survives end of turn and is still playable later', () => {
+    // It used to be filtered out of hand at turn end, so Discovering an Echo minion you could not use that
+    // turn simply destroyed it. The loan has no deadline now — only playing it consumes it.
+    const borrowed: BoardCard = { uid: 'b', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false, borrowed: true };
+    let s: RunState = { ...createRun(1), board: [], hand: [borrowed] };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'settleCombat' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.some((c) => c.uid === 'b'), 'the borrowed card was discarded at turn end').toBe(true);
+    expect(s.hand.find((c) => c.uid === 'b')!.borrowed, 'it should still be a loan').toBe(true);
+    // …and playing it on this later turn still triggers the Echo and consumes it.
+    s = reduce(s, { type: 'play', uid: 'b', targetUid: undefined });
+    expect(s.hand.some((c) => c.uid === 'b')).toBe(false);
+    expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2);
+  });
+});

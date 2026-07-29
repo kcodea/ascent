@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-07-29 — Two gameplay fixes: Funeral on Loan, and auras eaten by stat-setting spells
+
+**Funeral on Loan no longer destroys an unplayed card.** `settleCombat` filtered every `borrowed` card out of
+hand at turn end, so Discovering an Echo minion you couldn't fit that turn simply deleted it. The loan has no
+deadline now — the card keeps its `borrowed` flag and playing it on ANY later turn still triggers the Echo and
+consumes it. Card text drops "this turn" to match (live-text rule).
+
+**Run-wide card-type auras survive stat-setting spells.** A `buffCardTypeRunWide` accrual (Spear Warden's
+"+3/+2 to all Spear Wardens") belongs to the card TYPE for the rest of the run and is baked into the
+instance's displayed stats. `spellSetStats` (Perfect Vision) and `spellAverageStats` (Common Ground) wrote an
+absolute TOTAL, which overwrote the accrual — so casting Perfect Vision on a heavily-buffed Warden made it
+*weaker than an unbuffed copy*, the exact opposite of the intent.
+
+Owner ruling: **the aura is read for effects that relate to a minion's stats, but a spell adjusts the minion's
+TRUE stats and the aura then applies on top.** Worked examples, both now pinned by tests:
+
+- Spear Warden showing 20/20 (3/3 own + 17/17 aura) + Perfect Vision → true stats set to 20/20, aura re-applies
+  → **37/37**.
+- That same Warden + Common Ground with a 1/1 → average of the DISPLAYED stats (what the player reads) becomes
+  each minion's true stats, so the partner sits at the plain average and the Warden gets its +17/17 back.
+
+New shared helper `runWideAuraOf(state, card)` lives next to `buffCardTypeRunWide`, which maintains the table
+it reads. A third test guards the other direction: a minion with no run-wide aura is unaffected, so the fix
+can't leak a phantom bonus onto ordinary minions.
+
+**Deliberately NOT changed: Turnabout** (`spellSwapStats`). Under a symmetric aura the two readings coincide
+(swap-the-displayed and swap-the-true-then-reapply give the same numbers), they differ only for an asymmetric
+aura, and a swap is stat-neutral by design — so it isn't the reported class of bug. Flagged for the owner.
+
+**Verified.** typecheck, lint (0 errors), 2945 tests / 154 files (4 new), build:web, harness (determinism ✓).
+
 ## 2026-07-29 — Panel 5 + wider macro funnel: 4.63 vs human boards
 
 Two knobs re-tested now that the fight panel is real boards: `fightPanelSize` 2→5 (accuracy per node beats

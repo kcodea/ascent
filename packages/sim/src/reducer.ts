@@ -2334,7 +2334,10 @@ function advanceCombat(s: RunState): void {
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
-  if (s.hand.some((c) => c.borrowed)) s.hand = s.hand.filter((c) => !c.borrowed); // Funeral on Loan: unplayed borrowed cards are returned at turn end
+  // Funeral on Loan: a borrowed card that wasn't played STAYS IN HAND (owner 2026-07-29). It used to be
+  // discarded here, which meant Discovering an Echo minion you couldn't afford to use this turn simply
+  // destroyed the card. It keeps its `borrowed` flag, so playing it on any later turn still triggers the Echo
+  // and destroys it — the loan just has no deadline.
   if (s.scoutedNextOpponent) s.scoutedNextOpponent = undefined; // Farseer's Report: the scout is for one opponent — clear it as a new one is drawn
   for (const c of s.board) c.rubyRecvTick = 0; // Ruby Broker's per-turn Gold cap resets each wave
   s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave

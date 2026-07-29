@@ -176,7 +176,7 @@ export interface BoardCard {
    *  discovered) — the "can't play until next turn" lock. Same contract as `lockedUntilTier`, on the wave meter. */
   lockedUntilWave?: number;
   /** Funeral on Loan: a BORROWED minion. Playing it triggers its Echo (Deathrattle) out of combat and destroys
-   *  it (never enters the board). Any unplayed borrowed card is discarded at turn end. */
+   *  it (never enters the board). It is NOT discarded at turn end — it keeps in hand until played. */
   borrowed?: boolean;
   /** Ritualist: the accrued +A/+H its escalating End-of-Turn buff currently grants (grows by its `step` each
    *  trigger). Per-instance; drives `buffFodderImpsImproving`. Default/absent = 0. */

@@ -1,13 +1,21 @@
 /**
  * The preset table: which archetypes exist, what each starts from, and the shared variant axes.
  *
- * Hand-rolled validation rather than a schema library — the `ui` package has no zod, and
- * `choreo/bindings.ts` set the precedent for parsing a small authored JSON file this way.
+ * Hand-rolled validation rather than a schema library — the `ui` package has no zod, following
+ * `choreo/bindings.ts`. Unlike that file, this one THROWS rather than dropping bad entries: a
+ * half-loaded gallery would present a silently incomplete menu, whereas a dropped binding is
+ * recoverable. Both are DEV-only surfaces authored by hand.
  */
 
 /** Keys that must never be used to index into an object we then assign to: `out['__proto__'] = x` invokes
  *  the inherited prototype setter. Same guard, same reason, as `choreo/bindings.ts`. */
 export const UNSAFE_KEYS: readonly string[] = ['__proto__', 'constructor', 'prototype'];
+
+/** True for a plain object we can safely index into — excludes `null` and arrays. Copied from
+ *  `choreo/bindings.ts`'s `isRecord`, which established this exact narrowing for the same reason. */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
 
 /** Slider param name → multiplier. Applied to every layer that has that slider param. */
 export type VariantTransform = Record<string, number>;
@@ -46,7 +54,7 @@ function str(v: unknown, what: string): string {
 }
 
 function numberMap(raw: unknown, what: string): Record<string, number> {
-  if (raw === null || typeof raw !== 'object') throw new Error(`preset table: ${what} must be an object`);
+  if (!isRecord(raw)) throw new Error(`preset table: ${what} must be an object`);
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (UNSAFE_KEYS.includes(k)) throw new Error(`preset table: ${what} uses reserved key '${k}'`);
@@ -59,27 +67,41 @@ function numberMap(raw: unknown, what: string): Record<string, number> {
 }
 
 export function parsePresetTable(raw: unknown): PresetTable {
-  if (raw === null || typeof raw !== 'object') throw new Error('preset table: not an object');
-  const t = raw as Record<string, unknown>;
+  if (!isRecord(raw)) throw new Error('preset table: not an object');
+  const t = raw;
 
-  const axes: VariantAxis[] = (Array.isArray(t.variantAxes) ? t.variantAxes : []).map((a) => {
-    const o = a as Record<string, unknown>;
+  if (t.variantAxes !== undefined && !Array.isArray(t.variantAxes)) {
+    throw new Error('preset table: variantAxes must be an array');
+  }
+  const axes: VariantAxis[] = (Array.isArray(t.variantAxes) ? t.variantAxes : []).map((a, i) => {
+    if (!isRecord(a)) throw new Error(`preset table: variantAxes[${i}] must be an object`);
+    const o = a;
     return {
-      id: str(o.id, 'axis id'),
+      id: str(o.id, `variantAxes[${i}] id`),
       label: str(o.label, `axis '${String(o.id)}' label`),
       transform: numberMap(o.transform, `axis '${String(o.id)}' transform`),
     };
   });
   const axisIds = new Set(axes.map((a) => a.id));
-  if (axisIds.size !== axes.length) throw new Error('preset table: duplicate variant axis id');
+  if (axisIds.size !== axes.length) {
+    const dupe = axes.map((a) => a.id).find((id, i) => axes.findIndex((a2) => a2.id === id) !== i);
+    throw new Error(`preset table: duplicate variant axis id '${dupe}'`);
+  }
 
+  if (t.archetypes !== undefined && !Array.isArray(t.archetypes)) {
+    throw new Error('preset table: archetypes must be an array');
+  }
   const seen = new Set<string>();
-  const archetypes: PresetArchetype[] = (Array.isArray(t.archetypes) ? t.archetypes : []).map((a) => {
-    const o = a as Record<string, unknown>;
-    const id = str(o.id, 'archetype id');
+  const archetypes: PresetArchetype[] = (Array.isArray(t.archetypes) ? t.archetypes : []).map((a, i) => {
+    if (!isRecord(a)) throw new Error(`preset table: archetypes[${i}] must be an object`);
+    const o = a;
+    const id = str(o.id, `archetypes[${i}] id`);
     if (seen.has(id)) throw new Error(`preset table: duplicate archetype id '${id}'`);
     seen.add(id);
 
+    if (o.variants !== undefined && !Array.isArray(o.variants)) {
+      throw new Error(`preset table: archetype '${id}' variants must be an array`);
+    }
     const variants = (Array.isArray(o.variants) ? o.variants : []).map((v) => str(v, `archetype '${id}' variant`));
     for (const v of variants) {
       if (!axisIds.has(v)) throw new Error(`preset table: archetype '${id}' names undeclared axis '${v}'`);
@@ -87,7 +109,8 @@ export function parsePresetTable(raw: unknown): PresetTable {
 
     const overrides: Record<string, VariantOverride> = {};
     if (o.overrides !== undefined) {
-      for (const [k, v] of Object.entries(o.overrides as Record<string, unknown>)) {
+      if (!isRecord(o.overrides)) throw new Error(`preset table: archetype '${id}' overrides must be an object`);
+      for (const [k, v] of Object.entries(o.overrides)) {
         if (UNSAFE_KEYS.includes(k)) throw new Error(`preset table: archetype '${id}' override uses reserved key '${k}'`);
         if (!axisIds.has(k)) throw new Error(`preset table: archetype '${id}' overrides undeclared axis '${k}'`);
         overrides[k] = numberMap(v, `archetype '${id}' override '${k}'`);

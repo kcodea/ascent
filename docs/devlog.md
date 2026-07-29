@@ -580,6 +580,43 @@ their coalesce on arrival in hand rather than losing the effect entirely (the re
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### 2026-07-27 — fix(core/sim/ui): Sprout's missing spell cast, Grimoire→Karwind, Rise/Avenge, Anubis, end-turn lock
+
+Four engine fixes from the owner's batch. Two were much wider than the reports suggested.
+
+**Sprout — every Discover spell counted as no spell at all.** The reducer's `discoverOnPlay` branch queues the
+Discover and RETURNS before reaching `castSpell`, so Sprout, Help Wanted, Tribe Portal, Corpse Board, Beyond
+the Summit and Rift-Sunk Codex never incremented `spellsCast`, never fed a quest tally, and never fired a
+single `spellCast` watcher. It surfaced as "Sprout doesn't trigger Runebloom Matriarch or Groveweaver"; it was
+every spell-counting card in the game ignoring a whole class of spells. Extracted `castSpell`'s bookkeeping
+into `noteSpellCast` and called it from both paths — once per cast, so a multiplied Discover counts each time.
+
+**Living Grimoire procced Karwind.** Its `onPlay` (`battlecryArmGrimoire`) is internal setup with no printed
+Shout, but `hasBattlecry` is a bare "has an onPlay" test, so playing it fired `battlecryTriggered`. Added
+`SILENT_ONPLAY` in core, applied in both packages so Karwind's trigger, Ryme's re-fire target, Rune of
+Bartering and the "get a Shout minion" pools all agree. A sweep of every `onPlay` card confirmed Grimoire is
+the only one whose text carries no Shout keyword.
+
+**Rise now counts as a death** (owner ruling 2026-07-27, reversing 2026-07-02/07-06): Avenge, the enemy-death
+tally and friendly-death quests all see it.
+
+*Two traps here.* Tallying BEFORE the rattle double-fired it — `playerEchoExtras` sizes Echo re-procs off the
+death count, so a Spear Warden came back 9/5 instead of 6/3. And broadcasting `onDeath` on the bus ALSO
+double-fires: `registerEffect` subscribes every minion's effects by event, so the emit re-runs the dying body's
+own rattle that `fireOwnDeathrattles` just ran. The tally is in; the rune/quest on-death WATCHERS (Inheritance,
+Passing Spears) deliberately still don't see a Rise — flagged rather than shipped with a double-fire.
+
+**Anubis's Lantern is permanent now.** It used `addTribeAura` (combat-only) where the Watcher's Rally cast uses
+`grantUndeadAura` (carried back) — the same spell behaving differently depending on which card cast it.
+
+**End Turn is inert for 5s at the start of a recruit round**, so the second half of a double-click can't skip
+the new round. Re-arms per wave; never gates the in-combat "end combat" use of the same button.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1788 tests. Live-checked the lock (disabled
+at 0s and 3s, enabled after 5s). The Rise test asserts the death COUNT, not a downstream Avenge proc — my
+first version passed with the fix removed, because a risen body dies again for real and that second death
+always counted.
+
 ### 2026-07-27 — fix(core/sim): set 1 and set 2 were mixing in COMBAT
 
 Owner report: "I got a set 2 spell from Badgington's slaughter… we need to make sure our rules separate out

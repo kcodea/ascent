@@ -1025,16 +1025,31 @@ export function simulate(
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep(); // the rattle's effects are a separate resolution from the death itself
       fireOwnDeathrattles(minion);
+      // A Rise death is a REAL death (owner ruling 2026-07-27, reversing 2026-07-02/07-06): it counts for
+      // Avenge, the enemy-death tally, friendly-death quests and on-death watchers. The body genuinely leaves
+      // play before returning — "minions that die and then rise should still count as a death".
+      //
+      // Tallied AFTER the rattle, matching the regular death path.
+      //
+      // NOT broadcast on the bus, deliberately. `registerEffect` subscribes EVERY minion's effects to the bus
+      // by event, so `bus.emit('onDeath')` would re-fire the dying body's own Deathrattle on top of the
+      // `fireOwnDeathrattles` call above — measured: a Spear Warden returned 9/5 instead of 6/3, its
+      // Eternal-Knight enchant applied twice. The regular death path emits instead of calling
+      // `fireOwnDeathrattles`; a Rise does the opposite, and doing both is the bug. So a Rise now counts for
+      // Avenge, the enemy tally and friendly-death quests, while rune/quest on-death WATCHERS (Inheritance,
+      // Passing Spears) still don't see it — flagged to the owner rather than shipped with a double-fire.
+      if (minion.side === 'enemy') enemyDeaths++;
+      deaths[minion.side] += 1;
+      if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+      emitAvenge(minion.side, deaths[minion.side], minion);
       // Board cap gates the Rise (owner ruling 2026-07-02): the Deathrattle resolved FIRST — its summons can
       // take the last slots, since the dying body holds none — and if the side is at 7 living the minion does
       // NOT return: it stays dead for real, and NOW counts as a true death (Avenge + enemy tally). It already
       // emitted its (rise-flagged) death above, so we don't push a second one, and there's NO `onDeath`
       // broadcast (watchers treat Rise deaths as non-deaths; the rattle already fired, incl. Sylus re-procs).
       if (living(minion.side).length >= 7) {
-        if (minion.side === 'enemy') enemyDeaths++;
-        deaths[minion.side] += 1;
-        if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
-        emitAvenge(minion.side, deaths[minion.side], minion);
+        // The death was already tallied above (every Rise counts now), so this branch only has to stop the
+        // body returning — double-counting here would make a capped Rise worth two Avenge ticks.
         return;
       }
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back

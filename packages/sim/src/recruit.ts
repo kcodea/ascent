@@ -1,4 +1,4 @@
-import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
+import { makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
@@ -3523,7 +3523,10 @@ export function offerSpellDiscover(state: RunState): void {
 /** Whether a card has a Battlecry (an onPlay effect). Choose One is its OWN keyword, not a Battlecry —
  *  so it doesn't count for Drakko's quest or Help Wanted's Discover-a-Battlecry filter. */
 export function hasBattlecry(c: CardDef): boolean {
-  return c.effects.some((e) => e.on === 'onPlay');
+  // `SILENT_ONPLAY` excludes internal setup effects that carry no printed Shout (Living Grimoire's arming) —
+  // see the note on that set. Applied here so every consumer agrees: Karwind's trigger, Ryme's re-fire target,
+  // Rune of Bartering's discount and the "get a Shout minion" pools.
+  return c.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do));
 }
 
 /** Whether a card has a Deathrattle (an `onDeath` effect whose factory is a `deathrattle*`). Mirrors the
@@ -4694,6 +4697,27 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       state.embers += gain;
     }
   }
+  // …then the bookkeeping every cast owes the run, shared with the Discover-spell path in the reducer.
+  noteSpellCast(state, spellDef);
+}
+
+
+/**
+ * The bookkeeping every SPELL CAST owes the run, independent of what the spell actually does: the per-turn and
+ * lifetime tallies, first/last-spell memory, the Ruby+Spell umbrella meter, Grimoire's charge, the spell runes,
+ * and the board's `spellCast` watchers.
+ *
+ * Extracted from `castSpell` (owner report 2026-07-27: "Sprout doesn't trigger Runebloom Matriarch or
+ * Groveweaver"). A DISCOVER spell — Sprout, Help Wanted, Tribe Portal, Corpse Board, Beyond the Summit,
+ * Rift-Sunk Codex — resolves through `discoverOnPlay` in the reducer and RETURNS before ever reaching
+ * `castSpell`, so it counted as no spell at all: not for `spellsCast`, not for the quest tallies, and not for
+ * any `spellCast` watcher. It looked like two broken Beast cards; it was every spell-counting card in the game
+ * silently ignoring a whole class of spells.
+ *
+ * Call this from any path that resolves a spell WITHOUT running `effects[]`.
+ */
+export function noteSpellCast(state: RunState, spellDef: CardDef): void {
+  const ctx = makeContext(state);
   // Rune of Recurrence: remember the FIRST spell cast each turn (recast at End of Turn). Recorded before the
   // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
   // re-record (spellsThisTurn is nonzero by then).
@@ -5079,7 +5103,7 @@ export function playCard(state: RunState, played: BoardCard): void {
   if (taughtAimSpell(played)) return;
   // Drakko the Drummer makes Battlecries fire extra times; Warm Embers doubles the next few played Shouts.
   const repeats = playedShoutRepeats(state, def);
-  const hasBattlecry = def.effects.some((e) => e.on === 'onPlay');
+  const hasBattlecry = def.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do));
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];

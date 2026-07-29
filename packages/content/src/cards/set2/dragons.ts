@@ -177,7 +177,6 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'Get **2 plain copies** of the first Dragon you sell each turn.',
   },
   {
-    // The top-end recursion payoff: not a COPY to hand but an actual free re-cast, at End of Turn.
     id: 'd2_archivist',
     name: 'Runic Archivist',
     tribe: 'dragon',
@@ -185,9 +184,11 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
-    text: '**End of Turn:** cast the last **Shop spell** you cast this turn again.',
-    goldenText: '**End of Turn:** cast the last **Shop spell** you cast this turn **2 additional** times.',
+    // Owner rework 2026-07-27 — the recast moved to Water Dragon; the Archivist now pays for SELLING. The
+    // tally rides on the card (`soldProgress`) and carries round to round.
+    effects: [{ on: 'minionSold', do: 'minionSoldGrantSpell', params: { count: 5 } }],
+    text: 'After you sell **5 minions**, get a **Shop spell**.',
+    goldenText: 'After you sell **5 minions**, get **2 Shop spells**.',
   },
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.

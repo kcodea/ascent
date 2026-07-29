@@ -2582,6 +2582,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, [soldDef], num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Runic Archivist (owner rework 2026-07-27): every `count` minions you SELL, get a Shop spell.
+   *
+   *  The tally lives on the card (`soldProgress`) rather than on the run, because it's per-instance and because
+   *  the owner asked for it to CARRY ROUND TO ROUND — a per-turn counter would quietly reset the moment you
+   *  ended a turn mid-progress, which is exactly the case where a "sell 5" meter matters. Payouts consume the
+   *  threshold and keep the remainder, so selling 7 leaves you 2 into the next one. */
+  minionSoldGrantSpell: (ctx, self, params) => {
+    const every = Math.max(1, num(params.count, 5));
+    const progress = (self.soldProgress ?? 0) + 1;
+    self.soldProgress = progress % every;
+    if (progress < every) return;
+    const spells = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
+    conjureToHand(ctx.state, spells, Math.floor(progress / every) * gold(self));
+  },
+
   /** Set 2 — Mirrorwing Hatchling: the FIRST spell cast on this each turn casts again, on this.
    *  Guarded on `spellsOnThisTurn === 1` — the counter is bumped before this runs, so the re-cast below sees 2
    *  and stops. Without that guard the card recurses forever, since its own effect is another cast on itself. */

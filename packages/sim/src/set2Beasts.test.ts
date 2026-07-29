@@ -446,7 +446,7 @@ describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
   });
 });
 
-describe('set 2 — Denkeeper Oona (owner rework 2026-07-25)', () => {
+describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
   it('a summoned Beast gets +1/+1 and THEN doubles — order matters', () => {
     // Mama Pup's 1/1 Pups: +1/+1 → 2/2, then doubled → 4/4. If the doubling ran FIRST the Pup would be 3/3,
     // so this pins the printed order rather than merely "it got bigger".
@@ -468,6 +468,55 @@ describe('set 2 — Denkeeper Oona (owner rework 2026-07-25)', () => {
   it('does not touch a non-Beast summon', () => {
     const oona = CARD_INDEX['b2_oona']!;
     expect(oona.effects[0]!.params!.tribe).toBe('beast');
+  });
+
+  it('GILDED triples instead of doubling (owner 2026-07-27)', () => {
+    // Golden already doubles the flat grant (+2/+2). The rework is the second half: one extra copy of the
+    // minion's own stats per `mul`, so a golden Oona turns a 2/2 Pup into 3× rather than 2×. Read off the
+    // buff events: the flat grant is +2/+2, then the multiply must be +6/+6 (2× the post-grant 3/3), not +3/+3.
+    const r = simulate(
+      [{ cardId: 'b2_oona', attack: 4, health: 40, sourceUid: 'O', keywords: [], golden: true },
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const summoned = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
+      .filter((e) => e.minion.cardId === 'pup');
+    expect(summoned.length).toBeGreaterThan(0);
+    const uid = summoned[0]!.minion.uid;
+    const gained = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
+      .filter((b) => b.target === uid);
+    expect(gained.map((b) => [b.attack, b.health]), 'gilded should TRIPLE: +2/+2 then 2× the new 3/3')
+      .toEqual([[2, 2], [6, 6]]);
+  });
+});
+
+describe('set 2 — Menagerie Mammoth (owner rework 2026-07-27)', () => {
+  it('gives each summoned Beast +3 Attack, and the grant grows permanently', () => {
+    // Mama Pup dies and leaves Pups behind: the first gets +3, the next +4 — the escalation is the whole card,
+    // so asserting a single +3 would pass against a version that never improved.
+    const r = simulate(
+      [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 9999 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const grants = (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
+      .filter((b) => b.source === 'm0');
+    expect(grants.length, 'the Mammoth granted nothing').toBeGreaterThan(1);
+    expect(grants.every((g) => g.health === 0), 'the grant is Attack-only').toBe(true);
+    expect(grants.map((g) => g.attack).slice(0, 2)).toEqual([3, 4]);
+  });
+
+  it('…and the improved grant rides home on the summon-bonus carry-back', () => {
+    // "Permanently" is the load-bearing word: without `playerSummonBonus` the escalation would reset every
+    // round and the card would read as broken across turns.
+    const r = simulate(
+      [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 9999 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const carried = (r.playerSummonBonus ?? []).find((b) => b.sourceUid === 'M');
+    expect(carried, 'the Mammoth’s accrual never left combat').toBeTruthy();
+    expect(carried!.bonus).toBeGreaterThan(0);
   });
 });
 

@@ -162,18 +162,40 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
     expect(s.hand.filter((c) => c.cardId === 'emberpouch').length).toBe(0);
   });
 
-  it('Runic Archivist: End of Turn re-CASTS the first spell (a real cast, not a copy to hand)', () => {
+  it('Runic Archivist (owner rework 2026-07-27): every 5th minion SOLD hands you a Shop spell', () => {
+    // The recast moved to Water Dragon; the Archivist now pays for selling. Sell four — nothing — then the
+    // fifth pays. Asserting the four quiet sales matters: an off-by-one that paid on every sale, or on the
+    // first, would still look right if we only checked "after 5 sales the hand grew".
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
-      board: [minion('ra', 'd2_archivist', 'dragon', 6, 10), minion('t1', 'd2_ashscribe', 'dragon', 1, 3)],
-      hand: [spellInHand('s1', 'growth')],
+      board: [minion('ra', 'd2_archivist', 'dragon', 4, 7),
+              ...['a', 'b', 'c', 'd', 'e'].map((u) => minion(u, 'sandbag', 'beast', 1, 1))],
+      hand: [],
     };
-    s = reduce(s, { type: 'play', uid: 's1' });
-    const castsAfterPlay = s.spellsCast;
-    const handSize = s.hand.length;
-    s = reduce(s, { type: 'faceOmen' });
-    expect(s.spellsCast).toBeGreaterThan(castsAfterPlay); // it CAST again…
-    expect(s.hand.length).toBe(handSize); // …rather than adding a card to hand
+    for (const u of ['a', 'b', 'c', 'd']) {
+      s = reduce(s, { type: 'sell', uid: u });
+      expect(s.hand.length, `paid out early, after selling ${u}`).toBe(0);
+    }
+    s = reduce(s, { type: 'sell', uid: 'e' });
+    expect(s.hand.length, 'the 5th sale paid nothing').toBe(1);
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.spell, 'what it handed you was not a spell').toBe(true);
+  });
+
+  it('…and the sell tally CARRIES ROUND TO ROUND rather than resetting at end of turn', () => {
+    // The owner asked for this explicitly. A per-turn counter would look correct in the test above and quietly
+    // throw away partial progress the moment a turn ended — the exact case a "sell 5" meter is for.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [minion('ra', 'd2_archivist', 'dragon', 4, 7),
+              ...['a', 'b', 'c', 'd', 'e'].map((u) => minion(u, 'sandbag', 'beast', 1, 1))],
+      hand: [],
+    };
+    for (const u of ['a', 'b', 'c']) s = reduce(s, { type: 'sell', uid: u });
+    const carried = s.board.find((c) => c.cardId === 'd2_archivist')!.soldProgress;
+    expect(carried, 'three sales left no progress on the card').toBe(3);
+    s = reduce(s, { type: 'faceOmen' }); // end the turn
+    expect(s.board.find((c) => c.cardId === 'd2_archivist')!.soldProgress,
+      'the tally reset over the turn boundary').toBe(3);
   });
 
   it('Runic Archivist: no spell cast this turn → a clean no-op', () => {

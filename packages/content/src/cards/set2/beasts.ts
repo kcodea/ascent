@@ -119,7 +119,7 @@ export const SET2_BEASTS: CardDef[] = [
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
     ],
     text: 'When you summon a Beast in combat, give it **+1/+1**, then **double** its stats. **Avenge (4):** improve this.',
-    goldenText: 'When you summon a Beast in combat, give it **+2/+2**, then **double** its stats. **Avenge (4):** improve this.',
+    goldenText: 'When you summon a Beast in combat, give it **+2/+2**, then **triple** its stats. **Avenge (4):** improve this.',
   },
   {
     // Avenge that pays twice: a spell for the hand AND a lasting Beast Attack aura (later summons inherit it).
@@ -173,9 +173,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 6,
     health: 8,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonRandomTribe', params: { tribe: 'beast', count: 2 } }],
-    text: '**Echo:** summon **2 random Beasts**.',
-    goldenText: '**Echo:** summon **4 random Beasts**.',
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffImproveSelf', params: { tribe: 'beast', attack: 3, step: 1 } }],
+    text: 'When you summon a Beast in combat, give it **+3 Attack** and improve this **permanently**.',
+    goldenText: 'When you summon a Beast in combat, give it **+6 Attack** and improve this **permanently**.',
   },
   {
     // Reuses Solaris Fang's `avengeShieldAttack` verbatim — Ward + an immediate out-of-turn strike every 4

@@ -155,6 +155,7 @@ export type EffectFactoryId =
   | 'battlecryArmGrimoire' // Living Grimoire: Shout — charge the first-spell multiplier
   | 'onBattlecryRearmGrimoire' // Living Grimoire: every 3 Shouts, recharge it
   | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
+  | 'minionSoldGrantSpell'         // Set 2 — Runic Archivist: every N minions sold, get a Shop spell
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
   | 'onRubyPlayedSpreadAdjacent' // Runefire: a RUBY played on it also lands on adjacent Dragons
@@ -200,7 +201,10 @@ export type EffectFactoryId =
   | 'onBattlecryBuffTribeAlternating' // Set 2 — Roaring Matriarch: alternates Attack/Health each turn
   | 'endOfTurnAlternateMode' // …and the tick that flips it
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
-  | 'onSummonTribeBuffThenDouble' // Set 2 — Denkeeper Oona: a summoned Beast gets +1/+1, then doubles
+  | 'onSummonTribeBuffThenDouble' // Set 2 — King Oona: a summoned Beast gets +1/+1, then doubles (gilded: triples)
+  | 'onSummonTribeBuffImproveSelf' // Set 2 — Menagerie Mammoth: a summoned Beast gets +N Attack; the grant improves permanently
+  | 'deathrattleImpsOverflowGrant' // Set 2 — Legion Shepherd: Echo summon Imps; each overflow buffs your Imps everywhere
+  | 'scGrantRightmostEcho'         // Set 2 — Endless Overseer: graft an Imp-summoning Echo onto your right-most minion
   | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Grand Gourmand: eat the fattest Shop minion
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Hungerling: Rally buffs Shop minions permanently

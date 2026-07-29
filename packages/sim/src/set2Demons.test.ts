@@ -211,11 +211,20 @@ describe('set 2 — the Imp line (combat)', () => {
     expect(imps.length).toBe(1);
   });
 
-  it('Errand Fiend has Flurry, so its Rally makes TWO Imps per turn', () => {
-    const r = simulate([bm('dm_errand', 'E', 1, 40, ['W', 'RL'])], [{ cardId: 'sandbag', attack: 0, health: 300 }],
+  it('Errand Fiend (owner rework 2026-07-27): its ECHO summons a buffed Imp', () => {
+    // It used to be a Rally. The rework moved it to death, and the Imp now arrives at 2/3 rather than 1/1 —
+    // asserting the BUFF, not just the body, because `summonImps` ignored stat params until this change and a
+    // count-only assertion would pass against the un-buffed version.
+    const r = simulate([bm('dm_errand', 'E', 1, 1, ['W'])], [{ cardId: 'sandbag', attack: 50, health: 300 }],
       makeRng(3), CARD_INDEX, combatSide({ tier: 2 }), combatSide({ tier: 1 }));
     const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length).toBeGreaterThanOrEqual(2); // one per swing, two swings a turn
+    expect(imps.length).toBe(1);
+    // The base Imp is 1/1; +1/+2 lands as a buff right after the summon, so read the buff event.
+    const gift = r.events.find((e) => (e as { type: string; source?: string }).type === 'buff'
+      && (e as { source?: string }).source === 'm0');
+    expect(gift, 'the Imp got no buff — summonImps ignored its stat params').toBeTruthy();
+    expect((gift as { attack: number; health: number }).attack).toBe(1);
+    expect((gift as { attack: number; health: number }).health).toBe(2);
   });
 
   it('Broodwright buffs each Imp summoned', () => {
@@ -229,15 +238,27 @@ describe('set 2 — the Imp line (combat)', () => {
     expect(grants.length).toBeGreaterThan(0);
   });
 
-  it('Legion Shepherd fills the board and scales its buff with how many it made', () => {
-    const r = simulate([bm('dm_shepherd', 'S', 3, 40)], [{ cardId: 'sandbag', attack: 0, health: 300 }],
+  it('Legion Shepherd (owner rework 2026-07-27): Echo summons 4 Imps, and only OVERFLOW pays', () => {
+    // On an empty line all 4 fit, so there is no overflow and no buff. This is the control: without it, a test
+    // that only checks "a buff happened" on a full board can't tell the overflow gate from an unconditional one.
+    const r = simulate([bm('dm_shepherd', 'S', 3, 1)], [{ cardId: 'sandbag', attack: 50, health: 300 }],
       makeRng(3), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 1 }));
     const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length).toBeGreaterThan(3); // a lone Shepherd fills the line
-    // Each Imp is buffed by +N/+N where N = the number summoned, so the grant is bigger than 1.
-    const buffs = r.events.filter((e) => (e as { type: string; attack?: number }).type === 'buff'
-      && ((e as { attack?: number }).attack ?? 0) > 1);
-    expect(buffs.length).toBeGreaterThan(0);
+    expect(imps.length).toBe(4);
+    expect(r.events.filter((e) => (e as { type: string; source?: string }).type === 'buff'
+      && (e as { source?: string }).source === 'm0'), 'nothing overflowed, so nothing should be granted').toEqual([]);
+  });
+
+  it('…and a FULL board converts the bodies it can’t fit into a permanent Imp-wide buff', () => {
+    // Six filler bodies + the Shepherd = a full line, so every one of the 4 Imps overflows. The payout goes
+    // through the Imp Aura channel, which is what makes it stick "everywhere" — assert the carry-back, since a
+    // combat-only buff (the old `deathrattleSummonOverflowBuff` shape) would leave `playerImpBuffGain` unset.
+    const filler = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6'].map((u) => bm('impscrap', u, 1, 200));
+    const r = simulate([bm('dm_shepherd', 'S', 3, 1), ...filler], [{ cardId: 'sandbag', attack: 50, health: 9999 }],
+      makeRng(3), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 1 }));
+    expect(r.playerImpBuffGain, 'the grant never reached the permanent Imp-buff channel').toBeTruthy();
+    expect(r.playerImpBuffGain!.attack).toBeGreaterThan(0);
+    expect(r.playerImpBuffGain!.attack).toBe(r.playerImpBuffGain!.health); // +2/+2 per overflow, symmetric
   });
 });
 
@@ -261,29 +282,29 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect(m4.attack + m4.health).toBeGreaterThan(16); // ate something
   });
 
-  it('Endless Overseer: the first 3 IMP deaths each summon an Imp, then it stops', () => {
-    // Owner change 2026-07-25. The budget is what bounds the chain — a replacement Imp dying can itself pay out,
-    // but only while the budget lasts, so the fight must terminate with at most 3 summons.
-    // The Overseer must SURVIVE long enough to spend its budget — an earlier fixture gave it 60 HP against a
-    // 20-attack enemy and it died on the second death, so only one summon landed and the test read as a bug in
-    // the card rather than in the setup.
+  it('Endless Overseer (owner rework 2026-07-27): grafts an Imp Echo onto the RIGHT-most minion', () => {
+    // The graft is invisible until the recipient dies, so the test kills the right-most body and looks for the
+    // Imps. The Overseer itself is left-most and immortal here, so a payout can only have come from the graft.
     const r = simulate(
-      [bm('dm_overseer', 'O', 1, 400),
-       bm('impscrap', 'I1', 1, 1), bm('impscrap', 'I2', 1, 1), bm('impscrap', 'I3', 1, 1), bm('impscrap', 'I4', 1, 1)],
-      [{ cardId: 'sandbag', attack: 2, health: 9999 }], makeRng(3), CARD_INDEX,
+      [bm('dm_overseer', 'O', 0, 9999), bm('sandbag', 'R', 0, 1)],
+      [{ cardId: 'sandbag', attack: 50, health: 9999 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-    expect(r.result).toBeTruthy();               // terminated
-    const summons = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(summons.length).toBe(3);              // exactly the budget — not 4, not unbounded
+    const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
+    expect(imps.length).toBe(2);
+    // …with Ward, which is the half a plain `summonImps` graft would silently drop.
+    const kws = (imps[0] as { minion: { keywords: string[] } }).minion.keywords;
+    expect(kws, 'the grafted Imps arrived without Ward').toContain('DS');
   });
 
-  it('Endless Overseer ignores a NON-Imp death', () => {
-    // It reads the victim from the avenge payload, so a Stray dying must not pay out.
+  it('…and grafts onto the right-most body only, not the whole board', () => {
+    // Two disposable bodies; only the right-hand one should carry the Echo. Without this, a graft-everything
+    // regression (the shape this card had before 2026-07-25) would still pass the test above.
     const r = simulate(
-      [bm('dm_overseer', 'O', 1, 400), bm('stray', 'S1', 1, 1), bm('pup', 'S2', 1, 1)],
-      [{ cardId: 'sandbag', attack: 2, health: 9999 }], makeRng(3), CARD_INDEX,
+      [bm('dm_overseer', 'O', 0, 9999), bm('sandbag', 'M', 0, 1), bm('sandbag', 'R', 0, 1)],
+      [{ cardId: 'sandbag', attack: 50, health: 9999 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-    expect(r.events.filter((e) => e.type === 'summon')).toEqual([]);
+    const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
+    expect(imps.length, 'both bodies paid out — the graft is not right-most-only').toBe(2);
   });
 
   it('Malphas offers a Choose One with both halves', () => {

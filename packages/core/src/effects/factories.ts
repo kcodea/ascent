@@ -2361,7 +2361,58 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (p.minion && p.minion !== self) return;
     const imp = ctx.getCard('impscrap');
     if (!imp) return;
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, imp, self.uid);
+    // `keyword` grants the Imps one on arrival (Endless Overseer's grafted Echo makes Warded Imps); `attack` /
+    // `health` buff each one as it lands (Errand Fiend's +1/+2). Both default off, so the plain summoners are
+    // unchanged.
+    const kws = str(params.keyword) ? ([str(params.keyword)] as Keyword[]) : undefined;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
+      const born = ctx.summon(self.side, imp, self.uid, kws);
+      if (born && (a > 0 || h > 0)) ctx.buff(born, a, h, self.uid);
+    }
+  },
+
+  /** Set 2 — Legion Shepherd (owner rework 2026-07-27): Echo — summon `count` Imps; every one that can't fit
+   *  gives your Imps +atk/+hp EVERYWHERE, permanently.
+   *
+   *  "Everywhere" is the load-bearing word, and it's why this can't just reuse `deathrattleSummonOverflowBuff`:
+   *  that one buffs the living bodies and stops at the end of the fight. This goes through `ctx.grantImpBuff`,
+   *  the Imp Aura channel — which advances the aura (so Imps summoned LATER this combat inherit it) and rides
+   *  the `playerImpBuffGain` carry-back into run state (so Imps in the shop and on the board get it too, and
+   *  keep it). The living Imps already on the field are buffed directly, since the aura only reaches new bodies. */
+  deathrattleImpsOverflowGrant: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const imp = ctx.getCard('impscrap');
+    if (!imp) return;
+    const total = num(params.count, 4); // fixed — golden scales the per-overflow grant, not the body count
+    let overflowed = 0;
+    for (let i = 0; i < total; i++) {
+      const before = ctx.living(self.side).length;
+      ctx.summon(self.side, imp, self.uid);
+      if (ctx.living(self.side).length === before) overflowed++; // didn't land → it overflowed
+    }
+    if (overflowed === 0) return;
+    const a = num(params.attack, 2) * mul(self) * overflowed;
+    const h = num(params.health, 2) * mul(self) * overflowed;
+    for (const m of ctx.living(self.side)) if (m.cardId === 'impscrap') ctx.buff(m, a, h, self.uid);
+    ctx.grantImpBuff(a, h, self.side);
+  },
+
+  /** Set 2 — Endless Overseer (owner rework 2026-07-27): Start of Combat, graft an Echo onto your RIGHT-most
+   *  minion so its death summons `count` Imps with Ward.
+   *
+   *  Right-most rather than a pick, so the player chooses the recipient by placement — the natural home is
+   *  whatever body you were happy to lose last. Grafted through `ctx.grantDeathrattle`, the same channel Grave
+   *  Body uses, which registers the effect so it fires with the RECIPIENT as `self` (its golden state, not the
+   *  Overseer's, would scale it — hence the count is baked into the grafted params here, already multiplied). */
+  scGrantRightmostEcho: (ctx, self, params) => {
+    const board = ctx.living(self.side);
+    const target = board[board.length - 1];
+    if (!target) return;
+    ctx.grantDeathrattle(target, [
+      { on: 'onDeath', do: 'summonImps', params: { count: num(params.count, 2) * mul(self), keyword: 'DS' } },
+    ]);
   },
 
   /** Set 2 — Riot Caller (Rally): your `count` LEFT-most Imps attack immediately, out of turn order. Board
@@ -2571,7 +2622,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = (num(params.attack, 1) + step * num(params.stepAttack, 1)) * mul(self);
     const h = (num(params.health, 1) + step * num(params.stepHealth, 1)) * mul(self);
     if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
-    ctx.buff(minion, minion.attack, minion.health, self.uid); // …then double what it now has
+    // …then MULTIPLY what it now has. One extra copy of its own stats per `mul` — so plain doubles and gilded
+    // TRIPLES (owner 2026-07-27). Buffing by a multiple of the current stats rather than setting them keeps it
+    // stacking correctly with anything else that has already touched the body.
+    ctx.buff(minion, minion.attack * mul(self), minion.health * mul(self), self.uid);
+  },
+
+  /** Set 2 — Menagerie Mammoth (owner rework 2026-07-27): every Beast you summon in combat gets +N Attack, and
+   *  the grant IMPROVES PERMANENTLY — each payout raises this instance's `summonBonus`, which rides home on the
+   *  `playerSummonBonus` carry-back, so the bigger grant is still there next round.
+   *
+   *  Attack-only by design: the Beast go-wide line already has plenty of health-stacking, and an escalating
+   *  Attack grant is what makes a wide board actually close a fight. */
+  onSummonTribeBuffImproveSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    const bonus = self.summonBonus ?? 0;
+    ctx.buff(minion, (num(params.attack, 3) + bonus) * mul(self), 0, self.uid);
+    self.summonBonus = bonus + num(params.step, 1); // permanent — carried back keyed to this body's sourceUid
   },
 
   /** Set 2 — Groveweaver (combat half): a `tribe` minion summoned DURING the fight gets the same asymmetric

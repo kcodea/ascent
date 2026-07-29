@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-07-28 — content: card batch part 5 (the six escalation reworks)
+
+The last six reworks from the owner's 2026-07-27 batch, all of them cards whose new shape needed engine work
+rather than a data edit.
+
+- **King Oona** — gilded now **triples** a summoned Beast instead of doubling it. `onSummonTribeBuffThenDouble`
+  multiplies by `mul(self)` copies of the body's own stats, so plain still doubles and golden adds one more.
+- **Menagerie Mammoth** — was "Echo: summon 2 random Beasts", now "when you summon a Beast in combat, give it
+  **+3 Attack** and improve this permanently". New `onSummonTribeBuffImproveSelf`; the accrual rides the existing
+  `playerSummonBonus` carry-back, which is what makes "permanently" true across rounds.
+- **Errand Fiend** — Rally → **Echo**, and the Imp arrives with +1/+2. `summonImps` gained optional
+  `attack`/`health`/`keyword` params (it previously documented a `keyword` param it never read).
+- **Legion Shepherd** — was a Start-of-Combat board-fill, now "**Echo:** summon 4 Imps; your Imps gain +2/+2
+  **everywhere** for each one that had no room". New `deathrattleImpsOverflowGrant` routes the payout through
+  `ctx.grantImpBuff` — the Imp Aura channel — so it advances the live aura AND carries back via
+  `playerImpBuffGain` into shop/board. A `deathrattleSummonOverflowBuff` clone would have expired at the bell.
+- **Endless Overseer** — now grafts `"Echo: summon 2 Imps with Ward"` onto your **right-most** minion at Start of
+  Combat, via `ctx.grantDeathrattle`. Placement is the choice.
+- **Runic Archivist** — the End-of-Turn recast moved to Water Dragon earlier in this batch; the Archivist now
+  pays a **Shop spell every 5 minions sold**. The tally lives on the card (`BoardCard.soldProgress`) so it
+  **carries round to round** and keeps the remainder past each payout.
+
+**Live text.** Two new `cardText.ts` helpers wired into `instView` (which both the recruit chain and `Unit.tsx`
+read through): `attackGrantImproveText` prints the Mammoth's current Attack grant, and `soldProgressText` turns
+the Archivist's "5 minions" into the countdown still owed.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 1788 tests, build:web, harness determinism. Five tests
+that asserted the superseded behaviour were replaced with tests for the new shape, plus new coverage for Oona's
+gilded triple and the Mammoth's escalation + carry-back.
+
+**Two things worth recording.** A Mammoth test first read as a card bug and was a *fixture* bug — I gave Mama Pup
+200 HP, so she never died and never summoned anything to buff. And `npm run typecheck` **excludes
+`packages/ui`** (it's covered by `npm run typecheck:web`, which is not in the CI gate list and currently has 8
+pre-existing errors) — a UI-only change can look green against the wrong gate. Both cost time here.
+
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
 ### 2026-07-27 — content: card batch part 4 — the Dragon reworks + set membership

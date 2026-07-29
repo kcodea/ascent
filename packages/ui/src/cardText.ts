@@ -61,6 +61,37 @@ export function summonImproveText(cardId: string, summonBonus: number, golden: b
 }
 
 /**
+ * Menagerie Mammoth (`onSummonTribeBuffImproveSelf`) — an Attack-only grant that climbs by `step` every time it
+ * pays out, permanently. Same contract as `summonImproveText`, but the printed magnitude is "**+N Attack**"
+ * rather than a "+N/+N" pair, so it needs its own replace.
+ */
+export function attackGrantImproveText(cardId: string, summonBonus: number, golden: boolean): string | null {
+  if (summonBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffImproveSelf');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 3);
+  const m = (base + summonBonus) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${m} Attack}}`);
+}
+
+/**
+ * Runic Archivist (`minionSoldGrantSpell`) — an every-N SELL meter. The threshold never changes, so what has to
+ * be live is the COUNTDOWN: print how many more sales are owed rather than the bare "5 minions", which reads as
+ * a fresh requirement whether you're 0 or 4 in.
+ */
+export function soldProgressText(cardId: string, soldProgress: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'minionSoldGrantSpell');
+  if (!def || !eff) return null;
+  const every = Math.max(1, Number((eff.params as { count?: number })?.count ?? 5));
+  const left = every - (soldProgress % every);
+  if (left === every) return null; // no progress yet — the printed threshold is already accurate
+  return def.text.replace(/\*\*\d+ minions\*\*/, `{{${left} more minion${left === 1 ? '' : 's'}}}`);
+}
+
+/**
  * Hunter (`onGainAttackBuffImproving`) — its board-wide grant GROWS in steps: each Attack gain gives your minions
  * base × (1 + ⌊fires/every⌋) × golden, where `summonBonus` counts how many times it has FIRED (every = 3 for
  * Hunter). Surface the CURRENT grant (green) in place of the first printed "+N/+N"; the "+step/+step every N"

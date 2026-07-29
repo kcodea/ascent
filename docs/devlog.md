@@ -1,5 +1,61 @@
 # ASCENT — development log
 
+## 2026-07-29 — Elo-rated boards, a learned strength model, and where the bots actually break
+
+**What.** Ground-truth board strength, by fighting boards against each other instead of guessing.
+`npm run board:elo` round-robins every board in a wave band (both orderings — combat is not symmetric) and
+fits Bradley-Terry ratings. `npm run board:train` fits a ridge model over 52 board features to those ratings.
+`npm run boards:fetch` supplies the real population.
+
+**The diagnosis, quantified.** Correlation of raw `power` (Σ attack+health) with true measured strength:
+
+| band | synthetic | human |
+|---|---|---|
+| 1-3 | 0.92 | 0.89 |
+| 4-6 | 0.88 | 0.89 |
+| 7-9 | 0.88 | 0.75 |
+| 10-12 | 0.94 | **0.37** |
+| 13-15 | 0.92 | **0.44** |
+| 16-20 | 0.94 | 0.59 |
+
+On synthetic boards stats ARE strength at every wave. On human boards past round 10 stats explain barely a
+third. Every proxy evaluator this project has had was therefore near-perfect on the distribution it was tested
+against and blind on the one that matters.
+
+**The model.** Held-out r = **0.789** against 0.716 for band-relative power. Two shapes failed first and are
+documented in the tool: per-band fits overfit (~120 rows, 52 features) and naive pooling broke the baseline
+(power scales with wave, elo is centred per band, so pooled power correlates with the band — 0.89 → 0.17).
+Band-relative features, pooled, is what works. Learned weights name the missing ingredient directly:
+`distinctTribes` is **negative** (concentration beats spread — synergy), `maxTier` +50, `effectCount` +61,
+`trig_onDeath` +45.
+
+**Wired in, and honestly: it did not move wins.** `learnedStrength` is now an evaluator term (weight 20,
+`fightStrength` cut 44→26) and `fightScore` draws its panel from the real pool when one is registered. Against
+human boards: 3.88 → 3.65 wins, i.e. unchanged inside the error bars. Behaviour DID change in the predicted
+direction — final tier rose from 4.1–5.0 to 5.0–5.3. Against the procedural pool every tier improved
+(easy 3.25 → 4.35, expert 4.83 → 5.15).
+
+**Where they actually break.** Per-round win rate, expert vs human boards, 16 seeds:
+
+```
+round    1   2   3   4   5   6   7   8   9  10  11  12
+win%    50  56  50  50  56  63  31  31  15  29   0   0
+```
+
+The bot keeps pace through round 6 and then falls off a cliff — precisely where power stops predicting human
+board strength. Combined with the negative `distinctTribes` weight, the story is coherent: **a greedy
+per-turn evaluator picks the locally-best card each shop and ends with an incoherent board.** Board
+*evaluation* is no longer the bottleneck; board *construction across turns* — committing to a package by
+wave 5 and compounding it — is.
+
+That reframes the next step. It is not a better state-scorer; it is multi-turn commitment, which is what
+Ticket 3's package graph was reaching for and what self-play on run OUTCOMES (not board strength) would learn.
+
+**Verified.** typecheck, lint (0 errors), 2941 tests / 154 files, build:web, harness (determinism ✓). One test
+was rewritten rather than fixed: it asserted hard > easy over 12 seeds, a difference smaller than the noise at
+that sample size (it holds at 40 seeds: 4.78 vs 4.35). Fine-grained ladder claims belong in `bot:ladder`, not
+in a test that fails on variance.
+
 ## 2026-07-29 — Measured against REAL player boards: the ladder collapses
 
 **What.** `npm run boards:fetch` pulls the shared Supabase board pool (664 boards, 6 authors, all

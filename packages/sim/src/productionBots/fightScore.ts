@@ -1,6 +1,8 @@
 import { combatSide, makeRng, simulate, type BoardMinion, type Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { buildEnemyBoard, THREAT_IDS } from '../threats';
+import { OPPONENT_POOL } from '../opponents';
+import type { BoardSnapshot } from '../snapshot';
 import type { BotVisibleState } from './types';
 
 /**
@@ -25,6 +27,35 @@ import type { BotVisibleState } from './types';
 
 /** Threat archetypes to fight, in order. Fewer = faster and noisier. */
 const PANEL = THREAT_IDS;
+
+/**
+ * PREFER REAL BOARDS OVER THE PROCEDURAL CURVE.
+ *
+ * The procedural threat curve is banded to a power target, and measured against actual round-robin results it
+ * describes synthetic boards almost perfectly (raw power correlates 0.88-0.94 with true strength at every wave)
+ * and real player boards badly once they get going (0.37 at waves 10-12). A bot that trains against the curve
+ * therefore learns that stats are everything — and ours did, finishing at tier ~4.5 where legacy finished 5.6,
+ * and dying around round 10 against boards people actually built.
+ *
+ * So when a real pool is registered, the panel is drawn from it. This is NOT reading the future: it samples the
+ * general population of opponents by wave, which is public knowledge in the same way a player knowing what
+ * boards look like at wave 10 is. The pinned opponent (`servedBoards`, `scoutedNextOpponent`) stays withheld —
+ * `BotVisibleState` never carries it.
+ *
+ * Selection is deterministic (a stride from a wave-derived offset), so the panel is stable across an evaluation
+ * and every candidate board is compared against the SAME opponents. That property is load-bearing: seeding the
+ * panel per-board once destroyed the entire comparison and made deeper search score worse.
+ */
+function poolPanel(wave: number, size: number): BoardSnapshot[] {
+  if (OPPONENT_POOL.length === 0) return [];
+  const eligible = OPPONENT_POOL.filter((b) => Math.abs(b.wave - wave) <= 1 && b.minions.length > 0);
+  if (eligible.length < size) return [];
+  const stride = Math.max(1, Math.floor(eligible.length / size));
+  const start = (wave * 7919) % eligible.length;
+  const out: BoardSnapshot[] = [];
+  for (let i = 0; i < size; i++) out.push(eligible[(start + i * stride) % eligible.length]!);
+  return out;
+}
 
 /** Turn the bot's view of its board into combat bodies. */
 function toCombatBoard(v: BotVisibleState): BoardMinion[] {
@@ -94,9 +125,12 @@ export function fightScore(v: BotVisibleState, panelSize = PANEL.length): FightR
   let damage = 0;
   let marginSum = 0;
   const n = Math.max(1, Math.min(panelSize, PANEL.length));
+  const real = poolPanel(v.wave, n);
   for (let i = 0; i < n; i++) {
     const threat = PANEL[i % PANEL.length]!;
-    const enemy = buildEnemyBoard(threat, v.wave, makeRng(seed + i * 7919));
+    const enemy = real.length === n
+      ? real[i]!.minions.map((m) => ({ ...m }))
+      : buildEnemyBoard(threat, v.wave, makeRng(seed + i * 7919));
     const r = simulate(
       mine, enemy, makeRng(seed + i * 104_729), CARD_INDEX,
       combatSide({ tier: v.economy.tier }), combatSide({ tier: v.economy.tier }),

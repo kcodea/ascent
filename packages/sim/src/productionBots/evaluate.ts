@@ -1,6 +1,8 @@
 import { CARD_INDEX } from '@game/content';
+import type { BoardMinion, Keyword } from '@game/core';
 import type { BotCardView, BotVisibleState } from './types';
 import { fightScore } from './fightScore';
+import { boardStrength } from '../boardModel';
 
 /**
  * STATE EVALUATION — decomposed, normalized, and explainable.
@@ -21,6 +23,8 @@ export interface EvaluationBreakdown {
    * Replaces the three proxies that used to stand in for it (raw power, width, a keyword value table).
    */
   fightStrength: number;
+  /** Predicted Elo of the board, from the model fit against real player boards. */
+  learnedStrength: number;
   boardPower: number;
   economy: number;
   tierProgress: number;
@@ -45,7 +49,13 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     // Fighting carries most of the board's value now. `boardPower` survives at a small weight purely as a
     // tiebreaker between boards the panel cannot separate — at low waves everything loses to everything, and
     // without it the search has no reason to prefer a bigger wipe-out to a smaller one.
-    fightStrength: 44,
+    // Split between the two board signals. `fightStrength` fights the PROCEDURAL curve, which is exactly the
+    // distribution our bots were over-fitting: raw stats explain a synthetic board's strength almost perfectly
+    // (r 0.88-0.94 at every wave) and a human board's badly once it gets going (0.37 at waves 10-12).
+    // `learnedStrength` is fit against real player boards rated by fighting each other, so it is the only term
+    // that has ever seen what a good human board looks like.
+    fightStrength: 26,
+    learnedStrength: 20,
     boardPower: 8,
     economy: 12,
     tierProgress: 9,
@@ -132,9 +142,18 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = EVALUATION_
   const wasted = Number.isFinite(cheapest) && v.economy.gold < cheapest ? v.economy.gold : 0;
   const wastedGoldPenalty = norm(wasted, 10);
 
-  const parts = { fightStrength, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
+  // THE LEARNED TERM. ~52 multiply-adds, no simulation — cheap enough to sit inside the search loop, unlike
+  // `fightScore`, which pays for real combats. Falls back to the fight signal when no band model applies, so an
+  // unfitted wave degrades to the old behaviour instead of scoring every board the same.
+  const learned = boardStrength(v.board.map((c) => ({
+    cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords] as Keyword[], golden: c.golden,
+  })) as BoardMinion[], v.wave);
+  const learnedStrength = learned > 0 ? learned : fightStrength;
+
+  const parts = { fightStrength, learnedStrength, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
   const total =
     parts.fightStrength * w.fightStrength +
+    parts.learnedStrength * w.learnedStrength +
     parts.boardPower * w.boardPower +
     parts.economy * w.economy +
     parts.tierProgress * w.tierProgress +

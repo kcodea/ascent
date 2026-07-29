@@ -31,6 +31,8 @@
     "board:elo": "tsx packages/tools/src/board-elo.ts",
     "boards:fetch": "tsx packages/tools/src/fetch-boards.ts",
     "lobby:ladder": "tsx packages/tools/src/lobby-ladder.ts",
+    "bot:learn": "tsx packages/tools/src/bot-learn.ts",
+    "bot:rollouts": "tsx packages/tools/src/bot-rollouts.ts",
     "bot:tune": "tsx packages/tools/src/bot-tune.ts",
     "bot:ladder": "tsx packages/tools/src/bot-ladder.ts",
     "pool:prune": "tsx packages/tools/src/prune-pool.ts",

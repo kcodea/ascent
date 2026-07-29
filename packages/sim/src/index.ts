@@ -13,6 +13,7 @@ export * from './boardSide';
 export * from './boardElo';
 export * from './boardFeatures';
 export * from './boardModel';
+export * from './runModel';
 export * from './lobby';
 export * from './productionBots';
 export * from './opponents';

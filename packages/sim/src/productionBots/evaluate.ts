@@ -3,6 +3,7 @@ import type { BoardMinion, Keyword } from '@game/core';
 import type { BotCardView, BotVisibleState } from './types';
 import { fightScore } from './fightScore';
 import { boardStrength } from '../boardModel';
+import { predictWinsAfter } from '../runModel';
 
 /**
  * STATE EVALUATION — decomposed, normalized, and explainable.
@@ -31,6 +32,8 @@ export interface EvaluationBreakdown {
   tribeFocus: number;
   /** Non-golden duplicates held across board+hand — each pair is two-thirds of a triple. */
   pairsHeld: number;
+  /** Learned prediction of wins still to come, from mass self-play vs the real pool (`bot:learn`). */
+  futureWins: number;
   boardPower: number;
   economy: number;
   tierProgress: number;
@@ -71,6 +74,9 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     tierDensity: 0,
     tribeFocus: 0,
     pairsHeld: 0,
+    // The learned run-state value. Inert (the term reads 0) until `bot:learn` has fit rollout data; weight
+    // chosen by `bot:tune` once real data exists rather than by hand — hand-picking is the failed method here.
+    futureWins: 18,
     boardPower: 8,
     economy: 12,
     tierProgress: 9,
@@ -201,13 +207,25 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
   for (const n of copies.values()) pairCount += Math.floor(n / 2);
   const pairsHeld = norm(pairCount, 2);
 
-  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
+  // LEARNED FUTURE VALUE — predicted wins still to come, squashed to [0, 1.5] (winsAfter tops out ~12). Null
+  // (no model band / stub data / schema drift) reads 0, so the term is inert until `bot:learn` has run.
+  const boardBodies = v.board.map((c) => ({
+    cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords] as Keyword[], golden: c.golden,
+  })) as BoardMinion[];
+  const predicted = predictWinsAfter({
+    board: boardBodies, wave: v.wave, gold: v.economy.gold, maxGold: v.economy.maxGold,
+    tier: v.economy.tier, effectiveHp: v.hero.resolve + v.hero.armor, handSize: v.hand.length,
+  });
+  const futureWins = predicted === null ? 0 : Math.max(0, Math.min(1.5, predicted / 8));
+
+  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
   const total =
     parts.fightStrength * w.fightStrength +
     parts.learnedStrength * w.learnedStrength +
     parts.tierDensity * w.tierDensity +
     parts.tribeFocus * w.tribeFocus +
     parts.pairsHeld * w.pairsHeld +
+    parts.futureWins * w.futureWins +
     parts.boardPower * w.boardPower +
     parts.economy * w.economy +
     parts.tierProgress * w.tierProgress +

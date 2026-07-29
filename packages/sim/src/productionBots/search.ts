@@ -4,6 +4,7 @@ import { applyCandidate, release, visibleOf } from './transition';
 import { candidatesFor } from './legalActions';
 import { fingerprint } from './visibleState';
 import { evaluate, expectedAfterRefresh, type EvaluationBreakdown } from './evaluate';
+import { questValue, runeValue } from '../runModel';
 import type { BotDifficultyProfile } from './difficulties';
 import type { PlanningStateHandle } from './types';
 
@@ -93,11 +94,21 @@ export function search(root: PlanningStateHandle, profile: BotDifficultyProfile,
         // shop the refresh actually produced, and the engine is seeded — that is reading the future of the very
         // decision being made. It did exactly that until this line existed.
         const breakdown = t.reveal?.kind === 'refresh' ? expectedAfterRefresh(visible) : evaluate(t.visible);
+        // LEARNED PICK VALUE. A quest/rune's payoff is in the future, which the state evaluator cannot see —
+        // measured consequence: picks were effectively arbitrary. The tables are causal wins-after contrasts
+        // from mass self-play with forced exploration (`bot:learn`); 0 for anything unmeasured, so the stub
+        // data file changes nothing. Scale: 1 measured win ≈ 20 utility, comparable to a major evaluator term.
+        let pickBonus = 0;
+        if (cand.action.type === 'buyQuest' && visible.mandatoryDecision?.kind === 'quest') {
+          pickBonus = 20 * questValue(visible.mandatoryDecision.options[cand.action.index] ?? '');
+        } else if (cand.action.type === 'buyRune' && visible.mandatoryDecision?.kind === 'runeforge') {
+          pickBonus = 20 * runeValue(visible.mandatoryDecision.options[cand.action.index] ?? '');
+        }
         const child: Node = {
           handle: t.child,
           plan: [...node.plan, { action: cand.action, tag: cand.tag, fromFingerprint: node.fp }],
           fp: t.fingerprint,
-          utility: breakdown.total,
+          utility: breakdown.total + pickBonus,
           breakdown,
           // A reveal is scored where it stands and never expanded — see the header.
           terminal: t.reveal !== null,

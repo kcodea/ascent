@@ -319,6 +319,20 @@ describe('clearBinding', () => {
     expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
   });
 
+  // The `> 0` branch: clearing one of a card's overrides must leave its siblings alone. An implementation
+  // that dropped the whole card entry would pass every other test here while silently wiping an override
+  // the author still wanted — and since the patch is what makes a live draft visible, that surfaces as
+  // "my other override just disappeared", with nothing logged.
+  it('leaves a card\'s other overrides alone when clearing one of them', () => {
+    setBinding('bloodbinder', 'scCast', { def: 'test-red-blast' });
+    setBinding('bloodbinder', 'buffWave', { def: 'self-buff-bloom' });
+
+    clearBinding('bloodbinder', 'scCast');
+
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' }); // back to file
+    expect(bindingFor('bloodbinder', 'buffWave')).toEqual({ def: 'self-buff-bloom' });             // untouched
+  });
+
   it('persists the removal, so a reload does not resurrect the override', () => {
     withLocalStorage(() => {
       setBinding(null, 'scCast', { def: 'test-red-blast' });

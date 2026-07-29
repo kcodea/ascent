@@ -1,5 +1,5 @@
 import type { CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
-import { extraTriggerFires } from '../types';
+import {ALE_IDS, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
  *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
@@ -658,6 +658,88 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const amt = num(params.amount, 1) * mul(self);
     const useAtk = ctx.rng.pick([true, false]);
     for (const f of friends) ctx.buff(f, useAtk ? amt : 0, useAtk ? 0 : amt, self.uid);
+  },
+
+  /**
+   * SET 2 DWARVES — "get a Dwarven Ale" from a COMBAT trigger (Slaughter / Rally / Echo).
+   *
+   * One factory for all three, guarded by which payload shape the event hands it, because the difference between
+   * them is *when* they fire, not what they do. The Ale rides `ctx.grantToHand`, the same carry-back channel
+   * `rallyGrantSpell` and `deathrattleGrantSpell` already use, so it lands in hand after combat settles.
+   *
+   * `guard` names the check: `attacker` (Slaughter/on-kill), `rally` (this minion swung), or `self` (its own
+   * death). Without the guard these fire on every ally's kill or swing, which is the classic bug in this family.
+   */
+  combatGrantAle: (ctx, self, params, payload) => {
+    const guard = str(params.guard) || 'self';
+    const p = payload as { attacker?: Minion; minion?: Minion } | undefined;
+    if (guard === 'attacker' && p?.attacker !== self) return;
+    if ((guard === 'rally' || guard === 'self') && p?.minion !== self) return;
+    if (self.dead && guard !== 'self') return;
+    const ales = ctx.poolCards(self.side).filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length === 0) return; // a set without the Ales grants nothing rather than injecting unreachable cards
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
+      ctx.grantToHand(ctx.rng.pick(ales).id, self.side, self.uid);
+    }
+  },
+
+  /** Lieutenant Thane — Rally: hand THIS minion's current Attack to `count` other living friendlies. Reads its
+   *  Attack live, so a buffed Thane spreads more; golden repeats the whole spread. */
+  rallyGiveAttackToOthers: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const amount = self.attack;
+    if (amount <= 0) return;
+    const friends = ctx.living(self.side).filter((m) => m !== self);
+    for (let r = 0; r < mul(self); r++) {
+      for (const m of friends.slice(0, num(params.count, 3))) ctx.buff(m, amount, 0, self.uid);
+    }
+  },
+
+  /**
+   * Exgalloper — Echo: summon an exact copy of itself WITHOUT the Echo, so it can't chain forever.
+   *
+   * "Exact" means its current buffed stats, not the printed card: the copy inherits what this minion had grown
+   * to. Stripping `onDeath` is what makes it terminate — a copy that kept its own Echo would summon another on
+   * death, and so on until the board cap.
+   */
+  echoSummonCopyNoEcho: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const card = ctx.getCard(self.cardId);
+    if (!card) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
+      // `copyStats` is the summon API's own channel for "inherit these stats" — mutating the returned Minion
+      // afterwards is too late, because the summon event has already been emitted with the printed numbers.
+      // Copy the BODY it was, not the corpse: at the moment an Echo fires, `self.health` is 0, so copying it
+      // literally summons something already dead. `maxHealth` is the buffed body — the honest reading of "exact".
+      const hp = Math.max(1, self.maxHealth || card.health);
+      const copy = ctx.summon(self.side, card, self.uid, [...self.keywords], false, false, {
+        attack: self.attack, health: hp, maxHealth: hp,
+      });
+      if (!copy) break; // board full
+      // Drop the Echo so the copy can't summon another on ITS death, and so on to the board cap.
+      copy.effects = copy.effects.filter((e) => e.on !== 'onDeath');
+    }
+  },
+
+  /**
+   * Anvilshade Smith — Echo: summon a token that INHERITS this minion's Attack and swings at once.
+   *
+   * The token's printed Attack is a floor, not the value: it takes the Smith's Attack if that's higher, so
+   * buffing the Smith buffs what its death produces. `ctx.attackNow` is the same out-of-turn-order queue the
+   * Whelp uses.
+   */
+  echoSummonInheritAttackAndCharge: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const card = ctx.getCard(str(params.token));
+    if (!card) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
+      // Both the inherited Attack and the immediate swing go through `ctx.summon`'s own parameters: the token
+      // must enter the fight already carrying them, and a post-summon mutation lands after the event is emitted.
+      const attack = Math.max(card.attack, self.attack);
+      ctx.summon(self.side, card, self.uid, undefined, false, true, {
+        attack, health: card.health, maxHealth: card.health,
+      });
+    }
   },
 
   /** Deathrattle (Arcane Weaver): add a copy of a spell to your hand after combat. Golden grants two. */

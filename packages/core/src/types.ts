@@ -1,6 +1,10 @@
 import type { Rng } from './rng';
 import type { CombatBus } from './events';
 
+/** The five Set 2 "Dwarven Ale" spells — what a Dwarf's "get a Dwarven Ale" draws from. Lives in core because
+ *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
+export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
+
 export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf';
 
 /** Keyword codes (handoff A.4). */
@@ -461,7 +465,11 @@ export type EffectFactoryId =
   | 'endOfTurnBuffLeftmostTribePerCard' // Set 2 Dwarves
   | 'cardsBoughtGrantRandomSpell' // Set 2 Dwarves
   | 'battlecryGildTarget' // Set 2 Dwarves
-  | 'goldSpentGrantTribeMinion' // Set 2 Dwarves // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
+  | 'goldSpentGrantTribeMinion' // Set 2 Dwarves
+  | 'combatGrantAle' // Set 2 Dwarves (combat)
+  | 'rallyGiveAttackToOthers' // Set 2 Dwarves (combat)
+  | 'echoSummonCopyNoEcho' // Set 2 Dwarves (combat)
+  | 'echoSummonInheritAttackAndCharge' // Set 2 Dwarves (combat) // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn

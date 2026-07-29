@@ -88,19 +88,20 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Echo:** give **4** friendly minions **Ward**.',
   },
   {
-    // Crossover: "Get a Gold Pouch" grants the SET-1 Gold Pouch spell (`emberpouch`) to hand — CARD_INDEX is
-    // global, so `battlecryGrantSpell` reuses it directly (owner: there will be crossover cards between sets).
-    // NEUTRAL as of 2026-07-25 (owner) — moved here out of the Kobold file so the tribe and the file agree.
+    // Owner rework 2026-07-29: was Pouchpincher (T2 4/2, "Shout: get a Gold Pouch"). The roster's Cheap Date is a
+    // different card entirely — a T1 body whose value is in SELLING it, so it rewards churning the early shop
+    // rather than holding a board slot. `onSell` fires when THIS minion is sold; `battlecryGainRandomMinion` is
+    // trigger-agnostic, so no new factory is needed.
     id: 'k_pouchpincher',
     name: 'Cheap Date',
     tribe: 'neutral',
-    tier: 2,
-    attack: 4,
-    health: 2,
+    tier: 1,
+    attack: 1,
+    health: 1,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'emberpouch', count: 1 } }],
-    text: '**Shout:** Get a **Gold Pouch**.',
-    goldenText: '**Shout:** Get **2 Gold Pouches**.',
+    effects: [{ on: 'onSell', do: 'battlecryGainRandomMinion', params: { tier: 1, count: 1 } }],
+    text: 'When you **sell** this, get a random **Tier 1** minion.',
+    goldenText: 'When you **sell** this, get **2** random **Tier 1** minions.',
   },
   {
     // Owner add 2026-07-28 — the set's ALL-TYPE minion (Taurus was pulled from set 2 earlier in this batch, so

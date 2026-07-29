@@ -1,5 +1,42 @@
 # ASCENT — development log
 
+## 2026-07-29 — Dwarves tranche B + the Cheap Date rework
+
+**Cheap Date is a rework, not a rename.** The roster card is a Tier 1 1/1 whose value is in SELLING it, where
+the game's card was Pouchpincher (T2 4/2, "Shout: get a Gold Pouch"). It now reads *When you sell this, get a
+random Tier 1 minion* — and needs no new factory: `onSell` fires when the minion itself is sold and
+`battlecryGainRandomMinion` is trigger-agnostic. Its old test asserted the Gold Pouch grant, so it is rewritten
+to assert the new shape in both directions — playing it must grant nothing, selling it must grant a Tier 1.
+
+**Five more Dwarves, all COMBAT-triggered.** `ALE_IDS` moved into `@game/core` so both the recruit and combat
+factories can read it, and one shared `combatGrantAle` serves Slaughter, Rally and Echo — the difference between
+them is *when* they fire, not what they do, so the factory takes a `guard` naming the check. Without that guard
+an Ale-on-Slaughter fires on every ALLY's kill; the tests pin both directions.
+
+Shipped: **Kegbreaker Korr** (Slaughter → Ale), **Blade Thrower** (Rally → Ale), **Doubletap Brewer's Echo half**,
+**Anvilshade Smith**, **Lieutenant Thane**, **Exgalloper**.
+
+**Two real bugs found while testing, both in my own first pass:**
+
+1. **Post-summon mutation is too late.** I set the summoned token's Attack after `ctx.summon` returned — but the
+   summon EVENT is already emitted by then, so the Charging Soldier went out at its printed 3 while the Smith
+   had 9. `ctx.summon` has `attackNow` and `copyStats` parameters for exactly this; both factories use them now.
+2. **Exgalloper copied the corpse.** At the moment an Echo fires the parent's `health` is 0, so an "exact copy"
+   arrived already dead. It copies `maxHealth` — the buffed body — which is the honest reading of "exact".
+
+**And one bug that wasn't.** Kegbreaker Korr looked broken until I checked: my test fought `pack`, whose
+Deathrattle changes who the killer of the exchange is, so Korr genuinely wasn't the killer. The card was always
+fine; the test was wrong. Combat tests here now use a vanilla `sandbag` body, and that reasoning is in the file
+so the next person doesn't re-debug a working card.
+
+**Verified.** 24 Dwarf tests (3004 total / 157 files), typecheck, typecheck:web, lint (0 errors), build:web,
+harness ✓.
+
+**Still missing, and each needs machinery rather than a card entry:** Paymaster Pimm (a banked-income field),
+Mountainbond (recruit-side Ruby play + a cumulative cards-played trigger), Edward Keg-hands (an Ale-scoped
+trigger multiplier), Guildhall Chef (an "Ales triggered this turn" counter), Brisbane (a cumulative spell-cast
+threshold). The file header lists them too.
+
 ## 2026-07-29 — Set 2 gains the DWARF tribe (tranche A), plus two owner cuts
 
 **Two notes first.** Riot Caller is removed (its demon roster test drops 21 → 20; the generic

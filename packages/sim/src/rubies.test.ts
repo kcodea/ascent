@@ -114,10 +114,16 @@ describe('Ruby engine (set 2)', () => {
     expect(s.embers).toBe(6); // 2 procs × 3 Gold; the 3rd Ruby is over the per-turn cap
   });
 
-  it('Pouchpincher grants the set-1 Gold Pouch spell to hand (crossover card)', () => {
-    let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'p', cardId: 'k_pouchpincher', tribe: 'kobold', attack: 4, health: 2, keywords: [], golden: false }] };
+  it('Cheap Date pays out when SOLD, not when played (owner rework 2026-07-29)', () => {
+    // Was Pouchpincher (T2 4/2, "Shout: get a Gold Pouch"); the owner's roster card is a T1 body whose value is
+    // in selling it. Playing it must now grant nothing, and selling it must grant a Tier 1 minion.
+    let s: RunState = { ...createRun(1), setId: 'set2', board: [], hand: [{ uid: 'p', cardId: 'k_pouchpincher', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }] } as RunState;
     s = reduce(s, { type: 'play', uid: 'p' });
-    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(true); // the set-1 Gold Pouch
+    expect(s.hand.some((c) => c.cardId === 'emberpouch'), 'the old Gold Pouch Shout still fired').toBe(false);
+    const handBeforeSell = s.hand.length;
+    s = reduce(s, { type: 'sell', uid: 'p' });
+    expect(s.hand.length, 'selling granted nothing').toBe(handBeforeSell + 1);
+    expect(CARD_INDEX[s.hand[s.hand.length - 1]!.cardId]!.tier, 'the granted minion was not Tier 1').toBe(1);
   });
 
   it('Candle Conduit casts a Ruby on a random Kobold when you get a Ruby', () => {

@@ -1,9 +1,10 @@
-import { makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
+import { ALE_IDS, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
+export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
 /**
@@ -577,9 +578,6 @@ export function consumeGrimoireCharge(state: RunState): void {
  * no multicast badge at all, because the count only existed inline at the cast site). Side-effect free, like
  * `spellCasts` — the charge is spent by the real cast path, not by reading it here.
  */
-/** The five Set 2 Ales — what "Get a Dwarven Ale" draws from. Resolved against the RUN'S pool, so a set that
- *  doesn't carry them grants nothing rather than injecting cards the run can't otherwise have. */
-export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
 export function rubyCastCount(state: RunState): number {
   const extra = state.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);

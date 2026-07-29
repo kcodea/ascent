@@ -8,17 +8,14 @@ import type { CardDef } from '@game/core';
  * board-building. Kobolds want Rubies cast; Dragons want spells recurred; Dwarves want Gold moving. That is why
  * so many of them hang off `goldSpent` / `cardsBought` thresholds rather than Shout/Echo.
  *
- * TRANCHE A (2026-07-29): the recruit-side cards. Deliberately excluded for now, because each needs machinery
- * that does not exist yet rather than another card entry — they are the honest remainder, not an oversight:
- *   · Paymaster Pimm      — "Gold next turn" needs a banked-income field on `RunState`
- *   · Mountainbond        — playing a Ruby outside combat has no recruit-side helper (`playRubyOn` is combat)
- *   · Kegbreaker Korr     — Slaughter (on-kill) is a COMBAT trigger; the Ale must carry back
- *   · Blade Thrower       — Rally (on-attack), same carry-back
- *   · Anvilshade Smith    — a summon that inherits its parent's Attack AND attacks immediately
- *   · Lieutenant Thane    — Rally spreading this minion's Attack to 3 friendlies
- *   · Edward Keg-hands    — an Ale-scoped trigger multiplier
- *   · Guildhall Chef      — scales off "Ales triggered this turn", a per-turn counter that does not exist
- *   · Exgalloper, Brisbane — the two remaining Rune minions
+ * STILL MISSING (2026-07-29) — each needs machinery rather than another card entry, so they are the honest
+ * remainder, not an oversight:
+ *   · Paymaster Pimm    — "Gold next turn" needs a banked-income field on `RunState`
+ *   · Mountainbond      — playing a Ruby outside combat has no recruit-side helper (`playRubyOn` is combat-only),
+ *                         and "after you play 8 cards" has no cumulative cards-played trigger
+ *   · Edward Keg-hands  — an Ale-scoped trigger multiplier ("your Ales trigger twice")
+ *   · Guildhall Chef    — scales off "Ales triggered this turn", a per-turn counter that does not exist
+ *   · Brisbane          — "trigger an adjacent Shout when you cast 8 spells": a cumulative spell-cast threshold
  */
 export const SET2_DWARVES: CardDef[] = [
   {
@@ -154,7 +151,7 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: 'Every **3 cards** you buy, get **2** random **Shop spells**.',
   },
   {
-    // Only the Shout half ships in tranche A — its Echo needs the combat→run Ale carry-back.
+    // Both halves: the Shout pours in the shop, the Echo pours from combat via `ctx.grantToHand`.
     id: 'dw_brewer',
     name: 'Doubletap Brewer',
     tribe: 'dwarf',
@@ -162,9 +159,12 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 4,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'grantRandomAle', params: { count: 1 } }],
-    text: '**Shout:** get a **Dwarven Ale**.',
-    goldenText: '**Shout:** get **2 Dwarven Ales**.',
+    effects: [
+      { on: 'onPlay', do: 'grantRandomAle', params: { count: 1 } },
+      { on: 'onDeath', do: 'combatGrantAle', params: { guard: 'self', count: 1 } },
+    ],
+    text: '**Shout:** get a **Dwarven Ale**. **Echo:** get a **Dwarven Ale**.',
+    goldenText: '**Shout:** get **2 Dwarven Ales**. **Echo:** get **2 Dwarven Ales**.',
   },
   {
     id: 'dw_tapkeeper',
@@ -193,9 +193,60 @@ export const SET2_DWARVES: CardDef[] = [
     text: '**Shout: Gild** a target friendly minion.',
     goldenText: '**Shout: Gild** a target friendly minion.',
   },
+  {
+    // Slaughter = on-kill, a COMBAT trigger, so the Ale rides the carry-back and lands in hand after the fight.
+    id: 'dw_korr',
+    name: 'Kegbreaker Korr',
+    tribe: 'dwarf',
+    tier: 2,
+    attack: 3,
+    health: 2,
+    keywords: ['SL'],
+    effects: [{ on: 'onKill', do: 'combatGrantAle', params: { guard: 'attacker', count: 1 } }],
+    text: '**Slaughter:** get a **Dwarven Ale**.',
+    goldenText: '**Slaughter:** get **2 Dwarven Ales**.',
+  },
+  {
+    id: 'dw_bladethrower',
+    name: 'Blade Thrower',
+    tribe: 'dwarf',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'combatGrantAle', params: { guard: 'rally', count: 1 } }],
+    text: '**Rally:** get a **Dwarven Ale**.',
+    goldenText: '**Rally:** get **2 Dwarven Ales**.',
+  },
+  {
+    // The token's printed 3 Attack is a FLOOR — it inherits the Smith's Attack when that's higher, so buffing
+    // the Smith buffs what its death produces.
+    id: 'dw_anvilshade',
+    name: 'Anvilshade Smith',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 6,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'echoSummonInheritAttackAndCharge', params: { token: 'dw_soldier', count: 1 } }],
+    text: "**Echo:** summon a **Charging Soldier** that gains this minion's **Attack** and attacks immediately.",
+    goldenText: "**Echo:** summon **2 Charging Soldiers** that gain this minion's **Attack** and attack immediately.",
+  },
+  {
+    id: 'dw_thane',
+    name: 'Lieutenant Thane',
+    tribe: 'dwarf',
+    tier: 6,
+    attack: 5,
+    health: 6,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGiveAttackToOthers', params: { count: 3 } }],
+    text: "**Rally:** give this minion's **Attack** to **3** friendly minions.",
+    goldenText: "**Rally:** give this minion's **Attack** to **3** friendly minions **twice**.",
+  },
 ];
 
-/** Anvilshade Smith's token. Shipped ahead of its summoner so the body exists when the Echo lands. */
+/** Anvilshade Smith's token. */
 export const SET2_DWARF_TOKENS: CardDef[] = [
   {
     id: 'dw_soldier',
@@ -224,5 +275,19 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     effects: [{ on: 'goldSpent', do: 'goldSpentGrantTribeMinion', params: { every: 10, tribe: 'dwarf', count: 1 } }],
     text: 'When you spend **10 Gold**, get a random **Dwarf**.',
     goldenText: 'When you spend **10 Gold**, get **2** random **Dwarves**.',
+  },
+  {
+    // Beast, not Dwarf — a Rune minion that happens to arrive with this batch. The copy drops its own Echo, which
+    // is what stops it chaining to the board cap.
+    id: 'dw_exgalloper',
+    name: 'Exgalloper',
+    tribe: 'beast',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'echoSummonCopyNoEcho', params: { count: 1 } }],
+    text: '**Echo:** summon an exact copy of this **without Echo**.',
+    goldenText: '**Echo:** summon **2** exact copies of this **without Echo**.',
   },
 ];

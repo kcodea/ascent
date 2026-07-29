@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { ALE_IDS, applyGoldSpent } from './recruit';
@@ -168,5 +169,71 @@ describe('Dwarf King, Brill (rune)', () => {
     expect(s.hand.length, 'nothing was granted').toBe(1);
     const got = CARD_INDEX[s.hand[0]!.cardId]!;
     expect(got.tribe === 'dwarf' || got.tribe2 === 'dwarf', `granted ${got.name}, not a Dwarf`).toBe(true);
+  });
+});
+
+describe('tranche B — combat-trigger Dwarves', () => {
+  /**
+   * These fire in COMBAT and reach the run through `ctx.grantToHand` (Ales) or `ctx.summon`. The GUARD is the
+   * point: without it an Ale-on-Slaughter fires on every ALLY's kill, and a Rally on every ally's swing.
+   *
+   * Foes are deliberately VANILLA (`sandbag`). My first pass used `pack`, whose Deathrattle changes who the
+   * killer of the exchange is — the test failed while the card was fine.
+   */
+  const foe = (attack: number, health: number): BoardMinion =>
+    ({ cardId: 'sandbag', attack, health, keywords: [] } as unknown as BoardMinion);
+  const mine = (cardId: string, attack?: number, health?: number): BoardMinion => {
+    const d = CARD_INDEX[cardId]!;
+    return { cardId, attack: attack ?? d.attack, health: health ?? d.health, keywords: [...d.keywords] } as unknown as BoardMinion;
+  };
+  const fight = (board: BoardMinion[], foes: BoardMinion[]) =>
+    simulate(board, foes, makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6, poolIds: poolFor('set2').all.map((c) => c.id) }), combatSide({ tier: 6 }));
+  const ales = (r: { playerHandGrants?: string[] }): string[] => (r.playerHandGrants ?? []).filter((id) => ALE_IDS.includes(id));
+  /** Summon events for a given token, narrowed to the minion payload the assertions read. */
+  const summonsOf = (r: { events: readonly { type: string }[] }, cardId: string): { attack: number; health: number }[] =>
+    r.events
+      .filter((e) => e.type === 'summon')
+      .map((e) => (e as unknown as { minion?: { cardId?: string; attack: number; health: number } }).minion)
+      .filter((m): m is { cardId?: string; attack: number; health: number } => m?.cardId === cardId);
+
+  it('Kegbreaker Korr pours an Ale on ITS OWN kill', () => {
+    expect(ales(fight([mine('dw_korr')], [foe(0, 1)])).length).toBe(1);
+  });
+
+  it('…but not on an ally’s kill — the attacker guard', () => {
+    // Korr at 0 Attack cannot kill; the ally does. Without the guard this is where the bug shows.
+    const korr = { ...mine('dw_korr'), attack: 0 } as BoardMinion;
+    expect(ales(fight([korr, mine('dw_ironlung')], [foe(0, 1)])).length).toBe(0);
+  });
+
+  it('Doubletap Brewer’s Echo pours when it dies', () => {
+    expect(ales(fight([mine('dw_brewer')], [foe(20, 20)])).length).toBeGreaterThan(0);
+  });
+
+  it('Blade Thrower pours on its Rally swing', () => {
+    expect(ales(fight([mine('dw_bladethrower')], [foe(0, 30)])).length).toBeGreaterThan(0);
+  });
+
+  it('Anvilshade Smith’s Soldier INHERITS its Attack, and the printed 3 is only a floor', () => {
+    // Smith at 9 Attack → a 9-Attack Soldier, not its printed 3. This has to go through `ctx.summon`'s
+    // `copyStats`: mutating the returned Minion is too late, the summon event is already emitted.
+    const s = summonsOf(fight([mine('dw_anvilshade', 9, 1)], [foe(20, 20)]), 'dw_soldier');
+    expect(s.length, 'no Charging Soldier was summoned').toBe(1);
+    expect(s[0]!.attack).toBe(9);
+  });
+
+  it('…and a weak Smith still gets the printed 3', () => {
+    const s = summonsOf(fight([mine('dw_anvilshade', 1, 1)], [foe(20, 20)]), 'dw_soldier');
+    expect(s[0]!.attack).toBe(3);
+  });
+
+  it('Exgalloper copies the BODY, not the corpse, and cannot chain', () => {
+    // At the moment an Echo fires the parent's health is 0, so a literal copy arrives already dead. And exactly
+    // one copy: one that kept its own Echo would summon another on death, up to the board cap.
+    const s = summonsOf(fight([mine('dw_exgalloper', 4, 6)], [foe(20, 20)]), 'dw_exgalloper');
+    expect(s.length, 'the copy chained, or never happened').toBe(1);
+    expect(s[0]!.attack).toBe(4);
+    expect(s[0]!.health, 'the copy was born dead').toBeGreaterThan(0);
   });
 });

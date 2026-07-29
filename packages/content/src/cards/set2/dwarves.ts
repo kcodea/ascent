@@ -316,7 +316,11 @@ export const SET2_DWARF_TOKENS: CardDef[] = [
   },
 ];
 
-/** Rune-granted minions. `Dwarf King, Brill` is the Dwarf entry; the other two are in tranche B. */
+/**
+ * Rune-granted minions — the roster marks these **Source: Rune**, so they are `token: true`: forge-only, never
+ * in the tavern. That follows Goldcrafter (also rune-granted and flagged) rather than Pillager (rune-granted but
+ * left buyable) — the codebase has both patterns, and "Source: Rune" is the deciding evidence.
+ */
 export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
   {
     id: 'dw_brill',
@@ -327,6 +331,7 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'goldSpent', do: 'goldSpentGrantTribeMinion', params: { every: 10, tribe: 'dwarf', count: 1 } }],
+    token: true, // forge-only: Source = Rune
     text: 'When you spend **10 Gold**, get a random **Dwarf**.',
     goldenText: 'When you spend **10 Gold**, get **2** random **Dwarves**.',
   },
@@ -341,6 +346,7 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'echoSummonCopyNoEcho', params: { count: 1 } }],
+    token: true, // forge-only: Source = Rune
     text: '**Echo:** summon an exact copy of this **without Echo**.',
     goldenText: '**Echo:** summon **2** exact copies of this **without Echo**.',
   },
@@ -356,6 +362,7 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastTriggerAdjacentShouts', params: { every: 8 } }],
+    token: true, // forge-only: Source = Rune
     text: 'When you cast **8 spells**, trigger an **adjacent Shout**.',
     goldenText: 'When you cast **8 spells**, trigger **both adjacent Shouts**.',
   },

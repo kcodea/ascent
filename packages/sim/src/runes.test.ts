@@ -27,7 +27,9 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(31); // + batch 7a (Rebirth / Tempering / Aftershocks / Refrain / Trophy) + Summit
+    // A hardcoded count is a tripwire for accidental additions, so it moves deliberately: +1 for Gemcutting
+    // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
+    expect(RUNES.length).toBe(32);
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 

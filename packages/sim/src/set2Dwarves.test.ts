@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, poolFor } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, RUNES, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { ALE_IDS, applyCardsPlayed, applyGoldSpent, noteSpellCast } from './recruit';
 
@@ -314,5 +314,56 @@ describe('tranche C — the five that needed machinery', () => {
   it('the whole Dwarf roster is in set 2 — 21 minions + token + 3 rune minions', () => {
     const dwarfIds = poolFor('set2').all.filter((c) => c.id.startsWith('dw_')).map((c) => c.id);
     expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(25);
+  });
+});
+
+describe('Set 2 runes — the grant-shaped ones', () => {
+  /**
+   * Only the runes that are PURE GRANTS ship in this batch; the rest of the owner's 96-rune roster needs new
+   * `QuestReward` kinds. A rune whose `cards` id doesn't resolve is silently dead, so the ids are what matter.
+   */
+  const all = [...RUNES, ...EPIC_RUNES];
+  const grantedIds = (r: { reward: unknown }): string[] => {
+    const walk = (x: { cards?: string[]; grantGolden?: string[]; rewards?: unknown[] }): string[] => [
+      ...(x.cards ?? []), ...(x.grantGolden ?? []),
+      ...((x.rewards ?? []) as { cards?: string[] }[]).flatMap((y) => walk(y)),
+    ];
+    return walk(r.reward as { cards?: string[] });
+  };
+
+  it('every rune in the game grants only cards that exist', () => {
+    const broken = all.flatMap((r) => grantedIds(r).filter((id) => !CARD_INDEX[id]).map((id) => `${r.name}→${id}`));
+    expect(broken, 'a rune grants a card id that does not resolve').toEqual([]);
+  });
+
+  it.each([
+    ['Rune of Yazzus', 'yazzus'],
+    ['Rune of Lazarus', 'lazarus'],
+    ['Rune of the High King', 'dw_brill'],
+    ['Rune of Exgalloper', 'dw_exgalloper'],
+    ['Rune of Brisbane', 'dw_brisbane'],
+  ])('%s grants %s', (name, cardId) => {
+    const rune = all.find((r) => r.name === name);
+    expect(rune, `${name} is missing`).toBeDefined();
+    expect(grantedIds(rune!)).toContain(cardId);
+  });
+
+  it('Rune of Gemcutting grants exactly 5 Rubies', () => {
+    const rune = all.find((r) => r.name === 'Rune of Gemcutting')!;
+    expect(grantedIds(rune).filter((id) => id === 'ruby')).toHaveLength(5);
+  });
+
+  it('Rune of Double Fisting grants Edward plus 3 Ales', () => {
+    const ids = grantedIds(all.find((r) => r.name === 'Rune of Double Fisting')!);
+    expect(ids).toContain('dw_edward');
+    expect(ids.filter((id) => ALE_IDS.includes(id)), 'not three Ales').toHaveLength(3);
+  });
+
+  it('the rune-granted minions are NOT buyable from the shop', () => {
+    // Their whole point is being forge-only; leaking into the tavern would undercut the rune.
+    const buyable = new Set(poolFor('set2').buyable.map((c) => c.id));
+    for (const id of ['dw_brill', 'dw_exgalloper', 'dw_brisbane']) {
+      expect(buyable.has(id), `${id} is buyable`).toBe(false);
+    }
   });
 });

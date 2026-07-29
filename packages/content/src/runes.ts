@@ -138,6 +138,15 @@ export const RUNES: RuneDef[] = [
       { kind: 'grant', randomTribe: 'undead', randomCount: 1 },
     ] },
   },
+  // ── Set 2 rune batch (owner roster 2026-07-29) — the GRANT-shaped ones, which need no new reward kind. ──
+  {
+    // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
+    id: 'rune_gemcutting',
+    name: 'Rune of Gemcutting',
+    cost: 3,
+    text: 'Get **5 Rubies**.',
+    reward: { kind: 'grant', cards: ['ruby', 'ruby', 'ruby', 'ruby', 'ruby'] },
+  },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
   {
     id: 'rune_small_fortune',
@@ -508,6 +517,58 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'The first time you **Consume** Fodder each turn, all your other **Demons Consume** a copy of it.',
     reward: { kind: 'runeEndlessAppetite' },
+  },
+  // ── Set 2 rune batch (owner roster 2026-07-29) — "get a named minion" runes. Each names a card that now
+  // exists, so they are pure grants; the rest of the roster needs new reward kinds and is not shipped yet.
+  {
+    id: 'rune_yazzus',
+    name: 'Rune of Yazzus',
+    cost: 6,
+    epic: true,
+    text: 'Get a **Yazzus**.',
+    reward: { kind: 'grant', cards: ['yazzus'] },
+  },
+  {
+    id: 'rune_lazarus',
+    name: 'Rune of Lazarus',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Lazarus**.',
+    reward: { kind: 'grant', cards: ['lazarus'] },
+  },
+  {
+    id: 'rune_high_king',
+    name: 'Rune of the High King',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Dwarf King, Brill**.',
+    reward: { kind: 'grant', cards: ['dw_brill'] },
+  },
+  {
+    id: 'rune_exgalloper',
+    name: 'Rune of Exgalloper',
+    cost: 3,
+    epic: true,
+    text: 'Get an **Exgalloper**.',
+    reward: { kind: 'grant', cards: ['dw_exgalloper'] },
+  },
+  {
+    id: 'rune_brisbane',
+    name: 'Rune of Brisbane',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Brisbane**.',
+    reward: { kind: 'grant', cards: ['dw_brisbane'] },
+  },
+  {
+    // The Ales are named explicitly rather than randomly: the rune promises "3 Dwarven Ale", and a fixed trio
+    // reads the same every time. Which three is an owner call — see the decisions list.
+    id: 'rune_double_fisting',
+    name: 'Rune of Double Fisting',
+    cost: 6,
+    epic: true,
+    text: 'Get an **Edward Keg-hands** and **3 Dwarven Ales**.',
+    reward: { kind: 'grant', cards: ['dw_edward', 'wo_mine', 'wo_champion', 'wo_attack'] },
   },
 ];
 

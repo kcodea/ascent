@@ -103,7 +103,8 @@ export function simulate(
   let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
-  const rubyBonusGain = { attack: 0, health: 0 }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
+  const rubyBonusGain = { attack: 0, health: 0 };
+  const tavernBuyGain = { attack: 0, health: 0 }; // Hungerling — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
@@ -588,6 +589,11 @@ export function simulate(
       // `playerNextTurnSpellCopies`, applied to the run at settle.
       if (side !== 'player' || count <= 0) return;
       nextTurnSpellCopies.n += count;
+    },
+    gainTavernBuy: (attack, health, side) => {
+      if (side !== 'player') return; // enemies have no shop
+      tavernBuyGain.attack += attack;
+      tavernBuyGain.health += health;
     },
     gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
@@ -2140,6 +2146,7 @@ export function simulate(
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.attack > 0 || rubyBonusGain.health > 0) ? { ...rubyBonusGain } : undefined,
+    playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,

@@ -2039,6 +2039,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
       count: (prev?.count ?? 0) + result.playerNextTurnSpellCopies,
     };
   }
+  // Hungerling's Rally: the Shop buff it earned in combat lands on the run-wide tavern channel, so it applies
+  // to every future offer rather than evaporating with the fight.
+  if (result.playerTavernBuyGain) {
+    s.tavernBuyBonus.atk += result.playerTavernBuyGain.attack;
+    s.tavernBuyBonus.hp += result.playerTavernBuyGain.health;
+  }
   if (result.playerRubyBonusGain && (result.playerRubyBonusGain.attack > 0 || result.playerRubyBonusGain.health > 0)) {
     const g = result.playerRubyBonusGain;
     const b = s.rubyBonus ?? { attack: 0, health: 0 };

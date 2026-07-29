@@ -201,6 +201,10 @@ export type EffectFactoryId =
   | 'endOfTurnAlternateMode' // …and the tick that flips it
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
   | 'onSummonTribeBuffThenDouble' // Set 2 — Denkeeper Oona: a summoned Beast gets +1/+1, then doubles
+  | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Grand Gourmand: eat the fattest Shop minion
+  | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
+  | 'rallyBuffShopPermanent' // Set 2 — Hungerling: Rally buffs Shop minions permanently
+  | 'spellCastBuffImps' // Set 2 — Cinder Chancellor: a Shop spell buffs your Imps everywhere
   | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
   | 'battlecryPlayRubiesAll' // Set 2 — Frenzied Excavator: play a Ruby on every friendly minion
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
@@ -1484,6 +1488,11 @@ export interface CombatResult {
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
+  /** Set 2 — Hungerling: a Rally that permanently buffs SHOP minions. A Rally fires in COMBAT, but the tavern
+   *  buff is run state, so it can only reach the run through a carry-back like every other combat→run effect
+   *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
+   *  channel, per the owner's rule that "give minions in the Shop" means permanent, not just this shop. */
+  playerTavernBuyGain?: { attack: number; health: number };
   /** Set 2 — Scalefeather Drake Echoes that fired this combat: how many next-turn first-spell copies to queue. */
   playerNextTurnSpellCopies?: number;
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is
@@ -1628,6 +1637,8 @@ export interface CombatContext {
    *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
    *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
+  /** Permanently buff every future Shop minion (Hungerling's Rally) — carried back via `playerTavernBuyGain`. */
+  gainTavernBuy(attack: number, health: number, side: Side): void;
   /** Set 2 — Scalefeather Drake: queue `count` next-turn first-spell copies (player-only; carried back). */
   queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */

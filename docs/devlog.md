@@ -2,6 +2,30 @@
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### 2026-07-27 — content: card batch part 3 — the Demon consume line, and a new combat→run channel
+
+**Grand Gourmand** now eats the HIGHEST-HEALTH Shop minion (was: take the right-most's stats without eating).
+**Feastmaster Vhal** eats too, not just its neighbours — alone on a board the old version did nothing.
+**Cinder Chancellor** moves off Imp-attacks onto Shop-spell casts, buffing your Imps everywhere.
+**Selective Glutton** gains Taunt and consumes itself rather than delegating to another Demon.
+**Tallymonger** keeps its effect but its text now says **Shop Spells** — "spells" is all-encompassing and this
+one can't be triggered by a Ruby (the owner's wording rule).
+
+**Broodwright needed no change** — its data already matched the requested wording exactly.
+
+**Hungerling exposed a missing piece of engine.** "Rally: give minions in the Shop +2/+2, permanently" — but a
+Rally fires in COMBAT and the tavern buff is RUN state. My first cut put the factory in the recruit table,
+where a combat Rally never looks: the card would have done nothing at all, silently. Combat reaches the run
+only through carry-backs, and there was no channel for the tavern buff.
+
+So `playerTavernBuyGain` now exists, modelled on `playerRubyBonusGain` / `playerUndeadAuraGain`: `ctx.gainTavernBuy`
+accumulates during the fight and settle folds it into `tavernBuyBonus` — the Staff of Guel channel, so the buff
+survives a reroll and reaches future shops, per the owner's standing "give minions in the Shop" ruling.
+
+The test drives the whole path — a real combat producing the carry-back, then `resolveCombat` applying it, then
+a fresh shop showing bigger offers — rather than calling the factory directly, which is exactly the shortcut
+that would have hidden the misplacement.
+
 ### 2026-07-27 — content: card batch part 2 — the Kobold ruby line
 
 **Veinbreaker** is a Choose One now: "give your Rubies +1/+1" or "get 4 Rubies" — the long game or the burst.

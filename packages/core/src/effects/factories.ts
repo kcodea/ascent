@@ -2478,6 +2478,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
 
+  /** Set 2 — Hungerling (Rally): permanently buff every minion in the SHOP.
+   *
+   *  Lives in COMBAT because a Rally is an attack trigger, but the tavern buff is run state — so it goes
+   *  through `gainTavernBuy`, the same carry-back shape Ruby strength and the Undead aura use. Writing this
+   *  as a recruit factory (my first attempt) would have made the card do nothing at all: a combat Rally never
+   *  reaches the recruit table.
+   *
+   *  Permanent rather than this-shop-only, per the owner's standing rule that "give minions in the Shop" means
+   *  a Staff-of-Guel-style buff that survives a reroll (ruling 2026-07-25). */
+  rallyBuffShopPermanent: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side);
+  },
+
   /** Set 2 — Traveling Skald: whenever a FRIENDLY minion of `tribe` attacks, give IT +atk/+hp. Watches every
    *  friend's attack, not just its own — so the payload's attacker is the target, and the Skald buffs itself
    *  only when it is the one swinging (it's a Dragon). Golden doubles. */

@@ -972,6 +972,55 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Set 2 — Grand Gourmand (End of Turn): Consume the HIGHEST-HEALTH minion in the Shop (× golden).
+   *  Health, not stats, so it reliably eats the fat body a player was saving rather than the biggest threat. */
+  endOfTurnConsumeHighestHealthShop: (ctx, self, params) => {
+    for (let n = 0; n < num(params.times, 1) * gold(self); n++) {
+      let best = -1, bestHp = -1;
+      ctx.state.shop.forEach((o, i) => {
+        const d = CARD_INDEX[o.cardId];
+        if (!d || d.spell || d.ruby) return;
+        const { health } = offerBuyStats(ctx.state, o);
+        if (health > bestHp) { bestHp = health; best = i; }
+      });
+      if (best < 0) return;
+      consumeShopMinion(ctx.state, self, best);
+    }
+  },
+
+  /** Set 2 — Feastmaster Vhal (End of Turn): THIS minion and each adjacent Demon consume a random Shop minion
+   *  (owner rework 2026-07-27 — it used to feed only the neighbours). Each eater gains the stats itself. */
+  endOfTurnSelfAndNeighboursConsume: (ctx, self, params) => {
+    const board = ctx.state.board;
+    const i = board.indexOf(self);
+    if (i < 0) return;
+    const eaters = [self, board[i - 1], board[i + 1]].filter(
+      (c): c is BoardCard => !!c && (c === self || isTribe(c, 'demon')),
+    );
+    const each = num(params.count, 1) * gold(self);
+    for (const eater of eaters) {
+      for (let k = 0; k < each; k++) {
+        const idxs = ctx.state.shop
+          .map((o, n) => { const d = CARD_INDEX[o.cardId]; return !d || d.spell || d.ruby ? -1 : n; })
+          .filter((n) => n >= 0);
+        if (idxs.length === 0) return;
+        const rng = makeRng(ctx.state.rngCursor);
+        const pick = idxs[rng.int(idxs.length)]!;
+        ctx.state.rngCursor = rng.state();
+        consumeShopMinion(ctx.state, eater, pick);
+      }
+    }
+  },
+
+
+  /** Set 2 — Cinder Chancellor:on each SHOP SPELL cast, give your Imps +atk/+hp EVERYWHERE (the run-wide Imp
+   *  enchant, so Imps summoned later inherit it). `spellCast` is already Ruby-blind, so "Shop Spell" holds. */
+  spellCastBuffImps: (ctx, self, params) => {
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    buffImpsRunWide(ctx.state, a, h, nameOf(self));
+  },
+
   /** Set 2 — Veinbreaker's Choose One (burst half): mint `count` Rubies into hand (× golden). Same primitive
    *  the cadence minters use; a Shout-shaped wrapper so the option can sit in `chooseOne[].effects`. */
   battlecryGetRubies: (ctx, self, params) => {

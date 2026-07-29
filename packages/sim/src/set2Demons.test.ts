@@ -149,32 +149,7 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   });
 });
 
-describe('set 2 — Hungerling eats the RIGHT-most', () => {
-  it('takes the tail of the row, not a random offer', () => {
-    const s: RunState = {
-      ...createRun(1), phase: 'recruit',
-      board: [minion('h', 'dm_hungerling', 3, 3)], hand: [],
-      shop: shop('alley', 'sandbag'), // sandbag (0/4) is right-most
-    };
-    applyEndOfTurn(s);
-    expect(s.shop.map((o) => o.cardId)).toEqual(['alley']); // the tail went
-    const h = s.board.find((c) => c.uid === 'h')!;
-    expect([h.attack, h.health]).toEqual([3, 7]); // 3/3 + 0/4
-  });
-});
 
-describe('set 2 — Grand Gourmand takes stats WITHOUT eating', () => {
-  it('gains the right-most minion’s stats and leaves it buyable', () => {
-    const s: RunState = {
-      ...createRun(1), phase: 'recruit',
-      board: [minion('g', 'dm_gourmand', 5, 5)], hand: [], shop: shop('sandbag'),
-    };
-    applyEndOfTurn(s);
-    expect(s.shop.length).toBe(1); // NOT eaten — the difference from Hungerling
-    const g = s.board.find((c) => c.uid === 'g')!;
-    expect([g.attack, g.health]).toEqual([5, 9]); // 5/5 + 0/4
-  });
-});
 
 describe('set 2 — Contract Butcher / Display Curator buff the shop', () => {
   it('Butcher permanently buffs what you buy from the Shop', () => {
@@ -536,5 +511,56 @@ describe('set 2 — Market Tormentor', () => {
     s.board[0]!.golden = true;
     s = reduce(s, { type: 'roll' });
     expect(rightmost(s)!.offer.atk).toBe(8);
+  });
+});
+
+describe('set 2 — the reworked Demon consumers (owner batch 2026-07-27)', () => {
+  it('Grand Gourmand eats the HIGHEST-HEALTH shop minion, not the right-most', () => {
+    const s: RunState = {
+      ...createRun(3), phase: 'recruit',
+      board: [minion('g', 'dm_gourmand', 5, 5)], hand: [],
+      // The fat body sits FIRST, so "right-most" and "highest health" disagree — the old rule would take alley.
+      shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'alley' }],
+    };
+    const fatHp = offerBuyStats(s, s.shop[0]!).health;
+    const thinHp = offerBuyStats(s, s.shop[1]!).health;
+    expect(fatHp, 'fixture: the first offer really is the fatter one').toBeGreaterThan(thinHp);
+    applyEndOfTurn(s);
+    expect(s.shop.map((o) => o.uid), 'it ate the fat one').toEqual(['s1']);
+  });
+
+  it('Feastmaster Vhal eats too, not just its neighbours', () => {
+    const s: RunState = {
+      ...createRun(3), phase: 'recruit',
+      board: [minion('v', 'dm_vhal', 6, 8)], hand: [],
+      shop: shop('sandbag', 'alley', 'stray'),
+    };
+    applyEndOfTurn(s);
+    // Alone on the board, the old version ate nothing at all — only neighbours consumed.
+    expect(s.shopEaten?.some((e) => e.eaterUid === 'v'), 'Vhal itself consumed').toBe(true);
+  });
+
+  it('Hungerling’s Rally carries a PERMANENT shop buff back out of combat', () => {
+    // A Rally fires in COMBAT but the tavern buff is run state, so it can only reach the run through a
+    // carry-back — the same shape Ruby strength and the Undead aura use. Written as a recruit factory (my
+    // first attempt) the card would have done nothing at all: a combat Rally never reaches that table.
+    const r = simulate(
+      [bm('dm_hungerling', 'H', 4, 60)],
+      [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 4 }), combatSide({ tier: 1 }));
+    expect(r.playerTavernBuyGain, 'the Rally banked a shop buff').toBeDefined();
+    expect(r.playerTavernBuyGain!.attack).toBeGreaterThanOrEqual(2);
+
+    // …and settle applies it to the run-wide tavern channel, so a FRESH shop carries it.
+    let s: RunState = {
+      ...createRun(3), phase: 'combat', combatSettled: false, embers: 99, freeRolls: 99,
+      board: [minion('h', 'dm_hungerling', 4, 5)], hand: [], shop: [],
+      lastCombat: r,
+    } as unknown as RunState;
+    const before = s.tavernBuyBonus.atk;
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.tavernBuyBonus.atk, 'the run-wide tavern buff rose').toBeGreaterThan(before);
+    expect(offerBuyStats(s, s.shop[0]!).attack, 'and the new shop shows it')
+      .toBeGreaterThan(CARD_INDEX[s.shop[0]!.cardId]!.attack);
   });
 });

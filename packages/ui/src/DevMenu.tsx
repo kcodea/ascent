@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DevPanelContext } from './useDraggablePanel';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
@@ -53,66 +53,158 @@ import { perfMonitor } from './perfMonitor';
 import { FxWorkbench } from './fx/ui/Workbench';
 
 /**
- * DEV-only Dev Tuning Menu — the single 🛠️ button that replaces the old row of floating tuner buttons.
- * Opens a compact list; each entry toggles one tuner panel (the panels themselves are unchanged: draggable,
- * localStorage-backed). "Test FX" stays a one-shot action. Mounted only in dev (see Game.tsx), so the whole
- * menu — and every tuner — is stripped from production.
+ * DEV-only Dev Tuning Menu — the single 🛠️ button that indexes every tuner panel.
+ *
+ * The list is GROUPED by what you are tuning, filterable by typing, and driven from the keyboard. It used to
+ * be 53 entries in one flat, historically-ordered column wrapped into four 174px columns (~736px wide), where
+ * the two Execute panels sat 22 rows apart under the same emoji. Grouping + search is the whole point of this
+ * component; the panels themselves are untouched (still draggable, still localStorage-backed).
+ *
+ * `key` values are LOAD-BEARING and must never change: `useDraggablePanel(key)` persists each panel's dragged
+ * position under it, so renaming a key silently resets where that panel opens. Labels are free to change.
+ *
+ * Mounted only in dev (see Game.tsx), so the whole menu — and every tuner — is stripped from production.
  */
-const TUNERS = [
-  { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
-  { key: 'frame', label: '🖼️ Card Frames', C: FrameTuner },
-  { key: 'book', label: '📖 Compendium Palette', C: BookTuner },
-  { key: 'refreshbtn', label: '🔄 Refresh Button', C: RefreshTuner },
-  { key: 'freezebtn', label: '❄️ Freeze Button', C: FreezeTuner },
-  { key: 'buffdrawer', label: '🧪 Buffs Drawer', C: BuffDrawerTuner },
-  { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
-  { key: 'cardplate', label: '🂠 Card Plate', C: CardPlateTuner },
-  { key: 'cardtext', label: '🔤 Card Text', C: CardTextTuner },
-  { key: 'platedissolve', label: '🌀 Plate Dissolve', C: PlateDissolveTuner },
-  { key: 'platecoalesce', label: '✨ Plate Coalesce', C: PlateCoalesceTuner },
-  { key: 'plategild', label: '👑 Plate Gild', C: PlateGildTuner },
-  { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
-  { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
-  { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
-  { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
-  { key: 'flurryswing', label: '🌬️ Flurry Swing FX', C: FlurrySwingTuner },
-  { key: 'executefx', label: '🩸 Execute Strike', C: ExecuteFxTuner },
-  { key: 'cleavefx', label: '🪓 Cleave Slash FX', C: CleaveFxTuner },
-  { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
-  { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
-  { key: 'spellpowerfx', label: '✨ Spell Power FX', C: SpellPowerFxTuner },
-  { key: 'rubypowerfx', label: '💎 Ruby Power FX', C: RubyPowerFxTuner },
-  { key: 'cardpills', label: '🏷️ Card Pills', C: CardPillsTuner },
-  { key: 'lobbypanel', label: '🪑 Lobby Rail', C: LobbyPanelTuner },
-  { key: 'spellbufffx', label: '✨ Spell Buff FX', C: SpellBuffFxTuner },
-  { key: 'stepprocfx', label: '🔢 Step Proc FX', C: StepProcFxTuner },
-  { key: 'questtendril', label: '🏆 Quest Tendril', C: QuestTendrilTuner },
-  { key: 'herobufffx', label: '💥 Hero Buff Flash', C: HeroBuffFxTuner },
-  { key: 'aurafx', label: '🌀 Aura Wave FX', C: AuraFxTuner },
-  { key: 'weldfx', label: '🔩 Weld FX', C: WeldFxTuner },
-  { key: 'bufffx', label: '✨ Buff FX (stat gain)', C: BuffFxTuner },
-  { key: 'infusefx', label: '🍖 Fodder Infusion FX', C: InfuseFxTuner },
-  { key: 'aimfx', label: '🎯 Hero Aim FX', C: AimFxTuner },
-  { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },
-  { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
-  { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },
-  { key: 'ward', label: '🔵 Ward Dome', C: WardTuner },
-  { key: 'execute', label: '🩸 Execute Aura', C: ExecuteTuner },
-  { key: 'trail', label: '💨 Trail', C: TrailTuner },
-  { key: 'smoke', label: '🌫️ Smoke & Dust', C: SmokeTuner },
-  { key: 'float', label: '🔢 Damage Float', C: FloatTuner },
-  { key: 'stepcounter', label: '📈 Step Counter', C: StepCounterTuner },
-  { key: 'chargeglyph', label: '⚡ Charge Glyph', C: ChargeGlyphTuner },
-  { key: 'endturnbtn', label: '💎 End Turn Button', C: EndTurnTuner },
-  { key: 'heropowerbtn', label: '💠 Hero Power Button', C: HeroPowerTuner },
-  { key: 'tavernupbtn', label: '🍺 Tavern Up Button', C: TavernUpTuner },
-  { key: 'heropanel', label: '🧍 Hero Panel', C: HeroPanelTuner },
-] as const;
+
+type Tuner = {
+  key: string;
+  /** Display label. Free to change; the `key` is the stable identity. */
+  label: string;
+  /**
+   * Emoji scanning cue, unique across the tuner list. The only repeats are deliberate: each Test action in
+   * "Actions" wears the same glyph as the FX it fires (✨ Spell Power, ⚡ Critical Strike, 🌬️ Flurry Swing),
+   * which is a pairing rather than a collision.
+   */
+  icon: string;
+  C: () => JSX.Element | null;
+  /**
+   * One line answering "what does this tune?", shown on hover and folded into search.
+   * Most labels here are insider shorthand — "Weld", "Step Proc", "Trail" name the internal effect, not the
+   * thing you see on the board — so the label alone can't tell you whether it's the panel you want.
+   */
+  hint: string;
+  /** Extra search terms — old names and synonyms, so muscle memory still finds a renamed panel. */
+  alt?: string;
+};
+
+type Group = { id: string; title: string; items: Tuner[] };
+
+const GROUPS: Group[] = [
+  {
+    id: 'stage',
+    title: 'Stage & Layout',
+    items: [
+      { key: 'layout', icon: '📐', label: 'Scale & Layout', C: LayoutTuner, hint: 'Global board scale and per-region card positions' },
+      { key: 'frame', icon: '🖼️', label: 'Card Frames', C: FrameTuner, hint: 'The gold oval on minions and purple square on spells' },
+      { key: 'cardplate', icon: '🂠', label: 'Card Plate', C: CardPlateTuner, hint: "The hand card's backplate geometry" },
+      { key: 'cardtext', icon: '🔤', label: 'Card Text', C: CardTextTuner, hint: 'Where the rules-text box sits on a card' },
+      { key: 'cardpills', icon: '🏷️', label: 'Card Pills', C: CardPillsTuner, hint: 'Cost coin, tier badge, attack and health badges' },
+      { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },
+      { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
+      { key: 'buffdrawer', icon: '🧪', label: 'Buffs Drawer', C: BuffDrawerTuner, hint: 'The run-buffs panel' },
+      { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
+    ],
+  },
+  {
+    id: 'buttons',
+    title: 'Buttons',
+    items: [
+      { key: 'refreshbtn', icon: '🔄', label: 'Refresh', C: RefreshTuner, hint: 'The refresh crystal', alt: 'reroll' },
+      { key: 'freezebtn', icon: '❄️', label: 'Freeze', C: FreezeTuner, hint: "The freeze button's placement" },
+      { key: 'endturnbtn', icon: '💎', label: 'End Turn', C: EndTurnTuner, hint: 'The standalone End Turn diamond', alt: 'face the omen' },
+      { key: 'heropowerbtn', icon: '💠', label: 'Hero Power', C: HeroPowerTuner, hint: 'The hero power diamond' },
+      { key: 'tavernupbtn', icon: '🍺', label: 'Tavern Up', C: TavernUpTuner, hint: 'The tavern-upgrade stone button', alt: 'upgrade tier' },
+    ],
+  },
+  {
+    id: 'feel',
+    title: 'Card Feel',
+    items: [
+      { key: 'drag', icon: '🎴', label: 'Drag Feel', C: DragTuner, hint: 'Weight, tilt and lag while dragging a card' },
+      { key: 'flip', icon: '🔀', label: 'Reposition', C: FlipTuner, hint: 'The slide when cards make room or close a gap', alt: 'flip slide reorder' },
+      { key: 'glow', icon: '🔆', label: 'Hover Glow', C: GlowTuner, hint: 'The bright rim when you hover or select a card' },
+      { key: 'shield', icon: '🛡', label: 'Shield Place', C: ShieldTuner, hint: 'Where the Ward / Rise bubble sits on recruit cards' },
+    ],
+  },
+  {
+    id: 'strikes',
+    title: 'Strikes',
+    items: [
+      { key: 'lunge', icon: '🗡️', label: 'Lunge', C: LungeTuner, hint: "The attacker's lunge into its target" },
+      { key: 'strikefx', icon: '💥', label: 'Lunge Impact', C: StrikeFxTuner, hint: 'The melee impact package — flash, shake, debris', alt: 'strike effects' },
+      { key: 'critfx', icon: '⚡', label: 'Critical Strike', C: CritFxTuner, hint: 'The crimson-gold crit flourish', alt: 'crit fx' },
+      { key: 'flurryswing', icon: '🌬️', label: 'Flurry Swing', C: FlurrySwingTuner, hint: "The wind-slash sparkle on a Flurry minion's extra swing", alt: 'windfury' },
+      { key: 'cleavefx', icon: '🪓', label: 'Cleave Slash', C: CleaveFxTuner, hint: 'The hit-stop and red gash a Cleave attacker plays' },
+      { key: 'executefx', icon: '🩸', label: 'Execute Strike', C: ExecuteFxTuner, hint: 'The one-shot crescent slash when Execute kills', alt: 'venomous poison' },
+    ],
+  },
+  {
+    id: 'buffs',
+    title: 'Buffs & Auras',
+    items: [
+      { key: 'bufffx', icon: '⬆️', label: 'Buff', C: BuffFxTuner, hint: 'What plays on a minion when something buffs it', alt: 'stat gain' },
+      { key: 'gustfx', icon: '💨', label: 'Buff Gust', C: GustFxTuner, hint: 'The rush a tavern-buffed minion sweeps in with' },
+      { key: 'spellbufffx', icon: '🔮', label: 'Spell Buff', C: SpellBuffFxTuner, hint: "The cue when a spell or Ruby's printed value goes up" },
+      { key: 'spellpowerfx', icon: '✨', label: 'Spell Power', C: SpellPowerFxTuner, hint: 'The flourish when a spell resolves' },
+      { key: 'rubypowerfx', icon: '♦️', label: 'Ruby Power', C: RubyPowerFxTuner, hint: 'The Ruby-strength flourish', alt: 'gem' },
+      { key: 'herobufffx', icon: '🎆', label: 'Hero Buff Flash', C: HeroBuffFxTuner, hint: 'The shard blast and ripple over the hero portrait' },
+      { key: 'aurafx', icon: '🌊', label: 'Aura Wave', C: AuraFxTuner, hint: 'The run-wide tribe-aura wave across the board' },
+      { key: 'infusefx', icon: '🍖', label: 'Fodder Infusion', C: InfuseFxTuner, hint: 'The tendrils that send Fodder to the shop', alt: 'consume' },
+      { key: 'weldfx', icon: '🔩', label: 'Weld', C: WeldFxTuner, hint: 'An Attachment fusing onto its host minion', alt: 'magnetize attach' },
+    ],
+  },
+  {
+    id: 'counters',
+    title: 'Counters & Progress',
+    items: [
+      { key: 'stepprocfx', icon: '🧮', label: 'Step Proc', C: StepProcFxTuner, hint: 'The flourish when a step counter fills' },
+      { key: 'stepcounter', icon: '📈', label: 'Step Counter', C: StepCounterTuner, hint: 'The X/N numbers under a step-scaler card' },
+      { key: 'questtendril', icon: '🏆', label: 'Quest Tendril', C: QuestTendrilTuner, hint: 'The gold ribbon a quest or rune reward throws' },
+      { key: 'chargeglyph', icon: '🔋', label: 'Charge Glyph', C: ChargeGlyphTuner, hint: 'The end-of-turn charge glyph' },
+    ],
+  },
+  {
+    id: 'plate',
+    title: 'Plate FX',
+    items: [
+      { key: 'platedissolve', icon: '🌀', label: 'Dissolve', C: PlateDissolveTuner, hint: "What plays when a hand card's backplate leaves", alt: 'plate' },
+      { key: 'platecoalesce', icon: '🪄', label: 'Coalesce', C: PlateCoalesceTuner, hint: 'What plays when a card is generated into hand', alt: 'plate' },
+      { key: 'plategild', icon: '👑', label: 'Gild', C: PlateGildTuner, hint: 'Three copies combining into a gilded card', alt: 'plate golden triple' },
+    ],
+  },
+  {
+    id: 'status',
+    title: 'Status & World',
+    items: [
+      { key: 'ward', icon: '🔵', label: 'Ward Dome', C: WardTuner, hint: 'The glassy energy shell on a warded card', alt: 'divine shield' },
+      { key: 'execute', icon: '☠️', label: 'Execute Aura', C: ExecuteTuner, hint: 'The rage aura on an Execute minion', alt: 'venomous poison' },
+      { key: 'swapfx', icon: '↔️', label: 'Swap', C: SwapFxTuner, hint: 'The Displacement exchange arrows', alt: 'displacement' },
+      { key: 'trail', icon: '🌠', label: 'Trail', C: TrailTuner, hint: 'The wisp trail behind a moving card' },
+      { key: 'smoke', icon: '🌫️', label: 'Smoke & Dust', C: SmokeTuner, hint: "The board's soft smoke and dust" },
+      { key: 'float', icon: '🔢', label: 'Damage Float', C: FloatTuner, hint: 'The −N pills that pop over a struck unit' },
+      { key: 'aimfx', icon: '🎯', label: 'Hero Aim', C: AimFxTuner, hint: 'The targeting line and its activation spark' },
+    ],
+  },
+  {
+    id: 'audio',
+    title: 'Audio',
+    items: [{ key: 'sfx', icon: '🎛️', label: 'Mixing Desk', C: SfxMixer, hint: 'Per-sample volumes, buses and compression', alt: 'sfx sound volume' }],
+  },
+];
+
+const ALL: Tuner[] = GROUPS.flatMap((g) => g.items);
+
+/** One-shot actions — they fire or open something rather than toggling a persistent panel. */
+type Action = { id: string; icon: string; label: string; hint: string; run: () => void; live?: () => boolean };
 
 export function DevMenu() {
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState<Set<string>>(new Set());
   const [wbOpen, setWbOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [cursor, setCursor] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const toggle = (key: string): void =>
     setShown((s) => {
@@ -123,9 +215,69 @@ export function DevMenu() {
     });
 
   // Close one tuner panel — invoked by that panel's ✕ button (via DevPanelContext). No-op if already closed.
-  // Individual panels close ONLY via their ✕; a click outside them does NOT dismiss them.
+  // Individual panels close ONLY via their ✕, or via "Close all" below; a click outside them does NOT dismiss.
   const close = useCallback((key: string): void =>
     setShown((s) => { if (!s.has(key)) return s; const n = new Set(s); n.delete(key); return n; }), []);
+
+  const actions: Action[] = useMemo(() => [
+    { id: 'perf', icon: '📊', label: 'Perf HUD', hint: 'Frame-health overlay — also available in prod via ?perf=1',
+      run: () => (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(!perfMonitor.isRunning),
+      live: () => perfMonitor.isRunning },
+    { id: 'testfx', icon: '✨', label: 'Test FX', hint: 'Fire the spell-power flourish once on the board', run: () => pixiFx.test() },
+    { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
+    { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },
+    { id: 'workbench', icon: '🎨', label: 'FX Workbench', hint: 'Author effects and bind them to combat moments', run: () => setWbOpen(true) },
+  ], []);
+
+  // Filter across label, group title and the `alt` synonyms, so an old name still finds its panel.
+  const needle = q.trim().toLowerCase();
+  const groups = useMemo(() => {
+    if (!needle) return GROUPS;
+    return GROUPS
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((t) =>
+          `${t.label} ${t.hint} ${t.alt ?? ''} ${g.title}`.toLowerCase().includes(needle)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [needle]);
+
+  const visibleActions = useMemo(
+    () => (needle ? actions.filter((a) => `${a.label} ${a.hint}`.toLowerCase().includes(needle)) : actions),
+    [actions, needle],
+  );
+
+  // The keyboard walks ONE flat sequence over whatever is currently visible: tuners first, then actions.
+  const flat = useMemo(
+    () => [
+      ...groups.flatMap((g) => g.items.map((t) => ({ kind: 'tuner' as const, id: t.key }))),
+      ...visibleActions.map((a) => ({ kind: 'action' as const, id: a.id })),
+    ],
+    [groups, visibleActions],
+  );
+
+  useEffect(() => { setCursor(0); }, [needle]);
+  useEffect(() => { if (open) searchRef.current?.focus(); else { setQ(''); setCursor(0); } }, [open]);
+
+  // Keep the highlighted row in view while arrowing through a scrolling list.
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.querySelector('.devmenu-item.cursor')?.scrollIntoView({ block: 'nearest' });
+  }, [cursor, open]);
+
+  const activate = (i: number): void => {
+    const hit = flat[i];
+    if (!hit) return;
+    if (hit.kind === 'tuner') toggle(hit.id);
+    else actions.find((a) => a.id === hit.id)?.run();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent): void => {
+    if (e.key === 'Escape') { setOpen(false); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setCursor((c) => Math.min(c + 1, flat.length - 1)); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)); return; }
+    if (e.key === 'Enter') { e.preventDefault(); activate(cursor); }
+  };
 
   // Click-outside closes the DEV TUNING DROPDOWN itself (not the tuner panels): a pointerdown outside the menu
   // and its 🛠️ toggle collapses the list. Only active while the dropdown is open.
@@ -140,39 +292,113 @@ export function DevMenu() {
     return () => window.removeEventListener('pointerdown', onDown);
   }, [open]);
 
+  let row = -1; // running index into `flat`, so each rendered row knows its keyboard position
+
   return (
     <>
-      <button className="devmenu-btn" onClick={() => setOpen((o) => !o)} title="Dev tuning menu">🛠️</button>
+      {/* The emoji IS the label, so the button needs a real accessible name — `title` alone is not reliably
+          announced, and "hammer and wrench" is what a screen reader would otherwise read out. */}
+      <button
+        className={`devmenu-btn${shown.size ? ' has-open' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-label={shown.size
+          ? `Dev tuning menu, ${shown.size} panel${shown.size === 1 ? '' : 's'} open`
+          : 'Dev tuning menu'}
+        aria-expanded={open}
+        title={shown.size ? `Dev tuning menu — ${shown.size} panel${shown.size === 1 ? '' : 's'} open` : 'Dev tuning menu'}
+      >
+        <span aria-hidden>🛠️</span>
+        {shown.size > 0 && <span className="devmenu-count" aria-hidden>{shown.size}</span>}
+      </button>
       {open && (
-        <div className="devmenu">
-          <div className="devmenu-h">Dev Tuning</div>
-          {/* the items grid wraps into a NEW COLUMN every 15 rows (grid-auto-flow: column) — overflow columns
-              grow to the RIGHT of the first, while the right-anchored panel extends LEFT (see .devmenu-items). */}
-          <div className="devmenu-items">
-            {TUNERS.map(({ key, label }) => (
-              <button key={key} className={`devmenu-item${shown.has(key) ? ' on' : ''}`} onClick={() => toggle(key)}>
-                {label} <span>{shown.has(key) ? '✓' : ''}</span>
+        <div className="devmenu" onKeyDown={onKeyDown}>
+          <div className="devmenu-top">
+            <input
+              ref={searchRef}
+              className="devmenu-search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={`Search ${ALL.length} tuners…`}
+              spellCheck={false}
+            />
+            {shown.size > 0 && (
+              <button className="devmenu-closeall" onClick={() => setShown(new Set())} title="Close every open tuner panel">
+                Close all ({shown.size})
               </button>
-            ))}
-            <button
-              className="devmenu-item"
-              onClick={() => (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(!perfMonitor.isRunning)}
-              title="Frame-health HUD (also available in the prod build via ?perf=1)"
-            >📊 Perf HUD <span>{perfMonitor.isRunning ? '✓' : ''}</span></button>
-            <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
-            <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
-            <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>
-            <button className="devmenu-item" onClick={() => setWbOpen(true)}>🎨 FX Workbench <span>▸</span></button>
+            )}
           </div>
+
+          <div className="devmenu-list" ref={listRef}>
+            {groups.map((g) => (
+              <div className="devmenu-group" key={g.id}>
+                <div className="devmenu-gh">{g.title}</div>
+                {g.items.map((t) => {
+                  row += 1;
+                  const i = row;
+                  return (
+                    <button
+                      key={t.key}
+                      className={`devmenu-item${shown.has(t.key) ? ' on' : ''}${i === cursor ? ' cursor' : ''}`}
+                      onPointerEnter={() => setCursor(i)}
+                      onClick={() => toggle(t.key)}
+                      title={t.hint}
+                      aria-pressed={shown.has(t.key)}
+                    >
+                      <span className="devmenu-ic" aria-hidden>{t.icon}</span>
+                      <span className="devmenu-lb">{t.label}</span>
+                      <span className="devmenu-tick" aria-hidden>{shown.has(t.key) ? '✓' : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+
+            {visibleActions.length > 0 && (
+              <div className="devmenu-group" key="actions">
+                <div className="devmenu-gh">Actions</div>
+                {visibleActions.map((a) => {
+                  row += 1;
+                  const i = row;
+                  return (
+                    <button
+                      key={a.id}
+                      className={`devmenu-item action${i === cursor ? ' cursor' : ''}${a.live?.() ? ' on' : ''}`}
+                      onPointerEnter={() => setCursor(i)}
+                      onClick={a.run}
+                      title={a.hint}
+                    >
+                      <span className="devmenu-ic" aria-hidden>{a.icon}</span>
+                      <span className="devmenu-lb">{a.label}</span>
+                      <span className="devmenu-tick" aria-hidden>{a.live?.() ? '✓' : '▸'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* An empty state has to offer the way out, not just report the dead end. */}
+            {groups.length === 0 && visibleActions.length === 0 && (
+              <div className="devmenu-empty">
+                Nothing matches “{q.trim()}”.
+                <button className="devmenu-clear" onClick={() => { setQ(''); searchRef.current?.focus(); }}>
+                  Clear search
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Spelled out rather than glyph-only, and "select" because Enter opens or closes a panel in the
+              groups above but FIRES a one-shot in Actions — "toggle" was only true for one of the two. */}
+          <div className="devmenu-foot">↑ ↓ move · Enter select · Esc close</div>
         </div>
       )}
       <DevPanelContext.Provider value={{ close }}>
-        {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}
+        {ALL.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}
       </DevPanelContext.Provider>
       {/* Outside the provider on purpose: `DevPanelContext` exists so a DRAGGABLE tuner panel's ✕ can close
           itself by key (see `useDraggablePanel`). The workbench is a full-screen overlay that owns its own
-          close, doesn't use that hook, and has no key in `TUNERS` — wrapping it would imply a relationship
-          it doesn't have. */}
+          close, doesn't use that hook, and has no key in the groups above — wrapping it would imply a
+          relationship it doesn't have. */}
       {wbOpen && <FxWorkbench onClose={() => setWbOpen(false)} />}
     </>
   );

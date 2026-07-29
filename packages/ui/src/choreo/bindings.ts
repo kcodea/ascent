@@ -38,6 +38,28 @@ export interface FxBinding {
 
 const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed'];
 
+/**
+ * A reserved def id for LIVE PREVIEWS. A binding to it applies in memory — that is what makes the authoring
+ * draft visible on the real card — but it is stripped on the way to `localStorage` and on the way to
+ * `bindings.json`, so it can never outlive the session that made it and can never be committed.
+ *
+ * Without that, the authoring loop writes a binding to a def that exists only in memory: a dangling
+ * reference in a git-tracked file, which resolves to nothing and looks exactly like the tool being broken.
+ * Reachable on the ordinary happy path, because writing bindings.json triggers a full reload and a React
+ * cleanup does not run on unload. It was also reachable at commit time: `bindingsJson()` serialises the
+ * WHOLE patch, and a global-scope commit writes the kind row without touching the card row the draft sits
+ * on — so the draft went to disk beside it, shadowing the binding just committed for the card being tuned.
+ *
+ * Enforced HERE rather than in the workbench on purpose: a UI that tidies up before writing is correct only
+ * for as long as every future caller remembers to, and neither of those two routes is one a reviewer would
+ * think to check.
+ *
+ * NB: the workbench's draft stops being live the moment a commit succeeds — `commit` overwrites that patch
+ * entry with the real def id and the bind effect's deps don't change, so it never re-binds the draft. In
+ * practice the full reload follows immediately, but the coupling is real and undocumented elsewhere.
+ */
+export const DRAFT_DEF_ID = 'fx-draft';
+
 /** Keys that must never be used as a table key: assigning to `__proto__` on a plain object invokes the
  *  inherited setter and rewrites the table's prototype, so a malformed entry would silently corrupt the table
  *  instead of being dropped like every other one. `constructor`/`prototype` are refused alongside it because
@@ -202,9 +224,32 @@ let patch: PatchTable = (() => {
   }
 })();
 
+/**
+ * The patch as it is allowed to PERSIST: every `DRAFT_DEF_ID` entry removed, and a card left with nothing
+ * pruned entirely (the same tidy-up `clearBinding` does, for the same reason — an accumulating pile of empty
+ * card objects). The in-memory `patch` is untouched: the preview has to keep working.
+ */
+function persistablePatch(): PatchTable {
+  const out: PatchTable = { kinds: {}, cards: {} };
+  for (const [kind, b] of Object.entries(patch.kinds)) {
+    if (b?.def !== DRAFT_DEF_ID) out.kinds[kind as MomentKind] = b;
+  }
+  for (const [cardId, byKind] of Object.entries(patch.cards)) {
+    const table: Partial<Record<MomentKind, FxBinding | null>> = {};
+    for (const [kind, b] of Object.entries(byKind)) {
+      if (b?.def !== DRAFT_DEF_ID) table[kind as MomentKind] = b;
+    }
+    if (Object.keys(table).length > 0) out.cards[cardId] = table;
+  }
+  return out;
+}
+
 function savePatch(): void {
   try {
-    localStorage.setItem(PATCH_KEY, JSON.stringify(patch));
+    // A DRAFT never reaches storage — see `DRAFT_DEF_ID`. A React cleanup does not run on unload, and the
+    // commit path RELOADS the page, so anything persisted here would come back next session pointing at a
+    // def that no longer exists and silence that card at that moment forever.
+    localStorage.setItem(PATCH_KEY, JSON.stringify(persistablePatch()));
   } catch {
     /* ignore — the in-memory patch still works */
   }
@@ -322,17 +367,30 @@ export function effectiveTables(): BindingTable {
  *
  * Keys are sorted so a commit produces a minimal, readable diff rather than reordering the whole file
  * whenever an object's insertion order happens to change.
+ *
+ * Every `DRAFT_DEF_ID` binding is DROPPED — see that constant. This is the second of the two routes a draft
+ * could reach disk, and the one the commit button walks: a global-scope commit writes the kind row and
+ * leaves the card row the draft sits on alone, so without this strip the file gains a card binding to a def
+ * that exists only in memory, shadowing the kind binding just committed for that very card.
  */
 export function bindingsJson(): string {
   const t = effectiveTables();
   const kinds: Record<string, FxBinding> = {};
-  for (const kind of Object.keys(t.kinds).sort()) kinds[kind] = t.kinds[kind as MomentKind] as FxBinding;
+  for (const kind of Object.keys(t.kinds).sort()) {
+    const b = t.kinds[kind as MomentKind] as FxBinding;
+    if (b.def !== DRAFT_DEF_ID) kinds[kind] = b;
+  }
   const cards: Record<string, Record<string, FxBinding>> = {};
   for (const cardId of Object.keys(t.cards).sort()) {
     const byKind = t.cards[cardId] ?? {};
     const inner: Record<string, FxBinding> = {};
-    for (const kind of Object.keys(byKind).sort()) inner[kind] = byKind[kind as MomentKind] as FxBinding;
-    cards[cardId] = inner;
+    for (const kind of Object.keys(byKind).sort()) {
+      const b = byKind[kind as MomentKind] as FxBinding;
+      if (b.def !== DRAFT_DEF_ID) inner[kind] = b;
+    }
+    // A card whose only binding was the draft is pruned outright, exactly as `clearBinding` prunes it —
+    // committing `"somecard": {}` would be a diff that says nothing.
+    if (Object.keys(inner).length > 0) cards[cardId] = inner;
   }
   return `${JSON.stringify({ version: 1, kinds, cards }, null, 2)}\n`;
 }

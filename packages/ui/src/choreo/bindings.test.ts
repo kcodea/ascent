@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bindingFor, bindingsJson, clearBinding, effectiveTables, parseTable, resetBindings, setBinding } from './bindings';
+import {
+  bindingFor,
+  bindingsJson,
+  clearBinding,
+  DRAFT_DEF_ID,
+  effectiveTables,
+  parseTable,
+  resetBindings,
+  setBinding,
+} from './bindings';
 import { CARD_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
 
@@ -361,5 +370,55 @@ describe('bindingsJson', () => {
     expect(text.endsWith('\n')).toBe(true);
     const kinds = Object.keys(JSON.parse(text).kinds);
     expect(kinds).toEqual([...kinds].sort());
+  });
+});
+
+/**
+ * The draft id applies IN MEMORY but must never reach disk in either direction — a committed binding to it
+ * points at a def that exists only in this session, which resolves to nothing and reads as a broken tool.
+ *
+ * Both routes are ordinary happy paths, not edge cases, which is why they are pinned here rather than left
+ * to the workbench to remember: writing bindings.json triggers a full page reload (so the React cleanup that
+ * tears the draft down never runs), and a global-scope commit writes the KIND row while leaving the card row
+ * the draft sits on untouched — straight into `bindingsJson()`'s output.
+ */
+describe('the live-preview draft never reaches disk', () => {
+  beforeEach(() => resetBindings());
+
+  it('never persists a draft binding to localStorage', () => {
+    withLocalStorage(() => {
+      setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+      expect(localStorage.getItem('ascent.fxBindings')).not.toContain(DRAFT_DEF_ID);
+      // ...and the card it was the ONLY binding for is pruned, not left behind as an empty object.
+      expect(JSON.parse(localStorage.getItem('ascent.fxBindings') ?? '{}').cards).toEqual({});
+    });
+  });
+
+  it('strips only the draft, leaving a real override beside it persisted', () => {
+    withLocalStorage(() => {
+      setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+      setBinding(null, 'rally', { def: 'test-red-blast' });
+      const stored = JSON.parse(localStorage.getItem('ascent.fxBindings') ?? '{}');
+      expect(stored.kinds.rally).toEqual({ def: 'test-red-blast' });
+      expect(stored.cards).toEqual({});
+    });
+  });
+
+  it('never serialises a draft binding into the committed table', () => {
+    // Exactly the global-scope commit: the kind row is the commit target, the card row is the live draft.
+    setBinding(null, 'scCast', { def: 'committed-thing' });
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+    const text = bindingsJson();
+    expect(text).not.toContain(DRAFT_DEF_ID);
+    const parsed = JSON.parse(text);
+    expect(parsed.kinds.scCast).toEqual({ def: 'committed-thing' });
+    // The card must be gone ENTIRELY — a `"bloodbinder": {}` would be a diff that says nothing, and would
+    // still have dropped the file's own `ruby-lance` binding for it.
+    expect(parsed.cards.bloodbinder).toBeUndefined();
+  });
+
+  it('still resolves a draft binding in memory, which is what makes the preview work', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID });
   });
 });

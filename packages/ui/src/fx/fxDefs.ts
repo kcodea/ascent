@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { DRAFT_DEF_ID } from '../choreo/bindings';
 import { coerceDef, isValidSlug, type StoredFxDef } from './defStore';
 
 /**
@@ -72,9 +73,17 @@ function index(): Map<string, StoredFxDef> {
   return out;
 }
 
-/** Every committed def, sorted by id. */
+/**
+ * Every committed def, sorted by id.
+ *
+ * The workbench's live DRAFT is excluded. It is registered here so the preview can resolve it (see
+ * `DRAFT_DEF_ID` in `choreo/bindings.ts`), but it has NO file behind it — so listing it would put a
+ * clickable phantom in the library that loads a def nobody can find on disk, and it lingers in
+ * `savedThisSession` long after rail mode closes. `getDef` deliberately still returns it: that is the lookup
+ * the preview goes through.
+ */
 export function listDefs(): StoredFxDef[] {
-  return [...index().values()].sort((a, b) => a.id.localeCompare(b.id));
+  return [...index().values()].filter((d) => d.id !== DRAFT_DEF_ID).sort((a, b) => a.id.localeCompare(b.id));
 }
 
 export function getDef(id: string): StoredFxDef | undefined {

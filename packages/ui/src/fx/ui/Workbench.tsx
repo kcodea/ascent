@@ -34,6 +34,7 @@ import {
   bindingFor,
   bindingsJson,
   clearBinding,
+  DRAFT_DEF_ID,
   effectiveTables,
   setBinding,
   type FxBinding,
@@ -108,16 +109,6 @@ const BACKDROP_SWATCHES: readonly { label: string; hex: number | null }[] = [
 // matching how every other dev tuner already vanishes from the shipped bundle. `build()` below polls for
 // a primitive to appear before using it, since this resolves asynchronously.
 if (import.meta.env.DEV) void import('../primitives');
-
-/**
- * The id the in-memory draft is registered under while tuning against a live card.
- *
- * ONE fixed id, because one draft exists at a time — you are tuning one effect for one card. A generated or
- * name-derived id would leave a trail of stale overlays in the registry every time the name field changed,
- * and would make "is what I'm watching saved?" impossible to answer from a console line. Never written to
- * disk: `registerSavedDef` overlays it in memory only, and commit calls `saveDef` with the real id.
- */
-const DRAFT_ID = 'fx-draft';
 
 /**
  * The art-ref rewrite map the DRAFT uses: empty, and module-scope so its identity is stable across renders.
@@ -1255,16 +1246,20 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   }, [harnessCard, harnessKind]);
 
   // While rail mode has a card AND a moment selected, the editor's current composition IS what that card
-  // plays — registered in memory under DRAFT_ID and bound through the session patch, which `bindingFor`
-  // consults before the committed file. Nothing touches disk; re-seek the moment and you see the edit.
+  // plays — registered in memory under `DRAFT_DEF_ID` and bound through the session patch, which
+  // `bindingFor` consults before the committed file. Nothing touches disk; re-seek the moment and you see
+  // the edit. The draft can never LEAK to disk either: `bindings.ts` strips that id out of both the
+  // localStorage write and the committed table (see `DRAFT_DEF_ID`).
   //
-  // Registration is split from binding deliberately. This half re-runs on every slider frame and is pure
-  // in-memory (a map write plus a cache bust); `setBinding` below persists to localStorage, and doing that
-  // per frame of a drag is exactly the kind of hitch this repo treats as a defect.
+  // Registration is split from binding deliberately. This half re-runs on every slider frame and stays in
+  // memory (a map write plus a cache bust — though that bust is not free: it drops the def index, so the
+  // NEXT `getDef`/`listDefs` rebuilds it and re-runs `coerceDef` over every def in the library, a cost that
+  // grows with the library). `setBinding` below persists to localStorage, and doing THAT per frame of a drag
+  // is exactly the kind of hitch this repo treats as a defect.
   useEffect(() => {
     if (!railMode || harnessCard === '' || harnessKind === null) return;
     registerSavedDef(
-      toStoredDef(DRAFT_ID, durationMs, toStoredLayers(layers, NO_ART_REFS), seedLocked ? seed : undefined),
+      toStoredDef(DRAFT_DEF_ID, durationMs, toStoredLayers(layers, NO_ART_REFS), seedLocked ? seed : undefined),
     );
   }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked]);
 
@@ -1283,8 +1278,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     const card = harnessCard;
     const kind = harnessKind;
     setBinding(card, kind, commitFanOut === undefined || commitFanOut === 'primary'
-      ? { def: DRAFT_ID }
-      : { def: DRAFT_ID, fanOut: commitFanOut });
+      ? { def: DRAFT_DEF_ID }
+      : { def: DRAFT_DEF_ID, fanOut: commitFanOut });
     return () => clearBinding(card, kind);
   }, [railMode, harnessCard, harnessKind, commitFanOut]);
 

@@ -24,6 +24,17 @@ describe('choreoConfig', () => {
     expect(holdMsForKind('death')).toBe(beatDelay('death'));
     expect(holdMsForKind('scCast')).toBe(beatDelay('sc'));
   });
+  // Every kind SPLIT (kinds.ts) must be pacing-neutral: the new kind's hold has to equal the hold the events
+  // that moved to it had under their old classification. (The replay clock keys by primary event TYPE, so a
+  // split can't move a beat regardless — this locks the kind-facing view, which the score takes over later.)
+  it('every kind split preserves the old kind’s hold exactly', () => {
+    expect(holdMsForKind('shieldGain')).toBe(holdMsForKind('shieldPop'));   // Ward gained ← Ward consumed
+    expect(holdMsForKind('venomSpent')).toBe(holdMsForKind('poisonTick'));  // Venom spent ← Execute proc
+    expect(holdMsForKind('scNarrate')).toBe(holdMsForKind('scCast'));       // narration ← Start-of-Combat cast
+    expect(holdMsForKind('questTrigger')).toBe(holdMsForKind('damage'));    // quest beats ← the `damage` default
+    expect(holdMsForKind('questComplete')).toBe(holdMsForKind('damage'));
+  });
+
   it('CHOREO_KEYS still enumerates every pacing field', () => {
     expect(CHOREO_KEYS).toContain('speed');
     expect(CHOREO_KEYS).toContain('finalHold');

@@ -31,6 +31,17 @@ pass alongside the other Rally payoffs.
 `hasTier7Access` is live and Beyond the Summit is gated on it, but nothing sets `tier7Access` — only the Summit
 rift reaches Tier 7 today. The owner described the other route as "a different hero power or something"; the flag
 is ready for whichever hero or quest ends up carrying it.
+- **Live FX authoring, phase ③ — the authoring panel.** Tie ① and ② together: pick a card, tune its effect
+  against a live replay, and commit with a choice of card-only or global scope. Phase ① (bindings as data)
+  shipped 2026-07-27; phase ② (the proc harness) shipped 2026-07-28.
+
+### FX authoring loop (owner test run — 2026-07-26)
+The FX workbench is built; the next step is authoring a real effect through it end to end.
+[`docs/fx-requests.md`](fx-requests.md) holds the brief template and the queue. Division of labour: owner
+briefs → Claude builds a first-pass `defs/<id>.json` → owner tunes in the workbench and Saves → Claude binds
+it to a moment kind in `score.ts`. Blocking-ish for a serious run: `fxScale` isn't threaded into the
+primitives (a def is the same pixel size on every screen), `playDef` takes no per-call params, and anchors
+are points rather than rectangles.
 
 ### Drag feel is not scale-invariant (owner report 2026-07-22 — decision needed)
 The drag maths works on raw pixel deltas (`tiltPerPx * hLean * gx`) without dividing by `--scale`, so the same
@@ -141,6 +152,63 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **FX Workbench — P2 (composition + richer params).** P1 shipped 2026-07-24 (see devlog): effects are data
+  played by a runtime player, primitives declare their params once, and a dev-only shell generates its
+  inspector from that; burst/shockwave/emitter primitives, an editable palette, a decoupled Fire trigger, and
+  **value-over-life curves** (the `curve` param kind, first wired as particle size-over-life) have since
+  landed. Remaining richer-param work: a `gradient` (colour-over-life) kind reusing the curve editor with
+  a **smoke** primitive; optional alpha-over-life curves. (Motion physics — turbulence, emission shapes,
+  velocity inheritance — colour-over-life via a bias curve, and **multi-layer composition** all shipped
+  2026-07-24; colour-over-life was delivered as a rim↔core bias curve reusing the `curve` kind, not a
+  standalone RGB ramp, to stay inside the posterized-palette model.) Composition landed as a functional
+  **Layers panel** (add/remove/reorder/select-to-edit + per-layer `at`/`life`); still to do on top of it: a
+  draggable timeline-*track* visualization; per-layer anchors staged from real combat moments (not just the
+  shared scenario head); and save-to-file for defs via a dev-only Vite middleware (Copy-def clipboard is the
+  stand-in). A **smoke** primitive (posterized/cel, the emitter's rising billowing cousin) shipped 2026-07-24.
+  Shipped 2026-07-25: **custom PNG/SVG art import** (a runtime shape library with luminance auto-tracing), the
+  **ribbon's cel look on every primitive** (particles and shockwaves now posterize a real gradient + plateau
+  instead of a flat alpha — the fix for the repeated "same cartoon posterized look" ask), a `tintMode` toggle
+  (palette vs the art's own colours, both posterized), ribbon **width-over-length / wave / segments**, particle
+  **orient-to-velocity + alpha-over-life**, and the `curve` **`vMax`** (curves can now exceed 1×). Also
+  shipped 2026-07-25: **durable defs** — Save writes a committed `fx/defs/<id>.json` via a dev-only Vite
+  plugin, with a library / Duplicate / Paste / autosave, and imported art promoted to committed `art:` files
+  so a shared def renders what its author saw.
+
+- **FX — the bridge SHIPPED 2026-07-25** (`playDef` + `combatAnchors` + an `fxDef` Score channel, proven in a
+  live browser with the committed `ward-gained` def bound to the new `shieldGain` moment). What's left on it:
+  - **The prod decision.** Defs are inert for players: the primitives ship only via a DEV-gated dynamic
+    import, so `canPlayDefs()` is false in a production build. Turning it on means shipping the primitives +
+    their GLSL — measure that before flipping. The bridge scaffolding itself already costs +3.24 kB gzip.
+  - **`shieldUp` is a result-type event** and collapses into contiguous result runs, so the demo cue doesn't
+    fire on every combat (`[dmg, shieldUp]` compiles to a `damage` moment). A per-event fan-out in
+    `compile.ts` is the fix if that moment needs to be reliable.
+  - **The content backlog: 12 of ~15 landed 2026-07-25** (stealth-break, keyword gain/lost, venom-spent,
+    rally-link, spell-cast, to-hand, hp-grant, spell-progress, quest-trigger, quest-complete, death-dissolve).
+    Still open: **enemy-side tribe auras** (needs a side-aware wash target + a (side,tribe) dedupe key —
+    un-filtering naively would wash the PLAYER'''s board and suppress their own aura); **quest-trigger /
+    quest-complete are wired but dormant** (those events name no unit, so anchors resolve to null — they need
+    a badge/HUD anchor); and **hpGrant holds ~0ms**, so its def fires into an immediately-advancing beat.
+  - **Anchors are a fire-time snapshot**, so an effect doesn't follow a moving unit. Deliberate (per-frame
+    layout reads are banned here); revisit if a follow-the-unit effect is ever wanted.
+
+- **FX workbench — remaining authoring gaps.** (The three trust defects — Fire ignoring `at`/`life`, timing
+  edits respawning mid-drag, no seed lock — were fixed 2026-07-25, along with duplicate-layer and per-layer
+  mute.) Still missing: **undo/redo** (no history stack at all; switching a layer's primitive irreversibly
+  resets its params); **A/B compare** of two tunings (now genuinely meaningful, since a locked seed makes the
+  randomness controlled); a **perf readout** beyond fps (the primitives already track live particle counts
+  internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare, preset/palette library,
+  perf HUD. P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
+  regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
+  A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests
+  aren't enforced there and the ~50 pre-existing `packages/ui` type errors stay invisible. Swapping the
+  shipped `pixiFx.trail` wisps for the new ribbon is its own later PR once the owner has tuned the look.
+
+- **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
+  was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own
+  for that move, used *instead of* the coalesce, not alongside it. The exclusion is already wired
+  (`buyPendingRef` at the `buy` dispatch), so this is purely the new effect.
+- **Gild / triple effect.** Also deliberately excluded from the coalesce, and also wants its own treatment.
+  Detection is already in place (`run.triplesMade` diff).
 - **Dwarf tribe: the card frame art already exists.** When the `dwarf` tribe lands in the `Tribe` union, its
   oval frame + gilded variant are already authored and waiting at
   `Desktop/Reference Art/card frames/dwarf frame.png` + `dwarf gilded frame.png` (1059×1427) AND the Taunt pair
@@ -385,6 +453,14 @@ effects (the `.dr` collapse hold can trail them) — tune live against the skull
   hardcoded card-ids (Hoarder sell, Cling stacking, Yazzus multiplier; Echo Warden / Sylus / Beatboxer);
   unify aggregate auras into the `cardBuffs` map + an "Aura" inspect line; Reborn carries the prior-fight
   Eternal-Knight enchant; Cassen grant fly-to-hand; vendor Build Handoff v2 into `docs/handoff.md`.
+
+### Infra
+- **Close the `apps/web` typecheck gap.** `fxDefsPlugin.ts` and `vite.config.ts` are in no TS program;
+  `npm run typecheck:web` is red on `main` and not in CI. Needs a node-side tsconfig wired into the gated
+  `typecheck` script, plus a pass over the ~66 pre-existing `packages/ui` errors.
+- **`CombatReplay.questDelta` is returned but not declared.** `useCombatReplay` returns `questDelta` in its
+  object while the `CombatReplay` interface omits it — a real mismatch, invisible because `typecheck:web` is
+  red on `main` and absent from CI. Fix alongside the wider `apps/web` typecheck gap.
 
 ### Tech-debt watch (fold into whichever PR touches it)
 Split `Recruit.tsx` (~2.7k — proposed seams: `recruitViews` / `useCardDrag` / `useAuraTracker` /

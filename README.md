@@ -56,6 +56,53 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **Set 1 and Set 2 no longer mix** — every random pick in combat now draws from the run's pinned set.
 - **Fixed broken images on the itch browser build** — root-absolute asset paths 404 on itch's CDN sub-path;
   a test now blocks the whole class.
+- **Replay any moment a card caused.** Stage a controlled fight, pick from the list of moments your card
+  actually produced, and jump the replay to any of them with a run-up — so an authored effect can be judged
+  on the real card at real scale, on demand, instead of by playing until its moment happens to occur.
+- **A guide for driving the FX workbench**, end to end — author, stage, tune, save, bind, verify in a real
+  fight. See [`docs/fx-workbench-guide.md`](docs/fx-workbench-guide.md).
+- **A travelling effect can fly straight.** The arc's bow was a hardcoded constant nothing could reach; it is
+  now a per-layer `bow` with an **Arc** slider, where `0` is a dead-straight laser.
+- **FX bindings are data.** Which authored effect plays at a moment now lives in one `bindings.json` behind a
+  single resolver, with live session overrides and a dev endpoint that commits them back to the file — the
+  foundation for authoring an effect against a real combat.
+- **An FX library browser.** The workbench's effects are no longer a flat list of ids: one derived catalog
+  is surfaced through three lenses — browse **by look** (shape, colour, motion), **by event** (which moment
+  kinds have an effect, and which are still bare), and **by card** (grouped by tribe). Facets are derived
+  from the effects themselves, so nothing needs tagging by hand, and a binding pointing at a def that no
+  longer exists — previously a silent no-op — now shows up in red and fails a test.
+- **An FX workbench.** Adding a new visual effect no longer costs a hand-written tuner panel (there were 34,
+  on ~7,700 lines of four-parallel-list boilerplate that had already drifted). Effects are now **data played
+  by a runtime player**; a primitive declares its parameters once and a dev-only workbench generates the whole
+  editing UI from that declaration — with live scrub, an **editable colour palette** (four stops + presets),
+  draggable **value-over-life curves** (size- and colour-over-life — particles grow/pop/shrink and travel
+  rim↔core across their lifetime), a **motion-physics** layer (turbulence, emission shapes, velocity
+  inheritance), **multi-layer composition** (compose several primitives into one effect, each with its own
+  timing), a **Fire** button that plays an effect once to true completion decoupled from the loop, and staged
+  **scenarios** (two units, pinned-to-cursor, click-to-place, ping-pong bounce, stationary) so an effect can be
+  tuned without playing to the moment it fires. Five primitives so far — a posterized cel-band **trail**, a
+  radial **burst**, an expanding **shockwave**, a continuous **emitter**, and rising cel **smoke** — and they
+  now all share the trail's cartoon-posterized look (they used to posterize a flat value and come out as solid
+  chips). You can **import your own PNG/SVG art** as a particle shape and either recolour it into the palette
+  or keep its own colours, still posterized. And an effect is now a **saved file** rather than a clipboard
+  blob — Save writes a committed def you can load, duplicate as a template, and share by pushing a branch,
+  with autosave so a hot-reload can't eat a tuning session. The whole workbench tree-shakes out of the
+  production build. See the [devlog](docs/devlog.md).
+- **UI hover sound.** Menu / navigation buttons, hero-select cards, and Discover options now play a soft cue on
+  hover. The in-game shop/combat HUD controls (hero power, freeze, refresh, tavern-up, end-turn, …) and minion
+  cards stay silent. Level is tunable in the dev Mixing Desk under the `uihover` category.
+- **Four stuck visual cues fixed** — the Karwind flame, the hero-power refresh flash, the damage float on
+  the Resolve chip, and screen shake could all latch on permanently.
+- **The hand glides open and closed** when you buy or play a card, instead of cards blinking to new spots.
+- **Shout minions no longer flash when you reorder cards past them.**
+- **Cards granted in combat arrive twice as fast** — the beat spacing between an effect's pulse, its card
+  coalescing into hand, and the next pulse is halved.
+- **Ryme triggering Field Mechanic now shows you the Patch Job during the fight** — the card was always
+  granted, but only appeared once combat was over.
+- **Cards granted mid-combat materialise in your hand as the effect procs** — on the same beat as the
+  Deathrattle skull, with the hand gliding open to make room. The mid-screen "To your hand" card is gone.
+- **Cards granted mid-combat now materialise in your hand** — the arcane coalesce used to play in the
+  middle of the screen, then the card warped into hand and blinked once more as the fight ended.
 - **Ruby and Ward Echoes animate in combat** — Geode Guardian and Lastlight Marshal were landing their buffs
   with no cue at all.
 - **The Dwarf Work Orders are now Ales** — Golden, Defensive, Champion's, Reinforcing and Bloody, with new art.

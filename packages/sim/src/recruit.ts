@@ -5110,6 +5110,12 @@ export interface EotStepFx {
   /** Host uids that gained an Attachment on this beat (Combinator, Cling Drones, Money Bots) — the UI plays
    *  the weld ring on them as the beat runs, since the real weld's stamp lands after the phase flips. */
   welds: string[];
+  /** cardIds this beat added to the HAND (Money Maker, Crypt Scribe, Steward of Spells, Rune of Spending's
+   *  conjures …). `faceOmen` commits every End-of-Turn grant in one dispatch after the last beat, so without
+   *  this the whole batch materialised at once, after all the pulses had already fired. The UI shows each
+   *  grant arriving on ITS beat instead (owner ask 2026-07-27). cardIds, not uids: the projection runs on a
+   *  throwaway clone whose uids are not the ones `faceOmen` will mint. */
+  handGrants: string[];
   /** SPELL POWER this beat added (Aeon Guard, Tallymonger). Carried per-beat for the same reason `welds` is:
    *  the action-level `spellPowerFxSeq` bump lands after the phase has flipped to combat, so the shop-anchored
    *  flourish has nothing left to play over. Absent = no rise. */
@@ -5159,6 +5165,7 @@ export function projectEndOfTurnSteps(state: RunState): {
     const eatenStart = (clone.fodderEaten ?? []).length;
     const atkBefore = new Map(clone.board.map((c) => [c.uid, c.attack]));
     const attachBefore = new Map(clone.board.map((c) => [c.uid, c.attachments ?? 0]));
+    const handBefore = new Set(clone.hand.map((c) => c.uid));
     const spBefore = { a: spellAttackBonus(clone), h: spellHealthBonus(clone) };
     const impBefore = { a: clone.impBuff?.attack ?? 0, h: clone.impBuff?.health ?? 0 };
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
@@ -5176,6 +5183,8 @@ export function projectEndOfTurnSteps(state: RunState): {
       const before = attachBefore.get(c.uid);
       if (before !== undefined && (c.attachments ?? 0) > before) welds.push(c.uid);
     }
+    // Cards this beat put in hand, in arrival order — matched by cardId when the real grants land.
+    const handGrants = clone.hand.filter((c) => !handBefore.has(c.uid)).map((c) => c.cardId);
     // Spell-power / Imp-aura rises this beat produced. Diffed rather than wired per-effect, so any future
     // End-of-Turn card that moves either channel animates without touching this code.
     const spDelta = { attack: spellAttackBonus(clone) - spBefore.a, health: spellHealthBonus(clone) - spBefore.h };
@@ -5185,6 +5194,7 @@ export function projectEndOfTurnSteps(state: RunState): {
       buffFx: clone.recruitBuffFx.slice(fxStart),
       eaten: (clone.fodderEaten ?? []).slice(eatenStart),
       welds,
+      handGrants,
       ...(spDelta.attack > 0 || spDelta.health > 0 ? { spellPower: spDelta } : {}),
       ...(impDelta.attack > 0 || impDelta.health > 0 ? { impAura: impDelta } : {}),
     });

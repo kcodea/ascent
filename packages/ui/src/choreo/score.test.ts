@@ -1,9 +1,24 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from './compile';
 import { sfx } from '../sfx';
-import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues } from './score';
-import { momentKind } from './kinds';
+import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues, type Channel } from './score';
+import { momentKind, type MomentKind } from './kinds';
+import { holdMsForKind } from './choreoConfig';
+import { canPlayDefs, playDef } from '../fx/playDef';
+import { anchorsForUnits } from '../fx/combatAnchors';
+import { bindingFor } from './bindings';
+
+// The `fxDef` channel's collaborators are mocked at the CONTRACT (`playDef`/`canPlayDefs`/`anchorsForUnits`),
+// so these tests prove the SCORE's dispatch/guard/timing wiring without depending on how the fx layer renders.
+vi.mock('../fx/playDef', () => ({ playDef: vi.fn(() => () => {}), canPlayDefs: vi.fn(() => true) }));
+vi.mock('../fx/combatAnchors', () => ({ anchorsForUnits: vi.fn(() => ({ target: { x: 5, y: 7 } })) }));
+const mockPlayDef = vi.mocked(playDef);
+const mockCanPlayDefs = vi.mocked(canPlayDefs);
+const mockAnchors = vi.mocked(anchorsForUnits);
+/** The per-card path now reads the replay's own uid→card map out of ctx, so a case opts in by passing one
+ *  rather than by mocking a DOM lookup. No map = no per-card binding = the kind-level default. */
+const withCard = (uid: string, cardId: string) => ({ cardIds: new Map([[uid, cardId]]) });
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
@@ -65,8 +80,20 @@ describe('score', () => {
 
   it('executeFx does NOT fire on a venomLost-only moment (the keyword being spent is not a kill)', () => {
     const c = ctx([{ type: 'venomLost', target: 'b' }]);
-    runMomentCues(moment('poisonTick', c.events), c);
+    runMomentCues(moment('poisonTick', c.events), c);       // absorbed into a poison run
     expect(c.onExecuteFx).not.toHaveBeenCalled();
+    const c2 = ctx([{ type: 'venomLost', target: 'b' }]);
+    runMomentCues(moment('venomSpent', c2.events), c2);      // and as its own kind (the split)
+    expect(c2.onExecuteFx).not.toHaveBeenCalled();
+  });
+
+  // The venomSpent/poisonTick split must not have cost the Execute crescent: both are RESULT_TYPES, so a
+  // `[venomLost, poison]` run collapses into ONE moment whose primary is the venomLost — i.e. a `venomSpent`
+  // moment that still CONTAINS a kill. It has to slash exactly as it did when both events shared a kind.
+  it('executeFx still fires for a poison collapsed into a venomSpent moment', () => {
+    const c = ctx([{ type: 'venomLost', target: 'b' }, { type: 'poison', target: 'b' }]);
+    runMomentCues(moment('venomSpent', c.events), c);
+    expect(c.onExecuteFx).toHaveBeenCalledWith(['b']);
   });
 
   // THE REGRESSION (owner report 2026-07-22: "i only see the original strike effect"). `poison` is a
@@ -275,7 +302,8 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
     { type: 'shield', target: 'b' }, { type: 'shieldUp', target: 'b' },
     { type: 'poison', target: 'b' }, { type: 'venomLost', target: 'b' },
     { type: 'death', target: 'b' }, { type: 'death', target: 'b', rise: true },
-    { type: 'sc', source: 'a', text: 'x' }, { type: 'summon', side: 'player', index: 0, minion: { uid: 'z', cardId: 'alley', name: 'Alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } },
+    { type: 'sc', source: 'a', text: 'x' }, { type: 'sc', source: 'a', text: 'x', cast: true },
+    { type: 'summon', side: 'player', index: 0, minion: { uid: 'z', cardId: 'alley', name: 'Alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } },
     { type: 'buff', target: 'b', source: 'a', attack: 1, health: 1 },
     { type: 'reborn', target: 'b', attack: 1, hp: 1, keywords: [] },
     { type: 'ascend', target: 'b', into: 'taragosa' }, { type: 'rally', source: 'a', target: 'b' },
@@ -283,7 +311,10 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
     { type: 'improve', target: 'b', amount: 1 },
     { type: 'keyword', target: 'b', keyword: 'DS' }, { type: 'keywordLost', target: 'b', keyword: 'T' },
     { type: 'hpGrant', target: 'b', amount: 2 }, { type: 'spellProgress', target: 'b', amount: 3 },
-    { type: 'reveal', target: 'b' },
+    { type: 'reveal', target: 'b' }, { type: 'tribeAura', side: 'player', tribe: 'beast', attack: 1 },
+    // Quest/rune beats: these used to hit `momentKind`'s `damage` fallthrough. They have their own kinds now, so
+    // this row also guards against a kind being added without its score entry (the "cues is not iterable" crash).
+    { type: 'questTrigger', flag: 'f', side: 'player' }, { type: 'questComplete', questId: 'q', side: 'player' },
   ] as CombatEvent[];
 
   it('every event type yields a defined, iterable score entry (never crashes runMomentCues)', () => {
@@ -293,5 +324,382 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
       expect(score[kind]).toBeDefined(); // getScore()[kind] must be iterable, not undefined
       expect(Array.isArray(score[kind])).toBe(true);
     }
+  });
+});
+
+// ── the `fxDef` channel (authored FX defs) ──────────────────────────────────────────────────────────────
+const shieldUpMoment = (): Moment => moment('shieldGain', [{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+
+// THE binding table lives in `bindings.json` and is asserted in `bindings.test.ts`. What this file owns is
+// that the score gives every kind a TIMING row to hang a binding on, and that the rows are ordered correctly.
+describe('fxDef channel', () => {
+  beforeEach(() => {
+    // The suite-wide `restoreAllMocks` strips these module mocks' implementations — restate them per test.
+    mockPlayDef.mockReset(); mockPlayDef.mockImplementation(() => () => {});
+    mockCanPlayDefs.mockReset(); mockCanPlayDefs.mockImplementation(() => true);
+    mockAnchors.mockReset(); mockAnchors.mockImplementation(() => ({ target: { x: 5, y: 7 } }));
+    resetScore();
+  });
+  afterEach(() => resetScore());
+
+  // Every kind carries a timing row, so a binding added to `bindings.json` is SUFFICIENT to make it play.
+  // Before this, a def bound to a kind whose cue list happened to lack an `fxDef` entry silently played
+  // nothing.
+  it('gives every moment kind exactly one fxDef timing row', () => {
+    for (const [kind, cues] of Object.entries(SCORE_DEFAULTS)) {
+      expect(cues.filter((c) => c.ch === 'fxDef').length, kind).toBe(1);
+    }
+  });
+
+  // ORDER, not just presence. Both cues sit at `start` with offset 0, so they fire synchronously in list
+  // order within one `runMomentCues` call — and a `fanOut: 'damaged'` binding CLAIMS the units it covers
+  // synchronously, which only suppresses the stock hit-burst if `fxDef` runs first. Nothing exercises this
+  // today (no `damaged` binding sits at a kind that also carries `damageFx`), which is exactly why a future
+  // reorder of `BASE` would break it silently rather than turning a test red.
+  it('runs the fxDef row BEFORE damageFx, so a claim is standing when the stock burst reads it', () => {
+    const chans = SCORE_DEFAULTS.damage.map((c) => c.ch);
+    expect(chans.indexOf('fxDef')).toBeGreaterThanOrEqual(0);
+    expect(chans.indexOf('fxDef')).toBeLessThan(chans.indexOf('damageFx'));
+  });
+
+  // Every kinds split must not have cost the moments that MOVED anything they already played: the new kind
+  // carries its predecessor's exact cue list, in order — and holds for the same time. (The fxDef row is on
+  // both, from BASE, so the lists are now identical rather than differing by one entry.)
+  it.each([
+    ['shieldGain', 'shieldPop'],    // Ward gained ← Ward consumed
+    ['venomSpent', 'poisonTick'],   // Venom spent ← the Execute proc
+    ['questTrigger', 'damage'],     // quest tick   ← the `damage` fallthrough (damageFx rides along, inert)
+    ['questComplete', 'damage'],
+  ] as const)('%s keeps every cue %s had — the split is purely additive', (next, prev) => {
+    expect(SCORE_DEFAULTS[next].map((c) => c.ch)).toEqual(SCORE_DEFAULTS[prev].map((c) => c.ch));
+    expect(holdMsForKind(next)).toBe(holdMsForKind(prev)); // and the pacing is identical
+  });
+
+  // The `sc` split runs the other way: the NEW kind (narration) is the one that gains nothing, and the existing
+  // name narrows to `cast: true`. Narration keeps precisely the cues `scCast` has; only the BINDING differs.
+  it('scNarrate keeps exactly the cues scCast has, and stays unbound', () => {
+    expect(SCORE_DEFAULTS.scNarrate.map((c) => c.ch)).toEqual(SCORE_DEFAULTS.scCast.map((c) => c.ch));
+    expect(holdMsForKind('scNarrate')).toBe(holdMsForKind('scCast'));
+    expect(bindingFor(null, 'scNarrate')).toBeNull();
+    expect(bindingFor(null, 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  it('dispatches the channel: plays the cue def with the resolved anchors', () => {
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    runMomentCues(shieldUpMoment(), c);
+    // a shieldUp carries a target but no source → the missing side is passed as null
+    expect(mockAnchors).toHaveBeenCalledWith(null, 'b');
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', { target: { x: 5, y: 7 } });
+  });
+
+  it('no-ops when canPlayDefs() is false (production: defs do not ship)', () => {
+    mockCanPlayDefs.mockReturnValue(false);
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    runMomentCues(shieldUpMoment(), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+    expect(mockAnchors).not.toHaveBeenCalled(); // bails BEFORE resolving anchors — costs nothing
+  });
+
+  it('plays nothing at a kind with no binding', () => {
+    const c = ctx([{ type: 'sc', source: 'a', text: 'x' }] as CombatEvent[]);
+    const stop = runMomentCues(moment('scNarrate', c.events), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it('skips silently when the anchors are null (the unit already left the screen)', () => {
+    mockAnchors.mockReturnValue(null);
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    expect(() => runMomentCues(shieldUpMoment(), c)).not.toThrow();
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  // An unknown def id is `playDef`'s own null return — a build without ward-gained.json must not throw here.
+  it('tolerates an unknown def (playDef returns null)', () => {
+    mockPlayDef.mockReturnValue(null);
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    expect(() => runMomentCues(shieldUpMoment(), c)).not.toThrow();
+    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', expect.anything());
+  });
+
+  it('honours `enabled: false`', () => {
+    setCue('shieldGain', 'fxDef', { enabled: false });
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
+    runMomentCues(shieldUpMoment(), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  it('honours `offset`, scaled by combatSpeed like every other cue, and cancels on cleanup', () => {
+    vi.useFakeTimers();
+    setCue('shieldGain', 'fxDef', { offset: 200 });
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[], { combatSpeed: 2 });
+    const cleanup = runMomentCues(shieldUpMoment(), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();        // 200 ÷ 2 = 100ms
+    vi.advanceTimersByTime(99); expect(mockPlayDef).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2); expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    cleanup();
+    // and a pending one is cancelled
+    mockPlayDef.mockClear();
+    const c2 = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[], { combatSpeed: 1 });
+    runMomentCues(shieldUpMoment(), c2)();
+    vi.advanceTimersByTime(1000);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('a `scaled: false` offset is fixed wall-clock', () => {
+    vi.useFakeTimers();
+    setCue('shieldGain', 'fxDef', { offset: 300, scaled: false });
+    const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[], { combatSpeed: 3 });
+    runMomentCues(shieldUpMoment(), c);
+    vi.advanceTimersByTime(299); expect(mockPlayDef).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2); expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  // The channel is generic: it reads the units off the moment's PRIMARY event, whatever that event is. An
+  // `attack` names its pair attacker/defender rather than source/target, so it gets its own resolution branch.
+  it('resolves an attack primary to its attacker/defender pair', () => {
+    const events = [{ type: 'attack', attacker: 'a', defender: 'd', swing: 0 }] as CombatEvent[];
+    const c = baseCtx(events);
+    // a `shieldGain`-scored moment whose primary happens to be an attack — exercises the resolution, not the binding
+    runMomentCues({ start: 0, end: 1, primary: events[0]!, stepGroups: [[0]], kind: 'shieldGain' }, c);
+    expect(mockAnchors).toHaveBeenCalledWith('a', 'd');
+  });
+
+  // ── one row per binding: the real primary event → the right def, at the right anchors ──────────────────
+  // The kind is taken from `momentKind(event)`, not hardcoded, so a row also proves the CLASSIFICATION reaches
+  // the binding (a kind split that forgot its case would bind the def on a kind no event ever produces).
+  // `[source, target]` is what `anchorsForUnits` receives: `null` = "this moment has no such end", which folds
+  // onto the other end (see combatAnchors.ts). Both null = no anchors at all in the real DOM.
+  it.each([
+    [{ type: 'shieldUp', target: 'b' }, 'shieldGain', 'ward-gained', [null, 'b']],
+    [{ type: 'venomLost', target: 'b' }, 'venomSpent', 'venom-spent', [null, 'b']],
+    // the CASTER: an `sc` carries a source and no target, so the flash folds onto the unit that cast
+    [{ type: 'sc', source: 'a', text: 'zap', cast: true }, 'scCast', 'spell-cast', ['a', null]],
+    [{ type: 'reveal', target: 'b' }, 'reveal', 'stealth-break', [null, 'b']],
+    [{ type: 'keyword', target: 'b', keyword: 'DS' }, 'keyword', 'keyword-gain', [null, 'b']],
+    [{ type: 'keywordLost', target: 'b', keyword: 'T' }, 'keywordLost', 'keyword-lost', [null, 'b']],
+    // the ONE genuinely two-ended binding — Deathsayer (source) firing an ally's Deathrattle (target)
+    [{ type: 'rally', source: 'a', target: 'b' }, 'rally', 'rally-link', ['a', 'b']],
+    [{ type: 'toHand', cardId: 'z', side: 'player', source: 'a' }, 'toHand', 'to-hand', ['a', null]],
+    [{ type: 'hpGrant', target: 'b', amount: 2 }, 'hpGrant', 'hp-grant', [null, 'b']],
+    [{ type: 'spellProgress', target: 'b', amount: 3 }, 'spellProgress', 'spell-progress', [null, 'b']],
+  ] as [CombatEvent, MomentKind, string, [string | null, string | null]][])(
+    'plays %o as a %s moment → its def at the right anchors', (event, kind, def, [source, target]) => {
+      expect(momentKind(event)).toBe(kind);
+      const c = baseCtx([event]);
+      runMomentCues(moment(kind, c.events), c);
+      expect(mockAnchors).toHaveBeenCalledWith(source, target);
+      expect(mockPlayDef).toHaveBeenCalledTimes(1);
+      expect(mockPlayDef).toHaveBeenCalledWith(def, { target: { x: 5, y: 7 } });
+    },
+  );
+
+  // A `toHand` with no source (a quest's reward card) and the two quest beats name NO unit at all, so the real
+  // `anchorsForUnits(null, null)` returns null and the def skips silently — the mock returns anchors here so the
+  // wiring is still asserted, which is the point: the binding is correct and simply dormant until the score can
+  // anchor these to a badge/HUD node. Flagged in score.ts.
+  it.each([
+    [{ type: 'toHand', cardId: 'z', side: 'player' }, 'toHand', 'to-hand'],
+    [{ type: 'questTrigger', flag: 'f', side: 'player' }, 'questTrigger', 'quest-trigger'],
+    [{ type: 'questComplete', questId: 'q', side: 'player' }, 'questComplete', 'quest-complete'],
+  ] as [CombatEvent, MomentKind, string][])('resolves %o to no unit end (dormant until it can anchor)', (event, kind, def) => {
+    expect(momentKind(event)).toBe(kind);
+    const c = baseCtx([event]);
+    runMomentCues(moment(kind, c.events), c);
+    expect(mockAnchors).toHaveBeenCalledWith(null, null);
+    expect(mockPlayDef).toHaveBeenCalledWith(def, expect.anything());
+  });
+
+  // THE TRAP each split exists to close (the shieldGain/shieldPop template): the neighbouring kind — the one the
+  // events were split OUT of, and the one that already owns FX — must stay silent. Without the split, every one
+  // of these would fire the sibling's def on the wrong beat: `poison` (an Execute KILL) would play "venom spent",
+  // a spell-power narration line would flash a caster muzzle, and every hit in the fight would play a quest tick.
+  it.each([
+    [{ type: 'shield', target: 'b' }, 'shieldPop'],          // Ward CONSUMED — must not play `ward-gained`
+    [{ type: 'poison', target: 'b' }, 'poisonTick'],         // Execute proc — must not play `venom-spent`
+    [{ type: 'sc', source: 'a', text: '+1/+1 Spell Power' }, 'scNarrate'], // narration — must not play `spell-cast`
+    [{ type: 'dmg', target: 'b', amount: 3, remainingHp: 1 }, 'damage'],   // a real hit — must not play a quest def
+    [{ type: 'death', target: 'b', side: 'enemy' }, 'death'], // plain death — the dissolve is NOT scored here
+    [{ type: 'attack', attacker: 'a', defender: 'b', swing: 0 }, 'attackExchange'],
+  ] as [CombatEvent, MomentKind][])('does NOT fire any def for %o (the neighbouring kind stays silent)', (event, kind) => {
+    expect(momentKind(event)).toBe(kind);
+    const c = baseCtx([event]);
+    runMomentCues(moment(kind, c.events), c);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+});
+
+// The persisted score is a shared, cross-version blob (`localStorage['ascent.choreoScore']`): a score written
+// by a NEWER build (new kinds/channels/fields) must not break an OLDER one, and vice versa. NOTE: the suite
+// runs in bare node (no jsdom), so `localStorage` is undefined and score.ts's try/catch swallows every access
+// — the write-back test below installs a minimal stub to exercise the real persistence path.
+const withLocalStorage = (fn: (store: Map<string, string>) => void): void => {
+  const store = new Map<string, string>();
+  const g = globalThis as unknown as { localStorage?: unknown };
+  const had = 'localStorage' in g;
+  const prev = g.localStorage;
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    },
+    configurable: true, writable: true,
+  });
+  try { fn(store); } finally {
+    if (had) Object.defineProperty(globalThis, 'localStorage', { value: prev, configurable: true, writable: true });
+    else delete g.localStorage;
+  }
+};
+
+describe('score persistence tolerates unknown kinds/channels (cross-version round-trip)', () => {
+  afterEach(() => resetScore());
+
+  it('an unknown channel or kind in the overrides is ignored, not thrown on', () => {
+    resetScore();
+    setCue('shieldPop', 'notAChannel' as Channel, { offset: 999 });   // a channel this build doesn't know
+    setCue('notAKind' as MomentKind, 'sfx', { offset: 999 });         // a kind this build doesn't know
+    expect(() => getScore()).not.toThrow();
+    expect(() => scoreJson()).not.toThrow();
+    // the real cues are untouched by the junk, and no phantom kind appears in the effective score
+    expect(getCues('shieldPop').find((c) => c.ch === 'auraBreak')!.offset).toBe(300);
+    expect(Object.keys(getScore())).not.toContain('notAKind');
+    const c = baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[]);
+    expect(() => runMomentCues(moment('shieldPop', c.events), c)).not.toThrow();
+  });
+
+  it("an unknown override is PRESERVED on write-back — an older build cannot drop a newer build's score", () => {
+    withLocalStorage((store) => {
+      resetScore();
+      setCue('notAKind' as MomentKind, 'sfx', { offset: 999 });   // "written by a newer build"
+      setCue('death', 'auraBurst', { offset: 42 });                // an older build then edits its own cue
+      const raw = JSON.parse(store.get('ascent.choreoScore') ?? '{}');
+      expect(raw.notAKind).toEqual({ sfx: { offset: 999 } });      // still there — merged, not clobbered
+      expect(raw.death).toEqual({ auraBurst: { offset: 42 } });
+      expect(getCues('death').find((c) => c.ch === 'auraBurst')!.offset).toBe(42);
+    });
+  });
+
+  it('every kind round-trips its fxDef timing row through the effective score', () => {
+    resetScore();
+    const json = JSON.parse(scoreJson()) as Record<string, { ch: string }[]>;
+    // EVERY kind, not just the bound ones: the row is universal now, and the effective score is what the
+    // persistence path serialises — a kind that lost its timing row there would silently lose its FX for
+    // anyone with a saved score, including one bound later.
+    for (const kind of Object.keys(SCORE_DEFAULTS)) {
+      expect(json[kind]?.some((c) => c.ch === 'fxDef'), kind).toBe(true);
+    }
+  });
+});
+
+/**
+ * The per-card override, dispatched from the cue runner. The TABLE it resolves through is `bindings.json`'s
+ * `cards` section (asserted in bindings.test.ts); what these cases own is that the runner reads it at all, and
+ * fans out correctly. Bloodbinder's bleed shares the `scCast` kind with every other spell cast, so the card
+ * id is the only key that can tell them apart.
+ */
+describe('fxDef channel — per-card bindings', () => {
+  it("plays the CARD's def instead of the kind default when the source card has a binding", () => {
+
+    const events: CombatEvent[] = [
+      { type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true } as CombatEvent,
+      { type: 'dmg', target: 'e1', amount: 5 } as CombatEvent,
+      { type: 'dmg', target: 'e2', amount: 5 } as CombatEvent,
+    ];
+    runMomentCues(moment('scCast', events), baseCtx(events, withCard('a', 'bloodbinder')));
+    // fanOut 'damaged': one play per damaged unit, all with the card's def, never the kind's `spell-cast`.
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
+    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'ruby-lance')).toBe(true);
+    expect(mockAnchors).toHaveBeenCalledWith('a', 'e1');
+    expect(mockAnchors).toHaveBeenCalledWith('a', 'e2');
+  });
+
+  it('falls back to the kind default for a card with no binding', () => {
+
+    const events: CombatEvent[] = [{ type: 'sc', source: 'a', text: 'zap', cast: true } as CombatEvent];
+    runMomentCues(moment('scCast', events), baseCtx(events, withCard('a', 'someothercard')));
+    expect(mockPlayDef).toHaveBeenCalledWith('spell-cast', expect.anything());
+  });
+
+  // A proc that damaged nobody (every mark already dead) must play nothing rather than collapsing onto the
+  // caster, which is what a targetless travelling effect would otherwise do.
+  it('plays nothing when a fan-out moment damaged no one', () => {
+
+    const events: CombatEvent[] = [{ type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true } as CombatEvent];
+    runMomentCues(moment('scCast', events), baseCtx(events, withCard('a', 'bloodbinder')));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+});
+
+/** End-to-end: the authored effect fires AND the stock orange hit-burst is skipped for the units it covers. */
+describe('fxDef channel — an authored effect replaces the stock damageFx burst', () => {
+  it('suppresses onDamageFx for the units the per-card effect covers', () => {
+
+    const events: CombatEvent[] = [
+      { type: 'sc', source: 'a', text: 'Bloodbinder bleeds', cast: true, step: 4 } as CombatEvent,
+      { type: 'dmg', target: 'e1', amount: 5, step: 4 } as CombatEvent,
+    ];
+    const ctx = baseCtx(events, withCard('a', 'bloodbinder'));
+    // The cast moment claims; the separate damage moment then finds its target already covered.
+    runMomentCues(moment('scCast', events), ctx);
+    runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
+    expect(ctx.onDamageFx).not.toHaveBeenCalled();
+  });
+
+  it('leaves the stock burst alone for a card with no binding', () => {
+
+    const events: CombatEvent[] = [
+      { type: 'sc', source: 'a', text: 'zap', cast: true, step: 5 } as CombatEvent,
+      { type: 'dmg', target: 'e1', amount: 5, step: 5 } as CombatEvent,
+    ];
+    const ctx = baseCtx(events, withCard('a', 'someothercard'));
+    runMomentCues(moment('scCast', events), ctx);
+    runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
+    expect(ctx.onDamageFx).toHaveBeenCalledWith(['e1']);
+  });
+});
+
+/** The self-buff fan-out: one play per unit that buffed ITSELF, both anchors on that unit. */
+describe('fxDef channel — self-buff fan-out', () => {
+  const selfBuff = (uid: string): CombatEvent =>
+    ({ type: 'buff', source: uid, target: uid, attack: 1, health: 0 }) as CombatEvent;
+  const buffOther = (src: string, tgt: string): CombatEvent =>
+    ({ type: 'buff', source: src, target: tgt, attack: 1, health: 0 }) as CombatEvent;
+
+  it('plays once per SELF-buffed unit, anchored on that unit at both ends', () => {
+    const events = [selfBuff('u1'), selfBuff('u2')];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
+    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'self-buff-gold')).toBe(true);
+    expect(mockAnchors).toHaveBeenCalledWith('u1', 'u1');
+    expect(mockAnchors).toHaveBeenCalledWith('u2', 'u2');
+  });
+
+  // Buff-OTHER is the tendril channel's job; it has a real source→target pair and must not bloom on itself.
+  it('ignores a buff aimed at somebody else', () => {
+    const events = [buffOther('a', 'b')];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  // THE case the owner named: a Target Dummy growing as it is hit is ABSORBED into the wind-up and never
+  // produces a buffWave moment of its own.
+  it('covers a self-buff absorbed into an attack exchange', () => {
+    const events: CombatEvent[] = [
+      { type: 'attack', attacker: 'a', defender: 'b' } as CombatEvent,
+      selfBuff('b'),
+    ];
+    runMomentCues(moment('attackExchange', events), baseCtx(events));
+    expect(mockPlayDef).toHaveBeenCalledWith('self-buff-gold', expect.anything());
+    expect(mockAnchors).toHaveBeenCalledWith('b', 'b');
+  });
+
+  it('plays nothing on the overwhelming majority of exchanges, which carry no self-buff', () => {
+    const events: CombatEvent[] = [{ type: 'attack', attacker: 'a', defender: 'b' } as CombatEvent];
+    runMomentCues(moment('attackExchange', events), baseCtx(events));
+    expect(mockPlayDef).not.toHaveBeenCalled();
   });
 });

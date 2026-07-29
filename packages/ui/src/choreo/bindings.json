@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "kinds": {
+    "attackExchange": { "def": "self-buff-gold", "fanOut": "selfBuffed" },
+    "buffWave": { "def": "self-buff-gold", "fanOut": "selfBuffed" },
+    "hpGrant": { "def": "hp-grant" },
+    "keyword": { "def": "keyword-gain" },
+    "keywordLost": { "def": "keyword-lost" },
+    "questComplete": { "def": "quest-complete" },
+    "questTrigger": { "def": "quest-trigger" },
+    "rally": { "def": "rally-link" },
+    "reveal": { "def": "stealth-break" },
+    "scCast": { "def": "spell-cast" },
+    "shieldGain": { "def": "ward-gained" },
+    "spellProgress": { "def": "spell-progress" },
+    "toHand": { "def": "to-hand" },
+    "venomSpent": { "def": "venom-spent" }
+  },
+  "cards": {
+    "bloodbinder": {
+      "scCast": { "def": "ruby-lance", "fanOut": "damaged" }
+    }
+  }
+}

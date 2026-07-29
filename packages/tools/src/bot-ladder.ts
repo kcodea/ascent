@@ -12,8 +12,16 @@
  *   npm run bot:ladder -- --hero soren     # a specific hero
  *   npm run bot:ladder -- --diagnose       # per-round win rate + why runs end
  */
-import { createRun, reduce, DEFAULT_BOT, type RunState } from '@game/sim';
+import { createRun, reduce, DEFAULT_BOT, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, type RunState } from '@game/sim';
 import { createController, decide, toBotVisibleState, fightScore, type BotDifficultyId } from '@game/sim';
+
+// REGISTER THE REAL OPPONENT POOL. `OPPONENT_POOL` ships EMPTY and only the web store loads the baked boards
+// into it, so a headless tool that forgets this measures the bot against `buildEnemyBoard` — the procedural
+// fallback — for every single fight. That is the same generator `fightScore` uses as its evaluation panel, so
+// the bot gets graded on the exact distribution it optimizes against and the win counts are inflated.
+// `--procedural` keeps the old behaviour, explicitly labelled, for comparison.
+const PROCEDURAL_ONLY = process.argv.includes('--procedural');
+if (!PROCEDURAL_ONLY && OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA]);
 
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string): string | undefined => {
@@ -81,6 +89,7 @@ const stderr = (xs: number[]): number => {
 
 const seeds = Array.from({ length: SEEDS }, (_, i) => i + 1);
 console.log(`\n=== bot ladder — ${SEEDS} seeds, hero ${HERO} ===`);
+console.log(PROCEDURAL_ONLY ? 'opponents: PROCEDURAL ONLY — the same generator the evaluator scores against' : `opponents: real pool (${OPPONENT_POOL.length} boards) + procedural fallback`);
 console.log('tier      wins            rounds  tier  triples  died  gold/turn');
 
 const perTier = new Map<string, RunOutcome[]>();

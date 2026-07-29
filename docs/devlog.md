@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-07-29 — CORRECTION: the bot ladder was measuring against the evaluator's own panel
+
+The win counts in the entry below are **wrong** and are retained only so the mistake is legible.
+
+`OPPONENT_POOL` ships empty; the only place that loads the 154 baked boards into it is `packages/ui/src/
+store.ts`. `bot-ladder.ts` is a headless tool and never did, so every fight it measured fell through to
+`buildEnemyBoard` — the procedural fallback, and the *same generator* `fightScore.ts` uses as its scoring
+panel. The bot was being graded on the exact distribution it optimizes against.
+
+Corrected, 20 seeds, hero drakko, real pool + procedural fallback:
+
+| tier | reported (procedural only) | actual (real pool) |
+|---|---|---|
+| legacy | 2.70 ±0.60 | 1.80 ±0.62 |
+| easy | 6.80 ±0.96 | 4.55 ±1.02 |
+| normal | 7.50 ±1.01 | 4.00 ±1.08 |
+| hard | 8.70 ±0.92 | 4.45 ±1.11 |
+| expert | 9.10 ±0.87 | 5.60 ±1.15 |
+
+So: Expert is at **5.60 against par 9**, not at par — and easy/normal/hard are indistinguishable inside their
+error bars, meaning the ladder only really separates at its two ends. The fight-grounding work is still a
+large genuine gain over legacy's 1.80, and the two bugs it fixed were real; the claim that bots "play at par"
+was not.
+
+`bot:ladder` now registers the pool by default and prints its opponent source on every run, with
+`--procedural` kept as an explicit opt-in for comparison. A benchmark that doesn't state what it fought is
+the defect here — the number was unfalsifiable, not merely optimistic.
+
+Note the remaining gap: those 154 boards are **synthetic** (0 imported), generated from the card set and
+banded to the tuned enemy curve. They are a far better test than the procedural fallback but they are still
+not human play, so real player snapshots now gate the *measurement*, not just the lobby feature.
+
 ## 2026-07-29 — Fight-grounded bot evaluator: bots go from 3 wins to par
 
 **What.** The production bots now score a board by *fighting with it* rather than by hand-written proxies.

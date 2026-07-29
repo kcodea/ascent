@@ -43,9 +43,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 ## Recent changes
 
 - **Bots that actually play.** The production bots score a board by *fighting with it* against the wave's
-  threat panel instead of guessing from stat proxies. Measured over 20 seeds they went from 2.70 wins to
-  9.10 at Expert — par for the Oath is 9 — with a monotone easy→expert ladder. `npm run bot:ladder` measures
-  it with error bars.
+  threat panel instead of guessing from stat proxies. Measured over 20 seeds against the real opponent pool,
+  Expert covers 5.60 wins against legacy's 1.80 — par for the Oath is 9, so there is still a gap.
+  `npm run bot:ladder` measures it with error bars.
 - **Commit animation.** Pick a card and a moment in the workbench, tune the effect while watching it on the
   real card, then commit — writing the effect and its binding together, for that card only (forking it) or
   everywhere.

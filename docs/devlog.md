@@ -1,5 +1,57 @@
 # ASCENT — development log
 
+## 2026-07-29 — feat(sim): production bots that play — Tickets 1, 2, 4, 5 and 8
+
+Functioning bots at four difficulties. They plan a whole shop turn, commit to the plan, and beat the legacy
+balance policy.
+
+**Measured over 30 seeds** (average wins, ± standard error):
+
+| | avg wins |
+|---|---|
+| legacy balance policy | 2.47 ±0.43 |
+| easy | 2.83 ±0.59 |
+| normal | 2.93 ±0.56 |
+| hard | **3.47 ±0.57** |
+| expert | 3.17 ±0.50 |
+
+The trend is up and the new bots beat the old one. Hard and expert are NOT separated — expected with a v1
+evaluator that scores stats and has no synergy model, where more search partly means more overfitting to the
+evaluator's blind spots. Ticket 3 is what fixes that.
+
+**What shipped.** An exhaustive `actionCatalog` (`satisfies Record<Action['type'], …>`, so a new reducer action
+fails compilation rather than being silently unsupported); candidate generation bounded to seats and targets
+that can actually differ; a decomposed normalized evaluator; bounded beam search that stops at reveal
+boundaries and never expands `faceOmen`; a controller that answers modals, arranges the board and ends the
+turn; and four difficulty profiles where weakness is only ever a smaller budget.
+
+**Three bugs, each found by measuring rather than reading.**
+
+1. **The waste penalty was inverted.** It counted gold ABOVE the cheapest offer as wasted, so having spending
+   power scored as a loss and gaining gold looked bad. The bot bought spells and never cast them — every run
+   finished with an empty board, at every difficulty. Waste is gold you *cannot* spend, not gold you can.
+
+2. **Deeper search made the bot strictly worse** — depth 1 averaged 2.50 wins, depth 2 and 3 both 1.25. Cause:
+   search scores the END of a plan but the controller committed only its first action and re-searched, so the
+   plan was abandoned before its payoff. Plans are now QUEUED with a per-step fingerprint and followed while the
+   state still matches; a mismatch discards the plan rather than applying it blind. That is the difference
+   between planning and pretending to.
+
+3. **I nearly "fixed" a bug that did not exist.** A 10-seed comparison showed easy (3.3) beating normal (1.4)
+   and I started hunting a structural cause. At 30 seeds the ordering is 2.83 / 2.93 / 3.47 with a standard
+   error near ±0.55 — the inversion was noise and the sample was simply under-powered. The ladder test now
+   asserts a TREND (hard > easy) rather than a strict per-tier ordering, because a strict one would be
+   asserting variance.
+
+**Also refined from Ticket 0:** the module-boundary rule now distinguishes importing `type Action` (fine
+anywhere — actions are what a bot produces) from importing `RunState` or the reducer (the actual leak), and a
+second test guards against "fixing" a boundary failure by adding the offending file to the sanctioned list.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2941 tests, build:web, harness determinism. 20 new bot
+tests: completion at every difficulty, no illegal candidates, handle-leak freedom, determinism including
+blunders, and that no difficulty alters the run it is handed.
+
+
 ## 2026-07-29 — feat(sim): production bots, Ticket 0 — the planning-safety boundary
 
 First ticket of the bot handoff. No bot plays anything yet; this is the floor everything else stands on.

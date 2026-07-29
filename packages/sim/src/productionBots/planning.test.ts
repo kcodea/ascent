@@ -206,20 +206,38 @@ describe('information fairness — the bot sees only what a player sees', () => 
   });
 });
 
-describe('module boundary — evaluators cannot reach RunState', () => {
-  it('no evaluator-side module imports RunState or the reducer', () => {
-    // Structural, not a convention: the whole point of the projection is that a scoring function CANNOT reach
-    // hidden state. `transition.ts` and `visibleState.ts` are the sanctioned exceptions — they exist to do the
-    // conversion. Anything else added here (evaluator, strategy, search, trace) must go through them.
+describe('module boundary — scoring code cannot reach RunState', () => {
+  it('no scoring-side module imports RunState or the reducer', () => {
+    // Structural, not a convention: the projection is only a guarantee if a scoring function CANNOT reach
+    // around it. The distinction the rule draws:
+    //
+    //  - Importing `type Action` is FINE anywhere. Actions are what the bot PRODUCES; naming them reveals
+    //    nothing about hidden state.
+    //  - Importing `RunState`, or the reducer, is the leak — that is reaching past the redaction.
+    //
+    // `transition` and `visibleState` exist to perform the conversion, and `controller` is the entry point that
+    // receives the live run and hands it straight to a planning root. Everything else — the evaluator, search,
+    // candidate generation, difficulty, future strategy and tracing — must go through them.
     const dir = __dirname;
-    const SANCTIONED = new Set(['transition.ts', 'visibleState.ts', 'rulesIdentity.ts', 'index.ts', 'types.ts']);
+    const SANCTIONED = new Set(['transition.ts', 'visibleState.ts', 'controller.ts', 'rulesIdentity.ts', 'index.ts', 'types.ts']);
     const offenders: string[] = [];
     for (const file of readdirSync(dir)) {
       if (!file.endsWith('.ts') || file.endsWith('.test.ts') || SANCTIONED.has(file)) continue;
       const src = readFileSync(join(dir, file), 'utf8');
-      if (/from '\.\.\/state'/.test(src) || /from '\.\.\/reducer'/.test(src)) offenders.push(file);
+      if (/RunState/.test(src)) offenders.push(`${file} (RunState)`);
+      if (/from '\.\.\/reducer'/.test(src)) offenders.push(`${file} (reducer)`);
     }
     expect(offenders, 'these modules reach past the projection — route them through transition.ts').toEqual([]);
+  });
+
+  it('the sanctioned list is not a blanket exemption — it names the conversion layer only', () => {
+    // Guards the obvious way to "fix" a failure of the test above: adding the offending file to SANCTIONED.
+    const dir = __dirname;
+    const scoring = ['evaluate.ts', 'search.ts', 'legalActions.ts', 'difficulties.ts', 'actionCatalog.ts'];
+    for (const file of scoring) {
+      const src = readFileSync(join(dir, file), 'utf8');
+      expect(/RunState/.test(src), `${file} must not know about RunState`).toBe(false);
+    }
   });
 });
 

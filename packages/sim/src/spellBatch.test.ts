@@ -621,3 +621,51 @@ describe('Spear Warden: the per-card-type aura, and both channels stacked', () =
     expect(stats(cast(s, 'turnabout'))).toEqual([38, 40]);
   });
 });
+
+describe('display-FOLDED auras (the Undead aura) count as the minion’s stats', () => {
+  /**
+   * Owner report 2026-07-29: Turnabout on a Deathsayer SHOWING 383/361 with a +349/+351 Undead aura moved it by
+   * only ±24. Cause: the Undead aura is folded in at DISPLAY time (`instView`: `shownAtk = inst.attack +
+   * undeadAtkBonus`) and never stored, so the spell was swapping tiny stored stats. A spell must operate on what
+   * the player READS — stored + folded — and the expected result is 710/734.
+   *
+   * The +349 splits between a baked channel (`undeadBuyAtk`, applied at creation) and a folded one
+   * (`undeadAttackBonus`). These run every split to prove the outcome does not depend on it.
+   */
+  const shown = (s: RunState, uid: string): [number, number] => {
+    const c = s.board.find((x) => x.uid === uid)!;
+    return [c.attack + (s.undeadAttackBonus ?? 0), c.health + (s.undeadHealthBonus ?? 0)];
+  };
+  const setup = (folded: number, baked: number): RunState => {
+    const card: BoardCard = {
+      uid: 'd', cardId: 'knit', tribe: 'undead',
+      attack: 383 - folded, health: 361 - 351, keywords: [], golden: false,
+    };
+    return { ...createRun(1), board: [card], undeadAttackBonus: folded, undeadHealthBonus: 351, undeadBuyAtk: baked };
+  };
+  const cast = (s: RunState, spellId: string): RunState => {
+    const def = CARD_INDEX[spellId]!;
+    return reduce({ ...s, hand: [{ uid: 'sp', cardId: def.id, tribe: def.tribe, attack: 0, health: 1, keywords: [], golden: false }] },
+      { type: 'play', uid: 'sp', targetUid: 'd' });
+  };
+
+  it.each([[349, 0], [200, 149], [0, 349]])(
+    'Turnabout gives 710/734 whether the aura is folded (%i) or baked (%i)',
+    (folded, baked) => {
+      expect(shown(cast(setup(folded, baked), 'turnabout'), 'd')).toEqual([710, 734]);
+    },
+  );
+
+  it('Perfect Vision also reads through the fold', () => {
+    // Set to 20/20, then every aura back on top: 20 + 349 / 20 + 351.
+    expect(shown(cast(setup(349, 0), 'perfectvision'), 'd')).toEqual([369, 371]);
+  });
+
+  it('a NON-Undead minion is untouched by the Undead fold', () => {
+    // Guard the other direction: the fold is tribe-gated, so it must not leak onto anything else.
+    const m: BoardCard = { uid: 'd', cardId: 'impscrap', tribe: 'demon', attack: 7, health: 2, keywords: [], golden: false };
+    const s: RunState = { ...createRun(1), board: [m], undeadAttackBonus: 349, undeadHealthBonus: 351 };
+    const out = cast(s, 'turnabout').board.find((x) => x.uid === 'd')!;
+    expect([out.attack, out.health]).toEqual([2, 7]);
+  });
+});

@@ -460,31 +460,66 @@ export function buffImpsRunWide(state: RunState, a: number, h: number, source: s
  * enchant (`improveClingDrones`) but with an explicit source + separate atk/hp.
  */
 /**
- * EVERY run-wide aura riding on this minion — the portion of its stats that belongs to the run, not the
- * instance. Read from the authoritative STATE TABLES, deliberately, not from `card.buffs`: a minion bought
- * AFTER an aura accrued has it folded straight into its stats at creation (`card.attack + cb.attack`) with no
- * buff record at all, so the buff breakdown would under-report it for exactly the copies that most need it.
+ * A minion's stats have THREE layers, and a stat-writing spell has to know which is which.
  *
- * Four channels feed this and all of them are covered here:
- *   - `cardBuffs[cardId]`  — per-card-type enchants (Spear Warden's "+3/+2 to all Spear Wardens", Fodder)
- *   - `impBuff`            — the run-wide Imp aura
- *   - `undeadBuyAtk` / `beastBuyAtk` / `magneticBuyAtk` — tribe + keyword ATTACK auras (via `undeadBuyBonus`)
- *   - `beastBuyHp` / `magneticBuyHp`                    — their HEALTH siblings (via `buyHealthAura`)
+ *   stored   `card.attack` / `card.health` — what the sim persists
+ *   BAKED    auras already inside `stored`, applied at creation or by a run-wide buff pass
+ *              · `cardBuff(cardId)`  — per-card-type enchants (Spear Warden) + the live Fodder aura
+ *              · `undeadBuyAtk` / `beastBuy*` / `magneticBuy*` — creation auras (`undeadBuyBonus`/`buyHealthAura`)
+ *              · `impBuff` for Imps
+ *   FOLDED   auras NOT in `stored`, added only when the card is drawn: the Undead aura
+ *              (`undeadAttackBonus`/`undeadHealthBonus`, Lantern of Souls). See `instView`:
+ *              `shownAtk = inst.attack + undeadAtkBonus`.
  *
- * Reusing `undeadBuyBonus` / `buyHealthAura` is the point: they are already the single answer to "what auras
- * does this card get", used at every creation site, so a new aura added there reaches this too.
+ * Conflating the two produced the owner-reported bug (2026-07-29): Turnabout on a Deathsayer *showing* 383/361
+ * moved it by only ±24, because it swapped the STORED stats — which were tiny, since ~all of that 383 was a
+ * folded aura. What a player reads on the card is `stored + folded`, so that is what a spell must operate on.
+ *
+ * The rule, applied by every stat-writing spell below:
+ *
+ *   1. read DISPLAYED   = stored + folded
+ *   2. compute the spell's result on those numbers
+ *   3. write stored      = result + baked      (the fold re-applies on its own at display time)
+ *
+ * which lands the card at `result + baked + folded` — the result with every aura back on top, exactly the
+ * owner's ruling. On that Deathsayer: swap 383/361 → 361/383, then +349/+351 → 710/734, independent of how the
+ * 349 splits between the baked and folded channels.
  */
-export function runWideAuraOf(state: RunState, card: BoardCard): { attack: number; health: number } {
+export function bakedAuraOf(state: RunState, card: BoardCard): { attack: number; health: number } {
   const def = CARD_INDEX[card.cardId];
-  const typed = state.cardBuffs?.[card.cardId];
-  let attack = typed?.attack ?? 0;
-  let health = typed?.health ?? 0;
+  const typed = cardBuff(state, card.cardId);
+  let attack = typed.attack;
+  let health = typed.health;
   if (def) {
     attack += undeadBuyBonus(state, def);
     health += buyHealthAura(state, def);
     if (def.imp) { attack += state.impBuff?.attack ?? 0; health += state.impBuff?.health ?? 0; }
   }
   return { attack, health };
+}
+
+/** The display-only fold — the run-wide Undead aura, which never touches stored stats. */
+export function foldedAuraOf(state: RunState, card: BoardCard): { attack: number; health: number } {
+  const def = CARD_INDEX[card.cardId];
+  const undead = !!def && (def.tribe === 'undead' || def.tribe2 === 'undead' || !!def.universalTribe);
+  return undead
+    ? { attack: state.undeadAttackBonus ?? 0, health: state.undeadHealthBonus ?? 0 }
+    : { attack: 0, health: 0 };
+}
+
+/** What the PLAYER reads on the card: stored plus the display fold. */
+export function displayedStatsOf(state: RunState, card: BoardCard): { attack: number; health: number } {
+  const f = foldedAuraOf(state, card);
+  return { attack: card.attack + f.attack, health: card.health + f.health };
+}
+
+/**
+ * Write a stat-spell's result. `resultAtk`/`resultHp` are computed from DISPLAYED stats; this lands them as the
+ * minion's true stats with the baked auras re-applied, so nothing an aura granted is eaten by the write.
+ */
+function writeStatResult(state: RunState, card: BoardCard, source: string, resultAtk: number, resultHp: number): void {
+  const baked = bakedAuraOf(state, card);
+  addBuff(card, source, (resultAtk + baked.attack) - card.attack, (resultHp + baked.health) - card.health);
 }
 
 export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, h: number, source: string): void {
@@ -3252,13 +3287,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellSetStats: (ctx, self, params) => {
     const a = num(params.attack, 20);
     const h = num(params.health, 20);
-    // AURAS SURVIVE A SET (owner ruling 2026-07-29). A stat-setting spell writes the minion's TRUE stats; the
-    // run-wide card-type enchant then re-applies on top. So Perfect Vision on a Spear Warden showing 20/20
-    // (3/3 of its own, +17/17 from the aura) sets true stats to 20/20 and the aura lifts it to 37/37 — it does
-    // not overwrite the accrual and leave the minion at 20/20, which made the spell a DOWNGRADE on exactly the
-    // minions it should reward.
-    const aura = runWideAuraOf(ctx.state, self);
-    addBuff(self, str(params._source) || 'Perfect Vision', (a + aura.attack) - self.attack, (h + aura.health) - self.health);
+    // An absolute SET: the target's true stats become a/h and the auras re-apply on top (see the layer note on
+    // `bakedAuraOf`). Perfect Vision on a Spear Warden showing 20/20 (3/3 own + 17/17 aura) ends at 37/37, not
+    // 20/20 — overwriting the accrual made the spell a DOWNGRADE on the minions it should reward.
+    writeStatResult(ctx.state, self, str(params._source) || 'Perfect Vision', a, h);
   },
 
   /** Common Ground — cast with TWO friendly targets (the second is `self`; the first is stashed on
@@ -3267,16 +3299,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellAverageStats: (ctx, self) => {
     const first = ctx.state.board.find((c) => c.uid === ctx.state.pendingTarget?.spellFirstUid);
     if (!first || first.uid === self.uid) return;
-    // The average is taken over DISPLAYED stats (aura included — that is what the player reads on the card),
-    // and the result is written as each minion's TRUE stats, with its own aura re-applied on top. Worked
-    // example from the owner: a Spear Warden showing 20/20 averaged with a 1/1 gives 10/10 true, and the
-    // Warden's +17/17 aura puts it back to 27/27 while the other minion sits at 10/10.
-    const avgA = Math.round((first.attack + self.attack) / 2);
-    const avgH = Math.round((first.health + self.health) / 2);
-    const auraFirst = runWideAuraOf(ctx.state, first);
-    const auraSelf = runWideAuraOf(ctx.state, self);
-    addBuff(first, 'Common Ground', (avgA + auraFirst.attack) - first.attack, (avgH + auraFirst.health) - first.health);
-    addBuff(self, 'Common Ground', (avgA + auraSelf.attack) - self.attack, (avgH + auraSelf.health) - self.health);
+    // The average is over DISPLAYED stats — what the player reads on the two cards — and each minion then keeps
+    // its OWN auras. Worked example: a Spear Warden showing 20/20 averaged with a 1/1 gives 10/10 true, and the
+    // Warden's +17/17 puts it back to 27/27 while the partner sits at 10/10.
+    const da = displayedStatsOf(ctx.state, first);
+    const db = displayedStatsOf(ctx.state, self);
+    const avgA = Math.round((da.attack + db.attack) / 2);
+    const avgH = Math.round((da.health + db.health) / 2);
+    writeStatResult(ctx.state, first, 'Common Ground', avgA, avgH);
+    writeStatResult(ctx.state, self, 'Common Ground', avgA, avgH);
   },
 
   /** Turnabout — cast: swap the target's Attack and Health. Applied as a delta buff (like `spellSetStats`) so
@@ -3284,18 +3315,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  swap: a 0-Attack minion becomes 0-Health (the player's call). No spell-power scaling — it moves existing
    *  stats, it doesn't grant them. */
   spellSwapStats: (ctx, self, params) => {
-    // Same aura rule as Perfect Vision / Common Ground: swap the DISPLAYED stats, write the result as the
-    // minion's TRUE stats, then re-apply the aura. Owner's worked example: an Undead 5/3 carrying +200 Attack
-    // reads 205/3; Turnabout makes its true stats 3/205 and the +200/+0 aura lands on top → 203/205.
-    //
-    // This was left out of the first pass on the reasoning that a swap is stat-neutral, which only holds for a
-    // SYMMETRIC aura — swap(a+x, h+x) equals swap(a,h)+(x,x). With an attack-only aura the two readings come
-    // apart completely, and the old behaviour threw the +200 away (leaving 3/205).
-    const aura = runWideAuraOf(ctx.state, self);
-    // Displayed stats, swapped, become the new TRUE stats; the aura then re-applies on top.
-    const finalAtk = self.health + aura.attack;
-    const finalHp = self.attack + aura.health;
-    addBuff(self, str(params._source) || 'Turnabout', finalAtk - self.attack, finalHp - self.health);
+    // Swap the DISPLAYED stats, then the auras re-apply. Owner's report: on a Deathsayer showing 383/361 with a
+    // +349/+351 Undead aura this must give 710/734. It previously gave ±24, because it swapped the STORED stats
+    // and almost all of that 383 was a display-folded aura that stored never held.
+    const d = displayedStatsOf(ctx.state, self);
+    writeStatResult(ctx.state, self, str(params._source) || 'Turnabout', d.health, d.attack);
   },
 
   /** Apples — cast: buff every minion currently in the tavern by +atk/+hp (rides on each offer's `atk`/`hp`,

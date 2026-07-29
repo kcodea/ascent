@@ -1,5 +1,44 @@
 # ASCENT — development log
 
+## 2026-07-29 — Stat spells must read DISPLAYED stats: the folded-aura layer
+
+Owner report: Turnabout on a Deathsayer **showing 383/361** with a +349/+351 Undead aura moved it by only ±24;
+expected **710/734**. Turnabout on a Deathswarmer showing 3078/3083 moved ~±6.
+
+**Cause — the earlier aura fix was built on a wrong model.** A minion's stats have three layers, and only now
+are they separated properly:
+
+| layer | where it lives |
+|---|---|
+| stored | `card.attack` / `card.health` — what the sim persists |
+| **BAKED** | auras already inside stored: `cardBuff(cardId)`, `undeadBuyAtk`, `beastBuy*`, `magneticBuy*`, `impBuff` |
+| **FOLDED** | auras NOT in stored — the Undead aura (`undeadAttackBonus`/`undeadHealthBonus`), added only when the card is drawn (`instView`: `shownAtk = inst.attack + undeadAtkBonus`) |
+
+The first pass treated every aura as baked. But almost all of that Deathsayer's 383 was FOLDED — its stored
+stats were tiny (≈34/10), so swapping them moved the visible number by ±24 and nothing more. Deathswarmer was
+the same story at a larger scale.
+
+**The rule now, in `writeStatResult`, used by all three stat spells:**
+
+```
+1. displayed = stored + folded      ← what the player actually reads
+2. result    = spell op on displayed
+3. stored    = result + baked       ← the fold re-applies by itself at display time
+```
+
+landing the card at `result + baked + folded` — the result with every aura back on top. On that Deathsayer:
+swap 383/361 → 361/383, then +349/+351 → **710/734**, and the outcome is INDEPENDENT of how the 349 splits
+between the baked and folded channels (verified at 349/0, 200/149 and 0/349).
+
+New helpers next to the aura tables they read: `bakedAuraOf`, `foldedAuraOf`, `displayedStatsOf`. `bakedAuraOf`
+also now uses `cardBuff()` rather than the raw `cardBuffs` map, so Heckbinder's live Fodder aura is included —
+the same bug class the tavern display and the run-buffs panel each had before.
+
+**Verified.** 5 new tests (56 in `spellBatch`): the owner's 710/734 across all three aura splits, Perfect
+Vision through the fold (369/371), and a non-Undead guard proving the tribe-gated fold can't leak. Earlier
+Spear Warden / tribe-aura / golden tests still pass unchanged — the new model is a strict generalization.
+Gates: typecheck, lint (0 errors), 2966 tests / 155 files, build:web, harness ✓.
+
 ## 2026-07-29 — Real player snapshots are seated in the lobby
 
 **What.** The deferred lobby item is in: seats can now be driven by REAL player runs from the registered

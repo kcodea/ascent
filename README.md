@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **＋ New effect — the FX workbench gets an on-ramp.** A preset gallery of archetypes (⚡ Bolt, 💥 Blast), each
+  with variants (thin / heavy / crackling / beam), lands a tuned, working composition in the editor instead of a
+  blank page. A variant is a multiplier table applied to slider params only — clamped, snapped, and loud about
+  anything it couldn't apply. The two shipped bases are first passes awaiting a tuning pass.
 - **Lobby: real players at the table.** An 8-seat lobby now seats up to 3 REAL player runs from the shared
   board pool — their actual boards, in their actual order — alongside bots wearing player handles. Measured over
   9 lobbies, recorded player runs place 3.63 against the bots' 6.58.

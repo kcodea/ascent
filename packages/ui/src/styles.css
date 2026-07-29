@@ -6056,6 +6056,52 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
 .fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }
 
+/* FX PRESET GALLERY — the on-ramp overlay: pick an archetype, then a variant. Same full-screen opaque
+   treatment as `.fxlib` above (the workbench rail underneath is a competing wall of controls).
+   `pointer-events: auto` is LOAD-BEARING and declared here rather than left to inheritance: `.fxwb` — the
+   workbench root this overlay renders inside — is `pointer-events: none`, so without this every card, every
+   variant and the Close button paint perfectly and are completely inert, with no way out of the screen. That
+   is the exact `.fxlib` failure of 2026-07-27 (fixed in 88bb5592); nothing about the markup looks wrong and
+   no test can see it. */
+.fxgallery {
+  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+  background: #17141f; color: #d9d3ea; font-family: var(--font-ui);
+  pointer-events: auto;
+}
+.fxgallery-h {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: #211d2c; border-bottom: 2px solid #3d3752;
+}
+.fxgallery-title { flex: 1; font-size: 13px; font-weight: 800; letter-spacing: 0.04em; }
+.fxgallery-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
+.fxgallery-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px;
+}
+.fxgallery-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 12px; border-radius: 9px; border: 1px solid #3d3752; background: #1e1a2b;
+  color: inherit; text-align: left; cursor: pointer; font-family: inherit;
+}
+.fxgallery-card:hover { background: #272136; }
+.fxgallery-card.on { border-color: #6f5bd0; background: #2a2340; }
+.fxgallery-icon { font-size: 22px; line-height: 1.1; }
+.fxgallery-name { font-size: 13px; font-weight: 800; }
+.fxgallery-blurb { font-size: 11px; line-height: 1.35; color: #8a7fa8; }
+.fxgallery-variants { margin-top: 16px; padding-top: 12px; border-top: 1px solid #3d3752; }
+.fxgallery-variants-title {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #8a7fa8; margin-bottom: 8px;
+}
+.fxgallery-variant-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.fxgallery-variant {
+  padding: 7px 14px; border-radius: 7px; border: 1px solid #3d3752; background: #1e1a2b;
+  color: inherit; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.fxgallery-variant:hover { border-color: #6f5bd0; background: #2a2340; }
+/* An empty table or a variant-less archetype must READ as empty, not as a panel that failed to wire up. */
+.fxgallery-empty { font-size: 12px; line-height: 1.5; color: #e0a24a; margin: 0; }
+.fxgallery-empty code { font-family: ui-monospace, monospace; }
+
 /* ── LOBBY RAIL (8-seat elimination mode) ────────────────────────────────────
    A tall, narrow column down the RIGHT EDGE of the stage, beside the board (owner ask 2026-07-29: "make the
    window longer vertically"). A direct child of `.app`, so it is anchored to the stage height and scales with

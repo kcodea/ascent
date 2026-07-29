@@ -72,9 +72,11 @@ export function applyVariant<T extends FxDef>(
       const spec = specs?.[key];
       if (spec?.kind !== 'slider') continue;
       const current = params[key];
-      // `typeof` AND finiteness, separately — neither implies the other. A boolean sitting in a slider
-      // param would coerce straight through the multiply (`true * 2 === 2`) and be written as though it
-      // had been authored that way; a NaN survives the arithmetic as a non-finite number.
+      // `typeof` for the COMPILER (`current` is `unknown`, and `Number.isFinite` is not a type predicate,
+      // so without this the multiply won't narrow — TS18046), `Number.isFinite` for the VALUE. The value
+      // check alone already rejects every non-number: unlike the global `isFinite`, `Number.isFinite`
+      // does not coerce, so `Number.isFinite(true)` is false and a boolean never reaches `true * 2`.
+      // Both needed, for different reasons.
       if (typeof current !== 'number' || !Number.isFinite(current)) continue;
       const next = settle(current * mult, spec.min, spec.max, spec.step);
       if (!Number.isFinite(next)) continue; // a NaN multiplier, or 0 × Infinity → falls into `missed`

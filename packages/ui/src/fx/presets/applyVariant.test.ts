@@ -89,6 +89,14 @@ describe('applyVariant', () => {
     expect(r.missed).toEqual(['glow']);
   });
 
+  it('reports a transform key no primitive declares', () => {
+    // The likeliest real authoring error — a typo in `presets.json` naming a param that doesn't exist —
+    // and the first of the three causes `missed` covers. Task 7's whole diagnostic is `missed`.
+    const r = applyVariant(def(), { id: 'a', label: 'A', transform: { nonexistent: 2 } });
+    expect(r.applied).toEqual([]);
+    expect(r.missed).toEqual(['nonexistent']);
+  });
+
   it('refuses a non-slider param even when its value IS a number', () => {
     // Isolates the slider-KIND check: a `color` holds a perfectly multipliable number, so only the kind
     // check can stop it. `0xff0000 * 2` would be a silently recoloured layer.
@@ -99,8 +107,9 @@ describe('applyVariant', () => {
   });
 
   it('refuses a slider param whose current value is not a number', () => {
-    // Isolates the value-is-a-NUMBER check: the spec IS a slider, so the kind check passes and only the
-    // typeof can stop `true * 2 === 2` being written as though it had been authored that way.
+    // The spec IS a slider, so the kind check passes and only the VALUE check can stop this. (It is
+    // `Number.isFinite` that does the stopping, not the `typeof` beside it — `Number.isFinite` doesn't
+    // coerce, so a boolean is already false to it. The `typeof` is there to narrow `unknown` for TS.)
     const r = applyVariant(def({ size: true }), { id: 'a', label: 'A', transform: { size: 2 } });
     expect(r.def.layers[0].params.size).toBe(true);
     expect(r.applied).toEqual([]);

@@ -1,5 +1,53 @@
 # ASCENT — development log
 
+## 2026-07-29 — feat(sim): lobby rules — ghost boards, a 3-round no-repeat, and the enemy side restored
+
+Three owner rulings, one of them a correctness bug in my own lobby work.
+
+**The enemy side was under-powered — and it was mine, not a pre-existing gap.** An Ascent opponent is built
+from its snapshot with seventeen fields of run-level context: spell power, the Beast/Imp/Undead/Attachment
+auras, fodder consumed, quest and rune modifiers. My lobby seam reduced a seat to `{minions, tier}` in
+`PreparedBoard`, so `snapshotBoard` captured all of it and `toPrepared` threw it away — a lobby opponent's
+Runescale Drake, Karthus, Imp King and every rune fired at base or not at all, and the same board was
+systematically weaker as a lobby seat than as an Ascent opponent. `PreparedBoard` now carries its snapshot, and
+both paths build the enemy side through ONE extracted `enemySideFrom()`, so a scaler added later reaches both
+and neither can drift.
+
+*Correcting something I told the owner:* I said this had "reintroduced" the set-separation leak from #740. It
+had not — the enemy side has never carried `poolIds`, in Ascent either. That was a pre-existing gap, now closed
+for both paths by the shared builder.
+
+**A ghost, not a bye.** An odd living count used to sit one seat out with no damage in or out — a real and
+arbitrary advantage, and odd counts happen at 7, 5 and 3 alive. The spare seat now fights the most recently
+eliminated seat's board **from the round it died**. The ghost settles nothing (it is already out). The bye is
+handed to whoever has had the fewest, so it rotates. The player's own ghost fight settles from the result they
+just watched, like any other round — without that they took a free round every time the count went odd.
+
+**No rematch within 3 rounds**, unless the table is too small to avoid one. Implemented as a heavy cost, not a
+ban, because a top 4 (and certainly a final 2) has no legal alternative and a hard rule would deadlock the
+round.
+
+**Greedy pairing could not honour it.** It satisfies whoever it pairs FIRST and strands the rest: measured on
+seed 6, s1 and s4 were forced into a rematch one round apart while a violation-free arrangement of that same
+table existed. Pairing is now an exhaustive search — ~105 arrangements at 8 seats, so optimal is simply cheap —
+which makes "unless there is no other option" mean exactly that, rather than "unless the greedy order painted
+us into a corner".
+
+**A second ordering bug:** a seat knocked out in the CURRENT round could be raised as that same round's ghost.
+Pairs and the bye resolve simultaneously, so `ghostFor` now considers only seats eliminated strictly earlier.
+
+**Pacing is unchanged** (hybrid 16/19/22, all-bot 15/20/24 over 12 lobbies) — ghost fights remove free rounds
+without shortening lobbies, which is the outcome worth having.
+
+**A test that had to be rewritten rather than fixed.** "The lobby is not ending at the course length" asserted
+that some lobby ran past round 17 — an emergent round count, which quietly became false once ghost fights
+changed the pacing. It now asserts the MECHANISM: a lobby must never reach the `victory` phase, which is what a
+completed 17-round course produces. Pacing-independent.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2902 tests, build:web, harness determinism. Both new
+rules revert-checked — removing the no-repeat cost or loosening the ghost's round filter fails its test.
+
+
 ## 2026-07-29 — tweak(ui): lobby takes the Ascent hero offer, and the tuned rail values ship
 
 **Owner-tuned rail values baked** (🪑 Lobby Rail → Copy values): scale 1.25, width 129, right 12, top 18.5%.

@@ -30,6 +30,8 @@ const toPrepared = (snap: BoardSnapshot): PreparedBoard => ({
   // carries stats and keywords, not another run's uids.
   minions: snap.minions.map((m) => ({ ...m })) as BoardMinion[],
   tier: snap.tier,
+  // …but keep the SNAPSHOT, which carries the run-level scalers the enemy side needs (see `PreparedBoard`).
+  snapshot: snap,
 });
 
 /**

@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { CONFIG } from '../config';
 import { reduce } from '../reducer';
 import { DEFAULT_BOT } from '../bots/index';
 import type { RunState } from '../state';
-import { createLobbyRun, lastPlayerEncounter, lastRoundDamage, playerLobbySeat, playerOpponent, playerEliminated } from './runLobby';
+import { createLobbyRun, lastPlayerEncounter, lastRoundDamage, playerLobbySeat, playerOpponent, playerEliminated, NO_REPEAT_ROUNDS } from './runLobby';
 
 /**
  * THE PLAYABLE LOBBY — a run that is a seat in an 8-seat elimination lobby.
@@ -89,15 +88,16 @@ describe('lobby run — playing it', () => {
     expect(playerLobbySeat(s.lobby!).placement, 'the player got no placement').toBeDefined();
   });
 
-  it('…and it is NOT ending at the course length', () => {
-    // The control for the test above: a lobby seat must be able to play past round 17, which is the whole
-    // reason `lobby` mode exists.
-    let ranLong = false;
+  it('…and never by running out of COURSE, which a lobby does not have', () => {
+    // The control for the test above. It used to assert that some lobby ran past round 17 — an emergent round
+    // count, which quietly became false the moment ghost fights removed free rounds and lobbies got shorter.
+    // The mechanism is what matters: `victory` is the phase a completed 17-round COURSE produces, so a lobby
+    // reaching it would mean the clock is still in play. Pacing-independent, unlike a round-count threshold.
     for (const seed of [4, 5, 6, 7]) {
       const s = playOut(createLobbyRun(seed, 'drakko'));
-      if (s.lobby!.round > CONFIG.courseRounds) { ranLong = true; break; }
+      expect(s.phase, `seed ${seed} ended on the course clock`).not.toBe('victory');
+      expect(s.phase).toBe('gameover');
     }
-    expect(ranLong, 'no lobby ever passed the course length — the clock is still capping it').toBe(true);
   });
 
   it('the same seed reproduces the same lobby', () => {
@@ -162,5 +162,78 @@ describe('lobby run — the readouts the player actually reads', () => {
     expect(last!.foe.id).not.toBe('s0');
     expect(last!.taken).toBeGreaterThanOrEqual(0);
     expect(last!.dealt).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('lobby rules — no rematch inside 3 rounds, and the odd seat faces a ghost', () => {
+  const playRounds = (s: RunState, until: number): RunState => {
+    let guard = 0;
+    while (s.lobby!.round <= until && s.phase !== 'gameover' && guard++ < 3000) {
+      const next = reduce(s, DEFAULT_BOT.act(s));
+      if (next === s) break;
+      s = next;
+    }
+    return s;
+  };
+
+  it('no seat faces the same opponent within 3 rounds while the table is big enough', () => {
+    // The rule only binds while there ARE other options: a top 4 (and certainly a final 2) has no legal way to
+    // avoid a rematch, so the window is a heavy preference, not a ban. Checked only while 6+ seats are alive,
+    // which is exactly the range where an alternative always exists.
+    for (const seed of [4, 5, 6]) {
+      const s = playRounds(createLobbyRun(seed, 'drakko'), 12);
+      const lobby = s.lobby!;
+      const lastSeen = new Map<string, number>();
+      const aliveAt = new Map<number, number>();
+      for (const e of lobby.encounters) {
+        aliveAt.set(e.round, (aliveAt.get(e.round) ?? 0) + (e.bye ? 1 : 2));
+      }
+      for (const e of lobby.encounters) {
+        if (e.bye || !e.fought) continue;
+        const key = [e.a, e.b].sort().join('|');
+        const prev = lastSeen.get(key);
+        if (prev !== undefined && (aliveAt.get(e.round) ?? 0) >= 6) {
+          expect(e.round - prev,
+            `seed ${seed}: ${key} rematched after ${e.round - prev} round(s) with a full table`).toBeGreaterThanOrEqual(NO_REPEAT_ROUNDS);
+        }
+        lastSeen.set(key, e.round);
+      }
+    }
+  });
+
+  it('an odd table gives the spare seat a GHOST fight, not a free round', () => {
+    // Sitting out was a real advantage — no damage in or out — and odd counts happen at 7, 5 and 3 alive.
+    let sawGhostFight = false;
+    for (const seed of [4, 5, 6, 7, 8]) {
+      const s = playOut(createLobbyRun(seed, 'drakko'));
+      for (const e of s.lobby!.encounters) {
+        if (e.bye && e.fought) { sawGhostFight = true; break; }
+      }
+      if (sawGhostFight) break;
+    }
+    expect(sawGhostFight, 'no bye ever became a ghost fight').toBe(true);
+  });
+
+  it('the ghost is the most recently fallen seat, at the board it died with', () => {
+    const s = playOut(createLobbyRun(4, 'drakko'));
+    const lobby = s.lobby!;
+    const ghostRounds = lobby.encounters.filter((e) => e.bye && e.fought);
+    expect(ghostRounds.length, 'no ghost fights to check').toBeGreaterThan(0);
+    for (const e of ghostRounds) {
+      const ghost = lobby.seats.find((x) => x.id === e.b)!;
+      expect(ghost.alive, 'the ghost should be an eliminated seat').toBe(false);
+      expect(ghost.eliminatedRound, 'the ghost has no death round').toBeDefined();
+      expect(ghost.eliminatedRound!, 'the ghost died after the round it was raised for').toBeLessThan(e.round);
+      // Most RECENTLY fallen: nobody died later than it but still before this round.
+      const laterDead = lobby.seats.filter((x) => !x.alive && (x.eliminatedRound ?? 0) > ghost.eliminatedRound! && (x.eliminatedRound ?? 0) < e.round);
+      expect(laterDead.map((x) => x.id), 'a more recent corpse was available').toEqual([]);
+    }
+  });
+
+  it('a ghost takes no damage — it is already out', () => {
+    const s = playOut(createLobbyRun(4, 'drakko'));
+    for (const e of s.lobby!.encounters.filter((x) => x.bye && x.fought)) {
+      expect(e.damageToB, 'the ghost was dealt damage').toBe(0);
+    }
   });
 });

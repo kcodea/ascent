@@ -12,16 +12,32 @@
  *   npm run bot:ladder -- --hero soren     # a specific hero
  *   npm run bot:ladder -- --diagnose       # per-round win rate + why runs end
  */
-import { createRun, reduce, DEFAULT_BOT, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, type RunState } from '@game/sim';
+import { readFileSync, existsSync } from 'node:fs';
+import { createRun, reduce, DEFAULT_BOT, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, type BoardSnapshot, type RunState } from '@game/sim';
 import { createController, decide, toBotVisibleState, fightScore, type BotDifficultyId } from '@game/sim';
 
-// REGISTER THE REAL OPPONENT POOL. `OPPONENT_POOL` ships EMPTY and only the web store loads the baked boards
-// into it, so a headless tool that forgets this measures the bot against `buildEnemyBoard` — the procedural
-// fallback — for every single fight. That is the same generator `fightScore` uses as its evaluation panel, so
-// the bot gets graded on the exact distribution it optimizes against and the win counts are inflated.
-// `--procedural` keeps the old behaviour, explicitly labelled, for comparison.
+// WHAT THE BOT ACTUALLY FIGHTS — state it, because it changes the answer more than any evaluator tweak.
+//
+//   default      the committed pool: 160 boards, every one `origin: 'synthetic'`
+//   --human      real player boards pulled by `npm run boards:fetch` (origin 'self')
+//   --procedural no pool at all, so every fight falls through to `buildEnemyBoard`
+//
+// `OPPONENT_POOL` ships EMPTY and only the web store loads boards into it, so a headless tool that forgets to
+// register measures the --procedural case by accident — against the same generator `fightScore` scores with,
+// which is train-on-test and inflates every number.
 const PROCEDURAL_ONLY = process.argv.includes('--procedural');
-if (!PROCEDURAL_ONLY && OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA]);
+const HUMAN = process.argv.includes('--human');
+let poolLabel = 'PROCEDURAL ONLY — the same generator the evaluator scores against';
+if (HUMAN) {
+  const path = 'packages/tools/.cache/player-boards.json';
+  if (!existsSync(path)) { console.error(`no board cache at ${path} — run: npm run boards:fetch`); process.exit(1); }
+  const boards = JSON.parse(readFileSync(path, 'utf8')) as BoardSnapshot[];
+  registerOpponents(boards);
+  poolLabel = `REAL PLAYER boards (${OPPONENT_POOL.length} registered)`;
+} else if (!PROCEDURAL_ONLY) {
+  registerOpponents([...OPPONENT_POOL_DATA]);
+  poolLabel = `committed pool (${OPPONENT_POOL.length} boards, all synthetic) + procedural fallback`;
+}
 
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string): string | undefined => {
@@ -89,8 +105,8 @@ const stderr = (xs: number[]): number => {
 
 const seeds = Array.from({ length: SEEDS }, (_, i) => i + 1);
 console.log(`\n=== bot ladder — ${SEEDS} seeds, hero ${HERO} ===`);
-console.log(PROCEDURAL_ONLY ? 'opponents: PROCEDURAL ONLY — the same generator the evaluator scores against' : `opponents: real pool (${OPPONENT_POOL.length} boards) + procedural fallback`);
-console.log('tier      wins            rounds  tier  triples  died  gold/turn');
+console.log(`opponents: ${poolLabel}`);
+console.log('tier      wins            rounds  tier  triples  died  gold/turn   r17  wonR17  survived');
 
 const perTier = new Map<string, RunOutcome[]>();
 for (const tier of TIERS) {
@@ -103,7 +119,12 @@ for (const tier of TIERS) {
     `${mean(runs.map((r) => r.finalTier)).toFixed(1).padStart(4)}  ` +
     `${mean(runs.map((r) => r.triples)).toFixed(2).padStart(7)}  ` +
     `${String(runs.filter((r) => r.died).length).padStart(4)}  ` +
-    `${mean(runs.map((r) => r.goldWasted / Math.max(1, r.turns))).toFixed(2).padStart(9)}`,
+    `${mean(runs.map((r) => r.goldWasted / Math.max(1, r.turns))).toFixed(2).padStart(9)}` +
+    // Reaching round 17 at all, winning THAT round, and surviving the whole course are three different things
+    // and collapsing them hides which one the bot fails at.
+    `${String(runs.filter((r) => r.history.length >= 17).length).padStart(6)}` +
+    `${String(runs.filter((r) => r.history[16] === 'win').length).padStart(8)}` +
+    `${String(runs.filter((r) => !r.died && r.history.length >= 17).length).padStart(10)}`,
   );
 }
 

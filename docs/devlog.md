@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-07-29 — Measured against REAL player boards: the ladder collapses
+
+**What.** `npm run boards:fetch` pulls the shared Supabase board pool (664 boards, 6 authors, all
+`origin: 'self'` — actual played runs) to a local cache, and `npm run bot:ladder -- --human` fights those
+instead of the committed pool. Every bot measurement before this was against synthetic opposition: the
+committed pool is 160 boards and every one is `origin: 'synthetic'`, generated from the card set and banded
+to the tuned enemy curve.
+
+**Result.** 40 seeds, hero drakko. `r17` = runs that reached round 17, `wonR17` = won that round,
+`survived` = finished the course alive.
+
+| tier | vs synthetic | r17 | survived | vs REAL players | r17 | survived |
+|---|---|---|---|---|---|---|
+| legacy | 2.10 ±0.40 | 1 | 1 | 3.33 ±0.22 | 0 | 0 |
+| easy | 3.25 ±0.65 | 9 | 8 | 3.17 ±0.29 | 0 | 0 |
+| normal | 3.50 ±0.69 | 9 | 9 | 3.42 ±0.33 | 0 | 0 |
+| hard | 4.10 ±0.70 | 10 | 10 | 3.75 ±0.33 | 0 | 0 |
+| expert | 4.83 ±0.72 | 14 | 13 | 3.88 ±0.34 | 0 | 0 |
+
+Against real player boards **nothing survives the course** — 0 of 40 runs reached round 17 at any tier, and
+all 200 runs died. Par is 9 wins; the best bot covers 3.88.
+
+More damning: against human boards the ladder stops separating. Legacy 3.33 ±0.22 against expert 3.88 ±0.34
+is roughly 1.4σ — not a real difference. The entire measured gain from the production bot system exists
+against synthetic opposition and largely evaporates against boards people actually built.
+
+**What this means.** Synthetic boards are banded to a *curve*; human boards have synergy — the packages a
+real player assembles beat their stat-line. `fightScore` scores candidate boards against the procedural
+threat curve, so the evaluator is optimizing for exactly the opposition that turns out to be the easy case.
+That is the next problem to solve, and it is a different problem from search depth or difficulty tuning.
+
+**Follow-ups.** Fight the human pool inside `fightScore` (it is now loadable), and re-derive difficulty
+against it. Personas and strength-limiting should wait: there is no point diversifying or capping bots whose
+tiers are statistically the same bot.
+
 ## 2026-07-29 — The lobby was never running the production bots
 
 **What.** `botSeat` drove its run with `DEFAULT_BOT.act(run)` — the legacy greedy policy — so every seat at

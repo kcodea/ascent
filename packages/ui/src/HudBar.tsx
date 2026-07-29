@@ -2,7 +2,6 @@ import { RIFTS, CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@ga
 import { RiftPill } from './RiftPill';
 import { Icon } from './Icon';
 import { OpponentFrame } from './OpponentFrame';
-import { LobbyPanel } from './LobbyPanel';
 import { useGame } from './store';
 
 /** Top bar: the round/altitude plaque (left) and the next-enemy frame (top-right). */
@@ -77,10 +76,10 @@ export function HudBar() {
             pinned to a rift (see RIFTS / RunState.rift). */}
         {rift && <RiftPill rift={rift} variant="hud" />}
       </div>
-      {/* Top-right: the next-enemy frame (recruit only). In a LOBBY run the 8-seat table replaces it — who is
-          still standing and who you're about to fight is the whole state of that mode. */}
+      {/* Top-right: the next-enemy frame (recruit only). A LOBBY run has no single "next enemy" card here —
+          the table lives in its own rail down the right edge of the stage (see `.lobbyrail`). */}
       <div className="topright">
-        {run.lobby ? <LobbyPanel lobby={run.lobby} /> : <OpponentFrame />}
+        {!run.lobby && <OpponentFrame />}
       </div>
     </div>
   );

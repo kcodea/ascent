@@ -11,6 +11,7 @@ import { instView, liveCardText, type LiveTextParams } from './instView';
 import { getSpellBuffFxConfig } from './spellBuffFxConfig';
 import { fireSpellBuff, fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
 import { HudBar } from './HudBar';
+import { LobbyPanel } from './LobbyPanel';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
@@ -3829,7 +3830,7 @@ export function Recruit() {
 
   return (
     <div
-      className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
+      className={`app${run.lobby ? ' lobby' : ''}${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
         skipFade === 'out' ? ' combatfrozen' : ''
@@ -3850,6 +3851,10 @@ export function Recruit() {
         covered={!!(heroSelecting || overlayOpen)}
       />
       <HudBar />
+      {/* LOBBY RAIL — the 8-seat table down the right edge of the stage. A direct child of `.app` (not the HUD
+          bar) so it can be anchored to the STAGE height and run tall beside the board, instead of hanging off
+          the top-right corner where it had to stay short and wide. */}
+      {run.lobby && <LobbyPanel lobby={run.lobby} />}
 
       {!fighting ? (
       <>

@@ -29,7 +29,7 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
   });
 
   return (
-    <div className="lobbypanel">
+    <div className="lobbyrail">
       <div className="lobbyhead">
         <span className="lobbyround">Round {lobby.round}</span>
         <span className="lobbyalive">{living.length} left</span>

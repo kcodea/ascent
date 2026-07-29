@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-07-29 — tweak(ui): the lobby table becomes a tall rail down the right edge
+
+Owner marked the target area on a screenshot: move the seat table out of the top-right corner into a tall,
+narrow column beside the board.
+
+**It is now a child of `.app`, not the HUD bar.** As a top-right widget it could only ever be short and wide,
+which squeezed the opponent card plus eight seats into a few cramped lines. Anchored to the STAGE instead, it
+runs the full height of that column. Measured against the marked box: **89.6–98.6% × 26–68%** of the stage
+against the target's 89.5–98.5% × 26.8–67.7%.
+
+Everything sizes off `--u`, the same unit the rest of the HUD uses, so the rail tracks the stage at every window
+size rather than drifting at non-16:9 aspects. The seat rows `flex: 1` into the available height, so the rail
+fills its column instead of ending wherever the content happened to stop. Next Foe restacks vertically (art over
+name over health) because a narrow rail gives a horizontal card nowhere to go, and the damage number moved to
+its own line under the name — inline it reflowed the health column between rows.
+
+**A collision the move exposed.** The End Turn label is centred on a button that sits well right of centre, and
+its right half ran under the rail — the rail's z-index simply hid the text rather than avoiding it, so the label
+read as truncated. It now shifts left by the rail's own width, expressed in `--u-base` so the two track each
+other instead of colliding again at one particular window size. Verified by measuring: the label's right edge
+clears the rail's left edge by 21px.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, harness determinism, and a live browser
+check measuring the rail's actual geometry against the marked box.
+
+
 ## 2026-07-29 — feat(ui): lobby — a proper Next Foe card, and per-round damage numbers
 
 Owner ask: show the current opponent larger, and show damage dealt as a number after a round.

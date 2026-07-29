@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-07-29 — FX workbench friction batch: make the tool stop hiding things
+
+Four small, unrelated papercuts in the FX workbench, done together because they share two files and one
+principle: **make failure visible**. Nearly every defect in this subsystem has presented as "nothing
+happened", indistinguishable from "not wired yet". UI-only, DEV-only — no engine, content or sim change.
+
+**1. Fire and scrub survive rail mode.** "Watch in combat" collapses the editor to a rail and hosts the combat
+harness in the vacated space — and used to take ▶/⏸, 🔥 Fire, the scrubber *and* the Timeline down with it
+(`.fxwb-rail .fxwb-transport { display: none }`), so while watching an effect play on a real card you could
+not retrigger or scrub the effect you were tuning. The full bar stays hidden, deliberately: it is
+`position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width Timeline,
+so unhiding it would paint a band straight across the board the mode exists to show. Instead the rail carries
+its own compact **`.fxwb-railtransport`** — ▶/⏸, 🔥 Fire, the scrubber and the time readout, no Timeline —
+calling the *same* `togglePlay` / `fire` / `scrub` handlers as the main bar (a second surface for one
+behaviour, never a second implementation). It is `position: sticky; bottom: 0` inside `.fxwb-side`, which is
+the scroll container, so it cannot be scrolled away behind the layer list and forty sliders; negative side
+margins plus matching padding let its opaque background span the rail's full width so scrolled content passes
+*behind* it. `.fxwb-top` stays hidden as before — the ✕ lives there, but the mode toggle in `.fxwb-side` is
+always visible, so "Full editor" is one click back to it.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npx eslint packages/ui/src/fx/ui/`, `npm run build:web` and
+`npm test` all green. No React tests exist or are possible in this repo (no jsdom, no
+`@testing-library/react`), so the layout claims are code-and-CSS review plus the owner's eye.
+
 ## 2026-07-29 — ＋ New effect: the FX workbench gets an on-ramp
 
 **What changed.** The workbench had no way to *start*. Every route in — Browse all's ⧉ duplicate, the rail's

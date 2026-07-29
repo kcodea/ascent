@@ -1916,6 +1916,44 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           {saveNote !== null && <div className="fxwb-def-note">{saveNote}</div>}
           {saveError !== null && <div className="fxwb-def-err">{saveError}</div>}
         </div>
+
+        {/* RAIL-MODE TRANSPORT. Rail mode hides `.fxwb-transport` (it is a full-width absolutely-positioned
+            bar built around the Timeline, so unhidden it would cover the very board the mode exists to show),
+            which used to take ▶/⏸, 🔥 Fire and the scrubber down with it — i.e. while watching an effect on a
+            real card you could not retrigger or scrub the effect you were tuning, the two things you most
+            want there. So the rail hosts its own compact copy: those three controls and nothing else, no
+            Timeline. The handlers are the SAME `togglePlay` / `fire` / `scrub` the main bar calls — this is a
+            second surface for one behaviour, never a second implementation. Sticky-bottom (see the CSS) so it
+            can't be scrolled off under 40 sliders. */}
+        {railMode && (
+          <div className="fxwb-railtransport">
+            <button
+              className="fxwb-play"
+              onClick={togglePlay}
+              title={uiPlaying ? 'Pause the timeline where it is (Space)' : 'Play — resume the timeline, or start a pass if nothing is running (Space)'}
+              aria-label={uiPlaying ? 'Pause' : 'Play'}
+            >
+              {uiPlaying ? '⏸' : '▶'}
+            </button>
+            <button
+              className="fxwb-fire"
+              onClick={fire}
+              title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing."
+            >
+              🔥 Fire
+            </button>
+            <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
+            <input
+              className="fxwb-scrub"
+              type="range"
+              aria-label="Scrub"
+              min={0}
+              max={durationMs}
+              value={timeMs}
+              onChange={(e) => scrub(Number(e.target.value))}
+            />
+          </div>
+        )}
       </div>
 
       <div className="fxwb-transport">

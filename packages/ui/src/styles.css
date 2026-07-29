@@ -5448,8 +5448,25 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    defeats the mode (you could watch, but not tune). Top/bottom stretch to the full height the hidden top +
    transport bars vacate. */
 .fxwb-rail .fxwb-side { width: 320px; right: 320px; top: 0; bottom: 0; }
+/* `.fxwb-top` stays hidden here deliberately (the ✕ lives there, but the mode toggle in `.fxwb-side` is
+   always visible, so "Full editor" is one click back to it). `.fxwb-transport` has to go too: it is
+   `left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width Timeline, so leaving it
+   up would paint a band straight across the board this mode exists to show. What it takes with it — ▶/⏸,
+   Fire, the scrubber — comes back as `.fxwb-railtransport` inside the rail (see below). */
 .fxwb-rail .fxwb-top,
 .fxwb-rail .fxwb-transport { display: none; }
+/* The rail's compact transport: play/pause, Fire, scrub. `position: sticky` inside `.fxwb-side` (which is the
+   scroll container) rather than `absolute`, so it pins to the bottom of the visible rail and CANNOT be
+   scrolled away behind the layer list + inspector — the whole point is that it's reachable while you watch.
+   Negative side margins + matching padding let its background span the rail's full width, so scrolled
+   content passes behind an opaque bar instead of showing through. Wraps rather than overflowing: the rail is
+   320px in this mode. */
+.fxwb-railtransport {
+  position: sticky; bottom: 0; z-index: 1; flex: none;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: 0 -12px -10px; padding: 8px 12px 10px;
+  background: #211d2c; border-top: 2px solid #3d3752; box-shadow: 0 -6px 18px -8px rgba(0, 0, 0, 0.6);
+}
 /* The rail COLUMN: the proc harness and the commit panel stacked, scrolling together. `.fxharness` below
    positions itself absolutely — it predates the commit panel and owned the whole rail — so a bare sibling
    `.fxcommit` fell out of flow and painted a full-width band across the top of the board (measured live:

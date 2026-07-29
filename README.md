@@ -44,6 +44,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **FX workbench: stop hiding things.** A friction batch on the effects authoring tool. "Watch in combat" no
+  longer strands you: the rail carries its own compact ▶/⏸ · 🔥 Fire · scrubber, so you can retrigger and scrub
+  the effect you're tuning while watching it play on a real card.
 - **＋ New effect — the FX workbench gets an on-ramp.** A preset gallery of archetypes (⚡ Bolt, 💥 Blast), each
   with variants (thin / heavy / crackling / beam), lands a tuned, working composition in the editor instead of a
   blank page. A variant is a multiplier table applied to slider params only — clamped, snapped, and loud about

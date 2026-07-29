@@ -254,10 +254,18 @@ along one side and hosts the proc harness in the space it vacates: pick a card, 
 against tunable sandbags, get the list of moments that card actually caused, and seek the replay to any one
 of them on the real board. Click **Full editor** to collapse the harness back and restore the full workbench.
 
-While in rail mode, `.fxwb-rail .fxwb-top { display: none }` hides the whole transport bar — Fire, scrub,
-seed lock — **and the workbench's close button along with it**, since both live in the same `fxwb-top`
-container. That's not a trap: the mode toggle itself lives in `.fxwb-side`, which stays visible in rail mode,
-so "Full editor" always gets you back to the transport bar and the close button in one click.
+While in rail mode both bars are hidden: `.fxwb-rail .fxwb-top { display: none }` takes the seed lock, the
+backdrop swatches, the fps readout **and the workbench's close button** with it, and
+`.fxwb-rail .fxwb-transport { display: none }` takes the Timeline, the duration/loop/playback dials and the
+seed row. Neither is a trap. The mode toggle itself lives in `.fxwb-side`, which stays visible, so "Full
+editor" gets you back to all of it (and to ✕) in one click.
+
+The two controls you actually need *while watching* — retrigger and scrub — do not wait for that round trip:
+the rail carries its own compact **`.fxwb-railtransport`** (▶/⏸ · 🔥 Fire · the scrubber, no Timeline) pinned
+sticky to the bottom of the rail, calling the same `togglePlay` / `fire` / `scrub` handlers as the main bar.
+The full transport stays hidden rather than being unhidden here for a layout reason: it is
+`position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width
+Timeline, so it would paint a band straight across the board this mode exists to show.
 
 ---
 
@@ -281,8 +289,9 @@ def that doesn't exist is a silent no-op that a test will catch but a player nev
 - **Only two preset archetypes so far** (Bolt, Blast), and both are unreviewed first passes. Eight more are
   queued — wave, chain, cloud, swell, drip, vortex, slam, beam — landing one at a time so each gets judged at
   real card scale rather than eight at once.
-- **Rail mode hides Fire and the scrub bar**, a commit-success toast can't survive the forced page reload,
-  `fanOut` is jargon in the binding table, and Save doesn't auto-unlock the seed. A batch of the same friction.
+- **A commit-success toast can't survive the forced page reload**, `fanOut` is jargon in the binding table,
+  and Save doesn't auto-unlock the seed. The rest of the same friction batch that gave rail mode its own
+  transport (§9).
 
 ---
 

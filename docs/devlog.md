@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-07-29 — tweak(ui): lobby takes the Ascent hero offer, and the tuned rail values ship
+
+**Owner-tuned rail values baked** (🪑 Lobby Rail → Copy values): scale 1.25, width 129, right 12, top 18.5%.
+Baked into `LOBBY_PANEL_DEFAULTS` **and** mirrored into the CSS fallbacks, because production never runs the
+tuner — a value baked in only one of the two places gives a dev build that looks nothing like the exe, which is
+the trap the exe-vs-Chrome triage note is about.
+
+**Lobby now uses the Ascent hero offer** — three heroes, not the whole roster. A lobby is a real run you can
+lose, so the pick should be made under the same constraint as Ascent's; Practice's all-heroes list is a sandbox
+affordance and reads as one. The hero screen also swaps its telegraph: a lobby has no Oath and no rating, so it
+shows **"8 seats · last one standing"** where a scored run shows Renown and Oath.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, harness determinism, and a live browser
+check confirming three cards, `pendingMode: 'lobby'`, and the lobby telegraph — done through `startLobby` alone
+so an in-progress save was provably untouched.
+
+**Not a bug after all:** the owner's report that lobby mode was invulnerable. A traced headless run shows the
+player's seat taking damage every round (13 armor → 0 by round 13) and the run ending at `gameover` with
+placement 3, so the elimination path works end to end. Recorded here because it was checked, not assumed.
+
+
 ## 2026-07-29 — feat(ui): a tuner for the lobby rail (🪑 Lobby Rail)
 
 Owner ask: a tuner for the opponent panel covering panel scale, row scale and font size. Eight dials, matching

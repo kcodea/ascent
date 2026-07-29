@@ -5989,17 +5989,17 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      applying `transform: scale()` keeps the shadow and hairline crisp AND keeps the layout box honest — a
      transformed panel still reserves its untransformed width and can overlap the board. */
   --u: calc(var(--u-base) * var(--ui-scale, 0.96));
-  --lu: calc(var(--u) * var(--lby-scale, 1));
+  --lu: calc(var(--u) * var(--lby-scale, 1.25));
   --lrow: calc(var(--lu) * var(--lby-row, 1));
   --lfont: calc(var(--lu) * var(--lby-font, 1));
   --lfoe: calc(var(--lu) * var(--lby-foe, 1));
   position: absolute; z-index: 60;
-  right: calc(var(--lby-right, 28) * var(--lu)); top: var(--lby-top, 26%);
+  right: calc(var(--lby-right, 12) * var(--lu)); top: var(--lby-top, 18.5%);
   /* Sizes to its rows, capped so a wild row scale can't run off the stage — and SCROLLS rather than clips at
      the cap, because silently hiding seat 8 is worse than a scrollbar. The cap is generous enough that the
      shipped defaults never reach it (measured: content ≈46% of stage height against a 66% cap). */
   height: auto; max-height: var(--lby-h, 66%); overflow-y: auto; overflow-x: hidden;
-  width: calc(var(--lby-w, 178) * var(--lu));
+  width: calc(var(--lby-w, 129) * var(--lu));
   display: flex; flex-direction: column; gap: calc(5 * var(--lu)); pointer-events: none;
   /* A solid backing plate. Translucent rows over the board's stonework washed every name out to grey — the
      panel has to be its own surface, not a tint on the art behind it. */

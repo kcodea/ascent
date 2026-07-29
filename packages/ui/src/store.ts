@@ -629,9 +629,10 @@ export const useGame = create<GameStore>((set, get) => ({
   // a disabled hero stayed selectable here after being pulled from the Ascent picker (owner 2026-07-28).
   startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.filter((h) => !h.wip).map((h) => h.id), avatarPickerOpen: false }),
   startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
-  // LOBBY: eight seats, elimination, no fixed round count. Every hero is pickable — it isn't a scored Ascent
-  // run, so the 3-of-N offer would only get in the way while the mode is being played with.
-  startLobby: () => set({ showTitle: false, pendingMode: 'lobby', heroChoices: HEROES.filter((h) => !h.wip).map((h) => h.id), avatarPickerOpen: false }),
+  // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
+  // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
+  // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
+  startLobby: () => set({ showTitle: false, pendingMode: 'lobby', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   startSceneBuilder: (heroId = 'warden', setId = activeSet().id) =>
     set(() => {
       // Sandbox runs on `practice` mechanics (unscored, generous timer) but is flagged `sandbox` and skips the

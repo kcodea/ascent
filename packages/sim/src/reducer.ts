@@ -1669,27 +1669,36 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The served board's ENEMY-side context — the SAME `CombatSideState`, reconstituted from its snapshot so its
       // Grim / Taragosa / Pack Leader / Runescale / Watcher fights + reads at the OPPONENT's value, not ours. The
       // procedural threat has none (a synthetic foe with no run economy → the neutral side / printed base is correct).
+      // ONE builder for the enemy side, used by the served-board path AND the lobby path. Previously the lobby
+      // built its own bare `combatSide({ tier })`, which silently dropped all seventeen run-level scalers below
+      // — so the identical board was materially weaker as a lobby seat than as an Ascent opponent. Sharing the
+      // function is the point: a new scaler added here reaches both, and neither can drift from the other.
+      const enemySideFrom = (snap: BoardSnapshot, fallbackTier: number): CombatSideState => combatSide({
+        tier: snap.tier ?? fallbackTier,
+        // The run's PINNED set — the same narrowing the player side gets, so an enemy's random pick can't
+        // reach into another set's cards. Read from the LIVE run: a snapshot records which set it was played
+        // under, but the fight happens in this run's, and both sides must draw from one pool.
+        poolIds: poolOf(s).all.map((c) => c.id),
+        spellPowerAtk: snap.spellPower?.attack ?? 0,
+        spellPowerHp: snap.spellPower?.health ?? 0,
+        spellsThisTurn: snap.spellsThisTurn ?? 0,
+        beastsPlayed: snap.beastsPlayed ?? 0,
+        deathrattles: snap.deathrattles ?? 0,
+        spellsCast: snap.spellsCast ?? 0, // enemy Umbral Energy
+        beastBuyAtk: snap.beastBuyAtk ?? 0, // enemy Beast aura
+        impAtk: snap.impAura?.attack ?? 0, // enemy Imp Aura → correctly-sized enemy Imp summons
+        impHp: snap.impAura?.health ?? 0,
+        undeadAtk: snap.undeadAura?.attack ?? 0, // enemy Undead Lantern aura
+        undeadHp: snap.undeadAura?.health ?? 0,
+        undeadBuyAtk: snap.undeadBuyAtk ?? 0, // enemy Undead buy-time Attack
+        magneticAtk: snap.magneticAura?.attack ?? 0, // enemy Attachment aura
+        magneticHp: snap.magneticAura?.health ?? 0,
+        fodderConsumedAtk: snap.fodderConsumed?.attack ?? 0, // enemy Abhorrent Horror
+        fodderConsumedHp: snap.fodderConsumed?.health ?? 0,
+        questMods: snap.questMods ?? {}, // enemy runes/quests reproduced in combat
+      });
       const servedState: CombatSideState = served
-        ? combatSide({
-            tier: served.tier ?? s.tier,
-            spellPowerAtk: served.spellPower?.attack ?? 0,
-            spellPowerHp: served.spellPower?.health ?? 0,
-            spellsThisTurn: served.spellsThisTurn ?? 0,
-            beastsPlayed: served.beastsPlayed ?? 0,
-            deathrattles: served.deathrattles ?? 0,
-            spellsCast: served.spellsCast ?? 0, // enemy Umbral Energy
-            beastBuyAtk: served.beastBuyAtk ?? 0, // enemy Beast aura
-            impAtk: served.impAura?.attack ?? 0, // enemy Imp Aura → correctly-sized enemy Imp summons
-            impHp: served.impAura?.health ?? 0,
-            undeadAtk: served.undeadAura?.attack ?? 0, // enemy Undead Lantern aura
-            undeadHp: served.undeadAura?.health ?? 0,
-            undeadBuyAtk: served.undeadBuyAtk ?? 0, // enemy Undead buy-time Attack
-            magneticAtk: served.magneticAura?.attack ?? 0, // enemy Attachment aura
-            magneticHp: served.magneticAura?.health ?? 0,
-            fodderConsumedAtk: served.fodderConsumed?.attack ?? 0, // enemy Abhorrent Horror
-            fodderConsumedHp: served.fodderConsumed?.health ?? 0,
-            questMods: served.questMods ?? {}, // enemy runes/quests reproduced in combat
-          })
+        ? enemySideFrom(served, s.tier)
         : combatSide();
       try {
         // LOBBY MODE: the opponent is the seat the lobby paired you with, not a pool pick. Everything
@@ -1698,7 +1707,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         const e = lobbyFoe
           ? { enemy: lobbyFoe.minions, tier: lobbyFoe.tier }
           : served ? { enemy: opponentBoard(served), tier: served.tier ?? s.tier } : proceduralEnemy();
-        s.lastCombat = resolveCombatVs(e.enemy, lobbyFoe || !served ? combatSide({ tier: e.tier }) : servedState);
+        // A lobby seat goes through the SAME enemy-side builder as a served board, so it fights with its run's
+        // spell power, auras, fodder and quest/rune modifiers exactly as it would in Ascent.
+        const enemyState = lobbyFoe?.snapshot
+          ? enemySideFrom(lobbyFoe.snapshot, e.tier)
+          : lobbyFoe || !served ? combatSide({ tier: e.tier, poolIds: poolOf(s).all.map((c) => c.id) }) : servedState;
+        s.lastCombat = resolveCombatVs(e.enemy, enemyState);
       } catch {
         const e = proceduralEnemy();
         s.lastCombat = resolveCombatVs(e.enemy, combatSide({ tier: e.tier }));

@@ -1,4 +1,5 @@
 import type { BoardMinion, CombatOutcome } from '@game/core';
+import type { BoardSnapshot } from '../snapshot';
 
 /**
  * THE 8-SEAT LOBBY (prototype, owner direction 2026-07-29).
@@ -19,10 +20,20 @@ import type { BoardMinion, CombatOutcome } from '@game/core';
  * ordinary `RunState`, which the existing reducer already handles.
  */
 
-/** What a seat brings to a round: the board it fights with, plus the tavern tier that scales its damage. */
+/** What a seat brings to a round: the board it fights with, the tavern tier that scales its damage, and the
+ *  full `BoardSnapshot` it came from.
+ *
+ *  The snapshot is the load-bearing part. An Ascent opponent enters combat with seventeen fields of run-level
+ *  context — spell power, the Beast/Imp/Undead/Attachment auras, fodder consumed, quest and rune modifiers —
+ *  all captured by `snapshotBoard`. Reducing a seat to `{minions, tier}` silently dropped every one of them, so
+ *  a lobby opponent's Runescale Drake, Karthus, Imp King and runes all fired at base or not at all, and the
+ *  same board was systematically weaker in a lobby than in Ascent. Carrying the snapshot lets the reducer build
+ *  the enemy side through the SAME path Ascent uses. */
 export interface PreparedBoard {
   minions: BoardMinion[];
   tier: number;
+  /** The snapshot these bodies came from. Absent only for a hand-built board in tests. */
+  snapshot?: BoardSnapshot;
 }
 
 /** The outcome of one seat's fight, handed back so a LIVE seat can settle it. A recording ignores this. */

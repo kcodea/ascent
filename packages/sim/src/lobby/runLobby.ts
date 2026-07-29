@@ -1,4 +1,5 @@
 import type { BoardMinion, CombatOutcome, CombatResult } from '@game/core';
+import type { BoardSnapshot } from '../snapshot';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from '../heroes';
@@ -117,6 +118,19 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
 }
 
 /** Deterministic pairing over the living seats. Mirrors `pairSeats` but on the serializable shape. */
+/** You may not face the same seat again within this many rounds (owner rule 2026-07-29). */
+export const NO_REPEAT_ROUNDS = 3;
+
+/**
+ * Pairing for one round: a seeded shuffle, then a greedy pass that prefers the opponent you have met least
+ * often and least recently.
+ *
+ * The hard rule is the recency one: **you never face the same seat within 3 rounds** — unless the table is too
+ * small to avoid it. That exception is why it's a preference layered over a fallback rather than a filter: once
+ * the lobby is down to a top 4 (or a final 2), every legal opponent is someone you just fought, and a rule that
+ * refuses to pair them would deadlock the round. So a seat inside the window is scored as heavily penalised but
+ * still selectable, and it only gets picked when nothing else is left.
+ */
 export function pairRunLobby(lobby: RunLobby): { pairs: [LobbySeatState, LobbySeatState][]; bye: LobbySeatState | null } {
   const rng = makeRng(lobby.seed ^ (lobby.round * 0x9e3779b9));
   const pool = lobby.seats.filter((s) => s.alive);
@@ -125,32 +139,95 @@ export function pairRunLobby(lobby: RunLobby): { pairs: [LobbySeatState, LobbySe
     [pool[i], pool[j]] = [pool[j]!, pool[i]!];
   }
   const met = new Map<string, number>();
+  const lastMet = new Map<string, number>();
   for (const e of lobby.encounters) {
-    for (const k of [`${e.a}|${e.b}`, `${e.b}|${e.a}`]) met.set(k, (met.get(k) ?? 0) + 1);
-  }
-  const pairs: [LobbySeatState, LobbySeatState][] = [];
-  const taken = new Set<string>();
-  for (const a of pool) {
-    if (taken.has(a.id)) continue;
-    let best: LobbySeatState | null = null;
-    let bestScore = Infinity;
-    for (const b of pool) {
-      if (b.id === a.id || taken.has(b.id)) continue;
-      const score = met.get(`${a.id}|${b.id}`) ?? 0;
-      if (score < bestScore) { bestScore = score; best = b; }
+    if (e.bye) continue; // a bye is not a meeting
+    for (const k of [`${e.a}|${e.b}`, `${e.b}|${e.a}`]) {
+      met.set(k, (met.get(k) ?? 0) + 1);
+      lastMet.set(k, Math.max(lastMet.get(k) ?? 0, e.round));
     }
-    if (!best) continue;
-    taken.add(a.id); taken.add(best.id);
-    pairs.push([a, best]);
   }
-  return { pairs, bye: pool.find((s) => !taken.has(s.id)) ?? null };
+  const cost = (a: LobbySeatState, b: LobbySeatState): number => {
+    const key = `${a.id}|${b.id}`;
+    const since = lobby.round - (lastMet.get(key) ?? -Infinity);
+    // Inside the no-repeat window: a huge penalty, not a ban — a top-4 table has no other option.
+    const recent = since < NO_REPEAT_ROUNDS ? 1e6 * (NO_REPEAT_ROUNDS - since) : 0;
+    return recent + (met.get(key) ?? 0) * 100 - Math.min(since, 99);
+  };
+
+  // EXHAUSTIVE matching, not a greedy pass. Greedy honours the no-repeat rule for whoever it happens to pair
+  // FIRST and then strands the rest: measured on seed 6, s1 and s4 were forced into a rematch one round apart
+  // while a violation-free arrangement of the same table existed. At 8 seats the whole search is ~105
+  // pairings, so the optimal answer is simply cheap — and "unless there is no other option" then means exactly
+  // that, rather than "unless the greedy order painted us into a corner".
+  let bestPairs: [LobbySeatState, LobbySeatState][] = [];
+  let bestCost = Infinity;
+  const search = (rest: LobbySeatState[], acc: [LobbySeatState, LobbySeatState][], total: number): void => {
+    if (total >= bestCost) return; // branch can't beat what we have
+    if (rest.length < 2) {
+      bestCost = total;
+      bestPairs = [...acc];
+      return;
+    }
+    const [head, ...others] = rest;
+    for (let i = 0; i < others.length; i++) {
+      const partner = others[i]!;
+      acc.push([head!, partner]);
+      search(others.filter((_, j) => j !== i), acc, total + cost(head!, partner));
+      acc.pop();
+    }
+  };
+  // The bye (odd count) is decided first, so the search only ever sees an even table. Prefer to bye whoever has
+  // had the FEWEST byes, so the ghost round rotates instead of landing on the same seat.
+  const byeCount = new Map<string, number>();
+  for (const e of lobby.encounters) if (e.bye) byeCount.set(e.bye, (byeCount.get(e.bye) ?? 0) + 1);
+  let bye: LobbySeatState | null = null;
+  let field = pool;
+  if (pool.length % 2 === 1) {
+    bye = [...pool].sort((a, b) => (byeCount.get(a.id) ?? 0) - (byeCount.get(b.id) ?? 0) || a.id.localeCompare(b.id))[0]!;
+    field = pool.filter((x) => x.id !== bye!.id);
+  }
+  search(field, [], 0);
+  return { pairs: bestPairs, bye };
+}
+
+/**
+ * The GHOST a seat faces when the living count is odd (owner rule 2026-07-29).
+ *
+ * Sitting the odd seat out was a free round — it took no damage and dealt none, which at 7, 5 and 3 alive is a
+ * meaningful and arbitrary advantage. Instead it fights the most recently eliminated seat's board **from the
+ * round that seat died**, so the ghost is a real board at a real point in its climb rather than a synthetic
+ * filler. Damage applies to the living seat normally; the ghost is already out and takes nothing.
+ *
+ * Returns `null` only before the first elimination, when there is no ghost to raise — the odd seat then genuinely
+ * sits out. In an 8-seat lobby that can't happen, since the count is only odd after someone has died.
+ */
+export function ghostFor(lobby: RunLobby): { seat: LobbySeatState; board: PreparedBoard } | null {
+  const fallen = lobby.seats
+    // Strictly BEFORE this round: the pairs and the bye resolve simultaneously, so a seat knocked out in this
+    // very round hasn't fallen yet from the bye's point of view — raising it as its own round's ghost would be
+    // fighting someone who is still, as far as this round is concerned, alive.
+    .filter((x) => !x.alive && x.eliminatedRound !== undefined && x.eliminatedRound < lobby.round)
+    .sort((a, b) => (b.eliminatedRound ?? 0) - (a.eliminatedRound ?? 0));
+  for (const seat of fallen) {
+    const d = driverFor(seat);
+    // The board it had the round it DIED — not its final recorded board, and not a fresh one for this round.
+    const board = d?.prepare(seat.eliminatedRound!) ?? d?.finalBoard?.() ?? null;
+    if (board) return { seat, board };
+  }
+  return null;
 }
 
 /** Who the player faces this round, and the board they bring. `null` = the player has a bye. */
-export function playerOpponent(lobby: RunLobby): { seat: LobbySeatState; board: PreparedBoard } | null {
-  const { pairs } = pairRunLobby(lobby);
+export function playerOpponent(lobby: RunLobby): { seat: LobbySeatState; board: PreparedBoard; ghost?: boolean } | null {
+  const { pairs, bye } = pairRunLobby(lobby);
   const pair = pairs.find(([a, b]) => a.id === 's0' || b.id === 's0');
-  if (!pair) return null;
+  if (!pair) {
+    // Holding the bye: face the most recently fallen seat's board instead of sitting the round out.
+    if (bye?.id !== 's0') return null;
+    const g = ghostFor(lobby);
+    return g ? { seat: g.seat, board: g.board, ghost: true } : null;
+  }
   const foe = pair[0].id === 's0' ? pair[1] : pair[0];
   const board = driverFor(foe)?.prepare(lobby.round) ?? driverFor(foe)?.finalBoard?.() ?? null;
   return board ? { seat: foe, board } : null;
@@ -231,7 +308,47 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     }
     lobby.encounters.push({ round: lobby.round, a: a.id, b: b.id, outcome, damageToA: dmgToA, damageToB: dmgToB, fought: true });
   }
-  if (bye) lobby.encounters.push({ round: lobby.round, a: bye.id, b: bye.id, outcome: 'draw', damageToA: 0, damageToB: 0, bye: bye.id, fought: false });
+  // THE ODD SEAT FIGHTS A GHOST rather than taking a free round. The player's own ghost fight was already
+  // resolved by the reducer (it goes through `playerOpponent` like any other opponent), so only a NON-player
+  // bye is resolved here. The ghost is already eliminated and settles nothing.
+  if (bye) {
+    const ghost = ghostFor(lobby);
+    const board = ghost ? ghost.board : null;
+    const mine = bye.id === 's0' ? null : (driverFor(bye)?.prepare(lobby.round) ?? driverFor(bye)?.finalBoard?.() ?? null);
+    if (bye.id !== 's0' && board && mine) {
+      const r = simulate(mine.minions, board.minions, rng, CARD_INDEX,
+        combatSide({ tier: mine.tier }), combatSide({ tier: board.tier }));
+      const drawn = r.result === 'draw';
+      const dmg = Math.min(cap, r.playerDamage) + (drawn || r.result === 'lose' ? pressure : 0);
+      hit(bye, dmg);
+      driverFor(bye)?.settle({
+        round: lobby.round, outcome: r.result, damageTaken: dmg, damageDealt: 0,
+        seatResolve: bye.resolve, seatArmor: bye.armor,
+      });
+      if (bye.alive && bye.armor + bye.resolve <= 0) {
+        bye.alive = false;
+        bye.eliminatedRound = lobby.round;
+        eliminated.push(bye);
+      }
+      lobby.encounters.push({ round: lobby.round, a: bye.id, b: ghost!.seat.id, outcome: r.result, damageToA: dmg, damageToB: 0, bye: bye.id, fought: true });
+    } else if (bye.id === 's0' && board) {
+      // The PLAYER holds the bye: their ghost fight was already resolved by the reducer and is in
+      // `playerResult`, so it settles from that rather than being re-simulated — the same one-fight-one-truth
+      // rule as any other round. Without this the player took a free round whenever the count went odd.
+      const drawn = playerResult.result === 'draw';
+      const dmg = Math.min(cap, playerResult.playerDamage) + (drawn || playerResult.result === 'lose' ? pressure : 0);
+      hit(bye, dmg);
+      if (bye.alive && bye.armor + bye.resolve <= 0) {
+        bye.alive = false;
+        bye.eliminatedRound = lobby.round;
+        eliminated.push(bye);
+      }
+      lobby.encounters.push({ round: lobby.round, a: bye.id, b: ghost!.seat.id, outcome: playerResult.result, damageToA: dmg, damageToB: 0, bye: bye.id, fought: true });
+    } else {
+      // No ghost yet (nobody has been eliminated) — a genuine sit-out.
+      lobby.encounters.push({ round: lobby.round, a: bye.id, b: bye.id, outcome: 'draw', damageToA: 0, damageToB: 0, bye: bye.id, fought: false });
+    }
+  }
 
   // Never leave a round with nobody standing (see `resolveRound`'s wipeout guard).
   if (eliminated.length > 0 && lobby.seats.every((s) => !s.alive)) {
@@ -261,9 +378,13 @@ export const playerLobbySeat = (lobby: RunLobby): LobbySeatState => lobby.seats[
 export const playerEliminated = (lobby: RunLobby): boolean => !playerLobbySeat(lobby).alive;
 
 /** The board a lobby opponent brings this round — for the recruit-phase opponent preview. */
-export function lobbyOpponentBoard(lobby: RunLobby): { seat: LobbySeatState; minions: BoardMinion[]; tier: number } | null {
+export function lobbyOpponentBoard(
+  lobby: RunLobby,
+): { seat: LobbySeatState; minions: BoardMinion[]; tier: number; snapshot?: BoardSnapshot } | null {
   const next = playerOpponent(lobby);
-  return next ? { seat: next.seat, minions: next.board.minions, tier: next.board.tier } : null;
+  return next
+    ? { seat: next.seat, minions: next.board.minions, tier: next.board.tier, snapshot: next.board.snapshot }
+    : null;
 }
 
 /**

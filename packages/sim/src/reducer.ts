@@ -1598,6 +1598,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The PLAYER side's run-level combat context — one symmetric `CombatSideState`, built once from the live
       // RunState and shared by the real fight + the 1000-sim odds probe.
       const playerState: CombatSideState = combatSide({
+        // The run's PINNED set — every random pick in combat narrows to this. Without it a Set-1 run could be
+        // handed a Set-2 card (owner report 2026-07-27: Badgington's Slaughter, Sea Urchin's Discover). `all`
+        // rather than `buyable`, because a legitimate pick can be a non-buyable card of the set.
+        poolIds: poolOf(s).all.map((c) => c.id),
         spellsThisTurn: s.spellsThisTurn,
         spellsCast: s.spellsCast,
         deathrattles: s.deathrattlesTriggered,

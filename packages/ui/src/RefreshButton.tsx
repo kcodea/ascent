@@ -3,6 +3,12 @@ import { Icon } from './Icon';
 import { pixiFx } from './pixiFx';
 import { getRefreshConfig } from './refreshConfig';
 
+// Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
+// root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
+// rewrites CSS `url(/…)` to relative at build time but CANNOT rewrite JS string literals, so every one of
+// these has to prefix the base itself ('/' in dev, './' in the build). Same rule as Card.tsx's frame srcs.
+const F = `${import.meta.env.BASE_URL}frames/`;
+
 /**
  * The standalone REFRESH button — the blue crystal (frames/refresh_button.webp) pinned TOP-CENTRE of the
  * board, replacing the old "Reroll" tray plaque. Same reducer wiring (`{type:'roll'}`), stage-pinned like
@@ -70,7 +76,7 @@ export function RefreshButton({
       {/* Hover halo — BEHIND the art so the crystal reads clean. */}
       <span className="rfb-glow" aria-hidden="true" />
       <span className="rfb-artbox" aria-hidden="true">
-        <img className="rfb-art" src="/frames/refresh_button.webp" alt="" draggable={false} />
+        <img className="rfb-art" src={`${F}refresh_button.webp`} alt="" draggable={false} />
         {/* Ambient SHEEN — a glare bar sweeping the crystal's face, clipped to it; transform-only loop. */}
         <span className="rfb-sheen"><span className="rfb-sheen-bar" /></span>
       </span>

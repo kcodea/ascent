@@ -3,6 +3,12 @@ import { getEndTurnConfig, rgba } from './endTurnConfig';
 import { pixiFx } from './pixiFx';
 import { sfx } from './sfx';
 
+// Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
+// root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
+// rewrites CSS `url(/…)` to relative at build time but CANNOT rewrite JS string literals, so every one of
+// these has to prefix the base itself ('/' in dev, './' in the build). Same rule as Card.tsx's frame srcs.
+const F = `${import.meta.env.BASE_URL}frames/`;
+
 /**
  * The standalone END TURN / START COMBAT diamond — the gem-in-bronze button pinned to the board's
  * middle-right (de-coupled from the shop tray, owner direction 2026-07-16). Art: frames/end_button.webp
@@ -191,22 +197,22 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
           drop-shadow halo hugs the blue diamond itself, not the bronze housing. Sits ABOVE the art, and a
           CSS mask cuts the SOURCE gem pixels back out of the layer — only the halo paints, so the tuner's
           offset/fit dials move the glow alone, never a copied diamond (owner note, round 4). */}
-      <img className="etb-glow" src="/frames/end_button_gem.webp" alt="" draggable={false} aria-hidden="true" />
+      <img className="etb-glow" src={`${F}end_button_gem.webp`} alt="" draggable={false} aria-hidden="true" />
       {/* All arts stay mounted; CSS flips them on `.pressed` (or the tuner's body-class preview) — no
           src-swap flash, and the pressed art is already decoded when the click lands. The pressed gem
           (pressed2 by default; pressed3 — the cracked gem — via the tuner's variant switch) holds through
           the whole combat screen; the lit gem returns with the shop. */}
-      <img className="etb-art lit" src="/frames/end_button.webp" alt="" draggable={false} />
-      <img className="etb-art dim" src="/frames/end_button_pressed2.webp" alt="" draggable={false} />
-      <img className="etb-art dim3" src="/frames/end_button_pressed3.webp" alt="" draggable={false} />
+      <img className="etb-art lit" src={`${F}end_button.webp`} alt="" draggable={false} />
+      <img className="etb-art dim" src={`${F}end_button_pressed2.webp`} alt="" draggable={false} />
+      <img className="etb-art dim3" src={`${F}end_button_pressed3.webp`} alt="" draggable={false} />
       {/* Ambient SHEEN — a periodic glare sweeping the gem's face (lit AND pressed), clipped to the gem's
           diamond. The bar animates TRANSFORM only inside a static clip-path (compositor-cheap loop). */}
       <span className="etb-sheen" aria-hidden="true"><span className="etb-sheen-bar" /></span>
       {/* The strike FLASH — a white-hot pop of the gem that masks the lit→dim swap. Mounted only for the
           one-shot (its animation runs on mount and it unmounts right after — never a loop). */}
-      {striking && <img className="etb-flash" src="/frames/end_button_gem.webp" alt="" draggable={false} aria-hidden="true" />}
+      {striking && <img className="etb-flash" src={`${F}end_button_gem.webp`} alt="" draggable={false} aria-hidden="true" />}
       {/* The END-COMBAT relight — the LIT art shines through as the dim gem hands back to the shop. */}
-      {relighting && <img className="etb-flash relight" src="/frames/end_button.webp" alt="" draggable={false} aria-hidden="true" />}
+      {relighting && <img className="etb-flash relight" src={`${F}end_button.webp`} alt="" draggable={false} aria-hidden="true" />}
       <span className="etb-tip">{combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}</span>
     </button>
   );

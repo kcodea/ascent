@@ -580,6 +580,67 @@ their coalesce on arrival in hand rather than losing the effect entirely (the re
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### 2026-07-27 — fix(core/sim): set 1 and set 2 were mixing in COMBAT
+
+Owner report: "I got a set 2 spell from Badgington's slaughter… we need to make sure our rules separate out
+set 1 and set 2 cards fully and entirely. It's very important."
+
+**Cause.** Recruit-phase picks have always gone through `poolOf(state)`. Combat never had the set threaded in
+at all — every random draw filtered the GLOBAL `CARD_INDEX`. Eleven sites: the random-spell grant
+(`simulate.ts:634`, Badgington's Slaughter), the random-minion grant, the magnetic roll, two in-simulate spell
+picks and six factory picks (including `deathrattleSummonRandomTribe`, whose comment already CLAIMED to be
+set-scoped).
+
+`CombatSideState` now carries `poolIds` — the run's pinned pool — and `ctx.poolCards(side)` narrows every pick
+to it. An empty/absent pool means unrestricted, so `EMPTY_SIDE` (the harness, procedural threats, tests that
+only care about minions) is unchanged.
+
+**Sea Urchin was NOT a leak.** The owner reported it Discovering a Scalefeather Drake in the same run. Sea
+Urchin is opted into set 2 and Scalefeather is a Dragon/**Beast**, so that's a legal Beast Discover in a set-2
+run — and recruit Discovers were already scoped. Pinned with a test rather than left as a claim.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1787 tests (+6). The tests drive REAL combat
+across 40 seeds rather than asserting on the helper, because the bug was never in the filter — it was in which
+list the filter was applied to. Reverting the fix makes them fail with the owner's exact symptom
+(`wo_health`, `veinstorm` and 8 more leaking into a set-1 run), and a control proves the fixture actually
+grants spells so the pass isn't vacuous.
+
+A source sweep also fails the build if a NEW random draw is written against `allCards()` — the leak was
+invisible in gameplay until a player saw a foreign card, so it needed a structural guard rather than vigilance.
+
+### 2026-07-27 — fix(ui): broken images on the itch browser build (root-absolute public paths)
+
+Owner report with a screenshot: several buttons render as broken-image icons on itch, while the same build is
+perfect on localhost.
+
+**Cause.** itch serves the game from a CDN sub-path, so a root-absolute `src="/frames/x.webp"` resolves against
+the CDN ROOT and 404s. Vite rewrites `url(/…)` inside CSS at build time — the built stylesheet correctly says
+`url(../cursors/…)` — but it CANNOT rewrite a string literal in JS, so eleven `/frames/…` srcs survived
+verbatim into the bundle. Localhost serves from `/`, which is why it never shows up in dev or `vite preview`.
+
+Fixed by prefixing `import.meta.env.BASE_URL` in the four components that missed it — EndTurnButton,
+RefreshButton, StatusBar (hero power) and TavernUpButton — which is exactly the pattern `Card.tsx` already
+documents for its frame srcs.
+
+**This is the SECOND time it shipped** (Card.tsx's comment records the first, from a mobile itch test), so a
+comment in one file is evidently not enough: `publicAssetPaths.test.ts` now fails on any root-absolute
+`/frames|cursors|fx|sfx|audio/` reference in the UI source.
+
+The guard immediately earned itself — it caught a TWELFTH site the regex pass had missed, `TavernUpButton`'s
+tier pips, which build their src from a template literal rather than a plain string.
+
+**Verified the way the bug actually manifests**, since localhost can't reproduce it: served the built `dist`
+from `http://localhost:8899/html/1234/` (an itch-shaped sub-path) and walked mode → hero → recruit. 50 images,
+**zero broken**, srcs now reading `./frames/…`; the old form 404s there, as it should. Built JS contains no
+root-absolute public refs at all.
+
+**A bug in my own test, worth recording:** it first reported every explanatory comment as an offender. The
+repo is CRLF, `split('
+')` leaves a trailing `
+`, and JS `.` does not match `
+` — so `/\/\/.*$/` never
+matched and no `//` line was ever stripped.
+
 ### chore(ui): second pass on the Card Text defaults
 
 Owner re-dialed after seeing the first bake in place: side inset `padX 0.08 → 0` (the text column now runs the

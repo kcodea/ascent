@@ -461,6 +461,14 @@ export function simulate(
       return card;
     },
     allCards: () => Object.values(cards),
+    // SET-SCOPED draw pool. `poolIds` empty/absent = unrestricted, so the harness and procedural threats are
+    // unchanged; a real run pins its set and every random pick below narrows to it.
+    poolCards: (side) => {
+      const ids = (side === 'player' ? playerState : enemyState).poolIds;
+      if (!ids || ids.length === 0) return Object.values(cards);
+      const allow = new Set(ids);
+      return Object.values(cards).filter((c) => allow.has(c.id));
+    },
     buff: (target, attack, health, source) => {
       // Golden Taurus doubles every combat stat-gain its engraved neighbors receive (`gainMult`).
       const gm = target.gainMult ?? 1;
@@ -631,7 +639,9 @@ export function simulate(
       if (side !== 'player') return; // enemies have no hand
       // Pick the ACTUAL spell now (tavern tier passed in) and route it through grantToHand — so the replay
       // shows the real card flying to your hand (a `toHand` event), and settle just adds the carried cardId.
-      const pool = Object.values(cards).filter((c) => c.spell && !c.token && c.tier <= playerState.tier); // exclude reward-exclusive spells (Feed the Alpha)
+      // Set-scoped (owner report 2026-07-27: a Set-1 Badgington handed out a Set-2 spell). Reward-exclusive
+      // spells (Feed the Alpha) stay excluded via `!token`.
+      const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token && c.tier <= playerState.tier);
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;
         handGrants.push(pick.id);
@@ -664,7 +674,7 @@ export function simulate(
           ? uncontrolled.has(c.tribe) || (!!c.tribe2 && uncontrolled.has(c.tribe2)) || !!c.universalTribe
           : !tribe || tribe === 'uncontrolled' || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe;
       // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
-      const pool = Object.values(cards).filter(
+      const pool = ctx.poolCards('player').filter(
         (c) =>
           !c.token && !c.spell && c.tier <= playerState.tier && c.id !== exclude &&
           (c.tribe === 'neutral' || playerState.tribes.includes(c.tribe)) &&
@@ -1342,7 +1352,7 @@ export function simulate(
       // standalone `rallyGrantSpell` factory — a standalone Perfect Core grants via its own effect instead, so no
       // double-count. Fires per swing (a Windfury host grants twice if it survives the first).
       if (attacker.rallySpellWeld && attacker.rallySpellWeld > 0) {
-        const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+        const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token);
         if (pool.length > 0) {
           for (let i = 0; i < attacker.rallySpellWeld; i++) ctx.grantToHand(ctx.rng.pick(pool).id, attacker.side, attacker.uid);
         }
@@ -1801,7 +1811,7 @@ export function simulate(
           }
         }
         if (spellRally) { // Perfect Core → spell to hand: player-only (grantToHand is a no-op for the enemy)
-          const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+          const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token);
           if (pool.length > 0) for (let i = 0; i < minion.rallySpellWeld!; i++) ctx.grantToHand(ctx.rng.pick(pool).id, minion.side, minion.uid);
         }
       }
@@ -1918,7 +1928,7 @@ export function simulate(
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —
   // ECONOMY/HAND, so player-only (a served enemy has no hand; grantToHand no-ops for it anyway).
   if (playerState.questMods.runeSalvage) {
-    const magnetics = Object.values(cards).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
+    const magnetics = ctx.poolCards('player').filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };

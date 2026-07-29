@@ -890,7 +890,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  (Today the pool is Cling Drone / Money Bot / Heckbinder.) */
   deathrattleGrantMagnetic: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    const pool = ctx.poolCards(self.side).filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -952,7 +952,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Rally (Perfect Core): when THIS minion attacks, add a random spell to your hand after combat (golden → 2). */
   rallyGrantSpell: (ctx, self, _params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
-    const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+    const pool = ctx.poolCards(self.side).filter((c) => c.spell && !c.token);
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -984,7 +984,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  after combat (golden → 2). Attacker-guarded (fires on the kill even if it then dies). */
   onKillGrantMagnetic: (ctx, self, _params, payload) => {
     if ((payload as { attacker?: Minion }).attacker !== self) return;
-    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    const pool = ctx.poolCards(self.side).filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -1176,7 +1176,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // only on this minion's own attack
     const count = num(params.count, 1) * mul(self);
-    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && (c.tribe === 'mech' || c.tribe2 === 'mech') && !c.token && !c.spell);
+    const pool = ctx.poolCards(self.side).filter((c) => c.keywords.includes('M') && (c.tribe === 'mech' || c.tribe2 === 'mech') && !c.token && !c.spell);
     if (pool.length === 0) return;
     for (let i = 0; i < count; i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -2473,7 +2473,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonRandomTier: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tier = num(params.tier, 1);
-    const pool = ctx.allCards().filter((c) => !c.token && !c.spell && c.tier === tier);
+    const pool = ctx.poolCards(self.side).filter((c) => !c.token && !c.spell && c.tier === tier);
     if (pool.length === 0) return;
     for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, ctx.rng.pick(pool), self.uid);
   },
@@ -2603,7 +2603,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonRandomTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe);
-    const pool = ctx.allCards().filter(
+    const pool = ctx.poolCards(self.side).filter(
       (c) => !c.token && !c.spell && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;

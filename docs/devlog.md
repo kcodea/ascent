@@ -1,5 +1,85 @@
 # ASCENT — development log
 
+## 2026-07-29 — ＋ New effect: the FX workbench gets an on-ramp
+
+**What changed.** The workbench had no way to *start*. Every route in — Browse all's ⧉ duplicate, the rail's
+"Start from" picker — assumed you already knew which existing def was close to the thing in your head, and the
+only alternative was hand-authoring a def that reliably passed validation and looked like nothing. A **＋ New
+effect** button now sits first in the toolbar and opens a **preset gallery**: a grid of archetypes (⚡ **Bolt**
+— travels fast and lands hard; 💥 **Blast** — detonates in place), each offering variants (**thin** ·
+**heavy** · **crackling** · **beam**). Hover previews on the stage; click lands a tuned, working composition
+in the editor, pre-named `<archetype>-<variant>`. Nothing touches disk until Save. UI-only, DEV-only.
+
+**A variant is a multiplier table, not a second file.** `fx/presets/presets.json` holds the archetypes and a
+set of shared **variant axes** — `thin` is `size ×0.6, speed ×1.3, count ×0.7`; `heavy` is `size ×1.6,
+speed ×0.7, life ×1.25`; and so on — plus optional per-archetype absolute **overrides** (Bolt's `beam` pins
+`turbulence` to 0). `applyVariant` walks every layer of the base def and applies each key it finds, to
+**slider params only**: clamped to the spec's range, snapped to its step, then re-clamped, because a snap can
+land back outside a range whose span isn't a whole number of steps. Every other param kind (toggle, enum,
+colour, palette, curve, shape) has no numeric range, so "multiply it" is undefined — those are left exactly as
+authored and reported in `missed`, never half-applied. A result that isn't finite goes to `missed` too:
+writing `NaN` into a param while reporting it in `applied` would be the function claiming success as it
+poisons the def. In DEV, any key that reached nothing on any layer logs a `[fx] preset '…'` warning — that's a
+preset-table bug, and it is otherwise completely silent.
+
+**The five decisions worth not un-making.** All five are now written down in
+[`docs/fx-workbench-guide.md`](fx-workbench-guide.md) (§2 and its appendix) and repeated in the code:
+
+1. **`presets.json` ships in the production bundle** (~1 KB). It's a *static import*, and static imports are
+   hoisted, so a runtime `if (DEV)` can't gate it the way `fxDefs.ts` gates its `import.meta.glob` (a glob is
+   a build-time construct the bundler can elide; a plain `import` is not). The asymmetry with `fxDefs.ts` is
+   deliberate, not an oversight. A dynamic `import()` would fix it and make `presetTable()` async, rippling
+   into the overlay's render path — disproportionate machinery to save a kilobyte.
+2. **`parsePresetTable` throws where `choreo/bindings.ts` deliberately doesn't.** Same hand-rolled validation
+   style (no zod in `ui`), opposite failure policy: `bindings.ts` runs in production, so it degrades via
+   `devError` — one dropped binding is a missing effect, recoverable. A half-loaded *menu* is a silently
+   incomplete gallery with nothing to tell the author why, so this one throws. That is safe **only because
+   the parse is lazy**: `presetTable()` parses on first call and caches, and the sole caller is the DEV-only
+   gallery, so in production the parse never runs. Make it eager and a bad JSON edit becomes a hard crash at
+   module load for every player. The laziness is load-bearing.
+3. **Preset bases are hidden from Browse all but still listed in the rail's "Start from" picker.**
+   `PRESET_ID_PREFIX` filters `preset-` ids out of `buildCatalog()`. Browse all's *by event* lens is the
+   **coverage map**, where "nothing bound" is a signal to act on — and the bases are unbound by design, so
+   leaving them in would pad that column with permanent false positives. The rail is the editor's file list
+   and reads `listDefs()` directly; the bases must stay reachable *somewhere* or they could never be tuned.
+4. **A materialised variant strips its base's `label`, `tags` and `seed`.** `label`/`tags` are the library
+   browser's search + grouping index and the workbench has no editor for them, so inheriting would file every
+   Bolt-derived effect under words the author never wrote and can't change (a derived "Bolt (heavy)" is the
+   same defect with friendlier spelling). `seed` matters more: `loadDef` reads it to decide whether to **lock**
+   the seed, so an inherited one would hand the author a silently frozen composition. Neither shipped base
+   carries a seed today; the strip keeps that true if one ever does. `version` and `duration` carry through —
+   those are the def's data, not its filing.
+5. **The two bases are unreviewed first passes.** `preset-bolt` and `preset-blast` are structurally correct
+   and test-validated but visually unjudged at real card scale. The gallery *shell* and the base *content*
+   ship separately on purpose: a base the owner rejects costs one JSON file, not the feature.
+
+**Also hardened along the way** (all from review passes on the branch): archetype and axis ids are rejected if
+they're `__proto__` / `constructor` / `prototype` — an id of `__proto__` previously parsed clean and then
+vanished from `Object.keys` on a by-id lookup while still being readable by indexed access, the exact silent
+corruption `UNSAFE_KEYS` exists to prevent, and `applyVariant` indexes by these ids. `applyVariant` is generic
+over the def type so a `StoredFxDef` isn't erased to `FxDef` through the call. `materialiseVariant` registers
+the computed def **before** playing or loading it, because `playDef` resolves by id and an unregistered id is
+a silent no-op indistinguishable from "the button isn't wired". The gallery and Browse all are mutually
+exclusive — both are full-screen at the same z-index, so each opener closes the other rather than leaving one
+buried under the other.
+
+**How it was verified.** Full gate green on the branch after merging `origin/main`
+(`f767b776`, the title-menu PR — merged clean, no conflicts): `npm run typecheck` (pkgs + web) clean,
+`npm run lint` 0 errors / 3 pre-existing warnings, `npm test` **2944 passed across 155 files**, `npm run
+build:web` built in 6.11s. **38 of those tests are new**, in `packages/ui/src/fx/presets/`: 21 on the table
+parser (every rejection path, reserved ids, overrides), 14 on `applyVariant` (slider-only, the fractional-step
+float dust that 88 of 121 registered slider specs would hit, the second clamp after a snap, non-finite refusal,
+non-slider-holding-a-number isolated from value-isn't-a-number), and 3 integrity tests pinning that every
+archetype's `base` resolves to a real def and every variant an archetype lists has an axis.
+
+**Follow-ups.** The remaining **eight archetype bases** (wave, chain, cloud, swell, drip, vortex, slam, beam)
+— content, landing one at a time so each is reviewed side by side at real card scale rather than eight at
+once. A **friction batch**: keep Fire and the scrub bar alive in rail mode; persist a commit-success toast
+across the forced page reload; relabel `fanOut` in plain language; auto-unlock the seed on Save. And the
+standing one: absorb the **~30 legacy `pixiFx` effects** into the workbench, stripping the defs nobody asked
+for. Above all, **the two bases want the owner's eye in the workbench** — they are ordinary def files and tune
+like any other.
+
 ## 2026-07-29 — the title menu becomes an object you can press
 
 **What changed.** The title screen's menu column (`.menubtn` — Continue / Play / Career / Leaderboard / Hall of

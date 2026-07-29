@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **＋ New effect — the FX workbench gets an on-ramp.** A preset gallery of archetypes (⚡ Bolt, 💥 Blast), each
+  with variants (thin / heavy / crackling / beam), lands a tuned, working composition in the editor instead of a
+  blank page. A variant is a multiplier table applied to slider params only — clamped, snapped, and loud about
+  anything it couldn't apply. The two shipped bases are first passes awaiting a tuning pass.
 - **The title menu presses back.** Every menu plaque now has a visible edge that collapses under the click, a
   down-stroke "thock", a hover sheen, a staggered entrance, and a keyboard focus ring — the column went from
   hover-only rectangles to controls with weight.

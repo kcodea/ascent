@@ -6,7 +6,8 @@ workbench's own **Browse all**.
 
 **Dev only.** The workbench, the primitives and the defs are all stripped from a production build —
 `canPlayDefs()` is false there. Nothing in this guide affects what players get until someone explicitly
-decides to ship the primitives.
+decides to ship the primitives. (One deliberate exception: `fx/presets/presets.json`, ~1 KB, rides along in
+the bundle — [the appendix](#appendix--why-presetsjson-ships) explains why it can't be stripped.)
 
 ---
 
@@ -40,18 +41,63 @@ Dev menu → **🎨 FX Workbench**. It takes over the screen; the game keeps run
 
 ## 2. Pick a starting point
 
-**Browse all** opens the library through three lenses:
+**Never start from a blank composition.** Hand-authoring a def from scratch is how you end up with a file
+that passes validation and looks like nothing. Both routes below hand you something that already plays, and
+leave you tuning numbers — which is the part worth your time.
+
+### ＋ New effect — the preset gallery
+
+The first button in the toolbar. It opens a grid of **archetypes** — what the effect *does* — each offering
+a few **variants**:
+
+| Archetype | | Variants |
+|---|---|---|
+| ⚡ **Bolt** | travels fast and lands hard | thin · heavy · crackling · beam |
+| 💥 **Blast** | detonates in place | thin · heavy · crackling |
+
+Hovering a variant **previews** it on the stage; clicking lands it in the editor as a tuned, working
+composition, pre-named `<archetype>-<variant>`. Nothing is written to disk until you Save.
+
+A variant is not a second file. It's the archetype's **base def** with a table of multipliers applied to
+its **slider params only** — `thin` is `size ×0.6, speed ×1.3, count ×0.7`, and so on — each result clamped
+to that param's range and snapped to its step. Params of any other kind (toggle, enum, colour, palette,
+curve, shape) have no numeric range, so "multiply it" is undefined: those are left exactly as authored and
+reported as *missed* rather than silently half-applied. In DEV, a key that reached nothing on any layer
+logs `[fx] preset '<archetype>/<variant>': N key(s) reached nothing` — that's a preset-table bug, not an
+authoring one.
+
+> **The two shipped bases are unreviewed first passes.** `preset-bolt` and `preset-blast` are structurally
+> correct and validated by tests, but nobody has judged them at real card scale yet. The gallery shell and
+> the base *content* ship separately on purpose: a base the owner rejects costs one JSON file, not the
+> feature. Tune them in the workbench like any other def — they are ordinary def files.
+
+Three details worth knowing before they surprise you:
+
+- **The bases don't appear in Browse all.** Ids prefixed `preset-` are filtered out of the catalog
+  (`PRESET_ID_PREFIX` in `fx/ui/catalog.ts`). Deliberate: Browse all's *by event* lens is the **coverage
+  map**, where "nothing bound" is a signal to act on — and the bases are unbound by design, so leaving them
+  in would pad that column with permanent false positives. They stay reachable in the rail's **Start from**
+  picker, which is the editor's file list and reads `listDefs()` directly. They have to be reachable
+  somewhere, or they could never be tuned.
+- **A materialised variant drops its base's `label`, `tags` and `seed`.** `label`/`tags` are the library
+  browser's search + grouping index and the workbench has no editor for them — inheriting would file every
+  Bolt-derived effect under words the author never wrote and can't change. `seed` matters more: `loadDef`
+  reads it to decide whether to **lock** the seed (§5), so an inherited one would silently hand you a frozen
+  composition. A fresh variant starts unlabelled, untagged and rolling free, exactly like any other new def.
+- **`presets.json` ships in the production bundle** (~1 KB) — see [the appendix](#appendix--why-presetsjson-ships).
+
+### Browse all — start from something already bound
+
+The second route: an existing def that already reads well. **Browse all** opens the library through three
+lenses:
 
 - **by look** — shape, colour, motion, all derived from the defs themselves
 - **by event** — every moment kind with its bound def, or *nothing bound*. This is the coverage map
 - **by card** — grouped by tribe, showing which cards have bespoke effects
 
 Hovering a row **previews** it on the stage without touching your work. **⧉** duplicates it as a fresh
-template.
-
-> **Start from something close.** Hand-authoring a def from scratch is how you end up with a file that
-> passes validation and looks like nothing. Duplicating a def that already reads well gets you a working
-> starting position and leaves you tuning numbers, which is the part worth your time.
+template. Prefer this over the gallery when something close to what you want already plays in the game — you
+inherit a look that has survived a real fight, not just a starting position.
 
 ---
 
@@ -229,3 +275,36 @@ def that doesn't exist is a silent no-op that a test will catch but a player nev
 - **Committing writes a full page reload** — the workbench unmounts before a success message can be read;
   check `git status` for the two changed files instead.
 - **No editing a def's `label`/`tags` from the panel**, and no unbind affordance — both still hand-edit only.
+- **Only two preset archetypes so far** (Bolt, Blast), and both are unreviewed first passes. Eight more are
+  queued — wave, chain, cloud, swell, drip, vortex, slam, beam — landing one at a time so each gets judged at
+  real card scale rather than eight at once.
+- **Rail mode hides Fire and the scrub bar**, a commit-success toast can't survive the forced page reload,
+  `fanOut` is jargon in the binding table, and Save doesn't auto-unlock the seed. A batch of the same friction.
+
+---
+
+## Appendix — why `presets.json` ships
+
+Two decisions in this subsystem look like mistakes at a glance. They aren't; don't "fix" them without
+reading this.
+
+**`presets.json` is in the production bundle.** Everything else in the workbench is DEV-stripped, so the
+obvious question is why this ~1 KB of JSON isn't. Because it's a **static import**, and static imports are
+hoisted — a runtime `if (import.meta.env.DEV)` can't gate one the way `fxDefs.ts` gates its `import.meta.glob`
+(a glob is a build-time construct the bundler can elide; a plain `import` is not). The asymmetry with
+`fxDefs.ts` is therefore real and deliberate, not an oversight. The alternative — a dynamic `import()` —
+makes `presetTable()` async and that ripples straight into the gallery overlay's render path, which is a
+disproportionate amount of machinery to save a kilobyte.
+
+**`parsePresetTable` throws; `choreo/bindings.ts` deliberately does not.** The two files use the same
+hand-rolled validation style (no zod in `ui`) and reach opposite conclusions on failure, on purpose:
+
+- `bindings.ts` **ships and runs** in the production bundle, so a malformed entry there must degrade — one
+  dropped binding is a missing effect, recoverable. It uses `devError`.
+- `presetTable.ts` backs a **menu**. A half-loaded table is a silently incomplete gallery: archetypes just
+  aren't there, with nothing to tell the author why. So it throws.
+
+That is safe **only because the parse is lazy**. `presetTable()` parses on first call and caches
+(`fx/presets/index.ts`), and the only caller is the DEV-only gallery — so in production the parse never runs
+and the throw can never fire. Make the parse eager (`const TABLE = parsePresetTable(raw)` at module scope)
+and a bad JSON edit becomes a hard crash at module load for every player. The laziness is load-bearing.

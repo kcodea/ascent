@@ -205,8 +205,8 @@ The career surface exists; deepen what a finished run *remembers*.
   mute.) Still missing: **undo/redo** (no history stack at all; switching a layer's primitive irreversibly
   resets its params); **A/B compare** of two tunings (now genuinely meaningful, since a locked seed makes the
   randomness controlled); a **perf readout** beyond fps (the primitives already track live particle counts
-  internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare, preset/palette library,
-  perf HUD. P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
+  internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare,
+  perf HUD. (The **preset library** half of that P3 line shipped 2026-07-29 as the ＋ New effect gallery.) P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
   regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests
   aren't enforced there and the ~50 pre-existing `packages/ui` type errors stay invisible. Swapping the
@@ -223,6 +223,24 @@ The career surface exists; deepen what a finished run *remembers*.
   moment remains unbuilt. Also open from ②: `SceneBuilder.setEnemies` still duplicates `sandbagBoard`'s
   board-building and the two could drift; rail mode costs 640px of width, tight below ~1400px; and the
   harness stages sandbags only, so a final look-check against a real pooled opponent stays manual.
+
+- **FX preset gallery — eight more archetype bases.** The ＋ New effect gallery shipped 2026-07-29 with two:
+  ⚡ Bolt and 💥 Blast, both **unreviewed first passes** awaiting the owner's eye in the workbench. Queued next
+  (content, not shell): **wave, chain, cloud, swell, drip, vortex, slam, beam** — landing **one at a time** so
+  each is judged side by side at real card scale rather than eight at once. The shell needs no change to take
+  them: a new base is a def file plus one entry in `fx/presets/presets.json`.
+
+- **FX workbench friction batch.** Four small, unrelated papercuts worth doing together: **rail mode hides the
+  whole transport bar** (Fire, scrub, seed lock) because `.fxwb-rail .fxwb-top` is display:none — Fire and the
+  scrub at minimum should survive; a **commit-success toast can't be read** because writing `bindings.json`
+  forces a full page reload, so it needs to persist across the reload; **`fanOut` is jargon** in the binding
+  table and wants plain language; and **Save doesn't auto-unlock the seed**, which is the single easiest way to
+  bake a frozen roll into a shipped def by accident.
+
+- **Absorb the ~30 legacy `pixiFx` effects into the workbench.** They predate the def format and aren't
+  authorable there, so half the game's FX are still edited by hand in TypeScript while the other half are
+  data. Port them to defs, bind them through `bindings.json`, and **strip the defs nobody asked for** while
+  doing it — the library is already carrying entries no brief ever requested.
 
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own

@@ -823,6 +823,10 @@ export interface RunState {
    *  turn, cleared at the start of the next turn. */
   freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
+  /** Tier-7 ACCESS granted by a hero power or quest (owner ruling 2026-07-28) — the non-rift route to Tier 7.
+   *  Read only through `hasTier7Access`; nothing sets it yet, and it exists so the eventual hero can turn it on
+   *  without touching the gate itself. */
+  tier7Access?: boolean;
   spellFirstDoubleEachTurn?: boolean;
   /** Set 2 — Orivax (Spellweave): a MULTIPLIER on the turn's first spell (3 = casts 3 times). Permanent,
    *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than

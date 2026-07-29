@@ -1,7 +1,7 @@
 import { makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
-import { CONFIG, maxTierFor } from './config';
+import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
@@ -1434,9 +1434,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = uncontrolled ? undefined : (raw as Tribe | undefined);
     const fixed = num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
     // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
-    const spec: DiscoverSpec = fixed > 0
+    let spec: DiscoverSpec = fixed > 0
       ? { kind: 'minion', tier: fixed, exactTier: fixed, tribe, tribes, exclude: self.cardId }
       : { kind: 'minion', tier: ctx.state.tier, tribe, tribes, exclude: self.cardId };
+    // CONTROL EVERY TRIBE → the only minion left that you don't control is an ALL-TYPE one, so that is all you
+    // are offered (owner ruling 2026-07-27: "they would ONLY be able to discover a paragon"). This used to fall
+    // back to "any tribe", which quietly turned the payoff for assembling one of every type into a generic
+    // Discover. An all-type body genuinely IS the answer to "a tribe you don't control", so the fallback is now
+    // the literal reading of the card rather than a shrug.
+    if (uncontrolled && tribes && tribes.length === 0) {
+      const allType = poolOf(ctx.state).buyable
+        .filter((c) => c.universalTribe && c.id !== self.cardId && c.tier <= ctx.state.tier)
+        .map((c) => c.id);
+      // Only take the branch if the run's pool actually HAS one at this tier — otherwise the Discover would
+      // open empty, which is strictly worse than the old any-tribe fallback.
+      if (allType.length > 0) spec = { kind: 'pool', ids: allType };
+    }
     queueDiscover(ctx.state, spec);
     if (self.golden) queueDiscover(ctx.state, spec);
   },
@@ -2580,6 +2593,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }).length;
     if (matching !== 1) return; // not the first of its tribe this turn
     conjureToHand(ctx.state, [soldDef], num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Moira (owner 2026-07-28): End of Turn, trigger the Shouts of both board NEIGHBOURS. Gilded fires
+   *  the whole thing twice.
+   *
+   *  Routed through `replayBattlecry`, the shared re-trigger path (Echoing Roar, Resonance, Myra) — which is
+   *  what makes a re-fired Shout count as a Shout for quests, applies Spell Drummer's repeats, and drives the
+   *  Karwind flash. Rolling a bespoke loop over `onPlay` effects here would have silently skipped all three.
+   *
+   *  Neighbours are read BEFORE any firing: a Shout that reorders the board (a summon landing between them)
+   *  must not change who this was pointing at, or the card becomes position-dependent mid-resolution. */
+  endOfTurnTriggerAdjacentShouts: (ctx, self) => {
+    const i = ctx.state.board.findIndex((c) => c.uid === self.uid);
+    if (i < 0) return;
+    const neighbours = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter((c): c is BoardCard => {
+      const def = c && CARD_INDEX[c.cardId];
+      return !!def && hasBattlecry(def);
+    });
+    for (let n = 0; n < gold(self); n++) for (const c of neighbours) replayBattlecry(ctx.state, c);
   },
 
   /** Set 2 — Runic Archivist (owner rework 2026-07-27): every `count` minions you SELL, get a Shop spell.
@@ -3842,7 +3874,12 @@ export function discoverSpecFor(state: RunState, def: CardDef, grantedTier?: num
     ...(dop.filter ? { filter: dop.filter } : {}),
     ...(tribe ? { tribe } : {}),
     ...(dop.topTierFirst ? { topTierFirst: true } : {}),
-    ...(dop.maxTier !== undefined ? { maxTier: dop.maxTier } : {}),
+    // Beyond the Summit asks for `maxTier: 7`, but a run with no Tier-7 ACCESS may not be offered one
+    // (owner 2026-07-28). Clamp here, at the single place a `discoverOnPlay` becomes a real spec, so the gate
+    // can't be routed around by a future card that also reaches for tier 7.
+    ...(dop.maxTier !== undefined
+      ? { maxTier: dop.maxTier >= 7 && !hasTier7Access(state) ? maxTierFor(state.rift) : dop.maxTier }
+      : {}),
     ...(dop.lockUntilNextTurn ? { lockWave: state.wave + 1 } : {}), // Hourglass Reserve: locked until next turn
     ...(dop.borrowed ? { borrowed: true } : {}), // Funeral on Loan: play -> trigger Echo + destroy
   };
@@ -5073,6 +5110,14 @@ export interface EotStepFx {
   /** Host uids that gained an Attachment on this beat (Combinator, Cling Drones, Money Bots) — the UI plays
    *  the weld ring on them as the beat runs, since the real weld's stamp lands after the phase flips. */
   welds: string[];
+  /** SPELL POWER this beat added (Aeon Guard, Tallymonger). Carried per-beat for the same reason `welds` is:
+   *  the action-level `spellPowerFxSeq` bump lands after the phase has flipped to combat, so the shop-anchored
+   *  flourish has nothing left to play over. Absent = no rise. */
+  spellPower?: { attack: number; health: number };
+  /** The IMP AURA this beat added (Tallymonger). The action-level aura-wash watcher is explicitly gated on
+   *  `next.phase === 'recruit'` and End of Turn flips to combat, so an End-of-Turn imp buff never washed
+   *  (owner report 2026-07-28). The beat still renders the board, so the cue belongs here. */
+  impAura?: { attack: number; health: number };
 }
 
 /**
@@ -5114,6 +5159,8 @@ export function projectEndOfTurnSteps(state: RunState): {
     const eatenStart = (clone.fodderEaten ?? []).length;
     const atkBefore = new Map(clone.board.map((c) => [c.uid, c.attack]));
     const attachBefore = new Map(clone.board.map((c) => [c.uid, c.attachments ?? 0]));
+    const spBefore = { a: spellAttackBonus(clone), h: spellHealthBonus(clone) };
+    const impBefore = { a: clone.impBuff?.attack ?? 0, h: clone.impBuff?.health ?? 0 };
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     for (const c of clone.board) {
       const prev = atkBefore.get(c.uid);
@@ -5129,8 +5176,18 @@ export function projectEndOfTurnSteps(state: RunState): {
       const before = attachBefore.get(c.uid);
       if (before !== undefined && (c.attachments ?? 0) > before) welds.push(c.uid);
     }
+    // Spell-power / Imp-aura rises this beat produced. Diffed rather than wired per-effect, so any future
+    // End-of-Turn card that moves either channel animates without touching this code.
+    const spDelta = { attack: spellAttackBonus(clone) - spBefore.a, health: spellHealthBonus(clone) - spBefore.h };
+    const impDelta = { attack: (clone.impBuff?.attack ?? 0) - impBefore.a, health: (clone.impBuff?.health ?? 0) - impBefore.h };
     steps.push(snap());
-    fx.push({ buffFx: clone.recruitBuffFx.slice(fxStart), eaten: (clone.fodderEaten ?? []).slice(eatenStart), welds });
+    fx.push({
+      buffFx: clone.recruitBuffFx.slice(fxStart),
+      eaten: (clone.fodderEaten ?? []).slice(eatenStart),
+      welds,
+      ...(spDelta.attack > 0 || spDelta.health > 0 ? { spellPower: spDelta } : {}),
+      ...(impDelta.attack > 0 || impDelta.health > 0 ? { impAura: impDelta } : {}),
+    });
   };
   for (const card of [...clone.board]) {
     const def = CARD_INDEX[card.cardId];

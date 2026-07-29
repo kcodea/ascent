@@ -42,6 +42,14 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Three new minions** — Moira (trigger adjacent Shouts), Mineral Master (Rally → Rubies on your Kobolds), and
+  **Paragon**, the all-type minion whose Rally buffs a minion of every type permanently.
+- **Tier 7 now needs access** — the Summit rift, or a hero/quest that grants it. Beyond the Summit only promises
+  "up to Tier 7" when the run can actually keep the promise.
+- **Control every tribe and Wayfinder offers only all-type minions** — the payoff for assembling one of each.
+- **Cards say "Shop spells" wherever Rubies don't count** — 57 card texts and the quest strings, Ancient Runes
+  included. Gemgorge Fiend and Living Grimoire stay inclusive, because a Ruby really does feed them.
+- **Tallymonger finally animates** at End of Turn — both the spell-power flourish and the Imp aura wash.
 - **Discover spells count as spells** — Sprout and friends never fired a single spell trigger.
 - **Rise counts as a death** for Avenge and the death tallies.
 - **End Turn is inert for 5 seconds** at the start of a round, so a double-click can't skip it.

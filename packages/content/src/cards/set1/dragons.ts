@@ -47,8 +47,8 @@ export const DRAGONS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffSpellPower', params: { attack: 0, health: 1 } }],
-    text: '**Shout:** give your spells **+1 Health**.',
-    goldenText: '**Shout:** give your spells **+2 Health**.',
+    text: '**Shout:** give your Shop spells **+1 Health**.',
+    goldenText: '**Shout:** give your Shop spells **+2 Health**.',
   },
   {
     id: 'weaver',
@@ -263,8 +263,8 @@ export const DRAGONS: CardDef[] = [
       { on: 'spellCast', do: 'spellCastImproveSelf' },
       { on: 'startOfCombat', do: 'scTribeBuffPerSpellImproving', params: { tribe: 'dragon', attack: 2, health: 2, step: 1, every: 4 } },
     ],
-    text: '**Start of Combat:** give your **Dragons** **+2/+2** for every spell cast this turn (at least **+2/+2**). Improve this by **+1/+1** every **4** spells cast.',
-    goldenText: '**Start of Combat:** give your **Dragons** **+4/+4** for every spell cast this turn (at least **+4/+4**). Improve this by **+2/+2** every **4** spells cast.',
+    text: '**Start of Combat:** give your **Dragons** **+2/+2** for every Shop spell cast this turn (at least **+2/+2**). Improve this by **+1/+1** every **4** spells cast.',
+    goldenText: '**Start of Combat:** give your **Dragons** **+4/+4** for every Shop spell cast this turn (at least **+4/+4**). Improve this by **+2/+2** every **4** spells cast.',
   },
   {
     // Rally: on attacking, "cast Growth" — buff all your minions +3/+4 (+ combat spell power). A Dragon

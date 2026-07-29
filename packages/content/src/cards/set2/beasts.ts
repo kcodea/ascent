@@ -86,8 +86,8 @@ export const SET2_BEASTS: CardDef[] = [
       { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 2, health: 2, step: 2 } },
       { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 2 } },
     ],
-    text: 'When you summon a Beast, give it **+2/+2**. Improve this by **+2/+2** when you cast a spell.',
-    goldenText: 'When you summon a Beast, give it **+4/+4**. Improve this by **+4/+4** when you cast a spell.',
+    text: 'When you summon a Beast, give it **+2/+2**. Improve this by **+2/+2** when you cast a Shop spell.',
+    goldenText: 'When you summon a Beast, give it **+4/+4**. Improve this by **+4/+4** when you cast a Shop spell.',
   },
   {
     // Your front Beast enters shielded. The free opening swing was removed at the owner's call (2026-07-25) —
@@ -134,7 +134,7 @@ export const SET2_BEASTS: CardDef[] = [
       { on: 'avenge', do: 'avengeBuffTribeLasting', params: { count: 3, tribe: 'beast', attack: 2, health: 2 } },
     ],
     text: '**Avenge (3):** give your Beasts **+2/+2** wherever they are.',
-    goldenText: '**Avenge (3):** get **2** random spells and give your Beasts **+4 Attack** wherever they are.',
+    goldenText: '**Avenge (3):** get **2** random Shop spells and give your Beasts **+4 Attack** wherever they are.',
   },
   {
     // Echo summon on the Void Panther pattern: `fixed` keeps the count at 1 and `goldenTokens` upgrades the
@@ -201,8 +201,8 @@ export const SET2_BEASTS: CardDef[] = [
     health: 9,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'beast', count: 3, attack: 3, health: 3 } }],
-    text: 'Whenever you cast a spell, give 3 Beasts **+3/+3**.',
-    goldenText: 'Whenever you cast a spell, give 3 Beasts **+6/+6**.',
+    text: 'Whenever you cast a Shop spell, give 3 Beasts **+3/+3**.',
+    goldenText: 'Whenever you cast a Shop spell, give 3 Beasts **+6/+6**.',
   },
   {
     // Reuses Ryme's adjacent-Battlecry re-fire (`deathrattleReplayAdjacentBattlecry`): on death in combat, both
@@ -233,5 +233,20 @@ export const SET2_BEASTS: CardDef[] = [
     effects: [{ on: 'onAttack', do: 'rallyBuffSelfPerTribe', params: { tribe: 'beast', attack: 1, health: 1 } }],
     text: '**Rally:** gain **+1/+1** for every Beast you control.',
     goldenText: '**Rally:** gain **+2/+2** for every Beast you control.',
+  },
+  {
+    // Owner add 2026-07-28. A Shout ENGINE that pays in the shop rather than in combat: park it between two
+    // Shouts and it re-fires both every End of Turn. Gilded fires the whole thing twice (not "twice as big"),
+    // so a golden Moira between two summoners really does double the bodies.
+    id: 'b2_moira',
+    name: 'Moira',
+    tribe: 'beast',
+    tier: 6,
+    attack: 6,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnTriggerAdjacentShouts', params: {} }],
+    text: '**End of Turn:** trigger adjacent **Shouts**.',
+    goldenText: '**End of Turn:** trigger adjacent **Shouts** **twice**.',
   },
 ];

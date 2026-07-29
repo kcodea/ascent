@@ -16,7 +16,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_spellslinging',
     name: 'Rune of Spellslinging',
     cost: 4,
-    text: 'Every **5 Gold** spent, get a random spell.',
+    text: 'Every **5 Gold** spent, get a random Shop spell.',
     reward: { kind: 'runeSpellDrip', per: 5 },
   },
   {
@@ -30,7 +30,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_structure',
     name: 'Rune of Structure',
     cost: 3,
-    text: 'After you play an **Attachment** from hand, get a random spell.',
+    text: 'After you play an **Attachment** from hand, get a random Shop spell.',
     reward: { kind: 'runeStructure' },
   },
   {
@@ -72,7 +72,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_summoning',
     name: 'Rune of Summoning',
     cost: 5,
-    text: 'Whenever you cast a spell, improve your **Imps** by **+1/+1** wherever they are.',
+    text: 'Whenever you cast a Shop spell, improve your **Imps** by **+1/+1** wherever they are.',
     reward: { kind: 'runeSummoning' },
   },
   {
@@ -115,7 +115,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_kindling',
     name: 'Rune of Kindling',
     cost: 4,
-    text: 'Whenever you cast a spell, give your **left-most minion +3/+3**.',
+    text: 'Whenever you cast a Shop spell, give your **left-most minion +3/+3**.',
     reward: { kind: 'runeKindling' },
   },
   {
@@ -150,7 +150,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
     cost: 1,
-    text: 'Get **3 random spells**.',
+    text: 'Get **3 random Shop spells**.',
     reward: { kind: 'grant', randomSpell: 3 },
   },
   {
@@ -300,7 +300,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Appraisal',
     cost: 5,
     epic: true,
-    text: '**Avenge (4):** improve your spells by **+1/+1**.',
+    text: '**Avenge (4):** improve your Shop spells by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
   },
   // ── Batch 4: grant runes (existing cards + a Gilded-grant option) ──
@@ -466,7 +466,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Recurrence',
     cost: 3,
     epic: true,
-    text: '**End of Turn:** cast the **first spell** you cast this turn again.',
+    text: '**End of Turn:** cast the **first Shop spell** you cast this turn again.',
     reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
   },
   {

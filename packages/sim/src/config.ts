@@ -125,6 +125,21 @@ export function maxTierFor(rift: RiftId | null | undefined): number {
   return rift === 'summit' ? 7 : CONFIG.maxTier;
 }
 
+/**
+ * Does this run have ACCESS to Tier 7 at all? (owner ruling 2026-07-28)
+ *
+ * Two ways in, and only two: the **Summit** rift raises the ceiling for the whole run, or a hero reaches it
+ * through a **quest or hero power** that sets `tier7Access`. No such hero exists yet — the flag is the seam
+ * the owner asked for ("it would be a different hero power or something"), so adding one later is a one-line
+ * change rather than a hunt through every tier-7 site.
+ *
+ * Beyond the Summit is gated on this: without access it Discovers up to Tier 6, and its card text drops the
+ * "(up to Tier 7)" promise rather than advertising something the run cannot deliver.
+ */
+export function hasTier7Access(state: { rift?: RiftId | null; tier7Access?: boolean }): boolean {
+  return maxTierFor(state.rift) >= 7 || state.tier7Access === true;
+}
+
 /** The rift a NEW run should adopt — the first enabled entry, or `null` if none. Deterministic (depends
  *  only on the registry's `enabled` flags), so it's safe to call from `createRun`. */
 export function activeRift(): RiftDef | null {

@@ -75,12 +75,28 @@ describe('spell batch — tranche A (set-agnostic)', () => {
     expect(s.discover!.every((id) => CARD_INDEX[id]?.spell)).toBe(true);
   });
 
-  it('Beyond the Summit: Discovers one tier higher, reaching Tier 7 without Summit', () => {
+  it('Beyond the Summit: WITHOUT Tier-7 access it stops at Tier 6 (owner gate 2026-07-28)', () => {
+    // It used to reach 7 in any run. The owner's ruling: Tier 7 needs the Summit rift, or a hero/quest that
+    // grants access. A plain run gets the "one tier higher" Discover, capped at the normal ceiling.
     let s: RunState = { ...createRun(1), tier: 6, hand: [mkSpell('sp', 'beyondsummit')] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
     expect(s.discover?.length ?? 0).toBeGreaterThan(0);
-    expect(s.discover!.some((id) => CARD_INDEX[id]?.tier === 7)).toBe(true); // reaches 7
-    expect(s.discover!.every((id) => (CARD_INDEX[id]?.tier ?? 0) >= 6)).toBe(true); // top-tier bias
+    expect(s.discover!.some((id) => CARD_INDEX[id]?.tier === 7), 'offered a Tier 7 with no access').toBe(false);
+    expect(s.discover!.every((id) => (CARD_INDEX[id]?.tier ?? 0) >= 6)).toBe(true); // still top-tier biased
+  });
+
+  it('…and WITH access (the hero/quest flag) it reaches Tier 7 again', () => {
+    // The control: without it, the assertion above would pass just as well against a Beyond the Summit that
+    // was broken outright, or a Tier-7 pool that had gone empty.
+    let s: RunState = { ...createRun(1), tier: 6, tier7Access: true, hand: [mkSpell('sp', 'beyondsummit')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.discover!.some((id) => CARD_INDEX[id]?.tier === 7), 'access granted but no Tier 7 offered').toBe(true);
+  });
+
+  it('…and the SUMMIT rift is the other route in', () => {
+    let s: RunState = { ...createRun(1), tier: 6, rift: 'summit', hand: [mkSpell('sp', 'beyondsummit')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.discover!.some((id) => CARD_INDEX[id]?.tier === 7), 'Summit should reach Tier 7').toBe(true);
   });
 
   it('Invitation Above: Discovers exactly a Tier 6 minion, regardless of tavern tier', () => {

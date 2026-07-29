@@ -85,6 +85,10 @@ export const SET2_DRAGONS: CardDef[] = [
       { on: 'onPlay', do: 'battlecryArmGrimoire' },
       { on: 'battlecryTriggered', do: 'onBattlecryRearmGrimoire', params: { every: 3 } },
     ],
+    // Deliberately says "spell", NOT "Shop spell": a RUBY also spends the Grimoire charge
+    // (`consumeGrimoireCharge` on the ruby path), so this really is the inclusive umbrella. Pinned by
+    // set2RubyExclusion.test.ts so a wording sweep can't narrow it — which is exactly what happened on
+    // 2026-07-28 before the test caught it.
     text: 'The first spell you cast each turn **casts twice**. Once used, trigger **3 Shouts** to reset this.',
     goldenText: 'The first spell you cast each turn **casts 3 times**. Once used, trigger **3 Shouts** to reset this.',
   },
@@ -106,8 +110,8 @@ export const SET2_DRAGONS: CardDef[] = [
       { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'dragon', attack: 1, health: 1, stepAttack: 1, stepHealth: 1 } },
       { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
     ],
-    text: '**Start of Combat:** give your Dragons **+1/+1**. Improves with every spell you cast.',
-    goldenText: '**Start of Combat:** give your Dragons **+2/+2**. Improves with every spell you cast.',
+    text: '**Start of Combat:** give your Dragons **+1/+1**. Improves with every Shop spell you cast.',
+    goldenText: '**Start of Combat:** give your Dragons **+2/+2**. Improves with every Shop spell you cast.',
   },
   {
     // The combat spell-supply piece: dying allies feed you copies of your best held spell. Reads the hand
@@ -120,7 +124,7 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 4 } }],
-    text: '**Avenge (4):** get a random spell.',
+    text: '**Avenge (4):** get a random Shop spell.',
     goldenText: '**Avenge (4):** get **2** copies of the left-most spell in your hand.',
   },
   {
@@ -200,8 +204,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGrantRandomSpell', params: { count: 1 } }],
-    text: '**Shout:** get a random spell.',
-    goldenText: '**Shout:** get **2** random spells.',
+    text: '**Shout:** get a random Shop spell.',
+    goldenText: '**Shout:** get **2** random Shop spells.',
   },
   {
     // A spell magnet: aim your best spell at it and it resolves twice. Only the FIRST spell each turn, so it

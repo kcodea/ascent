@@ -1,5 +1,60 @@
 # ASCENT — development log
 
+## 2026-07-28 — content: card batch part 6 — the final tranche
+
+Closes the owner's 2026-07-27 batch: three new minions, the Tier-7 ruling, the all-type Discover rule, five
+hero disables, the "Shop spells" wording sweep, and Tallymonger's missing End-of-Turn cues.
+
+**New minions.**
+- **Moira** (T6 Beast 6/4) — *End of Turn: trigger adjacent Shouts*; gilded fires the whole thing twice. Routed
+  through `replayBattlecry`, the shared re-trigger path, so the re-fired Shouts count for quests and pick up
+  Spell Drummer's repeats. Neighbours are resolved BEFORE any firing, so a Shout that reorders the board can't
+  change who it was pointing at mid-resolution.
+- **Mineral Master** (T6 Kobold 5/7) — *when you trigger a Rally, play 2 Rubies on your Kobolds*. Any FRIENDLY
+  Rally, gated on the attacker's `RL` keyword: `onAttack` is broadcast to every friendly minion, so without that
+  gate it would be an ally-attack watcher paying on every swing.
+- **Paragon** (T6 all-type neutral 4/5) — *whenever you trigger a Rally, give a minion of every type +3/+3
+  permanently*. One random member of each tribe actually REPRESENTED on your board, plus every all-type body —
+  which is Paragon itself, since an all-type minion IS a minion of every type. Both of the owner's worked
+  examples are pinned as tests. Permanent via `permaGain`. **Tier and stats are my call, not the owner's — the
+  spec gave the effect only. Flagged for tuning.**
+
+**Tier 7 is now gated** (`hasTier7Access`): the Summit rift, or a hero/quest that sets the new `tier7Access`
+flag. No hero grants it yet — the flag is the seam the owner asked for. Beyond the Summit clamps in
+`discoverSpecFor`, the single place a `discoverOnPlay` becomes a real spec, and its text drops the
+"(up to Tier 7)" promise unless the run can keep it (new `summitTierText` helper).
+
+**The all-type Discover rule.** Controlling every tribe used to make Wayfinder fall back to "any tribe" — which
+turned the payoff for assembling one of every type into a generic Discover. It now offers ONLY all-type minions,
+with a guard: if the run's pool has none at the current tier it keeps the old fallback rather than opening an
+empty Discover. (That guard is why set 1 is unaffected — Lab Experiment is Tier 7.)
+
+**Five heroes disabled** — Cassen, Jensen, Chronos, Tiff, Djinni — via `wip`, which every picker already
+honours. Except Practice, which read the raw registry; that's the "remove them from practice mode as well" half.
+They stay resolvable, so an in-flight save or a replay still loads.
+
+**"Shop spells" wording.** Verified the two discriminators first rather than sweeping on vibes: the spell pool is
+`c.spell && !c.token` and Rubies are tokens, and the Ruby play path bumps `rubyCasts` without ever touching
+`spellsCast` or the `spellCast` watchers. So spell grants and spell-cast watchers genuinely exclude Rubies →
+57 card/rune texts and 6 quest strings now say "Shop spell", Ancient Runes included. Two deliberate exceptions
+stay inclusive: Gemgorge Fiend and Living Grimoire, whose meters really are the Ruby + Shop-Spell umbrella.
+
+**Tallymonger's cues** — two independent misses, both real:
+1. The End-of-Turn spell-power flourish tested `eff.do === 'battlecryBuffSpellPower'`, which is Aeon Guard's
+   factory and nobody else's. Tallymonger raises the same channel through a different factory, so it played
+   nothing.
+2. The aura-wash watcher is gated on `next.phase === 'recruit'`, and End of Turn flips to combat — so an
+   End-of-Turn Imp buff could never wash.
+Both now ride `EotStepFx` as measured DELTAS (`spellPower`, `impAura`) rather than matched factory ids, so any
+future End-of-Turn card that moves either channel animates without new wiring.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 1811 tests, build:web, harness determinism. Three tests
+asserting superseded behaviour were rewritten; 21 new tests added.
+
+**Worth recording.** `set2RubyExclusion.test.ts` exists to catch "a well-meaning consistency sweep" narrowing
+Living Grimoire's wording — and it caught mine, exactly as written. And a Wayfinder test failure was my FIXTURE
+(a set-1 run, where the only all-type minion is out of reach), not the rule.
+
 ## 2026-07-28 — content: card batch part 5 (the six escalation reworks)
 
 The last six reworks from the owner's 2026-07-27 batch, all of them cards whose new shape needed engine work

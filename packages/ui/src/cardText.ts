@@ -61,6 +61,19 @@ export function summonImproveText(cardId: string, summonBonus: number, golden: b
 }
 
 /**
+ * Beyond the Summit — the "(up to Tier 7)" clause is a PROMISE, and most runs can't keep it. Tier 7 needs the
+ * Summit rift or a hero/quest that grants access (`hasTier7Access`), so the printed text says only "one tier
+ * higher" and this appends the Tier-7 clause when — and only when — the run actually qualifies
+ * (owner 2026-07-28: "the tooltip should say (Up to tier 7) ONLY if the criteria is met").
+ */
+export function summitTierText(cardId: string, tier7Access: boolean): string | null {
+  if (cardId !== 'beyondsummit' || !tier7Access) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  return `${def.text.replace(/\.$/, '')} {{(up to Tier 7)}}`;
+}
+
+/**
  * Menagerie Mammoth (`onSummonTribeBuffImproveSelf`) — an Attack-only grant that climbs by `step` every time it
  * pays out, permanently. Same contract as `summonImproveText`, but the printed magnitude is "**+N Attack**"
  * rather than a "+N/+N" pair, so it needs its own replace.

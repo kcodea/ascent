@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, alternatingBuffText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  attackGrantImproveText, rallySpreadText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summonScalingText, tallyBuffText,
+  attackGrantImproveText, rallySpreadText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -24,7 +24,7 @@ export interface LiveTextParams {
   /** The run-wide Imp Aura — Chef Raag's Echo grants your board this much (floored at +1/+1). Player-only:
    *  `enemyScalers` doesn't carry it, so an enemy Raag falls back to its printed text. */
   impAura?: { attack: number; health: number };
-  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number; eotBonus?: number; sellBonus?: number; soldProgress?: number;
+  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number; eotBonus?: number; sellBonus?: number; soldProgress?: number; tier7Access?: boolean;
   /** Card ids you've played this recruit turn — Pack Leader / Spirit Worgen show their live per-play scaling. In
    *  COMBAT an enemy passes a pre-counted NUMBER instead (its snapshot doesn't carry the played ids). */
   playedThisTurn?: string[] | number;
@@ -102,6 +102,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
             asymSummonBuffText(c.id, p.summonBonus ?? 0, p.golden) ?? // Groveweaver: live asymmetric grant
             summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
+            summitTierText(c.id, p.tier7Access ?? false) ?? // Beyond the Summit: only promise Tier 7 when reachable
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             attackGrantImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Menagerie Mammoth: escalating Attack grant
             soldProgressText(c.id, p.soldProgress ?? 0) ?? // Runic Archivist: sales still owed

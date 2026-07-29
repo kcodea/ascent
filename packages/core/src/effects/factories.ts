@@ -1073,6 +1073,66 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < targets && i < pool.length; i++) playRubyOn(ctx, self, pool[i]!, per);
   },
 
+  /** Set 2 — Mineral Master (owner 2026-07-28): when YOU trigger a Rally — any friendly Rally, not just its own
+   *  swing — play `rubies` Rubies on your `tribe` minions.
+   *
+   *  `on: 'onAttack'` is broadcast to every friendly minion's effects, so the gate is the ATTACKER's RL keyword:
+   *  without it this would pay out on every ally swing, which is an ally-attack watcher (Crypt Drake), not a
+   *  Rally watcher. Same distinction the sim draws when it computes `rallyExtra`. */
+  onRallyPlayRubiesTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    if (!minion.keywords.includes('RL')) return; // an ally swing is not a Rally
+    const tribe = str(params.tribe);
+    const per = num(params.rubies, 2) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (!tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) {
+        playRubyOn(ctx, self, m, per);
+      }
+    }
+  },
+
+  /** Paragon (owner 2026-07-28) — the all-type minion. Whenever you trigger a Rally, give **a minion of every
+   *  type** +atk/+hp, permanently.
+   *
+   *  The owner's two worked examples pin the shape exactly:
+   *    • 2 Dragons + 1 Beast + Paragon → one Dragon, the Beast, and Paragon.
+   *    • 3 Dragons + Paragon          → one Dragon and Paragon.
+   *  So it is NOT "one per active tribe in the run" (that would pay Paragon repeatedly for the tribes nothing
+   *  else represents) and NOT "everyone". It is: one random member of each tribe actually REPRESENTED on your
+   *  board by a real tribe member, plus every all-type body — which is Paragon itself, since an all-type minion
+   *  IS a minion of every type. `universalTribe` cards are excluded from the per-tribe pick so they can't
+   *  crowd out the real member, then added unconditionally.
+   *
+   *  Permanent via `permaGain`, the Flowing Monk channel, so the gifts ride `playerPermaBuffs` home. */
+  onRallyBuffOnePerTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    if (!minion.keywords.includes('RL')) return;
+    const a = num(params.attack, 3) * mul(self);
+    const h = num(params.health, 3) * mul(self);
+    const living = ctx.living(self.side);
+    const universal = living.filter((m) => !!ctx.getCard(m.cardId)?.universalTribe);
+    const real = living.filter((m) => !ctx.getCard(m.cardId)?.universalTribe);
+    const tribes: Tribe[] = [];
+    for (const m of real) for (const t of [m.tribe, m.tribe2]) {
+      if (t && t !== 'neutral' && !tribes.includes(t as Tribe)) tribes.push(t as Tribe);
+    }
+    const recipients: Minion[] = [...universal];
+    for (const t of tribes) {
+      const pool = real.filter((m) => m.tribe === t || m.tribe2 === t);
+      if (pool.length === 0) continue;
+      const pick = ctx.rng.pick(pool);
+      if (!recipients.includes(pick)) recipients.push(pick);
+    }
+    for (const r of recipients) {
+      ctx.buff(r, a, h, self.uid);
+      if (!r.keywords.includes('EG')) {
+        r.permaGain = { attack: (r.permaGain?.attack ?? 0) + a, health: (r.permaGain?.health ?? 0) + h };
+      }
+    }
+  },
+
   /** Set 2 — Avenge (X) (Veinbreaker): after every `count` friendly deaths, buff your Rubies +atk/+hp (× golden)
    *  — raises the run's Ruby strength (carried back at settle, grows held + future Rubies). */
   avengeRubyStatGain: (ctx, self, params, payload) => {

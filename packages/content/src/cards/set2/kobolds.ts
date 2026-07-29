@@ -328,4 +328,19 @@ export const SET2_KOBOLDS: CardDef[] = [
     text: 'When you spend **5 Gold**, get a Ruby.',
     goldenText: 'When you spend **5 Gold**, get **2 Rubies**.',
   },
+  {
+    // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally
+    // showers the tribe in Rubies, so it turns a single Rally body into a board-wide permanent buff that scales
+    // with the run's Ruby strength.
+    id: 'k_mineralmaster',
+    name: 'Mineral Master',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 5,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { tribe: 'kobold', rubies: 2 } }],
+    text: 'When you trigger a **Rally**, play **2 Rubies** on your Kobolds.',
+    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your Kobolds.',
+  },
 ];

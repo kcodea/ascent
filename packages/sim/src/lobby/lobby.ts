@@ -12,6 +12,9 @@ export const DEFAULT_LOBBY_RULES: LobbyRules = {
   exhaustion: 'repeatFinal',
   pressureAfterQuietRounds: 4,
   maxRounds: 60,
+  // Up to 3 of the 7 non-player seats replay real player runs when the pool has them. A minority on purpose:
+  // recordings don't react to the lobby, so a table made mostly of them stops being a game between opponents.
+  snapshotSeats: 3,
 };
 
 export function createLobby(seed: number, drivers: readonly SeatDriver[], rules: Partial<LobbyRules> = {}): LobbyState {

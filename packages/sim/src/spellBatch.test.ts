@@ -463,3 +463,209 @@ describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
     expect([heldAfter.attack, heldAfter.health]).toEqual([2, 1]); // held Ruby grew
   });
 });
+
+describe('run-wide card-type auras survive stat-setting spells (owner ruling 2026-07-29)', () => {
+  /**
+   * A `buffCardTypeRunWide` accrual (Spear Warden's "+X/+X to all Spear Wardens") belongs to the CARD TYPE for
+   * the rest of the run, and it is baked into the instance's displayed stats. A spell that SETS stats used to
+   * overwrite that total, silently eating the accrual — so casting Perfect Vision on a heavily-buffed Warden
+   * made it WEAKER than an unbuffed copy. The rule: the spell writes TRUE stats, the aura re-applies on top.
+   */
+  const wardenWithAura = (auraAtk: number, auraHp: number, trueAtk = 3, trueHp = 3): RunState => {
+    const warden: BoardCard = {
+      uid: 'w', cardId: 'knit', tribe: 'undead',
+      attack: trueAtk + auraAtk, health: trueHp + auraHp, // displayed = true + aura, as the run bakes it
+      keywords: [], golden: false,
+      buffs: [{ source: 'Spear Warden', attack: auraAtk, health: auraHp, count: 1 }],
+    };
+    return { ...createRun(1), board: [warden], cardBuffs: { knit: { attack: auraAtk, health: auraHp } } };
+  };
+
+  it("Perfect Vision on a 20/20 aura'd Spear Warden leaves it at 37/37, not 20/20", () => {
+    // The owner's worked example: 3/3 of its own + 17/17 aura reads as 20/20; Perfect Vision sets TRUE stats
+    // to 20/20, then the aura lifts it to 37/37.
+    let s = wardenWithAura(17, 17);
+    const pv = CARD_INDEX['perfectvision']!;
+    s.hand = [{ uid: 'pv', cardId: pv.id, tribe: pv.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'pv', targetUid: 'w' });
+    const w = s.board.find((c) => c.uid === 'w')!;
+    expect(w.attack, 'the aura was eaten by the set').toBe(37);
+    expect(w.health).toBe(37);
+  });
+
+  it('Common Ground averages DISPLAYED stats, then re-applies each aura', () => {
+    // Warden shows 20/20 (3/3 + 17/17), partner is a 1/1 with no aura. Average is 10/10 (rounded 10.5 → 11
+    // for the raw average of 21; the assertion pins whatever the shared rounding produces, plus the aura).
+    let s = wardenWithAura(17, 17);
+    const partner: BoardCard = { uid: 'p', cardId: 'impscrap', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false };
+    s = { ...s, board: [...s.board, partner] };
+    const cg = CARD_INDEX['commonground']!;
+    s.hand = [{ uid: 'cg', cardId: cg.id, tribe: cg.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'cg', targetUid: 'w' });
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'p' });
+    const w = s.board.find((c) => c.uid === 'w')!;
+    const p = s.board.find((c) => c.uid === 'p')!;
+    const avg = Math.round((20 + 1) / 2);
+    expect(p.attack, 'the un-aura’d partner should sit at the plain average').toBe(avg);
+    expect(w.attack, 'the Warden should be the average PLUS its aura').toBe(avg + 17);
+  });
+
+  it('a minion with no run-wide aura is unaffected by the rule', () => {
+    // Guard against the fix leaking a phantom bonus onto ordinary minions.
+    let s: RunState = { ...createRun(1), board: [{ uid: 'm', cardId: 'impscrap', tribe: 'demon', attack: 5, health: 5, keywords: [], golden: false }] };
+    const pv = CARD_INDEX['perfectvision']!;
+    s.hand = [{ uid: 'pv', cardId: pv.id, tribe: pv.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'pv', targetUid: 'm' });
+    expect(s.board.find((c) => c.uid === 'm')!.attack).toBe(20);
+  });
+});
+
+describe('Funeral on Loan keeps an unplayed borrowed card (owner 2026-07-29)', () => {
+  it('a borrowed card survives end of turn and is still playable later', () => {
+    // It used to be filtered out of hand at turn end, so Discovering an Echo minion you could not use that
+    // turn simply destroyed it. The loan has no deadline now — only playing it consumes it.
+    const borrowed: BoardCard = { uid: 'b', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false, borrowed: true };
+    let s: RunState = { ...createRun(1), board: [], hand: [borrowed] };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'settleCombat' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.some((c) => c.uid === 'b'), 'the borrowed card was discarded at turn end').toBe(true);
+    expect(s.hand.find((c) => c.uid === 'b')!.borrowed, 'it should still be a loan').toBe(true);
+    // …and playing it on this later turn still triggers the Echo and consumes it.
+    s = reduce(s, { type: 'play', uid: 'b', targetUid: undefined });
+    expect(s.hand.some((c) => c.uid === 'b')).toBe(false);
+    expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2);
+  });
+});
+
+describe('Turnabout obeys the aura rule too (owner 2026-07-29)', () => {
+  it("an Undead 5/3 carrying +200 Attack reads 205/3 and swaps to 203/205", () => {
+    // The owner's worked example, and the case that proves a swap is NOT exempt: the "swap is stat-neutral"
+    // shortcut only holds for a SYMMETRIC aura. With an attack-only aura the old code threw the +200 away and
+    // left the minion at 3/205. True stats swap to 3/205; the +200/+0 aura re-applies → 203/205.
+    const undead: BoardCard = {
+      uid: 'u', cardId: 'knit', tribe: 'undead',
+      attack: 205, health: 3, // 5/3 of its own, +200 Attack from the run-wide Undead aura
+      keywords: [], golden: false,
+    };
+    let s: RunState = { ...createRun(1), board: [undead], undeadBuyAtk: 200 };
+    const tb = CARD_INDEX['turnabout']!;
+    s.hand = [{ uid: 't', cardId: tb.id, tribe: tb.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 't', targetUid: 'u' });
+    const u = s.board.find((c) => c.uid === 'u')!;
+    expect(u.attack, 'the +200 Attack aura was thrown away by the swap').toBe(203);
+    expect(u.health).toBe(205);
+  });
+
+  it('a TRIBE aura counts, not just the per-card-type table', () => {
+    // The first version of the helper only read `cardBuffs`, so tribe/keyword auras (undeadBuyAtk, beastBuyAtk,
+    // magneticBuyAtk, impBuff and their Health siblings) were invisible to it — which is exactly the channel
+    // the owner's example uses. Perfect Vision here must land at 20 + 200.
+    const undead: BoardCard = { uid: 'u', cardId: 'knit', tribe: 'undead', attack: 205, health: 3, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), board: [undead], undeadBuyAtk: 200 };
+    const pv = CARD_INDEX['perfectvision']!;
+    s.hand = [{ uid: 'pv', cardId: pv.id, tribe: pv.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'pv', targetUid: 'u' });
+    expect(s.board.find((c) => c.uid === 'u')!.attack).toBe(220);
+  });
+
+  it('Turnabout on a minion with no aura is a plain swap', () => {
+    const m: BoardCard = { uid: 'm', cardId: 'impscrap', tribe: 'demon', attack: 7, health: 2, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), board: [m] };
+    const tb = CARD_INDEX['turnabout']!;
+    s.hand = [{ uid: 't', cardId: tb.id, tribe: tb.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 't', targetUid: 'm' });
+    const out = s.board.find((c) => c.uid === 'm')!;
+    expect([out.attack, out.health]).toEqual([2, 7]);
+  });
+});
+
+describe('Spear Warden: the per-card-type aura, and both channels stacked', () => {
+  // Spear Warden is the card the owner reported, and it is ALSO Undead — so it can carry a per-card-type
+  // accrual (`cardBuffs.knit`) and a tribe aura (`undeadBuyAtk`) at once. These pin that both are honoured and
+  // that summing them neither double-counts nor drops one.
+  const warden = (attack: number, health: number, golden = false): BoardCard =>
+    ({ uid: 'w', cardId: 'knit', tribe: 'undead', attack, health, keywords: [], golden });
+  const cast = (s: RunState, spellId: string): RunState => {
+    const def = CARD_INDEX[spellId]!;
+    return reduce({ ...s, hand: [{ uid: 'sp', cardId: def.id, tribe: def.tribe, attack: 0, health: 1, keywords: [], golden: false }] },
+      { type: 'play', uid: 'sp', targetUid: 'w' });
+  };
+  const stats = (s: RunState): [number, number] => {
+    const w = s.board.find((c) => c.uid === 'w')!;
+    return [w.attack, w.health];
+  };
+
+  it('Turnabout and Perfect Vision both keep the +17/17 card-type accrual', () => {
+    // base 3/2 + 17/17 → displayed 20/19. Turnabout: true stats swap to 19/20, aura re-applies → 36/37.
+    const s: RunState = { ...createRun(1), board: [warden(20, 19)], cardBuffs: { knit: { attack: 17, health: 17 } } };
+    expect(stats(cast(s, 'turnabout'))).toEqual([36, 37]);
+    expect(stats(cast(s, 'perfectvision'))).toEqual([37, 37]);
+  });
+
+  it('a card-type accrual AND a tribe aura stack on the same minion', () => {
+    // 3/2 + 17/17 (card) + 200/0 (Undead) → displayed 220/19. Total aura is 217/17, so Turnabout gives
+    // 19+217 / 220+17, and Perfect Vision gives 20+217 / 20+17.
+    const s: RunState = {
+      ...createRun(1), board: [warden(220, 19)],
+      cardBuffs: { knit: { attack: 17, health: 17 } }, undeadBuyAtk: 200,
+    };
+    expect(stats(cast(s, 'turnabout'))).toEqual([236, 237]);
+    expect(stats(cast(s, 'perfectvision'))).toEqual([237, 37]);
+  });
+
+  it('a GOLDEN Warden picks the aura up exactly once', () => {
+    // Golden doubles BASE only (6/4) and the run-wide accrual applies a single time — so the aura the spell
+    // re-applies must be 17/17, not 34/34. Displayed 23/21 → Turnabout → 21+17 / 23+17.
+    const s: RunState = { ...createRun(1), board: [warden(23, 21, true)], cardBuffs: { knit: { attack: 17, health: 17 } } };
+    expect(stats(cast(s, 'turnabout'))).toEqual([38, 40]);
+  });
+});
+
+describe('display-FOLDED auras (the Undead aura) count as the minion’s stats', () => {
+  /**
+   * Owner report 2026-07-29: Turnabout on a Deathsayer SHOWING 383/361 with a +349/+351 Undead aura moved it by
+   * only ±24. Cause: the Undead aura is folded in at DISPLAY time (`instView`: `shownAtk = inst.attack +
+   * undeadAtkBonus`) and never stored, so the spell was swapping tiny stored stats. A spell must operate on what
+   * the player READS — stored + folded — and the expected result is 710/734.
+   *
+   * The +349 splits between a baked channel (`undeadBuyAtk`, applied at creation) and a folded one
+   * (`undeadAttackBonus`). These run every split to prove the outcome does not depend on it.
+   */
+  const shown = (s: RunState, uid: string): [number, number] => {
+    const c = s.board.find((x) => x.uid === uid)!;
+    return [c.attack + (s.undeadAttackBonus ?? 0), c.health + (s.undeadHealthBonus ?? 0)];
+  };
+  const setup = (folded: number, baked: number): RunState => {
+    const card: BoardCard = {
+      uid: 'd', cardId: 'knit', tribe: 'undead',
+      attack: 383 - folded, health: 361 - 351, keywords: [], golden: false,
+    };
+    return { ...createRun(1), board: [card], undeadAttackBonus: folded, undeadHealthBonus: 351, undeadBuyAtk: baked };
+  };
+  const cast = (s: RunState, spellId: string): RunState => {
+    const def = CARD_INDEX[spellId]!;
+    return reduce({ ...s, hand: [{ uid: 'sp', cardId: def.id, tribe: def.tribe, attack: 0, health: 1, keywords: [], golden: false }] },
+      { type: 'play', uid: 'sp', targetUid: 'd' });
+  };
+
+  it.each([[349, 0], [200, 149], [0, 349]])(
+    'Turnabout gives 710/734 whether the aura is folded (%i) or baked (%i)',
+    (folded, baked) => {
+      expect(shown(cast(setup(folded, baked), 'turnabout'), 'd')).toEqual([710, 734]);
+    },
+  );
+
+  it('Perfect Vision also reads through the fold', () => {
+    // Set to 20/20, then every aura back on top: 20 + 349 / 20 + 351.
+    expect(shown(cast(setup(349, 0), 'perfectvision'), 'd')).toEqual([369, 371]);
+  });
+
+  it('a NON-Undead minion is untouched by the Undead fold', () => {
+    // Guard the other direction: the fold is tribe-gated, so it must not leak onto anything else.
+    const m: BoardCard = { uid: 'd', cardId: 'impscrap', tribe: 'demon', attack: 7, health: 2, keywords: [], golden: false };
+    const s: RunState = { ...createRun(1), board: [m], undeadAttackBonus: 349, undeadHealthBonus: 351 };
+    const out = cast(s, 'turnabout').board.find((x) => x.uid === 'd')!;
+    expect([out.attack, out.health]).toEqual([2, 7]);
+  });
+});

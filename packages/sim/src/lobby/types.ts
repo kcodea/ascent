@@ -98,6 +98,10 @@ export interface LobbyRules {
   pressureAfterQuietRounds: number;
   /** Hard stop, so a prototype can never hang. */
   maxRounds: number;
+  /** How many seats may be driven by REAL player runs from the registered pool (owner call 2026-07-29).
+   *  Capped rather than unlimited so a table is a mix, not entirely other people's recordings — and it degrades
+   *  on its own: with an empty pool no snapshot seats exist and every seat is generated, exactly as before. */
+  snapshotSeats?: number;
 }
 
 export interface LobbyEncounter {

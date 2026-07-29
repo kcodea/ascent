@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, type BoardMinion } from '@game/sim';
+import type { BoardMinion } from '@game/core';
+import { CONFIG } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
 import { sfx } from './sfx';

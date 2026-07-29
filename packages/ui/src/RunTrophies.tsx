@@ -6,7 +6,7 @@ import { questArt, runeArt } from './art';
 import { Icon } from './Icon';
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art (mirrors QuestBadges). */
-const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star' };
+const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown' };
 
 /**
  * Read-only trophy row for a FINISHED run's snapshot — the completed quests + owned runes the player ended with,

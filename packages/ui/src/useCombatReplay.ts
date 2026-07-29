@@ -22,6 +22,7 @@ import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
+import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { isDeathrattleBufferCard } from './deathrattleBuffers';
@@ -81,6 +82,13 @@ export interface UnitFrame {
    *  Reset on Reborn (a returned minion is "fresh" at its new stats). */
   baseAttack: number;
   baseHealth: number;
+  /** Choose One: the branch this instance became (`BoardCard.chosenOption`) — so the combat card prints only
+   *  the option it took, matching the shop. Display-only; carried from the snapshot. */
+  chosenOption?: number;
+  /** Mage-Pup: the id of the spell it was taught — so the combat card names the spell it casts. Display-only. */
+  taughtSpellId?: string;
+  /** Sunmane Herald: the live escalating rally grant, so the combat card shows its current value. Display-only. */
+  rallySpreadAtk?: number;
 }
 
 /** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
@@ -100,6 +108,9 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   sellBonus: s.sellBonus, // Trail Forager: seed the accrued sell value for the combat text
   eotTick: s.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the combat text
   baseAttack: s.attack, baseHealth: s.health, // the stats it entered the fight (or was summoned) with
+  chosenOption: s.chosenOption, // Choose One: the combat card prints the branch it became
+  taughtSpellId: s.taughtSpellId, // Mage-Pup: the combat card names the spell it was taught
+  rallySpreadAtk: s.rallySpreadAtk, // Sunmane Herald: the combat card shows the live escalating rally grant
   // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,
 });
@@ -487,6 +498,12 @@ export interface CombatReplay {
   enemyDeaths: number;
   /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — drives the live Buffs window. */
   combatBuffs: CombatBuffDelta;
+  /** Combat quest progress landed so far this fight (up to the replayed beat) — quest nodes tick live off it. */
+  questDelta: CombatQuestDelta;
+  /** Badge id → times its combat effect has fired so far this fight; each bump pulses the node once. */
+  triggeredQuests: Record<string, number>;
+  /** Quest ids that COMPLETED mid-replay — QuestBadges renders + lights these before the quest formally settles. */
+  completedQuests: string[];
   skip: () => void;
   /**
    * DEV (proc harness): jump the replay to `index`, clearing per-beat transient state as a fresh fight would,

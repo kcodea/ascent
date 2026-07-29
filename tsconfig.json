@@ -8,6 +8,7 @@
     }
   },
   "include": ["packages/*/src/**/*.ts"],
-  // @game/ui is React/DOM — typechecked separately via apps/web/tsconfig.json (npm run typecheck:web).
+  // @game/ui is React/DOM (needs the DOM lib + jsx) — so it's a separate project, apps/web/tsconfig.json,
+  // run by `npm run typecheck:web`. `npm run typecheck` runs BOTH; both are gated in CI.
   "exclude": ["packages/ui"]
 }

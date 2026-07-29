@@ -167,7 +167,7 @@ const doubleNums = (s: string): string =>
 export interface CardView {
   name: string;
   /** Card id — used to look up illustrated art (falls back to the tribe sprite). */
-  cardId?: string;
+  cardId: string;
   /** Choose One: the branch this instance picked. Drives ART only here — the per-branch TEXT is already
    *  resolved upstream (`instView` / `Unit`). Option N renders `<cardId><N+1>` when that art exists. */
   chosenOption?: number;
@@ -200,8 +200,9 @@ export interface CardView {
   /** A **Ruby** (set 2): a spell-LIKE token — plays from hand by dragging onto a minion (same targeted-aim as
    *  a spell) to buff it, but it is NOT a Shop Spell. Renders with a stat footer (it carries Attack/Health). */
   ruby?: boolean;
-  /** Requires a friendly target when cast (drives the cast-by-drag targeting). */
-  target?: 'friendly';
+  /** Requires a target when cast (drives the cast-by-drag targeting) — `'friendly'` = a board minion only,
+   *  `'any'` = a board OR shop minion. Mirrors `CardDef.target`. */
+  target?: 'friendly' | 'any';
   /** Base (printed) stats — stats above base render green, below base render red. */
   baseAttack?: number;
   baseHealth?: number;
@@ -366,7 +367,7 @@ export const Card = memo(function Card({
   // to thread state down — see `spellBuffFx.ts`. `undefined` = not bursting; the number INCREASES on every
   // retrigger so a buff landing mid-burst restarts the cue instead of being swallowed (owner 2026-07-24: each
   // trigger must read as its own hit, and cutting the previous one off is fine).
-  const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => getSpellBuffSeq(uid), () => undefined);
+  const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => (uid ? getSpellBuffSeq(uid) : undefined), () => undefined);
   const spellSparks = useMemo(() => (spellBuffSeq !== undefined ? makeSpellBuffSparks() : []), [spellBuffSeq]);
   const spellBuffed = spellBuffSeq !== undefined;
   const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;

@@ -34,6 +34,10 @@ export interface EditorLayer {
    *  `effectiveMuted`). Reaches the player through the very same `FxPlayer.setLayerMuted` call mute uses, so
    *  it is likewise NOT part of `structureKey`: soloing must not restart the other layers. */
   solo?: boolean;
+  /** `travel`-anchored layers only: how far the arc bows perpendicular to the source→target line, as a
+   *  fraction of the span (mirrors `FxLayer.bow`). `0` = dead-straight; omitted = the default `TRAVEL_BOW`.
+   *  Set/cleared via `setLayerBow`, which deletes the key on `null` to keep "omitted" distinct from `0`. */
+  bow?: number;
   params: Record<string, unknown>;
 }
 

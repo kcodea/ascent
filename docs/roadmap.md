@@ -247,16 +247,10 @@ The career surface exists; deepen what a finished run *remembers*.
   ⚡ Bolt and 💥 Blast, both **unreviewed first passes** awaiting the owner's eye in the workbench. Queued next
   (content, not shell): **wave, chain, cloud, swell, drip, vortex, slam, beam** — landing **one at a time** so
   each is judged side by side at real card scale rather than eight at once. The shell needs no change to take
-  them: a new base is a def file plus one entry in `fx/presets/presets.json`.
-
-- **FX workbench friction batch.** Small, unrelated papercuts worth doing together. Remaining: **`fanOut` is
-  jargon** in the binding table and wants plain language. (Rail mode's missing Fire/scrub, the unreadable commit
-  confirmation and the silently-baked locked seed — shipped, see the devlog.)
-
-- **Preset misses in the UI — SHIPPED.** Picking a variant that only partly landed now says so above the def
-  name / Save row, naming the keys. Note for anyone extending it: **`applied` counts params *written*, not
-  *changed*** (a ×1 multiplier still lands there), so `applied.length` is NOT a usable "did this variant do
-  anything" signal.
+  them: a new base is a def file plus one entry in `fx/presets/presets.json`. Trap to know while authoring one:
+  **`applied` counts params *written*, not *changed*** (a ×1 multiplier still lands there), so `applied.length`
+  is NOT a usable "did this variant do anything" signal — `missed` is, and picking a variant that only partly
+  landed now warns in the UI.
 
 - **Absorb the ~30 legacy `pixiFx` effects into the workbench.** They predate the def format and aren't
   authorable there, so half the game's FX are still edited by hand in TypeScript while the other half are

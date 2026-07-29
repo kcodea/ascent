@@ -65,9 +65,41 @@ their shared meaning: *this part of the recipe reached nothing*. Splitting them 
 detail the author can't act on differently. Cleared by `loadDef`, so the warning belongs to the composition on
 screen rather than to the session.
 
-**Verified.** `npm run typecheck` (pkgs + web), `npx eslint packages/ui/src/fx/`, `npm run build:web` and
-`npm test` all green. No React tests exist or are possible in this repo (no jsdom, no
-`@testing-library/react`), so the layout claims are code-and-CSS review plus the owner's eye.
+**A fifth item was investigated and deliberately left alone: `fanOut`.** It was queued as "jargon in the
+binding table", but the UI never showed the word — `CommitPanel` labels the control **Plays** and its options
+read *"once, between the moment's two units"*, *"once per enemy damaged"*, *"once per unit that buffed itself"*.
+The only place `fanOut` appears as a word is the hand-edited `bindings.json`, where it is a key name and
+therefore correct. Nothing to fix; don't re-open it.
+
+### Two places we deliberately didn't do the obvious thing
+
+Both are the kind of "fix" a later reader will be tempted to apply. Don't.
+
+1. **Save does not auto-unlock the seed.** The obvious fix for "people forget the lock is on" is to unlock on
+   save. It's wrong twice over: it silently changes what gets written (the author asked for a locked seed and
+   would get an unlocked def), and it destroys the legitimate case outright — an exactly-choreographed
+   signature hit *wants* one frozen roll baked in, and there would then be no way to author one. Visibility at
+   the moment of decision costs nothing and removes the same surprise.
+2. **The rail transport is a compact reimplementation, not `.fxwb-transport` unhidden.** Unhiding the real bar
+   in rail mode looks like a one-line CSS win. It isn't: the bar is
+   `position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width
+   Timeline, so in rail mode it fights the harness for space and paints a band across the board — the one thing
+   the mode exists to show. Three controls re-rendered inside the rail, calling the *same* handlers, is the
+   cheaper and more honest answer. It is a second **surface**, never a second implementation.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors; 6 pre-existing unused-import warnings
+in `packages/sim/**`, `packages/tools/**`, `Recruit.tsx`, `SceneBuilder.tsx` — none in a file this batch
+touched), `npm run build:web` (✓ built in 5.80s) and `npm test`: **159 files, 3024 tests passed**, up from 3019.
+The five new cases are all in `packages/ui/src/fx/defStore.test.ts` under a new `commit note` describe —
+round-trips and clears; is null when nothing has been parked; treats an empty string as no note; is independent
+of the session snapshot; silently no-ops when storage is hostile or absent. That file now runs 54 tests.
+
+**Not browser-verified — say so plainly.** No React test exists or is possible in this repo (no jsdom, no
+`@testing-library/react`, and adding either was explicitly out of scope), and the workbench is a DEV overlay
+behind `DevMenu`, so nothing here was exercised in a real browser. Every layout and interaction claim above is
+**code-and-CSS review only**. The three things that most warrant a ten-second eyeball: the sticky rail
+transport pinning correctly at the bottom of a scrolled rail, the green commit banner's placement at the top of
+the rail, and the amber seed warning sitting under Save without crowding it.
 
 ## 2026-07-29 — ＋ New effect: the FX workbench gets an on-ramp
 

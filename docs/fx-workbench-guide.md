@@ -164,15 +164,19 @@ Two details:
   produce correlated streams, so a burst and a smoke plume would emit in near-lockstep and read as a bug.
 - A seed change applies to the **next** spawn. It won't restart an effect mid-play.
 
-> **⚠️ The one that bites.** Saving while the seed is locked **bakes that seed into the def file**, and
-> `playDef` honours it — so every play in the real game is the identical roll. Every proc of that card,
-> forever, the same. Occasionally that's what you want (a signature, exactly-choreographed hit). Usually it
-> isn't: repeated procs start reading as mechanical. **Unlock before you Save** unless you mean it. No def
-> currently in `fx/defs/` carries a baked seed. The lock state persists across reloads, so it is easy to
-> forget it's on — which is why an amber line now sits under the Save button naming the exact seed that will
-> be baked, with a one-click **Unlock**, for as long as the lock is on. Save does **not** auto-unlock: that
-> would silently change what gets written and break the signature-hit case. The warning is the fix; the
-> decision stays yours.
+> **⚠️ Saving while the seed is locked bakes that seed into the def file**, and `playDef` honours it — so every
+> play in the real game is the identical roll. Every proc of that card, forever, the same. Occasionally that's
+> exactly what you want (a signature, exactly-choreographed hit). Usually it isn't: repeated procs start reading
+> as mechanical, because the eye learns the pattern. No def currently in `fx/defs/` carries a baked seed.
+>
+> **You will be told.** For as long as the lock is on, an amber line sits directly under the **Save** button
+> naming the exact seed that will be written and what that means, with a one-click **Unlock** beside it. It
+> renders on the *lock state*, not after a save attempt, so Save cannot be reached without it having been on
+> screen. It lives in the rail, so it is equally visible in rail mode, where **Commit** writes the same seed.
+>
+> Save deliberately does **not** auto-unlock. That would silently change what gets written and would break the
+> signature-hit case outright. Making the hazard visible at the moment of decision is the fix; the decision
+> stays yours.
 
 ---
 
@@ -206,9 +210,18 @@ The panel shows the resulting def id and how many bindings the commit will touch
 numbers you changed. The commit order is fixed: the def file writes first, `bindings.json` second, so a def
 failure changes nothing and a binding failure leaves only an unbound def (inert, not silently wrong).
 
-**Writing `bindings.json` triggers a full page reload** — it's a static import, so it can't hot-reload — which
-means the workbench unmounts before you can read a success message. Check `git status` for the two changed
-files instead; that's the real confirmation.
+**Writing `bindings.json` triggers a full page reload** — it's a static import, so Vite can't hot-reload it —
+which means the workbench unmounts before the `Committed → …` line it just set can paint. So the note is parked
+in `localStorage` on success and shown as a green banner at the top of the rail, then cleared as it is read: it
+appears exactly once and can't resurface on some later unrelated reload. A commit that *failed* parks nothing,
+and the key is cleared at the start of every commit, so a stale success line can never be presented as this
+commit's confirmation.
+
+**Be precise about when you see it.** The banner appears the next time the workbench is *opened*, not the
+instant the page reloads. The reload closes the workbench (it's mounted from `DevMenu`, whose state resets), so
+the confirmation waits in storage until you reopen it. That's a real limitation, not a bug: the alternative is
+persisting the whole DevMenu open-state across reloads, which is a much bigger change than this fix warranted.
+`git status` on the two changed files remains the instant cross-check.
 
 Hand-editing `bindings.json` still works and is sometimes faster for a small tweak:
 
@@ -284,11 +297,8 @@ Timeline, so it would paint a band straight across the board this mode exists to
 `git add` the def **and** `bindings.json` together — a def with no binding is inert, and a binding naming a
 def that doesn't exist is a silent no-op that a test will catch but a player never would.
 
-Writing `bindings.json` forces a full page reload (it's a static import), which unmounts the workbench. The
-`Committed → <def> · <path>` line is therefore parked in `localStorage` and shown as a green banner at the top
-of the rail the next time the workbench opens, then cleared — so it appears exactly once. A commit that
-*failed* parks nothing, and the key is cleared at the start of every commit, so a stale success line can never
-be presented as this commit's confirmation.
+The `Committed → <def> · <path>` confirmation survives the reload the write itself forces, and appears the next
+time you open the workbench — see §7 for exactly how and for the timing caveat.
 
 ---
 
@@ -299,16 +309,12 @@ be presented as this commit's confirmation.
 - **Anchors are a fire-time snapshot**, so an effect doesn't follow a unit that moves. Deliberate — per-frame
   layout reads are banned — but revisit if a follow-the-unit effect is ever wanted.
 - **~30 legacy `pixiFx` effects** predate defs and aren't authorable here.
-- **Committing forces a full page reload** (`bindings.json` is a static import Vite can't hot-reload), so the
-  workbench unmounts mid-confirmation. The confirmation is parked in `localStorage` and shown as a green
-  banner at the top of the rail on the next mount, cleared as it is read — so it appears exactly once, and
-  `git status` is a cross-check rather than the only evidence.
+- **Committing still costs you a page reload** (`bindings.json` is a static import Vite can't hot-reload), and
+  the reload closes the workbench. The confirmation now survives it (§7) but waits until you reopen the tool.
 - **No editing a def's `label`/`tags` from the panel**, and no unbind affordance — both still hand-edit only.
 - **Only two preset archetypes so far** (Bolt, Blast), and both are unreviewed first passes. Eight more are
   queued — wave, chain, cloud, swell, drip, vortex, slam, beam — landing one at a time so each gets judged at
   real card scale rather than eight at once.
-- **`fanOut` is jargon in the binding table.** The last of the friction batch that gave rail mode its own
-  transport (§9).
 
 ---
 

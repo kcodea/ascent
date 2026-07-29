@@ -2,12 +2,14 @@
 
 ## 2026-07-28 — Scene Builder: minimize to a bottom-right dock
 
-**What changed.** The DEV Scene Builder gets a **minimize** (`–`) button in its header (next to the `▾`
-in-place collapse). Minimizing hides the panel and shows a **circle icon docked bottom-right, immediately left
-of the 🛠️ Dev-Tuning button** (`.sb-dock`, matched to `.devmenu-btn`'s size/style, `right: bar-x + 112px`).
-Clicking the dock icon restores the panel **and brings it to the front** — `useDraggablePanel` now returns a
-`raise()` (bump the shared z counter) that the restore calls. The panel stays mounted while minimized (a
-`.minimized` class sets `display:none`), so its slot/z are preserved. Distinct from the existing `▾` collapse.
+**What changed.** The DEV Scene Builder's header **✕ now minimizes it to a dock** instead of no-op-closing.
+Minimizing hides the panel and shows a **circle icon docked bottom-right, immediately left of the 🛠️ Dev-Tuning
+button** (`.sb-dock`, matched to `.devmenu-btn`'s size/style, `right: bar-x + 112px`). Clicking the dock icon
+restores the panel **and brings it to the front** — `useDraggablePanel` now returns a `raise()` (bump the shared
+z counter) that the restore calls. The panel stays mounted while minimized (a `.minimized` class sets
+`display:none`), so its slot/z are preserved. Wiring: the shared hook injects the ✕ and routes it through
+`DevPanelContext.close`, so a small `SceneBuilder` outer shell provides `close: () => setMinimized(true)` above
+the inner component's hook call. The existing `▾` in-place collapse is unchanged.
 
 **Verified.** `build:web` + `typecheck:web`/`lint` clean for the changed files (`SceneBuilder.tsx`,
 `useDraggablePanel.ts`, `styles.css`). Live check on the sandbox Scene Builder.

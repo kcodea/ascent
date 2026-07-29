@@ -3,7 +3,7 @@ import { CARD_INDEX, QUEST_DEFS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, ty
 import { HEROES, type BoardSnapshot, type RunState, type ShopCard } from '@game/sim';
 import type { Keyword } from '@game/core';
 import { useGame } from './store';
-import { useDraggablePanel } from './useDraggablePanel';
+import { useDraggablePanel, DevPanelContext } from './useDraggablePanel';
 import { turnClock } from './turnClock';
 
 /**
@@ -49,7 +49,19 @@ const SET_OPTIONS = Object.values(SETS).map((s) => {
   return { id: s.id, name: s.name, enabled: s.enabled, minions: p.buyable.length, spells: p.spells.length };
 });
 
+/** Outer shell: holds the minimized state and provides `close` (the injected ✕ / DevPanelContext) so the panel's
+ *  ✕ minimizes it to the dock instead of no-op-closing. The inner component (below) reads that context via
+ *  `useDraggablePanel`, so the provider must sit ABOVE its hook call — hence the split. */
 export function SceneBuilder() {
+  const [minimized, setMinimized] = useState(false);
+  return (
+    <DevPanelContext.Provider value={{ close: () => setMinimized(true) }}>
+      <SceneBuilderInner minimized={minimized} onRestore={() => setMinimized(false)} />
+    </DevPanelContext.Provider>
+  );
+}
+
+function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRestore: () => void }) {
   const run = useGame((s) => s.run);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const dispatch = useGame((s) => s.dispatch);
@@ -59,7 +71,6 @@ export function SceneBuilder() {
   const [enemyN, setEnemyN] = useState(5);
   const [refill, setRefill] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
-  const [minimized, setMinimized] = useState(false);
   const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
 
   // The card library is scoped to the run's PINNED set, so the Set toggle visibly changes what you can add and
@@ -139,12 +150,7 @@ export function SceneBuilder() {
     <div className={`sfxmix lunge scenebuilder${collapsed ? ' collapsed' : ''}${minimized ? ' minimized' : ''}`} ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag sb-head" onPointerDown={headerPointerDown}>
         <span>🧩 Scene Builder</span>
-        <span className="sb-head-btns">
-          {/* Minimize to the bottom-right dock (a circle icon left of the 🛠️ dev-tuning button). Distinct from
-              the ▾ in-place collapse below. */}
-          <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setMinimized(true)} title="Minimize to dock">–</button>
-          <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} title={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
-        </span>
+        <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} title={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
       </div>
 
       {!collapsed && (
@@ -287,11 +293,11 @@ export function SceneBuilder() {
         </div>
       )}
     </div>
-    {/* Minimized: a circle icon docked bottom-right, left of the 🛠️ dev-tuning button. Click restores + refocuses
-        (brings the panel back to the front via the shared hook's raise). */}
+    {/* Minimized (the header ✕ hides it): a circle icon docked bottom-right, left of the 🛠️ dev-tuning button.
+        Click restores + refocuses (brings the panel back to the front via the shared hook's raise). */}
     {minimized && (
       <button className="sb-dock" title="Restore Scene Builder"
-        onClick={() => { setMinimized(false); raise(); }}>🧩</button>
+        onClick={() => { onRestore(); raise(); }}>🧩</button>
     )}
     </>
   );

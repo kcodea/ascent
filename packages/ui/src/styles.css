@@ -5287,7 +5287,6 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .scenebuilder.collapsed { width: calc(180 * var(--u)); }
 .scenebuilder.minimized { display: none; }
 .sb-head { display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--u)); }
-.sb-head-btns { display: flex; align-items: center; gap: calc(4 * var(--u)); }
 .sb-collapse { background: none; border: none; color: #d8c8a2; font-size: calc(13 * var(--u)); cursor: pointer; padding: 0 calc(2 * var(--u)); }
 /* Minimized Scene Builder → a circle icon in the bottom-right cluster, immediately LEFT of the 🛠️ dev-tuning
    button (which sits at right: bar-x + 64px, is 40px wide); +48px = its width + an 8px gap. Same size/style. */

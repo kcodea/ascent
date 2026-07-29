@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-07-29 — Panel 5 + wider macro funnel: 4.63 vs human boards
+
+Two knobs re-tested now that the fight panel is real boards: `fightPanelSize` 2→5 (accuracy per node beats
+node count now that opponents are informative) and the replacement-macro funnel widened (3→5 sells, macro
+budget 40→80). Confirmed at 40 seeds vs real player boards: expert **4.63 ±0.31** / hard 4.63 ±0.30, from
+3.65 at session start (+27%). Death round 9.5 → 10.4. Still 0 course survivals.
+
+Named next lever: quest picks are scored by immediate evaluation, which cannot see a quest's future payoff —
+picks are effectively arbitrary, and quests/triples are where human compounding (94→387→9,680 power) lives.
+
 ## 2026-07-29 — Replacement macros + the spell hole: first real gains vs human boards
 
 **Directive: bots that can win a game.** Two structural holes found and fixed, each worth more than every

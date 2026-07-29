@@ -132,13 +132,13 @@ export function search(root: PlanningStateHandle, profile: BotDifficultyProfile,
     const sells = rootChildren
       .filter((n) => n.plan[0]?.action.type === 'sell')
       .sort((a, b) => b.utility - a.utility)
-      .slice(0, 3);
+      .slice(0, 5);
     for (const sellNode of sells) {
-      if (expanded >= profile.maxNodes + 40) break; // macros get their own small budget on top
+      if (expanded >= profile.maxNodes + 80) break; // macros get their own small budget on top
       const afterSell = visibleOf(sellNode.handle);
       for (const cand of candidatesFor(afterSell)) {
         if (cand.action.type !== 'play' && cand.action.type !== 'buy') continue;
-        if (expanded >= profile.maxNodes + 40) break;
+        if (expanded >= profile.maxNodes + 80) break;
         expanded++;
         const step2 = applyCandidate(sellNode.handle, cand.action);
         owned.push(step2.child);

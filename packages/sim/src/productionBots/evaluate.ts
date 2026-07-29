@@ -81,7 +81,7 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
   dangerHealthFraction: 0.35,
   // Two archetypes mid-search. Five is more accurate but triples the cost of every node, and the node budget
   // buys more by looking at more LINES than at more opponents.
-  fightPanelSize: 2,
+  fightPanelSize: 5,
 };
 
 /** Positive unbounded → [0, 1.5]. `reference` is "a normal amount for this wave", so the curve stays useful

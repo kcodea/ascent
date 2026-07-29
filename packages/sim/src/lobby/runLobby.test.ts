@@ -3,7 +3,7 @@ import { CONFIG } from '../config';
 import { reduce } from '../reducer';
 import { DEFAULT_BOT } from '../bots/index';
 import type { RunState } from '../state';
-import { createLobbyRun, playerLobbySeat, playerOpponent, playerEliminated } from './runLobby';
+import { createLobbyRun, lastPlayerEncounter, lastRoundDamage, playerLobbySeat, playerOpponent, playerEliminated } from './runLobby';
 
 /**
  * THE PLAYABLE LOBBY — a run that is a seat in an 8-seat elimination lobby.
@@ -105,5 +105,62 @@ describe('lobby run — playing it', () => {
     const b = playOut(createLobbyRun(9, 'drakko'));
     expect(b.lobby!.seats.map((x) => [x.id, x.alive, x.placement]))
       .toEqual(a.lobby!.seats.map((x) => [x.id, x.alive, x.placement]));
+  });
+});
+
+describe('lobby run — the readouts the player actually reads', () => {
+  it('the player is charged for a loss ONCE, not twice', () => {
+    // The lobby applies the hit (with its own cap and stall pressure) and the run syncs to the seat. The
+    // ordinary settle path then applied `playerDamage` again on top, which showed up as the HUD reading lower
+    // than the table for the same fight.
+    // Play until the player has ACTUALLY TAKEN a hit — the divergence can only appear on a loss, so a fixed
+    // round count made this vacuous: it passed with the fix reverted because the player hadn't lost yet.
+    let s = createLobbyRun(4, 'drakko');
+    const startHp = playerLobbySeat(s.lobby!).resolve + playerLobbySeat(s.lobby!).armor;
+    let guard = 0;
+    while (s.phase !== 'gameover' && guard++ < 4000) {
+      const next = reduce(s, DEFAULT_BOT.act(s));
+      if (next === s) break;
+      s = next;
+      const me = playerLobbySeat(s.lobby!);
+      if (me.resolve + me.armor < startHp) break; // took a hit — now the two numbers must agree
+    }
+    const seat = playerLobbySeat(s.lobby!);
+    expect(seat.resolve + seat.armor, 'the player never took a hit — the check would be vacuous').toBeLessThan(startHp);
+    expect(s.resolve, 'the run and the seat disagree — damage is being applied twice').toBe(Math.max(0, seat.resolve));
+    expect(s.armor).toBe(Math.max(0, seat.armor));
+  });
+
+  it('last round’s damage is reported per seat, for both sides of every fight', () => {
+    let s = createLobbyRun(4, 'drakko');
+    let guard = 0;
+    while (s.lobby!.round === 1 && s.phase !== 'gameover' && guard++ < 500) {
+      const next = reduce(s, DEFAULT_BOT.act(s));
+      if (next === s) break;
+      s = next;
+    }
+    const dmg = lastRoundDamage(s.lobby!);
+    // 4 fights, both sides recorded → every seat that fought has an entry.
+    expect(Object.keys(dmg).length, 'not every seat has a damage readout').toBe(8);
+    // One side's damage taken is the other's damage dealt — the numbers come from one result, so they must agree.
+    for (const e of s.lobby!.encounters.filter((x) => x.round === 1 && x.fought)) {
+      expect(dmg[e.a]!.taken).toBe(dmg[e.b]!.dealt);
+      expect(dmg[e.b]!.taken).toBe(dmg[e.a]!.dealt);
+    }
+  });
+
+  it('the player’s own encounter is reportable, with the foe named', () => {
+    let s = createLobbyRun(4, 'drakko');
+    let guard = 0;
+    while (s.lobby!.round === 1 && s.phase !== 'gameover' && guard++ < 500) {
+      const next = reduce(s, DEFAULT_BOT.act(s));
+      if (next === s) break;
+      s = next;
+    }
+    const last = lastPlayerEncounter(s.lobby!);
+    expect(last, 'the player’s fight was not recorded').toBeTruthy();
+    expect(last!.foe.id).not.toBe('s0');
+    expect(last!.taken).toBeGreaterThanOrEqual(0);
+    expect(last!.dealt).toBeGreaterThanOrEqual(0);
   });
 });

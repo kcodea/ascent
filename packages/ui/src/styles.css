@@ -5969,14 +5969,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* ── LOBBY PANEL (8-seat elimination mode) ───────────────────────────────────
    Replaces the next-foe frame in a lobby run: the table IS the state of the mode. Sized to sit in the same
    top-right slot without pushing the shop down, so the eye still lands on the board first. */
-.lobbypanel { width: 232px; display: flex; flex-direction: column; gap: 4px;
+.lobbypanel { width: 272px; display: flex; flex-direction: column; gap: 4px;
   background: rgba(12, 10, 18, 0.72); border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 10px; padding: 7px 8px 8px; }
 .lobbyhead { display: flex; justify-content: space-between; align-items: baseline;
   font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
 .lobbyalive { color: #f4d58a; font-weight: 700; }
 .lobbyseats { display: flex; flex-direction: column; gap: 2px; }
-.lobbyseat { position: relative; display: grid; grid-template-columns: 18px 1fr auto;
+.lobbyseat { position: relative; display: grid; grid-template-columns: 18px 1fr 26px auto;
   align-items: center; gap: 6px; padding: 3px 5px 4px; border-radius: 6px; font-size: 12px;
   background: rgba(255, 255, 255, 0.03); }
 .lobbyseat.you { background: rgba(120, 190, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(120, 190, 255, 0.35); }
@@ -5989,8 +5989,29 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyhp svg { width: 10px; height: 10px; }
 .lobbyarmor { color: #9fc7ff; font-weight: 700; }
 .lobbyplace { color: rgba(255, 255, 255, 0.5); font-weight: 700; }
-.lobbyvs { position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
-  font-size: 9px; font-weight: 800; letter-spacing: 0.04em; color: #ff8d8d; }
+/* NEXT FOE — the one enemy this shop phase is about, so it gets a card rather than a marker in a row. */
+.lobbynext { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 8px;
+  padding: 6px 8px; margin: 2px 0 4px; border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 120, 110, 0.16), rgba(255, 120, 110, 0.06));
+  box-shadow: inset 0 0 0 1px rgba(255, 120, 110, 0.42); }
+.lobbynextface { width: 56px; height: 56px; border-radius: 8px; object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); }
+.lobbynextinfo { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.lobbynextlbl { font-size: 9px; letter-spacing: 0.10em; text-transform: uppercase; color: rgba(255, 160, 150, 0.85); }
+.lobbynextname { font-size: 17px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobbynextsub { font-size: 10px; color: rgba(255, 255, 255, 0.52);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobbynexthp { display: flex; align-items: baseline; gap: 3px; font-size: 15px; }
+
+/* Damage from the round that just resolved — one number per seat, sized to read at a glance without
+   competing with the health it explains. A one-shot pop, never a looping animation (docs/performance.md). */
+.lobbydmg { text-align: right; font-size: 11px; font-weight: 800; color: #ff6b6b; letter-spacing: 0.01em;
+  animation: lobbydmgpop 420ms ease-out; }
+@keyframes lobbydmgpop {
+  0% { transform: translateY(-3px) scale(1.35); opacity: 0; }
+  40% { transform: translateY(0) scale(1.12); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
 /* Health bar: a static gradient whose WIDTH changes — no paint-property animation (see docs/performance.md). */
 .lobbybar { position: absolute; left: 5px; right: 5px; bottom: 1px; height: 2px;
   background: rgba(255, 255, 255, 0.08); border-radius: 1px; overflow: hidden; }

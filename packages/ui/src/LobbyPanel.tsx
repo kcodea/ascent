@@ -1,18 +1,26 @@
-import { playerOpponent, type RunLobby } from '@game/sim';
+import { getHero, lastRoundDamage, playerOpponent, type RunLobby } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 
 /**
  * The 8-seat table, shown in a LOBBY run.
  *
- * A lobby has no course clock and no Oath — the only things that matter are who is still standing, how much
- * health each of them has, and who you're about to fight. So the panel shows exactly that, ordered by health so
- * the table reads as a ladder you're climbing rather than a fixed list.
+ * A lobby has no course clock and no Oath — what matters is who is still standing, how much health each of them
+ * has, and who you're about to fight. Two things get prominence over the bare list:
+ *
+ *  - The NEXT OPPONENT gets a full card at the top rather than a marker in a row. You pick your board around one
+ *    specific enemy each round, so the one thing you're planning against shouldn't be the smallest text on
+ *    screen (owner ask 2026-07-29).
+ *  - DAMAGE from the round that just resolved prints as a number on each seat. A bar that silently drops tells
+ *    you something changed but not how much, and how much is the read on whether you're actually winning.
  */
 export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
   if (!lobby) return null;
-  const foe = playerOpponent(lobby)?.seat ?? null;
+  const next = playerOpponent(lobby);
+  const foe = next?.seat ?? null;
+  const dmg = lastRoundDamage(lobby);
   const living = lobby.seats.filter((s) => s.alive);
+  const maxHp = lobby.rules.startingResolve + lobby.rules.startingArmor;
   // Living seats first, strongest to weakest; the fallen keep their placement order underneath.
   const rows = [...lobby.seats].sort((a, b) => {
     if (a.alive !== b.alive) return a.alive ? -1 : 1;
@@ -26,19 +34,45 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
         <span className="lobbyround">Round {lobby.round}</span>
         <span className="lobbyalive">{living.length} left</span>
       </div>
+
+      {/* THE FIGHT YOU'RE PLANNING AGAINST — the one enemy this shop phase is actually about. */}
+      {foe && (
+        <div className="lobbynext">
+          <img className="lobbynextface" src={heroArt(foe.heroId)} alt="" />
+          <div className="lobbynextinfo">
+            <span className="lobbynextlbl">Next foe</span>
+            <span className="lobbynextname">{foe.label}</span>
+            <span className="lobbynextsub">{getHero(foe.heroId).power.name}</span>
+          </div>
+          <div className="lobbynexthp">
+            <span className="lobbyhp"><Icon name="heart" />{foe.resolve}</span>
+            {foe.armor > 0 && <span className="lobbyarmor">+{foe.armor}</span>}
+          </div>
+        </div>
+      )}
+
       <div className="lobbyseats">
         {rows.map((seat) => {
           const isYou = seat.id === 's0';
           const isFoe = foe?.id === seat.id;
           const hp = seat.resolve + seat.armor;
+          const d = dmg[seat.id];
           return (
             <div
               key={seat.id}
               className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${seat.alive ? '' : ' dead'}`}
-              title={seat.alive ? `${seat.label} — ${seat.resolve} Resolve${seat.armor ? ` +${seat.armor} Armor` : ''}` : `${seat.label} — knocked out round ${seat.eliminatedRound}`}
+              title={seat.alive
+                ? `${seat.label} — ${seat.resolve} Resolve${seat.armor ? ` +${seat.armor} Armor` : ''}`
+                : `${seat.label} — knocked out round ${seat.eliminatedRound}`}
             >
               <img className="lobbyface" src={heroArt(seat.heroId)} alt="" />
               <span className="lobbyname">{seat.label}</span>
+              {/* What last round cost this seat. The cell always renders — an omitted one would reflow the row
+                  and leave the health column jittering between seats — but it stays blank at 0, because a
+                  column of zeroes is noise and "no number" already reads as unscathed. */}
+              <span className="lobbydmg" key={`d${lobby.round}`} title={d?.taken ? `Took ${d.taken} last round` : undefined}>
+                {seat.alive && d && d.taken > 0 ? `−${d.taken}` : ''}
+              </span>
               {seat.alive ? (
                 <span className="lobbyhp">
                   <Icon name="heart" />{seat.resolve}
@@ -47,12 +81,9 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
               ) : (
                 <span className="lobbyplace">{seat.placement ? `#${seat.placement}` : 'out'}</span>
               )}
-              {/* The one piece of forward information the panel owes you: who you're about to fight. */}
-              {isFoe && <span className="lobbyvs">VS</span>}
-              {/* A bar reading against the STARTING pool, so a chipped seat is obvious at a glance. */}
               {seat.alive && (
                 <span className="lobbybar">
-                  <span style={{ width: `${Math.max(0, Math.min(100, (hp / (lobby.rules.startingResolve + lobby.rules.startingArmor)) * 100))}%` }} />
+                  <span style={{ width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%` }} />
                 </span>
               )}
             </div>

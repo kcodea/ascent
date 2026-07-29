@@ -2247,7 +2247,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
       s.cassenKills -= 5;
     }
   }
-  if (result.result === 'lose' && s.mode !== 'practice') {
+  // LOBBY: the seat already took this hit (with the lobby's own cap and stall pressure) and the run was synced
+  // to it above, so applying it again here charges the player twice — visible as the HUD reading 2 lower than
+  // the table for the same fight.
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby') {
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;

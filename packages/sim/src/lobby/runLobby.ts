@@ -279,3 +279,33 @@ export function createLobbyRun(seed: number, heroId: string, rules: Partial<Lobb
   me.armor = run.armor;
   return { ...run, lobby };
 }
+
+/**
+ * What each seat took and dealt in the round that just finished.
+ *
+ * `lobby.round` has already advanced by the time the shop reopens, so "last round" is `round - 1`. Returned per
+ * seat id so the table can print the number against the seat it happened to — a health bar that silently drops
+ * tells you something changed but not how much, and how much is the whole read on whether you're winning.
+ */
+export function lastRoundDamage(lobby: RunLobby): Record<string, { taken: number; dealt: number }> {
+  const round = lobby.round - 1;
+  const out: Record<string, { taken: number; dealt: number }> = {};
+  for (const e of lobby.encounters) {
+    if (e.round !== round || !e.fought) continue;
+    out[e.a] = { taken: e.damageToA, dealt: e.damageToB };
+    out[e.b] = { taken: e.damageToB, dealt: e.damageToA };
+  }
+  return out;
+}
+
+/** The seat the player just fought, and how that went — for the post-combat readout. */
+export function lastPlayerEncounter(lobby: RunLobby): { foe: LobbySeatState; taken: number; dealt: number } | null {
+  const round = lobby.round - 1;
+  const e = lobby.encounters.find((x) => x.round === round && x.fought && (x.a === 's0' || x.b === 's0'));
+  if (!e) return null;
+  const foeId = e.a === 's0' ? e.b : e.a;
+  const foe = lobby.seats.find((x) => x.id === foeId);
+  if (!foe) return null;
+  const meIsA = e.a === 's0';
+  return { foe, taken: meIsA ? e.damageToA : e.damageToB, dealt: meIsA ? e.damageToB : e.damageToA };
+}

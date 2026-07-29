@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-07-29 — feat(ui): lobby — a proper Next Foe card, and per-round damage numbers
+
+Owner ask: show the current opponent larger, and show damage dealt as a number after a round.
+
+**Next Foe is a card, not a marker.** You build your board around one specific enemy each shop phase, so the
+thing you're planning against shouldn't be the smallest text on screen. It now gets 56px hero art, the
+opponent's name at 17px, their hero-power name, and their live health, above the table.
+
+**Damage prints per seat.** After a round every seat shows what it took (`−5`), including the seats that fought
+each other — a health bar that silently drops tells you something changed but not how much, and how much is the
+whole read on whether you're winning. The cell always renders (blank at 0) so the health column doesn't jitter
+between rows, and it pops once on arrival rather than looping (see `docs/performance.md`).
+
+Backed by two helpers on the run lobby: `lastRoundDamage` (per seat, both sides of every fight) and
+`lastPlayerEncounter` (the foe you just fought and how it went). Both read the recorded encounters rather than
+re-deriving anything, so the numbers on screen are the ones that were actually applied.
+
+**A double-charge bug, found by looking at the screen.** The HUD read 2 lower than the table for the same fight:
+the lobby applied the hit and synced the run to the seat, then the ordinary settle path applied `playerDamage`
+AGAIN on top. Settlement now skips the ordinary damage in lobby mode, where the lobby is authoritative (it owns
+the cap and the stall pressure).
+
+**A vacuous test, caught by revert-checking.** The regression test for that fix passed with the fix reverted —
+it played a fixed 5 rounds, and with that seed the player hadn't lost yet, so the two numbers could not diverge.
+It now plays until the player has ACTUALLY taken a hit and asserts that it did, then compares. Reverting the fix
+now fails it.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, build:web, harness determinism, and a live
+browser round: Next Foe card rendered with hero art and power, then `You −2`, `Tradesman −2`, `Fi −2` after the
+round — the player's own fight and one of the other tables, both reported.
+
+
 ## 2026-07-29 — feat(sim/ui): the lobby is PLAYABLE end to end
 
 Title → **Lobby** → pick a hero → you are seat 1 of 8. You shop as normal, your fight settles the whole table,

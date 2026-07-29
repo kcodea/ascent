@@ -1072,6 +1072,29 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerQuestTally?.summonCombatByTribe.undead ?? 0).toBeGreaterThanOrEqual(1); // credited to Undead (Forsaken Will)
   });
 
+  it('a RISE death counts toward AVENGE (owner ruling 2026-07-27)', () => {
+    // Previously a Rise was deliberately not a friendly death, so an Avenge card sat there while your Rise
+    // minions cycled: "minions that rise are not counting towards avenge which is a problem". Kennelmaster
+    // improves on Avenge (3), so three Rise deaths must move its summonBonus.
+    const r = run(
+      [
+        { cardId: 'kennel', attack: 1, health: 60 },
+        { cardId: 'sabercub', attack: 1, health: 1, keywords: ['R'] },
+        { cardId: 'sabercub', attack: 1, health: 1, keywords: ['R'] },
+        { cardId: 'sabercub', attack: 1, health: 1, keywords: ['R'] },
+      ],
+      [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
+      2,
+    );
+    // Assert the death COUNT, not a downstream Avenge proc: a risen body dies again for real, and that second
+    // death always counted — so "did Avenge fire" passes with or without the fix. The tally is the real change.
+    const rises = r.events.filter((e) => e.type === 'death' && (e as { rise?: boolean }).rise).length;
+    const realDeaths = r.events.filter((e) => e.type === 'death' && !(e as { rise?: boolean }).rise
+      && (e as { side: string }).side === 'player').length;
+    expect(rises, 'the fixture really does produce Rise deaths').toBeGreaterThanOrEqual(3);
+    expect(r.playerDeaths, 'every death counts — the Rise ones AND the real ones').toBe(rises + realDeaths);
+  });
+
   it('Reborn returns at base ATTACK with 1 Health — sheds combat buffs + granted keywords, keeps the carry-through', () => {
     // An Eternal Knight (base 3/2) that entered combat buffed to a 10/3 Divine-Shield body. On death it sheds
     // the combat buff + granted DS, returning at base attack with 1 Health — then its own Deathrattle's +3/+2

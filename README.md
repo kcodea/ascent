@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Discover spells count as spells** — Sprout and friends never fired a single spell trigger.
+- **Rise counts as a death** for Avenge and the death tallies.
+- **End Turn is inert for 5 seconds** at the start of a round, so a double-click can't skip it.
 - **Set 1 and Set 2 no longer mix** — every random pick in combat now draws from the run's pinned set.
 - **Fixed broken images on the itch browser build** — root-absolute asset paths 404 on itch's CDN sub-path;
   a test now blocks the whole class.

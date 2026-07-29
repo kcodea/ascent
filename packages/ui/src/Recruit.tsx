@@ -84,6 +84,10 @@ type DragSource = 'shop' | 'hand' | 'board';
 
 type Zone = 'tavern' | 'warband' | 'hand';
 
+/** How long the End Turn button stays inert at the start of a recruit round (owner ask 2026-07-27) — long
+ *  enough that a double-click meant for the previous round can't skip the new one, short enough that a player
+ *  who genuinely wants to end instantly barely notices. */
+const END_TURN_LOCK_MS = 5000;
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
@@ -1015,6 +1019,17 @@ export function Recruit() {
   // `combatStage` sequences the intro (close → fight); the replay engine runs once
   // the enemies have arrived. After the fight, the warband plays a reset animation. ---
   const inCombat = run.phase === 'combat';
+  // END-TURN SOFT LOCK (owner ask 2026-07-27). For the first few seconds of a recruit round the End Turn
+  // button is inert, so the second half of a double-click that ended the LAST round can't immediately end the
+  // new one. Keyed on the wave so it re-arms every round, and only while the shop is up — in combat the button
+  // is the "end combat" control and gating it would strand the player.
+  const [roundSettled, setRoundSettled] = useState(false);
+  useEffect(() => {
+    if (inCombat) { setRoundSettled(true); return; }
+    setRoundSettled(false);
+    const t = window.setTimeout(() => setRoundSettled(true), END_TURN_LOCK_MS);
+    return () => window.clearTimeout(t);
+  }, [run.wave, inCombat]);
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
   // End-Combat crossfade: 'out' fades every combat unit + FX canvas away together, then the phase swaps and
@@ -3757,7 +3772,7 @@ export function Recruit() {
         combatReady={inCombat && replay.done && (replay.result !== 'lose' || lossPhase === 'done')}
         disabled={inCombat
           ? !(replay.done && (replay.result !== 'lose' || lossPhase === 'done'))
-          : eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+          : eotAnimating || !!run.questOffer || !!run.runeforgeOffer || !roundSettled}
         pressed={inCombat || eotAnimating}
         urgent={timeUp && !inCombat}
       />

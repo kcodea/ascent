@@ -136,7 +136,18 @@ function grantShield(ctx: CombatContext, m: Minion): void {
 
 /** Whether a minion has a Battlecry at all (any `onPlay` effect) — Ryme targets ANY Battlecry neighbour,
  *  including economy ones (Discover, gain-Gold…) which simply no-op in combat (nothing to do there). */
-const hasBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onPlay');
+/** `onPlay` effects that are INTERNAL setup, not a printed **Shout** the player can see.
+ *
+ *  Living Grimoire arms its own charge on play; its text is "the first spell you cast each turn casts twice",
+ *  with no Shout keyword. Because the arming rides an `onPlay`, playing it fired `battlecryTriggered` and
+ *  procced Karwind (owner report 2026-07-27). A Shout payoff should only see Shouts the card actually has.
+ *
+ *  Grimoire is currently the only one — a sweep of every `onPlay` card found no other whose text lacks a
+ *  printed Shout/Battlecry keyword. Add to this set (don't special-case at a call site) if another appears. */
+export const SILENT_ONPLAY: ReadonlySet<string> = new Set(['battlecryArmGrimoire']);
+
+const hasBattlecry = (m: Minion): boolean =>
+  m.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do));
 
 /** Drakko the Drummer's doubling for Ryme's re-fired Battlecries (combat mirror of recruit's `bestCopyRepeats`):
  *  count living Drakkos on `side`, golden → +2 else any → +1 (best single copy, NO stacking). Total = 1 + that,
@@ -1953,6 +1964,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       for (const m of ctx.living(self.side)) {
         if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
       }
+      // PERMANENT, like every other Lantern cast (owner 2026-07-27: "all lantern casts should be permanent
+      // stats; Watcher uses the right utility"). `addTribeAura` above only lasts the fight, so Anubis's
+      // Deathrattle Lantern evaporated at settle while the Watcher's Rally cast persisted — the same spell
+      // behaving differently depending on which card cast it. `grantUndeadAura` is the run-wide Lantern
+      // channel that carries back.
+      if (tribe === 'undead') ctx.grantUndeadAura(a, h, self.side);
     }
   },
 

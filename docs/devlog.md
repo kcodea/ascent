@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-07-29 — First self-play harvest: quest values land, the value model does not
+
+**6,000 self-play runs → 69,458 labeled rows** (61,020 end-of-turn states, 8,313 quest picks, 125 rune picks),
+played against the real player-board pool with quest/rune picks force-randomized in half the runs.
+
+**The quest table works.** 76 quests cleared the n≥20-each-side bar, with a real spread in measured
+wins-after (picked minus offered-and-passed):
+
+| best | | worst | |
+|---|---|---|---|
+| q_teleport_summit | +0.73 | q_apex_hunt | −0.48 |
+| q_feed_the_alpha | +0.59 | q_the_runeforge | −0.46 |
+| q_perfect_machine | +0.54 | q_empty_graves | −0.40 |
+| q_impossible_shop | +0.50 | | |
+
+This is the thing an immediate evaluator structurally cannot see, and it is only measurable because the
+rollouts FORCE picks the bot would never take. Wired as a search bonus on `buyQuest`; measured neutral-to-
+slightly-positive on its own (4.80 → 4.90 at 20 seeds), and it makes quest choice principled rather than
+arbitrary.
+
+**The value model does not, and it was actively harmful.** Ridge on wave-relative features → winsAfter
+reaches only held-out r=0.288 (split by run). At weight 18 it cost **4.63 → 3.40 wins**. A weak predictor used
+as a search TARGET is worse than no predictor, because search maximizes it — the same failure mode as the
+noisy fight panel earlier today. Weight set to 0, term left computed so `bot:tune` can re-test a better fit.
+
+Why it is weak is not mysterious: the features carry no card identity, so the model cannot tell a board with
+an engine from one with the same stat-line and no engine. That is the next thing to fix, alongside more
+rollouts (rune picks got only 125 samples — the Runeforge is one turn, so it needs far more runs or a
+targeted forced-explore mode).
+
+**Current standing, 40 seeds vs real player boards:** legacy 3.33 · easy 3.83 · normal 4.58 · hard 4.70 ·
+expert 4.70 (±0.29). Session start was 3.65. Still 0 course survivals; par is 9.
+
+**Verified.** typecheck, lint (0 errors), 2951 tests / 154 files, build:web, harness ✓.
+
 ## 2026-07-29 — Turnabout obeys the aura rule, and the aura helper now sees TRIBE auras
 
 Follow-up to the entry below, from the owner's second worked example: an Undead 5/3 carrying +200 Attack reads

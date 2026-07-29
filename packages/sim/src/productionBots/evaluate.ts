@@ -74,9 +74,13 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     tierDensity: 0,
     tribeFocus: 0,
     pairsHeld: 0,
-    // The learned run-state value. Inert (the term reads 0) until `bot:learn` has fit rollout data; weight
-    // chosen by `bot:tune` once real data exists rather than by hand — hand-picking is the failed method here.
-    futureWins: 18,
+    // ZERO, MEASURED. The learned run-state value was fit on 61,020 end-of-turn states from 6,000 self-play
+    // runs and reaches only held-out r=0.288 — and at weight 18 it cost the bot 4.63 -> 3.40 wins against real
+    // player boards. A weak predictor used as a search target is worse than no predictor, because search
+    // maximizes it. The quest table from the SAME rollouts is kept and does help; the value model needs a
+    // better fit (more rollouts, card identity in the features) before it earns weight. Left computed so
+    // `bot:tune` can re-test it the moment a new fit lands.
+    futureWins: 0,
     boardPower: 8,
     economy: 12,
     tierProgress: 9,

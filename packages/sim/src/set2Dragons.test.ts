@@ -25,8 +25,10 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     const set2Dragons = Object.values(CARD_INDEX).filter((c) => c.id.startsWith('d2_'));
     expect(set2Dragons.length).toBeGreaterThan(0);
     expect(set2Dragons.every((c) => c.tribe === 'dragon')).toBe(true);
-    // Sanity: every authored Dragon is a real, buyable (non-token) minion.
-    expect(set2Dragons.every((c) => !c.token && !c.spell)).toBe(true);
+    // Sanity: every authored Dragon is a real minion, not a spell. Tokens are allowed since 2026-07-27 —
+    // Blazing Keeper hands out a Brood Whelp, which is a Dragon you play but can't buy.
+    expect(set2Dragons.every((c) => !c.spell)).toBe(true);
+    expect(set2Dragons.filter((c) => c.token).map((c) => c.id), 'the only Dragon token').toEqual(['d2_broodwhelp']);
     expect(run).toBeTruthy();
   });
 
@@ -37,17 +39,6 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
 });
 
 describe('set 2 — Dragon effects', () => {
-  it('Embermouth Whelp: Shout buffs ANOTHER friendly Dragon, never itself', () => {
-    const other = minion('d1', 'd2_chronicler', 'dragon', 3, 5);
-    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 20, board: [other], hand: [minion('w1', 'd2_embermouth')] };
-    const next = reduce(s, { type: 'play', uid: 'w1' });
-    const buffed = next.board.find((c) => c.uid === 'd1')!;
-    expect([buffed.attack - 3, buffed.health - 5]).toEqual([2, 1]);
-    // the Whelp itself is untouched by its own Shout
-    const self = next.board.find((c) => c.uid === 'w1')!;
-    expect([self.attack, self.health]).toEqual([2, 2]);
-  });
-
   it('Recaller: Shout copies the LAST spell cast this turn (and no-ops before any cast)', () => {
     const dry: RunState = { ...createRun(1), phase: 'recruit', embers: 20, board: [], hand: [minion('r1', 'd2_recaller', 'dragon', 5, 4)] };
     const afterDry = reduce(dry, { type: 'play', uid: 'r1' });
@@ -574,45 +565,6 @@ describe('set 2 — Ashen Broodlord (owner change 2026-07-25)', () => {
  * surfaced that. Assertions read the `sc` log line, which names the minion whose Shout was re-fired, so they
  * work for any Shout rather than only ones with a combat-visible effect.
  */
-describe('set 2 — Chorus Drake', () => {
-  const bm = (cardId: string, uid: string, attack = 2, health = 20): BoardMinion =>
-    ({ cardId, attack, health, sourceUid: uid, keywords: [] as BoardMinion['keywords'] });
-  const fight = (player: BoardMinion[], seed = 5) =>
-    simulate(player, [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(seed), CARD_INDEX,
-      combatSide({ tier: 3, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-  const triggered = (r: ReturnType<typeof fight>): string[] =>
-    (r.events.filter((e) => e.type === 'sc') as { text: string }[])
-      .filter((e) => /triggers .*Battlecry/.test(e.text)).map((e) => e.text);
-
-  it("Rally re-fires the left-most Dragon's Shout", () => {
-    const r = fight([bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)]);
-    expect(triggered(r).some((t) => /Embermouth Whelp/.test(t)), "the Whelp Shout fired").toBe(true);
-  });
-
-  it('skips a Dragon that has no Shout rather than blanking', () => {
-    // Voicekeeper is a Dragon with no onPlay. Parked on the LEFT, a strict "left-most Dragon" reading would
-    // find it, see no Shout, and do nothing — which would make the Drake dead weight behind a common body.
-    const voicekeeper = CARD_INDEX['d2_voicekeeper']!;
-    expect(voicekeeper.effects.some((e) => e.on === 'onPlay'), 'fixture: Voicekeeper has no Shout').toBe(false);
-    const r = fight([bm('d2_voicekeeper', 'V', 2, 40), bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)]);
-    expect(triggered(r).some((t) => /Embermouth Whelp/.test(t)), 'it reached past the Shout-less Dragon').toBe(true);
-  });
-
-  it('golden re-fires it twice per attack', () => {
-    const plain = triggered(fight([bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)])).length;
-    const r = simulate(
-      [{ ...bm('d2_chorus', 'C', 3, 40), golden: true } as BoardMinion, bm('d2_embermouth', 'E', 2, 40)],
-      [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(5), CARD_INDEX,
-      combatSide({ tier: 3, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    expect(triggered(r).length).toBe(plain * 2);
-  });
-
-  it('its printed text no longer excludes itself (owner change 2026-07-25)', () => {
-    const c = CARD_INDEX['d2_chorus']!;
-    expect(c.text).not.toMatch(/other/i);
-    expect(c.goldenText).not.toMatch(/other/i);
-  });
-});
 
 describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
   const bm2 = (cardId: string, uid: string, attack = 2, health = 20): BoardMinion =>
@@ -677,5 +629,40 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     expect(r.events.some((e) => e.type === 'shieldUp'), 'Ward still lands').toBe(true);
     const firstAttacker = (r.events.find((e) => e.type === 'attack') as { attacker: string } | undefined)?.attacker;
     expect(firstAttacker, 'turn order opens the fight, not a Start-of-Combat swing').toBe('m0');
+  });
+});
+
+describe('set 2 — Dragon reworks (owner batch 2026-07-27)', () => {
+  it('Blazing Keeper hands you a Brood Whelp, and the Whelp has a Shout of its own', () => {
+    const s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 60, board: [],
+      hand: [minion('bk', 'd2_blazingkeeper', 'dragon', 5, 3)] };
+    const after = reduce(s, { type: 'play', uid: 'bk' });
+    expect(after.hand.map((c) => c.cardId)).toContain('d2_broodwhelp');
+    const whelp = CARD_INDEX['d2_broodwhelp']!;
+    expect([whelp.tier, whelp.attack, whelp.health]).toEqual([1, 3, 1]);
+    expect(whelp.effects.some((e) => e.on === 'onPlay'), 'it carries its own Shout').toBe(true);
+  });
+
+  it('Thunderous Sovereign improves per spell, and NOT retroactively', () => {
+    // The accrual is per-instance, so a Sovereign bought after the casts inherits nothing — the same rule
+    // Ashscribe and Spellkeeper follow.
+    let s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 90,
+      board: [minion('ts', 'd2_sovereign', 'dragon', 8, 8)],
+      hand: [spellInHand('a', 'emberpouch'), spellInHand('b', 'emberpouch')] };
+    expect(s.board[0]!.summonBonus ?? 0).toBe(0);
+    s = reduce(s, { type: 'play', uid: 'a' });
+    s = reduce(s, { type: 'play', uid: 'b' });
+    expect(s.board.find((c) => c.uid === 'ts')!.summonBonus, 'two casts, two improvements').toBe(2);
+  });
+
+  it('Embermouth Whelp grows off a Shout you trigger in the SHOP', () => {
+    // Most Shouts fire in the shop, so the recruit half is the one that matters — the combat-only version
+    // would have made the card look dead in the phase you actually play it.
+    let s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 60,
+      board: [minion('e', 'd2_embermouth', 'dragon', 2, 2)],
+      hand: [minion('sh', 'd2_chronicler', 'dragon', 3, 5)] };
+    s = reduce(s, { type: 'play', uid: 'sh' });
+    const e = s.board.find((c) => c.uid === 'e')!;
+    expect([e.attack, e.health], 'a triggered Shout grew it').toEqual([3, 3]);
   });
 });

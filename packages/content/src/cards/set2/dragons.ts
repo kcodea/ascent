@@ -26,8 +26,8 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffOtherTribe', params: { tribe: 'dragon', attack: 2, health: 1 } }],
-    text: '**Shout:** give another friendly Dragon **+2/+1**.',
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 1, health: 1 } }],
+    text: 'After you trigger a **Shout**, gain **+1/+1**.',
     goldenText: '**Shout:** give another friendly Dragon **+4/+2**.',
   },
   {
@@ -67,9 +67,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 3,
     health: 4,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyTriggerLeftmostTribeShout', params: { tribe: 'dragon' } }],
-    text: '**Rally:** trigger your left-most Dragon’s **Shout**.',
-    goldenText: '**Rally:** trigger your left-most Dragon’s **Shout** twice.',
+    effects: [{ on: 'onAttack', do: 'rallyGrantSpellPower', params: { attack: 0, health: 1 } }],
+    text: '**Rally:** your **Shop Spells** gain **+1 Health**.',
+    goldenText: '**Rally:** your **Shop Spells** gain **+2 Health**.',
   },
   {
     // A rechargeable spell amplifier: it doubles your opening spell, then goes quiet until you trigger 3
@@ -98,9 +98,16 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 8,
     health: 8,
     keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }],
-    text: '**Start of Combat:** trigger your Dragons’ **Shouts**.',
-    goldenText: '**Start of Combat:** trigger your Dragons’ **Shouts** twice.',
+    // The improvement is PER-INSTANCE and non-retroactive: it counts only spells cast while THIS body has
+    // been on the board (`onSpellCastImproveSummon` ticks `summonBonus`), so a Sovereign bought late doesn't
+    // inherit the turn's history. `scBeastAura` spends that accrual as the Start-of-Combat grant — the same
+    // pairing Kennelmaster uses, tribe-swapped to Dragons.
+    effects: [
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'dragon', attack: 1, health: 1, stepAttack: 1, stepHealth: 1 } },
+      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
+    ],
+    text: '**Start of Combat:** give your Dragons **+1/+1**. Improves with every spell you cast.',
+    goldenText: '**Start of Combat:** give your Dragons **+2/+2**. Improves with every spell you cast.',
   },
   {
     // The combat spell-supply piece: dying allies feed you copies of your best held spell. Reads the hand
@@ -294,9 +301,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 5,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantShoutDragon', params: { count: 1 } }],
-    text: '**Shout:** get a random **Shout** Dragon.',
-    goldenText: '**Shout:** get **2** random **Shout** Dragons.',
+    effects: [{ on: 'onPlay', do: 'battlecryGrantMinion', params: { cardId: 'd2_broodwhelp', count: 1 } }],
+    text: '**Shout:** get a **Brood Whelp**.',
+    goldenText: '**Shout:** get **2 Brood Whelps**.',
   },
   {
     // Set 1's Karwind pays on Battlecries; the Matriarch is the Attack-only Dragon version, so the tribe has a

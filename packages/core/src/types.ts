@@ -205,6 +205,8 @@ export type EffectFactoryId =
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Hungerling: Rally buffs Shop minions permanently
   | 'spellCastBuffImps' // Set 2 — Cinder Chancellor: a Shop spell buffs your Imps everywhere
+  | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
+  | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
   | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
   | 'battlecryPlayRubiesAll' // Set 2 — Frenzied Excavator: play a Ruby on every friendly minion
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack

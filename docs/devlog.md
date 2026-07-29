@@ -2,6 +2,28 @@
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### 2026-07-27 — content: card batch part 4 — the Dragon reworks + set membership
+
+**Blazing Keeper** hands you a **Brood Whelp** (new T1 Dragon 3/1, "Shout: give a friendly Dragon +5 Attack")
+instead of a random Shout Dragon. **Thunderous Sovereign** trades its Shout-trigger for a Start-of-Combat
++1/+1 to your Dragons that improves with every spell you cast — per-instance and non-retroactive, so a
+Sovereign bought late inherits none of the turn's history. It reuses Kennelmaster's exact pairing
+(`scBeastAura` spending an `onSpellCastImproveSummon` accrual), tribe-swapped. **Embermouth Whelp** now grows
++1/+1 off every Shout you trigger, and **Chorus Drake**'s Rally raises Shop-spell power.
+
+**Taurus left set 2; Imp Overseer joined it** — one set-1 Demon opted in for set 2's Imp line.
+
+**Two seams worth noting.** Embermouth needed BOTH halves: most Shouts fire in the shop, so a combat-only
+factory would have left the card looking dead in the phase you actually play it — the same recruit/combat seam
+that has caught Karwind and Scalechanter. And Chorus Drake's "Shop Spells gain +1 Health" needed no new
+plumbing at all: spell power already carries back out of combat on its own.
+
+**A test caught a real modelling slip.** The Dragon roster test asserts every `d2_*` card is a non-token
+minion — which my Brood Whelp broke, since it's a Dragon you're given rather than one you can buy. The
+assertion was right to fire; it now allows tokens explicitly and pins that Brood Whelp is the only one.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1783 tests.
+
 ### 2026-07-27 — content: card batch part 3 — the Demon consume line, and a new combat→run channel
 
 **Grand Gourmand** now eats the HIGHEST-HEALTH Shop minion (was: take the right-most's stats without eating).

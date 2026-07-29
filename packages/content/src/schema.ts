@@ -125,6 +125,8 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnSelfAndNeighboursConsume',
   'rallyBuffShopPermanent',
   'spellCastBuffImps',
+  'rallyGrantSpellPower',
+  'onBattlecryBuffSelf',
   'battlecryGetRubies',
   'battlecryPlayRubiesAll',
   'spellCastBuffAll',

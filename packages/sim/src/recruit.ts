@@ -972,6 +972,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Set 2 — Embermouth Whelp (recruit half): each Shout you trigger grows this body. Most Shouts fire in the
+   *  SHOP, so without this half the card would only grow off combat re-fires — the same recruit/combat seam
+   *  that has bitten Karwind and Scalechanter. */
+  onBattlecryBuffSelf: (ctx, self, params) => {
+    addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+  },
+
   /** Set 2 — Grand Gourmand (End of Turn): Consume the HIGHEST-HEALTH minion in the Shop (× golden).
    *  Health, not stats, so it reliably eats the fat body a player was saving rather than the biggest threat. */
   endOfTurnConsumeHighestHealthShop: (ctx, self, params) => {

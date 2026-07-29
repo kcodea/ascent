@@ -940,6 +940,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Rally (Perfect Core): when THIS minion attacks, add a random spell to your hand after combat (golden → 2). */
+  /** Set 2 — Chorus Drake (Rally): raise the run's SHOP-SPELL power. Spell power is the channel that makes
+   *  every future Shop spell bigger, and it carries back out of combat on its own — so "your Shop Spells gain
+   *  +1 Health" needs no new plumbing, just the existing grant. Rubies don't read spell power, which is why
+   *  the card says Shop Spells. */
+  rallyGrantSpellPower: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    ctx.grantSpellPower(num(params.attack, 0) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
+  },
+
+  /** Set 2 — Embermouth Whelp: every Shout you trigger grows THIS body (× golden). Permanent-by-nature — it's
+   *  a recruit-phase buff on the card itself, so it simply persists like any other stat gain. */
+  onBattlecryBuffSelf: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
   rallyGrantSpell: (ctx, self, _params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
     const pool = ctx.poolCards(self.side).filter((c) => c.spell && !c.token);

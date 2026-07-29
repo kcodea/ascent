@@ -109,6 +109,7 @@ export function simulate(
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
+  const magneticBuffGain = { attack: 0, health: 0 }; // permanent Attachment enchant from this combat (Chorus Engine)
   const fodderBuffGain = { attack: 0, health: 0 }; // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
@@ -703,6 +704,14 @@ export function simulate(
         // in combat because this granted the buff silently).
         if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'imp' });
       }
+    },
+    grantMagneticBuff: (attack, health, side) => {
+      if (side !== 'player') return; // enemies have no run state to carry an Attachment aura back into
+      magneticBuffGain.attack += attack;
+      magneticBuffGain.health += health;
+      // Attachments are Mechs — the same board-wash the Mech aura channel plays in the shop, so the grant is
+      // visible in combat instead of landing silently (the Imp-aura lesson, owner report 2026-07-21).
+      if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'mech', attack, health, aura: 'magnetic' });
     },
     impAura: (side) => ({ ...impAura[side] }), // Chef Raag reads the live Imp Aura to buff your minions by it
     grantFodderBuff: (attack, health, side) => {
@@ -2161,6 +2170,7 @@ export function simulate(
     playerSlaughterCopy: slaughterCopyId,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
+    playerMagneticBuffGain: magneticBuffGain.attack > 0 || magneticBuffGain.health > 0 ? magneticBuffGain : undefined,
     playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text

@@ -2127,6 +2127,18 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.impBuff.attack += result.playerImpBuffGain.attack;
     s.impBuff.health += result.playerImpBuffGain.health;
   }
+  // Chorus Engine's Rally: its Attachment enchant is permanent and reaches them "wherever they are" — the
+  // same contract Scrap Herald's Battlecry already has, so it is applied the same way rather than through a
+  // second, subtly different path. Combat could only touch the UNWELDED Attachments still on the field; this
+  // catches the welded hosts, the ones sitting in hand, and every future copy via the aura.
+  if (result.playerMagneticBuffGain) {
+    const { attack, health } = result.playerMagneticBuffGain;
+    for (const card of [...s.board, ...s.hand]) {
+      if (card.keywords.includes('M')) addBuff(card, 'Chorus Engine', attack, health);
+    }
+    s.magneticBuyAtk = (s.magneticBuyAtk ?? 0) + attack;
+    s.magneticBuyHp = (s.magneticBuyHp ?? 0) + health;
+  }
   // Bane (combat, via Ryme's battlecry replays): its run-wide Fodder enchant is permanent — apply it the
   // same way the recruit-phase Bane does, so every Fodder (board, hand, future copies) keeps the gain.
   if (result.playerFodderBuffGain) {

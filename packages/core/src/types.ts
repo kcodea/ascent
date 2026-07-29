@@ -1546,6 +1546,10 @@ export interface CombatResult {
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
+  /** Chorus Engine's Rally: the permanent ATTACHMENT enchant earned this combat. Applied at settle exactly like
+   *  Scrap Herald — every Magnetic on board/in hand gains it and `magneticBuyAtk/Hp` stacks, so it reaches
+   *  welded, held and future Attachments ("wherever they are"). Absent = none. */
+  playerMagneticBuffGain?: { attack: number; health: number };
   /** Permanent run-wide Fodder enchant gained this combat (Bane reacting to Ryme's battlecry replays) —
    *  applied via `buffFodderRunWide` so every Fodder (board, hand, future copies) inherits it, mirroring the
    *  recruit-phase Bane. Absent if 0/0. */
@@ -1702,6 +1706,10 @@ export interface CombatContext {
   /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
    *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
   grantImpBuff(attack: number, health: number, side: Side): void;
+  /** Chorus Engine — raise the run's ATTACHMENT (Magnetic) enchant from combat. The recruit twin is Scrap
+   *  Herald's `battlecryBuffMagnetics`: buff every Magnetic on board + in hand, and stack the aura so future
+   *  Attachments inherit it. Only the player carries back (the enemy is regenerated each wave). */
+  grantMagneticBuff(attack: number, health: number, side: Side): void;
   /** The side's LIVE Imp Aura this fight (seeded from run state, advanced by in-combat Imp buffs). Chef Raag
    *  reads it to give your minions stats equal to it. */
   impAura(side: Side): { attack: number; health: number };

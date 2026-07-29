@@ -1005,6 +1005,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 2) * mul(self) * reps;
     const h = num(params.health, 2) * mul(self) * reps;
     for (const m of ctx.living(self.side)) if (m !== self && m.keywords.includes('M')) ctx.buff(m, a, h, self.uid);
+    // …and the enchant is PERMANENT, "wherever they are" (owner 2026-07-29). Combat only ever reaches the
+    // UNWELDED Attachments still on the field; the carry-back applies the same grant at settle to every
+    // Magnetic on the board and in hand and stacks `magneticBuyAtk/Hp`, so welded, held and future
+    // Attachments all inherit it — the same contract Scrap Herald's recruit half already has.
+    ctx.grantMagneticBuff(a, h, self.side);
   },
 
   /** Slaughter (Chorus Engine): when THIS minion kills, add a random Magnetic ("Attachment") minion to your hand

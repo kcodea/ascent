@@ -18,6 +18,8 @@ const LABELS: Record<keyof TrailConfig, string> = {
   goldAlpha: 'gold alpha',
   blueAlpha: 'blue alpha',
   sparkChance: 'aura sparks',
+  count: 'aura wisps per emit',
+  width: 'aura band width px',
 };
 
 export function TrailTuner() {

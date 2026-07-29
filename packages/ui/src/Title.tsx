@@ -104,7 +104,20 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <h1 className="disp titleword">ASCENT</h1>
         </div>
 
-        <nav className="titlenav">
+        {/* DOWN-STROKE CUE. Hover already ticks (the delegated `pointerover` listener in Game.tsx) and
+            activation plays `pulse`, but the PRESS itself — the actual tactile moment — was silent. One
+            delegated pointerdown gives every plaque in the column its "thock" on the way down, so the sound
+            lands with the compression rather than after the release. Delegated rather than six identical
+            props so a new menu item can't forget it. */}
+        <nav
+          className="titlenav"
+          onPointerDown={(e) => {
+            if (e.pointerType === 'touch') return;                          // the cue belongs to the click, not a tap
+            const btn = (e.target as Element | null)?.closest?.('.menubtn, .clearrun') as HTMLButtonElement | null;
+            if (!btn || btn.disabled || btn.classList.contains('disabled')) return;
+            sfx.clickThock();
+          }}
+        >
           {savedRun && (
             <div className="continuerow">
               <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} title="Resume your run in progress">

@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-28T00:00:00.000Z",
+  "title": "Design System: ASCENT",
+  "extensions": {
+    "colorMeta": {
+      "tangerine-signal": {
+        "role": "primary",
+        "displayName": "Tangerine Signal",
+        "canonical": "#f0902e",
+        "tonalRamp": ["#3a1d05", "#5c2f08", "#84450d", "#ad5c13", "#d4761c", "#f0902e", "#f6b06a", "#fcd9b4"]
+      },
+      "struck-gold": {
+        "role": "primary",
+        "displayName": "Struck Gold",
+        "canonical": "#c8922e",
+        "tonalRamp": ["#2e2007", "#4a340c", "#6b4b12", "#8e6519", "#b07e23", "#c8922e", "#e0b263", "#f2ddb0"]
+      },
+      "ember-rose": {
+        "role": "secondary",
+        "displayName": "Ember Rose",
+        "canonical": "#e5446b",
+        "tonalRamp": ["#3b0a17", "#5c1024", "#821833", "#a82143", "#cb2f57", "#e5446b", "#ef7f9a", "#f9c4d1"]
+      },
+      "gold-coin": {
+        "role": "secondary",
+        "displayName": "Gold Coin",
+        "canonical": "#f4be35",
+        "tonalRamp": ["#3a2c04", "#5a4408", "#7f610e", "#a58015", "#cca01f", "#f4be35", "#f8d475", "#fdeebd"]
+      },
+      "vellum": {
+        "role": "neutral",
+        "displayName": "Vellum",
+        "canonical": "#fffdf8",
+        "tonalRamp": ["#2a2620", "#453f35", "#63594a", "#847861", "#a89b81", "#cdc2a9", "#eae2d2", "#fffdf8"]
+      },
+      "parchment": {
+        "role": "neutral",
+        "displayName": "Parchment",
+        "canonical": "#efe5d4",
+        "tonalRamp": ["#282318", "#403927", "#5c5238", "#7b6e4c", "#9c8e66", "#bfb28d", "#d9cfb6", "#efe5d4"]
+      },
+      "board-stone": {
+        "role": "neutral",
+        "displayName": "Board Stone",
+        "canonical": "#8c857a",
+        "tonalRamp": ["#211f1c", "#37342f", "#4e4a43", "#666158", "#7f796e", "#8c857a", "#b0aaa1", "#d6d2cb"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#2a2017",
+        "tonalRamp": ["#120d09", "#1d1610", "#2a2017", "#43331f", "#6c5d48", "#9c8b71", "#c4b69e", "#e7dcc7"]
+      },
+      "execute-red": {
+        "role": "tertiary",
+        "displayName": "Execute Red",
+        "canonical": "#e8283f",
+        "tonalRamp": ["#3d060e", "#5f0a17", "#861021", "#ac162c", "#cc1e37", "#e8283f", "#f26e7f", "#fac0c8"]
+      },
+      "tier-7": {
+        "role": "tertiary",
+        "displayName": "Rift Purple",
+        "canonical": "#9b4dff",
+        "tonalRamp": ["#210a44", "#341169", "#4a1a93", "#6224bd", "#7d36e0", "#9b4dff", "#bd8bff", "#e0ccff"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The ASCENT wordmark on the title screen only." },
+      "headline": { "displayName": "Headline", "purpose": "Title-menu button labels; the widest tracking in the system." },
+      "title": { "displayName": "Title", "purpose": "HUD values and framed readouts inside gold plaques." },
+      "body": { "displayName": "Body", "purpose": "Card rules text. The only place Nunito Sans appears." },
+      "label": { "displayName": "Label", "purpose": "Small uppercase chrome labels in Ink Faint." },
+      "numeral": { "displayName": "Numeral", "purpose": "The attack and health badges, fixed at every card size." }
+    },
+    "shadows": [
+      { "name": "thickness", "value": "0 3px 0 var(--shadow)", "purpose": "The resting hard edge under a card or big button — the object's visible side." },
+      { "name": "thickness-accented", "value": "0 4px 0 var(--acc-dk)", "purpose": "The same edge for a colored CTA, in its own darkened hue. Removed on :disabled." },
+      { "name": "plaque-lift", "value": "inset 0 1px 0 rgba(255,255,255,0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow)", "purpose": "The standard gold-rimmed HUD surface: lit top edge plus a tight warm shadow." },
+      { "name": "panel-float", "value": "0 24px 70px -20px rgba(0,0,0,0.7)", "purpose": "Full-screen overlays only, where the panel genuinely leaves the board." },
+      { "name": "frame-ground", "value": "drop-shadow(0 4px 6px rgba(0,0,0,0.45))", "purpose": "Grounds an authored-frame card to its own silhouette instead of a rectangle." },
+      { "name": "card-ring", "value": "0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent)", "purpose": "Every card: tribe-hue ring, thickness edge, and a soft bloom of the same hue." }
+    ],
+    "motion": [
+      { "name": "press", "value": "0.1s ease", "purpose": "Button hover/press. transform and filter only." },
+      { "name": "card-settle", "value": "0.12s ease", "purpose": "Card transform and border-color at rest." },
+      { "name": "hand-fan", "value": "0.14s cubic-bezier(0.2, 0.85, 0.35, 1)", "purpose": "Hand card tuck, fan, and hover rise." },
+      { "name": "drag-make-room", "value": "0.36s cubic-bezier(0.12, 0.82, 0.12, 1)", "purpose": "Shop and warband cards sliding aside during a drag (CSS transform, not GSAP Flip)." },
+      { "name": "pop-overshoot", "value": "cubic-bezier(0.34, 1.56, 0.64, 1)", "purpose": "The system's overshoot curve — summon pop, quest bounce, banner pop, ascend." },
+      { "name": "snap", "value": "0.1s cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "A dragged card snapping to its slot." }
+    ],
+    "breakpoints": [
+      { "name": "stage", "value": "16:9 locked — layout never reflows, only scales via --scale" },
+      { "name": "r1920", "value": "1920x1080 resolution cap (Esc menu)" },
+      { "name": "r2560", "value": "2560x1440 resolution cap (Esc menu)" },
+      { "name": "r3440", "value": "3440x1440 resolution cap (Esc menu, true 43/18 ratio)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Shop Button",
+      "kind": "button",
+      "refersTo": "button-shop",
+      "description": "The primary chrome control — lit gold metal with a pressable edge. Used for buy, refresh, freeze, and tavern-up.",
+      "html": "<button class=\"ds-btn-shop\">REFRESH <span class=\"ds-cost\">1</span></button>",
+      "css": ".ds-btn-shop { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 50px; padding: 0 18px; background: linear-gradient(180deg, #f5e8cb 0%, #e4c992 100%); border: 2px solid #c8922e; border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 3px 8px -3px rgba(90,66,30,0.16); font-family: Outfit, sans-serif; font-weight: 800; font-size: 18px; color: #5a3d12; cursor: pointer; transition: transform 0.1s ease, filter 0.1s ease; } .ds-btn-shop .ds-cost { color: #a8780f; font-weight: 800; } .ds-btn-shop:hover { filter: brightness(1.05); transform: translateY(-1px); } .ds-btn-shop:active { transform: translateY(1px); } .ds-btn-shop:focus-visible { outline: 2px solid #f0902e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Go Button",
+      "kind": "button",
+      "refersTo": "button-go",
+      "description": "The single call-to-action: solid Tangerine with a hard bottom edge that vanishes when disabled.",
+      "html": "<button class=\"ds-btn-go\">FACE THE OMEN</button>",
+      "css": ".ds-btn-go { background: #f0902e; color: #fff; border: 2px solid #c46f17; border-radius: 9px; box-shadow: 0 4px 0 #c46f17; padding: 7px 20px; font-family: Outfit, sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform 0.1s ease, filter 0.1s ease; } .ds-btn-go:hover { filter: brightness(1.06); } .ds-btn-go:active { transform: translateY(3px); box-shadow: 0 1px 0 #c46f17; } .ds-btn-go:focus-visible { outline: 2px solid #2a2017; outline-offset: 3px; } .ds-btn-go:disabled { box-shadow: none; filter: grayscale(0.4) brightness(0.9); cursor: default; }"
+    },
+    {
+      "name": "Title Menu Button",
+      "kind": "nav",
+      "refersTo": "button-menu",
+      "description": "The ceremonial navigation item — night-navy fill, thin gold rim, framed icon cell, wide uppercase label. Slides right on hover.",
+      "html": "<button class=\"ds-menubtn ds-menubtn-active\"><span class=\"ds-mbicon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polygon points=\"5 3 19 12 5 21 5 3\"/></svg></span><span class=\"ds-mblabel\">PLAY</span></button>",
+      "css": ".ds-menubtn { display: flex; align-items: center; gap: 16px; width: 320px; padding: 15px 22px; border-radius: 9px; border: 1.5px solid rgba(196,160,92,0.6); background: linear-gradient(180deg, rgba(24,36,58,0.92), rgba(13,22,39,0.94)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), inset 0 0 0 1px rgba(0,0,0,0.35), 0 6px 18px -8px rgba(0,0,0,0.6); color: #e7d9b5; cursor: pointer; transition: transform 0.14s ease, filter 0.14s ease, border-color 0.14s ease; } .ds-menubtn .ds-mbicon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; color: #d9b86a; } .ds-menubtn .ds-mbicon svg { width: 26px; height: 26px; } .ds-mblabel { font-family: Outfit, sans-serif; font-weight: 800; font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; } .ds-menubtn:hover { transform: translateX(6px); border-color: rgba(230,200,130,0.95); filter: brightness(1.08); } .ds-menubtn:focus-visible { outline: 2px solid #e6b45a; outline-offset: 3px; } .ds-menubtn-active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150,200,245,0.9); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 0 0 1px rgba(120,175,255,0.35), 0 8px 22px -8px rgba(40,100,180,0.7); } .ds-menubtn-active .ds-mbicon { color: #fff; }"
+    },
+    {
+      "name": "Minion Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The board's core object: tribe-tinted vellum face, a 4px tribe ring, a portrait window, a rules drawer, and the fixed stat badges.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-cost\">3</span><span class=\"ds-tier\">TIER 2</span><div class=\"ds-art\"></div><div class=\"ds-desc\"><b>Shout:</b> Give a friendly Beast +2/+1.</div><span class=\"ds-atk\">4</span><span class=\"ds-hp\">3</span></div>",
+      "css": ".ds-card { --c: #4ea83b; position: relative; width: 200px; height: 266px; background: color-mix(in srgb, var(--c) 30%, #fffdf8); border-radius: 13px; border: 2px solid #e7dcc7; display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 rgba(90,66,30,0.16), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; } .ds-card:hover { filter: drop-shadow(0 0 30px rgba(255,255,255,0.6)); } .ds-art { flex: 0 0 60%; margin: 7px 7px 0; border-radius: 10px; background: color-mix(in srgb, var(--c) 18%, #fffdf8); border: 2px solid color-mix(in srgb, var(--c) 60%, #fffdf8); } .ds-desc { flex: 1; margin: 6px 7px 10px; padding: 6px 8px; background: #fffdf8; border-radius: 9px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 600; line-height: 1.34; color: #6c5d48; text-align: center; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.08); } .ds-desc b { color: #2a2017; font-weight: 700; } .ds-cost { position: absolute; top: -14px; left: -12px; width: 44px; height: 44px; z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: 3px solid #1b1d22; box-shadow: 0 3px 7px rgba(0,0,0,0.45), inset 0 2px 2px rgba(255,255,255,0.55), inset 0 -3px 4px rgba(120,80,10,0.4); font-family: Outfit, sans-serif; font-weight: 800; font-size: 22px; color: #3a2708; } .ds-tier { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: #2a2017; color: #fff; font-family: Outfit, sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; box-shadow: 0 2px 5px rgba(0,0,0,0.22); } .ds-atk, .ds-hp { position: absolute; bottom: -12px; z-index: 6; width: 48px; height: 48px; border-radius: 16px; border: 3px solid #fffdf8; font-family: Outfit, sans-serif; font-weight: 800; font-size: 26px; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.3); } .ds-atk { left: -10px; background: #f0a32a; } .ds-hp { right: -10px; background: #ff5a4f; }"
+    },
+    {
+      "name": "HUD Plaque",
+      "kind": "card",
+      "refersTo": "plaque",
+      "description": "The universal HUD container — vellum fill, gold rim, lit top edge. The hero panel, statstrip, and opponent frame are all this object at different widths.",
+      "html": "<div class=\"ds-plaque\"><span class=\"ds-lbl\">RECORD</span><span class=\"ds-val\">6–2</span></div>",
+      "css": ".ds-plaque { display: inline-flex; align-items: center; gap: 11px; background: #fffdf8; border: 2px solid #c8922e; border-radius: 13px; padding: 6px 15px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 3px 8px -3px rgba(90,66,30,0.16); } .ds-plaque .ds-lbl { font-family: Outfit, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; color: #9c8b71; text-transform: uppercase; } .ds-plaque .ds-val { font-family: Outfit, sans-serif; font-weight: 800; font-size: 18px; color: #c46f17; line-height: 1; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Tavern Tier Label",
+      "kind": "chip",
+      "refersTo": "tavernbox",
+      "description": "A non-interactive readout built on the button silhouette but in parchment with a rule-line border, so it reads as label-not-button.",
+      "html": "<span class=\"ds-tavernbox\">TAVERN TIER <b>3</b></span>",
+      "css": ".ds-tavernbox { display: inline-flex; align-items: center; gap: 6px; font-family: Outfit, sans-serif; font-weight: 800; font-size: 16px; height: 50px; padding: 0 18px; border-radius: 15px; background: #efe5d4; color: #6c5d48; border: 2px solid #e7dcc7; } .ds-tavernbox b { color: #f0902e; font-size: 21px; }"
+    },
+    {
+      "name": "Opponent Name Pill",
+      "kind": "chip",
+      "refersTo": "opponent-name-pill",
+      "description": "The threat channel's only chip — ember rose with a vellum border, mounted on the top edge of the opponent frame.",
+      "html": "<span class=\"ds-opp-name\">The Hollow Choir</span>",
+      "css": ".ds-opp-name { display: inline-block; max-width: 180px; padding: 2px 14px; background: #e5446b; color: #fff; border: 2px solid #fffdf8; border-radius: 999px; font-family: Outfit, sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.18); }"
+    },
+    {
+      "name": "Tooltip",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The system's one dark surface at small scale: ink fill, white label, generous radius, fading in on hover.",
+      "html": "<span class=\"ds-tip\">Costs 1 Gold to refresh</span>",
+      "css": ".ds-tip { display: inline-block; background: #2a2017; color: #fff; font-family: Outfit, sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.01em; padding: 6px 12px; border-radius: 10px; white-space: nowrap; box-shadow: 0 10px 24px -10px rgba(0,0,0,0.55); transition: opacity 0.14s; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Sunward Reliquary",
+    "overview": "ASCENT is warm sunlit metal and glass. Every meaningful object on screen is a precious thing under light — a gold-framed portrait, a jewel-cut cost gem, an energy shell around a warded minion, a plaque of struck gold holding a number. The board is not a canvas and not a document; it is a lit surface with objects resting on it, and the objects have thickness. Nothing important floats unmounted.\n\nThe system is warm, tactile, and ornate, and simultaneously legible under pressure. Those two are not in tension here: ornament is load-bearing. A frame's metal tells you what kind of card it is (gold oval = minion, purple square = spell, heater shield = Taunt); a badge's position never moves, so a veteran reads seven minions and their stats in one glance; a colored halo means a state, not decoration. Density is high by design — this is a board you scan, not a page you read — and the way it stays readable is that every element holds a fixed, framed, predictable seat.\n\nTwo looks are confirmed anti-references. Flat SaaS — cool greys, hairline borders, muted accents, neutral surfaces — is the opposite of this game and must never creep in through a new panel or dialog. Neon / cyberpunk / glassmorphism — dark-mode gradients, cold glow, frosted translucency as an aesthetic — is equally rejected. The warmth is the identity.",
+    "keyCharacteristics": [
+      "Warm vellum and parchment surfaces on a stone-grey board, trimmed in struck gold.",
+      "Every control has thickness: a hard bottom edge and a bevel, built to be pressed.",
+      "One tangerine call-to-action hue, used sparingly, against a field of gold and warm neutral.",
+      "A fixed 16:9 stage scaled by one unitless factor, so the layout never reflows — it only zooms.",
+      "Ornament as information: frame shape, badge position, and halo color all carry meaning."
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Tangerine Signal marks the next action and nothing else. If two things on a screen are tangerine, one of them is wrong. Gold is structure; tangerine is the verb.", "section": "colors" },
+      { "name": "The Meaning-Only Color Rule", "body": "A hue on this board must be answerable: tribe, tier, stat, cost, threat, or keyword. Decorative color has no seat. A new panel inherits vellum, gold, and ink — it does not get its own accent.", "section": "colors" },
+      { "name": "The Warm Shadow Rule", "body": "Every shadow uses --shadow (warm brown) or a warm black. A cool or neutral grey shadow reads instantly as foreign.", "section": "colors" },
+      { "name": "The Fixed-Badge Rule", "body": "The attack / health / tribe cluster is identical on every card and is never repositioned for a special frame. When a new frame shape arrives, the frame is sized around the badges — not the other way around.", "section": "typography" },
+      { "name": "The Uppercase-Is-Chrome Rule", "body": "Uppercase plus letter-spacing means 'this is interface furniture' (labels, tier badges, menu items). Card names, rules text, and player-facing prose are never uppercased.", "section": "typography" },
+      { "name": "The Live Number Rule", "body": "Card text always prints the value the card will produce right now — folded in by the cardText.ts helpers into both liveCardText and Unit.tsx. A base-only or stale printed number is a defect, not a typographic choice.", "section": "typography" },
+      { "name": "The One-Unit Rule", "body": "New chrome is authored in calc(N * var(--u)) for chrome and off --ch / --cw / --ccw for cards, so it scales with the board. A raw px value in the in-stage UI is a bug: it will not scale with the board.", "section": "layout" },
+      { "name": "The No-Reflow Rule", "body": "The layout has one shape. Screen size changes the scale, never the arrangement. Do not add a breakpoint that moves, stacks, or hides in-stage elements.", "section": "layout" },
+      { "name": "The Hard-Edge Rule", "body": "If it can be clicked or dragged, it gets a hard offset edge. Blur-only shadows read as 'floating panel', which is a different and rarer thing.", "section": "elevation" },
+      { "name": "The Silhouette Rule", "body": "Glow and shadow follow the visible shape, not the border box. On arched and framed cards this means filter: drop-shadow or a frame-silhouette copy — a box-shadow there traces the rectangle and shows as a boxy halo under the card.", "section": "elevation" },
+      { "name": "The Frame-Tells-The-Type Rule", "body": "Silhouette is a category signal — oval minion, square spell, heater Taunt, rift-purple Tier 7. Do not introduce a new frame shape without a new meaning behind it, and never reuse an existing shape for a different category.", "section": "shapes" },
+      { "name": "The Fallback-Shape Rule", "body": "Every authored-frame treatment must degrade to a plain arched card if its asset is missing. A card with no frame is acceptable; a card with no art window is not.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do author in-stage geometry as calc(N * var(--u)) for chrome and off --ch / --cw / --ccw for cards, so it scales with the board.",
+      "Do give anything clickable or draggable a hard offset edge (0 3px 0 var(--shadow), or 0 4px 0 in the control's own darkened hue) and remove it on :disabled.",
+      "Do use warm shadows (--shadow, or warm blacks). Cool grey shadows read as foreign instantly.",
+      "Do follow the visible silhouette with filter: drop-shadow (or a frame-silhouette copy) on arched and framed cards.",
+      "Do keep the attack / health / tribe cluster in its fixed position and size a new frame around it.",
+      "Do print the live computed value in card text, wired through both liveCardText and Unit.tsx.",
+      "Do pair every color-coded signal with a second channel — shape, icon, text, or position.",
+      "Do degrade an authored-frame treatment to the plain arched card when its asset is missing."
+    ],
+    "donts": [
+      "Don't animate paint properties (box-shadow, filter, background, border-radius) in a looping animation. Loop transform and opacity only; for a breathing glow, animate the opacity of a ::before carrying a static shadow (see kwglow). One-shot transitions may touch paint if profiled.",
+      "Don't introduce flat-SaaS chrome — cool greys, hairline borders, neutral surfaces, muted accents. It is a confirmed anti-reference.",
+      "Don't introduce neon, cyberpunk gradients, or glassmorphism. The warmth is the identity.",
+      "Don't use Tangerine Signal for anything but the next action. Two tangerine things on one screen means one is wrong.",
+      "Don't give a new panel its own accent color. It inherits Vellum, Struck Gold, and Ink.",
+      "Don't put a raw px value in the in-stage UI — it will not scale with the board.",
+      "Don't add a breakpoint that moves, stacks, or hides in-stage elements. Screen size changes scale, never arrangement.",
+      "Don't uppercase card names, rules text, or player-facing prose. Uppercase means interface furniture.",
+      "Don't bump z-index on card hover — it creates a stacking context above the shield canvas and hides the Ward aura.",
+      "Don't use a colored halo to convey elevation. Halos mean state."
+    ]
+  }
+}

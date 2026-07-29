@@ -168,6 +168,18 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **Title screen: two phantom focus stops (found 2026-07-29).** `.gearbtn` and `.devmenu-btn` sit at
+  `z-index: 85`, painted behind the opaque `.titlescreen` (`z-index: 450`), but stay `visibility: visible` —
+  so they are invisible *and* focusable, and Tab lands on them twice before it reaches the menu column. Every
+  `.app` control is correctly neutralised by the `body:has(.titlescreen)` rules; these two aren't covered by
+  them. The fix is one rule, but it touches in-game HUD visibility and the dev menu may be wanted on the title
+  deliberately, so it needs an owner call on whether the dev button stays reachable there. Feeds the
+  Public-Release **Accessibility** line.
+- **Confirm the title menu's press cue level (2026-07-29).** The new down-stroke on `.menubtn` reuses
+  `clickthock`, a sample authored for clicks on the empty board. It has not been judged by ear against the
+  existing `uihover` tick on the same control. If it reads heavy for menu navigation, `cardTouch` is the
+  softer swap — a one-line change in `Title.tsx`.
+
 - **FX Workbench — P2 (composition + richer params).** P1 shipped 2026-07-24 (see devlog): effects are data
   played by a runtime player, primitives declare their params once, and a dev-only shell generates its
   inspector from that; burst/shockwave/emitter primitives, an editable palette, a decoupled Fire trigger, and
@@ -483,22 +495,22 @@ effects (the `.dr` collapse hold can trail them) — tune live against the skull
   Eternal-Knight enchant; Cassen grant fly-to-hand; vendor Build Handoff v2 into `docs/handoff.md`.
 
 ### Infra
-- **Close the `apps/web` typecheck gap.** `fxDefsPlugin.ts` and `vite.config.ts` are in no TS program;
-  `npm run typecheck:web` is red on `main` and not in CI. Needs a node-side tsconfig wired into the gated
-  `typecheck` script, plus a pass over the ~66 pre-existing `packages/ui` errors.
-- **`CombatReplay.questDelta` is returned but not declared.** `useCombatReplay` returns `questDelta` in its
-  object while the `CombatReplay` interface omits it — a real mismatch, invisible because `typecheck:web` is
-  red on `main` and absent from CI. Fix alongside the wider `apps/web` typecheck gap.
+- **The node-side build config still isn't typechecked.** `typecheck:web` is now gated in CI and the
+  `packages/ui` backlog + `CombatReplay.questDelta` are cleared — but `apps/web/tsconfig.json` covers only
+  `apps/web/src` + `packages/ui/src`, so the Vite/node files (`vite.config.ts`, `fxDefsPlugin.ts`) are still in
+  no TS program. Wire a node-side tsconfig into the gated `typecheck` script to close the last gap.
 
 ### Tech-debt watch (fold into whichever PR touches it)
-Split `Recruit.tsx` (~2.7k — proposed seams: `recruitViews` / `useCardDrag` / `useAuraTracker` /
-`useLossSequence` / overlays) and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
+Split `Recruit.tsx` (~2.5k — proposed seams: `recruitViews` / `useCardDrag` / `useLossSequence` / overlays)
+and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
 `recruit.ts` (2k); consider sub-reducers in `reducer.ts` as actions grow. **Dead-code purge:** ~17 dead
 effect-factory ids (`factories.ts` + `types.ts` union + `schema.ts` enum, 3-place sweep each) +
 `battlecryGrantKeyword` chain + `reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache`; Card renders removed
-Reborn-tears DOM; a confirmed dead-CSS list (OMEN block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt/.zh/
-.hint`, `.disc-gem`). **UI type cleanup → `typecheck:web` CI gate:** ~50 pre-existing UI type errors block
-the gate (the step is commented in CI).
+Reborn-tears DOM; **the orphaned Pixi aura-bubble system** (`shieldConfig.ts` + `ShieldTuner.tsx` tune a
+`recruitDy` nothing reads; `pixiFx.setShield`/`clearShield`/`setShieldsVisible`/`shieldLayer`/`hasAura` have no
+callers now the tracker is gone, and `breakShield` is down to its own shape-editor demo — but keep
+`shatterAt`/`rebornSummon`, still fired by the death-burst/reborn path); a confirmed dead-CSS list (OMEN
+block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).
 
 ---
 

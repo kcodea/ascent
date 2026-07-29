@@ -179,7 +179,7 @@ describe('removeCurvePoint', () => {
     for (const t of [0.3, 0.6, 0.45]) pts = insertCurvePoint(pts, t, 0.5);
     while (pts.length > MIN_CURVE_POINTS) pts = removeCurvePoint(pts, 1);
     expect(pts).toEqual([[0, 1], [1, 0]]);
-    expect(sampleCurve(pts as CurvePoint[], 0.5)).toBeCloseTo(0.5, 10);
+    expect(sampleCurve(pts as unknown as CurvePoint[], 0.5)).toBeCloseTo(0.5, 10);
   });
 });
 

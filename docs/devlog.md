@@ -672,6 +672,65 @@ Also added: a structural test that no module in `productionBots/` outside the th
 
 **Verified.** typecheck, lint (3 pre-existing warnings), 2920 tests, build:web, harness determinism.
 
+## 2026-07-29 — the title menu becomes an object you can press
+
+**What changed.** The title screen's menu column (`.menubtn` — Continue / Play / Career / Leaderboard / Hall of
+Champions / Settings) went from a set of hover-only rectangles to controls with weight, a press, and a keyboard
+path. UI-only: `packages/ui/src/styles.css` and `packages/ui/src/Title.tsx`. No engine, content, or sim change.
+
+**Thickness, so the press has physics.** Every plaque now carries a hard `0 4px 0 #0a1526` bottom edge at rest,
+and on `:active` the edge **collapses to 1px while the button travels 3px down** — it loses exactly the
+thickness it moves, so it reads as compressed against the surface rather than sliding across it. This is the
+Hard-Edge Rule the rest of the game already follows (`.btn.go`, `.shopbtn`, every card); the title menu was the
+one place with inset highlights and a blur shadow but no visible side.
+
+**Two cascade traps, both of which silently deleted the state.** `.menubtn:active` ties `.menubtn:hover` on
+specificity (0,2,0), so whichever is later in the file wins — and you are *always* hovering when you click, so
+an `:active` block placed before `:hover` renders never. Found only because the owner reported feeling nothing.
+The press is now stated after `:hover` **and** carries a `.menubtn:hover:active` selector (0,3,0) so a future
+reorder can't reintroduce it. The identical trap existed a second time: `.menubtn.active` (the blue Play/Continue
+variant) redefines `box-shadow` and sits later still, so the *primary* button would not have compressed either —
+it needed its own `.menubtn.active:active`. Both are pinned by comments explaining why the extra selector is not
+redundant.
+
+**The down-stroke now makes a sound.** Hover already ticked (the delegated `pointerover` listener in `Game.tsx`
+covers title buttons) and activation played `sfx.pulse()`, but the press itself — the tactile moment — was
+silent. A delegated `onPointerDown` on `.titlenav` fires `sfx.clickThock()` so the cue lands *with* the
+compression instead of after release. Delegated rather than six identical props so a new menu item can't forget
+it; touch is guarded out, since hover/press cues are a mouse affordance.
+
+**Entrance, sheen, focus.** The column seats itself on mount — each plaque slides in from `translateX(-26px)`,
+staggered 50ms, exponential ease-out — along the same left→right axis the hover already owned, so it reads as the
+button's own grammar rather than a generic fade-and-rise. A one-shot "lamp-catch" sheen sweeps each plaque on
+hover (static gradient, only `transform`/`opacity` animate, clipped by `overflow: hidden`). `:focus-visible`
+gained a gold ring; there was no focus treatment at all before.
+
+**Also removed a glow.** `.menubtn.active` carried `0 8px 22px -8px rgba(40,100,180,0.7)` — a colored bloom on a
+dark surface. Replaced with the hard edge in its own darkened blue plus a neutral contact shadow.
+
+**Performance.** Every looping-capable effect is compositor-only; both keyframes (`mbseat`, `mbsheen`) animate
+`opacity` and `transform` exclusively. Nothing animates a paint property in a loop.
+
+**How it was verified.** `npm run typecheck` and `npm run build:web` green. Live DOM checks in the running app:
+`getAnimations()` confirmed 5 staggered entrance animations actually instantiate (delays 40/90/140/190/240ms ×
+420ms) rather than merely parsing; CSSOM rule-order queries confirmed the press rules resolve *after* their
+`:hover` and `.menubtn.active` competitors; computed styles confirmed the rest edge on both plain and primary
+variants and the removal of the blue bloom; a real `Tab` keypress confirmed `:focus-visible` matches and paints
+the ring. `npm run typecheck:web` fails on `Unit.tsx` + `useCombatReplay.ts` — **pre-existing**, confirmed by
+stashing this change and reproducing the identical errors on a clean tree.
+
+**Project context captured.** `PRODUCT.md` and `DESIGN.md` now exist at the repo root (with an
+`.impeccable/design.json` sidecar), recording the shipped visual system — the "Sunward Reliquary" north star, the
+tribe/tier/stat colour roles, the `--scale`/`--u`/`--ch` sizing system, the authored-frame and Ward-glass
+signature components, and the standing rules (live card text, warm shadows, hard edges, colour never the only
+signal). These describe what already ships; they are documentation, not a new direction.
+
+**Follow-ups.** Two focus stops on the title screen are invisible but focusable: `.gearbtn` and `.devmenu-btn`
+sit at `z-index: 85` behind the opaque `.titlescreen` (`z-index: 450`) yet stay `visibility: visible`, so Tab
+lands on them twice before reaching the menu. Every `.app` control is correctly hidden by the
+`body:has(.titlescreen)` rules; these two aren't covered. Left unfixed at the owner's call — it touches in-game
+HUD visibility. Also unverified: whether the `clickthock` sample's level sits right against the hover tick (it is
+authored for empty-board clicks; `cardTouch` is the softer alternative if it reads heavy).
 
 ## 2026-07-29 — feat(sim): lobby rules — ghost boards, a 3-round no-repeat, and the enemy side restored
 
@@ -1051,6 +1110,7 @@ tests, revert-checked: removing the carry-back fails three of them.
 **A test bug worth recording.** The "a non-Attachment is untouched" case first asserted raw stats and failed at
 +1 — an unrelated combat gain in a wave-4 fight, not this enchant. It now asserts on the buff's own `Chorus
 Engine` source label, which is what the change actually controls.
+
 ## 2026-07-28 — commit animation: the authoring loop closes
 
 **What changed.** Phase ③, the last. In the workbench's rail mode, picking a card and a moment makes the
@@ -6725,6 +6785,91 @@ it should be loud rather than silent.
 **Verified:** typecheck + lint + 1538 tests + `build:web` green. Timeline verified numerically against the
 rig. **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
 owner-eyeballed.
+
+## 2026-07-24 (the UI type gate)
+
+### chore(ci): clear the 59 UI type errors and gate `typecheck:web`
+
+`packages/ui` was excluded from the root `tsconfig.json` and `typecheck:web` was never run in CI, so the
+**entire presentation layer had no type gate at all** — `build:web` is a Vite/esbuild transpile, which strips
+types without checking them. This clears the backlog (59 errors across 20 files on `main` @ f4a65372; the
+"~50" figure in the old CI comment predated set 2) and turns the gate on.
+
+**CI + scripts.** `npm run typecheck` now composes `typecheck:pkgs` (engine: core/content/sim/tools, the old
+root project) and `typecheck:web` (presentation: `@game/ui` + `apps/web`). CI runs the two halves as separate
+steps so a red build names the layer that broke; together they equal the single command CLAUDE.md tells a
+human to run, so the documented "prove the checks ran" line is now honest. CLAUDE.md's Commands entry and the
+root `tsconfig.json` comment were updated to match, and the stale "NOT gated yet" note is gone from ci.yml.
+
+**Real defects the gate was hiding** (each was invisible at runtime or silently wrong):
+- `sfx.ts` — `gainReduction()` read `master.reduction.value`, but `DynamicsCompressorNode.reduction` is a
+  plain readonly number, not an AudioParam. The mixer's gain-reduction meter computed `-undefined / 20` = NaN
+  and never moved.
+- `questText.ts` / `QuestCard.tsx` / `RunTrophies.tsx` — three `Record<Tribe, string>` maps were never
+  extended when set 2 added `kobold`, so a kobold quest printed `undefined` in its objective/reward text and
+  showed no emblem. Filled from the canonical set in `Card.tsx` (`crown`, "Kobold"/"Kobolds").
+- `PlateCoalesceTuner` / `PlateDissolveTuner` — both "demo" buttons read `panelRef.current`, but
+  `useDraggablePanel` returns `panelRef` as a **callback** ref (no `.current`), so the handler hit its
+  `if (!el) return` guard every time and the button did nothing. The hook now also returns `panelElRef`.
+- `TrailTuner.tsx` — `LABELS` was missing `count` and `width`, so those two slider rows rendered with an
+  undefined label.
+- `Card.tsx` — `CardView.target` was `'friendly'` only, but `CardDef.target` is `'friendly' | 'any'` and
+  dozens of set-1 spells target a shop minion. Every `=== 'any'` test in Recruit/dragDecision/instView was
+  therefore a "no overlap" comparison — TS considered the shop-targeting branches dead, one step from being
+  deleted by a refactor.
+- `Recruit.tsx` — `ShopViewOpts` never declared `impAura` even though the call site passes it and
+  `offerLiveTextParams` forwards it; Chef Raag's offer depends on it for its live Imp-Aura text (guarded by
+  `instView.test.ts`).
+
+**Stale contracts, now caught:** five modules imported `BoardMinion` / `Tribe` from `@game/sim`, which never
+re-exported the core types (→ `@game/core`); that error type also made every `.addedTribes` callback param
+implicitly `any`. `CombatReplay` never declared `questDelta` / `triggeredQuests` / `completedQuests` despite
+the hook returning all three. `CardView.cardId` was optional though nothing constructs a view without one.
+
+**The Pixi aura tracker is gone (−197 lines in `Recruit.tsx`).** `syncShields`' PASS 1 skipped shield + reborn
+by name, and those were the only two rows in `AURA_CFGS` — so TS narrowed `cfg` to `never` and the entire
+registration pass was dead code (7 of the errors). It had been inert since Ward and Reborn both became CSS
+(`Card.tsx` `.ward` / `.reborn` stacks): with nothing calling `pixiFx.setShield`, `seen` was always empty, so
+PASS 2/4 and the whole bookkeeping around them (`shieldUidsRef`, `pendingClearRef`, `settleUntilRef`,
+`deployGraceRef`, `SHIELD_CLEAR_GRACE`) did nothing either. Deleted the block and the five effects that existed
+only to call it — including a **per-frame `requestAnimationFrame` loop that re-measured every aura card's rect
+for the whole of combat and every drag**. `AURA_CFGS` shrinks to `AURA_MARKERS`, the marker list its one
+surviving reader needs (landing-dust z-order). No behaviour change: none of it had a visible effect.
+
+**Reborn death burst — repaired in the same PR.** Removing the tracker surfaced that `burstDeathAuras`'s reborn
+branch gated on `pixiFx.hasAura(uid, 'reborn')`, whose only writer was the tracker — so a reborn unit's death
+had stopped playing its spirit-release burst + `rebornShatter` sfx (a PRE-EXISTING regression from when Reborn
+went CSS, not caused here). Owner confirmed it should burst, so the branch now mirrors the Ward branch beside
+it: read the dying unit's `.reborncard` DOM marker and fire `pixiFx.shatterAt(rect, 'reborn')` (which delegates
+to the wispy `rebornShatter`, not gold shards) + the sound. `burstDeathAuras` now reads both markers off one
+`.card` query and no longer touches `hasAura`. Rewrote `aura.test.ts` to match — it stubs `document` via
+`vi.stubGlobal` (the suite runs in bare Node, no jsdom) and covers Reborn-only, Ward-only, both-at-once, no
+marker, and the no-rect early-out (9 tests, +3).
+
+**Left for the wider dead-code purge** (tracked on the roadmap, not this PR): `shieldConfig.ts` +
+`ShieldTuner.tsx` now tune a `recruitDy` nothing reads (it was only used by the deleted `auraDy`), and
+`pixiFx.setShield` / `clearShield` / `setShieldsVisible` / `shieldLayer` / `hasAura` have no callers.
+
+**Also:** `ErrorBoundary`'s three missing `override`s, the aura `Mesh<MeshGeometry, Shader>` generic (Pixi defaults
+SHADER to `TextureShader`), `plateCoalesce`'s `unhide` returning `removeProperty`'s value from a `: void`
+arrow, a documented `unknown` hop for supabase's runtime-built select, and two test fixtures.
+
+**Caught on rebase — errors the gate flagged in code that merged while the gate was still off** (the Set-2
+Beast/Demon + Choose-One/Mage-Pup/Sunmane PRs #706–709, #711–717): a recurring pattern where a display field
+was added to `MinionSnapshot` and read in `Unit.tsx`, but never plumbed through the UI's `UnitFrame`.
+`chosenOption`, `taughtSpellId` and `rallySpreadAtk` were all read as `u.<field>` in combat while `UnitFrame`
+didn't declare them and `fromSnap` didn't copy them — so **a resolved Choose One, a Mage-Pup and a Sunmane
+Herald each read `undefined` in COMBAT**, silently reverting to base printed text instead of the branch / taught
+spell / live rally value. Added all three to `UnitFrame` and populated them in `fromSnap` (fixes the type errors
+and the latent runtime bugs together). Plus `Card.tsx`'s `getSpellBuffSeq(uid)` — `uid` is optional on `Card`,
+so guard it — and two under-specified `UnitFrame`/`CombatEvent` fixtures in `preBuffHolds.test.ts` (the function
+reads only uid/attack/health, so route the minimal literals through `unknown`). These are exactly the
+regressions the gate exists to stop; that they kept slipping in over the days this PR sat in review is the
+argument for it.
+
+Verified: `typecheck` (both projects) + `typecheck:web` + `lint` (0 errors; 3 pre-existing unused-import
+warnings — `SceneBuilder.tsx`, plus `reducer.ts` + `Recruit.tsx` imports left by the Set-2 PRs) + `test` (1712
+pass / 104 files) + `build:web` all green.
 
 ## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
 

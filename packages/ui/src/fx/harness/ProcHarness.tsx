@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { modalOpen, type RunState } from '@game/sim';
+import type { MomentKind } from '../../choreo/kinds';
 import { useGame } from '../../store';
 import { sandbagBoard, SANDBAG_LIMITS, type SandbagSpec } from './procStage';
 import { scanProcs, type ProcMoment } from './procScan';
@@ -38,12 +39,22 @@ export interface ProcHarnessProps {
   onSeek: (index: number) => void;
   /** The fight currently loaded in the replay, or null when none has been staged yet. */
   combat: RunState['lastCombat'];
+  /**
+   * The selected card, lifted OUT of this component so the workbench can commit for it. Was local state
+   * until phase ③: the commit panel needs `(cardId, kind)`, and the harness is where both are chosen.
+   */
+  cardId: string;
+  onCardChange: (cardId: string) => void;
+  /** The moment kind whose row was last clicked — the commit target. Null until one is picked. */
+  selectedKind: MomentKind | null;
+  onSelectMoment: (kind: MomentKind) => void;
 }
 
 const DEFAULT_SANDBAGS: SandbagSpec = { count: 4, hp: 40, attack: 1 };
 
-export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactElement {
-  const [cardId, setCardId] = useState('');
+export function ProcHarness({
+  onSeek, combat, cardId, onCardChange, selectedKind, onSelectMoment,
+}: ProcHarnessProps): React.ReactElement {
   const [spec, setSpec] = useState<SandbagSpec>(DEFAULT_SANDBAGS);
   const [runUp, setRunUp] = useState(2);
   const [staged, setStaged] = useState(false);
@@ -134,7 +145,7 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
       <div className="fxharness-h">🎯 Proc harness</div>
 
       <label htmlFor="fxh-card">Card</label>
-      <select id="fxh-card" value={cardId} onChange={(e) => setCardId(e.target.value)}>
+      <select id="fxh-card" value={cardId} onChange={(e) => onCardChange(e.target.value)}>
         <option value="">— pick a card on your board —</option>
         {boardCards.map((id) => (
           <option key={id} value={id}>{CARD_INDEX[id]?.name ?? id}</option>
@@ -184,11 +195,13 @@ export function ProcHarness({ onSeek, combat }: ProcHarnessProps): React.ReactEl
         {procs.map((p) => (
           <button
             key={p.index}
-            className="fxharness-row"
+            className={`fxharness-row${p.kind === selectedKind ? ' fxharness-row-sel' : ''}`}
             // `seekTo(N)` shows `beats[N-1]` — moment N hasn't played yet when it lands, only queued next —
             // so this seeks one beat "early" by that convention. Playback then advances forward on its own
             // within a tick, so the moment we actually want still lands on screen; left as-is deliberately.
-            onClick={() => onSeek(Math.max(0, p.index - runUp))}
+            // Selecting and seeking together is deliberate: the moment you just watched is the moment you
+            // want to commit for, so the author never has to make the connection twice.
+            onClick={() => { onSelectMoment(p.kind); onSeek(Math.max(0, p.index - runUp)); }}
           >
             <span className="fxharness-kind">{p.kind}</span>
             {p.boundDef === null ? (

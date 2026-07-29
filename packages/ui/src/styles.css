@@ -5368,6 +5368,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: #1e1a2b; color: inherit; cursor: pointer; text-align: left;
 }
 .fxharness-row:hover { background: #272136; }
+/* The row last clicked — the commit target. Distinct from :hover, which is only where the pointer is. */
+.fxharness-row-sel { border-color: #6f5bd0; background: #2a2340; }
 .fxharness-kind { font-weight: 600; }
 .fxharness-def { opacity: 0.75; }
 .fxharness-unbound { opacity: 0.6; font-style: italic; }

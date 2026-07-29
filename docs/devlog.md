@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-07-29 — tweak(ui): the lobby end screen is a placement and a board
+
+Owner ask: "reduce the end screen to literally only show your placement and final board."
+
+The ordinary end screen is built entirely around the scored climb — Oath verdict, Renown delta with promotion
+banners, W–L record, per-round pips with a board viewer, build tags, seven run stats. None of that exists in a
+lobby: no Oath, no course record, no rating, and a per-round pip strip implies a fixed length the mode doesn't
+have. Rather than hide nine sections one at a time and leave the reader guessing which numbers still mean
+something, a lobby run gets its own screen with the two things that do: **where you finished, and what you
+finished with.** The branch happens before any of the scored-run derivations, so none of them even compute.
+
+**A CSS trap worth recording.** First place rendered as a solid gold rectangle instead of the word "1st". The
+place number is a gradient clipped to the glyphs (`background-clip: text` + transparent colour), and the
+first-place override set `background:` — the SHORTHAND, which resets `background-clip` to `border-box` and
+un-clips the gradient from the text. Using `background-image:` keeps the clip. My first attempt blamed the glow
+`drop-shadow` and removing it changed nothing, which is what pointed at the shorthand.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, harness determinism, and both states checked
+live in the browser: 4th of 8 with an empty board, and 1st of 8 with a warband.
+
+
 ## 2026-07-29 — tweak(ui): the lobby table becomes a tall rail down the right edge
 
 Owner marked the target area on a screenshot: move the seat table out of the top-right corner into a tall,

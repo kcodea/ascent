@@ -6034,3 +6034,22 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   40% { transform: translateY(0) scale(1.1); opacity: 1; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
+
+/* ── LOBBY END SCREEN ────────────────────────────────────────────────────────
+   A lobby result is one number — where you finished — so it gets the whole headline, with the final warband
+   underneath as the only supporting detail. No Oath verdict, Renown delta, record, pips, tags or run stats:
+   none of them exist in a mode with no course and no rating (owner ask 2026-07-29). */
+.endscreen.lobbyend .endbox { gap: calc(14 * var(--u-base)); }
+.endplace { display: flex; flex-direction: column; align-items: center; line-height: 0.92; }
+.endplace-num { font-family: var(--font-disp, var(--font-ui)); font-weight: 900;
+  font-size: clamp(64px, 11vh, 132px); letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #fff6df, #d8a94e 62%, #a2762c);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35)); }
+.endplace-of { font-family: var(--font-ui); font-weight: 700; font-size: clamp(13px, 1.7vh, 19px);
+  letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-top: 0.35em; }
+/* First place gets a brighter gradient. `background-image`, NOT the `background` shorthand: the shorthand
+   resets `background-clip` to `border-box`, which un-clips the gradient from the glyphs and paints "1st" as a
+   solid gold rectangle. (Everything else about the treatment is inherited from the base rule.) */
+.endscreen.lobbyend.won .endplace-num {
+  background-image: linear-gradient(180deg, #fffdf6, #ffe08a 52%, #e8b43f); }

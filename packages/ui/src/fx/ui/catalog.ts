@@ -183,6 +183,14 @@ export interface FxCatalogEntry {
 const NO_BINDINGS: FxBindings = { kinds: [], cards: [] };
 
 /**
+ * Ids under this prefix are archetype BASES for the preset gallery. They are deliberately bound to nothing,
+ * so leaving them in would pad the "nothing bound" column of the by-event lens — degrading the very coverage
+ * map that lens exists to provide. They stay reachable for editing through the Workbench's "Start from"
+ * picker, which reads `listDefs()` directly rather than the catalog.
+ */
+export const PRESET_ID_PREFIX = 'preset-';
+
+/**
  * The whole library, as one array. Every view in the browser reads THIS and nothing else — which is the
  * point: "which def fires on Bloodbinder" is computed once here rather than separately per lens, so the
  * lenses cannot disagree with each other.
@@ -194,6 +202,7 @@ const NO_BINDINGS: FxBindings = { kinds: [], cards: [] };
 export function buildCatalog(): FxCatalogEntry[] {
   const bindings = bindingsByDef();
   return listDefs()
+    .filter((def) => !def.id.startsWith(PRESET_ID_PREFIX))
     .map((def) => ({ def, facets: deriveFacets(def), bindings: bindings.get(def.id) ?? { ...NO_BINDINGS } }))
     .sort((a, b) => a.def.id.localeCompare(b.def.id));
 }

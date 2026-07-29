@@ -59,7 +59,8 @@ export function SceneBuilder() {
   const [enemyN, setEnemyN] = useState(5);
   const [refill, setRefill] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('scenebuilder');
+  const [minimized, setMinimized] = useState(false);
+  const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
 
   // The card library is scoped to the run's PINNED set, so the Set toggle visibly changes what you can add and
   // "set 2 has 3 cards" reads honestly. `CARD_INDEX` stays the global id→def map (tokens included) — this is
@@ -134,10 +135,16 @@ export function SceneBuilder() {
   });
 
   return (
-    <div className={`sfxmix lunge scenebuilder${collapsed ? ' collapsed' : ''}`} ref={panelRef} style={panelStyle}>
+    <>
+    <div className={`sfxmix lunge scenebuilder${collapsed ? ' collapsed' : ''}${minimized ? ' minimized' : ''}`} ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag sb-head" onPointerDown={headerPointerDown}>
         <span>🧩 Scene Builder</span>
-        <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} title={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
+        <span className="sb-head-btns">
+          {/* Minimize to the bottom-right dock (a circle icon left of the 🛠️ dev-tuning button). Distinct from
+              the ▾ in-place collapse below. */}
+          <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setMinimized(true)} title="Minimize to dock">–</button>
+          <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} title={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
+        </span>
       </div>
 
       {!collapsed && (
@@ -280,5 +287,12 @@ export function SceneBuilder() {
         </div>
       )}
     </div>
+    {/* Minimized: a circle icon docked bottom-right, left of the 🛠️ dev-tuning button. Click restores + refocuses
+        (brings the panel back to the front via the shared hook's raise). */}
+    {minimized && (
+      <button className="sb-dock" title="Restore Scene Builder"
+        onClick={() => { setMinimized(false); raise(); }}>🧩</button>
+    )}
+    </>
   );
 }

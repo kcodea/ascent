@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "id": "burst-thin-trail",
+  "duration": 900,
+  "layers": [
+    {
+      "primitive": "ribbon",
+      "anchor": "travel",
+      "at": 0,
+      "life": 640,
+      "params": {
+        "bands": 4,
+        "plateau": 0.36,
+        "palette": [
+          741288,
+          3115519,
+          11066111,
+          16777215
+        ],
+        "blendMode": "add",
+        "glow": 0.7,
+        "noiseAlong": 2.4,
+        "noiseAcross": 5,
+        "warp": 0.3,
+        "scroll": 0.9,
+        "erode": 1.09,
+        "gain": 1.6,
+        "head": 0.05,
+        "tail": 1.4,
+        "soft": 2.2,
+        "length": 700,
+        "width": 15,
+        "alpha": 1,
+        "headPinch": 0.05,
+        "tailFeather": 1.65,
+        "widthCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            0.46483875369477423,
+            0.8877914861848035
+          ],
+          [
+            1,
+            0.5
+          ]
+        ],
+        "waveAmp": 0,
+        "waveFreq": 3.3,
+        "waveSpeed": 12,
+        "drain": 2000,
+        "segments": 64
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "source",
+      "at": 0,
+      "travelMs": 10,
+      "params": {
+        "count": 72,
+        "interval": 100,
+        "spread": 0.18,
+        "speed": 625,
+        "speedVar": 0.8,
+        "drag": 0.885,
+        "gravity": -160,
+        "life": 1500,
+        "orientToVelocity": false,
+        "turbulence": 90,
+        "turbScale": 0.013,
+        "emitShape": "point",
+        "emitRadius": 0,
+        "inheritVel": 0,
+        "shape": "shard",
+        "size": 9,
+        "sizeVar": 0.5,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "coreBias": 0.81,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            0.7,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "bands": 3,
+        "plateau": 0.3,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          26347,
+          6153214,
+          10399487,
+          9813502
+        ],
+        "blendMode": "add",
+        "glow": 0.69,
+        "noiseScale": 6,
+        "warp": 0.97,
+        "scroll": 1.4,
+        "erode": 0.97,
+        "gain": 1.7
+      }
+    }
+  ]
+}

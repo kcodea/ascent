@@ -1,6 +1,22 @@
 # ASCENT — development log
 
-## 2026-07-28 — the proc harness: replay any moment a card caused
+## 2026-07-28 — `burst-thin-trail`, an owner-authored def rescued from the working tree
+
+**What changed.** One def file, `packages/ui/src/fx/defs/burst-thin-trail.json` — a travelling ribbon (life
+640ms, additive blend, glow 0.7, blue→violet→white palette) with a burst at the source, 900ms overall.
+Authored in the workbench during a testing session and left untracked, so it was not part of the FX arc that
+merged as #689. Committed exactly as saved, with no edits to its params.
+
+It carries **no baked seed**, so it rolls fresh on every play — which is the right default for anything that
+might fire repeatedly (see the seed section of [`fx-workbench-guide.md`](fx-workbench-guide.md)). It also has
+no `label` or `tags` yet, so the library browser lists it under its raw id and derives its facets from the
+layers alone; adding those would make it easier to find by look.
+
+**Not bound to anything.** It exists in the library and can be previewed or duplicated as a template, but no
+moment kind or card plays it — `bindings.json` is untouched.
+
+**Verified:** `defs.test.ts` (10 tests) passes, which is what proves every param name and value range in the
+file is real against the primitives' own specs.
 
 **What changed.** Phase ② of live FX authoring. Pick a card, stage a controlled fight against tunable
 sandbags, get the list of moments that card actually caused, and jump the replay to any one of them with a

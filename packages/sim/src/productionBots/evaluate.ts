@@ -135,3 +135,23 @@ export function offerAppeal(v: BotVisibleState, cardId: string, attack: number, 
   const kw = keywords.reduce((n, k) => n + (KEYWORD_VALUE[k] ?? 0), 0);
   return attack + health + tierBonus + kw;
 }
+
+/**
+ * What a REFRESH is worth, WITHOUT looking at what it produced.
+ *
+ * Search must never evaluate the real post-refresh shop: the engine is seeded, so reading it is reading the
+ * future of the very decision being made. Search did exactly that until this existed — `evaluate(t.visible)` on
+ * a reveal child scored the actual new shop, which is the precise cheat the reveal boundary was built to
+ * prevent.
+ *
+ * The honest score is the same state with the gold spent. This evaluator has no shop term, so there is nothing
+ * further to project — and that is also why the bot rarely refreshes: a refresh reads as pure loss because the
+ * thing it buys (a better shop) is invisible here. That is a real gap, recorded rather than papered over.
+ */
+export function expectedAfterRefresh(v: BotVisibleState, cfg: EvaluationConfig = EVALUATION_CONFIG_V1): EvaluationBreakdown {
+  const cost = v.economy.freeRolls > 0 ? 0 : v.economy.refreshCost;
+  return evaluate({
+    ...v,
+    economy: { ...v.economy, gold: Math.max(0, v.economy.gold - cost), freeRolls: Math.max(0, v.economy.freeRolls - 1) },
+  }, cfg);
+}

@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-07-29 — fix(sim): bots scored a refresh by reading its result; plus a diagnosis of why they are weak
+
+**The fairness bug.** Search marked a refresh terminal but still called `evaluate(t.visible)` on it — the state
+AFTER the refresh, i.e. the real shop it produced. The engine is seeded, so that is reading the future of the
+very decision being made: the exact cheat the reveal boundary exists to prevent. A refresh is now scored by
+`expectedAfterRefresh` — the same state with the gold spent, and nothing else inspected.
+
+**Owner asked whether ~3 wins is abysmal and whether Ticket 3 fixes it. Diagnosed rather than guessed.**
+Instrumenting 12 runs at `hard`:
+
+- win rate holds ~33-50% for rounds 1-4, then collapses to 8-17% from round 5 on
+- **0.17 triples per run** — it essentially never triples
+- average final tier **3.7** of 6, dying 10/12
+- **4.2 gold left unspent at the end of every turn**
+- across six full runs it refreshed the shop **twice** and sold **seven times**
+
+**Two attempts to fix that directly, both measurably WORSE — recorded because the failures are the finding.**
+
+1. Added a `shopOpportunity` term (what your gold can buy) plus triple equity, and rebalanced weights. Result:
+   hard fell from 3.47 wins to 1.75, and average tier fell 3.7 → 3.0. Rewarding "spend on what you can afford"
+   made it buy instead of save for the upgrade.
+2. Added tier-against-a-curve, weighted heavily, to fix the horizon problem. Tier rose to 5.1 — near the legacy
+   policy's 5.8 — and wins did **not** follow (1.60). Easy collapsed to 0.00.
+
+That second result is the important one: **the target metric moved and the outcome didn't.** Tier was not the
+cause; it was correlated with it. Both attempts were reverted; only the fairness fix is kept.
+
+**What this says about the path.** The proxies are the problem, not their weights. The evaluator guesses board
+strength from stat sums and keyword tables, and no amount of re-weighting a guess makes it a measurement — the
+bot cannot tell whether its board actually WINS. The next step is to ground it: a full combat simulation costs
+**0.017ms**, measured, which is cheaper than a single search node's `reduce()` at 0.047ms. Simulating the board
+against a wave-appropriate benchmark replaces every proxy with the thing they are proxying for. Ticket 3
+(packages and synergy) sits on top of that, not instead of it.
+
+**State of play** (20 seeds, average wins ± stderr): legacy policy 2.70 ±0.60, easy 3.10 ±0.66, hard 4.75 ±0.98.
+The bots beat the policy every balance decision has been made against — but Oath par is 9, so they are still
+well short of competent.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2941 tests, build:web.
+
+
 ## 2026-07-29 — feat(sim): production bots that play — Tickets 1, 2, 4, 5 and 8
 
 Functioning bots at four difficulties. They plan a whole shop turn, commit to the plan, and beat the legacy

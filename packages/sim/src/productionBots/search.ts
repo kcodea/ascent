@@ -3,7 +3,7 @@ import type { Action } from '../state';
 import { applyCandidate, release, visibleOf } from './transition';
 import { candidatesFor } from './legalActions';
 import { fingerprint } from './visibleState';
-import { evaluate, type EvaluationBreakdown } from './evaluate';
+import { evaluate, expectedAfterRefresh, type EvaluationBreakdown } from './evaluate';
 import type { BotDifficultyProfile } from './difficulties';
 import type { PlanningStateHandle } from './types';
 
@@ -85,7 +85,10 @@ export function search(root: PlanningStateHandle, profile: BotDifficultyProfile,
         if (seen.has(t.fingerprint)) { release(t.child); continue; }
         seen.add(t.fingerprint);
 
-        const breakdown = evaluate(t.visible);
+        // A REVEAL is scored by EXPECTATION, never by its result: evaluating `t.visible` here would read the
+        // shop the refresh actually produced, and the engine is seeded — that is reading the future of the very
+        // decision being made. It did exactly that until this line existed.
+        const breakdown = t.reveal?.kind === 'refresh' ? expectedAfterRefresh(visible) : evaluate(t.visible);
         const child: Node = {
           handle: t.child,
           plan: [...node.plan, { action: cand.action, tag: cand.tag, fromFingerprint: node.fp }],

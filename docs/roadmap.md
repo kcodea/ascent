@@ -21,6 +21,13 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Bot personas.** Eight seats currently run the same evaluator and build the same board. Give each bot
+  seeded weight multipliers plus a tribe/keyword affinity, and add a board-divergence metric to
+  `bot:ladder` so "they don't all build the same thing" is measured rather than asserted.
+- **Cap bot strength** once personas land — Expert is at par now, so the dial that matters is the ceiling.
+- **Ticket 3 (card profiles / package graph) — owner call.** Fight-grounding answers the question the
+  314-entry registry was built to guess at, so it may not be needed. Worth deciding before building it.
+
 ### Paragon's tier + stats need an owner call (2026-07-28)
 Paragon shipped at **Tier 6, 4/5** — my choice, not a spec. The owner gave the effect only ("New All type minion
 - Paragon - Whenever you trigger Rally, give a minion of every type +3/+3 permanently"). The body is deliberately

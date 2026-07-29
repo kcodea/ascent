@@ -1,5 +1,48 @@
 # ASCENT — development log
 
+## 2026-07-29 — Fight-grounded bot evaluator: bots go from 3 wins to par
+
+**What.** The production bots now score a board by *fighting with it* rather than by hand-written proxies.
+`fightScore.ts` plays the candidate board against the procedural threat panel for its wave and reads back
+win rate, margin and damage taken; `evaluate.ts` weights that at 44 against a much smaller set of surviving
+proxies. Difficulty was rewritten to one search config scaled only by blunder rate.
+
+**Why it was stuck at ~3 wins.** Two bugs, both of which made the search actively counter-productive:
+
+- The fight panel was seeded from the board *being scored*, so two candidate boards were measured against
+  two different sets of enemies. Ranking them was ranking noise — which is why skill FELL as the bot
+  searched deeper, and why a 0.40 blunder rate outscored 0.00 (7.30 vs 4.45). Picking the best of a noisy
+  comparison is worse than picking at random. `panelSeed(wave)` fixes it.
+- The blunder chose its alternative from the pruned beam, which at `beamWidth: 1` is the best node itself.
+  The roll fired and found nothing to pick, so all four difficulties played byte-identically. It now picks
+  from the retained depth-0 children.
+
+Also fixed on the way: `forcedSpend` played `hand[0]` blindly and the reducer refused targeted spells, which
+ended runs at 3.5 rounds; it now validates each option through `applyCandidate`. And search scored a refresh
+by looking at the *actual* refreshed shop — reading the future — now `expectedAfterRefresh`.
+
+**Verified.** `npm run bot:ladder -- --seeds 20`, hero drakko:
+
+| tier | wins | rounds | died |
+|---|---|---|---|
+| legacy | 2.70 ±0.60 | 10.4 | 18 |
+| easy | 6.80 ±0.96 | 14.2 | 11 |
+| normal | 7.50 ±1.01 | 14.6 | 9 |
+| hard | 8.70 ±0.92 | 15.7 | 8 |
+| expert | 9.10 ±0.87 | 16.0 | 7 |
+
+Par (the Oath) is 9. The ladder is monotone and expert is at par. Full gates green: typecheck, lint,
+2941 tests across 154 files, build:web, harness (determinism ✓).
+
+**Tooling.** `npm run bot:ladder` is new and exists because two prior evaluator changes were shipped on
+10-seed samples and both were regressions — the standard error there is ±0.6 wins, larger than every
+difference being reasoned about. It prints error bars, and `--diagnose` adds per-round win rate.
+
+**Follow-ups.** Personas (per-bot evaluator weight multipliers + tribe affinity, so eight seats don't build
+the same board) are next and explicitly requested. Strength limiting comes after that, now that there is
+strength to limit. Ticket 3's card-profile registry looks less necessary than it did — fight-grounding
+answers the question the 314-entry table was built to guess at — but that's an owner call.
+
 ## 2026-07-29 — feat(sim/tools): fight-grounded board scoring + `npm run bot:ladder`
 
 Owner wants bots strong enough that we have to LIMIT them. Before building toward that, two things were needed:

@@ -7,6 +7,7 @@ import { lossDamageCap } from '../reducer';
 import { createRun, type RunState } from '../state';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
 import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
+import { handleKeyOf, uniqueHandleFor } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 
@@ -109,6 +110,8 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   //
   // This is a BOT limitation, not a lobby rule: when a bot can play every hero, the skip simply stops firing.
   let picked = 0;
+  // Handles must be unique across the table — two seats with one name reads as a rendering bug.
+  const taken = new Set<string>(['you']);
 
   // REAL PLAYER RUNS FIRST (owner call 2026-07-29). Every seat used to be generated; now any run in the
   // registered pool with enough material can hold one, replaying that player's actual boards in their actual
@@ -124,7 +127,9 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
     const seat: LobbySeatState = {
       id: `s${picked + 1}`,
-      label: run.author && run.author !== 'anon' ? run.author : `run ${run.key.slice(-4)}`,
+      // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
+      // carry no author, and labelling those "run 1534" leaked the seed and read as debug output.
+      label: run.author && run.author !== 'anon' ? run.author : uniqueHandleFor(handleKeyOf(run.key), taken),
       heroId: run.heroId,
       kind: 'snapshot',
       runKey: run.key,
@@ -135,6 +140,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     };
     const d = driverFor(seat);
     if (!d?.prepare(1) && !d?.finalBoard?.()) continue; // no round-1 board — skip rather than seat a ghost
+    taken.add(seat.label.toLowerCase());
     seats.push(seat);
     picked++;
   }
@@ -144,7 +150,9 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     if (seats.some((x) => x.heroId === hero.id)) continue;
     const seat: LobbySeatState = {
       id: `s${picked + 1}`,
-      label: hero.name,
+      // A HANDLE, not the hero's name. "Nadja" read as scenery and made the real snapshot seats obvious by
+      // contrast, since those carry a player's actual name; the hero is still visible in the seat's portrait.
+      label: uniqueHandleFor(handleKeyOf(`${seed}|${hero.id}|${picked}`), taken),
       heroId: hero.id,
       // Hybrid by default (owner call): a recorded run for authenticity, handed to a live bot when it runs dry.
       kind: 'hybrid',
@@ -155,6 +163,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     };
     const d = driverFor(seat);
     if (!d?.prepare(1) && !d?.finalBoard?.()) continue; // this hero can't be driven — try the next
+    taken.add(seat.label.toLowerCase());
     seats.push(seat);
     picked++;
   }

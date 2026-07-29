@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import type { BoardSnapshot } from '../snapshot';
 import { registerOpponents } from '../opponents';
-import { createRunLobby, driverFor, resetLobbyDrivers } from './runLobby';
+import { reduce } from '../reducer';
+import { replayRun } from '../snapshot';
+import { DEFAULT_BOT } from '../bots/index';
+import type { Action, RunState } from '../state';
+import { createLobbyRun, createRunLobby, driverFor, resetLobbyDrivers } from './runLobby';
 import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
 
 /**
@@ -106,4 +110,37 @@ describe('seating real runs into a lobby', () => {
     expect(d, 'an unresolvable run left the seat with no driver').not.toBeNull();
     expect(d!.prepare(1) ?? d!.finalBoard?.(), 'the fallback fielded no board').toBeTruthy();
   });
+});
+
+describe('a lobby run replays faithfully — so it can save its snapshots', () => {
+  it('needs its mode: replayed as an Ascent run it diverges into a different run entirely', () => {
+    /**
+     * `replayRun` built its start state with `createRun(seed, heroId)` and `Replay` carried no mode, so a lobby
+     * run was replayed as an ASCENT run. It diverges from the first combat (different opponents, different
+     * damage), so the boards captured at run end were from a run nobody ever played — the bug behind "lobby runs
+     * don't save snapshots" (owner 2026-07-29). `createRun(…, 'lobby')` alone is not enough either: the seats are
+     * attached by `createLobbyRun`.
+     */
+    const actions: Action[] = [];
+    let s: RunState = createLobbyRun(21, 'drakko');
+    let guard = 0;
+    while (s.phase !== 'gameover' && s.phase !== 'victory' && guard++ < 6000) {
+      const a = DEFAULT_BOT.act(s);
+      const n = reduce(s, a);
+      if (n === s) break;
+      actions.push(a);
+      s = n;
+    }
+    expect(s.history.length, 'the lobby run never got going').toBeGreaterThan(3);
+
+    const sig = (r: RunState): string =>
+      `${r.history.length}|${r.history.filter((x) => x === 'win').length}|${r.board.map((c) => `${c.cardId}:${c.attack}/${c.health}`).join(',')}`;
+
+    const asLobby = replayRun({ seed: 21, heroId: 'drakko', mode: 'lobby', actions }, createLobbyRun(21, 'drakko'));
+    expect(sig(asLobby.final), 'the lobby replay did not reproduce the run').toBe(sig(s));
+    expect(asLobby.snapshots.length, 'no boards were captured').toBeGreaterThan(3);
+
+    const asAscent = replayRun({ seed: 21, heroId: 'drakko', actions });
+    expect(sig(asAscent.final), 'replaying without the mode should NOT reproduce the run').not.toBe(sig(s));
+  }, 60_000);
 });

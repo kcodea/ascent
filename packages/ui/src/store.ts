@@ -450,7 +450,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ combatSpeed });
   },
   replayActions: BOOT_SAVE?.actions ?? [],
-  exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, actions: get().replayActions }),
+  exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) =>
     set((s) => {
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
@@ -486,7 +486,9 @@ export const useGame = create<GameStore>((set, get) => ({
         s.run.phase !== 'victory' &&
         next.mode !== 'practice'
       ) {
-        const replay = { seed: next.seed, heroId: next.heroId, actions: [...s.replayActions, action] };
+        // `mode` is load-bearing: a lobby run replayed as an Ascent run diverges immediately, so its captured
+        // boards were wrong. See `saveRunBoards`.
+        const replay = { seed: next.seed, heroId: next.heroId, mode: next.mode, actions: [...s.replayActions, action] };
         const author = s.playerName || undefined;
         const heroOffer = s.lastHeroOffer;
         const won = next.phase === 'victory';

@@ -8,7 +8,7 @@
  * deterministic: a finished run is `{ seed, heroId, actions }`, and `replayRun` re-derives its per-wave
  * boards byte-identically, so we store the replay's snapshots rather than capturing live.
  */
-import { registerOpponents, replayRun, type BoardSnapshot, type Replay } from '@game/sim';
+import { registerOpponents, replayRun, type BoardSnapshot, type Replay, createLobbyRun } from '@game/sim';
 
 const KEY = 'ascent.boards';
 const CAP = 300; // keep the most recent N captured boards (≈ 15–30 runs); FIFO so the pool stays fresh
@@ -48,7 +48,11 @@ export function loadStoredBoards(): BoardSnapshot[] {
  *  Best-effort — board capture never blocks the game. */
 export function saveRunBoards(replay: Replay, author?: string): BoardSnapshot[] {
   try {
-    const { final, snapshots } = replayRun(replay);
+    // A LOBBY run needs its lobby attached before replaying: `createRun(…, 'lobby')` alone doesn't build the
+    // seats, so replaying without it diverged from the first combat and captured the wrong boards — which is why
+    // lobby runs appeared not to save snapshots at all (owner 2026-07-29).
+    const initial = replay.mode === 'lobby' ? createLobbyRun(replay.seed, replay.heroId) : undefined;
+    const { final, snapshots } = replayRun(replay, initial);
     // ONLY persist a run that actually FINISHED — won (victory) or lost (gameover). The caller already gates
     // on the gameover/victory transition; this guard makes it impossible for an in-progress / abandoned run
     // to be snapshotted even if anything ever calls this wrongly.

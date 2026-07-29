@@ -1,5 +1,44 @@
 # ASCENT — development log
 
+## 2026-07-29 — Lobby seats get player handles, and lobby runs finally save their real boards
+
+**Handles instead of hero names.** Generated seats were labelled "Nadja", "Drumline" — scenery, and it made the
+real snapshot seats obvious by contrast, since those carry a player's actual name. `handles.ts` mints
+deterministic player-looking handles in the styles the pool's real players actually use (TitleCase mashups, a
+lowercase word, `xx_Name_xx`, a trailing z, a lowercase phrase). A table now reads:
+
+```
+You · Orangez · RustyComet83 · lemon · AnvilHimself · literally tired · someone winning · LazerWizard31
+```
+
+Real authors keep their names; author-less runs get a handle too (142 of the pool's 664 boards have no author,
+and "run 1534" leaked the seed and read as debug output). Uniqueness is enforced across the table.
+
+**Lobby runs were saving boards from a run that never happened.** `Replay` carried no mode and `replayRun`
+started from `createRun(seed, heroId)`, so a lobby run's action log was replayed as an ASCENT run — and
+`createRun(…, 'lobby')` alone wouldn't fix it either, because the seats are attached by `createLobbyRun`.
+Measured on one 13-round lobby run:
+
+| | rounds | wins | final board |
+|---|---|---|---|
+| actual run | 13 | 7 | bonetaxer, spore, wolvesden, spore, gravewarden, karthus, philippe |
+| replay as lobby (fixed) | 13 | 7 | **identical** |
+| replay as ascent (shipped) | 12 | 5 | ryme, deathswarmer, spore, wolvesden, spore, supporter, gravewarden |
+
+So it wasn't that lobby runs failed to save — they saved *plausible but fictional* boards, diverging from the
+first combat. `Replay.mode` now records the mode (absent = `'ascent'`, so every older replay is unchanged) and
+`replayRun(replay, initial?)` accepts a prebuilt start state; `saveRunBoards` passes `createLobbyRun(...)` for
+lobby replays. The state is passed IN rather than imported so `snapshot.ts` doesn't take a dependency on
+`lobby/`, which already depends on it.
+
+**Worth knowing:** any lobby run finished before this fix contributed misattributed boards to the shared pool.
+They're legal, buildable boards — just not the ones that were played.
+
+**Verified.** 9 new tests (2975 total / 156 files): handle determinism, spread, never colliding with a hero
+name, table-wide uniqueness, stable collision-dodging, and a lobby-replay fidelity test that asserts the lobby
+replay reproduces the run AND that a mode-less replay does not. Gates: typecheck, lint (0 errors), build:web,
+harness ✓.
+
 ## 2026-07-29 — Stat spells must read DISPLAYED stats: the folded-aura layer
 
 Owner report: Turnabout on a Deathsayer **showing 383/361** with a +349/+351 Undead aura moved it by only ±24;

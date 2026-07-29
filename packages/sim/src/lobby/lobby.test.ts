@@ -2,9 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createLobby, pairSeats, resolveRound, runLobby, standings, DEFAULT_LOBBY_RULES } from './lobby';
-import { recordRun, recordedSeat } from './seats';
+import { recordRun, recordedSeat, botSeat, hybridSeat } from './seats';
 import type { BoardSnapshot } from '../snapshot';
 import type { SeatDriver } from './types';
+import { createRun } from '../state';
+import { reduce } from '../reducer';
+import { CONFIG } from '../config';
+import { DEFAULT_BOT } from '../bots/index';
 
 /**
  * The 8-seat lobby prototype (owner direction 2026-07-29).
@@ -178,5 +182,72 @@ describe('lobby — deterministic and driver-agnostic', () => {
       expect(board!.minions.length).toBeGreaterThan(0);
     }
     expect(rec.prepare(rec.lastWave + 1), 'a recording should report when it runs dry').toBeNull();
+  });
+});
+
+describe('lobby mode — a seat with no course clock', () => {
+  it('an ordinary run still ends at the course length', () => {
+    // The control: without it, the lobby-mode test below could pass because runs never end at all.
+    let s = createRun(5, 'drakko', 'ascent');
+    let guard = 0;
+    while (s.phase !== 'gameover' && s.phase !== 'victory' && guard++ < 4000) {
+      const next = reduce(s, DEFAULT_BOT.act(s));
+      if (next === s) break;
+      s = next;
+    }
+    expect(s.wave, 'an Ascent run should stop at the course length').toBeLessThanOrEqual(CONFIG.courseRounds);
+  });
+
+  it('a LOBBY run keeps playing past the course length', () => {
+    // A lobby ends by elimination, not after 17 rounds, so a seat must keep shopping and scaling. Without this
+    // a bot seat froze at wave 17 and every later round was fought with a stale board.
+    let s = createRun(5, 'drakko', 'lobby');
+    let guard = 0;
+    while (s.wave <= CONFIG.courseRounds + 6 && s.phase !== 'gameover' && guard++ < 8000) {
+      const next = reduce(s, DEFAULT_BOT.act(s));
+      if (next === s) break;
+      s = next;
+    }
+    expect(s.wave, 'the lobby run stopped at the course clock').toBeGreaterThan(CONFIG.courseRounds);
+    expect(s.phase).not.toBe('victory');
+  });
+});
+
+describe('option 3 — a live bot takes the seat when the recording runs dry', () => {
+  it('a live bot seat still fields a board well past a recording’s length', () => {
+    const seat = botSeat(31, 'drakko', 'live');
+    const late = seat.prepare(CONFIG.courseRounds + 5);
+    expect(late, 'the live seat ran out of boards').toBeTruthy();
+    expect(late!.minions.length).toBeGreaterThan(0);
+  });
+
+  it('…and its board keeps SCALING, which is the whole point', () => {
+    // A stale repeated board is why `repeatFinal` lobbies ground to the hard stop. A live seat has to actually
+    // grow, or the fallback buys nothing over repeating the final board.
+    const seat = botSeat(31, 'drakko', 'live');
+    const early = seat.prepare(5)!;
+    const late = seat.prepare(CONFIG.courseRounds + 4)!;
+    const power = (b: typeof early) => b.minions.reduce((n, m) => n + m.attack + m.health, 0);
+    expect(power(late), 'the late board is no stronger than the early one').toBeGreaterThan(power(early));
+  });
+
+  it('a hybrid seat uses the RECORDING early and the live bot late', () => {
+    const seat = hybridSeat(31, 'drakko', 'hybrid');
+    const recorded = recordRun(31, 'drakko');
+    // Inside the recording's range the hybrid must serve the recorded board verbatim — that authenticity is the
+    // reason to use a snapshot at all.
+    expect(seat.prepare(4)).toEqual(recorded.prepare(4));
+    // Past it the recording is dry, but the seat keeps fighting.
+    expect(recorded.prepare(seat.lastRecordedWave + 3)).toBeNull();
+    expect(seat.prepare(seat.lastRecordedWave + 3), 'the hybrid stopped when its recording did').toBeTruthy();
+  });
+
+  it('a hybrid lobby resolves without hitting the round cap', () => {
+    // The measured failure it exists to fix: recorded seats on `repeatFinal` ground on to `maxRounds`.
+    const seats = Array.from({ length: 8 }, (_, i) => hybridSeat(500 + i, undefined, `h${i}`));
+    const s = runLobby(createLobby(3, seats));
+    expect(s.finished).toBe(true);
+    expect(s.round - 1, 'the lobby still ran to the hard stop').toBeLessThan(s.rules.maxRounds);
+    expect(s.seats.filter((x) => x.alive).length).toBe(1);
   });
 });

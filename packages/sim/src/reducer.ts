@@ -2260,7 +2260,8 @@ function advanceCombat(s: RunState): void {
     s.phase = 'gameover';
     return;
   }
-  if (s.resolve <= 0) {
+  // A lobby seat's Resolve is the LOBBY's to manage; the run's own copy is bookkeeping and must not end it.
+  if (s.resolve <= 0 && s.mode !== 'lobby') {
     s.phase = 'gameover';
     return;
   }
@@ -2268,7 +2269,10 @@ function advanceCombat(s: RunState): void {
   // Course complete (A1): a run plays a fixed course of `courseRounds` rounds; survive them all and the
   // run is done — the record IS the score, whatever it is. The just-fought round's result is already in
   // history. The only early exit is Resolve 0 (handled above); you never "win early" by a win count.
-  if (s.mode !== 'practice' && s.wave >= CONFIG.courseRounds) {
+  // A LOBBY seat has no course clock: the lobby ends by elimination, with no fixed round count, so the seat
+  // must keep shopping and scaling for as long as the lobby lasts. Without this a bot seat froze at wave 17
+  // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'victory';
     return;
   }

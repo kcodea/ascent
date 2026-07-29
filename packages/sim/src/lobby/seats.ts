@@ -1,8 +1,11 @@
 import type { BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
-import { autoplayRun } from '../snapshot';
-import type { PreparedBoard, SeatDriver, SeatRoundOutcome } from './types';
+import { autoplayRun, snapshotBoard } from '../snapshot';
+import { createRun, type RunState } from '../state';
+import { reduce } from '../reducer';
+import { DEFAULT_BOT } from '../bots/index';
+import type { PreparedBoard, SeatDriver } from './types';
 
 /**
  * The two seat drivers the prototype ships with. Both satisfy `SeatDriver`, so the lobby cannot tell them
@@ -70,27 +73,78 @@ export function recordRun(seed: number, heroId?: string, label?: string): SeatDr
 }
 
 /**
- * A BOT seat.
+ * A LIVE bot seat: a real `RunState` in `lobby` mode, shopping and scaling for as long as the lobby lasts.
  *
- * PROTOTYPE LIMITATION, stated plainly: this currently plays its own ordinary run and the lobby reads its board
- * each round, so it does not yet react to damage taken *in the lobby* — its own Resolve and the lobby's pool are
- * separate numbers. That makes it behaviourally identical to a recorded seat today.
+ * This is what makes the owner's chosen answer to the exhaustion problem work. A recorded run is 17 waves long
+ * and a lobby has no round cap, so a lobby that outlives its recordings was fighting stale boards that could no
+ * longer threaten anyone — measured: `repeatFinal` lobbies ground on to the 60-round hard stop. A live seat has
+ * no course clock (`mode: 'lobby'`), so its board keeps growing and late rounds stay dangerous.
  *
- * Making it genuinely reactive needs `faceOmen` split into `prepareSeatForCombat` / `settleSeatCombat` so the
- * lobby can drive the seat's recruit phase, resolve the fight itself, and settle the real result back. That is a
- * real piece of work and it is NOT what this prototype is testing — the prototype is testing whether the lobby
- * loop and the damage model feel right. The seam exists so that work lands here and nowhere else.
+ * Its own Resolve is bookkeeping and is deliberately ignored: the LOBBY owns this seat's health. The run still
+ * fights the ordinary opponent pool for its own progression — that is what advances its waves and grows the
+ * board — while the lobby resolves the fight that actually counts.
+ *
+ * REMAINING LIMITATION, stated plainly: it does not yet shop differently because of damage taken *in the lobby*,
+ * since its shop decisions read its own Resolve. Closing that needs `faceOmen` split into
+ * `prepareSeatForCombat` / `settleSeatCombat` so the lobby can drive recruit and settle the real result back.
+ * That is a further step; this one buys the scaling, which is what the pacing measurement asked for.
  */
 export function botSeat(seed: number, heroId?: string, label?: string): SeatDriver {
-  const inner = recordRun(seed, heroId, label ?? `bot#${seed}`);
-  let seen: SeatRoundOutcome | null = null;
+  let run: RunState = createRun(seed, heroId, 'lobby');
+  const terminal = (r: RunState): boolean => r.phase === 'gameover' || r.phase === 'victory';
+
+  /** Drive the existing bot policy until the run reaches `wave` (or can't advance any further). */
+  const advanceTo = (wave: number): void => {
+    let guard = 0;
+    while (run.wave < wave && !terminal(run) && guard++ < 4000) {
+      const next = reduce(run, DEFAULT_BOT.act(run));
+      if (next === run) break; // the policy offered a no-op — stop rather than spin
+      run = next;
+    }
+  };
+
   return {
     kind: 'bot',
-    label: inner.label,
-    heroId: inner.heroId,
-    prepare: (round) => inner.prepare(round),
-    finalBoard: () => inner.finalBoard?.() ?? null,
-    settle: (o) => { seen = o; void seen; /* a reactive seat will consume this — see the note above */ },
+    label: label ?? `bot#${seed}`,
+    heroId: run.heroId,
+    prepare: (round) => {
+      advanceTo(round);
+      const snap = snapshotBoard(run);
+      return snap.minions.length ? toPrepared(snap) : null;
+    },
+    finalBoard: () => {
+      const snap = snapshotBoard(run);
+      return snap.minions.length ? toPrepared(snap) : null;
+    },
+    settle: () => {
+      /* the lobby owns this seat's health; the run's own resolve is bookkeeping — see the note above */
+    },
+  };
+}
+
+/**
+ * OPTION 3 (owner call 2026-07-29): play the recording while it lasts, then hand the seat to a live bot.
+ *
+ * The recorded run is the authentic part — a real player's actual boards, in their actual order — and it is also
+ * the finite part. When it runs dry the seat doesn't freeze on a stale board or vanish from the lobby; a live
+ * bot picks it up and keeps scaling. The alternatives measured worse: repeating the final board grinds the lobby
+ * to its hard stop, and eliminating the seat makes lobby length depend on how long a stranger's run survived
+ * rather than on play.
+ *
+ * The handover is deliberately seeded from the SAME seed and hero as the recording, so the bot continues a run
+ * of the same shape rather than dropping an unrelated board into the seat mid-lobby.
+ */
+export function hybridSeat(seed: number, heroId?: string, label?: string): SeatDriver & { readonly lastRecordedWave: number } {
+  const recorded = recordRun(seed, heroId, label);
+  const live = botSeat(seed, heroId, label);
+  return {
+    kind: 'recorded', // it presents as a recording — that is what the player sees for most of the lobby
+    label: recorded.label,
+    heroId: recorded.heroId,
+    lastRecordedWave: recorded.lastWave,
+    prepare: (round) => recorded.prepare(round) ?? live.prepare(round),
+    finalBoard: () => live.finalBoard?.() ?? recorded.finalBoard?.() ?? null,
+    settle: (o) => { recorded.settle(o); live.settle(o); },
   };
 }
 

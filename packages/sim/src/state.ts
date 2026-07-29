@@ -255,7 +255,10 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *  - `practice` the same course, any hero, unlimited Resolve, longer shop timer — unscored
  * Pinned onto the run at creation; `createRun` reads it to decide whether to adopt `activeRift()`.
  */
-export type RunMode = 'ascent' | 'rift' | 'practice';
+/** `lobby` is a seat in an 8-seat elimination lobby: it plays the ordinary game but has no course clock, because
+ *  a lobby ends by elimination rather than after a fixed 17 rounds. Its Resolve is bookkeeping only — the LOBBY
+ *  owns the seat's real health — so it never terminates on its own. Everything else behaves exactly like Ascent. */
+export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby';
 
 export type DiscoverSpec =
   | { kind: 'spell' }

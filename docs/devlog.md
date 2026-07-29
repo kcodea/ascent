@@ -1,5 +1,44 @@
 # ASCENT — development log
 
+## 2026-07-29 (later) — feat(sim): option 3 — a live bot takes the seat when the recording runs dry
+
+The prototype measured that neither exhaustion policy worked: `repeatFinal` ground lobbies to the 60-round hard
+stop on stale boards, and `eliminate` made lobby length a function of how long a recording's owner survived.
+Owner picked option 3 — hand the seat to a live bot — as the long-term answer. Built it.
+
+**`lobby` run mode.** A lobby ends by elimination, with no fixed round count, so a seat needs a run with no
+course clock. `RunMode` gains `'lobby'`: `advanceCombat` skips the `courseRounds` terminal check for it, and its
+own Resolve never ends it because the LOBBY owns that seat's health. Two lines in the reducer, both gated so
+Ascent, Rift and Practice are untouched.
+
+**`botSeat` is now a genuinely live run** — a `lobby`-mode `RunState` driven by the existing bot policy, shopping
+and scaling for as long as the lobby lasts. It still fights the ordinary opponent pool for its own progression
+(that is what advances its waves) while the lobby resolves the fight that counts.
+
+**`hybridSeat` is option 3 itself:** the recorded run plays while it lasts — that authenticity is the whole
+reason to use a snapshot — and a live bot picks the seat up when it runs dry. The handover is seeded from the
+same seed and hero as the recording, so the bot continues a run of the same shape rather than dropping an
+unrelated board into the seat mid-lobby.
+
+**Measured (`npm run lobby -- --runs 12`), and it settles the question:**
+
+| seats | min | median | max | mean |
+|---|---:|---:|---:|---:|
+| recorded, `repeatFinal` | 17 | **60 (cap)** | 60 | 50.0 |
+| recorded, `eliminate` | 10 | 12 | 12 | 11.5 |
+| **hybrid** | 16 | **19** | 23 | 19.3 |
+| **all live bots** | 15 | **20** | 24 | 19.4 |
+
+Live seats land in a 15-24 round band with real variance and never touch the cap. The recorded-only policies
+were the two failures the prototype was built to expose.
+
+**Still open:** a live seat doesn't yet shop differently because of damage taken *in the lobby* — its decisions
+read its own Resolve, not the seat's. Closing that needs `faceOmen` split into `prepareSeatForCombat` /
+`settleSeatCombat`. This step buys the scaling, which is what the pacing measurement actually asked for.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2883 tests, build:web, harness determinism. Six new
+tests; revert-checked — removing the lobby-mode gate fails the "keeps playing past the course length" test.
+
 ## 2026-07-29 — feat(sim): the 8-seat lobby prototype (headless)
 
 Owner direction: the game becomes an 8-seat elimination lobby — 1-3 humans, the rest filled — and it stays

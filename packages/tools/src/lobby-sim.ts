@@ -11,7 +11,7 @@
  *   npm run lobby -- --runs 20    # 20 lobbies, summary only (pacing / round-count distribution)
  *   npm run lobby -- --exhaust eliminate
  */
-import { HEROES, createLobby, runLobby, standings, recordRun, botSeat, type LobbyState, type SeatDriver } from '@game/sim';
+import { HEROES, createLobby, runLobby, standings, recordRun, botSeat, hybridSeat, type LobbyState, type SeatDriver } from '@game/sim';
 
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string): string | undefined => {
@@ -23,6 +23,7 @@ const has = (name: string): boolean => argv.includes(`--${name}`);
 const SEED = Number(flag('seed', '1'));
 const RUNS = Number(flag('runs', '1'));
 const USE_BOTS = has('bots');
+const USE_HYBRID = has('hybrid');
 const EXHAUST = (flag('exhaust', 'repeatFinal') ?? 'repeatFinal') as 'repeatFinal' | 'eliminate';
 
 /** Eight seats from eight different heroes, so a lobby isn't eight copies of one strategy. */
@@ -31,7 +32,9 @@ function buildSeats(lobbySeed: number): SeatDriver[] {
   return Array.from({ length: 8 }, (_, i) => {
     const hero = heroes[(lobbySeed + i) % heroes.length]!;
     const seed = lobbySeed * 1000 + i;
-    return USE_BOTS ? botSeat(seed, hero.id, `bot:${hero.name}`) : recordRun(seed, hero.id, hero.name);
+    if (USE_BOTS) return botSeat(seed, hero.id, `bot:${hero.name}`);
+    if (USE_HYBRID) return hybridSeat(seed, hero.id, hero.name);
+    return recordRun(seed, hero.id, hero.name);
   });
 }
 
@@ -67,7 +70,7 @@ if (RUNS === 1) {
   }
   lengths.sort((a, b) => a - b);
   const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-  console.log(`\n=== ${RUNS} lobbies (${USE_BOTS ? 'bot' : 'recorded'} seats, exhaustion: ${EXHAUST}) ===`);
+  console.log(`\n=== ${RUNS} lobbies (${USE_BOTS ? 'bot' : USE_HYBRID ? 'hybrid' : 'recorded'} seats, exhaustion: ${EXHAUST}) ===`);
   console.log(`  rounds: min ${lengths[0]}  median ${lengths[Math.floor(lengths.length / 2)]}  max ${lengths[lengths.length - 1]}  mean ${mean.toFixed(1)}`);
   console.log('  winners:');
   for (const [name, n] of [...winners].sort((a, b) => b[1] - a[1]).slice(0, 8)) {

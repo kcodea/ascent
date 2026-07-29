@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  bindingBeneathDraft,
   bindingFor,
   bindingsJson,
   clearBinding,
@@ -435,5 +436,43 @@ describe('the live-preview draft never reaches disk', () => {
   it('still resolves a draft binding in memory, which is what makes the preview work', () => {
     setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
     expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID });
+  });
+});
+
+/**
+ * The prefill's question — "what plays here, ignoring my draft" — which `bindingFor` cannot answer once the
+ * draft is bound, because by then the draft IS the answer and carries whatever the prefill last produced.
+ */
+describe('bindingBeneathDraft', () => {
+  beforeEach(() => resetBindings());
+
+  it('sees through a card-level draft to the committed card binding', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'selfBuffed' });
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID, fanOut: 'selfBuffed' });
+    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+  });
+
+  // A GLOBAL commit asks the kind layer, so a card override — draft or not — must not colour the answer.
+  // This is the case that wrote Bloodbinder's `damaged` onto every card's scCast.
+  it('ignores the card layer entirely when asked for the kind', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
+    expect(bindingBeneathDraft(null, 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  it('sees through a kind-level draft too', () => {
+    setBinding(null, 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
+    expect(bindingBeneathDraft(null, 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  // Only the DRAFT is see-through. A tombstone still means "plays nothing here" and must stop resolution,
+  // exactly as it does in `bindingFor` — otherwise the prefill would inherit from a row the author silenced.
+  it('still stops at a tombstone', () => {
+    setBinding('bloodbinder', 'scCast', null);
+    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toBeNull();
+  });
+
+  it('is identical to bindingFor when no draft is in play', () => {
+    setBinding('bloodbinder', 'scCast', { def: 'test-red-blast', fanOut: 'selfBuffed' });
+    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toEqual(bindingFor('bloodbinder', 'scCast'));
   });
 });

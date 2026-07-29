@@ -340,6 +340,32 @@ export function bindingFor(cardId: string | null, kind: MomentKind): FxBinding |
 }
 
 /**
+ * What would play at `(cardId, kind)` if the live preview draft weren't in the way.
+ *
+ * The same resolution order as `bindingFor`, with a `DRAFT_DEF_ID` entry treated as "no opinion" so lookup
+ * falls through to whatever is underneath it.
+ *
+ * The workbench's fanOut prefill asks exactly this question — "what is already working here" — and
+ * `bindingFor` stops being able to answer it the moment the draft is bound, because the draft IS the card's
+ * binding by then and carries whatever fanOut the prefill itself last produced. Reading that back would make
+ * the value self-perpetuating: switching scope card → global → card would return the global-derived value
+ * instead of restoring the card's own.
+ */
+export function bindingBeneathDraft(cardId: string | null, kind: MomentKind): FxBinding | null {
+  const notDraft = (b: FxBinding | null | undefined): boolean => b === undefined || b?.def !== DRAFT_DEF_ID;
+  if (cardId !== null) {
+    // A tombstone (`null`) still STOPS here, exactly as in `bindingFor` — only the draft is see-through.
+    const overridden = patch.cards[cardId]?.[kind];
+    if (overridden !== undefined && notDraft(overridden)) return overridden;
+    const fromFile = COMMITTED.cards[cardId]?.[kind];
+    if (fromFile !== undefined) return fromFile;
+  }
+  const overriddenKind = patch.kinds[kind];
+  if (overriddenKind !== undefined && notDraft(overriddenKind)) return overriddenKind;
+  return COMMITTED.kinds[kind] ?? null;
+}
+
+/**
  * `COMMITTED` with an arbitrary patch layered over it, tombstones REMOVED.
  *
  * Parameterised by the patch on purpose: WHICH overlay gets merged is the whole difference between the live

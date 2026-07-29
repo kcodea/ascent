@@ -31,7 +31,7 @@ import { ProcHarness } from '../harness/ProcHarness';
 import { CommitPanel } from '../harness/CommitPanel';
 import { planCommit } from '../harness/commitPlan';
 import {
-  bindingFor,
+  bindingBeneathDraft,
   bindingsJson,
   clearBinding,
   DRAFT_DEF_ID,
@@ -1245,18 +1245,26 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
   // ── commit animation: the live draft, then the committed def + binding ──────────────────────────────
   //
-  // DECLARED BEFORE the draft effects below, and that ordering is load-bearing. Effects in one commit run in
-  // declaration order, and once the draft is bound `bindingFor` answers with the DRAFT's binding — so if this
-  // ran second it would read back the value it just wrote and the prefill would perpetuate itself instead of
-  // inheriting what the card actually plays today. Running first, it reads the pre-draft answer.
+  // DECLARED BEFORE the draft effects below, and that ordering is load-bearing: effects in one commit run in
+  // declaration order, so running second would read the draft this render is about to bind.
   //
-  // The wrong fanOut is a SILENT failure — a self-buff effect left on `primary` plays once, on whichever unit
-  // came first, and not at all on the others — so the default is "what is already working here", never a
-  // fixed guess. Deps are the selection only, so a manual change in the dropdown is never clobbered.
+  // Inherit the fanOut of whatever plays there NOW — and "there" depends on the scope. A card commit
+  // inherits the card's own value; a global commit inherits the KIND's, ignoring any card override.
+  //
+  // Reading the card layer for a global commit is how you write `damaged` — correct for Bloodbinder, whose
+  // cast damages its marks — onto EVERY card's scCast, most of which damage nobody in that step and would
+  // therefore play zero copies. One commit, every card, silently nothing, from a value that looks right in
+  // the dropdown. Switching scope re-derives and will discard a manual choice, deliberately: the scope
+  // change is what makes the old value the wrong question.
+  //
+  // `bindingBeneathDraft`, not `bindingFor`: once the draft is bound it IS the card's binding and carries
+  // whatever this effect last produced, so `bindingFor` would hand back its own output — and a card → global
+  // → card round trip would restore the global-derived value instead of the card's real one.
   useEffect(() => {
     if (harnessCard === '' || harnessKind === null) return;
-    setCommitFanOut(bindingFor(harnessCard, harnessKind)?.fanOut ?? 'primary');
-  }, [harnessCard, harnessKind]);
+    const scopeKey = commitScope === 'card' ? harnessCard : null;
+    setCommitFanOut(bindingBeneathDraft(scopeKey, harnessKind)?.fanOut ?? 'primary');
+  }, [harnessCard, harnessKind, commitScope]);
 
   // While rail mode has a card AND a moment selected, the editor's current composition IS what that card
   // plays — registered in memory under `DRAFT_DEF_ID` and bound through the session patch, which

@@ -48,6 +48,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **Set 1 and Set 2 no longer mix** — every random pick in combat now draws from the run's pinned set.
 - **Fixed broken images on the itch browser build** — root-absolute asset paths 404 on itch's CDN sub-path;
   a test now blocks the whole class.
+- **Set 1 and Set 2 no longer mix** — every random pick in combat now draws from the run's pinned set.
+- **Fixed broken images on the itch browser build** — root-absolute asset paths 404 on itch's CDN sub-path;
+  a test now blocks the whole class.
 - **Replay any moment a card caused.** Stage a controlled fight, pick from the list of moments your card
   actually produced, and jump the replay to any of them with a run-up — so an authored effect can be judged
   on the real card at real scale, on demand, instead of by playing until its moment happens to occur.

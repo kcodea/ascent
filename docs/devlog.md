@@ -53,6 +53,19 @@ preset-table bug, and it is otherwise completely silent.
    and test-validated but visually unjudged at real card scale. The gallery *shell* and the base *content*
    ship separately on purpose: a base the owner rejects costs one JSON file, not the feature.
 
+**Hovering a variant no longer litters the author's file list.** `materialiseVariant` writes into the
+module-level def registry, and it runs on **hover** as well as on click — a preview has to be registered
+before `playDef` can resolve it by id. Unfiltered, sweeping the mouse across Bolt's four variants silently
+added four entries to the rail's own def list: files the author never chose, can't delete, and that vanish on
+reload. Browse all doesn't have this problem because `buildCatalog` filters the whole `preset-` prefix; the
+rail deliberately **can't** do that, because the bases must stay visible and editable there (decision 3
+above). So the rail takes a narrower cut — it filters on the **variant separator** (`--`), not the prefix.
+Bases carry no `--`; materialised variants always do. `VARIANT_ID_SEP` and the `authoredDefs()` helper sit
+directly beneath `materialiseVariant`, the one function that produces the id, so the producer and the filter
+can't drift. (Edge worth knowing: a hand-typed Save name of `foo--bar` passes `SLUG_RE` and would be hidden
+too — `slugify` collapses `--` to `-`, so it takes deliberately typing an already-valid double-dashed slug,
+which no def in `fx/defs/` does.)
+
 **Also hardened along the way** (all from review passes on the branch): archetype and axis ids are rejected if
 they're `__proto__` / `constructor` / `prototype` — an id of `__proto__` previously parsed clean and then
 vanished from `Object.keys` on a by-id lookup while still being readable by indexed access, the exact silent
@@ -72,13 +85,35 @@ float dust that 88 of 121 registered slider specs would hit, the second clamp af
 non-slider-holding-a-number isolated from value-isn't-a-number), and 3 integrity tests pinning that every
 archetype's `base` resolves to a real def and every variant an archetype lists has an axis.
 
+**The browser pass** (run during the wiring step, before the docs commit). Dev menu → 🎨 FX Workbench opened
+with rail buttons `["＋ New effect", "Browse all", "Watch in combat"]`. **＋ New effect** rendered the grid:
+`⚡ Bolt / travels fast and lands hard` and `💥 Blast / detonates in place`. Bolt offered `Thin, Heavy,
+Crackling, Beam`. **Hovering Crackling** registered `preset-bolt--crackling` and took the fx layer from 2 to 3
+children — `playDef` mounted and started a preview. No `[fx]` warnings, so `missed` was empty for these axes.
+**Clicking Heavy** closed the gallery, pre-filled the name `bolt-heavy`, and the registered def's burst `size`
+read **16 against the base's 10** — the variant genuinely applied rather than loading the base. **Browse all**
+showed 21 rows with no `preset-` id and no `--` variant id present. The only console noise was a pre-existing
+`GSAP target not found.` ×2, which fires on load before the workbench opens.
+
+**What that pass could NOT establish: the preview was never observed visually.** The Claude_Browser pane runs
+at a 0×0 `document.hidden` viewport with zero rAF frames, so the ticker had to be pumped by hand via
+`window.__pixiFx.update(16)` in a real tab. *Presence* was proven by the container's child count, not by
+watching anything. Every claim above is structural — ids, counts, numbers — and none of it is a judgement
+about how the effects **look**. That is exactly why the two bases still want the owner's eye.
+
 **Follow-ups.** The remaining **eight archetype bases** (wave, chain, cloud, swell, drip, vortex, slam, beam)
 — content, landing one at a time so each is reviewed side by side at real card scale rather than eight at
 once. A **friction batch**: keep Fire and the scrub bar alive in rail mode; persist a commit-success toast
 across the forced page reload; relabel `fanOut` in plain language; auto-unlock the seed on Save. And the
 standing one: absorb the **~30 legacy `pixiFx` effects** into the workbench, stripping the defs nobody asked
-for. Above all, **the two bases want the owner's eye in the workbench** — they are ordinary def files and tune
-like any other.
+for. Two smaller gaps found while writing this up: **`missed` is DEV-warned only and never surfaced in the
+UI**, so an author who picks a variant that silently did nothing sees a normal-looking composition — and the
+gallery is the *first* thing a new author touches, which makes the console the least likely place for them to
+be looking; given "make failure visible" is this subsystem's entire ethos, that gap should close. And
+**`applied` counts params *written*, not *changed*** — a ×1 multiplier still lands there — so `applied.length`
+can't be used as a "did this variant do anything" signal, which is worth knowing before some future UI tries.
+Above all, **the two bases want the owner's eye in the workbench** — they are ordinary def files and tune like
+any other.
 
 ## 2026-07-29 — the title menu becomes an object you can press
 

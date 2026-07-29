@@ -240,12 +240,40 @@ function materialiseVariant(archetypeId: string, variantId: string): StoredFxDef
   }
   const stored: StoredFxDef = {
     version: def.version,
-    id: `${arch.base}--${variantId}`,
+    id: `${arch.base}${VARIANT_ID_SEP}${variantId}`,
     duration: def.duration,
     layers: def.layers,
   };
   registerSavedDef(stored);
   return stored;
+}
+
+/**
+ * The separator that marks a def id as a MATERIALISED VARIANT (`preset-bolt--heavy`) rather than an
+ * authored file. Deliberately adjacent to the one function that produces it, so the producer and the
+ * filter below can't drift apart.
+ */
+const VARIANT_ID_SEP = '--';
+
+/**
+ * The def list the RAIL shows — every authored def, minus the gallery's ephemeral preview artefacts.
+ *
+ * `materialiseVariant` registers into the module-level def registry, and it is called on **hover** as well
+ * as on click (a preview has to be registered before `playDef` can resolve it by id). Unfiltered, that
+ * means sweeping the mouse across Bolt's four variants silently adds four entries to the author's own file
+ * list — files they never chose, can't delete, and that vanish on reload. `buildCatalog` doesn't have this
+ * problem because Browse all filters the whole `preset-` prefix; the rail can't, because the BASES must
+ * stay visible there or they could never be tuned (they are unbound by design, so Browse all is not an
+ * option for them). Hence the narrower cut: filter on the variant separator, not the prefix. Bases carry no
+ * `--`; variants always do.
+ *
+ * Only variants are hidden, so a base stays a first-class, editable def. Note the theoretical edge: a
+ * hand-typed Save name of `foo--bar` would pass `SLUG_RE` and be hidden too — `slugify` collapses `--` to
+ * `-`, so this can only happen by typing an already-valid slug containing a double dash, which no def in
+ * `fx/defs/` does.
+ */
+function authoredDefs(): StoredFxDef[] {
+  return listDefs().filter((d) => !d.id.includes(VARIANT_ID_SEP));
 }
 
 /**
@@ -290,9 +318,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [saving, setSaving] = useState(false);
   const [saveNote, setSaveNote] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  // The committed def library. Held in state (rather than calling `listDefs()` inline) so a Save can refresh
-  // it explicitly — the registry behind it is module-level and React knows nothing about it.
-  const [defs, setDefs] = useState<StoredFxDef[]>(() => listDefs());
+  // The committed def library. Held in state (rather than calling `authoredDefs()` inline) so a Save can
+  // refresh it explicitly — the registry behind it is module-level and React knows nothing about it.
+  const [defs, setDefs] = useState<StoredFxDef[]>(() => authoredDefs());
   const [browsing, setBrowsing] = useState(false);
   // The preset gallery. MUTUALLY EXCLUSIVE with `browsing`: both overlays are full-screen at the same
   // z-index, so two open at once is not a layered UI, it's one silently buried under the other. Each
@@ -1207,7 +1235,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   /** Re-read the committed def registry (a module-level glob React knows nothing about) after a write. */
   const refreshLibrary = (): void => {
     refreshDefs();
-    setDefs(listDefs());
+    setDefs(authoredDefs());
   };
 
   /**

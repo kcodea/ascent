@@ -77,8 +77,11 @@ Three details worth knowing before they surprise you:
   (`PRESET_ID_PREFIX` in `fx/ui/catalog.ts`). Deliberate: Browse all's *by event* lens is the **coverage
   map**, where "nothing bound" is a signal to act on — and the bases are unbound by design, so leaving them
   in would pad that column with permanent false positives. They stay reachable in the rail's **Start from**
-  picker, which is the editor's file list and reads `listDefs()` directly. They have to be reachable
-  somewhere, or they could never be tuned.
+  picker, which is the editor's file list. They have to be reachable somewhere, or they could never be tuned.
+  What the rail *does* hide is **materialised variants** — ids carrying the `--` separator. Hovering a variant
+  registers it (a preview can't play until it exists by id), so without that filter a single sweep across
+  Bolt's four variants would add four entries to your file list that you never chose and can't delete. Bases
+  have no `--`, variants always do.
 - **A materialised variant drops its base's `label`, `tags` and `seed`.** `label`/`tags` are the library
   browser's search + grouping index and the workbench has no editor for them — inheriting would file every
   Bolt-derived effect under words the author never wrote and can't change. `seed` matters more: `loadDef`

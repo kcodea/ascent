@@ -237,6 +237,14 @@ The career surface exists; deepen what a finished run *remembers*.
   table and wants plain language; and **Save doesn't auto-unlock the seed**, which is the single easiest way to
   bake a frozen roll into a shipped def by accident.
 
+- **Preset misses are invisible where it matters most.** `applyVariant` reports every key that reached nothing
+  in `missed`, and the gallery DEV-warns it to the console — but nothing surfaces in the UI. The gallery is the
+  first thing a new author touches, so the console is the least likely place they're looking, and a variant
+  that silently did nothing renders as a perfectly normal composition. "Make failure visible" is this
+  subsystem's whole ethos; close the gap. Related trap for whoever builds it: **`applied` counts params
+  *written*, not *changed*** (a ×1 multiplier still lands there), so `applied.length` is NOT a usable "did this
+  variant do anything" signal.
+
 - **Absorb the ~30 legacy `pixiFx` effects into the workbench.** They predate the def format and aren't
   authorable there, so half the game's FX are still edited by hand in TypeScript while the other half are
   data. Port them to defs, bind them through `bindings.json`, and **strip the defs nobody asked for** while

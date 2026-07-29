@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-07-29 — fix(core/sim): Chorus Engine's Attachment enchant evaporated at the bell
+
+Owner report: "chorus engine's buff needs to carry back from combat / buff attachments everywhere."
+
+**Cause.** `rallyBuffAttachments` buffed the living Magnetic minions on the field and stopped there — no
+`permaGain`, no run-wide aura — so the whole grant vanished when combat ended. Between fights the card read as
+doing nothing, which is the same failure class as the Imp aura (2026-07-21) and Groveweaver (2026-07-25).
+
+**Fix.** Route it through the contract Scrap Herald's Battlecry already had. New `ctx.grantMagneticBuff` feeds a
+`playerMagneticBuffGain` carry-back; at settle the reducer applies it exactly the way `battlecryBuffMagnetics`
+does — every Magnetic on the board and in hand gains the stats, and `magneticBuyAtk`/`magneticBuyHp` stack so
+welded hosts and future Attachments inherit it too. Reusing that path rather than writing a second one is the
+point: "wherever they are" now means the same thing on both halves of the card pool.
+
+It also emits a `tribeAura` (`tribe: 'mech'`, `aura: 'magnetic'`) so the grant plays the board wash and ticks
+the Attachment Aura row, instead of landing silently — the specific complaint that produced the Imp-aura fix.
+The enemy side never carries back (enemies are regenerated each wave); pinned by a test.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2829 tests, build:web, harness determinism. Six new
+tests, revert-checked: removing the carry-back fails three of them.
+
+**A test bug worth recording.** The "a non-Attachment is untouched" case first asserted raw stats and failed at
++1 — an unrelated combat gain in a wave-4 fight, not this enchant. It now asserts on the buff's own `Chorus
+Engine` source label, which is what the change actually controls.
+
 ## 2026-07-28 — content: card batch part 6 — the final tranche
 
 Closes the owner's 2026-07-27 batch: three new minions, the Tier-7 ruling, the all-type Discover rule, five

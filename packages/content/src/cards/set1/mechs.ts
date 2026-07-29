@@ -319,8 +319,9 @@ export const MECHS: CardDef[] = [
     token: true,
   },
   {
-    // Machine Chorus reward. A Rally payoff for an Attachment build: each attack both pumps your unwelded
-    // Attachments AND conjures fresh ones to hand.
+    // Machine Chorus reward. A Rally payoff for an Attachment build: each attack both pumps your Attachments
+    // AND conjures fresh ones to hand. The pump is PERMANENT and reaches them "wherever they are" (owner
+    // 2026-07-29) — it used to evaporate at the bell, so the card read as doing nothing between fights.
     id: 'chorusengine',
     name: 'Chorus Engine',
     tribe: 'mech',
@@ -332,8 +333,8 @@ export const MECHS: CardDef[] = [
       { on: 'onAttack', do: 'rallyBuffAttachments', params: { attack: 4, health: 4 } },
       { on: 'onAttack', do: 'rallyGrantMagnetic', params: { count: 2 } },
     ],
-    text: '**Rally:** improve your **Attachments** by **+4/+4** and get **2 Attachments**.',
-    goldenText: '**Rally:** improve your **Attachments** by **+8/+8** and get **4 Attachments**.',
+    text: '**Rally:** improve your **Attachments** by **+4/+4** wherever they are and get **2 Attachments**.',
+    goldenText: '**Rally:** improve your **Attachments** by **+8/+8** wherever they are and get **4 Attachments**.',
     token: true,
   },
 ];

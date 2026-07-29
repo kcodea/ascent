@@ -4963,6 +4963,12 @@ export interface EotStepFx {
   /** Host uids that gained an Attachment on this beat (Combinator, Cling Drones, Money Bots) — the UI plays
    *  the weld ring on them as the beat runs, since the real weld's stamp lands after the phase flips. */
   welds: string[];
+  /** cardIds this beat added to the HAND (Money Maker, Crypt Scribe, Steward of Spells, Rune of Spending's
+   *  conjures …). `faceOmen` commits every End-of-Turn grant in one dispatch after the last beat, so without
+   *  this the whole batch materialised at once, after all the pulses had already fired. The UI shows each
+   *  grant arriving on ITS beat instead (owner ask 2026-07-27). cardIds, not uids: the projection runs on a
+   *  throwaway clone whose uids are not the ones `faceOmen` will mint. */
+  handGrants: string[];
 }
 
 /**
@@ -5004,6 +5010,7 @@ export function projectEndOfTurnSteps(state: RunState): {
     const eatenStart = (clone.fodderEaten ?? []).length;
     const atkBefore = new Map(clone.board.map((c) => [c.uid, c.attack]));
     const attachBefore = new Map(clone.board.map((c) => [c.uid, c.attachments ?? 0]));
+    const handBefore = new Set(clone.hand.map((c) => c.uid));
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     for (const c of clone.board) {
       const prev = atkBefore.get(c.uid);
@@ -5019,8 +5026,10 @@ export function projectEndOfTurnSteps(state: RunState): {
       const before = attachBefore.get(c.uid);
       if (before !== undefined && (c.attachments ?? 0) > before) welds.push(c.uid);
     }
+    // Cards this beat put in hand, in arrival order — matched by cardId when the real grants land.
+    const handGrants = clone.hand.filter((c) => !handBefore.has(c.uid)).map((c) => c.cardId);
     steps.push(snap());
-    fx.push({ buffFx: clone.recruitBuffFx.slice(fxStart), eaten: (clone.fodderEaten ?? []).slice(eatenStart), welds });
+    fx.push({ buffFx: clone.recruitBuffFx.slice(fxStart), eaten: (clone.fodderEaten ?? []).slice(eatenStart), welds, handGrants });
   };
   for (const card of [...clone.board]) {
     const def = CARD_INDEX[card.cardId];

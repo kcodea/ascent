@@ -11,11 +11,10 @@ import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
-import { attackerOfImpact, meleePairOfImpact } from './combatBeats';
+import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
-import { compileMoments, type Moment } from './choreo/compile';
-import { deferClashBuffs } from './choreo/clashOrder';
-import { deferAvengeAfterSummons } from './choreo/avengeOrder';
+import type { Moment } from './choreo/compile';
+import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { runMomentCues } from './choreo/score';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
@@ -27,6 +26,8 @@ import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
+import { canPlayDefs, playDef } from './fx/playDef';
+import { anchorsForUnits } from './fx/combatAnchors';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -85,6 +86,8 @@ export interface UnitFrame {
 /** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
  *  beats and the memoized Unit can skip re-rendering them (a fresh `[]` each render would defeat it). */
 const EMPTY_FLOATS: Float[] = [];
+// Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
+const EMPTY_GRANTS: string[] = [];
 
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
@@ -138,6 +141,27 @@ export function preBuffHolds(
     out.set(uid, { atk: u.attack - t.atk, hp: u.health - t.hp });
   }
   return out;
+}
+
+/**
+ * The cardIds a combat has put in the player's hand as of `beatIdx` — every `toHand` through the beat that
+ * is CURRENTLY ON SCREEN. The recruit hand stays the pre-combat hand until `resolveCombat`, so the combat
+ * view appends these and the hand grows as the cards arrive.
+ *
+ * **`beatIdx` is the beat about to play; the one on screen is `beats[beatIdx - 1]`** (see the scheduler's
+ * `shown`/`next` split, and `processedEnd` — the same index the live frame folds through). Everything here
+ * hangs off that: the card must materialise on the beat whose effect granted it, in lockstep with that
+ * unit's trigger-medallion pulse, which is derived from the same `beats[beatIdx - 1]` window.
+ *
+ * Slicing one beat further (`beats[beatIdx].end`) puts the card in hand a beat BEFORE its own pulse. With two
+ * Avenge granters that desynchronises the whole read — the pulses and the coalesces stop pairing up, which is
+ * exactly what the owner reported on 2026-07-27. Don't "fix" a late-looking grant by widening this window; if
+ * a card seems to arrive only after combat, check first that the effect emits a `toHand` event at all (a
+ * DEFERRED economy Battlecry did not, until `replayCombatBattlecry` began announcing named grants).
+ */
+export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): string[] {
+  const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
+  return events.slice(0, through).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
 }
 
 /**
@@ -464,6 +488,26 @@ export interface CombatReplay {
   /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — drives the live Buffs window. */
   combatBuffs: CombatBuffDelta;
   skip: () => void;
+  /**
+   * DEV (proc harness): jump the replay to `index`, clearing per-beat transient state as a fresh fight would,
+   * then continue forward on the normal clock.
+   *
+   * **Follows the hook's index convention:** `beatIdx = N` is the moment ABOUT TO PLAY, and the one on screen
+   * is `beats[N - 1]`. So `seekTo(N)` does not "show moment N" — it plays *into* moment N, which is what you
+   * want when the point is to watch that moment's effect fire. The corollary is worth stating outright,
+   * because it surprises: since every cue effect renders `beats[beatIdx - 1]`, `seekTo(N)` immediately
+   * replays moment **N−1**'s cues and only reaches N one hold later. To put moment N's effect on screen
+   * right now, seek to `N + 1`.
+   *
+   * Re-seeking the index you are already on replays it (a seek nonce drives the cue effects, since `beatIdx`
+   * itself would not change). The index is clamped to `beats.length - 1`, so the last moment can be played
+   * into but can never be the resting displayed state — that is `beatIdx === beats.length`, what `skip`
+   * produces.
+   *
+   * Safe for any index because the board is a pure fold of `(initial, events, upto)` — see
+   * `computeFrame.purity.test.ts`, which exists to keep that true.
+   */
+  seekTo: (index: number) => void;
 }
 
 /** Death read-lead (ms, at 1× speed) held BEFORE a death's on-screen CONSEQUENCE so the death reads FIRST and
@@ -614,18 +658,33 @@ export function useCombatReplay(
   const combatSpeed = opts.combatSpeed && opts.combatSpeed > 0 ? opts.combatSpeed : 1;
   // Slide onDamaged buffs (Target Dummy et al.) to the tail of their clash so a +N stat gain never splits the
   // impact — the whole exchange lands at its real values, then the buff floats. Presentation-only; the sim
-  // event log is untouched (see deferClashBuffs). Both compileMoments AND computeFrame fold THIS array.
+  // event log is untouched (see deferClashBuffs). Both `beats` below AND `computeFrame` fold THIS array —
+  // `computeFrame` needs the ordered EVENTS on their own (not just the compiled moments), so `replayOrder` is
+  // still called here directly rather than only through `replayBeats`.
   // …then hold every Avenge payoff beat until AFTER the death cascade's summons deploy (deferAvengeAfterSummons):
   // a multi-death clash or a deferred attack-on-summon token would otherwise show the Avenge (a buff pulse, a
   // coin burst) before the token pops in. Composed on the clash-normalized copy; both folds see THIS array.
-  const events = useMemo(() => deferAvengeAfterSummons(deferClashBuffs(combat?.events ?? [])), [combat]);
+  // Both transforms live in `replayOrder` — the single source of truth for this ordering, so anything (like
+  // the proc harness's `scanProcs`) that computes a moment index for `seekTo` folds the SAME array and can't
+  // silently address a different moment than the one the replay is actually showing.
+  const events = useMemo(() => replayOrder(combat?.events ?? []), [combat]);
   // Moments are Beat-shaped (choreographer phase 1): identical grouping to the old buildBeats (equivalence-
   // tested), now carrying stepGroups for later phases. buildBeats itself remains only as the test oracle.
-  const beats = useMemo(() => compileMoments(events), [events]);
+  // `replayBeats` folds `compileMoments(replayOrder(events))` as ONE definition — see its doc comment for why
+  // that composition, not `replayOrder` alone, is the seam the proc harness must also call.
+  const beats = useMemo(() => replayBeats(combat?.events ?? []), [combat]);
   const [beatIdx, setBeatIdx] = useState(0);
+  // Bumped by every seek. `beatIdx` alone cannot express "replay the beat you are already on": React bails
+  // out of an identical setState, so no cue effect re-runs and the board just clears. Re-watching one moment
+  // while tuning is the harness's whole workflow, so the nonce gives those effects something that always
+  // changes. It never moves during ordinary playback, so the normal path is untouched.
+  const [seekNonce, setSeekNonce] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
+  // Per-uid clear timers for that pulse. In a ref, not the effect's cleanup, so a hold outlives the beat that
+  // started it — see the trigger effect for what cancelling them on every beat cost.
+  const pulseTimersRef = useRef<Map<string, number>>(new Map());
   // uid → a monotonic nonce, bumped on EACH Rally fire. The nonce is used as a React `key` on the medallion
   // (see Card) so it REMOUNTS every fire and the gold pulse animation restarts — a rally unit's own Rally also
   // sets the normal trigger pulse, so `.pulsing` never leaves the element between swings and a plain class
@@ -670,22 +729,55 @@ export function useCombatReplay(
   const replayComplete = beatIdx >= beats.length;
   const done = finished;
 
-  // A fresh combat resets the replay to the top (the hook persists across fights).
-  useEffect(() => {
-    setBeatIdx(0);
+  /**
+   * Put the replay at `index` and clear every piece of transient per-beat state.
+   *
+   * Extracted from the fresh-combat reset so a SEEK can reuse it: jumping to an arbitrary beat needs exactly
+   * the same clearing that starting a new fight does. The board itself needs no repair — `computeFrame`
+   * rebuilds from `initial` on every call (see `computeFrame.purity.test.ts`) — but this transient state is
+   * accumulated per beat and would otherwise carry stale floats, pulses and holds across the jump.
+   *
+   * `useCallback` with no deps: every setter here is stable, so the identity never changes and callers can
+   * hold it without re-subscribing.
+   */
+  const resetTo = useCallback((index: number): void => {
+    // FIRST, before the index is set. Killing a live lunge timeline makes GSAP re-render it and run the
+    // `.add()` callbacks at its endpoint (see channels/lunge.ts) — including `ctx.advance()` and its
+    // `setBeatIdx(k => k + 1)`. A timeline already PAST contact is protected: `onContact` is `once()`-wrapped,
+    // so that is a harmless re-fire. But one seeked into BEFORE contact still has an unfired guard, so the
+    // kill runs the advance for the FIRST time — and that functional update would otherwise queue AFTER our
+    // absolute set and land the seek one beat late. Killing first puts the functional update ahead of the
+    // absolute one, so the absolute value wins.
+    gsap.killTweensOf('[data-zone] .unit');
+    setBeatIdx(index);
     setFloats([]);
     setDeathFloats([]);
+    // …and drop the pulse holds with it, or a timer from the last fight clears a uid mid-pulse in this one.
+    for (const t of pulseTimersRef.current.values()) window.clearTimeout(t);
+    pulseTimersRef.current.clear();
     setTriggers(new Set());
     setRallyPulse(new Map());
     setFinished(false);
     setAttackUid(null);
-    gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
+    // (the `[data-zone] .unit` kill that stopped any lunge left mid-flight by the previous fight now runs
+    //  first, at the top of this callback — see the comment there for why the ordering is load-bearing)
     setProjectiles([]);
     setShake(0);
+    // …and drop the shake FLAGS with the counters. The shake effects bail on `!shake`, so zeroing the counter
+    // cancelled their 300ms clear (effect cleanup) and then early-returned — leaving `.shaking` latched on
+    // into the next fight. Only reachable when a fight starts within 300ms of a shake (a Skip), but it is the
+    // same cleanup-cancels-the-clear defect as #735 / #736.
+    setShaking(false);
+    setCritShaking(false);
     setHandGrant(null);
     setStatHold(new Map());
     setStatFlash(new Map());
-  }, [combat]);
+  }, []);
+
+  // A fresh combat resets the replay to the top (the hook persists across fights).
+  useEffect(() => {
+    resetTo(0);
+  }, [combat, resetTo]);
 
   // uid → cardId for the whole fight (initial boards + everything summoned) — used to spot which dying
   // unit has a Deathrattle (so its medallion pulses) and which is a Blaster (purple blast bolts).
@@ -788,7 +880,9 @@ export function useCombatReplay(
     const beat = active ? beats[beatIdx] : undefined;
     if (beat && beat.primary.type === 'toHand') setHandGrant({ cardId: beat.primary.cardId, key: beatIdx });
     else setHandGrant(null);
-  }, [active, beatIdx, beats]);
+    // `seekNonce`: `resetTo` nulls the flying card, so without this a re-seek onto a `toHand` beat would
+    // clear the grant and never restore it — that moment's animation just wouldn't replay.
+  }, [active, beatIdx, seekNonce, beats]);
 
   useEffect(() => {
     if (!shake) return;
@@ -829,7 +923,11 @@ export function useCombatReplay(
     if (lead) d += lead / combatSpeed;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
-  }, [active, hidden, paused, beatIdx, beats, combatSpeed, events, cardIds]);
+    // `seekNonce`: not a cue, but a same-index re-seek must RESTART this hold rather than inherit whatever
+    // remains of the original one — re-seek late in a beat and the replayed cues would be cut off almost
+    // immediately, showing a flash instead of the moment. The cleanup clears the pending timeout, so the
+    // extra dep can only restart the timer; it can never double-advance.
+  }, [active, hidden, paused, beatIdx, seekNonce, beats, combatSpeed, events, cardIds]);
 
   // Hold on the final beat: once the clock reaches the end, wait FINAL_HOLD_MS before reporting `done` — so
   // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.
@@ -948,13 +1046,29 @@ export function useCombatReplay(
       if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
     }
     setTriggers((prev) => new Set([...prev, ...trig]));
-    const t = window.setTimeout(() => setTriggers((prev) => {
-      const next = new Set(prev);
-      for (const uid of trig) next.delete(uid);
-      return next;
-    }), 1150);
-    return () => window.clearTimeout(t);
-  }, [active, beatIdx, beats, events, cardIds]);
+    /* The ~1150ms hold is PER UID and must outlive the beat. This used to be one timeout cancelled by the
+       effect's own cleanup, which was invisible only while every beat ran longer than the hold: the moment
+       `toHand` dropped to 410 (×1.5 ≈ 615ms) the beat advanced first, the cleanup killed the pending clear,
+       and the uid was never removed from the set. A unit that had pulsed once stayed flagged forever, so its
+       next trigger couldn't toggle the class off→on and simply did not animate — the owner's "the effect icon
+       doesn't pulse every time" (the Avenge counter, driven separately, kept firing). Keyed timers in a ref
+       survive the beat change; a re-trigger inside the window restarts its own hold. */
+    for (const uid of trig) {
+      const prevT = pulseTimersRef.current.get(uid);
+      if (prevT !== undefined) window.clearTimeout(prevT);
+      pulseTimersRef.current.set(uid, window.setTimeout(() => {
+        pulseTimersRef.current.delete(uid);
+        setTriggers((prev) => {
+          if (!prev.has(uid)) return prev;
+          const next = new Set(prev);
+          next.delete(uid);
+          return next;
+        });
+      }, 1150));
+    }
+    // `seekNonce`: re-seeking the beat you are already on leaves `beatIdx` identical, so without it this
+    // per-beat cue would not re-run and the pulse would never replay. Constant during normal playback.
+  }, [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
   // resolved, dispatched via the Score's channel registry (choreo/score.ts). The melee smack/impact-FX/
@@ -1089,7 +1203,20 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (e?.type !== 'death' || e.target === impactAtk) continue;
-      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
+      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
+        // …and a PLAIN death (no Deathrattle) gets the authored `death-dissolve` def instead. It lives in the
+        // `else` of the SKULL's own gate, in the skull's own loop, so the two can never both fire for one unit
+        // — the reason this isn't an `fxDef` cue in the Score: a cue is chosen by moment KIND, and a kind is
+        // derived from the event alone, which cannot see whether the dying card has an onDeath effect.
+        // Rise deaths are excluded too (the body re-forms — it doesn't dissolve). Inert in production, where
+        // defs don't ship (`canPlayDefs()` false), and a no-op until `death-dissolve` is authored (`playDef`
+        // returns null for an unknown id).
+        if (!e.rise && canPlayDefs()) {
+          const a = anchorsForUnits(null, e.target); // no source: the anchors fold onto the dying unit
+          if (a) playDef('death-dissolve', a);
+        }
+        continue;
+      }
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
     }
@@ -1104,7 +1231,8 @@ export function useCombatReplay(
       setStatFlash((m) => (m.size ? new Map() : m));
       stop();
     };
-  }, [active, beatIdx, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+    // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
+  }, [active, beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -1273,7 +1401,8 @@ export function useCombatReplay(
     }
     setProjectiles(ps);
     return () => { windupTimers.forEach((id) => window.clearTimeout(id)); };
-  }, [beatIdx, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+    // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
+  }, [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -1320,7 +1449,13 @@ export function useCombatReplay(
     if (!beat) return;
     const next = preBuffHolds(beat, events, frame);
     setStatHold((m) => (m.size === 0 && next.size === 0 ? m : next));
-  }, [active, beatIdx, beats, events, frame]);
+    // `seekNonce`: this is the ONLY installer of `statHold` (every other write is a delete), and both
+    // `resetTo` and the cue effect's teardown clear it. `frame` can't stand in — it is memoised on
+    // `processedEnd`/`beatStart`, both derived from `beatIdx`, so it too is unchanged by a same-index
+    // re-seek. Without this the badge shows the POST-buff number for the whole replayed beat instead of
+    // holding pre-buff and ticking up at the tendril — the up-then-down-then-up artifact this effect exists
+    // to kill.
+  }, [active, beatIdx, seekNonce, beats, events, frame]);
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.
@@ -1465,13 +1600,19 @@ export function useCombatReplay(
     [events, names],
   );
   const procs = useMemo(() => procReport(events, names), [events, names]);
-  // Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire) that have already
-  // "landed" — every `toHand` before the current beat. The recruit hand stays the pre-combat hand until
-  // `resolveCombat`, so the combat view appends these so the hand visibly grows as cards arrive.
-  const handGrantsShown = useMemo(() => {
-    const before = beats[beatIdx]?.start ?? events.length;
-    return events.slice(0, before).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
-  }, [beatIdx, beats, events]);
+  /* Cards granted to the hand by combat effects (Arcane Weaver → Spirit Fire, a Deathrattle's Patch Job) —
+     see `grantsShownThrough` for the beat window and why it is the beat ON SCREEN.
+
+     Gated on `active`, which is false through the shop-closing intro. The hook persists across fights and
+     `beatIdx` is reset in an effect, so on the first commit of a new combat it still holds the PREVIOUS
+     fight's value — usually past the new `beats` array, where the `?? events.length` fallback means "the
+     replay is done" and hands back EVERY grant at once. That painted the whole fight's grants into the hand
+     for one frame the instant you pressed Start Combat, coalesce and all, before the reset wiped them (owner
+     clip 2026-07-27). `active` only turns true after the intro, by which point the reset has landed. */
+  const handGrantsShown = useMemo(
+    () => (active ? grantsShownThrough(events, beats, beatIdx) : EMPTY_GRANTS),
+    [active, beatIdx, beats, events],
+  );
 
   return {
     frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
@@ -1481,5 +1622,15 @@ export function useCombatReplay(
     statFlashFor: (uid: string) => statFlash.get(uid),
     done, result: combat ? combat.result : null, shaking, critShaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
+    // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
+    // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the
+    // replay past its end. The outer `max` also floors the no-combat case (`beats.length === 0`, where the
+    // inner `min` yields -1) at 0 — a negative `beatIdx` would read `beats[beatIdx - 1]` off the front AND
+    // slip past every `beatIdx === 0` guard, and `replayComplete` (`beatIdx >= beats.length`) would never
+    // become true.
+    seekTo: (index: number) => {
+      setSeekNonce((n) => n + 1); // here, not in `resetTo` — a fresh combat already changes `combat` identity
+      resetTo(Math.max(0, Math.min(beats.length - 1, index)));
+    },
   };
 }

@@ -116,7 +116,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     stepEphemeral: true,
   };
   return (
-    <div className={cls} data-uid={u.uid}>
+    <div className={cls} data-uid={u.uid} data-card={u.cardId}>
       <Card card={view} pulse={triggered} pulseRally={rallyPulse} />
       {floats?.map((f) => (
         <span key={f.id} className={`float ${f.kind}${SYM_KINDS.has(f.kind) ? ' sym' : ''}`}>{f.text}</span>

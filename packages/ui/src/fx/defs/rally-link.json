@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "id": "rally-link",
+  "duration": 460,
+  "layers": [
+    {
+      "primitive": "ribbon",
+      "anchor": "travel",
+      "at": 0,
+      "life": 460,
+      "params": {
+        "bands": 4,
+        "plateau": 0.34,
+        "glow": 0.35,
+        "noiseAlong": 3,
+        "noiseAcross": 7,
+        "warp": 0.35,
+        "scroll": 1.8,
+        "erode": 0.45,
+        "gain": 1.5,
+        "head": 0.05,
+        "tail": 1.2,
+        "soft": 1.4,
+        "length": 520,
+        "width": 26,
+        "alpha": 1,
+        "headPinch": 0.1,
+        "tailFeather": 0.3,
+        "widthCurve": [[0, 1], [0.35, 1.25], [1, 0.5]],
+        "waveAmp": 6,
+        "waveFreq": 2.2,
+        "waveSpeed": 4,
+        "palette": [6230453, 11087840, 16757847, 16773327]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 430,
+      "life": 300,
+      "params": {
+        "count": 20,
+        "spread": 1,
+        "speed": 210,
+        "speedVar": 0.5,
+        "drag": 0.86,
+        "gravity": -40,
+        "life": 260,
+        "shape": "diamond",
+        "size": 8,
+        "sizeVar": 0.45,
+        "sizeCurve": [[0, 1], [1, 0]],
+        "coreBias": 0.75,
+        "bands": 4,
+        "plateau": 0.32,
+        "glow": 0.35,
+        "erode": 0.3,
+        "palette": [6230453, 11087840, 16757847, 16773327]
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 430,
+      "life": 340,
+      "params": {
+        "rings": 1,
+        "speed": 3,
+        "thickness": 0.08,
+        "fade": 1.7,
+        "radius": 76,
+        "ease": 0.6,
+        "bands": 3,
+        "alpha": 0.8,
+        "glow": 0.3,
+        "plateau": 0.3,
+        "erode": 0.35,
+        "palette": [6230453, 11087840, 16757847, 16773327]
+      }
+    }
+  ]
+}

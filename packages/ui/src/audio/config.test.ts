@@ -4,7 +4,7 @@ import { DEFAULT_AUDIO_CONFIG, mergeConfig, effectiveGain, busOf, CATEGORY_GAINS
 describe('DEFAULT_AUDIO_CONFIG', () => {
   it('keeps the master-limiter values + the owner-tuned master gain', () => {
     expect(DEFAULT_AUDIO_CONFIG.master).toEqual({ threshold: -6, knee: 0, ratio: 20, attack: 0.001, release: 0.25 });
-    expect(DEFAULT_AUDIO_CONFIG.masterGain).toBe(0.8);
+    expect(DEFAULT_AUDIO_CONFIG.masterGain).toBe(0.61);
   });
   it('gives every current category a bus + its current gain', () => {
     for (const key of Object.keys(CATEGORY_GAINS)) {

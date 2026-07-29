@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import { getSmokeConfig } from './smokeConfig';
 import { perfMonitor } from './perfMonitor';
 import { getStrikeFxConfig } from './strikeFxConfig';
@@ -683,9 +683,53 @@ class FxController {
     this.app?.ticker.stop(); // if already attached with nothing live, idle right away
   }
 
+  /** Externally-mounted per-frame updaters (the FX workbench player). Kept deliberately small: this is the
+   *  only seam through which code outside this file draws on the overlay canvas. */
+  private extraUpdaters: ((dtMs: number) => void)[] = [];
+  /** Containers passed to `mountLayer` before `init()` has created `this.layer`; flushed once it exists. */
+  private pendingMounts: Container[] = [];
+
+  /** Mount a container on the overlay stage. Returns a disposer. Safe to call before `attach()` resolves —
+   *  the container queues and is added once the canvas initialises. The disposer removes the container from
+   *  the stage (or the pending queue) but does NOT destroy it — destruction is the caller's responsibility,
+   *  since the caller owns the container's lifecycle. If `init()` fails outright (see the "effects disabled"
+   *  catch in `attach()`), a queued container never mounts; the disposer still cleans up correctly (no leak
+   *  for a caller that disposes on unmount), but a container whose disposer is never called stays referenced. */
+  mountLayer(c: Container): () => void {
+    if (this.layer) {
+      this.layer.addChild(c);
+    } else {
+      this.pendingMounts.push(c);
+    }
+    return () => {
+      this.layer?.removeChild(c);
+      const i = this.pendingMounts.indexOf(c);
+      if (i >= 0) this.pendingMounts.splice(i, 1);
+    };
+  }
+
+  /** Register a per-frame callback driven by the overlay ticker. Returns a disposer. Note: each frame iterates
+   *  a snapshot of the updater list, so if one updater's callback disposes ANOTHER updater during the same
+   *  frame, the disposed one still runs that frame — it drops out starting next frame, not immediately. */
+  addUpdater(fn: (dtMs: number) => void): () => void {
+    this.extraUpdaters.push(fn);
+    this.app?.ticker.start(); // an idled controller must wake while an external updater is live
+    return () => {
+      const i = this.extraUpdaters.indexOf(fn);
+      if (i >= 0) this.extraUpdaters.splice(i, 1);
+    };
+  }
+
+  /** The live renderer, for external effect layers (the FX workbench) that build GPU resources.
+   *  Null until `attach()`/`init()` has resolved. */
+  get renderer(): Renderer | null {
+    return this.app?.renderer ?? null;
+  }
+
   /** True while anything still needs the per-frame tick: live particles or any redrawn effect / aura / aim. */
   private hasLiveWork(): boolean {
     return (
+      this.extraUpdaters.length > 0 ||
       this.live.length > 0 || this.skullPops.length > 0 || this.tendrils.length > 0 ||
       this.gusts.length > 0 || this.weldRings.length > 0 || this.spellArrows.length > 0 ||
       this.waves.length > 0 || this.slashes.length > 0 || this.critFxs.length > 0 ||
@@ -768,6 +812,10 @@ class FxController {
 
     this.app = app;
     this.layer = layer;
+    if (this.pendingMounts.length > 0) {
+      for (const c of this.pendingMounts) this.layer.addChild(c);
+      this.pendingMounts.length = 0;
+    }
     this.shieldLayer = shieldLayer;
     // shared centred quad (−R..R) with 0..1 UVs — every bubble mesh reuses it; the container scales it per-unit
     this.shieldGeo = new MeshGeometry({
@@ -3221,6 +3269,21 @@ class FxController {
   /** Per-frame: advance every live particle, recycle the dead. Bound method for ticker.add/remove. */
   private update = (ticker: Ticker): void => {
     const dtMs = ticker.deltaMS;
+    if (this.extraUpdaters.length > 0) {
+      // Sandboxed: a workbench updater plays hand-authored, frequently-malformed effect data, and PixiJS's
+      // Ticker doesn't catch listener exceptions — an uncaught throw here would skip the rest of this method
+      // (every shipped particle/tendril/aura/shield sim) for this tick and every tick after. Evict the
+      // offender instead so a bad updater only stops the workbench, never the game's own FX.
+      for (const fn of [...this.extraUpdaters]) {
+        try {
+          fn(dtMs);
+        } catch (e) {
+          console.error('[pixiFx] external updater threw — removing it to protect the overlay:', e);
+          const i = this.extraUpdaters.indexOf(fn);
+          if (i >= 0) this.extraUpdaters.splice(i, 1);
+        }
+      }
+    }
     const dt = dtMs / 1000;
     for (let i = this.live.length - 1; i >= 0; i--) {
       const p = this.live[i]!;

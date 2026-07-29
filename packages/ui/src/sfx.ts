@@ -467,6 +467,15 @@ export const sfx = {
     if (playSample('cardtouch', 'cardtouch')) return;
     tone({ freq: 330, dur: 0.05, type: 'sine', vol: 0.07, slideTo: 260, category: 'cardtouch' });
   },
+  // Hovering an interactive UI element — menu buttons, hero-select cards, Discover options (wired via a single
+  // delegated pointerover listener in Game.tsx, which excludes the in-game shop/combat HUD controls). Sourced
+  // "uihover" clip; soft synth blip fallback until it decodes / if absent. NOT time-throttled — the listener's
+  // per-target enter dedupe already collapses repeats on the same element, so each element you pass over ticks
+  // exactly once (a fast sweep across a row fires each one, which is the responsive feel we want).
+  uiHover: () => {
+    if (playSample('uihover', 'uihover')) return;
+    tone({ freq: 1250, dur: 0.035, type: 'sine', vol: 0.05, slideTo: 1600, category: 'uihover' });
+  },
   // A Divine Shield is DESTROYED in combat (the bubble cracks + shatters) — the sourced clip; synth crash
   // fallback. DEDUPED: a single beat can break several shields (Cleave / simultaneous), so a short throttle
   // collapses them into one play.
@@ -622,6 +631,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, maxgold: sfx.maxGold, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  uihover: sfx.uiHover,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {

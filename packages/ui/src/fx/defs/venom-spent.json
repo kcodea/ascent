@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "id": "venom-spent",
+  "duration": 600,
+  "layers": [
+    {
+      "primitive": "smoke",
+      "anchor": "target",
+      "at": 0,
+      "life": 600,
+      "params": {
+        "rate": 60,
+        "life": 300,
+        "spread": 0.5,
+        "speed": 40,
+        "speedVar": 0.45,
+        "gravity": -110,
+        "spin": 30,
+        "spinVar": 0.6,
+        "turbulence": 70,
+        "turbScale": 0.02,
+        "emitShape": "disc",
+        "emitRadius": 14,
+        "shape": "circle",
+        "size": 18,
+        "sizeVar": 0.45,
+        "sizeCurve": [[0, 0.35], [1, 1.7]],
+        "coreBias": 0.5,
+        "fadeIn": 0.28,
+        "bands": 3,
+        "plateau": 0.3,
+        "blendMode": "normal",
+        "glow": 0,
+        "erode": 0.4,
+        "palette": [1455119, 3107612, 6988588, 11065679]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 60,
+      "life": 480,
+      "params": {
+        "count": 9,
+        "spread": 1,
+        "speed": 140,
+        "speedVar": 0.6,
+        "drag": 0.88,
+        "gravity": -70,
+        "life": 420,
+        "shape": "diamond",
+        "size": 6,
+        "sizeVar": 0.5,
+        "sizeCurve": [[0, 1], [1, 0.3]],
+        "coreBias": 0.85,
+        "bands": 3,
+        "plateau": 0.3,
+        "glow": 0.35,
+        "erode": 0.35,
+        "palette": [2922002, 8052258, 15531944, 16777215]
+      }
+    }
+  ]
+}

@@ -77,7 +77,11 @@ const DEFAULTS: ChoreoConfig = {
   // 300 (=450ms, hold 670) — two passes closing the dead time between swings. The floor here is the attacker's
   // 340ms elastic settle, which plays after contact fire-and-forget: hold below that and the next wind-up
   // starts while the previous attacker is still visibly settling.
-  attack: 240, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 820,
+  // `toHand` 820 → 410 (owner 2026-07-27): halves the gap into a grant beat AND between consecutive ones, so
+  // two Avenge granters read pulse→coalesce, pulse→coalesce at twice the pace. It is not in OVERLAP_INTO, so
+  // this delay is the whole spacing; ×`speed` 1.5 it lands at ~615ms per grant, still a clear read for the
+  // materialise. The card ITSELF is unaffected — the coalesce FX has its own duration.
+  attack: 240, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 410,
   maxGold: 560, hpGrant: 0,
   // result beats (ms)
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
@@ -116,13 +120,23 @@ export function beatDelay(type: string): number {
 // the 300 default. NOTE: this and `momentKind` (kinds.ts) encode the kind↔event-type relationship in OPPOSITE
 // directions (classify-forward vs hold-lookup-backward) — adding a `MomentKind` variant requires updating both
 // (the `Record<MomentKind, …>` here forces this side exhaustively).
+// EVERY kind split (see kinds.ts) is pacing-neutral BY CONSTRUCTION: the new kind maps to a key whose VALUE
+// equals the one the old kind mapped to, so `holdMsForKind(new) === holdMsForKind(old)`. (The replay clock
+// never reads a kind at all — it keys by primary event type — so a split cannot move a beat regardless; these
+// mappings keep the kind-facing view honest for when the score takes over the hold in a later phase.)
+//   shieldGain ← shieldPop : 'shieldUp' 460 === 'shield' 460
+//   venomSpent ← poisonTick: 'venomLost' 500 === 'poison' 500
+//   scNarrate  ← scCast    : the same 'sc' key, 720
+//   questTrigger/questComplete ← damage: the same 'dmg' key, 460 (they were classified `damage` before)
 const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
-  attackExchange: 'attack', damage: 'dmg', shieldPop: 'shield', poisonTick: 'poison',
-  death: 'death', riseDeath: 'death', scCast: 'sc',
+  attackExchange: 'attack', damage: 'dmg', shieldPop: 'shield', shieldGain: 'shieldUp', poisonTick: 'poison',
+  venomSpent: 'venomLost',
+  death: 'death', riseDeath: 'death', scCast: 'sc', scNarrate: 'sc',
   summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
   toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', keywordLost: 'buff',
   hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
   tribeAura: 'buff', // hold-times like a buff wave — an aura is a buff cue
+  questTrigger: 'dmg', questComplete: 'dmg',
 };
 export function holdMsForKind(kind: MomentKind): number {
   return beatDelay(KIND_TO_KEY[kind]);

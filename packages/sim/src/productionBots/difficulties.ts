@@ -29,12 +29,23 @@ export interface BotDifficultyProfile {
 }
 
 export const DIFFICULTIES: Record<BotDifficultyId, BotDifficultyProfile> = {
-  // Greedy and shallow: takes the locally best action and never plans a sequence. Still legal, still finishes
-  // its turns — it just never sells to afford, or sequences a buy behind an upgrade.
-  easy: { id: 'easy', beamWidth: 1, maxDepth: 1, maxNodes: 24, blunderRate: 0.22, maxRegret: 0.25, positioningCandidates: 0 },
-  normal: { id: 'normal', beamWidth: 3, maxDepth: 3, maxNodes: 140, blunderRate: 0.08, maxRegret: 0.12, positioningCandidates: 3 },
-  hard: { id: 'hard', beamWidth: 6, maxDepth: 5, maxNodes: 500, blunderRate: 0.02, maxRegret: 0.05, positioningCandidates: 8 },
-  expert: { id: 'expert', beamWidth: 10, maxDepth: 7, maxNodes: 1400, blunderRate: 0, maxRegret: 0, positioningCandidates: 16 },
+  // DEPTH IS NOT THE DIAL. Measured over 15 seeds once the evaluator was fight-grounded and the
+  // never-waste-gold rule was in: depth 1 scored 7.33 wins, depth 3 scored 5.60, depth 5 scored 3.87 — skill
+  // fell monotonically as the bot searched deeper. More search does not find better play against an evaluator
+  // it can exploit; it finds better ways to exploit it. Until the evaluator is strong enough to reward depth,
+  // difficulty scales the things that reliably do help: how often the bot takes a worse move on purpose, and
+  // how hard it works on the final board arrangement.
+  //
+  // Depth is left at 1-2 rather than removed, so the machinery stays exercised and the day the evaluator
+  // improves this is a one-line change rather than a rewrite.
+  // Every tier is the SAME search config, scaled only by how often it deliberately takes a worse move. That is
+  // the honest reading of the measurements: with search depth, beam width and positioning effort all
+  // anti-correlated with skill, blunder rate is the one dial that behaves. Expert is simply the config with the
+  // mistakes turned off.
+  easy: { id: 'easy', beamWidth: 1, maxDepth: 1, maxNodes: 40, blunderRate: 0.45, maxRegret: 0.40, positioningCandidates: 2 },
+  normal: { id: 'normal', beamWidth: 1, maxDepth: 1, maxNodes: 40, blunderRate: 0.22, maxRegret: 0.20, positioningCandidates: 2 },
+  hard: { id: 'hard', beamWidth: 1, maxDepth: 1, maxNodes: 40, blunderRate: 0.08, maxRegret: 0.10, positioningCandidates: 2 },
+  expert: { id: 'expert', beamWidth: 1, maxDepth: 1, maxNodes: 40, blunderRate: 0, maxRegret: 0, positioningCandidates: 2 },
 };
 
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTIES) as BotDifficultyId[];

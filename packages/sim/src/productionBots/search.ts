@@ -64,6 +64,10 @@ export function search(root: PlanningStateHandle, profile: BotDifficultyProfile,
   let beam: Node[] = [{ handle: root, plan: [], fp: rootFp, utility: rootEval.total, breakdown: rootEval, terminal: false }];
   let best: Node = beam[0]!;
   const rootAlternatives: { tag: string; utility: number }[] = [];
+  // Depth-0 children kept in full. The blunder picks from THESE, not from the pruned beam: at beamWidth 1 the
+  // beam after pruning IS the best node, so looking for the alternative there always found the thing it was
+  // trying to avoid and the blunder silently never happened — every difficulty played identically.
+  const rootChildren: Node[] = [];
   // Handles created during search, released at the end so planning memory can't accumulate across decisions.
   const owned: PlanningStateHandle[] = [];
 
@@ -98,7 +102,7 @@ export function search(root: PlanningStateHandle, profile: BotDifficultyProfile,
           // A reveal is scored where it stands and never expanded — see the header.
           terminal: t.reveal !== null,
         };
-        if (depth === 0) rootAlternatives.push({ tag: cand.tag, utility: child.utility });
+        if (depth === 0) { rootAlternatives.push({ tag: cand.tag, utility: child.utility }); rootChildren.push(child); }
         next.push(child);
         if (child.utility > best.utility) best = child;
       }
@@ -112,6 +116,7 @@ export function search(root: PlanningStateHandle, profile: BotDifficultyProfile,
     if (expanded >= profile.maxNodes) break;
   }
 
+  rootChildren.sort((a, b) => b.utility - a.utility);
   rootAlternatives.sort((a, b) => b.utility - a.utility);
 
   // BLUNDER — a seeded pick among near-best root actions, so a weak bot makes ordinary mistakes (the second
@@ -127,7 +132,7 @@ export function search(root: PlanningStateHandle, profile: BotDifficultyProfile,
         const pick = nearBest[rng.int(nearBest.length)]!;
         // Re-derive the node whose plan starts with that action — the beam may have dropped it, in which case
         // the blunder simply doesn't happen rather than committing something unsearched.
-        const alt = [...beam, best].find((n) => n.plan[0]?.tag === pick.tag);
+        const alt = rootChildren.find((n) => n.plan[0]?.tag === pick.tag);
         if (alt && alt !== best) { chosen = alt; blundered = true; }
       }
     }

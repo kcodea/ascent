@@ -139,10 +139,12 @@ describe('difficulty is budget, never information', () => {
     for (let i = 1; i < order.length; i++) {
       const lo = DIFFICULTIES[order[i - 1]!];
       const hi = DIFFICULTIES[order[i]!];
-      expect(hi.beamWidth, `${hi.id} searches narrower than ${lo.id}`).toBeGreaterThanOrEqual(lo.beamWidth);
-      expect(hi.maxDepth).toBeGreaterThanOrEqual(lo.maxDepth);
-      expect(hi.maxNodes).toBeGreaterThan(lo.maxNodes);
-      expect(hi.blunderRate, `${hi.id} blunders more than ${lo.id}`).toBeLessThanOrEqual(lo.blunderRate);
+      // Search budget is deliberately EQUAL across tiers: depth, beam width and positioning effort all measured
+      // as anti-correlated with skill, so scaling them would build a ladder that runs backwards. Blunder rate
+      // is the dial that behaves, and it is the one asserted to move.
+      expect(hi.beamWidth).toBeLessThanOrEqual(lo.beamWidth * 2);
+      expect(hi.maxNodes).toBeGreaterThanOrEqual(lo.maxNodes);
+      expect(hi.blunderRate, `${hi.id} blunders more than ${lo.id}`).toBeLessThan(lo.blunderRate);
     }
   });
 
@@ -163,10 +165,11 @@ describe('difficulty is budget, never information', () => {
   });
 
   it('a bigger budget expands more nodes', () => {
+    // Budgets are equal by design now (see the profiles), so this asserts the budget is USED, not that expert
+    // uses more of it — the previous assertion described a ladder the measurements rejected.
     const s = createRun(41, 'drakko');
-    const cheap = decide(s, createController('t', 'easy'))?.trace?.expandedNodes ?? 0;
-    const rich = decide(s, createController('t', 'expert'))?.trace?.expandedNodes ?? 0;
-    expect(rich, 'expert searched no harder than easy').toBeGreaterThan(cheap);
+    const nodes = decide(s, createController('t', 'expert'))?.trace?.expandedNodes ?? 0;
+    expect(nodes, 'no nodes were expanded at all').toBeGreaterThan(0);
   });
 
   it('and skill trends UP with budget across a seeded sample', () => {

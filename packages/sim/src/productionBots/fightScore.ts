@@ -38,22 +38,25 @@ function toCombatBoard(v: BotVisibleState): BoardMinion[] {
 }
 
 /**
- * A seed derived from the BOARD, not from a call counter.
+ * The panel seed depends ONLY on the wave — never on the board being scored.
  *
- * Two evaluations of the same board must produce the same score — otherwise identical search nodes get
- * different utilities, dedup stops working, and the bot's decisions stop being reproducible. Hashing the board
- * gives that for free, and different boards get independent panels rather than all sharing one lucky roll.
+ * This was the reverse at first, hashed from the board "for determinism", and it quietly destroyed the entire
+ * comparison: board A fought enemies drawn with seed(A) and board B fought enemies drawn with seed(B), so the
+ * two scores were measured against DIFFERENT opponents and comparing them meant nothing. Search was choosing
+ * between boards on the strength of which random enemies each happened to draw.
+ *
+ * The symptom was diagnostic in hindsight: skill fell as the bot searched deeper, and blundering MORE made it
+ * stronger (0.40 blunder rate scored 7.30 wins against 0.00's 4.45). Both are what you would expect if the
+ * evaluator's ranking were noise — picking the "best" of a noisy comparison is worse than picking at random,
+ * because it systematically selects whatever got the luckiest panel.
+ *
+ * A fixed panel per wave keeps determinism (the wave is stable across an evaluation) AND comparability, which
+ * is the property that actually matters.
  */
-function boardSeed(board: readonly BoardMinion[], wave: number): number {
+function panelSeed(wave: number): number {
   let h = 2166136261 >>> 0;
-  const feed = (n: number): void => { h ^= n >>> 0; h = Math.imul(h, 16777619) >>> 0; };
-  feed(wave);
-  for (const m of board) {
-    feed(m.attack);
-    feed(m.health);
-    feed(m.cardId.length);
-    for (const k of m.keywords ?? []) feed(k.charCodeAt(0));
-  }
+  h ^= wave >>> 0;
+  h = Math.imul(h, 16777619) >>> 0;
   return h;
 }
 
@@ -85,7 +88,7 @@ export function fightScore(v: BotVisibleState, panelSize = PANEL.length): FightR
   const mine = toCombatBoard(v);
   if (mine.length === 0) return { winRate: 0, margin: -1, averageDamage: 1, fights: 0 };
 
-  const seed = boardSeed(mine, v.wave);
+  const seed = panelSeed(v.wave);
   let wins = 0;
   let draws = 0;
   let damage = 0;

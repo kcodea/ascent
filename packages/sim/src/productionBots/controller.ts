@@ -5,7 +5,7 @@ import { fingerprint, toBotVisibleState } from './visibleState';
 import { search, type PlannedStep, type SearchResult } from './search';
 import { DIFFICULTIES, type BotDifficultyId, type BotDifficultyProfile } from './difficulties';
 import { positionCandidates } from './legalActions';
-import { evaluate } from './evaluate';
+import { evaluate, offerAppeal } from './evaluate';
 import type { PlanningStateHandle } from './types';
 
 /**
@@ -112,10 +112,66 @@ export function decide(run: RunState, controller: BotControllerState): BotDecisi
       return { action: result.action, controller: { ...next, queuedPlan: result.plan.slice(1) }, trace: result };
     }
 
-    // 4) Nothing left worth doing: arrange the board, then end the turn.
+    // 4) NEVER END A TURN HOLDING SPENDABLE GOLD.
+    //
+    // Search stops as soon as no action IMPROVES the score, and early on nothing does: at wave 3-4 every board
+    // loses to every threat, so buying a body changes the fight outcome not at all and the evaluator sees no
+    // reason to spend. Measured: 4.6 gold left unspent per turn, when a wave-4 turn only has 5-7 gold to
+    // begin with. The bot was effectively skipping its early game, which is exactly where its runs were being
+    // decided (wave-4 boards losing 97% of their fights).
+    //
+    // A human never does this, and the reason is not subtle enough to need discovering by search: gold does not
+    // carry over, so unspent gold at end of turn is destroyed. Spending it on the best available thing is
+    // strictly better than losing it, whatever the evaluator thinks of the marginal body. Explicit rule.
+    const spend = forcedSpend(run, visible);
+    if (spend) return { action: spend, controller: { ...next, queuedPlan: [] }, trace: result };
+
+    // 5) Nothing left worth doing: arrange the board, then end the turn.
     const arrange = bestArrangement(run, profile);
     if (arrange) return { action: arrange, controller: { ...next, queuedPlan: [] }, trace: result };
     return { action: { type: 'faceOmen' }, controller: { ...next, queuedPlan: [] }, trace: result };
+  } finally {
+    release(root);
+  }
+}
+
+/**
+ * The best use of gold that would otherwise be destroyed at end of turn.
+ *
+ * Every option is VALIDATED against the reducer before it is returned. The first version returned its
+ * preferences unchecked and blindly played `hand[0]`, which for a targeted spell the reducer simply refuses —
+ * the caller then applied a no-op, the run loop saw no state change and stopped. Runs "finished" after 3.5
+ * rounds. A forced move has to be a move the game will actually accept.
+ *
+ * Preference order: play something already in hand (free, and a body is worth more on the board than in it),
+ * then tier up (the strongest long-run use of spare gold, and the one search reliably undervalues because the
+ * payoff sits beyond any beam depth), then buy the best offer, then refresh. `null` only when the gold
+ * genuinely cannot buy anything — the one case where ending the turn holding it is correct.
+ */
+function forcedSpend(run: RunState, v: ReturnType<typeof toBotVisibleState>): Action | null {
+  const boardFull = v.board.length >= 7;
+  const options: Action[] = [];
+  if (!boardFull) for (const c of v.hand) options.push({ type: 'play', uid: c.uid, toIndex: v.board.length });
+  if (v.economy.upgradeCost <= v.economy.gold && v.economy.tier < 6) options.push({ type: 'upgrade' });
+  if (v.hand.length < 10) {
+    for (const o of [...v.shop, ...(v.spellOffer ? [v.spellOffer] : [])]
+      .filter((x) => x.cost <= v.economy.gold)
+      .sort((a, b) => offerAppeal(b.cardId, b.attack, b.health, b.keywords) - offerAppeal(a.cardId, a.attack, a.health, a.keywords))) {
+      options.push({ type: 'buy', uid: o.uid });
+    }
+  }
+  if (v.economy.refreshCost <= v.economy.gold && v.economy.gold >= 2) options.push({ type: 'roll' });
+  if (options.length === 0) return null;
+
+  const root = createPlanningRoot(run);
+  try {
+    for (const action of options) {
+      const t = applyCandidate(root, action);
+      const ok = t.changed;
+      release(t.child);
+      if (ok) return action;
+    }
+    return null;
   } finally {
     release(root);
   }

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { rubyCastCount, CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
@@ -84,6 +84,10 @@ type DragSource = 'shop' | 'hand' | 'board';
 
 type Zone = 'tavern' | 'warband' | 'hand';
 
+/** How long the End Turn button stays inert at the start of a recruit round (owner ask 2026-07-27) — long
+ *  enough that a double-click meant for the previous round can't skip the new one, short enough that a player
+ *  who genuinely wants to end instantly barely notices. */
+const END_TURN_LOCK_MS = 5000;
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
@@ -396,6 +400,8 @@ interface ShopViewOpts {
   lastSpellName?: string;
   /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line it grants the shop. */
   rubyBonus?: { attack: number; health: number };
+  /** Whether this run can actually reach Tier 7 — Beyond the Summit only promises it when true. */
+  tier7Access?: boolean;
 }
 
 /** Build the LiveTextParams for a shop/Discover OFFER (no per-instance accruals — it isn't owned yet). */
@@ -407,7 +413,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
     undeadBuyAtk: o.undeadBuyAtk ?? 0, soulsmanGold: o.soulsmanGold ?? 0, cardBuffs: o.cardBuffs, impAura: o.impAura,
     goldSpent: o.goldSpent ?? 0, goldPouchValue: o.goldPouchValue ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff,
-    lastSpellName: o.lastSpellName, rubyBonus: o.rubyBonus,
+    lastSpellName: o.lastSpellName, rubyBonus: o.rubyBonus, tier7Access: o.tier7Access,
   };
 }
 function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
@@ -1035,6 +1041,17 @@ export function Recruit() {
   // `combatStage` sequences the intro (close → fight); the replay engine runs once
   // the enemies have arrived. After the fight, the warband plays a reset animation. ---
   const inCombat = run.phase === 'combat';
+  // END-TURN SOFT LOCK (owner ask 2026-07-27). For the first few seconds of a recruit round the End Turn
+  // button is inert, so the second half of a double-click that ended the LAST round can't immediately end the
+  // new one. Keyed on the wave so it re-arms every round, and only while the shop is up — in combat the button
+  // is the "end combat" control and gating it would strand the player.
+  const [roundSettled, setRoundSettled] = useState(false);
+  useEffect(() => {
+    if (inCombat) { setRoundSettled(true); return; }
+    setRoundSettled(false);
+    const t = window.setTimeout(() => setRoundSettled(true), END_TURN_LOCK_MS);
+    return () => window.clearTimeout(t);
+  }, [run.wave, inCombat]);
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
   // End-Combat crossfade: 'out' fades every combat unit + FX canvas away together, then the phase swaps and
@@ -1933,7 +1950,7 @@ export function Recruit() {
   );
   const spellView = useMemo(
     () => {
-      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: run.rubyBonus, playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
+      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
@@ -1973,7 +1990,7 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, grimoireCharged: (run.grimoireMult ?? 0) > 1 }),
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1 }),
     [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
@@ -3475,23 +3492,30 @@ export function Recruit() {
       if (b.uid) {
         const bd = CARD_INDEX[run.board.find((c) => c.uid === b.uid)?.cardId ?? ''];
         const gold = run.board.find((c) => c.uid === b.uid)?.golden ? 2 : 1;
-        for (const eff of bd?.effects ?? []) {
-          if (eff.on !== 'endOfTurn' || eff.do !== 'battlecryBuffSpellPower') continue;
-          const gA = Number(eff.params?.attack ?? 0) * gold;
-          const gH = Number(eff.params?.health ?? 0) * gold;
-          if (gA <= 0 && gH <= 0) continue;
+        // SPELL POWER raised on this beat. Driven by the PROJECTION's measured delta, not by matching a
+        // factory id: this used to test `eff.do === 'battlecryBuffSpellPower'`, which is Aeon Guard's factory
+        // and nobody else's — so Tallymonger, which raises the same channel through
+        // `endOfTurnBuffSpellsAndImps`, played no cue at all (owner report 2026-07-28). Reading the delta means
+        // any card that moves spell power at End of Turn animates, including ones not written yet.
+        //
+        // Still beat-driven rather than state-driven: `faceOmen` commits after every beat has played and flips
+        // the phase as it lands, so a state-driven cue arrives at Start of Combat instead of on the proc.
+        const spGain = beatFx[i]?.spellPower;
+        if (spGain) {
           const el = document.querySelector(`[data-uid="${b.uid}"]`);
-          if (!el) continue;
-          const r = el.getBoundingClientRect();
-          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-          pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
-          floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
-          // …and pop the held SPELLS, whose printed values this proc just raised. Same reason the flourish is
-          // driven from the beat rather than reducer state: `faceOmen` commits AFTER every beat has played and
-          // flips the phase as it lands, so a state-driven cue arrives at Start of Combat instead of on the
-          // proc — which is why End of Turn showed no card cue at all (owner report 2026-07-24).
-          fireSpellBuffOnHandSpells(run.hand);
+          if (el) {
+            const r = el.getBoundingClientRect();
+            const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+            pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+            floatSpellPowerNumber(cx, cy - r.height * 0.3, spGain.attack, spGain.health);
+            // …and pop the held SPELLS, whose printed values this proc just raised.
+            fireSpellBuffOnHandSpells(run.hand);
+          }
         }
+        // IMP AURA washed on this beat (Tallymonger). The action-level wash watcher is gated on the run still
+        // being in recruit AFTER the action, and End of Turn flips to combat — so an End-of-Turn imp buff never
+        // washed. The board is still on screen during the beats, so it plays here.
+        if (beatFx[i]?.impAura) fireAuraWave('demon');
         // RUBY strength raised at End of Turn — same beat-driven treatment, so it's already wired for whenever
         // a card grants it on an End of Turn (no shipped card does today; `rubyStatGain` is Shout/cast-only).
         for (const eff of bd?.effects ?? []) {
@@ -3902,7 +3926,7 @@ export function Recruit() {
         combatReady={inCombat && replay.done && (replay.result !== 'lose' || lossPhase === 'done')}
         disabled={inCombat
           ? !(replay.done && (replay.result !== 'lose' || lossPhase === 'done'))
-          : eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+          : eotAnimating || !!run.questOffer || !!run.runeforgeOffer || !roundSettled}
         pressed={inCombat || eotAnimating}
         urgent={timeUp && !inCombat}
       />

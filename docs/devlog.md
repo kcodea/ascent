@@ -91,6 +91,111 @@ moment kind or card plays it — `bindings.json` is untouched.
 **Verified:** `defs.test.ts` (10 tests) passes, which is what proves every param name and value range in the
 file is real against the primitives' own specs.
 
+## 2026-07-28 — content: card batch part 6 — the final tranche
+
+Closes the owner's 2026-07-27 batch: three new minions, the Tier-7 ruling, the all-type Discover rule, five
+hero disables, the "Shop spells" wording sweep, and Tallymonger's missing End-of-Turn cues.
+
+**New minions.**
+- **Moira** (T6 Beast 6/4) — *End of Turn: trigger adjacent Shouts*; gilded fires the whole thing twice. Routed
+  through `replayBattlecry`, the shared re-trigger path, so the re-fired Shouts count for quests and pick up
+  Spell Drummer's repeats. Neighbours are resolved BEFORE any firing, so a Shout that reorders the board can't
+  change who it was pointing at mid-resolution.
+- **Mineral Master** (T6 Kobold 5/7) — *when you trigger a Rally, play 2 Rubies on your Kobolds*. Any FRIENDLY
+  Rally, gated on the attacker's `RL` keyword: `onAttack` is broadcast to every friendly minion, so without that
+  gate it would be an ally-attack watcher paying on every swing.
+- **Paragon** (T6 all-type neutral 4/5) — *whenever you trigger a Rally, give a minion of every type +3/+3
+  permanently*. One random member of each tribe actually REPRESENTED on your board, plus every all-type body —
+  which is Paragon itself, since an all-type minion IS a minion of every type. Both of the owner's worked
+  examples are pinned as tests. Permanent via `permaGain`. **Tier and stats are my call, not the owner's — the
+  spec gave the effect only. Flagged for tuning.**
+
+**Tier 7 is now gated** (`hasTier7Access`): the Summit rift, or a hero/quest that sets the new `tier7Access`
+flag. No hero grants it yet — the flag is the seam the owner asked for. Beyond the Summit clamps in
+`discoverSpecFor`, the single place a `discoverOnPlay` becomes a real spec, and its text drops the
+"(up to Tier 7)" promise unless the run can keep it (new `summitTierText` helper).
+
+**The all-type Discover rule.** Controlling every tribe used to make Wayfinder fall back to "any tribe" — which
+turned the payoff for assembling one of every type into a generic Discover. It now offers ONLY all-type minions,
+with a guard: if the run's pool has none at the current tier it keeps the old fallback rather than opening an
+empty Discover. (That guard is why set 1 is unaffected — Lab Experiment is Tier 7.)
+
+**Five heroes disabled** — Cassen, Jensen, Chronos, Tiff, Djinni — via `wip`, which every picker already
+honours. Except Practice, which read the raw registry; that's the "remove them from practice mode as well" half.
+They stay resolvable, so an in-flight save or a replay still loads.
+
+**"Shop spells" wording.** Verified the two discriminators first rather than sweeping on vibes: the spell pool is
+`c.spell && !c.token` and Rubies are tokens, and the Ruby play path bumps `rubyCasts` without ever touching
+`spellsCast` or the `spellCast` watchers. So spell grants and spell-cast watchers genuinely exclude Rubies →
+57 card/rune texts and 6 quest strings now say "Shop spell", Ancient Runes included. Two deliberate exceptions
+stay inclusive: Gemgorge Fiend and Living Grimoire, whose meters really are the Ruby + Shop-Spell umbrella.
+
+**Tallymonger's cues** — two independent misses, both real:
+1. The End-of-Turn spell-power flourish tested `eff.do === 'battlecryBuffSpellPower'`, which is Aeon Guard's
+   factory and nobody else's. Tallymonger raises the same channel through a different factory, so it played
+   nothing.
+2. The aura-wash watcher is gated on `next.phase === 'recruit'`, and End of Turn flips to combat — so an
+   End-of-Turn Imp buff could never wash.
+Both now ride `EotStepFx` as measured DELTAS (`spellPower`, `impAura`) rather than matched factory ids, so any
+future End-of-Turn card that moves either channel animates without new wiring.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 1811 tests, build:web, harness determinism. Three tests
+asserting superseded behaviour were rewritten; 21 new tests added.
+
+**Worth recording.** `set2RubyExclusion.test.ts` exists to catch "a well-meaning consistency sweep" narrowing
+Living Grimoire's wording — and it caught mine, exactly as written. And a Wayfinder test failure was my FIXTURE
+(a set-1 run, where the only all-type minion is out of reach), not the rule.
+
+## 2026-07-28 — content: card batch part 5 (the six escalation reworks)
+
+The last six reworks from the owner's 2026-07-27 batch, all of them cards whose new shape needed engine work
+rather than a data edit.
+
+- **King Oona** — gilded now **triples** a summoned Beast instead of doubling it. `onSummonTribeBuffThenDouble`
+  multiplies by `mul(self)` copies of the body's own stats, so plain still doubles and golden adds one more.
+- **Menagerie Mammoth** — was "Echo: summon 2 random Beasts", now "when you summon a Beast in combat, give it
+  **+3 Attack** and improve this permanently". New `onSummonTribeBuffImproveSelf`; the accrual rides the existing
+  `playerSummonBonus` carry-back, which is what makes "permanently" true across rounds.
+- **Errand Fiend** — Rally → **Echo**, and the Imp arrives with +1/+2. `summonImps` gained optional
+  `attack`/`health`/`keyword` params (it previously documented a `keyword` param it never read).
+- **Legion Shepherd** — was a Start-of-Combat board-fill, now "**Echo:** summon 4 Imps; your Imps gain +2/+2
+  **everywhere** for each one that had no room". New `deathrattleImpsOverflowGrant` routes the payout through
+  `ctx.grantImpBuff` — the Imp Aura channel — so it advances the live aura AND carries back via
+  `playerImpBuffGain` into shop/board. A `deathrattleSummonOverflowBuff` clone would have expired at the bell.
+- **Endless Overseer** — now grafts `"Echo: summon 2 Imps with Ward"` onto your **right-most** minion at Start of
+  Combat, via `ctx.grantDeathrattle`. Placement is the choice.
+- **Runic Archivist** — the End-of-Turn recast moved to Water Dragon earlier in this batch; the Archivist now
+  pays a **Shop spell every 5 minions sold**. The tally lives on the card (`BoardCard.soldProgress`) so it
+  **carries round to round** and keeps the remainder past each payout.
+
+**Live text.** Two new `cardText.ts` helpers wired into `instView` (which both the recruit chain and `Unit.tsx`
+read through): `attackGrantImproveText` prints the Mammoth's current Attack grant, and `soldProgressText` turns
+the Archivist's "5 minions" into the countdown still owed.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 1788 tests, build:web, harness determinism. Five tests
+that asserted the superseded behaviour were replaced with tests for the new shape, plus new coverage for Oona's
+gilded triple and the Mammoth's escalation + carry-back.
+
+**Two things worth recording.** A Mammoth test first read as a card bug and was a *fixture* bug — I gave Mama Pup
+200 HP, so she never died and never summoned anything to buff. And `npm run typecheck` **excludes
+`packages/ui`** (it's covered by `npm run typecheck:web`, which is not in the CI gate list and currently has 8
+pre-existing errors) — a UI-only change can look green against the wrong gate. Both cost time here.
+## 2026-07-28 — Scene Builder: minimize to a bottom-right dock
+
+**What changed.** The DEV Scene Builder's header **✕ now minimizes it to a dock** instead of no-op-closing.
+Minimizing hides the panel and shows a **circle icon docked bottom-right, immediately left of the 🛠️ Dev-Tuning
+button** (`.sb-dock`, matched to `.devmenu-btn`'s size/style, `right: bar-x + 112px`). Clicking the dock icon
+restores the panel **and brings it to the front** — `useDraggablePanel` now returns a `raise()` (bump the shared
+z counter) that the restore calls. The panel stays mounted while minimized (a `.minimized` class sets
+`display:none`), so its slot/z are preserved. Wiring: the shared hook injects the ✕ and routes it through
+`DevPanelContext.close`, so a small `SceneBuilder` outer shell provides `close: () => setMinimized(true)` above
+the inner component's hook call. The existing `▾` in-place collapse is unchanged.
+
+**Verified.** `build:web` + `typecheck:web`/`lint` clean for the changed files (`SceneBuilder.tsx`,
+`useDraggablePanel.ts`, `styles.css`). Live check on the sandbox Scene Builder.
+
+## 2026-07-28 — the proc harness: replay any moment a card caused
+
 **What changed.** Phase ② of live FX authoring. Pick a card, stage a controlled fight against tunable
 sandbags, get the list of moments that card actually caused, and jump the replay to any one of them with a
 run-up — on the real board, at real scale, as many times as you like. Reached from the FX workbench's new
@@ -654,6 +759,208 @@ their coalesce on arrival in hand rather than losing the effect entirely (the re
 
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
+
+### 2026-07-27 — content: card batch part 4 — the Dragon reworks + set membership
+
+**Blazing Keeper** hands you a **Brood Whelp** (new T1 Dragon 3/1, "Shout: give a friendly Dragon +5 Attack")
+instead of a random Shout Dragon. **Thunderous Sovereign** trades its Shout-trigger for a Start-of-Combat
++1/+1 to your Dragons that improves with every spell you cast — per-instance and non-retroactive, so a
+Sovereign bought late inherits none of the turn's history. It reuses Kennelmaster's exact pairing
+(`scBeastAura` spending an `onSpellCastImproveSummon` accrual), tribe-swapped. **Embermouth Whelp** now grows
++1/+1 off every Shout you trigger, and **Chorus Drake**'s Rally raises Shop-spell power.
+
+**Taurus left set 2; Imp Overseer joined it** — one set-1 Demon opted in for set 2's Imp line.
+
+**Two seams worth noting.** Embermouth needed BOTH halves: most Shouts fire in the shop, so a combat-only
+factory would have left the card looking dead in the phase you actually play it — the same recruit/combat seam
+that has caught Karwind and Scalechanter. And Chorus Drake's "Shop Spells gain +1 Health" needed no new
+plumbing at all: spell power already carries back out of combat on its own.
+
+**A test caught a real modelling slip.** The Dragon roster test asserts every `d2_*` card is a non-token
+minion — which my Brood Whelp broke, since it's a Dragon you're given rather than one you can buy. The
+assertion was right to fire; it now allows tokens explicitly and pins that Brood Whelp is the only one.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1783 tests.
+
+### 2026-07-27 — content: card batch part 3 — the Demon consume line, and a new combat→run channel
+
+**Grand Gourmand** now eats the HIGHEST-HEALTH Shop minion (was: take the right-most's stats without eating).
+**Feastmaster Vhal** eats too, not just its neighbours — alone on a board the old version did nothing.
+**Cinder Chancellor** moves off Imp-attacks onto Shop-spell casts, buffing your Imps everywhere.
+**Selective Glutton** gains Taunt and consumes itself rather than delegating to another Demon.
+**Tallymonger** keeps its effect but its text now says **Shop Spells** — "spells" is all-encompassing and this
+one can't be triggered by a Ruby (the owner's wording rule).
+
+**Broodwright needed no change** — its data already matched the requested wording exactly.
+
+**Hungerling exposed a missing piece of engine.** "Rally: give minions in the Shop +2/+2, permanently" — but a
+Rally fires in COMBAT and the tavern buff is RUN state. My first cut put the factory in the recruit table,
+where a combat Rally never looks: the card would have done nothing at all, silently. Combat reaches the run
+only through carry-backs, and there was no channel for the tavern buff.
+
+So `playerTavernBuyGain` now exists, modelled on `playerRubyBonusGain` / `playerUndeadAuraGain`: `ctx.gainTavernBuy`
+accumulates during the fight and settle folds it into `tavernBuyBonus` — the Staff of Guel channel, so the buff
+survives a reroll and reaches future shops, per the owner's standing "give minions in the Shop" ruling.
+
+The test drives the whole path — a real combat producing the carry-back, then `resolveCombat` applying it, then
+a fresh shop showing bigger offers — rather than calling the factory directly, which is exactly the shortcut
+that would have hidden the misplacement.
+
+### 2026-07-27 — content: card batch part 2 — the Kobold ruby line
+
+**Veinbreaker** is a Choose One now: "give your Rubies +1/+1" or "get 4 Rubies" — the long game or the burst.
+**Resonance Idol** gains **Ward** and bounces to 2 RANDOM friends instead of its two neighbours, so board
+position no longer gates it. **Ruby Broker** pays 2 Gold three times a turn (was 3 twice). **Hoardmaster Krik**
+re-points from `cardsBought` to `goldSpent` — both events carry the same continuous per-instance meter, so
+"every 5 Gold", including one big spend crossing it twice, needed no new plumbing. **Frenzied Excavator** is a
+Shout that plays a Ruby on every friendly minion.
+
+Two new factories: `battlecryGetRubies` (Veinbreaker's burst half) and `battlecryPlayRubiesAll` (the
+Excavator). Both land under the `Ruby` buff source, so Deepdelve Paragon — and the transfer spell the owner
+plans — can still recognise what they made.
+
+**Two tests were re-fixtured rather than deleted.** The Ruby-Power narration tests hung off Veinbreaker's old
+Avenge; the narration path is unchanged, so they now use Faultline Scrapper's Echo as the source. Deleting them
+would have quietly dropped coverage of a path that still exists.
+
+### 2026-07-27 — content: card batch part 1 — tiers, stats, renames, removals, reuse reworks
+
+First slice of the owner's ~40-card batch. Everything here is data or a reuse of an existing primitive; the
+reworks that need NEW factories are the next slice.
+
+**Tiers / stats:** Echohorn Stag T4 · Packstrider 2/3 · Avarice Incarnate T5 6/5 · Market Tormentor T4 4/4 ·
+Hungerling T4 4/5 · Grand Gourmand T4 · Traveling Skald T2 · Runic Archivist 4/7.
+
+**Renames** (ids unchanged, as always): Enchanter → **Earthbreaker** · Vault Curator → **Water Dragon** ·
+Denkeeper Oona → **King Oona**.
+
+**Removed:** Cinderwall Captain, along with `onSummonImpWard`, the factory that existed only for it.
+
+**Reworks reusing existing primitives:**
+- **Runefire** — End of Turn, recast the turn's last Shop spell. Shares `endOfTurnRecastFirstSpell` with Runic
+  Archivist rather than growing a near-duplicate.
+- **Scalefeather Drake** — Shout AND Echo: get a Growth. The two halves use different factories deliberately:
+  the Shout is a recruit grant keyed `spellId`, the Echo a combat one keyed `cardId`. Mixing those keys up is
+  exactly the Velvet Rope Fiend bug from 2026-07-25.
+- **Water Dragon** — Avenge (4): get a random spell.
+- **Moonlit Scavenger** — Avenge (3): Beasts +2/+2 wherever they are (the spell grant is gone).
+- **Gemline Martyr** — End of Turn: get a Veinstorm. Recruit factories are event-agnostic, so the Shout grant
+  works off End of Turn without a duplicate.
+- **Gemgorge Fiend** — text only: "3 Rubies" → "3 spells", matching what the meter already counted.
+
+**Black Belt Brian can no longer Discover Resonance.** Added `DISCOVER_EXCLUDED_SPELLS` with the reason
+recorded beside the id — an unexplained exclusion list becomes folklore fast.
+
+**Runefire changed sides on the Ruby ruling.** Its rework recasts through `lastSpellCastId`, which only a Shop
+spell sets, so it moved OUT of the "works with Rubies too" pair and now owes the restrictive **Shop spell**
+wording like every other shop-spell-only card. Caught by thinking through the owner's own rule rather than by a
+failing test — the exclusion test only checks cards it's told about.
+
+**Left deliberately:** five factories are now orphaned (`onSpellCastOnThisSpreadAdjacent`,
+`onRubyPlayedSpreadAdjacent`, `avengeCopyLeftmostHandSpell`, `avengeGetRubies`, `avengePlayRubiesLeftmost`).
+Veinbreaker and Mineral Master later in this batch look likely to reuse the Ruby ones, so removing them now
+would mean re-adding them. Revisit at the batch's end.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1782 tests. Four tests of superseded
+behaviour (Runefire's spell-spread, Scalefeather's tribe buff) were removed with their cards' old rules.
+
+### 2026-07-27 — fix(core/sim/ui): Sprout's missing spell cast, Grimoire→Karwind, Rise/Avenge, Anubis, end-turn lock
+
+Four engine fixes from the owner's batch. Two were much wider than the reports suggested.
+
+**Sprout — every Discover spell counted as no spell at all.** The reducer's `discoverOnPlay` branch queues the
+Discover and RETURNS before reaching `castSpell`, so Sprout, Help Wanted, Tribe Portal, Corpse Board, Beyond
+the Summit and Rift-Sunk Codex never incremented `spellsCast`, never fed a quest tally, and never fired a
+single `spellCast` watcher. It surfaced as "Sprout doesn't trigger Runebloom Matriarch or Groveweaver"; it was
+every spell-counting card in the game ignoring a whole class of spells. Extracted `castSpell`'s bookkeeping
+into `noteSpellCast` and called it from both paths — once per cast, so a multiplied Discover counts each time.
+
+**Living Grimoire procced Karwind.** Its `onPlay` (`battlecryArmGrimoire`) is internal setup with no printed
+Shout, but `hasBattlecry` is a bare "has an onPlay" test, so playing it fired `battlecryTriggered`. Added
+`SILENT_ONPLAY` in core, applied in both packages so Karwind's trigger, Ryme's re-fire target, Rune of
+Bartering and the "get a Shout minion" pools all agree. A sweep of every `onPlay` card confirmed Grimoire is
+the only one whose text carries no Shout keyword.
+
+**Rise now counts as a death** (owner ruling 2026-07-27, reversing 2026-07-02/07-06): Avenge, the enemy-death
+tally and friendly-death quests all see it.
+
+*Two traps here.* Tallying BEFORE the rattle double-fired it — `playerEchoExtras` sizes Echo re-procs off the
+death count, so a Spear Warden came back 9/5 instead of 6/3. And broadcasting `onDeath` on the bus ALSO
+double-fires: `registerEffect` subscribes every minion's effects by event, so the emit re-runs the dying body's
+own rattle that `fireOwnDeathrattles` just ran. The tally is in; the rune/quest on-death WATCHERS (Inheritance,
+Passing Spears) deliberately still don't see a Rise — flagged rather than shipped with a double-fire.
+
+**Anubis's Lantern is permanent now.** It used `addTribeAura` (combat-only) where the Watcher's Rally cast uses
+`grantUndeadAura` (carried back) — the same spell behaving differently depending on which card cast it.
+
+**End Turn is inert for 5s at the start of a recruit round**, so the second half of a double-click can't skip
+the new round. Re-arms per wave; never gates the in-combat "end combat" use of the same button.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1788 tests. Live-checked the lock (disabled
+at 0s and 3s, enabled after 5s). The Rise test asserts the death COUNT, not a downstream Avenge proc — my
+first version passed with the fix removed, because a risen body dies again for real and that second death
+always counted.
+
+### 2026-07-27 — fix(core/sim): set 1 and set 2 were mixing in COMBAT
+
+Owner report: "I got a set 2 spell from Badgington's slaughter… we need to make sure our rules separate out
+set 1 and set 2 cards fully and entirely. It's very important."
+
+**Cause.** Recruit-phase picks have always gone through `poolOf(state)`. Combat never had the set threaded in
+at all — every random draw filtered the GLOBAL `CARD_INDEX`. Eleven sites: the random-spell grant
+(`simulate.ts:634`, Badgington's Slaughter), the random-minion grant, the magnetic roll, two in-simulate spell
+picks and six factory picks (including `deathrattleSummonRandomTribe`, whose comment already CLAIMED to be
+set-scoped).
+
+`CombatSideState` now carries `poolIds` — the run's pinned pool — and `ctx.poolCards(side)` narrows every pick
+to it. An empty/absent pool means unrestricted, so `EMPTY_SIDE` (the harness, procedural threats, tests that
+only care about minions) is unchanged.
+
+**Sea Urchin was NOT a leak.** The owner reported it Discovering a Scalefeather Drake in the same run. Sea
+Urchin is opted into set 2 and Scalefeather is a Dragon/**Beast**, so that's a legal Beast Discover in a set-2
+run — and recruit Discovers were already scoped. Pinned with a test rather than left as a claim.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1787 tests (+6). The tests drive REAL combat
+across 40 seeds rather than asserting on the helper, because the bug was never in the filter — it was in which
+list the filter was applied to. Reverting the fix makes them fail with the owner's exact symptom
+(`wo_health`, `veinstorm` and 8 more leaking into a set-1 run), and a control proves the fixture actually
+grants spells so the pass isn't vacuous.
+
+A source sweep also fails the build if a NEW random draw is written against `allCards()` — the leak was
+invisible in gameplay until a player saw a foreign card, so it needed a structural guard rather than vigilance.
+
+### 2026-07-27 — fix(ui): broken images on the itch browser build (root-absolute public paths)
+
+Owner report with a screenshot: several buttons render as broken-image icons on itch, while the same build is
+perfect on localhost.
+
+**Cause.** itch serves the game from a CDN sub-path, so a root-absolute `src="/frames/x.webp"` resolves against
+the CDN ROOT and 404s. Vite rewrites `url(/…)` inside CSS at build time — the built stylesheet correctly says
+`url(../cursors/…)` — but it CANNOT rewrite a string literal in JS, so eleven `/frames/…` srcs survived
+verbatim into the bundle. Localhost serves from `/`, which is why it never shows up in dev or `vite preview`.
+
+Fixed by prefixing `import.meta.env.BASE_URL` in the four components that missed it — EndTurnButton,
+RefreshButton, StatusBar (hero power) and TavernUpButton — which is exactly the pattern `Card.tsx` already
+documents for its frame srcs.
+
+**This is the SECOND time it shipped** (Card.tsx's comment records the first, from a mobile itch test), so a
+comment in one file is evidently not enough: `publicAssetPaths.test.ts` now fails on any root-absolute
+`/frames|cursors|fx|sfx|audio/` reference in the UI source.
+
+The guard immediately earned itself — it caught a TWELFTH site the regex pass had missed, `TavernUpButton`'s
+tier pips, which build their src from a template literal rather than a plain string.
+
+**Verified the way the bug actually manifests**, since localhost can't reproduce it: served the built `dist`
+from `http://localhost:8899/html/1234/` (an itch-shaped sub-path) and walked mode → hero → recruit. 50 images,
+**zero broken**, srcs now reading `./frames/…`; the old form 404s there, as it should. Built JS contains no
+root-absolute public refs at all.
+
+**A bug in my own test, worth recording:** it first reported every explanatory comment as an offender. The
+repo is CRLF, `split('
+')` leaves a trailing `
+`, and JS `.` does not match `
+` — so `/\/\/.*$/` never
+matched and no `//` line was ever stripped.
 
 ### chore(ui): second pass on the Card Text defaults
 

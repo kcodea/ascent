@@ -150,6 +150,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'Calls the whole board to its close early — once a turn, on your terms.',
     resolve: 30,
     armor: 20,
+    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
     power: {
       name: 'Cadence',
       kind: 'replayAllEndOfTurn',
@@ -177,6 +178,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'Every clash leaves a mark — break enough of them and the spoils find you.',
     resolve: 30,
     armor: 13,
+    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
     power: {
       name: 'Collision',
       kind: 'collision',
@@ -336,6 +338,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'Buy enough endings and time itself enlists.',
     resolve: 30,
     armor: 13,
+    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
     power: {
       name: 'Timelapse',
       kind: 'questChronos',
@@ -390,6 +393,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
     resolve: 30,
     armor: 19,
+    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
     power: {
       name: 'Dragon Tamer',
       kind: 'dragonTamer',
@@ -406,6 +410,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'Every dig turns up something — for a price that only ever climbs.',
     resolve: 30,
     armor: 15,
+    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
     power: {
       name: 'Dynamite Dig',
       kind: 'dynamiteDig',

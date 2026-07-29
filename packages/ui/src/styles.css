@@ -5285,8 +5285,15 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    Dev-only, stripped from production. */
 .scenebuilder { width: calc(288 * var(--u)); max-width: 92vw; }
 .scenebuilder.collapsed { width: calc(180 * var(--u)); }
+.scenebuilder.minimized { display: none; }
 .sb-head { display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--u)); }
 .sb-collapse { background: none; border: none; color: #d8c8a2; font-size: calc(13 * var(--u)); cursor: pointer; padding: 0 calc(2 * var(--u)); }
+/* Minimized Scene Builder → a circle icon in the bottom-right cluster, immediately LEFT of the 🛠️ dev-tuning
+   button (which sits at right: bar-x + 64px, is 40px wide); +48px = its width + an 8px gap. Same size/style. */
+.sb-dock { position: fixed; right: calc(var(--bar-x) + 112px); bottom: calc(var(--bar-y) + 16px); z-index: 9990;
+  width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card);
+  font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); display: grid; place-items: center; }
+.sb-dock:hover { border-color: var(--acc, #ff8a3c); }
 .sb-body { display: flex; flex-direction: column; gap: calc(8 * var(--u)); padding-top: calc(4 * var(--u)); }
 
 .sb-sec { display: flex; flex-direction: column; gap: calc(4 * var(--u)); padding-bottom: calc(7 * var(--u)); border-bottom: 1px solid #3a3220; }

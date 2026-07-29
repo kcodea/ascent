@@ -103,7 +103,8 @@ export function simulate(
   let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
-  const rubyBonusGain = { attack: 0, health: 0 }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
+  const rubyBonusGain = { attack: 0, health: 0 };
+  const tavernBuyGain = { attack: 0, health: 0 }; // Hungerling — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
@@ -461,6 +462,14 @@ export function simulate(
       return card;
     },
     allCards: () => Object.values(cards),
+    // SET-SCOPED draw pool. `poolIds` empty/absent = unrestricted, so the harness and procedural threats are
+    // unchanged; a real run pins its set and every random pick below narrows to it.
+    poolCards: (side) => {
+      const ids = (side === 'player' ? playerState : enemyState).poolIds;
+      if (!ids || ids.length === 0) return Object.values(cards);
+      const allow = new Set(ids);
+      return Object.values(cards).filter((c) => allow.has(c.id));
+    },
     buff: (target, attack, health, source) => {
       // Golden Taurus doubles every combat stat-gain its engraved neighbors receive (`gainMult`).
       const gm = target.gainMult ?? 1;
@@ -581,6 +590,11 @@ export function simulate(
       if (side !== 'player' || count <= 0) return;
       nextTurnSpellCopies.n += count;
     },
+    gainTavernBuy: (attack, health, side) => {
+      if (side !== 'player') return; // enemies have no shop
+      tavernBuyGain.attack += attack;
+      tavernBuyGain.health += health;
+    },
     gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
       // `playerRubyBonusGain`; grows held + future Rubies at settle).
@@ -631,7 +645,9 @@ export function simulate(
       if (side !== 'player') return; // enemies have no hand
       // Pick the ACTUAL spell now (tavern tier passed in) and route it through grantToHand — so the replay
       // shows the real card flying to your hand (a `toHand` event), and settle just adds the carried cardId.
-      const pool = Object.values(cards).filter((c) => c.spell && !c.token && c.tier <= playerState.tier); // exclude reward-exclusive spells (Feed the Alpha)
+      // Set-scoped (owner report 2026-07-27: a Set-1 Badgington handed out a Set-2 spell). Reward-exclusive
+      // spells (Feed the Alpha) stay excluded via `!token`.
+      const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token && c.tier <= playerState.tier);
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;
         handGrants.push(pick.id);
@@ -664,7 +680,7 @@ export function simulate(
           ? uncontrolled.has(c.tribe) || (!!c.tribe2 && uncontrolled.has(c.tribe2)) || !!c.universalTribe
           : !tribe || tribe === 'uncontrolled' || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe;
       // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
-      const pool = Object.values(cards).filter(
+      const pool = ctx.poolCards('player').filter(
         (c) =>
           !c.token && !c.spell && c.tier <= playerState.tier && c.id !== exclude &&
           (c.tribe === 'neutral' || playerState.tribes.includes(c.tribe)) &&
@@ -854,6 +870,13 @@ export function simulate(
       // only BE the attacker of a kill in this same-clash mutual case (it can't swing again once dead), so
       // this stays precisely scoped to "killed and died together".
       if (minion.dead && effect.on !== 'onDeath' && effect.on !== 'onKill') return;
+      // A RISE broadcast (`ownAlreadyFired`) reaches every WATCHER but must not re-run the dying body's own
+      // Deathrattle — `fireOwnDeathrattles` already ran it, with its own Echo-extras handling. Without this
+      // guard the emit doubled it: a Spear Warden came back 9/5 instead of 6/3, its Eternal-Knight enchant
+      // applied twice (owner report chased 2026-07-27).
+      if (effect.on === 'onDeath'
+        && (payload as { ownAlreadyFired?: boolean; minion?: Minion }).ownAlreadyFired
+        && (payload as { minion?: Minion }).minion === minion) return;
       // Cratering Missive: drop the tribe filter on the Cratering Hulk's overflow buff so it hits ALL your minions.
       const params =
         effect.do === 'onSummonOverflowBuffTribe' && modsFor(minion.side).crateringMissive
@@ -1015,16 +1038,28 @@ export function simulate(
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep(); // the rattle's effects are a separate resolution from the death itself
       fireOwnDeathrattles(minion);
+      // A Rise death is a REAL death (owner ruling 2026-07-27, reversing 2026-07-02/07-06): it counts for
+      // Avenge, the enemy-death tally, friendly-death quests and on-death watchers. The body genuinely leaves
+      // play before returning — "minions that die and then rise should still count as a death".
+      //
+      // Tallied AFTER the rattle, matching the regular death path.
+      //
+      // …and every on-death WATCHER sees it too (owner 2026-07-27: "the minion effectively dies and should
+      // trigger all on death effects"). `ownAlreadyFired` stops the broadcast re-running the dying body's own
+      // rattle, which `fireOwnDeathrattles` handled a line above — see the guard in `registerEffect`.
+      bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
+      if (minion.side === 'enemy') enemyDeaths++;
+      deaths[minion.side] += 1;
+      if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+      emitAvenge(minion.side, deaths[minion.side], minion);
       // Board cap gates the Rise (owner ruling 2026-07-02): the Deathrattle resolved FIRST — its summons can
       // take the last slots, since the dying body holds none — and if the side is at 7 living the minion does
       // NOT return: it stays dead for real, and NOW counts as a true death (Avenge + enemy tally). It already
       // emitted its (rise-flagged) death above, so we don't push a second one, and there's NO `onDeath`
       // broadcast (watchers treat Rise deaths as non-deaths; the rattle already fired, incl. Sylus re-procs).
       if (living(minion.side).length >= 7) {
-        if (minion.side === 'enemy') enemyDeaths++;
-        deaths[minion.side] += 1;
-        if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
-        emitAvenge(minion.side, deaths[minion.side], minion);
+        // The death was already tallied above (every Rise counts now), so this branch only has to stop the
+        // body returning — double-counting here would make a capped Rise worth two Avenge ticks.
         return;
       }
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
@@ -1342,7 +1377,7 @@ export function simulate(
       // standalone `rallyGrantSpell` factory — a standalone Perfect Core grants via its own effect instead, so no
       // double-count. Fires per swing (a Windfury host grants twice if it survives the first).
       if (attacker.rallySpellWeld && attacker.rallySpellWeld > 0) {
-        const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+        const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token);
         if (pool.length > 0) {
           for (let i = 0; i < attacker.rallySpellWeld; i++) ctx.grantToHand(ctx.rng.pick(pool).id, attacker.side, attacker.uid);
         }
@@ -1801,7 +1836,7 @@ export function simulate(
           }
         }
         if (spellRally) { // Perfect Core → spell to hand: player-only (grantToHand is a no-op for the enemy)
-          const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+          const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token);
           if (pool.length > 0) for (let i = 0; i < minion.rallySpellWeld!; i++) ctx.grantToHand(ctx.rng.pick(pool).id, minion.side, minion.uid);
         }
       }
@@ -1918,7 +1953,7 @@ export function simulate(
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —
   // ECONOMY/HAND, so player-only (a served enemy has no hand; grantToHand no-ops for it anyway).
   if (playerState.questMods.runeSalvage) {
-    const magnetics = Object.values(cards).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
+    const magnetics = ctx.poolCards('player').filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };
@@ -2111,6 +2146,7 @@ export function simulate(
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.attack > 0 || rubyBonusGain.health > 0) ? { ...rubyBonusGain } : undefined,
+    playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,

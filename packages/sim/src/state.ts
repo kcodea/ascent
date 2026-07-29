@@ -191,6 +191,10 @@ export interface BoardCard {
   /** Trail Forager: extra sell value accrued (+1 Gold per Beast played while it's on the board, ×2 golden).
    *  Read by `sellValueOf`; per-instance, persists across turns for the rest of the run. Absent = 0. */
   sellBonus?: number;
+  /** Runic Archivist: minions sold while this card is on the board, counted toward its every-N payout. Carries
+   *  round to round (owner 2026-07-27: "progress carries round to round") and keeps the remainder past each
+   *  payout, so a partial tally is never thrown away. Per-instance; absent = 0. */
+  soldProgress?: number;
   /** Gold-spend meter for `goldSpent` effects (Acid, Banksly): accrues the Gold spent while this card is on
    *  the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. */
@@ -819,6 +823,10 @@ export interface RunState {
    *  turn, cleared at the start of the next turn. */
   freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
+  /** Tier-7 ACCESS granted by a hero power or quest (owner ruling 2026-07-28) — the non-rift route to Tier 7.
+   *  Read only through `hasTier7Access`; nothing sets it yet, and it exists so the eventual hero can turn it on
+   *  without touching the gate itself. */
+  tier7Access?: boolean;
   spellFirstDoubleEachTurn?: boolean;
   /** Set 2 — Orivax (Spellweave): a MULTIPLIER on the turn's first spell (3 = casts 3 times). Permanent,
    *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than

@@ -21,6 +21,17 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+### Paragon's tier + stats need an owner call (2026-07-28)
+Paragon shipped at **Tier 6, 4/5** — my choice, not a spec. The owner gave the effect only ("New All type minion
+- Paragon - Whenever you trigger Rally, give a minion of every type +3/+3 permanently"). The body is deliberately
+small so the permanent Rally scaling is the reason to play it, but the tier and the numbers want a real balance
+pass alongside the other Rally payoffs.
+
+### Tier-7 access has no source yet (2026-07-28)
+`hasTier7Access` is live and Beyond the Summit is gated on it, but nothing sets `tier7Access` — only the Summit
+rift reaches Tier 7 today. The owner described the other route as "a different hero power or something"; the flag
+is ready for whichever hero or quest ends up carrying it.
+
 ### FX authoring loop (owner test run — 2026-07-26)
 The FX workbench is built; the next step is authoring a real effect through it end to end.
 [`docs/fx-requests.md`](fx-requests.md) holds the brief template and the queue. Division of labour: owner

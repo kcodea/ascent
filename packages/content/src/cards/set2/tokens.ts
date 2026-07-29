@@ -16,7 +16,7 @@ export const SET2_TOKENS: CardDef[] = [
     health: 2,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryCastTaughtSpell' }],
-    text: '**Shout:** cast the spell this was taught.',
+    text: '**Shout:** cast the Shop spell this was taught.',
     token: true,
     // Never combines, however many you hold (owner ruling 2026-07-24). Each Pup's identity is the spell on its
     // INSTANCE, so three of them are three different cards sharing one id — a triple would have to pick one
@@ -97,6 +97,21 @@ export const SET2_TOKENS: CardDef[] = [
     // the moment it lands — the same flag set 1's 3/2 `whelpling` uses. A separate token rather than reusing
     // that one because the stat line differs; kept a DRAGON like every other Whelp in the game, which matters
     // in set 2 where Dragons are a playable tribe.
+    // Blazing Keeper's Shout hands you this (owner 2026-07-27) — a real T1 Dragon, not a token: it goes to
+    // HAND to be played, so it needs a Shout of its own to be worth the slot.
+    id: 'd2_broodwhelp',
+    name: 'Brood Whelp',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 3,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryBuffOtherTribe', params: { tribe: 'dragon', attack: 5, health: 0 } }],
+    token: true,
+    text: '**Shout:** give a friendly Dragon **+5 Attack**.',
+    goldenText: '**Shout:** give a friendly Dragon **+10 Attack**.',
+  },
+  {
     id: 'n2_whelp',
     name: 'Whelp',
     tribe: 'dragon',

@@ -51,7 +51,7 @@ export function questObjectiveText(o: QuestObjective): string {
     case 'winRound':
       return `Win ${o.count} ${o.count === 1 ? 'round' : 'rounds'}`;
     case 'castSpell':
-      return `Cast ${o.count} spells`;
+      return `Cast ${o.count} Shop spells`;
     case 'authorsHand':
       return `Trigger Shout, Echo, and Rally ${o.count} times each`;
     case 'sell':
@@ -124,7 +124,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'grant': {
       const parts: string[] = [];
       if (r.randomTribe && (r.randomCount ?? 0) > 0) parts.push(randomMinionPhrase(r.randomTribe, r.randomCount!));
-      if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random spell' : `${r.randomSpell} random spells`);
+      if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random Shop spell' : `${r.randomSpell} random Shop spells`);
       if (r.randomFilter) parts.push(`a random ${FILTER_NAME[r.randomFilter]} minion${r.randomFilterExactTier ? ' of your tier' : ''}`);
       // Gilded grants (Leader of the Pack → a Golden Pack Leader). Rendered before the plain cards.
       const goldenCounts = new Map<string, number>();
@@ -194,7 +194,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'feedingLine':
           return 'Whenever a Beast Slaughters, your next Beast attacks immediately';
         case 'umbralEnergy':
-          return 'Start of Combat: give your Dragons +2/+2 for every spell cast this game';
+          return 'Start of Combat: give your Dragons +2/+2 for every Shop spell cast this game';
         case 'emptyGraves':
           return 'Your first friendly death each combat summons a 1/1 Gravebody that copies your leftmost Echo';
         case 'assemblyLine':
@@ -237,7 +237,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'dupeFirstBuy':
       return 'Get a second copy of the first minion you buy each turn';
     case 'spellRepeat':
-      return r.scope === 'always' ? 'Your spells cast twice' : 'Your first spell each turn casts twice';
+      return r.scope === 'always' ? 'Your Shop spells cast twice' : 'Your first Shop spell each turn casts twice';
     case 'minionCost':
       return `Minions cost ${r.cost} Gold from the shop`;
     case 'slaughterRepeat':
@@ -251,7 +251,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'friedCircuits':
       return `Each minion you buy buffs shop Mechs +${r.stepAttack}/+${r.stepHealth}, improving by +${r.stepAttack}/+${r.stepHealth} each purchase`;
     case 'undeadSpellAura':
-      return `Casting a spell gives your Undead +${r.attack} Attack (in the shop and combat)`;
+      return `Casting a Shop spell gives your Undead +${r.attack} Attack (in the shop and combat)`;
     case 'baneDemonAura':
       return `Your Banes' Shout payoff also gives your Demons +${r.attack}/+${r.health}`;
     case 'openEpicRuneforge':
@@ -321,7 +321,7 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
       if (r.flag === 'oldHunt') return beast();
       if (r.flag === 'umbralEnergy') {
         const n = 2 * (live.spellsCast ?? 0);
-        return `Now: Dragons +${n}/+${n} at Start of Combat (${live.spellsCast ?? 0} spells cast)`;
+        return `Now: Dragons +${n}/+${n} at Start of Combat (${live.spellsCast ?? 0} Shop spells cast)`;
       }
       return null;
     default:

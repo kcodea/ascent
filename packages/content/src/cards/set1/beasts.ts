@@ -66,7 +66,7 @@ export const BEASTS: CardDef[] = [
     effects: [
       { on: 'onKill', do: 'onKillBuffSpellPower', params: { attack: 1, health: 1 } },
     ],
-    text: '**Slaughter:** your spells permanently gain **+1/+1**.',
+    text: '**Slaughter:** your Shop spells permanently gain **+1/+1**.',
   },
   {
     // A tempo Beast that mills spells: throws one to hand whenever it scores a kill (Slaughter). The random
@@ -82,8 +82,8 @@ export const BEASTS: CardDef[] = [
     effects: [
       { on: 'onKill', do: 'onKillGrantRandomSpell', params: { count: 1 } },
     ],
-    text: '**Slaughter:** get a random spell.',
-    goldenText: '**Slaughter:** get **2** random spells.',
+    text: '**Slaughter:** get a random Shop spell.',
+    goldenText: '**Slaughter:** get **2** random Shop spells.',
   },
   {
     // Quest reward (Forager's Trail): a sticky value bank — its sell price climbs +1 Gold per Beast you play.
@@ -157,7 +157,7 @@ export const BEASTS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastTransform', params: { at: 10, into: 'spiritworgen' } }],
-    text: 'Cast **10 spells** to ascend.',
+    text: 'Cast **10 Shop spells** to ascend.',
   },
   {
     // The transform target — obtained only via Spirit Pup, so `token: true` keeps it out of the shop
@@ -175,8 +175,8 @@ export const BEASTS: CardDef[] = [
     effects: [
       { on: 'onSummon', do: 'summonBuffSelfTribe', params: { tribes: ['beast', 'dragon'], attack: 3, health: 3 } },
     ],
-    text: 'When you play a **Beast** or **Dragon**, gain **+3/+3**. Improves by **+3/+3** for every spell you cast this turn.',
-    goldenText: 'When you play a **Beast** or **Dragon**, gain **+6/+6**. Improves by **+6/+6** for every spell you cast this turn.',
+    text: 'When you play a **Beast** or **Dragon**, gain **+3/+3**. Improves by **+3/+3** for every Shop spell you cast this turn.',
+    goldenText: 'When you play a **Beast** or **Dragon**, gain **+6/+6**. Improves by **+6/+6** for every Shop spell you cast this turn.',
   },
 
   // --- New beasts (2026-06-24 content batch). Manasaber is a token-summoner (data only); Raptor and Sea
@@ -236,8 +236,8 @@ export const BEASTS: CardDef[] = [
     health: 3,
     keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
-    text: '**Taunt. Echo:** get a random spell.',
-    goldenText: '**Taunt. Echo:** get **2** random spells.',
+    text: '**Taunt. Echo:** get a random Shop spell.',
+    goldenText: '**Taunt. Echo:** get **2** random Shop spells.',
   },
   {
     // Economy Taunt: each time it takes damage, bank a free shop reroll — up to 4 hits a combat (the cap

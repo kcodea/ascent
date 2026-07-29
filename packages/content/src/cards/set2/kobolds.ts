@@ -43,8 +43,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 6,
     health: 3,
     keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scPlayRubiesPerBuy', params: { every: 4, rubies: 1, tribe: 'kobold' } }],
-    text: '**Start of Combat:** Play **1 Ruby** on your Kobolds for every **4 cards** bought this turn.',
+    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
+    text: '**Shout:** play a Ruby on all of your minions.',
     goldenText: '**Start of Combat:** Play **2 Rubies** on your Kobolds for every **4 cards** bought this turn.',
   },
   {
@@ -71,12 +71,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 2,
     health: 5,
     keywords: [],
-    effects: [
-      { on: 'avenge', do: 'avengeGetRubies', params: { count: 2, rubies: 1 } },
-      { on: 'avenge', do: 'avengePlayRubiesLeftmost', params: { count: 2, rubies: 2 } },
-    ],
-    text: '**Avenge (2):** Get a Ruby and Play **2** on your left-most minion.',
-    goldenText: '**Avenge (2):** Get **2 Rubies** and Play **4** on your left-most minion.',
+    // `battlecryGrantSpell` isn't Shout-specific — the recruit factories are event-agnostic, so the same
+    // grant works off End of Turn without a near-duplicate factory.
+    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
+    text: '**End of Turn:** get a **Veinstorm**.',
+    goldenText: '**End of Turn:** get **2 Veinstorms**.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
@@ -102,9 +101,17 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 3,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } }],
-    text: '**Avenge (3):** Buff your Rubies **+1/+1**.',
-    goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
+    // Owner rework 2026-07-27 — a Choose One between the long game (every future Ruby is bigger) and the
+    // burst (four Rubies right now). Both halves reuse primitives that already exist.
+    effects: [],
+    chooseOne: [
+      { text: 'Give your Rubies **+1/+1**.', goldenText: 'Give your Rubies **+2/+2**.',
+        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 1 } }] },
+      { text: 'Get **4 Rubies**.', goldenText: 'Get **8 Rubies**.',
+        effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 4 } }] },
+    ],
+    text: '**Choose One:** give your Rubies **+1/+1**, or get **4 Rubies**.',
+    goldenText: '**Choose One:** give your Rubies **+2/+2**, or get **8 Rubies**.',
   },
   {
     // End of Turn (recruit) → mint a Warding Ruby (a Ruby that also grants Ward) into hand.
@@ -218,8 +225,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3 } }],
-    text: 'When you cast **3 Rubies**, Consume a minion in the Shop.',
-    goldenText: 'When you cast **3 Rubies**, Consume **2 minions** in the Shop.',
+    text: 'When you cast **3 spells**, Consume a minion in the Shop.',
+    goldenText: 'When you cast **3 spells**, Consume **2 minions** in the Shop.',
   },
   {
     // Taunt + Echo (combat Deathrattle): on death, play a Ruby on each adjacent minion (permanent carry-back).
@@ -280,17 +287,18 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: 'When you get a Ruby, this casts a Ruby on a random friendly minion twice.',
   },
   {
-    // "When a Ruby is played on THIS minion" trigger — the buff also lands on both neighbours.
+    // "When a Ruby is played on THIS minion" trigger — the buff bounces on to random friends. Owner rework
+    // 2026-07-27: Ward, and random targets instead of the two neighbours (so position no longer gates it).
     id: 'k_resonance',
     name: 'Resonance Idol',
     tribe: 'kobold',
     tier: 4,
     attack: 4,
     health: 6,
-    keywords: [],
-    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { goldenReps: 2 } }],
-    text: 'Rubies cast on this minion bounce to both adjacent minions.',
-    goldenText: 'Rubies cast on this minion bounce to both adjacent minions twice.',
+    keywords: ['DS'], // Ward
+    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { goldenReps: 2, random: 2 } }],
+    text: '**Ward.** Rubies cast on this minion bounce to **2 random** friendly minions.',
+    goldenText: '**Ward.** Rubies cast on this minion bounce to **2 random** friendly minions **twice**.',
   },
   {
     // "When a Ruby is played on THIS minion" → Gold, capped per turn (per-instance `rubyRecvTick`).
@@ -301,8 +309,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 2,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedGold', params: { gold: 3, cap: 2 } }],
-    text: 'Rubies played on this minion give you **3 Gold** (two times per turn).',
+    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedGold', params: { gold: 2, cap: 3 } }],
+    text: 'Rubies played on this minion give you **2 Gold** (three times per turn).',
     goldenText: 'Rubies played on this minion give you **3 Gold** (three times per turn).',
   },
   {
@@ -314,8 +322,25 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 9,
     keywords: [],
-    effects: [{ on: 'cardsBought', do: 'cardsBoughtGetRubies', params: { every: 3, count: 1 } }],
-    text: 'When you buy **3 cards**, get a Ruby.',
-    goldenText: 'When you buy **3 cards**, get **2 Rubies**.',
+    // `goldSpent` carries the same continuous per-instance meter `cardsBought` does (see `applyGoldSpent`), so
+    // the cadence needs no new plumbing — only the event and the threshold change.
+    effects: [{ on: 'goldSpent', do: 'cardsBoughtGetRubies', params: { every: 5, count: 1 } }],
+    text: 'When you spend **5 Gold**, get a Ruby.',
+    goldenText: 'When you spend **5 Gold**, get **2 Rubies**.',
+  },
+  {
+    // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally
+    // showers the tribe in Rubies, so it turns a single Rally body into a board-wide permanent buff that scales
+    // with the run's Ruby strength.
+    id: 'k_mineralmaster',
+    name: 'Mineral Master',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 5,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { tribe: 'kobold', rubies: 2 } }],
+    text: 'When you trigger a **Rally**, play **2 Rubies** on your Kobolds.',
+    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your Kobolds.',
   },
 ];

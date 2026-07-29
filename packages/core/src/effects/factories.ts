@@ -136,7 +136,18 @@ function grantShield(ctx: CombatContext, m: Minion): void {
 
 /** Whether a minion has a Battlecry at all (any `onPlay` effect) — Ryme targets ANY Battlecry neighbour,
  *  including economy ones (Discover, gain-Gold…) which simply no-op in combat (nothing to do there). */
-const hasBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onPlay');
+/** `onPlay` effects that are INTERNAL setup, not a printed **Shout** the player can see.
+ *
+ *  Living Grimoire arms its own charge on play; its text is "the first spell you cast each turn casts twice",
+ *  with no Shout keyword. Because the arming rides an `onPlay`, playing it fired `battlecryTriggered` and
+ *  procced Karwind (owner report 2026-07-27). A Shout payoff should only see Shouts the card actually has.
+ *
+ *  Grimoire is currently the only one — a sweep of every `onPlay` card found no other whose text lacks a
+ *  printed Shout/Battlecry keyword. Add to this set (don't special-case at a call site) if another appears. */
+export const SILENT_ONPLAY: ReadonlySet<string> = new Set(['battlecryArmGrimoire']);
+
+const hasBattlecry = (m: Minion): boolean =>
+  m.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do));
 
 /** Drakko the Drummer's doubling for Ryme's re-fired Battlecries (combat mirror of recruit's `bestCopyRepeats`):
  *  count living Drakkos on `side`, golden → +2 else any → +1 (best single copy, NO stacking). Total = 1 + that,
@@ -890,7 +901,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  (Today the pool is Cling Drone / Money Bot / Heckbinder.) */
   deathrattleGrantMagnetic: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    const pool = ctx.poolCards(self.side).filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -950,9 +961,25 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Rally (Perfect Core): when THIS minion attacks, add a random spell to your hand after combat (golden → 2). */
+  /** Set 2 — Chorus Drake (Rally): raise the run's SHOP-SPELL power. Spell power is the channel that makes
+   *  every future Shop spell bigger, and it carries back out of combat on its own — so "your Shop Spells gain
+   *  +1 Health" needs no new plumbing, just the existing grant. Rubies don't read spell power, which is why
+   *  the card says Shop Spells. */
+  rallyGrantSpellPower: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    ctx.grantSpellPower(num(params.attack, 0) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
+  },
+
+  /** Set 2 — Embermouth Whelp: every Shout you trigger grows THIS body (× golden). Permanent-by-nature — it's
+   *  a recruit-phase buff on the card itself, so it simply persists like any other stat gain. */
+  onBattlecryBuffSelf: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
   rallyGrantSpell: (ctx, self, _params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
-    const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+    const pool = ctx.poolCards(self.side).filter((c) => c.spell && !c.token);
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -984,7 +1011,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  after combat (golden → 2). Attacker-guarded (fires on the kill even if it then dies). */
   onKillGrantMagnetic: (ctx, self, _params, payload) => {
     if ((payload as { attacker?: Minion }).attacker !== self) return;
-    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    const pool = ctx.poolCards(self.side).filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -1065,6 +1092,66 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const per = num(params.rubies, 1);
     const pool = ctx.living(self.side).filter((m) => !tribe || m.tribe === tribe || m.tribe2 === tribe);
     for (let i = 0; i < targets && i < pool.length; i++) playRubyOn(ctx, self, pool[i]!, per);
+  },
+
+  /** Set 2 — Mineral Master (owner 2026-07-28): when YOU trigger a Rally — any friendly Rally, not just its own
+   *  swing — play `rubies` Rubies on your `tribe` minions.
+   *
+   *  `on: 'onAttack'` is broadcast to every friendly minion's effects, so the gate is the ATTACKER's RL keyword:
+   *  without it this would pay out on every ally swing, which is an ally-attack watcher (Crypt Drake), not a
+   *  Rally watcher. Same distinction the sim draws when it computes `rallyExtra`. */
+  onRallyPlayRubiesTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    if (!minion.keywords.includes('RL')) return; // an ally swing is not a Rally
+    const tribe = str(params.tribe);
+    const per = num(params.rubies, 2) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (!tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) {
+        playRubyOn(ctx, self, m, per);
+      }
+    }
+  },
+
+  /** Paragon (owner 2026-07-28) — the all-type minion. Whenever you trigger a Rally, give **a minion of every
+   *  type** +atk/+hp, permanently.
+   *
+   *  The owner's two worked examples pin the shape exactly:
+   *    • 2 Dragons + 1 Beast + Paragon → one Dragon, the Beast, and Paragon.
+   *    • 3 Dragons + Paragon          → one Dragon and Paragon.
+   *  So it is NOT "one per active tribe in the run" (that would pay Paragon repeatedly for the tribes nothing
+   *  else represents) and NOT "everyone". It is: one random member of each tribe actually REPRESENTED on your
+   *  board by a real tribe member, plus every all-type body — which is Paragon itself, since an all-type minion
+   *  IS a minion of every type. `universalTribe` cards are excluded from the per-tribe pick so they can't
+   *  crowd out the real member, then added unconditionally.
+   *
+   *  Permanent via `permaGain`, the Flowing Monk channel, so the gifts ride `playerPermaBuffs` home. */
+  onRallyBuffOnePerTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    if (!minion.keywords.includes('RL')) return;
+    const a = num(params.attack, 3) * mul(self);
+    const h = num(params.health, 3) * mul(self);
+    const living = ctx.living(self.side);
+    const universal = living.filter((m) => !!ctx.getCard(m.cardId)?.universalTribe);
+    const real = living.filter((m) => !ctx.getCard(m.cardId)?.universalTribe);
+    const tribes: Tribe[] = [];
+    for (const m of real) for (const t of [m.tribe, m.tribe2]) {
+      if (t && t !== 'neutral' && !tribes.includes(t as Tribe)) tribes.push(t as Tribe);
+    }
+    const recipients: Minion[] = [...universal];
+    for (const t of tribes) {
+      const pool = real.filter((m) => m.tribe === t || m.tribe2 === t);
+      if (pool.length === 0) continue;
+      const pick = ctx.rng.pick(pool);
+      if (!recipients.includes(pick)) recipients.push(pick);
+    }
+    for (const r of recipients) {
+      ctx.buff(r, a, h, self.uid);
+      if (!r.keywords.includes('EG')) {
+        r.permaGain = { attack: (r.permaGain?.attack ?? 0) + a, health: (r.permaGain?.health ?? 0) + h };
+      }
+    }
   },
 
   /** Set 2 — Avenge (X) (Veinbreaker): after every `count` friendly deaths, buff your Rubies +atk/+hp (× golden)
@@ -1176,7 +1263,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // only on this minion's own attack
     const count = num(params.count, 1) * mul(self);
-    const pool = ctx.allCards().filter((c) => c.keywords.includes('M') && (c.tribe === 'mech' || c.tribe2 === 'mech') && !c.token && !c.spell);
+    const pool = ctx.poolCards(self.side).filter((c) => c.keywords.includes('M') && (c.tribe === 'mech' || c.tribe2 === 'mech') && !c.token && !c.spell);
     if (pool.length === 0) return;
     for (let i = 0; i < count; i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -1974,6 +2061,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       for (const m of ctx.living(self.side)) {
         if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
       }
+      // PERMANENT, like every other Lantern cast (owner 2026-07-27: "all lantern casts should be permanent
+      // stats; Watcher uses the right utility"). `addTribeAura` above only lasts the fight, so Anubis's
+      // Deathrattle Lantern evaporated at settle while the Watcher's Rally cast persisted — the same spell
+      // behaving differently depending on which card cast it. `grantUndeadAura` is the run-wide Lantern
+      // channel that carries back.
+      if (tribe === 'undead') ctx.grantUndeadAura(a, h, self.side);
     }
   },
 
@@ -2349,7 +2442,58 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (p.minion && p.minion !== self) return;
     const imp = ctx.getCard('impscrap');
     if (!imp) return;
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, imp, self.uid);
+    // `keyword` grants the Imps one on arrival (Endless Overseer's grafted Echo makes Warded Imps); `attack` /
+    // `health` buff each one as it lands (Errand Fiend's +1/+2). Both default off, so the plain summoners are
+    // unchanged.
+    const kws = str(params.keyword) ? ([str(params.keyword)] as Keyword[]) : undefined;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
+      const born = ctx.summon(self.side, imp, self.uid, kws);
+      if (born && (a > 0 || h > 0)) ctx.buff(born, a, h, self.uid);
+    }
+  },
+
+  /** Set 2 — Legion Shepherd (owner rework 2026-07-27): Echo — summon `count` Imps; every one that can't fit
+   *  gives your Imps +atk/+hp EVERYWHERE, permanently.
+   *
+   *  "Everywhere" is the load-bearing word, and it's why this can't just reuse `deathrattleSummonOverflowBuff`:
+   *  that one buffs the living bodies and stops at the end of the fight. This goes through `ctx.grantImpBuff`,
+   *  the Imp Aura channel — which advances the aura (so Imps summoned LATER this combat inherit it) and rides
+   *  the `playerImpBuffGain` carry-back into run state (so Imps in the shop and on the board get it too, and
+   *  keep it). The living Imps already on the field are buffed directly, since the aura only reaches new bodies. */
+  deathrattleImpsOverflowGrant: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const imp = ctx.getCard('impscrap');
+    if (!imp) return;
+    const total = num(params.count, 4); // fixed — golden scales the per-overflow grant, not the body count
+    let overflowed = 0;
+    for (let i = 0; i < total; i++) {
+      const before = ctx.living(self.side).length;
+      ctx.summon(self.side, imp, self.uid);
+      if (ctx.living(self.side).length === before) overflowed++; // didn't land → it overflowed
+    }
+    if (overflowed === 0) return;
+    const a = num(params.attack, 2) * mul(self) * overflowed;
+    const h = num(params.health, 2) * mul(self) * overflowed;
+    for (const m of ctx.living(self.side)) if (m.cardId === 'impscrap') ctx.buff(m, a, h, self.uid);
+    ctx.grantImpBuff(a, h, self.side);
+  },
+
+  /** Set 2 — Endless Overseer (owner rework 2026-07-27): Start of Combat, graft an Echo onto your RIGHT-most
+   *  minion so its death summons `count` Imps with Ward.
+   *
+   *  Right-most rather than a pick, so the player chooses the recipient by placement — the natural home is
+   *  whatever body you were happy to lose last. Grafted through `ctx.grantDeathrattle`, the same channel Grave
+   *  Body uses, which registers the effect so it fires with the RECIPIENT as `self` (its golden state, not the
+   *  Overseer's, would scale it — hence the count is baked into the grafted params here, already multiplied). */
+  scGrantRightmostEcho: (ctx, self, params) => {
+    const board = ctx.living(self.side);
+    const target = board[board.length - 1];
+    if (!target) return;
+    ctx.grantDeathrattle(target, [
+      { on: 'onDeath', do: 'summonImps', params: { count: num(params.count, 2) * mul(self), keyword: 'DS' } },
+    ]);
   },
 
   /** Set 2 — Riot Caller (Rally): your `count` LEFT-most Imps attack immediately, out of turn order. Board
@@ -2361,19 +2505,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const imp of imps.slice(0, num(params.count, 1) * mul(self))) ctx.attackNow?.(imp, false);
   },
 
-  /** Set 2 — Cinderwall Captain: the first `count` Imps you summon this combat gain Ward.
-   *  Implemented as an `onSummon` WATCHER with a per-instance cap (`attackSeen` as the tally), not as a
-   *  Start-of-Combat pre-pass: the Imps don't exist yet at Start of Combat, so a pre-pass would have nothing to
-   *  shield. Same shape as Broodwright's grant, and it needs no new context plumbing. Per-instance means the
-   *  cap resets each fight, which is what "this combat" requires. Golden doubles the count. */
-  onSummonImpWard: (ctx, self, params, payload) => {
-    const { minion } = payload as MinionPayload;
-    if (!minion || minion.side !== self.side || minion.cardId !== 'impscrap' || minion.dead) return;
-    const cap = num(params.count, 2) * mul(self);
-    if ((self.attackSeen ?? 0) >= cap) return;
-    self.attackSeen = (self.attackSeen ?? 0) + 1;
-    grantShield(ctx, minion);
-  },
 
   /** Set 2 — Broodwright: whenever you summon an Imp, give it +atk/+hp. Its Avenge half improves that grant
    *  permanently via `summonBonus`, the standard per-instance accrual. */
@@ -2473,7 +2604,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonRandomTier: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tier = num(params.tier, 1);
-    const pool = ctx.allCards().filter((c) => !c.token && !c.spell && c.tier === tier);
+    const pool = ctx.poolCards(self.side).filter((c) => !c.token && !c.spell && c.tier === tier);
     if (pool.length === 0) return;
     for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, ctx.rng.pick(pool), self.uid);
   },
@@ -2494,6 +2625,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     grantShield(ctx, target);
   },
 
+
+  /** Set 2 — Hungerling (Rally): permanently buff every minion in the SHOP.
+   *
+   *  Lives in COMBAT because a Rally is an attack trigger, but the tavern buff is run state — so it goes
+   *  through `gainTavernBuy`, the same carry-back shape Ruby strength and the Undead aura use. Writing this
+   *  as a recruit factory (my first attempt) would have made the card do nothing at all: a combat Rally never
+   *  reaches the recruit table.
+   *
+   *  Permanent rather than this-shop-only, per the owner's standing rule that "give minions in the Shop" means
+   *  a Staff-of-Guel-style buff that survives a reroll (ruling 2026-07-25). */
+  rallyBuffShopPermanent: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side);
+  },
 
   /** Set 2 — Traveling Skald: whenever a FRIENDLY minion of `tribe` attacks, give IT +atk/+hp. Watches every
    *  friend's attack, not just its own — so the payload's attacker is the target, and the Skald buffs itself
@@ -2557,7 +2703,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = (num(params.attack, 1) + step * num(params.stepAttack, 1)) * mul(self);
     const h = (num(params.health, 1) + step * num(params.stepHealth, 1)) * mul(self);
     if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
-    ctx.buff(minion, minion.attack, minion.health, self.uid); // …then double what it now has
+    // …then MULTIPLY what it now has. One extra copy of its own stats per `mul` — so plain doubles and gilded
+    // TRIPLES (owner 2026-07-27). Buffing by a multiple of the current stats rather than setting them keeps it
+    // stacking correctly with anything else that has already touched the body.
+    ctx.buff(minion, minion.attack * mul(self), minion.health * mul(self), self.uid);
+  },
+
+  /** Set 2 — Menagerie Mammoth (owner rework 2026-07-27): every Beast you summon in combat gets +N Attack, and
+   *  the grant IMPROVES PERMANENTLY — each payout raises this instance's `summonBonus`, which rides home on the
+   *  `playerSummonBonus` carry-back, so the bigger grant is still there next round.
+   *
+   *  Attack-only by design: the Beast go-wide line already has plenty of health-stacking, and an escalating
+   *  Attack grant is what makes a wide board actually close a fight. */
+  onSummonTribeBuffImproveSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    const tribe = (str(params.tribe) || 'beast') as Tribe;
+    if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    const bonus = self.summonBonus ?? 0;
+    ctx.buff(minion, (num(params.attack, 3) + bonus) * mul(self), 0, self.uid);
+    self.summonBonus = bonus + num(params.step, 1); // permanent — carried back keyed to this body's sourceUid
   },
 
   /** Set 2 — Groveweaver (combat half): a `tribe` minion summoned DURING the fight gets the same asymmetric
@@ -2603,7 +2768,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonRandomTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe);
-    const pool = ctx.allCards().filter(
+    const pool = ctx.poolCards(self.side).filter(
       (c) => !c.token && !c.spell && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;

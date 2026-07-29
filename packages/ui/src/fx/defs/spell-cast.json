@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "id": "spell-cast",
+  "duration": 400,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "anchor": "source",
+      "at": 0,
+      "life": 360,
+      "params": {
+        "rings": 1,
+        "speed": 3,
+        "thickness": 0.1,
+        "fade": 1.9,
+        "radius": 62,
+        "ease": 0.5,
+        "bands": 3,
+        "alpha": 0.9,
+        "glow": 0.35,
+        "plateau": 0.32,
+        "erode": 0.3,
+        "palette": [8001469, 13186799, 15769855, 16777215]
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "source",
+      "at": 0,
+      "life": 400,
+      "params": {
+        "count": 14,
+        "spread": 1,
+        "speed": 250,
+        "speedVar": 0.55,
+        "drag": 0.85,
+        "gravity": 0,
+        "life": 280,
+        "orientToVelocity": true,
+        "emitShape": "ring",
+        "emitRadius": 10,
+        "shape": "shard",
+        "size": 7,
+        "sizeVar": 0.5,
+        "stretchX": 1.5,
+        "sizeCurve": [[0, 1], [1, 0]],
+        "coreBias": 0.85,
+        "bands": 3,
+        "plateau": 0.3,
+        "glow": 0.3,
+        "erode": 0.3,
+        "palette": [8001469, 13186799, 15769855, 16777215]
+      }
+    }
+  ]
+}

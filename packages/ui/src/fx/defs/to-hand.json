@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "to-hand",
+  "duration": 450,
+  "layers": [
+    {
+      "primitive": "emitter",
+      "anchor": "target",
+      "at": 0,
+      "params": {
+        "rate": 30,
+        "life": 220,
+        "spread": 0.22,
+        "speed": 55,
+        "speedVar": 0.45,
+        "gravity": -60,
+        "turbulence": 25,
+        "turbScale": 0.03,
+        "shape": "star",
+        "size": 6,
+        "sizeVar": 0.5,
+        "sizeCurve": [[0, 0.6], [0.3, 1], [1, 0]],
+        "coreBias": 0.78,
+        "bands": 3,
+        "plateau": 0.32,
+        "fadeIn": 0.18,
+        "glow": 0.3,
+        "palette": [4878245, 9418461, 16772802, 16777215]
+      }
+    }
+  ]
+}

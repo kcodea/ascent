@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { DevPanelContext } from './useDraggablePanel';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
@@ -48,6 +49,7 @@ import { TavernUpTuner } from './TavernUpTuner';
 import { HeroPanelTuner } from './HeroPanelTuner';
 import { pixiFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
+import { FxWorkbench } from './fx/ui/Workbench';
 
 /**
  * DEV-only Dev Tuning Menu — the single 🛠️ button that replaces the old row of floating tuner buttons.
@@ -108,6 +110,7 @@ const TUNERS = [
 export function DevMenu() {
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState<Set<string>>(new Set());
+  const [wbOpen, setWbOpen] = useState(false);
 
   const toggle = (key: string): void =>
     setShown((s) => {
@@ -116,6 +119,24 @@ export function DevMenu() {
       else next.add(key);
       return next;
     });
+
+  // Close one tuner panel — invoked by that panel's ✕ button (via DevPanelContext). No-op if already closed.
+  // Individual panels close ONLY via their ✕; a click outside them does NOT dismiss them.
+  const close = useCallback((key: string): void =>
+    setShown((s) => { if (!s.has(key)) return s; const n = new Set(s); n.delete(key); return n; }), []);
+
+  // Click-outside closes the DEV TUNING DROPDOWN itself (not the tuner panels): a pointerdown outside the menu
+  // and its 🛠️ toggle collapses the list. Only active while the dropdown is open.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as Element | null;
+      if (t?.closest('.devmenu, .devmenu-btn')) return;
+      setOpen(false);
+    };
+    window.addEventListener('pointerdown', onDown);
+    return () => window.removeEventListener('pointerdown', onDown);
+  }, [open]);
 
   return (
     <>
@@ -139,10 +160,18 @@ export function DevMenu() {
             <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
             <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
             <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>
+            <button className="devmenu-item" onClick={() => setWbOpen(true)}>🎨 FX Workbench <span>▸</span></button>
           </div>
         </div>
       )}
-      {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}
+      <DevPanelContext.Provider value={{ close }}>
+        {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}
+      </DevPanelContext.Provider>
+      {/* Outside the provider on purpose: `DevPanelContext` exists so a DRAGGABLE tuner panel's ✕ can close
+          itself by key (see `useDraggablePanel`). The workbench is a full-screen overlay that owns its own
+          close, doesn't use that hook, and has no key in `TUNERS` — wrapping it would imply a relationship
+          it doesn't have. */}
+      {wbOpen && <FxWorkbench onClose={() => setWbOpen(false)} />}
     </>
   );
 }

@@ -1548,6 +1548,32 @@ describe('simulate (handoff A.3)', () => {
       .toContain('fieldmechanic');
   });
 
+  it("Ryme's trigger on Field Mechanic ANNOUNCES the Patch Job during the fight (owner report 2026-07-27)", () => {
+    // The deferral above is correct, but it left the replay silent: the card only appeared once combat was
+    // over, so its arrival FX played at the very end instead of on the Deathrattle beat. The economy branch
+    // now logs a `toHand` for a NAMED deferred grant so the replay can materialise it at the right moment.
+    const r = run(
+      [
+        { cardId: 'fieldmechanic', attack: 0, health: 100 },
+        { cardId: 'ryme', attack: 1, health: 1 },
+      ],
+      [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
+      1,
+    );
+    const grants = r.events.filter((e) => e.type === 'toHand');
+    expect(grants.map((e) => (e as { cardId: string }).cardId), 'the replay sees the Patch Job arrive')
+      .toEqual(['patchjob']);
+    // …and it is announced ON the Deathrattle, not tacked on at the end of the log.
+    const death = r.events.findIndex((e) => e.type === 'death');
+    const trigger = r.events.findIndex((e) => e.type === 'sc' && /triggers Field Mechanic/.test(e.text));
+    const grantAt = r.events.findIndex((e) => e.type === 'toHand');
+    expect(grantAt).toBeGreaterThan(death);
+    expect(grantAt).toBeGreaterThanOrEqual(trigger);
+    // The announcement must NOT also grant it — the settle deferral stays the single source of truth.
+    expect(r.playerHandGrants, 'not double-granted').toBeUndefined();
+    expect(r.playerDeferredBattlecries?.map((d) => d.cardId)).toContain('fieldmechanic');
+  });
+
   it('Ryme reaches PAST a corpse to the next living neighbour (owner report 2026-07-26)', () => {
     // The reported asymmetry: Soren destroying Ryme at Start of Combat fired both flanking Battlecries, but a
     // death later in the fight fired only one. Dead minions stay in `boards[side]`, so a body that died earlier

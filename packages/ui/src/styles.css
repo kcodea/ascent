@@ -4012,11 +4012,11 @@ svg { width: 18px; height: 18px; }
 .escboards { display: grid; gap: 8px; }
 .escboards-msg { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
 /* ── Dev Tuning Menu (DEV only) — one 🛠️ button replacing the old row of floating tuner buttons ── */
-.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 200; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 /* Width is CONTENT-DRIVEN (was a fixed 190px): the items grid below wraps into a new column every 15 rows, and
    because the panel is RIGHT-anchored, each extra column widens it to the LEFT (owner call 2026-07-19 — the
    one-column list had outgrown the viewport). max-width guards tiny windows. */
-.devmenu { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 64px); z-index: 201; width: max-content; max-width: calc(100vw - 24px); background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 8px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; }
+.devmenu { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 64px); z-index: 9991; width: max-content; max-width: calc(100vw - 24px); background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 8px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; }
 .devmenu-h { font-weight: 800; font-size: 12px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 6px 6px; }
 /* 15 rows per column, then overflow flows into the NEXT column (to the right of the first). Each column keeps
    the old panel's usable width (174px = 190 − 2×8 padding) so single-column layouts look identical. */
@@ -4130,6 +4130,13 @@ svg { width: 18px; height: 18px; }
 .desk-h.drag { cursor: move; user-select: none; touch-action: none; }
 .desk-h span { font-size: 10px; font-weight: 700; color: #8a7f6d; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 8px; }
 
+/* ✕ close button injected into every dev panel (top-right) by useDraggablePanel. */
+.devpanel-close { position: absolute; top: 5px; right: 6px; z-index: 20; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;
+  background: rgba(0,0,0,0.4); color: #d8ccbb; border: 1px solid #5a4f40; border-radius: 6px;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 800; cursor: pointer; }
+.devpanel-close:hover { color: #ffd9a8; border-color: #ff8a3c; background: rgba(0,0,0,0.62); }
+
 /* the top row of channel strips (master + buses) */
 .console { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 4px; flex: none; }
 .strip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px 6px;
@@ -4145,9 +4152,16 @@ svg { width: 18px; height: 18px; }
 .mcol { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .mcol-l { font-size: 8px; font-weight: 700; text-transform: uppercase; color: #8a7f6d; }
 .strip-dials { display: flex; gap: 6px; }
-.vdial { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; }
+.vdial { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 50px; }
 .vdial-l { font-size: 8.5px; font-weight: 700; text-transform: capitalize; color: #b7a998; text-align: center; }
-.vdial b { font-size: 9px; }
+
+/* Typed numeric field beside every fader — the exact value, editable. */
+.numf { width: 46px; text-align: center; background: #131110; color: #ffcf9e; border: 1px solid #4a4133;
+  border-radius: 5px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums;
+  padding: 2px 3px; -moz-appearance: textfield; }
+.numf::-webkit-outer-spin-button, .numf::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.numf:focus { outline: none; border-color: #ff8a3c; background: #1b1815; }
+.vdial .numf { width: 44px; }
 
 /* VERTICAL faders (up = max) — writing-mode is the modern vertical-range approach */
 .vfader { writing-mode: vertical-lr; direction: rtl; width: 22px; height: 130px; accent-color: var(--acc, #ff8a3c);
@@ -4173,13 +4187,21 @@ svg { width: 18px; height: 18px; }
 .desk-scenes button:hover, .cstrip .play:hover { border-color: #ff8a3c; color: #ffcf9e; }
 
 /* categories — grouped by bus, each a mini vertical strip; horizontally scrollable */
-.desk-cats { display: flex; gap: 12px; overflow-x: auto; align-items: flex-start; padding-bottom: 6px;
-  border-top: 1px solid #33302a; padding-top: 8px; flex: 1 1 auto; min-height: 130px; }
-.cat-group { display: flex; flex-direction: column; gap: 5px; }
-.cat-group-h { color: var(--acc); align-self: center; }
+/* Bus groups are STACKED VERTICALLY — each bus (ui / combat / voice / hero) is its own row, its sound
+   strips wrapping across the available width; the whole area scrolls vertically. */
+.desk-cats { display: flex; flex-direction: column; gap: 12px; overflow: auto; align-items: stretch;
+  padding-bottom: 6px; border-top: 1px solid #33302a; padding-top: 8px; flex: 1 1 auto; min-height: 130px; }
+/* Each bus section is tinted + accented in its own category colour (the same colour as its label). */
+.cat-group { display: flex; flex-direction: column; gap: 8px; border-left: 4px solid var(--acc, #555);
+  background: color-mix(in srgb, var(--acc, #888) 11%, transparent); border-radius: 9px; padding: 9px 11px; }
+.cat-group.bus-ui { --acc: var(--ui); } .cat-group.bus-combat { --acc: var(--combat); }
+.cat-group.bus-voice { --acc: var(--voice); } .cat-group.bus-hero { --acc: var(--hero); }
+/* Category / bus label — much larger, in its own colour. */
+.cat-group-h { color: var(--acc); align-self: flex-start; font-size: 17px; font-weight: 800;
+  letter-spacing: 0.03em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
 .cat-group-h.bus-ui { --acc: var(--ui); } .cat-group-h.bus-combat { --acc: var(--combat); }
 .cat-group-h.bus-voice { --acc: var(--voice); } .cat-group-h.bus-hero { --acc: var(--hero); }
-.cat-strips { display: flex; gap: 8px; }
+.cat-strips { display: flex; flex-wrap: wrap; gap: 10px; }
 .cstrip { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 68px; }
 .cstrip .vfader { accent-color: #cbb; }
 .cstrip .play { width: 22px; height: 18px; background: #2a2620; color: #efe7db; border: 1px solid #4a4133;
@@ -5308,3 +5330,594 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .sb-qadd { flex: none; background: none; border: 0; border-left: 1px solid #3f3623; color: #8a7d5e; font-size: calc(12 * var(--u)); padding: calc(3 * var(--u)) calc(7 * var(--u)); cursor: pointer; }
 .sb-qadd:hover { color: var(--acc, #f4be35); }
 
+/* ---- FX WORKBENCH (dev only) ---- */
+/* A full-screen dev overlay, not a `.sfxmix` draggable panel — its own bars frame the live FX stage rather
+   than floating over it. `.fxwb` itself is pointer-events:none (a transparent backdrop so the pixiFx canvas
+   underneath stays visible and the pointer keeps reaching it for the `cursor` scenario); only the three bars
+   opt back into pointer-events so they stay clickable. Sits above every tuner panel/DevMenu (z200/201) but
+   below the boot screens (z9999+). */
+.fxwb { position: fixed; inset: 0; z-index: 500; pointer-events: none; font-family: var(--font-ui); color: #d9d3ea; }
+/* `.fxlib` is in this list because the browse overlay renders INSIDE the `.fxwb` root and so inherits its
+   `pointer-events: none`. Without it the overlay paints normally and is completely inert — every row, the
+   search box and its own Close button all dead, with no way out of the screen (owner report 2026-07-27).
+   It reads as a frozen UI rather than a CSS problem, which is why it survived review: nothing about the
+   markup or the component looks wrong, and no test can see it. */
+.fxwb-top, .fxwb-transport, .fxwb-side, .fxlib { pointer-events: auto; }
+
+/* Rail mode — the workbench narrows to one column so the live board plays in the space it vacates. The root
+   stays pointer-events:none (see above), so the board underneath keeps receiving the pointer.
+   The editor rail is pushed LEFT by the harness's own width: both are `position: absolute; right: 0` by
+   default, so leaving them there would stack the harness exactly on top of the editor and hide it — which
+   defeats the mode (you could watch, but not tune). Top/bottom stretch to the full height the hidden top +
+   transport bars vacate. */
+.fxwb-rail .fxwb-side { width: 320px; right: 320px; top: 0; bottom: 0; }
+.fxwb-rail .fxwb-top,
+.fxwb-rail .fxwb-transport { display: none; }
+.fxharness {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 320px;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; box-sizing: border-box; overflow-y: auto;
+  background: #17141f; color: #d9d3ea; pointer-events: auto;
+}
+.fxharness-h { font-weight: 600; letter-spacing: 0.02em; }
+.fxharness-val { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.fxharness-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.fxharness-row {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 6px 8px; border-radius: 4px; border: 1px solid #2c2740;
+  background: #1e1a2b; color: inherit; cursor: pointer; text-align: left;
+}
+.fxharness-row:hover { background: #272136; }
+.fxharness-kind { font-weight: 600; }
+.fxharness-def { opacity: 0.75; }
+.fxharness-unbound { opacity: 0.6; font-style: italic; }
+.fxharness-empty { opacity: 0.7; font-size: 0.9em; line-height: 1.4; }
+/* ONE source for the rail's width. It was hardcoded twice — on `.fxwb-side` and again as the transport
+   bar's `right` offset — which have to agree exactly or the transport slides under the rail (or leaves a
+   gap). Widened from 288px: at that width the param rows had ~150px of slider left after the label and
+   value columns, so every dial was a stub. */
+.fxwb { --fxwb-rail: 448px; }
+@media (max-width: 1100px) {
+  /* Don't eat a small screen alive — below this the stage matters more than the dials. */
+  .fxwb { --fxwb-rail: 300px; }
+}
+
+.fxwb-top {
+  position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; background: #211d2c; border-bottom: 2px solid #3d3752; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);
+  flex-wrap: wrap;
+}
+.fxwb-title { font-weight: 800; font-size: 14px; color: #d9d3ea; margin-right: 4px; white-space: nowrap; }
+.fxwb-group { display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 9px; background: #2b2739; flex-wrap: wrap; }
+.fxwb-btn {
+  border: 1px solid transparent; border-radius: 6px; background: transparent; color: #b9b1cf;
+  font-family: var(--font-ui); font-weight: 700; font-size: 12px; padding: 5px 9px; cursor: pointer;
+}
+.fxwb-btn:hover { background: #3d3752; color: #d9d3ea; }
+.fxwb-btn.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; color: #f0a0ff; }
+.fxwb-fps { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 12px; color: #b9b1cf; padding: 0 6px; }
+.fxwb-close {
+  border: 1px solid #3d3752; border-radius: 8px; background: #2b2739; color: #d9d3ea; width: 30px; height: 30px;
+  font-size: 14px; cursor: pointer; line-height: 1;
+}
+.fxwb-close:hover { background: #3d3752; border-color: #c936ef; color: #f0a0ff; }
+
+/* Preview backdrop control (see fx/ui/backdrop.ts) — a row of flat-color swatches + a custom picker that fill
+   the transparent FX overlay behind the previewed effect, so multiply/overlay/screen blend modes have
+   something real to composite against (multiply against nothing/black is always black). */
+.fxwb-backdrop-label { flex: none; font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 2px 0 4px; }
+.fxwb-backdrop-swatch {
+  width: 20px; height: 20px; border-radius: 5px; border: 1px solid #3d3752; background: #211d2c; padding: 0; cursor: pointer;
+}
+.fxwb-backdrop-swatch.none { background: repeating-conic-gradient(#3d3752 0% 25%, #211d2c 0% 50%) 0 0 / 8px 8px; }
+.fxwb-backdrop-swatch:hover { border-color: #c936ef; }
+.fxwb-backdrop-swatch.on { border-color: #c936ef; box-shadow: 0 0 0 2px color-mix(in srgb, #c936ef 55%, transparent); }
+.fxwb-backdrop-custom { width: 22px; height: 20px; border: 1px solid #3d3752; border-radius: 5px; background: none; padding: 0; cursor: pointer; }
+.fxwb-backdrop-custom::-webkit-color-swatch { border: none; border-radius: 4px; }
+.fxwb-backdrop-custom::-moz-color-swatch { border: none; border-radius: 4px; }
+.fxwb-backdrop-custom.on { border-color: #c936ef; box-shadow: 0 0 0 2px color-mix(in srgb, #c936ef 55%, transparent); }
+
+.fxwb-side {
+  position: absolute; top: 52px; right: 0; bottom: 60px; width: var(--fxwb-rail); overflow-y: auto; box-sizing: border-box;
+  background: #211d2c; border-left: 2px solid #3d3752; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.fxwb-inspector { display: flex; flex-direction: column; gap: 12px; }
+.fxwb-inspector h3 {
+  margin: 0 0 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #8a7fa8; border-bottom: 1px solid #3d3752; padding-bottom: 4px;
+}
+.fxwb-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 52px; align-items: center; gap: 8px; margin: 5px 0; }
+/* The value column is FIXED rather than `auto` so the sliders all end at the same x — with `auto` every row
+   was a different length depending on how many digits its number happened to have. */
+.fxwb-row .fxwb-val, .fxwb-row > span:last-child { text-align: right; }
+.fxwb-row label { font-size: 12px; font-weight: 700; color: #d9d3ea; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxwb-row input[type='range'] { width: 100%; height: 7px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
+.fxwb-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-row input[type='range']::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
+/* Editable palette control: a preset dropdown above a row of four rim→core colour swatches. */
+.fxwb-palette { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.fxwb-palette > select { width: 100%; }
+.fxwb-palette-stops { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.fxwb-palette-stops input[type='color'] { width: 100%; height: 22px; padding: 0; border: 1px solid #3d3752; border-radius: 4px; background: none; cursor: pointer; }
+.fxwb-palette-stops input[type='color']::-webkit-color-swatch { border: none; border-radius: 3px; }
+.fxwb-palette-stops input[type='color']::-moz-color-swatch { border: none; border-radius: 3px; }
+/* Editable value-over-life curve control: a preset dropdown above a compact SVG polyline editor with
+   draggable control-point handles. */
+.fxwb-curve { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.fxwb-curve > select { width: 100%; }
+.fxwb-curve-svg { width: 100%; height: auto; touch-action: none; border: 1px solid #3d3752; border-radius: 4px; }
+.fxwb-curve-bg { fill: #211d2c; }
+.fxwb-curve-grid { stroke: #3d3752; stroke-width: 1; }
+.fxwb-curve-line { stroke: #c936ef; stroke-width: 2; }
+.fxwb-curve-handle { fill: #f0a0ff; stroke: #7a17bd; stroke-width: 1.5; cursor: grab; }
+.fxwb-curve-handle:active { cursor: grabbing; }
+.fxwb-row input[type='checkbox'] { justify-self: start; accent-color: #c936ef; width: 15px; height: 15px; cursor: pointer; }
+.fxwb-row select {
+  grid-column: 2 / span 2; background: #2b2739; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;
+  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;
+}
+.fxwb-row input[type='color'] { justify-self: start; width: 28px; height: 20px; border: 1px solid #3d3752; border-radius: 4px; background: none; padding: 0; cursor: pointer; }
+.fxwb-val { font-size: 11px; font-weight: 800; color: #f0a0ff; text-align: right; font-variant-numeric: tabular-nums; }
+.fxwb-copy {
+  margin-top: auto; padding: 8px; border-radius: 8px; border: 2px solid #c936ef; background: color-mix(in srgb, #c936ef 16%, #2b2739);
+  color: #f0a0ff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; cursor: pointer;
+}
+.fxwb-copy:hover { background: color-mix(in srgb, #c936ef 28%, #2b2739); }
+
+/* Layers panel: the composition's layer list + an "Add layer" control, above the Inspector. */
+.fxwb-layers { display: flex; flex-direction: column; gap: 4px; }
+.fxwb-layer-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; row-gap: 1px;
+  padding: 5px 7px; border-radius: 7px; background: #2b2739; border: 1px solid #3d3752; cursor: pointer;
+}
+.fxwb-layer-row:hover { border-color: color-mix(in srgb, #c936ef 45%, #3d3752); }
+.fxwb-layer-row.on { background: color-mix(in srgb, #c936ef 18%, #2b2739); border-color: #c936ef; }
+.fxwb-layer-name { font-size: 12px; font-weight: 800; color: #d9d3ea; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxwb-layer-row.on .fxwb-layer-name { color: #f0a0ff; }
+.fxwb-layer-meta { grid-column: 1; font-size: 10px; font-weight: 700; color: #8a7fa8; font-variant-numeric: tabular-nums; }
+.fxwb-layer-btns { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: 3px; }
+.fxwb-layer-btns button {
+  width: 20px; height: 20px; padding: 0; border-radius: 5px; border: 1px solid #3d3752; background: #211d2c;
+  color: #b9b1cf; font-size: 11px; line-height: 1; cursor: pointer;
+}
+.fxwb-layer-btns button:hover:not(:disabled) { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-layer-btns button:disabled { opacity: 0.35; cursor: default; }
+.fxwb-layer-add { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.fxwb-layer-add select {
+  flex: 1; min-width: 0; background: #2b2739; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;
+  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;
+}
+.fxwb-layer-add button {
+  flex: none; width: 28px; height: 26px; padding: 0; border-radius: 6px; border: 1px solid #c936ef;
+  background: color-mix(in srgb, #c936ef 16%, #2b2739); color: #f0a0ff; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+.fxwb-layer-add button:hover { background: color-mix(in srgb, #c936ef 30%, #2b2739); }
+
+/* Per-selected-layer timing controls (at / life). */
+.fxwb-timing {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 5px 8px;
+  padding: 8px; border-radius: 8px; background: #2b2739; border: 1px solid #3d3752;
+}
+.fxwb-timing > label { font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-timing input[type='range'] { width: 100%; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
+.fxwb-timing input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-timing input[type='range']::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-timing-full {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #d9d3ea; cursor: pointer;
+}
+.fxwb-timing-full input[type='checkbox'] { accent-color: #c936ef; width: 14px; height: 14px; cursor: pointer; }
+
+.fxwb-transport {
+  position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0; display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; background: #211d2c; border-top: 2px solid #3d3752; box-shadow: 0 -6px 18px -8px rgba(0, 0, 0, 0.5);
+  flex-wrap: wrap;
+}
+/* TIMELINE -- one bar per layer across the composition, as the transport bar's own full-width first row.
+   Overlap/gaps/ordering are the substance of a multi-layer effect and used to be invisible: timing lived
+   only in two range inputs on whichever layer happened to be selected. */
+.fxwb-timeline { flex: 1 1 100%; display: flex; flex-direction: column; gap: 3px; }
+.fxwb-timeline-head { display: flex; align-items: baseline; gap: 8px; }
+.fxwb-timeline-title {
+  font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.fxwb-timeline-hint { font-size: 11px; color: #6f6688; }
+.fxwb-timeline-track {
+  position: relative; display: flex; flex-direction: column; gap: 2px;
+  padding: 3px; border-radius: 7px; background: #191623; border: 1px solid #3d3752;
+}
+.fxwb-timeline-row { position: relative; height: 16px; }
+.fxwb-timeline-bar {
+  position: absolute; top: 0; bottom: 0; display: flex; align-items: center; overflow: hidden;
+  min-width: 6px; padding: 0 5px; border-radius: 4px; cursor: grab;
+  background: #3d3752; border: 1px solid #4d456a; color: #b9b1cf;
+}
+.fxwb-timeline-bar:active { cursor: grabbing; }
+.fxwb-timeline-bar.on { background: color-mix(in srgb, #c936ef 30%, #2b2739); border-color: #c936ef; color: #f0a0ff; }
+.fxwb-timeline-bar.muted { opacity: 0.35; }
+.fxwb-timeline-label {
+  font-size: 10px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none; /* never swallow the drag aimed at the bar under it */
+}
+/* The resize grip. Wide enough to hit without being wide enough to eat a short bar's body. */
+.fxwb-timeline-grip {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 7px; cursor: ew-resize;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.22));
+}
+/* Arrival marker: where a travelling layer reaches its target, when that is before the layer ends. Inside
+   the bar, so it reads as a moment WITHIN that layer rather than a separate event on the track. */
+.fxwb-timeline-arrival {
+  position: absolute; top: 1px; bottom: 1px; width: 2px; margin-left: -1px;
+  background: #ffe08a; opacity: 0.85; pointer-events: none;
+}
+.fxwb-timeline-playhead {
+  position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+  background: #f0a0ff; pointer-events: none; /* decorative -- must never intercept a drag */
+}
+.fxwb-play {
+  flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid #3d3752; background: #2b2739;
+  color: #d9d3ea; font-size: 13px; cursor: pointer;
+}
+.fxwb-play:hover { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-fire {
+  flex: none; height: 32px; border-radius: 8px; border: 1px solid #c936ef; background: color-mix(in srgb, #c936ef 22%, #2b2739);
+  color: #f0a0ff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; padding: 0 10px; cursor: pointer;
+}
+.fxwb-fire:hover { background: color-mix(in srgb, #c936ef 38%, #2b2739); border-color: #f0a0ff; }
+.fxwb-scrub { flex: 1 1 220px; min-width: 120px; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
+.fxwb-scrub::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-scrub::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-time { flex: none; font-size: 11px; font-weight: 700; color: #b9b1cf; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fxwb-speedlabel { flex: none; font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-speed { flex: none; width: 90px; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
+.fxwb-speed::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-speed::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-speedval { flex: none; font-size: 11px; font-weight: 800; color: #f0a0ff; font-variant-numeric: tabular-nums; }
+/* Loop controls -- deliberately its own bordered group in the transport bar, visually separate from Fire
+   (fxwb-fire, above), so "Fire = one-shot" and "Loop = opt-in continuous" never read as the same control. */
+.fxwb-loopgroup { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 9px; background: #2b2739; border: 1px solid #3d3752; }
+.fxwb-loop-toggle {
+  flex: none; height: 26px; border-radius: 7px; border: 1px solid #3d3752; background: transparent;
+  color: #b9b1cf; font-family: var(--font-ui); font-weight: 800; font-size: 12px; padding: 0 10px; cursor: pointer;
+}
+.fxwb-loop-toggle:hover { background: #3d3752; color: #d9d3ea; }
+.fxwb-loop-toggle.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; color: #f0a0ff; }
+/* "Fit to effects" -- trims the loop to where the last layer ends. Same chip shape as the Loop toggle it
+   sits beside, but never picks up the toggle's lit `.on` state: it's a one-shot action, not a mode. */
+.fxwb-fitduration {
+  flex: none; height: 26px; border-radius: 7px; border: 1px solid #3d3752; background: transparent;
+  color: #b9b1cf; font-family: var(--font-ui); font-weight: 800; font-size: 12px; padding: 0 10px; cursor: pointer;
+}
+.fxwb-fitduration:hover:not(:disabled) { background: #3d3752; color: #d9d3ea; }
+.fxwb-fitduration:disabled { opacity: 0.4; cursor: not-allowed; }
+.fxwb-hint { flex: 1 1 100%; font-size: 11px; color: #8a7fa8; line-height: 1.3; }
+@media (min-width: 900px) {
+  .fxwb-hint { flex: 1 1 auto; text-align: right; }
+}
+
+
+/* Shape param control: a built-ins/imports picker, an Import (PNG/SVG) button, the alpha hint, and an
+   error line. Same dark-panel language as the .fxwb-palette / .fxwb-curve controls above. */
+.fxwb-shape { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.fxwb-shape-row { display: flex; align-items: center; gap: 5px; }
+.fxwb-shape-row select { flex: 1 1 auto; min-width: 0; }
+.fxwb-shape-remove {
+  flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border-radius: 4px; border: 1px solid #3d3752;
+  background: #2b2739; color: #8a7fa8; font-family: var(--font-ui); font-size: 11px; font-weight: 800;
+  line-height: 1; cursor: pointer;
+}
+.fxwb-shape-remove:hover { border-color: #c936ef; color: #f0a0ff; }
+/* The file input itself is hidden — the <label> wrapping it IS the button. Scoped through .fxwb-shape so it
+   outranks `.fxwb-row label` (the row's own parameter-name label), which would otherwise win on specificity. */
+.fxwb-shape .fxwb-shape-import {
+  display: block; text-align: center; padding: 4px 6px; border-radius: 6px; border: 1px dashed #3d3752;
+  background: #2b2739; color: #d9d3ea; font-family: var(--font-ui); font-size: 11px; font-weight: 800;
+  cursor: pointer;
+}
+.fxwb-shape .fxwb-shape-import:hover { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-shape-import input[type='file'] { display: none; }
+.fxwb-shape-hint { font-size: 10px; line-height: 1.3; color: #8a7fa8; }
+.fxwb-shape-err { font-size: 10px; line-height: 1.3; font-weight: 700; color: #ff8a8a; }
+
+/* ---- DURABLE DEFS (save / library / restore) ---- */
+/* The bottom cluster of the side rail: a name + Save row (writes a committed defs/<id>.json via the dev-only
+   middleware), then the def library (load / duplicate / paste). Sits under `.fxwb-copy`, whose `margin-top:
+   auto` pushes the whole cluster to the bottom of the rail. Same dark-panel language as .fxwb-layer* above;
+   deliberately compact — this is a utility strip, not the main editing surface. */
+.fxwb-def { display: flex; flex-direction: column; gap: 6px; }
+.fxwb-def-saverow { display: flex; align-items: center; gap: 5px; }
+.fxwb-def-nameinput {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 5px 7px; border-radius: 6px;
+  border: 1px solid #3d3752; background: #2b2739; color: #d9d3ea; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 700;
+}
+.fxwb-def-nameinput::placeholder { color: #8a7fa8; font-weight: 400; }
+.fxwb-def-nameinput:focus { outline: none; border-color: #c936ef; }
+.fxwb-def-save {
+  flex: 0 0 auto; padding: 6px 12px; border-radius: 6px; border: 2px solid #c936ef;
+  background: color-mix(in srgb, #c936ef 16%, #2b2739); color: #f0a0ff; font-family: var(--font-ui);
+  font-weight: 800; font-size: 12px; cursor: pointer;
+}
+.fxwb-def-save:hover:not(:disabled) { background: color-mix(in srgb, #c936ef 28%, #2b2739); }
+.fxwb-def-save:disabled { opacity: 0.5; cursor: default; }
+.fxwb-def-note { font-size: 10px; line-height: 1.3; font-weight: 700; color: #f0a0ff; word-break: break-all; }
+.fxwb-def-err { font-size: 10px; line-height: 1.3; font-weight: 700; color: #ff8a8a; }
+
+.fxwb-deflib { display: flex; flex-direction: column; gap: 4px; }
+.fxwb-def-head {
+  margin: 2px 0 2px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #8a7fa8; border-bottom: 1px solid #3d3752; padding-bottom: 4px;
+}
+.fxwb-def-empty { font-size: 10px; line-height: 1.3; color: #8a7fa8; }
+.fxwb-def-list { display: flex; flex-direction: column; gap: 3px; max-height: 148px; overflow-y: auto; }
+.fxwb-def-row {
+  display: flex; align-items: center; gap: 4px; padding: 0; border-radius: 7px; background: #2b2739;
+  border: 1px solid #3d3752;
+}
+.fxwb-def-row:hover { border-color: color-mix(in srgb, #c936ef 45%, #3d3752); }
+.fxwb-def-load {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 5px 7px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.fxwb-def-name {
+  max-width: 100%; font-size: 12px; font-weight: 800; color: #d9d3ea; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.fxwb-def-row:hover .fxwb-def-name { color: #f0a0ff; }
+.fxwb-def-meta { font-size: 10px; font-weight: 700; color: #8a7fa8; font-variant-numeric: tabular-nums; }
+.fxwb-def-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; padding-right: 5px; }
+.fxwb-def-actions button {
+  width: 20px; height: 20px; padding: 0; border-radius: 4px; border: 1px solid #3d3752; background: #211d2c;
+  color: #8a7fa8; font-family: var(--font-ui); font-size: 11px; font-weight: 800; line-height: 1; cursor: pointer;
+}
+.fxwb-def-actions button:hover { border-color: #c936ef; color: #f0a0ff; }
+
+.fxwb-def-pasterow { display: flex; align-items: center; gap: 4px; }
+.fxwb-def-paste {
+  flex: 1 1 auto; padding: 5px 8px; border-radius: 6px; border: 1px solid #3d3752; background: #2b2739;
+  color: #d9d3ea; font-family: var(--font-ui); font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.fxwb-def-paste:hover:not(:disabled) { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-def-paste:disabled { opacity: 0.45; cursor: default; }
+.fxwb-def-paste-toggle {
+  flex: 0 0 auto; width: 22px; height: 24px; padding: 0; border-radius: 6px; border: 1px solid #3d3752;
+  background: #2b2739; color: #8a7fa8; font-family: var(--font-ui); font-size: 10px; line-height: 1; cursor: pointer;
+}
+.fxwb-def-paste-toggle:hover { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-def-pastebox { display: flex; flex-direction: column; gap: 4px; }
+.fxwb-def-pastearea {
+  width: 100%; box-sizing: border-box; min-height: 68px; resize: vertical; padding: 5px 7px; border-radius: 6px;
+  border: 1px solid #3d3752; background: #211d2c; color: #d9d3ea; font-family: monospace;
+  font-size: 10px; line-height: 1.35;
+}
+.fxwb-def-pastearea:focus { outline: none; border-color: #c936ef; }
+
+/* Restore affordance: pinned at the top of the side rail so a restored session is never a silent clobber. */
+.fxwb-def-restore {
+  display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: 7px;
+  background: color-mix(in srgb, #c936ef 14%, #2b2739); border: 1px solid #c936ef;
+}
+.fxwb-def-restore-txt { flex: 1 1 auto; min-width: 0; font-size: 11px; font-weight: 700; color: #f0a0ff; }
+.fxwb-def-restore-discard {
+  flex: 0 0 auto; padding: 3px 8px; border-radius: 5px; border: 1px solid #3d3752; background: #211d2c;
+  color: #d9d3ea; font-family: var(--font-ui); font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.fxwb-def-restore-discard:hover { border-color: #f0a0ff; color: #f0a0ff; }
+.fxwb-def-restore-x {
+  flex: 0 0 auto; width: 20px; height: 20px; padding: 0; border-radius: 5px; border: 1px solid #3d3752;
+  background: #211d2c; color: #8a7fa8; font-family: var(--font-ui); font-size: 10px; line-height: 1; cursor: pointer;
+}
+.fxwb-def-restore-x:hover { border-color: #f0a0ff; color: #f0a0ff; }
+
+/* ── FX workbench: seed transport + per-layer mute ──────────────────────────────────────────────────────
+   The seed group mirrors `.fxwb-loopgroup`'s bordered-cluster treatment so the transport bar reads as
+   "Loop cluster | Seed cluster | Speed" rather than one undifferentiated row of controls. */
+.fxwb-seedgroup {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 9px;
+  background: #2b2739; border: 1px solid #3d3752;
+}
+.fxwb-seedinput {
+  flex: none; width: 104px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px;
+  border: 1px solid #3d3752; background: #211d2c; color: #d9d3ea; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.fxwb-seedinput:focus { outline: none; border-color: #c936ef; }
+.fxwb-seed-lock, .fxwb-seed-reroll {
+  flex: none; width: 26px; height: 26px; padding: 0; border-radius: 7px; border: 1px solid #3d3752;
+  background: transparent; color: #b9b1cf; font-size: 13px; line-height: 1; cursor: pointer;
+}
+.fxwb-seed-lock:hover, .fxwb-seed-reroll:hover { background: #3d3752; }
+/* Locked is the state worth spotting from across the room: it means the look you're looking at is frozen. */
+.fxwb-seed-lock.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; }
+/* A muted layer must be unmistakable in the list — otherwise "why is nothing rendering?" is a real trap. */
+.fxwb-layer-row.muted { opacity: 0.55; border-style: dashed; }
+.fxwb-layer-row.muted .fxwb-layer-name { text-decoration: line-through; }
+.fxwb-layer-btns button.fxwb-layer-mute.on { border-color: #c936ef; color: #f0a0ff; }
+
+/* FX Workbench — the per-layer ANCHOR picker. Spans the full timing grid (like `.fxwb-timing-full`) so the
+   At/Life controls below it keep their own three-column layout instead of flowing into a shared row. */
+.fxwb-anchorrow { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.fxwb-anchorrow > span { font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-anchorrow select {
+  flex: 1; min-width: 0; background: #211d2c; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;
+  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.fxwb-anchorrow select:focus { outline: none; border-color: #c936ef; }
+/* The selected anchor's one-liner. Spans the timing grid so it reads as a caption under the picker, not as
+   another field competing with the timing controls beside it. */
+.fxwb-anchorblurb {
+  grid-column: 1 / -1; margin: -2px 0 2px; font-size: 11px; line-height: 1.35; color: #8a7fa8;
+}
+
+/* FX Workbench — undo/redo. Sits in the top bar next to the title, in the same `.fxwb-group` pill as the
+   primitive/scenario rows so it reads as one more cluster rather than a bolted-on toolbar. The disabled
+   state is the whole point of showing them at all: "nothing to undo" has to be visible, not discovered by
+   pressing the key and seeing nothing happen. */
+.fxwb-history-btn { font-size: 15px; line-height: 1; padding: 4px 9px; }
+.fxwb-btn:disabled { opacity: 0.3; cursor: default; }
+.fxwb-btn:disabled:hover { background: transparent; color: #b9b1cf; }
+
+/* FX Workbench — per-layer NAME + SOLO.
+   The row's button cluster now carries seven controls (mute, solo, rename, duplicate, up, down, delete) in a
+   rail. At 288px they had to shrink to 18px; with the rail widened they get their full size back and the
+   name still has room to be worth reading. */
+.fxwb-layer-btns { gap: 3px; }
+.fxwb-layer-btns button { width: 21px; height: 21px; font-size: 11px; }
+/* The name doubles as the rename affordance (double-click), so it gets a text cursor to say so. */
+.fxwb-layer-name { cursor: text; }
+.fxwb-layer-rename {
+  min-width: 0; width: 100%; box-sizing: border-box; padding: 1px 4px; border-radius: 4px;
+  border: 1px solid #c936ef; background: #211d2c; color: #f0a0ff; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 800;
+}
+.fxwb-layer-rename:focus { outline: none; }
+/* Solo is the loudest state in the list — it silences everything else — so the ON pip is the accent colour,
+   and the layers it silenced are dimmed exactly like a muted one (without the line-through, which means
+   "you muted this"). */
+.fxwb-layer-btns button.fxwb-layer-solo.on { border-color: #ffd23f; color: #ffd23f; }
+.fxwb-layer-row.solo { border-color: #ffd23f; }
+.fxwb-layer-row.silenced { opacity: 0.55; }
+
+/* ══ FX Workbench — PROGRESSIVE DISCLOSURE ═══════════════════════════════════════════════════════════════
+   The rail used to open with 43 controls in 288px: every group expanded, nothing collapsible, no tier, no
+   search, and no sign of which sliders were inert. These rules dress the three things that fixed it — the
+   Essentials/All tier, collapsible counted groups, and a disabled-with-a-reason row — in the existing dark
+   panel language (accent #c936ef, panel #2b2739, border #3d3752, text #d9d3ea, muted #8a7fa8). Everything
+   here is ADDITIVE: no rule above is touched. (The rail itself is now `--fxwb-rail`, widened from 288px.) */
+
+/* The inspector's own header: tier switch + search + a line saying what you're looking at. */
+.fxwb-tierbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.fxwb-tier {
+  display: flex; flex: 0 0 auto; gap: 2px; padding: 2px; border-radius: 7px; background: #2b2739;
+  border: 1px solid #3d3752;
+}
+.fxwb-tierbtn {
+  border: 1px solid transparent; border-radius: 5px; background: transparent; color: #8a7fa8;
+  font-family: var(--font-ui); font-weight: 800; font-size: 11px; padding: 3px 9px; cursor: pointer;
+}
+.fxwb-tierbtn:hover { color: #d9d3ea; }
+.fxwb-tierbtn.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; color: #f0a0ff; }
+.fxwb-search {
+  flex: 1 1 90px; min-width: 0; box-sizing: border-box; padding: 4px 7px; border-radius: 7px;
+  border: 1px solid #3d3752; background: #2b2739; color: #d9d3ea; font-family: var(--font-ui);
+  font-size: 11px; font-weight: 700;
+}
+.fxwb-search::placeholder { color: #8a7fa8; font-weight: 400; }
+.fxwb-search:focus { outline: none; border-color: #c936ef; }
+.fxwb-tierhint { flex: 1 1 100%; font-size: 10px; line-height: 1.3; color: #8a7fa8; }
+.fxwb-tierempty { font-size: 11px; line-height: 1.3; color: #8a7fa8; }
+
+/* Collapsible group: the old <h3> heading becomes a full-width button with a caret and a count, so "how much
+   is hiding in here?" is answerable without opening it. */
+.fxwb-grphead {
+  display: flex; align-items: center; gap: 6px; width: 100%; margin: 0 0 2px; padding: 4px 2px;
+  border: 0; border-bottom: 1px solid #3d3752; background: none; cursor: pointer; text-align: left;
+  font-family: var(--font-ui); font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #8a7fa8;
+}
+.fxwb-grphead:hover { color: #d9d3ea; border-bottom-color: #c936ef; }
+.fxwb-grpcaret { flex: 0 0 auto; font-size: 9px; }
+.fxwb-grpname { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxwb-grpcount {
+  flex: 0 0 auto; min-width: 16px; padding: 1px 5px; border-radius: 99px; background: #2b2739;
+  color: #b9b1cf; font-size: 9px; font-weight: 800; letter-spacing: 0; text-align: center;
+}
+/* Essentials is a FLAT list, so its rows are direct children of the inspector's 12px flex gap — drop their
+   own margin so the spacing doesn't double up. Rows inside a group keep it. */
+.fxwb-inspector > .fxwb-row { margin: 0; }
+
+/* Row label cell: the name plus a visible `?`. Help used to be a `title=` on the row div — invisible until
+   you hovered the right pixel for a second, and absent entirely on keyboard/touch. */
+.fxwb-lab { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.fxwb-lab > label { min-width: 0; }
+.fxwb-help {
+  flex: 0 0 auto; width: 15px; height: 15px; padding: 0; border-radius: 50%; border: 1px solid #3d3752;
+  background: transparent; color: #8a7fa8; font-family: var(--font-ui); font-size: 9px; font-weight: 800;
+  line-height: 1; cursor: help;
+}
+.fxwb-help:hover { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-help.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; color: #f0a0ff; }
+/* The two full-width lines under a control (the timing panel's anchor row uses the same 1 / -1 trick). */
+.fxwb-rowhelp {
+  grid-column: 1 / -1; margin-top: 3px; padding: 5px 7px; border-radius: 6px; background: #211d2c;
+  border: 1px solid #3d3752; font-size: 10px; line-height: 1.4; color: #b9b1cf;
+}
+.fxwb-rowwhy {
+  grid-column: 1 / -1; margin-top: 2px; font-size: 10px; line-height: 1.3; font-weight: 800; color: #b58ad8;
+}
+
+/* An INERT param — one whose `enabledWhen` isn't satisfied — is greyed and non-interactive, never hidden: a
+   control that disappears takes its discoverability with it and makes the rail jump while you tune. The `?`
+   stays live on purpose (help matters most on the control that just stopped responding). */
+.fxwb-row.fxwb-off > .fxwb-lab > label { color: #7d7397; }
+.fxwb-row.fxwb-off .fxwb-val { color: #8a6fa0; }
+.fxwb-row.fxwb-off input, .fxwb-row.fxwb-off select { opacity: 0.4; cursor: not-allowed; }
+.fxwb-row.fxwb-off .fxwb-curve, .fxwb-row.fxwb-off .fxwb-shape, .fxwb-row.fxwb-off .fxwb-palette { opacity: 0.45; }
+.fxwb-row.fxwb-off .fxwb-curve-svg { pointer-events: none; }
+
+/* "Start from" — the def library, moved to the TOP of the rail and reframed as the entry point rather than
+   the author's output shelf. Accent heading because it is the first thing you should reach for; a little
+   more height than the old 148px box now that it isn't buried under 43 sliders. */
+.fxwb-startfrom .fxwb-def-head { color: #f0a0ff; border-bottom-color: color-mix(in srgb, #c936ef 45%, #3d3752); }
+.fxwb-startfrom .fxwb-def-list { max-height: 176px; }
+.fxwb-def-sub { font-size: 10px; line-height: 1.35; color: #8a7fa8; }
+
+/* Transport: the two play-shaped buttons get grouped with a one-line note, so "what's the difference between
+   ▶ and 🔥?" is answered on screen instead of by pressing both. */
+.fxwb-playgroup { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.fxwb-playnote { flex: 0 0 auto; font-size: 10px; line-height: 1.2; color: #8a7fa8; white-space: nowrap; }
+
+/* FX LIBRARY BROWSER — a full-screen overlay above the workbench. Deliberately opaque: the workbench rail
+   underneath is a competing wall of controls, and browsing wants a quiet surface. */
+.fxlib {
+  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+  background: #17141f; color: #d9d3ea; font-family: var(--font-ui);
+}
+.fxlib-top {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: #211d2c; border-bottom: 2px solid #3d3752;
+}
+.fxlib-title { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; margin-right: 6px; }
+.fxlib-search {
+  flex: 1; min-width: 0; height: 28px; padding: 0 10px; border-radius: 7px;
+  border: 1px solid #3d3752; background: #17141f; color: #d9d3ea; font-size: 12px;
+}
+.fxlib-body { flex: 1; display: flex; min-height: 0; }
+.fxlib-facets {
+  width: 190px; flex: none; padding: 12px; border-right: 2px solid #3d3752;
+  display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
+}
+.fxlib-facet-title {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #8a7fa8; margin-top: 8px;
+}
+.fxlib-hues { display: flex; flex-wrap: wrap; gap: 5px; }
+.fxlib-hue { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.fxlib-hue.on { border-color: #fff; }
+.fxlib-hue.red { background: #d41f1f; } .fxlib-hue.orange { background: #ff9c1e; }
+.fxlib-hue.gold { background: #ffb81f; } .fxlib-hue.green { background: #7ade22; }
+.fxlib-hue.cyan { background: #2ee0ac; } .fxlib-hue.blue { background: #2f8bff; }
+.fxlib-hue.violet { background: #c936ef; } .fxlib-hue.magenta { background: #ff33a8; }
+.fxlib-hue.neutral { background: #8a7fa8; }
+.fxlib-results { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.fxlib-group { margin-bottom: 16px; }
+.fxlib-group-title {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #8a7fa8; border-bottom: 1px solid #3d3752; padding-bottom: 4px; margin-bottom: 6px;
+}
+.fxlib-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.fxlib-row:hover { background: #211d2c; }
+.fxlib-swatch { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.fxlib-swatch.red { background: #d41f1f; } .fxlib-swatch.orange { background: #ff9c1e; }
+.fxlib-swatch.gold { background: #ffb81f; } .fxlib-swatch.green { background: #7ade22; }
+.fxlib-swatch.cyan { background: #2ee0ac; } .fxlib-swatch.blue { background: #2f8bff; }
+.fxlib-swatch.violet { background: #c936ef; } .fxlib-swatch.magenta { background: #ff33a8; }
+.fxlib-swatch.neutral { background: #8a7fa8; }
+.fxlib-row-load {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  background: none; border: none; color: inherit; text-align: left; cursor: pointer; padding: 2px 4px;
+}
+.fxlib-row-name { font-size: 12px; font-weight: 700; }
+.fxlib-row-meta { font-size: 11px; color: #8a7fa8; }
+.fxlib-gap { font-size: 11px; color: #6f6688; font-style: italic; }
+/* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
+.fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }

@@ -1,5 +1,569 @@
 # ASCENT — development log
 
+## 2026-07-28 — the proc harness: replay any moment a card caused
+
+**What changed.** Phase ② of live FX authoring. Pick a card, stage a controlled fight against tunable
+sandbags, get the list of moments that card actually caused, and jump the replay to any one of them with a
+run-up — on the real board, at real scale, as many times as you like. Reached from the FX workbench's new
+**Watch in combat** rail mode, which collapses the editor to one column so the fight plays in the space it
+vacates.
+
+Four pieces. `fx/harness/procScan.ts` is pure: it inverts the uid→cardId map the replay already builds
+(reading BOTH starting rosters and every `summon`, so a token's moments aren't dropped), compiles the
+moments, and keeps the ones whose acting unit belongs to the card. An `attack` is attributed to its attacker
+and a `dmg` to nobody — attributing damage would credit the moment to the unit that was hit. Each row carries
+what `bindingFor` says would play, including `null`, so "no effect here yet" is visible rather than something
+you discover by watching nothing happen. `fx/harness/procStage.ts` is the pure half of SceneBuilder's
+`setEnemies`, extracted so the clamping rules are testable. `ProcHarness.tsx` is the rail panel.
+
+**Seeking, and why it's safe.** `useCombatReplay`'s fresh-combat effect already cleared fourteen pieces of
+transient per-beat state and killed stray GSAP tweens; that body became `resetTo(index)`, the effect calls
+`resetTo(0)`, and the hook exports a clamped `seekTo`. The board needs no repair on a jump because
+`computeFrame` rebuilds from `initial` on *every* call rather than folding from the previous frame — that
+property is now pinned by `computeFrame.purity.test.ts`, written and committed **before** the extraction.
+Optimising `computeFrame` into an incremental update is a reasonable-looking change that would break seeking
+silently; now it's a red build.
+
+**Four defects review caught, all of the same family — a fix that relocated a failure rather than removing
+it.** (1) `resetTo` kills GSAP tweens, and killing a live timeline re-renders it and fires its `.add()`
+callbacks — including `ctx.advance()`. Queued after an absolute `setBeatIdx(index)`, that landed every seek
+one beat late whenever it interrupted a wind-up. Killing *first* puts the functional update ahead of the
+absolute one, so the absolute value wins. (2) `seekTo` on the beat you were already sitting on did nothing:
+React bails out of an identical `setState`, so no cue effect re-ran while `resetTo` still cleared the floats
+and pulses — the board wiped and sat there. That is the harness's primary workflow. A `seekNonce`, threaded
+into all six `beatIdx`-keyed effects (found by enumerating what `resetTo` clears, not by judgement), fixes
+it. (3) Staging restored Resolve so a lost fight couldn't end the run — but never reset `phase`, so once
+Resolve *had* hit zero the reducer's terminal-phase guard silently swallowed every subsequent dispatch and
+the panel rescanned the stale previous fight. (4) A genuinely open Discover or Choose-One blocks `faceOmen`
+the same way; the Stage button now disables itself and says which modal to close.
+
+**The one that mattered most: `scanProcs` and the replay were indexing different lists.** `scanProcs`
+compiled moments from the raw event log; the replay compiles from
+`deferAvengeAfterSummons(deferClashBuffs(events))`. Both transforms reorder events, which moves
+`compileMoments`'s grouping boundaries — so a `ProcMoment.index` could address a different moment than
+`beats[index]`, and clicking a row would seek to an unrelated beat. Not hypothetical: `deferClashBuffs`
+exists for inline clash buffs, which is the Target Dummy self-buff case, and `self-buff-gold` is one of only
+two effects currently bound — the harness would have been wrong about one of the two things it exists to
+show. Fixed by extracting `choreo/replayOrder.ts` and having **both** the replay and the scan call it, so
+they cannot drift apart again. The regression test was verified by reverting the fix and confirming it fails
+(`expected 6 to be less than 6`) before restoring it.
+
+**Two design premises turned out to be wrong, and were corrected during implementation rather than shipped.**
+The spec claimed the workbench pauses combat via `overlayOpen` and that rail mode would need an exemption —
+it doesn't; `overlayOpen` never included the workbench, whose open state lives in local `DevMenu` state. And
+the plan expected `seekTo` to reach the workbench as a prop; that is impossible, because `DevMenu` renders
+the workbench as a *sibling* of `Recruit`, so no ancestor sees the replay. It goes through a DEV-only
+`window.__fxSeek` handle instead, matching the existing `__pixiFx` / `__perfHud` pattern.
+
+**Also found: a served board's `tier` is not inert.** `simulate.ts` computes loss damage as
+`enemyState.tier + Σ(surviving enemy minion tiers)`, and the sandbag board uses `tier: 7` — so a lost harness
+fight costs ~11 Resolve out of ~30, and three of them would end a sandbox run. Staging restores Resolve for
+exactly that reason. The wave is deliberately *not* wound back: wave-keyed systems (Runeforge offers at 6/7/9,
+Second Hand's every-third-wave grant) would re-fire on each re-crossing, which is a worse and less predictable
+disruption than the ~17-stage ceiling it would remove.
+
+**How it was verified.** `procScan` and `procStage` have real unit tests; `seekTo` cannot be unit-tested (no
+jsdom in this repo) so it is covered by the `computeFrame` purity suite plus a full manual browser pass: rail
+mode narrows and the board stays reachable through the transparent root, the harness's controls respond,
+a staged fight animates (745 rAF frames over an 8s window, 194 distinct card layouts, card count falling 7→4
+as units died), rows seek, and a same-row re-seek genuinely replays. Full gate green.
+
+**Follow-ups.** Phase ③ — the authoring panel with a "commit animation" button offering card-only or global
+scope — is now unblocked. Also open: `questDelta` is in `useCombatReplay`'s returned object but not on its
+`CombatReplay` interface (pre-existing, invisible because `typecheck:web` is red on `main` anyway);
+`SceneBuilder.setEnemies` still duplicates `sandbagBoard`'s board-building and the two could drift; rail mode
+costs 640px of width, which is tight below ~1400px; and the harness stages sandbags only, so a final
+look-check against a real pooled opponent stays manual. The spec also called for **auto-pause after the
+seeked moment** — `seekTo` records a stop beat, and playback pauses when `beatIdx` reaches it — and it was
+never built: a seek plays through to the end of the fight instead of stopping. That's the difference between
+watching a moment once and the stated tune → watch → tune workflow of watching it repeatedly without
+re-seeking each time; worth picking up alongside phase ③.
+
+
+## 2026-07-28 — an end-to-end guide for the FX workbench, and the arc can be turned off
+
+**`docs/fx-workbench-guide.md`.** The workbench had a request-loop doc (`fx-requests.md`, the brief → build →
+tune → bind contract) but nothing describing how to actually *drive* it. This is that: start the dev server,
+open it, pick a starting point from the library, stage it with the right scenario, build the composition,
+lock the seed, save, bind, verify in a real fight, commit. Written because the tool has accumulated enough
+surface — five primitives, five scenarios, per-layer anchors and timing, curves, palettes, seed locking,
+the three-lens browser — that "obvious once you know" now describes most of it.
+
+Two things it documents that are genuinely easy to get wrong and cost real time:
+
+- **Lock the seed before tuning, unlock before saving.** Unlocked, every Fire rolls fresh, so a param nudge
+  and a different dice roll are indistinguishable and you end up tuning against noise. But saving *while*
+  locked bakes the seed into the def, and `playDef` honours it — so every play in the real game becomes the
+  identical roll, and a repeated proc starts reading as mechanical. No committed def carries a seed today.
+- **Saving makes an effect exist; it does not make it play.** Binding is the separate step, and it has no UI
+  yet (phase ③), so the guide shows the `bindings.json` shape and what each `fanOut` value means.
+
+**`fx-requests.md` step 4 was stale** and pointed at `packages/ui/src/choreo/score.ts` for binding — which
+stopped being true when bindings moved into `bindings.json`. Corrected, and cross-linked to the new guide.
+
+**Also in this group: `FxLayer.bow`.** The travel arc's perpendicular bow was `TRAVEL_BOW = 0.28`, a
+module-private constant in `anchors.ts` whose one real call site never overrode it — `resolveAnchor` and
+`pointOnTravel` both already took a `bow` argument, so the flexibility existed with nothing able to reach it.
+"Travels in a straight line" was therefore not expressible, which rules out a bolt, a beam or a thrown spear
+(owner report 2026-07-27). Added as a per-layer optional field following `travelMs`'s template exactly:
+coerced in `defStore`, threaded through `driveLayerHeads`, exposed as an **Arc** slider on `travel`-anchored
+layers with a reset-to-default button, reading "Straight" at 0.
+
+The load-bearing detail is that **0 is a meaningful value here**, unlike every other optional field in that
+path — so the guards are `!== null` and `?? TRAVEL_BOW`, never truthiness, which would swallow the straight
+line back into the default arc and present as a slider that does nothing at exactly the setting you want.
+Junk coerces to an omission (the default arc) rather than to 0, so a hand-edit typo can't silently restyle an
+effect into a laser; out-of-range clamps to ±1 rather than flinging the head off-screen. Omission stays the
+serialised default, so every committed def renders exactly as before.
+
+**Also fixed: the FX library browser was rendered but completely inert.** `.fxwb` is deliberately
+`pointer-events: none` — a transparent backdrop so the pixiFx canvas underneath stays interactive for the
+cursor scenario — and its bars opt back in through one shared rule. `LibraryBrowser` renders *inside* that
+root and `.fxlib` was never added to the list, so the whole overlay inherited `none`: every row, the search
+box and its own Close button dead, with no way out of the screen. Nothing about the markup or the component
+looks wrong and every class it uses is defined, which is why it survived review — the defect lives entirely
+in inherited CSS across a parent/child boundary, where no component test can see it. It reads as a frozen UI
+rather than a styling bug. Owner report 2026-07-27; this is the concrete cost of the "browser layout never
+visually verified" gap that shipped with the library browser.
+
+**Verified:** typecheck clean, lint 0 errors (3 warnings, all pre-existing), 2766 tests across 142 files,
+`build:web` green. The bow feature added 9 tests — the straight line surviving coercion, endpoints never
+moving at any bow, negative mirroring, clamping, and junk falling back to an omission.
+
+
+
+## 2026-07-27 (UI hover sound)
+
+### chore(audio): whole-mix rebalance (owner by-ear export) + masterGain 0.8 → 0.61
+
+Baked the owner's latest Mixing-Desk export into `DEFAULT_AUDIO_CONFIG`. `masterGain` drops `0.8 → 0.61`
+(whole output quieter) and the per-category gains were rebalanced against that new headroom — notably
+`smack 0.29→0.33`, `crit 0.44→0.34`, `attack 0.1875→0.29` (supersedes the #500 wind-up cut, now louder relative
+to a quieter master), `death 0.54→0.26`, `shield 0.45→0.37`, `triggerglow 0.5→0.45`, `divineshieldbreak
+0.21→0.29`, `rebornshatter 0.16→0.24`, `rebornsummon 0.28→0.24`, `summon 0.24→0.2`, `uihover 0.09→0.08`. No bus
+reassignments; buses/limiter unchanged.
+
+### feat(ui): dev panels — ✕ close button + click-outside-to-close; Mixing Desk section colours
+
+- **Every dev tuner** now gets a top-right **✕ close button**, wired once in the shared `useDraggablePanel` hook
+  (+ a `DevPanelContext` from `DevMenu`) — no per-tuner edits; the hook injects the ✕ as an imperative trailing
+  child and `DevMenu` provides `close(key)`. Covers all ~45 tuners + any future one automatically. A panel closes
+  **only** via its ✕ (a click outside a panel does not dismiss it).
+- **Click-outside closes the Dev Tuning dropdown itself** (the 🛠️ list) — a pointerdown outside the menu + its
+  toggle collapses the list; open tuner panels are untouched.
+- **Stacking + open placement** (also in `useDraggablePanel`): opening a panel or clicking anywhere inside it
+  **brings it to the front** (a monotonic z counter based at 600, above the panels' CSS z-index and below the
+  9999+ toast/HUD layer). Panels no longer restore a saved position — each opens at a **top-left cascade slot**
+  (slot 0 = corner; each additional open panel lands slightly down-right; slots free on close and re-use
+  lowest-first, so a lone panel is always in the corner). Size still persists; slots are keyed per panel id so
+  React StrictMode's double-mount doesn't leak them.
+- **Mixing Desk:** each bus section (ui / combat / voice / hero) is now tinted + left-accented in **its own
+  category colour** (the colour of its label), and the category/bus **labels are much larger** (9px → 17px).
+
+### feat(ui): Mixing Desk — every fader gets a typed numeric field (read + edit exact values)
+
+The desk's per-category faders showed no value and nothing was typeable, so setting a precise level (e.g. an
+audio cue at `0.09`) meant guessing with a tiny vertical slider. Added a **numeric field beside every fader** —
+category, bus, and master-limiter dials — bound to the live value on the **raw-gain scale (0–1)** the config
+actually stores (buses 0–1.5; master dials in their own units), `step="any"` so any precision can be typed.
+Drag = coarse, type = exact; both drive the same value. Fields round to 3 dp for a tidy readout and clamp to
+range. Styled `.numf` (dark, tabular-nums, spinners hidden). No engine/audio-graph change — pure desk UX.
+
+Verified: `build:web` + `npm test` green (the desk is DEV-only React; UI `typecheck:web` in this worktree is
+contaminated — unrelated to these files).
+
+### feat(audio): soft hover sound on interactive UI (buttons, hero-select, Discover)
+
+Added a UI-hover cue that plays when the pointer enters an interactive control. Owner-supplied clip
+(`UI Hover Click.mp3` → `packages/ui/src/audio/uihover.mp3`).
+- **Category:** new `uihover` (gain `0.09`, `ui` bus) in `audio/config.ts` — appears automatically in the
+  Mixing Desk under the ui bus with its own ▶ preview, so its level is live-tunable.
+- **Cue:** `sfx.uiHover()` in `sfx.ts` — plays the sourced clip with a soft synth-blip fallback. **No time
+  throttle:** the listener's per-target enter dedupe already collapses repeats on the same element, so each
+  element you pass over ticks exactly once — a fast sweep across a row fires each one (owner wanted the misses
+  on quick swipes gone).
+- **Wiring:** one delegated `pointerover` listener in `Game.tsx` (mounted once, covers every screen). Fires on
+  `button, [role="button"], .disc-slot` — menu / navigation buttons (title, esc-menu, leaderboard, career),
+  hero-select `.herocard` buttons, and Discover option cards. **Silent on the in-game shop/combat HUD controls**
+  (hero power `.heropowerbtn`, freeze `.frzwrap`, refresh `.rfbwrap`, tavern-up `.tvbwrap`, rift `.riftbtn`,
+  end-turn `.etbwrap`, combat summary/skip/speed, rune-forge reroll) — those are gameplay actions, not menu
+  navigation (owner direction). Minion cards (`.card` divs), dev panels, disabled controls, and touch pointers
+  are also skipped. Per-target enter dedupe (skips moves within the same element).
+
+Verified: `npm test` (1785) + `npm run build:web` green; `npm run typecheck`/`lint` clean for the changed
+files. (Pre-existing `typecheck:web` errors in `Unit.tsx`/`useCombatReplay.ts` are unrelated — untouched here.)
+Audio itself is for the owner to judge by ear.
+
+## 2026-07-27 (stuck-cue timer audit)
+
+### fix(ui): audit every cleanup-cancelled cue timer — four stuck cues
+
+Follow-up to the two medallion-pulse bugs (#735, #736). Both were the same shape: a transient cue sets state,
+schedules a `setTimeout` to clear it, and returns `() => clearTimeout(t)` — so the effect's own **cleanup
+cancels the clear** whenever a dependency changes. If the effect then early-returns on its guard, nothing
+reschedules and the cue **latches on**. Swept all 11 such sites in `packages/ui`.
+
+**The reason this is common here:** the reducer `structuredClone`s state on every dispatch
+(`packages/sim/src/reducer.ts`). Every state array/object therefore gets a **fresh identity on every action**,
+so any effect with one in its deps re-runs on *every dispatch* — not just when its own data changed.
+
+**Fixed (4):**
+
+- **Karwind flame flash** (`Recruit`) — the confirmed case. Deps include `run.karwindFlash`, so per the clone
+  above the effect re-ran on every dispatch; the seq guard early-returned and the flames stayed lit until the
+  next Karwind proc. Any action within 520 ms of the flash triggered it, which is most of them.
+- **Hero-power refresh flash** (`StatusBar`) — `flashSignal` going true→false inside the hold cancelled the
+  clear, and the rising-edge guard then early-returns. The flash stayed lit permanently.
+- **Effective-HP hit float** (`StatusBar`) — HP moving again inside the 1100 ms hold (armor gained, Resolve
+  healed) cancelled the clear and took the `now < prev` branch out of play, parking the −X on the chip.
+- **Screen shake / crit shake** (`useCombatReplay`) — the fresh-combat reset zeroed `shake` but not `shaking`;
+  the effects bail on `!shake`, so the reset cancelled their clear and latched `.shaking` into the next fight.
+  Reachable when a fight starts within 300 ms of a shake (a Skip). Fixed by clearing the flags with the counters.
+
+All three cue fixes use the same ref-held-timer idiom as #735/#736, so the codebase has one recognisable shape
+for "a hold that must outlive its effect".
+
+**Examined and deliberately left alone (7)** — the cancellation is correct in each:
+
+- `Card.popin` — deps `[popin]`, and `popin` only changes when the timer itself fires. Nothing else can cancel it.
+- The **beat clock** and the **final hold** (`useCombatReplay`) — these *drive* the replay rather than clearing a
+  cue, and every re-run reschedules unconditionally. Cancelling is the point.
+- The **turn-charge fade** (`Recruit`) — deps `[lit, mounted]`; a `lit` flip inside the fade is explicitly
+  handled by the branch above it.
+- The **1s timer tick** (`Recruit`) — self-rescheduling clock.
+- The **delayed `syncShields` re-measure** (`Recruit`) — a cancelled pass leaves no state set, and the
+  synchronous `syncShields()` at the top of the effect runs every render anyway. A missed correction, not a
+  latch. (Left as-is; noted in case aura placement is ever reported askew after a fast render burst.)
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green. These are
+timing latches under specific interleavings, so the checks prove no regression rather than proving the fix —
+the reasoning above is the evidence, and each was traced to a concrete trigger.
+
+## 2026-07-27 (the errant reorder pulse)
+
+### feat(ui): the hand glides when its card count changes in the shop
+
+**Owner ask:** extend the "make room" slide from the in-combat coalesce to the shop — buying or playing a card
+changes the hand count, and the other cards blinked to their new slots.
+
+Same motion, same duration source (`getFlipConfig().commitMs`), reusing the hand's existing GSAP Flip glide
+rather than a second mechanism: the hand's fan rotation and translateY tuck live *in* its transform, and a
+manual x-tween wipes both — which is why the reorder path already uses Flip. The reorder branch is untouched;
+this is a fallback for a composition change that no drag-reorder claimed.
+
+**The capture timing is the whole trick.** `handCompFlipRef` is re-captured on **every commit** (a second layout
+effect declared *after* the glide, so within one commit the glide reads the previous frame's capture and the
+recapture then overwrites it). Capturing only on hand changes would have been cheaper but wrong mid-drag: the
+hand is already sliding to make room via `handSlidePx`, so animating from a state taken before the drag began
+rewinds those cards to their resting spots and re-glides them — a visible snap back. One frame back is the true
+previous position in every case, drag or not.
+
+Entering cards aren't in the captured state, so Flip leaves them alone and `playBuySlide` still owns the bought
+card's motion. Skipped entirely in combat, where the hand is frozen and the grant previews have their own
+capture (`handGrowFlipRef`).
+
+**Perf:** this is a per-commit `Flip.getState` over at most `CONFIG.handMax` cards — the same class of work the
+warband/tavern row already does every commit, and it no-ops in combat. Wrapped in
+`perfMonitor.measure('layout:handflip')` so it shows up by name if it ever matters rather than hiding inside a
+generic frame cost.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green. Feel
+still wants an eyeball — automated checks can't see a rewind.
+
+### fix(ui): a Shout minion stops re-pulsing when you shuffle cards past it
+
+**Owner report:** Shout minions occasionally fire their medallion pulse again while you reorder cards around
+them on the warband. Asked whether the combat medallion fix (#735) covered it — it did not: that one lives in
+`useCombatReplay` and only runs during a fight. But it is the **same defect**, in the recruit-side twin.
+
+Two facts combine:
+
+1. The battlecry flourish's 760 ms clear was a single `setTimeout` **cancelled by its own effect's cleanup**,
+   and the effect's deps are `[run.board, inCombat]`. Any board change inside that window — a buff writing a
+   new array, a sell, a reorder — killed the clear, and the minion stayed in `battlecryUids` **forever**. The
+   watcher itself is uid-diffed and correct; nothing re-fires it. The flag just never comes off.
+2. A stuck flag means the medallion keeps its `.pulsing` class. React moving a keyed child on a reorder
+   re-inserts that DOM node, and **re-inserting an element restarts its CSS animations**. So a long-dead
+   Battlecry flashed again every time the row shuffled it past a neighbour.
+
+That also explains "occasionally": it needs a board change within 760 ms of the Shout to arm it, and then a
+reorder that actually moves that node to show it.
+
+Fixed the same way as #735 — **per-uid timers in a ref**, so a hold outlives the effect's next run and a
+re-trigger restarts its own. Also dropped on the way into combat, since the flourish belongs to the shop and a
+timer crossing the phase would clear a uid the next recruit phase had legitimately re-flagged.
+
+**Follow-up, not fixed here (scope):** the Karwind flame flash (`karwindFlashSeq`) has the same shape — it
+early-returns when the seq is unchanged, but the cleanup still cancels its 520 ms clear on any dep change, so
+`karwindFlameUids` can stick. Worth its own pass, along with a sweep for other `return () => clearTimeout`
+cues whose deps change faster than their hold.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+## 2026-07-27 (combat hand-grants materialise where they land)
+
+### fix(ui): the medallion pulse survives a short beat + no grant flash at Start Combat
+
+Two defects the faster pacing exposed.
+
+**1. The effect icon stopped pulsing every time.** (Owner: the Avenge *counter* still pulsed — that is a
+separate cue — but the medallion did not.) The ~1150 ms pulse hold was a single `setTimeout` cancelled by its
+own effect's cleanup, which was harmless only while every beat ran LONGER than the hold. The moment `toHand`
+dropped to 410 (×1.5 ≈ 615 ms) the beat advanced first, the cleanup killed the pending clear, and the uid was
+never removed from `triggers`. A unit that had pulsed once stayed flagged forever, so its next trigger could
+not toggle the class off→on and simply did not animate.
+
+The holds are now **per-uid timers in a ref**, so a hold outlives the beat that started it and a re-trigger
+restarts its own. Cleared on a fresh combat, or a timer from the last fight would cut a pulse short in this
+one. This bug was latent in every beat type shorter than 1150 ms — the pacing change only made it obvious.
+
+**2. A full hand of cards flashed and faded the instant you pressed Start Combat.** (Owner clip.) The replay
+hook persists across fights and `beatIdx` is reset in an *effect*, so on the first commit of a new combat it
+still holds the previous fight's value — usually past the new `beats` array, where `grantsShownThrough`'s
+`?? events.length` fallback means "the replay is done" and returns EVERY grant at once. That painted the whole
+fight's grants into the hand for one frame, coalesce and all, until the reset wiped them.
+
+`handGrantsShown` is now gated on the replay's `active` flag, which is false through the shop-closing intro
+and only turns true once the reset has landed.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green — run
+with the worktree pinned (see the note below).
+
+*Process note: the shell's working directory silently reverted to the primary checkout mid-session twice, and
+a gate run reported green against old `main`. The tell was the test count DROPPING while code was only added.
+Every gate run now prints `pwd` + branch first.*
+
+### tweak(ui): grant beats play twice as fast
+
+**Owner 2026-07-27:** the spacing between an effect pulse, its coalesce, and the next effect pulse should be
+50% faster.
+
+That spacing is one number: `choreoConfig`'s **`toHand`** beat delay, **820 → 410**. `holdMs` computes a
+moment's hold from the NEXT moment's type, and `toHand` is deliberately *not* in `OVERLAP_INTO` (a grant gets
+its own read rather than riding the preceding FX), so this single delay governs both the gap *into* the first
+grant beat and the gap *between* consecutive ones. Two Avenge granters now read pulse→coalesce,
+pulse→coalesce at twice the pace.
+
+At `speed` 1.5 that is ~615 ms per grant beat (was ~1230), which still leaves a clear read for the
+materialise. The coalesce FX itself is untouched — it has its own duration and is not derived from the beat.
+
+Nothing else moves: only `toHand` changed, and the End-of-Turn sequence runs on its own `BEAT`/`GAP` in
+`Recruit.endTurn` (the owner confirmed that pacing is already right).
+
+Pacing has no live tuner by design — an accidental slider nudge used to persist silently and skew every future
+combat — so this is a committed change to `DEFAULTS`, which is the intended way to retune.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### fix(ui): grants land in lockstep with their pulse again (correcting my own regression)
+
+**Owner:** "both avenge pulses occur and THEN coalesce 1 and 2 occur." Correct, and I caused it.
+
+Earlier this session I widened `handGrantsShown` from `beats[beatIdx].start` to `beats[beatIdx].end`,
+reasoning that slicing to `start` excluded the granting beat. **That reasoning was wrong.** `beatIdx` is the
+beat *about to play* — the moment on screen is `beats[beatIdx - 1]` (the scheduler's own `shown`/`next` split;
+`processedEnd`, which the live frame folds through, is `beats[beatIdx - 1].end`). Moments are contiguous, so
+`beats[beatIdx].start === beats[beatIdx - 1].end`: the original slice already meant "through the beat on
+screen" and was right all along.
+
+Widening it by one beat put every granted card in hand BEFORE its own trigger-medallion pulse — and that pulse
+is derived from the same `beats[beatIdx - 1]` window. With a single grant that just looks slightly eager; with
+two Avenge granters it desynchronises the whole read, which is what the owner saw.
+
+Restored to the on-screen beat, written as `beats[beatIdx - 1].end` so the invariant is explicit rather than
+resting on contiguity, with the off-by-one documented at the function and a warning not to widen it again.
+
+**The thing I misdiagnosed:** the original "the card only coalesces after combat" report was NOT a windowing
+problem. It was the deferred Battlecry emitting no `toHand` event at all during the fight — fixed properly in
+the `fix(core)` entry above. The window change was a second, wrong fix layered on the first.
+
+Tests updated to pin the off-by-one from both sides: a Deathrattle grant is in hand when its beat is on screen
+and **not** a beat sooner; a final-beat grant is empty at `beats.length - 1` and present at `beats.length`;
+and neither Avenge card's grant appears before its own beat is the one showing.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### test(ui): lock the one-at-a-time ordering for multiple Avenge grants
+
+**Owner spec 2026-07-27:** two Avenge cards that each grant a card should read like the End-of-Turn beats —
+card 1 (left to right) pulses, its card coalesces, THEN card 2 pulses and its card coalesces.
+
+Checked against the real pipeline before changing anything, and it already behaves that way. Two Arcane
+Weavers (Avenge 2) proccing off the same pair of deaths produce two `toHand` events that `compileMoments`
+gives **separate single-event moments** — `toHand` is in neither the collapse nor the collapse-runs set, so
+consecutive grants can never fold into one beat. Each carries its own `source` (`m2`, then `m3`), which is
+what drives the proc pulse, so beat order is board order. The `toHand` moment holds **820 ms**
+(`choreoConfig`), so the two are plainly sequential rather than a smear. And `grantsShownThrough` returns one
+card at the first beat and two at the second, so the hand grows a card at a time and the coalesces cannot
+fire together.
+
+No production change — a test now pins all four properties (two separate beats, consecutive, sourced in board
+order, one card added per beat) against **both** presentation transforms in the hook's own order
+(`deferAvengeAfterSummons(deferClashBuffs(...))`), so a future grouping-rule change can't silently collapse
+them.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green.
+
+### fix(core): a deferred Battlecry's named card is announced during the fight
+
+**Owner:** "Field Mechanic's Shout is adding a Patch Job to hand — paired with Ryme's Deathrattle that should
+add a Patch Job if the Mechanic is still alive and next to it when Ryme dies. This qualifies for the coalesce."
+
+Correct, and it *does* grant — I was wrong to say that pairing grants nothing. Tracing the real event log:
+Ryme's Deathrattle fires, `sc` logs **"Ryme triggers Field Mechanic's Battlecry"**, and then… nothing. The
+reason is `replayCombatBattlecry`: `battlecryGrantSpell` isn't in `COMBAT_REPLAYABLE_BATTLECRIES`, so it falls
+to the `economy` branch and is recorded in `playerDeferredBattlecries`. `settleCombat` re-fires it through the
+real recruit factory, which is where the Patch Job actually lands. Nothing is lost — but there was **no event
+during the fight**, so the replay had nothing to animate and the arrival FX only played once combat was over.
+
+The economy branch now logs a `toHand` for a deferred grant that names its card:
+
+- **Presentation only** — `ctx.log` directly, NOT `ctx.grantToHand`, so the card isn't granted twice. The
+  deferral stays the single source of truth for what you receive. (Same split `simulate.ts` already uses for a
+  quest `rewardCardId`: announce without pushing.)
+- Count mirrors the recruit factory's `count * golden`, so a golden Mechanic announces both Patch Jobs.
+- **Only `battlecryGrantSpell`**, because it names its card in params. A random grant
+  (`battlecryGainRandomMinion`, the Discover fallbacks) can't be announced without rolling the pick here, and
+  rolling it would move the rng so the replay would stop matching the settle.
+
+Downstream this needed no UI work — the existing pipeline picks it up: the card materialises in hand on the
+Deathrattle beat, respects the hand cap, and `grantPlayedRef` suppresses the settle-side duplicate.
+
+**Verified:** a new test pins that the Patch Job is announced exactly once, *after* the death and at/after the
+trigger, and that `playerHandGrants` stays undefined while `playerDeferredBattlecries` still carries the
+Mechanic — i.e. announced, not double-granted. `typecheck` clean, `lint` 0 errors, **1784 tests** / 108 files
+green (no golden/determinism replay broke on the added event), `build:web` green.
+
+*Ownership note: `packages/core/src/effects/factories.ts` is Kevin's side — flagged for review alongside the
+`EotStepFx` field.*
+
+### fix(ui): hand-grant previews respect the 10-card hand cap
+
+**Owner report:** the in-combat coalesce would push the hand past its 10-card limit during the replay, then
+snap back down to 10 once combat ended.
+
+The previews were rendering the whole grant list, but the sim only *keeps* grants while there is room —
+`settleCombat` and the End-of-Turn commit both walk the grant list in order and drop everything past
+`CONFIG.handMax`. So the replay was promising cards that were never going to be yours.
+
+`handPreviews` now slices to `CONFIG.handMax - run.hand.length` — the same first-N rule the reducer uses, so
+the cards that materialise are exactly the ones that survive the commit. A hand that is already full has zero
+room, which means it shows nothing and coalesces nothing for the rest of the round, as the owner asked. The
+real hand can't change mid-combat or mid-End-of-Turn (grants land at `settleCombat` / `faceOmen`), so the room
+figure is stable across the whole beat sequence.
+
+Applies to both preview sources, since they share the one list.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1783 tests** / 108 files green, `build:web` green.
+
+### fix(ui): a combat grant materialises ON the beat that procs it, and the hand makes room
+
+Two follow-ups from the owner on the same session's work.
+
+**1. Combat grants were still only coalescing after the fight.** `handGrantsShown` sliced the event log to the
+current beat's **`start`** — i.e. strictly *before* it — so the beat that actually emitted the `toHand` was
+excluded. Two consequences: every grant appeared a beat late, and a grant on the **last** beat (the common
+shape — the final minion dies, its Deathrattle fires, the fight is over) never appeared during the replay at
+all, leaving the settle-time materialise as its only announcement. That is exactly what the owner was seeing.
+
+~~Now it slices through the beat's **`end`**~~ — **superseded, see the correction entry above: this was
+wrong.** `beatIdx` is the beat about to play, so `start` already meant "through the beat on screen"; widening
+it put grants a beat ahead of their pulse. The rule is extracted as **`grantsShownThrough(events, beats, beatIdx)`** and covered by
+two tests: a real Scrap Vendor Deathrattle is shown ON its beat and *not* on the one before it, and a grant on
+the final beat is shown during the replay. Both fail under the old `start` slice.
+
+Diagnosed headlessly rather than by eye — `simulate` + `compileMoments` in a throwaway probe printed the event
+log with beat boundaries, which is what located the off-by-one-beat. Worth noting for next time: the owner's
+example (Ryme's Deathrattle replaying an adjacent **Field Mechanic**) turns out to grant *nothing* — the combat
+sim's battlecry replay casts economy battlecries instead of granting, so that pairing emits no `toHand` and no
+`playerHandGrants` at all.
+
+**2. The mid-screen "To your hand" flyer is retired.** With the card now materialising in hand at the instant
+of the proc, the flyer showed a *second* copy of the same card, at the same moment, in the middle of the
+screen — the duplicate announcement this whole thread was about. `replay.handGrant` and the `.handgrant` CSS
+are deliberately kept, so restoring it is putting the render block back. *(Judgement call — flagged.)*
+
+**3. The hand glides to make room.** A coalescing card was appended to the row and every card already in hand
+snapped to its new slot. The row's layout is now captured on the commit *before* a grant lands and replayed
+with **GSAP Flip** — not the warband/shop manual x-tween, because hand cards carry their fan rotation and
+translateY tuck *in* their transform and a bare x-tween wipes both (the same reason the reorder glide next to
+it uses Flip). The End-of-Turn path captures at its own call site, where it knows a grant is coming; the combat
+path re-captures each beat, one commit ahead. Duration comes from `getFlipConfig().commitMs`, so it matches
+the warband's "make room" feel and stays tunable.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1783 tests** / 108 files green, `build:web` green.
+
+### feat(ui/sim): End-of-Turn grants arrive on their own beat, not all at once
+
+**Owner ask:** with two End-of-Turn cards that each add a card to hand, every pulse fired first and *then*
+the whole batch of cards appeared at once. Wanted: card A pulses → card A's grant coalesces → card B pulses →
+card B's grant coalesces.
+
+The cause is structural. The recruit screen plays the End-of-Turn beats itself (`endTurn` in `Recruit.tsx`,
+one beat per card × repeat), but the *effects* only resolve when `faceOmen` commits — a single dispatch after
+the last beat. So the hand could not grow until every pulse was already over. The stat climb had solved this
+years-equivalent ago by projecting per-proc snapshots; grants just weren't part of the projection.
+
+- **`packages/sim`** — `EotStepFx` gains **`handGrants: string[]`**, the cardIds a beat put in hand, diffed
+  off the projection clone's hand per beat (`projectEndOfTurnSteps`). cardIds rather than uids: the clone's
+  uids aren't the ones `faceOmen` will mint. Additive; nothing else in the shape changed.
+- **`packages/ui`** — the beat loop appends `bfx.handGrants` to `eotGrants` as each beat fires, and those
+  render as preview cards after the real hand. The coalesce watcher (see the fix above) then materialises
+  each one *on the beat that produced it*, and records it in `grantPlayedRef` so the real card doesn't
+  materialise a second time when `faceOmen` commits. Previews are dropped in the same commit as the
+  `faceOmen` dispatch so the hand never briefly doubles.
+- The in-combat and End-of-Turn preview paths are now **one list** (`handPreviews`) behind one watcher —
+  they can't overlap (End-of-Turn is `recruit`, cleared as the phase flips) and both want identical
+  behaviour, so one `plated` render site and one materialise rule serves both.
+
+**Verified:** two new sim tests — grants are attributed one-per-beat across two Hoard Whelps rather than all
+landing on the last beat, **and the projection's grants match what `reduce(faceOmen)` actually puts in hand**
+(same clone, same rng state), plus a beat that grants nothing carries an empty list. Full suite **1781
+tests** / 108 files green, `typecheck` clean, `lint` 0 errors, `build:web` green.
+
+*Ownership note: `packages/sim/src/recruit.ts` is Kevin's side of the map — the change is one additive field
+on a projection type that exists purely to feed recruit-screen FX, flagged for review.*
+
+### fix(ui): a card granted mid-combat coalesces in the hand, not in the middle of the screen
+
+**Owner report:** granting a card during a fight played the arcane coalesce *centre screen*, the card then
+"warped" into the hand a beat later, and finally blinked out and back in as the combat ended — three separate
+arrivals for one card.
+
+All three were the same design mistake plus one stale hand-off:
+
+- The in-combat watcher materialised the **mid-screen "To your hand" flyer** (`.handgrant .card`, a ruling
+  from #671). The flyer is a labelled announcement pinned at 50%/46% — coalescing *it* put the effect nowhere
+  near where the card actually arrives, and the hand-row copy (`handGrantsShown`, which appears one beat
+  later) then just popped in cold. That's the "coalesce in the middle, then warp to hand".
+- The settle-side suppression was **one dispatch too late**. `grantPlayedRef` → `coalesceSkipRef` was built at
+  the **combat → recruit phase flip**, but combat grants reach the real `run.hand` at `settleCombat` — which
+  fires while the phase is still `'combat'`. So the generic coalesce watcher saw a brand-new hand uid, found
+  an empty skip set, and materialised the card a *third* time. That's the "disappears and reappears when
+  combat ends".
+- The preview card rendered **unplated** while the committed hand card renders `plated`, so even the swap
+  itself read as a flicker.
+
+**The fix**, per the owner's ask — the coalesce should look exactly like a shop-phase conjure:
+
+- The in-combat watcher now keys on **`replay.handGrantsShown`** and materialises the card **in the hand row**,
+  measuring `.cardplate` and calling `playPlateCoalesce` on the same element the player will keep. Preview
+  grants are the only cards in `.row.hand` with no `data-uid`, which is how they're addressed; the shown-count
+  is tracked in a ref so a **Skip** that reveals several at once materialises each exactly once.
+- `coalesceSkipRef` / `handBeforeCombatRef` and the phase-flip block that built them are **gone**. The main
+  coalesce watcher now consumes `grantPlayedRef` (a cardId list) directly in its `fresh` filter, one match per
+  card. That's correct on **both** settle paths — `settleCombat` on a win, `resolveCombat` on a loss — where
+  the phase-flip version could only ever catch the loss path.
+- Preview grants render `plated`, matching the committed card exactly.
+- The mid-screen flyer keeps its "To your hand" label and `tohandhold` animation; it just no longer claims the
+  coalesce.
+
+Skipped replays still behave: nothing renders mid-fight, so `grantPlayedRef` stays empty and those grants get
+their coalesce on arrival in hand rather than losing the effect entirely (the regression #674 fixed).
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1779 tests** across 108 files pass, `build:web` green.
+
+
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
 ### 2026-07-27 — fix(core/sim): set 1 and set 2 were mixing in COMBAT
@@ -2512,6 +3076,1641 @@ under `/art/spells/`, all decode at 512x512, and the new duplicate warning stays
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-27 — FX bindings as data
+
+**What changed.** "Which authored FX def plays at this moment" moved out of two compiled-in TypeScript
+literals — the `def:` property on `fxDef` cues in `SCORE_DEFAULTS`, and the frozen `CARD_FX` table in
+`cardFx.ts` — into a single `packages/ui/src/choreo/bindings.json` behind a new `choreo/bindings.ts`. One
+resolver, `bindingFor(cardId, kind)`, now answers that question for the cue runner, the FX library browser,
+and (next) the workbench's commit button. Card layer beats kind layer; within each, a `localStorage` session
+patch beats the committed file, and a `null` binding is an explicit tombstone so "plays nothing here" is
+expressible against a file baseline.
+
+`fxDef` moved into `BASE`, so every moment kind carries a timing row and a binding alone is now *sufficient*
+to make an effect play. Previously a def bound to a kind whose cue list happened to lack an `fxDef` entry
+played nothing, silently — the same failure mode that has cost this subsystem several debugging sessions.
+`Cue.def` and `Cue.fanOut` are gone; the score owns *when*, `bindings.json` owns *what*. The two `fanOut`
+unions (`'selfBuffed'` on the cue, `'primary' | 'damaged'` on the card table) merged into one on `FxBinding`.
+
+The runner now resolves the binding **once** per `fxDef` cue instead of looking it up separately for the
+damage claim and again inside the deferred play. That turned out to be load-bearing rather than cosmetic:
+the old two-lookup shape was safe against a frozen `CARD_FX`, but against a live session patch a workbench
+edit landing between the two would claim the stock hit-burst for one set of units and play the effect at
+another. The same reasoning removed a second `damagedUidsIn` scan on the fan-out path, so the claimed set and
+the played set are now identical by construction.
+
+`POST /__fx/bindings` (dev-only, `apply: 'serve'`) commits the merged table. Its surface is deliberately
+*smaller* than the def endpoint's: the destination path is fixed by the plugin rather than derived from the
+request, so the traversal guard `planWrite` exists for does not apply. No file watcher is needed either —
+`bindings.json` is a static import, so a write invalidates through the normal import graph, unlike the
+`import.meta.glob` staleness that forced the defs-directory watcher.
+
+**Why.** This is phase ① of live FX authoring. ② stages a combat in which a chosen card's effect procs and
+replays it on demand; ③ ties them together behind a "commit animation" button offering card-only or global
+scope. None of that is buildable while the binding tables are constants.
+
+**How it was verified.** Migration was strangler-style: `bindings.json` was introduced as an exact duplicate
+of the literals, guarded by a parity test asserting the two agreed exactly, and readers were repointed one at
+a time while both sources were live. That test was deleted with the literals it compared against. Permanent
+guards took its place: every bound def id resolves to a real file in the registry (14/14); every `kinds` key
+is a real `MomentKind` and every `cards` key a real `CARD_INDEX` id; `bindingsJson()` round-trips through
+`parseTable` to the same resolution; and the `fxDef`-before-`damageFx` cue order the claim depends on is
+pinned with a guard against passing vacuously. A malformed entry is dropped **per entry** with a
+`console.error` naming the exact key, rather than taking the whole table down.
+
+Review caught three defects worth recording. `parseTable` built its tables as plain object literals, so a
+`__proto__` key would have invoked the inherited prototype setter and silently rewritten the table instead of
+being dropped — the opposite of its "loud per entry" contract; the same hole existed on the write endpoint,
+where a `__proto__` key returned 200 for a binding the reader is guaranteed to discard. And `canPlayDefs()`,
+whose comment claimed production paid "two property reads", was actually `listPrimitives().length > 0` —
+a spread plus a sort, allocated on every call, as the first term; this work widened that call site from 14
+kinds to all 25, so it gained a `hasPrimitives()` (`REGISTRY.size > 0`) and the comment became true.
+
+**Follow-ups.** No authoring UI yet — clicking a card to rebind it is ③'s job, once ② can stage a combat to
+see the change in. Separately: `apps/web/fxDefsPlugin.ts` and `apps/web/vite.config.ts` are in **no**
+TypeScript program at all (the root `tsconfig.json` includes only `packages/*/src/**/*.ts`; `apps/web/tsconfig.json`
+includes only `src` plus `packages/ui/src`), so neither is typechecked by anything, and `npm run typecheck:web`
+— the only script that covers `packages/ui` — is red on `main` and absent from CI. Closing either is CI
+infrastructure work with its own risk surface, deliberately kept out of this feature branch. Also still open:
+`fxScale` is not threaded into the primitives, `playDef` takes no per-call params, and ~30 legacy `pixiFx`
+effects remain unported to defs.
+
+## 2026-07-27 (FX library browser — the def list becomes a browsable catalog)
+
+### feat(fx/ui): three lenses over one derived catalog, and a guard that every binding resolves
+
+Brainstormed and specced with the owner ([design](superpowers/specs/2026-07-27-fx-library-browser-design.md),
+[plan](superpowers/plans/2026-07-27-fx-library-browser.md)), then executed as nine TDD tasks with a spec
+review and a code-quality review between each.
+
+The workbench's def library was a flat list of ids answering one question — "what is this called" — while
+three were being asked of it: *find one to build from*, *see what is wired where*, and *find a card's
+effects*. Nothing served the last two at all.
+
+**One catalog, three lenses.** New `fx/ui/catalog.ts` (pure) turns the def registry plus the choreo binding
+tables into a single `FxCatalogEntry[]`, and `fx/ui/catalogView.ts` (pure) does all filtering and grouping
+over it. The overlay is a thin renderer. That structure is the point: "which def fires on Bloodbinder" is
+computed **once**, so the lenses cannot disagree — which is exactly how the Bloodbinder debugging went wrong
+the day before, with the same fact derived in two places.
+
+Facets are **derived, not authored**: shape from the primitives (reusing `copy.ts`'s human names), colour
+from the palette, motion from the `travel` anchor, bindings from `getScore()` and `CARD_FX`. So none of the
+20 existing defs needed back-filling. `label` and `tags` were added to the def format as *optional* extras,
+omitted-when-unset on the same terms as `seed`, so every committed def still round-trips byte-identically.
+
+**The colour derivation has a trap worth recording:** it reads the palette's SECOND stop. Stop 4 is
+`#ffffff` in nearly every shipped palette and stop 1 is a near-black rim — bucketing either would file most
+defs as the same colour. `hueBucketOf` returns `neutral` rather than inventing a hue for anything grey,
+black, white or non-finite, since it is fed raw numbers out of untrusted def JSON.
+
+**The guard that earns its keep:** a binding naming a def that does not exist is a **silent no-op** at
+runtime — `playDef` returns null and nothing plays, indistinguishable from a binding that was never wired.
+That ambiguity cost hours on Bloodbinder. There is now a test asserting every binding in `getScore()` and
+`CARD_FX` resolves to a real def, and the By-event lens renders an unresolvable one in red. It passes today
+(no missing bindings) — its value is the next time someone renames a def file.
+
+**Known limitation, deliberate:** the By-card lens lists every card in `CARD_INDEX` grouped by tribe (so a
+bare tribe is visible, which is the point), but `defId` is only ever an *explicit* per-card override. Working
+out which moment kinds an arbitrary card can produce is a static analysis that cannot be exact — many moments
+only exist at runtime. A `null` there means "uses whatever its moments give it", not "shows nothing".
+
+**Two review catches worth naming, because both were defects in the PLAN rather than the implementation:**
+
+- **Hover-preview destroyed the author's work.** The plan told the implementer to wire the overlay's
+  `onPreview` to the workbench's `loadDef` — and `loadDef` replaces layers, selection, duration, seed and its
+  lock, the name field, and pushes an undo entry. Moving the pointer across the list would silently replace
+  an in-progress composition, once per row. Recoverable only by pressing Ctrl+Z once per hover, with no
+  indication of how many. Now preview calls `playDef(id, anchors)` — a transient play that mounts its own
+  container and self-retires — using the anchors the per-frame updater already computes, mirrored into a ref.
+  Verified in a real browser: after a hover, the def-name field, the layer list and the seed are
+  byte-identical, and the overlay's container count goes 2 → 3 → 2 as the preview plays and cleans up.
+- **The debounce timer leaked on unmount** and lived in `useState`, re-rendering the whole list on every
+  hover and leave for a value never read during render. Now a ref with an unmount cleanup.
+
+Two smaller review catches were closed the same way: the `label`/`tags` trim-but-keep path had no test (only
+trim-to-omission did), and nothing asserted that filtering and grouping sort COPIES — a regression to an
+in-place `sort()` would reorder the caller's own array as a side effect of rendering, which React would then
+see as unchanged state.
+
+Verified: typecheck clean, lint 0 errors (1 pre-existing `SceneBuilder` warning), **2472 tests across 125
+files** green, `build:web` green. Browser-verified on the worktree's own dev server: all three lenses render
+(20 defs; 26 moment kinds of which 12 show "nothing bound" and 0 show "missing"; 259 cards in 7 tribe
+groups), a colour swatch filters 20 → 4 and unfilters, hover previews without touching the editor, and
+clicking loads and closes.
+
+Not visually verified: the CSS layout itself (the browser pane could not produce screenshots this session) —
+worth an eyeball.
+
+## 2026-07-26 (FX workbench — the editor UI, rebuilt around what the industry actually does)
+
+### fix(fx/ui): resolve the acting card from COMBAT STATE, and strip every stock hit visual from a bound proc
+
+Owner: "ive asked you many times now to strip all of the original bloodbinder proc animations out of the
+game and yet the project still existed. make sure everything except the lance effect is out."
+
+Two changes, and the first is why the strip kept failing.
+
+**The card lookup went through the DOM.** `cardIdForUid` queried `[data-uid]` and read a `data-card`
+attribute added for this feature — so the binding depended on the unit being rendered, matched by that exact
+selector, and carrying that attribute. Meanwhile `ctx.cardIds` — the replay's own uid→card `Map` — was
+ALREADY being threaded into `runMomentCues`, for the sfx channel's death voicelines. Combat state knew the
+answer the whole time. The lookup now reads it, and the DOM function is deleted rather than left as a second
+way to ask the same question.
+
+That mattered beyond tidiness: the suppression only claims units when the binding MATCHES, so a failed
+lookup meant no lance AND no suppression. One broken link produced both reported symptoms, which is why
+"strip the old animations" appeared not to take.
+
+**The claim now covers every stock hit visual on the beat, not just the burst.** `executeFx` (the strike
+overlay) honours it alongside `damageFx` (the red/orange shard spray + impact ring).
+
+**Deliberately NOT stripped:** damage-number floats and the hit SFX. Those are information and audio rather
+than the "proc animation", and silently swallowing a damage number would hide game state. Say the word if
+they should go too — it is a one-line filter each.
+
+Verified: typecheck clean, lint 0 errors, 2428 tests across 123 files green, `build:web` green. The score
+tests now opt into a per-card binding by passing a `cardIds` map through ctx rather than mocking a DOM
+lookup, which is a truer shape for what the runner actually reads.
+
+### chore(fx): point the bindings at the owner's own defs (`ruby-lance`, `self-buff-gold`)
+
+Owner: "use ruby-lance for bloodbinder and self-buff-gold for the self buff." Both were authored in the
+workbench and committed in the previous entry; the score was still pointing at my first passes.
+`CARD_FX.bloodbinder` → `ruby-lance`, both self-buff cues (`buffWave` and `attackExchange`) →
+`self-buff-gold`. `ember-lance` and `self-buff-bloom` stay on disk as the earlier drafts.
+
+**Ruled out statically while chasing the "orange projectile":** `blastBolt` is the only travelling projectile
+in `pixiFx`, and it fires exactly once, at the end-of-combat defeat blast — not per hit. `spell-cast` (the
+kind-level default that a failed per-card match falls back to) is violet, source-anchored, and doesn't
+travel. So the orange thing is `damageBurst`, whose own docblock calls it "a spray of red/orange shards".
+
+Which collapses both symptoms into ONE cause: the suppression only claims units when the per-card binding
+MATCHES. No match ⇒ no lance AND no suppression. "I see the orange one and not mine" is not two bugs, it is
+the single question of whether `cardFxFor(cardIdForUid(source), 'scCast')` returns a binding at a live proc —
+which is exactly what the DEV instrumentation now answers.
+
+Verified: typecheck clean, lint 0 errors, 2428 tests across 123 files green, `build:web` green.
+
+### feat(fx/ui): `self-buff-bloom` — an authored effect on any unit that buffs ITSELF
+
+Owner: "when a unit buffs itself (for example, training dummy when it grows its attack) play this effect",
+with a tuned single-layer burst (ring emit, negative gravity, heavy turbulence, a size curve that overshoots
+to 1.83× before settling — it blooms upward and outward rather than spraying).
+
+Unlike the Bloodbinder binding this is a GENERAL rule, not a per-card one, so it belongs on the cue rather
+than in `CARD_FX`. The `fxDef` cue gained `fanOut: 'selfBuffed'`: instead of playing once at the moment's
+source/target pair, it plays once per unit that buffed itself, with BOTH anchors on that unit (a self-buff
+has no pair to travel between). The set comes from the existing `groupSelfBuffs`, which already isolates
+exactly `e.source === e.target` — the same set the stock self-buff pulse uses, so the two can never disagree
+about what counts as a self-buff. Playing once at `moment.primary` instead would have put one effect on
+whichever unit came first in a wave and none on the others.
+
+**Bound to `attackExchange` as well as `buffWave`, and that is the whole difference between this working and
+not for the example given.** A self-buff absorbed into a wind-up (`absorbIntoWindup` in `compile.ts`) never
+produces a `buffWave` moment — a Target Dummy growing *as it is hit* is precisely that case, so binding to
+`buffWave` alone would have missed the card the request names. It fans out to nothing on the overwhelming
+majority of exchanges, which carry no self-buff at all.
+
+Two long-standing guard tests failed on the new binding and were extended rather than relaxed: the table
+asserting "exactly these kind → def pairs and nothing else carries an fxDef cue" now carries a separate
+`FANOUT_BINDINGS` map (their cue has the extra key), and `attackExchange`/`buffWave` left the
+"previously-effected kinds stay free of authored defs" list with a note saying why — so that list keeps
+catching a def bound somewhere nobody intended.
+
+Verified: typecheck clean, lint 0 errors, 2428 tests across 123 files green (4 new), `build:web` green.
+
+### chore(fx/ui): make the per-card binding path report itself in DEV
+
+Owner: "im still seeing the old orange orb effect." Four attempts in, every miss in this path has failed the
+same way — SILENTLY. The authored effect doesn't appear, the stock burst does, and that is
+indistinguishable from "the binding was never wired", so each round has cost a full guess-and-check cycle.
+
+DEV-only instrumentation in the fan-out branch: an `info` line naming the card, the def and the target count
+when a binding matches, and a `warn` when a binding matches but finds NO damaged units — that specific case
+is the bug that already happened once (searching the wrong moment), and it is the one that produces exactly
+the reported symptom. Now the failure says which of the three links broke: card not resolved (no line at
+all), targets not found (warning), or effect played and something downstream ate it (info line, no visuals).
+
+Confirmed while checking: `onDamageFx` calls `pixiFx.damageBurst` + `impactPulse`, so the orbs ARE the
+channel the suppression targets — the aim was right even though something upstream isn't firing.
+
+Also worth stating plainly, since it is half the report: the fan-out already plays one pass PER damaged unit,
+so two marked enemies give two lances from Bloodbinder. That is asserted by test; it just cannot be seen
+while the binding isn't matching at all.
+
+Verified: typecheck clean, 2424 tests green, `build:web` green.
+
+### feat(fx/ui): an authored per-card effect now REPLACES the stock hit-burst
+
+Owner: "kill the orange balls." Reversing the limitation recorded one entry below, which I had written off as
+needing an engine change.
+
+It doesn't. The obstacle was that the authored effect is scheduled from the CAST moment (which knows the
+acting card) while the stock burst is scheduled from the separate `damage` moment (whose `dmg` events carry
+no `source`, so it cannot look up a binding itself). But both can see the **resolution step**. So the cast
+side CLAIMS the units its effect will cover, and the damage side skips any unit already claimed for that
+step.
+
+Two details that make it safe:
+
+- **The claim is made synchronously, at schedule time, before `at()` defers the play.** Moments are
+  scheduled in log order and the damage moment follows its own cast, so the claim is standing when the
+  burst is scheduled. Claiming inside the deferred callback would race and lose every time.
+- **It is a single slot, expired on any step change** (`expireDamageFxClaim`, called once per moment). A
+  claim that lived until some later cast overwrote it would be a real bug: step numbers restart with each
+  fight, so a leftover claim could silence one burst in the NEXT combat, on whichever unit happened to reuse
+  that uid and step. My own test caught exactly this by leaking a claim between cases — which is how the
+  expiry got written.
+
+Verified: typecheck clean, lint 0 errors, 2424 tests across 123 files green (7 new), `build:web` green,
+including an end-to-end pair asserting the burst is suppressed for a bound card and untouched for every
+other.
+
+### fix(fx/ui): the per-card fan-out searched the wrong moment, so the lance never played
+
+Owner: "then why do i see the old projectiles? the little orange balls? i want to see the new effect we
+made." The little orange balls are the stock `damageFx` hit-burst — they were all that played, because the
+authored effect was firing zero times.
+
+`fanOut: 'damaged'` scanned the cast moment's own `[start, end)`. But `dmg` is a RESULT type, so damage
+collapses into its OWN `damage` moment, separate from the `scCast` moment the cast lands in. The cast
+moment therefore contains no damage events at all, the fan-out found nobody, and it played nothing —
+silently, which is the worst part: the guard I added ("plays nothing when a fan-out moment damaged no one")
+was even testing that this happened.
+
+Nor could the binding simply move to the `damage` kind: a `dmg` event carries no `source`. So the cast knows
+who acted and the damage knows who was hit, and neither knows both. What joins them is the **resolution
+step** — `procBleed` calls `nextStep()` once and emits the `sc` and every damage under that one tag. The
+fan-out now walks forward from the cast while the step tag holds, which costs the length of one step rather
+than the log, and falls back to the moment bounds for untagged events (legacy replays, fixtures).
+
+Started to add `suppressDamageFx` so an authored effect would replace the stock burst rather than play on
+top of it, then removed it: the `damage` moment has no `source`, so at the point that burst is scheduled
+there is no card id to check a binding against. Shipping the field would have been unusable API pretending
+to be a feature. Recorded as a known limitation next to the binding table instead — an authored effect
+currently plays IN ADDITION to the orange hit-burst.
+
+Verified: typecheck clean, lint 0 errors, 2417 tests across 123 files green, `build:web` green. Still not
+seen in a live proc — that needs Bloodbinder on board and four attacks.
+
+### feat(fx/ui): per-CARD FX bindings — Bloodbinder's bleed fires the owner's `ember-lance`
+
+Owner pasted a tuned def back and asked: "can i have this effect trigger when bloodbinder's effect procs?"
+
+**The tuning is saved** over `ember-lance.json` (layer names restored — the workbench's Copy Def drops them).
+It is materially different from my first pass: ribbon `length` 655 and `width` 29 (a long thin lance rather
+than my short fat one), `normal` blending on the trail with `add` everywhere else, three shockwave rings at
+`erode` 0.95, and a 1310ms sparkle life. Which is exactly the point of the loop — the first pass was a
+starting position and every number moved.
+
+**The binding needed a capability that didn't exist.** Bloodbinder's proc emits `sc` "Bloodbinder bleeds",
+which compiles to the `scCast` moment kind — shared with EVERY spell cast in the game. The `fxDef` channel
+binds a def to a KIND, so binding there would have put this effect on every cast. New `choreo/cardFx.ts`
+adds the narrower key, card id → kind → def, mirroring how per-card SFX already work so "this card has its
+own look" sits beside "this card has its own sound".
+
+**And a second problem underneath it:** the bleed's `sc` event carries a source and NO target — the damage
+lands in separate events, one per marked enemy. A travelling effect bound to it would have had nowhere to
+travel and collapsed onto the caster. So a binding may declare `fanOut: 'damaged'`, which plays one pass per
+distinct unit damaged inside the moment, all from the same source. Distinct because a moment can carry two
+hits on one unit, and the same lance twice at one card reads as a stutter rather than as two hits.
+
+The uid→card lookup (`cardIdForUid`) reads `data-card`, added to `Unit.tsx` beside the existing `data-uid`
+— the same DOM `anchorsForUnits` already resolves through, so there is one source of truth about which units
+are on screen rather than two.
+
+Guard worth noting: a test asserts every card binding names a kind that actually carries an `fxDef` cue,
+since the runner only consults this table from inside that branch — a binding on any other kind would be
+silently dead. The 22 pre-existing `score.test.ts` failures were the mock, not the code: it stubbed
+`combatAnchors` with only `anchorsForUnits`, so the new import was undefined. `cardIdForUid` now mocks to
+null there, which means every existing case still exercises the kind-level default exactly as before.
+
+Verified: typecheck clean, lint 0 errors, 2415 tests across 123 files green (11 new), `build:web` green. Not
+seen in a live combat — it needs a run with Bloodbinder on board.
+
+### fix(fx): the shockwave's glow no longer gets sliced square by its own quad
+
+Owner, with a screenshot: "any idea of how we can remove the hard white line when an effect glow comes up
+against the bounding box?"
+
+The shockwave's mesh was exactly `±radius`. Its band is centred on `d == 1` — which IS the quad's edge — with
+up to `thickness` 0.3 of half-width beyond that, plus a soft antialiased edge and the glow halo. All of it
+outside the mesh, so a fully expanded ring had its outer half cut off dead straight by the mesh boundary.
+That straight cut is the hard line.
+
+The quad is now 1.45× the radius, with a `uQuadScale` uniform putting `d == 1` back at the true radius — so
+every already-tuned def renders identically and the falloff simply has room to finish. Cost is ~2.1× the
+fragment area on a primitive that draws a couple of rings for a few hundred ms; the alternative (fading the
+ring out before it reaches full radius) would have changed the look of every def that uses one.
+
+**Checked the other three primitives for the same class of bug and they are clean**, for a reason worth
+recording: the ribbon's halo and the particle material's both derive from a `wfall` term that reaches exactly
+0 at their own mesh edge (`across == 1`), so their glow is already fully contained. The shockwave was unique
+in placing its brightest feature ON the boundary rather than inside it.
+
+A test ties `QUAD_SCALE` to the `thickness` spec's own max, so raising that ceiling later fails loudly
+instead of quietly reintroducing the clipping — and caps it at 1.6, since fragment cost scales with the
+square and "just make it bigger" is the obvious wrong fix.
+
+(Also: my GLSL comment contained backticks, inside a JS template literal. It terminated the shader string and
+broke the build until esbuild pointed at it. Second time backticks have bitten me this session.)
+
+Verified: typecheck clean, lint 0 errors, 2404 tests across 122 files green (3 new), `build:web` green.
+
+### fix(fx/ui): the preview clock wrapped, so a travelling head re-flew its arc forever
+
+Owner: "its actually not the loop. its still the play once effect. i think it may be logic clashing between
+the timeline editor and ribbon effects and how we have the various preview displays working." Exactly right,
+and a better diagnosis than my last two attempts.
+
+The workbench fed each layer `player.timeMs() % durationMs`. A fire deliberately runs PAST `duration` — that
+is the whole point of the lifecycle, an unbounded layer plays to true completion rather than to the
+composition's nominal length. So the instant the clock crossed the duration, the modulo wrapped it to 0,
+`layerTravelProgress` read 0, and the travelling head **teleported back to the source and flew the entire arc
+again**. Every `duration` ms, indefinitely.
+
+And it compounded: the restarted motion reset the ribbon's settle timer, so the pass could never report
+complete, so it ran to the 10-second `FIRE_TIMEOUT_MS` cap re-flying the effect throughout. That is why this
+kept presenting as a LOOP problem across three turns — the symptom was periodic repetition, but the cause was
+a clock, and every fix I aimed at the loop machinery missed it.
+
+The modulo was a leftover from the old wrap-at-duration playback, which no longer runs in the workbench at
+all: a looping fire resets the clock to 0 itself at the start of each pass, so nothing needed wrapping. New
+pure `previewClock` runs the time forward and CLAMPS progress at 1 — arrived, and staying arrived — with the
+whole story in its docblock and four tests, one of which is specifically "does not wrap past the duration".
+
+Verified: typecheck clean, lint 0 errors, 2401 tests across 122 files green (4 new), `build:web` green.
+
+### feat(fx): `ember-lance` — burst, lance, glints, velocity-carried sparks, impact ring
+
+Owner brief: "bursts from the starting unit and travels as a ribbon with emitter effects along its path,
+then detonates into a large amount of sparks that are affected by the velocity of the ribbon. there should
+be a shockwave upon impact with the target. this effect needs to be red with glints of white and sparkle."
+
+Six layers, and the first def to use four different primitives at once:
+
+1. **launch** — `burst` on `source`, a short shard spray at t=0.
+2. **lance** — `ribbon` on `travel`, `travelMs: 430`, `drain: 1300` so the tail retracts into the impact.
+3. **path glints** — `emitter` on `travel`, riding the same head as the ribbon, `coreBias 0.85` to sit at
+   the white end of the palette (the "glints"), with `inheritVel 0.2` so they drift along the flight line
+   rather than puffing outward from it.
+4. **detonation sparks** — `burst`, `count: 90`, `inheritVel: 0.6`, `orientToVelocity`, gravity 320.
+5. **white sparkle** — `burst` on `target`, `star` shape, palette collapsed to near-white, erode 0.
+6. **impact ring** — `shockwave` on `target` at 425, two rings with a 0.16 delay.
+
+**The one authoring decision worth recording:** the detonation sparks are anchored to `travel`, NOT to
+`target`, even though they go off at the target. `inheritVel` adds a fraction of *the anchor's own movement*
+to each particle — and `target` never moves, so anchoring there would have yielded exactly zero inherited
+velocity and quietly ignored the "affected by the velocity of the ribbon" half of the brief. They also fire
+at 390 rather than 430: spawning at the arrival instant means spawning after the head has stopped, so there
+would be no velocity left to inherit. 40ms early is the price of the spark cone actually leaning into the
+direction of travel.
+
+Palette is a red ramp (`#6b0a10 → #d41f1f → #ff8a5c → #ffffff`) shared by five layers; the sparkle layer
+overrides it with a near-white ramp so it reads as glints against the red rather than more of the same.
+
+Verified: typecheck clean, lint 0 errors, 2397 tests across 122 files green, `build:web` green, and the def
+appeared in the running dev server without a restart (the glob watcher earning its keep). Not visually
+verified — this one is a lot of simultaneous motion and almost certainly needs tuning.
+
+### fix(fx): a one-shot ribbon could NEVER report complete, so a Fire never ended
+
+Owner, after two adjacent fixes that missed: "when i fire once, i want the ribbon to travel to its target
+point and stop, for all other effects to trigger once and stop. and thats it. no loop, no play, nothing."
+
+The actual bug, and it had nothing to do with Loop. `ribbonOneShotComplete` was defined as **"the head has
+not been FED for 250ms"** — but the workbench and `playDef` both call `setHead` EVERY FRAME for as long as
+the layer lives. The counter was reset every frame, so it never climbed, so a one-shot ribbon never reported
+complete, so `allFiringLayersDone()` never returned true and the pass ran to the 10-second `FIRE_TIMEOUT_MS`
+cap with the trail alive the whole time. The original comment even reasoned itself into the rule ("a robust
+signal that the fire ended") against the only two callers that exist.
+
+Completion is now **"the head has not MOVED for 250ms"** — the real "it has arrived" signal, and the same one
+`drain` already keys off, so the two agree by construction. `msSinceHead` resets on movement rather than on
+being called. Plus one clause: a trail that is still draining is never complete, or the player would tear it
+down halfway through the retraction the drain exists to show.
+
+Also hardened `resume()`. After a finished fire it fell through to `playing = true` on a stale clock, which
+is ordinary wrap-at-duration playback — so pressing play after a fire had ended started an endless loop
+instead of one fresh pass. It now continues only a pass genuinely in flight, and otherwise starts a new one.
+
+Two tests pin the end state directly: a finished fire stays finished across further ticks with everything
+torn down, and resume after one plays exactly one more pass. Those are behavioural contracts of the kind
+that would have caught this and the last two regressions — the gates check types and logic, not "the button
+does what its label says".
+
+Verified: typecheck clean, lint 0 errors, 2397 tests across 122 files green (5 new), `build:web` green.
+
+### fix(fx): Fire once plays ONCE again — a looping fire is now a separate call
+
+Owner: "when i press fire once, the ribbon keeps auto playing." My regression, from the previous entry.
+
+Making a looping fire repeat its pass left `fireOnce` and the loop's engine INDISTINGUISHABLE: both set the
+same `firing` flag, and the completion branch checked only `loopEnabled`. So pressing a button labelled
+"Fire once" on a looping player replayed forever. The long-standing contract — printed on the control's own
+tooltip — is that Fire is a single pass whatever the Loop toggle says.
+
+Split them: `fireOnce()` and a new `fireLoop()`, distinguished by an internal `firingRepeats` flag that the
+completion branch now requires alongside `loopEnabled`. Cleared on stop and on the safety-cap bail, so a
+repeat can't survive either. The workbench drives `fireLoop` from the Loop toggle and from a rebuild while
+Loop is on; the Fire button drives `fireOnce`.
+
+Fire also turns Loop OFF now. Pressing "once" IS the statement "I want one", and of the two possible
+inconsistencies — a lit Loop toggle beside a stopped player, or Loop quietly switching itself off — the
+second is the honest one.
+
+Four regression tests, including that `setLoop(false)` mid-pass stops the repetition immediately rather than
+after one more full cycle.
+
+Verified: typecheck clean, lint 0 errors, 2392 tests across 122 files green (4 new), `build:web` green.
+
+### style(fx/ui): wider rail (288 → 448px) and wider dials
+
+Owner: "can you make the right side bar larger? and can you make the dials and whatnot a bit wider?"
+
+The rail's width was hardcoded TWICE — on `.fxwb-side` and again as the transport bar's `right` offset —
+which have to agree exactly or the transport slides under the rail or leaves a gap. Replaced both with one
+`--fxwb-rail` custom property on `.fxwb`, so widening it is a single number (it went 384 → 448 on a
+second pass, which was exactly that: one number), and it drops to 300px under
+1100px so a small screen isn't eaten alive.
+
+At 288px a param row had roughly 150px of slider left after its label and value columns, so every dial was
+a stub. The row grid went 92px/1fr/auto → 118px/minmax(0,1fr)/52px. The value column is now FIXED rather
+than `auto`, which fixes something separate and slightly maddening: with `auto` every slider ended at a
+different x depending on how many digits its number happened to have, so the column of dials was ragged.
+Track 5→7px and thumb 13→16px, now that there's room to grab.
+
+The per-layer button cluster (mute/solo/rename/duplicate/up/down/delete) had been squeezed to 18px to fit
+seven controls in 288px; back to 21px.
+
+Verified: typecheck clean, lint 0 errors, 2388 tests green, `build:web` green. CSS only. Not visually
+checked — the preview pane's degenerate viewport would trigger the ≤1100px branch and prove nothing about
+the layout at a real width.
+
+### feat(fx): playback plays every layer OUT — the duration stops deciding what you see
+
+Owner: "i feel like the timeline is messing so many things UP!!!! i want to press play and have the effects
+play out with no overall timeline impacting what displays and what doesnt." Asked two questions; the answers
+were **per-layer `life` is fiddly** and **a Fire should end when everything has finished**. I had built the
+wrong model, and this replaces it.
+
+The old model made `duration` a hard wall: layers were torn down when the clock reached it, so an effect was
+only ever as long as a number set elsewhere. Worse, the way to avoid being cut off was to hand-set a `life`
+on every layer — exactly the fiddliness called out.
+
+`fireOnce` already had the right lifecycle (a layer with no explicit `life` outlives `def.duration` and is
+torn down only when its own `isComplete()` says so). What it lacked was repetition, and the workbench wasn't
+using it for playback. So:
+
+- **A looping fire now repeats the PASS** rather than stopping. The distinction that matters: it restarts
+  when everything has genuinely finished, not when the clock hits `duration` — so nothing is ever cut off
+  mid-play. The between-cycle gap moved inside the firing branch, since the ordinary `inGap` handler is
+  unreachable while a fire is in flight.
+- **The workbench always fires**, loop or not. Ordinary `play()` still exists and is what `playDef` uses in
+  the game, where the def's duration IS the contract — this changes the AUTHORING lifecycle only.
+- **New `FxPlayer.resume()`**, because `play()` deliberately tears down a fire in flight; using it to
+  un-pause would silently restart the effect from zero every time the play button was pressed.
+- `blue-trail-detonate` dropped its explicit `life` values entirely. Both layers now simply play out.
+
+**Three existing tests asserted the behaviour this changes** ("fireOnce … does not wrap even on a looping
+player"). Rewritten against the new contract rather than deleted or coerced, with the change flagged in the
+test body so it reads as a decision — and the ones that only needed a non-looping player to still make sense
+were pinned to `{ loop: false }` rather than reworded.
+
+Verified: typecheck clean, lint 0 errors, 2388 tests across 122 files green (5 new), `build:web` green.
+
+### fix(fx): `blue-trail-detonate`'s drain could not finish inside its own dwell
+
+Owner, with a screenshot: "once it gets to the end point it just freezes in place. how do i make it drain."
+It was draining — it just could not visibly finish, which is indistinguishable from not draining.
+
+The arithmetic: the layer arrives at 430ms and lives to 800ms, a 370ms dwell. At `drain: 700` px/sec a
+340px trail needs **486ms** to empty, so it could only ever retract about three-quarters before the def
+ended. Worse, the drain eats the TAIL first, which is the thin, faint, already-tapered end — so the portion
+removed in that window is the least visible part of the trail, and the head-end body (all the bright
+banding) sat there untouched, reading as frozen. Raised to 1200 px/sec: empties in 283ms with 87ms to
+spare.
+
+The general lesson for authoring, worth keeping: a drain rate has to be checked against the dwell it has to
+finish in (`length / drain <= life - travelMs`), or it silently reads as a freeze. Nothing enforces that —
+`defs.test.ts` checks that params exist and are in range, not that a def's timings are mutually coherent.
+A cross-param check ("this drain cannot finish in this dwell") is a candidate for that suite.
+
+Verified: typecheck clean, 2383 tests green, `build:web` green. Numbers only — no code changed.
+
+### feat(fx): a One-way stage — cross once, arrive, end (and it is now the default)
+
+Owner: "i need an option that doesnt auto bounce back and forth. i want to fire the animation and let it
+play out once where it reaches its target and plays everything through and ends. somethings off."
+
+Right diagnosis. Bounce was fighting every feature of the last few turns, and the reason is structural: a
+scenario with a `headAt` OVERRIDES `travel` outright and drives the head forever. So on Bounce the head
+never stops — which means `travelMs` never "arrives", the ribbon's `drain` never triggers (it fires on the
+head not advancing), and a burst timed to an arrival has no arrival to be timed to. Every one of those
+features was invisible on the only stage suited to watching a trail move.
+
+New `oneWay` scenario: source left, target right, and deliberately **no `headAt` at all**. That hands
+`travel` back to `resolveAnchor`, which now runs it along each layer's own window — so a layer with a
+`travelMs` genuinely reaches the target and STAYS there, the drain runs during the dwell, and the burst
+reads as a consequence. It is the shape a real attack takes and the only stage that previews what a def
+will actually do in the game, so it is now first in `SCENARIOS` and therefore the default. Its hint says to
+pair it with Loop off and Fire, which is the "play once and end" loop asked for. Its test asserts
+`headAt === undefined`, since that absence is the whole mechanism and would otherwise look like an omission
+someone should "fix".
+
+This is the third time the deleted `twoUnits` scenario's job has turned out to matter — worth noting that
+trimming it in the scenario cleanup removed the only non-driven stage, and nothing caught that because
+nothing tested what a stage was FOR.
+
+Verified: typecheck clean, lint 0 errors, 2383 tests across 122 files green (8 new), `build:web` green.
+
+### feat(fx): per-layer `travelMs` — arrive, drain, then detonate
+
+Owner: "add travelMs so it can arrive, drain, then detonate." Resolves the tension the previous entry named:
+`life` was setting both how long a layer EXISTS and how long its travel TAKES, so a layer could never arrive
+somewhere and then linger there — which left the ribbon's `drain` inert in the very def it was built for.
+
+New optional `FxLayer.travelMs`. When set it becomes the travel window in `layerTravelProgress`, in
+preference to `life`; absent, the window is still the life, so every existing def is untouched. A
+non-positive value falls back rather than being honoured: a zero-length arc would park the head on the
+target from frame one, which is worse than the default in every case.
+
+Threaded end to end, each hop keeping "absent" as a true omission rather than a stored null — the property
+that keeps an untouched layer serialising byte-for-byte as it always did: `def.ts` (the format), `defStore`'s
+`coerceLayer` (def files), `sessionState`'s `toEditorLayer` + `toStoredLayers` (localStorage and the def
+save path), `layerModel`'s `EditorLayer`/`toDef`, and a new `setLayerTravel` whose clear-path `delete`s the
+key.
+
+In the editor it is the one CONDITIONAL timing control — rendered only for a `travel`-anchored layer, since
+a target-pinned burst has no arc to cross and the dial would do nothing. Default is a ticked "Arrives at the
+end"; unticking seeds 60% of the layer's life so the slider starts somewhere useful. The timeline bar grew a
+gold arrival marker at `travelMs`, because the dwell after the arrival is exactly what you are trying to
+judge against whatever fires next, and it is invisible on a plain bar.
+
+`blue-trail-detonate` now expresses all three beats: the ribbon lives the full 800ms but ARRIVES at 430
+(`travelMs: 430`), leaving ~370ms in which `drain: 700` retracts its tail into the stopped head, while the
+burst fires at 430 on the target. Every piece of the last four turns is finally load-bearing in one def.
+
+Verified: typecheck clean, lint 0 errors, 2375 tests across 122 files green (7 new), `build:web` green. Not
+visually verified — this is the def to actually look at.
+
+### fix(fx): `travel` resolves against the LAYER's window, not the whole composition's
+
+Owner: "yes fix the travel anchor" — the defect recorded in the drain entry below.
+
+`resolveAnchor(anchors, 'travel', progress)` was fed `timeMs / duration` for the whole composition, so a
+layer could never complete its arc before the def did. "Fly to the target, THEN detonate" was therefore
+inexpressible: a burst timed to the arrival always fired while the trail was still mid-flight, which is
+exactly what `blue-trail-detonate` was doing.
+
+New pure `layerTravelProgress(layer, timeMs, durationMs)` resolves against the layer's own window —
+`(timeMs - at) / (life ?? duration - at)`, clamped, with a degenerate window collapsing to 1 rather than
+NaN. **A full-life layer starting at 0 produces exactly `timeMs / durationMs`**, which is the compatibility
+property the change rests on and is pinned by its own test: every existing def is a full-life travel layer,
+so nothing shifts.
+
+`driveLayerHeads` takes an optional `FxLayerClock`; without one it behaves exactly as before, so the
+signature stays backward-compatible for the existing test fakes. Both real callers pass it — `playDef` from
+`player.timeMs()`, the workbench from loop-relative `timeMs % durationMs` (the modulo matters: the workbench
+loops, and an un-wrapped clock would peg every layer's travel at 1 after the first cycle). A scenario's
+custom `head` path stays composition-wide and still overrides `travel` outright — it describes where the
+EFFECT is going, not any one layer.
+
+`blue-trail-detonate` retimed to the semantics that now exist: ribbon `at 0, life 440` (the flight, arc
+completing at 440ms), burst at 430 so the detonation starts as the trail lands.
+
+**Known tension this creates, worth naming before it surprises someone:** `life` is now doing two jobs — how
+long the layer exists AND how long its travel takes. So a layer cannot arrive early and then linger, which
+means the ribbon's `drain` is currently inert in this def (the layer despawns the instant the arc
+completes). Decoupling them wants a separate per-layer `travelMs`, defaulting to the life so nothing
+changes. Not done here.
+
+Verified: typecheck clean, lint 0 errors, 2368 tests across 122 files green (11 new), `build:web` green.
+
+### feat(fx): ribbon `drain` — the tail retracts into a stopped head instead of freezing
+
+Owner: "how can we make it so the ribbon trail doesnt immediately disappear once it reaches the target? i
+want the end of the tail to continue while the front stops."
+
+The ribbon's spine only ever shrank when NEW head input pushed its far end past `length`, so a head that
+stops leaves the trail frozen as a static streak — and when the layer expires it blinks out whole. New
+`drain` param (px/sec, Shape group) eats arc length off the tail end each tick, so the front parks and the
+back keeps arriving until there's nothing left.
+
+The trigger is the part worth recording: it fires when the head **hasn't advanced**, not when `setHead`
+stopped being called. Tracking the call would miss the commonest case by far — a head parked on a target is
+still fed the same point every single frame, which is exactly the "reached the target" case this exists for.
+Hence `RIBBON_STALL_EPSILON_PX` (0.5px) rather than an equality test: a pinned head still jitters sub-pixel,
+and an exact test would leave the trail frozen forever in precisely the situation being fixed.
+
+`drainSpineTail` drops whole segments until less than one remains, then slides the final point along its own
+segment — without that the tail would jump point-to-point instead of retracting smoothly. A spine falling
+below two points is emptied rather than left as a stranded single point. Default 0, so all 14 committed defs
+keep their existing behaviour byte-for-byte.
+
+**A defect in `blue-trail-detonate` found while wiring this, NOT yet fixed.** The `travel` anchor resolves
+against the DEF's progress, not the layer's: `resolveAnchor(anchors, 'travel', progress)` where progress is
+`timeMs / duration` for the whole composition. So a ribbon layer cannot complete its arc before the def
+does. In that def the burst fires at 400ms of an 800ms duration — i.e. while the trail is still only halfway
+across — and the original `life: 440` was killing the ribbon mid-flight on top of that. The def now runs the
+ribbon full-life with `drain: 700`, which is coherent, but the detonation still does not coincide with the
+arrival. Expressing "arrive, THEN detonate" needs `travel` to resolve against the layer's own progress
+(`(now - at) / life`), which for a full-life layer is identical to today's behaviour — so it is a contained
+change, just not one to bundle into this turn.
+
+Verified: typecheck clean, lint 0 errors, 2357 tests across 122 files green (9 new), `build:web` green. The
+drain itself is not visually verified; the way to see it is the **Pinned to cursor** stage — stop moving the
+mouse and the trail should retract into the pointer.
+
+### feat(fx): `blue-trail-detonate`, and a def file on disk now shows up without a dev-server restart
+
+Owner: "i want this blue trail to detonate into a blue burst once it hits its target."
+
+**The def** is a two-layer composition and the first one to use the timeline for anything: a `ribbon` on the
+`travel` anchor (at 0, life 440 — the flight), then a `burst` on the `target` anchor firing at 400ms, so the
+detonation starts just before the trail lands and the two overlap rather than reading as two separate
+events. Both carry the same hand-authored blue tuple. The burst's own `interval` is pushed to 1200ms —
+longer than the layer's 400ms life — so it emits exactly one wave instead of re-firing inside the layer.
+Left `blue-glow-trail` untouched rather than editing it in place: it's the building block, this is the
+composed effect.
+
+Duration 800 makes the preview agree with the real thing by coincidence worth stating: on the Bounce stage
+the head reaches the far spot at progress 0.5, which is 400ms here — the same instant the burst fires. In
+real combat `travel` runs source→target over the ribbon layer's own life instead, so the two readings only
+line up because the numbers were chosen to.
+
+**The infrastructure bug this exposed.** The def didn't appear in the running dev server, and no reload
+fixed it — confirmed by fetching the transformed `fxDefs.ts` and finding no mention of the new id.
+`import.meta.glob(..., { eager: true })` is expanded at TRANSFORM time, and adding a file to the globbed
+directory doesn't invalidate the module containing the glob. `registerSavedDef` already routed around this
+for defs created THROUGH the app's Save button — but that covers only that one path, and every def Claude
+authors arrives the other way (a file write, a git pull, a branch switch), staying invisible with no symptom
+beyond the library quietly not listing it. This was live for the whole request-loop design without being
+noticed, because the loop had only ever been walked with the dev server restarted anyway.
+
+`fxDefsPlugin` now watches the defs directory and, on `add`/`unlink` of a `.json` directly inside it,
+invalidates `fxDefs.ts` in the module graph and sends a full reload. Scoped to add/unlink deliberately: a
+CHANGE to an existing def already invalidates through the import graph, and art PNGs live in a `defs/art/`
+subdirectory that isn't part of the def glob.
+
+Verified live first — copied a probe def in with the server running and it appeared without a restart, then
+deleted it and it vanished. The existing `fxDefsPlugin.test.ts` fake server stubbed only `middlewares`, so
+`configureServer` threw on the first `watcher.add`; widened the fake (rather than making the plugin
+defensive about a server shape Vite always provides) and added five cases pinning the new wiring, including
+that art PNGs and non-JSON files are ignored.
+
+Verified: typecheck clean, lint 0 errors, 2348 tests across 122 files green (5 new), `build:web` green.
+
+### feat(fx): `blue-glow-trail` — the first def authored through the request loop
+
+Owner: "lets try a test. create a blue glowing ribbon effect in the fx editor." The first exercise of the
+loop `docs/fx-requests.md` describes.
+
+A single `ribbon` layer on the `travel` anchor, 900ms. The colour is the notable part: **none of the six
+shared palettes is blue** (violet, ember, mint, magenta, gold, acid), so this authors a raw palette tuple
+directly — `#0b3fa8 → #2f8bff → #a8dcff → #ffffff`, rim to white-hot core. That is exactly what the editable
+`palette` param kind is for, and it means the def carries its own colours rather than depending on a preset.
+
+Tuned for "glowing" rather than "burning": `glow` 0.7 (well above the 0.3 default) for a wide soft halo,
+`add` blending so it lifts what it crosses, `erode` 0.28 — well under the 0.5 default, since heavy erosion
+reads as fire and a clean energy trail wants its edge mostly intact — and `soft` 2.2 to feather that edge.
+`plateau` 0.36 keeps a fat white core (the value that shipped as the reference look). The width curve bulges
+to 1.15× just behind the head and tapers to 0.5× at the tail, so it reads as a comet rather than a strip.
+
+**The guard bit immediately**, which is the point of it: the first version omitted `version: 1` and
+`defs.test.ts` failed with the file and field named. Worth recording because it's the second time this suite
+has caught a hand-authored def defect (the first was `ward-gained`'s out-of-range radius).
+
+Unverified visually, as every def here is — the numbers are a starting position for the owner to tune in the
+workbench and Save over. Not bound to any moment kind yet; it exists to be opened via **Start from**.
+
+Verified: typecheck clean, lint 0 errors, 2343 tests across 122 files green, `build:web` green.
+
+### docs(fx): a request format for authoring effects through the workbench
+
+Owner: "as a test run i want to author a new effect… can we also create requests for effects that you can
+then take and build within the editor?" Yes — and the split falls out of an asymmetry worth naming.
+
+Claude can write a def's JSON and prove it LOADS (`defs.test.ts` checks every param name and value range
+against the primitives' own specs) but cannot judge whether it LOOKS right: the headless preview runs at a
+degenerate viewport, so all 13 committed defs shipped without a visual check. The owner can judge a look
+instantly and shouldn't be dialling thirty params from defaults. So the loop is: owner briefs → Claude
+builds a first-pass `defs/<id>.json` and commits → owner opens it via **Start from**, tunes, hits **Save**
+(which overwrites that same file) → Claude binds it in `score.ts`. The first pass is a starting position;
+changing every number in it is the expected outcome.
+
+New [`docs/fx-requests.md`](fx-requests.md) carries the brief template, the queue, and the limits worth
+writing around. The template's load-bearing fields are **Reads as** and **Must not** — "a gold ring with
+sparks" describes a picture, while "the player should think *that minion got tougher*, and it must not read
+as damage" determines the colour, the direction of motion and half the params.
+
+Seeded the queue from moment kinds that currently fire no authored def (`summon`, `ascend`, `maxGold` called
+out as showing the most). Also noted while auditing the bindings: `death-dissolve.json` exists but is bound
+to nothing — it wants either wiring to `death` or retiring.
+
+Docs only; no code touched.
+
+### feat(fx/ui): a visual timeline — the composition as a picture, draggable
+
+The second half of the owner's user-friendliness pick. A composition's timing existed only as two range
+inputs on whichever layer happened to be selected, so "the burst fires 200ms into the trail" was something
+you held in your head and verified by watching. Overlap, gaps and ordering are the entire substance of a
+multi-layer effect, and none of it was visible.
+
+The transport bar now opens with a full-width row of one bar per layer across the composition, with a live
+playhead. Drag a bar's body to move it; drag its right edge to set how long it lasts. Dragging the right
+edge of a *full-life* bar is also how it gets a fixed end — the affordance and the conversion are the same
+gesture, while dragging the body deliberately preserves `life: null` rather than quietly pinning it.
+
+All the arithmetic is in `timelineModel.ts`, pure and tested (21 cases): span resolution, track fractions,
+pointer→ms, and the drag resolver. The resolver moves by pointer DELTA rather than to the pointer, so
+grabbing a bar in the middle doesn't teleport its start to the cursor; it snaps to 10ms (the At slider's own
+step, so the two controls can reach the same values); and it clamps both gestures into the composition
+rather than letting a drag push a layer out of it.
+
+Two things worth noting in the wiring. The track rect is measured ONCE at pointerdown and held in a ref —
+per-move `getBoundingClientRect` is the classic drag stutter (`docs/performance.md`), and it would be wrong
+as well as slow, since the rect can't change mid-drag. And `changeLayerTiming` was split: the new
+`retimeLayer(index, …)` takes an explicit index (a drag can grab a bar that isn't selected) and reads
+`layersRef` rather than the render's `layers`, because a pointermove can fire more than once between renders
+and a second move resolved against a stale array would compute its edit from pre-drag timing. Each gesture
+still collapses to one undo entry via the existing `record('timing', …)` coalescing.
+
+The playhead rides the existing 20Hz `timeMs` state that the scrub bar already uses, so it adds no new
+per-frame work.
+
+**Caught by `build:web`, not by typecheck:** the component was `Timeline.tsx` and the pure module
+`timeline.ts` — a case-only collision. TypeScript resolved it happily; Rollup resolved `./Timeline` to
+`timeline.ts` and failed on the missing export. Renamed the model to `timelineModel.ts`, matching the
+`layerModel.ts` convention next to it, with a comment so it doesn't get "tidied" back.
+
+Verified: typecheck clean, lint 0 errors, 2343 tests across 121 files green (21 new), `build:web` green.
+Not browser-checked (the preview pane's ~0px viewport) — the drag behaviour wants a real pointer.
+
+### feat(fx/ui): human names for primitives + anchors, a non-destructive primitive swap, transport shortcuts
+
+Owner: "how can we make this more user friendly." Proposed a ranked list; owner picked the sharp edges (this
+entry) and the visual timeline (separate).
+
+**Names instead of registry ids.** The primitive row rendered `burst` / `emitter` / `ribbon` / `shockwave` /
+`smoke` and the anchor picker rendered `travel` / `source` / `target` / `slot` / `cursor` / `camera`. Those
+are fine registry keys and useless as an interface — nothing said that `emitter` streams while `burst` fires
+once, or what `travel` travels between. New `ui/copy.ts` maps both to a label plus a one-line blurb (Burst /
+Stream / Trail / Ring / Smoke; Travelling / Source / Target / Board slot / Cursor / Screen centre). The
+blurb is the button tooltip, and the selected anchor's blurb renders as always-visible caption text — a
+`<select>` only shows one option at a time, so an option tooltip can't teach you what you're choosing
+*between*, and `travel` vs `slot` is exactly the pair nobody guesses.
+
+The copy lives in the UI layer rather than on `FxPrimitive`: a primitive's contract is its params and its
+`spawn`, not marketing text. That trades a clean engine boundary for drift risk, so `copy.test.ts` walks the
+live registry and `FX_ANCHOR_IDS` and fails on a missing entry, an orphaned entry, a duplicate label, or a
+blurb too short to explain anything.
+
+**The primitive row no longer destroys a tuned layer.** `setLayerPrimitive` hard-reset params to the new
+primitive's defaults, which made that row the most expensive control in the editor: one mis-click on a row
+of adjacent buttons discarded every value on the layer, recoverable only by noticing and reaching for undo.
+It now carries params over via `coerceParams`, whose rules are exactly the ones wanted — start from the new
+defaults, take any key the new specs declare whose incoming value validates, sliders clamped into the new
+range, enums dropped unless the option exists in the new set. So a shared name with an incompatible type
+can't leak across and a narrower range can't smuggle an out-of-range value in. It's also the better
+behaviour on a *deliberate* swap: "same effect, but a ring instead of a burst" keeps your palette and size.
+
+**Transport shortcuts.** Space = play/pause, F = fire, L = loop, hinted in the transport bar and the
+tooltips. Space is `preventDefault`ed unconditionally: it scrolls the page by default, and if a button has
+focus (you just clicked Fire) the browser fires that button's click too — so without it Space would do
+different things depending on where you last clicked.
+
+Verified: typecheck clean, lint 0 errors, 2322 tests across 120 files green (14 new), `build:web` green.
+
+### feat(fx/ui): "Fit to effects" — trim the loop duration to the composition
+
+Owner: "can we make a button at the bottom in the play transport panel that allows us to sync the duration of
+the effects to the duration of the loop?" Asked which direction, since "duration of the effects" could mean
+the layer timeline or the primitives' own particle-life params; the answer was **loop → fit the effects**.
+
+New `fitDurationToLayers` (pure, in `layerModel.ts`) returns the shortest duration that still contains every
+layer: the latest `at + life`, rounded UP to the duration dial's 50ms step so a fit can never trim the last
+layer short, then clamped into the dial's range. Two subtleties it handles rather than ignores:
+
+- **Full-life layers can't set the end.** A `life: null` layer runs to whatever the duration happens to be,
+  so fitting to one is circular. With no finite-life layer anywhere, the helper returns `null` and the button
+  is disabled with a tooltip saying so — not silently inert.
+- **But they still constrain it.** A full-life layer starting at 900ms would never play in a 500ms loop, so
+  the fit is held at or above the latest such start plus one step.
+
+The button sits in the loop group beside the Duration dial, sharing the Loop toggle's chip shape but never
+its lit `.on` state — it's a one-shot action, not a mode. It's disabled (with the reason in the tooltip) when
+there's nothing to fit against or the loop already fits, and its edit is `record('structural')` so it lands
+as its own undo step instead of coalescing with a Duration drag next to it.
+
+Verified: typecheck clean, lint 0 errors, 2308 tests across 120 files green (8 new), `build:web` green.
+
+### fix(fx): three stage scenarios, and an unstaged anchor no longer parks the effect off-screen
+
+Owner: "i dont see any effects occuring for most of the view modes. its working for pin to cursor and that's
+about it. i just need one that bounces back and forth between two spots, one that pins to cursor, one that is
+stationary."
+
+**The invisibility bug.** `resolveAnchor` falls back to `(0, 0)` for an anchor the scenario didn't stage —
+the top-left corner of the page, off-stage, and completely indistinguishable from a broken effect. Only
+`pinnedCursor` and `realBoard` ever staged `cursor`; nothing but `realBoard` staged `slot`. So a layer on
+either anchor drew nothing in every other mode, which is exactly the reported symptom. Every scenario now
+builds its anchors through one `stageAll()` helper that fills in all five (source / target / slot / cursor /
+camera), so an anchor can't be silently present in one mode and missing in another. A new suite-wide test
+walks `FX_ANCHOR_IDS` for every registered scenario and fails if any resolves to the origin, so a
+later-added scenario or anchor id can't reintroduce it.
+
+**The scenario list, cut to what was asked for.** `twoUnits` and `clickPlace` are gone. `bounce` was four
+units in a zigzag row; it's now two spots, out and back, one cycle per loop (so the loop point is continuous
+— progress 1 lands where progress 0 starts). `stationary` is now genuinely still: it previously crept along
+a small sine sweep so the ribbon primitive (a motion trail, which draws nothing from a stationary head)
+would still show something, which traded an honest "stationary" for one primitive's convenience. Its hint
+now says a ribbon needs Bounce or Pinned instead.
+
+`realBoard` is kept as a fourth entry — a judgement call, flagged: it's the only mode that previews at true
+in-game distance and scale, and deleting it would also orphan `boardAnchors.ts`. Its synthetic fallback now
+reuses the Bounce layout, and merges over `stageAll` so a partial board read can't leave an anchor at the
+origin either.
+
+Also removed with `clickPlace`: `FxHeadContext.click` and the Workbench's `pointerdown` listener +
+`clickRef`, which nothing read any more.
+
+One bug of my own, caught by the new tests: I bowed the return leg with a negated bow to make it arc the
+other way. `pointOnTravel` measures the bow perpendicular to the direction of travel, so reversing the leg
+already flips the side — negating it retraced the identical arc backwards, and the head appeared to reverse
+through its own trail. Same sign both ways gives the flattened loop that was intended.
+
+Verified: typecheck clean, lint 0 errors, 2300 tests across 120 files green, `build:web` green. Not
+browser-checked: the preview pane runs at a ~0px viewport, and every scenario derives its layout from
+`window.innerWidth/Height`, so it would collapse the whole stage to a point and prove nothing.
+
+### feat(fx/ui): Loop is ON by default, and the loop flag survives a rebuild
+
+Owner: "make auto loop on by default." The workbench previously opened with Loop OFF and *reset it to OFF on
+every rebuild* — a deliberate earlier rule ("no auto-loop on open"), which in practice meant you clicked Loop,
+then changed a primitive or a duration, and playback silently stopped. Tuning an effect is watching it play
+repeatedly while dragging sliders, so the default was backwards.
+
+- `loopOn` now initialises to `true`, and `build()` constructs the player with `{ loop: loopOnRef.current }`
+  instead of a hardcoded `false`.
+- The initial playback call is now mode-aware: `play()` when looping, `fireOnce()` otherwise. This matters
+  because `fireOnce()` is a discrete one-shot *regardless* of the loop flag (see `FxPlayer.fireOnce`) — leaving
+  it in place would have made "loop on" render exactly one pass and stop.
+- Added `loopOnRef`, mirroring the flag the same way `speedRef` / `loopGapRef` / `seedRef` already do, so a
+  primitive swap, scenario switch, duration change, or def load reconstructs the player in the mode the author
+  left it in. The old `setLoopOn(false)` inside `build()` is gone. Turning Loop off still stops and resets, and
+  Fire is still a single one-shot pass either way — neither of those changed.
+
+Verified: typecheck clean, lint 0 errors (one pre-existing `SceneBuilder` unused-import warning), 2304 tests
+across 120 files green, `build:web` green.
+
+### feat(fx/ui): Essentials tier, collapsible groups, disabled-with-reason, and a "Start from" gallery
+
+Owner: "consider best practices in the industry and fix the UI of the editor." An audit had measured the
+problem: **43 controls in a 288px rail on open**, every group permanently expanded, no search, no tier, and
+~30 params silently inert with nothing marking them. The research found the convention every comparable tool
+follows — Unity Shuriken carries ~150-200 fields but they are COLLAPSED AND DISABLED by default; Unity VFX
+Graph opens a template picker BEFORE a graph; After Effects / Niagara / Cavalry all expose a curated handful
+on top of the full surface. The tools with the most parameters show the fewest at once.
+
+- **`essential` + `enabledWhen` on the param spec** (both optional, added via an intersection so all 149
+  existing literals stayed byte-identical). 28 essentials, 35 dependency declarations. `isParamEnabled` and
+  `paramDisabledReason` are pure and unit-tested; `validateSpecs` now rejects an `enabledWhen` naming a
+  missing param, a self-reference, or an empty predicate.
+- **Essentials / All toggle, defaulting to Essentials.** Opening burst went from **35 params rendered to 6**
+  (count, speed, life, size, palette, blendMode). Plus a search that reaches past the tier filter and
+  force-opens groups with hits.
+- **Collapsible groups**, persisted per primitive in localStorage; a group opens iff it holds an essential and
+  isn't Texture/Noise/Physics.
+- **Inert params are disabled and say why** ("Needs Turbulence above 0") rather than silently ignoring input.
+  Curve editors stay DRAWN when disabled — the shape is information — but refuse gestures.
+- **A visible `?` per row** replacing the bare `title=` tooltip, which had no affordance and a ~1s delay.
+- **The def library moved to the TOP and became "Start from"** — 13 finished effects had been sitting in a
+  148px box BELOW 43 sliders, headed "Library" with an empty state implying they were only the author's own
+  output. That reframing was the single highest-leverage item in the audit.
+- **Name collisions fixed:** layer timing is now "Starts at" / "Lasts for" (the life slider previously had NO
+  label at all) and the transport's rate is "Playback", so neither collides with a primitive's own `Life` and
+  `Speed` params sitting centimetres away. Fire is now "Fire once" with a visible note on how it differs
+  from Play.
+
+**Three judgement calls worth keeping:** `emitShape` deliberately got NO `enabledWhen` — it and `emitRadius`
+are mutually dead at their defaults, so gating both would be a permanent deadlock neither could escape; a test
+now asserts no param is ever gated on another gated param. And `plateau`, `palette` and `coreBias`/`biasCurve`
+were left UNgated despite being on the inert list, because each still does something real (the glow halo, the
+erode cutoff) — disabling them would have removed genuine reach.
+
+**Verified:** typecheck clean, lint 0 errors, **2304 tests** (120 files), `build:web` green. No param default,
+range, kind, group, label or declaration order changed anywhere; `styles.css` has zero removed lines.
+
+## 2026-07-26 (FX workbench — usability pass: undo, honest controls, and help that exists)
+
+### fix(fx): two controls that lied, plus undo/redo, naming, solo, and 149/149 help coverage
+
+An approachability audit against After Effects / Niagara / Unity VFX Graph / Cavalry / Effekseer / Spine /
+Lottie / `@pixi/particle-emitter`. Two findings were outright defects, not design debt:
+
+- **The scrub bar did not scrub.** `scrub()` set the clock then called `reconcile(0)`, whose tick is guarded by
+  `if (dtMs > 0)` — so dragging inside a live layer changed only the numeric readout. It now advances the
+  instances by the real elapsed ms; a BACKWARD scrub re-simulates from zero (forward-only particle sims have
+  no reverse integration), bounded to ~2s of sim in 16ms slices so a long def cannot lock the UI. The agent
+  proved the bug first by restoring the old body and watching the new tests fail.
+- **The curve editor could only draw straight lines.** It dragged existing points but could not add or remove
+  any, and most curves default to 2 points — so the headline value-over-life feature was unusable without
+  discovering the preset dropdown. Double-click adds, alt/right-click removes, ends stay pinned, and it can
+  never drop below the 2 points `coerceParams` requires.
+
+**Undo/redo** over the whole editor state, which finally makes the worst trap reversible: switching a layer's
+primitive silently wiped every param tuned on it. A slider drag coalesces into ONE history entry (same kind +
+key within 400ms) instead of sixty; structural actions always get their own. Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, with
+text inputs exempt so typing a def name is not hijacked. Plus **layer naming** (a three-burst composition
+showed three rows all reading "burst") and **solo**, both on the live path so isolating one layer does not
+restart — and therefore re-roll — the others.
+
+**Help text is now 149/149** (was 113/149, and the missing 24% was exactly the shader vocabulary — `warp`,
+`gain`, `scroll`, `blendMode`, `palette` had none on any primitive). Every param that is inert until another
+moves now says so in plain words, because the audit found **24 such cases** — including two mutually dead at
+their defaults (`Emit shape` does nothing while `Emit radius` is 0, and vice versa) and burst's `Interval`,
+the second slider in the panel, which does nothing under Fire at all.
+
+**Also:** a def file now round-trips layer `name`/`solo` (they survived the session autosave but were dropped
+by `coerceLayer`, so saving and reloading your own composition lost every label).
+
+**Verified:** typecheck clean, lint 0 errors, **2255 tests** (120 files), `build:web` green.
+
+**The comparison, since it decides what comes next.** Our param count is NOT the outlier — burst has 35 where
+Godot ships 107 on one material and an Effekseer node runs ~90-250. What every one of those tools has and we
+do not is a SMALL EXPOSED SURFACE on top of the full one: After Effects' Essential Graphics, Niagara's User
+Parameters, Cavalry's Components (3 promoted controls off an 8-layer rig), Effekseer's Dynamic Parameters
+(exactly **4** float inputs). Consistently a handful — never "most of them". We expose all 149, flat, always,
+with no field in the param spec to hang disclosure on. Queued next: a "Start from" gallery (13 finished defs
+already exist, mislabelled as the author's output and buried under 43 sliders), an `essential`/advanced split,
+and greying out the inert params.
+
+## 2026-07-25 (FX — 12 authored effects for combat events that had none)
+
+### feat(fx/ui): defs for Stealth-break, keyword gain/loss, Venom, Rally, quests, casts, plain death…
+
+An audit found ~15 combat events with **no visual effect at all** — only a CSS class or a text float. With the
+bridge in place each is now an authored def plus one score line, not bespoke `pixiFx` code. Twelve defs
+landed: `stealth-break`, `keyword-gain`, `keyword-lost`, `venom-spent`, `rally-link`, `spell-cast`, `to-hand`,
+`hp-grant`, `spell-progress`, `quest-trigger`, `quest-complete`, `death-dissolve`.
+
+The one that mattered most is **`rally-link`**: Deathsayer firing an ally's Deathrattle had *no visual
+connection* between source and target, and that link is the entire read of the card. It's a ribbon on the
+`travel` anchor with a burst + ring timed to land after the head arrives.
+
+**Three more shared-kind traps caught** — the same class as `shieldUp`, and none of them obvious:
+- `venomLost` shared `poisonTick` with `poison`, the kind that owns the **Execute strike**.
+- `scCast` also covered non-cast **narration** ("+A/+H Spell Power" lines), so a caster muzzle-flash would
+  have fired on every narration line. Split into `scNarrate`.
+- `questTrigger`/`questComplete` had **no kind at all** and fell through to the `damage` default, which owns
+  the crimson damage burst — a quest tick would have flashed like a hit.
+All four splits are additive and pacing-neutral (`holdMsForKind(new) === holdMsForKind(old)`, asserted).
+
+**Plain death is deliberately NOT a score cue.** A cue is chosen by moment *kind*, and a kind is derived from
+the event alone — it cannot see whether the dying card has an `onDeath` effect. So `death-dissolve` sits in the
+`else` of the existing skull gate in `useCombatReplay.ts`: same loop, same predicate, mutually exclusive
+branches, so a deathrattle death can never get both.
+
+**Two silent-failure guards, both proven to bite.** `coerceParams` is deliberately total, which is exactly what
+makes hand-authored JSON dangerous: an unknown key is silently **dropped** and an out-of-range value silently
+**clamped** — the file looks authored either way. `defs.test.ts` now globs every committed def and checks both
+against the primitives' own `SPECS`. Each check was verified by deliberately breaking a def and watching it
+fail. The clamp check immediately caught a real one: **`ward-gained.json` (authored by hand two commits ago)
+set `"radius": 0.42` on a shockwave whose `radius` is in PIXELS, min 40** — it had been rendering the smallest
+ring the primitive can draw since the day it was committed. Fixed to 95.
+
+**Defs now load at boot in DEV.** Nothing called `ensureDefsReady()`, so `canPlayDefs()` was false in a normal
+session and *every* binding — including the previously shipped `ward-gained` — was inert with no error to
+explain it. One DEV-gated effect in `Game.tsx`; production still ships no primitives and no defs.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **2187 passing** (120 files), `build:web` green, prod
+confirmed free of `registerPrimitive` and every def id.
+
+**Honest limitations (all recorded rather than discovered later):**
+- **`quest-trigger`/`quest-complete` are wired but dormant** — those events name no unit (`flag`/`questId` +
+  `side`), so `anchorsForUnits` returns null and the cue skips. They need a badge/HUD anchor.
+- **Enemy-side `tribeAura` was NOT un-filtered.** It isn't the one-liner it looks like: `fireCombatAuraWave`
+  hardcodes the *player's* board as the wash target, and the loop dedupes by tribe alone — so an enemy aura
+  would wash your board and could *suppress* your own wash for that tribe. Needs a side-aware target and a
+  `(side, tribe)` dedupe key. Follow-up.
+- **`hpGrant` holds ~0ms**, so `hp-grant` fires into an immediately-advancing beat; it wants to be very short
+  or that pacing key needs a value.
+- **`rally` only forms its own moment for a Deathsayer-style rally** — an on-attack rally is absorbed into
+  `attackExchange`. Same for the result-run collapsing already noted for `shieldUp`.
+
+## 2026-07-25 (FX — the bridge: an authored def can now play in real combat)
+
+### feat(fx/ui): playDef + combat anchors + an `fxDef` Score channel
+
+Everything before this was a lab. `createPlayer` had exactly two call sites — the workbench and a test — and
+no shipped effect used the system. This wires it into combat playback.
+
+- **`playDef(id, anchors)`** — fire-and-forget, matching every shipped `pixiFx` method. It mounts its own
+  container, drives its own updater, and **self-retires** on completion (idempotent: the returned cancel fn
+  and natural completion are the same guarded function). A 15s wall-clock valve above the player's own
+  simulated-time cap covers "the sim clock isn't advancing", so a stuck def can't leak an updater for the
+  session. Honours a def's saved `seed`, and **filters muted layers** — handing the same filtered array to
+  both `createPlayer` and `driveLayerHeads`, which removes the index-alignment hazard rather than managing it.
+- **Anchor sampling policy, decided and documented:** anchors are a SNAPSHOT taken at fire time and held for
+  the effect's life (`travel` still interpolates from that snapshot). A moving unit does not drag the effect —
+  the alternative is a `getBoundingClientRect` per frame, which is a documented anti-pattern here, and a
+  combat moment is an event with the geometry it had.
+- **`combatAnchors.ts`** resolves a moment's unit uids to real screen anchors using the *same* selector
+  Recruit's combat code already uses, delegating the rect→anchors math to `boardAnchors.ts` so there's one
+  definition. A uid that resolves to nothing returns `null` (unit left the screen → the caller skips); a
+  `null` uid folds onto the other end, so a source-less event doesn't fling its effect at the screen corner.
+- **An `fxDef` Score channel** whose `Cue` carries an optional `def` id — so "what plays when" is data,
+  scheduled through the same `offset`/`scaled`/`enabled` path as every other cue and inheriting the live
+  cue-timing overrides. Strictly additive: no existing channel, cue, or offset changed.
+
+**The catch the wiring caught.** `shieldUp` (Ward GAINED) shared the `shieldPop` moment kind with `shield`
+(Ward CONSUMED) — opposite beats — and `shieldPop` already owns the gold-shatter cue. Scoring the new effect
+there would have fired it on **every Ward shatter**. Split into an additive `shieldGain` kind instead (which
+required one mandated line in `choreoConfig.ts`'s exhaustive `KIND_TO_KEY`; pacing-neutral at 460ms, the same
+value `shield` returned).
+
+**Prod cost, measured not assumed.** `score.ts` is the first production importer of the bridge, pulling
+**+8.5 kB raw / +3.24 kB gzip** (0.66% of the main chunk) of def-player machinery into the shipped bundle.
+The primitives and their GLSL do **not** ship — they arrive only via a DEV-gated dynamic import — so in prod
+`canPlayDefs()` is false, the cue allocates no closure and schedules no timer, and `playDef` returns null.
+Shipping defs to players is a separate, explicit decision: it means shipping the primitives too.
+
+**Verified end to end in the real game** (not just tests): `typecheck` clean, `lint` 0 errors, `test`
+**2151 passing** (119 files), `build:web` green, and prod confirmed free of the primitives, the DEV handle and
+the def. In a live browser, with the committed `ward-gained` def: `canPlayDefs()` true, the def loaded from
+disk, `anchorsForUnits('s0', null)` resolved to real screen coordinates (479, 303), and firing it lit
+1689 → **5082** → 2226 pixels over its 700ms with **0 GL errors and 0 console errors** — then **self-retired
+cleanly**: updaters 1 → 0, overlay children 1 → 0, 0 pixels left drawing.
+
+**Known limitation, not a bug:** `shieldUp` is a result-type event, so it collapses into contiguous result
+runs — a `[dmg, shieldUp]` run compiles to a `damage` moment and won't reach the cue, and a `[shieldUp,
+shieldUp]` run anchors only to the first unit. Fine for proving the wiring; a per-event fan-out is the fix if
+this moment needs to be reliable. A DEV-only `window.__fx` handle (`ready()`/`play()`/`anchors()`/`list()`)
+exists to test-fire any def on the real board without waiting for its moment to occur.
+
+## 2026-07-25 (FX workbench — anchors become real, + a live-board preview)
+
+### feat(fx): each layer follows its own anchor, and effects can be staged over the actual board
+
+`FxLayer.anchor` had been **dead data** since the def format was written: `createEditorLayer` hardcoded
+`'travel'`, no UI could change it, the player never read it, and the updater fed *every* layer one shared
+head. So the one thing compositions exist for — a burst pinned to the target while a ribbon follows the
+travel arc — was impossible to preview. Separately, all anchors were synthetic viewport fractions, so an
+effect could look right in the lab and wrong over the real board.
+
+- **Per-layer anchors.** The scenario's `FxAnchors` are resolved once per frame and each layer now gets its
+  own point via `resolveAnchor(anchors, layer.anchor, progress)`. A per-layer anchor picker sits with the
+  timing controls, and each row's meta reads `{anchor} · @{at}ms · {life}` so a composition is legible at a
+  glance. `travel` remains the default, so every existing composition is bit-identical.
+- **Custom paths reconciled.** A scenario's `headAt` (bounce / pinned-to-cursor / click-to-place) now supplies
+  the **`travel`** point specifically — "wherever the effect is travelling right now" is exactly what a custom
+  path defines — while every other anchor still resolves from `anchorsAt`. A target-pinned burst therefore
+  stays on the target while a travel ribbon ping-pongs past it.
+- **`boardAnchors.ts` + a `realBoard` scenario** reading the LIVE game DOM, reusing the shipping selectors
+  (`[data-zone="warband"] .row [data-uid]` etc.) rather than inventing new ones — the same approach
+  `fxTestFire.ts` already uses for the legacy path. `slot` deliberately takes the unit's x but the row's
+  midline y, so a hover-lifted or mid-drag card doesn't drag the anchor with it.
+- **No per-frame layout reads.** Board rects are sampled at ~5 Hz and cached (the null answer too), with an
+  explicit invalidation on scenario switch — the repo's "don't read layout per frame" rule. The wave also
+  removed a per-frame `Array.find` and two per-frame object allocations that already existed in the updater.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **2100 passing** (117 files), `build:web` green. In a
+live browser the selectors resolve (tavern row + player row found, 4 `[data-uid]` elements); the player unit is
+absent only because a fresh boot has an empty warband, so `realBoard` correctly falls back to synthetic anchors
+and its hint says so — the degrade path working as designed rather than a broken selector.
+
+**Follow-up noted:** `sessionState.ts` keeps its own private anchor-id list for coercion, now duplicating
+`FX_ANCHOR_IDS` in `anchors.ts`; worth collapsing to one source when that file is next touched.
+
+## 2026-07-25 (FX workbench — the three trust defects, + seed lock, duplicate, mute)
+
+### fix(fx): the timing sliders work, timing edits stop restarting the effect, and randomness is holdable
+
+Three defects made the tool untrustworthy to tune with. All three were introduced by earlier waves in this
+branch and were found by auditing/verifying our own work, not by a user report.
+
+- **`fireOnce` ignored `at`/`life`.** It bulk-spawned every layer, deliberately bypassing the schedule — so
+  the per-layer timing sliders did **nothing** under Fire, the headline button every build auto-triggers. Fire
+  now drives the same schedule ordinary playback uses (still passing `oneShot`, which changes primitive
+  emission), while a layer with no explicit `life` still persists past `duration` until its own `isComplete()`
+  — preserving the owner's "play until it's truly done" ruling. `FIRE_TIMEOUT_MS` still caps a runaway.
+- **Editing `at`/`life` respawned the whole effect per slider step.** They were part of `structureKey`, the
+  build effect's dependency, so each drag step tore down and rebuilt the player — and the ribbon re-rolled its
+  noise seed on every spawn, changing the look while you were trying to judge timing. Timing now pushes live
+  via `setLayerTiming`, mirroring the override discipline `setLayerParams` already had. A bonus: the scheduler
+  moved from `layerStateAt` (which allocated an array + an object per layer **every frame**) to a scalar
+  `layerStateOf`, so this is a net *reduction* in per-frame allocation.
+- **Randomness wasn't holdable.** Every particle primitive called `Math.random()` directly. That's legal here
+  (the UI layer is explicitly exempt from the engine's ban — nothing in `fx/` feeds the simulation) but hostile
+  to authoring: you couldn't hold a good roll while tuning around it, or A/B two tunings fairly, or reproduce a
+  screenshot. Added `fx/rng.ts` — **mulberry32, deliberately the same algorithm as `packages/core/src/rng.ts`**
+  so the codebase has one PRNG — threaded per instance via a new optional `FxContext.seed`.
+
+### feat(fx): Seed + Lock + Reroll, duplicate layer, per-layer mute
+
+- **Seed control** in the transport. Unlocked = today's behaviour (fresh roll per spawn); locked = frozen, so
+  only the param you're dragging changes. Per-layer seeds are derived as `base + index * 7919` — a pure
+  function of (base, index) with no per-spawn counter, which is exactly what makes a *respawn* reproduce the
+  same roll. A locked seed is re-applied before every rebuild's auto-Fire, and is saved into the def (an
+  optional field — no version bump), so a saved def reproduces its exact look, not just its parameters.
+- **Duplicate layer (⧉)** — Add previously only made a defaults-only layer, so copying a tuned layer meant
+  re-dialling every slider. Params are deep-copied, including the nested arrays palette/curve params hold, so
+  the copy can't alias its source.
+- **Per-layer mute (👁)** — isolating one layer used to mean deleting the others (destroying their tuning,
+  with no undo). Implemented on the *live* path rather than through `structureKey`, for the same reason as the
+  timing fix: isolating one layer must not restart — and so re-roll — every other layer, which is precisely
+  what you're trying to look at.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **2074 passing** (116 files), `build:web` green,
+workbench absent from prod. Live in a browser: Lock toggles 🔓→🔒, Reroll changes the seed and keeps it locked,
+Duplicate turns one layer into two, Mute marks one layer `· muted` and leaves the other alone — 0 console errors.
+
+**Contract for the game-side bridge (next sub-project):** a saved def round-trips `muted` on its layers, and
+only the workbench currently honours it. Whatever plays a def in-game must skip muted layers too, or a def
+authored with a layer muted will render that layer in the game.
+
+## 2026-07-25 (FX workbench — durable defs: an effect is now a committed file)
+
+### feat(fx): Save/Load/Library — the authoring loop finally has an exit
+
+An audit of the authoring loop found the workbench terminated at `copyDef` → clipboard: the **identical dead
+end all 41 legacy tuner panels have**, stated outright in `lungeConfig.ts` — *"Shipping a new feel is still a
+code change: dial it, Copy, paste into DEFAULTS above, commit."* We had rebuilt the authoring UI and kept the
+worst part of the pipeline. Worse, a tuned effect was **unrecoverable state**: layers/params/curves are plain
+`useState`, so it died on reload, on closing the panel, and on HMR — which editing any primitive *forces*,
+since primitives self-register. Design: [`specs/2026-07-25-fx-durable-defs-design.md`](superpowers/specs/2026-07-25-fx-durable-defs-design.md).
+
+- **Defs are committed files.** A dev-only Vite plugin (`apply: 'serve'`, so it cannot exist in a production
+  build) exposes `POST /__fx/def` and `POST /__fx/art`, writing `packages/ui/src/fx/defs/<id>.json` and
+  `defs/art/<slug>.png`. `fxDefs.ts` loads them via `import.meta.glob`. That single change makes an effect
+  durable, shareable by pushing a branch, and — later — referenceable by the game by id.
+- **Write safety is real, not assumed.** The decision logic is a pure `planWrite(kind, body, root)` so the
+  whole surface is unit-testable with no server and no fs: slug grammar, `path.resolve` containment (tested
+  directly via an exported `isInside`, because the slug regex would otherwise make that guard unreachable —
+  an untested guard is not a guard), size caps, PNG magic bytes on top of the data-URL prefix check.
+- **Imported art travels.** On save, any `custom:` shape is uploaded and the def rewritten to `art:<slug>`.
+  Previously a shared def silently rendered a fallback on the other machine, because the PNG lived only in the
+  author's `localStorage`. `shapeLibrary.ts` gained the `art:` namespace, resolving through the same texture
+  cache and fallback rule as local imports.
+- **Library, Duplicate, Paste, autosave.** Load any committed def; Duplicate pre-fills `<id>-copy` without
+  writing a file (the template workflow); Paste def is the missing counterpart to Copy; and a debounced
+  `localStorage` autosave restores unsaved work with a visible, dismissible notice — deliberately *armed on
+  first edit*, so merely opening the workbench never manufactures a "restored" banner.
+
+**A defect this wave's own browser verification caught.** After saving, the library stayed **empty** — the def
+only appeared after a full dev-server restart. Cause: `import.meta.glob(eager)` is expanded at *transform*
+time, and a plain `fs` write from middleware is not a graph event, so Vite never invalidated the module. The
+code carried a comment asserting the opposite ("writing into `defs/` invalidates this module… so the page
+reloads"), which was an untested assumption. Fixed with `registerSavedDef`, an in-session overlay merged over
+the globbed set, plus regression tests — without it a designer hits Save and their def is missing from the
+library they just saved it into.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **2002 passing** (115 files), `build:web` green, and
+the write endpoints confirmed absent from the production bundle. End-to-end in a real browser: the endpoint
+accepts a valid write and **rejects `../../../evil` with a 400 and no file**; saving from the UI wrote a real
+1,470-byte file with the full param set; the library updated *without* a restart; and clicking the saved def
+restored the editor (smoke → burst, duration 1000, name field populated).
+
+**Deliberately next, not now:** the game playing defs (registry flip + anchor provider + a `fxDef` Score
+channel — the registry is a real module already, so that flip is one line); preview fidelity against a real
+board; and three known defects — `fireOnce` bypassing `at`/`life` (so the timing sliders do nothing under the
+headline Fire button), timing edits respawning mid-drag and re-rolling the ribbon's seed, and no seed lock.
+
+## 2026-07-25 (FX workbench — the ribbon's cel look on EVERY primitive, + depth everywhere)
+
+### fix(fx): particles and shockwaves posterize a real gradient, not a flat alpha
+
+The owner asked three times for the ribbon's cartoon-posterized style on the other effects. Earlier passes gave
+those primitives the ribbon's *controls* (noise/warp/scroll/erode/gain) but never the mechanism that makes cel
+bands, so the ask kept coming back. This wave fixes the mechanism.
+
+**The bug.** `RIBBON_FRAG` posterizes a smooth across-the-width distance field remapped by a **plateau**
+(`1.0 - smoothstep(uPlateau, 1.0, across)`) — that gradient is what `posterizePal` slices into fat concentric
+bands with a hot core. `PARTICLE_FRAG` instead posterized the **texture's alpha** (`texture(uTexture, vUV).a`),
+which for any hard-edged silhouette (square/triangle/diamond/shard, and most imported art) is a flat `1.0`
+across the whole interior — a constant into the quantiser, i.e. **one flat colour per particle**. The soft
+`circle` texture is a 2-step ramp, so: two flat blobs. There was no plateau at all. `shockwave.ts` was further
+still: **no fbm, no noise uniforms, no plateau** — a clean analytic ring.
+
+- **Particles now band a procedural radial field.** `across = length(vUV - 0.5) * 2` → the ribbon's exact
+  plateau remap → the existing bias/erode/gain/posterize chain. Alpha is demoted to what it should always have
+  been: the **silhouette mask** (a hard discard plus a final alpha multiply), so imported art still cuts its own
+  outline — and now gains cel bands *inside* it. New `plateau` (range matched to ribbon's own `0…0.9 / 0.3`)
+  and `fieldMix` (0 = radial field, the ribbon look on any silhouette; 1 = the texture's own alpha ramp, for
+  soft hand-painted art).
+- **`tintMode`, owner-requested.** `palette` recolours into the four stops (unchanged default); `texture` keeps
+  imported art's own RGB but still quantises it to `uBands` levels using `posterizePal`'s own convention, so it
+  reads as cel art rather than a photo pasted in. Both modes share the identical erode cutoff and alpha, so
+  silhouette and tattered edge behave the same either way.
+- **Shockwave gets the whole ribbon material in ring space** — plateau, noise along/across, warp, scroll,
+  erode, gain. The noise coordinate is built from the fragment's **unit direction vector**, never `atan`, so it
+  is continuous around the circle: an angle-based coordinate would tear a visible seam where it wraps at ±π (a
+  regression test asserts `atan` never appears in the shader). Plus `squash` (an ellipse, for a ring lying on
+  the ground), `ringDelay` (stagger), and `ease` (punch out and settle) — all three exact no-ops at default.
+
+### feat(fx): shaping depth on the ribbon, motion depth on the particles, curves that can exceed 1×
+
+- **Ribbon** — a `widthCurve` (width along the *length*, so it can bulge or taper anywhere, not just at the two
+  ends), a travelling `wave` (amp/freq/speed) applied to the spine so the trail genuinely snakes (displaced into
+  a second scratch buffer so the extrude's tangents follow the *wavy* centreline rather than shearing), and a
+  `segments` resolution knob. CPU scratch grows monotonically (never per frame); GPU buffers are allocated once
+  at max capacity and rewritten in place, with surplus indices collapsed to degenerate triangles.
+- **Particles** — `orientToVelocity` (a shard/arrow/imported directional sprite points where it flies, with a
+  zero-velocity guard so a stalled particle holds its heading instead of snapping to 0 rad) and an `alphaCurve`
+  multiplying on top of each primitive's built-in fade. The emitter's container needed `rotation: true` to make
+  per-frame rotation reach the GPU; its buffer was already re-uploaded every frame, so the net cost is ~zero.
+- **`curve` gained an optional `vMax`** (default 1 ⇒ every existing curve is byte-identical). Curve values had
+  been hard-clamped to `[0,1]`, making every curve a multiplier that could only ever *reduce* — which had
+  already bitten twice: smoke's billow had to fake growth by inflating the base `Size`, and the ribbon's new
+  width curve could only taper. Now smoke's default genuinely grows past base size (`[[0,0.3],[1,1.6]]`,
+  `vMax 2`), and burst/emitter/ribbon opt into `vMax 2` as a pure range unlock (defaults unchanged). The editor
+  maps its vertical axis to `vMax` and draws a reference line at the neutral 1× level.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1919 passing** (111 files), `build:web` green, and
+the workbench still absent from the prod bundle. **Crucially, none of that can prove a shader compiles** — GLSL
+only compiles at runtime — so all five primitives were driven in a real WebGL context (framebuffer probe,
+synthetic frames pumped through the fx updaters): every one compiles and draws with **0 GL errors and 0 console
+errors** — ribbon 4058 lit px, smoke 508 (growing, confirming the >1 size curve), burst 59, shockwave 34.
+
+**Behaviour changes to be aware of (intended, but real):** default burst/emitter/smoke now render as cel bands
+rather than flat chips; glow is radially soft (brightest at the core) instead of a flat slab, so it is dimmer
+and tighter at the same value; the built-in `circle`'s outer ring is now genuinely 35% opaque (edges antialias
+instead of stair-stepping); the shockwave's `fwidth` antialiasing is replaced by the plateau ramp; and the
+shockwave's material defaults deliberately change its look.
+
+**Note for future debugging:** the hidden preview pane reports `window.innerWidth/innerHeight === 0`, which
+makes the two-unit scenario collapse both anchors onto one point — the ribbon then correctly refuses to build
+(`total < 1` in `writeRibbonPositions`) and renders nothing. That is an artefact of the harness, NOT a ribbon
+bug; resize the pane before concluding anything about path-following primitives.
+
+## 2026-07-25 (FX workbench — import custom particle art, PNG/SVG)
+
+### feat(fx): a runtime shape library — bring your own art as a particle silhouette
+
+Owner: "it's just missing so many components. the ability to import custom shapes via svgs or pngs." The six
+procedurally-drawn shapes were the whole vocabulary; now the owner's own art is a first-class shape.
+
+- **`shapeLibrary.ts`** — a runtime registry of selectable shapes: the built-ins (delegating to the untouched
+  `shapeTextures.ts`) plus imports. Imports are normalized onto an offscreen canvas at `SHAPE_UNIT * 4`,
+  aspect-fitted, cached as decoded `Texture`s, and persisted to `localStorage`.
+- **The alpha trap, designed around.** The particle shader uses ONLY the texture's alpha as the silhouette
+  (`texture(uTexture, vUV).a`), so opaque art (a shape on a solid black background — the common case for art
+  grabbed off the web) would render as a **solid rectangle**. On import we measure the opaque-pixel ratio *of
+  the drawn region* and, above 99%, **auto-trace the silhouette from Rec.709 brightness** into the alpha
+  channel. An explicit `alphaFrom` overrides the detection. This is the difference between "my PNG just works"
+  and "why is my particle a square".
+- **A new `shape` param kind** (params.ts, all five touchpoints) — deliberately NOT an `enum`, whose `options`
+  are fixed at spec-declaration time; the valid set here is a runtime registry that grows on import. It
+  resolves to plain `string` and `coerceParams` accepts any non-empty id, because rejecting an unknown one
+  would **permanently rewrite** a def shared from a machine that has that art. An unknown id is safe: the
+  render path falls back to a built-in.
+- **Sync lookup, async decode.** `getShapeTextureById` stays synchronous (the primitives' render path needs it
+  to be) and returns a built-in fallback until a decode completes — it can never return null or throw, so a
+  primitive can always construct. A just-imported shape is published only after its texture is ready, so
+  selecting it never shows a fallback frame.
+- **Degrades, never throws:** `localStorage` absent, access-throwing (privacy modes), quota-exceeded, or
+  malformed JSON all fall back to in-memory-only. Imports are capped (24, FIFO).
+- **Inspector:** a `ShapeField` component — built-in/imported optgroups, an Import PNG/SVG button, remove for
+  imported shapes, and a hint line. Wired on burst / emitter / smoke.
+
+**Verified:** `typecheck` clean, `lint` 0 errors (no new warnings), `test` **1850 passing** (111 files; 42 new
+`shapeLibrary` tests over the pure core — slug/luminance/opacity-threshold/fallback-resolution/persistence
+round-trip + malformed-JSON), `build:web` green, and the library confirmed absent from the prod bundle.
+
+**Follow-ups:** a `tintMode` toggle (keep the art's own colours vs force the palette) — owner-requested, comes
+with the material pass; and the material pass itself (see the next entry when it lands): particles currently
+posterize the texture's alpha, which is FLAT inside a hard-edged shape, so they render as one flat colour
+instead of the ribbon's cel bands.
+
+## 2026-07-24 (FX workbench — a smoke primitive)
+
+### feat(fx): posterized / cel-style smoke — the emitter's rising, billowing cousin
+
+Owner picked cel-style over soft/realistic smoke, so it renders through the SAME posterized particle material
+as burst/emitter (matching the game's stylized cel art) rather than a soft radial texture. Structurally it's an
+emitter, tuned to read as smoke, plus one new channel:
+
+- **Rises + billows:** default `gravity` negative (rises), gentle `speed`, long `life` (1500ms) + low `rate`
+  (40/s) so puffs linger; a **grow-over-life** `sizeCurve` (`[[0,0.3],[1,1]]`); turbulence ON by default (the
+  column wanders) with a soft `disc` emission source.
+- **Slow tumble (new vs emitter):** a `spin` param (deg/sec ± `spinVar`, random direction per mote) with
+  `rotation: true` enabled on the container so puffs rotate.
+- **Reads as haze, not energy:** a desaturated grey default palette (recolourable via presets), `blendMode`
+  `normal` (not additive), `glow` 0, rim-heavy `coreBias`, soft `fadeIn`. Reuses the shared curve/motion/blend/
+  palette/shape machinery; keeps the size- and colour-over-life curves.
+- Registered in the primitives barrel (5th primitive). Self-contained pure helpers (`advanceSmokeBudget`,
+  `smokeWithinEmitWindow`, `smokeFireComplete`, `smokeMoteAlpha`), unit-tested (24 tests).
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1800 passing** (110 files), `build:web` green;
+dev-only (absent from the prod bundle).
+
+**Follow-up surfaced:** the `curve` kind clamps multipliers to [0,1], so a size curve can't grow a particle
+*beyond* its base size (smoke's grow is 0.3→1.0× of the base `Size`, which is set larger to compensate). A
+small `vMax` addition to the curve param (declare a per-curve max, editor + coerce + validate honour it) would
+let size-over-life exceed 1× — worth doing when size curves want true overshoot/pop.
+
+## 2026-07-24 (FX workbench — multi-layer composition)
+
+### feat(fx): the workbench stages a LIST of layers, not one primitive
+
+The def format, the `layerStateAt` scheduler, and the player already supported N layers; only the shell was
+single-layer. This wave makes the workbench a real composition tool — several primitives (ribbon + burst +
+shockwave + …) played together as one effect, each with its own primitive, timing, and params.
+
+- **Pure layer model (`layerModel.ts`, unit-tested).** All the list arithmetic lives in a React/Pixi-free
+  module: `EditorLayer` (adds an editable `life: number | null`), immutable `addLayer`/`removeLayer` (never
+  empties)/`moveLayer` (clamped)/`setLayerPrimitive` (resets params to the new primitive's defaults, injected
+  so the module stays registry-free)/`setLayerParam`/`setLayerTiming`, `structureKey`, and `toDef`. 16 tests.
+- **`structureKey` is the load-bearing idea.** It signs only the structure (primitive/anchor/at/life/order),
+  **not** params. The shell keys its player-rebuild effect off it, so a param drag (which flows live via
+  `setLayerParams`) never respawns the effect, while any structural change (add/remove/reorder/primitive-swap/
+  timing) does — preserving the "don't respawn mid-gesture" rule the single-layer shell had.
+- **Layers panel + per-layer timing** in the side rail above the Inspector: a selectable layer list (primitive
+  id + `@{at}ms · full/{life}ms`, ↑/↓ reorder, ✕ remove — hidden at one layer), an "Add layer" primitive
+  picker + ＋, and `At` / `Full`+`Life` sliders for the selected layer. The top primitive row now sets the
+  *selected* layer's primitive; the Inspector edits the selected layer; "Copy def" exports the whole
+  composition JSON. Every layer shares the scenario head for now (per-layer anchors are a later refinement).
+- **Default single layer is unchanged:** one layer at `at:0`, `life:full` → `toDef` produces exactly the old
+  single-layer def; still fires once, no auto-loop.
+
+**Verified:** `typecheck` clean, `lint` 0 errors (no new warnings), `test` **1776 passing** (109 files; the
+new `layerModel.test.ts` pins immutability + the "params-only edit keeps `structureKey` stable, structural
+change flips it" invariant). `build:web` green; the whole workbench still tree-shakes out of the prod bundle.
+
+**Deferred (polish):** a draggable timeline-*track* visualization (clips on a time axis) on top of this
+functional layers panel; per-layer anchors (each layer following a different combat moment); save-to-file for
+defs via a dev-only Vite middleware (Copy-def clipboard is the stand-in).
+
+## 2026-07-24 (FX workbench — colour-over-life via a bias curve)
+
+### feat(fx): particles animate rim↔core across their life (the "gradient" wave)
+
+Owner picked the architecture-honest reading of "colour-over-life": rather than a standalone RGB ramp that
+would fight the posterized-palette model (colour is decided in-shader from the shared palette), a particle's
+**core bias** (0 = rim palette colour, 1 = white core) now animates over its life along a curve — reusing the
+`curve` kind and editor shipped earlier. No new param kind.
+
+- **`Bias / life` curve** on burst + emitter. Model: `effectiveBias(lifeT) = spawnBias · sampleCurve(biasCurve,
+  lifeT)` — a [0,1] multiplier on each particle's spawn bias, so it travels between the rim and its coreward
+  ceiling (`Core bias`) over life. The spawn bias is now stored on the particle struct (`bias0`) and the tint
+  recomputed every frame.
+- **Free at rest:** both containers already declare `color` dynamic, so the tint buffer re-uploads every frame
+  regardless — the per-frame recompute adds only a cheap `sampleCurve` + `biasTint` per particle, no new GPU
+  cost. Default `[[0,1],[1,1]]` (flat 1) recomputes the exact spawn tint every frame — a visual no-op.
+- Presets (grow = rim→core, fade out = core→rim, pop = rim→core→rim) read directly as colour journeys.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1760 passing** (108 files; new coverage tests pin
+the flat default so the no-op invariant can't silently break). `build:web` green; still dev-only, absent from
+the prod bundle.
+
+## 2026-07-24 (FX workbench — motion physics: turbulence, emission shapes, velocity inheritance)
+
+### feat(fx): a motion-physics layer on the particle primitives (burst + emitter)
+
+Second richer-param wave. Adds three additive motion controls to burst + emitter under a new `Physics` param
+group, all driven by a new pure, renderer-free helper module so the logic is unit-testable headlessly (the
+`sampleBurstAngle`/`advanceEmitBudget`/`moteAlpha` precedent). **Every new param defaults to a byte-identical
+no-op** — the current look is untouched until a knob turns.
+
+- **Turbulence** — a cheap layered-sine pseudo-turbulence field (`turbulenceX/Y` in `motion.ts`; no noise
+  lib, no hashing, bounded ~[-1.5,1.5], the two axes decorrelated so particles swirl rather than slide). Folded
+  into each particle's velocity as a lateral acceleration. `Turbulence` (strength px/s²) + `Turb scale` (spatial
+  frequency). Guarded by `strength !== 0`, so default 0 never even calls the field.
+- **Emission shape** — where particles spawn relative to the anchor: `point` / `ring` / `disc` (area-uniform
+  via √rand) / `box`, sized by `Emit radius`. `emissionOffset` writes into a reused scratch (zero per-spawn
+  alloc). `point`/radius 0 → (0,0), the no-op default.
+- **Velocity inheritance** — `Inherit vel` (0–1) adds that fraction of the anchor's own movement velocity to
+  each new particle, so a burst fired off a moving unit trails correctly. The anchor velocity is derived from
+  the head's frame-over-frame delta, gated on a "two real samples seen" flag so the first wave never inherits
+  the spurious spike that diffing against the (0,0) default would produce (the ticker calls `update()` before
+  `setHead()`). `inheritVel = 0` → adds exactly 0.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1758 passing** (108 files) — new `motion.test.ts`
+(turbulence bounded/finite/varies; ring points on radius, disc within radius, box within bounds, radius 0 →
+origin) plus Physics-param coverage tests on both primitives. `build:web` green; the primitives (and thus the
+motion layer) stay dev-only — absent from the prod bundle. Behavior-preservation invariant walked through per
+addition and confirmed.
+
+## 2026-07-24 (FX workbench — `curve` param kind: value-over-life)
+
+### feat(fx): a value-over-life curve kind + a draggable curve editor, wired as particle size-over-life
+
+First of the owner-requested "richer params" waves (richer knobs before composition). Adds a new `curve`
+param kind — a control-point curve sampled at normalized life (0 = birth, 1 = death) to yield a multiplier —
+so an effect's magnitude can *animate across its own lifetime* instead of being a single scalar.
+
+- **The `curve` kind, end to end** — mirrors the `palette` kind through every seam: a `curve` variant in the
+  `FxParamSpec` union; a `ParamsOf` branch mapping it to a mutable `[number, number][]`; deep-copy in
+  `defaultsOf`; a `coerceParams` case that validates an array of ≥2 `[t,v]` pairs and stores a fresh copy
+  with t/v clamped to [0,1] and **sorted ascending by t** (the sampler relies on that); and a `validateSpecs`
+  check. A stored value is never aliased to the spec's arrays.
+- **`sampleCurve` (`curve.ts`)** — pure, total, allocation-free piecewise-linear sampler (clamps t, returns
+  endpoint values outside the range, guards a zero-width segment, returns 1 for an empty curve) so it can run
+  per-particle per-frame. Plus a shared `CURVE_PRESETS` (fade out / grow / pop / hold-then-drop / ease out).
+- **A curve editor in the Inspector** — a self-contained `CurveEditor` component (its own component, not an
+  inline branch, so its hooks stay legal): a compact SVG polyline with draggable control-point handles
+  (pointer-capture on the `<svg>`; first point pinned to t=0, last to t=1, interior points clamped strictly
+  between their neighbours so they can't cross) and a preset dropdown. Fully controlled off the workbench's
+  param state, like the palette swatches.
+- **Wired as particle size-over-life** — burst and emitter gain a `Size / life` curve. The wiring replaces
+  each primitive's hand-rolled shrink term, and the **defaults reproduce the old behaviour exactly**: burst's
+  `[[0,1],[1,0]]` sampled at life-fraction `t` is `1 − t` (its old `frac`), emitter's `[[0,1],[1,0.75]]` is
+  `1 − 0.25·t` (its old `shrink`). Both particle containers already upload `vertex` dynamically, so there's no
+  new per-frame GPU cost beyond the (cheap) curve sample. Alpha-over-life is untouched this wave.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1748 passing** (107 files) — including
+`sampleCurve` unit tests (endpoints, midpoint lerp, out-of-range clamp, empty/single-point, multi-segment,
+zero-width segment) and the two behaviour-preservation identities pinned numerically; new `params.test.ts`
+curve cases (defaults deep-copy, coerce clamps/sorts/drops-malformed, a `toEqualTypeOf` `ParamsOf` check,
+validate flags). `build:web` green; the curve editor is confirmed absent from the prod JS bundle.
+
+**Follow-ups:** the remaining `gradient` (colour-over-life) kind — reuses this control-point editor with colour
+stops instead of a scalar; motion physics (turbulence, velocity inheritance, emission shapes); a **smoke**
+primitive; optional alpha-over-life curves. Owner's eye still wanted on the editor feel + shockwave look.
+
+## 2026-07-24 (FX workbench — Fire truly decoupled, transport dials, preview backdrop)
+
+### feat(fx): Fire is a clean one-shot, Loop is opt-in, + Duration/gap dials + a compositing backdrop
+
+Follow-up to the depth pass. The Fire button *engine* was one-shot, but the Workbench still built its player
+with `loop:true` and called `play()` on open, so "Fire" visibly kicked off the repeat loop — the owner's
+"fire button still isn't decoupled" report. This wave makes the decoupling real end-to-end and adds the
+transport control the loop was missing.
+
+- **No auto-loop on open.** The Workbench now builds the player with `{loop:false}` and calls `fireOnce()`
+  once on build, so an effect previews itself and *stops*. Looping is an explicit **🔁 Loop** toggle
+  (`player.setLoop` live, no rebuild); Fire is always a single non-looping pass regardless of the toggle.
+- **Fire plays to *true* completion.** `fireOnce()` spawns every layer immediately (not gated on the def's
+  `at`/`life` schedule) and holds them until each reports genuine completion via a new optional
+  `FxInstance.isComplete()` — implemented on all four primitives (ribbon/shockwave grace after their tail;
+  burst/emitter when their live particle count hits zero). A `FIRE_TIMEOUT_MS = 10s` safety cap force-stops a
+  primitive that never reports done, so a buggy effect can't hang the workbench.
+- **Transport dials.** A **Duration** slider (200–4000 ms, drives `def.duration` + scenario progress) and a
+  **Loop gap** slider (hold the effect fully cleared for N ms between loop cycles, via `setLoopGap`) — the
+  loop was previously a fixed immediate wrap.
+- **Preview backdrop.** A selectable solid-colour backdrop (`createBackdrop`, mounted *behind* the effect via
+  `pixiFx.mountLayer`) so blend modes have something to composite against in the workbench — multiply/overlay
+  are invisible over the transparent overlay otherwise. (Per-effect blend against the *game board* in-game
+  stays out of scope: the FX layer is a transparent Pixi canvas over a separate DOM board, so board pixels
+  aren't in its compositing pipeline; per-effect blend remains meaningful FX-over-FX. Owner ruling: leave the
+  shipped layer as-is rather than take a global-canvas `mix-blend-mode` that would reshuffle every combat FX.)
+
+**Verified:** live browser (framebuffer + control probes) — on-open trace shows one expansion then 0 (no
+loop); Fire trace = one expansion then 0, repeatable; burst Fire = a single wave decaying to 0; the Loop
+toggle flips Off→On and starts continuous looping; Duration + Loop-gap dials present and live; a Mid backdrop
+makes `multiply` visibly non-black. `typecheck` + `lint` + `test` + `build:web` green; workbench still absent
+from the prod bundle.
+
+## 2026-07-24 (FX workbench — depth: material, shapes, blend, glow, fire)
+
+### feat(fx): the ribbon's tuning depth on every effect + shapes, blend modes, glow, a Fire trigger
+
+Owner feedback drove a depth pass: "I don't see the ribbon's options on burst/emitter," plus shapes,
+mask/blend modes, a click-to-fire trigger, and glow.
+
+- **Posterized-energy particle material** — burst/emitter now render through a **custom `ParticleContainer`
+  shader** that applies the ribbon's exact recipe (domain-warped scrolling fbm → hard band-quantise →
+  palette), so each shard/mote is a chunk of the same cel-shaded energy as the ribbon, not a soft sprite.
+  The ribbon's `noise/warp/scroll/erode/gain` are now live params on the particles (a **Texture** group).
+- **Shapes** — a `shape` picker (circle/square/triangle/star/diamond/shard) with `stretchX`/`stretchY`, via
+  a cached shape-texture generator (`shapeTextures.ts`). circle/shard reproduce the old textures exactly so
+  defaults don't shift.
+- **Blend modes** — a `blendMode` enum (normal/add/screen/multiply/overlay, one shared `blendModes.ts` that
+  side-effect-imports `pixi.js/advanced-blend-modes`) on **all four** primitives, replacing the additive
+  toggle.
+- **Glow** — a `glow` control on all four. On the shader primitives (ribbon/shockwave) it's a real soft outer
+  halo (glow=0 reproduces the prior look by construction — every glow term × `uGlow`); on particles it's an
+  in-shader soft brightening under the core (a particle can't draw outside its own quad, so a true expanding
+  halo there would need a separate glow layer — deferred).
+- **Fire trigger** — `FxPlayer.fireOnce()` + a 🔥 Fire button in the transport plays the effect once from
+  t=0 and stops (non-looping for that pass, even on a looping player), repeatable, without rebuilding — so
+  previewing a discrete proc isn't bound to the play/stop loop.
+
+**Verified:** `typecheck` + `lint` + `test` (**1697 passing**, 104 files) + `build:web` green; workbench
+absent from the prod JS bundle. Live browser (framebuffer + control probes): all four effects compile and
+render in real WebGL2 with 0 GL errors and no console shader errors after both shader changes; shapes swap
+cleanly; the blend dropdown carries all five modes incl. overlay/multiply; glow and the Fire button work.
+
+**Follow-ups (owner-requested):** a **smoke** effect (new primitive); the remaining `curve` (value-over-life)
+and `gradient` (colour-over-life) param kinds; motion physics (turbulence, velocity inheritance, emission
+shapes). Owner's eye still pending on the shockwave look and whether the particle glow wants a true halo.
+
+## 2026-07-24 (FX workbench — primitives, scenarios, editable palette)
+
+### feat(fx): three more primitives, richer scenarios, and a fully editable palette
+
+The workbench opened with one primitive (the ribbon) and two scenarios; the owner's feedback — "there has
+to be more than one effect… I want an editor for all types" — drove this expansion.
+
+- **Three new primitives**, each self-registering into the same contract so they appear in the picker for
+  free: **burst** (a one-shot radial shard spray, `ParticleContainer`, re-firing on an interval),
+  **shockwave** (expanding posterized rings — a shader-quad in the ribbon's cel-band language), and
+  **emitter** (a continuous mote stream). A shared **`palettes.ts`** holds the six rim→core palettes so no
+  primitive re-inlines them.
+- **Scenario overhaul**, driven by owner notes: the head-driving contract moved to a single
+  `headAt(ctx: FxHeadContext)` (viewport, live cursor, last click, progress). The circle-shaped bounce is
+  now a **ping-pong** (0→1→2→3→2→1→0, reversing at the ends, arcs bowing oppositely); a new **Pinned to
+  cursor** makes the effect head the live mouse (dragging in real time, not travelling toward it); **Click
+  to place** anchors the effect at the last clicked point; **Stationary** runs the effect in place at centre
+  (a small contained sweep, so even the motion-trail ribbon stays put while still drawing its travelling
+  look). The old travel-to-cursor scenario was removed, superseded by Pinned.
+- **Editable palette.** `palette` is now a first-class param kind (four `0xRRGGBB` colour stops rim→core,
+  with preset seeding), so the generated inspector renders a preset dropdown plus four colour swatches, and
+  every current and future primitive gets per-effect editable colours for free. `ParamsOf` resolves a
+  palette param to a concrete 4-tuple (pinned by a bidirectional `expectTypeOf` test); `coerceParams`
+  validates length-4 / finite / in-range and hands out fresh copies so two effects can't mutate each
+  other's colours.
+
+**Built subagent-driven** (parallel implementers + spec/quality review, reviewers reproducing each fix
+against its bug). The reviews caught, among others: a burst that fired its first wave at (0,0) before
+`setHead` (traced through the real `update`-before-`setHead` call order), an O(n) particle cull, an
+emitter per-frame allocation, and the primitives' self-registration dragging their shaders into the prod
+bundle (fixed with a DEV-gated dynamic `primitives/` barrel import).
+
+**Verified:** `npm run typecheck` + `lint` (0 errors) + `test` (**1673 passing**, 102 files) + `build:web`
+all green; workbench confirmed **absent from the prod JS bundle**. Live browser checks (worktree dev
+server, framebuffer colour-bucketing + centroid probes): all four primitives render with 0 GL errors;
+editing a single palette stop shifts the shader's band live (rim violet→red); Pinned/Click place the
+effect exactly at the cursor/click; Stationary stays centred; the ribbon trails a dragged cursor.
+
+**Follow-ups (owner-requested, queued):** ribbon-level depth (noise/glow/edge shaping) on burst/shockwave/
+emitter; then composition — stacking primitives into one effect (the multi-layer timeline). The shockwave's
+look (dim disc vs crisp rings) is pending the owner's eye. A truly-frozen Stationary for particle/ring
+effects (vs the ribbon's needed sweep) is a possible per-primitive refinement.
+
+## 2026-07-24 (FX workbench — P1 foundation)
+
+### feat(fx): a composable, dev-only FX workbench (effects as data)
+
+The first working slice of the FX workbench designed on 2026-07-23
+([spec](superpowers/specs/2026-07-23-fx-workbench-design.md),
+[plan](superpowers/plans/2026-07-23-fx-workbench-p1.md)). It ends the panel-per-effect tax: the repo had
+34 hand-written `*Tuner.tsx` panels and ~30 `*Config.ts` files (7,724 lines) built on four parallel lists
+per effect (`DEFAULTS`/`RANGES`/`KEYS`/`LABELS`) that nothing forced to agree — and had already drifted
+(`TrailTuner` rendered two blank-labelled sliders). Now an effect is **data played by a runtime player**,
+and a primitive declares its parameters **once**.
+
+Everything new lives under `packages/ui/src/fx/`:
+
+- **`params.ts`** — one `FxParamSpec` record per primitive derives BOTH the params type (`ParamsOf<S>`)
+  and the editor UI. Enum params resolve to a union of their own `options` (a bidirectional
+  `expectTypeOf` test pins this — it fails against the naive `S[K]['default']` definition). `coerceParams`
+  clamps/drops invalid values so a bad saved def degrades to defaults rather than throwing; `validateSpecs`
+  catches a self-contradictory spec (default outside its own range, enum default not in options) at
+  registration.
+- **`primitive.ts` / `registry.ts`** — the `FxPrimitive<S>` / `FxInstance<P>` contract (generic, so
+  `setParams` stays type-checked even at the erased registry boundary, where `ParamsOf<FxParamSpecs>`
+  resolves to `Record<string, string|number|boolean>`, not `unknown`) and a self-registering primitive
+  registry. Invalid-spec warnings are gated to `import.meta.env.DEV`.
+- **`def.ts`** — an effect is `{ duration, layers: [{ primitive, anchor, at, life?, params }] }`;
+  `layerStateAt` is pure timeline arithmetic (clamped so a layer starting past the duration reports
+  `done`/`localMs:0` rather than a negative time), which is what makes frame-accurate scrubbing testable
+  without a renderer. Deliberately not a scripting language — no expressions or conditionals.
+- **`player.ts`** — `createPlayer(def, ctx)` owns layer lifetimes, the clock, loop, scrub, speed, and
+  live param edits (routed through `coerceParams`, never mutating the caller's `def`). Loop-wrap kills and
+  respawns layers; replay-after-finish resets, but a mid-playback pause/resume does not.
+- **`ribbonGeometry.ts`** — pure arc-length resample + extrude into a triangle strip, with neighbour-based
+  (not per-segment) tangents so the ribbon doesn't facet on the curved travel arc, and a parameterised
+  head-pinch / tail-feather silhouette. Reuses module-level scratch buffers — zero per-frame allocation.
+- **`primitives/ribbon.ts`** — the first real primitive: a posterized cel-band trail shader (GLSL ES 3.0).
+  The look is hard-edged band quantisation (`floor(q*uBands)`), not soft particles; a plateau width profile
+  gives the fat white-hot core (a linear falloff never lets the top band fire). 18 tunable params in
+  Style/Noise/Shape groups; six palettes. `destroy()` frees its geometry+shader (Pixi's `Mesh.destroy()`
+  deliberately doesn't cascade to those).
+- **`anchors.ts` / `scenarios.ts`** — anchors resolve to screen space (`travel` bows into an arc, since a
+  straight line reads as a laser); scenarios (`Two units`, `Follow cursor`) stage those anchors so an
+  effect can be tuned without playing the game to the moment it fires.
+- **`pixiFx.ts` seam** — `mountLayer` / `addUpdater` / `renderer` let the workbench draw through the real
+  overlay pipeline (so what you tune is what ships) rather than a parallel one. A throwing workbench
+  updater is caught and evicted, so dev tooling can't freeze shipped combat FX. Pre-attach mounts queue.
+- **`fx/ui/` shell** — a dev-only, full-screen workbench (launched from the DevMenu): a stage on the real
+  overlay, transport (play/pause/scrub/speed), and an inspector **generated entirely from the primitive's
+  param specs** — no hand-written labels/ranges. Behind `import.meta.env.DEV` with a DEV-gated dynamic
+  import of the primitive, so the whole thing (shader source included) tree-shakes out of production.
+
+**Built via subagent-driven development** — a fresh implementer per task, each followed by a spec-compliance
+review and a code-quality review, with the reviewers reproducing every claimed fix against its bug. The
+reviews caught a string of real defects, several of them in the plan's own reference code: an unsound enum
+type, a vacuous type assertion, a missing `end` clamp, a loop-wrap that never restarted layers,
+`setLayerParams` mutating the caller's state, a straightened travel arc, per-frame allocations, a throwing
+updater that could freeze combat FX, a GPU geometry/shader leak on ribbon teardown, and — caught by the
+implementer — the primitive's self-registration dragging the whole shader into the prod bundle.
+
+**Verified:** `npm run typecheck` + `lint` (0 errors) + `test` (1617 passing, 100 files) + `build:web` all
+green; the workbench confirmed **absent from the prod JS bundle**; `npm run perf` all within budget (no
+engine change — baseline). Live browser check on a worktree dev server: the shell mounts (18 generated
+slider rows in 3 groups), the ribbon renders with the posterized bands and white core proven by
+framebuffer colour-bucketing, switching palette (→ ember) and dropping bands to 1 drive the shader live
+through the generated inspector, and closing the workbench releases its updater + container and leaves the
+shared overlay healthy (GL error 0).
+
+**Follow-ups:** P2 (timeline UI, more primitives — burst/shockwave/shaderQuad/emitter, save-to-file via a
+dev Vite middleware, anchors in real combat moments), P3 (A/B compare, preset/palette library, perf HUD),
+P4 (opportunistically migrate the 34 existing tuners onto the schema). Also tracked separately: wiring
+`typecheck:web` into CI, without which these type-level tests aren't enforced there (and the ~50
+pre-existing `packages/ui` type errors stay invisible). Swapping the shipped `pixiFx.trail` wisps for the
+ribbon is a deliberate later PR, once the owner has tuned the look.
 ## 2026-07-24 (gilded cards materialise in gold)
 ### feat(ui): the golden plate tint is on the Card Plate tuner
 ### tweak(ui): lock in the owner's golden plate tone

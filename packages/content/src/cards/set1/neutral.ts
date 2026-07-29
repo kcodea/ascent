@@ -70,8 +70,8 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastBuffOthers', params: { attack: 1, health: 1, count: 3 } }],
-    text: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast with this on board.',
-    goldenText: 'After **a spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast with this on board.',
+    text: 'After **a Shop spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 Shop spells cast with this on board.',
+    goldenText: 'After **a Shop spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 Shop spells cast with this on board.',
   },
   {
     // Overflow payoff. When a summon can't fit your full board, TWO random friends get Engraved stats
@@ -147,8 +147,8 @@ export const NEUTRAL: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [],
-    text: 'Your **targeted** spells cast **twice**.',
-    goldenText: 'Your **targeted** spells cast **three times**.',
+    text: 'Your **targeted** Shop spells cast **twice**.',
+    goldenText: 'Your **targeted** Shop spells cast **three times**.',
   },
   {
     // Engraver. At Start of Combat it grants Engraved (EG) to the minion on its LEFT (golden: both
@@ -235,8 +235,8 @@ export const NEUTRAL: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDiscoverSpell' }],
-    text: '**Battlecry:** Discover a spell.',
-    goldenText: '**Battlecry:** Discover **2** spells.',
+    text: '**Battlecry:** Discover a Shop spell.',
+    goldenText: '**Battlecry:** Discover **2** Shop spells.',
   },
   {
     id: 'jenkins',
@@ -260,8 +260,8 @@ export const NEUTRAL: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'spellCopyRecent' }],
-    text: '**End of Turn:** get a copy of the most recent spell cast.',
-    goldenText: '**End of Turn:** get **2** copies of the most recent spell cast.',
+    text: '**End of Turn:** get a copy of the most recent Shop spell cast.',
+    goldenText: '**End of Turn:** get **2** copies of the most recent Shop spell cast.',
   },
   {
     // Start of Combat: give the enemy's rightmost minion Taunt (golden: the two rightmost) — force your side
@@ -302,8 +302,8 @@ export const NEUTRAL: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGrantSpellPower', params: { count: 3, attack: 1 } }],
-    text: '**Avenge (3):** your Tavern spells have **+1 Attack** this run.',
-    goldenText: '**Avenge (3):** your Tavern spells have **+2 Attack** this run.',
+    text: '**Avenge (3):** your Shop spells have **+1 Attack** this run.',
+    goldenText: '**Avenge (3):** your Shop spells have **+2 Attack** this run.',
   },
   {
     // Battlecry banks an EXTRA cast for the next Tavern spell (golden: two) — a spell-value burst. Accrues
@@ -320,8 +320,8 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDoubleNextSpell' }],
-    text: '**Battlecry:** your next spell casts an **additional** time.',
-    goldenText: '**Battlecry:** your next spell casts **2 additional** times.',
+    text: '**Battlecry:** your next Shop spell casts an **additional** time.',
+    goldenText: '**Battlecry:** your next Shop spell casts **2 additional** times.',
   },
   {
     // Echo Warden: a passive presence special-cased in the combat summon path (simulate's summonMinion) — while

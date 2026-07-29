@@ -33,8 +33,8 @@ export const UNDEAD: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 3 } }],
-    text: '**Avenge (3):** get a random spell.',
-    goldenText: '**Avenge (3):** get **2** random spells.',
+    text: '**Avenge (3):** get a random Shop spell.',
+    goldenText: '**Avenge (3):** get **2** random Shop spells.',
   },
   {
     id: 'knit',
@@ -208,8 +208,8 @@ export const UNDEAD: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 4 } }],
-    text: 'When you cast a spell, give your Undead **+4 Attack** wherever they are.',
-    goldenText: 'When you cast a spell, give your Undead **+8 Attack** wherever they are.',
+    text: 'When you cast a Shop spell, give your Undead **+4 Attack** wherever they are.',
+    goldenText: 'When you cast a Shop spell, give your Undead **+8 Attack** wherever they are.',
   },
   {
     // Avenge engine: every 3rd friendly death summons a Spear Warden that attacks IMMEDIATELY (out of
@@ -281,8 +281,8 @@ export const UNDEAD: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnGetRandomSpells', params: { count: 2 } }],
-    text: '**End of Turn:** Get **2 random spells**.',
-    goldenText: '**End of Turn:** Get **4 random spells**.',
+    text: '**End of Turn:** Get **2 random Shop spells**.',
+    goldenText: '**End of Turn:** Get **4 random Shop spells**.',
   },
 
   // --- 2026-07-06 content batch (part 2) ---
@@ -315,8 +315,8 @@ export const UNDEAD: CardDef[] = [
     target: 'friendly',
     targetNotSelf: true, // it can't eat itself — that deleted the body paying for the spell
     effects: [{ on: 'onPlay', do: 'battlecryDestroyForSpell' }],
-    text: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add a random spell of its tier to your hand.',
-    goldenText: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add **2** random spells of its tier to your hand.',
+    text: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add a random Shop spell of its tier to your hand.',
+    goldenText: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add **2** random Shop spells of its tier to your hand.',
   },
 
   // --- Undead quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---

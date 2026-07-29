@@ -102,4 +102,24 @@ export const SET2_NEUTRAL: CardDef[] = [
     text: '**Shout:** Get a **Gold Pouch**.',
     goldenText: '**Shout:** Get **2 Gold Pouches**.',
   },
+  {
+    // Owner add 2026-07-28 — the set's ALL-TYPE minion (Taurus was pulled from set 2 earlier in this batch, so
+    // the slot was empty). `universalTribe` makes it count as every tribe: it takes buffs from every tribal
+    // source, and it is itself "a minion of every type", which is why it always collects its own Rally payout.
+    //
+    // Tier 6 / 4-5 stats are MY call, not the owner's — the spec gave the effect only. It sits where the other
+    // build-around all-type bodies do, with a body small enough that the permanent Rally scaling is the reason
+    // to play it. Flag for tuning.
+    id: 'n2_paragon',
+    name: 'Paragon',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    universalTribe: true,
+    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 3, health: 3 } }],
+    text: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+3/+3** permanently.',
+    goldenText: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+6/+6** permanently.',
+  },
 ];

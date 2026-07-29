@@ -52,12 +52,15 @@ const SET1_BEASTS_IN_SET2: readonly CardDef[] = BEASTS.filter((b) =>
 const SET1_NEUTRALS_IN_SET2: readonly CardDef[] = NEUTRAL.filter((c) =>
   [
     'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
-    'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'taurus', 'yazzus', 'lazarus',
+    'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'yazzus', 'lazarus', // Taurus cut 2026-07-27
     'jenkins',
   ].includes(c.id),
 );
 /** The Tier-7 neutrals on the same owner roster. Kept separate so they can stay APPENDED last, matching set 1's
  *  ordering rule (declaration order drives seeded pool picks). */
+/** Set 1 DEMONS opted into set 2 (owner 2026-07-27). Set 2 grows its own Demon tribe, but Imp Overseer is a
+ *  clean fit for its Imp line, so it's shared rather than re-authored. */
+const SET1_DEMONS_IN_SET2: readonly CardDef[] = DEMONS.filter((c) => ['impoverseer'].includes(c.id));
 const SET1_TIER7_IN_SET2: readonly CardDef[] = TIER7.filter((c) => ['uron', 'salvatore', 'zyff'].includes(c.id));
 /** Set 1's drawable neutral spells that carry over into Set 2 (drops the tribe-locked ones + reward tokens). */
 const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token && !SET2_DROPPED_SPELLS.has(s.id));
@@ -155,7 +158,7 @@ export const SETS: Record<SetId, SetDef> = {
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
-    own: [...SET2_KOBOLDS, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2], // → packages/content/src/cards/set2/*.ts (WIP)
+    own: [...SET2_KOBOLDS, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2], // → packages/content/src/cards/set2/*.ts (WIP)
   },
 };
 

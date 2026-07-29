@@ -25,8 +25,10 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     const set2Dragons = Object.values(CARD_INDEX).filter((c) => c.id.startsWith('d2_'));
     expect(set2Dragons.length).toBeGreaterThan(0);
     expect(set2Dragons.every((c) => c.tribe === 'dragon')).toBe(true);
-    // Sanity: every authored Dragon is a real, buyable (non-token) minion.
-    expect(set2Dragons.every((c) => !c.token && !c.spell)).toBe(true);
+    // Sanity: every authored Dragon is a real minion, not a spell. Tokens are allowed since 2026-07-27 —
+    // Blazing Keeper hands out a Brood Whelp, which is a Dragon you play but can't buy.
+    expect(set2Dragons.every((c) => !c.spell)).toBe(true);
+    expect(set2Dragons.filter((c) => c.token).map((c) => c.id), 'the only Dragon token').toEqual(['d2_broodwhelp']);
     expect(run).toBeTruthy();
   });
 
@@ -37,17 +39,6 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
 });
 
 describe('set 2 — Dragon effects', () => {
-  it('Embermouth Whelp: Shout buffs ANOTHER friendly Dragon, never itself', () => {
-    const other = minion('d1', 'd2_chronicler', 'dragon', 3, 5);
-    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 20, board: [other], hand: [minion('w1', 'd2_embermouth')] };
-    const next = reduce(s, { type: 'play', uid: 'w1' });
-    const buffed = next.board.find((c) => c.uid === 'd1')!;
-    expect([buffed.attack - 3, buffed.health - 5]).toEqual([2, 1]);
-    // the Whelp itself is untouched by its own Shout
-    const self = next.board.find((c) => c.uid === 'w1')!;
-    expect([self.attack, self.health]).toEqual([2, 2]);
-  });
-
   it('Recaller: Shout copies the LAST spell cast this turn (and no-ops before any cast)', () => {
     const dry: RunState = { ...createRun(1), phase: 'recruit', embers: 20, board: [], hand: [minion('r1', 'd2_recaller', 'dragon', 5, 4)] };
     const afterDry = reduce(dry, { type: 'play', uid: 'r1' });
@@ -171,18 +162,40 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
     expect(s.hand.filter((c) => c.cardId === 'emberpouch').length).toBe(0);
   });
 
-  it('Runic Archivist: End of Turn re-CASTS the first spell (a real cast, not a copy to hand)', () => {
+  it('Runic Archivist (owner rework 2026-07-27): every 5th minion SOLD hands you a Shop spell', () => {
+    // The recast moved to Water Dragon; the Archivist now pays for selling. Sell four — nothing — then the
+    // fifth pays. Asserting the four quiet sales matters: an off-by-one that paid on every sale, or on the
+    // first, would still look right if we only checked "after 5 sales the hand grew".
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
-      board: [minion('ra', 'd2_archivist', 'dragon', 6, 10), minion('t1', 'd2_ashscribe', 'dragon', 1, 3)],
-      hand: [spellInHand('s1', 'growth')],
+      board: [minion('ra', 'd2_archivist', 'dragon', 4, 7),
+              ...['a', 'b', 'c', 'd', 'e'].map((u) => minion(u, 'sandbag', 'beast', 1, 1))],
+      hand: [],
     };
-    s = reduce(s, { type: 'play', uid: 's1' });
-    const castsAfterPlay = s.spellsCast;
-    const handSize = s.hand.length;
-    s = reduce(s, { type: 'faceOmen' });
-    expect(s.spellsCast).toBeGreaterThan(castsAfterPlay); // it CAST again…
-    expect(s.hand.length).toBe(handSize); // …rather than adding a card to hand
+    for (const u of ['a', 'b', 'c', 'd']) {
+      s = reduce(s, { type: 'sell', uid: u });
+      expect(s.hand.length, `paid out early, after selling ${u}`).toBe(0);
+    }
+    s = reduce(s, { type: 'sell', uid: 'e' });
+    expect(s.hand.length, 'the 5th sale paid nothing').toBe(1);
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.spell, 'what it handed you was not a spell').toBe(true);
+  });
+
+  it('…and the sell tally CARRIES ROUND TO ROUND rather than resetting at end of turn', () => {
+    // The owner asked for this explicitly. A per-turn counter would look correct in the test above and quietly
+    // throw away partial progress the moment a turn ended — the exact case a "sell 5" meter is for.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [minion('ra', 'd2_archivist', 'dragon', 4, 7),
+              ...['a', 'b', 'c', 'd', 'e'].map((u) => minion(u, 'sandbag', 'beast', 1, 1))],
+      hand: [],
+    };
+    for (const u of ['a', 'b', 'c']) s = reduce(s, { type: 'sell', uid: u });
+    const carried = s.board.find((c) => c.cardId === 'd2_archivist')!.soldProgress;
+    expect(carried, 'three sales left no progress on the card').toBe(3);
+    s = reduce(s, { type: 'faceOmen' }); // end the turn
+    expect(s.board.find((c) => c.cardId === 'd2_archivist')!.soldProgress,
+      'the tally reset over the turn boundary').toBe(3);
   });
 
   it('Runic Archivist: no spell cast this turn → a clean no-op', () => {
@@ -437,24 +450,6 @@ describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
     expect([mw.attack - a1, mw.health - h1]).toEqual([2, 3]); // the second lands ONCE
   });
 
-  it('Runefire: the first spell also casts on its adjacent Dragons, but not on itself again', () => {
-    let s: RunState = {
-      ...createRun(1), phase: 'recruit', embers: 40,
-      board: [
-        minion('L', 'd2_chronicler', 'dragon', 3, 5),
-        minion('rf', 'd2_runefire', 'dragon', 5, 8),
-        minion('R', 'd2_embermouth', 'dragon', 2, 2),
-      ],
-      hand: [spellInHand('sf', 'spiritfire')],
-    };
-    s = reduce(s, { type: 'play', uid: 'sf', targetUid: 'rf' });
-    const L = s.board.find((c) => c.uid === 'L')!;
-    const rf = s.board.find((c) => c.uid === 'rf')!;
-    const R = s.board.find((c) => c.uid === 'R')!;
-    expect([L.attack - 3, L.health - 5]).toEqual([2, 3]); // neighbour got it
-    expect([R.attack - 2, R.health - 2]).toEqual([2, 3]); // and the other neighbour
-    expect([rf.attack - 5, rf.health - 8]).toEqual([2, 3]); // Runefire itself only ONCE (no self re-cast)
-  });
 });
 
 describe('set 2 — Scalechanter (owner rework 2026-07-25)', () => {
@@ -592,45 +587,6 @@ describe('set 2 — Ashen Broodlord (owner change 2026-07-25)', () => {
  * surfaced that. Assertions read the `sc` log line, which names the minion whose Shout was re-fired, so they
  * work for any Shout rather than only ones with a combat-visible effect.
  */
-describe('set 2 — Chorus Drake', () => {
-  const bm = (cardId: string, uid: string, attack = 2, health = 20): BoardMinion =>
-    ({ cardId, attack, health, sourceUid: uid, keywords: [] as BoardMinion['keywords'] });
-  const fight = (player: BoardMinion[], seed = 5) =>
-    simulate(player, [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(seed), CARD_INDEX,
-      combatSide({ tier: 3, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-  const triggered = (r: ReturnType<typeof fight>): string[] =>
-    (r.events.filter((e) => e.type === 'sc') as { text: string }[])
-      .filter((e) => /triggers .*Battlecry/.test(e.text)).map((e) => e.text);
-
-  it("Rally re-fires the left-most Dragon's Shout", () => {
-    const r = fight([bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)]);
-    expect(triggered(r).some((t) => /Embermouth Whelp/.test(t)), "the Whelp Shout fired").toBe(true);
-  });
-
-  it('skips a Dragon that has no Shout rather than blanking', () => {
-    // Voicekeeper is a Dragon with no onPlay. Parked on the LEFT, a strict "left-most Dragon" reading would
-    // find it, see no Shout, and do nothing — which would make the Drake dead weight behind a common body.
-    const voicekeeper = CARD_INDEX['d2_voicekeeper']!;
-    expect(voicekeeper.effects.some((e) => e.on === 'onPlay'), 'fixture: Voicekeeper has no Shout').toBe(false);
-    const r = fight([bm('d2_voicekeeper', 'V', 2, 40), bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)]);
-    expect(triggered(r).some((t) => /Embermouth Whelp/.test(t)), 'it reached past the Shout-less Dragon').toBe(true);
-  });
-
-  it('golden re-fires it twice per attack', () => {
-    const plain = triggered(fight([bm('d2_chorus', 'C', 3, 40), bm('d2_embermouth', 'E', 2, 40)])).length;
-    const r = simulate(
-      [{ ...bm('d2_chorus', 'C', 3, 40), golden: true } as BoardMinion, bm('d2_embermouth', 'E', 2, 40)],
-      [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(5), CARD_INDEX,
-      combatSide({ tier: 3, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    expect(triggered(r).length).toBe(plain * 2);
-  });
-
-  it('its printed text no longer excludes itself (owner change 2026-07-25)', () => {
-    const c = CARD_INDEX['d2_chorus']!;
-    expect(c.text).not.toMatch(/other/i);
-    expect(c.goldenText).not.toMatch(/other/i);
-  });
-});
 
 describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
   const bm2 = (cardId: string, uid: string, attack = 2, health = 20): BoardMinion =>
@@ -646,20 +602,6 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     expect(buffsOn('m1').length, 'the Dragon that attacked was buffed').toBeGreaterThan(0);
     expect(buffsOn('m1')[0]!.attack).toBe(2);
     expect(buffsOn('m2'), 'the Beast that attacked was NOT').toEqual([]);
-  });
-
-  it("Scalefeather Drake Echo buffs Beasts AND Dragons, and a dual-type only ONCE", () => {
-    // b2_elderhorn is a Beast; d2_embermouth a Dragon; the Drake itself is Dragon/Beast — the dual-type case
-    // is the reason this is one multi-tribe pass instead of two copies of the effect.
-    const r = simulate(
-      [bm2('d2_scalefeather', 'SF', 1, 1), bm2('d2_embermouth', 'D', 2, 60), bm2('alley', 'B', 2, 60), bm2('n2_lastlight', 'N', 2, 60)],
-      [{ cardId: 'sandbag', attack: 10, health: 900 }], makeRng(4), CARD_INDEX,
-      combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }));
-    const gained = (uid: string) => (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number }[])
-      .filter((b) => b.target === uid).reduce((n, b) => n + b.attack, 0);
-    expect(gained('m1'), 'the Dragon').toBe(4);
-    expect(gained('m2'), 'the Beast').toBe(4);
-    expect(gained('m3'), 'a neutral gets nothing').toBe(0);
   });
 
   it('Blazing Keeper only offers Dragons that actually HAVE a Shout', () => {
@@ -709,5 +651,40 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     expect(r.events.some((e) => e.type === 'shieldUp'), 'Ward still lands').toBe(true);
     const firstAttacker = (r.events.find((e) => e.type === 'attack') as { attacker: string } | undefined)?.attacker;
     expect(firstAttacker, 'turn order opens the fight, not a Start-of-Combat swing').toBe('m0');
+  });
+});
+
+describe('set 2 — Dragon reworks (owner batch 2026-07-27)', () => {
+  it('Blazing Keeper hands you a Brood Whelp, and the Whelp has a Shout of its own', () => {
+    const s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 60, board: [],
+      hand: [minion('bk', 'd2_blazingkeeper', 'dragon', 5, 3)] };
+    const after = reduce(s, { type: 'play', uid: 'bk' });
+    expect(after.hand.map((c) => c.cardId)).toContain('d2_broodwhelp');
+    const whelp = CARD_INDEX['d2_broodwhelp']!;
+    expect([whelp.tier, whelp.attack, whelp.health]).toEqual([1, 3, 1]);
+    expect(whelp.effects.some((e) => e.on === 'onPlay'), 'it carries its own Shout').toBe(true);
+  });
+
+  it('Thunderous Sovereign improves per spell, and NOT retroactively', () => {
+    // The accrual is per-instance, so a Sovereign bought after the casts inherits nothing — the same rule
+    // Ashscribe and Spellkeeper follow.
+    let s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 90,
+      board: [minion('ts', 'd2_sovereign', 'dragon', 8, 8)],
+      hand: [spellInHand('a', 'emberpouch'), spellInHand('b', 'emberpouch')] };
+    expect(s.board[0]!.summonBonus ?? 0).toBe(0);
+    s = reduce(s, { type: 'play', uid: 'a' });
+    s = reduce(s, { type: 'play', uid: 'b' });
+    expect(s.board.find((c) => c.uid === 'ts')!.summonBonus, 'two casts, two improvements').toBe(2);
+  });
+
+  it('Embermouth Whelp grows off a Shout you trigger in the SHOP', () => {
+    // Most Shouts fire in the shop, so the recruit half is the one that matters — the combat-only version
+    // would have made the card look dead in the phase you actually play it.
+    let s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 60,
+      board: [minion('e', 'd2_embermouth', 'dragon', 2, 2)],
+      hand: [minion('sh', 'd2_chronicler', 'dragon', 3, 5)] };
+    s = reduce(s, { type: 'play', uid: 'sh' });
+    const e = s.board.find((c) => c.uid === 'e')!;
+    expect([e.attack, e.health], 'a triggered Shout grew it').toEqual([3, 3]);
   });
 });

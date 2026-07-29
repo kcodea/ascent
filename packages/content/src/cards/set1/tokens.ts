@@ -171,8 +171,8 @@ export const TOKENS: CardDef[] = [
     keywords: ['DS', 'RL', 'M'],
     universalTribe: true,
     effects: [{ on: 'onAttack', do: 'rallyGrantSpell' }],
-    text: 'Counts as all tribes. **Ward**, **Magnetic** (attach to any minion). **Rally:** get a random spell.',
-    goldenText: 'Counts as all tribes. **Ward**, **Magnetic** (attach to any minion). **Rally:** get **2** random spells.',
+    text: 'Counts as all tribes. **Ward**, **Magnetic** (attach to any minion). **Rally:** get a random Shop spell.',
+    goldenText: 'Counts as all tribes. **Ward**, **Magnetic** (attach to any minion). **Rally:** get **2** random Shop spells.',
     token: true,
   },
 ];

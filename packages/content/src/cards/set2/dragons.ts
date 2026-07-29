@@ -26,8 +26,8 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffOtherTribe', params: { tribe: 'dragon', attack: 2, health: 1 } }],
-    text: '**Shout:** give another friendly Dragon **+2/+1**.',
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 1, health: 1 } }],
+    text: 'After you trigger a **Shout**, gain **+1/+1**.',
     goldenText: '**Shout:** give another friendly Dragon **+4/+2**.',
   },
   {
@@ -67,9 +67,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 3,
     health: 4,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyTriggerLeftmostTribeShout', params: { tribe: 'dragon' } }],
-    text: '**Rally:** trigger your left-most Dragon’s **Shout**.',
-    goldenText: '**Rally:** trigger your left-most Dragon’s **Shout** twice.',
+    effects: [{ on: 'onAttack', do: 'rallyGrantSpellPower', params: { attack: 0, health: 1 } }],
+    text: '**Rally:** your **Shop Spells** gain **+1 Health**.',
+    goldenText: '**Rally:** your **Shop Spells** gain **+2 Health**.',
   },
   {
     // A rechargeable spell amplifier: it doubles your opening spell, then goes quiet until you trigger 3
@@ -85,6 +85,10 @@ export const SET2_DRAGONS: CardDef[] = [
       { on: 'onPlay', do: 'battlecryArmGrimoire' },
       { on: 'battlecryTriggered', do: 'onBattlecryRearmGrimoire', params: { every: 3 } },
     ],
+    // Deliberately says "spell", NOT "Shop spell": a RUBY also spends the Grimoire charge
+    // (`consumeGrimoireCharge` on the ruby path), so this really is the inclusive umbrella. Pinned by
+    // set2RubyExclusion.test.ts so a wording sweep can't narrow it — which is exactly what happened on
+    // 2026-07-28 before the test caught it.
     text: 'The first spell you cast each turn **casts twice**. Once used, trigger **3 Shouts** to reset this.',
     goldenText: 'The first spell you cast each turn **casts 3 times**. Once used, trigger **3 Shouts** to reset this.',
   },
@@ -98,22 +102,29 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 8,
     health: 8,
     keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }],
-    text: '**Start of Combat:** trigger your Dragons’ **Shouts**.',
-    goldenText: '**Start of Combat:** trigger your Dragons’ **Shouts** twice.',
+    // The improvement is PER-INSTANCE and non-retroactive: it counts only spells cast while THIS body has
+    // been on the board (`onSpellCastImproveSummon` ticks `summonBonus`), so a Sovereign bought late doesn't
+    // inherit the turn's history. `scBeastAura` spends that accrual as the Start-of-Combat grant — the same
+    // pairing Kennelmaster uses, tribe-swapped to Dragons.
+    effects: [
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'dragon', attack: 1, health: 1, stepAttack: 1, stepHealth: 1 } },
+      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
+    ],
+    text: '**Start of Combat:** give your Dragons **+1/+1**. Improves with every Shop spell you cast.',
+    goldenText: '**Start of Combat:** give your Dragons **+2/+2**. Improves with every Shop spell you cast.',
   },
   {
     // The combat spell-supply piece: dying allies feed you copies of your best held spell. Reads the hand
     // snapshot taken at combat start (Vault Curator copies the left-most spell you took INTO the fight).
     id: 'd2_curator',
-    name: 'Vault Curator',
+    name: 'Water Dragon',
     tribe: 'dragon',
     tier: 4,
     attack: 4,
     health: 6,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }],
-    text: '**Avenge (4):** get a copy of the left-most spell in your hand.',
+    effects: [{ on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 4 } }],
+    text: '**Avenge (4):** get a random Shop spell.',
     goldenText: '**Avenge (4):** get **2** copies of the left-most spell in your hand.',
   },
   {
@@ -127,9 +138,15 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 4,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribes: ['beast', 'dragon'], attack: 4, health: 4 } }],
-    text: '**Echo:** give your Beasts and Dragons **+4/+4**.',
-    goldenText: '**Echo:** give your Beasts and Dragons **+8/+8**.',
+    // Shout AND Echo, so it pays on both ends. The two halves use different factories on purpose: the Shout is
+    // a recruit grant (`spellId`), the Echo a combat one (`cardId`) — the keys differ per factory and mixing
+    // them up silently grants nothing (the Velvet Rope Fiend bug, 2026-07-25).
+    effects: [
+      { on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'growth', count: 1 } },
+      { on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'growth' } },
+    ],
+    text: '**Shout and Echo:** get a **Growth**.',
+    goldenText: '**Shout and Echo:** get **2 Growths**.',
   },
   {
     // Dragon/DEMON, Rise: pays off the Demon half of its typing — eating from the Shop turns into spell fuel.
@@ -164,17 +181,18 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'Get **2 plain copies** of the first Dragon you sell each turn.',
   },
   {
-    // The top-end recursion payoff: not a COPY to hand but an actual free re-cast, at End of Turn.
     id: 'd2_archivist',
     name: 'Runic Archivist',
     tribe: 'dragon',
     tier: 6,
-    attack: 6,
-    health: 10,
+    attack: 4,
+    health: 7,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
-    text: '**End of Turn:** cast the last **Shop spell** you cast this turn again.',
-    goldenText: '**End of Turn:** cast the last **Shop spell** you cast this turn **2 additional** times.',
+    // Owner rework 2026-07-27 — the recast moved to Water Dragon; the Archivist now pays for SELLING. The
+    // tally rides on the card (`soldProgress`) and carries round to round.
+    effects: [{ on: 'minionSold', do: 'minionSoldGrantSpell', params: { count: 5 } }],
+    text: 'After you sell **5 minions**, get a **Shop spell**.',
+    goldenText: 'After you sell **5 minions**, get **2 Shop spells**.',
   },
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.
@@ -186,8 +204,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGrantRandomSpell', params: { count: 1 } }],
-    text: '**Shout:** get a random spell.',
-    goldenText: '**Shout:** get **2** random spells.',
+    text: '**Shout:** get a random Shop spell.',
+    goldenText: '**Shout:** get **2** random Shop spells.',
   },
   {
     // A spell magnet: aim your best spell at it and it resolves twice. Only the FIRST spell each turn, so it
@@ -213,21 +231,17 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    // Two hooks for one rule: Shop spells arrive via `spellCastOnThis`, Rubies via `onRubyPlayed` (a Ruby never
-    // routes through `castSpell`). Runefire deliberately works with BOTH — it's one of the two spell-reactive
-    // Dragons that doesn't say "Shop spell" (owner 2026-07-24).
-    effects: [
-      { on: 'spellCastOnThis', do: 'onSpellCastOnThisSpreadAdjacent', params: { tribe: 'dragon', count: 1 } },
-      { on: 'onRubyPlayed', do: 'onRubyPlayedSpreadAdjacent', params: { tribe: 'dragon', count: 1 } },
-    ],
-    text: 'The first spell or **Ruby** you cast on this each turn **also casts on adjacent Dragons**.',
-    goldenText: 'The first spell or **Ruby** you cast on this each turn casts **twice** on adjacent Dragons.',
+    // Owner rework 2026-07-27 — reuses the same End-of-Turn recast Runic Archivist had (which now reads
+    // `lastSpellCastId`), so the two cards share one primitive rather than two near-identical ones.
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
+    text: '**End of Turn:** cast the last **Shop spell** you cast this turn again.',
+    goldenText: '**End of Turn:** cast the last **Shop spell** you cast this turn **2 additional** times.',
   },
   {
     // Two effects, one card: the Shout that pays out, and the cadence that grows it. Rides
     // `battlecryTriggered`, so every Shout FIRE counts (Drakko repeats included) — "Shouts you trigger".
     id: 'd2_scalechanter',
-    name: 'Enchanter',
+    name: 'Earthbreaker',
     tribe: 'dragon',
     tier: 3,
     attack: 4,
@@ -245,7 +259,7 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_skald',
     name: 'Traveling Skald',
     tribe: 'dragon',
-    tier: 4,
+    tier: 2,
     attack: 4,
     health: 5,
     keywords: [],
@@ -292,9 +306,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 5,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantShoutDragon', params: { count: 1 } }],
-    text: '**Shout:** get a random **Shout** Dragon.',
-    goldenText: '**Shout:** get **2** random **Shout** Dragons.',
+    effects: [{ on: 'onPlay', do: 'battlecryGrantMinion', params: { cardId: 'd2_broodwhelp', count: 1 } }],
+    text: '**Shout:** get a **Brood Whelp**.',
+    goldenText: '**Shout:** get **2 Brood Whelps**.',
   },
   {
     // Set 1's Karwind pays on Battlecries; the Matriarch is the Attack-only Dragon version, so the tribe has a

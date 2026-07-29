@@ -620,7 +620,9 @@ export const useGame = create<GameStore>((set, get) => ({
       return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
     }),
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
-  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id), avatarPickerOpen: false }),
+  // Practice shows EVERY hero — but "every" still means every PICKABLE one. It was reading the raw registry, so
+  // a disabled hero stayed selectable here after being pulled from the Ascent picker (owner 2026-07-28).
+  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.filter((h) => !h.wip).map((h) => h.id), avatarPickerOpen: false }),
   startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   startSceneBuilder: (heroId = 'warden', setId = activeSet().id) =>
     set(() => {

@@ -103,7 +103,8 @@ export function simulate(
   let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
-  const rubyBonusGain = { attack: 0, health: 0 }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
+  const rubyBonusGain = { attack: 0, health: 0 };
+  const tavernBuyGain = { attack: 0, health: 0 }; // Hungerling — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
@@ -589,6 +590,11 @@ export function simulate(
       if (side !== 'player' || count <= 0) return;
       nextTurnSpellCopies.n += count;
     },
+    gainTavernBuy: (attack, health, side) => {
+      if (side !== 'player') return; // enemies have no shop
+      tavernBuyGain.attack += attack;
+      tavernBuyGain.health += health;
+    },
     gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
       // `playerRubyBonusGain`; grows held + future Rubies at settle).
@@ -864,6 +870,13 @@ export function simulate(
       // only BE the attacker of a kill in this same-clash mutual case (it can't swing again once dead), so
       // this stays precisely scoped to "killed and died together".
       if (minion.dead && effect.on !== 'onDeath' && effect.on !== 'onKill') return;
+      // A RISE broadcast (`ownAlreadyFired`) reaches every WATCHER but must not re-run the dying body's own
+      // Deathrattle — `fireOwnDeathrattles` already ran it, with its own Echo-extras handling. Without this
+      // guard the emit doubled it: a Spear Warden came back 9/5 instead of 6/3, its Eternal-Knight enchant
+      // applied twice (owner report chased 2026-07-27).
+      if (effect.on === 'onDeath'
+        && (payload as { ownAlreadyFired?: boolean; minion?: Minion }).ownAlreadyFired
+        && (payload as { minion?: Minion }).minion === minion) return;
       // Cratering Missive: drop the tribe filter on the Cratering Hulk's overflow buff so it hits ALL your minions.
       const params =
         effect.do === 'onSummonOverflowBuffTribe' && modsFor(minion.side).crateringMissive
@@ -1031,13 +1044,10 @@ export function simulate(
       //
       // Tallied AFTER the rattle, matching the regular death path.
       //
-      // NOT broadcast on the bus, deliberately. `registerEffect` subscribes EVERY minion's effects to the bus
-      // by event, so `bus.emit('onDeath')` would re-fire the dying body's own Deathrattle on top of the
-      // `fireOwnDeathrattles` call above — measured: a Spear Warden returned 9/5 instead of 6/3, its
-      // Eternal-Knight enchant applied twice. The regular death path emits instead of calling
-      // `fireOwnDeathrattles`; a Rise does the opposite, and doing both is the bug. So a Rise now counts for
-      // Avenge, the enemy tally and friendly-death quests, while rune/quest on-death WATCHERS (Inheritance,
-      // Passing Spears) still don't see it — flagged to the owner rather than shipped with a double-fire.
+      // …and every on-death WATCHER sees it too (owner 2026-07-27: "the minion effectively dies and should
+      // trigger all on death effects"). `ownAlreadyFired` stops the broadcast re-running the dying body's own
+      // rattle, which `fireOwnDeathrattles` handled a line above — see the guard in `registerEffect`.
+      bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
       if (minion.side === 'enemy') enemyDeaths++;
       deaths[minion.side] += 1;
       if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
@@ -2136,6 +2146,7 @@ export function simulate(
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.attack > 0 || rubyBonusGain.health > 0) ? { ...rubyBonusGain } : undefined,
+    playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,

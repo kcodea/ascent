@@ -97,7 +97,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
     // seven of them, but these are shared definitions and re-speccing would have rebalanced set 1 too.
     const ROSTER = [
       'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
-      'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'taurus', 'yazzus', 'lazarus',
+      'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'yazzus', 'lazarus',
       'jenkins', 'uron', 'salvatore', 'zyff',
     ];
     const all = new Set(poolFor('set2').all.map((c) => c.id));
@@ -127,8 +127,8 @@ describe('card sets — set 2 carries set 1 spells', () => {
   it('a Discover in a set-2 run pulls only its own tribes + neutrals — never a set-1 TRIBAL minion', () => {
     // The pool a Discover draws from is poolOf(run).buyable ∩ the run's tribes. Set 2 now carries NEUTRAL
     // minions too (the owner's 2026-07-25 roster), so the old "Kobolds only" reading no longer holds — the real
-    // invariant is that no tribe OUTSIDE set 2's roster can surface. Undead / Mech / Demon are the set-1-only
-    // tribes, so their absence is what proves nothing leaked.
+    // invariant is that no tribe OUTSIDE set 2's roster can surface. Set 2 fields Demons of its own, and since
+    // 2026-07-27 it also opts in one set-1 Demon (Imp Overseer), so Undead and Mech are what must stay absent.
     const run: RunState = { ...createRun(6, 'warden'), setId: 'set2', tribes: ['kobold'] };
     const buyable = poolOf(run).buyable.filter((c) => c.tribe === 'neutral' || run.tribes.includes(c.tribe));
     expect(buyable.length).toBeGreaterThan(0);
@@ -141,8 +141,9 @@ describe('card sets — set 2 carries set 1 spells', () => {
       'karwind',
       'badgington', 'seaurchin', 'sporebat', 'manasaber', 'kennel', 'beetle',
       'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
-      'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'taurus', 'yazzus', 'lazarus',
+      'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'yazzus', 'lazarus',
       'jenkins', 'uron', 'salvatore', 'zyff',
+      'impoverseer', // the one set-1 DEMON opted in (owner 2026-07-27) — it fits set 2's Imp line
     ]);
     const set1Ids = new Set(poolFor('set1').buyable.map((c) => c.id));
     const leaked = poolFor('set2').buyable.filter((c) => set1Ids.has(c.id) && !OPTED_IN.has(c.id));

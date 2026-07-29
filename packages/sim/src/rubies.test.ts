@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { mintRubies, applyCardsBought, applyEndOfTurn, RUBY_ID } from './recruit';
+import { mintRubies, applyGoldSpent, applyEndOfTurn, RUBY_ID } from './recruit';
 
 /**
  * The Ruby engine (set 2 Kobolds). Rubies are a spell-LIKE token that is NOT a Shop Spell: minted into hand,
@@ -83,14 +83,16 @@ describe('Ruby engine (set 2)', () => {
     expect(s.cardsBoughtThisTurn).toBe(1);
   });
 
-  it('Hoardmaster Krik mints a Ruby every 3 cards bought', () => {
+  it('Hoardmaster Krik mints a Ruby every 5 GOLD spent (owner rework 2026-07-27)', () => {
+    // Re-pointed from `cardsBought` to `goldSpent`. Both events carry the same continuous per-instance meter,
+    // so the cadence — including a single big spend crossing the threshold twice — comes free.
     const s: RunState = { ...createRun(1), board: [{ uid: 'k', cardId: 'k_hoardmaster', tribe: 'kobold', attack: 5, health: 9, keywords: [], golden: false }], hand: [] };
-    applyCardsBought(s, 2); // 2 buys → not yet
+    applyGoldSpent(s, 4); // 4 Gold → not yet
     expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(0);
-    applyCardsBought(s, 1); // the 3rd buy → mint a Ruby
+    applyGoldSpent(s, 1); // crosses 5 → mint
     expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(1);
-    applyCardsBought(s, 3); // 3 more → another
-    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(2);
+    applyGoldSpent(s, 10); // one spend crossing twice → two more
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(3);
   });
 
   it('Resonance Idol bounces a played Ruby to both adjacent minions', () => {

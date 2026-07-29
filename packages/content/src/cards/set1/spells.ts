@@ -514,7 +514,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [{ on: 'cast', do: 'spellRefreshToSpells' }],
-    text: 'Refresh the tavern — fill it with **spells** instead of minions.',
+    text: 'Refresh the tavern — fill it with **Shop spells** instead of minions.',
   },
   {
     // Combat initiative: your board attacks first in the next fight, overriding the more-minions rule
@@ -785,7 +785,7 @@ export const SPELLS: CardDef[] = [
     cost: 4,
     effects: [],
     discoverOnPlay: { tierOffset: 1, maxTier: 7, topTierFirst: true },
-    text: '**Discover** a minion from **one tier higher** (up to Tier 7).',
+    text: '**Discover** a minion from **one tier higher**.',
   },
   {
     // Discover a fixed Tier 6 minion — `exactTier` bypasses the tavern-tier gate (buyable at any tier).

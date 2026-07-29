@@ -135,8 +135,8 @@ export const MECHS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'battlecryBuffSpellPower', params: { attack: 1, health: 1 } }],
-    text: '**End of Turn:** give your spells **+1/+1**.',
-    goldenText: '**End of Turn:** give your spells **+2/+2**.',
+    text: '**End of Turn:** give your Shop spells **+1/+1**.',
+    goldenText: '**End of Turn:** give your Shop spells **+2/+2**.',
   },
   {
     // Passive (resolved in @game/sim's magnetize path): every magnetization that lands on another

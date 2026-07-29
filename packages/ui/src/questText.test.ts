@@ -106,7 +106,7 @@ describe('questText — live reward magnitude (badge tooltip)', () => {
   });
   it('umbralEnergy shows its live per-spell Start-of-Combat grant', () => {
     expect(questRewardLiveText({ kind: 'combatFlag', flag: 'umbralEnergy' }, { spellsCast: 5 }))
-      .toBe('Now: Dragons +10/+10 at Start of Combat (5 spells cast)');
+      .toBe('Now: Dragons +10/+10 at Start of Combat (5 Shop spells cast)');
   });
   it('beastPlayBuff (Den Marker) shows the current per-play grant + countdown to the next improve', () => {
     const r: QuestReward = { kind: 'beastPlayBuff', attack: 2, health: 2, step: 2, per: 3 };

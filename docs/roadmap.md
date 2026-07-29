@@ -31,9 +31,6 @@ pass alongside the other Rally payoffs.
 `hasTier7Access` is live and Beyond the Summit is gated on it, but nothing sets `tier7Access` — only the Summit
 rift reaches Tier 7 today. The owner described the other route as "a different hero power or something"; the flag
 is ready for whichever hero or quest ends up carrying it.
-- **Live FX authoring, phase ③ — the authoring panel.** Tie ① and ② together: pick a card, tune its effect
-  against a live replay, and commit with a choice of card-only or global scope. Phase ① (bindings as data)
-  shipped 2026-07-27; phase ② (the proc harness) shipped 2026-07-28.
 
 ### FX authoring loop (owner test run — 2026-07-26)
 The FX workbench is built; the next step is authoring a real effect through it end to end.
@@ -202,6 +199,18 @@ The career surface exists; deepen what a finished run *remembers*.
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests
   aren't enforced there and the ~50 pre-existing `packages/ui` type errors stay invisible. Swapping the
   shipped `pixiFx.trail` wisps for the new ribbon is its own later PR once the owner has tuned the look.
+
+- **Live FX authoring — all three phases SHIPPED.** ① bindings as data (2026-07-27), ② the proc harness /
+  "Watch in combat" rail mode (2026-07-28), ③ commit animation — pick a card and a moment, tune live, commit
+  card-only (forking the def) or everywhere (2026-07-28). Follow-ups from ③: `Workbench.tsx` is now ~2000
+  lines and carries a fourth concern — the clean seam is a `useFxDraft` / `useCommit` pair of hooks in
+  `fx/harness/`; the `.fxrail` / `.fxharness` chrome is declared in two places; `commitPlan`'s memo reads the
+  session patch without depending on it, so the blast-radius number can be computed from a table predating
+  the draft's own write (low impact — the draft row is the excluded target); editing a def's `label`/`tags`
+  from the panel and an unbind affordance are both still unbuilt; and phase ②'s auto-pause after a seeked
+  moment remains unbuilt. Also open from ②: `SceneBuilder.setEnemies` still duplicates `sandbagBoard`'s
+  board-building and the two could drift; rail mode costs 640px of width, tight below ~1400px; and the
+  harness stages sandbags only, so a final look-check against a real pooled opponent stays manual.
 
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own

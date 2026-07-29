@@ -274,6 +274,20 @@ export async function saveDef(def: StoredFxDef): Promise<SaveResult> {
   return post('/__fx/def', { id: def.id, json: JSON.stringify(def, null, 2) });
 }
 
+/**
+ * Commit the whole binding table to `packages/ui/src/choreo/bindings.json`.
+ *
+ * Takes the serialised text (from `bindingsJson()`) rather than an object, mirroring `saveDef`'s `json`
+ * field — the endpoint re-serialises whatever it is given, so what lands on disk is stably formatted
+ * regardless of the caller.
+ *
+ * Unlike `saveDef` there is no id to validate: the destination path is fixed by the plugin and never
+ * derived from the request, so the traversal question `saveDef`'s slug check answers does not arise here.
+ */
+export async function saveBindings(json: string): Promise<SaveResult> {
+  return post('/__fx/bindings', { json });
+}
+
 /** Write `defs/art/<slug>.png` from a PNG data URL, so a def's imported art travels with it. */
 export async function saveArt(slug: string, dataUrl: string): Promise<SaveResult> {
   if (!isValidSlug(slug)) {

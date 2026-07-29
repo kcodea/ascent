@@ -37,6 +37,10 @@ export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
  *  simply stop restoring) rather than a migration. */
 const SESSION_KEY = 'ascent.fx.session.v1';
 
+/** localStorage key for the one-shot commit confirmation. Same versioning convention as `SESSION_KEY`, and
+ *  same reason: a stale value simply stops being read rather than needing a migration. */
+const COMMIT_NOTE_KEY = 'ascent.fx.commitnote.v1';
+
 /**
  * A stored layer: the runtime `FxLayer` plus the workbench's authoring-only flags.
  *
@@ -335,6 +339,49 @@ export function loadSession<T = unknown>(): T | null {
 export function clearSession(): void {
   try {
     storage()?.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore — best-effort */
+  }
+}
+
+// ─── the commit confirmation, across the reload it causes ──────────────────────────────────────────────
+//
+// Committing writes `bindings.json`, which is a STATIC import — Vite can't hot-reload it, so the write
+// forces a full page reload and the workbench unmounts before its "Committed → …" line can be read. The
+// documented way to confirm the tool's primary action therefore used to be "check `git status`", which is
+// not an acceptable answer for the primary action. So the note is parked in localStorage the instant it
+// exists (before the reload can take it) and picked up by the next mount, which clears it as it reads —
+// see `loadCommitNote` / `clearCommitNote` and their one caller in `Workbench.tsx`.
+//
+// Same best-effort contract as the session helpers above: a hostile/absent `localStorage` degrades to "no
+// note", never to a throw. Losing a confirmation line is a papercut; breaking the commit that produced it
+// would be a defect.
+
+/** Park the commit confirmation so it survives the page reload that writing `bindings.json` forces. */
+export function saveCommitNote(note: string): void {
+  try {
+    storage()?.setItem(COMMIT_NOTE_KEY, note);
+  } catch {
+    /* ignore — a confirmation line is best-effort */
+  }
+}
+
+/** The parked commit confirmation, or `null` if there is none. Never throws. */
+export function loadCommitNote(): string | null {
+  try {
+    const raw = storage()?.getItem(COMMIT_NOTE_KEY) ?? null;
+    return raw === null || raw === '' ? null : raw;
+  } catch {
+    return null;
+  }
+}
+
+/** Drop the parked confirmation. Called both after it is shown (so it shows exactly once, and can't
+ *  reappear on some later unrelated reload) and at the START of a commit (so a failed commit can never leave
+ *  the previous run's success note sitting in storage to be "confirmed" by the next reload). */
+export function clearCommitNote(): void {
+  try {
+    storage()?.removeItem(COMMIT_NOTE_KEY);
   } catch {
     /* ignore — best-effort */
   }

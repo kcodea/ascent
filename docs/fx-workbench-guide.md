@@ -274,6 +274,12 @@ Timeline, so it would paint a band straight across the board this mode exists to
 `git add` the def **and** `bindings.json` together — a def with no binding is inert, and a binding naming a
 def that doesn't exist is a silent no-op that a test will catch but a player never would.
 
+Writing `bindings.json` forces a full page reload (it's a static import), which unmounts the workbench. The
+`Committed → <def> · <path>` line is therefore parked in `localStorage` and shown as a green banner at the top
+of the rail the next time the workbench opens, then cleared — so it appears exactly once. A commit that
+*failed* parks nothing, and the key is cleared at the start of every commit, so a stale success line can never
+be presented as this commit's confirmation.
+
 ---
 
 ## Known rough edges
@@ -283,15 +289,16 @@ def that doesn't exist is a silent no-op that a test will catch but a player nev
 - **Anchors are a fire-time snapshot**, so an effect doesn't follow a unit that moves. Deliberate — per-frame
   layout reads are banned — but revisit if a follow-the-unit effect is ever wanted.
 - **~30 legacy `pixiFx` effects** predate defs and aren't authorable here.
-- **Committing writes a full page reload** — the workbench unmounts before a success message can be read;
-  check `git status` for the two changed files instead.
+- **Committing forces a full page reload** (`bindings.json` is a static import Vite can't hot-reload), so the
+  workbench unmounts mid-confirmation. The confirmation is parked in `localStorage` and shown as a green
+  banner at the top of the rail on the next mount, cleared as it is read — so it appears exactly once, and
+  `git status` is a cross-check rather than the only evidence.
 - **No editing a def's `label`/`tags` from the panel**, and no unbind affordance — both still hand-edit only.
 - **Only two preset archetypes so far** (Bolt, Blast), and both are unreviewed first passes. Eight more are
   queued — wave, chain, cloud, swell, drip, vortex, slam, beam — landing one at a time so each gets judged at
   real card scale rather than eight at once.
-- **A commit-success toast can't survive the forced page reload**, `fanOut` is jargon in the binding table,
-  and Save doesn't auto-unlock the seed. The rest of the same friction batch that gave rail mode its own
-  transport (§9).
+- **`fanOut` is jargon in the binding table**, and saving with the seed locked bakes a frozen roll. The rest of
+  the same friction batch that gave rail mode its own transport (§9).
 
 ---
 

@@ -5858,6 +5858,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: #211d2c; color: #8a7fa8; font-family: var(--font-ui); font-size: 10px; line-height: 1; cursor: pointer;
 }
 .fxwb-def-restore-x:hover { border-color: #f0a0ff; color: #f0a0ff; }
+/* Same banner shape, GREEN: a commit confirmation that survived the reload commit itself forces. Recoloured
+   rather than given its own layout because "something you should read at the top of the rail" is one pattern —
+   but it must not be mistaken for the magenta "restored unsaved work" warning, which asks a question
+   ("keep or discard?") where this one only reports a success. The path is long, so it wraps. */
+.fxwb-def-committed { background: color-mix(in srgb, #4ad07a 14%, #2b2739); border-color: #4ad07a; }
+.fxwb-def-committed .fxwb-def-restore-txt { color: #8ee6ad; overflow-wrap: anywhere; }
+.fxwb-def-committed .fxwb-def-restore-x:hover { border-color: #8ee6ad; color: #8ee6ad; }
 
 /* ── FX workbench: seed transport + per-layer mute ──────────────────────────────────────────────────────
    The seed group mirrors `.fxwb-loopgroup`'s bordered-cluster treatment so the transport bar reads as

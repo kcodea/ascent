@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ART_DATA_URL_PREFIX,
   FX_DEF_VERSION,
+  clearCommitNote,
   clearSession,
   coerceDef,
   isValidSlug,
+  loadCommitNote,
   loadSession,
   parseDef,
   saveArt,
   saveBindings,
+  saveCommitNote,
   saveDef,
   saveSession,
   slugify,
@@ -464,6 +467,55 @@ describe('session autosave', () => {
     expect(() => saveSession({ a: 1 })).not.toThrow();
     expect(loadSession()).toBeNull();
     expect(() => clearSession()).not.toThrow();
+  });
+
+  // The commit confirmation rides the same storage seam, for a different reason: committing writes
+  // `bindings.json`, which forces a full page reload, so the note has to outlive the component that set it.
+  describe('commit note', () => {
+    it('round-trips, and clearing means the note shows exactly once', () => {
+      saveCommitNote('Committed → bolt-heavy · src/fx/bindings.json');
+      expect(loadCommitNote()).toBe('Committed → bolt-heavy · src/fx/bindings.json');
+      clearCommitNote();
+      expect(loadCommitNote()).toBeNull();
+    });
+
+    it('is null when nothing has been parked', () => {
+      expect(loadCommitNote()).toBeNull();
+    });
+
+    it('treats an empty string as no note', () => {
+      saveCommitNote('');
+      expect(loadCommitNote()).toBeNull();
+    });
+
+    it('is independent of the session snapshot', () => {
+      saveSession({ duration: 900 });
+      saveCommitNote('Committed → x · y');
+      clearSession();
+      expect(loadCommitNote()).toBe('Committed → x · y');
+    });
+
+    it('silently no-ops when storage is hostile or absent', () => {
+      vi.stubGlobal('localStorage', {
+        getItem: () => {
+          throw new Error('denied');
+        },
+        setItem: () => {
+          throw new Error('quota');
+        },
+        removeItem: () => {
+          throw new Error('denied');
+        },
+      });
+      expect(() => saveCommitNote('n')).not.toThrow();
+      expect(loadCommitNote()).toBeNull();
+      expect(() => clearCommitNote()).not.toThrow();
+
+      vi.stubGlobal('localStorage', undefined);
+      expect(() => saveCommitNote('n')).not.toThrow();
+      expect(loadCommitNote()).toBeNull();
+      expect(() => clearCommitNote()).not.toThrow();
+    });
   });
 });
 

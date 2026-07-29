@@ -11,9 +11,12 @@ import { randomSeed } from '../rng';
 import { SCENARIOS, type FxHeadContext } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
 import {
+  clearCommitNote,
   clearSession,
   isValidSlug,
+  loadCommitNote,
   loadSession,
+  saveCommitNote,
   saveArt,
   saveBindings,
   saveDef,
@@ -339,6 +342,25 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [committing, setCommitting] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [commitNote, setCommitNote] = useState<string | null>(null);
+  // The commit confirmation as it survives THE RELOAD ITS OWN WRITE CAUSES. Committing writes
+  // `bindings.json`, a static import Vite cannot hot-reload, so the write forces a full page reload and this
+  // component unmounts before `commitNote` above can be read — the confirmation for the tool's primary action
+  // was structurally unreadable, and the documented substitute was "check `git status`". `commit()` now parks
+  // the note in localStorage the instant it exists; this lazy initializer picks it up on the next mount and
+  // the effect below clears the key, so it shows exactly once and can never resurface on some later unrelated
+  // reload.
+  //
+  // Read-then-clear is deliberately SPLIT across the initializer and an effect rather than fused into one
+  // "take" call: React may invoke a `useState` initializer more than once (dev StrictMode does), and a read
+  // that cleared would hand the second invocation `null`.
+  //
+  // Its own state rather than seeding `commitNote`, because the two have different reach: `commitNote` renders
+  // inside `CommitPanel`, which only exists in rail mode with a card and moment selected — precisely the
+  // context a reload destroys. This one is a banner at the top of the rail, visible in either mode.
+  const [restoredCommitNote, setRestoredCommitNote] = useState<string | null>(() => loadCommitNote());
+  useEffect(() => {
+    clearCommitNote();
+  }, []);
   // The fight the live replay is currently animating. Read off the store rather than passed in, because the
   // workbench is mounted from `DevMenu` — a SIBLING of `Recruit` under `Game`, so no common parent holds it.
   const lastCombat = useGame((s) => s.run.lastCombat);
@@ -1435,6 +1457,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setCommitting(true);
     setCommitError(null);
     setCommitNote(null);
+    // Drop any parked note BEFORE writing anything. Every `return` below is a failure that leaves without
+    // parking one, so a commit that fails must not leave the previous commit's success line in storage for the
+    // next reload to present as this commit's confirmation.
+    clearCommitNote();
     try {
       const { artRefs, failures } = await uploadArtRefs();
       const stored = toStoredDef(
@@ -1458,7 +1484,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       }
       setDefName(plan.defId);
       setCommitError(failures.length > 0 ? `Committed, but art didn't travel: ${failures.join('; ')}` : null);
-      setCommitNote(`Committed → ${plan.defId} · ${bindResult.path}`);
+      const note = `Committed → ${plan.defId} · ${bindResult.path}`;
+      setCommitNote(note);
+      // ...and park it, because the `saveBindings` above has already set the forced reload in motion: the
+      // `setCommitNote` on the line before this one will very likely never paint. Only reached on full success.
+      saveCommitNote(note);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : 'Commit failed.');
     } finally {
@@ -1615,6 +1645,23 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       </div>
 
       <div className="fxwb-side">
+        {/* The last commit's confirmation, carried across the page reload that commit itself forced (see
+            `restoredCommitNote`). FIRST in the rail and visible in either mode, because after that reload it
+            is the only evidence in the UI that the write happened at all. */}
+        {restoredCommitNote !== null && (
+          <div className="fxwb-def-restore fxwb-def-committed">
+            <span className="fxwb-def-restore-txt">{restoredCommitNote}</span>
+            <button
+              type="button"
+              className="fxwb-def-restore-x"
+              title="Dismiss"
+              aria-label="Dismiss"
+              onClick={() => setRestoredCommitNote(null)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {restoredNotice && (
           <div className="fxwb-def-restore">
             <span className="fxwb-def-restore-txt">Restored unsaved work.</span>

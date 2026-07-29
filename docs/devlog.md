@@ -20,7 +20,25 @@ margins plus matching padding let its opaque background span the rail's full wid
 *behind* it. `.fxwb-top` stays hidden as before — the ✕ lives there, but the mode toggle in `.fxwb-side` is
 always visible, so "Full editor" is one click back to it.
 
-**Verified.** `npm run typecheck` (pkgs + web), `npx eslint packages/ui/src/fx/ui/`, `npm run build:web` and
+**2. The commit confirmation survives the reload commit itself causes.** `commit()` ended with
+`setCommitNote('Committed → …')`, which was structurally unreadable: writing `bindings.json` — a *static*
+import Vite cannot hot-reload — forces a full page reload, and the workbench unmounts before that line can
+paint. The documented way to confirm the tool's **primary action** was "check `git status`". Now `commit()`
+parks the note in `localStorage` (`ascent.fx.commitnote.v1`, versioned like the session key) on full success
+only, and the next mount picks it up and shows it as a green banner at the top of the rail. Three properties
+worth keeping: the note is **cleared at the start of every commit**, so a failed commit can never leave the
+previous run's success line behind for the next reload to present as its own; it is **cleared on mount**, so
+it shows exactly once and can't resurface on a later unrelated reload; and the read-then-clear is deliberately
+**split** across the `useState` initializer and a mount effect rather than fused into one "take" call, because
+React may invoke an initializer twice (dev StrictMode does) and a clearing read would hand the second one
+`null`. It is its own state rather than seeding `commitNote`, because `commitNote` renders inside
+`CommitPanel` — which exists only in rail mode with a card and moment selected, i.e. exactly the context the
+reload destroys. `saveCommitNote` / `loadCommitNote` / `clearCommitNote` live in `defStore.ts` beside the
+session helpers and share their best-effort contract: hostile or absent storage degrades to "no note", never
+to a throw. Five new `defStore` tests cover the round trip, the empty-string case, independence from the
+session snapshot, and both storage-failure modes.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npx eslint packages/ui/src/fx/`, `npm run build:web` and
 `npm test` all green. No React tests exist or are possible in this repo (no jsdom, no
 `@testing-library/react`), so the layout claims are code-and-CSS review plus the owner's eye.
 

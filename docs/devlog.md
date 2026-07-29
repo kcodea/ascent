@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-07-29 — feat(sim): production bots, Ticket 0 — the planning-safety boundary
+
+First ticket of the bot handoff. No bot plays anything yet; this is the floor everything else stands on.
+
+**`transition.ts` is the only module that may call `reduce()` during search.** `reduce()` is authoritative but
+hostile to speculation: its wrapper writes to its INPUT before `reduceCore()` clones — it resets
+`recruitBuffFx` and `auraFx`, stamps `weldFxBaseSeq`, and PINS this wave's opponent into `servedBoards`. A
+search that called it directly would decide the player's next fight as a side effect of *thinking about* an
+action. Planning states are therefore never handed out: callers hold an opaque `PlanningStateHandle`, and every
+expansion clones the parent first.
+
+**`BotVisibleState` is a curated projection, not a filtered copy.** `RunState` has 225 fields; the view names
+what goes IN, so a field added later is invisible by default rather than leaking until someone notices. It
+withholds `seed`, `rngCursor`, `servedBoards`, `lastCombat`, `scoutedNextOpponent` and every `*Fx*` field.
+`revealOf()` marks the actions that hand the bot information it doesn't hold — a refresh, a forge reroll — so
+search can stop there instead of reading a seeded future.
+
+**`RulesIdentity`** pins what a stored artifact was made under. `rulesHash` covers CONTENT (ids, tiers, stats,
+runes, quests), sorted so declaration order doesn't matter, and `assertIdentity` fails loudly naming what
+drifted. `buildId`/`contentVersion` are deliberately NOT compared — they change every build and would make
+every artifact stale within a day.
+
+**The tests were passing for the wrong reason — twice.** Removing the defensive clone from `applyCandidate`
+left every isolation test green:
+
+1. First version compared the ROOT through `visibleOf()`. But every field `reduce()` corrupts is one the
+   projection deliberately redacts — I was checking for damage through a lens built to hide it.
+2. Comparing the raw state instead STILL passed, because in a bare test process each of those mutations is
+   coincidentally a no-op: the FX buffers start empty, so clearing them changes nothing, and no opponent pins
+   because the board pool is only registered by the running app.
+
+The test now **constructs** the hazard — seeds the root with a populated FX buffer, a live aura batch and a
+stamped weld sequence — and only then expands a candidate. Removing the clone now fails it. A `__unsafeStateForTests`
+accessor exists solely for this, named so misuse is obvious in review.
+
+Also added: a structural test that no module in `productionBots/` outside the three sanctioned ones imports
+`RunState` or the reducer, so a future evaluator physically cannot reach hidden state.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2920 tests, build:web, harness determinism.
+
+
 ## 2026-07-29 — feat(sim): lobby rules — ghost boards, a 3-round no-repeat, and the enemy side restored
 
 Three owner rulings, one of them a correctness bug in my own lobby work.

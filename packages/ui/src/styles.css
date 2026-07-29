@@ -5571,10 +5571,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-side {
   position: absolute; top: 52px; right: 0; bottom: 60px; width: var(--fxwb-rail); overflow-y: auto; box-sizing: border-box;
   background: #211d2c; border-left: 2px solid #3d3752; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px;
-  /* Keep the sticky rail transport from parking on top of whatever you just scrolled to — most importantly the
-     seed-bake warning under Save, whose whole job is to be seen before you write a def. Sized to the bar
-     (~44px of control + padding) plus a little air. Only bites in rail mode, where that bar exists; harmless
-     otherwise, since a non-rail `.fxwb-side` has nothing sticky at its bottom edge. */
+  /* Reserve the sticky rail transport's height for scrolls the BROWSER performs — `scrollIntoView`, moving
+     focus with Tab, scroll-snap. That is ALL `scroll-padding` does: it has no effect on wheel or drag
+     scrolling. Kept for the keyboard case (tabbing to Save shouldn't land it under the bar), and deliberately
+     NOT paired with a real `padding-bottom`, which would be the wrong tool here: `.fxwb-railtransport` is the
+     LAST child and is sticky, so at full scroll it rests at its own flow position with nothing beneath it —
+     adding container padding would push it 64px up from the rail's bottom edge and break its full-width seat
+     instead of protecting anything. The wheel case needs no fix: the content the bar can overlay is always
+     earlier in flow than the bar, so scrolling to the end always reveals it. */
   scroll-padding-bottom: 64px;
 }
 .fxwb-inspector { display: flex; flex-direction: column; gap: 12px; }

@@ -29,6 +29,13 @@ export function SeedBakeWarning({
 }: {
   seedLocked: boolean;
   seed: number;
+  /**
+   * Called by the Unlock button. Both call sites pass `toggleSeedLock`, a TOGGLE rather than a one-way unlock —
+   * safe only because of the `if (!seedLocked) return null` guard below: this component exists solely while the
+   * seed is locked, so the toggle can only ever run in the locked→unlocked direction. If that guard is ever
+   * relaxed (e.g. to show a muted "seed is free" line), this must become a real unlock or the button starts
+   * re-locking a free seed.
+   */
   onUnlock: () => void;
   /** What the adjacent button does, so the sentence reads true next to either Save or Commit. */
   writeVerb: 'Saving' | 'Committing';

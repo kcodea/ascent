@@ -490,9 +490,13 @@ describe('session autosave', () => {
       expect(loadCommitNote()).toBeNull();
     });
 
-    it('treats an empty string as no note, and parks nothing', () => {
+    it('treats an empty string as no note, and writes NOTHING to storage', () => {
       saveCommitNote('', 1_000);
       expect(loadCommitNote()).toBeNull();
+      // Asserted against the raw key, not just through `loadCommitNote`: the load side rejects `note === ''`
+      // too, so going through it would pass even with the write-side guard deleted. This is the assertion that
+      // pins the guard — an empty note must leave no key behind at all.
+      expect(localStorage.getItem('ascent.fx.commitnote.v1')).toBeNull();
     });
 
     it('carries the warn level, so a partial commit is never dressed as a success', () => {
@@ -563,6 +567,17 @@ describe('session autosave', () => {
 
     it('drops a note older than the maximum age entirely', () => {
       expect(presentCommitNote(parked, parked.at + COMMIT_NOTE_MAX_AGE_MS + 1)).toBeNull();
+    });
+
+    // Both thresholds are EXCLUSIVE (`>`, not `>=`), so the boundary itself is still the friendlier side. Probed
+    // explicitly because a test that only ever samples `threshold + 1` cannot tell `>` from `>=` — either
+    // comparison passes it, and both mutants survived the first round of mutation testing.
+    it('is exclusive at the freshness boundary — exactly the window old is still verbatim', () => {
+      expect(presentCommitNote(parked, parked.at + COMMIT_NOTE_FRESH_MS)?.text).toBe(parked.note);
+    });
+
+    it('is exclusive at the max-age boundary — exactly a day old is still shown', () => {
+      expect(presentCommitNote(parked, parked.at + COMMIT_NOTE_MAX_AGE_MS)).not.toBeNull();
     });
 
     it('treats a negative age (clock change) as fresh rather than hiding it', () => {

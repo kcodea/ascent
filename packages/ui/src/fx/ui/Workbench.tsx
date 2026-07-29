@@ -1510,10 +1510,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setCommitting(true);
     setCommitError(null);
     setCommitNote(null);
-    // Drop any parked note BEFORE writing anything. Every `return` below is a failure that leaves without
-    // parking one, so a commit that fails must not leave the previous commit's success line in storage for the
-    // next reload to present as this commit's confirmation.
+    // Drop any parked note BEFORE writing anything, so the previous commit's line can never be picked up by
+    // the next reload and read as this commit's confirmation. From here on every exit either parks a note that
+    // describes what actually happened or leaves nothing parked — see `parkedOptimistic` below.
     clearCommitNote();
+    // Whether the optimistic mid-flight note has been parked. Read by the `catch`, which would otherwise be
+    // the one exit that neither overwrites nor clears it.
+    let parkedOptimistic = false;
     try {
       const { artRefs, failures } = await uploadArtRefs();
       const stored = toStoredDef(
@@ -1535,12 +1538,22 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       // means a reload timed anywhere inside it leaves nothing parked and no banner — the exact silent
       // "nothing happened" this whole item exists to eliminate.
       //
-      // So park optimistically the moment there is something true to say, and correct it below. That is
-      // strictly safer than parking late, because every path after this point either overwrites the note or
-      // clears it, so an over-optimistic note cannot survive a failure it doesn't describe.
+      // So park the moment there is something true to say — but park it as a WARNING that does not assert
+      // completion. This note's whole job is to survive a reload landing inside the `await saveBindings`
+      // below, which is exactly the window where the binding may never be written; a note that opened
+      // `Committed →` in success green would be character-identical to full success in the one case where the
+      // commit is half-done. The author reads "done", then finds the effect doesn't fire. So: `Commit STARTED`,
+      // amber, and explicit that the binding is unconfirmed. The success path a few lines down overwrites it
+      // green, so on a normal commit the amber lives for one HTTP round trip and is never seen — it survives
+      // only in the case where it is true.
       const artSuffix = failures.length > 0 ? ` — but art didn't travel: ${failures.join('; ')}` : '';
       const artLevel = failures.length > 0 ? 'warn' : 'ok';
-      saveCommitNote(`Committed → ${plan.defId} · def written${artSuffix}`, Date.now(), artLevel);
+      saveCommitNote(
+        `Commit STARTED → ${plan.defId} · def written, binding not confirmed${artSuffix}`,
+        Date.now(),
+        'warn',
+      );
+      parkedOptimistic = true;
 
       registerSavedDef(stored);
       refreshLibrary();
@@ -1568,6 +1581,22 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       saveCommitNote(note, Date.now(), artLevel);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : 'Commit failed.');
+      // The `catch` is the one exit that would otherwise leave the optimistic note untouched — and that note
+      // says "def written, binding not confirmed", which after a throw is no longer the whole truth. Today
+      // nothing between the park and the success line can actually throw (`post` resolves rather than rejects,
+      // `savePatch` has its own try/catch, `bindingsJson` is plain serialisation), so this is currently
+      // unreachable — but this function keeps being extended, and one added `await` would otherwise let a
+      // half-true note outlive a thrown commit. Correcting it here is what makes the invariant above real
+      // rather than lucky.
+      if (parkedOptimistic) {
+        saveCommitNote(
+          `Commit INCOMPLETE → ${plan.defId} was written, then the commit failed: ${
+            err instanceof Error ? err.message : 'unknown error'
+          }`,
+          Date.now(),
+          'warn',
+        );
+      }
     } finally {
       setCommitting(false);
     }

@@ -222,14 +222,23 @@ write, not the last, and the workbench unmounts before the `Committed → …` l
 
 The note is therefore parked in `localStorage` **as soon as the def write succeeds** — before the
 `await saveBindings` round trip, because Vite's client can call `location.reload()` at any point during it, and
-parking afterwards means a reload timed inside that await leaves nothing parked and no banner at all. It is
-then corrected: to the real binding path on success, or to a `Commit INCOMPLETE →` line if the binding write
-failed (the def is on disk, so silence would wrongly read as "nothing happened"). Art-upload failures are
-**folded into the parked text** and flip it to amber, because the in-component error line dies with the
-component — without that, the one case where something went wrong would be the case whose surviving evidence
-looks clean. The key is cleared at the start of every commit and again as the banner is read, so it appears
-exactly once and a stale success line can never be presented as this commit's confirmation. A note older than
-~10 minutes is prefixed `Earlier — `; older than a day it isn't shown at all.
+parking afterwards means a reload timed inside that await leaves nothing parked and no banner at all.
+
+Crucially that mid-flight note is **amber and does not claim completion**:
+`Commit STARTED → <def> · def written, binding not confirmed`. It survives only when a reload lands in the very
+window where the binding may never have been written, so opening it with `Committed →` in success green would be
+character-identical to full success in exactly the half-done case — the author reads "done" and then finds the
+effect doesn't fire. The success path overwrites it green a round trip later, so on a normal commit the amber is
+never seen; it persists only when it is true.
+
+Every other exit corrects it too: a failed binding write parks
+`Commit INCOMPLETE → <def> was written but its binding was not: …` (the def *is* on disk, so silence would
+misreport an orphan file the author wouldn't know to `git checkout`), and a thrown commit parks the equivalent.
+Art-upload failures are **folded into the parked text** and hold it amber, because the in-component error line
+dies with the component — without that, the one case where something went wrong would be the case whose
+surviving evidence looks clean. The key is cleared at the start of every commit and again as the banner is read,
+so it appears exactly once and a stale line can never be presented as this commit's confirmation. A note older
+than ~10 minutes is prefixed `Earlier — `; older than a day it isn't shown at all.
 
 **Be precise about when you see it.** The banner appears the next time the workbench is *opened*, not the
 instant the page reloads. The reload closes the workbench (it's mounted from `DevMenu`, whose state resets), so

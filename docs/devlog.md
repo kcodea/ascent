@@ -1,5 +1,56 @@
 # ASCENT — development log
 
+## 2026-07-29 — Review round 2: the mid-flight note was quietly green
+
+One Important finding, and a sharp one — **the fix for round 1's finding 2 recreated round 1's finding 1, in the
+same window.** Parking the note early (so a reload inside `await saveBindings` couldn't swallow it) parked it at
+`artLevel`, which is `'ok'` on the normal path. So if the reload landed in that window — the *same* window whose
+loss the early parking exists to prevent, hence the same probability — the surviving evidence was a **green**
+banner opening `Committed → <def> · def written` for a commit whose binding may never have been written.
+`· def written` is literally true and deliberately omits the binding, but green plus `Committed →` is
+character-identical to full success: the author reads "done", then finds the effect doesn't fire.
+
+Fixed with no new mechanism. The mid-flight note is now amber and does not assert completion —
+`Commit STARTED → <def> · def written, binding not confirmed` — and the success path overwrites it green a round
+trip later. On a normal commit the amber lives for one HTTP round trip and is never seen; it survives only in
+the case where it is true.
+
+**Three Minors alongside it.**
+
+- **The `catch` neither overwrote nor cleared the note, while a comment claimed every path did.** Verified
+  currently harmless *by luck*: `post()` catches everything and resolves so `saveBindings` can't reject,
+  `savePatch()` has its own try/catch, and `bindingsJson()` is plain serialisation — nothing in the window can
+  throw today. But the comment asserted an invariant the code didn't enforce, in the one function that keeps
+  getting extended: one added `await` and a half-true note would outlive a thrown commit. Now a
+  `parkedOptimistic` flag lets the `catch` park `Commit INCOMPLETE → <def> was written, then the commit
+  failed: …`, so the invariant is real rather than lucky.
+- **Two false comments corrected.** "Every `return` below is a failure that leaves without parking one" was
+  stale — the bind-failure return deliberately parks one now.
+- **`scroll-padding-bottom` was described as something it isn't.** It only affects scrolls the *browser*
+  performs (`scrollIntoView`, focus/Tab, scroll-snap); it does nothing for wheel or drag scrolling, so it never
+  stopped the sticky rail bar covering the seed warning. The property is kept — it's a genuine win for tabbing
+  to Save — and the comment now says what it actually does. **I did not add the suggested real
+  `padding-bottom`**: `.fxwb-railtransport` is the last child and is sticky, so container padding would push it
+  64px up off the rail's bottom edge and break its full-width seat, and it protects nothing — the content the
+  bar can overlay is always earlier in flow than the bar, so scrolling to the end always reveals it. Written
+  down in the CSS so the same "fix" isn't attempted again.
+
+**Three surviving mutants killed.** Round 1's mutation testing found three: `age > COMMIT_NOTE_MAX_AGE_MS` → `>=`
+and `age > COMMIT_NOTE_FRESH_MS` → `>=` both survived because every threshold test sampled `threshold + 1` and
+never the boundary itself, and dropping the write-side `note === ''` guard survived because the load side rejects
+empty notes too, masking it. Added two boundary tests (exactly the window / exactly a day old — both thresholds
+are exclusive, so the boundary stays on the friendlier side) and one that asserts the raw storage key is `null`
+after `saveCommitNote('', …)` rather than going through `loadCommitNote`. All three mutants now kill exactly one
+test each, re-verified by hand.
+
+Also documented: `SeedBakeWarning`'s `onUnlock` receives a *toggle* (`toggleSeedLock`), which is safe only
+because the `if (!seedLocked) return null` guard means the component exists solely while locked — noted in the
+prop comment so relaxing that guard doesn't silently turn the button into a re-lock.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors, 6 pre-existing warnings),
+`npm run build:web` (✓ 5.75s), `npm test`: **159 files, 3034 tests passed**. `defStore.test.ts` now runs 64.
+Still **not browser-verified** — no jsdom; all layout claims remain code-and-CSS review.
+
 ## 2026-07-29 — Review fixes on the friction batch: the evidence has to be true, not just present
 
 Code review on the batch below returned three Important findings, all on items 2 and 3, all legitimate. The

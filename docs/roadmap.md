@@ -21,10 +21,16 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Bot personas.** Eight seats currently run the same evaluator and build the same board. Give each bot
-  seeded weight multipliers plus a tribe/keyword affinity, and add a board-divergence metric to
-  `bot:ladder` so "they don't all build the same thing" is measured rather than asserted.
-- **Cap bot strength** once personas land — Expert is at par now, so the dial that matters is the ceiling.
+- **Close the human-board gap (bots).** Against real player boards every difficulty lands at 3.2–3.9 wins,
+  nothing survives the course, and legacy is statistically indistinguishable from expert. Point
+  `fightScore` at the human pool (`npm run boards:fetch`, 664 boards) instead of the procedural curve and
+  re-derive difficulty against it. **State: [`docs/bot-handoff.md`](bot-handoff.md).**
+- **Bot personas — HOLD** until the tiers separate. No point diversifying four bots that measure as one.
+  Plan: seeded evaluator weight multipliers + tribe affinity, with a board-divergence metric in
+  `lobby:ladder` so it's measured rather than asserted.
+- **Cap bot strength — HOLD.** Nothing needs capping yet.
+- **A human baseline.** Every bot number is bots-vs-bots or bots-vs-recorded-boards. Playing a few lobbies
+  at Expert is the cheapest way to learn whether 3.38 mean placement is a threat or a speed bump.
 - **Ticket 3 (card profiles / package graph) — owner call.** Fight-grounding answers the question the
   314-entry registry was built to guess at, so it may not be needed. Worth deciding before building it.
 

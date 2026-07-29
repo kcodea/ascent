@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun} from '@game/sim';
 import type { Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -229,6 +229,7 @@ interface GameStore {
   startPractice: () => void;
   /** Start a RIFT run — the same climb, with the active rift's rules. */
   startRift: () => void;
+  startLobby: () => void;
   /** Launch the Scene Builder sandbox (dev) — a fresh run flagged `sandbox`, bypassing the hero picker, with
    *  a big Gold float. Its own entry from the title, not a mode in the picker. Optionally pick the hero (the
    *  panel's hero dropdown re-launches to swap, so the hero's createRun setup runs). */
@@ -609,7 +610,11 @@ export const useGame = create<GameStore>((set, get) => ({
   pickHero: (heroId) =>
     set((s) => {
       // The run's par comes from the player's rating-derived Line (career skill pressure).
-      const run = createRun(randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
+      // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
+      const seed = randomSeed();
+      const run = s.pendingMode === 'lobby'
+        ? createLobbyRun(seed, heroId)
+        : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []); // the new run is now the resumable save
       return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [] };
     }),
@@ -624,6 +629,10 @@ export const useGame = create<GameStore>((set, get) => ({
   // a disabled hero stayed selectable here after being pulled from the Ascent picker (owner 2026-07-28).
   startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.filter((h) => !h.wip).map((h) => h.id), avatarPickerOpen: false }),
   startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
+  // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
+  // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
+  startLobby: () => set({ showTitle: false, pendingMode: 'lobby', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   startSceneBuilder: (heroId = 'warden', setId = activeSet().id) =>
     set(() => {
       // Sandbox runs on `practice` mechanics (unscored, generous timer) but is flagged `sandbox` and skips the

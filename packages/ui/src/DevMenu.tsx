@@ -11,6 +11,7 @@ import { GustFxTuner } from './GustFxTuner';
 import { SpellPowerFxTuner } from './SpellPowerFxTuner';
 import { RubyPowerFxTuner } from './RubyPowerFxTuner';
 import { CardPillsTuner } from './CardPillsTuner';
+import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { SpellBuffFxTuner } from './SpellBuffFxTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
 import { QuestTendrilTuner } from './QuestTendrilTuner';
@@ -82,6 +83,7 @@ const TUNERS = [
   { key: 'spellpowerfx', label: '✨ Spell Power FX', C: SpellPowerFxTuner },
   { key: 'rubypowerfx', label: '💎 Ruby Power FX', C: RubyPowerFxTuner },
   { key: 'cardpills', label: '🏷️ Card Pills', C: CardPillsTuner },
+  { key: 'lobbypanel', label: '🪑 Lobby Rail', C: LobbyPanelTuner },
   { key: 'spellbufffx', label: '✨ Spell Buff FX', C: SpellBuffFxTuner },
   { key: 'stepprocfx', label: '🔢 Step Proc FX', C: StepProcFxTuner },
   { key: 'questtendril', label: '🏆 Quest Tendril', C: QuestTendrilTuner },

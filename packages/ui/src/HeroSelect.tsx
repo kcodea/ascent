@@ -42,7 +42,13 @@ export function HeroSelect() {
             every SCORED mode, which is Ascent AND Rift (a rift run still takes damage, still records a
             result — every other mode check in the codebase is `!== 'practice'`, so this one matches). Only
             Practice is unscored. */}
-        {mode !== 'practice' && (
+        {/* A LOBBY has no Oath and no rating — it is won by outlasting seven other seats — so it telegraphs the
+            table instead. Practice stays unscored and shows neither. */}
+        {mode === 'lobby' ? (
+          <div className="hsline" aria-label="Lobby format">
+            <span className="hsline-line">8 seats · last one standing</span>
+          </div>
+        ) : mode !== 'practice' && (
           <div className="hsline" aria-label="Your Oath for this run">
             <span className="hsline-rat">Renown {profile.rating}</span>
             <span className="hsline-line">Oath {profile.currentLine}</span>

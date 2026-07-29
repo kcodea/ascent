@@ -41,6 +41,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
   const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
+  const startLobby = useGame((s) => s.startLobby);
   const startRift = useGame((s) => s.startRift);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
@@ -192,6 +193,15 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   <div className="mcdesc">{rift.blurb}</div>
                 </button>
               )}
+
+              <button className="modecard" onClick={() => { sfx.pulse(); startLobby(); }}>
+                <div className="mcframe" data-mode="lobby">
+                  <div className="mcname">Lobby</div>
+                  <span className="mcemblem"><IconHelm /></span>
+                  <div className="mctag">8 seats</div>
+                </div>
+                <div className="mcdesc">Eight climbers, one survivor. Every fight deals damage both ways — outlast the table.</div>
+              </button>
 
               <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
                 <div className="mcframe" data-mode="practice">

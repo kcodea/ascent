@@ -2,6 +2,7 @@ import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type Com
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
 import { poolOf, setIdOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
+import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lobby/runLobby';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -1691,8 +1692,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           })
         : combatSide();
       try {
-        const e = served ? { enemy: opponentBoard(served), tier: served.tier ?? s.tier } : proceduralEnemy();
-        s.lastCombat = resolveCombatVs(e.enemy, served ? servedState : combatSide({ tier: e.tier }));
+        // LOBBY MODE: the opponent is the seat the lobby paired you with, not a pool pick. Everything
+        // downstream — carry-backs, settlement, the replay — is unchanged; only the board differs.
+        const lobbyFoe = s.lobby ? lobbyOpponentBoard(s.lobby) : null;
+        const e = lobbyFoe
+          ? { enemy: lobbyFoe.minions, tier: lobbyFoe.tier }
+          : served ? { enemy: opponentBoard(served), tier: served.tier ?? s.tier } : proceduralEnemy();
+        s.lastCombat = resolveCombatVs(e.enemy, lobbyFoe || !served ? combatSide({ tier: e.tier }) : servedState);
       } catch {
         const e = proceduralEnemy();
         s.lastCombat = resolveCombatVs(e.enemy, combatSide({ tier: e.tier }));
@@ -1942,6 +1948,24 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */
 function settleCombat(s: RunState, result: CombatResult): void {
+  // LOBBY MODE: the player's fight is authoritative and just happened, so the whole ROUND settles from it —
+  // both sides' damage read straight off that ONE result, then the other three pairings resolved. Combat is not
+  // symmetric (the winner flips 22% of the time when the sides are swapped), so re-simulating the player's fight
+  // from the opponent's chair would contradict the replay the player just watched.
+  //
+  // This lives in the FUNCTION, not the `settleCombat` case: `resolveCombat` calls this directly when the player
+  // skips the replay, so hooking only the case silently skipped the lobby on the most common path.
+  if (s.mode === 'lobby' && s.lobby && !s.combatSettled) {
+    s.lobby = settleRunLobbyRound(
+      { ...s.lobby, seats: s.lobby.seats.map((x) => ({ ...x })), encounters: [...s.lobby.encounters] },
+      result,
+    );
+    const me = s.lobby.seats[0]!;
+    // The seat's health becomes the run's, so the HUD and every health-aware effect read the number that
+    // actually matters. Applied BEFORE the ordinary damage below, which then no-ops against it.
+    s.resolve = Math.max(0, me.resolve);
+    s.armor = Math.max(0, me.armor);
+  }
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
   // Loss-streak tracking (matchmaking softener): a loss extends the streak; a WIN breaks it and re-arms the
@@ -2223,7 +2247,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
       s.cassenKills -= 5;
     }
   }
-  if (result.result === 'lose' && s.mode !== 'practice') {
+  // LOBBY: the seat already took this hit (with the lobby's own cap and stall pressure) and the run was synced
+  // to it above, so applying it again here charges the player twice — visible as the HUD reading 2 lower than
+  // the table for the same fight.
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby') {
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
@@ -2260,7 +2287,14 @@ function advanceCombat(s: RunState): void {
     s.phase = 'gameover';
     return;
   }
-  if (s.resolve <= 0) {
+  // A lobby seat's Resolve is the LOBBY's to manage; the run's own copy is bookkeeping and must not end it.
+  // The run ends when the PLAYER'S SEAT is knocked out, whatever the lobby does afterwards.
+  if (s.mode === 'lobby' && s.lobby) {
+    if (playerEliminated(s.lobby) || s.lobby.finished) {
+      s.phase = 'gameover';
+      return;
+    }
+  } else if (s.resolve <= 0) {
     s.phase = 'gameover';
     return;
   }
@@ -2268,7 +2302,10 @@ function advanceCombat(s: RunState): void {
   // Course complete (A1): a run plays a fixed course of `courseRounds` rounds; survive them all and the
   // run is done — the record IS the score, whatever it is. The just-fought round's result is already in
   // history. The only early exit is Resolve 0 (handled above); you never "win early" by a win count.
-  if (s.mode !== 'practice' && s.wave >= CONFIG.courseRounds) {
+  // A LOBBY seat has no course clock: the lobby ends by elimination, with no fixed round count, so the seat
+  // must keep shopping and scaling for as long as the lobby lasts. Without this a bot seat froze at wave 17
+  // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'victory';
     return;
   }

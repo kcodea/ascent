@@ -1417,6 +1417,13 @@ export interface CombatResult {
   enemyScalers?: { spellPower: { attack: number; health: number }; spellsThisTurn: number; beastsPlayed: number; deathrattles: number };
   /** Resolve the player loses on defeat (handoff A.3 step 9). 0 otherwise. */
   playerDamage: number;
+  /** Damage the ENEMY side takes on ITS loss — the exact mirror of `playerDamage`, by the same formula.
+   *  Unused by a single-player run (the enemy has no Resolve pool); the lobby needs both sides' damage out of
+   *  ONE authoritative fight, since resolving it twice with the sides swapped can disagree.
+   *
+   *  OPTIONAL like every other non-core result field: dozens of tests build partial `CombatResult` fixtures,
+   *  and making a lobby-only number required would tax all of them for nothing. Absent = 0. */
+  enemyDamage?: number;
   /** Player-side Deathrattles that fired this combat — the run loop accumulates these into the run-wide
    *  "this game" count Grim reads. */
   playerDeathrattles: number;

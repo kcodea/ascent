@@ -1,5 +1,311 @@
 # ASCENT — development log
 
+## 2026-07-29 — tweak(ui): lobby takes the Ascent hero offer, and the tuned rail values ship
+
+**Owner-tuned rail values baked** (🪑 Lobby Rail → Copy values): scale 1.25, width 129, right 12, top 18.5%.
+Baked into `LOBBY_PANEL_DEFAULTS` **and** mirrored into the CSS fallbacks, because production never runs the
+tuner — a value baked in only one of the two places gives a dev build that looks nothing like the exe, which is
+the trap the exe-vs-Chrome triage note is about.
+
+**Lobby now uses the Ascent hero offer** — three heroes, not the whole roster. A lobby is a real run you can
+lose, so the pick should be made under the same constraint as Ascent's; Practice's all-heroes list is a sandbox
+affordance and reads as one. The hero screen also swaps its telegraph: a lobby has no Oath and no rating, so it
+shows **"8 seats · last one standing"** where a scored run shows Renown and Oath.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, harness determinism, and a live browser
+check confirming three cards, `pendingMode: 'lobby'`, and the lobby telegraph — done through `startLobby` alone
+so an in-progress save was provably untouched.
+
+**Not a bug after all:** the owner's report that lobby mode was invulnerable. A traced headless run shows the
+player's seat taking damage every round (13 armor → 0 by round 13) and the run ending at `gameover` with
+placement 3, so the elimination path works end to end. Recorded here because it was checked, not assumed.
+
+
+## 2026-07-29 — feat(ui): a tuner for the lobby rail (🪑 Lobby Rail)
+
+Owner ask: a tuner for the opponent panel covering panel scale, row scale and font size. Eight dials, matching
+the existing tuner architecture (`lobbyPanelConfig.ts` + `LobbyPanelTuner.tsx`, dev-only localStorage, live
+`--lby-*` vars on `:root`, Copy/Reset).
+
+- **panel · scale / width / right gap / top %** — size and placement
+- **panel · height %** — a MAXIMUM, not the box (see below)
+- **rows · scale**, **rows · font size**, **next foe · scale** — the three independent dials asked for
+
+**Why a unit and not a `transform`.** The rail derives everything from `--lu` = `--u × scale`. A CSS
+`transform: scale()` would blur the hairline and shadow AND leave the layout box its untransformed size, so the
+panel would keep reserving its old width and could overlap the board. Every rule reads its var with the shipped
+default as a fallback, so PRODUCTION renders identically with no JS.
+
+**Two bugs found by measuring each dial instead of eyeballing it.**
+
+1. **`rows · scale` did nothing to row height.** Rows were `flex: 1` inside a fixed-height rail, so they always
+   split a constant — the dial resized portraits while row height sat at 38.9px. Rows are now content-sized.
+2. **Fixing that clipped two of the eight seats** at the DEFAULT settings: content-sized rows overflowed the
+   fixed 42% box and `overflow: hidden` silently ate seats 7 and 8. The rail now sizes to its rows with the
+   height dial as a generous cap (66%, against ≈48% of measured content) and scrolls rather than clips, because
+   losing a seat is worse than a scrollbar.
+
+Verified per dial: scale ×1.4 moves width/row/font/foe all ×1.4; row ×1.5 moves only row height; font ×1.5
+moves text (and the row that holds it) and nothing else; foe ×1.4 moves only the foe card. Zero rows clipped at
+defaults.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, build:web, harness determinism.
+
+
+## 2026-07-29 — tweak(ui): the lobby rail is legible, and a win announces its damage
+
+Two owner asks off a screenshot: the seat windows were hard to read, and a win should show the damage dealt.
+
+**Legibility.** The rail was a set of translucent panels sitting directly on the board's stonework, so every
+hero name washed out to grey and the Next Foe card bled into the first row. It is now its OWN surface — one
+solid backing plate with a shadow and a hairline, solid rows, an opaque foe card, and full-strength text. The
+fix is at the root (the panel is a surface, not a tint on the art behind it) rather than nudging text colours
+until they survive whatever happens to be underneath.
+
+**Damage dealt.** Winning is the moment the mode is about, and it read exactly like a draw until you scanned the
+table for a changed number. The damage you dealt now floats over the seat that took it, once, on the round it
+happened. Built on the same one-shot WAAPI float as the spell-power and ruby-power cues, appended to `<body>`
+rather than the row: rows re-sort by health the instant a round settles, so anything tied to the element's
+lifetime would fire twice or not at all. It is keyed on the lobby ROUND, not on render — the panel re-renders
+constantly through a shop phase — and waits a frame so it measures the re-sorted row rather than the old one.
+A draw or a loss says nothing.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, harness determinism, plus a live browser
+round instrumented with a MutationObserver: the float fired once reading `−4`, and its coordinates land inside
+seat `s3`'s row — the seat the encounter log records as having taken exactly 4.
+
+
+## 2026-07-29 — tweak(ui): the lobby end screen is a placement and a board
+
+Owner ask: "reduce the end screen to literally only show your placement and final board."
+
+The ordinary end screen is built entirely around the scored climb — Oath verdict, Renown delta with promotion
+banners, W–L record, per-round pips with a board viewer, build tags, seven run stats. None of that exists in a
+lobby: no Oath, no course record, no rating, and a per-round pip strip implies a fixed length the mode doesn't
+have. Rather than hide nine sections one at a time and leave the reader guessing which numbers still mean
+something, a lobby run gets its own screen with the two things that do: **where you finished, and what you
+finished with.** The branch happens before any of the scored-run derivations, so none of them even compute.
+
+**A CSS trap worth recording.** First place rendered as a solid gold rectangle instead of the word "1st". The
+place number is a gradient clipped to the glyphs (`background-clip: text` + transparent colour), and the
+first-place override set `background:` — the SHORTHAND, which resets `background-clip` to `border-box` and
+un-clips the gradient from the text. Using `background-image:` keeps the clip. My first attempt blamed the glow
+`drop-shadow` and removing it changed nothing, which is what pointed at the shorthand.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, harness determinism, and both states checked
+live in the browser: 4th of 8 with an empty board, and 1st of 8 with a warband.
+
+
+## 2026-07-29 — tweak(ui): the lobby table becomes a tall rail down the right edge
+
+Owner marked the target area on a screenshot: move the seat table out of the top-right corner into a tall,
+narrow column beside the board.
+
+**It is now a child of `.app`, not the HUD bar.** As a top-right widget it could only ever be short and wide,
+which squeezed the opponent card plus eight seats into a few cramped lines. Anchored to the STAGE instead, it
+runs the full height of that column. Measured against the marked box: **89.6–98.6% × 26–68%** of the stage
+against the target's 89.5–98.5% × 26.8–67.7%.
+
+Everything sizes off `--u`, the same unit the rest of the HUD uses, so the rail tracks the stage at every window
+size rather than drifting at non-16:9 aspects. The seat rows `flex: 1` into the available height, so the rail
+fills its column instead of ending wherever the content happened to stop. Next Foe restacks vertically (art over
+name over health) because a narrow rail gives a horizontal card nowhere to go, and the damage number moved to
+its own line under the name — inline it reflowed the health column between rows.
+
+**A collision the move exposed.** The End Turn label is centred on a button that sits well right of centre, and
+its right half ran under the rail — the rail's z-index simply hid the text rather than avoiding it, so the label
+read as truncated. It now shifts left by the rail's own width, expressed in `--u-base` so the two track each
+other instead of colliding again at one particular window size. Verified by measuring: the label's right edge
+clears the rail's left edge by 21px.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, harness determinism, and a live browser
+check measuring the rail's actual geometry against the marked box.
+
+
+## 2026-07-29 — feat(ui): lobby — a proper Next Foe card, and per-round damage numbers
+
+Owner ask: show the current opponent larger, and show damage dealt as a number after a round.
+
+**Next Foe is a card, not a marker.** You build your board around one specific enemy each shop phase, so the
+thing you're planning against shouldn't be the smallest text on screen. It now gets 56px hero art, the
+opponent's name at 17px, their hero-power name, and their live health, above the table.
+
+**Damage prints per seat.** After a round every seat shows what it took (`−5`), including the seats that fought
+each other — a health bar that silently drops tells you something changed but not how much, and how much is the
+whole read on whether you're winning. The cell always renders (blank at 0) so the health column doesn't jitter
+between rows, and it pops once on arrival rather than looping (see `docs/performance.md`).
+
+Backed by two helpers on the run lobby: `lastRoundDamage` (per seat, both sides of every fight) and
+`lastPlayerEncounter` (the foe you just fought and how it went). Both read the recorded encounters rather than
+re-deriving anything, so the numbers on screen are the ones that were actually applied.
+
+**A double-charge bug, found by looking at the screen.** The HUD read 2 lower than the table for the same fight:
+the lobby applied the hit and synced the run to the seat, then the ordinary settle path applied `playerDamage`
+AGAIN on top. Settlement now skips the ordinary damage in lobby mode, where the lobby is authoritative (it owns
+the cap and the stall pressure).
+
+**A vacuous test, caught by revert-checking.** The regression test for that fix passed with the fix reverted —
+it played a fixed 5 rounds, and with that seed the player hadn't lost yet, so the two numbers could not diverge.
+It now plays until the player has ACTUALLY taken a hit and asserts that it did, then compares. Reverting the fix
+now fails it.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, build:web, harness determinism, and a live
+browser round: Next Foe card rendered with hero art and power, then `You −2`, `Tradesman −2`, `Fi −2` after the
+round — the player's own fight and one of the other tables, both reported.
+
+
+## 2026-07-29 — feat(sim/ui): the lobby is PLAYABLE end to end
+
+Title → **Lobby** → pick a hero → you are seat 1 of 8. You shop as normal, your fight settles the whole table,
+seats are knocked out, and the run ends when YOUR seat dies rather than after 17 rounds.
+
+**Serializable by construction.** `LobbyState` holds live `SeatDriver` closures and `RunState` is deep-cloned
+every dispatch, so the run carries `RunLobby` — plain data — and drivers are rebuilt on demand from
+`(kind, seed, heroId)`. Every driver is a pure function of those, so a reloaded run reconstructs byte-identical
+opponents instead of storing them. Pinned by a `structuredClone` test.
+
+**Reducer integration is three small seams**, all gated on `mode === 'lobby'`: `faceOmen` fights the paired
+seat instead of a pool pick; `settleCombat` settles the whole round from the player's already-resolved fight;
+the terminal check ends the run when the player's SEAT dies. The seat's health becomes the run's, so the HUD and
+every health-aware effect read one number.
+
+**HUD and panel.** The 8-seat table replaces the next-foe frame — who is standing, their health, and who you
+face next is the entire state of the mode. The round plaque drops "/ 17" and the Oath badge becomes "N / 8 left",
+because a lobby has no course length and no rating-derived win target; showing them would be promising rules the
+mode doesn't have.
+
+**Four bugs, each caught by a test or a measurement rather than by reading the code:**
+1. The lobby never advanced. The hook was on the `settleCombat` CASE, but `resolveCombat` calls the settle
+   FUNCTION directly when the replay is skipped — the path the game actually takes.
+2. A quarter of the table sat out round 1. A live seat that has only just reached its wave has an EMPTY board
+   (it hasn't shopped yet), and `boardAt` returned nothing for a round earlier than a recording's first wave.
+3. Disco Dan fielded no board at all, ever — his turn-1 tier-locked Discovers leave today's crude balance bot
+   with nothing playable. Lobby seat selection now skips a hero whose driver can't produce a board, and says so
+   in a comment: it is a BOT limitation, and the skip stops firing once a bot can play every hero.
+4. Determinism broke across two same-seed lobbies in one process. The driver cache holds LIVE, stateful runs, so
+   the second lobby inherited drivers already advanced to the first one's final round. `createRunLobby` now
+   evicts its seats' drivers.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2895 tests, build:web, harness determinism, plus a live
+browser run: mode card → hero picker → 8 seats rendered → end turn → round 2 with the player's armor down and
+two OTHER seats damaged from their own fight.
+
+**Known gaps** (deliberate, not oversights): the end screen still reads as an Ascent summary rather than showing
+placement; there is no elimination feed; and a live bot seat doesn't yet shop differently because of damage taken
+in the lobby beyond its synced health.
+
+
+## 2026-07-29 (later still) — combat is NOT symmetric, and live seats now react to lobby damage
+
+**The finding, and it is the most important one so far.** Resolving the same fight with the sides swapped
+disagrees on the WINNER **22%** of the time and on damage **62%** of the time. Measured over 325 pairings of real
+boards from real runs — attack order and tiebreaks favour whichever side is passed as `player`.
+
+The consequence is architectural: a lobby **must** resolve each pairing exactly once and settle both sides from
+that single result. Resolving each seat's fight from its own perspective — the obvious-looking way to give every
+live seat full carry-backs — would have a lobby recording two contradictory truths about one encounter, roughly
+one fight in five. `resolveRound` already worked this way; now it is measured rather than assumed, and pinned by
+a test so a future "optimisation" into two resolves fails loudly. Toy fixtures are often symmetric by accident,
+so the test deliberately uses real recorded boards.
+
+This also bounds the remaining work honestly. Full per-side carry-backs (Ticket 11 in the bots handoff) are a
+QUALITY improvement for bot-vs-bot seats, not a correctness requirement — the human player can always be the
+`player` side of their own fight, so their fidelity is never affected.
+
+**Live seats now react.** `SeatRoundOutcome` carries the seat's post-round Resolve/Armor per the lobby, and a
+live bot seat syncs its run to them. Its private run still fights the opponent pool for progression, which chips
+its own Resolve; overwriting it makes the lobby the single authority and stops the two numbers drifting. A seat
+on 4 lobby HP now shops like a minion on 4 HP, because that is what its own state says — previously it shopped
+on its private health and played comfortably while nearly dead in the lobby.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2886 tests, build:web, harness determinism. Pacing is
+unchanged by the sync (hybrid 16/19/23, all-bot 15/20/24 over 12 lobbies), which is the expected result — the
+sync changes how a seat plays, not how long lobbies run.
+
+## 2026-07-29 (later) — feat(sim): option 3 — a live bot takes the seat when the recording runs dry
+
+The prototype measured that neither exhaustion policy worked: `repeatFinal` ground lobbies to the 60-round hard
+stop on stale boards, and `eliminate` made lobby length a function of how long a recording's owner survived.
+Owner picked option 3 — hand the seat to a live bot — as the long-term answer. Built it.
+
+**`lobby` run mode.** A lobby ends by elimination, with no fixed round count, so a seat needs a run with no
+course clock. `RunMode` gains `'lobby'`: `advanceCombat` skips the `courseRounds` terminal check for it, and its
+own Resolve never ends it because the LOBBY owns that seat's health. Two lines in the reducer, both gated so
+Ascent, Rift and Practice are untouched.
+
+**`botSeat` is now a genuinely live run** — a `lobby`-mode `RunState` driven by the existing bot policy, shopping
+and scaling for as long as the lobby lasts. It still fights the ordinary opponent pool for its own progression
+(that is what advances its waves) while the lobby resolves the fight that counts.
+
+**`hybridSeat` is option 3 itself:** the recorded run plays while it lasts — that authenticity is the whole
+reason to use a snapshot — and a live bot picks the seat up when it runs dry. The handover is seeded from the
+same seed and hero as the recording, so the bot continues a run of the same shape rather than dropping an
+unrelated board into the seat mid-lobby.
+
+**Measured (`npm run lobby -- --runs 12`), and it settles the question:**
+
+| seats | min | median | max | mean |
+|---|---:|---:|---:|---:|
+| recorded, `repeatFinal` | 17 | **60 (cap)** | 60 | 50.0 |
+| recorded, `eliminate` | 10 | 12 | 12 | 11.5 |
+| **hybrid** | 16 | **19** | 23 | 19.3 |
+| **all live bots** | 15 | **20** | 24 | 19.4 |
+
+Live seats land in a 15-24 round band with real variance and never touch the cap. The recorded-only policies
+were the two failures the prototype was built to expose.
+
+**Still open:** a live seat doesn't yet shop differently because of damage taken *in the lobby* — its decisions
+read its own Resolve, not the seat's. Closing that needs `faceOmen` split into `prepareSeatForCombat` /
+`settleSeatCombat`. This step buys the scaling, which is what the pacing measurement actually asked for.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2883 tests, build:web, harness determinism. Six new
+tests; revert-checked — removing the lobby-mode gate fails the "keeps playing past the course length" test.
+
+## 2026-07-29 — feat(sim): the 8-seat lobby prototype (headless)
+
+Owner direction: the game becomes an 8-seat elimination lobby — 1-3 humans, the rest filled — and it stays
+asynchronous in today's sense, fighting recorded player snapshots rather than live opponents. Built as a
+headless prototype first, to answer the design questions before committing to any of it.
+
+**The key architectural finding, and why this is far cheaper than the bots handoff assumed.** A RECORDED seat
+never progresses — its round-12 board is already on disk — so the fight doesn't have to compute one. That
+removes the entire symmetric-combat refactor (Ticket 11: 42 `player*` result fields plus 39 hidden player-only
+branches inside the sim), which was the riskiest item in the plan. All that combat actually owes a lobby is
+`enemyDamage`, the exact mirror of `playerDamage`, so both sides' damage comes out of ONE authoritative resolve
+— resolving the same fight twice with the sides swapped can disagree, and a lobby cannot have two truths about
+one encounter. That mirror is a four-line addition, declared optional so the ~40 partial `CombatResult` test
+fixtures don't all need touching.
+
+**The swap point the owner asked for.** Everything goes through one `SeatDriver` interface — `prepare(round)`
+returns a board, `settle(outcome)` takes the result. `recordedSeat`, `botSeat` and `playerSeat` implement it, and
+the lobby cannot tell them apart. Pivoting a seat from a snapshot to a bot, or all eight, is a change at the call
+site and nowhere else. Asserted structurally by a test rather than left as a claim.
+
+**Three bugs the prototype found on day one**, all in rules I'd written and believed:
+1. `repeatFinal` never repeated — the driver reported "I'm dry" and the lobby had no fallback, so the default
+   policy silently behaved like `eliminate`. The policy now lives in the lobby and the driver only reports what
+   it has.
+2. Stall pressure only punished a *loser*, so eight mirrored boards drew forever and never triggered it.
+3. With pressure on both sides of a draw, a mirrored lobby then took every seat to zero in the same round —
+   "last one standing" with nobody standing. A wipeout guard now revives exactly one seat (healthiest entering
+   the round, then seat id); reviving "everyone who tied" resurrected all eight, every round, forever.
+
+**Measured pacing** (`npm run lobby -- --runs 20`), which is the real reason the prototype exists:
+
+| exhaustion policy | min | median | max | mean |
+|---|---:|---:|---:|---:|
+| `repeatFinal` | 17 | 27 | 60 (cap) | 38.9 |
+| `eliminate` | 10 | 12 | 12 | 11.6 |
+
+**Neither is right yet, and the numbers say why.** A run records 17 waves; a `repeatFinal` lobby runs far past
+that on stale boards that can no longer threaten anyone, so it grinds to the hard cap. `eliminate` is suspiciously
+uniform because the lobby is ending when the *recordings* end, not when the play resolves — lobby length becomes
+a function of how long a recording's owner survived. That is the open question, and it now has evidence behind it
+instead of being a hunch.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2877 tests, build:web, harness determinism. 15 lobby
+tests covering both-sides settlement, termination, the exhaustion policies, determinism, and driver-agnosticism.
+
 ## 2026-07-29 — fix(core/sim): Chorus Engine's Attachment enchant evaporated at the bell
 
 Owner report: "chorus engine's buff needs to carry back from combat / buff attachments everywhere."

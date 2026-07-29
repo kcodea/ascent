@@ -7,6 +7,7 @@ import { useGame } from './store';
 /** Top bar: the round/altitude plaque (left) and the next-enemy frame (top-right). */
 export function HudBar() {
   const run = useGame((s) => s.run);
+  const lobby = run.lobby;
   // Your W–L record over the SCORED rounds (calibration rounds 1–2 don't count) — the run's score (A1).
   const { wins, losses } = runRecord(run);
   // Practice runs the SAME course as Ascent, so the plaque reads identically (round count, dashes, Setup, Line).
@@ -19,7 +20,9 @@ export function HudBar() {
     <div className="bar">
       <div className="alt">
         <span className="wavecol">
-          <span className="w">{`ROUND ${run.wave} / ${CONFIG.courseRounds}`}</span>
+          {/* A LOBBY has no course clock — it ends by elimination — so the "/ 17" would be a promise the mode
+              doesn't make. It counts rounds and shows how many seats are left instead. */}
+          <span className="w">{lobby ? `ROUND ${lobby.round}` : `ROUND ${run.wave} / ${CONFIG.courseRounds}`}</span>
           {/* The most Resolve a loss this wave can cost — the round damage cap (see lossDamageCap). Hidden in
               Practice, where Resolve is unlimited and losses deal no damage. */}
           {!practice && (
@@ -31,7 +34,7 @@ export function HudBar() {
         {/* Per-round track: one dash per course round — a win prints a green ✓, a loss a red ✕, rounds not yet
             played stay a faint dash, and the current round is lit orange. Setup rounds (1–2) read a touch
             quieter with a small gap after (where the scored climb begins). Shown in Practice too (same course). */}
-        {(
+        {!lobby && (
           <span className="rounds" role="img" aria-label={`Round ${run.wave} of ${CONFIG.courseRounds}`}>
             {Array.from({ length: CONFIG.courseRounds }, (_, i) => {
               const round = i + 1;
@@ -60,7 +63,11 @@ export function HudBar() {
             <Icon name="crown" />{wins}–{losses}
           </span>
         )}
-        <span className="lbl line" title={`Your Oath for this run — fulfill it with ${run.line} wins`}>Oath {run.line}</span>
+        {lobby
+          ? <span className="lbl line" title="Outlast the table — a lobby is won by being the last seat standing">
+              {lobby.seats.filter((x) => x.alive).length} / {lobby.seats.length} left
+            </span>
+          : <span className="lbl line" title={`Your Oath for this run — fulfill it with ${run.line} wins`}>Oath {run.line}</span>}
       </div>
       {/* Run-buffs window — floats top-left just under the round plaque. Absolutely positioned (NOT an in-flow
           column) so it can never grow the bar and push the shop/board down when buffs are active. */}
@@ -69,9 +76,10 @@ export function HudBar() {
             pinned to a rift (see RIFTS / RunState.rift). */}
         {rift && <RiftPill rift={rift} variant="hud" />}
       </div>
-      {/* Top-right: the next-enemy frame (recruit only). */}
+      {/* Top-right: the next-enemy frame (recruit only). A LOBBY run has no single "next enemy" card here —
+          the table lives in its own rail down the right edge of the stage (see `.lobbyrail`). */}
       <div className="topright">
-        <OpponentFrame />
+        {!run.lobby && <OpponentFrame />}
       </div>
     </div>
   );

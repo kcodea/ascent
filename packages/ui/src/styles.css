@@ -674,6 +674,14 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   border-radius: 11px; padding: 5px 14px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
 }
 .etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* LOBBY: the End Turn label is centred on a button that sits well right of centre, and its right half ran
+   under the seat rail — the rail's z-index simply hid the text rather than avoiding it. Shift it left by the
+   rail's own width so the whole label stays readable. Scaled in `--u-base`, like the rail, so the two track
+   each other at every window size instead of colliding again at one aspect. */
+.app.lobby .etbwrap .etb-tip { transform: translateX(calc(-50% - 100 * var(--u-base))) translateY(7px); }
+.app.lobby .etbwrap:not(:disabled):hover .etb-tip,
+.app.lobby .etbwrap.urgent .etb-tip,
+.app.lobby .etbwrap.ready .etb-tip { transform: translateX(calc(-50% - 100 * var(--u-base))) translateY(0); }
 /* Summary — a small glass pill ABOVE the End Combat diamond (owner note 2026-07-16: shrunk from the big
    white button, dark-glass style, right side). Anchored to the SAME stage point + --etb-x/y offsets as the
    diamond so the tuner moves them together; the one-shot mount animation floats it up as it fades in,
@@ -5965,3 +5973,110 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxlib-gap { font-size: 11px; color: #6f6688; font-style: italic; }
 /* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
 .fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }
+
+/* ── LOBBY RAIL (8-seat elimination mode) ────────────────────────────────────
+   A tall, narrow column down the RIGHT EDGE of the stage, beside the board (owner ask 2026-07-29: "make the
+   window longer vertically"). A direct child of `.app`, so it is anchored to the stage height and scales with
+   it — as a top-right HUD widget it could only ever be short and wide, which squeezed eight seats plus the
+   opponent into a few cramped lines.
+
+   Everything sizes off `--u`, the same unit the rest of the HUD uses, so the rail tracks the stage on every
+   window size instead of drifting at non-16:9 aspects. */
+.lobbyrail {
+  /* Every measurement below is TUNABLE (🪑 Lobby Rail in the Dev Tuning Menu) through `--lby-*` vars, each read
+     with the shipped default as its fallback — so production, which never runs the tuner, renders identically
+     with no JS. `--lu` is the rail's own unit: the HUD unit times the panel scale. Driving a UNIT rather than
+     applying `transform: scale()` keeps the shadow and hairline crisp AND keeps the layout box honest — a
+     transformed panel still reserves its untransformed width and can overlap the board. */
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  --lu: calc(var(--u) * var(--lby-scale, 1.25));
+  --lrow: calc(var(--lu) * var(--lby-row, 1));
+  --lfont: calc(var(--lu) * var(--lby-font, 1));
+  --lfoe: calc(var(--lu) * var(--lby-foe, 1));
+  position: absolute; z-index: 60;
+  right: calc(var(--lby-right, 12) * var(--lu)); top: var(--lby-top, 18.5%);
+  /* Sizes to its rows, capped so a wild row scale can't run off the stage — and SCROLLS rather than clips at
+     the cap, because silently hiding seat 8 is worse than a scrollbar. The cap is generous enough that the
+     shipped defaults never reach it (measured: content ≈46% of stage height against a 66% cap). */
+  height: auto; max-height: var(--lby-h, 66%); overflow-y: auto; overflow-x: hidden;
+  width: calc(var(--lby-w, 129) * var(--lu));
+  display: flex; flex-direction: column; gap: calc(5 * var(--lu)); pointer-events: none;
+  /* A solid backing plate. Translucent rows over the board's stonework washed every name out to grey — the
+     panel has to be its own surface, not a tint on the art behind it. */
+  padding: calc(6 * var(--lu)); border-radius: calc(9 * var(--lu));
+  background: #14111c; box-shadow: 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -6px rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09); }
+.lobbyrail > * { pointer-events: auto; }
+.lobbyhead { display: flex; justify-content: space-between; align-items: baseline; flex: none;
+  font-size: calc(9 * var(--lfont)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+.lobbyalive { color: #f4d58a; font-weight: 700; }
+
+/* NEXT FOE — the one enemy this shop phase is about, so it gets a card rather than a marker in a row.
+   Stacked (art over name over health) because the rail is narrow; horizontally it had nowhere to go. */
+.lobbynext { flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--lfoe));
+  padding: calc(6 * var(--lfoe)) calc(5 * var(--lfoe)); border-radius: calc(7 * var(--lfoe));
+  background: linear-gradient(180deg, #3a1f22, #2a171a);
+  box-shadow: inset 0 0 0 1px rgba(255, 130, 120, 0.55); text-align: center; }
+.lobbynextface { width: calc(58 * var(--lfoe)); height: calc(58 * var(--lfoe)); border-radius: calc(7 * var(--lfoe));
+  object-fit: cover; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); }
+.lobbynextinfo { display: flex; flex-direction: column; line-height: 1.15; width: 100%; min-width: 0; }
+.lobbynextlbl { font-size: calc(7 * var(--lfoe)); letter-spacing: 0.10em; text-transform: uppercase; color: rgba(255, 160, 150, 0.9); }
+.lobbynextname { font-size: calc(15 * var(--lfoe)); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobbynextsub { font-size: calc(8 * var(--lfoe)); color: rgba(255, 255, 255, 0.66);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobbynexthp { display: flex; align-items: baseline; justify-content: center; gap: calc(3 * var(--lfoe)); font-size: calc(12 * var(--lfoe)); }
+
+/* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
+   height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a
+   constant and left the dial doing nothing but resizing portraits.) The rail's height dial is now a CAP. */
+.lobbyseats { flex: none; display: flex; flex-direction: column; gap: calc(2 * var(--lrow)); }
+.lobbyseat { position: relative; flex: none; display: grid;
+  grid-template-columns: calc(18 * var(--lrow)) 1fr auto; grid-template-rows: auto auto;
+  align-items: center; column-gap: calc(4 * var(--lrow)); padding: calc(3 * var(--lrow)) calc(5 * var(--lrow)) calc(4 * var(--lrow));
+  border-radius: calc(5 * var(--lrow)); font-size: calc(11 * var(--lfont)); color: #f2ecff;
+  background: #211c2e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.lobbyseat.you { background: #1f3a5c; box-shadow: inset 0 0 0 1px rgba(140, 200, 255, 0.6); }
+.lobbyseat.foe { background: #3a2126; box-shadow: inset 0 0 0 1px rgba(255, 130, 120, 0.75); }
+.lobbyseat.dead { opacity: 0.5; }
+.lobbyface { grid-row: 1 / span 2; width: calc(18 * var(--lrow)); height: calc(18 * var(--lrow));
+  border-radius: 50%; object-fit: cover; }
+.lobbyname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobbyseat.dead .lobbyname { text-decoration: line-through; }
+.lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 700; color: #ff8d8d; }
+.lobbyhp svg { width: calc(8 * var(--lfont)); height: calc(8 * var(--lfont)); }
+.lobbyarmor { color: #9fc7ff; font-weight: 700; }
+.lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
+/* Damage from the round that just resolved — sits under the name, so the row keeps ONE stable shape whether or
+   not a number is present (an inline cell reflowed the health column between seats). */
+.lobbydmg { grid-column: 2 / span 2; font-size: calc(9 * var(--lfont)); font-weight: 800; color: #ff6b6b;
+  line-height: 1; min-height: calc(8 * var(--lfont)); animation: lobbydmgpop 420ms ease-out; }
+@keyframes lobbydmgpop {
+  0% { transform: translateY(calc(-2 * var(--lfont))) scale(1.3); opacity: 0; }
+  40% { transform: translateY(0) scale(1.1); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ── LOBBY END SCREEN ────────────────────────────────────────────────────────
+   A lobby result is one number — where you finished — so it gets the whole headline, with the final warband
+   underneath as the only supporting detail. No Oath verdict, Renown delta, record, pips, tags or run stats:
+   none of them exist in a mode with no course and no rating (owner ask 2026-07-29). */
+.endscreen.lobbyend .endbox { gap: calc(14 * var(--u-base)); }
+.endplace { display: flex; flex-direction: column; align-items: center; line-height: 0.92; }
+.endplace-num { font-family: var(--font-disp, var(--font-ui)); font-weight: 900;
+  font-size: clamp(64px, 11vh, 132px); letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #fff6df, #d8a94e 62%, #a2762c);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35)); }
+.endplace-of { font-family: var(--font-ui); font-weight: 700; font-size: clamp(13px, 1.7vh, 19px);
+  letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-top: 0.35em; }
+/* First place gets a brighter gradient. `background-image`, NOT the `background` shorthand: the shorthand
+   resets `background-clip` to `border-box`, which un-clips the gradient from the glyphs and paints "1st" as a
+   solid gold rectangle. (Everything else about the treatment is inherited from the base rule.) */
+.endscreen.lobbyend.won .endplace-num {
+  background-image: linear-gradient(180deg, #fffdf6, #ffe08a 52%, #e8b43f); }
+
+/* The damage you dealt, floated over the seat that took it. Appended to <body> (not the row) so it outlives
+   the re-sort that happens the moment a round settles. */
+.lobbydmg-float { position: fixed; z-index: 2000; pointer-events: none; will-change: transform, opacity;
+  font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: -0.02em; color: #ff5d5d;
+  text-shadow: 0 0 10px rgba(255, 60, 60, 0.55), 0 2px 0 rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.9); }

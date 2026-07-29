@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type BoardMinion, type LineStatus } from '@game/sim';
+import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type BoardMinion, type LineStatus , playerLobbySeat, type RunState} from '@game/sim';
 import { Card, type CardView } from './Card';
 import { liveBoardView } from './instView';
 import { heroArt } from './art';
@@ -27,10 +27,56 @@ function snapshotView(m: BoardMinion): CardView {
  * End-of-run screen (both outcomes) — styled like the hero picker. Shows the title, the run's
  * round-by-round W-L-W summary, the final warband, and Play Again (→ hero picker).
  */
+/** 1st, 2nd, 3rd, 4th… — the only number a lobby result is actually about. */
+function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+}
+
+/**
+ * The LOBBY end screen (owner ask 2026-07-29: "literally only show your placement and final board").
+ *
+ * The ordinary end screen is built entirely around the scored climb — Oath verdict, Renown delta, W–L record,
+ * per-round pips, build tags, run stats. None of that exists in a lobby: there is no Oath, no course record and
+ * no rating, and a per-round pip strip implies a fixed length the mode doesn't have. Rather than hide nine
+ * sections one by one and leave the reader guessing which numbers still mean something, a lobby gets its own
+ * screen with the two things that do: where you finished, and what you finished with.
+ */
+function LobbyEndScreen({ lobby, run, onPlayAgain }: {
+  lobby: NonNullable<RunState['lobby']>;
+  run: RunState;
+  onPlayAgain: () => void;
+}): JSX.Element {
+  const seat = playerLobbySeat(lobby);
+  const place = seat.placement ?? lobby.seats.filter((x) => x.alive).length;
+  const won = place === 1;
+  return (
+    <div className={`heroselect endscreen lobbyend${won ? ' won' : ''}`}>
+      <div className="hsbox endbox">
+        <div className="endplace" aria-label={`Finished ${ordinal(place)} of ${lobby.seats.length}`}>
+          <span className="endplace-num">{ordinal(place)}</span>
+          <span className="endplace-of">of {lobby.seats.length}</span>
+        </div>
+        <div className="endboardlabel">Final warband</div>
+        <div className="endboard">
+          {run.board.length === 0
+            ? <span className="endempty">— empty —</span>
+            : run.board.map((m) => <Card key={m.uid} card={boardView(m, run)} suppressPop />)}
+        </div>
+        <button className="endplay" onClick={onPlayAgain}>Play Again</button>
+      </div>
+    </div>
+  );
+}
+
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
   const openTitle = useGame((s) => s.openTitle);
   const actions = useGame((s) => s.replayActions);
+  // A lobby result is a placement, not a graded climb — its own screen, before any of the scored-run
+  // derivations below (record, Oath verdict, rating, pips) which have no meaning in that mode.
+  const lobby = run.lobby;
   // The rating change for this scored run (computed on run-end, a tick after the phase flips). null for
   // Practice or until it lands.
   const lastRating = useGame((s) => s.lastRating);
@@ -81,6 +127,7 @@ export function EndScreen({ won }: { won: boolean }) {
     failed: `Fell Short ${line.delta}`,
   };
   const ratingSign = lastRating && lastRating.ratingDelta >= 0 ? '+' : '';
+  if (lobby) return <LobbyEndScreen lobby={lobby} run={run} onPlayAgain={openTitle} />;
   return (
     <div className={`heroselect endscreen${wonPar ? ' won' : ''}`}>
       <div className="hsbox endbox">

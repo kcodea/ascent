@@ -16,6 +16,7 @@ import {
   isValidSlug,
   loadCommitNote,
   loadSession,
+  presentCommitNote,
   saveCommitNote,
   saveArt,
   saveBindings,
@@ -30,6 +31,7 @@ import { applyVariant, presetTable } from '../presets';
 import { getImportedDataUrl } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
+import { SeedBakeWarning } from './SeedBakeWarning';
 import { LibraryBrowser } from './LibraryBrowser';
 import { PresetGallery } from './PresetGallery';
 import { ProcHarness } from '../harness/ProcHarness';
@@ -402,7 +404,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Its own state rather than seeding `commitNote`, because the two have different reach: `commitNote` renders
   // inside `CommitPanel`, which only exists in rail mode with a card and moment selected — precisely the
   // context a reload destroys. This one is a banner at the top of the rail, visible in either mode.
-  const [restoredCommitNote, setRestoredCommitNote] = useState<string | null>(() => loadCommitNote());
+  // `presentCommitNote` decides staleness (pure, clock passed in): the reload CLOSES the workbench, so a note
+  // can wait in storage across arbitrarily many unrelated reloads and browser sessions before the tool is next
+  // opened. Past ~10 minutes it is prefixed "Earlier — " rather than presented as fresh confirmation of what
+  // you just did; past a day it isn't shown at all.
+  const [restoredCommitNote, setRestoredCommitNote] = useState(() =>
+    presentCommitNote(loadCommitNote(), Date.now()),
+  );
   useEffect(() => {
     clearCommitNote();
   }, []);
@@ -1519,21 +1527,45 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         setCommitError(`Def not written — nothing changed. ${defResult.error}`);
         return;
       }
+      // ── PARK THE NOTE HERE, not after the binding write ──────────────────────────────────────────────
+      // The reload is already in motion. `saveDef` just wrote into the globbed defs directory, and
+      // `fxDefsPlugin` answers an `add` there by sending `full-reload` immediately (a `change` reloads too —
+      // nothing in the import graph accepts an HMR update). Vite's client can call `location.reload()` at any
+      // point from now on, including part-way through the `await saveBindings` below. Parking after that await
+      // means a reload timed anywhere inside it leaves nothing parked and no banner — the exact silent
+      // "nothing happened" this whole item exists to eliminate.
+      //
+      // So park optimistically the moment there is something true to say, and correct it below. That is
+      // strictly safer than parking late, because every path after this point either overwrites the note or
+      // clears it, so an over-optimistic note cannot survive a failure it doesn't describe.
+      const artSuffix = failures.length > 0 ? ` — but art didn't travel: ${failures.join('; ')}` : '';
+      const artLevel = failures.length > 0 ? 'warn' : 'ok';
+      saveCommitNote(`Committed → ${plan.defId} · def written${artSuffix}`, Date.now(), artLevel);
+
       registerSavedDef(stored);
       refreshLibrary();
       setBinding(plan.bindingTarget.cardId, plan.bindingTarget.kind, plan.binding);
       const bindResult = await saveBindings(bindingsJson());
       if (!bindResult.ok) {
         setCommitError(`Def saved, but the binding was not written: ${bindResult.error}`);
+        // Correct the optimistic note rather than clearing it: the def IS on disk, so the truthful surviving
+        // evidence is "half of this landed", not silence. Silence here would read as "the commit never
+        // happened" while a real file sits in the working tree waiting to be committed to git.
+        saveCommitNote(
+          `Commit INCOMPLETE → ${plan.defId} was written but its binding was not: ${bindResult.error}`,
+          Date.now(),
+          'warn',
+        );
         return;
       }
       setDefName(plan.defId);
       setCommitError(failures.length > 0 ? `Committed, but art didn't travel: ${failures.join('; ')}` : null);
-      const note = `Committed → ${plan.defId} · ${bindResult.path}`;
+      // The final, accurate note — now that the binding path is known. Art failures are FOLDED IN and carry
+      // `warn`, because `setCommitError` above dies with the component in the reload: without this, the one
+      // case where something went wrong would be the case whose surviving evidence says everything is fine.
+      const note = `Committed → ${plan.defId} · ${bindResult.path}${artSuffix}`;
       setCommitNote(note);
-      // ...and park it, because the `saveBindings` above has already set the forced reload in motion: the
-      // `setCommitNote` on the line before this one will very likely never paint. Only reached on full success.
-      saveCommitNote(note);
+      saveCommitNote(note, Date.now(), artLevel);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : 'Commit failed.');
     } finally {
@@ -1606,6 +1638,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // goes with the work it belonged to. The number itself is kept so locking again is one click.
     applySeed(seed, false);
     setRestoredNotice(false);
+    // Discard replaces the composition WITHOUT going through `loadDef`, so it has to clear the variant warning
+    // itself — otherwise "part of the Crackling variant did nothing" outlives the Crackling composition and
+    // describes a fresh default that never came from a preset at all.
+    setVariantWarning(null);
     autosaveArmedRef.current = false; // AFTER commitLayers/applySeed, which arm it
   };
 
@@ -1697,8 +1733,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             `restoredCommitNote`). FIRST in the rail and visible in either mode, because after that reload it
             is the only evidence in the UI that the write happened at all. */}
         {restoredCommitNote !== null && (
-          <div className="fxwb-def-restore fxwb-def-committed">
-            <span className="fxwb-def-restore-txt">{restoredCommitNote}</span>
+          <div
+            className={`fxwb-def-restore ${
+              restoredCommitNote.level === 'warn' ? 'fxwb-def-committed-warn' : 'fxwb-def-committed'
+            }`}
+          >
+            <span className="fxwb-def-restore-txt">{restoredCommitNote.text}</span>
             <button
               type="button"
               className="fxwb-def-restore-x"
@@ -2025,35 +2065,16 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
-          {/* THE SEED-LOCK WARNING. `save()` (and `commit()`) write `seedLocked ? seed : undefined`, which is
-              correct and deliberate — an unlocked composition means "roll fresh", so writing a seed anyway
-              would freeze a look the author left free. The hazard is the other direction: forgetting the lock
-              is on. A baked seed makes every play of that effect in the real game the identical roll forever,
-              which is occasionally wanted (an exactly-choreographed signature hit) and usually not, because
-              repeated procs start reading as mechanical. The lock survives reloads (it's in the session
-              snapshot), so it is easy to forget it is on.
-
-              So: NOT auto-unlocked on save. That would silently change what gets written and break the
-              legitimate baked-seed case. Instead it is made visible at the moment of decision — this line sits
-              directly under the Save button for as long as the lock is on, names the actual number, and
-              carries its own one-click Unlock. Rendered on the LOCK STATE rather than after a save attempt, so
-              you cannot reach Save without having had it in front of you. */}
-          {seedLocked && (
-            <div className="fxwb-def-seedwarn">
-              <span className="fxwb-def-seedwarn-txt">
-                🔒 Seed <strong>{seed}</strong> will be baked into this def — every play of it in the game
-                will be the identical roll. Unlock to let it roll fresh each time.
-              </span>
-              <button
-                type="button"
-                className="fxwb-def-seedwarn-unlock"
-                title="Unlock the seed — this def then rolls fresh randomness on every play, and no seed is written"
-                onClick={toggleSeedLock}
-              >
-                Unlock
-              </button>
-            </div>
-          )}
+          {/* The seed-bake warning, directly under Save. Rendered on the LOCK STATE rather than after a save
+              attempt, so Save cannot be reached without having had it in front of you. `CommitPanel` renders
+              the SAME component above its own button — see `SeedBakeWarning` for why one warning next to Save
+              was not enough. */}
+          <SeedBakeWarning
+            seedLocked={seedLocked}
+            seed={seed}
+            onUnlock={toggleSeedLock}
+            writeVerb="Saving"
+          />
           {saveNote !== null && <div className="fxwb-def-note">{saveNote}</div>}
           {saveError !== null && <div className="fxwb-def-err">{saveError}</div>}
         </div>
@@ -2268,6 +2289,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             error={commitError}
             note={commitNote}
             onCommit={() => void commit()}
+            seedLocked={seedLocked}
+            seed={seed}
+            onUnlockSeed={toggleSeedLock}
           />
         </div>
       )}

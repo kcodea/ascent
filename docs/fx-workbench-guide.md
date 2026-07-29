@@ -169,10 +169,14 @@ Two details:
 > exactly what you want (a signature, exactly-choreographed hit). Usually it isn't: repeated procs start reading
 > as mechanical, because the eye learns the pattern. No def currently in `fx/defs/` carries a baked seed.
 >
-> **You will be told.** For as long as the lock is on, an amber line sits directly under the **Save** button
-> naming the exact seed that will be written and what that means, with a one-click **Unlock** beside it. It
-> renders on the *lock state*, not after a save attempt, so Save cannot be reached without it having been on
-> screen. It lives in the rail, so it is equally visible in rail mode, where **Commit** writes the same seed.
+> **You will be told, at both places that write a seed.** For as long as the lock is on, an amber line naming
+> the exact seed and what baking it means — with a one-click **Unlock** beside it — sits directly under the
+> **Save** button *and* directly above **Commit animation** in the rail panel. One shared `SeedBakeWarning`
+> component, rendered twice, deliberately: Save lives in `.fxwb-side` and Commit in `.fxrail`, two columns that
+> scroll independently, so a warning next to Save says nothing about a Commit happening with it scrolled out of
+> view — and Commit is the path that matters more, since it writes `bindings.json` and makes the effect live.
+> It renders on the *lock state*, not after a write attempt, so neither button can be reached without it having
+> been on screen.
 >
 > Save deliberately does **not** auto-unlock. That would silently change what gets written and would break the
 > signature-hit case outright. Making the hazard visible at the moment of decision is the fix; the decision
@@ -210,12 +214,22 @@ The panel shows the resulting def id and how many bindings the commit will touch
 numbers you changed. The commit order is fixed: the def file writes first, `bindings.json` second, so a def
 failure changes nothing and a binding failure leaves only an unbound def (inert, not silently wrong).
 
-**Writing `bindings.json` triggers a full page reload** — it's a static import, so Vite can't hot-reload it —
-which means the workbench unmounts before the `Committed → …` line it just set can paint. So the note is parked
-in `localStorage` on success and shown as a green banner at the top of the rail, then cleared as it is read: it
-appears exactly once and can't resurface on some later unrelated reload. A commit that *failed* parks nothing,
-and the key is cleared at the start of every commit, so a stale success line can never be presented as this
-commit's confirmation.
+**A commit forces a full page reload, and BOTH its writes cause one.** `bindings.json` is a static import Vite
+can't hot-reload; the def file lands in the globbed defs directory, where `fxDefsPlugin` answers an `add` by
+invalidating the glob owner and sending `full-reload` outright — and a `change` reloads too, since nothing in
+the import graph sets up an `import.meta.hot.accept` boundary. So the reload is set in motion by the **first**
+write, not the last, and the workbench unmounts before the `Committed → …` line can paint.
+
+The note is therefore parked in `localStorage` **as soon as the def write succeeds** — before the
+`await saveBindings` round trip, because Vite's client can call `location.reload()` at any point during it, and
+parking afterwards means a reload timed inside that await leaves nothing parked and no banner at all. It is
+then corrected: to the real binding path on success, or to a `Commit INCOMPLETE →` line if the binding write
+failed (the def is on disk, so silence would wrongly read as "nothing happened"). Art-upload failures are
+**folded into the parked text** and flip it to amber, because the in-component error line dies with the
+component — without that, the one case where something went wrong would be the case whose surviving evidence
+looks clean. The key is cleared at the start of every commit and again as the banner is read, so it appears
+exactly once and a stale success line can never be presented as this commit's confirmation. A note older than
+~10 minutes is prefixed `Earlier — `; older than a day it isn't shown at all.
 
 **Be precise about when you see it.** The banner appears the next time the workbench is *opened*, not the
 instant the page reloads. The reload closes the workbench (it's mounted from `DevMenu`, whose state resets), so
@@ -289,6 +303,12 @@ sticky to the bottom of the rail, calling the same `togglePlay` / `fire` / `scru
 The full transport stays hidden rather than being unhidden here for a layout reason: it is
 `position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width
 Timeline, so it would paint a band straight across the board this mode exists to show.
+
+**Those three controls and nothing else is a deliberate call** (owner ruling, 2026-07-29). The rail bar is not
+a miniature of the transport and shouldn't grow into one — the point of rail mode is the board, not the dials.
+One known consequence: the 🔒 seed toggle isn't there, so in rail mode you can **unlock** a seed (via the
+warning's Unlock button, which is present next to Commit) but not re-**lock** one. Click **Full editor** for
+that. Accepted, not an oversight.
 
 ---
 

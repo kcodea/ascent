@@ -1,5 +1,62 @@
 # ASCENT — development log
 
+## 2026-07-29 — Review fixes on the friction batch: the evidence has to be true, not just present
+
+Code review on the batch below returned three Important findings, all on items 2 and 3, all legitimate. The
+theme is that "make failure visible" is not satisfied by *showing something* — the thing shown has to be
+accurate, and it has to be present at every place a decision gets made.
+
+**1. A partly-failed commit showed a green success banner and destroyed the evidence.** Art-upload failures
+reach the success line: `setCommitError` carried them, but that state dies with the component in the forced
+reload, while the parked note was unconditionally the clean success string. So the one case where something went
+wrong was the case whose surviving evidence said everything was fine — a straight inversion of the premise. Art
+failures are now **folded into the parked text** (`Committed → <def> · <path> — but art didn't travel: …`) and
+flip the banner to a new amber `.fxwb-def-committed-warn` instead of the green success treatment. The trailing
+comment claiming "Only reached on full success" was false and is gone.
+
+**2. The note was parked after the writes that cause the reload, so the reload could pre-empt it.** The old
+comment blamed `saveBindings` for the reload. Incomplete: `saveDef` writes into the globbed defs directory and
+`fxDefsPlugin` answers an `add` there by sending `full-reload` immediately — and a `change` reloads too, because
+nothing in the import graph sets up an `import.meta.hot.accept` boundary (verified: zero matches in
+`packages/ui/src` and `apps/web`). The reload is set in motion by the **first** write, and `saveCommitNote` sat
+two lines and a full `await saveBindings` HTTP round trip later, so a reload timed anywhere inside that await
+parked nothing and showed no banner — the exact silent failure the item exists to eliminate. The note is now
+parked **optimistically the moment the def write succeeds**, then corrected: to the real binding path on
+success, or to a `Commit INCOMPLETE → <def> was written but its binding was not` warning if the binding failed.
+That last case deliberately overwrites rather than clears — the def *is* on disk, so silence would read as "the
+commit never happened" while a real file sits in the working tree.
+
+**3. Item 3's guarantee didn't cover Commit, which is the path that matters more.** "You can't reach Save
+without having seen it" was true for Save and false for Commit: in rail mode the Commit button is in
+`CommitPanel` inside `.fxrail`, a separate independently-scrolling column from `.fxwb-side` where the warning
+sat under ~40 inspector sliders. Both columns are on screen at once but scroll independently, so a baked seed
+could go into `bindings.json` with the warning out of view. The warning is now a shared **`SeedBakeWarning`**
+component rendered in *both* places — under Save and directly above Commit animation — with a `writeVerb` prop
+so the sentence reads true next to either. (Verified clean, no action: both `save()` and `commit()` read the
+render-closure `seed`/`seedLocked`, the same values the warning renders, so there is no stale-state mismatch.)
+
+**Three Minors, also fixed.** `discardRestored` replaces the composition without going through `loadDef`, so it
+now clears `variantWarning` itself — otherwise "part of the Crackling variant did nothing" outlived the
+Crackling composition. The parked note could first surface days later presented as fresh (the reload closes the
+workbench, so it waits for the next *open*), so the payload is now `{ note, at, level }` and a new **pure**
+`presentCommitNote(parked, now)` prefixes anything older than 10 minutes with `Earlier — ` and drops anything
+older than a day; it takes `now` as an argument rather than reading a clock, so the thresholds are testable
+without faking one. And `.fxwb-side` gained `scroll-padding-bottom: 64px` so the sticky rail bar can't park on
+top of the seed warning it was softening.
+
+**Deliberately not done.** The rail bar stays **three controls and nothing else** (owner call): the known
+consequence is that rail mode can unlock a seed but not re-lock one, which is now written down in the guide's §9
+rather than fixed. Also skipped as noted-and-deliberate: `aria-live` on the banners, two dev tabs consuming each
+other's note, hostile note *contents* (it is escaped React text), and echoing the variant warning at the top of
+the rail.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors, 6 pre-existing warnings),
+`npm run build:web`, and `npm test`: **159 files, 3032 tests passed**. `defStore.test.ts` now runs 62 tests —
+the eight added here cover the `warn` level surviving a round trip, four corrupted/wrong-shaped payload rejections
+(including the bare string an older build would have parked), and the five `presentCommitNote` threshold cases.
+Two of the new behaviours were mutation-checked: forcing `level` to `'ok'` and removing the max-age cutoff each
+kill exactly one test. Still **not browser-verified** — no jsdom, so all layout claims remain code-and-CSS review.
+
 ## 2026-07-29 — FX workbench friction batch: make the tool stop hiding things
 
 Four small, unrelated papercuts in the FX workbench, done together because they share two files and one

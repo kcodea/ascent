@@ -5571,6 +5571,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-side {
   position: absolute; top: 52px; right: 0; bottom: 60px; width: var(--fxwb-rail); overflow-y: auto; box-sizing: border-box;
   background: #211d2c; border-left: 2px solid #3d3752; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px;
+  /* Keep the sticky rail transport from parking on top of whatever you just scrolled to — most importantly the
+     seed-bake warning under Save, whose whole job is to be seen before you write a def. Sized to the bar
+     (~44px of control + padding) plus a little air. Only bites in rail mode, where that bar exists; harmless
+     otherwise, since a non-rail `.fxwb-side` has nothing sticky at its bottom edge. */
+  scroll-padding-bottom: 64px;
 }
 .fxwb-inspector { display: flex; flex-direction: column; gap: 12px; }
 .fxwb-inspector h3 {
@@ -5890,6 +5895,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-def-committed { background: color-mix(in srgb, #4ad07a 14%, #2b2739); border-color: #4ad07a; }
 .fxwb-def-committed .fxwb-def-restore-txt { color: #8ee6ad; overflow-wrap: anywhere; }
 .fxwb-def-committed .fxwb-def-restore-x:hover { border-color: #8ee6ad; color: #8ee6ad; }
+/* The SAME banner for a commit that only partly landed — art that didn't travel, or a def written whose
+   binding then failed. Amber, never green: `setCommitError` dies with the component in the forced reload, so
+   this banner is the only surviving evidence, and dressing a partial failure in success colours would make the
+   one case where something went wrong the case that looks fine. That inversion is the thing this subsystem
+   exists to prevent. */
+.fxwb-def-committed-warn { background: color-mix(in srgb, #e0a24a 14%, #2b2739); border-color: #e0a24a; }
+.fxwb-def-committed-warn .fxwb-def-restore-txt { color: #e8bd7b; overflow-wrap: anywhere; }
+.fxwb-def-committed-warn .fxwb-def-restore-x:hover { border-color: #ffd9a0; color: #ffd9a0; }
 
 /* ── FX workbench: seed transport + per-layer mute ──────────────────────────────────────────────────────
    The seed group mirrors `.fxwb-loopgroup`'s bordered-cluster treatment so the transport bar reads as

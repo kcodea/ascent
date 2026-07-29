@@ -1,5 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import type { FxBinding } from '../../choreo/bindings';
+import { SeedBakeWarning } from '../ui/SeedBakeWarning';
 import type { CommitPlan } from './commitPlan';
 
 /**
@@ -20,6 +21,17 @@ export interface CommitPanelProps {
   error: string | null;
   note: string | null;
   onCommit: () => void;
+  /**
+   * Seed-lock state, threaded down purely so the seed-bake warning can render HERE too.
+   *
+   * `commit()` writes the same `seedLocked ? seed : undefined` that `save()` does, and Commit is the path that
+   * matters more — it writes `bindings.json` and makes the effect live for real. The warning next to Save is
+   * in `.fxwb-side`, a different independently-scrolling column from this panel's `.fxrail`, so it could be
+   * scrolled out of view while an author commits a baked seed. See `SeedBakeWarning`.
+   */
+  seedLocked: boolean;
+  seed: number;
+  onUnlockSeed: () => void;
 }
 
 const refLabel = (cardId: string | null, kind: string): string =>
@@ -27,6 +39,7 @@ const refLabel = (cardId: string | null, kind: string): string =>
 
 export function CommitPanel({
   plan, missing, scope, onScopeChange, fanOut, onFanOutChange, busy, error, note, onCommit,
+  seedLocked, seed, onUnlockSeed,
 }: CommitPanelProps): React.ReactElement {
   return (
     <div className="fxcommit">
@@ -71,6 +84,15 @@ export function CommitPanel({
           )}
         </div>
       )}
+
+      {/* Directly above the button that writes it — this panel is in its own scroll column, so the copy next
+          to Save cannot be relied on to have been seen. */}
+      <SeedBakeWarning
+        seedLocked={seedLocked}
+        seed={seed}
+        onUnlock={onUnlockSeed}
+        writeVerb="Committing"
+      />
 
       {/* A blocked plan is still RENDERED above — the author needs to see which id their name produced to
           understand the refusal — but it can never be executed, so it disables the button exactly as an

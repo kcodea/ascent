@@ -2081,6 +2081,15 @@ export function simulate(
     result === 'lose'
       ? enemyState.tier + survivorsE.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
       : 0;
+  // The MIRROR: what the enemy side would take, by the identical formula. A single-run fight never needed it
+  // (only the player has a Resolve pool), but a lobby round has two sides that both take damage from ONE
+  // authoritative combat — resolving the same fight twice with the sides swapped can disagree, so the number
+  // has to come out of this call. Deliberately just the mirror: no per-side carry-backs, because a lobby seat
+  // backed by a RECORDED run does not progress — its next board is already on disk.
+  const enemyDamage =
+    result === 'win'
+      ? playerState.tier + survivorsP.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
+      : 0;
 
   // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge
   // improved its summon buff this combat keeps the higher bonus for the run.
@@ -2131,6 +2140,7 @@ export function simulate(
     events,
     result,
     playerDamage,
+    enemyDamage,
     playerDeathrattles,
     playerRallies: playerRallies > 0 ? playerRallies : undefined,
     playerImpsSummoned: playerImpsSummoned > 0 ? playerImpsSummoned : undefined,

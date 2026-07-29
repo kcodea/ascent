@@ -1,5 +1,50 @@
 # ASCENT — development log
 
+## 2026-07-29 — feat(sim): the 8-seat lobby prototype (headless)
+
+Owner direction: the game becomes an 8-seat elimination lobby — 1-3 humans, the rest filled — and it stays
+asynchronous in today's sense, fighting recorded player snapshots rather than live opponents. Built as a
+headless prototype first, to answer the design questions before committing to any of it.
+
+**The key architectural finding, and why this is far cheaper than the bots handoff assumed.** A RECORDED seat
+never progresses — its round-12 board is already on disk — so the fight doesn't have to compute one. That
+removes the entire symmetric-combat refactor (Ticket 11: 42 `player*` result fields plus 39 hidden player-only
+branches inside the sim), which was the riskiest item in the plan. All that combat actually owes a lobby is
+`enemyDamage`, the exact mirror of `playerDamage`, so both sides' damage comes out of ONE authoritative resolve
+— resolving the same fight twice with the sides swapped can disagree, and a lobby cannot have two truths about
+one encounter. That mirror is a four-line addition, declared optional so the ~40 partial `CombatResult` test
+fixtures don't all need touching.
+
+**The swap point the owner asked for.** Everything goes through one `SeatDriver` interface — `prepare(round)`
+returns a board, `settle(outcome)` takes the result. `recordedSeat`, `botSeat` and `playerSeat` implement it, and
+the lobby cannot tell them apart. Pivoting a seat from a snapshot to a bot, or all eight, is a change at the call
+site and nowhere else. Asserted structurally by a test rather than left as a claim.
+
+**Three bugs the prototype found on day one**, all in rules I'd written and believed:
+1. `repeatFinal` never repeated — the driver reported "I'm dry" and the lobby had no fallback, so the default
+   policy silently behaved like `eliminate`. The policy now lives in the lobby and the driver only reports what
+   it has.
+2. Stall pressure only punished a *loser*, so eight mirrored boards drew forever and never triggered it.
+3. With pressure on both sides of a draw, a mirrored lobby then took every seat to zero in the same round —
+   "last one standing" with nobody standing. A wipeout guard now revives exactly one seat (healthiest entering
+   the round, then seat id); reviving "everyone who tied" resurrected all eight, every round, forever.
+
+**Measured pacing** (`npm run lobby -- --runs 20`), which is the real reason the prototype exists:
+
+| exhaustion policy | min | median | max | mean |
+|---|---:|---:|---:|---:|
+| `repeatFinal` | 17 | 27 | 60 (cap) | 38.9 |
+| `eliminate` | 10 | 12 | 12 | 11.6 |
+
+**Neither is right yet, and the numbers say why.** A run records 17 waves; a `repeatFinal` lobby runs far past
+that on stale boards that can no longer threaten anyone, so it grinds to the hard cap. `eliminate` is suspiciously
+uniform because the lobby is ending when the *recordings* end, not when the play resolves — lobby length becomes
+a function of how long a recording's owner survived. That is the open question, and it now has evidence behind it
+instead of being a hunch.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2877 tests, build:web, harness determinism. 15 lobby
+tests covering both-sides settlement, termination, the exhaustion policies, determinism, and driver-agnosticism.
+
 ## 2026-07-29 — fix(core/sim): Chorus Engine's Attachment enchant evaporated at the bell
 
 Owner report: "chorus engine's buff needs to carry back from combat / buff attachments everywhere."

@@ -336,7 +336,7 @@ const BOOTSTRAP_SEEDS = [1, 2, 3, 7, 11, 42, 101, 777, 1000, 2024, 31337, 90210]
 const BOOTSTRAP_HEROES = HEROES.map((h) => h.id); // vary the hero per seed → varied boards + opponent portraits
 
 /** Greedily auto-play one seeded run as a given hero, capturing the board snapshot at each combat. Deterministic. */
-function autoplayRun(seed: number, heroId?: string, opts?: BotOptions): BoardSnapshot[] {
+export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions): BoardSnapshot[] {
   let s = createRun(seed, heroId);
   // Separate RNG for bot pick decisions — doesn't touch the game's own seeded stream.
   const botRng: Rng | null = opts?.preferTribe || opts?.cardWeight ? makeRng(seed ^ 0xb07b07) : null;

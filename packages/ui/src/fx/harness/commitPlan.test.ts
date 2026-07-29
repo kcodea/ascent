@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BindingTable } from '../../choreo/bindings';
+import { DRAFT_DEF_ID } from '../../choreo/bindings';
 import { forkId, MAX_SLUG, planCommit, referencesTo } from './commitPlan';
 
 const tables: BindingTable = {
@@ -119,5 +120,32 @@ describe('planCommit — fanOut', () => {
   it('omits fanOut entirely when it is primary or unset', () => {
     expect(planCommit(input({ fanOut: 'primary' })).binding).toEqual({ def: 'self-buff-gold-targetdummy' });
     expect(planCommit(input({ fanOut: undefined })).binding).toEqual({ def: 'self-buff-gold-targetdummy' });
+  });
+});
+
+/**
+ * The draft id is reserved: it cannot persist, so it must not be committable.
+ *
+ * Refused here rather than only stripped by `bindingsJson` because a downstream strip is INVISIBLE — the
+ * def file still gets written, the panel still reports success, and `listDefs()` then hides that file
+ * forever. `slugify('Fx Draft')` produces this id, so it is a name a person can reach by accident.
+ */
+describe('planCommit — the reserved draft id', () => {
+  it('blocks a global commit named after the draft id', () => {
+    const p = planCommit(input({ scope: 'global', baseId: DRAFT_DEF_ID }));
+    expect(p.defId).toBe(DRAFT_DEF_ID);
+    expect(p.blocked).toContain(DRAFT_DEF_ID);
+  });
+
+  // The FORK is fine — `fx-draft-targetdummy` is an ordinary id with an ordinary file. Only the exact
+  // reserved id is refused, so the check is on the computed `defId`, never on the name the author typed.
+  it('allows a card-scoped fork of that name, whose id is not the reserved one', () => {
+    const p = planCommit(input({ scope: 'card', baseId: DRAFT_DEF_ID }));
+    expect(p.defId).toBe(`${DRAFT_DEF_ID}-targetdummy`);
+    expect(p.blocked).toBeNull();
+  });
+
+  it('leaves an ordinary plan unblocked', () => {
+    expect(planCommit(input()).blocked).toBeNull();
   });
 });

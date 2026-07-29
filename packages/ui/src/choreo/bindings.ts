@@ -340,17 +340,20 @@ export function bindingFor(cardId: string | null, kind: MomentKind): FxBinding |
 }
 
 /**
- * The whole effective table: the file with the session patch applied and tombstones REMOVED. This is what
- * the library browser enumerates and what `bindingsJson` commits — in both cases "unbound" is expressed by
- * absence, so tombstones (which only exist to stop resolution falling through) have done their job by here.
+ * `COMMITTED` with an arbitrary patch layered over it, tombstones REMOVED.
+ *
+ * Parameterised by the patch on purpose: WHICH overlay gets merged is the whole difference between the live
+ * view and the committable one, and doing that as a choice of overlay is the only correct place to make it.
+ * Filtering after a merge cannot work — an overlay entry OVERWRITES the row beneath it, so removing the
+ * merged result deletes the committed value rather than falling back to it.
  */
-export function effectiveTables(): BindingTable {
+function mergedTable(overlay: PatchTable): BindingTable {
   const out = cloneTable(COMMITTED);
-  for (const [kind, b] of Object.entries(patch.kinds)) {
+  for (const [kind, b] of Object.entries(overlay.kinds)) {
     if (b) out.kinds[kind as MomentKind] = b;
     else delete out.kinds[kind as MomentKind];
   }
-  for (const [cardId, byKind] of Object.entries(patch.cards)) {
+  for (const [cardId, byKind] of Object.entries(overlay.cards)) {
     const table = { ...out.cards[cardId] };
     for (const [kind, b] of Object.entries(byKind)) {
       if (b) table[kind as MomentKind] = b;
@@ -363,34 +366,46 @@ export function effectiveTables(): BindingTable {
 }
 
 /**
+ * The whole effective table: the file with the session patch applied and tombstones REMOVED. This is what
+ * the library browser enumerates and what `commitPlan` computes its blast radius against — in both cases
+ * "unbound" is expressed by absence, so tombstones (which only exist to stop resolution falling through)
+ * have done their job by here.
+ *
+ * Deliberately the LIVE view, drafts included: both callers are showing the author what is playing right
+ * now. `bindingsJson` is the one that must not see drafts, and it says so by merging a different overlay.
+ */
+export function effectiveTables(): BindingTable {
+  return mergedTable(patch);
+}
+
+/**
  * The merged file + patch as the exact text to write to `bindings.json`.
  *
  * Keys are sorted so a commit produces a minimal, readable diff rather than reordering the whole file
  * whenever an object's insertion order happens to change.
  *
- * Every `DRAFT_DEF_ID` binding is DROPPED — see that constant. This is the second of the two routes a draft
- * could reach disk, and the one the commit button walks: a global-scope commit writes the kind row and
- * leaves the card row the draft sits on alone, so without this strip the file gains a card binding to a def
- * that exists only in memory, shadowing the kind binding just committed for that very card.
+ * Merges `persistablePatch()` — the session overlay with every `DRAFT_DEF_ID` entry REMOVED — rather than
+ * the live one, so a draft is never in the overlay in the first place. This is the second of the two routes
+ * a draft could reach disk, and the one the commit button walks: a global-scope commit writes the kind row
+ * and leaves the card row the draft sits on alone, so a live-view serialisation would put a binding to a
+ * memory-only def in the file, shadowing the kind binding just committed for that very card.
+ *
+ * Stripping the draft AFTER the merge instead is a data-loss bug, not a stylistic difference: the draft
+ * overwrote the committed row, so removing the merged entry deletes the committed value underneath and the
+ * empty-card prune then deletes the card outright. Tuning Bloodbinder and committing "Everywhere" wrote a
+ * file with Bloodbinder's own `ruby-lance` binding silently gone — reported success, no `fx-draft` in the
+ * file, and only visible sessions later. Overlay choice, never post-filtering.
  */
 export function bindingsJson(): string {
-  const t = effectiveTables();
+  const t = mergedTable(persistablePatch());
   const kinds: Record<string, FxBinding> = {};
-  for (const kind of Object.keys(t.kinds).sort()) {
-    const b = t.kinds[kind as MomentKind] as FxBinding;
-    if (b.def !== DRAFT_DEF_ID) kinds[kind] = b;
-  }
+  for (const kind of Object.keys(t.kinds).sort()) kinds[kind] = t.kinds[kind as MomentKind] as FxBinding;
   const cards: Record<string, Record<string, FxBinding>> = {};
   for (const cardId of Object.keys(t.cards).sort()) {
     const byKind = t.cards[cardId] ?? {};
     const inner: Record<string, FxBinding> = {};
-    for (const kind of Object.keys(byKind).sort()) {
-      const b = byKind[kind as MomentKind] as FxBinding;
-      if (b.def !== DRAFT_DEF_ID) inner[kind] = b;
-    }
-    // A card whose only binding was the draft is pruned outright, exactly as `clearBinding` prunes it —
-    // committing `"somecard": {}` would be a diff that says nothing.
-    if (Object.keys(inner).length > 0) cards[cardId] = inner;
+    for (const kind of Object.keys(byKind).sort()) inner[kind] = byKind[kind as MomentKind] as FxBinding;
+    cards[cardId] = inner;
   }
   return `${JSON.stringify({ version: 1, kinds, cards }, null, 2)}\n`;
 }

@@ -72,9 +72,13 @@ export function CommitPanel({
         </div>
       )}
 
-      <button className="fxwb-btn" disabled={busy || plan === null} onClick={onCommit}>
+      {/* A blocked plan is still RENDERED above — the author needs to see which id their name produced to
+          understand the refusal — but it can never be executed, so it disables the button exactly as an
+          incomplete selection does. */}
+      <button className="fxwb-btn" disabled={busy || plan === null || plan.blocked !== null} onClick={onCommit}>
         {busy ? 'Committing…' : 'Commit animation'}
       </button>
+      {plan?.blocked != null && <p className="fxcommit-error">{plan.blocked}</p>}
       {missing !== null && <p className="fxcommit-missing">{missing}</p>}
       {error !== null && <p className="fxcommit-error">{error}</p>}
       {note !== null && <p className="fxcommit-note">{note}</p>}

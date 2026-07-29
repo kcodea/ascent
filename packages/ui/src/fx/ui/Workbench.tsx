@@ -1230,6 +1230,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     }
   };
 
+  /**
+   * Switch the harness's card, and DROP the selected moment with it.
+   *
+   * A moment kind belongs to the card that produced it. Carrying `summon` over to a card that never summons
+   * rebinds the draft to a row the new card may never reach, and the panel will happily commit it — a dead
+   * binding in a tracked file that plays nothing and that the author never chose. Clearing it puts the panel
+   * back to "click a moment row", which is the truth after the card changes.
+   */
+  const changeHarnessCard = useCallback((cardId: string) => {
+    setHarnessCard(cardId);
+    setHarnessKind(null);
+  }, []);
+
   // ── commit animation: the live draft, then the committed def + binding ──────────────────────────────
   //
   // DECLARED BEFORE the draft effects below, and that ordering is load-bearing. Effects in one commit run in
@@ -1317,7 +1330,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
    */
   const commit = async (): Promise<void> => {
     const plan = commitPlan;
-    if (plan === null || committing) return;
+    // `blocked` is re-checked here, not just trusted to the disabled button: the button is presentation and
+    // this is the thing that writes files. See `planCommit`'s reserved-id guard.
+    if (plan === null || plan.blocked !== null || committing) return;
     setCommitting(true);
     setCommitError(null);
     setCommitNote(null);
@@ -1955,7 +1970,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             onSeek={seekReplay}
             combat={lastCombat}
             cardId={harnessCard}
-            onCardChange={setHarnessCard}
+            onCardChange={changeHarnessCard}
             selectedKind={harnessKind}
             onSelectMoment={setHarnessKind}
           />

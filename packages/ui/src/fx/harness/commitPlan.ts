@@ -1,4 +1,4 @@
-import type { BindingTable, FxBinding } from '../../choreo/bindings';
+import { DRAFT_DEF_ID, type BindingTable, type FxBinding } from '../../choreo/bindings';
 import type { MomentKind } from '../../choreo/kinds';
 
 /**
@@ -44,6 +44,27 @@ export interface CommitPlan {
   bindingTarget: CommitRef;
   /** Every OTHER place `defId` is referenced. Empty for a fresh fork — which is the point of forking. */
   alsoAffects: CommitRef[];
+  /**
+   * Why this plan must not be executed, or null when it may be. Rendered by the panel, which also disables
+   * the button on it — a plan that cannot be written is still worth SHOWING, so the author can see which id
+   * the name produced and why it was refused.
+   */
+  blocked: string | null;
+}
+
+/**
+ * `DRAFT_DEF_ID` is reserved and cannot be committed, refused HERE rather than only stripped downstream.
+ *
+ * `slugify('Fx Draft')` is `fx-draft`, and nothing in the slug rules, the write endpoint or the binding
+ * layer objects to it — so without this the commit writes a real `fx-draft.json`, `bindingsJson()` silently
+ * drops the binding to it, and `listDefs()` hides the file forever: a def on disk that the library cannot
+ * show and nothing plays, reported to the author as a success. The invariant is "this id cannot persist";
+ * the honest expression of that is a refusal at the door, not a strip the author never sees.
+ */
+function blockedReason(defId: string): string | null {
+  return defId === DRAFT_DEF_ID
+    ? `'${DRAFT_DEF_ID}' is reserved for the live preview — give the effect a different name.`
+    : null;
 }
 
 /**
@@ -90,5 +111,6 @@ export function planCommit(input: CommitInput): CommitPlan {
     alsoAffects: referencesTo(input.tables, defId).filter(
       (r) => !(r.cardId === bindingTarget.cardId && r.kind === bindingTarget.kind),
     ),
+    blocked: blockedReason(defId),
   };
 }

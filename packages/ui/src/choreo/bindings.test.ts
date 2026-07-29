@@ -410,11 +410,26 @@ describe('the live-preview draft never reaches disk', () => {
     setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
     const text = bindingsJson();
     expect(text).not.toContain(DRAFT_DEF_ID);
-    const parsed = JSON.parse(text);
-    expect(parsed.kinds.scCast).toEqual({ def: 'committed-thing' });
-    // The card must be gone ENTIRELY — a `"bloodbinder": {}` would be a diff that says nothing, and would
-    // still have dropped the file's own `ruby-lance` binding for it.
-    expect(parsed.cards.bloodbinder).toBeUndefined();
+    expect(JSON.parse(text).kinds.scCast).toEqual({ def: 'committed-thing' });
+  });
+
+  // A draft over a card row must not take the committed row down with it. Stripping post-merge deleted the
+  // value underneath instead of falling back to it — so tuning Bloodbinder and committing globally wrote a
+  // file with Bloodbinder's own effect silently removed. Strip the PATCH, then merge.
+  it('leaves a committed card binding intact when a draft is live over it', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
+    setBinding(null, 'scCast', { def: 'my-new-thing' });
+    const parsed = JSON.parse(bindingsJson());
+    expect(parsed.cards.bloodbinder?.scCast).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(parsed.kinds.scCast).toEqual({ def: 'my-new-thing' });
+    expect(bindingsJson()).not.toContain(DRAFT_DEF_ID);
+  });
+
+  // A card whose ONLY binding is a draft still must not appear — there is nothing committed underneath to
+  // fall back to, so the right answer is absence, not an empty object.
+  it('omits a card whose only binding is a draft', () => {
+    setBinding('drone', 'summon', { def: DRAFT_DEF_ID });
+    expect(JSON.parse(bindingsJson()).cards.drone).toBeUndefined();
   });
 
   it('still resolves a draft binding in memory, which is what makes the preview work', () => {

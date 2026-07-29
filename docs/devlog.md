@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-07-29 — feat(ui): a tuner for the lobby rail (🪑 Lobby Rail)
+
+Owner ask: a tuner for the opponent panel covering panel scale, row scale and font size. Eight dials, matching
+the existing tuner architecture (`lobbyPanelConfig.ts` + `LobbyPanelTuner.tsx`, dev-only localStorage, live
+`--lby-*` vars on `:root`, Copy/Reset).
+
+- **panel · scale / width / right gap / top %** — size and placement
+- **panel · height %** — a MAXIMUM, not the box (see below)
+- **rows · scale**, **rows · font size**, **next foe · scale** — the three independent dials asked for
+
+**Why a unit and not a `transform`.** The rail derives everything from `--lu` = `--u × scale`. A CSS
+`transform: scale()` would blur the hairline and shadow AND leave the layout box its untransformed size, so the
+panel would keep reserving its old width and could overlap the board. Every rule reads its var with the shipped
+default as a fallback, so PRODUCTION renders identically with no JS.
+
+**Two bugs found by measuring each dial instead of eyeballing it.**
+
+1. **`rows · scale` did nothing to row height.** Rows were `flex: 1` inside a fixed-height rail, so they always
+   split a constant — the dial resized portraits while row height sat at 38.9px. Rows are now content-sized.
+2. **Fixing that clipped two of the eight seats** at the DEFAULT settings: content-sized rows overflowed the
+   fixed 42% box and `overflow: hidden` silently ate seats 7 and 8. The rail now sizes to its rows with the
+   height dial as a generous cap (66%, against ≈48% of measured content) and scrolls rather than clips, because
+   losing a seat is worse than a scrollbar.
+
+Verified per dial: scale ×1.4 moves width/row/font/foe all ×1.4; row ×1.5 moves only row height; font ×1.5
+moves text (and the row that holds it) and nothing else; foe ×1.4 moves only the foe card. Zero rows clipped at
+defaults.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, build:web, harness determinism.
+
+
 ## 2026-07-29 — tweak(ui): the lobby rail is legible, and a win announces its damage
 
 Two owner asks off a screenshot: the seat windows were hard to read, and a win should show the damage dealt.

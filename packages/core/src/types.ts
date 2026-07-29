@@ -1,7 +1,7 @@
 import type { Rng } from './rng';
 import type { CombatBus } from './events';
 
-export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold';
+export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf';
 
 /** Keyword codes (handoff A.4). */
 export type Keyword =
@@ -452,7 +452,16 @@ export type EffectFactoryId =
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
   | 'scPlayRubies' // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
-  | 'cardsBoughtGetRubies' // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
+  | 'cardsBoughtGetRubies'
+  | 'grantRandomAle' // Set 2 Dwarves
+  | 'battlecryBuffTribeOthersAttack' // Set 2 Dwarves
+  | 'battlecryGainKeyword' // Set 2 Dwarves
+  | 'goldSpentBuffTribeAttack' // Set 2 Dwarves
+  | 'battlecryBuffTargetPerGoldSpent' // Set 2 Dwarves
+  | 'endOfTurnBuffLeftmostTribePerCard' // Set 2 Dwarves
+  | 'cardsBoughtGrantRandomSpell' // Set 2 Dwarves
+  | 'battlecryGildTarget' // Set 2 Dwarves
+  | 'goldSpentGrantTribeMinion' // Set 2 Dwarves // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn

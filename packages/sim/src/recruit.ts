@@ -577,6 +577,10 @@ export function consumeGrimoireCharge(state: RunState): void {
  * no multicast badge at all, because the count only existed inline at the cast site). Side-effect free, like
  * `spellCasts` — the charge is spent by the real cast path, not by reading it here.
  */
+/** The five Set 2 Ales — what "Get a Dwarven Ale" draws from. Resolved against the RUN'S pool, so a set that
+ *  doesn't carry them grants nothing rather than injecting cards the run can't otherwise have. */
+export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
+
 export function rubyCastCount(state: RunState): number {
   const extra = state.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
   return (1 + extra) * grimoireMultActive(state);
@@ -1163,6 +1167,99 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Set 2 — Hoardmaster Krik: every `every` cards bought (the `cardsBought` cadence handles the counting),
    *  mint `count` Rubies into hand (× golden). */
+  /**
+   * SET 2 — DWARVES. "Get a Dwarven Ale": conjure a random one of the five Ales.
+   *
+   * The Ales are ordinary Set 2 Shop spells (`wo_*`), so this draws from the RUN'S OWN POOL rather than a
+   * hardcoded id list — a set that doesn't carry the Ales simply grants nothing instead of injecting cards the
+   * run can't otherwise have. Trigger-agnostic on purpose: the same factory serves Shout (`onPlay`),
+   * End of Turn, and the Gold-spent threshold, because the `on:` field is what picks the moment.
+   */
+  grantRandomAle: (ctx, self, params) => {
+    const ales = poolOf(ctx.state).spells.filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length === 0) return;
+    conjureToHand(ctx.state, ales, num(params.count, 1) * gold(self));
+  },
+
+  /** Ironlung Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
+   *  is why it can't reuse `battlecryBuffTribeImproving` (symmetric, and includes self). */
+  battlecryBuffTribeOthersAttack: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 1) * gold(self);
+    if (a <= 0) return;
+    for (const c of ctx.state.board) {
+      if (c.uid === self.uid) continue;
+      if (tribe && !isTribe(c, tribe as never)) continue;
+      addBuff(c, nameOf(self), a, 0);
+    }
+  },
+
+  /** Oathshield Orin (Shout): gain a keyword. Golden re-grants the same keyword — a keyword doesn't stack, so
+   *  the gild is deliberately no stronger here (matches the owner's identical golden text). */
+  battlecryGainKeyword: (ctx, self, params) => {
+    const kw = str(params.keyword) as Keyword;
+    if (!kw) return;
+    const me = ctx.state.board.find((c) => c.uid === self.uid);
+    if (me && !me.keywords.includes(kw)) me.keywords = [...me.keywords, kw];
+  },
+
+
+  /** Coinfire Forewoman (Gold spent): your minions of `tribe` gain +attack. The `every` threshold is applied by
+   *  `applyGoldSpent` itself, so this only has to do the buff. */
+  goldSpentBuffTribeAttack: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 1) * gold(self);
+    if (a <= 0) return;
+    for (const c of ctx.state.board) {
+      if (tribe && !isTribe(c, tribe as never)) continue;
+      addBuff(c, nameOf(self), a, 0);
+    }
+  },
+
+  /** Quartermaster Dorrin (Shout, targeted): +Health per Gold spent THIS TURN — a tempo reward for shopping
+   *  before you play it, and it reads its live value on the card via `cardText`. */
+  battlecryBuffTargetPerGoldSpent: (ctx, self, params, payload) => {
+    const target = (payload as { target?: BoardCard } | undefined)?.target;
+    if (!target) return;
+    const per = num(params.health, 1) * gold(self);
+    const h = per * (ctx.state.goldSpentThisTurn ?? 0);
+    if (h > 0) addBuff(target, nameOf(self), 0, h);
+  },
+
+  /** Closing-Time Foreman (End of Turn): your LEFT-most minion of `tribe` gains +attack per card played this
+   *  turn. Left-most rather than targeted, so you choose the recipient by arranging your line. */
+  endOfTurnBuffLeftmostTribePerCard: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const target = ctx.state.board.find((c) => !tribe || isTribe(c, tribe as never));
+    if (!target) return;
+    const a = num(params.attack, 1) * gold(self) * (ctx.state.playedThisTurn?.length ?? 0);
+    if (a > 0) addBuff(target, nameOf(self), a, 0);
+  },
+
+  /** Chirurgeon: every `every` cards bought, get a random Shop spell. The buy tally lives on the CARD
+   *  (`buyTick`, like every other cards-bought effect), so it carries across combat as printed. */
+  cardsBoughtGrantRandomSpell: (ctx, self, params) => {
+    conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+  },
+
+  /** Auric Runemaster (Shout, targeted): Gild a friendly minion. Reuses the spell path's gild so a Shout-gild
+   *  and a spell-gild are the same operation — one place for triple/golden bookkeeping. */
+  battlecryGildTarget: (ctx, _self, _params, payload) => {
+    const target = (payload as { target?: BoardCard } | undefined)?.target;
+    if (!target || target.golden) return;
+    // Same gild the spell path uses, so triple/golden bookkeeping lives in one place.
+    gildMinion(target);
+  },
+
+
+  /** Dwarf King, Brill (Gold spent): a random minion of `tribe` from the run's pool, capped at your tier. */
+  goldSpentGrantTribeMinion: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && (!tribe || c.tribe === tribe || c.tribe2 === tribe));
+    if (pool.length === 0) return;
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
+  },
+
   cardsBoughtGetRubies: (ctx, self, params) => {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
   },

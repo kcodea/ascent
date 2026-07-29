@@ -92,7 +92,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     // global, so `battlecryGrantSpell` reuses it directly (owner: there will be crossover cards between sets).
     // NEUTRAL as of 2026-07-25 (owner) — moved here out of the Kobold file so the tribe and the file agree.
     id: 'k_pouchpincher',
-    name: 'Pouchpincher',
+    name: 'Cheap Date',
     tribe: 'neutral',
     tier: 2,
     attack: 4,

@@ -100,18 +100,6 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'After each Shop refresh, give the **right-most** minion **+8/+8** permanently.',
   },
   {
-    id: 'dm_riotcaller',
-    name: 'Riot Caller',
-    tribe: 'demon',
-    tier: 3,
-    attack: 2,
-    health: 5,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyImpsAttackNow', params: { count: 1 } }],
-    text: '**Rally:** your **left-most Imp** attacks immediately.',
-    goldenText: '**Rally:** your **2 left-most Imps** attack immediately.',
-  },
-  {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
     id: 'dm_curator',
     name: 'Display Curator',

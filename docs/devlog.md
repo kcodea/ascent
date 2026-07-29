@@ -1,5 +1,56 @@
 # ASCENT — development log
 
+## 2026-07-29 — Set 2 gains the DWARF tribe (tranche A), plus two owner cuts
+
+**Two notes first.** Riot Caller is removed (its demon roster test drops 21 → 20; the generic
+`rallyImpsAttackNow` factory is left in place, now unused, so re-adding is a data-only change). Pouchpincher is
+renamed **Cheap Date** — see the follow-up below, because the name is all that matches.
+
+**A new tribe, not just new cards.** `dwarf` joins the `Tribe` union and `TribeSchema`, and Set 2's roster goes
+to five (`kobold, dragon, beast, demon, dwarf`). The newly-gated `typecheck:web` (from #676) earned its keep
+immediately: it caught **7 exhaustive `Record<Tribe, …>` maps** across Career, MinionBook, QuestBadges,
+QuestCard, questText (×2) and RunTrophies that would otherwise have shipped as runtime holes. Dwarves get the
+`anvil` glyph and the plural "Dwarves".
+
+**The tribe's identity:** Dwarves convert *throughput* — Gold spent, cards bought, spells cast — into permanent
+Attack and a stream of **Ales**. Kobolds want Rubies cast, Dragons want spells recurred, Dwarves want Gold
+moving, which is why most of them hang off `goldSpent`/`cardsBought` thresholds rather than Shout/Echo. The five
+Ales already existed as Set 2 spells (`wo_*`), so `grantRandomAle` draws from the RUN'S pool — a set without
+them grants nothing instead of injecting unreachable cards.
+
+**Shipped (13 minions + 1 token + 1 rune minion):** Oathshield Orin, Ironlung Captain, Brunni, Wardkeeper,
+Coinfire Forewoman, Broad-Axe Brakka, Runekeg, Quartermaster Dorrin, Closing-Time Foreman, Chirurgeon,
+Doubletap Brewer (Shout half), Tapkeeper, Auric Runemaster, the Charging Soldier token, and Dwarf King Brill.
+Nine new recruit factories, dual-registered in the union AND the schema. Two reuse existing channels outright
+(Wardkeeper → `battlecryGrantSpellPowerRun`, Runekeg → `onSpellCastBuffRandomTribe`), and the `goldSpent`
+dispatcher already applies `every:` thresholds, so those cards needed no threshold code.
+
+**Deliberately deferred to tranche B — each needs machinery, not another card entry:**
+
+| card | what's missing |
+|---|---|
+| Paymaster Pimm | a banked-income field on `RunState` for "Gold next turn" |
+| Mountainbond | playing a Ruby outside combat (`playRubyOn` is combat-only) |
+| Kegbreaker Korr, Blade Thrower | Slaughter/Rally are COMBAT triggers — the Ale needs the `grantToHand` carry-back |
+| Anvilshade Smith | a summon inheriting its parent's Attack *and* attacking immediately |
+| Lieutenant Thane | Rally spreading this minion's Attack to 3 friendlies |
+| Edward Keg-hands | an Ale-scoped trigger multiplier |
+| Guildhall Chef | "Ales triggered this turn" — a per-turn counter that doesn't exist |
+| Exgalloper, Brisbane | the two remaining Rune minions |
+
+**Verified.** 17 new tests that assert MECHANICS rather than roster counts — a count test passes just as
+happily when every effect is inert. They caught two real mistakes of mine: both targeted Shouts (Dorrin,
+Runemaster) resolve through a `battlecryTarget` follow-up action, not a `targetUid` on the play, so my first
+tests were driving them wrong. Also pinned: Coinfire buffs Dwarves only and Attack only, Ironlung never buffs
+itself, Dorrin grants nothing at 0 Gold spent, Tapkeeper banks its remainder below the threshold, Orin can't
+double-add Ward, and no Dwarf leaks into set 1. Gates: typecheck, typecheck:web, lint (0 errors), 2997 tests /
+157 files, build:web, harness ✓.
+
+**Follow-up for the owner — Cheap Date.** The rename is done, but the spec doesn't match the card: the game's
+minion is Tier 2, 4/2, "Shout: get a Gold Pouch", while the roster lists Cheap Date as Tier 1, 1/1, "Get a
+random T1 minion when you sell this". Renaming was the literal instruction; if the roster line is what you want,
+it's a new card body (a sell trigger), not a rename.
+
 ## 2026-07-29 — One snapshot seat per player
 
 Owner report: a lobby seated "someone crazytown okay" **twice**. The dedupe was on `runKey`, which is

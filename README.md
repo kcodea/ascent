@@ -44,6 +44,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
+  with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
+  schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.
 - **FX library cleanup — and two "dead code" leads that weren't.** Five leftover workbench drafts deleted from
   `fx/defs/`. `death-dissolve` was investigated and **kept**: no binding names it, but `useCombatReplay` plays it
   directly for every plain death. Same for `pixiFx.discoverBurst`, which fires on every Discover open and is the
@@ -78,14 +81,6 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   everywhere.
 - **Three new minions** — Moira (trigger adjacent Shouts), Mineral Master (Rally → Rubies on your Kobolds), and
   **Paragon**, the all-type minion whose Rally buffs a minion of every type permanently.
-- **Tier 7 now needs access** — the Summit rift, or a hero/quest that grants it. Beyond the Summit only promises
-  "up to Tier 7" when the run can actually keep the promise.
-- **Control every tribe and Wayfinder offers only all-type minions** — the payoff for assembling one of each.
-- **Cards say "Shop spells" wherever Rubies don't count** — 57 card texts and the quest strings, Ancient Runes
-  included. Gemgorge Fiend and Living Grimoire stay inclusive, because a Ruby really does feed them.
-- **Tallymonger finally animates** at End of Turn — both the spell-power flourish and the Imp aura wash.
-- **Discover spells count as spells** — Sprout and friends never fired a single spell trigger.
-- **Rise counts as a death** for Avenge and the death tallies.
 
 ## Layout
 

@@ -168,6 +168,32 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+### Dev tuner migration — 41 of 47 panels to go (2026-07-29)
+The schema (`tunerSchema.ts`) and the shared `TunerPanel` are in, proven on six panels spanning 2 to 48
+controls. The remaining work, in order:
+- **Migrate the other 41.** Mechanical per panel: export the config's `DEFAULTS`, write a `TunerSpec` with a
+  label / unit / hint / group per control. Persistence must keep running through each config's own accessors —
+  a spec that re-implemented storage would silently orphan values dialled by eye over months.
+- **Five structural outliers** have no label map and need individual thought: `ChargeGlyphTuner` (209 lines,
+  composes CSS vars from colour + numbers), `FrameTuner`, `BookTuner`, `LayoutTuner`, and `SfxMixer` — the
+  mixer may justifiably stay bespoke.
+- **Owner accuracy pass on the hints.** Every hint so far was drafted from config source and doc comments. No
+  code can confirm the *vocabulary* is right — whether "comet", "wisp" or "blob" is what we actually call these
+  things. This wants a read-through, not a rewrite.
+- **Sweep the dead exports** the migration leaves behind (`TRAIL_KEYS`, `FLOAT_KEYS`, `SC_KEYS`, `PLATE_KEYS`,
+  `FLIP_KEYS` so far). They do not trip lint because exports are exempt from no-unused-vars.
+- **Then Phase 2 (visualisation) and Phase 3 (workflow)** — collapsible sections, a real curve picker to
+  replace easing chosen by array index, in-panel search, before/after compare, and a Test button on every FX
+  panel (only 19 of 47 have one). All of these now land in ONE component, which was the point of the schema.
+
+### A CSS specificity trap has bitten three times (2026-07-29)
+Three separate defects this week were the same shape: two rules tie on specificity, so whichever sits later in
+`styles.css` wins silently. `.menubtn:active` lost to `.menubtn:hover` (you are always hovering when you
+click, so the press state rendered never); `.menubtn.active` then overrode the press again for the primary
+button; and the unscoped `.tuner-row` grid lost to `.sfxmix-row`'s flex, collapsing a slider to 0px. Each fix
+raised specificity deliberately and left a comment saying why the extra selector is not redundant. Worth
+considering a lint rule or a convention — `styles.css` is ~6000 lines and this will recur.
+
 - **Title screen: two phantom focus stops (found 2026-07-29).** `.gearbtn` and `.devmenu-btn` sit at
   `z-index: 85`, painted behind the opaque `.titlescreen` (`z-index: 450`), but stay `visibility: visible` —
   so they are invisible *and* focusable, and Tab lands on them twice before it reaches the menu column. Every

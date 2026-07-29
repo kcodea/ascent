@@ -116,8 +116,12 @@ export function botSeat(seed: number, heroId?: string, label?: string): SeatDriv
       const snap = snapshotBoard(run);
       return snap.minions.length ? toPrepared(snap) : null;
     },
-    settle: () => {
-      /* the lobby owns this seat's health; the run's own resolve is bookkeeping — see the note above */
+    settle: (o) => {
+      // Sync the run to the LOBBY's health. The run also fights the ordinary opponent pool for its own
+      // progression, which chips its private Resolve; overwriting it here makes the lobby the single authority
+      // and stops the two numbers drifting. This is what makes a live seat genuinely REACTIVE: at 4 lobby HP it
+      // now shops like a minion on 4 HP, because that is what its own state says.
+      run = { ...run, resolve: o.seatResolve, armor: o.seatArmor };
     },
   };
 }

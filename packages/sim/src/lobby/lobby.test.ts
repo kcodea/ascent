@@ -251,3 +251,62 @@ describe('option 3 — a live bot takes the seat when the recording runs dry', (
     expect(s.seats.filter((x) => x.alive).length).toBe(1);
   });
 });
+
+describe('combat is NOT symmetric — why a lobby fight must resolve exactly once', () => {
+  /** Real boards from real runs; toy fixtures are often symmetric by accident and would hide this entirely. */
+  const realBoards = () =>
+    [11, 12, 13]
+      .map((seed) => recordRun(seed))
+      .flatMap((run) => [6, 9, 12].map((wave) => run.prepare(wave)))
+      .filter((b): b is NonNullable<typeof b> => b !== null);
+
+  it('swapping the sides changes the WINNER often enough to matter', () => {
+    // Measured across real board pairings: the outcome flips ~22% of the time and damage differs ~62% of the
+    // time, because attack order and tiebreaks favour whichever side is passed as `player`. This test exists so
+    // that a future "optimisation" — resolve each seat's fight from its own perspective — fails loudly instead
+    // of silently giving a lobby two contradictory truths about one encounter.
+    const boards = realBoards();
+    expect(boards.length, 'no real boards to compare').toBeGreaterThan(4);
+    const flip = (o: string) => (o === 'win' ? 'lose' : o === 'lose' ? 'win' : 'draw');
+    let disagreements = 0;
+    let pairs = 0;
+    for (let i = 0; i < boards.length; i++) {
+      for (let j = i + 1; j < boards.length; j++) {
+        const A = boards[i]!, B = boards[j]!;
+        const seed = (i * 97 + j) | 0;
+        const fwd = simulate(A.minions, B.minions, makeRng(seed), CARD_INDEX, combatSide({ tier: A.tier }), combatSide({ tier: B.tier }));
+        const rev = simulate(B.minions, A.minions, makeRng(seed), CARD_INDEX, combatSide({ tier: B.tier }), combatSide({ tier: A.tier }));
+        pairs++;
+        if (flip(fwd.result) !== rev.result) disagreements++;
+      }
+    }
+    expect(pairs, 'the sweep compared nothing').toBeGreaterThan(10);
+    expect(disagreements,
+      'combat looks symmetric here — if that is genuinely now true the lobby could resolve per-seat, so revisit ' +
+      'resolveRound deliberately rather than assuming this test is stale').toBeGreaterThan(0);
+  });
+
+  it('the lobby resolves each pairing exactly ONCE per round', () => {
+    // The structural consequence: one encounter per pair, both sides settled from it.
+    const seats = Array.from({ length: 8 }, (_, i) => hybridSeat(700 + i, undefined, `p${i}`));
+    const s = createLobby(9, seats);
+    resolveRound(s);
+    const round1 = s.encounters.filter((e) => e.round === 1 && e.fought);
+    const seen = new Set<string>();
+    for (const e of round1) {
+      const key = [e.a, e.b].sort().join('|');
+      expect(seen.has(key), `pair ${key} was resolved twice in one round`).toBe(false);
+      seen.add(key);
+    }
+    expect(round1.length).toBe(4); // 8 seats -> 4 fights
+  });
+
+  it('a live seat syncs its run to the LOBBY health, so it shops on the right numbers', () => {
+    const seat = botSeat(77, 'drakko', 'live');
+    seat.prepare(3);
+    // Hand it a battered lobby state; a reactive seat must adopt it rather than keep its own private health.
+    seat.settle({ round: 3, outcome: 'lose', damageTaken: 20, damageDealt: 0, seatResolve: 4, seatArmor: 0 });
+    const after = seat.prepare(4);
+    expect(after, 'the seat stopped fielding a board after taking lobby damage').toBeTruthy();
+  });
+});

@@ -31,6 +31,11 @@ export interface SeatRoundOutcome {
   outcome: CombatOutcome;
   damageTaken: number;
   damageDealt: number;
+  /** The seat's Resolve/Armor AFTER this round, per the lobby. A live seat syncs its run to these so its shop
+   *  decisions read the health it actually has in the lobby, not the health its own private run happens to be
+   *  on. Without it a bot at 4 lobby HP shops as though it were comfortable. */
+  seatResolve: number;
+  seatArmor: number;
 }
 
 /**

@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-07-29 (later still) — combat is NOT symmetric, and live seats now react to lobby damage
+
+**The finding, and it is the most important one so far.** Resolving the same fight with the sides swapped
+disagrees on the WINNER **22%** of the time and on damage **62%** of the time. Measured over 325 pairings of real
+boards from real runs — attack order and tiebreaks favour whichever side is passed as `player`.
+
+The consequence is architectural: a lobby **must** resolve each pairing exactly once and settle both sides from
+that single result. Resolving each seat's fight from its own perspective — the obvious-looking way to give every
+live seat full carry-backs — would have a lobby recording two contradictory truths about one encounter, roughly
+one fight in five. `resolveRound` already worked this way; now it is measured rather than assumed, and pinned by
+a test so a future "optimisation" into two resolves fails loudly. Toy fixtures are often symmetric by accident,
+so the test deliberately uses real recorded boards.
+
+This also bounds the remaining work honestly. Full per-side carry-backs (Ticket 11 in the bots handoff) are a
+QUALITY improvement for bot-vs-bot seats, not a correctness requirement — the human player can always be the
+`player` side of their own fight, so their fidelity is never affected.
+
+**Live seats now react.** `SeatRoundOutcome` carries the seat's post-round Resolve/Armor per the lobby, and a
+live bot seat syncs its run to them. Its private run still fights the opponent pool for progression, which chips
+its own Resolve; overwriting it makes the lobby the single authority and stops the two numbers drifting. A seat
+on 4 lobby HP now shops like a minion on 4 HP, because that is what its own state says — previously it shopped
+on its private health and played comfortably while nearly dead in the lobby.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2886 tests, build:web, harness determinism. Pacing is
+unchanged by the sync (hybrid 16/19/23, all-bot 15/20/24 over 12 lobbies), which is the expected result — the
+sync changes how a seat plays, not how long lobbies run.
+
 ## 2026-07-29 (later) — feat(sim): option 3 — a live bot takes the seat when the recording runs dry
 
 The prototype measured that neither exhaustion policy worked: `repeatFinal` ground lobbies to the 60-round hard

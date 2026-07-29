@@ -1072,6 +1072,24 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerQuestTally?.summonCombatByTribe.undead ?? 0).toBeGreaterThanOrEqual(1); // credited to Undead (Forsaken Will)
   });
 
+  it("a RISE fires on-death WATCHERS without repeating the dying body's own rattle", () => {
+    // Owner 2026-07-27: "the minion effectively dies and should trigger all on death effects." The trap is
+    // that the broadcast reaches the dying minion too, on top of `fireOwnDeathrattles` — which is exactly
+    // what made a Spear Warden return 9/5. `ownAlreadyFired` suppresses only its OWN effects.
+    const r = run(
+      [{ cardId: 'knit', attack: 10, health: 3, keywords: ['R', 'DS'] }],
+      [{ cardId: 'omen', attack: 4, health: 40, keywords: [] }],
+      3,
+    );
+    const reborn = r.events.find((e) => e.type === 'reborn');
+    expect(reborn).toBeDefined();
+    if (reborn && reborn.type === 'reborn') {
+      // Its Eternal-Knight enchant applied ONCE: base 3 + 3 attack, 1 + 2 health.
+      expect(reborn.attack, 'own rattle fired once, not twice').toBe(6);
+      expect(reborn.hp).toBe(3);
+    }
+  });
+
   it('a RISE death counts toward AVENGE (owner ruling 2026-07-27)', () => {
     // Previously a Rise was deliberately not a friendly death, so an Avenge card sat there while your Rise
     // minions cycled: "minions that rise are not counting towards avenge which is a problem". Kennelmaster

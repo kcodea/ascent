@@ -864,6 +864,13 @@ export function simulate(
       // only BE the attacker of a kill in this same-clash mutual case (it can't swing again once dead), so
       // this stays precisely scoped to "killed and died together".
       if (minion.dead && effect.on !== 'onDeath' && effect.on !== 'onKill') return;
+      // A RISE broadcast (`ownAlreadyFired`) reaches every WATCHER but must not re-run the dying body's own
+      // Deathrattle — `fireOwnDeathrattles` already ran it, with its own Echo-extras handling. Without this
+      // guard the emit doubled it: a Spear Warden came back 9/5 instead of 6/3, its Eternal-Knight enchant
+      // applied twice (owner report chased 2026-07-27).
+      if (effect.on === 'onDeath'
+        && (payload as { ownAlreadyFired?: boolean; minion?: Minion }).ownAlreadyFired
+        && (payload as { minion?: Minion }).minion === minion) return;
       // Cratering Missive: drop the tribe filter on the Cratering Hulk's overflow buff so it hits ALL your minions.
       const params =
         effect.do === 'onSummonOverflowBuffTribe' && modsFor(minion.side).crateringMissive
@@ -1031,13 +1038,10 @@ export function simulate(
       //
       // Tallied AFTER the rattle, matching the regular death path.
       //
-      // NOT broadcast on the bus, deliberately. `registerEffect` subscribes EVERY minion's effects to the bus
-      // by event, so `bus.emit('onDeath')` would re-fire the dying body's own Deathrattle on top of the
-      // `fireOwnDeathrattles` call above — measured: a Spear Warden returned 9/5 instead of 6/3, its
-      // Eternal-Knight enchant applied twice. The regular death path emits instead of calling
-      // `fireOwnDeathrattles`; a Rise does the opposite, and doing both is the bug. So a Rise now counts for
-      // Avenge, the enemy tally and friendly-death quests, while rune/quest on-death WATCHERS (Inheritance,
-      // Passing Spears) still don't see it — flagged to the owner rather than shipped with a double-fire.
+      // …and every on-death WATCHER sees it too (owner 2026-07-27: "the minion effectively dies and should
+      // trigger all on death effects"). `ownAlreadyFired` stops the broadcast re-running the dying body's own
+      // rattle, which `fireOwnDeathrattles` handled a line above — see the guard in `registerEffect`.
+      bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
       if (minion.side === 'enemy') enemyDeaths++;
       deaths[minion.side] += 1;
       if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });

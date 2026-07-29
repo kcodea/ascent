@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-07-29 — CORRECTION: the board model's r=0.789 was leakage
+
+The held-out split in the entry below was **every 4th board**. The corpus has only **56 distinct runs from 7
+authors**, and a run's wave-9 and wave-10 boards are nearly the same board — so **100% of held-out boards had
+their own run in the training set**. The model could memorize runs.
+
+Re-split by RUN (14 of 56 runs held out entirely):
+
+| split | model r | power baseline r | gain |
+|---|---|---|---|
+| every 4th board (leaky) | 0.789 | 0.716 | +0.073 |
+| **whole runs held out** | **0.242** | **0.225** | **+0.017** |
+
+So on runs it has never seen, the learned board model is **not meaningfully better than raw power**. The
+pipeline is sound and the Elo labels are real; the *model* is not yet validated, and the honest reading is that
+56 runs from 7 authors is too small a corpus to fit or validate a board evaluator that generalizes. More data
+comes from rollouts, not from more features.
+
+This also explains the result in the entry below that puzzled me: wiring the model into the evaluator did not
+move wins. It was never carrying information that raw power lacked.
+
+Caught by the Codex learned-bot-training handoff, which lists exactly this under Risks: *split by complete run
+and board origin; reserve a permanent holdout pool*. The model is regenerated with the run-level split and
+stays wired in at weight 20 — measured neutral either way — but it is explicitly UNVALIDATED and must not be
+cited as a win until a larger corpus says otherwise.
+
 ## 2026-07-29 — Elo-rated boards, a learned strength model, and where the bots actually break
 
 **What.** Ground-truth board strength, by fighting boards against each other instead of guessing.

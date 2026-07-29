@@ -70,7 +70,13 @@ const corr = (xs: number[], ys: number[]): number => {
 // boards at its wave", which is the actual question, and all ~660 rows then share one set of weights.
 const human = rows.filter((r) => r.population === 'human' && r.snapshot.minions.length > 0);
 const feats = human.map((r) => boardFeatures(r.snapshot.minions, r.snapshot.wave));
-const isTest = human.map((_, i) => i % 4 === 0);
+// SPLIT BY RUN, NOT BY ROW. The first version held out every 4th board, and with only 56 distinct runs in the
+// corpus that meant 100% of held-out boards had their OWN RUN in the training set — and a run's wave-9 and
+// wave-10 boards are nearly the same board. The model could memorize runs and the reported quality was
+// inflated. Holding out whole runs is the only split that measures generalization to a board never seen.
+const runs = [...new Set(human.map((r) => r.snapshot.seed))].sort((a, b) => a - b);
+const testRuns = new Set(runs.filter((_, i) => i % 4 === 0));
+const isTest = human.map((r) => testRuns.has(r.snapshot.seed));
 const trIdx = human.map((_, i) => i).filter((i) => !isTest[i]!);
 const teIdx = human.map((_, i) => i).filter((i) => isTest[i]!);
 const d = feats[0]!.length;
@@ -103,7 +109,7 @@ const powerR = corr(te.map((i) => z(i)[powerIdx]!), truth);
 
 console.log(`
 === board-strength model — ridge over ${FEATURE_NAMES.length} band-relative features ===`);
-console.log(`${tr.length} train / ${te.length} held out (every 4th board, never seen by the fit)`);
+console.log(`${tr.length} train / ${te.length} held out — split by RUN (${testRuns.size} of ${runs.length} runs held out)`);
 console.log(`baseline: band-relative power scores r=${powerR.toFixed(3)} on the held-out set
 `);
 console.log('lambda    test r    vs power');

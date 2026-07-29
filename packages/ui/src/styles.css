@@ -5374,6 +5374,24 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxharness-def { opacity: 0.75; }
 .fxharness-unbound { opacity: 0.6; font-style: italic; }
 .fxharness-empty { opacity: 0.7; font-size: 0.9em; line-height: 1.4; }
+
+/* Commit panel — sits under the harness in the rail. `.fxwb` (the workbench root) is pointer-events:none —
+   see the comment above `.fxwb` — and that's inherited by every descendant unless overridden. `.fxcommit`
+   is NOT nested inside `.fxharness`, so it does not pick up `.fxharness`'s own `pointer-events: auto`; it
+   needs its own, or every control here renders correctly and is completely inert (the exact `.fxlib` failure
+   noted above, owner report 2026-07-27). */
+.fxcommit { display: flex; flex-direction: column; gap: 6px; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid #2c2740; pointer-events: auto; }
+.fxcommit-h { font-weight: 600; letter-spacing: 0.02em; }
+.fxcommit-scope { display: flex; gap: 12px; }
+.fxcommit-scope label { display: flex; align-items: center; gap: 4px; }
+.fxcommit-plan { display: flex; flex-direction: column; gap: 3px;
+  padding: 6px 8px; border-radius: 4px; background: #1e1a2b; font-size: 0.9em; line-height: 1.4; }
+.fxcommit-plan code { font-family: ui-monospace, monospace; }
+.fxcommit-warn { color: #e0a24a; }
+.fxcommit-note { opacity: 0.75; }
+.fxcommit-error { color: #e06a6a; }
+.fxcommit-missing { opacity: 0.7; font-size: 0.9em; }
 /* ONE source for the rail's width. It was hardcoded twice — on `.fxwb-side` and again as the transport
    bar's `right` offset — which have to agree exactly or the transport slides under the rail (or leaves a
    gap). Widened from 288px: at that width the param rows had ~150px of slider left after the label and

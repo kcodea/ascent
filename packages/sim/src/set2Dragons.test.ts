@@ -437,24 +437,6 @@ describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
     expect([mw.attack - a1, mw.health - h1]).toEqual([2, 3]); // the second lands ONCE
   });
 
-  it('Runefire: the first spell also casts on its adjacent Dragons, but not on itself again', () => {
-    let s: RunState = {
-      ...createRun(1), phase: 'recruit', embers: 40,
-      board: [
-        minion('L', 'd2_chronicler', 'dragon', 3, 5),
-        minion('rf', 'd2_runefire', 'dragon', 5, 8),
-        minion('R', 'd2_embermouth', 'dragon', 2, 2),
-      ],
-      hand: [spellInHand('sf', 'spiritfire')],
-    };
-    s = reduce(s, { type: 'play', uid: 'sf', targetUid: 'rf' });
-    const L = s.board.find((c) => c.uid === 'L')!;
-    const rf = s.board.find((c) => c.uid === 'rf')!;
-    const R = s.board.find((c) => c.uid === 'R')!;
-    expect([L.attack - 3, L.health - 5]).toEqual([2, 3]); // neighbour got it
-    expect([R.attack - 2, R.health - 2]).toEqual([2, 3]); // and the other neighbour
-    expect([rf.attack - 5, rf.health - 8]).toEqual([2, 3]); // Runefire itself only ONCE (no self re-cast)
-  });
 });
 
 describe('set 2 — Scalechanter (owner rework 2026-07-25)', () => {
@@ -646,20 +628,6 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     expect(buffsOn('m1').length, 'the Dragon that attacked was buffed').toBeGreaterThan(0);
     expect(buffsOn('m1')[0]!.attack).toBe(2);
     expect(buffsOn('m2'), 'the Beast that attacked was NOT').toEqual([]);
-  });
-
-  it("Scalefeather Drake Echo buffs Beasts AND Dragons, and a dual-type only ONCE", () => {
-    // b2_elderhorn is a Beast; d2_embermouth a Dragon; the Drake itself is Dragon/Beast — the dual-type case
-    // is the reason this is one multi-tribe pass instead of two copies of the effect.
-    const r = simulate(
-      [bm2('d2_scalefeather', 'SF', 1, 1), bm2('d2_embermouth', 'D', 2, 60), bm2('alley', 'B', 2, 60), bm2('n2_lastlight', 'N', 2, 60)],
-      [{ cardId: 'sandbag', attack: 10, health: 900 }], makeRng(4), CARD_INDEX,
-      combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }));
-    const gained = (uid: string) => (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number }[])
-      .filter((b) => b.target === uid).reduce((n, b) => n + b.attack, 0);
-    expect(gained('m1'), 'the Dragon').toBe(4);
-    expect(gained('m2'), 'the Beast').toBe(4);
-    expect(gained('m3'), 'a neutral gets nothing').toBe(0);
   });
 
   it('Blazing Keeper only offers Dragons that actually HAVE a Shout', () => {

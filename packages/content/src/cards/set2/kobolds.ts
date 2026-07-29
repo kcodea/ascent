@@ -71,12 +71,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 2,
     health: 5,
     keywords: [],
-    effects: [
-      { on: 'avenge', do: 'avengeGetRubies', params: { count: 2, rubies: 1 } },
-      { on: 'avenge', do: 'avengePlayRubiesLeftmost', params: { count: 2, rubies: 2 } },
-    ],
-    text: '**Avenge (2):** Get a Ruby and Play **2** on your left-most minion.',
-    goldenText: '**Avenge (2):** Get **2 Rubies** and Play **4** on your left-most minion.',
+    // `battlecryGrantSpell` isn't Shout-specific — the recruit factories are event-agnostic, so the same
+    // grant works off End of Turn without a near-duplicate factory.
+    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
+    text: '**End of Turn:** get a **Veinstorm**.',
+    goldenText: '**End of Turn:** get **2 Veinstorms**.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
@@ -218,8 +217,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3 } }],
-    text: 'When you cast **3 Rubies**, Consume a minion in the Shop.',
-    goldenText: 'When you cast **3 Rubies**, Consume **2 minions** in the Shop.',
+    text: 'When you cast **3 spells**, Consume a minion in the Shop.',
+    goldenText: 'When you cast **3 spells**, Consume **2 minions** in the Shop.',
   },
   {
     // Taunt + Echo (combat Deathrattle): on death, play a Ruby on each adjacent minion (permanent carry-back).

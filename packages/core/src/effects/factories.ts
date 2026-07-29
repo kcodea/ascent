@@ -2357,19 +2357,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const imp of imps.slice(0, num(params.count, 1) * mul(self))) ctx.attackNow?.(imp, false);
   },
 
-  /** Set 2 — Cinderwall Captain: the first `count` Imps you summon this combat gain Ward.
-   *  Implemented as an `onSummon` WATCHER with a per-instance cap (`attackSeen` as the tally), not as a
-   *  Start-of-Combat pre-pass: the Imps don't exist yet at Start of Combat, so a pre-pass would have nothing to
-   *  shield. Same shape as Broodwright's grant, and it needs no new context plumbing. Per-instance means the
-   *  cap resets each fight, which is what "this combat" requires. Golden doubles the count. */
-  onSummonImpWard: (ctx, self, params, payload) => {
-    const { minion } = payload as MinionPayload;
-    if (!minion || minion.side !== self.side || minion.cardId !== 'impscrap' || minion.dead) return;
-    const cap = num(params.count, 2) * mul(self);
-    if ((self.attackSeen ?? 0) >= cap) return;
-    self.attackSeen = (self.attackSeen ?? 0) + 1;
-    grantShield(ctx, minion);
-  },
 
   /** Set 2 — Broodwright: whenever you summon an Imp, give it +atk/+hp. Its Avenge half improves that grant
    *  permanently via `summonBonus`, the standard per-instance accrual. */

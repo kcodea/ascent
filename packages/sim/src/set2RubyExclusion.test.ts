@@ -26,7 +26,7 @@ describe('set 2 — Ruby exclusion matches the printed text', () => {
     // Scalefeather Drake dropped OFF this list in the 2026-07-25 rework — its Echo no longer touches spells
     // at all. Scalechanter joined it: its new text promises "Shop spell", so it owes the same exclusion.
     'd2_ashscribe', 'd2_mirrorwing', 'd2_spellkeeper', 'd2_scalechanter',
-    'd2_recaller', 'd2_spellvault', 'd2_broodlord', 'd2_archivist',
+    'd2_recaller', 'd2_spellvault', 'd2_broodlord', 'd2_archivist', 'd2_runefire',
   ];
 
   it('every excluding card SAYS "Shop spell", in its text and its golden text', () => {
@@ -44,9 +44,11 @@ describe('set 2 — Ruby exclusion matches the printed text', () => {
     expect(scales!.text).toMatch(/Shop spell/i);
   });
 
-  it('the two INCLUDING cards deliberately do NOT say "Shop spell"', () => {
-    // The inverse assertion, so a well-meaning consistency sweep can't quietly restrict them later.
-    for (const id of ['d2_grimoire', 'd2_runefire']) {
+  it('the INCLUDING card deliberately does NOT say "Shop spell"', () => {
+    // The inverse assertion, so a well-meaning consistency sweep can't quietly restrict it later.
+    // Runefire LEFT this group on 2026-07-27: its rework recasts via `lastSpellCastId`, which only a Shop
+    // spell sets, so it now owes the restrictive wording like every other shop-spell-only card.
+    for (const id of ['d2_grimoire']) {
       expect(CARD_INDEX[id]!.text, `${id} text`).not.toMatch(/Shop spell/i);
     }
   });
@@ -105,55 +107,6 @@ describe('set 2 — Ruby exclusion matches the printed text', () => {
   });
 });
 
-describe('set 2 — Runefire works with Rubies as well as Shop spells', () => {
-  it('a RUBY played on Runefire also lands on its adjacent Dragons', () => {
-    // The gap this closes: a Ruby never routes through `castSpell`, so it could never reach the
-    // `spellCastOnThis` hook — Runefire did nothing at all for Rubies despite not saying "Shop spell".
-    let s: RunState = {
-      ...createRun(1), phase: 'recruit', embers: 80,
-      board: [
-        minion('L', 'd2_ashscribe', 'dragon', 1, 3),
-        minion('rf', 'd2_runefire', 'dragon', 5, 8),
-        minion('R', 'd2_ashscribe', 'dragon', 1, 3),
-      ],
-      hand: [ruby('rb')],
-    };
-    s = reduce(s, { type: 'play', uid: 'rb', targetUid: 'rf' });
-    const rf = s.board.find((c) => c.uid === 'rf')!;
-    const L = s.board.find((c) => c.uid === 'L')!;
-    const R = s.board.find((c) => c.uid === 'R')!;
-    expect([rf.attack, rf.health]).toEqual([6, 9]); // the Ruby's own +1/+1
-    expect([L.attack, L.health]).toEqual([2, 4]);   // spread to the left neighbour
-    expect([R.attack, R.health]).toEqual([2, 4]);   // …and the right
-  });
-
-  it('only the FIRST spell-or-Ruby each turn spreads — the two share one slot', () => {
-    let s: RunState = {
-      ...createRun(1), phase: 'recruit', embers: 80,
-      // `bronzewarden` (Guardian Drake) has NO effects — an inert neighbour. Using a reactive Dragon here
-      // (Ashscribe self-buffs on a Shop spell) would move its stats for reasons unrelated to the spread.
-      board: [minion('rf', 'd2_runefire', 'dragon', 5, 8), minion('R', 'bronzewarden', 'dragon', 1, 3)],
-      hand: [ruby('rb'), spellInHand('sf', 'spiritfire')],
-    };
-    s = reduce(s, { type: 'play', uid: 'rb', targetUid: 'rf' }); // spreads (+1/+1 to R)
-    const afterRuby = s.board.find((c) => c.uid === 'R')!;
-    expect([afterRuby.attack, afterRuby.health]).toEqual([2, 4]);
-    s = reduce(s, { type: 'play', uid: 'sf', targetUid: 'rf' }); // must NOT spread again
-    const R = s.board.find((c) => c.uid === 'R')!;
-    expect([R.attack, R.health]).toEqual([2, 4]); // unchanged — the slot was already spent
-  });
-
-  it('a non-Dragon neighbour is skipped', () => {
-    let s: RunState = {
-      ...createRun(1), phase: 'recruit', embers: 80,
-      board: [minion('rf', 'd2_runefire', 'dragon', 5, 8), minion('K', 'k_chipwick', 'kobold', 1, 2)],
-      hand: [ruby('rb')],
-    };
-    s = reduce(s, { type: 'play', uid: 'rb', targetUid: 'rf' });
-    const K = s.board.find((c) => c.uid === 'K')!;
-    expect([K.attack, K.health]).toEqual([1, 2]); // Kobold neighbour untouched
-  });
-});
 
 /**
  * `rubyCastCount` is the number a Ruby actually resolves — extracted from the reducer so the UI's ×N badge can

@@ -106,14 +106,14 @@ export const SET2_DRAGONS: CardDef[] = [
     // The combat spell-supply piece: dying allies feed you copies of your best held spell. Reads the hand
     // snapshot taken at combat start (Vault Curator copies the left-most spell you took INTO the fight).
     id: 'd2_curator',
-    name: 'Vault Curator',
+    name: 'Water Dragon',
     tribe: 'dragon',
     tier: 4,
     attack: 4,
     health: 6,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }],
-    text: '**Avenge (4):** get a copy of the left-most spell in your hand.',
+    effects: [{ on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 4 } }],
+    text: '**Avenge (4):** get a random spell.',
     goldenText: '**Avenge (4):** get **2** copies of the left-most spell in your hand.',
   },
   {
@@ -127,9 +127,15 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 4,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribes: ['beast', 'dragon'], attack: 4, health: 4 } }],
-    text: '**Echo:** give your Beasts and Dragons **+4/+4**.',
-    goldenText: '**Echo:** give your Beasts and Dragons **+8/+8**.',
+    // Shout AND Echo, so it pays on both ends. The two halves use different factories on purpose: the Shout is
+    // a recruit grant (`spellId`), the Echo a combat one (`cardId`) — the keys differ per factory and mixing
+    // them up silently grants nothing (the Velvet Rope Fiend bug, 2026-07-25).
+    effects: [
+      { on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'growth', count: 1 } },
+      { on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'growth' } },
+    ],
+    text: '**Shout and Echo:** get a **Growth**.',
+    goldenText: '**Shout and Echo:** get **2 Growths**.',
   },
   {
     // Dragon/DEMON, Rise: pays off the Demon half of its typing — eating from the Shop turns into spell fuel.
@@ -169,8 +175,8 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Runic Archivist',
     tribe: 'dragon',
     tier: 6,
-    attack: 6,
-    health: 10,
+    attack: 4,
+    health: 7,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
     text: '**End of Turn:** cast the last **Shop spell** you cast this turn again.',
@@ -213,21 +219,17 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    // Two hooks for one rule: Shop spells arrive via `spellCastOnThis`, Rubies via `onRubyPlayed` (a Ruby never
-    // routes through `castSpell`). Runefire deliberately works with BOTH — it's one of the two spell-reactive
-    // Dragons that doesn't say "Shop spell" (owner 2026-07-24).
-    effects: [
-      { on: 'spellCastOnThis', do: 'onSpellCastOnThisSpreadAdjacent', params: { tribe: 'dragon', count: 1 } },
-      { on: 'onRubyPlayed', do: 'onRubyPlayedSpreadAdjacent', params: { tribe: 'dragon', count: 1 } },
-    ],
-    text: 'The first spell or **Ruby** you cast on this each turn **also casts on adjacent Dragons**.',
-    goldenText: 'The first spell or **Ruby** you cast on this each turn casts **twice** on adjacent Dragons.',
+    // Owner rework 2026-07-27 — reuses the same End-of-Turn recast Runic Archivist had (which now reads
+    // `lastSpellCastId`), so the two cards share one primitive rather than two near-identical ones.
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
+    text: '**End of Turn:** cast the last **Shop spell** you cast this turn again.',
+    goldenText: '**End of Turn:** cast the last **Shop spell** you cast this turn **2 additional** times.',
   },
   {
     // Two effects, one card: the Shout that pays out, and the cadence that grows it. Rides
     // `battlecryTriggered`, so every Shout FIRE counts (Drakko repeats included) — "Shouts you trigger".
     id: 'd2_scalechanter',
-    name: 'Enchanter',
+    name: 'Earthbreaker',
     tribe: 'dragon',
     tier: 3,
     attack: 4,
@@ -245,7 +247,7 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_skald',
     name: 'Traveling Skald',
     tribe: 'dragon',
-    tier: 4,
+    tier: 2,
     attack: 4,
     health: 5,
     keywords: [],

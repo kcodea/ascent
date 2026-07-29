@@ -2,6 +2,47 @@
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### 2026-07-27 — content: card batch part 1 — tiers, stats, renames, removals, reuse reworks
+
+First slice of the owner's ~40-card batch. Everything here is data or a reuse of an existing primitive; the
+reworks that need NEW factories are the next slice.
+
+**Tiers / stats:** Echohorn Stag T4 · Packstrider 2/3 · Avarice Incarnate T5 6/5 · Market Tormentor T4 4/4 ·
+Hungerling T4 4/5 · Grand Gourmand T4 · Traveling Skald T2 · Runic Archivist 4/7.
+
+**Renames** (ids unchanged, as always): Enchanter → **Earthbreaker** · Vault Curator → **Water Dragon** ·
+Denkeeper Oona → **King Oona**.
+
+**Removed:** Cinderwall Captain, along with `onSummonImpWard`, the factory that existed only for it.
+
+**Reworks reusing existing primitives:**
+- **Runefire** — End of Turn, recast the turn's last Shop spell. Shares `endOfTurnRecastFirstSpell` with Runic
+  Archivist rather than growing a near-duplicate.
+- **Scalefeather Drake** — Shout AND Echo: get a Growth. The two halves use different factories deliberately:
+  the Shout is a recruit grant keyed `spellId`, the Echo a combat one keyed `cardId`. Mixing those keys up is
+  exactly the Velvet Rope Fiend bug from 2026-07-25.
+- **Water Dragon** — Avenge (4): get a random spell.
+- **Moonlit Scavenger** — Avenge (3): Beasts +2/+2 wherever they are (the spell grant is gone).
+- **Gemline Martyr** — End of Turn: get a Veinstorm. Recruit factories are event-agnostic, so the Shout grant
+  works off End of Turn without a duplicate.
+- **Gemgorge Fiend** — text only: "3 Rubies" → "3 spells", matching what the meter already counted.
+
+**Black Belt Brian can no longer Discover Resonance.** Added `DISCOVER_EXCLUDED_SPELLS` with the reason
+recorded beside the id — an unexplained exclusion list becomes folklore fast.
+
+**Runefire changed sides on the Ruby ruling.** Its rework recasts through `lastSpellCastId`, which only a Shop
+spell sets, so it moved OUT of the "works with Rubies too" pair and now owes the restrictive **Shop spell**
+wording like every other shop-spell-only card. Caught by thinking through the owner's own rule rather than by a
+failing test — the exclusion test only checks cards it's told about.
+
+**Left deliberately:** five factories are now orphaned (`onSpellCastOnThisSpreadAdjacent`,
+`onRubyPlayedSpreadAdjacent`, `avengeCopyLeftmostHandSpell`, `avengeGetRubies`, `avengePlayRubiesLeftmost`).
+Veinbreaker and Mineral Master later in this batch look likely to reuse the Ruby ones, so removing them now
+would mean re-adding them. Revisit at the batch's end.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1782 tests. Four tests of superseded
+behaviour (Runefire's spell-spread, Scalefeather's tribe buff) were removed with their cards' old rules.
+
 ### 2026-07-27 — fix(core/sim/ui): Sprout's missing spell cast, Grimoire→Karwind, Rise/Avenge, Anubis, end-turn lock
 
 Four engine fixes from the owner's batch. Two were much wider than the reports suggested.

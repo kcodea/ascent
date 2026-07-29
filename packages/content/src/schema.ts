@@ -98,7 +98,6 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleSummonRandomTier',
   'summonImps',
   'rallyImpsAttackNow',
-  'onSummonImpWard',
   'onTribePlayedConsumeShop',
   'avengeImproveSummonBuff',
   'onImpDeathSummonImp',

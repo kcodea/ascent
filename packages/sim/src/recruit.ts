@@ -3511,9 +3511,16 @@ export function applyCardsBought(state: RunState, count: number): void {
 
 /** Open a Discover of up to 3 distinct random spells (Black Belt Brian). Sets `state.discover`; the
  *  reducer's `discover` case resolves the pick into the hand and opens the next queued spec, if any. */
+/** Spells a "Discover a spell" may NEVER offer (owner 2026-07-27). Not a balance filter — these are spells
+ *  whose value depends on board state a Discover can't guarantee, so offering them is a dead pick. Keep the
+ *  reason with the entry; an unexplained id here becomes folklore. */
+const DISCOVER_EXCLUDED_SPELLS: ReadonlySet<string> = new Set([
+  'resonance', // owner call: Black Belt Brian can no longer Discover it
+]);
+
 export function offerSpellDiscover(state: RunState): void {
   const rng = makeRng(state.rngCursor);
-  const avail = poolOf(state).spells.filter((c) => c.tier <= state.tier);
+  const avail = poolOf(state).spells.filter((c) => c.tier <= state.tier && !DISCOVER_EXCLUDED_SPELLS.has(c.id));
   const picks: string[] = [];
   for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
   state.rngCursor = rng.state();

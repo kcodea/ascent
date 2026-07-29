@@ -108,7 +108,7 @@ export const SET2_BEASTS: CardDef[] = [
     // +5/+5 aura to "+1/+1 then DOUBLE", so it scales with whatever the token was already worth. `SC` dropped
     // from keywords — it's an onSummon watcher now, not a Start of Combat.
     id: 'b2_oona',
-    name: 'Denkeeper Oona',
+    name: 'King Oona',
     tribe: 'beast',
     tier: 5,
     attack: 4,
@@ -131,10 +131,9 @@ export const SET2_BEASTS: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [
-      { on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 3 } },
-      { on: 'avenge', do: 'avengeBuffTribeLasting', params: { count: 3, tribe: 'beast', attack: 2, health: 0 } },
+      { on: 'avenge', do: 'avengeBuffTribeLasting', params: { count: 3, tribe: 'beast', attack: 2, health: 2 } },
     ],
-    text: '**Avenge (3):** get a random spell and give your Beasts **+2 Attack** wherever they are.',
+    text: '**Avenge (3):** give your Beasts **+2/+2** wherever they are.',
     goldenText: '**Avenge (3):** get **2** random spells and give your Beasts **+4 Attack** wherever they are.',
   },
   {
@@ -157,7 +156,7 @@ export const SET2_BEASTS: CardDef[] = [
     id: 'b2_echohorn',
     name: 'Echohorn Stag',
     tribe: 'beast',
-    tier: 3,
+    tier: 4,
     attack: 4,
     health: 3,
     keywords: ['RL'],
@@ -229,7 +228,7 @@ export const SET2_BEASTS: CardDef[] = [
     tribe: 'beast',
     tier: 1,
     attack: 2,
-    health: 2,
+    health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyBuffSelfPerTribe', params: { tribe: 'beast', attack: 1, health: 1 } }],
     text: '**Rally:** gain **+1/+1** for every Beast you control.',

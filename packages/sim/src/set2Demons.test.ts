@@ -254,16 +254,6 @@ describe('set 2 — the Imp line (combat)', () => {
     expect(grants.length).toBeGreaterThan(0);
   });
 
-  it('Cinderwall Captain shields only the FIRST 2 Imps', () => {
-    // Errand Fiend keeps making Imps all fight; only two may come up shielded.
-    const r = simulate([bm('dm_captain', 'C', 5, 60), bm('dm_errand', 'E', 1, 60, ['W', 'RL'])],
-      [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), CARD_INDEX,
-      combatSide({ tier: 4 }), combatSide({ tier: 1 }));
-    const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length).toBeGreaterThan(2);           // plenty were made…
-    expect(r.events.filter((e) => e.type === 'shieldUp').length).toBe(2); // …but only two shielded
-  });
-
   it('Legion Shepherd fills the board and scales its buff with how many it made', () => {
     const r = simulate([bm('dm_shepherd', 'S', 3, 40)], [{ cardId: 'sandbag', attack: 0, health: 300 }],
       makeRng(3), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 1 }));
@@ -277,9 +267,9 @@ describe('set 2 — the Imp line (combat)', () => {
 });
 
 describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
-  it('all 22 roster cards are in the set', () => {
-    // 22, not 23 — Pit Drillmaster was removed from the game (owner 2026-07-26).
-    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(22);
+  it('all 21 roster cards are in the set', () => {
+    // 21: Pit Drillmaster went 2026-07-26, the Captain 2026-07-27 (both owner cuts).
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(21);
   });
 
   it('Revolving Maw eats on every 4th REFRESH, counting from its own arrival', () => {

@@ -22,11 +22,13 @@ import {
   toStoredDef,
   type StoredFxDef,
 } from '../defStore';
-import { listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
+import { getDef, listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
+import { applyVariant, presetTable } from '../presets';
 import { getImportedDataUrl } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
 import { LibraryBrowser } from './LibraryBrowser';
+import { PresetGallery } from './PresetGallery';
 import { ProcHarness } from '../harness/ProcHarness';
 import { CommitPanel } from '../harness/CommitPanel';
 import { planCommit } from '../harness/commitPlan';
@@ -191,6 +193,62 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 /**
+ * Compute `<base>--<variant>` from the preset table and REGISTER it, returning the def that now answers to
+ * that id (or `null` if the archetype, the axis or the base def is missing).
+ *
+ * Registration is the whole point, and its ORDER is load-bearing: `playDef` resolves a def **by id**, and a
+ * computed variant exists nowhere until `registerSavedDef` has seen it. Previewing before registering is a
+ * silent no-op — no error, no effect, indistinguishable from "the button isn't wired". So both call sites
+ * materialise first and play/load second. Idempotent: re-registering the same id overwrites the same
+ * overlay entry, so calling it from hover AND from click is correct rather than wasteful.
+ *
+ * Module scope, not a `useCallback`: it closes over nothing in the component, so a hook would only add an
+ * allocation and a dependency array to keep honest.
+ *
+ * ── Metadata: the variant is REBUILT, not spread ──
+ * `applyVariant` returns `{...base}` with new layers, so at runtime a variant inherits every own field of
+ * its base — including `label`, `tags` and `seed`. All three are dropped here, deliberately:
+ *
+ *  • `label`/`tags` are the LIBRARY BROWSER's search + grouping index, and the workbench has no editor for
+ *    them (`toStoredDef` doesn't even carry them). Inheriting would mean every effect an author started
+ *    from Bolt was filed in the browser under the *base's* words — metadata they never wrote, can't see and
+ *    can't change. A derived label ("Bolt (heavy)") is the same defect with a friendlier spelling: it's
+ *    still a name the author didn't choose, and the name they DO choose is the slug they type into Save.
+ *    So a fresh composition starts unlabelled and untagged, exactly like every other new def.
+ *  • `seed` would freeze the roll. A base carrying one makes every play of every variant the identical
+ *    look; omitting it means "roll fresh", which is what an untuned starting point should do (and it is
+ *    what `loadDef` reads to decide whether to LOCK the seed). Neither shipped base carries one today —
+ *    this keeps that true if one ever does.
+ *
+ * `version` and `duration` are carried through, because those are the def's data, not its filing.
+ */
+function materialiseVariant(archetypeId: string, variantId: string): StoredFxDef | null {
+  const table = presetTable();
+  const arch = table.archetypes.find((a) => a.id === archetypeId);
+  const axis = table.variantAxes.find((x) => x.id === variantId);
+  const base = arch === undefined ? undefined : getDef(arch.base);
+  if (arch === undefined || axis === undefined || base === undefined) return null;
+
+  const { def, missed } = applyVariant(base, axis, arch.overrides?.[variantId]);
+  if (import.meta.env.DEV && missed.length > 0) {
+    // The diagnostic that separates "this variant did nothing" from "the gallery isn't wired": a key that
+    // reached no slider on any layer is a preset-table bug, and it is otherwise completely silent.
+    console.warn(
+      `[fx] preset '${archetypeId}/${variantId}': ${missed.length} key(s) reached nothing —`,
+      missed,
+    );
+  }
+  const stored: StoredFxDef = {
+    version: def.version,
+    id: `${arch.base}--${variantId}`,
+    duration: def.duration,
+    layers: def.layers,
+  };
+  registerSavedDef(stored);
+  return stored;
+}
+
+/**
  * Full-screen dev overlay for live-tuning FX primitives. Deliberately NOT a `.sfxmix` draggable panel —
  * the whole point of this tool is its own purpose-built transport + a generated inspector, not another
  * floating tuner. Mounted only from `DevMenu` (itself dev-gated), so this entire tree is stripped from the
@@ -236,6 +294,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // it explicitly — the registry behind it is module-level and React knows nothing about it.
   const [defs, setDefs] = useState<StoredFxDef[]>(() => listDefs());
   const [browsing, setBrowsing] = useState(false);
+  // The preset gallery. MUTUALLY EXCLUSIVE with `browsing`: both overlays are full-screen at the same
+  // z-index, so two open at once is not a layered UI, it's one silently buried under the other. Each
+  // opener closes the other (see the two rail buttons) rather than leaving that to a render-time guard,
+  // so there is never a moment where the state says "both open" and the screen disagrees.
+  const [gallery, setGallery] = useState(false);
   // Rail mode: collapse to one side so the live board is visible underneath, and host the proc harness.
   // A MODE rather than a second overlay, because the whole point is tuning and watching without a context
   // switch — two windows would put them a click apart, which is the loop this is meant to remove.
@@ -1556,7 +1619,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           onLoad={(def) => loadDef(def, def.id)}
           onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
         />
-        <button className="fxwb-btn" onClick={() => setBrowsing(true)}>Browse all</button>
+        <button className="fxwb-btn" onClick={() => { setBrowsing(false); setGallery(true); }}>
+          ＋ New effect
+        </button>
+        <button className="fxwb-btn" onClick={() => { setGallery(false); setBrowsing(true); }}>
+          Browse all
+        </button>
         <button className="fxwb-btn" onClick={() => setRailMode((r) => !r)}>
           {railMode ? 'Full editor' : 'Watch in combat'}
         </button>
@@ -2010,6 +2078,30 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             playDef(id, anchors);
           }}
           onClose={() => setBrowsing(false)}
+        />
+      )}
+
+      {gallery && (
+        <PresetGallery
+          onPreview={(archetypeId, variantId) => {
+            const anchors = lastAnchorsRef.current;
+            if (variantId === null || anchors === null) return;
+            // Materialise FIRST — `playDef` resolves by id and the variant does not exist until it is
+            // registered (see `materialiseVariant`). Like the browser's hover, this is a PREVIEW: it
+            // never touches the author's in-progress composition.
+            const stored = materialiseVariant(archetypeId, variantId);
+            if (stored === null) return;
+            playDef(stored.id, anchors);
+          }}
+          onPick={(archetypeId, variantId) => {
+            const stored = materialiseVariant(archetypeId, variantId);
+            if (stored === null) return;
+            // The same seam Duplicate uses: land it in the editor as a template, pre-named so Save never
+            // opens on a blank name. Nothing is written until the author hits Save.
+            loadDef(stored, `${archetypeId}-${variantId}`);
+            setGallery(false);
+          }}
+          onClose={() => setGallery(false)}
         />
       )}
     </div>

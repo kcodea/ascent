@@ -10,6 +10,7 @@ export * from './contribution';
 export * from './reducer';
 export * from './snapshot';
 export * from './lobby';
+export * from './productionBots';
 export * from './opponents';
 export * from './rating';
 export * from './playerRating';

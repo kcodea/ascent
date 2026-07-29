@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-07-29 — feat(sim/tools): fight-grounded board scoring + `npm run bot:ladder`
+
+Owner wants bots strong enough that we have to LIMIT them. Before building toward that, two things were needed:
+a way to score a board that isn't a guess, and a way to measure bot strength that isn't noise.
+
+**`fightScore` — score a board by fighting with it.** Every proxy in the evaluator (stat sums, a keyword value
+table, a width curve) is a guess at one question: does this board win? Combat can answer it directly, and it is
+affordable — a 5-archetype panel costs **0.19ms**, against **0.047ms** for the single `reduce()` a search node
+already spends. The panel is built from `buildEnemyBoard`, the published procedural threat curve, so it is legal
+public knowledge; the bot never fights its actual pinned opponent, which is hidden.
+
+**Win rate alone is useless as a search signal — measured.** At wave 7 the bot's full 7-minion board and a
+deliberately crippled 2-card board BOTH scored 0.00, and margin scored −1.00 for both: every archetype wiped
+both, so the two were indistinguishable and search had nothing to climb. Damage taken separated them cleanly
+(0.36 / 0.44), so `FightResult` returns win rate, a signed survival margin AND damage — the gradient has to
+survive positions where everything loses.
+
+**`npm run bot:ladder`** reports wins with error bars, plus rounds, tier, triples, deaths and gold wasted per
+turn; `--diagnose` adds per-round win rate and board strength against the threat panel at waves 4/7/10/13. It
+exists because two evaluator "improvements" were shipped off 10-seed samples and both proved to be regressions:
+the standard error at that size is ±0.6 wins, wider than every difference being argued about.
+
+**What it says (hard, 12 seeds):** 4.25 ±1.18 wins, dies 9/12, final tier 3.8, 0.17 triples, **4.29 gold wasted
+per turn**. Per-round win rate holds 33-50% for rounds 1-2, troughs at **8-25% through rounds 5-9**, then
+recovers to 50-100% late. Board strength vs the panel: **wave 4 → 0.03 win rate, margin −0.93**, climbing to
+0.43 by wave 10.
+
+**That reframes the problem.** The bots are not bad at building — measured against the same panel, the new bot's
+wave-9 board is 109.8 power against the legacy policy's 54.0, and beats it on win rate 0.40 to 0.14. What they
+are bad at is the EARLY game: a wave-4 board that loses 97% of its fights takes damage through the whole
+mid-game trough, and the run is decided long before the strong late boards arrive. "Three wins" is an early-game
+problem wearing a late-game disguise.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2941 tests, build:web, harness determinism.
+
+
 ## 2026-07-29 — fix(sim): bots scored a refresh by reading its result; plus a diagnosis of why they are weak
 
 **The fairness bug.** Search marked a refresh terminal but still called `evaluate(t.visible)` on it — the state

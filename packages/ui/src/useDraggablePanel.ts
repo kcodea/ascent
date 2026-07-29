@@ -52,6 +52,7 @@ export function useDraggablePanel(key: string): {
   panelRef: (el: HTMLDivElement | null) => void;
   headerPointerDown: (e: ReactPointerEvent) => void;
   panelStyle: CSSProperties;
+  raise: () => void;
 } {
   const { close } = useContext(DevPanelContext);
   const closeRef = useRef(close);
@@ -72,8 +73,9 @@ export function useDraggablePanel(key: string): {
   if (slotRef.current === null) slotRef.current = claimSlot(key);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => slotPos(slotRef.current!));
   const [z, setZ] = useState<number>(() => ++zTop);
-  const raiseRef = useRef<() => void>(() => { /* set below */ });
-  raiseRef.current = (): void => setZ(++zTop);
+  const raise = useCallback((): void => setZ(++zTop), []);
+  const raiseRef = useRef(raise);
+  raiseRef.current = raise;
 
   // Claim a slot + rise to front on open; free the slot on close. Keyed claim/release is idempotent, so
   // StrictMode's mount→unmount→mount doesn't leak or drop a slot.
@@ -144,5 +146,5 @@ export function useDraggablePanel(key: string): {
   }, []);
 
   const panelStyle: CSSProperties = { left: pos.left, top: pos.top, right: 'auto', bottom: 'auto', zIndex: z };
-  return { panelRef, headerPointerDown, panelStyle };
+  return { panelRef, headerPointerDown, panelStyle, raise };
 }

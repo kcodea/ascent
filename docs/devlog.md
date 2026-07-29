@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-07-29 — Turnabout obeys the aura rule, and the aura helper now sees TRIBE auras
+
+Follow-up to the entry below, from the owner's second worked example: an Undead 5/3 carrying +200 Attack reads
+205/3, and Turnabout should leave it at **203/205**.
+
+Two things were wrong with the first pass:
+
+1. **Turnabout was deliberately excluded**, on the reasoning that a swap is stat-neutral so both readings
+   agree. That only holds for a SYMMETRIC aura — `swap(a+x, h+x)` equals `swap(a,h)+(x,x)`. With an
+   attack-only aura the readings come apart entirely and the old code threw the +200 away (leaving 3/205).
+   Turnabout now swaps the DISPLAYED stats, writes them as TRUE stats, and re-applies the aura.
+2. **`runWideAuraOf` only read `cardBuffs`** — the per-card-type table. The owner's example uses a TRIBE aura
+   (`undeadBuyAtk`), which that lookup could not see, so the fix would have silently no-op'd on it.
+
+The helper now covers all four run-wide channels by reusing `undeadBuyBonus` / `buyHealthAura` — already the
+single answer to "what auras does this card get", called at every creation site, so a new aura added there
+reaches this automatically — plus `cardBuffs` and `impBuff`. It reads the STATE TABLES rather than
+`card.buffs` on purpose: a minion bought AFTER an aura accrued has it folded into its stats at creation with
+no buff record, so the breakdown would under-report it for exactly the copies that need it most.
+
+**Verified.** 3 new tests (48 in `spellBatch`): the owner's 205/3 → 203/205 example, a tribe-aura Perfect
+Vision (20 + 200 = 220) which the first helper would have failed, and a no-aura Turnabout that must stay a
+plain swap. Full gates: typecheck, lint (0 errors), 2948 tests / 154 files, build:web, harness ✓.
+
 ## 2026-07-29 — Two gameplay fixes: Funeral on Loan, and auras eaten by stat-setting spells
 
 **Funeral on Loan no longer destroys an unplayed card.** `settleCombat` filtered every `borrowed` card out of

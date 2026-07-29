@@ -460,17 +460,31 @@ export function buffImpsRunWide(state: RunState, a: number, h: number, source: s
  * enchant (`improveClingDrones`) but with an explicit source + separate atk/hp.
  */
 /**
- * The run-wide per-cardId enchant riding on this minion — Spear Warden's "+3/+2 to all Spear Wardens", and any
- * other `buffCardTypeRunWide` accrual. Conceptually an AURA: it belongs to the card TYPE for the rest of the
- * run, not to this instance, and every copy (including ones bought later) carries it.
+ * EVERY run-wide aura riding on this minion — the portion of its stats that belongs to the run, not the
+ * instance. Read from the authoritative STATE TABLES, deliberately, not from `card.buffs`: a minion bought
+ * AFTER an aura accrued has it folded straight into its stats at creation (`card.attack + cb.attack`) with no
+ * buff record at all, so the buff breakdown would under-report it for exactly the copies that most need it.
  *
- * It is baked into `card.attack`/`card.health` for display and combat, which is what makes it invisible to a
- * spell that SETS stats — see `spellSetStats` / `spellAverageStats`, where overwriting the total silently ate
- * the aura and the minion came out weaker than an unbuffed copy.
+ * Four channels feed this and all of them are covered here:
+ *   - `cardBuffs[cardId]`  — per-card-type enchants (Spear Warden's "+3/+2 to all Spear Wardens", Fodder)
+ *   - `impBuff`            — the run-wide Imp aura
+ *   - `undeadBuyAtk` / `beastBuyAtk` / `magneticBuyAtk` — tribe + keyword ATTACK auras (via `undeadBuyBonus`)
+ *   - `beastBuyHp` / `magneticBuyHp`                    — their HEALTH siblings (via `buyHealthAura`)
+ *
+ * Reusing `undeadBuyBonus` / `buyHealthAura` is the point: they are already the single answer to "what auras
+ * does this card get", used at every creation site, so a new aura added there reaches this too.
  */
 export function runWideAuraOf(state: RunState, card: BoardCard): { attack: number; health: number } {
-  const a = state.cardBuffs?.[card.cardId];
-  return { attack: a?.attack ?? 0, health: a?.health ?? 0 };
+  const def = CARD_INDEX[card.cardId];
+  const typed = state.cardBuffs?.[card.cardId];
+  let attack = typed?.attack ?? 0;
+  let health = typed?.health ?? 0;
+  if (def) {
+    attack += undeadBuyBonus(state, def);
+    health += buyHealthAura(state, def);
+    if (def.imp) { attack += state.impBuff?.attack ?? 0; health += state.impBuff?.health ?? 0; }
+  }
+  return { attack, health };
 }
 
 export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, h: number, source: string): void {
@@ -3269,8 +3283,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the swap folds through the buff breakdown and back onto a tavern offer via `castSpellOnOffer`. A literal
    *  swap: a 0-Attack minion becomes 0-Health (the player's call). No spell-power scaling — it moves existing
    *  stats, it doesn't grant them. */
-  spellSwapStats: (_ctx, self, params) => {
-    addBuff(self, str(params._source) || 'Turnabout', self.health - self.attack, self.attack - self.health);
+  spellSwapStats: (ctx, self, params) => {
+    // Same aura rule as Perfect Vision / Common Ground: swap the DISPLAYED stats, write the result as the
+    // minion's TRUE stats, then re-apply the aura. Owner's worked example: an Undead 5/3 carrying +200 Attack
+    // reads 205/3; Turnabout makes its true stats 3/205 and the +200/+0 aura lands on top → 203/205.
+    //
+    // This was left out of the first pass on the reasoning that a swap is stat-neutral, which only holds for a
+    // SYMMETRIC aura — swap(a+x, h+x) equals swap(a,h)+(x,x). With an attack-only aura the two readings come
+    // apart completely, and the old behaviour threw the +200 away (leaving 3/205).
+    const aura = runWideAuraOf(ctx.state, self);
+    // Displayed stats, swapped, become the new TRUE stats; the aura then re-applies on top.
+    const finalAtk = self.health + aura.attack;
+    const finalHp = self.attack + aura.health;
+    addBuff(self, str(params._source) || 'Turnabout', finalAtk - self.attack, finalHp - self.health);
   },
 
   /** Apples — cast: buff every minion currently in the tavern by +atk/+hp (rides on each offer's `atk`/`hp`,

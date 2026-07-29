@@ -537,3 +537,45 @@ describe('Funeral on Loan keeps an unplayed borrowed card (owner 2026-07-29)', (
     expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2);
   });
 });
+
+describe('Turnabout obeys the aura rule too (owner 2026-07-29)', () => {
+  it("an Undead 5/3 carrying +200 Attack reads 205/3 and swaps to 203/205", () => {
+    // The owner's worked example, and the case that proves a swap is NOT exempt: the "swap is stat-neutral"
+    // shortcut only holds for a SYMMETRIC aura. With an attack-only aura the old code threw the +200 away and
+    // left the minion at 3/205. True stats swap to 3/205; the +200/+0 aura re-applies → 203/205.
+    const undead: BoardCard = {
+      uid: 'u', cardId: 'knit', tribe: 'undead',
+      attack: 205, health: 3, // 5/3 of its own, +200 Attack from the run-wide Undead aura
+      keywords: [], golden: false,
+    };
+    let s: RunState = { ...createRun(1), board: [undead], undeadBuyAtk: 200 };
+    const tb = CARD_INDEX['turnabout']!;
+    s.hand = [{ uid: 't', cardId: tb.id, tribe: tb.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 't', targetUid: 'u' });
+    const u = s.board.find((c) => c.uid === 'u')!;
+    expect(u.attack, 'the +200 Attack aura was thrown away by the swap').toBe(203);
+    expect(u.health).toBe(205);
+  });
+
+  it('a TRIBE aura counts, not just the per-card-type table', () => {
+    // The first version of the helper only read `cardBuffs`, so tribe/keyword auras (undeadBuyAtk, beastBuyAtk,
+    // magneticBuyAtk, impBuff and their Health siblings) were invisible to it — which is exactly the channel
+    // the owner's example uses. Perfect Vision here must land at 20 + 200.
+    const undead: BoardCard = { uid: 'u', cardId: 'knit', tribe: 'undead', attack: 205, health: 3, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), board: [undead], undeadBuyAtk: 200 };
+    const pv = CARD_INDEX['perfectvision']!;
+    s.hand = [{ uid: 'pv', cardId: pv.id, tribe: pv.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 'pv', targetUid: 'u' });
+    expect(s.board.find((c) => c.uid === 'u')!.attack).toBe(220);
+  });
+
+  it('Turnabout on a minion with no aura is a plain swap', () => {
+    const m: BoardCard = { uid: 'm', cardId: 'impscrap', tribe: 'demon', attack: 7, health: 2, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), board: [m] };
+    const tb = CARD_INDEX['turnabout']!;
+    s.hand = [{ uid: 't', cardId: tb.id, tribe: tb.tribe, attack: 0, health: 1, keywords: [], golden: false }];
+    s = reduce(s, { type: 'play', uid: 't', targetUid: 'm' });
+    const out = s.board.find((c) => c.uid === 'm')!;
+    expect([out.attack, out.health]).toEqual([2, 7]);
+  });
+});

@@ -20,7 +20,7 @@ import type { CardView } from './Card';
 const SCALAR_KEYS = [
   'name', 'cardId', 'tribe', 'tribe2', 'universalTribe', 'attack', 'health', 'text', 'goldenText',
   'stepEphemeral', 'cost', 'costChanged', 'castMult', 'golden', 'tier', 'spell', 'ruby', 'target',
-  'baseAttack', 'baseHealth', 'floorAttack', 'floorHealth', 'flashAtk', 'flashHp',
+  'baseAttack', 'baseHealth', 'floorAttack', 'floorHealth', 'flashAtk', 'flashHp', 'chosenOption',
 ] as const satisfies readonly (keyof CardView)[];
 
 /** Compile-time exhaustiveness: any `CardView` key not covered here (scalar or an explicit non-scalar below)

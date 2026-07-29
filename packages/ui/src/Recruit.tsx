@@ -285,7 +285,7 @@ function tokenRefView(
   id: string,
   cardBuffs?: Record<string, { attack: number; health: number }>,
   impBuff?: { attack: number; health: number },
-  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number },
+  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number },
   rubyBonus?: { attack: number; health: number },
 ): CardView {
   const c = CARD_INDEX[id];

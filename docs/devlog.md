@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-07-29 — The lobby was never running the production bots
+
+**What.** `botSeat` drove its run with `DEFAULT_BOT.act(run)` — the legacy greedy policy — so every seat at
+the eight-seat table was the old bot. The entire production bot system was built, measured in Ascent mode,
+and never reached the mode it was built for. Seats now take a `SeatPolicy` (`'easy' | 'normal' | 'hard' |
+`'expert' | 'legacy'`) and default to `hard`; `'legacy'` stays selectable as the baseline.
+
+**Why the Ascent number couldn't answer the question.** `bot:ladder` measures a 17-round course against the
+served pool, scored by wins covering the Oath. A lobby bot does a different job: `mode: 'lobby'` has no course
+clock (boards keep growing, late rounds stay dangerous), it fights OTHER SEATS rather than the pool, and
+success is placement, not a win count. So `npm run lobby:ladder` is new and measures the real thing — eight
+bots of assigned policies, lobby run to its finish, reported as mean placement.
+
+**Verified.** 12 lobbies, 8 seats, mean length 17.8 rounds. Placement 1 = won the lobby, 8 = out first:
+
+| policy | mean placement | lobby wins | top half |
+|---|---|---|---|
+| legacy | 6.33 ±0.30 | 0 | 13% |
+| easy | 5.08 ±0.49 | 2 | 38% |
+| normal | 4.08 ±0.40 | 2 | 58% |
+| expert | 3.38 ±0.52 | 8 | 71% |
+
+Monotone, and the ends are cleanly separated: Expert takes 8 of 12 lobbies, legacy none. This is the first
+measurement of these bots that reflects what they're for. Gates green: typecheck, lint, 2941 tests, build:web,
+harness (determinism ✓).
+
+**Follow-up.** Mean placement is a *relative* metric — it says Expert beats the other seats, not that it would
+trouble a good human. A human baseline still doesn't exist, and that is the gap personas and strength-limiting
+should be tuned against rather than against each other.
+
 ## 2026-07-29 — CORRECTION: the bot ladder was measuring against the evaluator's own panel
 
 The win counts in the entry below are **wrong** and are retained only so the mistake is legible.

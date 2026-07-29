@@ -5,7 +5,31 @@ import { autoplayRun, snapshotBoard } from '../snapshot';
 import { createRun, type RunState } from '../state';
 import { reduce } from '../reducer';
 import { DEFAULT_BOT } from '../bots/index';
+import { createController, decide, type BotControllerState } from '../productionBots/controller';
+import { DIFFICULTIES, type BotDifficultyId } from '../productionBots/difficulties';
 import type { PreparedBoard, SeatDriver } from './types';
+
+/**
+ * WHICH POLICY DRIVES A SEAT.
+ *
+ * `botSeat` originally hardcoded `DEFAULT_BOT` — the legacy greedy policy — which meant the whole production
+ * bot system was measured in Ascent mode and then never actually reached the lobby it was built for. Measured
+ * over 20 seeds, legacy covers 1.80 wins against the production bot's 5.60, so every seat at the table was
+ * playing several times weaker than the bot that exists.
+ *
+ * Passing `null` selects the legacy policy explicitly, which the lobby tests still use as a baseline.
+ */
+export type SeatPolicy = BotDifficultyId | 'legacy';
+
+/** One step of whichever policy drives this seat. Returns null when the policy has nothing to offer. */
+function policyStep(policy: SeatPolicy, run: RunState, ctrl: { c: BotControllerState | null }): ReturnType<typeof DEFAULT_BOT.act> | null {
+  if (policy === 'legacy') return DEFAULT_BOT.act(run);
+  ctrl.c ??= createController('seat', policy);
+  const d = decide(run, ctrl.c);
+  if (!d) return null;
+  ctrl.c = d.controller;
+  return d.action;
+}
 
 /**
  * The two seat drivers the prototype ships with. Both satisfy `SeatDriver`, so the lobby cannot tell them
@@ -93,15 +117,18 @@ export function recordRun(seed: number, heroId?: string, label?: string): SeatDr
  * `prepareSeatForCombat` / `settleSeatCombat` so the lobby can drive recruit and settle the real result back.
  * That is a further step; this one buys the scaling, which is what the pacing measurement asked for.
  */
-export function botSeat(seed: number, heroId?: string, label?: string): SeatDriver {
+export function botSeat(seed: number, heroId?: string, label?: string, policy: SeatPolicy = 'hard'): SeatDriver {
   let run: RunState = createRun(seed, heroId, 'lobby');
+  const ctrl: { c: BotControllerState | null } = { c: null };
   const terminal = (r: RunState): boolean => r.phase === 'gameover' || r.phase === 'victory';
 
   /** Drive the existing bot policy until the run reaches `wave` AND has actually shopped for it. */
   const advanceTo = (wave: number): void => {
     let guard = 0;
     while (run.wave < wave && !terminal(run) && guard++ < 4000) {
-      const next = reduce(run, DEFAULT_BOT.act(run));
+      const action = policyStep(policy, run, ctrl);
+      if (!action) break; // the policy considers the run finished
+      const next = reduce(run, action);
       if (next === run) break; // the policy offered a no-op — stop rather than spin
       run = next;
     }
@@ -111,7 +138,8 @@ export function botSeat(seed: number, heroId?: string, label?: string): SeatDriv
     // (the policy signals it is done by reaching for `faceOmen`) so the seat brings what it actually built.
     let shopGuard = 0;
     while (run.phase === 'recruit' && run.board.length === 0 && !terminal(run) && shopGuard++ < 60) {
-      const action = DEFAULT_BOT.act(run);
+      const action = policyStep(policy, run, ctrl);
+      if (!action) break;
       if (action.type === 'faceOmen') break; // done shopping — an empty board here is genuinely all it has
       const next = reduce(run, action);
       if (next === run) break;
@@ -154,9 +182,9 @@ export function botSeat(seed: number, heroId?: string, label?: string): SeatDriv
  * The handover is deliberately seeded from the SAME seed and hero as the recording, so the bot continues a run
  * of the same shape rather than dropping an unrelated board into the seat mid-lobby.
  */
-export function hybridSeat(seed: number, heroId?: string, label?: string): SeatDriver & { readonly lastRecordedWave: number } {
+export function hybridSeat(seed: number, heroId?: string, label?: string, policy: SeatPolicy = 'hard'): SeatDriver & { readonly lastRecordedWave: number } {
   const recorded = recordRun(seed, heroId, label);
-  const live = botSeat(seed, heroId, label);
+  const live = botSeat(seed, heroId, label, policy);
   return {
     kind: 'recorded', // it presents as a recording — that is what the player sees for most of the lobby
     label: recorded.label,

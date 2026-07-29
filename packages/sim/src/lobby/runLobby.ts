@@ -5,7 +5,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES } from '../heroes';
 import { lossDamageCap } from '../reducer';
 import { createRun, type RunState } from '../state';
-import { botSeat, hybridSeat } from './seats';
+import { botSeat, hybridSeat, type SeatPolicy } from './seats';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 
@@ -30,6 +30,8 @@ export interface LobbySeatState {
   resolve: number;
   armor: number;
   alive: boolean;
+  /** Which policy drives this seat. Absent = the default in `botSeat`; 'legacy' selects the old greedy bot. */
+  policy?: SeatPolicy;
   placement?: number;
   eliminatedRound?: number;
 }
@@ -71,7 +73,9 @@ export function driverFor(seat: LobbySeatState): SeatDriver | null {
   const key = driverKey(seat);
   let d = DRIVERS.get(key);
   if (!d) {
-    d = seat.kind === 'bot' ? botSeat(seat.seed, seat.heroId, seat.label) : hybridSeat(seat.seed, seat.heroId, seat.label);
+    d = seat.kind === 'bot'
+      ? botSeat(seat.seed, seat.heroId, seat.label, seat.policy)
+      : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy);
     DRIVERS.set(key, d);
   }
   return d;

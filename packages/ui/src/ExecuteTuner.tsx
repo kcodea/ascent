@@ -1,136 +1,122 @@
-import { useState } from 'react';
 import {
-  EXECUTE_COLOR_GROUPS, EXECUTE_GROUPS, EXECUTE_RANGES, executeOverrides, getExecuteConfig,
-  resetExecuteConfig, setExecuteValue, type ExecuteConfig,
+  EXECUTE_DEFAULTS, EXECUTE_RANGES, getExecuteConfig, resetExecuteConfig, setExecuteValue,
+  type ExecuteConfig, type ExecuteNumKey,
 } from './executeConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only floating tuner for the EXECUTE (V) rage aura — the swirling ring of smoke, comet arcs, glints and
- * shards around an Execute card.
+ * DEV-only tuner for the EXECUTE (V) rage aura — the swirling ring of smoke, comet arcs, glints and shards
+ * around an Execute card.
  *
- * Unlike the Ward tuner (which pokes CSS vars and lets the DOM sit still), the layer COUNTS here are dials, so
- * every change rebuilds the aura's DOM: `setExecuteValue` commits a fresh snapshot and each mounted card
- * re-renders through `useSyncExternalStore`. Live either way — you'll see it on any Execute card on screen.
+ * The layer COUNTS are dials here, so every change rebuilds the aura's DOM: `setExecuteValue` commits a fresh
+ * snapshot and each mounted card re-renders through `useSyncExternalStore`. Live either way — you will see it
+ * on any Execute card on screen. There are NO CSS fallbacks to update alongside it; `executeConfig` is the
+ * single source of truth for this effect.
  *
- * Persisted to localStorage; "Copy" grabs the JSON to paste into `DEFAULTS` in `executeConfig.ts`. There are NO
- * CSS fallbacks to update alongside it — the config module is the single source of truth for this effect
- * (see the note at the top of executeConfig.ts).
+ * At 48 controls this is the largest tuner in the project, which is why it was migrated second: if the schema
+ * holds here it holds anywhere. Its config already declared sections and a modified-key list before the schema
+ * existed — the schema generalises what this panel had invented for itself.
  *
- * Panel-only: opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
+ * LANGUAGE. The old labels carried their units as free text and abbreviated hard: `sx` read "width × (±flips)",
+ * `smokeA0`/`smokeA1` read "opacity low"/"opacity high", and five separate controls were all just "opacity".
+ * Units now live in the `unit` field, and every label names the layer it belongs to.
  */
-const LABELS: Record<keyof ExecuteConfig, string> = {
-  size: 'size × card',
-  y: 'vertical centre %',
-  sx: 'width × (±flips)',
-  sy: 'height × (±flips)',
-  pulse: 'breathe cycle s',
-  pulseMin: 'breathe dip',
-  smokeCount: 'blobs',
-  smokeRadius: 'ring radius %',
-  smokeSize: 'blob size %',
-  smokeBlur: 'blur px',
-  smokeA0: 'opacity low',
-  smokeA1: 'opacity high',
-  smokeSc0: 'scale low',
-  smokeSc1: 'scale high',
-  smokeSpin: 'ring spin s',
-  smokePulse: 'blob pulse s',
-  arcCount: 'arc rings',
-  arcD: 'diameter × box',
-  arcSx: 'arc width ×',
-  arcSy: 'arc height ×',
-  arcGap: 'ring spacing',
-  arcThick: 'band thickness %',
-  arcBlades: 'comets / ring',
-  arcTail: 'tail °',
-  arcEdge: 'leading edge °',
-  arcAlpha: 'opacity',
-  arcBlur: 'blur px',
-  arcSpin: 'spin s',
-  glintCount: 'glints',
-  glintRadius: 'ring radius %',
-  glintLen: 'spike length',
-  glintThick: 'spike thickness',
-  glintAlpha: 'opacity',
-  glintSpin: 'twinkle s',
-  shardCount: 'shards',
-  shardRadius: 'ring radius %',
-  shardSize: 'shard size px',
-  shardTail: 'tail px',
-  shardBlur: 'blur px',
-  shardOut: 'drift out px',
-  shardSweep: 'sweep °',
-  shardAlpha: 'opacity',
-  shardSpin: 'drift time s',
-  smokeHot: 'smoke · hot core',
-  smokeMid: 'smoke · mid body',
-  arcColor: 'arc',
-  glintColor: 'glint',
-  shardColor: 'shard',
+
+/** `[label, unit, hint]` per numeric key. Units are declared, never typed into the label. */
+const NUM: Record<ExecuteNumKey, [string, TunerUnit | undefined, string]> = {
+  size:        ['Aura size', '×', 'Overall size of the aura box, as a multiple of the card.'],
+  y:           ['Vertical centre', '%', 'Where the aura centres down the card. 50% is the middle.'],
+  sx:          ['Horizontal stretch', '×', 'Squashes or stretches the aura sideways. Negative values mirror it.'],
+  sy:          ['Vertical stretch', '×', 'Squashes or stretches the aura vertically. Negative values flip it.'],
+  pulse:       ['Breathe cycle', 's', 'How long one full breathe in-and-out of the whole aura takes.'],
+  pulseMin:    ['Breathe depth', '×', 'How far the breathe dips at its smallest. 1 means no breathing at all.'],
+
+  smokeCount:  ['Smoke · blob count', undefined, 'How many smoke blobs ride the ring.'],
+  smokeRadius: ['Smoke · ring radius', '%', 'How far out from centre the smoke blobs orbit.'],
+  smokeSize:   ['Smoke · blob size', '%', 'Size of each individual blob.'],
+  smokeBlur:   ['Smoke · blur', 'px', 'Softness of the blobs. Higher reads as thicker fog.'],
+  smokeA0:     ['Smoke · faintest', 'opacity', 'Opacity of the blobs at the dimmest point of their pulse.'],
+  smokeA1:     ['Smoke · brightest', 'opacity', 'Opacity at the brightest point of their pulse.'],
+  smokeSc0:    ['Smoke · smallest', '×', 'Blob scale at the bottom of its pulse.'],
+  smokeSc1:    ['Smoke · largest', '×', 'Blob scale at the top of its pulse.'],
+  smokeSpin:   ['Smoke · ring spin', 's', 'Time for the smoke ring to make one full rotation.'],
+  smokePulse:  ['Smoke · blob pulse', 's', 'Time for one blob to cycle between its faintest and brightest.'],
+
+  arcCount:    ['Arcs · ring count', undefined, 'How many concentric comet rings are drawn.'],
+  arcD:        ['Arcs · diameter', '×', 'Ring diameter as a multiple of the aura box.'],
+  arcSx:       ['Arcs · horizontal stretch', '×', 'Stretches the rings sideways into an ellipse.'],
+  arcSy:       ['Arcs · vertical stretch', '×', 'Stretches the rings vertically into an ellipse.'],
+  arcGap:      ['Arcs · ring spacing', undefined, 'Distance between one ring and the next.'],
+  arcThick:    ['Arcs · band thickness', '%', 'How thick each ring band is drawn.'],
+  arcBlades:   ['Arcs · comets per ring', undefined, 'How many comet streaks travel around each ring.'],
+  arcTail:     ['Arcs · tail length', '°', 'How far behind itself each comet smears, in degrees of arc.'],
+  arcEdge:     ['Arcs · leading edge', '°', 'How sharply the comet head begins.'],
+  arcAlpha:    ['Arcs · opacity', 'opacity', 'Overall opacity of the comet rings.'],
+  arcBlur:     ['Arcs · blur', 'px', 'Softness of the comet streaks.'],
+  arcSpin:     ['Arcs · spin', 's', 'Time for the comets to travel once around their ring.'],
+
+  glintCount:  ['Glints · count', undefined, 'How many sparkle spikes surround the card.'],
+  glintRadius: ['Glints · ring radius', '%', 'How far out from centre the glints sit.'],
+  glintLen:    ['Glints · spike length', undefined, 'Length of each sparkle spike.'],
+  glintThick:  ['Glints · spike thickness', undefined, 'Thickness of each sparkle spike.'],
+  glintAlpha:  ['Glints · opacity', 'opacity', 'Overall opacity of the glints.'],
+  glintSpin:   ['Glints · twinkle', 's', 'Time for one glint to complete its twinkle.'],
+
+  shardCount:  ['Shards · count', undefined, 'How many shards drift off the card.'],
+  shardRadius: ['Shards · ring radius', '%', 'How far out the shards start from centre.'],
+  shardSize:   ['Shards · size', 'px', 'Size of each shard.'],
+  shardTail:   ['Shards · tail length', 'px', 'How long a streak each shard drags behind it.'],
+  shardBlur:   ['Shards · blur', 'px', 'Softness of the shards.'],
+  shardOut:    ['Shards · drift distance', 'px', 'How far a shard travels outward before fading.'],
+  shardSweep:  ['Shards · sweep', '°', 'How far around the card the shards spread.'],
+  shardAlpha:  ['Shards · opacity', 'opacity', 'Overall opacity of the shards.'],
+  shardSpin:   ['Shards · drift time', 's', 'How long one shard takes to complete its drift.'],
 };
 
-export function ExecuteTuner() {
-  const [cfg, setCfg] = useState<ExecuteConfig>(getExecuteConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('execute');
+const COLORS: [keyof ExecuteConfig, string, string][] = [
+  ['smokeHot', 'Smoke · hot core', 'The bright inner colour of each smoke blob.'],
+  ['smokeMid', 'Smoke · mid body', 'The outer colour each blob fades toward.'],
+  ['arcColor', 'Arcs', 'Colour of the comet rings.'],
+  ['glintColor', 'Glints', 'Colour of the sparkle spikes.'],
+  ['shardColor', 'Shards', 'Colour of the drifting shards.'],
+];
 
-  const set = (k: keyof ExecuteConfig, v: number | string): void => {
-    setExecuteValue(k, v); // commits a new snapshot → every mounted Execute card rebuilds
-    setCfg({ ...getExecuteConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getExecuteConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetExecuteConfig(); setCfg({ ...getExecuteConfig() }); };
+/** Section titles mirror the layer order the effect is actually composited in. */
+const SECTIONS: { title: string; keys: ExecuteNumKey[] }[] = [
+  { title: 'Aura box', keys: ['size', 'y', 'sx', 'sy', 'pulse', 'pulseMin'] },
+  { title: '1 · Smoke', keys: ['smokeCount', 'smokeRadius', 'smokeSize', 'smokeBlur', 'smokeA0', 'smokeA1', 'smokeSc0', 'smokeSc1', 'smokeSpin', 'smokePulse'] },
+  { title: '2 · Arcs', keys: ['arcCount', 'arcD', 'arcSx', 'arcSy', 'arcGap', 'arcThick', 'arcBlades', 'arcTail', 'arcEdge', 'arcAlpha', 'arcBlur', 'arcSpin'] },
+  { title: '3 · Glints', keys: ['glintCount', 'glintRadius', 'glintLen', 'glintThick', 'glintAlpha', 'glintSpin'] },
+  { title: '4 · Shards', keys: ['shardCount', 'shardRadius', 'shardSize', 'shardTail', 'shardBlur', 'shardOut', 'shardSweep', 'shardAlpha', 'shardSpin'] },
+];
 
-  const overrides = executeOverrides();
+const controls: TunerControl<Extract<keyof ExecuteConfig, string>>[] = [
+  ...SECTIONS.flatMap((s) =>
+    s.keys.map((key) => {
+      const [label, unit, hint] = NUM[key];
+      const [min, max, step] = EXECUTE_RANGES[key];
+      return { key, label, unit, hint, min, max, step, group: s.title };
+    }),
+  ),
+  ...COLORS.map(([key, label, hint]) => ({
+    key: key as Extract<keyof ExecuteConfig, string>,
+    label, hint, min: 0, max: 0, step: 0, group: 'Colours', kind: 'color' as const,
+  })),
+];
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Execute Aura <span>dev · live · drag</span></div>
+const SPEC: TunerSpec<ExecuteConfig> = {
+  id: 'execute',                    // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Execute Aura',
+  note: 'dev · live · drag',
+  read: getExecuteConfig,
+  write: (key, value) => setExecuteValue(key, value),
+  writeColor: (key, value) => setExecuteValue(key, value),
+  reset: resetExecuteConfig,
+  defaults: EXECUTE_DEFAULTS,
+  controls,
+};
 
-      {overrides.length > 0 && (
-        <div className="lunge-mod">
-          MODIFIED ({overrides.length}): {overrides.map((k) => LABELS[k]).join(', ')}
-        </div>
-      )}
-
-      {EXECUTE_GROUPS.map((g) => (
-        <div className="lunge-sec" key={g.title}>
-          <div className="lunge-sec-h">{g.title}</div>
-          {g.keys.map((k) => {
-            const [min, max, step] = EXECUTE_RANGES[k];
-            return (
-              <div className="sfxmix-row" key={k}>
-                <span className="sfxmix-name">{LABELS[k]}</span>
-                <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-                <span className="sfxmix-val">{cfg[k]}</span>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-
-      {EXECUTE_COLOR_GROUPS.map((g) => (
-        <div className="lunge-sec" key={g.title}>
-          <div className="lunge-sec-h">{g.title}</div>
-          {g.keys.map((k) => (
-            <div className="sfxmix-row" key={k}>
-              <span className="sfxmix-name">{LABELS[k]}</span>
-              <input type="color" value={cfg[k]} onChange={(e) => set(k, e.target.value)} />
-              <span className="sfxmix-val">{cfg[k]}</span>
-            </div>
-          ))}
-        </div>
-      ))}
-
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export function ExecuteTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

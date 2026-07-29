@@ -1298,6 +1298,16 @@ export type CombatOutcome = 'win' | 'lose' | 'draw';
  *  NOTE: the boards themselves stay separate positional args to `simulate` — this struct is the run-state context
  *  that rides alongside each board, the piece that used to be asymmetric. */
 export interface CombatSideState {
+  /** The card ids this run may DRAW from — its pinned set's pool.
+   *
+   *  Every random pick in combat (a Slaughter's spell, a random-minion grant, a magnetic roll) used to filter
+   *  the GLOBAL `CARD_INDEX`, so a Set-1 run could be handed a Set-2 card: Badgington's Slaughter produced a
+   *  Set-2 spell and Sea Urchin a Scalefeather Drake (owner report 2026-07-27). Recruit-phase picks already go
+   *  through `poolOf(state)`; combat simply never had the set threaded in.
+   *
+   *  Empty/undefined = UNRESTRICTED, which keeps `EMPTY_SIDE` (the harness, the procedural threat, tests that
+   *  only care about minions) behaving exactly as before. */
+  poolIds?: readonly string[];
   /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
   spellsThisTurn: number;
   /** Lifetime spells cast this run (Umbral Energy scales Dragons +N per spell; seeds the combat spell tally). */
@@ -1574,6 +1584,10 @@ export interface CombatContext {
   /** Every card definition the run knows about — for effects that pick a random card matching a
    *  property rather than a fixed id (Junkyard Titan → a random Magnetic minion). */
   allCards(): CardDef[];
+  /** `allCards()` narrowed to the run's pinned set (see `CombatSideState.poolIds`). EVERY random pick must use
+   *  this rather than `allCards()`, or it can hand a Set-1 run a Set-2 card. Falls back to `allCards()` when a
+   *  side carries no pool (the harness / procedural threats). */
+  poolCards(side: Side): CardDef[];
   buff(target: Minion, attack: number, health: number, source: string): void;
   /** Register a tribe buff that persists for the rest of combat: a friend of `tribe` on `side`
    *  summoned *after* this also gains +atk/+hp (Grim's Deathrattle). Current friends are buffed by the caller. */

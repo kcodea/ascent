@@ -2,6 +2,34 @@
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### 2026-07-27 — fix(core/sim): set 1 and set 2 were mixing in COMBAT
+
+Owner report: "I got a set 2 spell from Badgington's slaughter… we need to make sure our rules separate out
+set 1 and set 2 cards fully and entirely. It's very important."
+
+**Cause.** Recruit-phase picks have always gone through `poolOf(state)`. Combat never had the set threaded in
+at all — every random draw filtered the GLOBAL `CARD_INDEX`. Eleven sites: the random-spell grant
+(`simulate.ts:634`, Badgington's Slaughter), the random-minion grant, the magnetic roll, two in-simulate spell
+picks and six factory picks (including `deathrattleSummonRandomTribe`, whose comment already CLAIMED to be
+set-scoped).
+
+`CombatSideState` now carries `poolIds` — the run's pinned pool — and `ctx.poolCards(side)` narrows every pick
+to it. An empty/absent pool means unrestricted, so `EMPTY_SIDE` (the harness, procedural threats, tests that
+only care about minions) is unchanged.
+
+**Sea Urchin was NOT a leak.** The owner reported it Discovering a Scalefeather Drake in the same run. Sea
+Urchin is opted into set 2 and Scalefeather is a Dragon/**Beast**, so that's a legal Beast Discover in a set-2
+run — and recruit Discovers were already scoped. Pinned with a test rather than left as a claim.
+
+**Verified:** typecheck / lint / test / build:web / harness green, 1787 tests (+6). The tests drive REAL combat
+across 40 seeds rather than asserting on the helper, because the bug was never in the filter — it was in which
+list the filter was applied to. Reverting the fix makes them fail with the owner's exact symptom
+(`wo_health`, `veinstorm` and 8 more leaking into a set-1 run), and a control proves the fixture actually
+grants spells so the pass isn't vacuous.
+
+A source sweep also fails the build if a NEW random draw is written against `allCards()` — the leak was
+invisible in gameplay until a player saw a foreign card, so it needed a structural guard rather than vigilance.
+
 ### 2026-07-27 — fix(ui): broken images on the itch browser build (root-absolute public paths)
 
 Owner report with a screenshot: several buttons render as broken-image icons on itch, while the same build is
@@ -30,7 +58,9 @@ root-absolute public refs at all.
 
 **A bug in my own test, worth recording:** it first reported every explanatory comment as an offender. The
 repo is CRLF, `split('
-')` leaves a trailing ``, and JS `.` does not match `` — so `/\/\/.*$/` never
+')` leaves a trailing `
+`, and JS `.` does not match `
+` — so `/\/\/.*$/` never
 matched and no `//` line was ever stripped.
 
 ### chore(ui): second pass on the Card Text defaults

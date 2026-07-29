@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Set 1 and Set 2 no longer mix** — every random pick in combat now draws from the run's pinned set.
 - **Fixed broken images on the itch browser build** — root-absolute asset paths 404 on itch's CDN sub-path;
   a test now blocks the whole class.
 - **Ruby and Ward Echoes animate in combat** — Geode Guardian and Lastlight Marshal were landing their buffs

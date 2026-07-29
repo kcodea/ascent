@@ -30,6 +30,7 @@
     "board:train": "tsx packages/tools/src/board-train.ts",
     "board:elo": "tsx packages/tools/src/board-elo.ts",
     "boards:fetch": "tsx packages/tools/src/fetch-boards.ts",
+    "lobby:snapshots": "tsx packages/tools/src/lobby-snapshot-check.ts",
     "lobby:ladder": "tsx packages/tools/src/lobby-ladder.ts",
     "bot:learn": "tsx packages/tools/src/bot-learn.ts",
     "bot:rollouts": "tsx packages/tools/src/bot-rollouts.ts",

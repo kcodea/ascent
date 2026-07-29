@@ -21,10 +21,16 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Close the human-board gap (bots).** Against real player boards every difficulty lands at 3.2–3.9 wins,
-  nothing survives the course, and legacy is statistically indistinguishable from expert. Point
-  `fightScore` at the human pool (`npm run boards:fetch`, 664 boards) instead of the procedural curve and
-  re-derive difficulty against it. **State: [`docs/bot-handoff.md`](bot-handoff.md).**
+- **Close the human-board gap (bots).** Expert covers 4.70 wins vs real player boards (par 9), 0 course
+  survivals, and per-round win rate collapses after round 6. Evidence so far says the gap is CAPABILITY,
+  not evaluation: every structural fix (replacement macros, spell casting) paid; every learned/statistical
+  model was neutral or harmful. **Next: build the dev-only oracle** (future shops + full opponent boards +
+  big budget) — if it also can't survive, the bot can't express winning play and we keep hole-hunting; if
+  it wins, evaluation is the gap. State: [`docs/bot-handoff.md`](bot-handoff.md).
+- **A human baseline (owner).** Play 3–5 runs against the same board pool. Par 9 is the Oath, not a measured
+  human score against boards from other players' finished runs — we're optimizing an unanchored target.
+- **Lobby snapshots — SHIPPED.** Real player runs now hold up to 3 seats and place 3.63 vs bots' 6.58.
+  Follow-ups: lobby-native snapshots (these are Ascent-mode boards), and whether placement feeds Renown.
 - **Bot personas — HOLD** until the tiers separate. No point diversifying four bots that measure as one.
   Plan: seeded evaluator weight multipliers + tribe affinity, with a board-divergence metric in
   `lobby:ladder` so it's measured rather than asserted.

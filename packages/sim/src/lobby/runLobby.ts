@@ -6,6 +6,7 @@ import { HEROES } from '../heroes';
 import { lossDamageCap } from '../reducer';
 import { createRun, type RunState } from '../state';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
+import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 
@@ -24,7 +25,10 @@ export interface LobbySeatState {
   id: string;
   label: string;
   heroId: string;
-  kind: 'player' | 'hybrid' | 'bot';
+  kind: 'player' | 'hybrid' | 'bot' | 'snapshot';
+  /** `snapshot` seats only: which real player run drives this seat. Stored rather than the boards themselves so
+   *  the lobby stays small and serializable; resolved against the registered pool by `driverFor`. */
+  runKey?: string;
   /** The seed its driver is rebuilt from. Unused for the player seat, whose board is the live run. */
   seed: number;
   resolve: number;
@@ -61,7 +65,7 @@ export interface RunLobby {
  */
 const DRIVERS = new Map<string, SeatDriver>();
 
-const driverKey = (seat: LobbySeatState): string => `${seat.kind}:${seat.seed}:${seat.heroId}`;
+const driverKey = (seat: LobbySeatState): string => `${seat.kind}:${seat.seed}:${seat.heroId}:${seat.runKey ?? ''}`;
 
 /** Evict cached drivers for these seats, so a newly created lobby starts them from round 1. */
 export function resetLobbyDrivers(seats: readonly LobbySeatState[]): void {
@@ -73,9 +77,17 @@ export function driverFor(seat: LobbySeatState): SeatDriver | null {
   const key = driverKey(seat);
   let d = DRIVERS.get(key);
   if (!d) {
-    d = seat.kind === 'bot'
-      ? botSeat(seat.seed, seat.heroId, seat.label, seat.policy)
-      : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy);
+    if (seat.kind === 'snapshot') {
+      // A restored lobby can land in a session whose pool doesn't hold that run (different device, pruned
+      // patch, backend offline). Falling back to a bot keeps the table full instead of silently dropping a
+      // seat and changing the shape of someone's saved game.
+      const run = seat.runKey ? playerRunByKey(seat.runKey) : null;
+      d = run ? snapshotSeat(run, seat.policy) : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy);
+    } else {
+      d = seat.kind === 'bot'
+        ? botSeat(seat.seed, seat.heroId, seat.label, seat.policy)
+        : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy);
+    }
     DRIVERS.set(key, d);
   }
   return d;
@@ -97,6 +109,36 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   //
   // This is a BOT limitation, not a lobby rule: when a bot can play every hero, the skip simply stops firing.
   let picked = 0;
+
+  // REAL PLAYER RUNS FIRST (owner call 2026-07-29). Every seat used to be generated; now any run in the
+  // registered pool with enough material can hold one, replaying that player's actual boards in their actual
+  // order before a bot inherits the seat. Capped so the table never becomes entirely other people's ghosts —
+  // the mix is what makes a lobby feel populated rather than pre-recorded.
+  //
+  // Seeded rotation over a deterministically-ordered list: the same lobby seed always seats the same runs, so
+  // a restored or replayed lobby is identical.
+  const available = playerRunsFrom();
+  const maxSnapshotSeats = Math.min(r.snapshotSeats ?? Math.floor((r.seatCount - 1) / 2), available.length);
+  for (let i = 0; i < maxSnapshotSeats && picked < r.seatCount - 1; i++) {
+    const run = available[(seed + i * 7) % available.length]!;
+    if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
+    const seat: LobbySeatState = {
+      id: `s${picked + 1}`,
+      label: run.author && run.author !== 'anon' ? run.author : `run ${run.key.slice(-4)}`,
+      heroId: run.heroId,
+      kind: 'snapshot',
+      runKey: run.key,
+      seed: seed * 1000 + picked + 1,
+      resolve: r.startingResolve,
+      armor: r.startingArmor,
+      alive: true,
+    };
+    const d = driverFor(seat);
+    if (!d?.prepare(1) && !d?.finalBoard?.()) continue; // no round-1 board — skip rather than seat a ghost
+    seats.push(seat);
+    picked++;
+  }
+
   for (let offset = 0; picked < r.seatCount - 1 && offset < heroes.length * 2; offset++) {
     const hero = heroes[(seed + offset) % heroes.length]!;
     if (seats.some((x) => x.heroId === hero.id)) continue;

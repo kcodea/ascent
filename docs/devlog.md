@@ -1,5 +1,53 @@
 # ASCENT — development log
 
+## 2026-07-29 — Real player snapshots are seated in the lobby
+
+**What.** The deferred lobby item is in: seats can now be driven by REAL player runs from the registered
+opponent pool. `playerRunsFrom()` groups the pool back into the runs it came from (author + hero + seed) and
+`snapshotSeat` replays that player's actual boards in their actual wave order, handing the seat to a live bot
+when the recording runs dry — the same exhaustion rule the generated hybrid seat uses, for the same reason.
+
+The drivers were built for this from the start (`recordedSeat` has always existed); nothing had ever fed them
+real data, so every seat was a bot.
+
+**They are markedly stronger than our bots.** 9 lobbies, mean placement (1 = won, 8 = out first):
+
+| seat kind | mean placement |
+|---|---|
+| snapshot (real player runs) | **3.63** |
+| player (expert bot driving) | 4.44 |
+| hybrid (generated bots) | 6.58 |
+
+Consistent with the Ascent-mode finding that human boards outclass anything we generate — which is exactly why
+seating them makes the lobby a real test.
+
+**Design decisions.**
+- **A seat stores a `runKey`, not the boards.** `RunLobby` is serialized onto `RunState`, and drivers are
+  rebuilt by `driverFor`; embedding boards would bloat every save. A restored lobby whose run isn't in THIS
+  session's pool (other device, pruned patch, backend offline) falls back to a generated bot rather than
+  silently dropping a seat and changing the shape of a saved game.
+- **Capped at 3 of 7 non-player seats** (`LobbyRules.snapshotSeats`). Recordings can't react to the lobby, so a
+  table made mostly of them stops being a game between opponents.
+- **Synthetic boards are excluded.** They're generated per-wave against a power curve and were never one
+  player's run; stringing them together would fake a build order that never existed.
+- **Seat label is the author's name**, so the lobby reads "LazerLemon" rather than a hero name. The UI branches
+  on nothing here, so this needed no UI change.
+- Ascent-mode snapshots for now (owner call). A real approximation worth naming: those boards were built
+  against the 17-round course, not a lobby damage race — but the build ORDER is genuine, which is the part bots
+  cannot fake.
+
+**Verified.** 10 new tests in their own file (registering into the module-global pool would change matchmaking
+under the other lobby tests): reassembly, wave ordering, the too-short-run and synthetic exclusions,
+deterministic ordering, per-round board changes, the bot hand-off, no run seated twice, the minority cap, and
+the missing-run fallback. Headless seating confirmed against the real 664-board pool — 56 runs available, 3
+seats filled with real authors, identical seating on a repeat. Full gates: typecheck, lint (0 errors), 2961
+tests / 155 files, build:web, harness ✓.
+
+**Not confirmed in-app.** The live client gets real boards from the remote pool at boot; this dev session had
+an empty local board store and an already-loaded page, and confirming the fetch would have meant reloading
+over an in-progress lobby run. Starting a fresh lobby run in the app is the check — expect up to 3 seats
+labelled with player names.
+
 ## 2026-07-29 — First self-play harvest: quest values land, the value model does not
 
 **6,000 self-play runs → 69,458 labeled rows** (61,020 end-of-turn states, 8,313 quest picks, 125 rune picks),

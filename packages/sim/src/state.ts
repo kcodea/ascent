@@ -830,6 +830,10 @@ export interface RunState {
    *  Read only through `hasTier7Access`; nothing sets it yet, and it exists so the eventual hero can turn it on
    *  without touching the gate itself. */
   tier7Access?: boolean;
+  /** LOBBY MODE: the 8-seat elimination lobby this run is a seat in (the player is always `seats[0]`).
+   *  Serializable by construction — opponent DRIVERS are rebuilt from `(kind, seed, heroId)` rather than stored,
+   *  because they are closures and `RunState` is deep-cloned every dispatch. Absent for an ordinary run. */
+  lobby?: import('./lobby/runLobby').RunLobby;
   spellFirstDoubleEachTurn?: boolean;
   /** Set 2 — Orivax (Spellweave): a MULTIPLIER on the turn's first spell (3 = casts 3 times). Permanent,
    *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than

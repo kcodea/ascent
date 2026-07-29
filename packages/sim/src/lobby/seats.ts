@@ -20,7 +20,9 @@ function boardAt(snaps: readonly BoardSnapshot[], round: number): BoardSnapshot 
     if (s.wave === round) return s;
     if (s.wave < round && (!best || s.wave > best.wave)) best = s;
   }
-  return best;
+  // A round EARLIER than anything recorded (a run whose first snapshot is wave 2) serves the earliest board
+  // rather than nothing — otherwise the seat silently sits out round 1 and a quarter of the table never fights.
+  return best ?? (snaps.length ? snaps[0]! : null);
 }
 
 const toPrepared = (snap: BoardSnapshot): PreparedBoard => ({
@@ -93,12 +95,24 @@ export function botSeat(seed: number, heroId?: string, label?: string): SeatDriv
   let run: RunState = createRun(seed, heroId, 'lobby');
   const terminal = (r: RunState): boolean => r.phase === 'gameover' || r.phase === 'victory';
 
-  /** Drive the existing bot policy until the run reaches `wave` (or can't advance any further). */
+  /** Drive the existing bot policy until the run reaches `wave` AND has actually shopped for it. */
   const advanceTo = (wave: number): void => {
     let guard = 0;
     while (run.wave < wave && !terminal(run) && guard++ < 4000) {
       const next = reduce(run, DEFAULT_BOT.act(run));
       if (next === run) break; // the policy offered a no-op — stop rather than spin
+      run = next;
+    }
+    // Reaching the wave is not enough: a run that has only just arrived has an EMPTY board, because it hasn't
+    // bought anything yet. Asked for a board at that moment the seat fields nothing and sits the round out —
+    // measured at round 1, where it silently removed a quarter of the table from the fight. Play the shop out
+    // (the policy signals it is done by reaching for `faceOmen`) so the seat brings what it actually built.
+    let shopGuard = 0;
+    while (run.phase === 'recruit' && run.board.length === 0 && !terminal(run) && shopGuard++ < 60) {
+      const action = DEFAULT_BOT.act(run);
+      if (action.type === 'faceOmen') break; // done shopping — an empty board here is genuinely all it has
+      const next = reduce(run, action);
+      if (next === run) break;
       run = next;
     }
   };

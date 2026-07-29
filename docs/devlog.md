@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-07-29 — feat(sim/ui): the lobby is PLAYABLE end to end
+
+Title → **Lobby** → pick a hero → you are seat 1 of 8. You shop as normal, your fight settles the whole table,
+seats are knocked out, and the run ends when YOUR seat dies rather than after 17 rounds.
+
+**Serializable by construction.** `LobbyState` holds live `SeatDriver` closures and `RunState` is deep-cloned
+every dispatch, so the run carries `RunLobby` — plain data — and drivers are rebuilt on demand from
+`(kind, seed, heroId)`. Every driver is a pure function of those, so a reloaded run reconstructs byte-identical
+opponents instead of storing them. Pinned by a `structuredClone` test.
+
+**Reducer integration is three small seams**, all gated on `mode === 'lobby'`: `faceOmen` fights the paired
+seat instead of a pool pick; `settleCombat` settles the whole round from the player's already-resolved fight;
+the terminal check ends the run when the player's SEAT dies. The seat's health becomes the run's, so the HUD and
+every health-aware effect read one number.
+
+**HUD and panel.** The 8-seat table replaces the next-foe frame — who is standing, their health, and who you
+face next is the entire state of the mode. The round plaque drops "/ 17" and the Oath badge becomes "N / 8 left",
+because a lobby has no course length and no rating-derived win target; showing them would be promising rules the
+mode doesn't have.
+
+**Four bugs, each caught by a test or a measurement rather than by reading the code:**
+1. The lobby never advanced. The hook was on the `settleCombat` CASE, but `resolveCombat` calls the settle
+   FUNCTION directly when the replay is skipped — the path the game actually takes.
+2. A quarter of the table sat out round 1. A live seat that has only just reached its wave has an EMPTY board
+   (it hasn't shopped yet), and `boardAt` returned nothing for a round earlier than a recording's first wave.
+3. Disco Dan fielded no board at all, ever — his turn-1 tier-locked Discovers leave today's crude balance bot
+   with nothing playable. Lobby seat selection now skips a hero whose driver can't produce a board, and says so
+   in a comment: it is a BOT limitation, and the skip stops firing once a bot can play every hero.
+4. Determinism broke across two same-seed lobbies in one process. The driver cache holds LIVE, stateful runs, so
+   the second lobby inherited drivers already advanced to the first one's final round. `createRunLobby` now
+   evicts its seats' drivers.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2895 tests, build:web, harness determinism, plus a live
+browser run: mode card → hero picker → 8 seats rendered → end turn → round 2 with the player's armor down and
+two OTHER seats damaged from their own fight.
+
+**Known gaps** (deliberate, not oversights): the end screen still reads as an Ascent summary rather than showing
+placement; there is no elimination feed; and a live bot seat doesn't yet shop differently because of damage taken
+in the lobby beyond its synced health.
+
+
 ## 2026-07-29 (later still) — combat is NOT symmetric, and live seats now react to lobby damage
 
 **The finding, and it is the most important one so far.** Resolving the same fight with the sides swapped

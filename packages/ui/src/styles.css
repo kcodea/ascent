@@ -5965,3 +5965,33 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxlib-gap { font-size: 11px; color: #6f6688; font-style: italic; }
 /* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
 .fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }
+
+/* ── LOBBY PANEL (8-seat elimination mode) ───────────────────────────────────
+   Replaces the next-foe frame in a lobby run: the table IS the state of the mode. Sized to sit in the same
+   top-right slot without pushing the shop down, so the eye still lands on the board first. */
+.lobbypanel { width: 232px; display: flex; flex-direction: column; gap: 4px;
+  background: rgba(12, 10, 18, 0.72); border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px; padding: 7px 8px 8px; }
+.lobbyhead { display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.lobbyalive { color: #f4d58a; font-weight: 700; }
+.lobbyseats { display: flex; flex-direction: column; gap: 2px; }
+.lobbyseat { position: relative; display: grid; grid-template-columns: 18px 1fr auto;
+  align-items: center; gap: 6px; padding: 3px 5px 4px; border-radius: 6px; font-size: 12px;
+  background: rgba(255, 255, 255, 0.03); }
+.lobbyseat.you { background: rgba(120, 190, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(120, 190, 255, 0.35); }
+.lobbyseat.foe { box-shadow: inset 0 0 0 1px rgba(255, 120, 110, 0.55); }
+.lobbyseat.dead { opacity: 0.42; }
+.lobbyface { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; }
+.lobbyname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobbyseat.dead .lobbyname { text-decoration: line-through; }
+.lobbyhp { display: inline-flex; align-items: center; gap: 2px; font-weight: 700; color: #ff8d8d; }
+.lobbyhp svg { width: 10px; height: 10px; }
+.lobbyarmor { color: #9fc7ff; font-weight: 700; }
+.lobbyplace { color: rgba(255, 255, 255, 0.5); font-weight: 700; }
+.lobbyvs { position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
+  font-size: 9px; font-weight: 800; letter-spacing: 0.04em; color: #ff8d8d; }
+/* Health bar: a static gradient whose WIDTH changes — no paint-property animation (see docs/performance.md). */
+.lobbybar { position: absolute; left: 5px; right: 5px; bottom: 1px; height: 2px;
+  background: rgba(255, 255, 255, 0.08); border-radius: 1px; overflow: hidden; }
+.lobbybar > span { display: block; height: 100%; background: linear-gradient(90deg, #ff6b6b, #ffd08a); }

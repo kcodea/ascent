@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "archetypes": [
+    {
+      "id": "bolt",
+      "label": "Bolt",
+      "icon": "⚡",
+      "blurb": "travels fast and lands hard",
+      "base": "preset-bolt",
+      "variants": ["thin", "heavy", "crackling", "beam"],
+      "overrides": { "beam": { "turbulence": 0 } }
+    },
+    {
+      "id": "blast",
+      "label": "Blast",
+      "icon": "💥",
+      "blurb": "detonates in place",
+      "base": "preset-blast",
+      "variants": ["thin", "heavy", "crackling"]
+    }
+  ],
+  "variantAxes": [
+    { "id": "thin",      "label": "Thin",      "transform": { "size": 0.6, "speed": 1.3, "count": 0.7 } },
+    { "id": "heavy",     "label": "Heavy",     "transform": { "size": 1.6, "speed": 0.7, "life": 1.25 } },
+    { "id": "crackling", "label": "Crackling", "transform": { "turbulence": 2.5, "speedVar": 1.6, "count": 1.4 } },
+    { "id": "beam",      "label": "Beam",      "transform": { "speed": 1.8, "life": 0.8, "sizeVar": 0.4 } }
+  ]
+}

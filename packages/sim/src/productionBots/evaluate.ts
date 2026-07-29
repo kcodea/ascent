@@ -25,6 +25,12 @@ export interface EvaluationBreakdown {
   fightStrength: number;
   /** Predicted Elo of the board, from the model fit against real player boards. */
   learnedStrength: number;
+  /** Board meanTier against the human curve — the single largest measured gap (bot 1.73 vs human 4.21 @ w10). */
+  tierDensity: number;
+  /** Largest-tribe share of the board. Humans hold 0.56-0.67 from wave 7; our bots sat at 0.33-0.35. */
+  tribeFocus: number;
+  /** Non-golden duplicates held across board+hand — each pair is two-thirds of a triple. */
+  pairsHeld: number;
   boardPower: number;
   economy: number;
   tierProgress: number;
@@ -55,7 +61,16 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     // `learnedStrength` is fit against real player boards rated by fighting each other, so it is the only term
     // that has ever seen what a good human board looks like.
     fightStrength: 26,
-    learnedStrength: 20,
+    learnedStrength: 12,
+    // The shape terms are DELIBERATELY ZERO. They were added because bot boards measurably lack the human
+    // signature (meanTier 1.73 vs 4.21, concentration 0.35 vs 0.65 at wave 10) — and then `npm run bot:tune`
+    // measured every weighting of them as HARMFUL: 3.15 wins with the hand-picked weights against 4.50 with
+    // zeros, tier-only 4.15, focus-only 2.20. Optimizing the visible signature of good boards is not the same
+    // as optimizing the boards; the gain came from the replacement macros in search.ts instead. The terms stay
+    // computed (weight 0 costs nothing) so the tuner and future personas can reach them.
+    tierDensity: 0,
+    tribeFocus: 0,
+    pairsHeld: 0,
     boardPower: 8,
     economy: 12,
     tierProgress: 9,
@@ -97,7 +112,19 @@ const bodyPower = (c: BotCardView): number => c.attack + c.health;
 const keywordScore = (c: BotCardView): number =>
   c.keywords.reduce((n, k) => n + (KEYWORD_VALUE[k] ?? 0), 0) * (c.golden ? 1.5 : 1);
 
-export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = EVALUATION_CONFIG_V1): EvaluationBreakdown {
+/**
+ * The config evaluate() uses when none is passed. Overridable ONLY so the headless tuner can search the weight
+ * space against the real ladder objective — production code never calls the setter, and the default is always
+ * the shipped V1 config. Hand-tuning these weights failed repeatedly (shopOpportunity 3.47->1.75 wins,
+ * tier-against-curve moved tier up and wins down); searching them against measured wins is the honest method.
+ */
+let ACTIVE_CONFIG: EvaluationConfig = EVALUATION_CONFIG_V1;
+export function setEvaluationWeights(partial: Partial<EvaluationConfig['weights']>): void {
+  ACTIVE_CONFIG = { ...EVALUATION_CONFIG_V1, weights: { ...EVALUATION_CONFIG_V1.weights, ...partial } };
+}
+export function resetEvaluationWeights(): void { ACTIVE_CONFIG = EVALUATION_CONFIG_V1; }
+
+export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONFIG): EvaluationBreakdown {
   const w = cfg.weights;
   const ref = powerReference(v.wave);
 
@@ -150,10 +177,37 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = EVALUATION_
   })) as BoardMinion[], v.wave);
   const learnedStrength = learned > 0 ? learned : fightStrength;
 
-  const parts = { fightStrength, learnedStrength, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
+  // BOARD SHAPE — the human-curve targets. The tier target is the measured human meanTier by wave (2.6 @ 7,
+  // 4.2 @ 10, 4.85 @ 13, linear between); score is the fraction of it achieved, so early waves aren't punished
+  // for correctly holding cheap boards.
+  const defs = v.board.map((c) => CARD_INDEX[c.cardId]).filter((d): d is NonNullable<typeof d> => !!d);
+  const tierTarget = Math.max(1, Math.min(5.0, 0.375 * v.wave + 0.05));
+  const meanTier = defs.length ? defs.reduce((n, d) => n + d.tier, 0) / defs.length : 0;
+  const tierDensity = Math.min(1, meanTier / tierTarget);
+
+  const tribeCounts = new Map<string, number>();
+  for (const d of defs) {
+    for (const t of [d.tribe, d.tribe2]) {
+      if (t && t !== 'neutral') tribeCounts.set(t, (tribeCounts.get(t) ?? 0) + 1);
+    }
+  }
+  const tribeFocus = defs.length ? Math.max(0, ...tribeCounts.values()) / defs.length : 0;
+
+  // Pairs: duplicate non-golden cardIds across board AND hand. Held pairs are how triples happen, and triples
+  // are how high-tier cards arrive early — humans averaged 0.9 goldens at wave 10 against our 0.4.
+  const copies = new Map<string, number>();
+  for (const c of [...v.board, ...v.hand]) if (!c.golden) copies.set(c.cardId, (copies.get(c.cardId) ?? 0) + 1);
+  let pairCount = 0;
+  for (const n of copies.values()) pairCount += Math.floor(n / 2);
+  const pairsHeld = norm(pairCount, 2);
+
+  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
   const total =
     parts.fightStrength * w.fightStrength +
     parts.learnedStrength * w.learnedStrength +
+    parts.tierDensity * w.tierDensity +
+    parts.tribeFocus * w.tribeFocus +
+    parts.pairsHeld * w.pairsHeld +
     parts.boardPower * w.boardPower +
     parts.economy * w.economy +
     parts.tierProgress * w.tierProgress +
@@ -184,7 +238,7 @@ export function offerAppeal(cardId: string, attack: number, health: number, keyw
  * further to project — and that is also why the bot rarely refreshes: a refresh reads as pure loss because the
  * thing it buys (a better shop) is invisible here. That is a real gap, recorded rather than papered over.
  */
-export function expectedAfterRefresh(v: BotVisibleState, cfg: EvaluationConfig = EVALUATION_CONFIG_V1): EvaluationBreakdown {
+export function expectedAfterRefresh(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONFIG): EvaluationBreakdown {
   const cost = v.economy.freeRolls > 0 ? 0 : v.economy.refreshCost;
   return evaluate({
     ...v,

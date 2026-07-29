@@ -117,6 +117,58 @@ export function search(root: PlanningStateHandle, profile: BotDifficultyProfile,
   }
 
   rootChildren.sort((a, b) => b.utility - a.utility);
+  // REPLACEMENT MACROS — the fix for the board fossilizing at full width.
+  //
+  // Measured at wave 10: expert boards averaged meanTier 1.73 against the human corpus's 4.21, and per-round
+  // win rate collapsed from ~55% to ~0% starting exactly when boards fill (wave 6-7). The mechanism: once the
+  // board is full, improving it is a SELL -> PLAY (or SELL -> BUY -> PLAY) sequence, and at depth 1 the sell is
+  // scored alone — it always loses value, so it is always pruned, and the board keeps the tier-1 bodies it
+  // filled up with at wave 3 forever. Deeper uniform search does not fix this (beam 1 prunes the sell before
+  // its payoff is visible); scoring the SEQUENCE as one candidate does.
+  //
+  // Reuses the depth-0 sell children search already produced: the 3 least-bad sells each expand into plays of
+  // hand minions and buy->play chains of affordable shop minions, and the whole plan is scored at its END state.
+  if (rootVisible.board.length >= 7) {
+    const sells = rootChildren
+      .filter((n) => n.plan[0]?.action.type === 'sell')
+      .sort((a, b) => b.utility - a.utility)
+      .slice(0, 3);
+    for (const sellNode of sells) {
+      if (expanded >= profile.maxNodes + 40) break; // macros get their own small budget on top
+      const afterSell = visibleOf(sellNode.handle);
+      for (const cand of candidatesFor(afterSell)) {
+        if (cand.action.type !== 'play' && cand.action.type !== 'buy') continue;
+        if (expanded >= profile.maxNodes + 40) break;
+        expanded++;
+        const step2 = applyCandidate(sellNode.handle, cand.action);
+        owned.push(step2.child);
+        if (!step2.changed || step2.reveal) { release(step2.child); continue; }
+        let endHandle = step2.child;
+        let endVisible = step2.visible;
+        let plan = [...sellNode.plan, { action: cand.action, tag: cand.tag, fromFingerprint: sellNode.fp }];
+        if (cand.action.type === 'buy') {
+          // The bought minion lands in hand; the macro only pays off once it is FIELDED. Find it by diffing the
+          // hand and chain the play on.
+          const before = new Set(afterSell.hand.map((c) => c.uid));
+          const bought = endVisible.hand.find((c) => !before.has(c.uid));
+          if (!bought) { continue; }
+          const step3 = applyCandidate(endHandle, { type: 'play', uid: bought.uid, toIndex: endVisible.board.length });
+          owned.push(step3.child);
+          if (!step3.changed) { release(step3.child); continue; }
+          expanded++;
+          plan = [...plan, { action: { type: 'play', uid: bought.uid, toIndex: endVisible.board.length }, tag: `field ${bought.cardId}`, fromFingerprint: fingerprint(endVisible) }];
+          endHandle = step3.child;
+          endVisible = step3.visible;
+        }
+        const breakdown = evaluate(endVisible);
+        const label = `replace: ${sellNode.plan[0]!.tag} -> ${cand.tag}`;
+        const node: Node = { handle: endHandle, plan, fp: fingerprint(endVisible), utility: breakdown.total, breakdown, terminal: false };
+        rootAlternatives.push({ tag: label, utility: node.utility });
+        if (node.utility > best.utility) best = node;
+      }
+    }
+  }
+
   rootAlternatives.sort((a, b) => b.utility - a.utility);
 
   // BLUNDER — a seeded pick among near-best root actions, so a weak bot makes ordinary mistakes (the second

@@ -1,5 +1,6 @@
 import type { Action } from '../state';
 import { ACTION_CATALOG } from './actionCatalog';
+import { CARD_INDEX } from '@game/content';
 import type { BotVisibleState } from './types';
 
 /**
@@ -80,10 +81,28 @@ export function recruitCandidates(v: BotVisibleState): Candidate[] {
     out.push({ action: { type: 'buy', uid: v.spellOffer.uid }, tag: `buy ${v.spellOffer.cardId}` });
   }
 
-  // PLAY — each hand card at a few distinct seats. A spell needing a target is expanded per target.
+  // PLAY — minions to seats, spells to targets. These are different actions wearing the same type.
+  //
+  // The first version detected spells by looking the hand card up IN THE SHOP (`v.shop.some(o => o.uid ===
+  // c.uid)`) — vestigial nonsense, since a bought card is no longer a shop offer. The consequences stacked into
+  // the single biggest hole the bot had: aimed spells were generated with no `targetUid` (the reducer fizzles
+  // them), and EVERYTHING in hand was gated on `boardFull` — so from the moment the board filled (wave ~6, the
+  // exact onset of the measured round-7 collapse) the bot could not cast ANY spell, including untargeted
+  // economy and the board-wide buffs that are how human boards compound (94 -> 387 -> 9,680 power).
   for (const c of v.hand) {
-    const isSpellLike = v.shop.some((o) => o.uid === c.uid && o.spell); // hand cards keep their def; spells have no board seat
-    if (isSpellLike) continue;
+    const def = CARD_INDEX[c.cardId];
+    if (def?.spell) {
+      if (def.target === 'friendly' || def.target === 'any') {
+        // One candidate per friendly target. The board caps at 7, spells in hand are rare, and which minion
+        // a buff lands on is exactly the decision search exists to make — don't pre-curate it.
+        for (const t of v.board) {
+          out.push({ action: { type: 'play', uid: c.uid, targetUid: t.uid }, tag: `cast ${c.cardId} on ${t.cardId}` });
+        }
+      } else {
+        out.push({ action: { type: 'play', uid: c.uid }, tag: `cast ${c.cardId}` });
+      }
+      continue; // a spell never needs a board seat, so `boardFull` must not gate it
+    }
     if (boardFull) continue;
     for (const index of playIndices(v.board.length)) {
       out.push({ action: { type: 'play', uid: c.uid, toIndex: index }, tag: `play ${c.cardId}@${index}` });

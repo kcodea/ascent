@@ -215,25 +215,34 @@ describe('lobby rules — no rematch inside 3 rounds, and the odd seat faces a g
   });
 
   it('the ghost is the most recently fallen seat, at the board it died with', () => {
-    const s = playOut(createLobbyRun(4, 'drakko'));
-    const lobby = s.lobby!;
-    const ghostRounds = lobby.encounters.filter((e) => e.bye && e.fought);
-    expect(ghostRounds.length, 'no ghost fights to check').toBeGreaterThan(0);
+    // Ghost fights need an ODD living table, i.e. at least one elimination. Which seed produces one inside the
+    // played window shifts whenever seat strength changes (the spell-casting fix moved it), so scan seeds like
+    // the sibling test does instead of pinning one and asserting behaviour it no longer exhibits.
+    let lobby: NonNullable<RunState['lobby']> | null = null;
+    for (const seed of [4, 5, 6, 7, 8]) {
+      const candidate = playOut(createLobbyRun(seed, 'drakko')).lobby!;
+      if (candidate.encounters.some((e) => e.bye && e.fought)) { lobby = candidate; break; }
+    }
+    expect(lobby, 'no seed produced a ghost fight').not.toBeNull();
+    const ghostRounds = lobby!.encounters.filter((e) => e.bye && e.fought);
     for (const e of ghostRounds) {
-      const ghost = lobby.seats.find((x) => x.id === e.b)!;
+      const ghost = lobby!.seats.find((x) => x.id === e.b)!;
       expect(ghost.alive, 'the ghost should be an eliminated seat').toBe(false);
       expect(ghost.eliminatedRound, 'the ghost has no death round').toBeDefined();
       expect(ghost.eliminatedRound!, 'the ghost died after the round it was raised for').toBeLessThan(e.round);
       // Most RECENTLY fallen: nobody died later than it but still before this round.
-      const laterDead = lobby.seats.filter((x) => !x.alive && (x.eliminatedRound ?? 0) > ghost.eliminatedRound! && (x.eliminatedRound ?? 0) < e.round);
+      const laterDead = lobby!.seats.filter((x) => !x.alive && (x.eliminatedRound ?? 0) > ghost.eliminatedRound! && (x.eliminatedRound ?? 0) < e.round);
       expect(laterDead.map((x) => x.id), 'a more recent corpse was available').toEqual([]);
     }
   });
 
   it('a ghost takes no damage — it is already out', () => {
-    const s = playOut(createLobbyRun(4, 'drakko'));
-    for (const e of s.lobby!.encounters.filter((x) => x.bye && x.fought)) {
-      expect(e.damageToB, 'the ghost was dealt damage').toBe(0);
+    // Same seed-scan as above: the property must hold for every ghost fight, wherever one occurs.
+    for (const seed of [4, 5, 6, 7, 8]) {
+      const s = playOut(createLobbyRun(seed, 'drakko'));
+      for (const e of s.lobby!.encounters.filter((x) => x.bye && x.fought)) {
+        expect(e.damageToB, 'the ghost was dealt damage').toBe(0);
+      }
     }
   });
 });

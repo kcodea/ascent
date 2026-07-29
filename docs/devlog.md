@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+## 2026-07-29 — Replacement macros + the spell hole: first real gains vs human boards
+
+**Directive: bots that can win a game.** Two structural holes found and fixed, each worth more than every
+weight tweak combined:
+
+1. **The board fossilized at full width.** Once the board fills (wave ~6 — the exact onset of the measured
+round-7 collapse), improving it is a SELL→PLAY or SELL→BUY→PLAY sequence. At depth 1 the sell is scored alone,
+always loses value, always pruned — so the board kept its wave-3 tier-1 bodies forever (measured meanTier 1.73
+at wave 10 vs the human corpus's 4.21). Fix: **replacement macros** in `search.ts` — the 3 least-bad sells
+expand into plays/buy-chains and the whole sequence is scored at its END state.
+
+2. **The bot could not cast spells once the board was full.** The candidate generator detected spells by
+looking the hand card up in the SHOP (vestigial nonsense), generated aimed spells with no `targetUid` (the
+reducer fizzles them), and gated everything in hand on `boardFull` — so from wave ~6 on, no spell of any kind
+could be cast. Buff spells are exactly how human boards compound (94 → 387 → 9,680 power at waves 7/10/13).
+Fix: spells generate as casts — per-target for `friendly`/`any`, plain for untargeted — never gated on width.
+
+**Also built: `npm run bot:tune`** — searches the evaluator weight space against the real objective (wins vs
+human boards). Its first finding: the three hand-picked 'shape' weights (tierDensity/tribeFocus/pairsHeld)
+were ALL harmful — 3.15 wins weighted vs 4.50 zeroed. They stay computed at weight 0 for the tuner and future
+personas. Also re-tested depth post-panel-fix: still harmful (3.85 vs 4.50 at 20 seeds); expert stays depth 1.
+
+**Measured, 40 seeds vs real player boards:**
+
+| | session start | now |
+|---|---|---|
+| expert wins | 3.65 ±0.29 | **4.33 ±0.27** |
+| hard wins | 3.63 ±0.29 | **4.38 ±0.28** |
+| vs legacy | 3.33 | 3.33 |
+
+Wave-10 board power moved 147 → 225 (human: 387). Still 0 course survivals; death round moved 9.5 → 10.0.
+
+**Test churn:** the lobby ghost tests pinned seed 4 and asserted an elimination inside the played window;
+stronger seats now survive it. They scan seeds like their sibling test instead. One bot test rewritten earlier
+asserted a sub-noise ordering at 12 seeds.
+
+**Next lever (from the data, not vibes):** the remaining gap is compounding — human power quadruples from wave
+7→10 and ×25 from 10→13 while the bot's doubles. Quest/rune valuation (mandatory picks are scored by immediate
+eval, which cannot see a quest's future) and triple construction are where that lives.
+
 ## 2026-07-29 — CORRECTION: the board model's r=0.789 was leakage
 
 The held-out split in the entry below was **every 4th board**. The corpus has only **56 distinct runs from 7

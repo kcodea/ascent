@@ -222,6 +222,32 @@ export function setBinding(cardId: string | null, kind: MomentKind, binding: FxB
   savePatch();
 }
 
+/**
+ * Drop a session override so the committed file applies again.
+ *
+ * NOT the same as `setBinding(cardId, kind, null)`. That writes a TOMBSTONE — an explicit "this plays
+ * nothing here" that stops resolution falling through to the file. This removes the entry entirely, which
+ * is what tearing down a preview needs: the author's draft should leave no trace, and the card should go
+ * back to whatever it played before, not go silent.
+ */
+export function clearBinding(cardId: string | null, kind: MomentKind): void {
+  if (cardId === null) {
+    const kinds = { ...patch.kinds };
+    delete kinds[kind];
+    patch = { ...patch, kinds };
+  } else {
+    const byKind = { ...patch.cards[cardId] };
+    delete byKind[kind];
+    const cards = { ...patch.cards };
+    // Drop the card entirely once it has no overrides left, so the persisted patch doesn't accumulate
+    // empty objects across a long session.
+    if (Object.keys(byKind).length > 0) cards[cardId] = byKind;
+    else delete cards[cardId];
+    patch = { ...patch, cards };
+  }
+  savePatch();
+}
+
 /** Drop every session override, back to the committed file. */
 export function resetBindings(): void {
   patch = { kinds: {}, cards: {} };

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bindingFor, bindingsJson, effectiveTables, parseTable, resetBindings, setBinding } from './bindings';
+import { bindingFor, bindingsJson, clearBinding, effectiveTables, parseTable, resetBindings, setBinding } from './bindings';
 import { CARD_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
 
@@ -287,6 +287,43 @@ describe('session overrides', () => {
       expect(localStorage.getItem('ascent.fxBindings')).toContain('test-red-blast');
       resetBindings();
       expect(localStorage.getItem('ascent.fxBindings')).toBeNull();
+    });
+  });
+});
+
+describe('clearBinding', () => {
+  beforeEach(() => resetBindings());
+
+  // The distinction this function exists for. A tombstone says "this card plays NOTHING here" and stops
+  // resolution; clearing says "I have no opinion", so the file's own binding applies again. Tearing down a
+  // draft needs the second — the first would leave the card silent instead of restored.
+  it('removes an override, restoring the file binding — unlike a tombstone', () => {
+    setBinding('bloodbinder', 'scCast', { def: 'test-red-blast' });
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'test-red-blast' });
+
+    clearBinding('bloodbinder', 'scCast');
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+
+    setBinding('bloodbinder', 'scCast', null); // tombstone, for contrast
+    expect(bindingFor('bloodbinder', 'scCast')).toBeNull();
+  });
+
+  it('clears a kind-level override', () => {
+    setBinding(null, 'scCast', { def: 'test-red-blast' });
+    clearBinding(null, 'scCast');
+    expect(bindingFor(null, 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  it('is a no-op when nothing was overridden', () => {
+    clearBinding('bloodbinder', 'scCast');
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+  });
+
+  it('persists the removal, so a reload does not resurrect the override', () => {
+    withLocalStorage(() => {
+      setBinding(null, 'scCast', { def: 'test-red-blast' });
+      clearBinding(null, 'scCast');
+      expect(localStorage.getItem('ascent.fxBindings') ?? '').not.toContain('test-red-blast');
     });
   });
 });

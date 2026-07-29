@@ -1960,6 +1960,35 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
+          {/* THE SEED-LOCK WARNING. `save()` (and `commit()`) write `seedLocked ? seed : undefined`, which is
+              correct and deliberate — an unlocked composition means "roll fresh", so writing a seed anyway
+              would freeze a look the author left free. The hazard is the other direction: forgetting the lock
+              is on. A baked seed makes every play of that effect in the real game the identical roll forever,
+              which is occasionally wanted (an exactly-choreographed signature hit) and usually not, because
+              repeated procs start reading as mechanical. The lock survives reloads (it's in the session
+              snapshot), so it is easy to forget it is on.
+
+              So: NOT auto-unlocked on save. That would silently change what gets written and break the
+              legitimate baked-seed case. Instead it is made visible at the moment of decision — this line sits
+              directly under the Save button for as long as the lock is on, names the actual number, and
+              carries its own one-click Unlock. Rendered on the LOCK STATE rather than after a save attempt, so
+              you cannot reach Save without having had it in front of you. */}
+          {seedLocked && (
+            <div className="fxwb-def-seedwarn">
+              <span className="fxwb-def-seedwarn-txt">
+                🔒 Seed <strong>{seed}</strong> will be baked into this def — every play of it in the game
+                will be the identical roll. Unlock to let it roll fresh each time.
+              </span>
+              <button
+                type="button"
+                className="fxwb-def-seedwarn-unlock"
+                title="Unlock the seed — this def then rolls fresh randomness on every play, and no seed is written"
+                onClick={toggleSeedLock}
+              >
+                Unlock
+              </button>
+            </div>
+          )}
           {saveNote !== null && <div className="fxwb-def-note">{saveNote}</div>}
           {saveError !== null && <div className="fxwb-def-err">{saveError}</div>}
         </div>

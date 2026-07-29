@@ -38,6 +38,19 @@ session helpers and share their best-effort contract: hostile or absent storage 
 to a throw. Five new `defStore` tests cover the round trip, the empty-string case, independence from the
 session snapshot, and both storage-failure modes.
 
+**3. Saving with the seed locked warns instead of surprising.** `save()` and `commit()` write
+`seedLocked ? seed : undefined`, which is right: unlocked means "roll fresh", so writing a seed anyway would
+freeze a look the author deliberately left free. The hazard is the other direction — forgetting the lock is on.
+A baked seed makes **every play of that effect in the real game the identical roll, forever**: occasionally
+wanted (an exactly-choreographed signature hit), usually not, because repeated procs start reading as
+mechanical. And the lock state is in the session snapshot, so it survives reloads and is easy to forget.
+Save **deliberately does not auto-unlock** — that would silently change what gets written and break the
+legitimate baked-seed case. Instead an amber line now sits directly under the Save button for as long as the
+lock is on, naming the actual seed value and what it means, with a one-click **Unlock** (the same
+`toggleSeedLock` the transport's 🔒 calls). It renders on the *lock state*, not after a save attempt, so Save
+cannot be reached without it having been on screen — and because it lives in `.fxwb-side`, it is equally
+visible in rail mode, where Commit writes the same seed.
+
 **Verified.** `npm run typecheck` (pkgs + web), `npx eslint packages/ui/src/fx/`, `npm run build:web` and
 `npm test` all green. No React tests exist or are possible in this repo (no jsdom, no
 `@testing-library/react`), so the layout claims are code-and-CSS review plus the owner's eye.

@@ -47,7 +47,9 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **FX workbench: stop hiding things.** A friction batch on the effects authoring tool. "Watch in combat" no
   longer strands you: the rail carries its own compact ▶/⏸ · 🔥 Fire · scrubber, so you can retrigger and scrub
   the effect you're tuning while watching it play on a real card. And the commit confirmation now survives the
-  page reload that committing itself forces, instead of being unreadable by construction.
+  page reload that committing itself forces, instead of being unreadable by construction. And a locked seed —
+  which bakes one frozen roll into a shipped def forever — now warns under the Save button, naming the seed,
+  with a one-click unlock.
 - **＋ New effect — the FX workbench gets an on-ramp.** A preset gallery of archetypes (⚡ Bolt, 💥 Blast), each
   with variants (thin / heavy / crackling / beam), lands a tuned, working composition in the editor instead of a
   blank page. A variant is a multiplier table applied to slider params only — clamped, snapped, and loud about

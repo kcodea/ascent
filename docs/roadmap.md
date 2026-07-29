@@ -250,9 +250,8 @@ The career surface exists; deepen what a finished run *remembers*.
   them: a new base is a def file plus one entry in `fx/presets/presets.json`.
 
 - **FX workbench friction batch.** Small, unrelated papercuts worth doing together. Remaining: **`fanOut` is
-  jargon** in the binding table and wants plain language; and **saving with the seed locked bakes a frozen
-  roll** into a shipped def, which is far too easy to do by accident. (Rail mode's missing Fire/scrub and the
-  unreadable commit confirmation — shipped, see the devlog.)
+  jargon** in the binding table and wants plain language. (Rail mode's missing Fire/scrub, the unreadable commit
+  confirmation and the silently-baked locked seed — shipped, see the devlog.)
 
 - **Preset misses are invisible where it matters most.** `applyVariant` reports every key that reached nothing
   in `missed`, and the gallery DEV-warns it to the console — but nothing surfaces in the UI. The gallery is the

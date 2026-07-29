@@ -162,7 +162,10 @@ Two details:
 > forever, the same. Occasionally that's what you want (a signature, exactly-choreographed hit). Usually it
 > isn't: repeated procs start reading as mechanical. **Unlock before you Save** unless you mean it. No def
 > currently in `fx/defs/` carries a baked seed. The lock state persists across reloads, so it is easy to
-> forget it's on.
+> forget it's on — which is why an amber line now sits under the Save button naming the exact seed that will
+> be baked, with a one-click **Unlock**, for as long as the lock is on. Save does **not** auto-unlock: that
+> would silently change what gets written and break the signature-hit case. The warning is the fix; the
+> decision stays yours.
 
 ---
 
@@ -297,8 +300,8 @@ be presented as this commit's confirmation.
 - **Only two preset archetypes so far** (Bolt, Blast), and both are unreviewed first passes. Eight more are
   queued — wave, chain, cloud, swell, drip, vortex, slam, beam — landing one at a time so each gets judged at
   real card scale rather than eight at once.
-- **`fanOut` is jargon in the binding table**, and saving with the seed locked bakes a frozen roll. The rest of
-  the same friction batch that gave rail mode its own transport (§9).
+- **`fanOut` is jargon in the binding table.** The last of the friction batch that gave rail mode its own
+  transport (§9).
 
 ---
 

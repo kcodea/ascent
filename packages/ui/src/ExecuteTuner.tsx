@@ -1,5 +1,5 @@
 import {
-  EXECUTE_DEFAULTS, EXECUTE_RANGES, getExecuteConfig, resetExecuteConfig, setExecuteValue,
+  EXECUTE_DEFAULTS, EXECUTE_GROUPS, EXECUTE_RANGES, getExecuteConfig, resetExecuteConfig, setExecuteValue,
   type ExecuteConfig, type ExecuteNumKey,
 } from './executeConfig';
 import { TunerPanel } from './TunerPanel';
@@ -82,17 +82,13 @@ const COLORS: [keyof ExecuteConfig, string, string][] = [
   ['shardColor', 'Shards', 'Colour of the drifting shards.'],
 ];
 
-/** Section titles mirror the layer order the effect is actually composited in. */
-const SECTIONS: { title: string; keys: ExecuteNumKey[] }[] = [
-  { title: 'Aura box', keys: ['size', 'y', 'sx', 'sy', 'pulse', 'pulseMin'] },
-  { title: '1 · Smoke', keys: ['smokeCount', 'smokeRadius', 'smokeSize', 'smokeBlur', 'smokeA0', 'smokeA1', 'smokeSc0', 'smokeSc1', 'smokeSpin', 'smokePulse'] },
-  { title: '2 · Arcs', keys: ['arcCount', 'arcD', 'arcSx', 'arcSy', 'arcGap', 'arcThick', 'arcBlades', 'arcTail', 'arcEdge', 'arcAlpha', 'arcBlur', 'arcSpin'] },
-  { title: '3 · Glints', keys: ['glintCount', 'glintRadius', 'glintLen', 'glintThick', 'glintAlpha', 'glintSpin'] },
-  { title: '4 · Shards', keys: ['shardCount', 'shardRadius', 'shardSize', 'shardTail', 'shardBlur', 'shardOut', 'shardSweep', 'shardAlpha', 'shardSpin'] },
-];
-
+/**
+ * Sections come from the CONFIG's own `EXECUTE_GROUPS`, not a copy here. `executeConfig.test.ts` already
+ * asserts those groups cover every numeric key exactly once — duplicating the list in this file would let the
+ * two drift with the test still passing, since it only ever checks the config's copy.
+ */
 const controls: TunerControl<Extract<keyof ExecuteConfig, string>>[] = [
-  ...SECTIONS.flatMap((s) =>
+  ...EXECUTE_GROUPS.flatMap((s) =>
     s.keys.map((key) => {
       const [label, unit, hint] = NUM[key];
       const [min, max, step] = EXECUTE_RANGES[key];

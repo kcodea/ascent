@@ -4167,28 +4167,50 @@ svg { width: 18px; height: 18px; }
    Additive only. Panels migrated to `TunerPanel` keep every `.sfxmix*` class the hand-rolled ones use, so a
    half-migrated toolset still reads as one product; these rules add what the schema made possible — sections,
    a units column, a number box, and the modified-from-shipped mark. */
-.tuner-section + .tuner-section { margin-top: 9px; }
-.tuner-gh { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.1em;
+/* OPENING WIDTH. `.sfxmix` defaults to 290px, which was sized for the old three-column row
+   (name · slider · value). A schema row has four columns — name · slider · number box · unit — and at 290px
+   the panel overflowed horizontally the moment it opened, so every fresh panel had to be dragged wider before
+   it could be read. Panels remember their SIZE (`ascent.devpanel.<key>`) but not until you resize one, so the
+   default is what you actually meet. 400px fits the widest label in the migrated set with room to spare. */
+.tunerpanel { width: 400px; }
+/* Grid children default to `min-width: auto`, which means they refuse to shrink below their content and push
+   the panel wider instead of fitting it. This is what actually produced the overflow. */
+/* EVERY layout rule below is scoped `.tunerpanel …` on purpose, not for tidiness. A schema row reuses the
+   `.sfxmix-row` / `.sfxmix-name` / `.sfxmix-val` classes so a half-migrated toolset still looks like one
+   product — but those rules are `display: flex` with fixed `flex` bases, they tie these on specificity, and
+   they are DEFINED LATER in this file. An unscoped `.tuner-row { display: grid }` therefore lost silently:
+   the grid never applied, the slider collapsed to 0px and the number box stretched to 233px. The extra
+   `.tunerpanel` raises these to (0,2,0) so they win wherever they sit in the file. */
+.tunerpanel .tuner-section + .tuner-section { margin-top: 9px; }
+.tunerpanel .tuner-gh { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--ink3); padding: 3px 0 4px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
 /* name · slider · number · unit */
-.tuner-row { display: grid; grid-template-columns: minmax(84px, 1.15fr) minmax(60px, 1fr) 52px 30px; align-items: center; gap: 7px; }
-.tuner-num { width: 100%; min-width: 0; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px;
+.tunerpanel .tuner-row { display: grid; grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 54px 28px;
+  align-items: center; gap: 7px; margin: 4px 0; }
+/* Grid children default to `min-width: auto` and refuse to shrink below their content, pushing the panel wider
+   instead of fitting it; the flex bases inherited from `.sfxmix-*` would also fight the tracks. */
+.tunerpanel .tuner-row > * { min-width: 0; flex: none; }
+.tunerpanel .tuner-row input[type="range"] { width: 100%; min-width: 0; }
+.tunerpanel .tuner-row .sfxmix-name { flex: none; }
+.tunerpanel .tuner-row .sfxmix-val { flex: none; text-align: left; }
+.tunerpanel .tuner-num { width: 100%; min-width: 0; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px;
   background: var(--bg2); color: var(--ink); font-family: var(--font-ui); font-weight: 700; font-size: 11px;
   text-align: right; -moz-appearance: textfield; }
-.tuner-num::-webkit-outer-spin-button, .tuner-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.tuner-num:focus { outline: none; border-color: var(--acc); background: var(--card); }
-.tuner-unit { font-size: 10px; color: var(--ink3); text-align: left; white-space: nowrap; }
+.tunerpanel .tuner-num::-webkit-outer-spin-button,
+.tunerpanel .tuner-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.tunerpanel .tuner-num:focus { outline: none; border-color: var(--acc); background: var(--card); }
+.tunerpanel .tuner-unit { font-size: 10px; color: var(--ink3); text-align: left; white-space: nowrap; }
 /* The modified mark doubles as the revert button — it only exists when the value differs from shipped. */
-.tuner-mod { margin-left: 5px; padding: 0; border: 0; background: none; color: var(--acc); font-size: 9px;
+.tunerpanel .tuner-mod { margin-left: 5px; padding: 0; border: 0; background: none; color: var(--acc); font-size: 9px;
   line-height: 1; cursor: pointer; vertical-align: middle; }
-.tuner-mod:hover { color: var(--threat); }
+.tunerpanel .tuner-mod:hover { color: var(--threat); }
 /* Colour rows have no number box, so the swatch takes the slider's column and the hex takes the rest. */
-.tuner-row-color { grid-template-columns: minmax(84px, 1.15fr) minmax(60px, 1fr) 82px; }
-.tuner-row-color input[type="color"] { width: 100%; height: 20px; padding: 0; border: 1px solid var(--line);
+.tunerpanel .tuner-row-color { grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 76px; }
+.tunerpanel .tuner-row-color input[type="color"] { width: 100%; height: 20px; padding: 0; border: 1px solid var(--line);
   border-radius: 5px; background: none; cursor: pointer; }
-.tuner-hex { font-size: 10px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.tunerpanel .tuner-hex { font-size: 10px; color: var(--ink3); font-variant-numeric: tabular-nums; text-align: left; }
 /* Per-control caveat marker — hover it for the reason. Muted so it reads as an aside, not an error. */
-.tuner-note { margin-left: 4px; color: var(--ink3); font-size: 10px; cursor: help; vertical-align: super; }
+.tunerpanel .tuner-note { margin-left: 4px; color: var(--ink3); font-size: 10px; cursor: help; vertical-align: super; }
 
 .sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
 .sfxmix-h.drag { cursor: move; user-select: none; touch-action: none; }

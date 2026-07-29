@@ -30,6 +30,8 @@ export const SC_RANGES: Record<keyof StepCounterConfig, [number, number, number]
   y: [-48, 24, 1],
 };
 export const SC_KEYS = Object.keys(DEFAULTS) as (keyof StepCounterConfig)[];
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as SC_DEFAULTS };
 
 const KEY = 'ascent.stepcounter';
 let cfg: StepCounterConfig = (() => {

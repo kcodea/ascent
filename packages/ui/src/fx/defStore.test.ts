@@ -8,6 +8,7 @@ import {
   loadSession,
   parseDef,
   saveArt,
+  saveBindings,
   saveDef,
   saveSession,
   slugify,
@@ -377,6 +378,30 @@ describe('saveDef / saveArt', () => {
     });
     await expect(saveDef(def)).resolves.toMatchObject({ ok: false });
     await expect(saveArt('ember', png)).resolves.toMatchObject({ ok: false });
+  });
+});
+
+describe('saveBindings', () => {
+  it('POSTs the serialised table to /__fx/bindings and reports ok', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      json: () => Promise.resolve({ ok: true, path: 'packages/ui/src/choreo/bindings.json' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await saveBindings('{"version":1,"kinds":{},"cards":{}}');
+    expect(res).toEqual({ ok: true, path: 'packages/ui/src/choreo/bindings.json' });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/__fx/bindings');
+    expect(init.method).toBe('POST');
+    const body = JSON.parse(init.body as string) as { json: string };
+    expect(body).toEqual({ json: '{"version":1,"kinds":{},"cards":{}}' });
+  });
+
+  it('degrades when the dev server is unreachable, same as saveDef', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Failed to fetch')));
+    const res = await saveBindings('{"version":1,"kinds":{},"cards":{}}');
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toContain('Failed to fetch');
   });
 });
 

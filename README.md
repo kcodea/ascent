@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Commit animation.** Pick a card and a moment in the workbench, tune the effect while watching it on the
+  real card, then commit — writing the effect and its binding together, for that card only (forking it) or
+  everywhere.
 - **Three new minions** — Moira (trigger adjacent Shouts), Mineral Master (Rally → Rubies on your Kobolds), and
   **Paragon**, the all-type minion whose Rally buffs a minion of every type permanently.
 - **Tier 7 now needs access** — the Summit rift, or a hero/quest that grants it. Beyond the Summit only promises

@@ -15,6 +15,7 @@ import {
   isValidSlug,
   loadSession,
   saveArt,
+  saveBindings,
   saveDef,
   saveSession,
   slugify,
@@ -27,6 +28,18 @@ import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
 import { LibraryBrowser } from './LibraryBrowser';
 import { ProcHarness } from '../harness/ProcHarness';
+import { CommitPanel } from '../harness/CommitPanel';
+import { planCommit } from '../harness/commitPlan';
+import {
+  bindingBeneathDraft,
+  bindingsJson,
+  clearBinding,
+  DRAFT_DEF_ID,
+  effectiveTables,
+  setBinding,
+  type FxBinding,
+} from '../../choreo/bindings';
+import type { MomentKind } from '../../choreo/kinds';
 import { useGame } from '../../store';
 import { createBackdrop, type FxBackdrop } from './backdrop';
 import { Timeline } from './Timeline';
@@ -96,6 +109,15 @@ const BACKDROP_SWATCHES: readonly { label: string; hex: number | null }[] = [
 // matching how every other dev tuner already vanishes from the shipped bundle. `build()` below polls for
 // a primitive to appear before using it, since this resolves asynchronously.
 if (import.meta.env.DEV) void import('../primitives');
+
+/**
+ * The art-ref rewrite map the DRAFT uses: empty, and module-scope so its identity is stable across renders.
+ *
+ * A draft is watched in THIS browser, where a `custom:<slug>` shape already resolves out of the local shape
+ * library — so there is nothing to rewrite, and rewriting would mean uploading a PNG on every slider frame.
+ * The commit path does the real upload (`uploadArtRefs`), which is where portability actually matters.
+ */
+const NO_ART_REFS: ReadonlyMap<string, string> = new Map();
 
 /** Duration dial bounds (ms) — replaces the old hardcoded `DURATION_MS` constant. Default matches the old
  *  constant's rough neighbourhood; the dial lets a tuner widen/narrow the def's duration (and thus the
@@ -218,6 +240,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // A MODE rather than a second overlay, because the whole point is tuning and watching without a context
   // switch — two windows would put them a click apart, which is the loop this is meant to remove.
   const [railMode, setRailMode] = useState(false);
+  // The harness's selection, lifted here so the commit panel can address it (see ProcHarnessProps).
+  const [harnessCard, setHarnessCard] = useState('');
+  const [harnessKind, setHarnessKind] = useState<MomentKind | null>(null);
+  const [commitScope, setCommitScope] = useState<'card' | 'global'>('card');
+  const [commitFanOut, setCommitFanOut] = useState<FxBinding['fanOut']>('primary');
+  const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
+  const [commitNote, setCommitNote] = useState<string | null>(null);
   // The fight the live replay is currently animating. Read off the store rather than passed in, because the
   // workbench is mounted from `DevMenu` — a SIBLING of `Recruit` under `Game`, so no common parent holds it.
   const lastCombat = useGame((s) => s.run.lastCombat);
@@ -1118,6 +1148,31 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   };
 
   /**
+   * Upload every `custom:<slug>` shape the composition references and return the rewrite map.
+   *
+   * Extracted from `save()` so COMMIT gets the same art portability rather than a second, weaker write path:
+   * a committed def whose shape lives only in this browser's localStorage renders a fallback silhouette on
+   * anyone else's machine, and that is just as true of a def written by the commit button as by Save.
+   * Failures are collected, never thrown — one un-travelled PNG must not block the def itself.
+   */
+  const uploadArtRefs = async (): Promise<{ artRefs: Map<string, string>; failures: string[] }> => {
+    const artRefs = new Map<string, string>();
+    const failures: string[] = [];
+    for (const ref of collectCustomShapeRefs(layers)) {
+      const dataUrl = getImportedDataUrl(ref);
+      if (dataUrl === null) {
+        failures.push(`${ref} isn't in this browser's shape library`);
+        continue;
+      }
+      const slug = artSlugOf(ref);
+      const art = await saveArt(slug, dataUrl);
+      if (art.ok) artRefs.set(ref, `${ART_SHAPE_REF_PREFIX}${slug}`);
+      else failures.push(`${ref}: ${art.error}`);
+    }
+    return { artRefs, failures };
+  };
+
+  /**
    * Save the composition as a committed def.
    *
    * The subtle half is ART PORTABILITY: a `custom:<slug>` shape param names a PNG that lives only in THIS
@@ -1143,19 +1198,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setSaveNote(null);
     setSaveError(null);
     try {
-      const artRefs = new Map<string, string>();
-      const artFailures: string[] = [];
-      for (const ref of collectCustomShapeRefs(layers)) {
-        const dataUrl = getImportedDataUrl(ref);
-        if (dataUrl === null) {
-          artFailures.push(`${ref} isn't in this browser's shape library`);
-          continue;
-        }
-        const slug = artSlugOf(ref);
-        const art = await saveArt(slug, dataUrl);
-        if (art.ok) artRefs.set(ref, `${ART_SHAPE_REF_PREFIX}${slug}`);
-        else artFailures.push(`${ref}: ${art.error}`);
-      }
+      const { artRefs, failures: artFailures } = await uploadArtRefs();
       // The seed travels with the def ONLY while locked — an unlocked composition means "roll fresh", and
       // writing a seed anyway would silently freeze a look the author deliberately left free.
       const stored = toStoredDef(
@@ -1184,6 +1227,151 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       setSaveError(err instanceof Error ? err.message : 'Save failed.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  /**
+   * Switch the harness's card, and DROP the selected moment with it.
+   *
+   * A moment kind belongs to the card that produced it. Carrying `summon` over to a card that never summons
+   * rebinds the draft to a row the new card may never reach, and the panel will happily commit it — a dead
+   * binding in a tracked file that plays nothing and that the author never chose. Clearing it puts the panel
+   * back to "click a moment row", which is the truth after the card changes.
+   */
+  const changeHarnessCard = useCallback((cardId: string) => {
+    setHarnessCard(cardId);
+    setHarnessKind(null);
+  }, []);
+
+  // ── commit animation: the live draft, then the committed def + binding ──────────────────────────────
+  //
+  // DECLARED BEFORE the draft effects below, and that ordering is load-bearing: effects in one commit run in
+  // declaration order, so running second would read the draft this render is about to bind.
+  //
+  // Inherit the fanOut of whatever plays there NOW — and "there" depends on the scope. A card commit
+  // inherits the card's own value; a global commit inherits the KIND's, ignoring any card override.
+  //
+  // Reading the card layer for a global commit is how you write `damaged` — correct for Bloodbinder, whose
+  // cast damages its marks — onto EVERY card's scCast, most of which damage nobody in that step and would
+  // therefore play zero copies. One commit, every card, silently nothing, from a value that looks right in
+  // the dropdown. Switching scope re-derives and will discard a manual choice, deliberately: the scope
+  // change is what makes the old value the wrong question.
+  //
+  // `bindingBeneathDraft`, not `bindingFor`: once the draft is bound it IS the card's binding and carries
+  // whatever this effect last produced, so `bindingFor` would hand back its own output — and a card → global
+  // → card round trip would restore the global-derived value instead of the card's real one.
+  useEffect(() => {
+    if (harnessCard === '' || harnessKind === null) return;
+    const scopeKey = commitScope === 'card' ? harnessCard : null;
+    setCommitFanOut(bindingBeneathDraft(scopeKey, harnessKind)?.fanOut ?? 'primary');
+  }, [harnessCard, harnessKind, commitScope]);
+
+  // While rail mode has a card AND a moment selected, the editor's current composition IS what that card
+  // plays — registered in memory under `DRAFT_DEF_ID` and bound through the session patch, which
+  // `bindingFor` consults before the committed file. Nothing touches disk; re-seek the moment and you see
+  // the edit. The draft can never LEAK to disk either: `bindings.ts` strips that id out of both the
+  // localStorage write and the committed table (see `DRAFT_DEF_ID`).
+  //
+  // Registration is split from binding deliberately. This half re-runs on every slider frame and stays in
+  // memory (a map write plus a cache bust — though that bust is not free: it drops the def index, so the
+  // NEXT `getDef`/`listDefs` rebuilds it and re-runs `coerceDef` over every def in the library, a cost that
+  // grows with the library). `setBinding` below persists to localStorage, and doing THAT per frame of a drag
+  // is exactly the kind of hitch this repo treats as a defect.
+  useEffect(() => {
+    if (!railMode || harnessCard === '' || harnessKind === null) return;
+    registerSavedDef(
+      toStoredDef(DRAFT_DEF_ID, durationMs, toStoredLayers(layers, NO_ART_REFS), seedLocked ? seed : undefined),
+    );
+  }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked]);
+
+  // Point the selected (card, moment) at the draft, and take it back down again on the way out.
+  //
+  // Teardown is a CLEANUP FUNCTION rather than a second `if (!railMode)` effect, because the effect that
+  // leaves rail mode is not the only one that has to clean up: changing the CARD (or the moment) while still
+  // in rail mode also abandons an override, and a `!railMode` guard returns early in exactly that case,
+  // leaving the previous card silently wearing the draft until the mode closed. A cleanup closes over the
+  // pair it bound, so every transition — selection change, rail-mode exit, unmount — clears the right one.
+  //
+  // It uses `clearBinding`, NOT `setBinding(..., null)`: the latter writes a tombstone meaning "plays
+  // nothing", which would leave the card silent rather than restoring what it played before.
+  useEffect(() => {
+    if (!railMode || harnessCard === '' || harnessKind === null) return;
+    const card = harnessCard;
+    const kind = harnessKind;
+    setBinding(card, kind, commitFanOut === undefined || commitFanOut === 'primary'
+      ? { def: DRAFT_DEF_ID }
+      : { def: DRAFT_DEF_ID, fanOut: commitFanOut });
+    return () => clearBinding(card, kind);
+  }, [railMode, harnessCard, harnessKind, commitFanOut]);
+
+  const commitPlan = useMemo(() => {
+    if (harnessCard === '' || harnessKind === null) return null;
+    const baseId = slugify(defName);
+    if (!isValidSlug(baseId)) return null;
+    return planCommit({
+      scope: commitScope,
+      baseId,
+      cardId: harnessCard,
+      kind: harnessKind,
+      fanOut: commitFanOut,
+      knownDefIds: defs.map((d) => d.id),
+      tables: effectiveTables(),
+    });
+  }, [harnessCard, harnessKind, defName, commitScope, commitFanOut, defs]);
+
+  const commitMissing =
+    harnessCard === '' ? 'Pick a card in the harness first.'
+    : harnessKind === null ? 'Click a moment row to choose what this effect plays on.'
+    : !isValidSlug(slugify(defName)) ? 'Give the effect a name first.'
+    : null;
+
+  /**
+   * Write the def, THEN the binding. Never the reverse: a binding written first with the def write failing
+   * would point at a def that does not exist, which resolves to nothing and looks exactly like the tool
+   * being broken. In this order a def failure changes nothing at all, and a binding failure leaves only an
+   * unbound def file — a library entry that nothing plays.
+   *
+   * Deliberately does NOT call `resetBindings()`. The committed file does not reach `COMMITTED` until HMR
+   * re-evaluates the module, so dropping the session patch here would make the effect vanish at the exact
+   * moment it was committed. The patch is cleared on leaving rail mode, by which point the file is
+   * authoritative.
+   */
+  const commit = async (): Promise<void> => {
+    const plan = commitPlan;
+    // `blocked` is re-checked here, not just trusted to the disabled button: the button is presentation and
+    // this is the thing that writes files. See `planCommit`'s reserved-id guard.
+    if (plan === null || plan.blocked !== null || committing) return;
+    setCommitting(true);
+    setCommitError(null);
+    setCommitNote(null);
+    try {
+      const { artRefs, failures } = await uploadArtRefs();
+      const stored = toStoredDef(
+        plan.defId,
+        durationMs,
+        toStoredLayers(layers, artRefs),
+        seedLocked ? seed : undefined,
+      );
+      const defResult = await saveDef(stored);
+      if (!defResult.ok) {
+        setCommitError(`Def not written — nothing changed. ${defResult.error}`);
+        return;
+      }
+      registerSavedDef(stored);
+      refreshLibrary();
+      setBinding(plan.bindingTarget.cardId, plan.bindingTarget.kind, plan.binding);
+      const bindResult = await saveBindings(bindingsJson());
+      if (!bindResult.ok) {
+        setCommitError(`Def saved, but the binding was not written: ${bindResult.error}`);
+        return;
+      }
+      setDefName(plan.defId);
+      setCommitError(failures.length > 0 ? `Committed, but art didn't travel: ${failures.join('; ')}` : null);
+      setCommitNote(`Committed → ${plan.defId} · ${bindResult.path}`);
+    } catch (err) {
+      setCommitError(err instanceof Error ? err.message : 'Commit failed.');
+    } finally {
+      setCommitting(false);
     }
   };
 
@@ -1780,7 +1968,34 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           layout: editor rail, harness rail, live board in what's left. `combat` comes straight off the store
           rather than from a prop, and `onSeek` goes through the `window.__fxSeek` handle `Recruit` publishes
           — see the comment there for why neither can be threaded down as a prop. */}
-      {railMode && <ProcHarness onSeek={seekReplay} combat={lastCombat} />}
+      {railMode && (
+        // The rail COLUMN. `.fxharness` positions itself absolutely (it predates the commit panel and owned
+        // the whole rail), so a bare sibling `.fxcommit` fell out of flow to the root's top-left and painted
+        // a full-width band straight across the board — measured live at x=0, width=1600. The wrapper turns
+        // the rail into one flex column that the two panels share and scroll together; see `.fxrail`.
+        <div className="fxrail">
+          <ProcHarness
+            onSeek={seekReplay}
+            combat={lastCombat}
+            cardId={harnessCard}
+            onCardChange={changeHarnessCard}
+            selectedKind={harnessKind}
+            onSelectMoment={setHarnessKind}
+          />
+          <CommitPanel
+            plan={commitPlan}
+            missing={commitMissing}
+            scope={commitScope}
+            onScopeChange={setCommitScope}
+            fanOut={commitFanOut}
+            onFanOutChange={setCommitFanOut}
+            busy={committing}
+            error={commitError}
+            note={commitNote}
+            onCommit={() => void commit()}
+          />
+        </div>
+      )}
 
       {browsing && (
         <LibraryBrowser

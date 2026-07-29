@@ -129,7 +129,29 @@ restart). Autosave runs alongside it, so a hot-reload can't eat a tuning session
 ## 7. Bind it
 
 **Saving makes an effect exist. It does not make it play.** Which def plays at which moment is data, in
-[`packages/ui/src/choreo/bindings.json`](../packages/ui/src/choreo/bindings.json):
+[`packages/ui/src/choreo/bindings.json`](../packages/ui/src/choreo/bindings.json). The fastest way to write
+it is the live flow, from **Watch in combat** rail mode (§9): pick a card and a moment from the proc list,
+and your current composition becomes *what that card plays* immediately — it resolves in memory through the
+same session patch phase ① built, before anything touches disk. Tune a slider, re-seek the moment on the real
+board, watch the real card react. Nothing is written until you press **Commit animation**, which offers two
+scopes:
+
+- **This card** — forks the def to `<name>-<card>.json` and binds only that card's row. Use this whenever
+  you've been editing a def that other cards also use; binding it card-scoped *without* forking would change
+  their effect too, which is never what "commit for this card" means.
+- **Everywhere** — overwrites the def file in place and binds the kind row, so every card that produces this
+  moment picks it up.
+
+The panel shows the resulting def id and how many bindings the commit will touch *before* you press anything
+— read it, because "I overwrote the shared one by accident" is unrecoverable once you've forgotten which
+numbers you changed. The commit order is fixed: the def file writes first, `bindings.json` second, so a def
+failure changes nothing and a binding failure leaves only an unbound def (inert, not silently wrong).
+
+**Writing `bindings.json` triggers a full page reload** — it's a static import, so it can't hot-reload — which
+means the workbench unmounts before you can read a success message. Check `git status` for the two changed
+files instead; that's the real confirmation.
+
+Hand-editing `bindings.json` still works and is sometimes faster for a small tweak:
 
 ```jsonc
 {
@@ -149,8 +171,7 @@ restart). Autosave runs alongside it, so a hot-reload can't eat a tuning session
 | `damaged` | once per distinct unit damaged in the same resolution step — for a cast whose own event names no target |
 | `selfBuffed` | once per unit that buffed *itself* this moment |
 
-It's a static import, so saving the file hot-reloads — no restart. **There is no UI for this yet**; that's
-phase ③ of live authoring. Hand-edit it, or ask Claude for the one-line change.
+It's a static import, so saving the file hot-reloads — no restart.
 
 ---
 
@@ -200,10 +221,11 @@ def that doesn't exist is a silent no-op that a test will catch but a player nev
 
 ## Known rough edges
 
-- **No binding UI** (§7) — hand-edit or ask. Phase ③.
-- **No way to preview a binding change against a real combat** without replaying the fight. Phase ②.
 - **`fxScale` isn't threaded into the primitives**, and `playDef` takes no per-call params — an effect can't
   yet be scaled or varied per invocation.
 - **Anchors are a fire-time snapshot**, so an effect doesn't follow a unit that moves. Deliberate — per-frame
   layout reads are banned — but revisit if a follow-the-unit effect is ever wanted.
 - **~30 legacy `pixiFx` effects** predate defs and aren't authorable here.
+- **Committing writes a full page reload** — the workbench unmounts before a success message can be read;
+  check `git status` for the two changed files instead.
+- **No editing a def's `label`/`tags` from the panel**, and no unbind affordance — both still hand-edit only.

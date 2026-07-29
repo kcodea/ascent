@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bindingFor, bindingsJson, effectiveTables, parseTable, resetBindings, setBinding } from './bindings';
+import {
+  bindingBeneathDraft,
+  bindingFor,
+  bindingsJson,
+  clearBinding,
+  DRAFT_DEF_ID,
+  effectiveTables,
+  parseTable,
+  resetBindings,
+  setBinding,
+} from './bindings';
 import { CARD_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
 
@@ -291,6 +301,57 @@ describe('session overrides', () => {
   });
 });
 
+describe('clearBinding', () => {
+  beforeEach(() => resetBindings());
+
+  // The distinction this function exists for. A tombstone says "this card plays NOTHING here" and stops
+  // resolution; clearing says "I have no opinion", so the file's own binding applies again. Tearing down a
+  // draft needs the second — the first would leave the card silent instead of restored.
+  it('removes an override, restoring the file binding — unlike a tombstone', () => {
+    setBinding('bloodbinder', 'scCast', { def: 'test-red-blast' });
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'test-red-blast' });
+
+    clearBinding('bloodbinder', 'scCast');
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+
+    setBinding('bloodbinder', 'scCast', null); // tombstone, for contrast
+    expect(bindingFor('bloodbinder', 'scCast')).toBeNull();
+  });
+
+  it('clears a kind-level override', () => {
+    setBinding(null, 'scCast', { def: 'test-red-blast' });
+    clearBinding(null, 'scCast');
+    expect(bindingFor(null, 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  it('is a no-op when nothing was overridden', () => {
+    clearBinding('bloodbinder', 'scCast');
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+  });
+
+  // The `> 0` branch: clearing one of a card's overrides must leave its siblings alone. An implementation
+  // that dropped the whole card entry would pass every other test here while silently wiping an override
+  // the author still wanted — and since the patch is what makes a live draft visible, that surfaces as
+  // "my other override just disappeared", with nothing logged.
+  it('leaves a card\'s other overrides alone when clearing one of them', () => {
+    setBinding('bloodbinder', 'scCast', { def: 'test-red-blast' });
+    setBinding('bloodbinder', 'buffWave', { def: 'self-buff-bloom' });
+
+    clearBinding('bloodbinder', 'scCast');
+
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' }); // back to file
+    expect(bindingFor('bloodbinder', 'buffWave')).toEqual({ def: 'self-buff-bloom' });             // untouched
+  });
+
+  it('persists the removal, so a reload does not resurrect the override', () => {
+    withLocalStorage(() => {
+      setBinding(null, 'scCast', { def: 'test-red-blast' });
+      clearBinding(null, 'scCast');
+      expect(localStorage.getItem('ascent.fxBindings') ?? '').not.toContain('test-red-blast');
+    });
+  });
+});
+
 describe('bindingsJson', () => {
   beforeEach(() => resetBindings());
 
@@ -310,5 +371,108 @@ describe('bindingsJson', () => {
     expect(text.endsWith('\n')).toBe(true);
     const kinds = Object.keys(JSON.parse(text).kinds);
     expect(kinds).toEqual([...kinds].sort());
+  });
+});
+
+/**
+ * The draft id applies IN MEMORY but must never reach disk in either direction — a committed binding to it
+ * points at a def that exists only in this session, which resolves to nothing and reads as a broken tool.
+ *
+ * Both routes are ordinary happy paths, not edge cases, which is why they are pinned here rather than left
+ * to the workbench to remember: writing bindings.json triggers a full page reload (so the React cleanup that
+ * tears the draft down never runs), and a global-scope commit writes the KIND row while leaving the card row
+ * the draft sits on untouched — straight into `bindingsJson()`'s output.
+ */
+describe('the live-preview draft never reaches disk', () => {
+  beforeEach(() => resetBindings());
+
+  it('never persists a draft binding to localStorage', () => {
+    withLocalStorage(() => {
+      setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+      expect(localStorage.getItem('ascent.fxBindings')).not.toContain(DRAFT_DEF_ID);
+      // ...and the card it was the ONLY binding for is pruned, not left behind as an empty object.
+      expect(JSON.parse(localStorage.getItem('ascent.fxBindings') ?? '{}').cards).toEqual({});
+    });
+  });
+
+  it('strips only the draft, leaving a real override beside it persisted', () => {
+    withLocalStorage(() => {
+      setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+      setBinding(null, 'rally', { def: 'test-red-blast' });
+      const stored = JSON.parse(localStorage.getItem('ascent.fxBindings') ?? '{}');
+      expect(stored.kinds.rally).toEqual({ def: 'test-red-blast' });
+      expect(stored.cards).toEqual({});
+    });
+  });
+
+  it('never serialises a draft binding into the committed table', () => {
+    // Exactly the global-scope commit: the kind row is the commit target, the card row is the live draft.
+    setBinding(null, 'scCast', { def: 'committed-thing' });
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+    const text = bindingsJson();
+    expect(text).not.toContain(DRAFT_DEF_ID);
+    expect(JSON.parse(text).kinds.scCast).toEqual({ def: 'committed-thing' });
+  });
+
+  // A draft over a card row must not take the committed row down with it. Stripping post-merge deleted the
+  // value underneath instead of falling back to it — so tuning Bloodbinder and committing globally wrote a
+  // file with Bloodbinder's own effect silently removed. Strip the PATCH, then merge.
+  it('leaves a committed card binding intact when a draft is live over it', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
+    setBinding(null, 'scCast', { def: 'my-new-thing' });
+    const parsed = JSON.parse(bindingsJson());
+    expect(parsed.cards.bloodbinder?.scCast).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(parsed.kinds.scCast).toEqual({ def: 'my-new-thing' });
+    expect(bindingsJson()).not.toContain(DRAFT_DEF_ID);
+  });
+
+  // A card whose ONLY binding is a draft still must not appear — there is nothing committed underneath to
+  // fall back to, so the right answer is absence, not an empty object.
+  it('omits a card whose only binding is a draft', () => {
+    setBinding('drone', 'summon', { def: DRAFT_DEF_ID });
+    expect(JSON.parse(bindingsJson()).cards.drone).toBeUndefined();
+  });
+
+  it('still resolves a draft binding in memory, which is what makes the preview work', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID });
+  });
+});
+
+/**
+ * The prefill's question — "what plays here, ignoring my draft" — which `bindingFor` cannot answer once the
+ * draft is bound, because by then the draft IS the answer and carries whatever the prefill last produced.
+ */
+describe('bindingBeneathDraft', () => {
+  beforeEach(() => resetBindings());
+
+  it('sees through a card-level draft to the committed card binding', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'selfBuffed' });
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID, fanOut: 'selfBuffed' });
+    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+  });
+
+  // A GLOBAL commit asks the kind layer, so a card override — draft or not — must not colour the answer.
+  // This is the case that wrote Bloodbinder's `damaged` onto every card's scCast.
+  it('ignores the card layer entirely when asked for the kind', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
+    expect(bindingBeneathDraft(null, 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  it('sees through a kind-level draft too', () => {
+    setBinding(null, 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
+    expect(bindingBeneathDraft(null, 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  // Only the DRAFT is see-through. A tombstone still means "plays nothing here" and must stop resolution,
+  // exactly as it does in `bindingFor` — otherwise the prefill would inherit from a row the author silenced.
+  it('still stops at a tombstone', () => {
+    setBinding('bloodbinder', 'scCast', null);
+    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toBeNull();
+  });
+
+  it('is identical to bindingFor when no draft is in play', () => {
+    setBinding('bloodbinder', 'scCast', { def: 'test-red-blast', fanOut: 'selfBuffed' });
+    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toEqual(bindingFor('bloodbinder', 'scCast'));
   });
 });

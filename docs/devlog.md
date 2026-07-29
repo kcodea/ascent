@@ -1,5 +1,96 @@
 # ASCENT — development log
 
+## 2026-07-28 — commit animation: the authoring loop closes
+
+**What changed.** Phase ③, the last. In the workbench's rail mode, picking a card and a moment makes the
+editor's current composition *what that card plays* — registered in memory under a fixed draft id and bound
+through phase ①'s session patch, which `bindingFor` consults before the committed file. Tune a slider,
+re-seek the moment, watch the real card. Nothing touches disk until **Commit animation**, which writes the
+def file and the binding together.
+
+**Card-only scope forks the def, and that is the whole point.** Binding a shared def card-scoped after
+editing it would change that effect for every card using it — the opposite of what the button says. So card
+scope writes `<name>-<card>.json` and binds only that card's row; global scope overwrites the def in place
+and binds the kind row. The panel shows the resulting id and the blast radius *before* you press anything,
+because "I overwrote the shared one by accident" is unrecoverable once you've forgotten which numbers you
+changed.
+
+**The commit order is fixed, not incidental.** Def file first, `bindings.json` second. A def failure changes
+nothing at all; a binding failure leaves only an unbound def file, which is a library entry nothing plays.
+
+**The defect that ordering did NOT cover, found in review.** `bindingsJson()` serialises the committed table
+*plus the whole session patch* — and the live draft binding lives in that patch. Under global scope commit
+overwrites only the kind row, so the card-layer draft entry rode along into `bindings.json` as
+`{"def": "fx-draft"}`, pointing at a def that exists only in memory. Worse, writing `bindings.json` triggers
+a full page reload and a React cleanup does not run on unload, so the draft stranded in `localStorage`
+permanently: that card would go silently mute at that moment in every future session, and the next commit of
+any scope would bake it into the file. On the happy path.
+
+Fixed structurally rather than in the UI, because a fix that depends on the UI being correct forever is not a
+fix: `DRAFT_DEF_ID` now lives in `bindings.ts` as a **reserved id that cannot persist**. It resolves in
+memory — which is what makes the preview work — but is stripped on the way to `localStorage` and on the way
+to `bindings.json`, and filtered out of `listDefs()` so it can't appear as a phantom library entry with no
+file behind it. Three tests pin those strips; reverting them fails exactly those three and leaves the
+in-memory-resolution test passing, which is how we know they aren't vacuous.
+
+**Two things the phase needed that didn't exist.** `/__fx/bindings` had been sitting there since ① with no
+client, so `saveBindings` is that client. And tearing down a draft needs `clearBinding` — `setBinding(…,
+null)` writes a *tombstone* meaning "plays nothing", which would leave the card silent instead of restoring
+what it played before. The two are now tested directly against each other.
+
+**`fanOut` prefills rather than defaulting.** A binding decides how many copies play and on which units, and
+the wrong value fails silently — a self-buff effect set to `primary` plays once on whichever unit came first
+and not at all on the others. So it inherits from `bindingFor(cardId, kind)`: whatever already works there.
+The prefill effect must be *declared before* the bind effect, or it would run after the draft is bound and
+read back its own value; that ordering is load-bearing and commented as such.
+
+**Three design premises turned out wrong during implementation.** The plan's teardown guarded on `!railMode`,
+which returns early exactly when the selection changes *within* rail mode — so switching cards leaked a draft
+binding onto the previous one; replaced with a cleanup returned from the sync effect. The plan's layout
+assumed `.fxcommit` could sit under the harness as a static sibling, but `.fxharness` is absolutely
+positioned, so it fell out of flow and rendered as a full-width band across the top of the board (measured
+live at x=0, w=1600); fixed with a `.fxrail` flex column. And the plan called `toStoredLayers(layers,
+artRefs)` as though `artRefs` existed outside `save()` — it doesn't, so the art-upload loop was extracted and
+shared, without which a committed def carrying custom art would render a fallback silhouette on every other
+machine.
+
+**How it was verified.** `planCommit` has real unit tests — fork naming and truncation, blast radius, card-vs-
+global targeting, `fanOut` omission for the default, overwrite detection. `clearBinding` is tested against the
+tombstone it is not. The panel and the wiring have none (no jsdom in this repo) and were walked in a browser
+instead: the draft resolving live while `localStorage` stayed empty, a global commit writing only the kind row
+with no `fx-draft` anywhere in the file, and none surviving the forced reload. Full gate green.
+
+**Known limitations.** Writing `bindings.json` triggers a **full page reload** — it is a static import, so it
+cannot hot-reload — which unmounts the workbench before the success note can be read. The commit's outcome is
+visible in `git status` either way. And `bindingsJson()` re-serialises the whole table with 2-space
+indentation, so the first real commit will expand `bindings.json`'s hand-written one-line entries and carry a
+large reformat diff. Both predate this task; neither is a correctness problem.
+
+**Follow-ups.** `Workbench.tsx` is now ~2000 lines and carries a fourth concern; the clean seam is a
+`useFxDraft` / `useCommit` pair of hooks in `fx/harness/`. The `.fxrail` / `.fxharness` chrome is declared in
+two places. `commitPlan`'s memo reads the session patch without depending on it, so the blast-radius number
+can be computed from a table predating the draft's own write (low impact — the draft row is the excluded
+target). Editing a def's `label`/`tags` from the panel, and an unbind affordance, are both still unbuilt. And
+phase ②'s auto-pause after a seeked moment remains unbuilt.
+
+## 2026-07-28 — `burst-thin-trail`, an owner-authored def rescued from the working tree
+
+**What changed.** One def file, `packages/ui/src/fx/defs/burst-thin-trail.json` — a travelling ribbon (life
+640ms, additive blend, glow 0.7, blue→violet→white palette) with a burst at the source, 900ms overall.
+Authored in the workbench during a testing session and left untracked, so it was not part of the FX arc that
+merged as #689. Committed exactly as saved, with no edits to its params.
+
+It carries **no baked seed**, so it rolls fresh on every play — which is the right default for anything that
+might fire repeatedly (see the seed section of [`fx-workbench-guide.md`](fx-workbench-guide.md)). It also has
+no `label` or `tags` yet, so the library browser lists it under its raw id and derives its facets from the
+layers alone; adding those would make it easier to find by look.
+
+**Not bound to anything.** It exists in the library and can be previewed or duplicated as a template, but no
+moment kind or card plays it — `bindings.json` is untouched.
+
+**Verified:** `defs.test.ts` (10 tests) passes, which is what proves every param name and value range in the
+file is real against the primitives' own specs.
+
 ## 2026-07-28 — content: card batch part 6 — the final tranche
 
 Closes the owner's 2026-07-27 batch: three new minions, the Tier-7 ruling, the all-type Discover rule, five

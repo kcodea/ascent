@@ -1,5 +1,65 @@
 # ASCENT — development log
 
+## 2026-07-29 — the title menu becomes an object you can press
+
+**What changed.** The title screen's menu column (`.menubtn` — Continue / Play / Career / Leaderboard / Hall of
+Champions / Settings) went from a set of hover-only rectangles to controls with weight, a press, and a keyboard
+path. UI-only: `packages/ui/src/styles.css` and `packages/ui/src/Title.tsx`. No engine, content, or sim change.
+
+**Thickness, so the press has physics.** Every plaque now carries a hard `0 4px 0 #0a1526` bottom edge at rest,
+and on `:active` the edge **collapses to 1px while the button travels 3px down** — it loses exactly the
+thickness it moves, so it reads as compressed against the surface rather than sliding across it. This is the
+Hard-Edge Rule the rest of the game already follows (`.btn.go`, `.shopbtn`, every card); the title menu was the
+one place with inset highlights and a blur shadow but no visible side.
+
+**Two cascade traps, both of which silently deleted the state.** `.menubtn:active` ties `.menubtn:hover` on
+specificity (0,2,0), so whichever is later in the file wins — and you are *always* hovering when you click, so
+an `:active` block placed before `:hover` renders never. Found only because the owner reported feeling nothing.
+The press is now stated after `:hover` **and** carries a `.menubtn:hover:active` selector (0,3,0) so a future
+reorder can't reintroduce it. The identical trap existed a second time: `.menubtn.active` (the blue Play/Continue
+variant) redefines `box-shadow` and sits later still, so the *primary* button would not have compressed either —
+it needed its own `.menubtn.active:active`. Both are pinned by comments explaining why the extra selector is not
+redundant.
+
+**The down-stroke now makes a sound.** Hover already ticked (the delegated `pointerover` listener in `Game.tsx`
+covers title buttons) and activation played `sfx.pulse()`, but the press itself — the tactile moment — was
+silent. A delegated `onPointerDown` on `.titlenav` fires `sfx.clickThock()` so the cue lands *with* the
+compression instead of after release. Delegated rather than six identical props so a new menu item can't forget
+it; touch is guarded out, since hover/press cues are a mouse affordance.
+
+**Entrance, sheen, focus.** The column seats itself on mount — each plaque slides in from `translateX(-26px)`,
+staggered 50ms, exponential ease-out — along the same left→right axis the hover already owned, so it reads as the
+button's own grammar rather than a generic fade-and-rise. A one-shot "lamp-catch" sheen sweeps each plaque on
+hover (static gradient, only `transform`/`opacity` animate, clipped by `overflow: hidden`). `:focus-visible`
+gained a gold ring; there was no focus treatment at all before.
+
+**Also removed a glow.** `.menubtn.active` carried `0 8px 22px -8px rgba(40,100,180,0.7)` — a colored bloom on a
+dark surface. Replaced with the hard edge in its own darkened blue plus a neutral contact shadow.
+
+**Performance.** Every looping-capable effect is compositor-only; both keyframes (`mbseat`, `mbsheen`) animate
+`opacity` and `transform` exclusively. Nothing animates a paint property in a loop.
+
+**How it was verified.** `npm run typecheck` and `npm run build:web` green. Live DOM checks in the running app:
+`getAnimations()` confirmed 5 staggered entrance animations actually instantiate (delays 40/90/140/190/240ms ×
+420ms) rather than merely parsing; CSSOM rule-order queries confirmed the press rules resolve *after* their
+`:hover` and `.menubtn.active` competitors; computed styles confirmed the rest edge on both plain and primary
+variants and the removal of the blue bloom; a real `Tab` keypress confirmed `:focus-visible` matches and paints
+the ring. `npm run typecheck:web` fails on `Unit.tsx` + `useCombatReplay.ts` — **pre-existing**, confirmed by
+stashing this change and reproducing the identical errors on a clean tree.
+
+**Project context captured.** `PRODUCT.md` and `DESIGN.md` now exist at the repo root (with an
+`.impeccable/design.json` sidecar), recording the shipped visual system — the "Sunward Reliquary" north star, the
+tribe/tier/stat colour roles, the `--scale`/`--u`/`--ch` sizing system, the authored-frame and Ward-glass
+signature components, and the standing rules (live card text, warm shadows, hard edges, colour never the only
+signal). These describe what already ships; they are documentation, not a new direction.
+
+**Follow-ups.** Two focus stops on the title screen are invisible but focusable: `.gearbtn` and `.devmenu-btn`
+sit at `z-index: 85` behind the opaque `.titlescreen` (`z-index: 450`) yet stay `visibility: visible`, so Tab
+lands on them twice before reaching the menu. Every `.app` control is correctly hidden by the
+`body:has(.titlescreen)` rules; these two aren't covered. Left unfixed at the owner's call — it touches in-game
+HUD visibility. Also unverified: whether the `clickthock` sample's level sits right against the hover tick (it is
+authored for empty-board clicks; `cardTouch` is the softer alternative if it reads heavy).
+
 ## 2026-07-29 — feat(sim): lobby rules — ghost boards, a 3-round no-repeat, and the enemy side restored
 
 Three owner rulings, one of them a correctness bug in my own lobby work.
@@ -378,6 +438,7 @@ tests, revert-checked: removing the carry-back fails three of them.
 **A test bug worth recording.** The "a non-Attachment is untouched" case first asserted raw stats and failed at
 +1 — an unrelated combat gain in a wave-4 fight, not this enchant. It now asserts on the buff's own `Chorus
 Engine` source label, which is what the change actually controls.
+
 ## 2026-07-28 — commit animation: the authoring loop closes
 
 **What changed.** Phase ③, the last. In the workbench's rail mode, picking a card and a moment makes the

@@ -203,6 +203,8 @@ export interface BoardCard {
    *  on the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. The buy-count sibling of `goldTick`. */
   buyTick?: number;
+  /** Set 2 — cumulative cards-PLAYED tally for this instance (Mountainbond), the twin of `buyTick`. */
+  playTick?: number;
   /** Set 2 — Ruby Broker: Rubies played on THIS minion this turn (its per-turn Gold cap). Reset each wave. */
   rubyRecvTick?: number;
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
@@ -372,6 +374,11 @@ export interface RunState {
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */
   goldSpentThisTurn?: number;
+  /** Set 2 — Ales CAST this turn (Guildhall Chef scales off it). Reset with the other per-turn tallies. */
+  alesCastThisTurn?: number;
+  /** Set 2 — cards PLAYED this run, cumulative. Mountainbond's "after you play 8 cards" is a running total, not
+   *  a per-turn one, so it can't ride `playedThisTurn` (which clears every turn). */
+  cardsPlayedTotal?: number;
   /** Set 2 — cards bought THIS turn (reset each wave). Threaded into combat for Frenzied Excavator's
    *  Start-of-Combat "play 1 Ruby per 4 cards bought this turn" scaler. Absent = 0. */
   cardsBoughtThisTurn?: number;

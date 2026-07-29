@@ -8,14 +8,12 @@ import type { CardDef } from '@game/core';
  * board-building. Kobolds want Rubies cast; Dragons want spells recurred; Dwarves want Gold moving. That is why
  * so many of them hang off `goldSpent` / `cardsBought` thresholds rather than Shout/Echo.
  *
- * STILL MISSING (2026-07-29) — each needs machinery rather than another card entry, so they are the honest
- * remainder, not an oversight:
- *   · Paymaster Pimm    — "Gold next turn" needs a banked-income field on `RunState`
- *   · Mountainbond      — playing a Ruby outside combat has no recruit-side helper (`playRubyOn` is combat-only),
- *                         and "after you play 8 cards" has no cumulative cards-played trigger
- *   · Edward Keg-hands  — an Ale-scoped trigger multiplier ("your Ales trigger twice")
- *   · Guildhall Chef    — scales off "Ales triggered this turn", a per-turn counter that does not exist
- *   · Brisbane          — "trigger an adjacent Shout when you cast 8 spells": a cumulative spell-cast threshold
+ * COMPLETE as of 2026-07-29 — the whole roster ships. The machinery the last five needed:
+ *   · Paymaster Pimm    — none, as it turned out: `bonusEmbersNextTurn` already existed and pays at turn start
+ *   · Mountainbond      — a new `cardsPlayed` event + `applyCardsPlayed`, the twin of the buy-count meter
+ *   · Edward Keg-hands  — an Ale-scoped branch inside `spellCasts`, the one place cast counts are computed
+ *   · Guildhall Chef    — `alesCastThisTurn`, reset with the other per-turn tallies
+ *   · Brisbane          — a per-instance `spellProgress` threshold reusing Moira's `replayBattlecry` path
  */
 export const SET2_DWARVES: CardDef[] = [
   {
@@ -244,6 +242,62 @@ export const SET2_DWARVES: CardDef[] = [
     text: "**Rally:** give this minion's **Attack** to **3** friendly minions.",
     goldenText: "**Rally:** give this minion's **Attack** to **3** friendly minions **twice**.",
   },
+  {
+    // `bonusEmbersNextTurn` already existed and is paid at turn start — no new run state was needed after all.
+    id: 'dw_pimm',
+    name: 'Paymaster Pimm',
+    tribe: 'dwarf',
+    tier: 1,
+    attack: 3,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGainGoldNextTurn', params: { amount: 1 } }],
+    text: '**Shout:** gain **1 Gold** next turn.',
+    goldenText: '**Shout:** gain **2 Gold** next turn.',
+  },
+  {
+    // "Your Ales trigger twice" is scoped to the Ale ids inside `spellCasts`, the one place cast counts are
+    // computed — so it composes with Yazzus/Grimoire instead of competing with them.
+    id: 'dw_edward',
+    name: 'Edward Keg-hands',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [],
+    text: 'Your **Dwarven Ales** trigger **twice**.',
+    goldenText: 'Your **Dwarven Ales** trigger **three times**.',
+  },
+  {
+    // The magnitude climbs with Ales cast this turn, which is what ties the Chef to the tribe's engine rather
+    // than making it a generic tribe-buffer.
+    id: 'dw_chef',
+    name: 'Guildhall Chef',
+    tribe: 'dwarf',
+    tier: 6,
+    attack: 6,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'onPlayTribeBuffTribeByAles', params: { tribe: 'dwarf', count: 3, attack: 3, step: 1 } }],
+    text: 'When you play a **Dwarf**, give **3** friendly **Dwarves +3/+3**. Improves per **Ale** triggered this turn.',
+    goldenText: 'When you play a **Dwarf**, give **3** friendly **Dwarves +6/+6**. Improves per **Ale** triggered this turn.',
+  },
+  {
+    // The Dwarf/Kobold bridge: it pays the Ruby engine from the Dwarves' card-throughput side. The tally is
+    // CUMULATIVE (`playTick`) — `playedThisTurn` clears each turn and could never reach 8 on a normal curve.
+    id: 'dw_mountainbond',
+    name: 'Mountainbond',
+    tribe: 'dwarf',
+    tribe2: 'kobold',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'cardsPlayed', do: 'cardsPlayedPlayRubies', params: { every: 8, count: 1 } }],
+    text: 'After you play **8 cards**, play a **Ruby** on your minions.',
+    goldenText: 'After you play **8 cards**, play **2 Rubies** on your minions.',
+  },
 ];
 
 /** Anvilshade Smith's token. */
@@ -289,5 +343,20 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     effects: [{ on: 'onDeath', do: 'echoSummonCopyNoEcho', params: { count: 1 } }],
     text: '**Echo:** summon an exact copy of this **without Echo**.',
     goldenText: '**Echo:** summon **2** exact copies of this **without Echo**.',
+  },
+  {
+    // Dwarf/Dragon — the bridge between the Ale tribe and the spell tribe. Its meter is per-instance and carries
+    // round to round, like every other "every N spells" card.
+    id: 'dw_brisbane',
+    name: 'Brisbane',
+    tribe: 'dwarf',
+    tribe2: 'dragon',
+    tier: 6,
+    attack: 7,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'spellCastTriggerAdjacentShouts', params: { every: 8 } }],
+    text: 'When you cast **8 spells**, trigger an **adjacent Shout**.',
+    goldenText: 'When you cast **8 spells**, trigger **both adjacent Shouts**.',
   },
 ];

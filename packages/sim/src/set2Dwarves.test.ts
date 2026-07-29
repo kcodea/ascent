@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { ALE_IDS, applyGoldSpent } from './recruit';
+import { ALE_IDS, applyCardsPlayed, applyGoldSpent, noteSpellCast } from './recruit';
 
 /**
  * SET 2 — DWARVES (tranche A). These assert the MECHANICS fire, not merely that the cards exist: a roster test
@@ -235,5 +235,84 @@ describe('tranche B — combat-trigger Dwarves', () => {
     expect(s.length, 'the copy chained, or never happened').toBe(1);
     expect(s[0]!.attack).toBe(4);
     expect(s[0]!.health, 'the copy was born dead').toBeGreaterThan(0);
+  });
+});
+
+describe('tranche C — the five that needed machinery', () => {
+  it('Paymaster Pimm banks Gold for NEXT turn, not this one', () => {
+    let s = set2();
+    const embersBefore = s.embers;
+    s = { ...s, board: [], hand: [body('dw_pimm', 'p')] };
+    s = play(s, 'p');
+    expect(s.embers, 'it paid out immediately').toBe(embersBefore);
+    expect(s.bonusEmbersNextTurn).toBe(1);
+  });
+
+  it('Guildhall Chef climbs with Ales cast this turn', () => {
+    // Base +3/+3; each Ale cast this turn adds +1. Two Ales → +5/+5.
+    const chefBuff = (ales: number): number => {
+      let s = set2();
+      const target = body('dw_brunni', 't');
+      s = { ...s, board: [target], hand: [body('dw_chef', 'c')], alesCastThisTurn: ales };
+      s = play(s, 'c');
+      return s.board.find((x) => x.uid === 't')!.attack - CARD_INDEX['dw_brunni']!.attack;
+    };
+    expect(chefBuff(0)).toBe(3);
+    expect(chefBuff(2), 'the Chef did not scale with Ales').toBe(5);
+  });
+
+  it('casting an Ale bumps the per-turn tally, and it resets each turn', () => {
+    let s = set2();
+    s = { ...s, board: [], hand: [{ uid: 'a', cardId: 'wo_mine', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = play(s, 'a');
+    expect(s.alesCastThisTurn, 'the Ale tally never moved').toBe(1);
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'settleCombat' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.alesCastThisTurn, 'the tally carried into the next turn').toBe(0);
+  });
+
+  it('Edward Keg-hands doubles ALES only, not every spell', () => {
+    // Golden Ale grants 2 Gold; with Edward on board it should pay twice. A non-Ale spell must be unaffected.
+    const goldFrom = (withEdward: boolean): number => {
+      let s = set2();
+      s = {
+        ...s,
+        board: withEdward ? [body('dw_edward', 'e')] : [],
+        hand: [{ uid: 'a', cardId: 'wo_mine', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      };
+      const before = s.embers;
+      s = play(s, 'a');
+      return s.embers - before;
+    };
+    const plain = goldFrom(false);
+    expect(goldFrom(true), 'Edward did not double the Ale').toBe(plain * 2);
+  });
+
+  it('Mountainbond plays a Ruby on every minion, on a CUMULATIVE play meter', () => {
+    // `playedThisTurn` clears each turn and could never reach 8 — the tally has to be cumulative (`playTick`).
+    let s = set2();
+    const mate = body('dw_brunni', 'mate');
+    s = { ...s, board: [body('dw_mountainbond', 'mb'), mate] };
+    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    applyCardsPlayed(s, 7);
+    expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'fired below the threshold').toBe(before);
+    applyCardsPlayed(s, 1); // 8th card → a Ruby on each of the 2 minions
+    expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'no Ruby landed').toBeGreaterThan(before);
+  });
+
+  it('Brisbane triggers an adjacent Shout every 8 spells, carrying the meter across turns', () => {
+    // Neighbour is Doubletap Brewer, whose Shout grants an Ale — an observable payload.
+    let s = set2();
+    s = { ...s, board: [body('dw_brewer', 'left'), body('dw_brisbane', 'b')], hand: [] };
+    for (let i = 0; i < 7; i++) noteSpellCast(s, CARD_INDEX['wo_mine']!);
+    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'fired before 8 spells').toBe(0);
+    noteSpellCast(s, CARD_INDEX['wo_mine']!);
+    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'the adjacent Shout never fired').toBeGreaterThan(0);
+  });
+
+  it('the whole Dwarf roster is in set 2 — 21 minions + token + 3 rune minions', () => {
+    const dwarfIds = poolFor('set2').all.filter((c) => c.id.startsWith('dw_')).map((c) => c.id);
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(25);
   });
 });

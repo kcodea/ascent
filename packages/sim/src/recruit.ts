@@ -598,6 +598,13 @@ export function spellCasts(state: RunState, def: CardDef): number {
   }
   // Living Grimoire: the first spell cast while it's on board multiplies (see `grimoireMultActive`).
   mult *= grimoireMultActive(state);
+  // Edward Keg-hands: your ALES specifically cast extra times. Scoped to the Ale ids rather than to all spells,
+  // and read from the board here (like Yazzus and the Grimoire) so the UI can preview the count without any
+  // side effect. Golden reads "three times" → one more than base.
+  if (ALE_IDS.includes(def.id)) {
+    const edwards = state.board.filter((c) => c.cardId === 'dw_edward');
+    if (edwards.length > 0) mult *= edwards.some((c) => c.golden) ? 3 : 2;
+  }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
@@ -1177,6 +1184,43 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const ales = poolOf(ctx.state).spells.filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return;
     conjureToHand(ctx.state, ales, num(params.count, 1) * gold(self));
+  },
+
+  /** Paymaster Pimm (Shout): Gold on the NEXT turn. `bonusEmbersNextTurn` already exists and is paid out at
+   *  turn start, so this needed no new state — it rides the same channel Bounty Bot and the sell-Gold hero use. */
+  battlecryGainGoldNextTurn: (ctx, self, params) => {
+    ctx.state.bonusEmbersNextTurn = (ctx.state.bonusEmbersNextTurn ?? 0) + num(params.amount, 1) * gold(self);
+  },
+
+  /**
+   * Mountainbond (cards played): play a Ruby on each of your minions.
+   *
+   * Mirrors `battlecryPlayRubiesAll` (Frenzied Excavator) rather than routing through `castSpell` — a Ruby is
+   * not applied like a Shop spell. Its stats are the minted value (base 1/1 + the run's `rubyBonus`), and
+   * `fireOnRubyPlayed` is what lets the target's own "when a Ruby is played on this" effects see it (Ruby Broker's
+   * Gold, Resonance Idol's bounce), which a bare `addBuff` would skip.
+   */
+  cardsPlayedPlayRubies: (ctx, self, params) => {
+    const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+    const per = num(params.count, 1) * gold(self);
+    const a = (1 + rb.attack) * per;
+    const h = (1 + rb.health) * per;
+    if (a <= 0 && h <= 0) return;
+    for (const c of [...ctx.state.board]) {
+      addBuff(c, 'Ruby', a, h);
+      fireOnRubyPlayed(ctx.state, c, a, h);
+    }
+  },
+
+  /** Guildhall Chef: when you play a minion of `tribe`, buff `count` of them — magnitude IMPROVED by each Ale
+   *  cast this turn, so the Ale engine feeds it. Reads the tally live, so the printed number must fold it in. */
+  onPlayTribeBuffTribeByAles: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const step = num(params.step, 1);
+    const mag = (num(params.attack, 3) + step * (ctx.state.alesCastThisTurn ?? 0)) * gold(self);
+    if (mag <= 0) return;
+    const targets = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never)).slice(0, num(params.count, 3));
+    for (const c of targets) addBuff(c, nameOf(self), mag, mag);
   },
 
   /** Ironlung Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
@@ -2772,6 +2816,31 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let n = 0; n < gold(self); n++) for (const c of neighbours) replayBattlecry(ctx.state, c);
   },
 
+  /**
+   * Brisbane (Rune) — every `every` spells you cast, trigger an ADJACENT Shout.
+   *
+   * Rides the `spellCast` event with a per-instance tally (`spellProgress`), which is how every other "every N
+   * spells" card counts, so the meter carries round to round rather than resetting when a turn ends mid-progress.
+   * Reuses the same `replayBattlecry` path as Moira's End-of-Turn version — one definition of "trigger a Shout".
+   */
+  spellCastTriggerAdjacentShouts: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 8));
+    const me = ctx.state.board.find((c) => c.uid === self.uid);
+    if (!me) return;
+    me.spellProgress = (me.spellProgress ?? 0) + 1;
+    while ((me.spellProgress ?? 0) >= every) {
+      me.spellProgress = (me.spellProgress ?? 0) - every;
+      const i = ctx.state.board.findIndex((c) => c.uid === self.uid);
+      const neighbours = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter((c): c is BoardCard => {
+        const def = c && CARD_INDEX[c.cardId];
+        return !!def && hasBattlecry(def);
+      });
+      // Golden triggers BOTH neighbours (owner text: "Trigger both"); base takes the left one if it has a Shout.
+      const chosen = gold(self) > 1 ? neighbours : neighbours.slice(0, 1);
+      for (const c of chosen) replayBattlecry(ctx.state, c);
+    }
+  },
+
   /** Set 2 — Runic Archivist (owner rework 2026-07-27): every `count` minions you SELL, get a Shop spell.
    *
    *  The tally lives on the card (`soldProgress`) rather than on the run, because it's per-instance and because
@@ -3796,6 +3865,32 @@ export function applyGoldSpent(state: RunState, amount: number): void {
  * (`buyTick`), and each time it crosses the effect's `every` threshold the factory fires once (the remainder
  * carries to the next buy). Called by the reducer on every `buy`.
  */
+/**
+ * The PLAY-count meter — `applyCardsBought`'s twin, for "after you play N cards" (Mountainbond).
+ *
+ * The tally is CUMULATIVE across the run (`playTick` on the card, mirroring `buyTick`), not per-turn: the card
+ * reads "after you play 8 cards", and `playedThisTurn` clears every turn so it could never reach 8 on a normal
+ * curve. A run total is also kept on the state for live card text.
+ */
+export function applyCardsPlayed(state: RunState, count: number): void {
+  if (count <= 0) return;
+  state.cardsPlayedTotal = (state.cardsPlayedTotal ?? 0) + count;
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    const effect = def?.effects.find((e) => e.on === 'cardsPlayed');
+    if (!effect) continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    const every = Math.max(1, num(effect.params?.every, 8));
+    card.playTick = (card.playTick ?? 0) + count;
+    while (card.playTick >= every) {
+      card.playTick -= every;
+      fn(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
+}
+
 export function applyCardsBought(state: RunState, count: number): void {
   if (count <= 0) return;
   const ctx = makeContext(state);
@@ -5039,6 +5134,8 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
   // re-record (spellsThisTurn is nonzero by then).
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
+  // Set 2 — Guildhall Chef reads "Ales triggered this turn", so the tally lives with the other per-turn counters.
+  if (ALE_IDS.includes(spellDef.id)) state.alesCastThisTurn = (state.alesCastThisTurn ?? 0) + 1;
   // Scalefeather Drake: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it
   // catches every cast path once; the wave gate makes "next turn" exact — a charge armed in this turn's combat
   // has `activateWave = wave + 1`, so it can't pay out until the following turn.

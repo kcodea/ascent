@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-07-29 — The Dwarf roster is complete (tranche C)
+
+The last five cards, and what each actually needed:
+
+| card | machinery |
+|---|---|
+| Paymaster Pimm | **none.** `bonusEmbersNextTurn` already existed and is paid at turn start — my earlier "needs a banked-income field" call was wrong |
+| Mountainbond | a new `cardsPlayed` event + `applyCardsPlayed` (the buy-meter's twin) with a cumulative per-instance `playTick` |
+| Edward Keg-hands | an Ale-scoped branch inside `spellCasts`, the single place cast counts are computed |
+| Guildhall Chef | `alesCastThisTurn`, counted in `noteSpellCast`, reset with the other per-turn tallies |
+| Brisbane | a per-instance `spellProgress` threshold reusing Moira's `replayBattlecry` path |
+
+**Mountainbond's Ruby was the one real trap.** I first routed it through `castSpell`, which silently did nothing:
+a Ruby is not applied like a Shop spell — the reducer applies it inline as `addBuff(target, 'Ruby', …)` at the
+minted value (base 1/1 + the run's `rubyBonus`). It now mirrors `battlecryPlayRubiesAll` (Frenzied Excavator's
+path) and fires `fireOnRubyPlayed`, so the target's own "when a Ruby is played on this" effects — Ruby Broker's
+Gold, Resonance Idol's bounce — actually see it. A bare `addBuff` would have skipped them.
+
+**Roster reconciled:** 25 of 25 present, every tier and stat line matching the owner's list.
+
+**Also learned:** a new `GameEvent` needs registering in the content schema's event enum as well as the
+`EffectFactoryId` whitelist — the schema test caught `cardsPlayed` immediately, which is the system working.
+
+**Verified.** 31 Dwarf tests (3011 total / 157 files), typecheck, typecheck:web, lint (0 errors), build:web,
+harness ✓. The new tests pin Pimm banking rather than paying now, the Chef scaling with Ales cast, the Ale tally
+resetting each turn, Edward doubling **Ales only**, Mountainbond banking below its 8-card threshold, and
+Brisbane carrying its meter across turns.
+
 ## 2026-07-29 — Dwarves tranche B + the Cheap Date rework
 
 **Cheap Date is a rework, not a rename.** The roster card is a Tier 1 1/1 whose value is in SELLING it, where

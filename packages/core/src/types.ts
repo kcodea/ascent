@@ -104,6 +104,7 @@ export type GameEvent =
   | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
+  | 'cardsPlayed' // recruit phase: the player PLAYED a card — the play-count twin of `cardsBought` (Mountainbond)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
@@ -469,7 +470,11 @@ export type EffectFactoryId =
   | 'combatGrantAle' // Set 2 Dwarves (combat)
   | 'rallyGiveAttackToOthers' // Set 2 Dwarves (combat)
   | 'echoSummonCopyNoEcho' // Set 2 Dwarves (combat)
-  | 'echoSummonInheritAttackAndCharge' // Set 2 Dwarves (combat) // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
+  | 'echoSummonInheritAttackAndCharge' // Set 2 Dwarves (combat)
+  | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
+  | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
+  | 'onPlayTribeBuffTribeByAles' // Set 2 Dwarves — Guildhall Chef
+  | 'spellCastTriggerAdjacentShouts' // Set 2 Dwarves — Brisbane // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn

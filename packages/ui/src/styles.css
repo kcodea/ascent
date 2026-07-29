@@ -5353,6 +5353,23 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-rail .fxwb-side { width: 320px; right: 320px; top: 0; bottom: 0; }
 .fxwb-rail .fxwb-top,
 .fxwb-rail .fxwb-transport { display: none; }
+/* The rail COLUMN: the proc harness and the commit panel stacked, scrolling together. `.fxharness` below
+   positions itself absolutely — it predates the commit panel and owned the whole rail — so a bare sibling
+   `.fxcommit` fell out of flow and painted a full-width band across the top of the board (measured live:
+   x=0, width=1600, straight over the editor rail). Inside this column the harness becomes a normal flow
+   child, which is the ONLY thing that puts the commit panel under it. `pointer-events: auto` lives here for
+   the same reason it lives on `.fxharness`: `.fxwb` is pointer-events:none and inheritance would otherwise
+   leave every control painted but inert. */
+.fxrail {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 320px;
+  display: flex; flex-direction: column; overflow-y: auto; box-sizing: border-box;
+  background: #17141f; color: #d9d3ea; pointer-events: auto;
+}
+.fxrail .fxharness { position: static; width: auto; overflow: visible; flex: 0 0 auto; }
+/* The harness owns the column's horizontal padding via its own `padding: 12px`; the commit panel is a
+   sibling, so it needs its own. Long-hand, deliberately: the shorthand would clobber the `padding-top` that
+   pairs with `.fxcommit`'s divider rule. */
+.fxrail .fxcommit { padding-left: 12px; padding-right: 12px; padding-bottom: 12px; }
 .fxharness {
   position: absolute; top: 0; right: 0; bottom: 0; width: 320px;
   display: flex; flex-direction: column; gap: 8px;

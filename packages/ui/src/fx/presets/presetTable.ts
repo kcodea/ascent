@@ -4,7 +4,10 @@
  * Hand-rolled validation rather than a schema library — the `ui` package has no zod, following
  * `choreo/bindings.ts`. Unlike that file, this one THROWS rather than dropping bad entries: a
  * half-loaded gallery would present a silently incomplete menu, whereas a dropped binding is
- * recoverable. Both are DEV-only surfaces authored by hand.
+ * recoverable. Unlike `bindings.json`, this table must therefore NOT be parsed eagerly at module
+ * load from a static import: `bindings.ts` uses `devError` precisely because it ships in the
+ * production bundle. Parse this one lazily from the (DEV-only) gallery, so a throw can only ever
+ * reach an author.
  */
 
 /** Keys that must never be used to index into an object we then assign to: `out['__proto__'] = x` invokes
@@ -76,10 +79,12 @@ export function parsePresetTable(raw: unknown): PresetTable {
   const axes: VariantAxis[] = (Array.isArray(t.variantAxes) ? t.variantAxes : []).map((a, i) => {
     if (!isRecord(a)) throw new Error(`preset table: variantAxes[${i}] must be an object`);
     const o = a;
+    const id = str(o.id, `variantAxes[${i}] id`);
+    if (UNSAFE_KEYS.includes(id)) throw new Error(`preset table: variantAxes[${i}] uses reserved id '${id}'`);
     return {
-      id: str(o.id, `variantAxes[${i}] id`),
-      label: str(o.label, `axis '${String(o.id)}' label`),
-      transform: numberMap(o.transform, `axis '${String(o.id)}' transform`),
+      id,
+      label: str(o.label, `axis '${id}' label`),
+      transform: numberMap(o.transform, `axis '${id}' transform`),
     };
   });
   const axisIds = new Set(axes.map((a) => a.id));
@@ -96,6 +101,7 @@ export function parsePresetTable(raw: unknown): PresetTable {
     if (!isRecord(a)) throw new Error(`preset table: archetypes[${i}] must be an object`);
     const o = a;
     const id = str(o.id, `archetypes[${i}] id`);
+    if (UNSAFE_KEYS.includes(id)) throw new Error(`preset table: archetypes[${i}] uses reserved id '${id}'`);
     if (seen.has(id)) throw new Error(`preset table: duplicate archetype id '${id}'`);
     seen.add(id);
 

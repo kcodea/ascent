@@ -101,10 +101,32 @@ describe('parsePresetTable', () => {
     expect(() => parsePresetTable(bad)).toThrow(/thin/);
   });
 
-  it('rejects a reserved key inside an override', () => {
+  it('rejects a reserved key inside an override value map', () => {
     for (const key of UNSAFE_KEYS) {
       const bad = { ...good, archetypes: [{ ...good.archetypes[0], overrides: { heavy: { [key]: 2 } } }] };
       expect(() => parsePresetTable(bad)).toThrow(/reserved/i);
+    }
+  });
+
+  it('rejects a reserved key as an override\'s axis key', () => {
+    for (const key of UNSAFE_KEYS) {
+      const bad = { ...good, archetypes: [{ ...good.archetypes[0], overrides: { [key]: { size: 2 } } }] };
+      expect(() => parsePresetTable(bad)).toThrow(/reserved/i);
+    }
+  });
+
+  it('rejects a reserved variant axis id', () => {
+    for (const key of UNSAFE_KEYS) {
+      const bad = { ...good, variantAxes: [{ id: key, label: 'X', transform: { size: 1 } },
+                                            good.variantAxes[1]] };
+      expect(() => parsePresetTable(bad)).toThrow(/reserved id/i);
+    }
+  });
+
+  it('rejects a reserved archetype id', () => {
+    for (const key of UNSAFE_KEYS) {
+      const bad = { ...good, archetypes: [{ ...good.archetypes[0], id: key }] };
+      expect(() => parsePresetTable(bad)).toThrow(/reserved id/i);
     }
   });
 

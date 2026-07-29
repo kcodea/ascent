@@ -1,5 +1,20 @@
 # ASCENT — development log
 
+## 2026-07-29 — One snapshot seat per player
+
+Owner report: a lobby seated "someone crazytown okay" **twice**. The dedupe was on `runKey`, which is
+`author|hero|seed` — so two different runs by the same person are two different keys and both took seats.
+
+Now at most one snapshot seat per AUTHOR. Your own runs are not excluded (you may face yourself for now, owner
+call), they simply also cap at one seat. The candidate loop scans the whole run list instead of taking the first
+N, so skipping a duplicate doesn't cost the table a seat.
+
+Author-less runs stay deduped by run key only — nothing identifies who played them, so two unnamed runs by one
+person are indistinguishable. A limitation of unnamed uploads, not a rule.
+
+Verified across 16 seeds: 0 lobbies with a repeated player, still 3 snapshot seats each. 2 new tests, one of
+which registers two runs by one author and asserts they never share a table.
+
 ## 2026-07-29 — Lobby seats get player handles, and lobby runs finally save their real boards
 
 **Handles instead of hero names.** Generated seats were labelled "Nadja", "Drumline" — scenery, and it made the

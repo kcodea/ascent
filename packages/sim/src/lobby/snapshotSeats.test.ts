@@ -144,3 +144,30 @@ describe('a lobby run replays faithfully — so it can save its snapshots', () =
     expect(sig(asAscent.final), 'replaying without the mode should NOT reproduce the run').not.toBe(sig(s));
   }, 60_000);
 });
+
+describe('one active snapshot per player (owner rule 2026-07-29)', () => {
+  it('never seats the same author twice, even across DIFFERENT runs of theirs', () => {
+    // The reported bug: dedupe was on `runKey` (`author|hero|seed`), so two different runs by one person are two
+    // different keys and both took seats — a lobby showed "someone crazytown okay" at the table twice.
+    // Two runs, same author, different heroes and seeds.
+    registerOpponents([
+      ...Array.from({ length: 8 }, (_, i) => board('Dup', 'drakko', 4444, i + 1, 3 + i)),
+      ...Array.from({ length: 8 }, (_, i) => board('Dup', 'soren', 5555, i + 1, 4 + i)),
+    ]);
+    expect(playerRunsFrom().filter((r) => r.author === 'Dup').length, 'both runs should exist in the pool').toBe(2);
+    for (const seed of [1, 3, 7, 11, 15, 19]) {
+      const labels = createRunLobby(seed, 'drakko').seats
+        .filter((s) => s.kind === 'snapshot')
+        .map((s) => s.label.toLowerCase());
+      expect(labels.length, `seed ${seed}: a player holds two seats`).toBe(new Set(labels).size);
+    }
+  });
+
+  it('still fills the cap when a duplicate is skipped', () => {
+    // Skipping a run must not cost the table a seat — the loop scans the whole list rather than taking the
+    // first N candidates.
+    const lobby = createRunLobby(3, 'drakko');
+    expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBe(3);
+    expect(lobby.seats).toHaveLength(8);
+  });
+});

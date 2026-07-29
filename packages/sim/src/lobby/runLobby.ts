@@ -121,10 +121,20 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // Seeded rotation over a deterministically-ordered list: the same lobby seed always seats the same runs, so
   // a restored or replayed lobby is identical.
   const available = playerRunsFrom();
+  // ONE ACTIVE SNAPSHOT PER PLAYER (owner rule 2026-07-29). Deduping on `runKey` alone was not enough: a key is
+  // `author|hero|seed`, so two DIFFERENT runs by the same person are two different keys and both took seats —
+  // the reported lobby with "someone crazytown okay" sitting at the table twice. Your OWN runs are not excluded
+  // (you may face yourself for now), they just also cap at one seat.
+  //
+  // Author-less runs can't be deduped by name — nothing identifies who played them — so they stay distinct and
+  // are only deduped by run key. That is a known limitation of unnamed uploads, not a rule.
+  const seatedAuthors = new Set<string>();
   const maxSnapshotSeats = Math.min(r.snapshotSeats ?? Math.floor((r.seatCount - 1) / 2), available.length);
-  for (let i = 0; i < maxSnapshotSeats && picked < r.seatCount - 1; i++) {
+  for (let i = 0; i < available.length && picked < r.seatCount - 1 && seats.filter((x) => x.kind === 'snapshot').length < maxSnapshotSeats; i++) {
     const run = available[(seed + i * 7) % available.length]!;
     if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
+    const who = run.author && run.author !== 'anon' ? run.author.toLowerCase() : null;
+    if (who && seatedAuthors.has(who)) continue; // this player already holds a seat
     const seat: LobbySeatState = {
       id: `s${picked + 1}`,
       // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
@@ -141,6 +151,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     const d = driverFor(seat);
     if (!d?.prepare(1) && !d?.finalBoard?.()) continue; // no round-1 board — skip rather than seat a ghost
     taken.add(seat.label.toLowerCase());
+    if (who) seatedAuthors.add(who);
     seats.push(seat);
     picked++;
   }

@@ -51,6 +51,20 @@ lock is on, naming the actual seed value and what it means, with a one-click **U
 cannot be reached without it having been on screen — and because it lives in `.fxwb-side`, it is equally
 visible in rail mode, where Commit writes the same seed.
 
+**4. A preset variant that did nothing now says so.** `applyVariant` reports every transform key that reached
+no slider param in `missed`, and `materialiseVariant` DEV-`console.warn`s it — but the preset gallery is the
+*first* thing a new author touches and the console is the least likely place they're looking. You picked
+"Crackling", got a normal-looking composition, and never learned part of it was a no-op. `materialiseVariant`
+now returns `{ stored, missed, archetypeLabel, variantLabel }` instead of the bare def, and picking a variant
+sets an amber line above the def name / Save row: *"Bolt · crackling: 2 parts of this variant did nothing here
+(turbulence, count) — nothing in this composition takes those adjustments. The rest applied, and the effect is
+fine to use."* On **pick** only, never on hover-preview — a preview is a glance, and warning on every card the
+pointer crosses is noise you learn to ignore. `missed`'s three causes (a key no primitive declares, a key
+naming a non-slider param, a value that can't be multiplied) stay in ONE bucket, and the wording is written to
+their shared meaning: *this part of the recipe reached nothing*. Splitting them would surface a preset-table
+detail the author can't act on differently. Cleared by `loadDef`, so the warning belongs to the composition on
+screen rather than to the session.
+
 **Verified.** `npm run typecheck` (pkgs + web), `npx eslint packages/ui/src/fx/`, `npm run build:web` and
 `npm test` all green. No React tests exist or are possible in this repo (no jsdom, no
 `@testing-library/react`), so the layout claims are code-and-CSS review plus the owner's eye.

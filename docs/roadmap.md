@@ -253,13 +253,10 @@ The career surface exists; deepen what a finished run *remembers*.
   jargon** in the binding table and wants plain language. (Rail mode's missing Fire/scrub, the unreadable commit
   confirmation and the silently-baked locked seed — shipped, see the devlog.)
 
-- **Preset misses are invisible where it matters most.** `applyVariant` reports every key that reached nothing
-  in `missed`, and the gallery DEV-warns it to the console — but nothing surfaces in the UI. The gallery is the
-  first thing a new author touches, so the console is the least likely place they're looking, and a variant
-  that silently did nothing renders as a perfectly normal composition. "Make failure visible" is this
-  subsystem's whole ethos; close the gap. Related trap for whoever builds it: **`applied` counts params
-  *written*, not *changed*** (a ×1 multiplier still lands there), so `applied.length` is NOT a usable "did this
-  variant do anything" signal.
+- **Preset misses in the UI — SHIPPED.** Picking a variant that only partly landed now says so above the def
+  name / Save row, naming the keys. Note for anyone extending it: **`applied` counts params *written*, not
+  *changed*** (a ×1 multiplier still lands there), so `applied.length` is NOT a usable "did this variant do
+  anything" signal.
 
 - **Absorb the ~30 legacy `pixiFx` effects into the workbench.** They predate the def format and aren't
   authorable there, so half the game's FX are still edited by hand in TypeScript while the other half are

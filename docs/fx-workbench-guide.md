@@ -87,6 +87,13 @@ Three details worth knowing before they surprise you:
   Bolt-derived effect under words the author never wrote and can't change. `seed` matters more: `loadDef`
   reads it to decide whether to **lock** the seed (§5), so an inherited one would silently hand you a frozen
   composition. A fresh variant starts unlabelled, untagged and rolling free, exactly like any other new def.
+- **A variant that only partly landed tells you.** `applyVariant` reports every transform key that reached no
+  slider param in `missed`; picking such a variant puts an amber line above the def name / Save row naming
+  those keys. The three causes of a miss (no primitive declares the key; the key names a non-slider param; the
+  current value can't be multiplied) share **one** bucket on purpose — to an author they all mean *this part of
+  the recipe did nothing*, and the difference is a preset-table detail they can't act on. It's a warning, not
+  an error: the composition is fully usable. Shown on **pick** only — warning on every card the pointer crosses
+  while browsing would be noise.
 - **`presets.json` ships in the production bundle** (~1 KB) — see [the appendix](#appendix--why-presetsjson-ships).
 
 ### Browse all — start from something already bound

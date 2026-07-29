@@ -5807,6 +5807,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   color: #e8bd7b; font-family: var(--font-ui); font-size: 10px; font-weight: 800; cursor: pointer;
 }
 .fxwb-def-seedwarn-unlock:hover { border-color: #e0a24a; color: #ffd9a0; }
+/* "Part of the picked variant did nothing." Same amber caution family as the seed warning — both are "know
+   this before you save", neither is an error — but flat rather than boxed-and-bordered, so the two never read
+   as one alarm when they happen to appear together. */
+.fxwb-def-variantwarn { display: flex; align-items: flex-start; gap: 6px; }
+.fxwb-def-variantwarn-txt { flex: 1 1 auto; min-width: 0; font-size: 10px; line-height: 1.35; font-weight: 700; color: #e8bd7b; }
+.fxwb-def-variantwarn-x {
+  flex: 0 0 auto; width: 18px; height: 18px; padding: 0; border-radius: 5px; border: 1px solid #3d3752;
+  background: #211d2c; color: #8a7fa8; font-family: var(--font-ui); font-size: 9px; line-height: 1; cursor: pointer;
+}
+.fxwb-def-variantwarn-x:hover { border-color: #e0a24a; color: #ffd9a0; }
 
 .fxwb-deflib { display: flex; flex-direction: column; gap: 4px; }
 .fxwb-def-head {

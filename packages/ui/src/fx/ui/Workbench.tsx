@@ -225,7 +225,7 @@ function isTextEntry(target: EventTarget | null): boolean {
  *
  * `version` and `duration` are carried through, because those are the def's data, not its filing.
  */
-function materialiseVariant(archetypeId: string, variantId: string): StoredFxDef | null {
+function materialiseVariant(archetypeId: string, variantId: string): MaterialisedVariant | null {
   const table = presetTable();
   const arch = table.archetypes.find((a) => a.id === archetypeId);
   const axis = table.variantAxes.find((x) => x.id === variantId);
@@ -248,7 +248,45 @@ function materialiseVariant(archetypeId: string, variantId: string): StoredFxDef
     layers: def.layers,
   };
   registerSavedDef(stored);
-  return stored;
+  // `missed` travels OUT rather than only into the console, so a caller that lands this composition in the
+  // editor can tell the author (see `variantWarning`). The labels travel with it because the message is for a
+  // human: "Bolt / heavy", not `preset-bolt--heavy`.
+  return { stored, missed, archetypeLabel: arch.label, variantLabel: axis.label };
+}
+
+/**
+ * A computed-and-registered variant, plus what didn't land.
+ *
+ * `missed` is a SINGLE bucket by design (see `applyVariant`): a key no primitive in this composition declares,
+ * a key naming a param that isn't a slider, and a param whose value can't be multiplied all end up here,
+ * because to an author they mean the same one thing — *this part of the variant did nothing*. Don't split it;
+ * the difference is a preset-table detail, not a decision the author can act on differently.
+ */
+interface MaterialisedVariant {
+  stored: StoredFxDef;
+  missed: string[];
+  archetypeLabel: string;
+  variantLabel: string;
+}
+
+/**
+ * The author-facing sentence for a variant that only partly landed, or `null` when it all landed.
+ *
+ * Worded to the one meaning `missed` has — *this part of the recipe reached nothing* — without claiming which
+ * of its three causes applied, because the author can't act on that difference and guessing wrong would be
+ * worse than staying vague. It names the keys so the report is checkable, and it says outright that the
+ * composition is still fine, so this reads as "know this" rather than "something is broken".
+ *
+ * Module scope beside `materialiseVariant` for the same reason that function is: it closes over nothing.
+ */
+function variantMissedMessage(made: MaterialisedVariant): string | null {
+  if (made.missed.length === 0) return null;
+  const n = made.missed.length;
+  return (
+    `${made.archetypeLabel} · ${made.variantLabel}: ${n} ${n === 1 ? 'part' : 'parts'} of this variant ` +
+    `did nothing here (${made.missed.join(', ')}) — nothing in this composition takes ` +
+    `${n === 1 ? 'that adjustment' : 'those adjustments'}. The rest applied, and the effect is fine to use.`
+  );
 }
 
 /**
@@ -324,6 +362,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // The committed def library. Held in state (rather than calling `authoredDefs()` inline) so a Save can
   // refresh it explicitly — the registry behind it is module-level and React knows nothing about it.
   const [defs, setDefs] = useState<StoredFxDef[]>(() => authoredDefs());
+  // "Part of the variant you picked did nothing." `applyVariant` has always reported those keys in `missed`
+  // and the gallery has always DEV-warned them to the console — but the gallery is the FIRST thing a new
+  // author touches and the console is the last place they're looking, so a half-applied variant arrived
+  // looking like a perfectly normal composition. This carries it to the rail instead, next to the def name and
+  // Save. A warning, never an error: the composition is fully usable, one part of the recipe just didn't
+  // reach anything. Cleared by `loadDef`, so it belongs to the composition on screen and not to the session.
+  const [variantWarning, setVariantWarning] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
   // The preset gallery. MUTUALLY EXCLUSIVE with `browsing`: both overlays are full-screen at the same
   // z-index, so two open at once is not a layered UI, it's one silently buried under the other. Each
@@ -1533,6 +1578,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setDefName(nameForField);
     setSaveNote(null);
     setSaveError(null);
+    // The variant warning describes the composition being REPLACED, so it goes with it. The gallery's own
+    // `onPick` sets it again after calling this — same React batch, so the later write wins.
+    setVariantWarning(null);
     setRestoredNotice(false); // the restored work has just been replaced — the banner would be a lie
     if (liveOnly) pushLiveLayers(next);
   };
@@ -1937,6 +1985,23 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             alongside it). The read side — load / duplicate / paste — is the "Start from" picker at the top of
             the rail. */}
         <div className="fxwb-def">
+          {/* A picked preset variant that only partly landed. ABOVE the name/Save row, because it is a fact
+              about the composition you're about to name and write, and it must not be findable only by
+              scrolling past Save. Dismissible: it is information, not a blocker. */}
+          {variantWarning !== null && (
+            <div className="fxwb-def-variantwarn">
+              <span className="fxwb-def-variantwarn-txt">⚠ {variantWarning}</span>
+              <button
+                type="button"
+                className="fxwb-def-variantwarn-x"
+                title="Dismiss"
+                aria-label="Dismiss"
+                onClick={() => setVariantWarning(null)}
+              >
+                ✕
+              </button>
+            </div>
+          )}
           <div className="fxwb-def-saverow">
             <input
               className="fxwb-def-nameinput"
@@ -2231,16 +2296,20 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             // Materialise FIRST — `playDef` resolves by id and the variant does not exist until it is
             // registered (see `materialiseVariant`). Like the browser's hover, this is a PREVIEW: it
             // never touches the author's in-progress composition.
-            const stored = materialiseVariant(archetypeId, variantId);
-            if (stored === null) return;
-            playDef(stored.id, anchors);
+            const made = materialiseVariant(archetypeId, variantId);
+            if (made === null) return;
+            playDef(made.stored.id, anchors);
           }}
           onPick={(archetypeId, variantId) => {
-            const stored = materialiseVariant(archetypeId, variantId);
-            if (stored === null) return;
+            const made = materialiseVariant(archetypeId, variantId);
+            if (made === null) return;
             // The same seam Duplicate uses: land it in the editor as a template, pre-named so Save never
             // opens on a blank name. Nothing is written until the author hits Save.
-            loadDef(stored, `${archetypeId}-${variantId}`);
+            loadDef(made.stored, `${archetypeId}-${variantId}`);
+            // Only on PICK, never on hover-preview: a preview is a glance, and warning on every card the
+            // pointer crosses would be noise you learn to ignore. This is the moment the half-applied
+            // composition becomes the thing you're about to tune and save.
+            setVariantWarning(variantMissedMessage(made));
             setGallery(false);
           }}
           onClose={() => setGallery(false)}

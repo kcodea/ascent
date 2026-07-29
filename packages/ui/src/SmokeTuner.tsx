@@ -1,68 +1,66 @@
-import { useState } from 'react';
-import { SMOKE_KEYS, SMOKE_RANGES, getSmokeConfig, resetSmokeConfig, setSmokeValue, type SmokeConfig } from './smokeConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { SMOKE_DEFAULTS, SMOKE_RANGES, getSmokeConfig, resetSmokeConfig, setSmokeValue, type SmokeConfig } from './smokeConfig';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the board's soft smoke/dust (`smokeConfig.ts` → `pixiFx.impact` combat smoke +
- * `pixiFx.dust` card-drop dust). Drag the sliders to amp count / rise / spread / life / expansion / alpha by
- * eye — values persist to localStorage and apply to the NEXT impact/drop (land a hit or place a card to
- * judge). "Copy" grabs the JSON to paste back as the shipped defaults in `smokeConfig.ts`. Panel-only:
- * opened from the Dev Tuning Menu.
+ * DEV-only tuner for the board's soft smoke and dust. Three separate effects share this panel, which is why the
+ * sections matter here more than most: combat impact smoke, the footprint billow when a card is placed, and the
+ * dust + energy pulse fired from a strike point. Values persist to localStorage and apply to the NEXT impact or
+ * drop, so land a hit or place a card to judge a change.
+ *
+ * LANGUAGE. The old labels prefixed every one to fake grouping ("smoke · count", "impact dust · life ms") and
+ * used "alpha" for three different things across three different effects. Groups are real now, so a label only
+ * has to name its own property, and each is scoped by the section it sits under.
  */
-const LABELS: Record<keyof SmokeConfig, string> = {
-  smokeCount: 'smoke · count',
-  smokeRise: 'smoke · rise',
-  smokeDrift: 'smoke · drift',
-  smokeLife: 'smoke · life ms',
-  smokeGrow: 'smoke · grow',
-  smokeAlpha: 'smoke · alpha',
-  dustCount: 'dust · count',
-  dustSpeed: 'dust · speed',
-  dustLife: 'dust · life ms',
-  dustGrow: 'dust · grow',
-  dustAlpha: 'dust · alpha',
-  impDustCount: 'impact dust · count',
-  impDustSpeed: 'impact dust · speed',
-  impDustLife: 'impact dust · life ms',
-  impDustSize: 'impact dust · size',
-  impPulseRadius: 'pulse · radius',
-  impPulseDur: 'pulse · time ms',
-  impPulseRings: 'pulse · rings',
+const SPECS: Record<keyof SmokeConfig, [string, TunerUnit | undefined, string, string]> = {
+  smokeCount:     ['Puff count', undefined, 'How many smoke puffs an impact throws.', 'Combat impact smoke'],
+  smokeRise:      ['Rise', 'px', 'How far the smoke lifts as it fades. 0 keeps it flat.', 'Combat impact smoke'],
+  smokeDrift:     ['Spread', 'px', 'How far the puffs billow outward from the hit.', 'Combat impact smoke'],
+  smokeLife:      ['Lifetime', 'ms', 'How long one puff lasts before it has fully faded.', 'Combat impact smoke'],
+  smokeGrow:      ['Expansion', '×', 'How much a puff grows over its life.', 'Combat impact smoke'],
+  smokeAlpha:     ['Opacity', 'opacity', 'Peak opacity of the smoke.', 'Combat impact smoke'],
+
+  dustCount:      ['Puff count', undefined, 'How many dust puffs ring a placed minion’s footprint.', 'Card-drop dust'],
+  dustSpeed:      ['Billow speed', 'px/s', 'How fast the dust pushes outward.', 'Card-drop dust'],
+  dustLife:       ['Lifetime', 'ms', 'How long one dust puff lasts.', 'Card-drop dust'],
+  dustGrow:       ['Expansion', '×', 'Final size of a puff relative to where it started.', 'Card-drop dust'],
+  dustAlpha:      ['Opacity', 'opacity', 'Peak opacity of the dust.', 'Card-drop dust'],
+
+  impDustCount:   ['Puff count', undefined, 'How many dust puffs erupt from the strike point.', 'Strike-point dust'],
+  impDustSpeed:   ['Billow speed', 'px/s', 'How fast that dust pushes outward.', 'Strike-point dust'],
+  impDustLife:    ['Lifetime', 'ms', 'How long one puff lasts.', 'Strike-point dust'],
+  impDustSize:    ['Puff radius', 'px', 'Size of each puff.', 'Strike-point dust'],
+
+  impPulseRadius: ['Ring radius', 'px', 'How far the energy ring expands from the strike point.', 'Strike-point pulse'],
+  impPulseDur:    ['Ring lifetime', 'ms', 'How long a ring takes to expand and fade.', 'Strike-point pulse'],
+  impPulseRings:  ['Ring count', undefined, 'How many rings fire. 0 disables the pulse entirely.', 'Strike-point pulse'],
 };
 
-export function SmokeTuner() {
-  const [cfg, setCfg] = useState<SmokeConfig>(getSmokeConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('smoke');
+/** Declaration order IS render order, and controls sharing a group render together under its heading. */
+const ORDER: (keyof SmokeConfig)[] = [
+  'smokeCount', 'smokeRise', 'smokeDrift', 'smokeLife', 'smokeGrow', 'smokeAlpha',
+  'dustCount', 'dustSpeed', 'dustLife', 'dustGrow', 'dustAlpha',
+  'impDustCount', 'impDustSpeed', 'impDustLife', 'impDustSize',
+  'impPulseRadius', 'impPulseDur', 'impPulseRings',
+];
 
-  const set = (k: keyof SmokeConfig, v: number): void => {
-    setSmokeValue(k, v);
-    setCfg({ ...getSmokeConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getSmokeConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetSmokeConfig(); setCfg({ ...getSmokeConfig() }); };
+const controls: TunerControl<Extract<keyof SmokeConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  const [min, max, step] = SMOKE_RANGES[key];
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Smoke &amp; Dust <span>dev · next impact/drop · drag</span></div>
-      {SMOKE_KEYS.map((k) => {
-        const [min, max, step] = SMOKE_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name">{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+const SPEC: TunerSpec<SmokeConfig> = {
+  id: 'smoke',                      // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Smoke & Dust',
+  note: 'dev · next impact · drag',
+  read: getSmokeConfig,
+  write: setSmokeValue,
+  reset: resetSmokeConfig,
+  defaults: SMOKE_DEFAULTS,
+  controls,
+};
+
+export function SmokeTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

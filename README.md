@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Commit animation.** Pick a card and a moment in the workbench, tune the effect while watching it on the
+  real card, then commit — writing the effect and its binding together, for that card only (forking it) or
+  everywhere.
 - **Replay any moment a card caused.** Stage a controlled fight, pick from the list of moments your card
   actually produced, and jump the replay to any of them with a run-up — so an authored effect can be judged
   on the real card at real scale, on demand, instead of by playing until its moment happens to occur.

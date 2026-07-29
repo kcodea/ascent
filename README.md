@@ -48,6 +48,13 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   with variants (thin / heavy / crackling / beam), lands a tuned, working composition in the editor instead of a
   blank page. A variant is a multiplier table applied to slider params only — clamped, snapped, and loud about
   anything it couldn't apply. The two shipped bases are first passes awaiting a tuning pass.
+- **Lobby: real players at the table.** An 8-seat lobby now seats up to 3 REAL player runs from the shared
+  board pool — their actual boards, in their actual order — alongside bots wearing player handles. Measured over
+  9 lobbies, recorded player runs place 3.63 against the bots' 6.58.
+- **Bots that actually play.** The production bots score a board by *fighting with it* rather than guessing from
+  stat proxies, and the lobby runs them at last (every seat had quietly been the old greedy bot). Against real
+  player boards Expert covers 4.63 wins to legacy's 3.33 — par is 9, so the gap is real and measured.
+  `npm run bot:ladder` / `lobby:ladder` report it with error bars.
 - **The title menu presses back.** Every menu plaque now has a visible edge that collapses under the click, a
   down-stroke "thock", a hover sheen, a staggered entrance, and a keyboard focus ring — the column went from
   hover-only rectangles to controls with weight.

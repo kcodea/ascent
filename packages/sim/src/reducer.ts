@@ -1,5 +1,6 @@
 import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
+import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lobby/runLobby';
@@ -1673,30 +1674,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       // built its own bare `combatSide({ tier })`, which silently dropped all seventeen run-level scalers below
       // — so the identical board was materially weaker as a lobby seat than as an Ascent opponent. Sharing the
       // function is the point: a new scaler added here reaches both, and neither can drift from the other.
-      const enemySideFrom = (snap: BoardSnapshot, fallbackTier: number): CombatSideState => combatSide({
-        tier: snap.tier ?? fallbackTier,
-        // The run's PINNED set — the same narrowing the player side gets, so an enemy's random pick can't
-        // reach into another set's cards. Read from the LIVE run: a snapshot records which set it was played
-        // under, but the fight happens in this run's, and both sides must draw from one pool.
-        poolIds: poolOf(s).all.map((c) => c.id),
-        spellPowerAtk: snap.spellPower?.attack ?? 0,
-        spellPowerHp: snap.spellPower?.health ?? 0,
-        spellsThisTurn: snap.spellsThisTurn ?? 0,
-        beastsPlayed: snap.beastsPlayed ?? 0,
-        deathrattles: snap.deathrattles ?? 0,
-        spellsCast: snap.spellsCast ?? 0, // enemy Umbral Energy
-        beastBuyAtk: snap.beastBuyAtk ?? 0, // enemy Beast aura
-        impAtk: snap.impAura?.attack ?? 0, // enemy Imp Aura → correctly-sized enemy Imp summons
-        impHp: snap.impAura?.health ?? 0,
-        undeadAtk: snap.undeadAura?.attack ?? 0, // enemy Undead Lantern aura
-        undeadHp: snap.undeadAura?.health ?? 0,
-        undeadBuyAtk: snap.undeadBuyAtk ?? 0, // enemy Undead buy-time Attack
-        magneticAtk: snap.magneticAura?.attack ?? 0, // enemy Attachment aura
-        magneticHp: snap.magneticAura?.health ?? 0,
-        fodderConsumedAtk: snap.fodderConsumed?.attack ?? 0, // enemy Abhorrent Horror
-        fodderConsumedHp: snap.fodderConsumed?.health ?? 0,
-        questMods: snap.questMods ?? {}, // enemy runes/quests reproduced in combat
-      });
+      const enemySideFrom = (snap: BoardSnapshot, fallbackTier: number): CombatSideState =>
+        sideFromSnapshot(snap, fallbackTier, poolOf(s).all.map((c) => c.id));
       const servedState: CombatSideState = served
         ? enemySideFrom(served, s.tier)
         : combatSide();
@@ -2355,7 +2334,10 @@ function advanceCombat(s: RunState): void {
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
-  if (s.hand.some((c) => c.borrowed)) s.hand = s.hand.filter((c) => !c.borrowed); // Funeral on Loan: unplayed borrowed cards are returned at turn end
+  // Funeral on Loan: a borrowed card that wasn't played STAYS IN HAND (owner 2026-07-29). It used to be
+  // discarded here, which meant Discovering an Echo minion you couldn't afford to use this turn simply
+  // destroyed the card. It keeps its `borrowed` flag, so playing it on any later turn still triggers the Echo
+  // and destroys it — the loan just has no deadline.
   if (s.scoutedNextOpponent) s.scoutedNextOpponent = undefined; // Farseer's Report: the scout is for one opponent — clear it as a new one is drawn
   for (const c of s.board) c.rubyRecvTick = 0; // Ruby Broker's per-turn Gold cap resets each wave
   s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave

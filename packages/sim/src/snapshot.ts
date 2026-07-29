@@ -14,7 +14,7 @@ import { makeRng, type BoardMinion, type CombatOutcome, type CombatResult, type 
 import type { SetId } from '@game/content';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
-import { createRun, type Action, type RunState, type ShopCard } from './state';
+import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
 import { reduce, questCombatMods } from './reducer';
 import { spellAttackBonus, spellHealthBonus } from './recruit';
 import type { ThreatId } from './threats';
@@ -305,14 +305,21 @@ export interface Replay {
   seed: number;
   heroId: string;
   actions: Action[];
+  /** The run's MODE. Absent = `'ascent'` (every replay recorded before lobby runs existed).
+   *  Load-bearing: a lobby run replayed as an Ascent run diverges from its first combat, so its captured boards
+   *  were wrong — the bug behind "lobby runs don't save snapshots" (owner 2026-07-29). */
+  mode?: RunMode;
 }
 
 /**
  * Re-run a recorded action log from its seed and collect a board snapshot at each wave's combat. This is
  * how `(seed, action-log)` from real play becomes the per-wave board library, headlessly + deterministically.
  */
-export function replayRun(replay: Replay): { final: RunState; snapshots: BoardSnapshot[] } {
-  let s = createRun(replay.seed, replay.heroId);
+export function replayRun(replay: Replay, initial?: RunState): { final: RunState; snapshots: BoardSnapshot[] } {
+  // `initial` lets the caller supply a fully-built starting state — needed for lobby runs, whose seats are
+  // attached by `createLobbyRun` and not by `createRun(…, 'lobby')` alone. Passed in rather than imported so
+  // this module doesn't take a dependency on `lobby/`, which already depends on this one.
+  let s = initial ?? createRun(replay.seed, replay.heroId, replay.mode);
   const snapshots: BoardSnapshot[] = [];
   for (const action of replay.actions) {
     const before = s;

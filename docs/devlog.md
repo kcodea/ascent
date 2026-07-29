@@ -115,6 +115,678 @@ can't be used as a "did this variant do anything" signal, which is worth knowing
 Above all, **the two bases want the owner's eye in the workbench** — they are ordinary def files and tune like
 any other.
 
+## 2026-07-29 — One snapshot seat per player
+
+Owner report: a lobby seated "someone crazytown okay" **twice**. The dedupe was on `runKey`, which is
+`author|hero|seed` — so two different runs by the same person are two different keys and both took seats.
+
+Now at most one snapshot seat per AUTHOR. Your own runs are not excluded (you may face yourself for now, owner
+call), they simply also cap at one seat. The candidate loop scans the whole run list instead of taking the first
+N, so skipping a duplicate doesn't cost the table a seat.
+
+Author-less runs stay deduped by run key only — nothing identifies who played them, so two unnamed runs by one
+person are indistinguishable. A limitation of unnamed uploads, not a rule.
+
+Verified across 16 seeds: 0 lobbies with a repeated player, still 3 snapshot seats each. 2 new tests, one of
+which registers two runs by one author and asserts they never share a table.
+
+## 2026-07-29 — Lobby seats get player handles, and lobby runs finally save their real boards
+
+**Handles instead of hero names.** Generated seats were labelled "Nadja", "Drumline" — scenery, and it made the
+real snapshot seats obvious by contrast, since those carry a player's actual name. `handles.ts` mints
+deterministic player-looking handles in the styles the pool's real players actually use (TitleCase mashups, a
+lowercase word, `xx_Name_xx`, a trailing z, a lowercase phrase). A table now reads:
+
+```
+You · Orangez · RustyComet83 · lemon · AnvilHimself · literally tired · someone winning · LazerWizard31
+```
+
+Real authors keep their names; author-less runs get a handle too (142 of the pool's 664 boards have no author,
+and "run 1534" leaked the seed and read as debug output). Uniqueness is enforced across the table.
+
+**Lobby runs were saving boards from a run that never happened.** `Replay` carried no mode and `replayRun`
+started from `createRun(seed, heroId)`, so a lobby run's action log was replayed as an ASCENT run — and
+`createRun(…, 'lobby')` alone wouldn't fix it either, because the seats are attached by `createLobbyRun`.
+Measured on one 13-round lobby run:
+
+| | rounds | wins | final board |
+|---|---|---|---|
+| actual run | 13 | 7 | bonetaxer, spore, wolvesden, spore, gravewarden, karthus, philippe |
+| replay as lobby (fixed) | 13 | 7 | **identical** |
+| replay as ascent (shipped) | 12 | 5 | ryme, deathswarmer, spore, wolvesden, spore, supporter, gravewarden |
+
+So it wasn't that lobby runs failed to save — they saved *plausible but fictional* boards, diverging from the
+first combat. `Replay.mode` now records the mode (absent = `'ascent'`, so every older replay is unchanged) and
+`replayRun(replay, initial?)` accepts a prebuilt start state; `saveRunBoards` passes `createLobbyRun(...)` for
+lobby replays. The state is passed IN rather than imported so `snapshot.ts` doesn't take a dependency on
+`lobby/`, which already depends on it.
+
+**Worth knowing:** any lobby run finished before this fix contributed misattributed boards to the shared pool.
+They're legal, buildable boards — just not the ones that were played.
+
+**Verified.** 9 new tests (2975 total / 156 files): handle determinism, spread, never colliding with a hero
+name, table-wide uniqueness, stable collision-dodging, and a lobby-replay fidelity test that asserts the lobby
+replay reproduces the run AND that a mode-less replay does not. Gates: typecheck, lint (0 errors), build:web,
+harness ✓.
+
+## 2026-07-29 — Stat spells must read DISPLAYED stats: the folded-aura layer
+
+Owner report: Turnabout on a Deathsayer **showing 383/361** with a +349/+351 Undead aura moved it by only ±24;
+expected **710/734**. Turnabout on a Deathswarmer showing 3078/3083 moved ~±6.
+
+**Cause — the earlier aura fix was built on a wrong model.** A minion's stats have three layers, and only now
+are they separated properly:
+
+| layer | where it lives |
+|---|---|
+| stored | `card.attack` / `card.health` — what the sim persists |
+| **BAKED** | auras already inside stored: `cardBuff(cardId)`, `undeadBuyAtk`, `beastBuy*`, `magneticBuy*`, `impBuff` |
+| **FOLDED** | auras NOT in stored — the Undead aura (`undeadAttackBonus`/`undeadHealthBonus`), added only when the card is drawn (`instView`: `shownAtk = inst.attack + undeadAtkBonus`) |
+
+The first pass treated every aura as baked. But almost all of that Deathsayer's 383 was FOLDED — its stored
+stats were tiny (≈34/10), so swapping them moved the visible number by ±24 and nothing more. Deathswarmer was
+the same story at a larger scale.
+
+**The rule now, in `writeStatResult`, used by all three stat spells:**
+
+```
+1. displayed = stored + folded      ← what the player actually reads
+2. result    = spell op on displayed
+3. stored    = result + baked       ← the fold re-applies by itself at display time
+```
+
+landing the card at `result + baked + folded` — the result with every aura back on top. On that Deathsayer:
+swap 383/361 → 361/383, then +349/+351 → **710/734**, and the outcome is INDEPENDENT of how the 349 splits
+between the baked and folded channels (verified at 349/0, 200/149 and 0/349).
+
+New helpers next to the aura tables they read: `bakedAuraOf`, `foldedAuraOf`, `displayedStatsOf`. `bakedAuraOf`
+also now uses `cardBuff()` rather than the raw `cardBuffs` map, so Heckbinder's live Fodder aura is included —
+the same bug class the tavern display and the run-buffs panel each had before.
+
+**Verified.** 5 new tests (56 in `spellBatch`): the owner's 710/734 across all three aura splits, Perfect
+Vision through the fold (369/371), and a non-Undead guard proving the tribe-gated fold can't leak. Earlier
+Spear Warden / tribe-aura / golden tests still pass unchanged — the new model is a strict generalization.
+Gates: typecheck, lint (0 errors), 2966 tests / 155 files, build:web, harness ✓.
+
+## 2026-07-29 — Real player snapshots are seated in the lobby
+
+**What.** The deferred lobby item is in: seats can now be driven by REAL player runs from the registered
+opponent pool. `playerRunsFrom()` groups the pool back into the runs it came from (author + hero + seed) and
+`snapshotSeat` replays that player's actual boards in their actual wave order, handing the seat to a live bot
+when the recording runs dry — the same exhaustion rule the generated hybrid seat uses, for the same reason.
+
+The drivers were built for this from the start (`recordedSeat` has always existed); nothing had ever fed them
+real data, so every seat was a bot.
+
+**They are markedly stronger than our bots.** 9 lobbies, mean placement (1 = won, 8 = out first):
+
+| seat kind | mean placement |
+|---|---|
+| snapshot (real player runs) | **3.63** |
+| player (expert bot driving) | 4.44 |
+| hybrid (generated bots) | 6.58 |
+
+Consistent with the Ascent-mode finding that human boards outclass anything we generate — which is exactly why
+seating them makes the lobby a real test.
+
+**Design decisions.**
+- **A seat stores a `runKey`, not the boards.** `RunLobby` is serialized onto `RunState`, and drivers are
+  rebuilt by `driverFor`; embedding boards would bloat every save. A restored lobby whose run isn't in THIS
+  session's pool (other device, pruned patch, backend offline) falls back to a generated bot rather than
+  silently dropping a seat and changing the shape of a saved game.
+- **Capped at 3 of 7 non-player seats** (`LobbyRules.snapshotSeats`). Recordings can't react to the lobby, so a
+  table made mostly of them stops being a game between opponents.
+- **Synthetic boards are excluded.** They're generated per-wave against a power curve and were never one
+  player's run; stringing them together would fake a build order that never existed.
+- **Seat label is the author's name**, so the lobby reads "LazerLemon" rather than a hero name. The UI branches
+  on nothing here, so this needed no UI change.
+- Ascent-mode snapshots for now (owner call). A real approximation worth naming: those boards were built
+  against the 17-round course, not a lobby damage race — but the build ORDER is genuine, which is the part bots
+  cannot fake.
+
+**Verified.** 10 new tests in their own file (registering into the module-global pool would change matchmaking
+under the other lobby tests): reassembly, wave ordering, the too-short-run and synthetic exclusions,
+deterministic ordering, per-round board changes, the bot hand-off, no run seated twice, the minority cap, and
+the missing-run fallback. Headless seating confirmed against the real 664-board pool — 56 runs available, 3
+seats filled with real authors, identical seating on a repeat. Full gates: typecheck, lint (0 errors), 2961
+tests / 155 files, build:web, harness ✓.
+
+**Not confirmed in-app.** The live client gets real boards from the remote pool at boot; this dev session had
+an empty local board store and an already-loaded page, and confirming the fetch would have meant reloading
+over an in-progress lobby run. Starting a fresh lobby run in the app is the check — expect up to 3 seats
+labelled with player names.
+
+## 2026-07-29 — First self-play harvest: quest values land, the value model does not
+
+**6,000 self-play runs → 69,458 labeled rows** (61,020 end-of-turn states, 8,313 quest picks, 125 rune picks),
+played against the real player-board pool with quest/rune picks force-randomized in half the runs.
+
+**The quest table works.** 76 quests cleared the n≥20-each-side bar, with a real spread in measured
+wins-after (picked minus offered-and-passed):
+
+| best | | worst | |
+|---|---|---|---|
+| q_teleport_summit | +0.73 | q_apex_hunt | −0.48 |
+| q_feed_the_alpha | +0.59 | q_the_runeforge | −0.46 |
+| q_perfect_machine | +0.54 | q_empty_graves | −0.40 |
+| q_impossible_shop | +0.50 | | |
+
+This is the thing an immediate evaluator structurally cannot see, and it is only measurable because the
+rollouts FORCE picks the bot would never take. Wired as a search bonus on `buyQuest`; measured neutral-to-
+slightly-positive on its own (4.80 → 4.90 at 20 seeds), and it makes quest choice principled rather than
+arbitrary.
+
+**The value model does not, and it was actively harmful.** Ridge on wave-relative features → winsAfter
+reaches only held-out r=0.288 (split by run). At weight 18 it cost **4.63 → 3.40 wins**. A weak predictor used
+as a search TARGET is worse than no predictor, because search maximizes it — the same failure mode as the
+noisy fight panel earlier today. Weight set to 0, term left computed so `bot:tune` can re-test a better fit.
+
+Why it is weak is not mysterious: the features carry no card identity, so the model cannot tell a board with
+an engine from one with the same stat-line and no engine. That is the next thing to fix, alongside more
+rollouts (rune picks got only 125 samples — the Runeforge is one turn, so it needs far more runs or a
+targeted forced-explore mode).
+
+**Current standing, 40 seeds vs real player boards:** legacy 3.33 · easy 3.83 · normal 4.58 · hard 4.70 ·
+expert 4.70 (±0.29). Session start was 3.65. Still 0 course survivals; par is 9.
+
+**Verified.** typecheck, lint (0 errors), 2951 tests / 154 files, build:web, harness ✓.
+
+## 2026-07-29 — Turnabout obeys the aura rule, and the aura helper now sees TRIBE auras
+
+Follow-up to the entry below, from the owner's second worked example: an Undead 5/3 carrying +200 Attack reads
+205/3, and Turnabout should leave it at **203/205**.
+
+Two things were wrong with the first pass:
+
+1. **Turnabout was deliberately excluded**, on the reasoning that a swap is stat-neutral so both readings
+   agree. That only holds for a SYMMETRIC aura — `swap(a+x, h+x)` equals `swap(a,h)+(x,x)`. With an
+   attack-only aura the readings come apart entirely and the old code threw the +200 away (leaving 3/205).
+   Turnabout now swaps the DISPLAYED stats, writes them as TRUE stats, and re-applies the aura.
+2. **`runWideAuraOf` only read `cardBuffs`** — the per-card-type table. The owner's example uses a TRIBE aura
+   (`undeadBuyAtk`), which that lookup could not see, so the fix would have silently no-op'd on it.
+
+The helper now covers all four run-wide channels by reusing `undeadBuyBonus` / `buyHealthAura` — already the
+single answer to "what auras does this card get", called at every creation site, so a new aura added there
+reaches this automatically — plus `cardBuffs` and `impBuff`. It reads the STATE TABLES rather than
+`card.buffs` on purpose: a minion bought AFTER an aura accrued has it folded into its stats at creation with
+no buff record, so the breakdown would under-report it for exactly the copies that need it most.
+
+**Verified.** 3 new tests (48 in `spellBatch`): the owner's 205/3 → 203/205 example, a tribe-aura Perfect
+Vision (20 + 200 = 220) which the first helper would have failed, and a no-aura Turnabout that must stay a
+plain swap. Full gates: typecheck, lint (0 errors), 2948 tests / 154 files, build:web, harness ✓.
+
+## 2026-07-29 — Two gameplay fixes: Funeral on Loan, and auras eaten by stat-setting spells
+
+**Funeral on Loan no longer destroys an unplayed card.** `settleCombat` filtered every `borrowed` card out of
+hand at turn end, so Discovering an Echo minion you couldn't fit that turn simply deleted it. The loan has no
+deadline now — the card keeps its `borrowed` flag and playing it on ANY later turn still triggers the Echo and
+consumes it. Card text drops "this turn" to match (live-text rule).
+
+**Run-wide card-type auras survive stat-setting spells.** A `buffCardTypeRunWide` accrual (Spear Warden's
+"+3/+2 to all Spear Wardens") belongs to the card TYPE for the rest of the run and is baked into the
+instance's displayed stats. `spellSetStats` (Perfect Vision) and `spellAverageStats` (Common Ground) wrote an
+absolute TOTAL, which overwrote the accrual — so casting Perfect Vision on a heavily-buffed Warden made it
+*weaker than an unbuffed copy*, the exact opposite of the intent.
+
+Owner ruling: **the aura is read for effects that relate to a minion's stats, but a spell adjusts the minion's
+TRUE stats and the aura then applies on top.** Worked examples, both now pinned by tests:
+
+- Spear Warden showing 20/20 (3/3 own + 17/17 aura) + Perfect Vision → true stats set to 20/20, aura re-applies
+  → **37/37**.
+- That same Warden + Common Ground with a 1/1 → average of the DISPLAYED stats (what the player reads) becomes
+  each minion's true stats, so the partner sits at the plain average and the Warden gets its +17/17 back.
+
+New shared helper `runWideAuraOf(state, card)` lives next to `buffCardTypeRunWide`, which maintains the table
+it reads. A third test guards the other direction: a minion with no run-wide aura is unaffected, so the fix
+can't leak a phantom bonus onto ordinary minions.
+
+**Deliberately NOT changed: Turnabout** (`spellSwapStats`). Under a symmetric aura the two readings coincide
+(swap-the-displayed and swap-the-true-then-reapply give the same numbers), they differ only for an asymmetric
+aura, and a swap is stat-neutral by design — so it isn't the reported class of bug. Flagged for the owner.
+
+**Verified.** typecheck, lint (0 errors), 2945 tests / 154 files (4 new), build:web, harness (determinism ✓).
+
+## 2026-07-29 — Panel 5 + wider macro funnel: 4.63 vs human boards
+
+Two knobs re-tested now that the fight panel is real boards: `fightPanelSize` 2→5 (accuracy per node beats
+node count now that opponents are informative) and the replacement-macro funnel widened (3→5 sells, macro
+budget 40→80). Confirmed at 40 seeds vs real player boards: expert **4.63 ±0.31** / hard 4.63 ±0.30, from
+3.65 at session start (+27%). Death round 9.5 → 10.4. Still 0 course survivals.
+
+Named next lever: quest picks are scored by immediate evaluation, which cannot see a quest's future payoff —
+picks are effectively arbitrary, and quests/triples are where human compounding (94→387→9,680 power) lives.
+
+## 2026-07-29 — Replacement macros + the spell hole: first real gains vs human boards
+
+**Directive: bots that can win a game.** Two structural holes found and fixed, each worth more than every
+weight tweak combined:
+
+1. **The board fossilized at full width.** Once the board fills (wave ~6 — the exact onset of the measured
+round-7 collapse), improving it is a SELL→PLAY or SELL→BUY→PLAY sequence. At depth 1 the sell is scored alone,
+always loses value, always pruned — so the board kept its wave-3 tier-1 bodies forever (measured meanTier 1.73
+at wave 10 vs the human corpus's 4.21). Fix: **replacement macros** in `search.ts` — the 3 least-bad sells
+expand into plays/buy-chains and the whole sequence is scored at its END state.
+
+2. **The bot could not cast spells once the board was full.** The candidate generator detected spells by
+looking the hand card up in the SHOP (vestigial nonsense), generated aimed spells with no `targetUid` (the
+reducer fizzles them), and gated everything in hand on `boardFull` — so from wave ~6 on, no spell of any kind
+could be cast. Buff spells are exactly how human boards compound (94 → 387 → 9,680 power at waves 7/10/13).
+Fix: spells generate as casts — per-target for `friendly`/`any`, plain for untargeted — never gated on width.
+
+**Also built: `npm run bot:tune`** — searches the evaluator weight space against the real objective (wins vs
+human boards). Its first finding: the three hand-picked 'shape' weights (tierDensity/tribeFocus/pairsHeld)
+were ALL harmful — 3.15 wins weighted vs 4.50 zeroed. They stay computed at weight 0 for the tuner and future
+personas. Also re-tested depth post-panel-fix: still harmful (3.85 vs 4.50 at 20 seeds); expert stays depth 1.
+
+**Measured, 40 seeds vs real player boards:**
+
+| | session start | now |
+|---|---|---|
+| expert wins | 3.65 ±0.29 | **4.33 ±0.27** |
+| hard wins | 3.63 ±0.29 | **4.38 ±0.28** |
+| vs legacy | 3.33 | 3.33 |
+
+Wave-10 board power moved 147 → 225 (human: 387). Still 0 course survivals; death round moved 9.5 → 10.0.
+
+**Test churn:** the lobby ghost tests pinned seed 4 and asserted an elimination inside the played window;
+stronger seats now survive it. They scan seeds like their sibling test instead. One bot test rewritten earlier
+asserted a sub-noise ordering at 12 seeds.
+
+**Next lever (from the data, not vibes):** the remaining gap is compounding — human power quadruples from wave
+7→10 and ×25 from 10→13 while the bot's doubles. Quest/rune valuation (mandatory picks are scored by immediate
+eval, which cannot see a quest's future) and triple construction are where that lives.
+
+## 2026-07-29 — CORRECTION: the board model's r=0.789 was leakage
+
+The held-out split in the entry below was **every 4th board**. The corpus has only **56 distinct runs from 7
+authors**, and a run's wave-9 and wave-10 boards are nearly the same board — so **100% of held-out boards had
+their own run in the training set**. The model could memorize runs.
+
+Re-split by RUN (14 of 56 runs held out entirely):
+
+| split | model r | power baseline r | gain |
+|---|---|---|---|
+| every 4th board (leaky) | 0.789 | 0.716 | +0.073 |
+| **whole runs held out** | **0.242** | **0.225** | **+0.017** |
+
+So on runs it has never seen, the learned board model is **not meaningfully better than raw power**. The
+pipeline is sound and the Elo labels are real; the *model* is not yet validated, and the honest reading is that
+56 runs from 7 authors is too small a corpus to fit or validate a board evaluator that generalizes. More data
+comes from rollouts, not from more features.
+
+This also explains the result in the entry below that puzzled me: wiring the model into the evaluator did not
+move wins. It was never carrying information that raw power lacked.
+
+Caught by the Codex learned-bot-training handoff, which lists exactly this under Risks: *split by complete run
+and board origin; reserve a permanent holdout pool*. The model is regenerated with the run-level split and
+stays wired in at weight 20 — measured neutral either way — but it is explicitly UNVALIDATED and must not be
+cited as a win until a larger corpus says otherwise.
+
+## 2026-07-29 — Elo-rated boards, a learned strength model, and where the bots actually break
+
+**What.** Ground-truth board strength, by fighting boards against each other instead of guessing.
+`npm run board:elo` round-robins every board in a wave band (both orderings — combat is not symmetric) and
+fits Bradley-Terry ratings. `npm run board:train` fits a ridge model over 52 board features to those ratings.
+`npm run boards:fetch` supplies the real population.
+
+**The diagnosis, quantified.** Correlation of raw `power` (Σ attack+health) with true measured strength:
+
+| band | synthetic | human |
+|---|---|---|
+| 1-3 | 0.92 | 0.89 |
+| 4-6 | 0.88 | 0.89 |
+| 7-9 | 0.88 | 0.75 |
+| 10-12 | 0.94 | **0.37** |
+| 13-15 | 0.92 | **0.44** |
+| 16-20 | 0.94 | 0.59 |
+
+On synthetic boards stats ARE strength at every wave. On human boards past round 10 stats explain barely a
+third. Every proxy evaluator this project has had was therefore near-perfect on the distribution it was tested
+against and blind on the one that matters.
+
+**The model.** Held-out r = **0.789** against 0.716 for band-relative power. Two shapes failed first and are
+documented in the tool: per-band fits overfit (~120 rows, 52 features) and naive pooling broke the baseline
+(power scales with wave, elo is centred per band, so pooled power correlates with the band — 0.89 → 0.17).
+Band-relative features, pooled, is what works. Learned weights name the missing ingredient directly:
+`distinctTribes` is **negative** (concentration beats spread — synergy), `maxTier` +50, `effectCount` +61,
+`trig_onDeath` +45.
+
+**Wired in, and honestly: it did not move wins.** `learnedStrength` is now an evaluator term (weight 20,
+`fightStrength` cut 44→26) and `fightScore` draws its panel from the real pool when one is registered. Against
+human boards: 3.88 → 3.65 wins, i.e. unchanged inside the error bars. Behaviour DID change in the predicted
+direction — final tier rose from 4.1–5.0 to 5.0–5.3. Against the procedural pool every tier improved
+(easy 3.25 → 4.35, expert 4.83 → 5.15).
+
+**Where they actually break.** Per-round win rate, expert vs human boards, 16 seeds:
+
+```
+round    1   2   3   4   5   6   7   8   9  10  11  12
+win%    50  56  50  50  56  63  31  31  15  29   0   0
+```
+
+The bot keeps pace through round 6 and then falls off a cliff — precisely where power stops predicting human
+board strength. Combined with the negative `distinctTribes` weight, the story is coherent: **a greedy
+per-turn evaluator picks the locally-best card each shop and ends with an incoherent board.** Board
+*evaluation* is no longer the bottleneck; board *construction across turns* — committing to a package by
+wave 5 and compounding it — is.
+
+That reframes the next step. It is not a better state-scorer; it is multi-turn commitment, which is what
+Ticket 3's package graph was reaching for and what self-play on run OUTCOMES (not board strength) would learn.
+
+**Verified.** typecheck, lint (0 errors), 2941 tests / 154 files, build:web, harness (determinism ✓). One test
+was rewritten rather than fixed: it asserted hard > easy over 12 seeds, a difference smaller than the noise at
+that sample size (it holds at 40 seeds: 4.78 vs 4.35). Fine-grained ladder claims belong in `bot:ladder`, not
+in a test that fails on variance.
+
+## 2026-07-29 — Measured against REAL player boards: the ladder collapses
+
+**What.** `npm run boards:fetch` pulls the shared Supabase board pool (664 boards, 6 authors, all
+`origin: 'self'` — actual played runs) to a local cache, and `npm run bot:ladder -- --human` fights those
+instead of the committed pool. Every bot measurement before this was against synthetic opposition: the
+committed pool is 160 boards and every one is `origin: 'synthetic'`, generated from the card set and banded
+to the tuned enemy curve.
+
+**Result.** 40 seeds, hero drakko. `r17` = runs that reached round 17, `wonR17` = won that round,
+`survived` = finished the course alive.
+
+| tier | vs synthetic | r17 | survived | vs REAL players | r17 | survived |
+|---|---|---|---|---|---|---|
+| legacy | 2.10 ±0.40 | 1 | 1 | 3.33 ±0.22 | 0 | 0 |
+| easy | 3.25 ±0.65 | 9 | 8 | 3.17 ±0.29 | 0 | 0 |
+| normal | 3.50 ±0.69 | 9 | 9 | 3.42 ±0.33 | 0 | 0 |
+| hard | 4.10 ±0.70 | 10 | 10 | 3.75 ±0.33 | 0 | 0 |
+| expert | 4.83 ±0.72 | 14 | 13 | 3.88 ±0.34 | 0 | 0 |
+
+Against real player boards **nothing survives the course** — 0 of 40 runs reached round 17 at any tier, and
+all 200 runs died. Par is 9 wins; the best bot covers 3.88.
+
+More damning: against human boards the ladder stops separating. Legacy 3.33 ±0.22 against expert 3.88 ±0.34
+is roughly 1.4σ — not a real difference. The entire measured gain from the production bot system exists
+against synthetic opposition and largely evaporates against boards people actually built.
+
+**What this means.** Synthetic boards are banded to a *curve*; human boards have synergy — the packages a
+real player assembles beat their stat-line. `fightScore` scores candidate boards against the procedural
+threat curve, so the evaluator is optimizing for exactly the opposition that turns out to be the easy case.
+That is the next problem to solve, and it is a different problem from search depth or difficulty tuning.
+
+**Follow-ups.** Fight the human pool inside `fightScore` (it is now loadable), and re-derive difficulty
+against it. Personas and strength-limiting should wait: there is no point diversifying or capping bots whose
+tiers are statistically the same bot.
+
+## 2026-07-29 — The lobby was never running the production bots
+
+**What.** `botSeat` drove its run with `DEFAULT_BOT.act(run)` — the legacy greedy policy — so every seat at
+the eight-seat table was the old bot. The entire production bot system was built, measured in Ascent mode,
+and never reached the mode it was built for. Seats now take a `SeatPolicy` (`'easy' | 'normal' | 'hard' |
+`'expert' | 'legacy'`) and default to `hard`; `'legacy'` stays selectable as the baseline.
+
+**Why the Ascent number couldn't answer the question.** `bot:ladder` measures a 17-round course against the
+served pool, scored by wins covering the Oath. A lobby bot does a different job: `mode: 'lobby'` has no course
+clock (boards keep growing, late rounds stay dangerous), it fights OTHER SEATS rather than the pool, and
+success is placement, not a win count. So `npm run lobby:ladder` is new and measures the real thing — eight
+bots of assigned policies, lobby run to its finish, reported as mean placement.
+
+**Verified.** 12 lobbies, 8 seats, mean length 17.8 rounds. Placement 1 = won the lobby, 8 = out first:
+
+| policy | mean placement | lobby wins | top half |
+|---|---|---|---|
+| legacy | 6.33 ±0.30 | 0 | 13% |
+| easy | 5.08 ±0.49 | 2 | 38% |
+| normal | 4.08 ±0.40 | 2 | 58% |
+| expert | 3.38 ±0.52 | 8 | 71% |
+
+Monotone, and the ends are cleanly separated: Expert takes 8 of 12 lobbies, legacy none. This is the first
+measurement of these bots that reflects what they're for. Gates green: typecheck, lint, 2941 tests, build:web,
+harness (determinism ✓).
+
+**Follow-up.** Mean placement is a *relative* metric — it says Expert beats the other seats, not that it would
+trouble a good human. A human baseline still doesn't exist, and that is the gap personas and strength-limiting
+should be tuned against rather than against each other.
+
+## 2026-07-29 — CORRECTION: the bot ladder was measuring against the evaluator's own panel
+
+The win counts in the entry below are **wrong** and are retained only so the mistake is legible.
+
+`OPPONENT_POOL` ships empty; the only place that loads the 154 baked boards into it is `packages/ui/src/
+store.ts`. `bot-ladder.ts` is a headless tool and never did, so every fight it measured fell through to
+`buildEnemyBoard` — the procedural fallback, and the *same generator* `fightScore.ts` uses as its scoring
+panel. The bot was being graded on the exact distribution it optimizes against.
+
+Corrected, 20 seeds, hero drakko, real pool + procedural fallback:
+
+| tier | reported (procedural only) | actual (real pool) |
+|---|---|---|
+| legacy | 2.70 ±0.60 | 1.80 ±0.62 |
+| easy | 6.80 ±0.96 | 4.55 ±1.02 |
+| normal | 7.50 ±1.01 | 4.00 ±1.08 |
+| hard | 8.70 ±0.92 | 4.45 ±1.11 |
+| expert | 9.10 ±0.87 | 5.60 ±1.15 |
+
+So: Expert is at **5.60 against par 9**, not at par — and easy/normal/hard are indistinguishable inside their
+error bars, meaning the ladder only really separates at its two ends. The fight-grounding work is still a
+large genuine gain over legacy's 1.80, and the two bugs it fixed were real; the claim that bots "play at par"
+was not.
+
+`bot:ladder` now registers the pool by default and prints its opponent source on every run, with
+`--procedural` kept as an explicit opt-in for comparison. A benchmark that doesn't state what it fought is
+the defect here — the number was unfalsifiable, not merely optimistic.
+
+Note the remaining gap: those 154 boards are **synthetic** (0 imported), generated from the card set and
+banded to the tuned enemy curve. They are a far better test than the procedural fallback but they are still
+not human play, so real player snapshots now gate the *measurement*, not just the lobby feature.
+
+## 2026-07-29 — Fight-grounded bot evaluator: bots go from 3 wins to par
+
+**What.** The production bots now score a board by *fighting with it* rather than by hand-written proxies.
+`fightScore.ts` plays the candidate board against the procedural threat panel for its wave and reads back
+win rate, margin and damage taken; `evaluate.ts` weights that at 44 against a much smaller set of surviving
+proxies. Difficulty was rewritten to one search config scaled only by blunder rate.
+
+**Why it was stuck at ~3 wins.** Two bugs, both of which made the search actively counter-productive:
+
+- The fight panel was seeded from the board *being scored*, so two candidate boards were measured against
+  two different sets of enemies. Ranking them was ranking noise — which is why skill FELL as the bot
+  searched deeper, and why a 0.40 blunder rate outscored 0.00 (7.30 vs 4.45). Picking the best of a noisy
+  comparison is worse than picking at random. `panelSeed(wave)` fixes it.
+- The blunder chose its alternative from the pruned beam, which at `beamWidth: 1` is the best node itself.
+  The roll fired and found nothing to pick, so all four difficulties played byte-identically. It now picks
+  from the retained depth-0 children.
+
+Also fixed on the way: `forcedSpend` played `hand[0]` blindly and the reducer refused targeted spells, which
+ended runs at 3.5 rounds; it now validates each option through `applyCandidate`. And search scored a refresh
+by looking at the *actual* refreshed shop — reading the future — now `expectedAfterRefresh`.
+
+**Verified.** `npm run bot:ladder -- --seeds 20`, hero drakko:
+
+| tier | wins | rounds | died |
+|---|---|---|---|
+| legacy | 2.70 ±0.60 | 10.4 | 18 |
+| easy | 6.80 ±0.96 | 14.2 | 11 |
+| normal | 7.50 ±1.01 | 14.6 | 9 |
+| hard | 8.70 ±0.92 | 15.7 | 8 |
+| expert | 9.10 ±0.87 | 16.0 | 7 |
+
+Par (the Oath) is 9. The ladder is monotone and expert is at par. Full gates green: typecheck, lint,
+2941 tests across 154 files, build:web, harness (determinism ✓).
+
+**Tooling.** `npm run bot:ladder` is new and exists because two prior evaluator changes were shipped on
+10-seed samples and both were regressions — the standard error there is ±0.6 wins, larger than every
+difference being reasoned about. It prints error bars, and `--diagnose` adds per-round win rate.
+
+**Follow-ups.** Personas (per-bot evaluator weight multipliers + tribe affinity, so eight seats don't build
+the same board) are next and explicitly requested. Strength limiting comes after that, now that there is
+strength to limit. Ticket 3's card-profile registry looks less necessary than it did — fight-grounding
+answers the question the 314-entry table was built to guess at — but that's an owner call.
+
+## 2026-07-29 — feat(sim/tools): fight-grounded board scoring + `npm run bot:ladder`
+
+Owner wants bots strong enough that we have to LIMIT them. Before building toward that, two things were needed:
+a way to score a board that isn't a guess, and a way to measure bot strength that isn't noise.
+
+**`fightScore` — score a board by fighting with it.** Every proxy in the evaluator (stat sums, a keyword value
+table, a width curve) is a guess at one question: does this board win? Combat can answer it directly, and it is
+affordable — a 5-archetype panel costs **0.19ms**, against **0.047ms** for the single `reduce()` a search node
+already spends. The panel is built from `buildEnemyBoard`, the published procedural threat curve, so it is legal
+public knowledge; the bot never fights its actual pinned opponent, which is hidden.
+
+**Win rate alone is useless as a search signal — measured.** At wave 7 the bot's full 7-minion board and a
+deliberately crippled 2-card board BOTH scored 0.00, and margin scored −1.00 for both: every archetype wiped
+both, so the two were indistinguishable and search had nothing to climb. Damage taken separated them cleanly
+(0.36 / 0.44), so `FightResult` returns win rate, a signed survival margin AND damage — the gradient has to
+survive positions where everything loses.
+
+**`npm run bot:ladder`** reports wins with error bars, plus rounds, tier, triples, deaths and gold wasted per
+turn; `--diagnose` adds per-round win rate and board strength against the threat panel at waves 4/7/10/13. It
+exists because two evaluator "improvements" were shipped off 10-seed samples and both proved to be regressions:
+the standard error at that size is ±0.6 wins, wider than every difference being argued about.
+
+**What it says (hard, 12 seeds):** 4.25 ±1.18 wins, dies 9/12, final tier 3.8, 0.17 triples, **4.29 gold wasted
+per turn**. Per-round win rate holds 33-50% for rounds 1-2, troughs at **8-25% through rounds 5-9**, then
+recovers to 50-100% late. Board strength vs the panel: **wave 4 → 0.03 win rate, margin −0.93**, climbing to
+0.43 by wave 10.
+
+**That reframes the problem.** The bots are not bad at building — measured against the same panel, the new bot's
+wave-9 board is 109.8 power against the legacy policy's 54.0, and beats it on win rate 0.40 to 0.14. What they
+are bad at is the EARLY game: a wave-4 board that loses 97% of its fights takes damage through the whole
+mid-game trough, and the run is decided long before the strong late boards arrive. "Three wins" is an early-game
+problem wearing a late-game disguise.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2941 tests, build:web, harness determinism.
+
+
+## 2026-07-29 — fix(sim): bots scored a refresh by reading its result; plus a diagnosis of why they are weak
+
+**The fairness bug.** Search marked a refresh terminal but still called `evaluate(t.visible)` on it — the state
+AFTER the refresh, i.e. the real shop it produced. The engine is seeded, so that is reading the future of the
+very decision being made: the exact cheat the reveal boundary exists to prevent. A refresh is now scored by
+`expectedAfterRefresh` — the same state with the gold spent, and nothing else inspected.
+
+**Owner asked whether ~3 wins is abysmal and whether Ticket 3 fixes it. Diagnosed rather than guessed.**
+Instrumenting 12 runs at `hard`:
+
+- win rate holds ~33-50% for rounds 1-4, then collapses to 8-17% from round 5 on
+- **0.17 triples per run** — it essentially never triples
+- average final tier **3.7** of 6, dying 10/12
+- **4.2 gold left unspent at the end of every turn**
+- across six full runs it refreshed the shop **twice** and sold **seven times**
+
+**Two attempts to fix that directly, both measurably WORSE — recorded because the failures are the finding.**
+
+1. Added a `shopOpportunity` term (what your gold can buy) plus triple equity, and rebalanced weights. Result:
+   hard fell from 3.47 wins to 1.75, and average tier fell 3.7 → 3.0. Rewarding "spend on what you can afford"
+   made it buy instead of save for the upgrade.
+2. Added tier-against-a-curve, weighted heavily, to fix the horizon problem. Tier rose to 5.1 — near the legacy
+   policy's 5.8 — and wins did **not** follow (1.60). Easy collapsed to 0.00.
+
+That second result is the important one: **the target metric moved and the outcome didn't.** Tier was not the
+cause; it was correlated with it. Both attempts were reverted; only the fairness fix is kept.
+
+**What this says about the path.** The proxies are the problem, not their weights. The evaluator guesses board
+strength from stat sums and keyword tables, and no amount of re-weighting a guess makes it a measurement — the
+bot cannot tell whether its board actually WINS. The next step is to ground it: a full combat simulation costs
+**0.017ms**, measured, which is cheaper than a single search node's `reduce()` at 0.047ms. Simulating the board
+against a wave-appropriate benchmark replaces every proxy with the thing they are proxying for. Ticket 3
+(packages and synergy) sits on top of that, not instead of it.
+
+**State of play** (20 seeds, average wins ± stderr): legacy policy 2.70 ±0.60, easy 3.10 ±0.66, hard 4.75 ±0.98.
+The bots beat the policy every balance decision has been made against — but Oath par is 9, so they are still
+well short of competent.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2941 tests, build:web.
+
+
+## 2026-07-29 — feat(sim): production bots that play — Tickets 1, 2, 4, 5 and 8
+
+Functioning bots at four difficulties. They plan a whole shop turn, commit to the plan, and beat the legacy
+balance policy.
+
+**Measured over 30 seeds** (average wins, ± standard error):
+
+| | avg wins |
+|---|---|
+| legacy balance policy | 2.47 ±0.43 |
+| easy | 2.83 ±0.59 |
+| normal | 2.93 ±0.56 |
+| hard | **3.47 ±0.57** |
+| expert | 3.17 ±0.50 |
+
+The trend is up and the new bots beat the old one. Hard and expert are NOT separated — expected with a v1
+evaluator that scores stats and has no synergy model, where more search partly means more overfitting to the
+evaluator's blind spots. Ticket 3 is what fixes that.
+
+**What shipped.** An exhaustive `actionCatalog` (`satisfies Record<Action['type'], …>`, so a new reducer action
+fails compilation rather than being silently unsupported); candidate generation bounded to seats and targets
+that can actually differ; a decomposed normalized evaluator; bounded beam search that stops at reveal
+boundaries and never expands `faceOmen`; a controller that answers modals, arranges the board and ends the
+turn; and four difficulty profiles where weakness is only ever a smaller budget.
+
+**Three bugs, each found by measuring rather than reading.**
+
+1. **The waste penalty was inverted.** It counted gold ABOVE the cheapest offer as wasted, so having spending
+   power scored as a loss and gaining gold looked bad. The bot bought spells and never cast them — every run
+   finished with an empty board, at every difficulty. Waste is gold you *cannot* spend, not gold you can.
+
+2. **Deeper search made the bot strictly worse** — depth 1 averaged 2.50 wins, depth 2 and 3 both 1.25. Cause:
+   search scores the END of a plan but the controller committed only its first action and re-searched, so the
+   plan was abandoned before its payoff. Plans are now QUEUED with a per-step fingerprint and followed while the
+   state still matches; a mismatch discards the plan rather than applying it blind. That is the difference
+   between planning and pretending to.
+
+3. **I nearly "fixed" a bug that did not exist.** A 10-seed comparison showed easy (3.3) beating normal (1.4)
+   and I started hunting a structural cause. At 30 seeds the ordering is 2.83 / 2.93 / 3.47 with a standard
+   error near ±0.55 — the inversion was noise and the sample was simply under-powered. The ladder test now
+   asserts a TREND (hard > easy) rather than a strict per-tier ordering, because a strict one would be
+   asserting variance.
+
+**Also refined from Ticket 0:** the module-boundary rule now distinguishes importing `type Action` (fine
+anywhere — actions are what a bot produces) from importing `RunState` or the reducer (the actual leak), and a
+second test guards against "fixing" a boundary failure by adding the offending file to the sanctioned list.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2941 tests, build:web, harness determinism. 20 new bot
+tests: completion at every difficulty, no illegal candidates, handle-leak freedom, determinism including
+blunders, and that no difficulty alters the run it is handed.
+
+
+## 2026-07-29 — feat(sim): production bots, Ticket 0 — the planning-safety boundary
+
+First ticket of the bot handoff. No bot plays anything yet; this is the floor everything else stands on.
+
+**`transition.ts` is the only module that may call `reduce()` during search.** `reduce()` is authoritative but
+hostile to speculation: its wrapper writes to its INPUT before `reduceCore()` clones — it resets
+`recruitBuffFx` and `auraFx`, stamps `weldFxBaseSeq`, and PINS this wave's opponent into `servedBoards`. A
+search that called it directly would decide the player's next fight as a side effect of *thinking about* an
+action. Planning states are therefore never handed out: callers hold an opaque `PlanningStateHandle`, and every
+expansion clones the parent first.
+
+**`BotVisibleState` is a curated projection, not a filtered copy.** `RunState` has 225 fields; the view names
+what goes IN, so a field added later is invisible by default rather than leaking until someone notices. It
+withholds `seed`, `rngCursor`, `servedBoards`, `lastCombat`, `scoutedNextOpponent` and every `*Fx*` field.
+`revealOf()` marks the actions that hand the bot information it doesn't hold — a refresh, a forge reroll — so
+search can stop there instead of reading a seeded future.
+
+**`RulesIdentity`** pins what a stored artifact was made under. `rulesHash` covers CONTENT (ids, tiers, stats,
+runes, quests), sorted so declaration order doesn't matter, and `assertIdentity` fails loudly naming what
+drifted. `buildId`/`contentVersion` are deliberately NOT compared — they change every build and would make
+every artifact stale within a day.
+
+**The tests were passing for the wrong reason — twice.** Removing the defensive clone from `applyCandidate`
+left every isolation test green:
+
+1. First version compared the ROOT through `visibleOf()`. But every field `reduce()` corrupts is one the
+   projection deliberately redacts — I was checking for damage through a lens built to hide it.
+2. Comparing the raw state instead STILL passed, because in a bare test process each of those mutations is
+   coincidentally a no-op: the FX buffers start empty, so clearing them changes nothing, and no opponent pins
+   because the board pool is only registered by the running app.
+
+The test now **constructs** the hazard — seeds the root with a populated FX buffer, a live aura batch and a
+stamped weld sequence — and only then expands a candidate. Removing the clone now fails it. A `__unsafeStateForTests`
+accessor exists solely for this, named so misuse is obvious in review.
+
+Also added: a structural test that no module in `productionBots/` outside the three sanctioned ones imports
+`RunState` or the reducer, so a future evaluator physically cannot reach hidden state.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2920 tests, build:web, harness determinism.
+
 ## 2026-07-29 — the title menu becomes an object you can press
 
 **What changed.** The title screen's menu column (`.menubtn` — Continue / Play / Career / Leaderboard / Hall of

@@ -21,6 +21,25 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Close the human-board gap (bots).** Expert covers 4.70 wins vs real player boards (par 9), 0 course
+  survivals, and per-round win rate collapses after round 6. Evidence so far says the gap is CAPABILITY,
+  not evaluation: every structural fix (replacement macros, spell casting) paid; every learned/statistical
+  model was neutral or harmful. **Next: build the dev-only oracle** (future shops + full opponent boards +
+  big budget) — if it also can't survive, the bot can't express winning play and we keep hole-hunting; if
+  it wins, evaluation is the gap. State: [`docs/bot-handoff.md`](bot-handoff.md).
+- **A human baseline (owner).** Play 3–5 runs against the same board pool. Par 9 is the Oath, not a measured
+  human score against boards from other players' finished runs — we're optimizing an unanchored target.
+- **Lobby snapshots — SHIPPED.** Real player runs now hold up to 3 seats and place 3.63 vs bots' 6.58.
+  Follow-ups: lobby-native snapshots (these are Ascent-mode boards), and whether placement feeds Renown.
+- **Bot personas — HOLD** until the tiers separate. No point diversifying four bots that measure as one.
+  Plan: seeded evaluator weight multipliers + tribe affinity, with a board-divergence metric in
+  `lobby:ladder` so it's measured rather than asserted.
+- **Cap bot strength — HOLD.** Nothing needs capping yet.
+- **A human baseline.** Every bot number is bots-vs-bots or bots-vs-recorded-boards. Playing a few lobbies
+  at Expert is the cheapest way to learn whether 3.38 mean placement is a threat or a speed bump.
+- **Ticket 3 (card profiles / package graph) — owner call.** Fight-grounding answers the question the
+  314-entry registry was built to guess at, so it may not be needed. Worth deciding before building it.
+
 ### Paragon's tier + stats need an owner call (2026-07-28)
 Paragon shipped at **Tier 6, 4/5** — my choice, not a spec. The owner gave the effect only ("New All type minion
 - Paragon - Whenever you trigger Rally, give a minion of every type +3/+3 permanently"). The body is deliberately

@@ -953,9 +953,41 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = board.indexOf(self);
     if (idx < 0) return;
     const reps = self.golden ? num(params.goldenReps, 2) : 1;
+    // `random: N` bounces to N RANDOM other friends instead of the two neighbours (Resonance Idol, owner
+    // rework 2026-07-27) — position no longer gates the payoff. Seeded, and picks are DISTINCT so one body
+    // can't soak both bounces.
+    const randomN = num(params.random, 0);
+    if (randomN > 0) {
+      const pool = board.filter((c) => c !== self);
+      const rng = makeRng(ctx.state.rngCursor);
+      for (let i = 0; i < randomN && pool.length > 0; i++) {
+        const t = pool.splice(rng.int(pool.length), 1)[0]!;
+        for (let r = 0; r < reps; r++) addBuff(t, 'Ruby', rubyAttack, rubyHealth);
+      }
+      ctx.state.rngCursor = rng.state();
+      return;
+    }
     for (const adj of [board[idx - 1], board[idx + 1]]) {
       if (adj) for (let r = 0; r < reps; r++) addBuff(adj, 'Ruby', rubyAttack, rubyHealth);
     }
+  },
+
+  /** Set 2 — Veinbreaker's Choose One (burst half): mint `count` Rubies into hand (× golden). Same primitive
+   *  the cadence minters use; a Shout-shaped wrapper so the option can sit in `chooseOne[].effects`. */
+  battlecryGetRubies: (ctx, self, params) => {
+    mintRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Frenzied Excavator (Shout): play `rubies` Rubies on EVERY friendly minion (× golden).
+   *  A Ruby is base 1/1 plus the run's `rubyBonus`, the same value `playRubyOn` uses in combat — and it lands
+   *  under the `Ruby` source so Deepdelve Paragon and a future transfer spell can still recognise it. */
+  battlecryPlayRubiesAll: (ctx, self, params) => {
+    const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+    const per = num(params.rubies, 1) * gold(self);
+    const a = (1 + rb.attack) * per;
+    const h = (1 + rb.health) * per;
+    if (a <= 0 && h <= 0) return;
+    for (const c of ctx.state.board) addBuff(c, 'Ruby', a, h);
   },
 
   /** Set 2 — Ruby Broker: when a Ruby is played on THIS minion, gain `gold` Gold — capped `cap` times per turn

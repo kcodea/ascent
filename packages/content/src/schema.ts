@@ -121,6 +121,8 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnAlternateMode',
   'onBattlecryBuffTribeAdjacentMore',
   'onSummonTribeBuffThenDouble',
+  'battlecryGetRubies',
+  'battlecryPlayRubiesAll',
   'spellCastBuffAll',
   'battlecryGrantShoutDragon',
   'onTribeAttackBuffAttacker',

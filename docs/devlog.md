@@ -2,6 +2,23 @@
 
 ## 2026-07-26 (bake the tuned card-text + backbox values)
 
+### 2026-07-27 — content: card batch part 2 — the Kobold ruby line
+
+**Veinbreaker** is a Choose One now: "give your Rubies +1/+1" or "get 4 Rubies" — the long game or the burst.
+**Resonance Idol** gains **Ward** and bounces to 2 RANDOM friends instead of its two neighbours, so board
+position no longer gates it. **Ruby Broker** pays 2 Gold three times a turn (was 3 twice). **Hoardmaster Krik**
+re-points from `cardsBought` to `goldSpent` — both events carry the same continuous per-instance meter, so
+"every 5 Gold", including one big spend crossing it twice, needed no new plumbing. **Frenzied Excavator** is a
+Shout that plays a Ruby on every friendly minion.
+
+Two new factories: `battlecryGetRubies` (Veinbreaker's burst half) and `battlecryPlayRubiesAll` (the
+Excavator). Both land under the `Ruby` buff source, so Deepdelve Paragon — and the transfer spell the owner
+plans — can still recognise what they made.
+
+**Two tests were re-fixtured rather than deleted.** The Ruby-Power narration tests hung off Veinbreaker's old
+Avenge; the narration path is unchanged, so they now use Faultline Scrapper's Echo as the source. Deleting them
+would have quietly dropped coverage of a path that still exists.
+
 ### 2026-07-27 — content: card batch part 1 — tiers, stats, renames, removals, reuse reworks
 
 First slice of the owner's ~40-card batch. Everything here is data or a reuse of an existing primitive; the

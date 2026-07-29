@@ -201,6 +201,8 @@ export type EffectFactoryId =
   | 'endOfTurnAlternateMode' // …and the tick that flips it
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
   | 'onSummonTribeBuffThenDouble' // Set 2 — Denkeeper Oona: a summoned Beast gets +1/+1, then doubles
+  | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
+  | 'battlecryPlayRubiesAll' // Set 2 — Frenzied Excavator: play a Ruby on every friendly minion
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
   | 'battlecryGrantShoutDragon' // Set 2 — Blazing Keeper: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1

@@ -17,14 +17,12 @@ import { CARD_INDEX } from '@game/content';
  */
 
 /** Veinbreaker (Avenge 3: buff your Rubies +1/+1) behind THREE fragile allies, against one big attacker.
- *  Three allies, not two: the Avenge needs 3 friendly deaths with Veinbreaker still ALIVE to fire, and a
- *  two-ally board only reaches 3 by counting Veinbreaker's own death — too late to trigger. It's also given
- *  enough health to outlive all three, for the same reason. */
+ *  Re-fixtured 2026-07-27: Veinbreaker became a Choose One and no longer grants Ruby strength in combat, so
+ *  the source is now Faultline Scrapper's Echo (`deathrattleRubyStatGain`) — a fragile body that dies and pays
+ *  out. The narration path under test is the same; only the card producing the gain changed. */
 const board: BoardMinion[] = [
-  { cardId: 'sandbag', attack: 0, health: 1, keywords: [] },
-  { cardId: 'sandbag', attack: 0, health: 1, keywords: [] },
-  { cardId: 'sandbag', attack: 0, health: 1, keywords: [] },
-  { cardId: 'k_veinbreaker', attack: 5, health: 100, keywords: [] },
+  { cardId: 'k_faultline', attack: 1, health: 1, keywords: [] },
+  { cardId: 'sandbag', attack: 0, health: 200, keywords: [] },
 ];
 const bigEnemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 400 }];
 

@@ -37,6 +37,10 @@ export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
  *  simply stop restoring) rather than a migration. */
 const SESSION_KEY = 'ascent.fx.session.v1';
 
+/** localStorage key for the one-shot commit confirmation. Same versioning convention as `SESSION_KEY`, and
+ *  same reason: a stale value simply stops being read rather than needing a migration. */
+const COMMIT_NOTE_KEY = 'ascent.fx.commitnote.v1';
+
 /**
  * A stored layer: the runtime `FxLayer` plus the workbench's authoring-only flags.
  *
@@ -335,6 +339,99 @@ export function loadSession<T = unknown>(): T | null {
 export function clearSession(): void {
   try {
     storage()?.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore — best-effort */
+  }
+}
+
+// ─── the commit confirmation, across the reload it causes ──────────────────────────────────────────────
+//
+// A commit writes TWO files, and BOTH force a full page reload. `bindings.json` is a static import Vite
+// can't hot-reload; the def file lands in the globbed defs directory, where `fxDefsPlugin` answers an `add`
+// by invalidating the glob owner and sending `full-reload` outright — and a `change` reloads too, because
+// nothing in the import graph sets up an `import.meta.hot.accept` boundary. So the reload is set in motion
+// by the FIRST write, not the last, and the workbench unmounts before its "Committed → …" line can be read.
+// The documented way to confirm the tool's primary action used to be "check `git status`", which is not an
+// acceptable answer for the primary action. So the note is parked in localStorage as early as the commit has
+// something true to say, and picked up by the next mount, which clears it as it reads — see
+// `loadCommitNote` / `clearCommitNote` and their callers in `Workbench.tsx`.
+//
+// Same best-effort contract as the session helpers above: a hostile/absent `localStorage` degrades to "no
+// note", never to a throw. Losing a confirmation line is a papercut; breaking the commit that produced it
+// would be a defect.
+
+/**
+ * A parked commit confirmation. `at` is an epoch-ms stamp supplied by the caller, never read from a clock in
+ * here — the pure helpers below take `now` as an argument so they stay trivially testable.
+ *
+ * `level` exists because a commit can succeed *partly*: art that didn't travel, or a def written whose
+ * binding then failed. The reload destroys the in-component `commitError` that used to carry that, so the
+ * parked note has to be able to say "this went through, but read this" — and be styled as a warning rather
+ * than wearing the green success treatment. A success banner over a partial failure is the exact inversion
+ * this subsystem exists to prevent.
+ */
+export interface ParkedCommitNote {
+  note: string;
+  at: number;
+  level: 'ok' | 'warn';
+}
+
+/** Past this age a parked note is prefixed rather than presented as if it just happened. */
+export const COMMIT_NOTE_FRESH_MS = 10 * 60_000;
+/** Past this age it isn't shown at all — it says nothing useful about the session you're now in. */
+export const COMMIT_NOTE_MAX_AGE_MS = 24 * 60 * 60_000;
+
+/** Park the commit confirmation so it survives the page reload the commit's own writes force. */
+export function saveCommitNote(note: string, at: number, level: 'ok' | 'warn' = 'ok'): void {
+  try {
+    if (note === '') return; // nothing to say; don't leave an empty banner to be picked up
+    storage()?.setItem(COMMIT_NOTE_KEY, JSON.stringify({ note, at, level } satisfies ParkedCommitNote));
+  } catch {
+    /* ignore — a confirmation line is best-effort */
+  }
+}
+
+/** The parked commit confirmation, or `null` if there is none / it is unreadable. Never throws. */
+export function loadCommitNote(): ParkedCommitNote | null {
+  try {
+    const raw = storage()?.getItem(COMMIT_NOTE_KEY) ?? null;
+    if (raw === null || raw === '') return null;
+    const o = JSON.parse(raw) as Partial<ParkedCommitNote>;
+    if (typeof o.note !== 'string' || o.note === '') return null;
+    if (typeof o.at !== 'number' || !Number.isFinite(o.at)) return null;
+    return { note: o.note, at: o.at, level: o.level === 'warn' ? 'warn' : 'ok' };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * How a parked note should be presented at time `now`, or `null` if it is too stale to show.
+ *
+ * PURE, and takes `now` rather than calling `Date.now()`, so the thresholds are testable without faking a
+ * clock. The staleness matters because the reload closes the workbench: a note can sit in storage across
+ * arbitrarily many unrelated reloads and browser sessions before the tool is next opened, and presenting a
+ * three-day-old commit as fresh confirmation of what you just did would be worse than showing nothing.
+ */
+export function presentCommitNote(
+  parked: ParkedCommitNote | null,
+  now: number,
+): { text: string; level: 'ok' | 'warn' } | null {
+  if (parked === null) return null;
+  const age = now - parked.at;
+  // A negative age means a clock change (or another machine's stamp); treat it as fresh rather than hiding a
+  // note that is almost certainly the one the author just produced.
+  if (age > COMMIT_NOTE_MAX_AGE_MS) return null;
+  const stale = age > COMMIT_NOTE_FRESH_MS;
+  return { text: stale ? `Earlier — ${parked.note}` : parked.note, level: parked.level };
+}
+
+/** Drop the parked confirmation. Called both after it is shown (so it shows exactly once, and can't
+ *  reappear on some later unrelated reload) and at the START of a commit (so a failed commit can never leave
+ *  the previous run's success note sitting in storage to be "confirmed" by the next reload). */
+export function clearCommitNote(): void {
+  try {
+    storage()?.removeItem(COMMIT_NOTE_KEY);
   } catch {
     /* ignore — best-effort */
   }

@@ -5448,8 +5448,25 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    defeats the mode (you could watch, but not tune). Top/bottom stretch to the full height the hidden top +
    transport bars vacate. */
 .fxwb-rail .fxwb-side { width: 320px; right: 320px; top: 0; bottom: 0; }
+/* `.fxwb-top` stays hidden here deliberately (the ✕ lives there, but the mode toggle in `.fxwb-side` is
+   always visible, so "Full editor" is one click back to it). `.fxwb-transport` has to go too: it is
+   `left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width Timeline, so leaving it
+   up would paint a band straight across the board this mode exists to show. What it takes with it — ▶/⏸,
+   Fire, the scrubber — comes back as `.fxwb-railtransport` inside the rail (see below). */
 .fxwb-rail .fxwb-top,
 .fxwb-rail .fxwb-transport { display: none; }
+/* The rail's compact transport: play/pause, Fire, scrub. `position: sticky` inside `.fxwb-side` (which is the
+   scroll container) rather than `absolute`, so it pins to the bottom of the visible rail and CANNOT be
+   scrolled away behind the layer list + inspector — the whole point is that it's reachable while you watch.
+   Negative side margins + matching padding let its background span the rail's full width, so scrolled
+   content passes behind an opaque bar instead of showing through. Wraps rather than overflowing: the rail is
+   320px in this mode. */
+.fxwb-railtransport {
+  position: sticky; bottom: 0; z-index: 1; flex: none;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: 0 -12px -10px; padding: 8px 12px 10px;
+  background: #211d2c; border-top: 2px solid #3d3752; box-shadow: 0 -6px 18px -8px rgba(0, 0, 0, 0.6);
+}
 /* The rail COLUMN: the proc harness and the commit panel stacked, scrolling together. `.fxharness` below
    positions itself absolutely — it predates the commit panel and owned the whole rail — so a bare sibling
    `.fxcommit` fell out of flow and painted a full-width band across the top of the board (measured live:
@@ -5554,6 +5571,15 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-side {
   position: absolute; top: 52px; right: 0; bottom: 60px; width: var(--fxwb-rail); overflow-y: auto; box-sizing: border-box;
   background: #211d2c; border-left: 2px solid #3d3752; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px;
+  /* Reserve the sticky rail transport's height for scrolls the BROWSER performs — `scrollIntoView`, moving
+     focus with Tab, scroll-snap. That is ALL `scroll-padding` does: it has no effect on wheel or drag
+     scrolling. Kept for the keyboard case (tabbing to Save shouldn't land it under the bar), and deliberately
+     NOT paired with a real `padding-bottom`, which would be the wrong tool here: `.fxwb-railtransport` is the
+     LAST child and is sticky, so at full scroll it rests at its own flow position with nothing beneath it —
+     adding container padding would push it 64px up from the rail's bottom edge and break its full-width seat
+     instead of protecting anything. The wheel case needs no fix: the content the bar can overlay is always
+     earlier in flow than the bar, so scrolling to the end always reveals it. */
+  scroll-padding-bottom: 64px;
 }
 .fxwb-inspector { display: flex; flex-direction: column; gap: 12px; }
 .fxwb-inspector h3 {
@@ -5775,6 +5801,31 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-def-save:disabled { opacity: 0.5; cursor: default; }
 .fxwb-def-note { font-size: 10px; line-height: 1.3; font-weight: 700; color: #f0a0ff; word-break: break-all; }
 .fxwb-def-err { font-size: 10px; line-height: 1.3; font-weight: 700; color: #ff8a8a; }
+/* The seed-lock warning, directly under Save. Amber, NOT red: saving a baked seed is a legitimate choice
+   (an exactly-choreographed signature hit), just rarely the one you meant — so this is a caution with an
+   escape hatch, not an error. Visible for as long as the lock is on, so Save can never be reached without it
+   having been on screen. */
+.fxwb-def-seedwarn {
+  display: flex; align-items: flex-start; gap: 6px; padding: 5px 7px; border-radius: 7px;
+  background: color-mix(in srgb, #e0a24a 14%, #2b2739); border: 1px solid color-mix(in srgb, #e0a24a 60%, #3d3752);
+}
+.fxwb-def-seedwarn-txt { flex: 1 1 auto; min-width: 0; font-size: 10px; line-height: 1.35; font-weight: 700; color: #e8bd7b; }
+.fxwb-def-seedwarn-txt strong { color: #ffd9a0; font-variant-numeric: tabular-nums; }
+.fxwb-def-seedwarn-unlock {
+  flex: 0 0 auto; padding: 3px 8px; border-radius: 5px; border: 1px solid #3d3752; background: #211d2c;
+  color: #e8bd7b; font-family: var(--font-ui); font-size: 10px; font-weight: 800; cursor: pointer;
+}
+.fxwb-def-seedwarn-unlock:hover { border-color: #e0a24a; color: #ffd9a0; }
+/* "Part of the picked variant did nothing." Same amber caution family as the seed warning — both are "know
+   this before you save", neither is an error — but flat rather than boxed-and-bordered, so the two never read
+   as one alarm when they happen to appear together. */
+.fxwb-def-variantwarn { display: flex; align-items: flex-start; gap: 6px; }
+.fxwb-def-variantwarn-txt { flex: 1 1 auto; min-width: 0; font-size: 10px; line-height: 1.35; font-weight: 700; color: #e8bd7b; }
+.fxwb-def-variantwarn-x {
+  flex: 0 0 auto; width: 18px; height: 18px; padding: 0; border-radius: 5px; border: 1px solid #3d3752;
+  background: #211d2c; color: #8a7fa8; font-family: var(--font-ui); font-size: 9px; line-height: 1; cursor: pointer;
+}
+.fxwb-def-variantwarn-x:hover { border-color: #e0a24a; color: #ffd9a0; }
 
 .fxwb-deflib { display: flex; flex-direction: column; gap: 4px; }
 .fxwb-def-head {
@@ -5841,6 +5892,21 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: #211d2c; color: #8a7fa8; font-family: var(--font-ui); font-size: 10px; line-height: 1; cursor: pointer;
 }
 .fxwb-def-restore-x:hover { border-color: #f0a0ff; color: #f0a0ff; }
+/* Same banner shape, GREEN: a commit confirmation that survived the reload commit itself forces. Recoloured
+   rather than given its own layout because "something you should read at the top of the rail" is one pattern —
+   but it must not be mistaken for the magenta "restored unsaved work" warning, which asks a question
+   ("keep or discard?") where this one only reports a success. The path is long, so it wraps. */
+.fxwb-def-committed { background: color-mix(in srgb, #4ad07a 14%, #2b2739); border-color: #4ad07a; }
+.fxwb-def-committed .fxwb-def-restore-txt { color: #8ee6ad; overflow-wrap: anywhere; }
+.fxwb-def-committed .fxwb-def-restore-x:hover { border-color: #8ee6ad; color: #8ee6ad; }
+/* The SAME banner for a commit that only partly landed — art that didn't travel, or a def written whose
+   binding then failed. Amber, never green: `setCommitError` dies with the component in the forced reload, so
+   this banner is the only surviving evidence, and dressing a partial failure in success colours would make the
+   one case where something went wrong the case that looks fine. That inversion is the thing this subsystem
+   exists to prevent. */
+.fxwb-def-committed-warn { background: color-mix(in srgb, #e0a24a 14%, #2b2739); border-color: #e0a24a; }
+.fxwb-def-committed-warn .fxwb-def-restore-txt { color: #e8bd7b; overflow-wrap: anywhere; }
+.fxwb-def-committed-warn .fxwb-def-restore-x:hover { border-color: #ffd9a0; color: #ffd9a0; }
 
 /* ── FX workbench: seed transport + per-layer mute ──────────────────────────────────────────────────────
    The seed group mirrors `.fxwb-loopgroup`'s bordered-cluster treatment so the transport bar reads as

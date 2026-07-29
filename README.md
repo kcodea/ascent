@@ -44,6 +44,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **FX workbench: stop hiding things.** Four papercuts in the effects authoring tool, one principle — make
+  failure visible. "Watch in combat" now carries its own ▶/⏸ · 🔥 Fire · scrubber, so you can retrigger and scrub
+  while watching an effect on a real card; the commit confirmation survives the page reload committing itself
+  forces, instead of being unreadable by construction; a locked seed warns under Save (naming the seed, with a
+  one-click unlock) before it bakes one frozen roll into a shipped def forever; and a preset variant whose
+  adjustments reached nothing says so in the UI rather than only in the console.
 - **＋ New effect — the FX workbench gets an on-ramp.** A preset gallery of archetypes (⚡ Bolt, 💥 Blast), each
   with variants (thin / heavy / crackling / beam), lands a tuned, working composition in the editor instead of a
   blank page. A variant is a multiplier table applied to slider params only — clamped, snapped, and loud about

@@ -11,9 +11,13 @@ import { randomSeed } from '../rng';
 import { SCENARIOS, type FxHeadContext } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
 import {
+  clearCommitNote,
   clearSession,
   isValidSlug,
+  loadCommitNote,
   loadSession,
+  presentCommitNote,
+  saveCommitNote,
   saveArt,
   saveBindings,
   saveDef,
@@ -27,6 +31,7 @@ import { applyVariant, presetTable } from '../presets';
 import { getImportedDataUrl } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
+import { SeedBakeWarning } from './SeedBakeWarning';
 import { LibraryBrowser } from './LibraryBrowser';
 import { PresetGallery } from './PresetGallery';
 import { ProcHarness } from '../harness/ProcHarness';
@@ -222,7 +227,7 @@ function isTextEntry(target: EventTarget | null): boolean {
  *
  * `version` and `duration` are carried through, because those are the def's data, not its filing.
  */
-function materialiseVariant(archetypeId: string, variantId: string): StoredFxDef | null {
+function materialiseVariant(archetypeId: string, variantId: string): MaterialisedVariant | null {
   const table = presetTable();
   const arch = table.archetypes.find((a) => a.id === archetypeId);
   const axis = table.variantAxes.find((x) => x.id === variantId);
@@ -245,7 +250,45 @@ function materialiseVariant(archetypeId: string, variantId: string): StoredFxDef
     layers: def.layers,
   };
   registerSavedDef(stored);
-  return stored;
+  // `missed` travels OUT rather than only into the console, so a caller that lands this composition in the
+  // editor can tell the author (see `variantWarning`). The labels travel with it because the message is for a
+  // human: "Bolt / heavy", not `preset-bolt--heavy`.
+  return { stored, missed, archetypeLabel: arch.label, variantLabel: axis.label };
+}
+
+/**
+ * A computed-and-registered variant, plus what didn't land.
+ *
+ * `missed` is a SINGLE bucket by design (see `applyVariant`): a key no primitive in this composition declares,
+ * a key naming a param that isn't a slider, and a param whose value can't be multiplied all end up here,
+ * because to an author they mean the same one thing — *this part of the variant did nothing*. Don't split it;
+ * the difference is a preset-table detail, not a decision the author can act on differently.
+ */
+interface MaterialisedVariant {
+  stored: StoredFxDef;
+  missed: string[];
+  archetypeLabel: string;
+  variantLabel: string;
+}
+
+/**
+ * The author-facing sentence for a variant that only partly landed, or `null` when it all landed.
+ *
+ * Worded to the one meaning `missed` has — *this part of the recipe reached nothing* — without claiming which
+ * of its three causes applied, because the author can't act on that difference and guessing wrong would be
+ * worse than staying vague. It names the keys so the report is checkable, and it says outright that the
+ * composition is still fine, so this reads as "know this" rather than "something is broken".
+ *
+ * Module scope beside `materialiseVariant` for the same reason that function is: it closes over nothing.
+ */
+function variantMissedMessage(made: MaterialisedVariant): string | null {
+  if (made.missed.length === 0) return null;
+  const n = made.missed.length;
+  return (
+    `${made.archetypeLabel} · ${made.variantLabel}: ${n} ${n === 1 ? 'part' : 'parts'} of this variant ` +
+    `did nothing here (${made.missed.join(', ')}) — nothing in this composition takes ` +
+    `${n === 1 ? 'that adjustment' : 'those adjustments'}. The rest applied, and the effect is fine to use.`
+  );
 }
 
 /**
@@ -321,6 +364,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // The committed def library. Held in state (rather than calling `authoredDefs()` inline) so a Save can
   // refresh it explicitly — the registry behind it is module-level and React knows nothing about it.
   const [defs, setDefs] = useState<StoredFxDef[]>(() => authoredDefs());
+  // "Part of the variant you picked did nothing." `applyVariant` has always reported those keys in `missed`
+  // and the gallery has always DEV-warned them to the console — but the gallery is the FIRST thing a new
+  // author touches and the console is the last place they're looking, so a half-applied variant arrived
+  // looking like a perfectly normal composition. This carries it to the rail instead, next to the def name and
+  // Save. A warning, never an error: the composition is fully usable, one part of the recipe just didn't
+  // reach anything. Cleared by `loadDef`, so it belongs to the composition on screen and not to the session.
+  const [variantWarning, setVariantWarning] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
   // The preset gallery. MUTUALLY EXCLUSIVE with `browsing`: both overlays are full-screen at the same
   // z-index, so two open at once is not a layered UI, it's one silently buried under the other. Each
@@ -339,6 +389,31 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [committing, setCommitting] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [commitNote, setCommitNote] = useState<string | null>(null);
+  // The commit confirmation as it survives THE RELOAD ITS OWN WRITE CAUSES. Committing writes
+  // `bindings.json`, a static import Vite cannot hot-reload, so the write forces a full page reload and this
+  // component unmounts before `commitNote` above can be read — the confirmation for the tool's primary action
+  // was structurally unreadable, and the documented substitute was "check `git status`". `commit()` now parks
+  // the note in localStorage the instant it exists; this lazy initializer picks it up on the next mount and
+  // the effect below clears the key, so it shows exactly once and can never resurface on some later unrelated
+  // reload.
+  //
+  // Read-then-clear is deliberately SPLIT across the initializer and an effect rather than fused into one
+  // "take" call: React may invoke a `useState` initializer more than once (dev StrictMode does), and a read
+  // that cleared would hand the second invocation `null`.
+  //
+  // Its own state rather than seeding `commitNote`, because the two have different reach: `commitNote` renders
+  // inside `CommitPanel`, which only exists in rail mode with a card and moment selected — precisely the
+  // context a reload destroys. This one is a banner at the top of the rail, visible in either mode.
+  // `presentCommitNote` decides staleness (pure, clock passed in): the reload CLOSES the workbench, so a note
+  // can wait in storage across arbitrarily many unrelated reloads and browser sessions before the tool is next
+  // opened. Past ~10 minutes it is prefixed "Earlier — " rather than presented as fresh confirmation of what
+  // you just did; past a day it isn't shown at all.
+  const [restoredCommitNote, setRestoredCommitNote] = useState(() =>
+    presentCommitNote(loadCommitNote(), Date.now()),
+  );
+  useEffect(() => {
+    clearCommitNote();
+  }, []);
   // The fight the live replay is currently animating. Read off the store rather than passed in, because the
   // workbench is mounted from `DevMenu` — a SIBLING of `Recruit` under `Game`, so no common parent holds it.
   const lastCombat = useGame((s) => s.run.lastCombat);
@@ -1435,6 +1510,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setCommitting(true);
     setCommitError(null);
     setCommitNote(null);
+    // Drop any parked note BEFORE writing anything, so the previous commit's line can never be picked up by
+    // the next reload and read as this commit's confirmation. From here on every exit either parks a note that
+    // describes what actually happened or leaves nothing parked — see `parkedOptimistic` below.
+    clearCommitNote();
+    // Whether the optimistic mid-flight note has been parked. Read by the `catch`, which would otherwise be
+    // the one exit that neither overwrites nor clears it.
+    let parkedOptimistic = false;
     try {
       const { artRefs, failures } = await uploadArtRefs();
       const stored = toStoredDef(
@@ -1448,19 +1530,73 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         setCommitError(`Def not written — nothing changed. ${defResult.error}`);
         return;
       }
+      // ── PARK THE NOTE HERE, not after the binding write ──────────────────────────────────────────────
+      // The reload is already in motion. `saveDef` just wrote into the globbed defs directory, and
+      // `fxDefsPlugin` answers an `add` there by sending `full-reload` immediately (a `change` reloads too —
+      // nothing in the import graph accepts an HMR update). Vite's client can call `location.reload()` at any
+      // point from now on, including part-way through the `await saveBindings` below. Parking after that await
+      // means a reload timed anywhere inside it leaves nothing parked and no banner — the exact silent
+      // "nothing happened" this whole item exists to eliminate.
+      //
+      // So park the moment there is something true to say — but park it as a WARNING that does not assert
+      // completion. This note's whole job is to survive a reload landing inside the `await saveBindings`
+      // below, which is exactly the window where the binding may never be written; a note that opened
+      // `Committed →` in success green would be character-identical to full success in the one case where the
+      // commit is half-done. The author reads "done", then finds the effect doesn't fire. So: `Commit STARTED`,
+      // amber, and explicit that the binding is unconfirmed. The success path a few lines down overwrites it
+      // green, so on a normal commit the amber lives for one HTTP round trip and is never seen — it survives
+      // only in the case where it is true.
+      const artSuffix = failures.length > 0 ? ` — but art didn't travel: ${failures.join('; ')}` : '';
+      const artLevel = failures.length > 0 ? 'warn' : 'ok';
+      saveCommitNote(
+        `Commit STARTED → ${plan.defId} · def written, binding not confirmed${artSuffix}`,
+        Date.now(),
+        'warn',
+      );
+      parkedOptimistic = true;
+
       registerSavedDef(stored);
       refreshLibrary();
       setBinding(plan.bindingTarget.cardId, plan.bindingTarget.kind, plan.binding);
       const bindResult = await saveBindings(bindingsJson());
       if (!bindResult.ok) {
         setCommitError(`Def saved, but the binding was not written: ${bindResult.error}`);
+        // Correct the optimistic note rather than clearing it: the def IS on disk, so the truthful surviving
+        // evidence is "half of this landed", not silence. Silence here would read as "the commit never
+        // happened" while a real file sits in the working tree waiting to be committed to git.
+        saveCommitNote(
+          `Commit INCOMPLETE → ${plan.defId} was written but its binding was not: ${bindResult.error}`,
+          Date.now(),
+          'warn',
+        );
         return;
       }
       setDefName(plan.defId);
       setCommitError(failures.length > 0 ? `Committed, but art didn't travel: ${failures.join('; ')}` : null);
-      setCommitNote(`Committed → ${plan.defId} · ${bindResult.path}`);
+      // The final, accurate note — now that the binding path is known. Art failures are FOLDED IN and carry
+      // `warn`, because `setCommitError` above dies with the component in the reload: without this, the one
+      // case where something went wrong would be the case whose surviving evidence says everything is fine.
+      const note = `Committed → ${plan.defId} · ${bindResult.path}${artSuffix}`;
+      setCommitNote(note);
+      saveCommitNote(note, Date.now(), artLevel);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : 'Commit failed.');
+      // The `catch` is the one exit that would otherwise leave the optimistic note untouched — and that note
+      // says "def written, binding not confirmed", which after a throw is no longer the whole truth. Today
+      // nothing between the park and the success line can actually throw (`post` resolves rather than rejects,
+      // `savePatch` has its own try/catch, `bindingsJson` is plain serialisation), so this is currently
+      // unreachable — but this function keeps being extended, and one added `await` would otherwise let a
+      // half-true note outlive a thrown commit. Correcting it here is what makes the invariant above real
+      // rather than lucky.
+      if (parkedOptimistic) {
+        saveCommitNote(
+          `Commit INCOMPLETE → ${plan.defId} was written, then the commit failed: ${
+            err instanceof Error ? err.message : 'unknown error'
+          }`,
+          Date.now(),
+          'warn',
+        );
+      }
     } finally {
       setCommitting(false);
     }
@@ -1503,6 +1639,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setDefName(nameForField);
     setSaveNote(null);
     setSaveError(null);
+    // The variant warning describes the composition being REPLACED, so it goes with it. The gallery's own
+    // `onPick` sets it again after calling this — same React batch, so the later write wins.
+    setVariantWarning(null);
     setRestoredNotice(false); // the restored work has just been replaced — the banner would be a lie
     if (liveOnly) pushLiveLayers(next);
   };
@@ -1528,6 +1667,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // goes with the work it belonged to. The number itself is kept so locking again is one click.
     applySeed(seed, false);
     setRestoredNotice(false);
+    // Discard replaces the composition WITHOUT going through `loadDef`, so it has to clear the variant warning
+    // itself — otherwise "part of the Crackling variant did nothing" outlives the Crackling composition and
+    // describes a fresh default that never came from a preset at all.
+    setVariantWarning(null);
     autosaveArmedRef.current = false; // AFTER commitLayers/applySeed, which arm it
   };
 
@@ -1615,6 +1758,27 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       </div>
 
       <div className="fxwb-side">
+        {/* The last commit's confirmation, carried across the page reload that commit itself forced (see
+            `restoredCommitNote`). FIRST in the rail and visible in either mode, because after that reload it
+            is the only evidence in the UI that the write happened at all. */}
+        {restoredCommitNote !== null && (
+          <div
+            className={`fxwb-def-restore ${
+              restoredCommitNote.level === 'warn' ? 'fxwb-def-committed-warn' : 'fxwb-def-committed'
+            }`}
+          >
+            <span className="fxwb-def-restore-txt">{restoredCommitNote.text}</span>
+            <button
+              type="button"
+              className="fxwb-def-restore-x"
+              title="Dismiss"
+              aria-label="Dismiss"
+              onClick={() => setRestoredCommitNote(null)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {restoredNotice && (
           <div className="fxwb-def-restore">
             <span className="fxwb-def-restore-txt">Restored unsaved work.</span>
@@ -1890,6 +2054,23 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             alongside it). The read side — load / duplicate / paste — is the "Start from" picker at the top of
             the rail. */}
         <div className="fxwb-def">
+          {/* A picked preset variant that only partly landed. ABOVE the name/Save row, because it is a fact
+              about the composition you're about to name and write, and it must not be findable only by
+              scrolling past Save. Dismissible: it is information, not a blocker. */}
+          {variantWarning !== null && (
+            <div className="fxwb-def-variantwarn">
+              <span className="fxwb-def-variantwarn-txt">⚠ {variantWarning}</span>
+              <button
+                type="button"
+                className="fxwb-def-variantwarn-x"
+                title="Dismiss"
+                aria-label="Dismiss"
+                onClick={() => setVariantWarning(null)}
+              >
+                ✕
+              </button>
+            </div>
+          )}
           <div className="fxwb-def-saverow">
             <input
               className="fxwb-def-nameinput"
@@ -1913,9 +2094,57 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
+          {/* The seed-bake warning, directly under Save. Rendered on the LOCK STATE rather than after a save
+              attempt, so Save cannot be reached without having had it in front of you. `CommitPanel` renders
+              the SAME component above its own button — see `SeedBakeWarning` for why one warning next to Save
+              was not enough. */}
+          <SeedBakeWarning
+            seedLocked={seedLocked}
+            seed={seed}
+            onUnlock={toggleSeedLock}
+            writeVerb="Saving"
+          />
           {saveNote !== null && <div className="fxwb-def-note">{saveNote}</div>}
           {saveError !== null && <div className="fxwb-def-err">{saveError}</div>}
         </div>
+
+        {/* RAIL-MODE TRANSPORT. Rail mode hides `.fxwb-transport` (it is a full-width absolutely-positioned
+            bar built around the Timeline, so unhidden it would cover the very board the mode exists to show),
+            which used to take ▶/⏸, 🔥 Fire and the scrubber down with it — i.e. while watching an effect on a
+            real card you could not retrigger or scrub the effect you were tuning, the two things you most
+            want there. So the rail hosts its own compact copy: those three controls and nothing else, no
+            Timeline. The handlers are the SAME `togglePlay` / `fire` / `scrub` the main bar calls — this is a
+            second surface for one behaviour, never a second implementation. Sticky-bottom (see the CSS) so it
+            can't be scrolled off under 40 sliders. */}
+        {railMode && (
+          <div className="fxwb-railtransport">
+            <button
+              className="fxwb-play"
+              onClick={togglePlay}
+              title={uiPlaying ? 'Pause the timeline where it is (Space)' : 'Play — resume the timeline, or start a pass if nothing is running (Space)'}
+              aria-label={uiPlaying ? 'Pause' : 'Play'}
+            >
+              {uiPlaying ? '⏸' : '▶'}
+            </button>
+            <button
+              className="fxwb-fire"
+              onClick={fire}
+              title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing."
+            >
+              🔥 Fire
+            </button>
+            <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
+            <input
+              className="fxwb-scrub"
+              type="range"
+              aria-label="Scrub"
+              min={0}
+              max={durationMs}
+              value={timeMs}
+              onChange={(e) => scrub(Number(e.target.value))}
+            />
+          </div>
+        )}
       </div>
 
       <div className="fxwb-transport">
@@ -2089,6 +2318,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             error={commitError}
             note={commitNote}
             onCommit={() => void commit()}
+            seedLocked={seedLocked}
+            seed={seed}
+            onUnlockSeed={toggleSeedLock}
           />
         </div>
       )}
@@ -2117,16 +2349,20 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             // Materialise FIRST — `playDef` resolves by id and the variant does not exist until it is
             // registered (see `materialiseVariant`). Like the browser's hover, this is a PREVIEW: it
             // never touches the author's in-progress composition.
-            const stored = materialiseVariant(archetypeId, variantId);
-            if (stored === null) return;
-            playDef(stored.id, anchors);
+            const made = materialiseVariant(archetypeId, variantId);
+            if (made === null) return;
+            playDef(made.stored.id, anchors);
           }}
           onPick={(archetypeId, variantId) => {
-            const stored = materialiseVariant(archetypeId, variantId);
-            if (stored === null) return;
+            const made = materialiseVariant(archetypeId, variantId);
+            if (made === null) return;
             // The same seam Duplicate uses: land it in the editor as a template, pre-named so Save never
             // opens on a blank name. Nothing is written until the author hits Save.
-            loadDef(stored, `${archetypeId}-${variantId}`);
+            loadDef(made.stored, `${archetypeId}-${variantId}`);
+            // Only on PICK, never on hover-preview: a preview is a glance, and warning on every card the
+            // pointer crosses would be noise you learn to ignore. This is the moment the half-applied
+            // composition becomes the thing you're about to tune and save.
+            setVariantWarning(variantMissedMessage(made));
             setGallery(false);
           }}
           onClose={() => setGallery(false)}

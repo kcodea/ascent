@@ -40,11 +40,27 @@ describe('forkId', () => {
 
 describe('referencesTo', () => {
   it('finds every kind and card entry pointing at a def', () => {
-    expect(referencesTo(tables, 'self-buff-gold')).toEqual([
-      { cardId: null, kind: 'buffWave' },
-      { cardId: null, kind: 'attackExchange' },
-    ]);
+    const refs = referencesTo(tables, 'self-buff-gold');
+    // Membership, not order: within a tier the order is just `Object.entries` over the fixture's own key
+    // order, which `referencesTo` promises nothing about — asserting it would break on a harmless fixture
+    // reshuffle.
+    expect(refs).toHaveLength(2);
+    expect(refs).toContainEqual({ cardId: null, kind: 'buffWave' });
+    expect(refs).toContainEqual({ cardId: null, kind: 'attackExchange' });
     expect(referencesTo(tables, 'ruby-lance')).toEqual([{ cardId: 'bloodbinder', kind: 'scCast' }]);
+  });
+
+  // The tier ordering IS contractual — the docstring says kind rows then card rows, so pin it against a def
+  // referenced from both tiers.
+  it('returns kind rows before card rows', () => {
+    const both: BindingTable = {
+      kinds: { scCast: { def: 'shared' } },
+      cards: { bloodbinder: { buffWave: { def: 'shared' } } },
+    };
+    expect(referencesTo(both, 'shared')).toEqual([
+      { cardId: null, kind: 'scCast' },
+      { cardId: 'bloodbinder', kind: 'buffWave' },
+    ]);
   });
 
   it('returns empty for a def nothing points at', () => {

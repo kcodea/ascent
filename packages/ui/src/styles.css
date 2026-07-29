@@ -5984,24 +5984,29 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    window size instead of drifting at non-16:9 aspects. */
 .lobbyrail { position: absolute; z-index: 60; right: calc(28 * var(--u)); top: 26%; height: 42%;
   width: calc(178 * var(--u)); display: flex; flex-direction: column; gap: calc(5 * var(--u));
-  --u: calc(var(--u-base) * var(--ui-scale, 0.96)); pointer-events: none; }
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96)); pointer-events: none;
+  /* A solid backing plate. Translucent rows over the board's stonework washed every name out to grey — the
+     panel has to be its own surface, not a tint on the art behind it. */
+  padding: calc(6 * var(--u)); border-radius: calc(9 * var(--u));
+  background: #14111c; box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) -6px rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09); }
 .lobbyrail > * { pointer-events: auto; }
 .lobbyhead { display: flex; justify-content: space-between; align-items: baseline; flex: none;
-  font-size: calc(9 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+  font-size: calc(9 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
 .lobbyalive { color: #f4d58a; font-weight: 700; }
 
 /* NEXT FOE — the one enemy this shop phase is about, so it gets a card rather than a marker in a row.
    Stacked (art over name over health) because the rail is narrow; horizontally it had nowhere to go. */
 .lobbynext { flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u));
   padding: calc(6 * var(--u)) calc(5 * var(--u)); border-radius: calc(7 * var(--u));
-  background: linear-gradient(180deg, rgba(255, 120, 110, 0.18), rgba(255, 120, 110, 0.05));
-  box-shadow: inset 0 0 0 1px rgba(255, 120, 110, 0.45); text-align: center; }
+  background: linear-gradient(180deg, #3a1f22, #2a171a);
+  box-shadow: inset 0 0 0 1px rgba(255, 130, 120, 0.55); text-align: center; }
 .lobbynextface { width: calc(58 * var(--u)); height: calc(58 * var(--u)); border-radius: calc(7 * var(--u));
   object-fit: cover; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); }
 .lobbynextinfo { display: flex; flex-direction: column; line-height: 1.15; width: 100%; min-width: 0; }
 .lobbynextlbl { font-size: calc(7 * var(--u)); letter-spacing: 0.10em; text-transform: uppercase; color: rgba(255, 160, 150, 0.9); }
 .lobbynextname { font-size: calc(15 * var(--u)); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lobbynextsub { font-size: calc(8 * var(--u)); color: rgba(255, 255, 255, 0.5);
+.lobbynextsub { font-size: calc(8 * var(--u)); color: rgba(255, 255, 255, 0.66);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobbynexthp { display: flex; align-items: baseline; justify-content: center; gap: calc(3 * var(--u)); font-size: calc(12 * var(--u)); }
 
@@ -6012,11 +6017,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyseat { position: relative; flex: 1; min-height: 0; display: grid;
   grid-template-columns: calc(18 * var(--u)) 1fr auto; grid-template-rows: auto auto;
   align-items: center; column-gap: calc(4 * var(--u)); padding: calc(3 * var(--u)) calc(5 * var(--u)) calc(4 * var(--u));
-  border-radius: calc(5 * var(--u)); font-size: calc(11 * var(--u));
-  background: rgba(12, 10, 18, 0.62); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
-.lobbyseat.you { background: rgba(40, 70, 110, 0.68); box-shadow: inset 0 0 0 1px rgba(120, 190, 255, 0.45); }
-.lobbyseat.foe { box-shadow: inset 0 0 0 1px rgba(255, 120, 110, 0.6); }
-.lobbyseat.dead { opacity: 0.4; }
+  border-radius: calc(5 * var(--u)); font-size: calc(11 * var(--u)); color: #f2ecff;
+  background: #211c2e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.lobbyseat.you { background: #1f3a5c; box-shadow: inset 0 0 0 1px rgba(140, 200, 255, 0.6); }
+.lobbyseat.foe { background: #3a2126; box-shadow: inset 0 0 0 1px rgba(255, 130, 120, 0.75); }
+.lobbyseat.dead { opacity: 0.5; }
 .lobbyface { grid-row: 1 / span 2; width: calc(18 * var(--u)); height: calc(18 * var(--u));
   border-radius: 50%; object-fit: cover; }
 .lobbyname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -6024,7 +6029,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--u)); font-weight: 700; color: #ff8d8d; }
 .lobbyhp svg { width: calc(8 * var(--u)); height: calc(8 * var(--u)); }
 .lobbyarmor { color: #9fc7ff; font-weight: 700; }
-.lobbyplace { color: rgba(255, 255, 255, 0.5); font-weight: 700; }
+.lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* Damage from the round that just resolved — sits under the name, so the row keeps ONE stable shape whether or
    not a number is present (an inline cell reflowed the health column between seats). */
 .lobbydmg { grid-column: 2 / span 2; font-size: calc(9 * var(--u)); font-weight: 800; color: #ff6b6b;
@@ -6053,3 +6058,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    solid gold rectangle. (Everything else about the treatment is inherited from the base rule.) */
 .endscreen.lobbyend.won .endplace-num {
   background-image: linear-gradient(180deg, #fffdf6, #ffe08a 52%, #e8b43f); }
+
+/* The damage you dealt, floated over the seat that took it. Appended to <body> (not the row) so it outlives
+   the re-sort that happens the moment a round settles. */
+.lobbydmg-float { position: fixed; z-index: 2000; pointer-events: none; will-change: transform, opacity;
+  font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: -0.02em; color: #ff5d5d;
+  text-shadow: 0 0 10px rgba(255, 60, 60, 0.55), 0 2px 0 rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.9); }

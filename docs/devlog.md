@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-07-29 — tweak(ui): the lobby rail is legible, and a win announces its damage
+
+Two owner asks off a screenshot: the seat windows were hard to read, and a win should show the damage dealt.
+
+**Legibility.** The rail was a set of translucent panels sitting directly on the board's stonework, so every
+hero name washed out to grey and the Next Foe card bled into the first row. It is now its OWN surface — one
+solid backing plate with a shadow and a hairline, solid rows, an opaque foe card, and full-strength text. The
+fix is at the root (the panel is a surface, not a tint on the art behind it) rather than nudging text colours
+until they survive whatever happens to be underneath.
+
+**Damage dealt.** Winning is the moment the mode is about, and it read exactly like a draw until you scanned the
+table for a changed number. The damage you dealt now floats over the seat that took it, once, on the round it
+happened. Built on the same one-shot WAAPI float as the spell-power and ruby-power cues, appended to `<body>`
+rather than the row: rows re-sort by health the instant a round settles, so anything tied to the element's
+lifetime would fire twice or not at all. It is keyed on the lobby ROUND, not on render — the panel re-renders
+constantly through a shop phase — and waits a frame so it measures the re-sorted row rather than the old one.
+A draw or a loss says nothing.
+
+**Verified.** typecheck, lint (3 pre-existing warnings), 2898 tests, harness determinism, plus a live browser
+round instrumented with a MutationObserver: the float fired once reading `−4`, and its coordinates land inside
+seat `s3`'s row — the seat the encounter log records as having taken exactly 4.
+
+
 ## 2026-07-29 — tweak(ui): the lobby end screen is a placement and a board
 
 Owner ask: "reduce the end screen to literally only show your placement and final board."

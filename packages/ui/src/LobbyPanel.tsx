@@ -1,4 +1,6 @@
-import { getHero, lastRoundDamage, playerOpponent, type RunLobby } from '@game/sim';
+import { useEffect, useRef } from 'react';
+import { getHero, lastPlayerEncounter, lastRoundDamage, playerOpponent, type RunLobby } from '@game/sim';
+import { floatLobbyDamageOnSeat } from './lobbyDamageFx';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 
@@ -27,6 +29,23 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
     if (a.alive) return (b.resolve + b.armor) - (a.resolve + a.armor);
     return (a.placement ?? 99) - (b.placement ?? 99);
   });
+
+  // WHAT YOU JUST DID TO THEM. The rail prints every seat's loss as a static number, but a win is the moment
+  // the mode is about and shouldn't read the same as a draw until you scan the table — so the damage you dealt
+  // floats over the seat that took it, once, on the round it happened.
+  //
+  // Keyed on the round rather than on a render: the panel re-renders constantly during a shop phase, and the
+  // rows re-sort by health the instant a round settles, so anything tied to the element's lifetime would fire
+  // repeatedly or not at all. `rAF` waits for the re-sorted rows to be laid out before measuring one.
+  const firedRound = useRef(0);
+  useEffect(() => {
+    if (lobby.round === firedRound.current) return;
+    firedRound.current = lobby.round;
+    const last = lastPlayerEncounter(lobby);
+    if (!last || last.dealt <= 0) return; // a draw or a loss has nothing to announce
+    const raf = requestAnimationFrame(() => floatLobbyDamageOnSeat(last.foe.id, last.dealt));
+    return () => cancelAnimationFrame(raf);
+  }, [lobby.round, lobby]);
 
   return (
     <div className="lobbyrail">
@@ -60,6 +79,7 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
           return (
             <div
               key={seat.id}
+              data-seat={seat.id}
               className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${seat.alive ? '' : ' dead'}`}
               title={seat.alive
                 ? `${seat.label} — ${seat.resolve} Resolve${seat.armor ? ` +${seat.armor} Armor` : ''}`

@@ -625,7 +625,6 @@ class FxController {
   private shardRectTex: Texture | null = null; // jagged spark: elongated rectangle
   private shardTriTex: Texture | null = null;   // jagged spark: triangle
   private shardHexTex: Texture | null = null;   // energy facet: hexagon (the Ward shield's shape, flung on break)
-  private coinTex: Texture | null = null;       // gold coin (sell sprinkle)
   private bubbleTex: Texture | null = null;     // soft translucent disc — shield body
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
   private pulseTex: Texture | null = null;      // thin bright ring — the combat impact energy pulse
@@ -830,7 +829,6 @@ class FxController {
     this.shardRectTex = this.makeShardRectTexture(app);
     this.shardTriTex = this.makeShardTriTexture(app);
     this.shardHexTex = this.makeShardHexTexture(app);
-    this.coinTex = this.makeCoinTexture(app);
     this.bubbleTex = this.makeBubbleTexture(app);
     this.rimTex = this.makeRimTexture(app);
     this.pulseTex = this.makePulseRingTexture(app);
@@ -898,7 +896,6 @@ class FxController {
     this.shardRectTex = null;
     this.shardTriTex = null;
     this.shardHexTex = null;
-    this.coinTex = null;
     this.bubbleTex = null;
     this.rimTex = null;
     this.pulseTex = null;
@@ -1569,34 +1566,6 @@ class FxController {
     g.blendMode = cfg.blend;
     this.layer.addChild(g);
     this.descends.push({ g, from, to, ctl, perp, cfg: ribbon, age: 0, struck: false, pulse: cfg.pulse });
-  }
-
-  /**
-   * A sprinkle of gold coins bursting up out of point (x, y) and arcing back down under gravity —
-   * the income flourish when a minion is sold (fired from the Gold counter's screen position).
-   */
-  coins(x: number, y: number): void {
-    if (!this.ready) return;
-    const count = 9;
-    for (let i = 0; i < count; i++) {
-      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.15; // up, fanned ±33°
-      const speed = 380 + Math.random() * 320;                 // punchier upward launch
-      const fs = 0.7 + Math.random() * 0.45;
-      this.spawn(this.coinTex!, {
-        x: x + (Math.random() - 0.5) * 18,
-        y: y + (Math.random() - 0.5) * 8,
-        vx: Math.cos(ang) * speed,
-        vy: Math.sin(ang) * speed, // negative → pops upward
-        drag: 0.85,                // light air damping; gravity dominates the vertical
-        gravity: 1700,             // pull the higher launch back down within its life
-        life: 700 + Math.random() * 400,
-        fromScale: fs,
-        toScale: fs * 0.85,        // hold roughly its size (coins don't shrink to nothing)
-        spin: (Math.random() - 0.5) * 18,
-        tint: 0xffffff,            // the texture is already gold
-        blend: 'normal',
-      });
-    }
   }
 
   /**
@@ -3541,19 +3510,6 @@ class FxController {
     const r = 7, pts: number[] = [];
     for (let k = 0; k < 6; k++) { const a = ((60 * k + 30) * Math.PI) / 180; pts.push(Math.cos(a) * r, Math.sin(a) * r); }
     g.poly(pts).fill({ color: 0xffffff, alpha: 0.22 }).stroke({ color: 0xffffff, width: 1.6, alignment: 0.5 });
-    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
-    g.destroy();
-    return tex;
-  }
-
-  /** A gold coin — dark rim, bright face, a light inner ring + a shine. Drawn opaque (normal blend)
-   *  so it reads as a solid coin on the light board. */
-  private makeCoinTexture(app: Application): Texture {
-    const g = new Graphics();
-    g.circle(0, 0, 11).fill({ color: 0x9a6a12 });                          // dark rim
-    g.circle(0, 0, 9).fill({ color: 0xffc928 });                           // gold face
-    g.circle(0, 0, 9).stroke({ width: 1.5, color: 0xfff0a8, alpha: 0.9 }); // bright inner ring
-    g.ellipse(-3, -3.5, 3.2, 2).fill({ color: 0xfff6d0, alpha: 0.85 });    // shine highlight
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

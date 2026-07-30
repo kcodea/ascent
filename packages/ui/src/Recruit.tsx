@@ -3564,7 +3564,9 @@ export function Recruit() {
       const goldEl = document.querySelector('.statcell.gold');
       if (goldEl) {
         const gr = goldEl.getBoundingClientRect();
-        pixiFx.coins(gr.left + gr.width / 2, gr.top + gr.height * 0.4);
+        const gx = gr.left + gr.width / 2;
+        const gy = gr.top + gr.height * 0.4;
+        playDef('coins', { source: { x: gx, y: gy }, target: { x: gx, y: gy } });
       }
       dispatch({ type: 'sell', uid: d.uid });
       return true;

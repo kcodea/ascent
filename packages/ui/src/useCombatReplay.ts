@@ -1165,7 +1165,7 @@ export function useCombatReplay(
           const el = findEl(uid);
           if (!el) continue;
           const { cx, cy } = layoutRectOf(el);
-          pixiFx.coins(cx, cy);
+          playDef('coins', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
         }
       },
       // A NON-melee hit (SC nuke / split damage / Blaster AoE) → a damage burst + impact ring at each target, so a

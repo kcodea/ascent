@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "id": "coins",
+  "label": "Coins",
+  "tags": ["gold", "income", "shop"],
+  "duration": 1200,
+  "layers": [
+    {
+      "primitive": "burst",
+      "name": "coins",
+      "anchor": "target",
+      "at": 0,
+      "life": 1200,
+      "params": {
+        "count": 10,
+        "spread": 1,
+        "speed": 340,
+        "speedVar": 0.5,
+        "drag": 0.92,
+        "gravity": 800,
+        "life": 900,
+        "shape": "circle",
+        "size": 13,
+        "sizeVar": 0.35,
+        "sizeCurve": [[0, 1], [1, 0.85]],
+        "coreBias": 0.85,
+        "bands": 3,
+        "plateau": 0.4,
+        "glow": 0.35,
+        "erode": 0.15,
+        "blendMode": "normal",
+        "palette": [7031314, 13209378, 15909198, 16774084]
+      }
+    },
+    {
+      "primitive": "burst",
+      "name": "glints",
+      "anchor": "target",
+      "at": 40,
+      "life": 600,
+      "params": {
+        "count": 12,
+        "spread": 1,
+        "speed": 260,
+        "speedVar": 0.8,
+        "drag": 0.9,
+        "gravity": 500,
+        "life": 460,
+        "shape": "star",
+        "size": 5,
+        "sizeVar": 0.8,
+        "sizeCurve": [[0, 1], [1, 0]],
+        "coreBias": 1,
+        "bands": 2,
+        "plateau": 0.5,
+        "glow": 0.7,
+        "erode": 0,
+        "blendMode": "add",
+        "palette": [13209378, 15909198, 16774084, 16777215]
+      }
+    }
+  ]
+}

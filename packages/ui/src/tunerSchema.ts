@@ -29,6 +29,64 @@
  */
 export const TUNERS_RESET_EVENT = 'ascent:tunersreset';
 
+/**
+ * The emblem each panel wears on its nameplate — the same glyph the dev menu lists it under, so a panel you
+ * opened from a menu row is recognisable as that row once it is floating over the board.
+ *
+ * DUPLICATION, KNOWINGLY: `DevMenu`'s own table still holds these inline. Unifying them means either passing a
+ * prop down through 46 components or refactoring that table, and neither is worth doing inside a visual pass —
+ * but the two must agree, and this file is generated from that table. If you add a panel, add it in both.
+ */
+export const PANEL_EMBLEMS: Record<string, string> = {
+  layout: '📐',
+  frame: '🖼️',
+  cardplate: '🂠',
+  cardtext: '🔤',
+  cardpills: '🏷️',
+  heropanel: '🧍',
+  lobbypanel: '🪑',
+  buffdrawer: '🧪',
+  book: '📖',
+  refreshbtn: '🔄',
+  freezebtn: '❄️',
+  endturnbtn: '💎',
+  heropowerbtn: '💠',
+  tavernupbtn: '🍺',
+  drag: '🎴',
+  flip: '🔀',
+  glow: '🔆',
+  shield: '🛡',
+  lunge: '🗡️',
+  critfx: '⚡',
+  flurryswing: '🌬️',
+  cleavefx: '🪓',
+  executefx: '🩸',
+  bufffx: '⬆️',
+  gustfx: '💨',
+  spellbufffx: '🔮',
+  spellpowerfx: '✨',
+  rubypowerfx: '♦️',
+  herobufffx: '🎆',
+  aurafx: '🌊',
+  infusefx: '🍖',
+  weldfx: '🔩',
+  stepprocfx: '🧮',
+  stepcounter: '📈',
+  questtendril: '🏆',
+  chargeglyph: '🔋',
+  platedissolve: '🌀',
+  platecoalesce: '🪄',
+  plategild: '👑',
+  ward: '🔵',
+  execute: '☠️',
+  swapfx: '↔️',
+  trail: '🌠',
+  smoke: '🌫️',
+  float: '🔢',
+  aimfx: '🎯',
+  sfx: '🎛️',
+};
+
 /** The complete unit vocabulary. A control that renders a bare number declares no unit at all. */
 export type TunerUnit =
   | 'ms'      // milliseconds

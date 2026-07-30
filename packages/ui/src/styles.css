@@ -4297,6 +4297,204 @@ svg { width: 18px; height: 18px; }
    separation from the controls below. */
 .tunerpanel .tuner-harness { display: block; padding: 6px 7px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0, 0, 0, 0.04); }
 .tunerpanel .tuner-harness .sfxmix-copy { margin-top: 6px; padding: 5px; font-size: 12px; }
+/* ============================================================================================================
+   THE INSTRUMENT SKIN — the dev tuners as machined objects rather than pale dialogs.
+   ============================================================================================================
+   WHY A SECOND SURFACE AT ALL. The game is warm vellum under lamplight; DESIGN.md's anti-reference is "flat
+   SaaS — cool greys, hairline borders, neutral surfaces", which is exactly what the tuners had drifted into:
+   a cream fill, a hairline rule, and a flat grey slider track. Two ways out were on the table — dress the tools
+   in the game's own gold, or make them instruments sitting OVER the board. The second won: a panel covers the
+   board you are judging, so it must stay quiet where you work and never be mistaken for game UI in a
+   screenshot. The DEV Choreography panel already ran a dark theme; this extends that to all 46.
+
+   HOW IT IS APPLIED. The shared surface tokens are RE-DECLARED on the panel root, the same trick the Compendium
+   tuner uses on `.book`. Every rule above already reads `var(--card)` / `var(--line)` / `var(--ink)`, so the
+   whole panel reskins from one block instead of forty edited declarations — and anything added later inherits
+   the skin for free. Nothing outside the panel is touched.
+
+   PERFORMANCE. Static gradients and shadows only; the one moving part is the button sheen, which animates
+   `transform`/`opacity` on a pseudo-element and is compositor-only (`docs/performance.md`). No looping paint. */
+.sfxmix.tunerpanel {
+  --card: #1d1913;                    /* panel face */
+  --bg2: #100d08;                     /* recessed wells: number boxes, find field, slider channel */
+  --bg3: #241f17;
+  --line: #4a4136;                    /* structural rule */
+  --ink: #efe7db;                     /* primary text */
+  --ink2: #c9bda6;
+  --ink3: #9a8c74;                    /* labels, units, counts */
+  --brass: #c8a45c;                   /* engraved caps + section rules */
+  --brass-dk: #6b5526;                /* brass edges */
+  color: var(--ink);
+  border: 1px solid #4f4437;
+  border-radius: 14px;
+  padding: 0 0 13px;                  /* the header plate and the rows own their own gutters */
+  background:
+    /* a fine warm grain, so the slate reads as a material and not a flat fill — static, costs no repaint */
+    repeating-linear-gradient(0deg, rgba(255, 235, 200, 0.014) 0 1px, transparent 1px 3px),
+    radial-gradient(120% 60% at 50% -8%, #2b2620 0%, #1d1913 55%, #151109 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 238, 205, 0.10),      /* lit top edge — the object is under a lamp */
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(200, 146, 46, 0.16),           /* faint brass rim */
+    0 22px 50px -14px rgba(0, 0, 0, 0.85);
+}
+
+/* ---- NAMEPLATE ---------------------------------------------------------------------------------------- */
+/* Engraved, not glowing: the title takes a dark shadow so it reads as struck into the plate. DESIGN.md rejects
+   neon, and a glowing title would be exactly that. */
+.tunerpanel .sfxmix-h {
+  display: flex; align-items: center; gap: 9px; margin: 0; padding: 9px 12px;
+  border-radius: 13px 13px 0 0; border-bottom: 1px solid var(--brass-dk);
+  background: linear-gradient(180deg, #3a3227 0%, #2a2419 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 205, 0.13), 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+.tunerpanel .tuner-title { font-size: 15px; font-weight: 800; color: #fbeccd; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65); }
+.tunerpanel .sfxmix-h span { margin-left: auto; font-size: 9px; color: #a08c68; letter-spacing: 0.12em; }
+/* The emblem sits in a bezel, so it reads as set INTO the plate rather than printed on it. */
+.tunerpanel .tuner-emblem {
+  flex: 0 0 auto; width: 24px; height: 24px; display: grid; place-items: center; font-size: 13px; border-radius: 7px;
+  background: radial-gradient(120% 120% at 30% 20%, #5c4a24, #332a19);
+  border: 1px solid #7a5f22; box-shadow: inset 0 1px 0 rgba(255, 232, 180, 0.25), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* ---- RECESSED CHANNELS -------------------------------------------------------------------------------- */
+/* Elevation carries role: chrome sinks into the panel, controls sit on its face. */
+.tunerpanel .tuner-tools {
+  gap: 7px; padding: 8px 12px; margin: 0; border-bottom: 1px solid #3b3227;
+  background: linear-gradient(180deg, #171309, #1c1811);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.tunerpanel .tuner-find { padding: 4px 9px; border-radius: 8px; border: 1px solid #443a2c;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.75); }
+.tunerpanel .tuner-foldall { width: 24px; height: 24px; border-radius: 7px; border: 1px solid #443a2c;
+  background: linear-gradient(180deg, #2a2419, #201b13); color: #a89468; }
+.tunerpanel .tuner-previews { padding: 7px 12px; margin: 0; border-bottom: 1px solid #3b3227; }
+.tunerpanel .lunge-read, .tunerpanel .tuner-harness {
+  margin: 10px 12px 4px; border-radius: 9px; border: 1px solid #3d3529;
+  background: linear-gradient(180deg, #131009, #181309); box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+/* ---- SECTIONS ----------------------------------------------------------------------------------------- */
+.tunerpanel .tuner-gh { color: var(--brass); letter-spacing: 0.13em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  border-bottom: 0; padding: 11px 12px 5px; margin: 0; }
+.tunerpanel .tuner-gh-btn { border-bottom: 0; gap: 7px; }
+/* The rule fades out of the brass rather than ruling the full width — it points along the heading, not across
+   the panel, so a folded stack of them stays quiet. */
+.tunerpanel .tuner-gh-btn::after { content: ''; flex: 1; height: 1px; margin-left: 2px;
+  background: linear-gradient(90deg, rgba(200, 146, 46, 0.55), rgba(200, 146, 46, 0.10) 60%, transparent); }
+.tunerpanel .tuner-gh-btn:hover { color: #f0d9a4; }
+.tunerpanel .tuner-caret { color: #9a8154; }
+/* The count is a chip, so a FOLDED section still tells you how much is hidden inside it. */
+.tunerpanel .tuner-gh-n { margin-left: 0; order: 9; font-size: 9px; color: #a2947a; background: #241f17;
+  border: 1px solid #3d3529; border-radius: 999px; padding: 1px 6px; letter-spacing: 0.04em; opacity: 1; }
+.tunerpanel .tuner-gh-btn.folded { color: #9a8a70; opacity: 1; }
+.tunerpanel .tuner-gh-btn.folded .tuner-gh-n { color: var(--brass); }
+.tunerpanel .tuner-section + .tuner-section { margin-top: 0; }
+
+/* ---- ROWS --------------------------------------------------------------------------------------------- */
+.tunerpanel .tuner-row { padding: 3.5px 12px; margin: 0; gap: 9px; position: relative;
+  transition: background 0.12s ease; }
+.tunerpanel .tuner-row:hover { background: linear-gradient(90deg, rgba(240, 144, 46, 0.07), transparent 70%); }
+/* MODIFIED — a lit edge down the row, like a flagged channel on a mixing desk. On a 44-control panel "what have
+   I changed?" becomes a scan instead of a read. Colour is never the only signal (DESIGN.md): the row also keeps
+   its revert dot and a brightened numeral. */
+.tunerpanel .tuner-row-mod { background: linear-gradient(90deg, rgba(240, 144, 46, 0.09), transparent 62%); }
+.tunerpanel .tuner-row-mod::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2px;
+  border-radius: 0 2px 2px 0; background: linear-gradient(180deg, #f6b169, var(--acc));
+  box-shadow: 0 0 7px rgba(240, 144, 46, 0.6); }
+.tunerpanel .tuner-row-mod .tuner-num { color: #ffd9a3; border-color: var(--brass-dk); }
+.tunerpanel .sfxmix-name { color: #e8dfcb; }
+.tunerpanel .tuner-mod { width: 11px; height: 11px; border-radius: 50%; border: 1px solid #a85c0e;
+  background: var(--acc); box-shadow: 0 0 6px rgba(240, 144, 46, 0.55); font-size: 0; line-height: 0; }
+.tunerpanel .tuner-mod:hover { background: #ffb771; }
+
+/* ---- SLIDER ------------------------------------------------------------------------------------------- */
+/* A milled channel with the travelled portion LIT. `--fill` is set per render by TunerPanel; the gradient is
+   two hard stops, so there is no blur to repaint. */
+.tunerpanel .tuner-row input[type="range"] {
+  -webkit-appearance: none; appearance: none; height: 7px; border-radius: 99px; cursor: pointer;
+  background:
+    linear-gradient(90deg, #f0b463 0 var(--fill, 0%), rgba(0, 0, 0, 0) var(--fill, 0%)),
+    linear-gradient(180deg, #0d0a06, #12100b);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), inset 0 -1px 0 rgba(255, 230, 190, 0.05);
+}
+.tunerpanel .tuner-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%; cursor: pointer;
+  background: linear-gradient(180deg, #fbe4ab 0%, #e0af45 45%, #a97c1c 100%);
+  border: 1px solid #6f5518;
+  box-shadow: inset 0 1px 0 rgba(255, 252, 240, 0.75), 0 2px 4px rgba(0, 0, 0, 0.7);
+}
+.tunerpanel .tuner-row input[type="range"]:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+/* ---- WELLS + SWATCHES --------------------------------------------------------------------------------- */
+.tunerpanel .tuner-num { padding: 3px 6px; border: 1px solid #443a2c; border-radius: 7px; color: #f7ecd4;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8); }
+.tunerpanel .tuner-row-select select { border: 1px solid #443a2c; border-radius: 7px; color: #f2e6cd; }
+.tunerpanel .tuner-row-color input[type="color"] { border: 1px solid var(--brass-dk); border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 3px rgba(0, 0, 0, 0.6); }
+.tunerpanel .tuner-hex, .tunerpanel .tuner-unit { color: #9a8c74; }
+.tunerpanel .tuner-toggleval { color: var(--brass); }
+.tunerpanel .tuner-row input[type="checkbox"] { accent-color: var(--acc); }
+
+/* ---- BUTTONS ------------------------------------------------------------------------------------------ */
+/* Brass faces with a hard bottom edge, so they are objects to press rather than tinted rectangles. */
+.tunerpanel .sfxmix-copy, .tunerpanel .tuner-cmp {
+  position: relative; overflow: hidden;                  /* clips the sheen band to the button's own rim */
+  color: #f2d894; background: linear-gradient(180deg, #332c1f, #252017);
+  border: 1px solid #5d4d2f; border-bottom: 3px solid #1a150e; border-radius: 9px;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 205, 0.08);
+  transition: filter 0.14s ease, border-color 0.14s ease;
+}
+.tunerpanel .lunge-btns { padding: 12px 12px 0; gap: 8px; }
+.tunerpanel .sfxmix-copy { margin-top: 0; font-size: 12.5px; }
+.tunerpanel .sfxmix-copy:hover, .tunerpanel .tuner-cmp:hover:not(:disabled) {
+  filter: brightness(1.12); border-color: #7a6236; }
+/* The A/B is the only control here that changes what the BOARD shows, so it is the only brass-FACED button —
+   and it goes tangerine while latched, because leaving it quiet is how you end up tuning on top of the shipped
+   set by mistake. */
+.tunerpanel .tuner-cmp { padding: 4px 10px; color: #3a2a08;
+  background: linear-gradient(180deg, #f0d18a 0%, #d3a63f 100%);
+  border: 1px solid #8a6412; border-bottom-width: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 248, 225, 0.55); }
+.tunerpanel .tuner-cmp.on { background: linear-gradient(180deg, #f7a94e, #e07f1c); border-color: #a85c0e;
+  color: #2b1704; box-shadow: inset 0 1px 0 rgba(255, 225, 190, 0.5), 0 0 12px rgba(240, 144, 46, 0.45); }
+.tunerpanel .tuner-cmp:disabled { background: linear-gradient(180deg, #2c261c, #231e16); border-color: #3f372b;
+  color: #6d6252; box-shadow: none; opacity: 1; }
+
+/* SHEEN — the same band that crosses the main-menu plaques (`mbsheen`), reused verbatim so the two surfaces
+   speak one language. Compositor-only: the band's transform and opacity animate, the gradient never redraws. */
+.tunerpanel .sfxmix-copy::after, .tunerpanel .tuner-cmp::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 38%; z-index: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 244, 214, 0.16) 44%, rgba(255, 250, 232, 0.30) 52%,
+              rgba(255, 244, 214, 0.14) 60%, transparent);
+  transform: translateX(-140%) skewX(-18deg); opacity: 0;
+}
+.tunerpanel .sfxmix-copy:hover::after,
+.tunerpanel .tuner-cmp:hover:not(:disabled)::after { animation: mbsheen 0.62s cubic-bezier(0.22, 0.6, 0.28, 1); }
+/* On PRESS the band crosses again, faster — the press gets its own acknowledgement rather than borrowing the
+   hover's. A separate animation name so a press mid-hover restarts cleanly instead of fighting it. */
+.tunerpanel .sfxmix-copy:active::after,
+.tunerpanel .tuner-cmp:active:not(:disabled)::after { animation: tunersheenpress 0.34s cubic-bezier(0.3, 0.7, 0.2, 1); }
+@keyframes tunersheenpress {
+  from { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+  18%  { opacity: 1; }
+  to   { transform: translateX(320%) skewX(-18deg); opacity: 0; }
+}
+/* PRESS — the face takes the push and LOSES exactly the thickness it travels (3px edge -> 1px, 2px down), so it
+   compresses against the panel instead of sliding across it. Same grammar as `.menubtn`.
+   `:hover:active` is not redundant: a bare `:active` ties `:hover` on specificity, and you are always hovering
+   when you click, so an ordering slip would silently delete this state. */
+.tunerpanel .sfxmix-copy:active, .tunerpanel .sfxmix-copy:hover:active {
+  transform: translateY(2px); border-bottom-width: 1px; filter: brightness(0.94); transition-duration: 0.06s; }
+.tunerpanel .tuner-cmp:active:not(:disabled), .tunerpanel .tuner-cmp:hover:active:not(:disabled) {
+  transform: translateY(1px); border-bottom-width: 1px; filter: brightness(0.96); transition-duration: 0.06s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tunerpanel .sfxmix-copy:hover::after, .tunerpanel .tuner-cmp:hover::after,
+  .tunerpanel .sfxmix-copy:active::after, .tunerpanel .tuner-cmp:active::after { animation: none; }
+  .tunerpanel .tuner-row { transition: none; }
+}
+
 .sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
 .sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
 .sfxmix.flip .sfxmix-name { flex-basis: 100px; }

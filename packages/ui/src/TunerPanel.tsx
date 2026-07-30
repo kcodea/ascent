@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDraggablePanel } from './useDraggablePanel';
 import {
-  assertGroupRuns, formatValue, groupControls, TUNERS_RESET_EVENT, unitSuffix,
+  assertGroupRuns, formatValue, groupControls, PANEL_EMBLEMS, TUNERS_RESET_EVENT, unitSuffix,
   type TunerControl, type TunerSpec,
 } from './tunerSchema';
 
@@ -35,6 +35,12 @@ function matches(c: TunerControl<string>, q: string): boolean {
 
 /** Panels below this many controls fit on screen, so a find box would be clutter rather than help. */
 const FIND_THRESHOLD = 10;
+
+/** Where a value sits in its range, 0–100, for the lit portion of the slider track. */
+function fillPct(value: number, min: number, max: number): number {
+  if (!(max > min)) return 0;
+  return Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+}
 
 /**
  * The one DEV tuner panel. Every tuner renders through this from a `TunerSpec`; the 47 hand-rolled panels it
@@ -174,7 +180,10 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
   return (
     <div className="sfxmix tunerpanel" ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>
-        {spec.title}
+        {/* The emblem is the glyph this panel is listed under in the dev menu — a panel floating over the board
+            stays recognisable as the row you opened it from. */}
+        {PANEL_EMBLEMS[spec.id] && <span className="tuner-emblem" aria-hidden="true">{PANEL_EMBLEMS[spec.id]}</span>}
+        <b className="tuner-title">{spec.title}</b>
         {spec.note && <span>{typeof spec.note === 'function' ? spec.note() : spec.note}</span>}
       </div>
 
@@ -275,7 +284,11 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
               const current = String(cfg[c.key]);
               const shippedSel = spec.defaults ? String(spec.defaults[c.key]) : undefined;
               return (
-                <div className="sfxmix-row tuner-row tuner-row-select" key={c.key}>
+                <div
+                  className={`sfxmix-row tuner-row tuner-row-select${
+                    shippedSel !== undefined && current !== shippedSel ? ' tuner-row-mod' : ''}`}
+                  key={c.key}
+                >
                   <span className="sfxmix-name" title={c.hint}>
                     {c.label}
                     {shippedSel !== undefined && current !== shippedSel && (
@@ -303,7 +316,11 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
               const hex = String(cfg[c.key]);
               const shippedHex = spec.defaults ? String(spec.defaults[c.key]) : undefined;
               return (
-                <div className="sfxmix-row tuner-row tuner-row-color" key={c.key}>
+                <div
+                  className={`sfxmix-row tuner-row tuner-row-color${
+                    shippedHex !== undefined && hex !== shippedHex ? ' tuner-row-mod' : ''}`}
+                  key={c.key}
+                >
                   <span className="sfxmix-name" title={c.hint}>
                     {c.label}
                     {shippedHex !== undefined && hex !== shippedHex && (
@@ -334,7 +351,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
               const off = c.offValue ?? 0;
               const isOn = value >= on;
               return (
-                <div className="sfxmix-row tuner-row tuner-row-toggle" key={c.key}>
+                <div className={`sfxmix-row tuner-row tuner-row-toggle${modified ? ' tuner-row-mod' : ''}`} key={c.key}>
                   <span className="sfxmix-name" title={c.hint}>
                     {c.label}
                     {c.note && <span className="tuner-note" title={c.note} aria-label={c.note}>†</span>}
@@ -361,7 +378,9 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
             }
 
             return (
-              <div className="sfxmix-row tuner-row" key={c.key}>
+              // A modified row carries the flag itself, so "what have I changed?" is a scan down the left
+              // edge rather than a hunt for dots.
+              <div className={`sfxmix-row tuner-row${modified ? ' tuner-row-mod' : ''}`} key={c.key}>
                 <span className="sfxmix-name" title={c.hint}>
                   {c.label}
                   {/* A per-control caveat sits ON the control it applies to, rather than as a blanket line at
@@ -382,6 +401,9 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                     </button>
                   )}
                 </span>
+                {/* The travelled portion of the track is LIT, via a percentage the CSS gradient reads. Across a
+                    44-control panel you can see roughly where every value sits without reading one number —
+                    which is the thing a column of identical grey tracks could never tell you. */}
                 <input
                   type="range"
                   min={c.min}
@@ -389,6 +411,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                   step={c.step}
                   value={value}
                   aria-label={c.label}
+                  style={{ '--fill': `${fillPct(value, c.min, c.max)}%` } as React.CSSProperties}
                   onChange={(e) => set(c.key, Number(e.target.value))}
                 />
                 {/* A number box as well as the slider: a slider cannot express "exactly 180", and typing is

@@ -44,6 +44,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The melee smack is an authored effect now, and effects can aim along the blow.** An authored effect is a
+  fixed recipe, but a strike has to fan its sparks *at the defender* — a direction that only exists at the
+  moment of the hit. Rather than let callers bend a recipe with an angle (which would stop it being a recipe),
+  a burst can now point itself along the moment itself: from where the effect came from, toward what it hit.
+  The combat impact moves across on it and takes its whole dev tuner panel with it, since the workbench is
+  where it is tuned from here.
 - **Effects can be stretched in time at the moment they fire.** The last of the three per-call dials —
   bigger, more, and now *longer*. Not the same as slowing an effect down: the dust thrown up by a strike
   keeps its speed and simply hangs (and travels) further. The tricky part is that "life" means two different

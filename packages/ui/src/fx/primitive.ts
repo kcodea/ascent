@@ -36,6 +36,20 @@ export interface FxInstance<P = Record<string, unknown>> {
   setParams(next: P): void;
   /** Optional: primitives that follow a path (ribbons, trails) receive their head position each frame. */
   setHead?(x: number, y: number): void;
+  /**
+   * Optional: the fire's own SOURCE→TARGET vector in screen space — "which way this moment went" (an
+   * attacker→defender blow, a caster→victim bolt). A primitive uses it to orient itself along the moment
+   * rather than along its own motion; `burst`'s `aimMode: 'sourceToTarget'` is the caller this exists for.
+   *
+   * Delivered ONLY when the fire actually STAGED both anchors (see `driveLayerHeads`). That gate is the whole
+   * point of the channel: `resolveAnchor` invents `(0, 0)` for an unstaged anchor, so a primitive that read
+   * the anchors itself could not tell "no source" from "a source at the origin" — and would silently aim at
+   * the top-left corner of the screen. An instance that is never called simply has no aim and falls back.
+   *
+   * A layer's own head is deliberately NOT one of the two points. The vector describes the MOMENT, not the
+   * layer, so every layer of a composition aims the same way whichever anchor its author pinned it to.
+   */
+  setAim?(sx: number, sy: number, tx: number, ty: number): void;
   /** Optional: for one-shot effects, returns true once the instance has nothing left to render (all
    *  particles dead, all rings finished). The player uses it to know when a Fire has fully played out.
    *  Continuous effects (or any instance not spawned oneShot) may omit it or always return false. */

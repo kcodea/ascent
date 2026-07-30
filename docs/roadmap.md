@@ -311,6 +311,12 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   parameter below as well, since their `dx/dy` arrives at fire time. (A third `awayFrom` mode was built and
   cut for want of a caller; the reasoning, and what re-adding it would cost, is recorded next to
   `BURST_AIM_MODES` in `burst.ts`.)
+  ✅ **The cut mode came back as `sourceToTarget` 2026-07-30**, because `impact` turned up as the caller. It
+  aims along the FIRE's own vector — source anchor → target anchor — and cost exactly what #764 said it would:
+  an optional `setAim` on `FxInstance` + `FxPlayer`, delivered by `driveLayerHeads` only when both anchors were
+  really staged, so `resolveAnchor`'s invented `(0, 0)` can never be mistaken for a real source. It aims
+  between the two ANCHORS rather than source → the layer's own head (the cut design), so the vector describes
+  the moment and every layer of a composition blows the same way. `travel` and `fixed` are byte-identical.
 - **`playDef` per-call `scale` / `intensity` — ✅ SHIPPED 2026-07-30.** Two multipliers on `PlayDefOptions`,
   reaching only the params that opt in by declaring an `axis` in their spec (`scale` = geometry, `intensity` =
   counts). `1` is an exact no-op and `scale` never touches a count, so seeded defs replay byte-for-byte.
@@ -318,10 +324,16 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   Smoke tuner with it). What the remaining eight still owe:
   - **Only `scale`/`intensity` short:** `deathrattle` (`size`), `shatterAt` + `rebornSummon` (the card's
     `w/h` — note both want an *aspect*, and one scalar collapses it to the width).
-  - **Also need direction:** `impact` and `critImpact` (`dx/dy`). The shape for that is an
-    `aimMode: 'sourceToTarget'` on `burst` derived from the anchors `playDef` already receives — which needs
-    a source channel plumbed to the primitive instance (built and cut in #764 for want of a caller; see
-    `BURST_AIM_MODES` in `burst.ts`). Build it when those two migrate.
+  - **Also need direction:** ✅ `impact` shipped 2026-07-30 as `fx/defs/strike-impact.json` — the proof for
+    `burst`'s new `sourceToTarget` aim, with `power` split across both magnitude axes (`scale` = the sizes,
+    which the old code multiplied by `power` directly; `intensity` = the counts, on the old spark ramp
+    `0.7 + 0.3 × power`). Its `strikeFxConfig.ts` + "Lunge Impact" tuner are deleted, and the six `smoke*`
+    knobs went with the smoke layer, leaving `smokeConfig` as the pulse-only "Strike pulse" panel.
+    ❌ **`critImpact` still owes three things**, and none is direction: (1) its `defRect` drives a rectangular
+    Graphics flash sized to the defender CARD, so it needs an **aspect-ratio** channel — one `scale` scalar
+    collapses `w`/`h` to a single number, the same gap `shatterAt`/`rebornSummon` have; (2) the "CRIT!" text
+    pop is a `Text`/typography element no primitive draws; (3) its whole look is a live `critFxConfig` object
+    with ~20 knobs, which is "author several defs", not one. Direction itself is now free to it.
   - **Need more than magnitude:** `impactPulse` (`radius` → `scale` and `life` → `time` are both covered now;
     what remains is that its `rings` argument REPLACES the ring count where `intensity` MULTIPLIES it — an
     `intensity: rings / 2` at the three call sites closes it) and `refreshBlast` (a whole `cfg` object from

@@ -83,7 +83,7 @@ describe('burst param specs', () => {
     expect(aim.kind).toBe('enum');
     expect(aim.default).toBe('travel');
     expect(aim.group).toBe('Emit');
-    expect(BURST_AIM_MODES).toEqual(['travel', 'fixed']);
+    expect(BURST_AIM_MODES).toEqual(['travel', 'fixed', 'sourceToTarget']);
 
     const angle = burstPrimitive.params.angle;
     expect(angle).toBeDefined();
@@ -105,7 +105,7 @@ describe('burst param specs', () => {
   it('a def that never mentions aim coerces to travel and behaves exactly as before', () => {
     const p = coerceParams(burstPrimitive.params, { count: 10, spread: 0.5 }) as Record<string, unknown>;
     expect(p.aimMode).toBe('travel');
-    expect(resolveBurstAimAngle('travel', 1.4, p.angle as number)).toBe(1.4);
+    expect(resolveBurstAimAngle('travel', 1.4, p.angle as number, null)).toBe(1.4);
   });
 
   it('exposes an orientToVelocity toggle defaulting to false (an exact no-op)', () => {
@@ -180,27 +180,48 @@ describe('sampleBurstAngle', () => {
 
 describe('resolveBurstAimAngle', () => {
   it('travel returns the travel angle verbatim, ignoring the authored angle', () => {
-    expect(resolveBurstAimAngle('travel', 1.23, 45)).toBe(1.23);
-    expect(resolveBurstAimAngle('travel', 0, 90)).toBe(0);
+    expect(resolveBurstAimAngle('travel', 1.23, 45, null)).toBe(1.23);
+    expect(resolveBurstAimAngle('travel', 0, 90, null)).toBe(0);
     // The whole back-compat claim in one line: an unaimed burst's base is exactly what it always was.
-    expect(resolveBurstAimAngle('travel', -2.5, 170)).toBe(-2.5);
+    expect(resolveBurstAimAngle('travel', -2.5, 170, null)).toBe(-2.5);
+    // …and a delivered source→target aim is equally inert under `travel`. A moment stages source/target for
+    // reasons of its own (every `travel`-anchored def does), so this must not leak into an unaimed burst.
+    expect(resolveBurstAimAngle('travel', -2.5, 170, 0.75)).toBe(-2.5);
   });
 
   it('fixed converts the authored degrees to radians, in SCREEN convention (up is negative)', () => {
-    expect(resolveBurstAimAngle('fixed', 9, 0)).toBeCloseTo(0); // right
-    expect(resolveBurstAimAngle('fixed', 9, -90)).toBeCloseTo(-Math.PI / 2); // UP
-    expect(resolveBurstAimAngle('fixed', 9, 90)).toBeCloseTo(Math.PI / 2); // down
-    expect(resolveBurstAimAngle('fixed', 9, 180)).toBeCloseTo(Math.PI); // left
+    expect(resolveBurstAimAngle('fixed', 9, 0, null)).toBeCloseTo(0); // right
+    expect(resolveBurstAimAngle('fixed', 9, -90, null)).toBeCloseTo(-Math.PI / 2); // UP
+    expect(resolveBurstAimAngle('fixed', 9, 90, null)).toBeCloseTo(Math.PI / 2); // down
+    expect(resolveBurstAimAngle('fixed', 9, 180, null)).toBeCloseTo(Math.PI); // left
     // Sanity on the sign: a cone aimed at -90 launches with a NEGATIVE y velocity, i.e. up the screen.
-    expect(Math.sin(resolveBurstAimAngle('fixed', 0, -90))).toBeLessThan(0);
+    expect(Math.sin(resolveBurstAimAngle('fixed', 0, -90, null))).toBeLessThan(0);
     // The travel angle is dead under `fixed` — same authored angle, wildly different travel, same answer.
-    expect(resolveBurstAimAngle('fixed', 3, -90)).toBe(resolveBurstAimAngle('fixed', -3, -90));
+    expect(resolveBurstAimAngle('fixed', 3, -90, null)).toBe(resolveBurstAimAngle('fixed', -3, -90, null));
+    // …as is the delivered aim.
+    expect(resolveBurstAimAngle('fixed', 3, -90, 2.2)).toBe(resolveBurstAimAngle('fixed', 3, -90, null));
+  });
+
+  it('sourceToTarget takes the delivered aim, ignoring both travel and the authored angle', () => {
+    expect(resolveBurstAimAngle('sourceToTarget', 9, -90, 1.75)).toBe(1.75);
+    expect(resolveBurstAimAngle('sourceToTarget', -9, 33, 0)).toBe(0);
+  });
+
+  it('sourceToTarget falls back to TRAVEL when no aim was delivered', () => {
+    // `null` covers both degenerate cases at once (never staged; staged coincident) — see the primitive's
+    // `setAim`. The fallback is `travel` because that is what a burst with no direction has always done, and
+    // it is emphatically NOT 0 rad, which would silently fan every such burst to the right.
+    expect(resolveBurstAimAngle('sourceToTarget', 1.23, -90, null)).toBe(1.23);
+    expect(resolveBurstAimAngle('sourceToTarget', -2.5, 170, null)).toBe(-2.5);
+    expect(resolveBurstAimAngle('sourceToTarget', 1.23, -90, null))
+      .toBe(resolveBurstAimAngle('travel', 1.23, -90, null));
   });
 
   it('draws no randomness at all — a rand passed anywhere near it would be a contract break', () => {
     // `resolveBurstAimAngle` takes no `rand` parameter by design (see its header + the RNG suite below).
-    // Its arity is part of that contract: 3 positional args, none of them a function.
-    expect(resolveBurstAimAngle).toHaveLength(3);
+    // Its arity is part of that contract: 4 positional args, none of them a function. `aimAngle` is
+    // deliberately REQUIRED rather than defaulted, so a new call site cannot forget the channel exists.
+    expect(resolveBurstAimAngle).toHaveLength(4);
   });
 });
 
@@ -334,21 +355,25 @@ describe('burst aim leaves the seeded draw sequence untouched', () => {
 
   it("aimMode 'travel' reproduces the pre-aim stream byte-for-byte", () => {
     const before = drawWave((t) => t, TRAVEL, 20260730);
-    const after = drawWave((t) => resolveBurstAimAngle('travel', t, -90), TRAVEL, 20260730);
+    const after = drawWave((t) => resolveBurstAimAngle('travel', t, -90, null), TRAVEL, 20260730);
     expect(after).toEqual(before);
+    // …and it stays byte-for-byte with the source→target channel LIVE, which is the new half of the claim:
+    // `driveLayerHeads` now delivers an aim to every fire that stages both anchors, i.e. to defs that have
+    // nothing to do with this feature. It must be invisible to all of them.
+    expect(drawWave((t) => resolveBurstAimAngle('travel', t, -90, 2.75), TRAVEL, 20260730)).toEqual(before);
   });
 
   it("aimMode 'travel' matches whatever angle the def happens to carry alongside it", () => {
     // A def may set `angle` and leave `aimMode` alone (or flip back to travel mid-tune). The authored angle
     // must be completely inert there — an accidental leak would show up as a rotated cone.
     const before = drawWave((t) => t, TRAVEL, 7);
-    const after = drawWave((t) => resolveBurstAimAngle('travel', t, 33), TRAVEL, 7);
+    const after = drawWave((t) => resolveBurstAimAngle('travel', t, 33, null), TRAVEL, 7);
     expect(after).toEqual(before);
   });
 
   it('an AIMED burst consumes the identical stream — the cone rotates, the roll does not change', () => {
     const before = drawWave((t) => t, TRAVEL, 99);
-    const aimed = drawWave((t) => resolveBurstAimAngle('fixed', t, -90), TRAVEL, 99);
+    const aimed = drawWave((t) => resolveBurstAimAngle('fixed', t, -90, null), TRAVEL, 99);
     const base = -Math.PI / 2;
     for (let i = 0; i < before.length; i++) {
       // Every non-angle draw is identical...
@@ -358,5 +383,20 @@ describe('burst aim leaves the seeded draw sequence untouched', () => {
       // Still inside the authored cone around the NEW centre.
       expect(Math.abs(aimed[i][0] - base)).toBeLessThanOrEqual(HALF_WIDTH + 1e-12);
     }
+  });
+
+  it('a sourceToTarget burst consumes the identical stream too — only the cone turns', () => {
+    // The same proof for the new mode, and the reason it holds is structural: the aim is resolved once per
+    // WAVE by a function that draws nothing, so the seven draws land in the same order with the same values.
+    const AIM = -1.1; // radians, as `setAim` would have derived it from the staged pair
+    const before = drawWave((t) => t, TRAVEL, 5150);
+    const aimed = drawWave((t) => resolveBurstAimAngle('sourceToTarget', t, 0, AIM), TRAVEL, 5150);
+    for (let i = 0; i < before.length; i++) {
+      expect(aimed[i].slice(1)).toEqual(before[i].slice(1));
+      expect(aimed[i][0] - before[i][0]).toBeCloseTo(AIM - TRAVEL, 12);
+      expect(Math.abs(aimed[i][0] - AIM)).toBeLessThanOrEqual(HALF_WIDTH + 1e-12);
+    }
+    // And with no aim delivered it is byte-identical to the pre-aim stream, fallback and all.
+    expect(drawWave((t) => resolveBurstAimAngle('sourceToTarget', t, 0, null), TRAVEL, 5150)).toEqual(before);
   });
 });

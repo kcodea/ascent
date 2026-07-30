@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DevPanelContext } from './useDraggablePanel';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
-import { StrikeFxTuner } from './StrikeFxTuner';
 import { CritFxTuner } from './CritFxTuner';
 import { FlurrySwingTuner } from './FlurrySwingTuner';
 import { CleaveFxTuner } from './CleaveFxTuner';
@@ -131,7 +130,6 @@ const GROUPS: Group[] = [
     title: 'Strikes',
     items: [
       { key: 'lunge', icon: '🗡️', label: 'Lunge', C: LungeTuner, hint: "The attacker's lunge into its target" },
-      { key: 'strikefx', icon: '💥', label: 'Lunge Impact', C: StrikeFxTuner, hint: 'The melee impact package — flash, shake, debris', alt: 'strike effects' },
       { key: 'critfx', icon: '⚡', label: 'Critical Strike', C: CritFxTuner, hint: 'The crimson-gold crit flourish', alt: 'crit fx' },
       { key: 'flurryswing', icon: '🌬️', label: 'Flurry Swing', C: FlurrySwingTuner, hint: "The wind-slash sparkle on a Flurry minion's extra swing", alt: 'windfury' },
       { key: 'cleavefx', icon: '🪓', label: 'Cleave Slash', C: CleaveFxTuner, hint: 'The hit-stop and red gash a Cleave attacker plays' },
@@ -180,7 +178,7 @@ const GROUPS: Group[] = [
       { key: 'execute', icon: '☠️', label: 'Execute Aura', C: ExecuteTuner, hint: 'The rage aura on an Execute minion', alt: 'venomous poison' },
       { key: 'swapfx', icon: '↔️', label: 'Swap', C: SwapFxTuner, hint: 'The Displacement exchange arrows', alt: 'displacement' },
       { key: 'trail', icon: '🌠', label: 'Trail', C: TrailTuner, hint: 'The wisp trail behind a moving card' },
-      { key: 'smoke', icon: '🌫️', label: 'Smoke & Dust', C: SmokeTuner, hint: "The board's soft smoke and dust" },
+      { key: 'smoke', icon: '🌫️', label: 'Strike pulse', C: SmokeTuner, hint: 'The energy rings that ripple out of a melee clack', alt: 'smoke dust impact' },
       { key: 'float', icon: '🔢', label: 'Damage Float', C: FloatTuner, hint: 'The −N pills that pop over a struck unit' },
       { key: 'aimfx', icon: '🎯', label: 'Hero Aim', C: AimFxTuner, hint: 'The targeting line and its activation spark' },
     ],

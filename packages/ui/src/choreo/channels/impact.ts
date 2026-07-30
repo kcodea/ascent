@@ -17,10 +17,56 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  */
 export const dustIntensity = (power: number): number => 0.8 + 0.2 * power;
 
+/**
+ * How a swing's `power` reaches the `strike-impact` def's COUNTS: `playDef`'s per-call `intensity`. The
+ * hand-written `pixiFx.impact` scaled its two counts by two slightly different ramps — sparks by
+ * `0.7 + 0.3 * power`, smoke puffs by `0.75 + 0.25 * power`. `intensity` is one dial for the whole def, so
+ * the spark ramp wins (it is 40 particles against 3, i.e. what the eye actually reads as "a heavier hit
+ * threw more"); the smoke rides it and ends up a hair thicker at the 2× damage cap than it used to be.
+ *
+ * The GEOMETRY half of `power` goes on `scale` — see `strikeScale`.
+ */
+export const strikeIntensity = (power: number): number => 0.7 + 0.3 * power;
+
+/**
+ * How a swing's `power` reaches the `strike-impact` def's SIZES: `playDef`'s per-call `scale`.
+ *
+ * Straight through, because that is what the hand-written method did with its dominant read — flash and
+ * shockwave `toScale` were literally `cfg × power`, so a 2× hit's flash was twice the size. `scale` also
+ * reaches the def's `speed` params, which the old code ramped more gently (sparks at `0.85 + 0.15 * power`).
+ * That mostly cancels: the sparks layer is authored at `burst`'s `speed` ceiling of 800, and `transformParams`
+ * clamps to the slider range, so at any `power ≥ 1` the sparks fly at exactly 800 either way.
+ */
+export const strikeScale = (power: number): number => power;
+
 /** The tan billow at a strike point — the authored `impact-dust` def, migrated out of `pixiFx.impactDust`.
  *  Three of the four branches below fire it, so it is one call rather than three. */
 function strikeDust(x: number, y: number, power: number): void {
   playDef('impact-dust', { source: { x, y }, target: { x, y } }, { intensity: dustIntensity(power) });
+}
+
+/**
+ * The melee strike burst — the authored `strike-impact` def, migrated out of `pixiFx.impact`.
+ *
+ * DIRECTION is the reason this needed `burst`'s `sourceToTarget` aim: the sparks fan along the blow, and the
+ * blow is `dx/dy`, which only exists at fire time. `playDef` has no per-call angle and must not grow one (a
+ * def that four callers each bend differently stops being a committed composition), so the direction is
+ * expressed as GEOMETRY instead — the two anchors this fire stages. `target` is the contact point, where every
+ * layer sits; `source` is that point walked BACK along the blow, i.e. where the attacker swung from. The
+ * def's sparks layer reads exactly that vector.
+ *
+ * `dx/dy` may be any magnitude (the caller passes a raw attacker→defender delta), and it does not matter: the
+ * primitive normalises to an angle. A zero vector — attacker and defender coincident — leaves the two anchors
+ * on the same spot, which `setAim` rejects as degenerate, and the cone falls back to `travel` (a static-point
+ * burst's 0 rad, i.e. fanning right). The hand-written method's own fallback there was "up"; the difference is
+ * unobservable, because two units on the same pixel never happens on a real board.
+ */
+function strikeBurst(x: number, y: number, dx: number, dy: number, power: number): void {
+  playDef(
+    'strike-impact',
+    { source: { x: x - dx, y: y - dy }, target: { x, y } },
+    { scale: strikeScale(power), intensity: strikeIntensity(power) },
+  );
 }
 
 /**
@@ -76,7 +122,7 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
     pixiFx.critImpact(fx.x, fx.y, dx, dy, { x: r.left, y: r.top, w: r.width, h: r.height });
     strikeDust(fx.x, fx.y, power);
   } else {
-    pixiFx.impact(fx.x, fx.y, dx, dy, power);
+    strikeBurst(fx.x, fx.y, dx, dy, power);
     strikeDust(fx.x, fx.y, power); // card-drop-style tan billow from the strike point
     pixiFx.impactPulse(fx.x, fx.y, power); // expanding energy ring(s) from the strike point
   }

@@ -1,8 +1,6 @@
 {
   "version": 1,
   "id": "coins",
-  "label": "Coins",
-  "tags": ["gold", "income", "shop"],
   "duration": 1200,
   "layers": [
     {
@@ -12,28 +10,75 @@
       "at": 0,
       "life": 1200,
       "params": {
-        "count": 10,
-        "spread": 0.18,
+        "count": 22,
+        "interval": 600,
+        "spread": 0.31,
         "aimMode": "fixed",
-        "angle": -90,
-        "speed": 380,
-        "speedVar": 0.3,
-        "drag": 0.88,
+        "angle": -91,
+        "speed": 230,
+        "speedVar": 1,
+        "drag": 0.98,
         "gravity": 800,
-        "life": 900,
-        "emitShape": "box",
-        "emitRadius": 9,
-        "shape": "circle",
-        "size": 13,
-        "sizeVar": 0.35,
-        "sizeCurve": [[0, 1], [1, 0.85]],
-        "coreBias": 0.85,
-        "bands": 3,
-        "plateau": 0.4,
-        "glow": 0.35,
-        "erode": 0.15,
+        "life": 1500,
+        "orientToVelocity": false,
+        "turbulence": 0,
+        "turbScale": 0.02,
+        "emitShape": "point",
+        "emitRadius": 14,
+        "inheritVel": 0.54,
+        "shape": "art:group-14035",
+        "size": 5,
+        "sizeVar": 0.73,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            0.5814630815726769
+          ],
+          [
+            1,
+            1.0302961095361882
+          ]
+        ],
+        "coreBias": 0,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "bands": 6,
+        "plateau": 0.9,
+        "fieldMix": 0.68,
+        "tintMode": "texture",
+        "palette": [
+          16766008,
+          13209378,
+          15909198,
+          16768082
+        ],
         "blendMode": "normal",
-        "palette": [7031314, 13209378, 15909198, 16774084]
+        "glow": 0,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0,
+        "gain": 1.01
       }
     },
     {
@@ -43,26 +88,75 @@
       "at": 40,
       "life": 600,
       "params": {
-        "count": 12,
-        "spread": 0.28,
+        "count": 27,
+        "interval": 740,
+        "spread": 0.82,
         "aimMode": "fixed",
         "angle": -90,
-        "speed": 300,
+        "speed": 505,
         "speedVar": 0.8,
-        "drag": 0.9,
+        "drag": 0.86,
         "gravity": 500,
-        "life": 460,
+        "life": 1010,
+        "orientToVelocity": false,
+        "turbulence": 0,
+        "turbScale": 0.02,
+        "emitShape": "point",
+        "emitRadius": 0,
+        "inheritVel": 0,
         "shape": "star",
         "size": 5,
         "sizeVar": 0.8,
-        "sizeCurve": [[0, 1], [1, 0]],
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
         "coreBias": 1,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
         "bands": 2,
         "plateau": 0.5,
-        "glow": 0.7,
-        "erode": 0,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          13209378,
+          15909198,
+          16774084,
+          16777215
+        ],
         "blendMode": "add",
-        "palette": [13209378, 15909198, 16774084, 16777215]
+        "glow": 0.7,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0,
+        "gain": 1.4
       }
     }
   ]

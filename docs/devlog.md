@@ -122,6 +122,34 @@ server. `npm run perf` deliberately does NOT cover this: it is the headless engi
 so in its own header ("what it CANNOT measure: render/paint/animation cost"). WebGL FX perf has no headless
 proxy, which is why §3b of `docs/performance.md` now carries a console recipe instead.
 
+## 2026-07-30 — the coins effect gets its imported art, and two tests stop forbidding committed art
+
+**What changed.** Commits the FX workbench session that was sitting uncommitted in the working tree: the `coins`
+def retuned to use an imported art shape, the shape itself (`fx/defs/art/group-14035.png`, 128×128 RGBA), and
+the two test assertions that would have rejected it.
+
+**The def and the PNG are one change.** `coins.json` now sets `"shape": "art:group-14035"`, so committing either
+half alone leaves a def pointing at a shape that does not exist. The retune is substantial rather than
+cosmetic — count 10 → 22 with a 600ms interval, speed 380 → 230, drag 0.88 → 0.98, life 900 → 1500, the emit
+shape from `box` to `point` with velocity inheritance, and an authored size curve — so the coins now trickle
+rather than spray.
+
+**Two tests forbade committed art from existing at all.** `shapeLibrary.ts` resolves `art:` ids from a
+build-time glob over `fx/defs/art/*.png`, and four assertions compared the option list to the six built-ins with
+`toEqual`. [#772](https://github.com/kcodea/ascent/pull/772) hit this and fixed two of them, leaving the
+rationale in place: *"committing a PNG must not fail this test"*. The remaining two — one about a CORRUPTED
+store, one about ABSENT storage — were missed, so the first committed art shape broke a pair of tests that have
+nothing to do with art. Both now filter `art:` ids the same way, following the established pattern rather than
+inventing a second one.
+
+**Note on the workbench's Save path.** It writes no `label` or `tags`, so `coins` lost the two it had. That
+matches the majority of defs (17 of 24 carry neither) and is how Save has always behaved, so it is recorded
+rather than treated as a regression — but a def authored WITH a label silently loses it on the first Save
+through the tool, which is worth deciding about deliberately.
+
+**How it was verified.** typecheck (pkgs + web), lint, **3187 tests**, build:web — all green, where the two
+shapeLibrary tests had been failing in this working tree for the whole session.
+
 
 ## 2026-07-30 — the built-in particle fade becomes authorable
 
@@ -243,6 +271,7 @@ watchers invalidate their own glob owner and only their own. Plus 12 cases in `s
 re-commit collapse, the caps, the in-session listing, the rehydrate-without-restart path, the dangling sweep
 and its write-back, and that the stored payload contains no `data:image`. The decode itself needs a DOM +
 WebGL and stays eyeball-verified, per this module's standing note.
+
 ## 2026-07-30 — the tuner panels become instruments, and get a type scale
 
 **What changed.** The visual pass on the 46 dev tuner panels, in two commits: a new surface (the "workshop

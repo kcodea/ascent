@@ -314,7 +314,9 @@ describe('persistence', () => {
     if (!stub) return;
     stub.setItem(STORAGE_KEY, '{not json');
     expect(() => listShapeOptions()).not.toThrow();
-    expect(listShapeOptions().map((o) => o.id)).toEqual([...SHAPE_NAMES]);
+    // Committed art is a separate category from imports, exactly as above — filter it out or the first PNG
+    // anyone commits fails a test about corrupted STORAGE.
+    expect(listShapeOptions().filter((o) => !o.id.startsWith('art:')).map((o) => o.id)).toEqual([...SHAPE_NAMES]);
   });
 
   it('removes an import and persists the removal', () => {
@@ -495,7 +497,9 @@ describe('no storage available', () => {
   it('degrades to the built-ins instead of throwing when localStorage is absent', () => {
     if (typeof localStorage !== 'undefined') return; // a runtime with real web storage — nothing to prove
     expect(() => listShapeOptions()).not.toThrow();
-    expect(listShapeOptions().map((o) => o.id)).toEqual([...SHAPE_NAMES]);
+    // Same reason: committed art arrives from the repo's glob, not from storage, so it is still listed when
+    // storage is missing entirely.
+    expect(listShapeOptions().filter((o) => !o.id.startsWith('art:')).map((o) => o.id)).toEqual([...SHAPE_NAMES]);
     expect(() => removeImportedShape('custom:x')).not.toThrow();
     expect(() => resetShapeLibrary()).not.toThrow();
   });

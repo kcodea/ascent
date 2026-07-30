@@ -1,99 +1,87 @@
-import { useEffect, useState } from 'react';
-import { DRAG_KEYS, DRAG_RANGES, DRAG_DESC, DRAG_DEFAULTS_VERSION, getDragFeel, hasLocalDragOverride, resetDragFeel, setDragValue, type DragFeel } from './dragFeel';
-import { useDraggablePanel } from './useDraggablePanel';
+import {
+  DRAG_DEFAULTS_VERSION, DRAG_RANGES,
+  getDragFeel, hasLocalDragOverride, resetDragFeel, setDragValue, type DragFeel,
+} from './dragFeel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only floating tuner for the weighted card-drag feel (`dragFeel.ts`). Drag the sliders to dial the
- * lag (`follow` — lower = heavier), the tilt lean (`tiltPerPx`), the tilt cap (`tiltMax`), and the 3D
- * `perspective` by eye while dragging a card — values persist to localStorage and apply live (the drag rAF
- * reads them every frame). "Copy" grabs the JSON to paste back as the shipped defaults in `dragFeel.ts`;
- * "Reset" clears to defaults. Panel-only: opened from the Dev Tuning Menu (DevMenu.tsx); dev-only, so
- * it's stripped from production.
+ * DEV-only tuner for the weighted card-drag feel. The drag's rAF loop reads these every frame, so they apply
+ * live while you are holding a card.
+ *
+ * THE HEADER TELLS YOU WHOSE VALUES YOU ARE FEELING. A saved local override beats what `main` ships until you
+ * Reset, and it is otherwise invisible — you can spend an afternoon judging feel against your own stale numbers
+ * and conclude main is wrong. The note is a function so it re-reads on every render: it shows either "LOCAL
+ * override" or the version of the defaults on main. Reset means "run exactly what main ships".
+ *
+ * LANGUAGE. `follow` read "lag (lower=heavier)" — the name, the direction and the consequence crammed into one
+ * label. It is "Catch-up speed" with the direction in its hint, where there is room to say that lower is heavier
+ * and 1 is instant.
  */
-const LABELS: Record<keyof DragFeel, string> = {
-  follow: 'lag (lower=heavier)',
-  tiltPerPx: 'tilt lean',
-  tiltMax: 'tilt cap',
-  hLean: 'horiz lean (±flip)',
-  vLean: 'vert lean (±flip)',
-  perspective: 'perspective',
-  scale: 'hold scale',
-  staticRotate: 'static angle',
-  threshold: 'drag threshold',
-  recenter: 'recenter speed',
-  recenterAfter: 'recenter after px',
-  snapMs: 'snap-back ms',
-  magSlideMs: 'magnet-slide ms',
-  magWeldLeadMs: 'weld lead ms',
-  collapseY: 'row collapse px',
-  handFloor: 'hand pop floor',
-  handPop: 'hand pop lift',
-  shGrow: 'drag shadow · grow',
-  shLift: 'drag shadow · lift',
-  shBlur: 'drag shadow · blur',
-  shFade: 'drag shadow · fade',
+const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, string]> = {
+  follow:        ['Catch-up speed', '×', 'How fast the card catches up to the cursor. LOWER is heavier and laggier; 1 is instant, with no lag at all.', 'Weight'],
+  scale:         ['Hold size', '×', 'How much the card grows while held.', 'Weight'],
+  threshold:     ['Drag threshold', 'px', 'How far the pointer must move before a press becomes a drag rather than a click.', 'Weight'],
+
+  tiltPerPx:     ['Tilt per pixel', '×', 'How much the card leans per pixel of cursor movement.', 'Tilt'],
+  tiltMax:       ['Tilt cap', '°', 'Ceiling on that lean, so a fast flick cannot spin the card.', 'Tilt'],
+  hLean:         ['Horizontal lean', '×', 'Strength of the sideways lean. Negative flips which way it leans.', 'Tilt'],
+  vLean:         ['Vertical lean', '×', 'Strength of the forward and back lean. Negative flips it.', 'Tilt'],
+  perspective:   ['Perspective', 'px', 'CSS perspective depth. Lower is a more extreme 3D effect.', 'Tilt'],
+  staticRotate:  ['Resting angle', '°', 'A fixed tilt held while dragging, on top of the lean.', 'Tilt'],
+
+  recenter:      ['Recentre speed', '×', 'How quickly the card levels out when the cursor stops moving.', 'Settle'],
+  recenterAfter: ['Recentre after', 'px', 'How far the cursor must travel before recentring kicks in.', 'Settle'],
+  snapMs:        ['Snap-back time', 'ms', 'How long the card takes to snap home on an invalid drop.', 'Settle'],
+
+  collapseY:     ['Row collapse lift', 'px', 'How far you must lift a card out of its row before the others slide in to fill the gap.', 'Row behaviour'],
+  handFloor:     ['Hand card floor', '×', 'Where a hovered hand card’s BOTTOM lands, as a multiple of card height. Works against the pop lift — higher sits lower.', 'Row behaviour'],
+  handPop:       ['Hand card pop', '×', 'How far a hovered hand card pops up, as a multiple of card height.', 'Row behaviour'],
+
+  magSlideMs:    ['Magnet slide', 'ms', 'How long an Attachment takes to slide onto its host.', 'Attachment'],
+  magWeldLeadMs: ['Weld lead', 'ms', 'How early before the slide ends the weld commits, so its ring OVERLAPS the tail of the slide instead of starting after it. 0 is back-to-back.', 'Attachment'],
+
+  shGrow:        ['Grow', '×', 'How much the drag shadow spreads while a card is held.', 'Drag shadow'],
+  shLift:        ['Lift', 'px', 'How far the shadow drops below the card, which reads as height.', 'Drag shadow'],
+  shBlur:        ['Blur', 'px', 'Softness of the shadow.', 'Drag shadow'],
+  shFade:        ['Opacity', 'opacity', 'Shadow opacity.', 'Drag shadow'],
 };
 
-export function DragTuner() {
-  const [cfg, setCfg] = useState<DragFeel>(getDragFeel());
-  const [copied, setCopied] = useState(false);
-  // Preview pins the "drag shadow" onto every RESTING card (`body.dsh-preview`), so the shGrow/shLift/shBlur/shFade
-  // sliders can be dialed live without holding a card down (one pointer can't drag a card AND a slider).
-  const [preview, setPreview] = useState(false);
-  useEffect(() => {
-    document.body.classList.toggle('dsh-preview', preview);
-    return () => document.body.classList.remove('dsh-preview');
-  }, [preview]);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('drag');
+/** Declaration order IS render order, and controls sharing a group render together under its heading. */
+const ORDER: (keyof DragFeel)[] = [
+  'follow', 'scale', 'threshold',
+  'tiltPerPx', 'tiltMax', 'hLean', 'vLean', 'perspective', 'staticRotate',
+  'recenter', 'recenterAfter', 'snapMs',
+  'collapseY', 'handFloor', 'handPop',
+  'magSlideMs', 'magWeldLeadMs',
+  'shGrow', 'shLift', 'shBlur', 'shFade',
+];
 
-  const [override, setOverride] = useState(hasLocalDragOverride());
-  const set = (k: keyof DragFeel, v: number): void => {
-    setDragValue(k, v);
-    setCfg({ ...getDragFeel() });
-    setOverride(true); // touching a slider is what creates the local save
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getDragFeel(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetDragFeel(); setCfg({ ...getDragFeel() }); setOverride(hasLocalDragOverride()); };
+const controls: TunerControl<Extract<keyof DragFeel, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  const [min, max, step] = DRAG_RANGES[key]!;
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge dragfeel" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Drag Feel <span>dev · live · drag a card</span></div>
-      <div className="sfxmix-row">
-        <span className="sfxmix-name" title="Pin the drag shadow onto every resting card so the 4 'drag shadow' sliders can be tuned live (you can't hold a card and a slider at once).">preview drag shadow</span>
-        <input type="checkbox" checked={preview} onChange={(e) => setPreview(e.target.checked)} />
-        <span className="sfxmix-val">{preview ? 'on' : 'off'}</span>
-      </div>
-      {DRAG_KEYS.map((k) => {
-        const range = DRAG_RANGES[k];
-        if (!range) return null; // guard a transient HMR desync (keys vs ranges) so it can't blank the app
-        const [min, max, step] = range;
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={DRAG_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      {/* WHOSE VALUES AM I RUNNING? Two devs on dev servers with "identical" sliders can still feel different
-          drag, because a local save shadows the values on main (owner 2026-07-26). Say which one is live, so
-          that question is answerable at a glance instead of from the console. */}
-      <div className="sfxmix-row">
-        <span className="sfxmix-name" title="A local override beats the values on main until you Reset. Reset = run exactly what main ships.">
-          running
-        </span>
-        <span className="sfxmix-val">{override ? 'LOCAL override' : `main · v${DRAG_DEFAULTS_VERSION}`}</span>
-      </div>
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset} title="Drop this machine's saved override and run the values on main.">
-          Reset to main
-        </button>
-      </div>
-    </div>
-  );
+const SPEC: TunerSpec<DragFeel> = {
+  id: 'drag',                       // matches DevMenu's key — the two must agree or the ✕ does nothing
+  title: 'Drag Feel',
+  // Derived, so it re-reads every render: which values you are actually feeling is otherwise invisible.
+  note: () => (hasLocalDragOverride() ? 'dev · LOCAL override' : `dev · main · v${DRAG_DEFAULTS_VERSION}`),
+  read: getDragFeel,
+  write: setDragValue,
+  // Drops this machine's saved override so the panel runs exactly what main ships.
+  reset: resetDragFeel,
+  controls,
+  toggles: [{
+    id: 'dsh',
+    label: 'Preview drag shadow',
+    hint: 'Pins the drag shadow onto every resting card so the four shadow sliders can be tuned — you cannot hold a card and a slider at once. Preview only; nothing is saved.',
+    bodyClass: 'dsh-preview',
+    defaultOn: false,
+  }],
+};
+
+export function DragTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

@@ -197,6 +197,9 @@ export const WARD_COLOR_GROUPS: { title: string; keys: (typeof WARD_COLOR_KEYS)[
   { title: 'Colours', keys: ['rimColor', 'rimOutColor', 'rimInColor', 'haloColor', 'hexColor', 'fillCoreColor', 'fillEdgeColor', 'sheenColor'] },
 ];
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as WARD_DEFAULTS };
+
 const KEY = 'ascent.ward';
 let cfg: WardConfig = (() => {
   try {

@@ -1,126 +1,105 @@
-import { useState } from 'react';
 import {
-  EXECUTEFX_COLOR_GROUPS, EXECUTEFX_GROUPS, EXECUTEFX_RANGES, executeFxOverrides, getExecuteFxConfig,
-  resetExecuteFxConfig, setExecuteFxValue, type ExecuteFxConfig,
+  EXECUTEFX_COLOR_GROUPS, EXECUTEFX_GROUPS, EXECUTEFX_RANGES,
+  getExecuteFxConfig, getExecuteFxDefaults, resetExecuteFxConfig, setExecuteFxValue,
+  type ExecuteFxConfig,
 } from './executeFxConfig';
 import { pixiFx } from './pixiFx';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only floating tuner for the EXECUTION STRIKE — the one-shot crescent slash when an Execute (`V`) minion
- * procs and destroys its target.
+ * DEV-only tuner for the EXECUTION STRIKE — the one-shot crescent slash when an Execute minion procs and destroys
+ * its target.
  *
- * The config is read at FIRE TIME, so there's nothing to reflect or re-render: change a dial, hit **Test**, and
- * the next strike uses it. Test fires at screen centre (`pixiFx.testExecute()`), so the look can be dialled
- * without hunting for a real proc mid-combat.
+ * The config is read at FIRE TIME, so there is nothing to reflect and nothing to re-render: change a dial, hit
+ * Test, and the next strike uses it. Test fires at screen centre, so the look can be dialled without staging a
+ * real Execute kill.
  *
- * Persisted to localStorage; "Copy" grabs the JSON to paste into `DEFAULTS` in `executeFxConfig.ts`.
+ * Sections come from the config's own `EXECUTEFX_GROUPS` and `EXECUTEFX_COLOR_GROUPS` rather than a copy here, so
+ * the two cannot drift.
  *
- * Panel-only: opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
+ * The three crescent colours are a TAIL → MID → TIP ramp along one slash, not three independent things, which is
+ * why they are named for their position along the blade.
  */
-const LABELS: Record<keyof ExecuteFxConfig, string> = {
-  power: 'overall size ×',
-  arcCount: 'cuts',
-  arcSize: 'size px',
-  arcGrow: 'expand ×',
-  arcLife: 'life ms',
-  arcSpeed: 'speed px/s',
-  arcDrag: 'drag',
-  arcBack: 'launch back px',
-  arcTilt: 'tilt ° (vs blow)',
-  arcSpread: 'tilt spread °',
-  arcSpin: 'sweep °/s',
-  arcAlpha: 'opacity',
-  arcSweep: 'arc length °',
-  arcThick: 'thickness px',
-  flashSize: 'size px',
-  flashLife: 'life ms',
-  flashAlpha: 'opacity',
-  emberCount: 'embers',
-  emberSpeed: 'speed px/s',
-  emberSize: 'size px',
-  emberLife: 'life ms',
-  emberSpread: 'spread °',
-  emberGravity: 'gravity',
-  bloodCount: 'droplets',
-  bloodSpeed: 'speed px/s',
-  bloodSize: 'size px',
-  bloodLife: 'life ms',
-  bloodSpread: 'spread °',
-  bloodGravity: 'gravity',
-  tailColor: 'crescent · tail',
-  midColor: 'crescent · mid',
-  tipColor: 'crescent · tip',
-  flashColor: 'core flash',
-  emberColor: 'embers',
-  bloodColor: 'blood',
+const SPECS: Record<keyof ExecuteFxConfig, [string, TunerUnit | undefined, string]> = {
+  power:        ['Overall size', '×', 'Scales the whole strike.'],
+
+  arcCount:     ['Cut count', undefined, 'How many crescent cuts the strike draws. 0 removes them.'],
+  arcSize:      ['Size', 'px', 'Radius of each crescent.'],
+  arcGrow:      ['Expansion', '×', 'How much a crescent grows over its life.'],
+  arcLife:      ['Lifetime', 'ms', 'How long one crescent lasts.'],
+  arcSpeed:     ['Speed', 'px/s', 'How fast a crescent travels outward.'],
+  arcDrag:      ['Drag', 'opacity', 'How quickly it loses that speed. 1 stops it almost at once.'],
+  arcBack:      ['Launch back', 'px', 'How far behind the contact point a crescent starts.'],
+  arcTilt:      ['Tilt', '°', 'Angle relative to the direction of the blow.'],
+  arcSpread:    ['Tilt spread', '°', 'Random variation in that angle across the cuts.'],
+  arcSpin:      ['Sweep', '°', 'How fast a crescent rotates, in degrees per second.'],
+  arcAlpha:     ['Opacity', 'opacity', 'Crescent opacity.'],
+  arcSweep:     ['Arc length', '°', 'How much of a full circle each crescent covers.'],
+  arcThick:     ['Thickness', 'px', 'Stroke thickness of the crescent.'],
+
+  flashSize:    ['Size', 'px', 'Diameter of the core flash at the contact point. 0 removes it.'],
+  flashLife:    ['Lifetime', 'ms', 'How long that flash lasts.'],
+  flashAlpha:   ['Opacity', 'opacity', 'Flash opacity.'],
+
+  emberCount:   ['Count', undefined, 'How many embers the strike throws. 0 removes them.'],
+  emberSpeed:   ['Speed', 'px/s', 'How fast embers fly out.'],
+  emberSize:    ['Size', 'px', 'Size of each ember.'],
+  emberLife:    ['Lifetime', 'ms', 'How long one ember lasts.'],
+  emberSpread:  ['Spread', '°', 'Arc the embers cover. 360 throws them all around.'],
+  emberGravity: ['Gravity', 'px', 'How far embers are pulled back down.'],
+
+  bloodCount:   ['Droplet count', undefined, 'How many blood droplets fly. 0 removes them.'],
+  bloodSpeed:   ['Speed', 'px/s', 'How fast droplets fly out.'],
+  bloodSize:    ['Size', 'px', 'Size of each droplet.'],
+  bloodLife:    ['Lifetime', 'ms', 'How long one droplet lasts.'],
+  bloodSpread:  ['Spread', '°', 'Arc the droplets cover.'],
+  bloodGravity: ['Gravity', 'px', 'How hard droplets are pulled down — usually harder than embers, so they arc.'],
+
+  tailColor:    ['Crescent tail', undefined, 'Colour at the trailing end of the blade — the ramp starts here.'],
+  midColor:     ['Crescent mid', undefined, 'Colour through the middle of the blade.'],
+  tipColor:     ['Crescent tip', undefined, 'Colour at the leading tip — the hottest end of the ramp.'],
+  flashColor:   ['Core flash', undefined, 'Colour of the contact flash.'],
+  emberColor:   ['Embers', undefined, 'Colour of the embers.'],
+  bloodColor:   ['Blood', undefined, 'Colour of the droplets.'],
 };
 
-export function ExecuteFxTuner() {
-  const [cfg, setCfg] = useState<ExecuteFxConfig>(getExecuteFxConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('executefx');
+const controls: TunerControl<Extract<keyof ExecuteFxConfig, string>>[] = [
+  ...EXECUTEFX_GROUPS.flatMap((g) =>
+    g.keys.map((key) => {
+      const [label, unit, hint] = SPECS[key];
+      const [min, max, step] = EXECUTEFX_RANGES[key];
+      return { key, label, unit, hint, group: g.title, min, max, step };
+    }),
+  ),
+  ...EXECUTEFX_COLOR_GROUPS.flatMap((g) =>
+    g.keys.map((key) => {
+      const [label, , hint] = SPECS[key];
+      return {
+        key: key as Extract<keyof ExecuteFxConfig, string>,
+        label, hint, group: g.title, kind: 'color' as const, min: 0, max: 0, step: 0,
+      };
+    }),
+  ),
+];
 
-  const set = (k: keyof ExecuteFxConfig, v: number | string): void => {
-    setExecuteFxValue(k, v);
-    setCfg({ ...getExecuteFxConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getExecuteFxConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetExecuteFxConfig(); setCfg({ ...getExecuteFxConfig() }); };
+const SPEC: TunerSpec<ExecuteFxConfig> = {
+  id: 'executefx',                  // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Execute Strike',
+  note: 'dev · read at fire time',
+  read: getExecuteFxConfig,
+  write: (key, value) => setExecuteFxValue(key, value),
+  writeColor: (key, value) => setExecuteFxValue(key, value),
+  reset: resetExecuteFxConfig,
+  defaults: getExecuteFxDefaults(),
+  controls,
+  actions: [{
+    label: '▶ Test strike',
+    hint: 'Fires the strike at screen centre — no Execute kill needed.',
+    run: () => pixiFx.testExecute(),
+  }],
+};
 
-  const overrides = executeFxOverrides();
-
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Execute Strike <span>dev · drag</span></div>
-
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={() => pixiFx.testExecute()}>▶ Test strike</button>
-      </div>
-
-      {overrides.length > 0 && (
-        <div className="lunge-mod">
-          MODIFIED ({overrides.length}): {overrides.map((k) => LABELS[k]).join(', ')}
-        </div>
-      )}
-
-      {EXECUTEFX_GROUPS.map((g) => (
-        <div className="lunge-sec" key={g.title}>
-          <div className="lunge-sec-h">{g.title}</div>
-          {g.keys.map((k) => {
-            const [min, max, step] = EXECUTEFX_RANGES[k];
-            return (
-              <div className="sfxmix-row" key={k}>
-                <span className="sfxmix-name">{LABELS[k]}</span>
-                <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-                <span className="sfxmix-val">{cfg[k]}</span>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-
-      {EXECUTEFX_COLOR_GROUPS.map((g) => (
-        <div className="lunge-sec" key={g.title}>
-          <div className="lunge-sec-h">{g.title}</div>
-          {g.keys.map((k) => (
-            <div className="sfxmix-row" key={k}>
-              <span className="sfxmix-name">{LABELS[k]}</span>
-              <input type="color" value={cfg[k]} onChange={(e) => set(k, e.target.value)} />
-              <span className="sfxmix-val">{cfg[k]}</span>
-            </div>
-          ))}
-        </div>
-      ))}
-
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export function ExecuteFxTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

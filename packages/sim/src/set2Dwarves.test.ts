@@ -504,3 +504,36 @@ describe('Fatecarver (owner roster 2026-07-29)', () => {
     expect(buffs.length, 'no Growth was cast on a friendly attack').toBeGreaterThan(0);
   });
 });
+
+describe('Dwarf quests (owner roster 2026-07-29)', () => {
+  const q = (id: string) => QUEST_DEFS.find((x) => x.id === id);
+
+  it('the three shipped Dwarf quests are set-2 only, and scoped to the Dwarf tribe', () => {
+    for (const id of ['q_company_recruitment', 'q_barroom_bounty', 'q_runic_apprenticeship']) {
+      const def = q(id);
+      expect(def, `${id} is missing`).toBeDefined();
+      expect(def!.sets, `${id} is not scoped to set 2`).toEqual(['set2']);
+      expect(def!.tribe).toBe('dwarf');
+    }
+  });
+
+  it('Company Recruitment grants a Dwarf AND an Ale, and repeats', () => {
+    const def = q('q_company_recruitment')!;
+    const r = def.reward as { randomTribe?: string; randomAle?: number };
+    expect(r.randomTribe).toBe('dwarf');
+    expect(r.randomAle, 'no Ale in the reward').toBe(1);
+    expect(def.repeatable).toBe(true);
+  });
+
+  it('Barroom Bounty grants Kegbreaker Korr WITH Flurry and Ward', () => {
+    const r = q('q_barroom_bounty')!.reward as { cards?: string[]; grantKeywords?: string[] };
+    expect(r.cards).toContain('dw_korr');
+    expect(r.grantKeywords).toEqual(['W', 'DS']);
+  });
+
+  it('War Council is deliberately absent — its reward has no tribe-scoped flag', () => {
+    // `lawOfTeeth` is the Beast version and is gated on `isBeast(attacker)` in the sim, so reusing it would have
+    // silently granted BEAST triggers on a Dwarf quest. Shipping nothing beats shipping the wrong effect.
+    expect(q('q_war_council'), 'War Council shipped with a borrowed Beast flag').toBeUndefined();
+  });
+});

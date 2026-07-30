@@ -81,9 +81,12 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 5,
     keywords: [],
+    // Owner fix 2026-07-29: the TEXT described a different card entirely — "End of Turn: Consume the right-most
+    // Shop minion" — while the effect has always been a Rally shop-buff. The effect was right; the text is now
+    // what it actually does, and the gild doubles (the factory already scales on `gold(self)`).
     effects: [{ on: 'onAttack', do: 'rallyBuffShopPermanent', params: { attack: 2, health: 2 } }],
-    text: '**End of Turn:** Consume the **right-most** Shop minion.',
-    goldenText: '**End of Turn:** Consume the **right-most** Shop minion and gain **double** its stats.',
+    text: '**Rally:** give minions in the Shop **+2/+2**.',
+    goldenText: '**Rally:** give minions in the Shop **+4/+4**.',
   },
   {
     // PERMANENT, so it goes through the run-wide per-card channel rather than the per-offer one — the buff
@@ -95,9 +98,11 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    effects: [{ on: 'shopRefreshed', do: 'shopRefreshedBuffRightmost', params: { attack: 4, health: 4 } }],
-    text: 'After each Shop refresh, give the **right-most** minion **+4/+4** permanently.',
-    goldenText: 'After each Shop refresh, give the **right-most** minion **+8/+8** permanently.',
+    // Owner change 2026-07-29: a SHOUT, not a per-refresh trigger. The factory is trigger-agnostic (it just
+    // buffs the right-most Shop minion), so only the event moves.
+    effects: [{ on: 'onPlay', do: 'shopRefreshedBuffRightmost', params: { attack: 4, health: 4 } }],
+    text: '**Shout:** give the **right-most** minion in the Shop **+4/+4** permanently.',
+    goldenText: '**Shout:** give the **right-most** minion in the Shop **+8/+8** permanently.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
@@ -217,8 +222,9 @@ export const SET2_DEMONS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnSelfAndNeighboursConsume', params: { count: 1 } }],
-    text: '**End of Turn:** adjacent minions each Consume a random Shop minion.',
-    goldenText: '**End of Turn:** adjacent minions each Consume **2** random Shop minions.',
+    // The effect has always included SELF (see `endOfTurnSelfAndNeighboursConsume`); the text omitted it.
+    text: '**End of Turn:** this minion and adjacent minions each Consume a random Shop minion.',
+    goldenText: '**End of Turn:** this minion and adjacent minions each Consume **2** random Shop minions.',
   },
   {
     id: 'dm_chancellor',

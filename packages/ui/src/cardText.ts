@@ -626,6 +626,22 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
  * have spent anything, the total replaces it and the rate moves into the parenthetical so the card still explains
  * itself.
  */
+/**
+ * Closing-Time Foreman — "+N Attack per card played this turn" folded into the Attack it will really give.
+ *
+ * Same rule as `perGoldSpentText`: a live magnitude prints the number it produces, not the rate. Nothing played
+ * yet means the rate IS the answer, so the printed text stands.
+ */
+export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, golden = false): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffLeftmostTribePerCard');
+  if (!def || !eff) return null;
+  if (cardsPlayedThisTurn <= 0) return null;
+  const per = Number((eff.params as { attack?: number })?.attack ?? 1) * (golden ? 2 : 1);
+  const total = per * cardsPlayedThisTurn;
+  return `**End of Turn:** give your **left-most Dwarf {{+${total} Attack}}** _(+${per} per card played this turn)_.`;
+}
+
 export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'battlecryBuffTargetPerGoldSpent');
@@ -711,6 +727,16 @@ export function stepProgress(
   // the buy-count sibling of the Gold meter, likewise a shop-phase accrual (undefined in combat).
   const bought = def.effects.find((e) => e.on === 'cardsBought' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (bought) return p.buyTick === undefined ? null : cyc(p.buyTick, Math.max(1, n((bought.params as { every?: number })?.every, 4)));
+  // Revolving Maw: the REFRESH meter. Its tally rides `eotTick` (see `onShopRefreshConsume`), so this branch
+  // must come before the End-of-Turn cadence one would otherwise claim that field — the two are different
+  // triggers sharing one counter.
+  const refreshed = def.effects.find((e) => e.on === 'shopRefreshed' && (e.params as { every?: number } | undefined)?.every !== undefined);
+  if (refreshed) {
+    if (p.eotTick === undefined) return null; // combat: refreshes are irrelevant
+    const every = Math.max(1, n((refreshed.params as { every?: number })?.every, 4));
+    const toNext = every - (p.eotTick % every);
+    return { current: toNext, total: every, label: `${toNext} Refresh${toNext === 1 ? '' : 'es'}` };
+  }
   // Mountainbond: the cards-PLAYED meter (`playTick`), the twin of the buy meter above. Added with the
   // `cardsPlayed` event (2026-07-29) — without this branch its "after you play 8 cards" printed a static 8 with
   // no indication of progress, which is exactly what the live-value rule forbids.

@@ -323,6 +323,30 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
       };
       server.watcher.on('add', onDefFileAppearOrVanish);
       server.watcher.on('unlink', onDefFileAppearOrVanish);
+
+      /**
+       * The exact same treatment for imported ART, which had none — and that omission is a bug the owner hit:
+       * import a PNG, tune it, Save, reload, and the effect renders a fallback circle.
+       *
+       * `shapeLibrary.ts` globs `./defs/art/*.png` with the same eager, transform-time expansion, and Save
+       * REWRITES the layer's local-only `custom:<slug>` to the committed `art:<slug>` — so after the reload the
+       * def names an id whose only resolver is a glob that was frozen before the file existed. Restarting the
+       * dev server fixed it, which was the tell. Invalidating the art glob's owner on add/unlink is what makes
+       * the reload the def write already triggers land on a module that can actually see the new PNG.
+       *
+       * Scoped to `defsRoot/art` and `.png` for the same reasons as the def watcher above. The client keeps a
+       * belt to this braces (`shapeLibrary.registerSavedArt`) for a write this watcher never sees.
+       */
+      const artRoot = path.resolve(defsRoot, 'art');
+      const artGlobOwner = path.resolve(defsRoot, '..', 'shapeLibrary.ts');
+      const onArtFileAppearOrVanish = (file: string): void => {
+        if (path.dirname(path.resolve(file)) !== artRoot || !file.endsWith('.png')) return;
+        const mod = server.moduleGraph.getModuleById(artGlobOwner);
+        if (mod !== undefined) server.moduleGraph.invalidateModule(mod);
+        server.ws.send({ type: 'full-reload' });
+      };
+      server.watcher.on('add', onArtFileAppearOrVanish);
+      server.watcher.on('unlink', onArtFileAppearOrVanish);
     },
   };
 }

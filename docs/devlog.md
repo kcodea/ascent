@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+## 2026-07-30 — imported art survives a reload (the coin that vanished)
+
+**The bug, exactly.** Import a coin PNG as a particle shape, tune the effect, **Save**, reload — and the
+effect renders a fallback circle. Restarting the dev server fixed it, which was the tell.
+
+**Why.** `shapeLibrary.ts`'s `artModules()` reads `import.meta.glob('./defs/art/*.png', …)`, a Vite
+**transform** whose expansion is frozen at the moment the module was last transformed. Save does two things:
+it writes `defs/art/<slug>.png`, and it **rewrites the layer's `custom:<slug>` to `art:<slug>`** so the art
+travels with the def. Neither the write nor the rewrite invalidates the module holding the glob — so on the
+next page load the def names an id whose only resolver cannot see the file that backs it. During the editing
+session it looked fine only because the live editor state still said `custom:` and the decoded texture was
+still in memory.
+
+**Fix, in two halves — the same shape as `fxDefs.ts`'s answer for defs, plus the part art needs that defs
+don't.**
+
+1. **The closure.** `apps/web/fxDefsPlugin.ts` already watched the defs directory and invalidated
+   `fxDefs.ts` on a `.json` add/unlink. Art had no such watcher at all. It now gets the identical treatment
+   for `defs/art/*.png` against `shapeLibrary.ts`, so the reload the def write already triggers lands on a
+   module whose glob has been re-expanded. **This is the step that actually closes import → save → reload.**
+2. **The overlay.** `registerSavedArt(slug, sourceId)` — `registerSavedDef`'s counterpart — records that the
+   PNG was promoted from a local import, so the id resolves even for a write the watcher never saw and
+   whatever the ordering of invalidation vs. reload. It also closes the *in-session* half nobody had noticed:
+   previewing a just-saved def straight from the library used to draw the fallback, because `art:<slug>`
+   resolved through the same frozen glob.
+
+**Where art is NOT like a def, and what that cost.** A def is small JSON and its registry overlay can be a
+plain in-memory `Map` — one reload and the glob has it. A PNG is **binary** and its decode is **async** while
+the render-path lookup is synchronous, so the overlay has to survive the reload *and* pre-decode. It persists
+a **pointer** (`{slug, sourceId}` → the `custom:` import already in `localStorage`), never a second copy of
+the bytes: duplicating a 128px PNG per commit would double the library's storage cost and put a quota failure
+between an author and their own art. It cannot grow without bound — capped at `MAX_ART_ALIASES` (24), and
+`pruneArtAliases` sweeps every entry on every hydration for either of two permanent reasons: the glob has
+caught up (the committed file is now the authority) or the import it points at is gone.
+
+**Verified** by 12 new cases in `shapeLibrary.test.ts` covering the parse, the two prune reasons, the
+re-commit collapse, the caps, the in-session listing, the rehydrate-without-restart path, the dangling sweep
+and its write-back, and that the stored payload contains no `data:image`. The decode itself needs a DOM +
+WebGL and stays eyeball-verified, per this module's standing note.
+
 ## 2026-07-30 — `burst` learns to aim along a moment, and the melee strike becomes a def
 
 **What changed.** `burst` gains a third aim mode — **`sourceToTarget`** — which centres its cone on the

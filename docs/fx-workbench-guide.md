@@ -303,6 +303,14 @@ survives a reload, it can be shared by pushing a branch, and it shows up in the 
 watcher invalidates the module glob, which an eager `import.meta.glob` would otherwise miss until a full
 restart). Autosave runs alongside it, so a hot-reload can't eat a tuning session.
 
+**Imported art is saved with it.** A PNG/SVG you imported into the `shape` picker lives only in *this*
+browser (`custom:<slug>`), so Save uploads it to `packages/ui/src/fx/defs/art/<slug>.png` and rewrites the
+layer to `art:<slug>` — that is what makes the def render the same on the other developer's machine. Both the
+art glob and the def glob are watcher-invalidated, so a shape you imported this session survives a reload
+without restarting the dev server; the library additionally keeps a pointer to the local import as a
+belt-and-braces (never a second copy of the bytes). If the import is later *removed* from the picker, that
+pointer goes with it — but by then the committed PNG is on disk and the glob is the resolver anyway.
+
 ---
 
 ## 7. Bind it

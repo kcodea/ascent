@@ -113,6 +113,38 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
             const value = Number(cfg[c.key]);
             const shipped = spec.defaults ? Number(spec.defaults[c.key]) : undefined;
             const modified = shipped !== undefined && value !== shipped;
+
+            if (c.kind === 'toggle') {
+              const on = c.onValue ?? 1;
+              const off = c.offValue ?? 0;
+              const isOn = value >= on;
+              return (
+                <div className="sfxmix-row tuner-row tuner-row-toggle" key={c.key}>
+                  <span className="sfxmix-name" title={c.hint}>
+                    {c.label}
+                    {c.note && <span className="tuner-note" title={c.note} aria-label={c.note}>†</span>}
+                    {modified && shipped !== undefined && (
+                      <button
+                        className="tuner-mod"
+                        onClick={() => set(c.key, shipped)}
+                        title={`Changed from the shipped value — click to put it back`}
+                        aria-label={`Revert ${c.label}`}
+                      >●</button>
+                    )}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={isOn}
+                    aria-label={c.label}
+                    onChange={(e) => set(c.key, e.target.checked ? on : off)}
+                  />
+                  <span className="sfxmix-val tuner-toggleval">
+                    {c.onOffLabels ? c.onOffLabels[isOn ? 0 : 1] : (isOn ? 'on' : 'off')}
+                  </span>
+                </div>
+              );
+            }
+
             return (
               <div className="sfxmix-row tuner-row" key={c.key}>
                 <span className="sfxmix-name" title={c.hint}>

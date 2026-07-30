@@ -55,6 +55,16 @@ export interface TunerControl<K extends string = string> {
   /** Section heading. Controls sharing a group render together under it, in declaration order. */
   group?: string;
   kind?: TunerControlKind;
+  /**
+   * For `kind: 'toggle'` only — the two values the checkbox writes. Some configs store a genuine either/or as
+   * a NUMBER rather than a boolean: the End Turn button's `pressedVariant` is 2 or 3, picking which pressed art
+   * it uses, and its panel rendered that as a checkbox doing `checked ? 3 : 2`. A toggle declares both values
+   * so the mapping lives in the spec instead of being reimplemented inline per panel.
+   */
+  onValue?: number;
+  offValue?: number;
+  /** Optional words shown instead of the raw number, e.g. `['cracked', 'dulled']`. */
+  onOffLabels?: [string, string];
 }
 
 /**

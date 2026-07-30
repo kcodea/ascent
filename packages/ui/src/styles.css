@@ -4209,6 +4209,11 @@ svg { width: 18px; height: 18px; }
 .tunerpanel .tuner-row-color input[type="color"] { width: 100%; height: 20px; padding: 0; border: 1px solid var(--line);
   border-radius: 5px; background: none; cursor: pointer; }
 .tunerpanel .tuner-hex { font-size: 10px; color: var(--ink3); font-variant-numeric: tabular-nums; text-align: left; }
+/* A config toggle: a real value stored as either/or, so it keeps the label + value columns of a slider row but
+   swaps the slider for a checkbox and drops the number box. */
+.tunerpanel .tuner-row-toggle { grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 82px; }
+.tunerpanel .tuner-row-toggle input[type="checkbox"] { margin: 0; justify-self: start; cursor: pointer; accent-color: var(--acc); }
+.tunerpanel .tuner-toggleval { font-size: 10px; color: var(--acc-dk); font-weight: 800; text-align: left; }
 /* Per-control caveat marker — hover it for the reason. Muted so it reads as an aside, not an error. */
 .tunerpanel .tuner-note { margin-left: 4px; color: var(--ink3); font-size: 10px; cursor: help; vertical-align: super; }
 /* Preview switches. Deliberately NOT styled as a control row: they pin a transient state so it can be tuned,

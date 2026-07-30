@@ -741,6 +741,9 @@ export type QuestReward =
   // Arm a run-wide combat modifier consumed by `simulate()` (see QuestCombatMods): Blood Trail, Echoing Coop,
   // Law of Teeth, The Old Hunt. `amount` parameterizes the flag where it needs a magnitude (Old Hunt's aura step).
   | { kind: 'combatFlag'; flag: QuestCombatFlag; amount?: number }
+  /** "Your <tribe> Rallies and Slaughters trigger an additional time" — the tribe-scoped twin of the Beast-only
+   *  `lawOfTeeth` flag, so any tribe's version is data rather than a new hard-coded flag. */
+  | { kind: 'tribeRallySlaughterExtra'; tribe: Tribe }
   // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,
   // stacks like Drakko); `firstEachRound` makes the FIRST Shout you play each turn trigger twice (Warm Embers).
   | { kind: 'shoutRepeat'; scope: 'always' | 'firstEachRound' }
@@ -902,6 +905,13 @@ export interface QuestCombatMods {
   echoingCoop?: boolean;
   /** Law of Teeth: your Beasts' Slaughters (on-kill) AND Rallies (on-attack) each trigger one extra time. */
   lawOfTeeth?: boolean;
+  /**
+   * The TRIBE-parameterised twin of `lawOfTeeth` ("your <tribe> Rallies and Slaughters trigger an additional
+   * time"). Added because War Council needed the Dwarf version and `lawOfTeeth` is hard-gated on
+   * `isBeast(attacker)` — reusing it would have silently granted BEAST triggers on a Dwarf quest. Any future
+   * tribe gets this for free as data.
+   */
+  tribeRallySlaughterExtra?: Tribe;
   /** The Old Hunt: >0 arms it — every Beast attack pumps your run-wide Beast Attack aura by this much
    *  (live this fight + carried back via `playerBeastBuyAtkGain`). */
   oldHuntStep?: number;

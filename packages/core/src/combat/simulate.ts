@@ -996,6 +996,9 @@ export function simulate(
     const mods = modsFor(attacker.side); // per-side: a served enemy's Law of Teeth / Infinite Assembly / Spark Permit apply too
     let extra = 0;
     if (mods.lawOfTeeth && isBeast(attacker)) extra += 1;
+    // The tribe-parameterised twin (War Council and friends). Kept beside `lawOfTeeth` rather than replacing it:
+    // the Beast flag is load-bearing for existing runs and saved boards.
+    if (mods.tribeRallySlaughterExtra && isTribeOf(attacker, mods.tribeRallySlaughterExtra, cards)) extra += 1;
     if (attacker.side === 'player' && playerRallyDouble) extra += 1; // Rallying Offensive is a player-only one-fight override
     extra += mods.rallyExtraAlways ?? 0;
     const first = mods.rallyFirstEachCombat ?? 0;
@@ -1507,7 +1510,7 @@ export function simulate(
             }
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
-            if (kmods.lawOfTeeth && killerAlive && isBeast(killer)) {
+            if (killerAlive && ((kmods.lawOfTeeth && isBeast(killer)) || (kmods.tribeRallySlaughterExtra && isTribeOf(killer, kmods.tribeRallySlaughterExtra, cards)))) {
               let refired = false;
               for (const effect of killer.effects) {
                 if (effect.on !== 'onKill') continue;

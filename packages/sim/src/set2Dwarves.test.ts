@@ -531,10 +531,15 @@ describe('Dwarf quests (owner roster 2026-07-29)', () => {
     expect(r.grantKeywords).toEqual(['W', 'DS']);
   });
 
-  it('War Council is deliberately absent — its reward has no tribe-scoped flag', () => {
-    // `lawOfTeeth` is the Beast version and is gated on `isBeast(attacker)` in the sim, so reusing it would have
-    // silently granted BEAST triggers on a Dwarf quest. Shipping nothing beats shipping the wrong effect.
-    expect(q('q_war_council'), 'War Council shipped with a borrowed Beast flag').toBeUndefined();
+  it('War Council uses a TRIBE-scoped reward, never the Beast flag', () => {
+    // It was held back until the tribe-parameterised reward existed: `lawOfTeeth` is gated on `isBeast(attacker)`,
+    // so borrowing it would have granted BEAST triggers on a Dwarf quest — passing tests, wrong effect.
+    const def = q('q_war_council');
+    expect(def, 'War Council is missing').toBeDefined();
+    const r = def!.reward as { kind: string; tribe?: string };
+    expect(r.kind).toBe('tribeRallySlaughterExtra');
+    expect(r.tribe, 'the reward is not scoped to Dwarves').toBe('dwarf');
+    expect(JSON.stringify(def!.reward), 'still borrowing lawOfTeeth').not.toContain('lawOfTeeth');
   });
 });
 

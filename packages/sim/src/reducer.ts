@@ -2829,6 +2829,10 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'assemblyLine') s.questFlags.assemblyLine = r.amount ?? 4; // Avenge N → a Money Bot to hand
       else s.questFlags[r.flag] = true;
       break;
+    case 'tribeRallySlaughterExtra':
+      // War Council: arm the tribe-scoped extra trigger. One field, any tribe — see the note on the flag.
+      s.questTribeRallySlaughter = r.tribe;
+      break;
     case 'shoutRepeat':
       // Hoardwake / The Hoard Wakes (always) → +1 permanent Battlecry trigger (stacks); Warm Embers
       // (firstEachRound) → the first Shout each turn triggers twice.
@@ -3165,6 +3169,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,
+    tribeRallySlaughterExtra: s.questTribeRallySlaughter, // War Council: the tribe-scoped twin
     oldHuntStep: f?.oldHunt,
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,

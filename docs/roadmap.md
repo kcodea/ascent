@@ -298,6 +298,17 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   names it, but `useCombatReplay` plays it directly for every plain death (see `docs/fx-requests.md`).
   Likewise **`discoverBurst` is NOT dead `pixiFx`** — `Recruit.tsx` fires it on every Discover open, and it's
   the sole reason the second `discoverFx` Pixi app exists; it needs a real port, not a delete.
+  ✅ **Batch 1 landed 2026-07-30**: `damageBurst`, `clickPuff` and `coins` are authored defs (`pixiFx.ts`
+  3757 → 3648 lines). The pattern later batches copy is written up in the devlog entry of that date — the
+  short version: grep call sites by METHOD NAME (both controllers), copy param ranges from `ruby-lance` /
+  `ward-gained` rather than inventing them, validate with `fx/defs.test.ts` BEFORE deleting the method
+  (`playDef` fails silently by returning `null`), and call `playDef` directly for anything that isn't a
+  combat moment kind — `bindings.json` is keyed by moment kind, so shop/UI events never belong there.
+- **`playDef` needs a per-call scale/intensity parameter — this blocks the next migration batch.** Nine
+  effects cannot move until it exists, because each takes per-call geometry or intensity a def's fixed
+  params can't express: `impact` + `critImpact` (`dx/dy/power`), `impactDust`, `impactPulse`, `dust` and
+  `rebornSummon` and `shatterAt` (the card's `w/h`), `deathrattle` (`size`), and `refreshBlast` (a whole
+  `cfg` object from its tuner). Do this before batch 2.
 
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own

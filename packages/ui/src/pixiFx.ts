@@ -625,7 +625,6 @@ class FxController {
   private shardRectTex: Texture | null = null; // jagged spark: elongated rectangle
   private shardTriTex: Texture | null = null;   // jagged spark: triangle
   private shardHexTex: Texture | null = null;   // energy facet: hexagon (the Ward shield's shape, flung on break)
-  private coinTex: Texture | null = null;       // gold coin (sell sprinkle)
   private bubbleTex: Texture | null = null;     // soft translucent disc — shield body
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
   private pulseTex: Texture | null = null;      // thin bright ring — the combat impact energy pulse
@@ -830,7 +829,6 @@ class FxController {
     this.shardRectTex = this.makeShardRectTexture(app);
     this.shardTriTex = this.makeShardTriTexture(app);
     this.shardHexTex = this.makeShardHexTexture(app);
-    this.coinTex = this.makeCoinTexture(app);
     this.bubbleTex = this.makeBubbleTexture(app);
     this.rimTex = this.makeRimTexture(app);
     this.pulseTex = this.makePulseRingTexture(app);
@@ -898,7 +896,6 @@ class FxController {
     this.shardRectTex = null;
     this.shardTriTex = null;
     this.shardHexTex = null;
-    this.coinTex = null;
     this.bubbleTex = null;
     this.rimTex = null;
     this.pulseTex = null;
@@ -1572,34 +1569,6 @@ class FxController {
   }
 
   /**
-   * A sprinkle of gold coins bursting up out of point (x, y) and arcing back down under gravity —
-   * the income flourish when a minion is sold (fired from the Gold counter's screen position).
-   */
-  coins(x: number, y: number): void {
-    if (!this.ready) return;
-    const count = 9;
-    for (let i = 0; i < count; i++) {
-      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.15; // up, fanned ±33°
-      const speed = 380 + Math.random() * 320;                 // punchier upward launch
-      const fs = 0.7 + Math.random() * 0.45;
-      this.spawn(this.coinTex!, {
-        x: x + (Math.random() - 0.5) * 18,
-        y: y + (Math.random() - 0.5) * 8,
-        vx: Math.cos(ang) * speed,
-        vy: Math.sin(ang) * speed, // negative → pops upward
-        drag: 0.85,                // light air damping; gravity dominates the vertical
-        gravity: 1700,             // pull the higher launch back down within its life
-        life: 700 + Math.random() * 400,
-        fromScale: fs,
-        toScale: fs * 0.85,        // hold roughly its size (coins don't shrink to nothing)
-        spin: (Math.random() - 0.5) * 18,
-        tint: 0xffffff,            // the texture is already gold
-        blend: 'normal',
-      });
-    }
-  }
-
-  /**
    * A puff of dry-dirt dust ringing a card's footprint (cx/cy = card center, w/h = its size) —
    * like a flat stone dropped into dust. Fired when a minion is placed on / moved across the board.
    * Puffs spawn around the card's perimeter and billow **outward** (away from the card), hugging the
@@ -1639,39 +1608,6 @@ class FxController {
         tint: tan,
         blend: 'normal',
         peakAlpha: sm.dustAlpha * (0.78 + Math.random() * 0.47),
-      });
-    }
-  }
-
-  /**
-   * A tiny dust puff at a single point (x, y) — the dry-dirt motes kicked up where the mouse taps the
-   * empty board. A much smaller sibling of `dust()`: a handful of tan puffs burst outward from the point,
-   * hug the ground (vertical motion damped, gentle gravity), and fade fast. Purely tactile feedback.
-   */
-  clickPuff(x: number, y: number): void {
-    if (!this.ready) return;
-    const SIZE = 1.2; // puff size (1.0 = base); +20% per owner request
-    const puffs = 7;
-    for (let i = 0; i < puffs; i++) {
-      const ang = (i / puffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const dx = Math.cos(ang);
-      const dy = Math.sin(ang);
-      const speed = 26 + Math.random() * 46; // gentle — a small kick, not a billow
-      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans (match the card-landing dust)
-      this.spawn(this.glowTex!, {
-        x: x + (Math.random() - 0.5) * 4,
-        y: y + (Math.random() - 0.5) * 4,
-        vx: dx * speed,
-        vy: dy * speed * 0.5 - (3 + Math.random() * 7), // vertical damped + a slight lift → stays flat
-        drag: 0.18,                                      // settles quickly
-        gravity: 120,
-        life: 260 + Math.random() * 180,
-        fromScale: (0.14 + Math.random() * 0.1) * SIZE,
-        toScale: (0.5 + Math.random() * 0.28) * SIZE,    // billow a touch but stay small
-        spin: (Math.random() - 0.5) * 1.2,
-        tint: tan,
-        blend: 'normal',
-        peakAlpha: 0.16 + Math.random() * 0.1,           // subtle
       });
     }
   }
@@ -1745,7 +1681,7 @@ class FxController {
    * A blast bolt streaking from (fromX, fromY) to (toX, toY) — a comet of glow motes that all travel to
    * the target, tightening into a head, so it reads as a hurled projectile with a trail. Used for the
    * loss-damage blast (the assembled damage number hurled into the Resolve bar). The caller fires
-   * `damageBurst` at the target when the bolt arrives (travel ≈ `blastTravelMs` below).
+   * the authored `damage-burst` def at the target when the bolt arrives (travel ≈ `blastTravelMs` below).
    */
   blastBolt(fromX: number, fromY: number, toX: number, toY: number): void {
     if (!this.ready) return;
@@ -1782,40 +1718,8 @@ class FxController {
     }
   }
 
-  /** Travel time (ms) of a `blastBolt` — the caller schedules `damageBurst` + the impact for this delay. */
+  /** Travel time (ms) of a `blastBolt` — the caller schedules the `damage-burst` def + the impact for this delay. */
   readonly blastTravelMs = 340;
-
-  /**
-   * A crimson impact burst at (x, y) — the damage landing on the Resolve bar. A hot white core + a red
-   * shockwave + a spray of red/orange shards, additive so it punches over the UI. Pairs with `blastBolt`.
-   */
-  damageBurst(x: number, y: number): void {
-    if (!this.ready) return;
-    // white-hot core
-    this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 240, fromScale: 0.5, toScale: 3, spin: 0,
-      tint: 0xffd9c0, blend: 'add',
-    });
-    // crimson shockwave
-    this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 360, fromScale: 0.4, toScale: 3.4, spin: 0,
-      tint: 0xe23b2e, blend: 'add',
-    });
-    // shards flung in all directions
-    const shards = 22;
-    for (let i = 0; i < shards; i++) {
-      const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const speed = 380 + Math.random() * 620;
-      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.sparkTex!;
-      const warm = Math.random();
-      const tint = warm < 0.45 ? 0xff3b2e : warm < 0.8 ? 0xff8a3a : 0xffffff;
-      this.spawn(tex, {
-        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
-        life: 360 + Math.random() * 360, fromScale: 0.7 + Math.random() * 0.8, toScale: 0.05,
-        spin: (Math.random() - 0.5) * 12, rotation: a, tint, blend: 'add',
-      });
-    }
-  }
 
   /**
    * The REFRESH crystal's click blast — sprite shards flung outward from the button. Every knob is passed
@@ -3606,19 +3510,6 @@ class FxController {
     const r = 7, pts: number[] = [];
     for (let k = 0; k < 6; k++) { const a = ((60 * k + 30) * Math.PI) / 180; pts.push(Math.cos(a) * r, Math.sin(a) * r); }
     g.poly(pts).fill({ color: 0xffffff, alpha: 0.22 }).stroke({ color: 0xffffff, width: 1.6, alignment: 0.5 });
-    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
-    g.destroy();
-    return tex;
-  }
-
-  /** A gold coin — dark rim, bright face, a light inner ring + a shine. Drawn opaque (normal blend)
-   *  so it reads as a solid coin on the light board. */
-  private makeCoinTexture(app: Application): Texture {
-    const g = new Graphics();
-    g.circle(0, 0, 11).fill({ color: 0x9a6a12 });                          // dark rim
-    g.circle(0, 0, 9).fill({ color: 0xffc928 });                           // gold face
-    g.circle(0, 0, 9).stroke({ width: 1.5, color: 0xfff0a8, alpha: 0.9 }); // bright inner ring
-    g.ellipse(-3, -3.5, 3.2, 2).fill({ color: 0xfff6d0, alpha: 0.85 });    // shine highlight
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

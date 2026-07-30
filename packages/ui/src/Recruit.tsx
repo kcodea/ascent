@@ -43,6 +43,7 @@ import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
+import { playDef } from './fx/playDef';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -1288,7 +1289,7 @@ export function Recruit() {
       const ty = res ? res.top + res.height / 2 : window.innerHeight * 0.92;
       pixiFx.blastBolt(cx, cy, tx, ty);
       timers.push(window.setTimeout(() => {
-        pixiFx.damageBurst(tx, ty);
+        playDef('damage-burst', { source: { x: tx, y: ty }, target: { x: tx, y: ty } });
         setLossShake(true);
         window.setTimeout(() => setLossShake(false), 360);
         dispatch({ type: 'settleCombat' }); // Resolve drops here → the StatusBar's −X hit flash fires
@@ -3210,7 +3211,8 @@ export function Recruit() {
     if (heroArmed || drag) return;
     if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar')) return;
     sfx.clickThock();
-    pixiFx.clickPuff(e.clientX, e.clientY); // small Pixi dust at the cursor (sibling of the card-landing dust)
+    // Small dust at the cursor (sibling of the card-landing dust) — the authored `click-puff` def.
+    playDef('click-puff', { source: { x: e.clientX, y: e.clientY }, target: { x: e.clientX, y: e.clientY } });
   };
 
   // End Turn → face the Omen. End-of-Turn effects play out *one at a time* on the still-mounted
@@ -3562,7 +3564,9 @@ export function Recruit() {
       const goldEl = document.querySelector('.statcell.gold');
       if (goldEl) {
         const gr = goldEl.getBoundingClientRect();
-        pixiFx.coins(gr.left + gr.width / 2, gr.top + gr.height * 0.4);
+        const gx = gr.left + gr.width / 2;
+        const gy = gr.top + gr.height * 0.4;
+        playDef('coins', { source: { x: gx, y: gy }, target: { x: gx, y: gy } });
       }
       dispatch({ type: 'sell', uid: d.uid });
       return true;

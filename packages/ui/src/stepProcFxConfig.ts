@@ -94,15 +94,6 @@ const DEFAULTS: StepProcFxConfig = {
   glowWidth: 0,
 };
 
-export const STEPPROCFX_KEYS = [
-  'arrowCount', 'arrowRise', 'arrowSpread', 'arrowLen', 'arrowWidth', 'arrowHead', 'arrowMs', 'arrowStagger',
-  'arrowDrift', 'arrowFadeAt',
-  'blastCount', 'blastSpeed', 'blastSize', 'blastLife', 'blastGravity',
-  'blastSpread', 'blastAngle', 'blastDrag', 'blastJitter', 'blastRise', 'blastSpin', 'blastStagger', 'blastShrink',
-  'glowAlpha', 'glowWidth',
-  'colorA', 'colorB', 'colorC',
-] as const satisfies readonly (keyof StepProcFxConfig)[];
-
 export const STEPPROCFX_COLOR_KEYS: (keyof StepProcFxConfig)[] = ['colorA', 'colorB', 'colorC'];
 
 export const STEPPROCFX_RANGES: Partial<Record<keyof StepProcFxConfig, [number, number, number]>> = {

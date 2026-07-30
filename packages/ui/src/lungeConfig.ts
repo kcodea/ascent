@@ -194,6 +194,9 @@ export const EASE_KEYS: (keyof LungeConfig)[] = ['easeShortIdx', 'easeMidIdx', '
 //   2. **never silent** — `lungeOverrides()` lists every key that differs from DEFAULTS, and the tuner shows
 //      it as a loud banner, so a modified config always announces itself.
 // Shipping a new feel is still a code change: dial it, Copy, paste into DEFAULTS above, commit.
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as LUNGE_DEFAULTS };
+
 const KEY = 'ascent.lunge';
 let cfg: LungeConfig = (() => {
   try {

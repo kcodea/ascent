@@ -31,13 +31,9 @@ const DEFAULTS: HeroBuffFxConfig = {
   colorCore: '#f4be35',
 };
 
-export const HEROBUFFFX_KEYS = [
-  'rippleScale', 'rippleMs', 'rippleWidth',
-  'shardScale', 'shardMs', 'shardRotate', 'shardSpokes',
-  'peakAlpha', 'colorCore',
-] as const satisfies readonly (keyof HeroBuffFxConfig)[];
-
 export const HEROBUFFFX_COLOR_KEYS: (keyof HeroBuffFxConfig)[] = ['colorCore'];
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as HEROBUFFFX_DEFAULTS };
 
 export const HEROBUFFFX_RANGES: Partial<Record<keyof HeroBuffFxConfig, [number, number, number]>> = {
   rippleScale: [1, 3, 0.05], rippleMs: [120, 1600, 20], rippleWidth: [1, 12, 0.5],

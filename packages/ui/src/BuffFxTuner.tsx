@@ -1,77 +1,73 @@
-import { useState } from 'react';
 import {
-  BUFFFX_KEYS, BUFFFX_RANGES, getBuffFxConfig, resetBuffFxConfig, setBuffFxValue, type BuffFxConfig,
+  BUFFFX_DEFAULTS, BUFFFX_RANGES, getBuffFxConfig, resetBuffFxConfig, setBuffFxValue, type BuffFxConfig,
 } from './buffFxConfig';
-import { useDraggablePanel } from './useDraggablePanel';
 import { testBuffFx } from './fxTestFire';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only "Buff FX" tuner — the animation that plays on a minion when something BUFFS it (`buffFxConfig`
- * → the descend ribbon + its landing pulse), plus the WAVE PACING used by itemized per-z rewards on their
- * End-of-Turn beat: Blueprint Cache's "+2/+2 per Attachment", Rune of Spending / Action, Forsaken Speed.
+ * DEV-only tuner for the BUFF effect — what plays on a minion when something buffs it: a ribbon descending onto
+ * it and a pulse where it lands. Also carries the WAVE PACING used by itemised per-minion rewards on their
+ * End-of-Turn beat (Blueprint Cache's "+2/+2 per Attachment", Rune of Spending / Action, Forsaken Speed).
  *
- * `wave gap ms` is the MINIMUM spacing between waves — every eligible minion fires inside the SAME wave
- * (all the Mechs pulse together) and the gap separates the steps, so a wide board reads one step at a time
- * instead of smearing. `wave max total` caps the whole run so a huge board still finishes inside its beat.
+ * The wave model is the part worth understanding before touching the pacing dials: every eligible minion fires
+ * inside the SAME wave — all the Mechs pulse together — and the gap separates the STEPS, so a wide board reads
+ * one step at a time rather than as one indistinguishable flash.
  *
- * Persists to localStorage; edits apply to the NEXT buff — ▶ Test fires a 3-wave run across your board, or
- * play a real Blueprint Cache turn. Dev-only — stripped from production.
+ * `waveMaxCount` had no entry in the old panel's label map, so it rendered as the raw variable name. It has a
+ * real label and hint now.
  */
-const BUFF_LABELS: Partial<Record<keyof BuffFxConfig, string>> = {
-  waveGapMs: 'wave gap ms',
-  waveMaxTotalMs: 'wave max total',
-  startHeight: 'drop height',
-  dropMs: 'drop ms',
-  retractMs: 'retract ms',
-  baseWidth: 'ribbon top w',
-  tipWidth: 'ribbon tip w',
-  coreAlpha: 'ribbon α',
-  ringCount: 'rings',
-  ringSize: 'ring px',
-  ringWidth: 'ring width',
-  ringMs: 'ring ms',
-  coreFlashSize: 'flash px',
-  coreFlashMs: 'flash ms',
-  sparkCount: 'sparks',
-  sparkSpeed: 'spark speed',
-  sparkSize: 'spark px',
-  sparkLife: 'spark life',
+const SPECS: Record<keyof BuffFxConfig, [string, TunerUnit | undefined, string, string]> = {
+  waveGapMs:      ['Gap between waves', 'ms', 'MINIMUM spacing between one wave and the next, so a wide board reads step by step.', 'Wave pacing'],
+  waveMaxTotalMs: ['Maximum total', 'ms', 'Ceiling on the whole sequence. Waves compress to fit rather than running past it.', 'Wave pacing'],
+  waveMaxCount:   ['Maximum waves', undefined, 'Most distinct waves allowed. Beyond this they coalesce, so a huge board cannot produce an endless drum roll.', 'Wave pacing'],
+
+  startHeight:    ['Drop height', 'px', 'How far above the minion the ribbon starts.', 'Ribbon'],
+  dropMs:         ['Drop time', 'ms', 'How long the ribbon takes to fall onto the minion.', 'Ribbon'],
+  retractMs:      ['Retract time', 'ms', 'How long it takes to withdraw afterwards. 0 leaves it to fade instead.', 'Ribbon'],
+  baseWidth:      ['Top width', 'px', 'Ribbon width at the top, where it enters.', 'Ribbon'],
+  tipWidth:       ['Tip width', 'px', 'Ribbon width at the tip that touches the minion.', 'Ribbon'],
+  coreAlpha:      ['Opacity', 'opacity', 'Ribbon opacity.', 'Ribbon'],
+
+  ringCount:      ['Ring count', undefined, 'How many rings pulse out where the ribbon lands. 0 removes them.', 'Landing pulse'],
+  ringSize:       ['Ring size', 'px', 'How far a ring expands.', 'Landing pulse'],
+  ringWidth:      ['Ring thickness', 'px', 'Thickness of each ring.', 'Landing pulse'],
+  ringMs:         ['Ring time', 'ms', 'How long a ring takes to expand and fade.', 'Landing pulse'],
+  coreFlashSize:  ['Flash size', 'px', 'Diameter of the flash at the landing point. 0 removes it.', 'Landing pulse'],
+  coreFlashMs:    ['Flash time', 'ms', 'How long that flash lasts.', 'Landing pulse'],
+
+  sparkCount:     ['Count', undefined, 'How many sparks the landing throws. 0 removes them.', 'Sparks'],
+  sparkSpeed:     ['Speed', 'px/s', 'How fast the sparks fly out.', 'Sparks'],
+  sparkSize:      ['Size', 'px', 'Size of each spark.', 'Sparks'],
+  sparkLife:      ['Lifetime', 'ms', 'How long one spark lasts.', 'Sparks'],
 };
 
-export function BuffFxTuner() {
-  const [cfg, setCfg] = useState<BuffFxConfig>(getBuffFxConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('bufffx');
+/** Declaration order IS render order, and controls sharing a group render together under its heading. */
+const ORDER: (keyof BuffFxConfig)[] = [
+  'waveGapMs', 'waveMaxTotalMs', 'waveMaxCount',
+  'startHeight', 'dropMs', 'retractMs', 'baseWidth', 'tipWidth', 'coreAlpha',
+  'ringCount', 'ringSize', 'ringWidth', 'ringMs', 'coreFlashSize', 'coreFlashMs',
+  'sparkCount', 'sparkSpeed', 'sparkSize', 'sparkLife',
+];
 
-  const set = (k: keyof BuffFxConfig, v: number): void => { setBuffFxValue(k, v); setCfg({ ...getBuffFxConfig() }); };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getBuffFxConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetBuffFxConfig(); setCfg({ ...getBuffFxConfig() }); };
+const controls: TunerControl<Extract<keyof BuffFxConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  const [min, max, step] = BUFFFX_RANGES[key]!;
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Buff FX <span>dev · next buff · drag</span></div>
-      {BUFFFX_KEYS.map((k) => {
-        const [min, max, step] = BUFFFX_RANGES[k]!;
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name">{BUFF_LABELS[k] ?? k}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={() => testBuffFx(3)} title="Fire a 3-wave itemized buff across your whole board — the Blueprint Cache shape, no setup needed">▶ Test 3 waves</button>
-        <button className="sfxmix-copy" onClick={() => testBuffFx(1)} title="A single buff landing on every board minion">▶ Test 1</button>
-      </div>
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+const SPEC: TunerSpec<BuffFxConfig> = {
+  id: 'bufffx',                     // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Buff',
+  note: 'dev · next buff · drag',
+  read: getBuffFxConfig,
+  write: setBuffFxValue,
+  reset: resetBuffFxConfig,
+  defaults: BUFFFX_DEFAULTS,
+  controls,
+  actions: [{ label: '▶ Test', hint: 'Plays the buff effect on a minion on the board.', run: () => testBuffFx() }],
+};
+
+export function BuffFxTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

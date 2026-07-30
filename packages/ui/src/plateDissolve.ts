@@ -106,8 +106,9 @@ export const PD_DESC: Record<string, string> = {
   stag: '0 = every mote born at once (one crisp burst). Higher = a rolling burn.',
   trail: 'Per-frame smear. Higher = comet tails.',
 };
-export const PD_NUM_KEYS = Object.keys(PD_RANGES);
 export const PD_COLOR_KEYS = ['cDeep', 'cMid', 'cCore'] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as PD_DEFAULTS };
 
 const KEY = 'ascent.platedissolve';
 let cfg: PlateDissolveConfig = (() => {

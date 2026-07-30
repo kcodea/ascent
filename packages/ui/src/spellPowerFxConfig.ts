@@ -103,16 +103,6 @@ const DEFAULTS: SpellPowerFxConfig = {
   glowWidth: 3.5,
 };
 
-export const SPELLPOWERFX_KEYS = [
-  'arrowCount', 'arrowRise', 'arrowSpread', 'arrowLen', 'arrowWidth', 'arrowHead', 'arrowMs', 'arrowStagger',
-  'arrowDrift', 'arrowFadeAt',
-  'blastCount', 'blastSpeed', 'blastSize', 'blastLife', 'blastGravity',
-  'blastSpread', 'blastAngle', 'blastDrag', 'blastJitter', 'blastRise', 'blastSpin', 'blastStagger', 'blastShrink',
-  'numShow', 'numSize', 'numRise', 'numDelay', 'numHoldMs', 'numFadeMs',
-  'glowAlpha', 'glowWidth',
-  'colorA', 'colorB', 'colorC', 'colorText', 'colorOutline',
-] as const satisfies readonly (keyof SpellPowerFxConfig)[];
-
 export const SPELLPOWERFX_COLOR_KEYS: (keyof SpellPowerFxConfig)[] = ['colorA', 'colorB', 'colorC', 'colorText', 'colorOutline'];
 
 export const SPELLPOWERFX_RANGES: Partial<Record<keyof SpellPowerFxConfig, [number, number, number]>> = {

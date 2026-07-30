@@ -1,93 +1,101 @@
-import { useState } from 'react';
 import {
-  WELDFX_KEYS, WELDFX_RANGES, getWeldFxConfig, resetWeldFxConfig, setWeldFxValue, type WeldFxConfig,
+  WELDFX_DEFAULTS, WELDFX_RANGES, getWeldFxConfig, resetWeldFxConfig, setWeldFxValue, type WeldFxConfig,
 } from './weldFxConfig';
-import { useDraggablePanel } from './useDraggablePanel';
 import { testWeldFx } from './fxTestFire';
+import { TunerPanel } from './TunerPanel';
+import type { TunerAction, TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only "Weld FX" tuner — the Attachment-fuses-onto-a-minion cue (`weldFxConfig` → `pixiFx.weldPulse`):
- * the ring that eases in and CONVERGES on the card, the flash + rising sparks when it lands, and the host's
- * WIGGLE on impact (these replaced the old generic green buff-burst + "+X/+Y" float, now suppressed on a
- * weld). Persists to localStorage; edits apply to the NEXT weld — drop a Magnetic onto a Mech to judge, or
- * ▶ Test on the picked kind. `play` (a hand-played Attachment, after its slide-in) and `auto`
- * (Banksly/Beatbot, Combinator, Cling Drones, Money Bots) share these dials, scaled by playScale/autoScale.
- * Dev-only — stripped from production.
+ * DEV-only tuner for the WELD cue — an Attachment fusing onto its host minion: a ring that eases in and
+ * CONVERGES on the card, a flash with rising sparks when it lands, and a wiggle on the host at impact. These
+ * replaced the old generic green buff-burst and "+X/+Y" float, both now suppressed on a weld.
+ *
+ * TWO KINDS SHARE THESE DIALS, scaled by their own multipliers: `play` is a hand-played Attachment landing after
+ * its slide-in; `auto` is one that welds itself (Banksly/Beatbot, Combinator, Cling Drones, Money Bots). That is
+ * what the two Test buttons and the two scale controls are for. The old panel had a kind RADIO plus one Test
+ * button; two buttons do the same job in one click and need no panel-local state.
+ *
+ * COLOURS ARE NOT DIALS here — `WELD_COLORS` is a fixed constant in the config, deliberately, so every weld
+ * reads as the same gold event.
  */
-const WELD_LABELS: Partial<Record<keyof WeldFxConfig, string>> = {
-  ringStart: 'ring start px',
-  ringEnd: 'ring end px',
-  ringMs: 'converge ms',
-  ringWidth: 'ring width',
-  ringAlpha: 'ring α',
-  ringGlowWidth: 'ring halo',
-  ringSides: 'shape (0=circle)',
-  ringAspect: 'shape aspect',
-  ringRotation: 'shape rotate°',
-  ringSpin: 'spin° over close',
-  easeStart: 'ease · start',
-  easeFinish: 'ease · finish',
-  spokeCount: 'spokes',
-  spokeLen: 'spoke len',
-  spokeWidth: 'spoke width',
-  spokeAlpha: 'spoke α',
-  spokeGap: 'spoke gap',
-  flashSize: 'flash px',
-  flashMs: 'flash ms',
-  flashAlpha: 'flash α',
-  sparkCount: 'sparks',
-  sparkSpeed: 'spark rise',
-  sparkSpread: 'spark spread',
-  sparkSize: 'spark px',
-  sparkLife: 'spark life',
-  sparkGravity: 'spark gravity',
-  playScale: 'play ×',
-  autoScale: 'auto ×',
-  wiggleMs: 'wiggle ms',
-  wigglePx: 'wiggle shake px',
-  wiggleDeg: 'wiggle rotate°',
-  wiggleScale: 'wiggle bounce ×',
+const SPECS: Record<keyof WeldFxConfig, [string, TunerUnit | undefined, string, string]> = {
+  ringStart:     ['Start radius', 'px', 'How far out the ring begins before converging.', 'Converging ring'],
+  ringEnd:       ['End radius', 'px', 'Where the ring finishes. 0 collapses it fully onto the card.', 'Converging ring'],
+  ringMs:        ['Converge time', 'ms', 'How long the ring takes to close.', 'Converging ring'],
+  ringWidth:     ['Thickness', 'px', 'Ring stroke thickness.', 'Converging ring'],
+  ringAlpha:     ['Opacity', 'opacity', 'Ring opacity.', 'Converging ring'],
+  ringGlowWidth: ['Halo width', 'px', 'Soft halo around the ring. 0 removes it.', 'Converging ring'],
+  easeStart:     ['Easing in', 'opacity', 'How hard the ring accelerates as it starts closing.', 'Converging ring'],
+  easeFinish:    ['Easing out', 'opacity', 'How hard it decelerates as it lands.', 'Converging ring'],
+
+  ringSides:     ['Sides', undefined, 'Polygon sides for the ring. 0 draws a circle.', 'Ring shape'],
+  ringAspect:    ['Aspect', '×', 'Stretches the ring into an ellipse or oblong.', 'Ring shape'],
+  ringRotation:  ['Rotation', '°', 'Fixed rotation of the shape.', 'Ring shape'],
+  ringSpin:      ['Spin over close', '°', 'How far the shape rotates during its whole convergence. Negative spins the other way.', 'Ring shape'],
+
+  spokeCount:    ['Count', undefined, 'How many spokes point inward from the ring. 0 removes them.', 'Spokes'],
+  spokeLen:      ['Length', 'px', 'Spoke length.', 'Spokes'],
+  spokeWidth:    ['Thickness', 'px', 'Spoke thickness.', 'Spokes'],
+  spokeAlpha:    ['Opacity', 'opacity', 'Spoke opacity.', 'Spokes'],
+  spokeGap:      ['Gap from card', 'px', 'Distance the spokes stop short of the card.', 'Spokes'],
+
+  flashSize:     ['Size', 'px', 'Diameter of the landing flash. 0 removes it.', 'Landing flash'],
+  flashMs:       ['Time', 'ms', 'How long the flash lasts.', 'Landing flash'],
+  flashAlpha:    ['Opacity', 'opacity', 'Flash opacity.', 'Landing flash'],
+
+  sparkCount:    ['Count', undefined, 'How many sparks rise on landing. 0 removes them.', 'Sparks'],
+  sparkSpeed:    ['Rise speed', 'px/s', 'How fast the sparks rise.', 'Sparks'],
+  sparkSpread:   ['Spread', 'px', 'How wide the sparks scatter.', 'Sparks'],
+  sparkSize:     ['Size', 'px', 'Size of each spark.', 'Sparks'],
+  sparkLife:     ['Lifetime', 'ms', 'How long one spark lasts.', 'Sparks'],
+  sparkGravity:  ['Gravity', 'px', 'How far sparks are pulled back down. Negative keeps lifting them.', 'Sparks'],
+
+  wiggleMs:      ['Time', 'ms', 'How long the host minion wiggles on impact. 0 removes the wiggle.', 'Host wiggle'],
+  wigglePx:      ['Shake distance', 'px', 'How far the host shakes.', 'Host wiggle'],
+  wiggleDeg:     ['Rotation', '°', 'How far the host rocks.', 'Host wiggle'],
+  wiggleScale:   ['Bounce', '×', 'How much the host bounces in size.', 'Host wiggle'],
+
+  playScale:     ['Hand-played size', '×', 'Scales the whole effect for a hand-played Attachment, after its slide-in.', 'Per-kind scale'],
+  autoScale:     ['Self-welding size', '×', 'Scales it for an Attachment that welds itself — Banksly/Beatbot, Combinator, Cling Drones, Money Bots.', 'Per-kind scale'],
 };
 
-const TEST_KINDS: ('play' | 'auto')[] = ['play', 'auto'];
+/** Declaration order IS render order, and controls sharing a group render together under its heading. */
+const ORDER: (keyof WeldFxConfig)[] = [
+  'ringStart', 'ringEnd', 'ringMs', 'ringWidth', 'ringAlpha', 'ringGlowWidth', 'easeStart', 'easeFinish',
+  'ringSides', 'ringAspect', 'ringRotation', 'ringSpin',
+  'spokeCount', 'spokeLen', 'spokeWidth', 'spokeAlpha', 'spokeGap',
+  'flashSize', 'flashMs', 'flashAlpha',
+  'sparkCount', 'sparkSpeed', 'sparkSpread', 'sparkSize', 'sparkLife', 'sparkGravity',
+  'wiggleMs', 'wigglePx', 'wiggleDeg', 'wiggleScale',
+  'playScale', 'autoScale',
+];
 
-export function WeldFxTuner() {
-  const [cfg, setCfg] = useState<WeldFxConfig>(getWeldFxConfig());
-  const [copied, setCopied] = useState(false);
-  const [kind, setKind] = useState<'play' | 'auto'>('play');
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('weldfx');
+const controls: TunerControl<Extract<keyof WeldFxConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  const [min, max, step] = WELDFX_RANGES[key]!;
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  const set = (k: keyof WeldFxConfig, v: number): void => { setWeldFxValue(k, v); setCfg({ ...getWeldFxConfig() }); };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getWeldFxConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetWeldFxConfig(); setCfg({ ...getWeldFxConfig() }); };
+const actions: TunerAction[] = (['play', 'auto'] as const).map((kind) => ({
+  label: `▶ ${kind}`,
+  hint: kind === 'play'
+    ? 'Fires the weld as a hand-played Attachment on your left-most board minion — no Attachment needed.'
+    : 'Fires the weld as a self-welding Attachment on your left-most board minion.',
+  run: () => testWeldFx(kind),
+}));
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Weld FX <span>dev · next weld · drag</span></div>
-      {WELDFX_KEYS.map((k) => {
-        const [min, max, step] = WELDFX_RANGES[k]!;
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name">{WELD_LABELS[k] ?? k}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        {TEST_KINDS.map((t) => (
-          <button key={t} className="sfxmix-copy" style={kind === t ? { outline: '1px solid currentColor' } : undefined} onClick={() => setKind(t)}>{t}</button>
-        ))}
-      </div>
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={() => testWeldFx(kind)} title="Fire the full weld effect on your left-most board minion — no Attachment needed">▶ Test FX</button>
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+const SPEC: TunerSpec<WeldFxConfig> = {
+  id: 'weldfx',                     // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Weld',
+  note: 'dev · next weld · drag',
+  read: getWeldFxConfig,
+  write: setWeldFxValue,
+  reset: resetWeldFxConfig,
+  defaults: WELDFX_DEFAULTS,
+  controls,
+  actions,
+};
+
+export function WeldFxTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

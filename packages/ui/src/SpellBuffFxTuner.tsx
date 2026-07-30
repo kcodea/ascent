@@ -1,88 +1,85 @@
-import { useState } from 'react';
 import {
-  SBF_NUM_KEYS, SBF_COLOR_KEYS, SBF_RANGES, SBF_DESC,
+  SBF_COLOR_KEYS, SBF_DEFAULTS, SBF_RANGES,
   getSpellBuffFxConfig, resetSpellBuffFxConfig, setSpellBuffFxValue, type SpellBuffFxConfig,
 } from './spellBuffFxConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only "Spell Buff FX" tuner — the cue a hand SPELL or Ruby plays when its printed value goes UP
- * (`spellBuffFxConfig` → `Card`'s `.spellbuff` grow/shrink + `.sbspark` motes): the card grows then shrinks
- * back in place (each phase with its own speed + easing) while a burst of coloured sparks blasts outward off it. Slider dials + colour pickers persist to
- * localStorage and apply to the NEXT burst. **Test** fires it on every spell/Ruby currently in hand so it can
- * be dialed without waiting for a real buff. "Copy" grabs the JSON to bake as the shipped defaults; "Reset"
- * clears. Dev-only — stripped from production.
+ * DEV-only tuner for the SPELL BUFF cue — what a hand spell or Ruby plays when its printed value goes UP: the
+ * card grows then shrinks back in place, each phase with its own speed and easing, while a burst of coloured
+ * sparks blasts off it. Applies to the NEXT burst.
+ *
+ * The grow and shrink are deliberately INDEPENDENT: a fast punch out with a slow settle back reads very
+ * differently from the reverse, and that asymmetry is the main thing this panel is for.
+ *
+ * The three spark colours are hue SLOTS cycled across the motes rather than three separate effects — which is
+ * why they are labelled as slots, not as "pink / gold / purple" (their variable names, which stop being true the
+ * moment you change one).
  */
-const LABELS: Record<keyof SpellBuffFxConfig, string> = {
-  growScale: 'grow scale',
-  growMs: 'grow ms',
-  growEase: 'grow ease',
-  shrinkMs: 'shrink ms',
-  shrinkEase: 'shrink ease',
-  sparkCount: 'spark count',
-  sparkSizeMin: 'spark size min',
-  sparkSizeMax: 'spark size max',
-  blastDistMin: 'blast dist min',
-  blastDistMax: 'blast dist max',
-  blastSpread: 'blast arc°',
-  blastOriginY: 'blast origin Y%',
-  sparkSpeed: 'launch punch',
-  sparkGravity: 'gravity px',
-  sparkAlpha: 'spark α',
-  sparkGlow: 'spark glow',
-  sparkTail: 'tail ×size',
-  sparkMs: 'spark ms',
-  sparkStagger: 'stagger ms',
-  // Slot labels, not colour names — the owner's palette has already moved off pink/gold/purple once, and a
-  // hard-coded colour name in the UI goes stale the moment the picker changes. The keys stay as-is (they're
-  // the localStorage schema); only the display label is generic.
-  pinkColor: 'spark hue 1',
-  goldColor: 'spark hue 2',
-  purpleColor: 'spark hue 3',
+type ColorKey = (typeof SBF_COLOR_KEYS)[number];
+const COLOR_SET = new Set<string>(SBF_COLOR_KEYS);
+
+const SPECS: Record<keyof SpellBuffFxConfig, [string, TunerUnit | undefined, string, string]> = {
+  growScale:    ['Peak size', '×', 'Scale at the top of the grow. 1 means no growth at all.', 'Card'],
+  growMs:       ['Grow time', 'ms', 'How long the grow takes.', 'Card'],
+  growEase:     ['Grow easing', 'opacity', '0 snaps to size instantly; 1 is a long, gentle swell.', 'Card'],
+  shrinkMs:     ['Shrink time', 'ms', 'How long the shrink back takes. Independent of the grow.', 'Card'],
+  shrinkEase:   ['Shrink easing', 'opacity', '0 drops back instantly; 1 is a long, gentle settle.', 'Card'],
+
+  sparkCount:   ['Count', undefined, 'How many motes explode off the card. 0 removes them.', 'Sparks'],
+  sparkSizeMin: ['Smallest size', 'px', 'Smallest mote diameter.', 'Sparks'],
+  sparkSizeMax: ['Largest size', 'px', 'Largest mote diameter.', 'Sparks'],
+  sparkAlpha:   ['Opacity', 'opacity', 'Peak mote opacity.', 'Sparks'],
+  sparkGlow:    ['Glow radius', 'px', 'Halo around each mote. 0 is flat, with no bloom.', 'Sparks'],
+  sparkTail:    ['Tail length', '×', 'Tail length as a multiple of the mote size. 0 is no tail.', 'Sparks'],
+  sparkMs:      ['Flight time', 'ms', 'A mote’s flight and fade. Independent of the card animation.', 'Sparks'],
+  sparkStagger: ['Launch stagger', 'ms', 'Largest random launch delay, so the motes do not fire in lockstep.', 'Sparks'],
+  pinkColor:    ['Hue slot 1', undefined, 'First of three hues cycled across the motes.', 'Sparks'],
+  goldColor:    ['Hue slot 2', undefined, 'Second of three hues cycled across the motes.', 'Sparks'],
+  purpleColor:  ['Hue slot 3', undefined, 'Third of three hues cycled across the motes.', 'Sparks'],
+
+  blastDistMin: ['Shortest flight', 'px', 'Shortest distance out from the card centre.', 'Blast shape'],
+  blastDistMax: ['Longest flight', 'px', 'Longest distance out.', 'Blast shape'],
+  blastSpread:  ['Arc covered', '°', 'Arc the blast covers. 360 fires in every direction; smaller focuses it upward.', 'Blast shape'],
+  blastOriginY: ['Origin height', '%', 'Where the blast starts, measured up from the card bottom. 0 is the bottom, 50 the centre, 100 the top.', 'Blast shape'],
+  sparkSpeed:   ['Launch punch', 'opacity', '0 drifts out evenly; 1 fires hard then coasts.', 'Blast shape'],
+  sparkGravity: ['Gravity', 'px', 'How far motes are dragged back down over their flight. 0 is purely radial.', 'Blast shape'],
 };
 
-export function SpellBuffFxTuner() {
-  const [cfg, setCfg] = useState<SpellBuffFxConfig>(getSpellBuffFxConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('spellbufffx');
+/** Declaration order IS render order; the three hue slots sit inside the Sparks run. */
+const ORDER: (keyof SpellBuffFxConfig)[] = [
+  'growScale', 'growMs', 'growEase', 'shrinkMs', 'shrinkEase',
+  'sparkCount', 'sparkSizeMin', 'sparkSizeMax', 'sparkAlpha', 'sparkGlow', 'sparkTail', 'sparkMs', 'sparkStagger',
+  'pinkColor', 'goldColor', 'purpleColor',
+  'blastDistMin', 'blastDistMax', 'blastSpread', 'blastOriginY', 'sparkSpeed', 'sparkGravity',
+];
 
-  const set = (k: keyof SpellBuffFxConfig, v: number | string): void => { setSpellBuffFxValue(k, v); setCfg({ ...getSpellBuffFxConfig() }); };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getSpellBuffFxConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetSpellBuffFxConfig(); setCfg({ ...getSpellBuffFxConfig() }); };
-  // Recruit publishes this while it's mounted — fires the cue on every spell/Ruby in hand right now.
-  const test = (): void => { (window as { __spellBuffTest?: () => void }).__spellBuffTest?.(); };
+const controls: TunerControl<Extract<keyof SpellBuffFxConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  if (COLOR_SET.has(key)) return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+  const [min, max, step] = SBF_RANGES[key as Exclude<keyof SpellBuffFxConfig, ColorKey>];
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Spell Buff FX <span>dev · next burst · drag</span></div>
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={test}>✨ Test</button>
-      </div>
-      {SBF_NUM_KEYS.map((k) => {
-        const [min, max, step] = SBF_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={SBF_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k] as number} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      {SBF_COLOR_KEYS.map((k) => (
-        <div className="sfxmix-row" key={k}>
-          <span className="sfxmix-name" title={SBF_DESC[k]}>{LABELS[k]}</span>
-          <input type="color" value={cfg[k] as string} onChange={(e) => set(k, e.target.value)} />
-          <span className="sfxmix-val">{cfg[k]}</span>
-        </div>
-      ))}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+const SPEC: TunerSpec<SpellBuffFxConfig> = {
+  id: 'spellbufffx',                // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Spell Buff',
+  note: 'dev · next burst · drag',
+  read: getSpellBuffFxConfig,
+  write: (key, value) => setSpellBuffFxValue(key, value),
+  writeColor: (key, value) => setSpellBuffFxValue(key, value),
+  reset: resetSpellBuffFxConfig,
+  defaults: SBF_DEFAULTS,
+  controls,
+  actions: [{
+    label: '✨ Test',
+    // Recruit publishes this handle while it is mounted.
+    hint: 'Fires the cue on every spell and Ruby currently in hand. Needs the recruit screen open.',
+    run: () => (window as { __spellBuffTest?: () => void }).__spellBuffTest?.(),
+  }],
+};
+
+export function SpellBuffFxTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

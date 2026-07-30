@@ -51,6 +51,13 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   and Bloodbinder's ruby lance. Cost: +34 KB gzipped of JS, 29 KB of it a primitives chunk fetched lazily
   on mount rather than at first paint (the main chunk grows under 5 KB gzipped). The
   *authoring tool* stays dev-only; a test now pins that split in both directions.
+- **The dev tuners are one component now — 46 of 48 panels.** Every panel renders from a declarative spec that
+  gives it real sections, a declared unit per control, a hover hint saying what you would see change, a number
+  box beside each slider, and a one-click revert to the shipped value. The last three had no config module at
+  all — they compose CSS — and now share one store that also owns tearing their override back down on close.
+  `SfxMixer` is parked by owner request; `ShieldTuner` is handled separately (it is dead code).
+- **Three dev tuner panels ignored their own close button** — their internal key disagreed with the menu's, so
+  ✕ did nothing and they could only be dismissed from the menu. Fixed.
 - **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
   with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
   schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.
@@ -86,8 +93,6 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **Commit animation.** Pick a card and a moment in the workbench, tune the effect while watching it on the
   real card, then commit — writing the effect and its binding together, for that card only (forking it) or
   everywhere.
-- **Three new minions** — Moira (trigger adjacent Shouts), Mineral Master (Rally → Rubies on your Kobolds), and
-  **Paragon**, the all-type minion whose Rally buffs a minion of every type permanently.
 
 ## Layout
 

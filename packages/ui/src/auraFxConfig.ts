@@ -54,13 +54,6 @@ const DEFAULTS: AuraFxConfig = {
   moteTail: 0.54,
 };
 
-export const AURAFX_KEYS = [
-  'travelMs', 'fadeMs',
-  'fillAlpha', 'glowAlpha', 'glowSize', 'glowSpacing',
-  'widthScale', 'heightScale', 'offsetX', 'offsetY',
-  'moteCount', 'moteSize', 'moteLife', 'moteRise', 'moteTail',
-] as const satisfies readonly (keyof AuraFxConfig)[];
-
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const AURAFX_RANGES: Partial<Record<keyof AuraFxConfig, [number, number, number]>> = {
   travelMs: [150, 2400, 10], fadeMs: [80, 2000, 10],
@@ -69,6 +62,9 @@ export const AURAFX_RANGES: Partial<Record<keyof AuraFxConfig, [number, number, 
   moteCount: [0, 140, 2], moteSize: [2, 20, 1], moteLife: [100, 2400, 10], moteRise: [0, 500, 5],
   moteTail: [0.1, 1, 0.02],
 };
+
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as AURAFX_DEFAULTS };
 
 const KEY = 'ascent.aurafx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.

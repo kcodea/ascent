@@ -159,6 +159,24 @@ effect tuned pinned to the cursor routinely falls apart when it has to cross rea
   beam, a thrown spear. The default `0.28` is the whip that makes a trail feel like it's being *thrown*.
   Negative bows the other way
 
+### Aiming a `burst`
+
+A burst's **Spread** (Emit group) is how wide its cone is: `1` is a full circle, `0.18` a ±33° fan, `0` a
+single line. **Aim** is which way that cone points — and it is easy to lose an afternoon to, because the
+default only does something for a *moving* emitter:
+
+| Aim | Points the cone at |
+|---|---|
+| **travel** (default) | the emitter's own direction of movement. A burst on a **static** anchor (`target`, `slot`, `cursor`) never moves, so this fans it along **+x, i.e. to the right** — almost never what you wanted |
+| **fixed** | the **Angle** you set, in degrees |
+
+**Angle is in screen degrees, and screen Y grows DOWNWARD** — so `0` is right, **`-90` is straight UP**, `+90`
+is down, `±180` is left. The slider is greyed out unless Aim is `fixed`, and none of it does anything at
+Spread `1` (a full circle has no centre to aim).
+
+`coins.json` is the worked example: two layers, both `fixed` at `-90`, one at Spread `0.18` for the coins and
+a wider `0.28` for the glints, with gravity pulling the arc back down.
+
 ---
 
 ## 5. The seed — lock it while tuning

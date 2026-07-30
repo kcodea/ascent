@@ -1,9 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { validateSpecs, type FxParamSpecs } from '../params';
+import { coerceParams, validateSpecs, type FxParamSpecs } from '../params';
 import { sampleCurve } from '../curve';
 import { makeRng } from '../rng';
-import { burstFireComplete, burstPrimitive, resolveParticleRotation, sampleBurstAngle } from './burst';
+import {
+  BURST_AIM_MODES,
+  burstFireComplete,
+  burstPrimitive,
+  resolveBurstAimAngle,
+  resolveParticleRotation,
+  sampleBurstAngle,
+} from './burst';
 
 describe('burst param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -68,6 +75,39 @@ describe('burst param specs', () => {
   });
 
   // Orient-to-velocity must default OFF, so an existing def keeps its spin exactly as before.
+  // The aim pair. `aimMode` MUST default to 'travel' — that is the entire backwards-compatibility story for
+  // every def authored before aiming existed (an absent param takes its spec default in `coerceParams`).
+  it('exposes an aimMode enum defaulting to travel, and a fixed-only angle slider', () => {
+    const aim = burstPrimitive.params.aimMode;
+    expect(aim).toBeDefined();
+    expect(aim.kind).toBe('enum');
+    expect(aim.default).toBe('travel');
+    expect(aim.group).toBe('Emit');
+    expect(BURST_AIM_MODES).toEqual(['travel', 'fixed']);
+
+    const angle = burstPrimitive.params.angle;
+    expect(angle).toBeDefined();
+    expect(angle.kind).toBe('slider');
+    expect(angle.group).toBe('Emit');
+    // Degrees, screen convention: the range must reach a full turn either way so any direction is authorable.
+    if (angle.kind === 'slider') {
+      expect(angle.min).toBe(-180);
+      expect(angle.max).toBe(180);
+    }
+    // Only live under `fixed` — the other two modes ignore it entirely.
+    expect(angle.enabledWhen).toEqual({ param: 'aimMode', is: 'fixed' });
+    // The sign convention is the thing most likely to be got backwards, so the help must SAY which way is up.
+    expect(angle.help ?? '').toMatch(/-90 is straight UP/);
+  });
+
+  // The concrete form of "every existing def is unaffected": a def whose JSON never mentions aim coerces to
+  // `travel`, and `travel` returns the travel angle the primitive always used.
+  it('a def that never mentions aim coerces to travel and behaves exactly as before', () => {
+    const p = coerceParams(burstPrimitive.params, { count: 10, spread: 0.5 }) as Record<string, unknown>;
+    expect(p.aimMode).toBe('travel');
+    expect(resolveBurstAimAngle('travel', 1.4, p.angle as number)).toBe(1.4);
+  });
+
   it('exposes an orientToVelocity toggle defaulting to false (an exact no-op)', () => {
     const spec = burstPrimitive.params.orientToVelocity;
     expect(spec).toBeDefined();
@@ -135,6 +175,32 @@ describe('sampleBurstAngle', () => {
     expect(sampleBurstAngle(travel, spread, () => 0)).toBeCloseTo(travel - halfWidth);
     expect(sampleBurstAngle(travel, spread, () => 1)).toBeCloseTo(travel + halfWidth);
     expect(sampleBurstAngle(travel, spread, () => 0.5)).toBeCloseTo(travel);
+  });
+});
+
+describe('resolveBurstAimAngle', () => {
+  it('travel returns the travel angle verbatim, ignoring the authored angle', () => {
+    expect(resolveBurstAimAngle('travel', 1.23, 45)).toBe(1.23);
+    expect(resolveBurstAimAngle('travel', 0, 90)).toBe(0);
+    // The whole back-compat claim in one line: an unaimed burst's base is exactly what it always was.
+    expect(resolveBurstAimAngle('travel', -2.5, 170)).toBe(-2.5);
+  });
+
+  it('fixed converts the authored degrees to radians, in SCREEN convention (up is negative)', () => {
+    expect(resolveBurstAimAngle('fixed', 9, 0)).toBeCloseTo(0); // right
+    expect(resolveBurstAimAngle('fixed', 9, -90)).toBeCloseTo(-Math.PI / 2); // UP
+    expect(resolveBurstAimAngle('fixed', 9, 90)).toBeCloseTo(Math.PI / 2); // down
+    expect(resolveBurstAimAngle('fixed', 9, 180)).toBeCloseTo(Math.PI); // left
+    // Sanity on the sign: a cone aimed at -90 launches with a NEGATIVE y velocity, i.e. up the screen.
+    expect(Math.sin(resolveBurstAimAngle('fixed', 0, -90))).toBeLessThan(0);
+    // The travel angle is dead under `fixed` — same authored angle, wildly different travel, same answer.
+    expect(resolveBurstAimAngle('fixed', 3, -90)).toBe(resolveBurstAimAngle('fixed', -3, -90));
+  });
+
+  it('draws no randomness at all — a rand passed anywhere near it would be a contract break', () => {
+    // `resolveBurstAimAngle` takes no `rand` parameter by design (see its header + the RNG suite below).
+    // Its arity is part of that contract: 3 positional args, none of them a function.
+    expect(resolveBurstAimAngle).toHaveLength(3);
   });
 });
 
@@ -221,6 +287,76 @@ describe('burst seeded randomness', () => {
     // BY REFERENCE into sampleBurstAngle (the angle draw) = the same 7 draws the Math.random version made.
     // If this count moves, every previously saved seed replays a different burst.
     expect(codeOf(BURST_SRC).match(/this\.rand\(\)/g)).toHaveLength(6);
-    expect(BURST_SRC).toContain('sampleBurstAngle(this.travelAngle, p.spread, this.rand)');
+    // The cone's base angle is now a variable (`aim`) rather than `this.travelAngle` directly — but it is
+    // computed OUTSIDE the loop by `resolveBurstAimAngle`, which draws nothing. Both halves are asserted:
+    // the call shape inside the loop, and that the aim is resolved once per wave rather than per particle.
+    expect(codeOf(BURST_SRC)).toContain('sampleBurstAngle(aim, p.spread, this.rand)');
+    // Exactly one CALL SITE (the `export function` declaration is the other textual match), and it is
+    // outside the `for` loop — one aim per wave, not one per particle.
+    expect(codeOf(BURST_SRC).match(/const aim = resolveBurstAimAngle\(/g)).toHaveLength(1);
+  });
+});
+
+/**
+ * THE regression guard for the aim feature: adding `aimMode`/`angle` must not add, remove or reorder a single
+ * `rand()` call, or every seed anyone has ever locked replays a different burst.
+ *
+ * `BurstInstance` can't be built headlessly (see the note above), so this reproduces `emit()`'s per-particle
+ * draw sequence exactly — the same seven draws in the same order, with the angle draw made BY REFERENCE
+ * through `sampleBurstAngle` — and runs it two ways off the same seed: once with the pre-change base angle
+ * (`this.travelAngle`, passed straight in) and once through `resolveBurstAimAngle`, which is what the
+ * primitive does now. Identical output means the change is provably invisible to a seeded def.
+ */
+const SPREAD = 0.6;
+const HALF_WIDTH = SPREAD * Math.PI;
+
+/** One particle's slice of `emit()`'s draw sequence: angle, speed, size, bias, the two emission-shape
+ *  offsets, then spin. Mirrors the primitive's literals so the arithmetic — not just the count — matches. */
+function drawParticle(base: number, rand: () => number): number[] {
+  const angle = sampleBurstAngle(base, SPREAD, rand); // 1 (drawn inside sampleBurstAngle, by reference)
+  const speed = 260 * (1 + (rand() * 2 - 1) * 0.5); // 2
+  const size = Math.max(0.5, 9 * (1 + (rand() * 2 - 1) * 0.5)); // 3
+  const bias0 = 0.5 * rand(); // 4
+  const ox = rand(); // 5 — emissionOffset's first arg
+  const oy = rand(); // 6 — emissionOffset's second arg
+  const spin = (rand() * 2 - 1) * 6; // 7
+  return [angle, speed, size, bias0, ox, oy, spin];
+}
+
+/** N particles' worth of that sequence off ONE seeded stream — i.e. a whole wave. */
+function drawWave(base: (travelAngle: number) => number, travelAngle: number, seed: number, n = 30): number[][] {
+  const rand = makeRng(seed);
+  return Array.from({ length: n }, () => drawParticle(base(travelAngle), rand));
+}
+
+describe('burst aim leaves the seeded draw sequence untouched', () => {
+  const TRAVEL = 0.85;
+
+  it("aimMode 'travel' reproduces the pre-aim stream byte-for-byte", () => {
+    const before = drawWave((t) => t, TRAVEL, 20260730);
+    const after = drawWave((t) => resolveBurstAimAngle('travel', t, -90), TRAVEL, 20260730);
+    expect(after).toEqual(before);
+  });
+
+  it("aimMode 'travel' matches whatever angle the def happens to carry alongside it", () => {
+    // A def may set `angle` and leave `aimMode` alone (or flip back to travel mid-tune). The authored angle
+    // must be completely inert there — an accidental leak would show up as a rotated cone.
+    const before = drawWave((t) => t, TRAVEL, 7);
+    const after = drawWave((t) => resolveBurstAimAngle('travel', t, 33), TRAVEL, 7);
+    expect(after).toEqual(before);
+  });
+
+  it('an AIMED burst consumes the identical stream — the cone rotates, the roll does not change', () => {
+    const before = drawWave((t) => t, TRAVEL, 99);
+    const aimed = drawWave((t) => resolveBurstAimAngle('fixed', t, -90), TRAVEL, 99);
+    const base = -Math.PI / 2;
+    for (let i = 0; i < before.length; i++) {
+      // Every non-angle draw is identical...
+      expect(aimed[i].slice(1)).toEqual(before[i].slice(1));
+      // ...and the angle differs by exactly the rotation of the cone's centre, never by a re-roll.
+      expect(aimed[i][0] - before[i][0]).toBeCloseTo(base - TRAVEL, 12);
+      // Still inside the authored cone around the NEW centre.
+      expect(Math.abs(aimed[i][0] - base)).toBeLessThanOrEqual(HALF_WIDTH + 1e-12);
+    }
   });
 });

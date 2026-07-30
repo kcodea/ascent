@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **FX library cleanup — and two "dead code" leads that weren't.** Five leftover workbench drafts deleted from
+  `fx/defs/`. `death-dissolve` was investigated and **kept**: no binding names it, but `useCombatReplay` plays it
+  directly for every plain death. Same for `pixiFx.discoverBurst`, which fires on every Discover open and is the
+  only reason the second Pixi context exists. Both are now documented as do-not-delete.
 - **FX workbench: stop hiding things.** Four papercuts in the effects authoring tool, one principle — make
   failure visible. "Watch in combat" now carries its own ▶/⏸ · 🔥 Fire · scrubber, so you can retrigger and scrub
   while watching an effect on a real card; the commit confirmation survives the page reload committing itself

@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-07-29 — chore(fx): strip five orphan defs, and TWO "dead code" leads that were live
+
+The first step of the `pixiFx` → def migration: a zero-risk cleanup pass. Nothing here changes what a player
+sees. Two of the three items on the list turned out to be **wrong about being dead**, and both are now recorded
+in the docs so the next pass doesn't try again.
+
+**Deleted five workbench drafts** from `packages/ui/src/fx/defs/`: `blue-glow-trail`, `blue-trail-detonate`,
+`ember-lance`, `self-buff-bloom`, `test-red-blast`. Verified first that no binding, no `playDef` call and no
+source file names any of them — the only live references were in `catalog.test.ts` (below). Defs load through
+an `import.meta.glob('./defs/*.json')`, so there is no index to keep in step; deleting the file is the whole
+edit. `bindings.test.ts` also mentions three of the five, but only as **opaque string ids** handed to
+`setBinding` — the resolver never loads a def file, so those cases keep testing exactly what they tested.
+
+**`catalog.test.ts` re-pointed, not weakened.** Two cases genuinely read `blue-glow-trail` out of the REAL
+committed registry, and both are asserting the *unbound* half of the binding roll-up: `bindingsByDef()` must
+have **no entry** for a def nothing binds to, and `buildCatalog()` must still give that def
+`{ kinds: [], cards: [] }` rather than `undefined`. Both now use **`burst-thin-trail`** — the closest surviving
+equivalent (a committed, deliberately unbound travelling ribbon + burst draft, the direct descendant of
+`blue-glow-trail`'s tuning). A comment on the first case says what the def has to *be* for the assertion to
+mean anything, so a future bind re-points it instead of deleting the case.
+
+**`death-dissolve` was investigated and KEPT.** It reads as an orphan — nothing in `bindings.json` names it —
+but `useCombatReplay.ts:1233` calls `playDef('death-dissolve', a)` **directly**, and it plays for **every plain
+death** (no Deathrattle, no Rise). Deleting it would have silently removed a live effect with no test failing.
+It can't be an `fxDef` cue: a cue is chosen by moment KIND, a kind is derived from the event alone, and the
+event cannot see whether the dying card has an `onDeath` effect — so the call sits in the `else` of the skull's
+own gate, inside the skull's own loop, which is what guarantees skull and dissolve never both fire for one unit.
+Recorded as a do-not-delete note in `docs/fx-requests.md` (which previously invited retiring it) and in
+`docs/roadmap.md`.
+
+**`discoverBurst` was NOT dead either — kept.** The brief said `pixiFx.discoverBurst` (`pixiFx.ts:1856`) had
+zero call sites outside its own definition. It does not: `Recruit.tsx:2764` fires it every time a Discover
+opens (`discoverFx.attach(el).then(() => discoverFx.discoverBurst(…))`), and per `pixiFx.ts:670` that burst is
+the **sole** reason the second full-viewport `discoverFx` WebGL context exists at all. So the planned second
+commit was dropped rather than executed — it would have deleted the golden Discover eruption and orphaned an
+entire Pixi Application. It stays on the list as an effect to *port*, and the roadmap now says so explicitly.
+
+**Verified:** `npm run typecheck` + `npm run lint` + `npm test` + `npm run build:web` all green, and
+`npx vitest run packages/ui/src/fx/` green on its own (37 files / 939 tests).
+
+
 ## 2026-07-29 — Review round 2: the mid-flight note was quietly green
 
 One Important finding, and a sharp one — **the fix for round 1's finding 2 recreated round 1's finding 1, in the

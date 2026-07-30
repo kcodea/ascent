@@ -716,6 +716,27 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   }
 }
 
+/**
+ * THE GOLD-GAIN CHOKEPOINT. Every path that hands the player Gold routes through here.
+ *
+ * Added 2026-07-30 for Rune of Profit Sharing ("whenever you gain Gold, give your Dwarves +3/+3"), which had no
+ * single site to hang off — Gold was added in a dozen places across the reducer and the recruit factories, and
+ * wiring eleven of them would have shipped a rune that silently misses whichever income the twelfth provides.
+ *
+ * Spending has its own path (`spendGold` in the reducer); this is the credit side only.
+ */
+export function gainGold(state: RunState, amount: number): void {
+  if (amount <= 0) return;
+  state.embers += amount;
+  const ps = state.runeProfitSharing;
+  if (ps) {
+    // Buffs the tribe wherever it is (board + hand), like every other "+X/+X to your <tribe>" run effect.
+    for (const c of [...state.board, ...state.hand]) {
+      if (isTribe(c, ps.tribe)) addBuff(c, 'Rune of Profit Sharing', ps.attack, ps.health);
+    }
+  }
+}
+
 /** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
 export function spellCostReduction(state: RunState): number {
   let n = state.spellCostMod;
@@ -1239,7 +1260,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // it just stops gating.
     if (!ctx.state.runeBrokerage && (self.rubyRecvTick ?? 0) >= cap) return;
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
-    ctx.state.embers += num(params.gold, 3);
+    gainGold(ctx.state, num(params.gold, 3));
   },
 
   /** Set 2 — Candle Conduit: when you get a Ruby, cast a Ruby (base 1/1 + rubyBonus) on a random friendly
@@ -2007,7 +2028,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Hoard Whelp — Sell: gain `amount` Gold (golden doubles). Fired by the reducer's sell case via `fireOnSell`. */
   onSellGainGold: (ctx, self, params) => {
-    ctx.state.embers += num(params.amount, 6) * gold(self);
+    gainGold(ctx.state, num(params.amount, 6) * gold(self));
   },
 
   /** Salvatore McKlusky (Tier 7) — selling this opens `count` back-to-back minion Discovers at `tier`
@@ -2287,7 +2308,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onConsumeGoldFlat: (ctx, self, params) => {
     if ((self.rubyRecvTick ?? 0) >= 1) return; // "the first time" each turn
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
-    ctx.state.embers += num(params.gold, 3) * gold(self);
+    gainGold(ctx.state, num(params.gold, 3) * gold(self));
   },
 
   /** Set 2 — Ashen Broodlord: when THIS body Consumes a minion, get a Shop spell (golden: 2).
@@ -3511,7 +3532,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Insurance Policy — cast: if you LOST your last combat, gain `gold` Gold (else nothing). Reads the pinned
    *  `lastCombat` result; a draw doesn't count (only 'lose'). No last combat yet (turn 1) → no payout. */
   spellGoldIfLostLast: (ctx, _self, params) => {
-    if (ctx.state.lastCombat?.result === 'lose') ctx.state.embers += num(params.gold, 5);
+    if (ctx.state.lastCombat?.result === 'lose') gainGold(ctx.state, num(params.gold, 5));
   },
 
   /** Mend — cast: heal the hero by `amount`, capped at the run's max Resolve (no overheal). Reads
@@ -3728,7 +3749,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = state.board.indexOf(self);
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
-    state.embers += sellValueOf(sold, state); // the Gold the player gets from the sell (bartering-aware)
+    gainGold(state, sellValueOf(sold, state)); // the Gold the player gets from the sell (bartering-aware)
     // It COUNTS AS A SELL, so Robin's Spoils banks its +1 next-turn Gold too (parity with the reducer's
     // sell case — this path used to skip it).
     if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
@@ -3749,7 +3770,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = state.board.indexOf(self);
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
-    state.embers += sellValueOf(sold, state); // bartering-aware (parity with the reducer's sell)
+    gainGold(state, sellValueOf(sold, state)); // bartering-aware (parity with the reducer's sell)
     if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
     returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
     const beast = [...state.board].reverse().find((c) => isTribe(c, 'beast')); // right-most Beast (board order)
@@ -5295,7 +5316,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     if (effect.on === 'cast' && effect.do === 'gainEmbers') {
       // Rune of Pillaging: your Gold Pouches (the Gold Pouch spell) are worth `goldPouchValue` Gold instead of 1.
       const gain = spellDef.id === 'emberpouch' && state.goldPouchValue ? state.goldPouchValue : num(effect.params?.amount);
-      state.embers += gain;
+      gainGold(state, gain);
     }
   }
   // …then the bookkeeping every cast owes the run, shared with the Discover-spell path in the reducer.

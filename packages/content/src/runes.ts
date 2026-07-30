@@ -983,6 +983,17 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeAttackingGems', amount: 1 },
     sets: ['set2'], // Rubies
   },
+  {
+    // Rides the run's single gold-GAIN chokepoint (`gainGold`), added for this rune — Gold was credited in a
+    // dozen places, and wiring eleven would have shipped a rune that silently misses the twelfth.
+    id: 'rune_profit_sharing',
+    name: 'Rune of Profit Sharing',
+    cost: 4,
+    epic: true,
+    text: 'Whenever you **gain Gold**, give your **Dwarves +3/+3**.',
+    reward: { kind: 'runeProfitSharing', tribe: 'dwarf', attack: 3, health: 3 },
+    sets: ['set2'], // Dwarves
+  },
 ];
 
 /** Lookup across BOTH runesets — the normal forge stock and the Epic forge stock share one id space so the

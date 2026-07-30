@@ -805,6 +805,8 @@ export type QuestReward =
   /** Rune of Duplication: after you forge your Epic Rune, this becomes a copy of it — its reward applies a
    *  second time. */
   | { kind: 'runeDuplication' }
+  /** Rune of Profit Sharing: whenever you GAIN Gold, give your <tribe> +X/+X wherever they are. */
+  | { kind: 'runeProfitSharing'; tribe: Tribe; attack: number; health: number }
   /** Rune of Investment: selling a minion mints `count` Rubies. */
   | { kind: 'runeSellRubies'; count: number }
   /** Rune of the Open Market: the FIRST Shop minion your Demons Consume each turn buffs the Shop +X/+X

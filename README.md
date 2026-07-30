@@ -44,6 +44,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Lobby mode stopped hitching.** Starting a lobby ran seven full headless runs to build its opponent seats —
+  twice, since they were built only to be probed and then evicted. Recordings are now lazy, memoized, and warmed
+  in shop-phase idle time: 750 ms → 21 ms to start, 950 ms → 4 ms for round 1. And dying in a lobby replayed the
+  *entire* lobby to recapture its boards — ~20 s of frozen end screen; lobby runs now capture their boards as
+  they play, so the longest task after death is 83 ms.
 - **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
   with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
   schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.

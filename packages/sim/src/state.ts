@@ -445,6 +445,8 @@ export interface RunState {
   runeFacetwright?: boolean;
   /** Rune of Duplication: the next Epic rune bought also applies its reward a second time. */
   runeDuplication?: boolean;
+  /** Rune of Profit Sharing: whenever you GAIN Gold, buff this tribe wherever it is. */
+  runeProfitSharing?: { tribe: Tribe; attack: number; health: number };
   /** Rune of Investment: Rubies minted per minion sold. */
   runeSellRubies?: number;
   /** Rune of the Open Market: the first Shop-minion Consume each turn buffs the Shop. `used` resets per turn. */

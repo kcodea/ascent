@@ -1,5 +1,85 @@
 # ASCENT — development log
 
+## 2026-07-30 — The gold-gain chokepoint + Rune of Profit Sharing
+
+**`gainGold(state, amount)` is now the single credit path for Gold.** Twelve sites across the reducer and the
+recruit factories each did `state.embers += n` directly — sells, the Bone Throne, hero powers, quest rewards,
+max-Gold grants, the loss consolation, the combat carry-back. Rune of Profit Sharing ("whenever you gain Gold,
+give your Dwarves +3/+3") had nowhere to hang, and wiring eleven of twelve would have shipped a rune that
+silently misses whichever income the twelfth provides — invisible except as "this rune feels inconsistent".
+
+All twelve now route through the chokepoint; the only surviving `embers +=` in the codebase is inside it.
+**All 3237 tests passed unchanged after the reroute**, which is the signal that mattered: the refactor is
+behaviour-preserving, not just compiling.
+
+**Rune of Profit Sharing** (epic 4) rides it. Per-EVENT, not per-Gold — a 10-Gold payout is one +3/+3, where
+per-coin would make it a +30/+30 swing; there is a test for exactly that. Buffs the tribe in hand as well as on
+board, like every other run-wide tribe effect, and a test drives a REAL sell rather than calling `gainGold`
+directly, so the chokepoint is proven to be reached from actual play.
+
+Verified: typecheck (both), lint (6 pre-existing), 3244 tests, build:web, harness determinism.
+
+**Rune queue: 4 remain.** 43 of 47 done — Counterpoint, Overflow, the Spellstone, and the Trophy family are
+the last engine-shaped items.
+
+## 2026-07-30 — perf(lobby): the two hitches — 750 ms to start a lobby, ~20 s to die in one
+
+Owner bug report: "loading into lobby has some slight lag at hero select → game, and then when the player dies
+there's some delay." Both reproduce, and the second was far worse than it read. One root cause: **lobby opponent
+seats were simulated synchronously on the main thread, at the moments the player is waiting on a transition.**
+
+**Measured first, before touching anything** (headless, `packages/tools` throwaway):
+
+```
+createRunLobby (7 hybrid seats)          752 ms
+first playerOpponent after creation       91 ms   ← the SAME work, done a second time
+replayRun(lobby replay) on death      19 527 ms
+live play, round 10                    4 812 ms   ← not reported, but coming
+```
+
+**1. Starting a lobby (750 ms → 21 ms, measured in the app).** Every `hybridSeat` ran a full `autoplayRun` — a
+complete headless run, ~100 ms — to build its recording, seven of them, before the first frame. Worse, they were
+built only to be *probed* ("can this hero be driven?") and then thrown away by `resetLobbyDrivers`, so the whole
+750 ms was immediately paid a second time on first use. Three changes:
+
+- `recordRun` is now **lazy**: the autoplay doesn't run until a board is actually asked for.
+- New optional `SeatDriver.canFieldBoard()` — a cheap probe. `hybridSeat` answers it from its LIVE half (~5 ms
+  vs ~100 ms), which is also the more truthful answer: a hero whose recording comes back empty still fields
+  boards, because `prepare` falls through to live.
+- Recordings are **memoized** by `(seed, heroId)`, so the deliberate driver eviction stays free. Capped at 128.
+
+Also fixed alongside: the probe cached drivers for candidate heroes it then *rejected*, and `resetLobbyDrivers`
+only iterated the seats that made it — leaving live drivers, already advanced to round 1, cached for the session.
+
+**2. Round 1 (950 ms → 4 ms).** Lazy alone just moves the hitch: all seven recordings then land inside the first
+combat. New `warmLobbySeat(lobby, index)` builds one seat's driver + current-round board, and the store drives it
+one seat per `requestIdleCallback` slice during the opening shop phase. Idempotent, so a seat the round reaches
+first simply finds its driver built. Also runs on **resume** — a restored lobby has an empty driver cache (drivers
+are closures rebuilt from seed, never saved), so its seats must be rebuilt AND re-advanced to the current round.
+
+**3. Dying in a lobby (~20 s block → 83 ms longest task).** On the gameover transition the store called
+`saveRunBoards`, which for a lobby run did `replayRun(replay, createLobbyRun(...))` — **re-running the entire
+lobby**, all seven opponent seats, every round. It sits in a `setTimeout(0)`, so the end screen painted and then
+froze. The replay exists because a run is `(seed, action-log)` and re-deriving boards beats storing them; that
+trade inverts completely here. Lobby runs now capture `snapshotBoard` **live**, at exactly the point `replayRun`
+would have (`faceOmen` landed, combat resolved), into a new `capturedBoards` store field, and `saveCapturedBoards`
+persists them with the same stamping. Identical boards, no replay. `capturedBoards` rides along in the autosave so
+a quit-and-resume doesn't lose the boards played before the reload, and `saveRunBoards` now **refuses** a lobby
+replay outright rather than silently capturing boards that were never played.
+
+**What this did NOT fix, deliberately (owner call).** Per-round bot cost. A live `hard` seat's `prepare()` costs
+200–900 ms and grows with board size; six of them advance per round. Difficulty is not the dial — all four tiers
+share an identical search config and differ only in blunder rate. It bites much later than the headless numbers
+suggested, though: with a populated pool three seats are real player runs (17-wave recordings) and the generated
+recordings cover ~9–13, so a live lobby measured **11–35 ms per round through round 13**. Past that, every seat
+is a live bot. Options when it's picked up: advance seats in shop-phase idle time (the mechanism now exists),
+a worker, or a reduced search budget for lobby seats.
+
+Verified: typecheck (both), lint (0 errors, 6 pre-existing warnings), 3237 tests, build:web. Live in the app on a
+throwaway lobby run — `pickHero` 21 ms, round 1 `faceOmen` 3.7 ms + settle 0.8 ms, per-round 11–35 ms to round 13,
+death → end screen rendered ("8th of 8") with 8 boards captured and written to the library, longest task after
+death 83 ms, no console errors.
+
 ## 2026-07-30 — Rune tranche 12: Facetwright + Duplication (owner rulings unblocked both)
 
 Both were blocked on questions the owner answered today.

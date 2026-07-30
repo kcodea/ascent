@@ -546,6 +546,7 @@ z.object({ kind: z.literal('runeSharedTable'), attack: z.number().int(), health:
 z.object({ kind: z.literal('runeRedirection') }).strict(),
 z.object({ kind: z.literal('runeFacetwright') }).strict(),
 z.object({ kind: z.literal('runeDuplication') }).strict(),
+z.object({ kind: z.literal('runeProfitSharing'), tribe: TribeSchema, attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('runeSellRubies'), count: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeOpenMarket'), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('motherlode'), count: z.number().int().positive(), tribe: TribeSchema.optional() }).strict(),

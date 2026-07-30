@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -1193,7 +1193,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (sold) {
         // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
         // floated can't drift (they did: the bonus used to be added inline here only).
-        s.embers += sellValueWithBonus(sold, s);
+        gainGold(s, sellValueWithBonus(sold, s));
         // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
         if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
         if (s.nextSellBonus) s.nextSellBonus = 0;
@@ -1435,7 +1435,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
-        s.embers += (1 + s.wave) * reps;
+        gainGold(s, (1 + s.wave) * reps);
       } else if (power.kind === 'dynamiteDig') {
         // Jensen: Discover a minion of your CURRENT tier — the FIRST dig is free, then the cost climbs 1
         // each use (0, 1, 2, …). Untargeted; cost + use count handled here (not the shared block).
@@ -2793,7 +2793,7 @@ function openScheduledBasicRuneforge(s: RunState, gold = 0): void {
   s.runeforgeNoCharge = true;
   s.runeforgeRerolled = undefined;
   s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3)));
-  if (gold > 0) s.embers += gold;
+  if (gold > 0) gainGold(s, gold);
 }
 
 /** The distinct minion ids that GREATER-tier quests grant as rewards (grant/recurringGrant/multi cards) — the pool
@@ -2943,6 +2943,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeDuplication':
       s.runeDuplication = true;
       break;
+    case 'runeProfitSharing':
+      s.runeProfitSharing = { tribe: r.tribe, attack: r.attack, health: r.health };
+      break;
     case 'runeSharedTable':
       s.runeSharedTable = { attack: r.attack, health: r.health };
       break;
@@ -3009,7 +3012,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // `immediate` → spend it THIS shop (Rune of Small Fortune: "Get N Gold immediately"). Otherwise bank it
       // into your NEXT shop (Bone Ledger — the standard "Get N Gold" channel, surviving the per-turn embers
       // reset like Hoarder / Bounty Bot's bonus Gold). A Runeforge opens during a shop turn, so += is immediate.
-      if (r.immediate) s.embers += r.amount;
+      if (r.immediate) gainGold(s, r.amount);
       else s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + r.amount;
       break;
     case 'echoRepeat':
@@ -3035,7 +3038,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'gainMaxGold':
       s.maxGoldBonus = (s.maxGoldBonus ?? 0) + r.amount; // Shop License: permanent +max Gold, above the cap
-      s.embers += r.amount; // reflect the raised max in THIS turn's spendable Gold too
+      gainGold(s, r.amount); // reflect the raised max in THIS turn's spendable Gold too
       break;
     case 'discover': {
       // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward

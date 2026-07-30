@@ -31,6 +31,13 @@ The five buckets below are ordered by when we intend to act, not by size:
   human score against boards from other players' finished runs — we're optimizing an unanchored target.
 - **Lobby snapshots — SHIPPED.** Real player runs now hold up to 3 seats and place 3.63 vs bots' 6.58.
   Follow-ups: lobby-native snapshots (these are Ascent-mode boards), and whether placement feeds Renown.
+- **Lobby per-round bot cost.** Deferred by owner call after the creation + death hitches were fixed
+  (2026-07-30). A live `hard` seat's `prepare()` costs 200–900 ms and grows with board size, and six advance
+  per round — currently masked because recordings cover rounds ~1–13, so it only bites in long lobbies, which
+  a lobby (no round cap) will routinely become. Difficulty is NOT the dial: all four tiers share one search
+  config. Options: advance seats in shop-phase idle time (`warmLobbySeat` already exists and is called that
+  way at run start / resume), a Web Worker, or a reduced search budget for lobby seats. Re-measure in play
+  before choosing.
 - **Bot personas — HOLD** until the tiers separate. No point diversifying four bots that measure as one.
   Plan: seeded evaluator weight multipliers + tribe affinity, with a board-divergence metric in
   `lobby:ladder` so it's measured rather than asserted.

@@ -1,5 +1,68 @@
 # ASCENT — development log
 
+## 2026-07-29 — refactor(ui): delete the orphaned Pixi aura-bubble system (−1 WebGL context)
+
+**Ward and Reborn stopped being Pixi a while ago; the machinery that drew them didn't leave.** The persistent
+aura bubbles are CSS dome stacks in `Card.tsx` now — Pixi's only surviving job is the one-shot break burst. But
+the whole bubble subsystem was still compiled, still allocated, and still mounted, drawing nothing.
+
+**What it was still costing.** The dead code owned **a third full-viewport WebGL context**: `attach()` took an
+optional `underParent`, and when given one it spun up a *second* `Application` (`shieldApp`) on its own canvas
+at z3, purely so bubbles could sit under the card chrome. A previous pass had noticed it drew nothing and
+`ticker.stop()`ped it as "dormant" rather than removing it — so the context, its canvas, and its GL resources
+were still created on every boot. (Not to be confused with `discoverFx`, a genuinely separate controller that
+draws the Discover burst and is pinned do-not-delete — that one stays.)
+
+**Removed:** `setShield` / `clearShield` / `hasAura` / `auraRect` / `setShieldsVisible` / `breakShield` /
+`shieldPop`, the `shields` registry, the `ShieldBubble` record, `shieldLayer` / `shieldGeo` / `shieldApp` /
+`underParent`, `auraKey` / `auraMargin`, the per-frame bubble update block in `update()`, the `shields` perf
+counter, the bubble branches in `hasLiveWork()` / `detach()` / `setVisible()`, and **~210 lines of GLSL** —
+`SHIELD_VERT`, `SHIELD_FRAG` and `REBORN_FRAG`, which nothing else compiled. `PixiFxLayer` loses its
+`.pixifx-under` div and `attach()` its second argument; the matching CSS (`.pixifx-under`, its `choreo-open`
+lift, and its entries in the combat in/out fades) goes with it.
+
+**Kept, deliberately:** `shatterAt` and `rebornSummon` — still fired on every ward break / reborn via
+`choreo/channels/aura.ts`. They need `AuraKind` and the per-kind `margin`, so `AURA` survives trimmed down to
+`{ margin }` (both kinds land on 1.16 today; kept per-kind so they can diverge again), as does `BUBBLE_TEX_R`,
+now just the shatter ring's scale reference.
+
+**The DEV `window.__shieldDemo` was repointed, not deleted.** It used to raise a persistent bubble, hold it,
+then break it. The bubble half no longer exists, but the burst it was built to eyeball does — so it now fires
+`shatterAt` directly, and takes a `kind` so the reborn variant is reachable too.
+
+**Rebased across #792, and two of its hunks were load-bearing.** #792 (*defs choose their canvas*) landed while
+this was open and added a THIRD canvas, `.pixifx-below`, for `slot: 'under'` defs — independent of `shieldApp`,
+which it explicitly called out as "the same trick, and predates this". Resolving the overlap needed care in two
+places, because taking this branch's side wholesale would have reverted part of #792: `setVisible` gained
+`underApp.canvas` (dropping it would stop the new under-card canvas fading with the board on Skip), and
+`detach()` gained an `underApp` teardown with `releaseGlobalResources: false`. Both kept; only the `shieldApp`
+halves removed. Canvas count goes **three → two**.
+
+**#792 also corroborated the premise, harder than this PR had.** It verified with `document.elementFromPoint`
+that `.pixifx-under` never drew below the cards at all: `.app` is a stacking context (`z-index: 1`), so z3 on a
+SIBLING outranks everything inside it. The comment claiming otherwise had been false since `.app` took a
+z-index, and went unnoticed precisely because the canvas had been drawing nothing. #792 left it in place with a
+corrected comment; this removes it.
+
+**Verified in game (owner, 2026-07-31)** — and it surfaced two aura FX that do not fire, **both pre-existing and
+neither caused by this change**: the Ward-break shatter, and the Rise re-form on respawn. Proof they are not
+this deletion: calling the survivors directly on this branch spawns particles normally — `shatterAt(…'shield')`
+38, `rebornSummon` 17, `shatterAt(…'reborn')` 31. The renderer and both entry points are healthy. The two that
+fail are the *cue-scheduled, rect-fed* dispatches (`onShieldBreak` / `onReborn` in `useCombatReplay`, via the
+`auraBreak` / `auraReform` cues), which no-op silently on a null rect; the one that works (`burstDeathAuras`)
+fires directly on death. That whole path — `useCombatReplay.ts`, `choreo/score.ts`, `choreo/channels/aura.ts` —
+is untouched by this branch (`aura.ts` is byte-identical to `main`). **Owner ruling: do not resurface them
+here** — they will be rebuilt as authored defs in the FX workbench instead, so the dead cue path is not worth
+repairing.
+
+**Verified:** `npm run typecheck` (pkgs + web) + `npm test` (3517 passed / 194 files) + `npm run build:web` +
+`npm run lint` all green. Bundle measured against `main` rather than asserted: total emitted JS
+**2,631,425 → 2,617,973 bytes (−13,452)**. Worth stating in full rather than quoting the flattering half: the
+*entry* chunk drops ~21.5 kB, but a secondary chunk gains ~7.6 kB because removing the GLSL shifts Rollup's
+chunk boundaries. The saving is real but smaller than the entry-chunk number alone suggests.
+`pixiFx.aura.test.ts` loses its `hasAura`/`auraRect` cases (those queries are gone) and gains coverage that
+`shatterAt` handles both kinds and `rebornSummon` no-ops safely before the renderer is ready.
+
 ## 2026-08-01 — Chipper consumes with ITSELF, not a random friendly Demon
 
 Owner report: golden Chipper fed a random friendly Demon. The factory (`onTribePlayedConsumeShop`) always
@@ -11,6 +74,7 @@ wants it. Golden text rewritten to match ("this Consumes … gains double its st
 
 Tests: three new pins in `set2Demons.test.ts` — plain eats onto itself with the bystander untouched, golden
 doubles onto itself, and Chipper's own arrival never feeds it. Full gates green (3561 tests).
+
 ## 2026-07-31 — Two stale card texts: gilded Bellringer lost "adjacent", Kennelmaster said +1 but gave +2
 
 Owner reports, both the same defect class (a live-text helper or a rebalance erasing the printed truth):
@@ -184,6 +248,7 @@ there is no random pool for a Ruby to leak into), and its two consume-cap suites
 as shells that pass against a mechanic the card no longer has.
 
 Verified: typecheck (both), lint (7 pre-existing), 3513 tests, build:web, harness determinism.
+
 
 ## 2026-07-31 — End Turn lock to 2s; Reinvestment's text tells the truth
 
@@ -763,6 +828,7 @@ rather than argued.
 the fallback preview pane runs hidden, where rAF never ticks and the GSAP-driven beat clock never advances.
 The layering claim (which is the defect) is browser-proven; the spawn wiring is covered by the unit tests and
 the typecheck. Worth an eyeball on a real fight.
+
 ## 2026-07-29 — chore(ui): delete the dead "Shield Place" tuner
 
 **A DEV panel that looked functional and did nothing.** `ShieldTuner` was the last survivor of the Pixi

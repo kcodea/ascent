@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Texture, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import { getSmokeConfig } from './smokeConfig';
 import { perfMonitor } from './perfMonitor';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
@@ -12,218 +12,6 @@ import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 import { resetFxPools } from './fx/fxRuntime';
 import type { FxSlot } from './fx/def';
-
-/**
- * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
- * group (uProjectionMatrix, uWorldTransformMatrix) + the mesh's local-uniform group (uTransformMatrix), so
- * we just declare them and transform the quad; `aUV` (a clean 0..1 from the geometry) feeds the fragment.
- */
-const SHIELD_VERT = /* glsl */ `#version 300 es
-in vec2 aPosition;
-in vec2 aUV;
-out vec2 vUV;
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
-uniform mat3 uTransformMatrix;
-void main() {
-  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
-  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
-  vUV = aUV;
-}
-`;
-
-/**
- * The divine-shield bubble fragment shader (WebGL, GLSL ES 3.0 via Pixi's `Filter.from`). Procedural — it
- * ignores the input texture and draws a glassy energy sphere over the filtered quad: a faked-3D sphere
- * normal drives a moving specular glint; a fresnel term lights the rim like curved glass; a scrolling,
- * aspect-corrected HEX force-field grid + drifting value-noise caustics give the "energy" read; everything
- * breathes on `uTime`. Output is premultiplied gold so it tints the unit behind it (see-through center,
- * bright rim). `uColor` lets the same shader serve the future blue Reborn shield.
- */
-const SHIELD_FRAG = /* glsl */ `#version 300 es
-precision highp float;
-in vec2 vUV;
-out vec4 finalColor;
-uniform float uTime;
-uniform float uAspect;   // card w/h, so the hex cells stay regular on a tall card
-uniform vec3  uColor;    // shield tint (gold for Divine Shield)
-uniform float uSeed;     // per-bubble phase offset so neighbours don't pulse in lockstep
-
-// The card silhouette as a closed polygon (quad coords -1..1, y-down). The shield glass fills this MASK —
-// replacing the old circular clip — so the bubble conforms to the ARCHED card. Sculpted in the shape editor;
-// re-bake from there rather than hand-editing these numbers.
-const int NP = 17;
-const vec2 PTS[17] = vec2[17](
-  vec2( 0.023,-0.795), vec2( 0.349,-0.820), vec2( 0.582,-0.702), vec2( 0.769,-0.509), vec2( 0.853,-0.214),
-  vec2( 0.827, 0.140), vec2( 0.842, 0.477), vec2( 0.843, 0.753), vec2( 0.267, 0.840), vec2(-0.292, 0.833),
-  vec2(-0.834, 0.803), vec2(-0.843, 0.467), vec2(-0.853, 0.189), vec2(-0.871,-0.164), vec2(-0.797,-0.492),
-  vec2(-0.610,-0.702), vec2(-0.322,-0.820)
-);
-// Soft elliptical cutouts (centre, radius) carving the bubble off the badges: tier pill, attack, medallion, health.
-const vec2 CP[4] = vec2[4]( vec2( 0.014,-0.786), vec2(-0.592, 0.761), vec2( 0.005, 0.820), vec2( 0.582, 0.778) );
-const vec2 CR[4] = vec2[4]( vec2( 0.410, 0.260), vec2( 0.400, 0.390), vec2( 0.370, 0.360), vec2( 0.470, 0.480) );
-
-float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-float vnoise(vec2 p){
-  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  float a = hash(i), b = hash(i + vec2(1.0,0.0)), c = hash(i + vec2(0.0,1.0)), d = hash(i + vec2(1.0,1.0));
-  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
-}
-// distance to the nearest edge of a hex cell (flat-top), 0 at centre → ~0.5 at edge
-float hexEdge(vec2 p){ p = abs(p); return max(dot(p, vec2(0.5, 0.8660254)), p.x); }
-// signed distance to the polygon PTS: <0 inside, 0 on an edge, >0 outside (iq winding-number sdf)
-float sdPoly(vec2 p){
-  float d = 1e9, s = 1.0;
-  for (int i = 0; i < NP; i++){
-    int j = (i + NP - 1) % NP;
-    vec2 a = PTS[i], b = PTS[j];
-    vec2 e = b - a, w = p - a;
-    vec2 bb = w - e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0);
-    d = min(d, dot(bb, bb));
-    bvec3 c = bvec3(p.y >= a.y, p.y < b.y, e.x * w.y > e.y * w.x);
-    if (all(c) || all(not(c))) s = -s;
-  }
-  return s * sqrt(d);
-}
-
-void main(){
-  vec2 uv = vUV;               // clean 0..1 straight from the mesh geometry
-  vec2 p = (uv - 0.5) * 2.0;   // -1..1 across the quad
-  float sd = sdPoly(p) - 0.010;  // <0 inside the card silhouette; the small subtract rounds the corners
-
-  // MASK: the glass fills the silhouette with a soft (edge-softness) feathered edge, minus the badge cutouts.
-  float mask = smoothstep(0.0, -0.110, sd);
-  for (int i = 0; i < 4; i++){
-    vec2 dd = (p - CP[i]) / max(CR[i], vec2(0.0001));
-    mask *= 1.0 - smoothstep(1.0, 0.0, length(dd));
-  }
-  if (mask <= 0.001) { finalColor = vec4(0.0); return; }
-
-  // faked dome normal (radial proxy) → moving specular glint (sells the glass)
-  float d = length(p);
-  float z = sqrt(max(0.0, 1.0 - min(d * d, 1.0)));
-  vec3 n = vec3(p, z);
-  vec3 L = normalize(vec3(-0.45, -0.6, 0.65));
-  float spec = pow(max(0.0, dot(reflect(-L, n), vec3(0.0, 0.0, 1.0))), 26.0) * 1.05;
-
-  // fresnel RIM hugging the polygon edge (so it conforms to whatever silhouette is sculpted)
-  float rim = exp(-abs(sd) * 5.0) * 1.10;
-
-  // hex force-field: two offset lattices → honeycomb, scrolling + pulsing
-  vec2 hp = p * vec2(uAspect, 1.0) * 4.4;
-  vec2 cell = vec2(1.0, 1.7320508);
-  vec2 h1 = mod(hp, cell) - cell * 0.5;
-  vec2 h2 = mod(hp + cell * 0.5, cell) - cell * 0.5;
-  vec2 hh = dot(h1, h1) < dot(h2, h2) ? h1 : h2;
-  float edge = smoothstep(0.36, 0.5, hexEdge(hh));
-  float hexPulse = 0.55 + 0.585 * sin(uTime * 2.08 + (uv.x + uv.y) * 6.0 + uSeed); // +30% speed + swing
-  float hex = edge * (0.3 + 0.5 * hexPulse) * 0.40;   // hex opacity
-
-  // drifting energy caustics feed the translucent interior — interior opacity tuned to 0, so the body drops
-  // out and the shield reads as a hollow rim+hex+glint glass. (Kept wired so the interior is one dial away.)
-  float e = vnoise(p * 3.0 + vec2(uTime * 0.30, -uTime * 0.22) + uSeed)
-          + 0.5 * vnoise(p * 6.0 - vec2(uTime * 0.25, uTime * 0.30));
-  float energy = 0.12 + 0.22 * e;
-  float pulse = 0.85 + 0.195 * sin(uTime * 1.1 * 1.105 + uSeed);   // whole-bubble colour breathe (+30% speed + swing)
-
-  float bodyA = (0.16 + energy * 0.5) * pulse * 0.00;   // translucent interior (tuned OFF)
-  float alpha = clamp(bodyA + rim * 0.85 + hex * 0.5, 0.0, 0.92) * mask;
-
-  vec3 col = uColor * (bodyA + rim * 1.3 + hex) * pulse;
-  col += vec3(1.0, 0.96, 0.85) * spec * 1.5;              // white-gold specular glint
-  col += uColor * rim * 0.6;                              // rim bloom
-
-  finalColor = vec4(col * alpha, alpha);                  // premultiplied
-}
-`;
-
-/**
- * The REBORN aura fragment shader — the wispy, wraith-spirit sibling of the shield shader. No glassy
- * fresnel rim or hex force-field; instead a hazy translucent body with slow DRIFTING fbm-noise wisps that
- * RISE (like a hovering spirit), brighter tendril streaks, a very soft feathered edge, and a gentle pulse.
- * Premultiplied; `uColor` is a spectral blue. Reuses the same quad + vUV as the shield mesh.
- */
-const REBORN_FRAG = /* glsl */ `#version 300 es
-precision highp float;
-in vec2 vUV;
-out vec4 finalColor;
-uniform float uTime;
-uniform float uAspect;
-uniform vec3  uColor;
-uniform float uSeed;
-
-// The card silhouette traced as a closed polygon OUTLINE (quad coords -1..1, y-down; the quad is the card ×
-// the reborn margin, so these points hug the ARCHED card edge — dome top, vertical sides, rounded bottom).
-// Sculpted live in the in-chat shape editor; tweak there and re-bake rather than hand-editing these numbers.
-const int NP = 15;
-const vec2 PTS[15] = vec2[15](
-  vec2( 0.021, -0.687), vec2( 0.335, -0.775), vec2( 0.685, -0.539), vec2( 0.804, -0.331),
-  vec2( 0.827,  0.140), vec2( 0.842,  0.477), vec2( 0.812,  0.833), vec2( 0.267,  0.840),
-  vec2(-0.292,  0.833), vec2(-0.821,  0.807), vec2(-0.843,  0.463), vec2(-0.851,  0.188),
-  vec2(-0.851, -0.122), vec2(-0.761, -0.472), vec2(-0.374, -0.761)
-);
-// Soft elliptical cutouts (centre, radius) that carve the aura off the badges: tier pill, attack, medallion, health.
-const vec2 CP[4] = vec2[4]( vec2( 0.014, -0.828), vec2(-0.590, 0.773), vec2(-0.001, 0.813), vec2( 0.566, 0.759) );
-const vec2 CR[4] = vec2[4]( vec2( 0.490,  0.410), vec2( 0.600, 0.560), vec2( 0.490, 0.270), vec2( 0.670, 0.630) );
-
-float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-float vnoise(vec2 p){
-  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  float a = hash(i), b = hash(i + vec2(1.0,0.0)), c = hash(i + vec2(0.0,1.0)), d = hash(i + vec2(1.0,1.0));
-  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
-}
-float fbm(vec2 p){ float v = 0.0, a = 0.55; for (int i = 0; i < 4; i++){ v += a * vnoise(p); p = p * 2.0 + 7.3; a *= 0.5; } return v; }
-// signed distance to the polygon PTS: <0 inside, 0 on an edge, >0 outside (iq's winding-number sdf)
-float sdPoly(vec2 p){
-  float d = 1e9, s = 1.0;
-  for (int i = 0; i < NP; i++){
-    int j = (i + NP - 1) % NP;
-    vec2 a = PTS[i], b = PTS[j];
-    vec2 e = b - a, w = p - a;
-    vec2 bb = w - e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0);
-    d = min(d, dot(bb, bb));
-    bvec3 c = bvec3(p.y >= a.y, p.y < b.y, e.x * w.y > e.y * w.x);
-    if (all(c) || all(not(c))) s = -s;
-  }
-  return s * sqrt(d);
-}
-
-void main(){
-  vec2 p = (vUV - 0.5) * 2.0;    // -1..1 over the quad (card edge ≈ the PTS ring; +y is down)
-  // the card's arched border, traced as a glowing OUTLINE — hollow centre, the art stays clear.
-  float sd = sdPoly(p) - 0.010;  // sd≈0 sits on the edge; the small subtract rounds the polygon corners
-
-  // drifting fbm noise feeds the tendril licks (warp tuned to 0 here → the band itself stays steady)
-  vec2 q = p * vec2(uAspect, 1.0);
-  float t = uTime * 0.20;
-  float n  = fbm(q * 2.6 + vec2(t * 0.5, -t) + uSeed);
-  float n2 = fbm(q * 5.2 - vec2(t * 0.8, t * 0.5) + uSeed * 1.9);
-  float band = sd;
-
-  float core = exp(-abs(band) * 7.0);   // tight bright outline on the border
-  float halo = exp(-abs(band) * 6.0);   // a snug glow hugging the line — hollow centre (far inside → 0)
-  // tendrils: noise-driven licks, GATED to the border (exp on |band|) so they don't fill the centre
-  float tend = smoothstep(0.46, 0.9, n + 0.25 * n2) * exp(-abs(band) * 3.0);
-
-  float pulse = 0.85 + 0.15 * sin(uTime * 1.1 + uSeed);
-  float lit = (core * 0.9 + halo * 0.45 + tend * 0.8) * pulse;
-  float fade = smoothstep(0.99, 0.55, max(abs(p.x), abs(p.y))); // don't clip hard at the quad edge
-  float alpha = clamp(lit * fade, 0.0, 0.40);
-
-  // CARVE the aura away from each badge so it doesn't glow over them — soft elliptical cutouts in quad space.
-  float cut = 0.0;
-  for (int i = 0; i < 4; i++){
-    vec2 dd = (p - CP[i]) / max(CR[i], vec2(0.0001));
-    cut = max(cut, smoothstep(1.0, 0.0, length(dd)));
-  }
-  alpha *= 1.0 - cut;
-
-  // stay SATURATED blue (uColor-dominant); only a soft bright core, not a white wash
-  vec3 col = uColor * (core * 0.9 + halo * 0.85 + tend * 1.2);
-  col += vec3(0.82, 0.92, 1.0) * core * 0.4;
-  finalColor = vec4(col * alpha, alpha);                   // premultiplied
-}
-`;
 
 /**
  * The WebGL effects layer — a single transparent PixiJS overlay stretched over the whole
@@ -518,56 +306,20 @@ interface DescendFx {
   pulse: PulseCfg;       // fired on landing
 }
 
-/**
- * A persistent divine-shield bubble bound to one unit (by uid). Unlike particles (fire-and-forget),
- * it lives until the shield breaks or is cleared, breathing on the ticker and tracking the unit's
- * on-screen rect. The React layers measure the rect and push it via `setShield`; this stays DOM-agnostic.
- */
-/** Which flavour of persistent aura — gold glassy Divine Shield or blue wispy Reborn spirit. (Taunt no
- *  longer has a Pixi aura — it signifies via a static grey card border; see `.card.taunt` in styles.css.) */
+/** Which flavour of aura BREAK to play — gold glassy Divine Shield or blue wispy Reborn spirit. The
+ *  persistent bubbles themselves are CSS dome stacks now (see `.card.dscard` / `.reborncard` and
+ *  `Card.tsx`); Pixi only draws the one-shot shatter. (Taunt has no aura — it signifies via a static grey
+ *  card border; see `.card.taunt` in styles.css.) */
 type AuraKind = 'shield' | 'reborn';
 
-interface ShieldBubble {
-  kind: AuraKind;        // picks the shader + break/pop colour
-  container: Container;
-  // A quad mesh the aura shader draws onto (clean 0..1 UVs). Explicit SHADER param: Mesh defaults to
-  // `TextureShader`, but the aura shader is a bare `Shader` (it samples nothing — it draws the bubble).
-  mesh: Mesh<MeshGeometry, Shader>;
-  shader: Shader;        // the per-bubble aura shader (its uTime/uAspect animate each frame)
-  cx: number; cy: number; // target center (viewport px)
-  w: number; h: number;   // target footprint (the card's size)
-  age: number;            // ms lived — drives the breathe phase + vein drift
-  formIn: number;         // ms elapsed of the grow-in (clamped at FORM_MS)
-  fadeOut: number;        // ms elapsed of a graceful clear (−1 = not fading)
-  mini: boolean;          // true while the card is being dragged → shrink to a small trailing sparkle
-  pop: number;            // ms elapsed of the coalesce/pop-in on placement (−1 = not popping)
-  scaleMul: number;       // current size multiplier (lerps toward 1 or MINI_SCALE; the pop drives it directly)
-  rot: number;            // current rotation (rad) — matches the card's live transform (lunge tilt) when tracking
-  /** Optional live position source, called every FX frame right before render — lets the bubble measure its
-   *  card in Pixi's OWN frame (after GSAP applies the lunge/recoil transform + rotation), so a fast-moving unit's
-   *  aura never trails or un-rotates from the card. Returns null when the card isn't measurable (keeps the last). */
-  track: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null) | null;
-}
-
-// Shield-bubble feel (tunable live via window.__pixiFx in DEV). The shield shader draws into a quad of
-// half-size BUBBLE_TEX_R; the container is scaled per-unit to fit the card's footprint.
-const BUBBLE_TEX_R = 40;       // shader quad half-size (px) before per-unit scaling
+const BUBBLE_TEX_R = 40;       // shatter ring/rim scale reference (px)
 const PULSE_TEX_R = 50;        // impact pulse-ring texture radius (px); callers scale wantedRadius / PULSE_TEX_R
-const BREATHE_MS = 2600;       // slow pulse period (the shader also breathes on its own clock)
-const FORM_MS = 260;           // grow-in when a shield is gained
-const FADE_MS = 30;            // graceful fade when a shield is cleared without breaking (near-instant)
-const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing sparkle of the card)
-const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
-const SHIELD_GOLD_RGB = [1.0, 0.89, 0.36]; // Divine-Shield shader tint, tuned in the shape editor
-const REBORN_BLUE_RGB = [0.32, 0.59, 1.0]; // Reborn wisp tint (spectral blue), tuned in the shape editor
-/** Per-kind aura config: the fragment shader, base colour, and footprint margin (shield sits INSIDE the
- *  card frame; reborn rides slightly PROUD of it). */
-const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTint: number; margin: number }> = {
-  shield: { frag: SHIELD_FRAG, rgb: SHIELD_GOLD_RGB, tint: 0xffd24a, rimTint: 0xffe9a8, margin: 1.16 },
-  reborn: { frag: REBORN_FRAG, rgb: REBORN_BLUE_RGB, tint: 0x6ab0ff, rimTint: 0xbfe2ff, margin: 1.16 },
+/** Per-kind footprint margin for the break burst: shield sits INSIDE the card frame, reborn rides slightly
+ *  PROUD of it. (Both land on the same value today; kept per-kind so they can diverge again.) */
+const AURA: Record<AuraKind, { margin: number }> = {
+  shield: { margin: 1.16 },
+  reborn: { margin: 1.16 },
 };
-const auraKey = (kind: AuraKind, uid: string): string => `${kind}|${uid}`;
-const auraMargin = (kind: AuraKind): number => AURA[kind].margin;
 
 /**
  * A CSS-style `cubic-bezier(x1, 0, x2, 1)` timing function, solved by binary search on x (~20 iterations).
@@ -653,12 +405,6 @@ class FxController {
   private readonly critTextCache = new Map<string, Texture>(); // "CRIT!" textures keyed by size|color|edge
   private readonly pulses: PulseFx[] = [];
   private readonly descends: DescendFx[] = [];
-  private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
-  private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
-  private underParent: HTMLElement | null = null; // low z (below the card badges) so the chrome reads on top; the
-  //                                                 break burst still fires on the main (z110) canvas, over them.
-  private shieldGeo: MeshGeometry | null = null; // shared quad geometry (−R..R, uv 0..1) for every bubble mesh
-  private readonly shields = new Map<string, ShieldBubble>();
   private readonly live: Particle[] = [];
   private readonly pool: Sprite[] = [];
   private fadeRaf = 0; // in-flight setVisible fade (rAF) — cancelled if a new fade starts
@@ -669,9 +415,8 @@ class FxController {
   /** When true, this controller STOPS its own ticker whenever nothing is live, and restarts it on the next
    *  spawn. Used for `discoverFx` — a SECOND full-viewport WebGL context that only ever draws the one-shot
    *  Discover burst, so between bursts (and while a Discover sits OPEN after the burst has died) it must not
-   *  clear + present an empty stage every frame at native fullscreen res (the exe's 2885×1440). Same reasoning
-   *  as the shieldApp idle. The MAIN controller leaves this OFF — it renders continuously (aim line, persistent
-   *  auras, combat FX all need the per-frame tick). */
+   *  clear + present an empty stage every frame at native fullscreen res (the exe's 2885×1440). The MAIN
+   *  controller leaves this OFF — it renders continuously (aim line, combat FX all need the per-frame tick). */
   private autoIdle = false;
 
   /** Track the stage scale so combat particle bursts shrink with the cards (see `fxScale`). Idempotent; cheap. */
@@ -693,13 +438,14 @@ class FxController {
 
   // ─── the UNDER slot ────────────────────────────────────────────────────────────────────────────────────
   //
-  // A THIRD canvas, for effects a def marks `slot: 'under'` — the ground slams, scorch marks and pools of
+  // The SECOND canvas, for effects a def marks `slot: 'under'` — the ground slams, scorch marks and pools of
   // light that should read as happening ON the board rather than in front of it.
   //
   // Why a separate `Application` and not another `Container` on the main stage: the cards are DOM and the
   // overlay is one WebGL canvas, so "beneath the cards" is a DOM z-index question, not a Pixi draw-order
   // one. There is no way to interleave a Pixi container with DOM siblings; it takes a second canvas parked
-  // at a lower z. (`shieldApp` below is the same trick, and predates this.)
+  // at a lower z. (`shieldApp` used the same trick and predated this; it drew nothing once the auras became
+  // CSS domes, and has since been deleted — this is now the only other canvas.)
   //
   // It is created LAZILY — on the first `mountLayer(_, 'under')` — and never at all in a session that fires
   // no under-slot effect. A full-viewport compositing layer + GL context is not free (see docs/performance.md
@@ -833,20 +579,18 @@ class FxController {
       this.live.length > 0 || this.skullPops.length > 0 || this.tendrils.length > 0 ||
       this.gusts.length > 0 || this.weldRings.length > 0 || this.spellArrows.length > 0 ||
       this.waves.length > 0 || this.slashes.length > 0 || this.critFxs.length > 0 ||
-      this.pulses.length > 0 || this.descends.length > 0 || this.shields.size > 0 || this.aim !== null
+      this.pulses.length > 0 || this.descends.length > 0 || this.aim !== null
     );
   }
 
   /** Mount the overlay canvas into `parent` (a fixed, full-viewport, pointer-events:none div).
    *  Lazily creates the PixiJS Application on first call and reuses it thereafter. */
-  attach(parent: HTMLElement, underParent?: HTMLElement): Promise<void> {
+  attach(parent: HTMLElement): Promise<void> {
     if (typeof window === 'undefined') return Promise.resolve(); // SSR guard
     if (this.app) {
       parent.appendChild(this.app.canvas); // re-mount the existing canvas (e.g. after a remount)
-      if (this.shieldApp && underParent) underParent.appendChild(this.shieldApp.canvas);
       return Promise.resolve();
     }
-    this.underParent = underParent ?? null;
     if (this.initing) return this.initing;
     this.initing = this.init(parent).catch((e) => {
       // A failed init (e.g. no WebGL context) otherwise fails silently and every impact() no-ops.
@@ -879,36 +623,8 @@ class FxController {
     canvas.style.display = 'block';
     parent.appendChild(canvas);
 
-    const shieldLayer = new Container();
     const layer = new Container();
     app.stage.addChild(layer);
-
-    // If an under-parent was provided, the persistent bubbles render on a SEPARATE canvas mounted at a low
-    // z-index (below the card badges), so attack/health/tier/effect chrome always reads over the shield —
-    // while the break burst (shards/flash) stays on THIS main canvas (z110) and still draws over the chrome.
-    // The bubble mesh is procedural (no textures), so it renders cleanly in the second GL context.
-    if (this.underParent) {
-      const sApp = new Application();
-      await sApp.init({
-        resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
-        resolution: res, preference: 'webgl', powerPreference: 'high-performance',
-      });
-      const sc = sApp.canvas;
-      sc.style.position = 'absolute'; sc.style.top = '0'; sc.style.left = '0';
-      sc.style.pointerEvents = 'none'; sc.style.display = 'block';
-      this.underParent.appendChild(sc);
-      sApp.stage.addChild(shieldLayer);
-      this.shieldApp = sApp;
-      // Dormant by default (perf): the persistent Ward/Reborn BUBBLES are CSS now (see the `continue` in
-      // Recruit's aura tracker), so `setShield` is never reached and this second full-viewport WebGL context has
-      // nothing to draw — yet an autoStart ticker would still clear + present an empty stage every frame,
-      // forever, at native fullscreen res on the exe. Stop it; `setShield` restarts it the moment a bubble is
-      // ever set again, so this can never hide a live bubble even if the CSS decision is reverted.
-      sApp.ticker.stop();
-    } else {
-      // Single-canvas mode: bubbles beneath the particle layer on the same canvas.
-      app.stage.addChildAt(shieldLayer, 0);
-    }
 
     this.app = app;
     this.layer = layer;
@@ -916,13 +632,6 @@ class FxController {
       for (const c of this.pendingMounts) this.layer.addChild(c);
       this.pendingMounts.length = 0;
     }
-    this.shieldLayer = shieldLayer;
-    // shared centred quad (−R..R) with 0..1 UVs — every bubble mesh reuses it; the container scales it per-unit
-    this.shieldGeo = new MeshGeometry({
-      positions: new Float32Array([-BUBBLE_TEX_R, -BUBBLE_TEX_R, BUBBLE_TEX_R, -BUBBLE_TEX_R, BUBBLE_TEX_R, BUBBLE_TEX_R, -BUBBLE_TEX_R, BUBBLE_TEX_R]),
-      uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-    });
     this.sparkTex = this.makeSparkTexture(app);
     this.glowTex = this.makeGlowTexture(app);
     this.shardRectTex = this.makeShardRectTexture(app);
@@ -945,7 +654,6 @@ class FxController {
     perfMonitor.registerCounter('sprite pool', () => this.pool.length);
     perfMonitor.registerCounter('weld rings', () => this.weldRings.length);
     perfMonitor.registerCounter('spell arrows', () => this.spellArrows.length);
-    perfMonitor.registerCounter('shields', () => this.shields.size);
     this.ready = true;
   }
 
@@ -978,10 +686,6 @@ class FxController {
     this.waves.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
     this.skullTex?.destroy(true);
     this.skullTex = null;
-    for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
-    this.shields.clear();
-    this.shieldGeo?.destroy();
-    this.shieldGeo = null;
     // Drop the def-runtime pools before the Application goes. They are MODULE-GLOBAL, so they outlive this
     // `detach()` — and the stage teardown below (`{ children: true }`) destroys any container a live def
     // effect still has mounted, so without this a later release could file a destroyed pair back into the
@@ -993,7 +697,7 @@ class FxController {
     this.app.ticker.remove(this.renderUnder);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     if (this.underApp) {
-      // `releaseGlobalResources` is FALSE here, unlike the two apps around it: the under canvas shares Pixi's
+      // `releaseGlobalResources` is FALSE here, unlike the main app above: the under canvas shares Pixi's
       // module-global caches (programCache, the FX shader/particle pools) with the main overlay, and this
       // detach happens with the main app already gone — releasing them a second time would free descriptors
       // the pools still reference. `resetFxPools()` above is what clears the FX side.
@@ -1003,13 +707,8 @@ class FxController {
       this.underIniting = null;
       this.pendingUnderMounts.length = 0;
     }
-    if (this.shieldApp) {
-      this.shieldApp.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
-      this.shieldApp = null;
-    }
     this.app = null;
     this.layer = null;
-    this.shieldLayer = null;
     this.sparkTex = null;
     this.glowTex = null;
     this.shardRectTex = null;
@@ -1731,106 +1430,7 @@ class FxController {
     }
   }
 
-  /**
-   * Create or update the divine-shield bubble for `uid`, centered at (cx, cy) and sized to a unit
-   * footprint of w×h (the card's rect). Idempotent: the first call spawns the bubble (with a grow-in);
-   * later calls just retarget it (so it tracks the unit as it moves). The React layers call this for
-   * every shielded unit whenever the shielded set or any position changes. No-op until the app is ready.
-   * `mini` = the card is being dragged → shrink to a small trailing sparkle; when a `mini` bubble is next
-   * set with `mini=false` (the card is placed), it coalesces/pops back to full size.
-   */
-  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null, instant = false): void {
-    if (!this.ready || !this.shieldLayer) return;
-    this.shieldApp?.ticker.start(); // resume the (perf-dormant) bubble canvas — no-op if already running or single-canvas
-    const key = auraKey(kind, uid);
-    let b = this.shields.get(key);
-    if (!b) {
-      const container = new Container();
-      // A quad mesh the aura shader draws onto. The geometry's UVs are a clean 0..1, so the fragment maps the
-      // sphere/wisp exactly. The container scales it to the card footprint; the shader is chosen per kind.
-      const uniforms: Record<string, { value: number | Float32Array; type: string }> = {
-        uTime: { value: 0, type: 'f32' },
-        uAspect: { value: w / Math.max(1, h), type: 'f32' },
-        uColor: { value: new Float32Array(AURA[kind].rgb), type: 'vec3<f32>' },
-        uSeed: { value: (this.shields.size % 7) * 1.3, type: 'f32' }, // de-sync neighbours' pulses
-      };
-      const shader = Shader.from({
-        gl: { vertex: SHIELD_VERT, fragment: AURA[kind].frag },
-        resources: { shieldUniforms: uniforms },
-      });
-      const mesh = new Mesh({ geometry: this.shieldGeo!, shader });
-      container.addChild(mesh);
-      // `instant` (a bubble re-created across a combat↔recruit transition, not a genuine recruit play) → born
-      // fully-formed at full alpha, so it doesn't replay its deploy snap-in as the board swaps.
-      container.alpha = instant ? 1 : 0;
-      this.shieldLayer.addChild(container);
-      b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: instant ? 1e6 : 0, fadeOut: -1,
-            mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, rot: 0, track };
-      this.shields.set(key, b);
-    } else {
-      b.cx = cx; b.cy = cy; b.w = w; b.h = h; b.track = track;
-      b.fadeOut = -1; // re-targeted while fading (re-gained) → cancel the fade
-      if (instant) b.formIn = 1e6; // combat↔recruit swap: force fully-formed even if the bubble already exists (churn)
-      // Dragged (mini) → placed (full): coalesce/pop the bubble back into existence (inverse of the break).
-      if (b.mini && !mini) { b.pop = 0; this.shieldPop(cx, cy, w, h, kind); }
-      b.mini = mini;
-    }
-  }
-
-  /** The placement coalesce: a bright central flash + a ring of sparkles rushing INWARD to the center —
-   *  the inverse of the break's outward shrapnel. Fired when a dragged shield is set down. */
-  private shieldPop(cx: number, cy: number, w: number, h: number, kind: AuraKind = 'shield'): void {
-    if (!this.ready) return;
-    const rad = Math.max(w, h) * 0.5 * auraMargin(kind);
-    const c = AURA[kind];
-    // central flash that blooms as the bubble snaps in
-    this.spawn(this.bubbleTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 240, fromScale: (rad / BUBBLE_TEX_R) * 0.35,
-      toScale: (rad / BUBBLE_TEX_R) * 1.05, spin: 0, tint: c.rimTint, blend: 'add', peakAlpha: 0.8,
-    });
-    // sparkles starting on a ring and rushing inward to coalesce at the center
-    const n = 10;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-      const r0 = rad * 1.4;
-      const speed = 360 + Math.random() * 260;
-      this.spawn(this.sparkTex!, {
-        x: cx + Math.cos(a) * r0, y: cy + Math.sin(a) * r0,
-        vx: -Math.cos(a) * speed, vy: -Math.sin(a) * speed, // inward
-        drag: 0.05, // decelerate hard as they reach the middle
-        life: 240 + Math.random() * 120, fromScale: 0.8 + Math.random() * 0.5, toScale: 0.05,
-        spin: 0, tint: c.rimTint, blend: 'add', peakAlpha: 0.95,
-      });
-    }
-  }
-
-  /** Gracefully fade out and remove an aura that was removed WITHOUT breaking (sold / left the field). */
-  clearShield(uid: string, kind: AuraKind = 'shield'): void {
-    const b = this.shields.get(auraKey(kind, uid));
-    if (b && b.fadeOut < 0) b.fadeOut = 0;
-  }
-
-  /** True if a persistent aura bubble of this kind is currently registered for `uid` (the choreographer's
-   *  aura channel consults this to decide which of a dying unit's auras to burst — pixiFx's registry is the
-   *  source of truth for which auras a unit carries; the Score decides when). */
-  hasAura(uid: string, kind: AuraKind = 'shield'): boolean {
-    return this.shields.has(auraKey(kind, uid));
-  }
-
-  /** The tracked center + footprint of `uid`'s aura bubble, or null if none — for a caller needing explicit
-   *  coords rather than the bubble's own stored ones (breakShield reads the latter directly). */
-  auraRect(uid: string, kind: AuraKind = 'shield'): { cx: number; cy: number; w: number; h: number } | null {
-    const b = this.shields.get(auraKey(kind, uid));
-    return b ? { cx: b.cx, cy: b.cy, w: b.w, h: b.h } : null;
-  }
-
-  /** Show/hide ALL shield bubbles at once — used to suppress them behind a board-covering modal (Discover /
-   *  Choose One sit below the FX canvas with a translucent backdrop, so bubbles would otherwise show over it). */
-  setShieldsVisible(visible: boolean): void {
-    if (this.shieldLayer) this.shieldLayer.visible = visible;
-  }
-
-  /** Freeze/thaw ALL Pixi motion — stops the ticker, so every live particle + the bubble breathing holds its
+  /** Freeze/thaw ALL Pixi motion — stops the ticker, so every live particle holds its
    *  last frame in place. Used by the Skip-combat fade so nothing keeps moving while the board pauses + fades
    *  out (the canvas opacity is faded separately via CSS, which doesn't need the ticker running). */
   setPaused(paused: boolean): void {
@@ -1839,14 +1439,15 @@ class FxController {
     else this.app.ticker.start();
   }
 
-  /** Fade the WHOLE FX layer (both canvases) in/out over `ms` — used by the Skip transition so every particle +
-   *  persistent aura bubble fades WITH the board. The canvases are mounted app-wide at BODY level (outside
-   *  `.app`), so a CSS `.app.combatout` selector can't reach them; and a CSS *transition* never progresses on a
+  /** Fade the WHOLE FX layer in/out over `ms` — used by the Skip transition so every particle fades WITH the
+   *  board. Both canvases are covered: the main overlay (mounted app-wide at BODY level, outside `.app`) and
+   *  the under-slot canvas (inside `.app`). A CSS `.app.combatout` selector can't reach the first; and a CSS
+   *  *transition* never progresses on a
    *  live WebGL canvas (the render loop defeats it — an inline `opacity:0` stays computed `1` under a transition,
    *  but holds under `transition:none`). So we step the opacity ourselves each frame via rAF (which keeps running
    *  even while the Pixi/GSAP tickers are paused for the freeze). `ms = 0` = an instant set. */
   setVisible(visible: boolean, ms = 260): void {
-    const canvases = [this.app?.canvas, this.shieldApp?.canvas, this.underApp?.canvas].filter(Boolean) as HTMLCanvasElement[];
+    const canvases = [this.app?.canvas, this.underApp?.canvas].filter(Boolean) as HTMLCanvasElement[];
     if (!canvases.length) return;
     for (const c of canvases) c.style.transition = 'none'; // the fade is rAF-driven, not CSS
     cancelAnimationFrame(this.fadeRaf);
@@ -1899,24 +1500,7 @@ class FxController {
   }
 
   /**
-   * The shield SHATTERS (a hit absorbed): a quick crack-flash + fracture lines, then a small explosion —
-   * an energy shockwave ring, a spray of golden shrapnel shards, and a few energy motes. The persistent
-   * bubble is removed immediately; the burst is fire-and-forget on the particle layer.
-   */
-  breakShield(uid: string, kind: AuraKind = 'shield'): void {
-    const key = auraKey(kind, uid);
-    const b = this.shields.get(key);
-    if (!b) return;
-    const { cx, cy, w, h } = b;
-    b.shader.destroy();
-    b.container.destroy({ children: true });
-    this.shields.delete(key);
-    this.shatterAt(cx, cy, w, h, kind);
-  }
-
-  /**
-   * The shield SHATTERS at an explicit rect (no persistent bubble needed) — the CSS-ward break path calls this
-   * with the card's rect; `breakShield` (reborn) calls it with the destroyed bubble's coords. A pure gold
+   * The shield SHATTERS at an explicit rect — the CSS-ward break path calls this with the card's rect. A pure gold
    * explosion: fracture lines + shockwave rings + shrapnel shards + energy motes. Deliberately NO bubble/shield
    * DISC flash — the old hex-shield bubble is retired, so the break reads as a shatter, not a shield reappearing.
    */
@@ -3347,56 +2931,6 @@ class FxController {
       this.rebuildRibbon(d.g, pts, d.cfg, fade);
     }
 
-    // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.
-    for (const [uid, b] of this.shields) {
-      b.age += dtMs;
-      // Live-track the card in THIS frame (after GSAP's lunge/recoil transform) so the aura never trails it.
-      if (b.track) { const r = b.track(); if (r) { b.cx = r.cx; b.cy = r.cy; b.w = r.w; b.h = r.h; b.rot = r.rot; } }
-      else b.rot = 0;
-      // grow-in (gain) and optional fade-out (graceful clear): shield/reborn fade in + settle gently.
-      const formT = Math.min(1, b.formIn / FORM_MS);
-      b.formIn += dtMs;
-      const formEase = 1 - (1 - formT) * (1 - formT);
-      let life = formEase;                                      // overall opacity envelope
-      const extraScale = 1 + (1 - formEase) * 0.16;             // start a touch large, settle
-      if (b.fadeOut >= 0) {
-        const fT = Math.min(1, b.fadeOut / FADE_MS);
-        b.fadeOut += dtMs;
-        life *= 1 - fT;
-        if (fT >= 1) { b.shader.destroy(); b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
-      }
-      // a subtle container size-breathe — REBORN only. The divine shield holds a steady size (its colour/energy
-      // pulse, owned by the shader, still breathes); only the wispy reborn bobs.
-      const breatheScale = b.kind === 'reborn' ? 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04 : 1;
-      // drag-mini / placement-pop size: the pop drives an ease-out-back overshoot from mini → full; otherwise
-      // the size eases toward its target (full=1, dragging=MINI_SCALE) so pickup/drop shrink+grow smoothly.
-      if (b.pop >= 0) {
-        const popT = Math.min(1, b.pop / POP_MS);
-        const k = popT - 1;
-        const back = 1 + 3.6 * k * k * k + 2.6 * k * k; // ease-out-back — peaks ~+13% then settles to 1 (a clear snap)
-        b.scaleMul = MINI_SCALE + (1 - MINI_SCALE) * back;
-        b.pop += dtMs;
-        if (popT >= 1) { b.pop = -1; b.scaleMul = 1; }
-      } else {
-        const target = b.mini ? MINI_SCALE : 1;
-        b.scaleMul += (target - b.scaleMul) * Math.min(1, dt * 14);
-      }
-      // fit the BUBBLE_TEX_R quad to the unit footprint (non-uniform → ellipse), per-kind margin
-      const margin = AURA[b.kind].margin;
-      const sx = (b.w * 0.5 * margin) / BUBBLE_TEX_R;
-      const sy = (b.h * 0.5 * margin) / BUBBLE_TEX_R;
-      const grow = breatheScale * extraScale * b.scaleMul;
-      b.container.x = b.cx;
-      b.container.y = b.cy;
-      b.container.scale.set(sx * grow, sy * grow);
-      b.container.rotation = b.rot; // ride the card's lunge tilt (0 for non-tracked / recruit auras)
-      b.container.alpha = life; // form-in / fade / mini envelope; the shader owns its internal opacity
-      // drive the shield shader
-      const u = (b.shader.resources.shieldUniforms as { uniforms: Record<string, number | Float32Array> }).uniforms;
-      u.uTime = b.age / 1000;
-      u.uAspect = b.w / Math.max(1, b.h);
-    }
-
     // Idle controller (discoverFx): the instant nothing is left to draw, release the ticker so this second
     // full-viewport context stops clearing + presenting an empty stage every frame. A spawn restarts it.
     if (this.autoIdle && !this.hasLiveWork()) this.app?.ticker.stop();
@@ -3565,20 +3099,18 @@ let discoverFxWarmed = false;
 // DEV: expose for live effect tuning + manual firing from the console (mirrors the SfxMixer dev
 // affordance). Stripped from production by the static env check.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  const w = window as unknown as { __pixiFx: FxController; __discoverFx: FxController; __shieldDemo: (loops?: number) => void };
+  const w = window as unknown as { __pixiFx: FxController; __discoverFx: FxController; __shieldDemo: (loops?: number, kind?: AuraKind) => void };
   w.__pixiFx = pixiFx;
   w.__discoverFx = discoverFx;
-  // DEV: drop a shield bubble at screen center (card-sized), hold it, then break it — repeats `loops`
-  // times so the bubble look + the crack/explosion can be eyeballed and tuned without a real combat.
-  w.__shieldDemo = (loops = 3): void => {
+  // DEV: fire the shatter burst at screen center over a card-sized rect, `loops` times, so the crack/explosion
+  // can be eyeballed and tuned without a real combat. (It used to raise a persistent Pixi bubble and break it;
+  // the bubbles are CSS domes now, so only the burst is Pixi's — this fires that directly.)
+  w.__shieldDemo = (loops = 3, kind: AuraKind = 'shield'): void => {
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2, cw = 150, ch = 190;
     let n = 0;
     const cycle = (): void => {
-      pixiFx.setShield('__demo', cx, cy, cw, ch);
-      window.setTimeout(() => {
-        pixiFx.breakShield('__demo');
-        if (++n < loops) window.setTimeout(cycle, 900);
-      }, 2600);
+      pixiFx.shatterAt(cx, cy, cw, ch, kind);
+      if (++n < loops) window.setTimeout(cycle, 900);
     };
     cycle();
   };

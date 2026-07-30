@@ -255,7 +255,12 @@ The career surface exists; deepen what a finished run *remembers*.
 - **Absorb the ~30 legacy `pixiFx` effects into the workbench.** They predate the def format and aren't
   authorable there, so half the game's FX are still edited by hand in TypeScript while the other half are
   data. Port them to defs, bind them through `bindings.json`, and **strip the defs nobody asked for** while
-  doing it — the library is already carrying entries no brief ever requested.
+  doing it — the library is already carrying entries no brief ever requested. ✅ The def strip landed
+  2026-07-29 (five workbench drafts deleted: `blue-glow-trail`, `blue-trail-detonate`, `ember-lance`,
+  `self-buff-bloom`, `test-red-blast`). **`death-dissolve` stays** — it looks orphaned because no binding
+  names it, but `useCombatReplay` plays it directly for every plain death (see `docs/fx-requests.md`).
+  Likewise **`discoverBurst` is NOT dead `pixiFx`** — `Recruit.tsx` fires it on every Discover open, and it's
+  the sole reason the second `discoverFx` Pixi app exists; it needs a real port, not a delete.
 
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own

@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-07-30 — Set 2 quests: the Demon shop line + the Dragon spell line (21 of 27)
+
+**7 more quests.** Demon: Stock the Shelves, Bane's Presence, Endless Inventory. Dragon: Runic Refrain, The
+Endless Verse, The Sealed Vault. Dwarf: The Company Store.
+
+New primitives, all parameterised so the remaining items are data:
+- `shopStats` objective — counts stats granted to shop offers PLUS any rise in the run-wide buy bonus. Counting
+  only visible offers would make a run-wide buff read as zero progress.
+- `shopBuff` / `shopBuffPerShouts` / `shopBuffOnRefresh` — all pay into `tavernBuyBonus`, the channel the Staff
+  of Guel and Contract Butcher already use, so "a quest buffs the shop" and "a card buffs the shop" stay one
+  mechanic. Bane's Presence rides `lastShoutFires`, the same field the Shout objective reads, so a doubled Shout
+  advances quest and reward identically.
+- `endlessVerse` — re-arms Spell Thesis's doubler by clearing `spellFirstUsedThisTurn`, so the two stack rather
+  than being separate doublers.
+- `spellCost` — feeds `spellCostMod`, which Lazarus also writes to.
+- `copyFirstSpell` — an EoT effect that puts a COPY in hand, where Rune of Recurrence's `recastFirstSpell` casts
+  it immediately. Deliberately different rewards.
+- `avengeFirstDouble` combat flag — see below.
+
+**The Sealed Vault took three cuts.** The `avenge` bus event fires on EVERY friendly death; each avenge factory
+then checks its own threshold (`count % params.count !== 0 → return`). Latching the doubler on the first
+BROADCAST burned it on a death that pays nothing, and the reward measured **identical to baseline at every board
+size** while looking correct in review. The latch now spends on the first death that actually pays. Measured:
+Weaver(Avenge 2) with 6 fodder — baseline 3 payouts, Vault 4, Fury 6.
+
+**Second text defect fixed.** `questRewardText`'s `recurringEndOfTurn` branch was an if-chain ending in a bare
+`: 'End of Turn: get a random Shout minion'`, so six effects with no branch — including **Open Tab**'s
+`grantAles` — printed a sentence describing a completely different reward. Replaced with a total `Record` over
+the union, so a new effect fails to compile until its text is written.
+
+Verified: typecheck (both), lint (6 pre-existing warnings), 3129 tests, build:web, harness determinism.
+
+Remaining: 6 quests — Kobold (Candlelight Toll, Motherlode, Heart of the Mountain), Demon (The Burning Legion,
+Bottomless Banquet), Neutral (Martial Training — BLOCKED on Master-at-Arms, which does not exist).
+
 ## 2026-07-30 — Set 2 quests: the Kobold line, two grant quests, and a blank-reward defect
 
 **7 quests** (running total 14 of 27). Three small primitives carry the Kobold line, all pushing dials the tribe

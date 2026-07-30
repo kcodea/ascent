@@ -626,6 +626,58 @@ export function implosionCasts(state: RunState): number {
   return 1 + state.board.filter((c) => isTribe(c, 'demon')).length;
 }
 
+/**
+ * Buff the SHOP by +attack/+health from a run-level source (a quest reward), through the same `tavernBuyBonus`
+ * channel the Staff of Guel and Contract Butcher use — so "a quest buffs the shop" and "a card buffs the shop"
+ * are one mechanic, not two that drift apart.
+ *
+ * Fodder is enchanted run-wide for the same reason `spellBuffShop` does it: a bought Fodder takes tavern buffs
+ * through that channel rather than the buy-buff, so skipping it would silently exclude Fodder from every
+ * shop-buff quest.
+ */
+export function applyRunShopBuff(state: RunState, attack: number, health: number, source: string): void {
+  if (attack <= 0 && health <= 0) return;
+  state.tavernBuyBonus.atk += attack;
+  state.tavernBuyBonus.hp += health;
+  buffFodderRunWide(state, attack, health, source, false);
+}
+
+/** Endless Inventory: called after every shop refresh. The magnitude GROWS by `step` every `per` refreshes, so
+ *  the printed value has to be read live (see `questText`) rather than the base rate. */
+export function applyShopRefreshQuestBuff(state: RunState): void {
+  const q = state.shopBuffOnRefresh;
+  if (!q) return;
+  applyRunShopBuff(state, q.attack + q.grown, q.health + q.grown, 'Endless Inventory');
+  q.tick += 1;
+  while (q.tick >= q.per) { q.tick -= q.per; q.grown += q.step; }
+}
+
+/**
+ * The Endless Verse: bank `n` triggered Shouts and, once per `per` banked, RE-ARM the turn's spell doubler by
+ * clearing `spellFirstUsedThisTurn`. That flag is what Spell Thesis spends when the turn's first spell casts, so
+ * clearing it hands the doubler back rather than granting a separate one — the two stack naturally.
+ */
+export function applyShoutsForEndlessVerse(state: RunState, n: number): void {
+  const q = state.endlessVerse;
+  if (!q || n <= 0) return;
+  q.tick += n;
+  while (q.tick >= q.per) {
+    q.tick -= q.per;
+    state.spellFirstUsedThisTurn = false;
+  }
+}
+
+/** Bane's Presence: bank `n` triggered Shouts and buff the shop once per `per` banked. */
+export function applyShoutsForShopBuff(state: RunState, n: number): void {
+  const q = state.shopBuffPerShouts;
+  if (!q || n <= 0) return;
+  q.tick += n;
+  while (q.tick >= q.per) {
+    q.tick -= q.per;
+    applyRunShopBuff(state, q.attack, q.health, "Bane's Presence");
+  }
+}
+
 /** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
 export function spellCostReduction(state: RunState): number {
   let n = state.spellCostMod;
@@ -4894,6 +4946,7 @@ export function applySpellBought(state: RunState, spellId: string): void {
  * was never present for. A dedicated loop rather than the generic `fire`, whose payload is minion-shaped.
  */
 export function applyShopRefreshed(state: RunState): void {
+  applyShopRefreshQuestBuff(state); // before the board watchers, so a Market Tormentor's row is already buffed
   // TWO PASSES, and the order is load-bearing (owner ruling 2026-07-25): watchers that STAT-BUFF the new row
   // resolve before watchers that CONSUME from it, so anything eating the right-most minion eats the buffed
   // body. Board order can't be trusted for this — a Revolving Maw sitting left of a Market Tormentor would
@@ -5364,6 +5417,11 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); fireRecruitDeathrattles(makeContext(state), leftmost); }
+  } else if (effect === 'copyFirstSpell') {
+    // Runic Refrain: get a COPY of the turn's first spell — it lands in hand to cast later, where Rune of
+    // Recurrence's `recastFirstSpell` casts it again immediately. Deliberately different rewards.
+    const def = state.firstSpellThisTurnId ? CARD_INDEX[state.firstSpellThisTurnId] : undefined;
+    if (def?.spell) step(() => conjureToHand(state, [def], 1, true));
   } else if (effect === 'recastFirstSpell') {
     // Rune of Recurrence: cast the FIRST spell you cast this turn again, free. An AIMED spell re-targets a
     // seeded-random friendly board minion (owner call 2026-07-17); untargeted spells just resolve. Skipped

@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -328,6 +328,18 @@ export function reduce(state: RunState, action: Action): RunState {
     // two objectives must stay unfillable by each other's cards (see `castRuby` in types.ts).
     const rubyCastDelta = (next.rubyCasts ?? 0) - (state.rubyCasts ?? 0);
     if (rubyCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castRuby', rubyCastDelta);
+    // "Grant N total stats to Shop minions": buffs landed on the offers actually sitting in the tavern, PLUS
+    // any rise in the run-wide buy bonus (which every future offer inherits). Both are real stats given to the
+    // shop; counting only the visible offers would make a run-wide buff read as zero progress.
+    const offerBefore = new Map(state.shop.map((o) => [o.uid, { a: o.atk ?? 0, h: o.hp ?? 0 }]));
+    let shopStatGain = 0;
+    for (const o of next.shop) {
+      const prev = offerBefore.get(o.uid);
+      if (!prev) continue;
+      shopStatGain += Math.max(0, (o.atk ?? 0) - prev.a) + Math.max(0, (o.hp ?? 0) - prev.h);
+    }
+    shopStatGain += Math.max(0, next.tavernBuyBonus.atk - state.tavernBuyBonus.atk) + Math.max(0, next.tavernBuyBonus.hp - state.tavernBuyBonus.hp);
+    if (shopStatGain > 0) advanceQuestsBy(next, (o) => o.event === 'shopStats', shopStatGain);
     // Spell Power FX: one bump per action in which SPELL POWER WENT UP, by any source and any amount — not
     // per spell CAST (owner correction 2026-07-21: Cinderwing Matron's Shout buffs spell power and must fire
     // this, while casting a spell in a run with no spell-power sources must not). Both stats are watched:
@@ -409,6 +421,10 @@ export function reduce(state: RunState, action: Action): RunState {
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
     // objective. `lastShoutFires` was recorded during the play / target resolution (0 if no Shout fired).
     for (let i = 0; i < (next.lastShoutFires ?? 0); i++) advanceQuests(next, (o) => o.event === 'shout');
+    // Bane's Presence rides the SAME count the Shout objective does, so a doubled Shout advances the quest
+    // and pays the reward identically rather than the two disagreeing about what "a Shout" is.
+    applyShoutsForShopBuff(next, next.lastShoutFires ?? 0);
+    applyShoutsForEndlessVerse(next, next.lastShoutFires ?? 0);
     if ((next.lastShoutFires ?? 0) > 0) bumpAuthorsHand(next, 'shout', next.lastShoutFires!); // Author's Hand Shout half
     // An Echo (Deathrattle) is a TRIGGER too: a recruit-phase Echo (Grave Robber's destroy, Gravetwin/Crypt Broker,
     // Sylus re-fires) counts toward the `deathrattle` objective + Author's Hand's Echo half, just like a combat one.
@@ -2863,6 +2879,22 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
       else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
       break;
+    case 'spellCost':
+      s.spellCostMod += r.cost;
+      break;
+    case 'endlessVerse':
+      s.spellFirstDoubleEachTurn = true;
+      s.endlessVerse = { per: r.per, tick: 0 };
+      break;
+    case 'shopBuff':
+      applyRunShopBuff(s, r.attack, r.health, 'Quest reward');
+      break;
+    case 'shopBuffPerShouts':
+      s.shopBuffPerShouts = { per: r.per, attack: r.attack, health: r.health, tick: 0 };
+      break;
+    case 'shopBuffOnRefresh':
+      s.shopBuffOnRefresh = { attack: r.attack, health: r.health, step: r.step, per: r.per, grown: 0, tick: 0 };
+      break;
     case 'aleExtraCasts':
       s.aleExtraCasts = (s.aleExtraCasts ?? 0) + (r.amount ?? 1);
       break;
@@ -3229,6 +3261,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
 
     runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
     runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
+    avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise
     runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 6 → 2 Taunt Imps

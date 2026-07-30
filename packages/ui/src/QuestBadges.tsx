@@ -154,6 +154,7 @@ export function QuestBadges() {
           spellsCast: run.spellsCast ?? 0,
           scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
           denMarkerCount: run.denMarker?.count ?? 0,
+          shopRefresh: run.shopBuffOnRefresh ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick } : undefined,
         };
         const liveTxt = questRewardLiveText(r, live);
         return (

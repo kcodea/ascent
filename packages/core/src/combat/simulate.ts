@@ -864,6 +864,8 @@ export function simulate(
     } finally { echoDepth--; }
   };
 
+  /** The Sealed Vault's once-per-combat latch, per side. */
+  const avengeDoubleSpent: Record<string, boolean> = {};
   function registerEffect(minion: Minion, effect: EffectDef): void {
     const fn = FACTORIES[effect.do];
     if (!fn) return; // recruit-phase effects without a combat factory are inert here
@@ -898,6 +900,22 @@ export function simulate(
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {
         fn(ctx, minion, effect.params ?? {}, payload);
+      }
+      // The Sealed Vault: the FIRST Avenge each combat triggers twice — tracked per side, so a served enemy
+      // holding the same quest gets its own re-fire rather than sharing the player's.
+      //
+      // The `avenge` bus event fires on EVERY friendly death, and each avenge factory decides for itself
+      // whether this death meets its threshold (`count % params.count !== 0 → return`). So the latch has to be
+      // spent on a death that actually PAYS OUT, not on the first death that merely broadcasts: latching on the
+      // broadcast burned the doubler on a no-op and the reward did nothing at any board size. Every avenge
+      // effect in content declares `params.count`, so the threshold is readable here.
+      else if (modsFor(minion.side).avengeFirstDouble && effect.on === 'avenge' && !avengeDoubleSpent[minion.side]) {
+        const threshold = Math.max(1, Number((effect.params as { count?: number } | undefined)?.count ?? 0) || 1);
+        const deaths = Number((payload as { count?: number }).count ?? 0);
+        if (deaths > 0 && deaths % threshold === 0) {
+          avengeDoubleSpent[minion.side] = true;
+          fn(ctx, minion, effect.params ?? {}, payload);
+        }
       }
     });
   }

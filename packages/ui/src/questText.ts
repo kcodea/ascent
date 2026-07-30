@@ -119,6 +119,28 @@ function keywordPhrase(kws: Keyword[]): string {
  * value instead of the authored one: Warm Embers' remaining Shout-doubles, and Trail Rations' live repeat
  * countdown / whether the repeat has already fired.
  */
+/**
+ * Every recurring End-of-Turn effect's display line. A RECORD, not an if-chain: the previous chain ended in a
+ * bare `: 'End of Turn: get a random Shout minion'`, so six effects that had no branch — including Open Tab's
+ * `grantAles` — printed a sentence describing a completely different reward. Typing this as a total Record over
+ * the union means a new effect fails to compile until its text is written.
+ */
+const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' }>['effect'], string> = {
+  triggerLeftmostShout: 'End of Turn: trigger your leftmost Shout',
+  grantRandomShout: 'End of Turn: get a random Shout minion',
+  grantRandomAttachments: 'End of Turn: get 2 random Attachments',
+  buffMechsPerAttachment: 'End of Turn: give your Mechs +2/+2 for every Attachment they have',
+  runeSpending: 'End of Turn: gain +1 max Gold, and give your leftmost minion +N/+N for the Gold you spent this turn',
+  runeAction: 'End of Turn: give your leftmost minion +1/+1 for every card you played this turn',
+  triggerLeftmostEcho: "End of Turn: trigger your leftmost minion's Echo",
+  weldMoneyBotsEdgeMechs: 'End of Turn: weld a Money Bot onto your leftmost and rightmost Mech',
+  undeadPlayedAtk: 'End of Turn: your Undead gain +3 Attack for each card you played this turn',
+  attachClingDrones: 'End of Turn: weld a Cling Drone onto up to 3 of your Mechs',
+  recastFirstSpell: 'End of Turn: cast the first spell you cast this turn again',
+  grantAles: 'End of Turn: get 2 Dwarven Ales',
+  copyFirstSpell: 'End of Turn: get a copy of the first spell you cast this turn',
+};
+
 export function questRewardText(r: QuestReward, live?: { completed?: boolean; shoutCharges?: number; repeatTurns?: number }): string {
   switch (r.kind) {
     case 'buffBoard':
@@ -214,12 +236,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'endOfTurnRepeat':
       return 'Your End-of-Turn effects trigger an extra time';
     case 'recurringEndOfTurn':
-      return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout'
-        : r.effect === 'grantRandomAttachments' ? 'End of Turn: get 2 random Attachments'
-        : r.effect === 'buffMechsPerAttachment' ? 'End of Turn: give your Mechs +2/+2 for every Attachment they have'
-        : r.effect === 'undeadPlayedAtk' ? 'End of Turn: your Undead gain +3 Attack for each card you played this turn'
-        : r.effect === 'attachClingDrones' ? 'End of Turn: weld a Cling Drone onto up to 3 of your Mechs'
-        : 'End of Turn: get a random Shout minion';
+      return EOT_EFFECT_TEXT[r.effect];
     case 'gainGold':
       return `Get ${r.amount} Gold`;
     case 'echoRepeat':
@@ -282,6 +299,16 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         ? `Your first Ruby each turn casts ${times}`
         : `Your Rubies cast ${times}`;
     }
+    case 'spellCost':
+      return `Your Shop spells cost ${r.cost} less`;
+    case 'endlessVerse':
+      return `The first spell you cast each turn casts twice. Trigger ${r.per} Shouts to reset this`;
+    case 'shopBuff':
+      return `Give Shop minions +${r.attack}/+${r.health}`;
+    case 'shopBuffPerShouts':
+      return `Every ${r.per} Shouts you trigger, give Shop minions +${r.attack}/+${r.health}`;
+    case 'shopBuffOnRefresh':
+      return `After you refresh, give Shop minions +${r.attack}/+${r.health}, improving by +${r.step}/+${r.step} every ${r.per} refreshes`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:
@@ -308,6 +335,9 @@ export interface QuestRewardLive {
   /** Den Marker (`beastPlayBuff`): Beasts played/summoned so far (`run.denMarker.count`) — drives the current
    *  per-play grant (base + step × steps done) and the countdown to the next improve. */
   denMarkerCount?: number;
+  /** Endless Inventory (`shopBuffOnRefresh`): the accrued improvement and progress toward the next step —
+   *  drives "Now: … +N/+N per refresh · +1/+1 in 2 more". */
+  shopRefresh?: { grown: number; tick: number };
 }
 
 /** The reward's LIVE ongoing magnitude for the badge tooltip — the CURRENT value a scaling/stat reward is
@@ -319,6 +349,16 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
     return a && (a.attack > 0 || a.health > 0) ? `Now: Beasts ${statPhrase(a.attack, a.health)}` : null;
   };
   switch (r.kind) {
+    case 'shopBuffOnRefresh': {
+      // The magnitude compounds, so the badge must show what the NEXT refresh actually gives — printing the
+      // base rate alone goes stale the moment the first step lands (card-text live-accuracy rule).
+      const g = live.shopRefresh;
+      if (!g) return null;
+      const a = r.attack + g.grown, h = r.health + g.grown;
+      const toNext = r.per > 0 ? r.per - (g.tick % r.per) : 0;
+      const next = r.step > 0 && toNext > 0 ? ` · +${r.step}/+${r.step} in ${toNext} more refresh${toNext === 1 ? '' : 'es'}` : '';
+      return `Now: Shop minions ${statPhrase(a, h)} per refresh${next}`;
+    }
     case 'tribeAura':
       return r.tribe === 'beast' ? beast() : null;
     case 'scalingTribeAura': {

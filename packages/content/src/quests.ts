@@ -130,6 +130,17 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_war_council', name: 'War Council', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'attack', count: 18, tribe: 'dwarf' }, reward: { kind: 'tribeRallySlaughterExtra', tribe: 'dwarf' }, sets: ['set2'] },
   { id: 'q_open_tab', name: 'Open Tab', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 14 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' }, sets: ['set2'] },
   { id: 'q_bottomless_cellar', name: 'Bottomless Cellar', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'castSpell', count: 15 }, reward: { kind: 'aleExtraCasts', amount: 1 }, sets: ['set2'] },
+  // ── SET 2 — DRAGON (spell half) + the Dwarf capstone. All four hang off spell machinery that already exists:
+  //    `firstSpellThisTurnId`, Spell Thesis's per-turn doubler, `spellCostMod`, and the Avenge re-fire.
+  { id: 'q_runic_refrain', name: 'Runic Refrain', tribe: 'dragon', tier: 'lesser', wave: 5, objective: { event: 'castSpell', count: 12 }, reward: { kind: 'recurringEndOfTurn', effect: 'copyFirstSpell' }, sets: ['set2'] },
+  { id: 'q_endless_verse', name: 'The Endless Verse', tribe: 'dragon', tier: 'greater', wave: 11, objective: { event: 'castSpell', count: 22 }, reward: { kind: 'endlessVerse', per: 3 }, sets: ['set2'] },
+  { id: 'q_sealed_vault', name: 'The Sealed Vault', tribe: 'dragon', tier: 'greater', wave: 11, objective: { event: 'slaughter', count: 14, tribe: 'dragon' }, reward: { kind: 'multi', rewards: [{ kind: 'grant', grantGolden: ['d2_curator'] }, { kind: 'combatFlag', flag: 'avengeFirstDouble' }] }, sets: ['set2'] },
+  { id: 'q_company_store', name: 'The Company Store', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'buy', count: 16 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', grantGolden: ['dw_dorrin'] }, { kind: 'spellCost', cost: 1 }] }, sets: ['set2'] },
+  // ── SET 2 — DEMON (shop half). The Set-2 Demon is a SHOP manipulator rather than a Fodder eater, so its
+  //    quests all pay into `tavernBuyBonus` — the same channel the Staff of Guel and Contract Butcher use.
+  { id: 'q_stock_the_shelves', name: 'Stock the Shelves', tribe: 'demon', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 18 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomTribe: 'demon', randomCount: 1 }, { kind: 'shopBuff', attack: 4, health: 4 }] }, sets: ['set2'] },
+  { id: 'q_banes_presence', name: "Bane's Presence", tribe: 'demon', tier: 'lesser', wave: 5, objective: { event: 'winRound', count: 3 }, reward: { kind: 'shopBuffPerShouts', per: 3, attack: 1, health: 1 }, repeatable: true, sets: ['set2'] },
+  { id: 'q_endless_inventory', name: 'Endless Inventory', tribe: 'demon', tier: 'greater', wave: 11, objective: { event: 'shopStats', count: 180 }, reward: { kind: 'shopBuffOnRefresh', attack: 5, health: 5, step: 1, per: 5 }, sets: ['set2'] },
   // ── SET 2 — KOBOLD (owner roster 2026-07-29). The Ruby engine's quest line: every objective runs on the
   //    `castRuby` meter or on buys, and the rewards all push the same two dials the tribe already lives on —
   //    Ruby STRENGTH (`rubyBonus`) and Ruby CAST COUNT — rather than inventing a third Kobold resource.

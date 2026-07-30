@@ -695,6 +695,9 @@ export type QuestObjectiveEvent =
   // (Shop Spells) must not be filled by Rubies. Advances by the multiplied cast count, so a Ruby that casts
   // 3 times moves the meter 3.
   | 'castRuby'
+  // Set 2 (Demon): `shopStats` counts +Attack/+Health granted to SHOP minions — both direct offer buffs and
+  // increases to the run's buy-bonus (which every future offer inherits). Advances by (attack + health).
+  | 'shopStats'
   // Compound (Fried Circuits / Forsaken Will): a general multi-part objective — `QuestObjective.parts` holds the
   // sub-objectives (each its own event + count), and the quest completes when ALL parts fill.
   | 'compound';
@@ -760,6 +763,20 @@ export type QuestReward =
    *  `firstEachTurn` limits it to the turn's FIRST Ruby (Gem Circuit); `always` applies to every Ruby
    *  (Unstable Riches). */
   | { kind: 'rubyExtraCasts'; amount: number; scope: 'always' | 'firstEachTurn' }
+  /** "Give Shop minions +X/+X" — one-shot, into the same `tavernBuyBonus` channel the Staff of Guel uses, so a
+   *  quest and a card buffing the shop are the same mechanic. */
+  | { kind: 'shopBuff'; attack: number; health: number }
+  /** Bane's Presence: every `per` Shouts you trigger, buff the shop +X/+X. The remainder banks across turns. */
+  | { kind: 'shopBuffPerShouts'; per: number; attack: number; health: number }
+  /** Endless Inventory: after each shop refresh, buff the shop +X/+X — and improve THAT by +step/+step every
+   *  `per` refreshes, so the reward compounds over a roll-heavy run. */
+  | { kind: 'shopBuffOnRefresh'; attack: number; health: number; step: number; per: number }
+  /** The Company Store: your Shop spells cost `cost` less for the rest of the run (the spell-side twin of
+   *  `minionCost`). Feeds `spellCostMod`, which Lazarus also writes to, so the two stack. */
+  | { kind: 'spellCost'; cost: number }
+  /** The Endless Verse: the first spell each turn casts twice — and triggering `per` Shouts RE-ARMS it within
+   *  the same turn, so a Shout-heavy board can spend the doubler more than once a turn. */
+  | { kind: 'endlessVerse'; per: number }
   // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,
   // stacks like Drakko); `firstEachRound` makes the FIRST Shout you play each turn trigger twice (Warm Embers).
   | { kind: 'shoutRepeat'; scope: 'always' | 'firstEachRound' }
@@ -776,7 +793,7 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -903,7 +920,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Batch 7 combat runes: Rebirth (Rise with full Health), Aftershocks (Echo summons +4/+4), Undertow (Echo
   // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
   // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
-  | 'runeRebirth' | 'runeAftershocks' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy';
+  | 'runeRebirth' | 'runeAftershocks' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
+  // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
+  // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
+  | 'avengeFirstDouble';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -985,6 +1005,8 @@ export interface QuestCombatMods {
   runeWarding?: boolean;
   /** Rune of Fury: every Avenge you trigger fires one extra time (its effect runs twice). */
   runeFury?: boolean;
+  /** The Sealed Vault: the first Avenge each combat re-fires (once per side per fight). */
+  avengeFirstDouble?: boolean;
   /** Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once. */
   runeRallying?: boolean;
   /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */

@@ -1178,7 +1178,9 @@ export function useCombatReplay(
           // SLOT, not the mid-flight rect — this cue also rides `death` moments, where a dying ATTACKER is
           // mid-pull-home. See layoutRectOf: this exact site was the phantom mid-board ring.
           const { cx, cy } = layoutRectOf(el);
-          pixiFx.damageBurst(cx, cy);
+          // The crimson hit burst is the authored `damage-burst` def (migrated out of `pixiFx`); the impact
+          // ring beside it is still hand-written — it takes a per-call size, which `playDef` cannot pass yet.
+          playDef('damage-burst', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
           pixiFx.impactPulse(cx, cy);
         }
       },

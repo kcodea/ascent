@@ -1745,7 +1745,7 @@ class FxController {
    * A blast bolt streaking from (fromX, fromY) to (toX, toY) — a comet of glow motes that all travel to
    * the target, tightening into a head, so it reads as a hurled projectile with a trail. Used for the
    * loss-damage blast (the assembled damage number hurled into the Resolve bar). The caller fires
-   * `damageBurst` at the target when the bolt arrives (travel ≈ `blastTravelMs` below).
+   * the authored `damage-burst` def at the target when the bolt arrives (travel ≈ `blastTravelMs` below).
    */
   blastBolt(fromX: number, fromY: number, toX: number, toY: number): void {
     if (!this.ready) return;
@@ -1782,40 +1782,8 @@ class FxController {
     }
   }
 
-  /** Travel time (ms) of a `blastBolt` — the caller schedules `damageBurst` + the impact for this delay. */
+  /** Travel time (ms) of a `blastBolt` — the caller schedules the `damage-burst` def + the impact for this delay. */
   readonly blastTravelMs = 340;
-
-  /**
-   * A crimson impact burst at (x, y) — the damage landing on the Resolve bar. A hot white core + a red
-   * shockwave + a spray of red/orange shards, additive so it punches over the UI. Pairs with `blastBolt`.
-   */
-  damageBurst(x: number, y: number): void {
-    if (!this.ready) return;
-    // white-hot core
-    this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 240, fromScale: 0.5, toScale: 3, spin: 0,
-      tint: 0xffd9c0, blend: 'add',
-    });
-    // crimson shockwave
-    this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 360, fromScale: 0.4, toScale: 3.4, spin: 0,
-      tint: 0xe23b2e, blend: 'add',
-    });
-    // shards flung in all directions
-    const shards = 22;
-    for (let i = 0; i < shards; i++) {
-      const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const speed = 380 + Math.random() * 620;
-      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.sparkTex!;
-      const warm = Math.random();
-      const tint = warm < 0.45 ? 0xff3b2e : warm < 0.8 ? 0xff8a3a : 0xffffff;
-      this.spawn(tex, {
-        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
-        life: 360 + Math.random() * 360, fromScale: 0.7 + Math.random() * 0.8, toScale: 0.05,
-        spin: (Math.random() - 0.5) * 12, rotation: a, tint, blend: 'add',
-      });
-    }
-  }
 
   /**
    * The REFRESH crystal's click blast — sprite shards flung outward from the button. Every knob is passed

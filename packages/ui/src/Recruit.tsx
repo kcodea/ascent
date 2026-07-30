@@ -43,6 +43,7 @@ import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
+import { playDef } from './fx/playDef';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -1288,7 +1289,7 @@ export function Recruit() {
       const ty = res ? res.top + res.height / 2 : window.innerHeight * 0.92;
       pixiFx.blastBolt(cx, cy, tx, ty);
       timers.push(window.setTimeout(() => {
-        pixiFx.damageBurst(tx, ty);
+        playDef('damage-burst', { source: { x: tx, y: ty }, target: { x: tx, y: ty } });
         setLossShake(true);
         window.setTimeout(() => setLossShake(false), 360);
         dispatch({ type: 'settleCombat' }); // Resolve drops here → the StatusBar's −X hit flash fires

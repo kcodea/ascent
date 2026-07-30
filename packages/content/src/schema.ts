@@ -585,6 +585,7 @@ export const RuneDefSchema = z.object({
 }).strict();
 
 export const QuestDefSchema = z.object({
+  sets: z.array(z.enum(['set1', 'set2'])).readonly().optional(),
   id: z.string().min(1),
   name: z.string().min(1),
   tribe: TribeSchema,

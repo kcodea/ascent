@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES, poolFor } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, SETS, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { ALE_IDS, applyCardsPlayed, applyGoldSpent, noteSpellCast } from './recruit';
 
@@ -402,5 +402,36 @@ describe('gilding a Tier 7 minion (owner bug report 2026-07-29)', () => {
     const capped = Object.values(CARD_INDEX).find((d) => d && d.spell && d.targetMaxTier !== undefined);
     if (!capped) return;
     expect(gild(anyT7.id, capped.id), `${capped.name} ignored its own cap`).toBe(false);
+  });
+});
+
+describe('set scoping for quests and runes (owner 2026-07-29)', () => {
+  /**
+   * The set-1 and set-2 lists are DIFFERENT. Offering a quest or rune whose mechanics belong to the other set
+   * burns one of the few offer slots on something the run can never complete or use.
+   */
+  it('no set-1-only quest can be offered to a set-2 run, and vice versa', () => {
+    const forSet = (id: 'set1' | 'set2') => QUEST_DEFS.filter((q) => !q.sets || q.sets.includes(id));
+    const s1 = forSet('set1').length, s2 = forSet('set2').length;
+    expect(s1, 'set 1 lost its quest pool').toBeGreaterThan(20);
+    expect(s2, 'set 2 has no quest pool').toBeGreaterThan(10);
+    expect(s2, 'set 2 sees every set-1 quest — scoping is not applied').toBeLessThan(s1);
+  });
+
+  it('a set-2 run is never offered a quest for a tribe it does not have', () => {
+    // The offer's tribe slots were drawn from the POOL, so a run could be handed a Mech quest with no Mechs in
+    // its roster. Both filters (sets + the run's own tribes) close that.
+    const s2Tribes = new Set(SETS.set2.tribes);
+    const offerable = QUEST_DEFS.filter((q) => (!q.sets || q.sets.includes('set2')) && q.tribe !== 'neutral');
+    const wrong = offerable.filter((q) => !s2Tribes.has(q.tribe)).map((q) => `${q.name}(${q.tribe})`);
+    expect(wrong, 'a quest for a tribe set 2 does not have is still offerable').toEqual([]);
+  });
+
+  it('no set-2-only rune can be offered to a set-1 run', () => {
+    const s1 = RUNES.concat(EPIC_RUNES).filter((r) => !r.sets || r.sets.includes('set1'));
+    const s2 = RUNES.concat(EPIC_RUNES).filter((r) => !r.sets || r.sets.includes('set2'));
+    for (const r of s1) expect(r.sets?.includes('set2') === false || !r.sets || r.sets.includes('set1')).toBe(true);
+    expect(s2.some((r) => r.id === 'rune_gemcutting'), 'a Ruby rune vanished from set 2').toBe(true);
+    expect(s1.some((r) => r.id === 'rune_gemcutting'), 'a Ruby rune is offerable in set 1').toBe(false);
   });
 });

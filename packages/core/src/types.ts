@@ -1007,6 +1007,12 @@ export interface QuestDef {
   tribe: Tribe; // 'neutral' = the always-offered, build-agnostic slot
   tier: QuestTier;
   objective: QuestObjective;
+  /**
+   * Which card SETS may offer this quest. Absent = every set. Mirrors `RuneDef.sets`, and for the same reason:
+   * the set-1 and set-2 quest lists are DIFFERENT (owner 2026-07-29), and a quest whose objective names another
+   * set's mechanics — Fodder, Attachments, Rubies, Ales — can never be completed in this run.
+   */
+  sets?: readonly ('set1' | 'set2')[];
   reward: QuestReward;
   /** Which quest turn this quest is offered on (owner's two-bucket table). Absent = derived from `tier`
    *  (Capstone → turn 11, else → turn 5); set explicitly only when a quest's bucket differs from that default

@@ -44,7 +44,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_spending',
     name: 'Rune of Spending',
-    cost: 6,
+    cost: 3,
     text: '**End of Turn:** gain **+1 max Gold** and give your left-most minion **+1/+1** for each Gold spent this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeSpending' },
   },
@@ -119,7 +119,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_kindling',
     name: 'Rune of Kindling',
-    cost: 4,
+    cost: 6,
     text: 'Whenever you cast a Shop spell, give your **left-most minion +3/+3**.',
     reward: { kind: 'runeKindling' },
   },
@@ -167,7 +167,7 @@ export const RUNES: RuneDef[] = [
     // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
     id: 'rune_gemcutting',
     name: 'Rune of Gemcutting',
-    cost: 3,
+    cost: 4,
     text: 'Get **5 Rubies**.',
     reward: { kind: 'grant', cards: ['ruby', 'ruby', 'ruby', 'ruby', 'ruby'] },
     sets: ['set2'], // Rubies / Ales / set-2 cards
@@ -183,7 +183,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
-    cost: 1,
+    cost: 5,
     text: 'Get **3 random Shop spells**.',
     reward: { kind: 'grant', randomSpell: 3 },
   },
@@ -193,14 +193,14 @@ export const RUNES: RuneDef[] = [
     // ceiling. Repeats for the rest of the run.
     id: 'rune_summit',
     name: 'Rune of the Summit',
-    cost: 4,
+    cost: 5,
     text: '**In 2 turns:** **Discover** a **Tier 7** minion. Repeats every **2 turns**.',
     reward: { kind: 'runeSummit' },
   },
   {
     id: 'rune_scout',
     name: 'Rune of the Scout',
-    cost: 2,
+    cost: 3,
     text: '**Discover** a **Tier 5** minion.',
     reward: { kind: 'discover', tier: 5 },
   },
@@ -215,14 +215,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_bartering',
     name: 'Rune of Bartering',
-    cost: 3,
+    cost: 5,
     text: '**Shout** minions sell for **2 Gold**.',
     reward: { kind: 'runeBartering' },
   },
   {
     id: 'rune_packcraft',
     name: 'Rune of Packcraft',
-    cost: 6,
+    cost: 2,
     text: 'Whenever you summon a **Beast** in combat, give your **Beasts +1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runePackcraft' },
   },
@@ -245,7 +245,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_rebirth',
     name: 'Rune of Rebirth',
-    cost: 5,
+    cost: 4,
     text: '**Start of Combat:** give **2 random** friendly minions **Rise**.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
   },
@@ -267,7 +267,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_refrain',
     name: 'Rune of Refrain',
-    cost: 5,
+    cost: 6,
     text: 'Your **Shout** minions have a **20%** chance to return to your hand after you play them.',
     reward: { kind: 'runeRefrain' },
   },
@@ -302,7 +302,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_reliquary',
     name: 'Rune of the Reliquary',
-    cost: 4,
+    cost: 3,
     epic: true,
     text: '**End of Turn:** trigger your left-most **Echo**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostEcho' },
@@ -320,7 +320,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_broodpit',
     name: 'Rune of the Broodpit',
-    cost: 2,
+    cost: 3,
     epic: true,
     text: '**Avenge (4):** summon **2 Imps with Taunt**.',
     reward: { kind: 'combatFlag', flag: 'runeBroodpit' },
@@ -336,7 +336,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_appraisal',
     name: 'Rune of Appraisal',
-    cost: 5,
+    cost: 3,
     epic: true,
     text: '**Avenge (4):** improve your Shop spells by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
@@ -354,7 +354,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_stormcalling',
     name: 'Rune of Stormcalling',
-    cost: 6,
+    cost: 5,
     epic: true,
     text: 'Get a **Gilded Karwind** and a random **Shout** minion.',
     reward: { kind: 'grant', grantGolden: ['karwind'], randomFilter: 'shout', randomFilterCount: 1 },
@@ -379,7 +379,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_scales',
     name: 'Rune of Scales',
-    cost: 1,
+    cost: 2,
     epic: true,
     text: 'Whenever you cast a **Shop spell**, give your **Dragons +1/+1**.',
     reward: { kind: 'runeScales' },
@@ -387,7 +387,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_twin_gilding',
     name: 'Rune of Twin Gilding',
-    cost: 5,
+    cost: 7,
     epic: true,
     text: 'You only need **2 copies** of cards to **Gild** them.',
     reward: { kind: 'runeTwinGilding' },
@@ -413,7 +413,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_first_claws',
     name: 'Rune of First Claws',
-    cost: 5,
+    cost: 7,
     epic: true,
     text: '**Start of Combat:** your left-most and right-most **Beasts** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeFirstClaws' },
@@ -421,7 +421,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_inheritance',
     name: 'Rune of Inheritance',
-    cost: 6,
+    cost: 4,
     epic: true,
     text: 'When your **left-most minion dies**, your **right-most minion** gains its stats.',
     reward: { kind: 'combatFlag', flag: 'runeInheritance' },
@@ -429,7 +429,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_second_path',
     name: 'Rune of the Second Path',
-    cost: 3,
+    cost: 4,
     epic: true,
     text: '**Discover** a **Greater Quest** reward minion.',
     reward: { kind: 'discoverGreaterQuest' },
@@ -463,7 +463,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_champion',
     name: 'Rune of the Champion',
-    cost: 1,
+    cost: 3,
     epic: true,
     text: '**Discover** a **Tier 6** minion.',
     reward: { kind: 'discover', tier: 6 },
@@ -480,7 +480,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_gilded_spark',
     name: 'Rune of the Gilded Spark',
-    cost: 2,
+    cost: 1,
     epic: true,
     text: 'Get a **Goldcrafter**. Get another in **2 turns**.',
     reward: { kind: 'grant', cards: ['goldcrafter'], repeatInTurns: 2 },
@@ -489,7 +489,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_transfusion',
     name: 'Rune of Transfusion',
-    cost: 6,
+    cost: 4,
     epic: true,
     text: 'Whenever a **Demon Consumes** Fodder, your **left-most minion** also gains its stats.',
     // Set 1 only — set 2 has no Fodder. Its set-2 twin consumes a SHOP minion instead (owner ruling 2026-07-29).
@@ -499,7 +499,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_mirror_march',
     name: 'Rune of the Mirror March',
-    cost: 6,
+    cost: 5,
     epic: true,
     text: '**Start of Combat:** when you have room, summon a **copy of your left-most minion**.',
     reward: { kind: 'combatFlag', flag: 'runeMirrorMarch' },
@@ -507,7 +507,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_recurrence',
     name: 'Rune of Recurrence',
-    cost: 5,
+    cost: 4,
     epic: true,
     text: '**End of Turn:** cast the **first Shop spell** you cast this turn again.',
     reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
@@ -532,7 +532,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_undertow',
     name: 'Rune of the Undertow',
-    cost: 3,
+    cost: 4,
     epic: true,
     text: 'Minions summoned by an **Echo** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeUndertow' },
@@ -615,7 +615,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Shares Bottomless Cellar's primitive — the run-wide Ale multiplier, additive with Edward Keg-hands.
     id: 'rune_bottomless_cask',
     name: 'Rune of the Bottomless Cask',
-    cost: 6,
+    cost: 5,
     epic: true,
     text: 'Your **Dwarven Ales** trigger an **additional time**.',
     sets: ['set2'],

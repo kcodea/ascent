@@ -78,8 +78,11 @@ describe('the quest data', () => {
     }
   });
 
-  it("Bane's Presence is repeatable, as the sheet says", () => {
-    expect(questById('q_banes_presence').repeatable).toBe(true);
+  it("Bane's Presence is a ONE-SHOT quest whose EFFECT repeats", () => {
+    // Owner correction 2026-07-30: "the effect is repeatable, not the quest". The reward arms a standing rule
+    // that pays every 3 Shouts forever; the quest itself completes once. Marking the QUEST repeatable would
+    // re-award the rule and stack it, paying multiple times per 3 Shouts.
+    expect(questById('q_banes_presence').repeatable).toBeUndefined();
   });
 
   it('Stock the Shelves grants a Demon AND buffs the shop', () => {

@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-07-30 — Bane's Presence correction + the rune-roster audit
+
+**Bane's Presence** — owner correction: "the effect is repeatable, not the quest." Dropped `repeatable: true`.
+The reward arms a standing rule that pays every 3 Shouts forever; the quest completes once. Marking the QUEST
+repeatable would re-award the rule and stack it, paying several times per 3 Shouts.
+
+**Rune audit** against the owner's 96-row sheet (2026-07-30). Game has 70 runes; 48 matched by name.
+- **26 cost corrections applied** — pure data, sheet authoritative. Verified: 0 remaining mismatches.
+- **48 runes on the sheet do not exist in the game** (23 basic, 25 epic) — the build queue.
+- **22 runes exist in the game but are not on the sheet** — mostly set-1 Mech/Undead/Fodder runes (Structure,
+  Tempering, Salvage, Spare Parts, Banking, Replication, Rising Graves, Spearline, Soul Taxes, Armory, …). These
+  are probably still wanted for set 1 rather than deletions, but that is an owner call — NOT actioned.
+- **0 basic/epic tier mismatches.**
+
+Two naming collisions needing an owner ruling, deliberately left alone:
+1. The sheet lists **Rune of Scale** ("Every 5 Gold spent, give 3 friendly minions +3/+3"), which is exactly
+   `rune_scale` — renamed to **Rune of Bulk Order** on owner instruction 2026-07-29. Revert, or two runes?
+2. The sheet lists both **Rune of the High King** (→ Dwarf King, Brill) and **Rune of Mykel** (→ High King
+   Mykel). The game has one rune, `rune_brisbane`, named "Rune of High King Mykel". Two runes are wanted; which
+   id keeps which grant is unclear.
+
+Verified: typecheck (both), lint (6 pre-existing), 3138 tests, build:web, harness determinism.
+
 ## 2026-07-30 — Set 2 quests COMPLETE (26 of 27; one blocked)
 
 The last five: Candlelight Toll, Motherlode, Heart of the Mountain (Kobold), The Burning Legion, Bottomless

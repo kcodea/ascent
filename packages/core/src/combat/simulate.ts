@@ -935,6 +935,37 @@ export function simulate(
     }
   };
 
+  /** Per-side use counts for the two "while you have room" runes — both are bounded per combat. */
+  const broodSpent: Record<Side, number> = { player: 0, enemy: 0 };
+  const echoesSpent: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Rune of the War Chorus' once-per-combat latch, per side. */
+  const warChorusSpent: Record<Side, boolean> = { player: false, enemy: false };
+  /**
+   * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
+   *
+   * Called after each attack's death cascade settles (beside `flushResummons`) — the moment a slot actually
+   * frees up. BOUNDED per combat: an unbounded version refills every slot the instant it empties, so a board
+   * can never shrink and the fight stops resolving.
+   */
+  function fillFreeSlots(): void {
+    for (const side of ['player', 'enemy'] as Side[]) {
+      const brood = modsFor(side).runeBrood ?? 0;
+      const imp = cards['impscrap'];
+      while (brood > 0 && broodSpent[side] < brood && countLiving(side) < 7 && imp) {
+        broodSpent[side] += 1;
+        nextStep(); fireTrigger('runeBrood', side);
+        summonMinion(side, imp, undefined, ['DS', 'T']);
+      }
+      const echoes = modsFor(side).runeLivingEchoes ?? 0;
+      const herald = cards['b2_sunmane'];
+      while (echoes > 0 && echoesSpent[side] < echoes && countLiving(side) < 7 && herald) {
+        echoesSpent[side] += 1;
+        nextStep(); fireTrigger('runeLivingEchoes', side);
+        summonMinion(side, herald, undefined, undefined, false, true); // attacks immediately
+      }
+    }
+  }
+
   /** The Sealed Vault's once-per-combat latch, per side. */
   const avengeDoubleSpent: Record<string, boolean> = {};
   function registerEffect(minion: Minion, effect: EffectDef): void {
@@ -1410,6 +1441,20 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // Rune of the War Chorus: your FIRST Rally each combat also triggers your left-most Shout. Gated on the
+      // attacker actually having a Rally, so a plain swing does not spend it.
+      if (modsFor(attacker.side).runeWarChorus && !warChorusSpent[attacker.side] && canRally(attacker)) {
+        const lead = boards[attacker.side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay'));
+        if (lead) {
+          warChorusSpent[attacker.side] = true;
+          nextStep(); fireTrigger('runeWarChorus', attacker.side);
+          emit({ type: 'sc', source: lead.uid, text: 'Shout' });
+          for (const effect of lead.effects) {
+            if (effect.on !== 'onPlay') continue;
+            FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side });
+          }
+        }
+      }
       // The Burning Legion: an attacking Imp summons a copy of itself, while uses remain AND there is room.
       // Bounded by `burningLegionUses` — an unbounded version fills the board on the first swing and turns
       // every fight into a 7-Imp wall regardless of what else you built.
@@ -2231,6 +2276,7 @@ export function simulate(
     // This attack's death cascade has fully settled — if it freed a player slot, a Reclaimer
     // resummon waiting in the wings reclaims it now (never interleaved mid-summon).
     flushResummons();
+    fillFreeSlots(); // Rune of the Brood / Living Echoes: a slot freed by this cascade gets filled
     flushAscensions(); // a Tara/Spirit Pup that crossed its threshold this attack transforms now (between actions)
     turn = defenderSide;
   }

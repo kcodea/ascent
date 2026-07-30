@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 10: the Brood, Living Echoes, the War Chorus
+
+Two of these share a shape the engine did not have yet — "while you have room on the board, fill it":
+
+- **Rune of the Brood** (basic 3) — a free slot summons an Imp with Ward and Taunt, **3 times per combat**.
+- **Rune of Living Echoes** (epic 5) — the same shape with a Sunmane Herald that strikes on arrival.
+
+Both run in `fillFreeSlots`, called right after each attack's death cascade settles (beside `flushResummons`) —
+the moment a slot actually frees. **The bound is load-bearing, not flavour**: unbounded, a slot refills the
+instant it empties, the board can never shrink, and the fight stops resolving. Each is capped per side per
+combat, and the tests assert the cap (including a non-default cap, so it is not hard-coded to 3) rather than
+merely that something got summoned.
+
+- **Rune of the War Chorus** (basic 3) — your FIRST Rally each combat also fires your left-most Shout. Gated on
+  the attacker actually having a Rally, so a plain swing cannot spend it — a test pins that a Rally-less board
+  never burns the charge.
+
+**Test note.** The first cut read the summoned card id off the `summon` EVENT; it lives on the event's `minion`
+snapshot. Every Brood/Echoes assertion returned 0 and looked exactly like a dead rune — the War Chorus tests
+passing was the tell that the flag plumbing was fine and the filter was wrong.
+
+Verified: typecheck (both), lint (6 pre-existing), 3222 tests, build:web, harness determinism.
+
+**Rune queue: 9 remain.** 38 of 47 done.
+
 ## 2026-07-30 — Rune tranche 9: the Hunting Bell (+ a rally-logic extraction)
 
 **Rune of the Hunting Bell** (basic 4) — Avenge (3): trigger your LEFT-most Rally, free. Left-most rather than

@@ -244,6 +244,21 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeHuntingBell' },
   },
   {
+    // Bounded per combat: unbounded, a slot refills the instant it empties and the board can never shrink.
+    id: 'rune_brood',
+    name: 'Rune of the Brood',
+    cost: 3,
+    text: 'When you have **space** in combat, summon an **Imp** with **Ward** and **Taunt**. **3 times** per combat.',
+    reward: { kind: 'combatFlag', flag: 'runeBrood', amount: 3 },
+  },
+  {
+    id: 'rune_war_chorus',
+    name: 'Rune of the War Chorus',
+    cost: 3,
+    text: 'Your **first Rally** each combat triggers your **left-most Shout**.',
+    reward: { kind: 'combatFlag', flag: 'runeWarChorus' },
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,
@@ -921,6 +936,16 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Gemheart Golems** gain **Rise**.',
     reward: { kind: 'combatFlag', flag: 'runeLivingTreasure' },
     sets: ['set2'], // Gemheart Golems are a set-2 Kobold token
+  },
+  {
+    // Same "while you have room" shape as the Brood, with a body that strikes on arrival.
+    id: 'rune_living_echoes',
+    name: 'Rune of Living Echoes',
+    cost: 5,
+    epic: true,
+    text: 'When you have **space** on your board, summon a **Sunmane Herald** that **attacks immediately**.',
+    reward: { kind: 'combatFlag', flag: 'runeLivingEchoes', amount: 3 },
+    sets: ['set2'], // Sunmane Herald is a set-2 Beast
   },
 ];
 

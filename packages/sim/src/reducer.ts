@@ -2905,6 +2905,8 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = r.amount ?? 3;        // amount = Health per Beast attack
       else if (r.flag === 'runeRemains') s.questFlags.runeRemains = r.amount ?? 3;           // amount = Shop buff per 5 summons
       else if (r.flag === 'runeReinvestment') s.questFlags.runeReinvestment = r.amount ?? 1; // amount = Shop buff per summon
+      else if (r.flag === 'runeBrood') s.questFlags.runeBrood = r.amount ?? 3;               // amount = Imps per combat
+      else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = r.amount ?? 3; // amount = Heralds per combat
       else s.questFlags[r.flag] = true;
       break;
     case 'questGoldTribeBuff':
@@ -3345,6 +3347,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeRemains: f?.runeRemains,             // every 5 combat summons buffs the Shop
     runeReinvestment: f?.runeReinvestment,   // after combat, the Shop gains per friendly summon
     runeHuntingBell: f?.runeHuntingBell,     // Avenge (3): fire your left-most Rally, free
+    runeBrood: f?.runeBrood,                 // fill a free slot with a Warded, Taunting Imp (bounded)
+    runeLivingEchoes: f?.runeLivingEchoes,   // fill a free slot with a Sunmane Herald that strikes now
+    runeWarChorus: f?.runeWarChorus,         // your first Rally each combat fires your left-most Shout
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

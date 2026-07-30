@@ -974,7 +974,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // remains = every 5 combat summons buffs the Shop; reinvestment = after combat, the Shop gains per summon.
   | 'runeRemains' | 'runeReinvestment'
   // Rune of the Hunting Bell: Avenge (3) — trigger your left-most Rally, free.
-  | 'runeHuntingBell';
+  | 'runeHuntingBell'
+  // Batch 10: brood = while there is room, summon a Warded+Taunt Imp (bounded); livingEchoes = the same shape
+  // with a Sunmane Herald that strikes on arrival; warChorus = your first Rally each combat fires your
+  // left-most Shout.
+  | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1084,6 +1088,12 @@ export interface QuestCombatMods {
   runeReinvestment?: number;
   /** Rune of the Hunting Bell: every 3 friendly deaths, fire your left-most Rally without an attack. */
   runeHuntingBell?: boolean;
+  /** Rune of the Brood: how many times a free board slot summons a Warded, Taunting Imp this combat. */
+  runeBrood?: number;
+  /** Rune of Living Echoes: how many times a free board slot summons a Sunmane Herald that attacks now. */
+  runeLivingEchoes?: number;
+  /** Rune of the War Chorus: your first Rally each combat also triggers your left-most Shout. */
+  runeWarChorus?: boolean;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

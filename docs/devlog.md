@@ -86,6 +86,46 @@ axes composing without reaching each other, a census of which real primitives de
 **Follow-ups.** `impactPulse` is now unblocked on magnitude AND time — what remains is that its `rings`
 argument REPLACES the count where `intensity` multiplies it; a shockwave-based def plus an
 `intensity: rings / 2` at the call sites would close it. `impact`/`critImpact` still want direction.
+## 2026-07-30 — Phase 2: fold a panel down, find a control, and A/B against what ships
+
+**What changed.** Three additions to the shared `TunerPanel`, so all 46 panels get them at once: **foldable
+sections** that remember what you closed, a **find box** inside each panel, and a **hold-or-tap A/B** against the
+shipped values. Dev-only; stripped from production. No engine, content, sim, or player-visible change.
+
+**Why these three.** 16 of the 46 panels carry more than 25 controls — Execute Aura 48, Cleave Slash 44, Card
+Pills 43 — which is taller than the screen, so the panel you are tuning is mostly scrolling. Folding and finding
+are the same problem (*get me to the control I want*) and so landed as one change. The find box only appears on
+panels with 10+ controls; below that it would be clutter.
+
+**The A/B is the one that changes how tuning works.** Judging a tune means answering "is this better than what we
+ship?", and until now the only way to ask was to revert each control by hand, look, then put them all back — by
+which point you have lost the version you were judging. The button writes the shipped values, keeps yours in a
+ref, and hands them back on release. **Hold** is momentary; **tap** latches it on, because the FX panels read
+their config at fire time and you cannot hold the button and press Test with one pointer.
+
+It deliberately goes through each panel's REAL setters rather than a preview path, because that is the only route
+that actually repaints the board — every config module applies its values as a side effect of being written. The
+cost is that the shipped values touch `localStorage` for the duration of the hold; a crash mid-hold would leave
+them saved, which is the same state Reset produces, so the worst case is recoverable. That buys an A/B that works
+on all 46 panels instead of the handful that could be taught a second write path.
+
+**Two details that are easy to get wrong.** A fold is IGNORED while you are searching — a match you cannot see is
+worse than a section you did not mean to open — and the section heading shows its match count as `1/2` so you can
+tell what the filter is hiding. And the panel restores your values on UNMOUNT: closing a panel mid-compare must
+not leave the shipped values live on the board with the panel that caused it gone.
+
+**How it was verified.** typecheck (pkgs + web), 3124 tests, build:web, `eslint packages/ui` clean. Then driven
+live against Cleave Slash (44 controls, 9 sections) on the dev server: folding a section dropped 44 rows to 42
+and persisted to `ascent.tunerfold`; fold-all took it to 0 rows and expand-all back to 44; a search for "hit"
+returned `1 of 44` and rendered its match from inside a FOLDED section, proving search overrides the fold; an
+unmatched term showed the empty state. For the A/B, three numbers and one colour were edited, and under hold
+**exactly those 4 of 42 values changed** while the other 38 stayed put — then all 42 restored byte-identical on
+release, the colour included. Tap-to-latch and tap-again-to-release were checked separately, as was closing the
+panel while latched (values came back). Test edits were reset afterwards.
+
+**Follow-ups.** Two Phase 2 items were considered and deliberately not built: a Test button for the 26 panels
+that have no way to fire their effect, and a visual easing picker (3 controls on 1 panel). The owner's accuracy
+pass on all 1,020 hints came back with **no edits needed**, closing the largest item the migration left owing.
 
 
 ## 2026-07-30 — `playDef` gains per-call `scale` and `intensity`, and the card-drop dust becomes a def

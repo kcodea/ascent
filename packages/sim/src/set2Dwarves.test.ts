@@ -248,17 +248,38 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.bonusEmbersNextTurn).toBe(1);
   });
 
-  it('Chef Gary Toast climbs with Ales cast this turn', () => {
-    // Base +3/+3; each Ale cast this turn adds +1. Two Ales → +5/+5.
-    const chefBuff = (ales: number): number => {
-      let s = set2();
-      const target = body('dw_brunni', 't');
-      s = { ...s, board: [target], hand: [body('dw_chef', 'c')], alesCastThisTurn: ales };
-      s = play(s, 'c');
-      return s.board.find((x) => x.uid === 't')!.attack - CARD_INDEX['dw_brunni']!.attack;
-    };
-    expect(chefBuff(0)).toBe(3);
-    expect(chefBuff(2), 'the Chef did not scale with Ales').toBe(5);
+  it('Chef Gary Toast fires when ANOTHER Dwarf is played, not just on its own Shout', () => {
+    // The bug (owner report 2026-07-29): it rode `onPlay`, which is the Chef's OWN Shout — so it fired once on
+    // arrival and never again, while its text promises "when you play a Dwarf". It watches `onSummon` now.
+    let s = set2();
+    const mate = body('dw_brunni', 'mate');
+    // Broad-Axe Brakka is the newcomer on purpose: it is a Dwarf with NO effects of its own. My first attempt
+    // used Ironlung Captain, which ALSO buffs your Dwarves +3 Attack — the +6 that produced was two effects
+    // stacking, not the Chef double-firing.
+    s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [body('dw_brakka', 'newcomer')] };
+    const before = s.board.find((x) => x.uid === 'mate')!.attack;
+    s = play(s, 'newcomer');
+    expect(s.board.find((x) => x.uid === 'mate')!.attack, 'playing a Dwarf did not buff the others').toBe(before + 3);
+  });
+
+  it('…buffs the whole tribe including itself, with no count limit', () => {
+    // Owner text is plain "give your Dwarves +3/+3" — the 3-target cap and Ale scaling were both mine and are gone.
+    let s = set2();
+    s = { ...s, board: [body('dw_chef', 'chef'), body('dw_brunni', 'a'), body('dw_tapkeeper', 'b'), body('dw_coinfire', 'c')], hand: [body('dw_orin', 'n')] };
+    s = play(s, 'n');
+    for (const uid of ['chef', 'a', 'b', 'c']) {
+      const c = s.board.find((x) => x.uid === uid)!;
+      expect(c.attack, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.attack + 3);
+    }
+  });
+
+  it('…and a NON-Dwarf being played does not trigger it', () => {
+    let s = set2();
+    const mate = body('dw_brunni', 'mate');
+    s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [{ uid: 'beast', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }] };
+    const before = s.board.find((x) => x.uid === 'mate')!.attack;
+    s = play(s, 'beast');
+    expect(s.board.find((x) => x.uid === 'mate')!.attack).toBe(before);
   });
 
   it('casting an Ale bumps the per-turn tally, and it resets each turn', () => {
@@ -295,9 +316,9 @@ describe('tranche C — the five that needed machinery', () => {
     const mate = body('dw_brunni', 'mate');
     s = { ...s, board: [body('dw_mountainbond', 'mb'), mate] };
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    applyCardsPlayed(s, 7);
+    applyCardsPlayed(s, 4);
     expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'fired below the threshold').toBe(before);
-    applyCardsPlayed(s, 1); // 8th card → a Ruby on each of the 2 minions
+    applyCardsPlayed(s, 1); // 5th card → a Ruby on each of the 2 minions (owner: 8 -> 5)
     expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'no Ruby landed').toBeGreaterThan(before);
   });
 

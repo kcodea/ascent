@@ -1212,19 +1212,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Chef Gary Toast: when you play a minion of `tribe`, buff `count` of them — magnitude IMPROVED by each Ale
-   *  cast this turn, so the Ale engine feeds it. Reads the tally live, so the printed number must fold it in. */
-  onPlayTribeBuffTribeByAles: (ctx, self, params) => {
+  /**
+   * Chef Gary Toast — when you PLAY a minion of `tribe`, buff your whole `tribe`.
+   *
+   * Rides `onSummon`, not `onPlay`. That was the bug (owner report 2026-07-29): `onPlay` is the Chef's OWN
+   * Shout, so it fired exactly once — when the Chef itself was played — and never again, which is not what
+   * "when you play a Dwarf" says at all. `onSummon` is the watcher every other "whenever you summon/play an X"
+   * card uses (Broodwright, Groveweaver), and it fires for each minion entering play.
+   *
+   * The Chef buffs the whole tribe including itself: the owner's text is plain "give your Dwarves +3/+3", with
+   * no count limit and no Ale scaling (both were mine, and both are gone).
+   */
+  onTribeSummonedBuffTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as { minion?: BoardCard };
     const tribe = str(params.tribe);
-    const step = num(params.step, 1);
-    const mag = (num(params.attack, 3) + step * (ctx.state.alesCastThisTurn ?? 0)) * gold(self);
+    if (!minion || minion.uid === self.uid) return;         // its own arrival doesn't trigger it
+    if (tribe && !isTribe(minion, tribe as never)) return;  // only the named tribe's plays count
+    const mag = num(params.attack, 3) * gold(self);
     if (mag <= 0) return;
-    // Excludes ITSELF: playing the Chef must not trigger its own effect (owner ruling 2026-07-29), so the
-    // buff only ever lands on the Dwarves it is joining.
-    const targets = ctx.state.board
-      .filter((c) => c.uid !== self.uid && (!tribe || isTribe(c, tribe as never)))
-      .slice(0, num(params.count, 3));
-    for (const c of targets) addBuff(c, nameOf(self), mag, mag);
+    for (const c of ctx.state.board) {
+      if (!tribe || isTribe(c, tribe as never)) addBuff(c, nameOf(self), mag, mag);
+    }
   },
 
   /** Ironlung Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which

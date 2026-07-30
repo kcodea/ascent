@@ -3,12 +3,13 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the board's soft smoke and dust. Two separate effects share this panel, which is why the
- * sections matter here more than most: combat impact smoke, and the dust + energy pulse fired from a strike
- * point. Values persist to localStorage and apply to the NEXT impact, so land a hit to judge a change.
+ * DEV-only tuner for the board's soft smoke and the strike-point energy pulse. Two separate effects share this
+ * panel, which is why the sections matter here more than most. Values persist to localStorage and apply to the
+ * NEXT impact, so land a hit to judge a change.
  *
- * The card-drop footprint billow used to be a third section here; it is an authored def now
- * (`fx/defs/landing-dust.json`) and is tuned in the FX workbench instead.
+ * Two effects that used to have sections here are authored defs now, tuned in the FX workbench instead: the
+ * card-drop footprint billow (`fx/defs/landing-dust.json`) and the strike-point dust
+ * (`fx/defs/impact-dust.json`).
  *
  * LANGUAGE. The old labels prefixed every one to fake grouping ("smoke · count", "impact dust · life ms") and
  * used "alpha" for three different things across three different effects. Groups are real now, so a label only
@@ -21,13 +22,6 @@ const SPECS: Record<keyof SmokeConfig, [string, TunerUnit | undefined, string, s
   smokeLife:      ['Lifetime', 'ms', 'How long one puff lasts before it has fully faded.', 'Combat impact smoke'],
   smokeGrow:      ['Expansion', '×', 'How much a puff grows over its life.', 'Combat impact smoke'],
   smokeAlpha:     ['Opacity', 'opacity', 'Peak opacity of the smoke.', 'Combat impact smoke'],
-
-
-  impDustCount:   ['Puff count', undefined, 'How many dust puffs erupt from the strike point.', 'Strike-point dust'],
-  impDustSpeed:   ['Billow speed', 'px/s', 'How fast that dust pushes outward.', 'Strike-point dust'],
-  impDustLife:    ['Lifetime', 'ms', 'How long one puff lasts.', 'Strike-point dust'],
-  impDustSize:    ['Puff radius', 'px', 'Size of each puff.', 'Strike-point dust'],
-
   impPulseRadius: ['Ring radius', 'px', 'How far the energy ring expands from the strike point.', 'Strike-point pulse'],
   impPulseDur:    ['Ring lifetime', 'ms', 'How long a ring takes to expand and fade.', 'Strike-point pulse'],
   impPulseRings:  ['Ring count', undefined, 'How many rings fire. 0 disables the pulse entirely.', 'Strike-point pulse'],
@@ -36,7 +30,6 @@ const SPECS: Record<keyof SmokeConfig, [string, TunerUnit | undefined, string, s
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
 const ORDER: (keyof SmokeConfig)[] = [
   'smokeCount', 'smokeRise', 'smokeDrift', 'smokeLife', 'smokeGrow', 'smokeAlpha',
-  'impDustCount', 'impDustSpeed', 'impDustLife', 'impDustSize',
   'impPulseRadius', 'impPulseDur', 'impPulseRings',
 ];
 

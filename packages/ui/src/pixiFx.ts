@@ -1010,44 +1010,6 @@ class FxController {
   }
 
   /**
-   * Combat impact DUST — a card-drop-style tan billow erupting radially from the corner clack point (x, y).
-   * Same warm dry-dirt look as `dust()`, but sourced at a point (not a card perimeter) and driven by its own
-   * `imp*` config so it can be tuned independently of the card-drop dust. `power` thickens it a touch on
-   * heavy hits. Fired from the melee `contact` position (see `impact.ts`).
-   */
-  impactDust(
-    x: number, y: number, power = 1,
-    /** Optional per-call multipliers on the `imp*` config — lets a non-combat caller (the End Turn diamond's
-     *  strike) thicken/size/slow ITS billow without touching the shared combat tuning. All default to 1. */
-    opts?: { count?: number; size?: number; life?: number },
-  ): void {
-    if (!this.ready) return;
-    const sm = getSmokeConfig();
-    const n = Math.round(sm.impDustCount * (0.8 + 0.2 * power) * (opts?.count ?? 1));
-    for (let i = 0; i < n; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      const speed = sm.impDustSpeed * (0.45 + Math.random() * 0.9);
-      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans (matches dust())
-      const scale = (sm.impDustSize / 40) * (0.7 + Math.random() * 0.6) * (opts?.size ?? 1); // glowTex natural radius ≈ 40px
-      this.spawn(this.glowTex!, {
-        x: x + (Math.random() - 0.5) * 8,
-        y: y + (Math.random() - 0.5) * 8,
-        vx: Math.cos(ang) * speed,
-        vy: Math.sin(ang) * speed * 0.7 - (4 + Math.random() * 12), // vertical damped + slight lift → stays flat
-        drag: 0.2,       // dust slows quickly
-        gravity: 130,    // gentle settle — no rising column
-        life: sm.impDustLife * (0.8 + Math.random() * 0.5) * (opts?.life ?? 1),
-        fromScale: scale * 0.35,
-        toScale: scale, // billow out as it fades
-        spin: (Math.random() - 0.5) * 1.2,
-        tint: tan,
-        blend: 'normal',
-        peakAlpha: 0.34 * (0.8 + Math.random() * 0.4),
-      });
-    }
-  }
-
-  /**
    * Combat impact PULSE — one or two thin bright energy rings that expand out of the clack point (x, y) and
    * fade, an additive "shock" punctuation on every hit. Radius / lifetime / ring-count are `imp*` config;
    * `power` nudges the radius on heavy hits. Fired from the melee `contact` position (see `impact.ts`).

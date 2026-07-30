@@ -317,14 +317,24 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   `dust` is migrated as the proof (`fx/defs/landing-dust.json`; the card-drop `dust*` knobs are gone from the
   Smoke tuner with it). What the remaining eight still owe:
   - **Only `scale`/`intensity` short:** `deathrattle` (`size`), `shatterAt` + `rebornSummon` (the card's
-    `w/h` — note both want an *aspect*, and one scalar collapses it to the width), `impactDust` (`power` +
-    per-button `count`/`size` multipliers — but its `life` override is a TIME axis nothing expresses yet).
+    `w/h` — note both want an *aspect*, and one scalar collapses it to the width).
   - **Also need direction:** `impact` and `critImpact` (`dx/dy`). The shape for that is an
     `aimMode: 'sourceToTarget'` on `burst` derived from the anchors `playDef` already receives — which needs
     a source channel plumbed to the primitive instance (built and cut in #764 for want of a caller; see
     `BURST_AIM_MODES` in `burst.ts`). Build it when those two migrate.
-  - **Need more than magnitude:** `impactPulse` (`radius`/`life`/`rings` per call — `life` is time again) and
-    `refreshBlast` (a whole `cfg` object from its tuner, which is really "author several defs, not one").
+  - **Need more than magnitude:** `impactPulse` (`radius` → `scale` and `life` → `time` are both covered now;
+    what remains is that its `rings` argument REPLACES the ring count where `intensity` MULTIPLIES it — an
+    `intensity: rings / 2` at the three call sites closes it) and `refreshBlast` (a whole `cfg` object from
+    its tuner, which is really "author several defs, not one").
+- **`playDef` per-call `time` — ✅ SHIPPED 2026-07-30.** The third and last axis. `time` rescales the def's
+  whole temporal FRAME — every layer's `at`/`life`/`travelMs`, the def's `duration`, and every param declaring
+  `axis: 'time'` (a ms duration) or `axis: 'timeInverse'` (a per-second rate whose period is the thing being
+  stretched — shockwave `speed`, the only one). Rescaling the frame rather than just the params is the whole
+  design: 13 of 22 defs declare layer windows, and a params-only stretch would silently truncate their
+  particles. Distinct from `speed` (which rescales the clock and so slows the motion); `time` holds velocities
+  so particles travel further. `rate` deliberately stays on `intensity` — reasoning on `FxScaleAxes.time`.
+  `impactDust` is migrated as the proof (`fx/defs/impact-dust.json`, fired on all three dials from End Turn,
+  Tavern Up, Refresh and the three melee branches; the `impDust*` knobs are gone from both tuners).
 
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own

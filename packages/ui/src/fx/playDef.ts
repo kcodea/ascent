@@ -64,10 +64,19 @@ export interface PlayDefOptions extends FxScaleAxes {
   /** Playback rate multiplier (e.g. the combat-speed dial). Non-finite or ≤ 0 falls back to 1 — a paused
    *  fire-and-forget effect would never retire, so "0" is treated as caller error rather than honoured. */
   speed?: number;
-  /* `scale` / `intensity` come from `FxScaleAxes` — the per-call geometric and quantity multipliers. Both
-   * default to 1, and 1 is an EXACT no-op (the def object is not even copied). Only params that declare an
-   * `axis` in their spec respond, and each is clamped to its own slider range, so scaling is NOT linear at
-   * the extremes. See `scaleDef.ts` and `FxParamMeta.axis`. */
+  /* `scale` / `intensity` / `time` come from `FxScaleAxes` — the per-call geometric, quantity and temporal
+   * multipliers. All default to 1, and 1 is an EXACT no-op (the def object is not even copied). Only params
+   * that declare an `axis` in their spec respond, and each is clamped to its own slider range, so scaling is
+   * NOT linear at the extremes. See `scaleDef.ts` and `FxParamMeta.axis`.
+   *
+   * `time` and `speed` are NOT the same dial and must not be confused: `speed` rescales this player's clock
+   * (everything, motion included, runs slower and covers the same ground), while `time` stretches the def's
+   * temporal frame with the velocities held, so particles travel further. `time` also moves `def.duration`,
+   * which is what `fireProgress` and every `travel` layer's arc are measured against — so a stretched def's
+   * arc still completes exactly at its (stretched) end. Note the interaction with the two safety caps: a
+   * large `time` on a long def can push a play past `player.ts`'s `FIRE_TIMEOUT_MS` (10s of SIMULATED time)
+   * or this module's `PLAY_TIMEOUT_MS` (15s of wall clock), which force-retire it. Nothing in the library is
+   * within an order of magnitude of that. */
   /** Called EXACTLY once when the effect retires — whether it played out naturally or was cancelled — and
    *  after teardown has finished, so the callback sees a fully cleaned-up world. */
   onDone?: () => void;

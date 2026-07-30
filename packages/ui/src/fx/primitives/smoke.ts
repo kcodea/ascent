@@ -56,6 +56,10 @@ const SPECS = {
   },
   life: {
     kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 2000, step: 10, default: 1500, essential: true,
+    // A duration, so it rides `time` — and, exactly as in `emitter.ts`, it is also the one-shot EMIT WINDOW
+    // (`smokeWithinEmitWindow`), so a stretched plume emits proportionally more puffs at the same `rate`.
+    // See `FxScaleAxes.time` for why `rate` deliberately stays off this axis.
+    axis: 'time',
     help: 'Mote lifetime in ms — long, so puffs linger and billow.',
   },
   spread: {

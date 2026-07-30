@@ -2,9 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import gsap from 'gsap';
 import { sfx } from '../../sfx';
 import { pixiFx } from '../../pixiFx';
-import { hitPower, playContactImpact } from './impact';
+import { playDef } from '../../fx/playDef';
+import { dustIntensity, hitPower, playContactImpact } from './impact';
 
-afterEach(() => vi.restoreAllMocks());
+// The tan billow is no longer a `pixiFx` method — it is the authored `impact-dust` def, fired through
+// `playDef`. Mocked at the MODULE, not spied on an object: `playDef` is a bare function export, and the
+// precedence assertions below only care whether the dust fired, not what it drew.
+vi.mock('../../fx/playDef', () => ({ playDef: vi.fn(() => null) }));
+const playDefMock = vi.mocked(playDef);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  playDefMock.mockClear(); // a module mock survives restoreAllMocks — clear its call log per test
+});
 
 // Tests run in the node environment (no jsdom in this repo), so — like the sibling `float.test.ts` — we
 // hand `playContactImpact` a fake Element whose getBoundingClientRect is stubbed rather than a real DOM
@@ -66,7 +76,7 @@ describe('playContactImpact — Execute', () => {
     wind: vi.spyOn(pixiFx, 'windSlash').mockImplementation(() => {}),
     crit: vi.spyOn(pixiFx, 'critImpact').mockImplementation(() => {}),
     impact: vi.spyOn(pixiFx, 'impact').mockImplementation(() => {}),
-    dust: vi.spyOn(pixiFx, 'impactDust').mockImplementation(() => {}),
+    dust: playDefMock,
     pulse: vi.spyOn(pixiFx, 'impactPulse').mockImplementation(() => {}),
   });
 
@@ -115,5 +125,30 @@ describe('playContactImpact — Execute direction', () => {
     vi.spyOn(sfx, 'hit').mockImplementation(() => {});
     playContactImpact(fakeDefender(), 0, -40, 1, 1, { x: 5, y: 7 }, 0, false, false, false, true);
     expect(exec).toHaveBeenCalledWith(5, 7, 0, -40);
+  });
+});
+
+/**
+ * The tan billow's migration from `pixiFx.impactDust` to the authored `impact-dust` def. The old method took
+ * `power` and folded it into a particle COUNT (`impDustCount * (0.8 + 0.2 * power)`); the def carries the base
+ * count, so `power` now arrives as `playDef`'s per-call `intensity` and nothing else moves with it.
+ */
+describe('playContactImpact — the impact-dust def', () => {
+  it('fires impact-dust at the contact point with power carried as intensity', () => {
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    vi.spyOn(pixiFx, 'impact').mockImplementation(() => {});
+    vi.spyOn(pixiFx, 'impactPulse').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 10, 0, 2, 1, { x: 12, y: 34 });
+    expect(playDefMock).toHaveBeenCalledWith(
+      'impact-dust',
+      { source: { x: 12, y: 34 }, target: { x: 12, y: 34 } },
+      { intensity: dustIntensity(2) },
+    );
+  });
+
+  it('maps power the way the hand-written method did', () => {
+    expect(dustIntensity(1)).toBeCloseTo(1, 9);   // a baseline hit is an exact no-op on the axis
+    expect(dustIntensity(2)).toBeCloseTo(1.2, 9); // the hitPower cap
+    expect(dustIntensity(0.9)).toBeCloseTo(0.98, 9);
   });
 });

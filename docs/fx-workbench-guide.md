@@ -177,39 +177,67 @@ Spread `1` (a full circle has no centre to aim).
 `coins.json` is the worked example: two layers, both `fixed` at `-90`, one at Spread `0.18` for the coins and
 a wider `0.28` for the glints, with gravity pulling the arc back down.
 
-### Sizing an effect at the moment it fires — `scale` and `intensity`
+### Sizing an effect at the moment it fires — `scale`, `intensity` and `time`
 
 A def is a **fixed** composition, and that is deliberate: what you committed is what plays. But some effects
 have to know something you can't know while authoring — how wide *this* card is, how hard *this* hit landed.
-Two per-call dials carry exactly that, and nothing else:
+Three per-call dials carry exactly that, and nothing else:
 
 ```ts
 playDef('landing-dust', anchors, { scale: cardFxScale(w), intensity: 1.5 });
+playDef('impact-dust', anchors, { intensity: cfg.dustCount, scale: cfg.dustSize, time: cfg.dustLife });
 ```
 
 | Dial | Means | Reaches |
 |---|---|---|
 | `scale` | **bigger** — geometry | params measured in px or px-per-time: `size`, `emitRadius`, `speed`, `gravity`, `turbulence`, `radius`, `length`, `width`, `waveAmp`, `drain` |
 | `intensity` | **more** — quantity | params that count things: burst `count`, emitter/smoke `rate`, shockwave `rings` |
+| `time` | **longer** — duration | the whole temporal frame (below): burst `life`/`interval`, emitter/smoke `life`, shockwave `speed` (inversely), plus every layer's `at`/`life`/`travelMs` and the def's `duration` |
 
-Both default to `1`, and **`1` is an exact no-op** — the def isn't even copied, so nothing you authored moves
-and a locked seed replays identically. `0`, a negative number and a non-finite number are all caller error
-and fall back to `1`.
+All three default to `1`, and **`1` is an exact no-op** — the def isn't even copied, so nothing you authored
+moves and a locked seed replays identically. `0`, a negative number and a non-finite number are all caller
+error and fall back to `1`.
 
-A param responds to a dial only if its spec says so (`axis: 'scale'` / `axis: 'intensity'` in the primitive's
-`SPECS`, sliders only). Ratios, durations, colours and style params ride neither on purpose, and so do
-spatial *frequencies* like Turb scale and Noise scale — those are `1/px`, so they would have to scale
-*inversely*, which one multiplier can't do. Adding a dial to a param is a one-line spec change; adding a
-whole new dial is not, and should be argued for rather than assumed.
+A param responds to a dial only if its spec says so (`axis: 'scale'` / `'intensity'` / `'time'` /
+`'timeInverse'` in the primitive's `SPECS`, sliders only). Ratios, colours and style params ride none of them
+on purpose, and so do spatial *frequencies* like Turb scale and Noise scale — those are `1/px`, so they would
+have to scale *inversely*, which one multiplier can't do. Adding a dial to a param is a one-line spec change;
+adding a whole new dial is not, and should be argued for rather than assumed.
 
 > ⚠️ **Scaling is clamped, so it is NOT linear at the extremes.** Every scaled param is held to its own
 > slider range. If `size` is authored at 34 of a possible 40, `scale: 10` moves it to 40 and stops — the
-> effect grows 1.2×, not 10×. **If you want an effect to have real headroom on a dial, author its base value
-> well below the ceiling.** "I doubled the scale and it barely changed" is almost always this.
+> effect grows 1.2×, not 10×. Durations are no different: burst `life` maxes at 1500, so a def authored at
+> 450 stops growing at `time: 3.3`. **If you want an effect to have real headroom on a dial, author its base
+> value well below the ceiling.** "I doubled the dial and it barely changed" is almost always this.
+> (One exception, deliberately: a **layer window** has no declared range, so it is never clamped — it has to
+> be free to follow the longest thing inside it.)
 
-`landing-dust.json` is the worked example: one burst layer, authored for a reference-size card
+`landing-dust.json` is the worked example for `scale`: one burst layer, authored for a reference-size card
 (`FX_REF_CARD_W` = 222px, see `fx/cardScale.ts`), fired at `scale: cardFxScale(w)` so it tracks the real card
-and — at the Recruit placement site only — `intensity: 1.5` for a thicker cloud.
+and — at the Recruit placement site only — `intensity: 1.5` for a thicker cloud. `impact-dust.json` is the
+worked example for all three at once (End Turn / Tavern Up / Refresh each dial count, size and lifetime).
+
+#### `time` is not `speed`, and it moves more than params
+
+`speed` rescales the playback **clock**: at `speed: 0.5` everything runs at half rate, so particles also
+*move* half as fast and cover the same ground. `time: 2` holds the velocities and stretches the durations, so
+particles live twice as long and therefore **travel twice as far**. Both are legitimate; reach for `time`
+when you want an effect to *hang* longer, and `speed` when you want it in slow motion.
+
+The reason `time` isn't just a param transform: **two different things in this system are called "life"** —
+a layer's `life` (its window: how long the layer exists) and a primitive's `life` param (one particle's
+lifetime). `playDef` fires one-shot, and a layer that declares a `life` is bounded by that window. So `time`
+rescales the **whole temporal frame together** — every layer's `at`, `life` and `travelMs`, the def's
+`duration`, and the duration params — or particles would outlive a window that hadn't moved and be cut off
+mid-flight with no error anywhere. (`bow` is left alone: it's a shape, not a time.)
+
+Two consequences worth knowing before you dial it:
+
+- **`rate` deliberately does NOT ride `time`.** It stays on `intensity`. So a stretched `emitter`/`smoke`
+  emits proportionally **more** motes — a one-shot's emit window *is* its `life` — which is what "the same
+  plume, for longer" should look like. If you want longer-but-not-denser, pass `intensity: 1 / time` too.
+- **A `burst`'s particle count cannot move on this axis**, by construction: `time` reaches no `count` param,
+  so a locked seed replays the identical roll at any `time`. Only the shards' lifetimes change.
 
 ---
 

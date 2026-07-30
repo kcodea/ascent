@@ -22,14 +22,6 @@ export interface SmokeConfig {
   smokeGrow: number;
   /** Combat impact: peak opacity (kept low so it wisps over the cream board). */
   smokeAlpha: number;
-  /** Combat impact — card-drop-style dust erupting from the corner clack point: puff count. */
-  impDustCount: number;
-  /** Combat impact dust: outward billow speed (px/s). */
-  impDustSpeed: number;
-  /** Combat impact dust: base puff lifetime (ms). */
-  impDustLife: number;
-  /** Combat impact dust: puff radius (px). */
-  impDustSize: number;
   /** Combat impact — energy pulse ring(s) expanding out of the clack point: ring radius (px). */
   impPulseRadius: number;
   /** Combat impact energy pulse: ring lifetime (ms). */
@@ -46,11 +38,8 @@ const DEFAULTS: SmokeConfig = {
   smokeLife: 400,
   smokeGrow: 6,
   smokeAlpha: 0.15,
-  // Combat impact dust + energy pulse (fired from the strike point) — owner-tuned (2026-07-10).
-  impDustCount: 22,
-  impDustSpeed: 450,
-  impDustLife: 720,
-  impDustSize: 30,
+  // Combat impact energy pulse (fired from the strike point) — owner-tuned (2026-07-10). The dust beside it
+  // is now the authored `impact-dust` def (`fx/defs/`), tuned in the FX workbench rather than here.
   impPulseRadius: 150,
   impPulseDur: 480,
   impPulseRings: 2,
@@ -64,10 +53,6 @@ export const SMOKE_RANGES: Record<keyof SmokeConfig, [number, number, number]> =
   smokeLife: [100, 2200, 20],
   smokeGrow: [0.5, 6, 0.1],
   smokeAlpha: [0, 1, 0.01],
-  impDustCount: [0, 30, 1],
-  impDustSpeed: [0, 600, 10],
-  impDustLife: [100, 1200, 20],
-  impDustSize: [4, 60, 1],
   impPulseRadius: [20, 320, 5],
   impPulseDur: [100, 700, 10],
   impPulseRings: [0, 2, 1],

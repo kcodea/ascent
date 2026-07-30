@@ -44,6 +44,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Effects can be stretched in time at the moment they fire.** The last of the three per-call dials —
+  bigger, more, and now *longer*. Not the same as slowing an effect down: the dust thrown up by a strike
+  keeps its speed and simply hangs (and travels) further. The tricky part is that "life" means two different
+  things — how long a particle lives and how long its layer exists — so the dial moves an effect's whole
+  timeline together; stretching only half of it would have quietly cut particles off mid-flight in most of
+  the library. The strike-point dust moves across as the proof, and every button that kicks it up now dials
+  its own count, size and lifetime.
 - **Effects can be sized at the moment they fire.** An authored effect is a fixed recipe, which is most of
   its value — but a lot of them need to know something only the caller knows: how big this card is, how hard
   this hit landed. Two per-call dials now carry exactly that, and nothing else: bigger, and more. The dust

@@ -15,14 +15,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_spellslinging',
     name: 'Rune of Spellslinging',
-    cost: 4,
+    cost: 5,
     text: 'Every **5 Gold** spent, get a random Shop spell.',
     reward: { kind: 'runeSpellDrip', per: 5 },
   },
   {
     id: 'rune_warding',
     name: 'Rune of Warding',
-    cost: 1,
+    cost: 3,
     text: '**Start of Combat:** give your left-most minion **Ward**.',
     reward: { kind: 'combatFlag', flag: 'runeWarding' },
   },
@@ -64,7 +64,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_fury',
     name: 'Rune of Fury',
-    cost: 2,
+    cost: 6,
     text: 'Your **Avenge** effects trigger twice.',
     reward: { kind: 'combatFlag', flag: 'runeFury' },
   },
@@ -78,7 +78,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_forthcoming',
     name: 'Rune of Forthcoming',
-    cost: 1,
+    cost: 2,
     text: 'You **always attack first**.',
     reward: { kind: 'combatFlag', flag: 'runeForthcoming' },
   },
@@ -91,8 +91,11 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeRallying' },
   },
   {
+    // RENAMED from "Rune of Scale" (owner 2026-07-29): it sat one character from the epic "Rune of Scales", which
+    // is a Dragon card — scales belong to Dragons, so the Gold-scaling rune is the one that moves. The ID is
+    // deliberately unchanged: `ownedRunes` on saved runs stores ids, and renaming it would orphan them.
     id: 'rune_scale',
-    name: 'Rune of Scale',
+    name: 'Rune of Bulk Order',
     cost: 5,
     text: 'Whenever you spend Gold, give **3 random allies +2/+2**.',
     reward: { kind: 'runeScale', count: 3, attack: 2, health: 2 },
@@ -121,7 +124,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_pair',
     name: 'Rune of the Pair',
-    cost: 2,
+    cost: 3,
     text: 'Get **2 random Tier 4 minions**.',
     reward: { kind: 'grant', randomTier: 4, randomCount: 2 },
   },
@@ -129,6 +132,10 @@ export const RUNES: RuneDef[] = [
     id: 'rune_menagerie',
     name: 'Rune of the Menagerie',
     cost: 5,
+    // NOT reconciled to the roster's Set 2 line-up, deliberately — see the decisions list. This rune is in the
+    // SHARED pool, so hardcoding Kobold + Dwarf makes it grant NOTHING in a set-1 run (those tribes aren't in a
+    // set-1 roster), which is the exact mirror of the bug it would fix. It needs a per-set line-up or a
+    // "random tribe from YOUR run's roster" reward, both of which are owner calls.
     text: 'Get a random **Beast, Demon, Dragon, Mech, and Undead**.',
     reward: { kind: 'multi', rewards: [
       { kind: 'grant', randomTribe: 'beast', randomCount: 1 },
@@ -151,7 +158,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_small_fortune',
     name: 'Rune of Small Fortune',
-    cost: 1,
+    cost: 3,
     text: 'Get **7 Gold** immediately.',
     reward: { kind: 'gainGold', amount: 7, immediate: true },
   },
@@ -175,7 +182,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_scout',
     name: 'Rune of the Scout',
-    cost: 3,
+    cost: 2,
     text: '**Discover** a **Tier 5** minion.',
     reward: { kind: 'discover', tier: 5 },
   },
@@ -189,7 +196,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_bartering',
     name: 'Rune of Bartering',
-    cost: 5,
+    cost: 3,
     text: '**Shout** minions sell for **2 Gold**.',
     reward: { kind: 'runeBartering' },
   },
@@ -266,7 +273,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_copies',
     name: 'Rune of Copies',
-    cost: 6,
+    cost: 3,
     epic: true,
     text: '**Start of shop:** get a copy of a random minion on your board.',
     reward: { kind: 'runeCopies' },
@@ -390,7 +397,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_inheritance',
     name: 'Rune of Inheritance',
-    cost: 8,
+    cost: 6,
     epic: true,
     text: 'When your **left-most minion dies**, your **right-most minion** gains its stats.',
     reward: { kind: 'combatFlag', flag: 'runeInheritance' },
@@ -448,7 +455,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_gilded_spark',
     name: 'Rune of the Gilded Spark',
-    cost: 3,
+    cost: 2,
     epic: true,
     text: 'Get a **Goldcrafter**. Get another in **2 turns**.',
     reward: { kind: 'grant', cards: ['goldcrafter'], repeatInTurns: 2 },
@@ -465,7 +472,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_mirror_march',
     name: 'Rune of the Mirror March',
-    cost: 7,
+    cost: 6,
     epic: true,
     text: '**Start of Combat:** when you have room, summon a **copy of your left-most minion**.',
     reward: { kind: 'combatFlag', flag: 'runeMirrorMarch' },
@@ -473,7 +480,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_recurrence',
     name: 'Rune of Recurrence',
-    cost: 3,
+    cost: 5,
     epic: true,
     text: '**End of Turn:** cast the **first Shop spell** you cast this turn again.',
     reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
@@ -489,7 +496,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_conductor',
     name: 'Rune of the Conductor',
-    cost: 8,
+    cost: 4,
     epic: true,
     text: '**Start of Shop:** trigger all your **End of Turn** effects.',
     reward: { kind: 'runeConductor' },
@@ -561,14 +568,13 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['dw_brisbane'] },
   },
   {
-    // The Ales are named explicitly rather than randomly: the rune promises "3 Dwarven Ale", and a fixed trio
-    // reads the same every time. Which three is an owner call — see the decisions list.
+    // 3 RANDOM Ales (owner 2026-07-29), not a fixed trio — the variety is the point.
     id: 'rune_double_fisting',
     name: 'Rune of Double Fisting',
     cost: 6,
     epic: true,
     text: 'Get an **Edward Keg-hands** and **3 Dwarven Ales**.',
-    reward: { kind: 'grant', cards: ['dw_edward', 'wo_mine', 'wo_champion', 'wo_attack'] },
+    reward: { kind: 'grant', cards: ['dw_edward'], randomAle: 3 },
   },
 ];
 

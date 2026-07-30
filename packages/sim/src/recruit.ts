@@ -1219,7 +1219,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const step = num(params.step, 1);
     const mag = (num(params.attack, 3) + step * (ctx.state.alesCastThisTurn ?? 0)) * gold(self);
     if (mag <= 0) return;
-    const targets = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never)).slice(0, num(params.count, 3));
+    // Excludes ITSELF: playing the Chef must not trigger its own effect (owner ruling 2026-07-29), so the
+    // buff only ever lands on the Dwarves it is joining.
+    const targets = ctx.state.board
+      .filter((c) => c.uid !== self.uid && (!tribe || isTribe(c, tribe as never)))
+      .slice(0, num(params.count, 3));
     for (const c of targets) addBuff(c, nameOf(self), mag, mag);
   },
 
@@ -2835,8 +2839,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         const def = c && CARD_INDEX[c.cardId];
         return !!def && hasBattlecry(def);
       });
-      // Golden triggers BOTH neighbours (owner text: "Trigger both"); base takes the left one if it has a Shout.
-      const chosen = gold(self) > 1 ? neighbours : neighbours.slice(0, 1);
+      // Golden triggers BOTH neighbours (owner text: "Trigger both"). Base triggers exactly ONE — and when both
+      // sides have a Shout it is RANDOM, not the left (owner ruling 2026-07-29), so the card can't be gamed by
+      // arranging your line. Seeded from the run's stream, so it stays replay-faithful.
+      const chosen = gold(self) > 1
+        ? neighbours
+        : neighbours.length > 1
+          ? [neighbours[makeRng(mixSeed(ctx.state.seed, ctx.state.wave, me.spellProgress ?? 0)).int(neighbours.length)]!]
+          : neighbours.slice(0, 1);
       for (const c of chosen) replayBattlecry(ctx.state, c);
     }
   },

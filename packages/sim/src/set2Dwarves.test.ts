@@ -353,10 +353,11 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     expect(grantedIds(rune).filter((id) => id === 'ruby')).toHaveLength(5);
   });
 
-  it('Rune of Double Fisting grants Edward plus 3 Ales', () => {
-    const ids = grantedIds(all.find((r) => r.name === 'Rune of Double Fisting')!);
-    expect(ids).toContain('dw_edward');
-    expect(ids.filter((id) => ALE_IDS.includes(id)), 'not three Ales').toHaveLength(3);
+  it('Rune of Double Fisting grants Edward plus 3 RANDOM Ales', () => {
+    // Random rather than a fixed trio (owner 2026-07-29), so the Ales are a count on the reward, not card ids.
+    const rune = all.find((r) => r.name === 'Rune of Double Fisting')!;
+    expect(grantedIds(rune)).toContain('dw_edward');
+    expect((rune.reward as { randomAle?: number }).randomAle, 'not three random Ales').toBe(3);
   });
 
   it('the rune-granted minions are NOT buyable from the shop', () => {

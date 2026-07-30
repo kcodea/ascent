@@ -1,4 +1,4 @@
-import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { ALE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
@@ -56,7 +56,7 @@ function spendGold(s: RunState, amount: number): void {
     captureBuffFx(s, undefined, 'spell', () => {
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool.splice(rng.int(pool.length), 1)[0]!;
-        addBuff(pick, 'Rune of Scale', attack, health);
+        addBuff(pick, 'Rune of Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
       }
     });
     s.rngCursor = rng.state();
@@ -2759,6 +2759,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // when hand + board are full (owner ruling: never lose an earned reward). `overflow = true` on every grant.
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!, true);
       if ((r.randomSpell ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
+      // Set 2 — N random Dwarven ALES specifically (owner 2026-07-29). Drawn from the run's pool like every other
+      // grant, so a set without the Ales grants nothing instead of injecting cards the run can't otherwise have.
+      if ((r.randomAle ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id)), r.randomAle!, true);
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
       for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)

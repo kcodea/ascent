@@ -721,7 +721,7 @@ export type QuestReward =
   // the Pair ("2 random Tier 4 minions").
   // `grantGolden` conjures each id as a GILDED (golden) copy — Rune of Stormcalling's "Gilded Karwind", Frontline
   // Glory's "Gilded Yazzus".
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; /** Set 2 — N random Dwarven Ales (owner 2026-07-29: random, not a fixed trio). */ randomAle?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).

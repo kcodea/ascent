@@ -497,6 +497,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
     randomTribe: TribeSchema.optional(),
     randomCount: z.number().int().positive().optional(),
     randomSpell: z.number().int().positive().optional(),
+    randomAle: z.number().int().positive().optional(),
     randomFilter: z.enum(['shout', 'endOfTurn', 'echo', 'rally', 'attachment']).optional(),
     randomFilterCount: z.number().int().positive().optional(),
     randomFilterExactTier: z.boolean().optional(),

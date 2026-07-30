@@ -273,9 +273,16 @@ button hover and press. DESIGN.md now documents that surface, so future tuner wo
 instead of drifting. The owner's remaining note on the toolset was the visuals; that is now addressed.
 
 Still on the table from Phase 2, deliberately not built:
-- **A Test button on every FX panel** — 26 of 46 panels have no way to fire their effect, so you must stage a
-  real Execute kill or Rally proc just to see it once. Cost varies per panel: some already have a `pixiFx` test
-  hook to wire up, others need one written.
+- ~~**A Test button on every FX panel.**~~ **DROPPED (owner call, 2026-07-30)** — Pixi animation is consolidating
+  into the FX workbench, so per-panel fire buttons would have had a short shelf life. The inventory that killed
+  it is worth keeping, because the headline number was wrong: of the 26 panels with no Test button, **~19 need
+  none** — they tune things that render continuously (Layout Lab, Card Pills, Card Plate, Card Text, Hero Panel,
+  Lobby Rail, Buffs Drawer, Compendium, Card Frames, Step Counter, Smoke & Dust), already carry a preview toggle
+  (Drag Feel, End Turn, Hover Glow, Hero Power, Refresh, Tavern Up), or have a better harness of their own
+  (Charge Glyph's scrub). Only **5** genuinely fire and vanish — Lunge Impact, Motion Trail, Damage Float,
+  Reposition Slide, Lunge — and of those, Reposition Slide and Lunge need staged cards on the board, which is
+  why Lunge got its measuring readout instead. Ward Dome and Execute Aura are persistent-while-a-condition-holds
+  and want a preview toggle, not a button. Revisit inside the workbench, not per panel.
 - **A visual easing picker.** Easing is an ordered slider that now at least shows curve NAMES rather than an
   index. A picker drawing each curve would be better, but it affects 3 controls on 1 panel.
 - **Phase 3 (workflow)** — still unscoped.

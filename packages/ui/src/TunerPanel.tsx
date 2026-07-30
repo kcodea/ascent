@@ -23,7 +23,7 @@ import { assertGroupRuns, formatValue, groupControls, unitSuffix, type TunerSpec
 export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): JSX.Element {
   const [, force] = useState(0);
   const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel(spec.id);
+  const { panelRef, panelElRef, headerPointerDown, panelStyle } = useDraggablePanel(spec.id);
 
   // Preview switches. Each pins a body class while on, and every one is removed when the panel closes — a
   // pinned "glow always on" that outlived its panel would leave the board lit with no visible cause.
@@ -202,7 +202,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
         <button className="sfxmix-copy" onClick={resetAll}>Reset</button>
         {spec.actions?.map((a) => (
-          <button className="sfxmix-copy" key={a.label} onClick={a.run} title={a.hint}>{a.label}</button>
+          <button className="sfxmix-copy" key={a.label} onClick={() => a.run(panelElRef.current)} title={a.hint}>{a.label}</button>
         ))}
       </div>
     </div>

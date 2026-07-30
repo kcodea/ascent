@@ -49,6 +49,8 @@ export const STRIKEFX_RANGES: Record<keyof StrikeFxConfig, [number, number, numb
   sparkSize: [0.3, 3, 0.1],
 };
 export const STRIKEFX_KEYS = Object.keys(DEFAULTS) as (keyof StrikeFxConfig)[];
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as STRIKEFX_DEFAULTS };
 
 const KEY = 'ascent.strikefx';
 let cfg: StrikeFxConfig = (() => {

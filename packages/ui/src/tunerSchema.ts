@@ -88,7 +88,12 @@ export interface TunerToggle {
 
 export interface TunerAction {
   label: string;
-  run: () => void;
+  /**
+   * `panelEl` is the panel's own root element. Some actions need it: the plate-dissolve tuner plays its effect
+   * in the empty space BESIDE the panel, so that a 240px card-sized effect can be judged without dragging a
+   * real card onto the board over and over, and it can only find that space by measuring itself.
+   */
+  run: (panelEl: HTMLElement | null) => void;
   /** Hover explanation — these fire something on the board, which is not always obvious from the label. */
   hint?: string;
 }

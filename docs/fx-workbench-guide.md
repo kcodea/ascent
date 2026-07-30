@@ -169,7 +169,6 @@ default only does something for a *moving* emitter:
 |---|---|
 | **travel** (default) | the emitter's own direction of movement. A burst on a **static** anchor (`target`, `slot`, `cursor`) never moves, so this fans it along **+x, i.e. to the right** — almost never what you wanted |
 | **fixed** | the **Angle** you set, in degrees |
-| **awayFrom** | straight out from the `source` anchor, through this layer's own anchor point — an outward spray. Falls back to *travel* if the two points coincide, or if the scenario stages no source |
 
 **Angle is in screen degrees, and screen Y grows DOWNWARD** — so `0` is right, **`-90` is straight UP**, `+90`
 is down, `±180` is left. The slider is greyed out unless Aim is `fixed`, and none of it does anything at

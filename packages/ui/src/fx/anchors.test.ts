@@ -47,16 +47,6 @@ function fakeSink(): FxHeadSink & { heads: { index: number; x: number; y: number
   return { heads, setHead: (index, x, y) => { heads.push({ index, x, y }); } };
 }
 
-/** As above, but also implementing the optional `setSource` channel so its calls can be asserted. */
-function sourceSink(): FxHeadSink & {
-  heads: { index: number; x: number; y: number }[];
-  sources: { index: number; x: number; y: number }[];
-} {
-  const base = fakeSink();
-  const sources: { index: number; x: number; y: number }[] = [];
-  return { ...base, sources, setSource: (index, x, y) => { sources.push({ index, x, y }); } };
-}
-
 describe('FX_ANCHOR_IDS', () => {
   it('lists every anchor exactly once, and every one resolves', () => {
     expect(new Set(FX_ANCHOR_IDS).size).toBe(FX_ANCHOR_IDS.length);
@@ -109,32 +99,6 @@ describe('driveLayerHeads', () => {
     const sink = fakeSink();
     driveLayerHeads(sink, [], ANCHORS, 0.5);
     expect(sink.heads).toHaveLength(0);
-  });
-
-  // The `source` companion channel (see `FxHeadSink.setSource`), which is what lets `burst`'s `awayFrom`
-  // aim exist at all. A sink that doesn't implement it must still work — every pre-existing fake is one.
-  it('does not require a sink to implement setSource', () => {
-    const sink = fakeSink();
-    expect(() => driveLayerHeads(sink, [{ anchor: 'target' }], ANCHORS, 0.5)).not.toThrow();
-    expect(sink.heads).toHaveLength(1);
-  });
-
-  it('hands EVERY layer the staged source alongside its own head', () => {
-    const sink = sourceSink();
-    driveLayerHeads(sink, [{ anchor: 'target' }, { anchor: 'cursor' }], ANCHORS, 0.5);
-    expect(sink.sources).toEqual([
-      { index: 0, x: 0, y: 0 },
-      { index: 1, x: 0, y: 0 },
-    ]);
-  });
-
-  // The distinction that matters: "no source anchor" must NOT arrive as the (0, 0) origin `resolveAnchor`
-  // would invent, or `awayFrom` would silently radiate from the top-left corner of the screen.
-  it('stays silent when the scenario staged no source at all', () => {
-    const sink = sourceSink();
-    driveLayerHeads(sink, [{ anchor: 'target' }], { target: { x: 5, y: 5 } }, 0.5);
-    expect(sink.heads).toHaveLength(1);
-    expect(sink.sources).toEqual([]);
   });
 });
 

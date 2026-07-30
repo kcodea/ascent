@@ -305,10 +305,12 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   (`playDef` fails silently by returning `null`), and call `playDef` directly for anything that isn't a
   combat moment kind — `bindings.json` is keyed by moment kind, so shop/UI events never belong there.
   ✅ **Batch 1's one fidelity loss is repaired (2026-07-30)**: `burst` now has an authored launch direction
-  (`aimMode` = `travel` | `fixed` | `awayFrom`, plus `angle` in degrees), and `coins` fires its ±33° upward
-  fan again instead of a full-circle pop. `travel` is the default, so no other def moved. This also unblocks
-  the *directional* half of the remaining effects — but note `impact`/`critImpact` still need the per-call
-  parameter below as well, since their `dx/dy` arrives at fire time.
+  (`aimMode` = `travel` | `fixed`, plus `angle` in degrees), and `coins` fires its ±33° upward fan again
+  instead of a full-circle pop. `travel` is the default, so no other def moved. This unblocks the
+  *directional* half of the remaining effects — but note `impact`/`critImpact` still need the per-call
+  parameter below as well, since their `dx/dy` arrives at fire time. (A third `awayFrom` mode was built and
+  cut for want of a caller; the reasoning, and what re-adding it would cost, is recorded next to
+  `BURST_AIM_MODES` in `burst.ts`.)
 - **`playDef` needs a per-call scale/intensity parameter — this blocks the next migration batch.** Nine
   effects cannot move until it exists, because each takes per-call geometry or intensity a def's fixed
   params can't express: `impact` + `critImpact` (`dx/dy/power`), `impactDust`, `impactPulse`, `dust` and

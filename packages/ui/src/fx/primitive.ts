@@ -36,17 +36,6 @@ export interface FxInstance<P = Record<string, unknown>> {
   setParams(next: P): void;
   /** Optional: primitives that follow a path (ribbons, trails) receive their head position each frame. */
   setHead?(x: number, y: number): void;
-  /**
-   * Optional: the composition's `source` anchor, in the same screen space as `setHead`, delivered each frame
-   * alongside it (see `driveLayerHeads`).
-   *
-   * A layer only ever learns its OWN head — which is all a `travel` ribbon or a `target` burst needs — so a
-   * primitive that wants to point AWAY from where the effect came from has no way to ask. This is that one
-   * extra point, and it is deliberately optional on both sides: a scenario that stages no `source` never
-   * calls it, so an implementer must treat "never called" as a real state (`burst`'s `awayFrom` falls back to
-   * its travel-direction behaviour there) rather than assuming (0, 0).
-   */
-  setSource?(x: number, y: number): void;
   /** Optional: for one-shot effects, returns true once the instance has nothing left to render (all
    *  particles dead, all rings finished). The player uses it to know when a Fire has fully played out.
    *  Continuous effects (or any instance not spawned oneShot) may omit it or always return false. */

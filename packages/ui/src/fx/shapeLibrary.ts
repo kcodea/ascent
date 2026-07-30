@@ -291,8 +291,12 @@ function ensureTexture(shape: ImportedShape): Promise<Texture | null> {
 // ─── committed art (`fx/defs/art/*.png`, resolved by an `art:<slug>` id) ──────────────────────────────
 
 /**
- * slug → bundled URL for every committed PNG. DEV-gated at the glob so no art is pulled into a production
- * bundle (nothing in prod plays a def yet).
+ * slug → bundled URL for every committed PNG. DEV-gated at the glob, and it STAYS that way even though the
+ * defs themselves now ship: this folder is where the workbench's art IMPORT writes, so in a normal session it
+ * holds whatever the author happened to drop in, and an un-gated glob would pull all of it — PNGs, at PNG
+ * sizes — into the shipped bundle. Nothing is committed there today (just a `.gitkeep`), so for players a def
+ * referencing `art:<slug>` falls back to a procedural shape; see `docs/fx-workbench-guide.md`. Contrast
+ * `fxDefs.ts`, whose glob IS un-gated: those defs are small committed JSON that players are meant to see.
  *
  * `import.meta.glob` is a Vite TRANSFORM, not a runtime function — the call is replaced at transform time,
  * which is why its options must be an inline literal. That also holds under Vitest (it runs source through

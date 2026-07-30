@@ -6,13 +6,29 @@ import { coerceDef, isValidSlug, type StoredFxDef } from './defStore';
  * The registry of COMMITTED defs — every `packages/ui/src/fx/defs/*.json`, loaded at build time by
  * `import.meta.glob` (the same mechanism `art.ts`/`sfx.ts` already use for art and audio).
  *
- * DEV-gated for now: nothing in a production build can play a def yet (the primitives themselves are
- * dev-only), and gating at the glob keeps the JSON out of the shipped bundle entirely. Making this a real
- * module NOW means the eventual game-side flip is a one-line change rather than a redesign.
+ * This registry SHIPS. It used to be DEV-gated at the glob, so authored defs never reached players; the owner
+ * flipped that (2026-07-29) and the glob now runs in every build.
+ *
+ * Measured cost of the flip: **+151,602 B raw / +34,206 B gzipped of total JS.** Only +17,829 B raw /
+ * +4,868 B gzipped of that is the main chunk (these defs); the other 133,773 B (29,338 B gzipped) is the
+ * primitives and their GLSL, in their own chunk fetched lazily on mount rather than blocking first paint. An
+ * earlier estimate quoted the main-chunk figure alone and so understated it ~9× — quote both numbers.
+ *
+ * What stays DEV-only is AUTHORING, not playback: saving a def (`defStore.ts`), the imported-art glob
+ * (`shapeLibrary.ts`), the `window.__fx` handle (`playDef.ts`), and the workbench UI under `DevMenu`. See
+ * `docs/fx-workbench-guide.md`.
  *
  * Everything is validated on the way in through the SAME `coerceDef` the paste path uses, so a hand-edited
  * or foreign def degrades (unknown primitives dropped, out-of-range params coerced to their defaults)
  * instead of throwing into render. A file that isn't a def at all is skipped with a DEV warning.
+ *
+ * ORDER MATTERS, now that this ships: `coerceDef` resolves each layer's primitive through the registry and
+ * DROPS layers whose primitive is unknown, and `index()` caches its result on the first read. A `getDef()`
+ * that landed BEFORE the primitives registered would therefore cache every def stripped to zero layers —
+ * permanently, and `playDef` declines a def with no playable layers. In the shipped game this can't happen:
+ * the only production caller is `playDef`, which sits behind `canPlayDefs()` and so cannot run until
+ * `ensureDefsReady()` has registered them. Anything new that reads the registry must respect that, or call
+ * `refreshDefs()` afterwards. Pinned in `prodPlayback.test.ts`.
  *
  * The FILENAME is the authority on a def's id: `crit-impact.json` is `crit-impact`, whatever the JSON's own
  * `id` field says. That keeps `getDef(id)` in exact correspondence with what is on disk after a hand-rename.
@@ -24,7 +40,9 @@ import { coerceDef, isValidSlug, type StoredFxDef } from './defStore';
  */
 
 function readModules(): Record<string, unknown> {
-  if (!import.meta.env.DEV) return {};
+  // No DEV gate: the glob runs in production too, so the committed defs are in the shipped bundle and players
+  // see the authored effects. Adding a gate back here silently empties the registry for players — every def
+  // binding in the Score goes inert with no error to explain it. Pinned by `prodPlayback.test.ts`.
   try {
     return import.meta.glob('./defs/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
   } catch {

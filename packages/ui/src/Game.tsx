@@ -43,13 +43,15 @@ export function Game() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [perfOn, setPerfOn] = useState(perfEnabledByFlag);
 
-  // Load the FX primitives once, in DEV only, so authored defs can actually play during a normal dev session.
-  // Without this `canPlayDefs()` is false until something happens to open the workbench, and EVERY def binding
-  // in the Score is silently inert — you'd play a whole combat and see none of the authored effects, with no
-  // error to explain why. Written as a positive `import.meta.env.DEV` branch (the same shape `Workbench.tsx`
-  // uses) so Rollup drops it — and the primitives' GLSL — from production, where defs deliberately don't ship.
+  // Load the FX primitives once, in EVERY build, so the authored defs actually play — for players as well as
+  // in a dev session. This is the third of the three gates that used to keep defs off the shipped game (the
+  // other two are the `import.meta.glob` in `fx/fxDefs.ts` and the dynamic import in `fx/playDef.ts`), and it
+  // is the easy one to forget: without this call the primitives never register, so `canPlayDefs()` stays false
+  // and EVERY def binding in the Score is silently inert — a whole combat with none of the authored effects and
+  // no error to explain why, having shipped their bytes anyway. Do not re-add an `import.meta.env.DEV` guard
+  // here. (The workbench's own `import('./primitives')` is separate and stays DEV-gated.)
   useEffect(() => {
-    if (import.meta.env.DEV) void ensureDefsReady();
+    void ensureDefsReady();
   }, []);
 
   // Perf HUD: start/stop the sampler with the toggle, and feed it the game context so every logged second

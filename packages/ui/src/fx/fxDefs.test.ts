@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { getDef, listDefs, refreshDefs, registerSavedDef } from './fxDefs';
 
 /**
- * The registry's CONTENT is whatever is committed under `fx/defs/` — today, nothing. So what is testable
- * (and what actually matters) is that the module is TOTAL and importable: the `import.meta.glob` call
- * doesn't explode under Vitest, an empty defs directory yields an empty registry rather than a throw, the
- * lookup misses cleanly, and `refreshDefs` is safe to call at any time. The parse/coerce behaviour itself is
- * covered exhaustively in `defStore.test.ts` — deliberately not duplicated here, because both paths run the
- * SAME `coerceDef`.
+ * The registry's CONTENT is whatever is committed under `fx/defs/`, which churns as defs are authored — so
+ * this file asserts nothing about which defs exist. What it covers is that the module is TOTAL and
+ * importable: the `import.meta.glob` call doesn't explode under Vitest, a miss returns `undefined` rather
+ * than throwing, the listing stays sorted and self-consistent, and `refreshDefs` is safe at any time. The
+ * parse/coerce behaviour itself is covered exhaustively in `defStore.test.ts` — deliberately not duplicated
+ * here, because both paths run the SAME `coerceDef`.
+ *
+ * That the glob is NOT DEV-gated — i.e. that these defs reach players at all — is pinned separately, in
+ * `prodPlayback.test.ts`, alongside the other two halves of the same contract.
  */
 describe('fxDefs registry', () => {
   it('loads without throwing (the import.meta.glob call survives the test env)', () => {

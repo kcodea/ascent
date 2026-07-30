@@ -4,10 +4,26 @@ How to take an effect from nothing to playing in a real fight. For the *why* beh
 [`fx-requests.md`](fx-requests.md) (the brief → build → tune loop); for what exists already, open the
 workbench's own **Browse all**.
 
-**Dev only.** The workbench, the primitives and the defs are all stripped from a production build —
-`canPlayDefs()` is false there. Nothing in this guide affects what players get until someone explicitly
-decides to ship the primitives. (One deliberate exception: `fx/presets/presets.json`, ~1 KB, rides along in
-the bundle — [the appendix](#appendix--why-presetsjson-ships) explains why it can't be stripped.)
+> **The effects you author here SHIP. The tool doesn't.**
+>
+> As of **2026-07-29** the def runtime is part of the production bundle: the committed defs, the five
+> primitives and their GLSL, and the `ensureDefsReady()` call that registers them. So a def you save and bind
+> is a **change to the game players see** — treat it like editing card art, not like poking at a dev toy.
+> Judge it at 1× on a real board before you commit it, and remember the binding takes effect for everyone at
+> the next merge. Measured cost of the runtime: **+151,602 B raw / +34,206 B gzipped** of total JS (+6.4%) —
+> the main chunk grows only +17,829 B / +4,868 B gzipped (the defs); the primitives and their GLSL are the
+> other 133,773 B (29,338 B gzipped), in their own chunk fetched lazily on mount, so first paint is unaffected.
+>
+> What stays dev-only is **authoring**: the workbench UI and everything under the Dev menu, saving a def or a
+> binding (they POST to a dev-server endpoint that doesn't exist in a build), and the imported-art glob. The
+> practical consequence of that last one: an imported-art shape is bundled only in DEV, so a def referencing
+> `art:<slug>` **falls back to a procedural shape for players**. Don't build a bound def around imported art
+> until that glob is un-gated too (`fx/shapeLibrary.ts` — its header explains what has to change first).
+>
+> The three gates that used to hold all of this back, for anyone archaeology-ing a comment: the
+> `import.meta.glob` in `fx/fxDefs.ts`, the dynamic `import('./primitives')` in `fx/playDef.ts`, and the
+> `ensureDefsReady()` call in `Game.tsx`. All three must be un-gated together — the first two ship bytes,
+> the third is what makes them run — and `fx/prodPlayback.test.ts` now fails if any of them comes back.
 
 ---
 
@@ -324,7 +340,13 @@ that. Accepted, not an oversight.
 ## 10. Commit
 
 `git add` the def **and** `bindings.json` together — a def with no binding is inert, and a binding naming a
-def that doesn't exist is a silent no-op that a test will catch but a player never would.
+def that isn't committed is a silent no-op: `bindings.test.ts` catches it, but nothing at runtime says a word
+(the "no committed def" warning is DEV-only, since a player can't act on it).
+
+**What you commit, players get.** Since the un-gate the def runtime ships, so a binding merged to `main` is a
+visible change to the game — the same bar as any other player-facing change. Judge it at **1×** on a real
+board first (§8), and say so in the PR body: a reviewer reading a two-line JSON diff has no other way to know
+the fight now looks different.
 
 The `Committed → <def> · <path>` confirmation survives the reload the write itself forces, and appears the next
 time you open the workbench — see §7 for exactly how and for the timing caveat.
@@ -352,13 +374,16 @@ time you open the workbench — see §7 for exactly how and for the timing cavea
 Two decisions in this subsystem look like mistakes at a glance. They aren't; don't "fix" them without
 reading this.
 
-**`presets.json` is in the production bundle.** Everything else in the workbench is DEV-stripped, so the
-obvious question is why this ~1 KB of JSON isn't. Because it's a **static import**, and static imports are
-hoisted — a runtime `if (import.meta.env.DEV)` can't gate one the way `fxDefs.ts` gates its `import.meta.glob`
-(a glob is a build-time construct the bundler can elide; a plain `import` is not). The asymmetry with
-`fxDefs.ts` is therefore real and deliberate, not an oversight. The alternative — a dynamic `import()` —
-makes `presetTable()` async and that ripples straight into the gallery overlay's render path, which is a
-disproportionate amount of machinery to save a kilobyte.
+**`presets.json` is in the production bundle**, even though the gallery that reads it is DEV-only. Because
+it's a **static import**, and static imports are hoisted — a runtime `if (import.meta.env.DEV)` can't gate one
+the way a glob can be gated (a glob is a build-time construct the bundler can elide; a plain `import` is not).
+The alternative — a dynamic `import()` — makes `presetTable()` async and that ripples straight into the gallery
+overlay's render path, which is a disproportionate amount of machinery to save a kilobyte.
+
+This used to be *the* odd one out, back when the def runtime was DEV-stripped. Since the 2026-07-29 un-gate it
+isn't: the defs and the primitives ship on purpose, and `presets.json` is just one more kilobyte of authoring
+data riding along. It is still the only piece that ships **without** a player-facing reason, which is why the
+paragraph stays.
 
 **`parsePresetTable` throws; `choreo/bindings.ts` deliberately does not.** The two files use the same
 hand-rolled validation style (no zod in `ui`) and reach opposite conclusions on failure, on purpose:

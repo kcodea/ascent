@@ -49,8 +49,8 @@ const BASE: Cue[] = [
   // `fxDef` is on EVERY kind as a pure TIMING row, carrying no def of its own — what plays comes from
   // `bindings.json` via `bindingFor`. It used to be added per-kind, which meant binding a def to a kind whose
   // cue list happened not to include one silently played nothing: another instance of the failure mode this
-  // whole subsystem keeps producing. Inert wherever nothing is bound, and free in production (the runner
-  // checks `canPlayDefs()` before it allocates anything). It sits BEFORE `damageFx` in the list on purpose —
+  // whole subsystem keeps producing. Inert wherever nothing is bound, and free wherever defs can't play (the
+  // runner checks `canPlayDefs()` before it allocates anything). It sits BEFORE `damageFx` on purpose —
   // an authored effect claims the units it covers synchronously, and the claim has to be standing before the
   // stock hit-burst reads it.
   { ch: 'fxDef', at: 'start', offset: 0 },
@@ -335,9 +335,10 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'ascend') uids.push(e.target); }
       if (uids.length) ctx.onAscend(uids);
     });
-    // An AUTHORED FX def (fx/playDef) plays at this moment. Guarded BEFORE `at()` so the production path costs
-    // nothing: defs are a dev-authoring payload that doesn't ship, so `canPlayDefs()` is false there (two
-    // property reads, short-circuiting on the first) and this allocates no closure and schedules no timer.
+    // An AUTHORED FX def (fx/playDef) plays at this moment — in production too, since the un-gate. Guarded
+    // BEFORE `at()` so the NOT-READY path costs nothing: headless, and during the window before
+    // `ensureDefsReady()` resolves, `canPlayDefs()` is false (two property reads, short-circuiting on the
+    // first) and this allocates no closure and schedules no timer.
     else if (cue.ch === 'fxDef') {
       if (!canPlayDefs()) continue;
       // The card comes from `ctx.cardIds` — the replay's own uid→card map, already threaded in for the sfx

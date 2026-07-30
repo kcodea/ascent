@@ -104,7 +104,7 @@ export function simulate(
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
   const rubyBonusGain = { attack: 0, health: 0 };
-  const tavernBuyGain = { attack: 0, health: 0 }; // Hungerling — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
+  const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
@@ -1793,14 +1793,24 @@ export function simulate(
         emit({ type: 'shieldUp', target: next.uid });
       });
     }
-    // Rune of Warding: give the leftmost living minion a Ward.
+    // Rune of Warding: give the RIGHT-most living minion a Ward and DOUBLE its Health (owner ruling 2026-07-29;
+    // was the left-most, Ward only). Right-most so it protects the tail your opponent reaches last, and the
+    // doubling is why it wants a big body rather than a spare one.
     if (rmods.runeWarding) {
-      const lead = boards[rside].find((m) => !m.dead && m.health > 0 && !m.divineShield);
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      const lead = living[living.length - 1];
       if (lead) {
         nextStep(); fireTrigger('runeWarding', rside);
-        lead.divineShield = true;
-        if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
-        emit({ type: 'shieldUp', target: lead.uid });
+        if (!lead.divineShield) {
+          lead.divineShield = true;
+          if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
+          emit({ type: 'shieldUp', target: lead.uid });
+        }
+        // Double the CURRENT Health, and lift maxHealth with it so healing/Rise can't clip it back down.
+        const gain = lead.health;
+        lead.health += gain;
+        lead.maxHealth = Math.max(lead.maxHealth ?? lead.health, lead.health);
+        emit({ type: 'buff', target: lead.uid, attack: 0, health: gain, source: lead.uid });
       }
     }
     // Echoing Coop: trigger every minion's Echo once, without killing the body (Sylus doubles them). The

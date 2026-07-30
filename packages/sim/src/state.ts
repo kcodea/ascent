@@ -203,6 +203,8 @@ export interface BoardCard {
    *  on the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. The buy-count sibling of `goldTick`. */
   buyTick?: number;
+  /** Set 2 — cumulative cards-PLAYED tally for this instance (Mountainbond), the twin of `buyTick`. */
+  playTick?: number;
   /** Set 2 — Ruby Broker: Rubies played on THIS minion this turn (its per-turn Gold cap). Reset each wave. */
   rubyRecvTick?: number;
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
@@ -337,7 +339,7 @@ export interface RunState {
   /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
-  /** Set 2 — Scalefeather Drake: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
+  /** Set 2 — Mushy: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
    *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
    *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
   nextTurnSpellCopies?: { activateWave: number; count: number };
@@ -372,6 +374,11 @@ export interface RunState {
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */
   goldSpentThisTurn?: number;
+  /** Set 2 — Ales CAST this turn (Chef Gary Toast scales off it). Reset with the other per-turn tallies. */
+  alesCastThisTurn?: number;
+  /** Set 2 — cards PLAYED this run, cumulative. Mountainbond's "after you play 8 cards" is a running total, not
+   *  a per-turn one, so it can't ride `playedThisTurn` (which clears every turn). */
+  cardsPlayedTotal?: number;
   /** Set 2 — cards bought THIS turn (reset each wave). Threaded into combat for Frenzied Excavator's
    *  Start-of-Combat "play 1 Ruby per 4 cards bought this turn" scaler. Absent = 0. */
   cardsBoughtThisTurn?: number;
@@ -762,7 +769,7 @@ export interface RunState {
    *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
   shoutExtraAlways?: number;
-  /** Set 2 — Elderhorn, the First Roar (Choose One). Extra fires its chosen mode grants to BEAST triggers:
+  /** Set 2 — Elderhorn (Choose One). Extra fires its chosen mode grants to BEAST triggers:
    *  `beastHuntExtra` covers Rallies + Slaughters (Hunt), `beastRitualExtra` covers Echoes (Ritual). Golden
    *  grants 2 instead of 1 per mode. Run-level so they survive combats, passed into the fight via
    *  `CombatSideState` (the same route `handSpellIds` takes). Absent = 0. */

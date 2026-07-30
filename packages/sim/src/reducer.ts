@@ -1,4 +1,4 @@
-import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { ALE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -56,7 +56,7 @@ function spendGold(s: RunState, amount: number): void {
     captureBuffFx(s, undefined, 'spell', () => {
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool.splice(rng.int(pool.length), 1)[0]!;
-        addBuff(pick, 'Rune of Scale', attack, health);
+        addBuff(pick, 'Rune of Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
       }
     });
     s.rngCursor = rng.state();
@@ -529,7 +529,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // The consume swirl is a PER-ACTION payload too. It used to be cleared only by the handful of call sites that
   // assigned it wholesale, while every other consumer APPENDED — so Set 2's shop-eating Demons grew the list
   // across actions and the UI replayed every past consume on each new one. That showed up as ghost minions
-  // stacking over the shop, and as a card that hadn't eaten (Hungerling) appearing to eat alongside one that had
+  // stacking over the shop, and as a card that hadn't eaten (Demon Horse) appearing to eat alongside one that had
   // (Revolving Maw) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
   // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
   s.fodderEaten = [];
@@ -587,7 +587,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
         // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
-        s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined });
+        const restored: BoardCard = { ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined };
+        // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
+        // Touch appeared to do nothing on a displaced minion). This branch restores `held` verbatim and never
+        // read `offer.golden`, so the gild was silently discarded — it looked tier-related because displacement
+        // is how a high-tier minion tends to end up in the shop, but it affected every displaced minion.
+        if (offer.golden && !restored.golden) gildMinion(restored);
+        s.hand.push(restored);
         drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
@@ -904,6 +910,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
       playCard(s, card);
+      // Set 2 — the play-count meter (Mountainbond), the twin of `applyCardsBought` on the buy path. Fired after
+      // the card is on the board so its own Shout resolves first and the threshold sees the finished board.
+      applyCardsPlayed(s, 1);
       // A STANDALONE Magnetic play (no host — it took a board slot) is still "playing an Attachment": the
       // first each turn gets Tempering's Ward on itself, and Replication still copies it onto the leftmost
       // Mech (the standalone body itself qualifies if it's the leftmost Mech-tribe minion... it welds a copy).
@@ -2056,7 +2065,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
       count: (prev?.count ?? 0) + result.playerNextTurnSpellCopies,
     };
   }
-  // Hungerling's Rally: the Shop buff it earned in combat lands on the run-wide tavern channel, so it applies
+  // Demon Horse's Rally: the Shop buff it earned in combat lands on the run-wide tavern channel, so it applies
   // to every future offer rather than evaporating with the fight.
   if (result.playerTavernBuyGain) {
     s.tavernBuyBonus.atk += result.playerTavernBuyGain.attack;
@@ -2332,6 +2341,7 @@ function advanceCombat(s: RunState): void {
   s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
+  s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
   // Funeral on Loan: a borrowed card that wasn't played STAYS IN HAND (owner 2026-07-29). It used to be
@@ -2663,7 +2673,15 @@ const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dyn
 function runeforgePool(s: RunState): string[] {
   const set = s.runeforgeEpic ? EPIC_RUNES : RUNES;
   const canDouble = DOUBLEABLE_POWERS.has(getHero(s.heroId).power.kind);
-  return set.filter((rn) => !rn.requiresDoublePower || canDouble).map((rn) => rn.id);
+  // SET SCOPING (owner report 2026-07-29): a rune whose reward names another set's mechanics — Fodder,
+  // Attachments and Undead in set 1; Rubies and Ales in set 2 — can never pay off in this run, and offering it
+  // burns one of the forge's few slots. `sets` absent means "general mechanics only", so it stays offerable
+  // everywhere; the run's PINNED set decides, never the live registry.
+  const runSet = setIdOf(s);
+  return set
+    .filter((rn) => !rn.requiresDoublePower || canDouble)
+    .filter((rn) => !rn.sets || rn.sets.includes(runSet))
+    .map((rn) => rn.id);
 }
 
 /** Draw `n` distinct rune ids from `ids`, preferring ones not in `avoid` (a re-roll's current offer) but falling
@@ -2755,6 +2773,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // when hand + board are full (owner ruling: never lose an earned reward). `overflow = true` on every grant.
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!, true);
       if ((r.randomSpell ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
+      // Set 2 — N random Dwarven ALES specifically (owner 2026-07-29). Drawn from the run's pool like every other
+      // grant, so a set without the Ales grants nothing instead of injecting cards the run can't otherwise have.
+      if ((r.randomAle ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id)), r.randomAle!, true);
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
       for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)

@@ -5,7 +5,7 @@ import { z } from 'zod';
  * type in `@game/core` is the canonical compile-time shape; this schema guards
  * the *data* at load and is kept in lockstep with it.
  */
-export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold']);
+export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold', 'dwarf']);
 
 export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG']);
 
@@ -29,6 +29,7 @@ export const GameEventSchema = z.enum([
   'summonOverflow',
   'goldSpent',
   'cardsBought',
+  'cardsPlayed',
   'onSell',
   'onRubyPlayed',
   'minionSold',
@@ -365,7 +366,10 @@ export const EffectFactoryIdSchema = z.enum([
   'rubyStatGain',     // "Your Rubies gain +X/+Y" — raises rubyBonus + grows held Rubies
   'scPlayRubies',     // Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   'avengePlayRubies', // Avenge (X): play N Rubies on your [tribe] minions
-  'cardsBoughtGetRubies', // Hoardmaster Krik: every N cards bought, mint Rubies to hand
+  'cardsBoughtGetRubies',
+  'grantRandomAle', 'battlecryBuffTribeOthersAttack', 'battlecryGainKeyword', 'goldSpentBuffTribeAttack', 'battlecryBuffTargetPerGoldSpent', 'endOfTurnBuffLeftmostTribePerCard', 'cardsBoughtGrantRandomSpell', 'battlecryGildTarget', 'goldSpentGrantTribeMinion',
+  'combatGrantAle', 'rallyGiveAttackToOthers', 'echoSummonCopyNoEcho', 'echoSummonInheritAttackAndCharge',
+  'battlecryGainGoldNextTurn', 'cardsPlayedPlayRubies', 'onPlayTribeBuffTribeByAles', 'spellCastTriggerAdjacentShouts', // Hoardmaster Krik: every N cards bought, mint Rubies to hand
   'rallyGetRubies',   // Rally: get N Rubies (carried back to hand after combat)
   'avengeRubyStatGain', // Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   'scPlayRubiesPerBuy', // Frenzied Excavator: SoC play N Rubies per M cards bought this turn
@@ -493,6 +497,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
     randomTribe: TribeSchema.optional(),
     randomCount: z.number().int().positive().optional(),
     randomSpell: z.number().int().positive().optional(),
+    randomAle: z.number().int().positive().optional(),
     randomFilter: z.enum(['shout', 'endOfTurn', 'echo', 'rally', 'attachment']).optional(),
     randomFilterCount: z.number().int().positive().optional(),
     randomFilterExactTier: z.boolean().optional(),
@@ -575,10 +580,12 @@ export const RuneDefSchema = z.object({
   text: z.string().min(1),
   reward: QuestRewardSchema,
   epic: z.boolean().optional(),
+  sets: z.array(z.enum(['set1', 'set2'])).readonly().optional(),
   requiresDoublePower: z.boolean().optional(),
 }).strict();
 
 export const QuestDefSchema = z.object({
+  sets: z.array(z.enum(['set1', 'set2'])).readonly().optional(),
   id: z.string().min(1),
   name: z.string().min(1),
   tribe: TribeSchema,

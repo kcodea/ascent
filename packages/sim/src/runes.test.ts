@@ -27,7 +27,9 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(31); // + batch 7a (Rebirth / Tempering / Aftershocks / Refrain / Trophy) + Summit
+    // A hardcoded count is a tripwire for accidental additions, so it moves deliberately: +1 for Gemcutting
+    // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
+    expect(RUNES.length).toBe(33); // +1: the set-2 Menagerie twin (2026-07-29)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -71,8 +73,11 @@ describe('Runeforge — framework', () => {
   });
 
   it('buyRune spends the cost, applies the reward, records the rune, and closes the forge (once per game)', () => {
-    const s = buyRune('rune_warding', 10); // cost 1
-    expect(s.embers).toBe(9);
+    // Derived from the rune's own cost, not a magic number — all 14 mismatched costs moved on 2026-07-29 to
+    // match the owner's roster, and a hardcoded total makes every retune look like a regression.
+    const cost = RUNES.find((r) => r.id === 'rune_warding')!.cost;
+    const s = buyRune('rune_warding', 10);
+    expect(s.embers).toBe(10 - cost);
     expect(s.questFlags?.runeWarding).toBe(true);
     expect(s.ownedRunes).toEqual(['rune_warding']);
     expect(s.runeforgeOffer).toBeUndefined();
@@ -392,8 +397,9 @@ describe('Epic Runeforge', () => {
   });
 
   it('buying an Epic rune applies its reward, records it, and does NOT spend a hero-power charge', () => {
-    const s = buyEpic('rune_copies', 10); // cost 6
-    expect(s.embers).toBe(4); // 10 − 6
+    const cost = EPIC_RUNES.find((r) => r.id === 'rune_copies')!.cost;
+    const s = buyEpic('rune_copies', 10);
+    expect(s.embers).toBe(10 - cost);
     expect(s.runeCopies).toBe(true);
     expect(s.ownedRunes).toEqual(['rune_copies']);
     expect(s.runeforgeOffer).toBeUndefined();
@@ -538,8 +544,9 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
 
 describe('Runes batch 1 — grants / discovers / economy', () => {
   it('Rune of Small Fortune: gives 7 Gold immediately (this shop, not banked)', () => {
-    const s = buyRune('rune_small_fortune', 10); // cost 1
-    expect(s.embers).toBe(16); // 10 − 1 spent + 7 immediately
+    const cost = RUNES.find((r) => r.id === 'rune_small_fortune')!.cost;
+    const s = buyRune('rune_small_fortune', 10);
+    expect(s.embers).toBe(10 - cost + 7); // spent, then +7 immediately
     expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 

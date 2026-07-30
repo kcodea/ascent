@@ -160,7 +160,7 @@ export function ascendProgressText(cardId: string, ascendProgress: number): stri
  * instead of a count. Returns null for non-cadence cards so callers fall back to the printed text.
  */
 /**
- * Roaring Matriarch alternates WHICH stat it pumps every turn (Attack on its first turn, then Health, …). The
+ * Bathing Matriarch alternates WHICH stat it pumps every turn (Attack on its first turn, then Health, …). The
  * card-text rule is absolute here: a card that alternates must never print the stat it isn't currently giving,
  * so this rewrites "+N Attack" to the live stat AND appends what's coming next turn.
  *
@@ -354,6 +354,21 @@ export function clingProgressText(cardId: string, enchant: { attack: number; hea
  * stepping up every 4 on-board spells. Show the live current grant AND the countdown to the next step —
  * both green ({{…}}) — plus the per-step size (golden-aware). Null for non-Guel cards (printed text).
  */
+/**
+ * High King Mykel — a COUNTDOWN, because the card is a threshold and a bare "when you cast 8" tells you nothing
+ * about where you are (owner ask 2026-07-29). `spellProgress` is the per-instance meter the factory advances.
+ */
+export function spellThresholdText(cardId: string, golden: boolean, spellProgress: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'spellCastTriggerAdjacentShouts');
+  if (!def || !eff) return null;
+  const every = Math.max(1, Number((eff.params as { every?: number })?.every ?? 8));
+  const toNext = every - (spellProgress % every);
+  const base = (golden && def.goldenText) || def.text;
+  // Replace the printed threshold with the countdown; the rest of the sentence still explains what happens.
+  return base.replace(new RegExp(`\*\*${every} Shop spells\*\*`), `**{{${toNext} more Shop spell${toNext === 1 ? '' : 's'}}}**`);
+}
+
 export function guelProgressText(cardId: string, golden: boolean, spellProgress: number): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'spellCastBuffOthers');
@@ -603,6 +618,24 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
   return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${n}/+${n}}}`);
 }
 
+/**
+ * Quartermaster Dorrin — "+N Health per Gold spent this turn" folded into the ACTUAL Health it will grant now.
+ *
+ * The hard rule (CLAUDE.md): a card whose magnitude depends on live run state prints the number it will really
+ * produce, not the rate. At 0 Gold spent the rate is all there is to say, so the printed text stands; once you
+ * have spent anything, the total replaces it and the rate moves into the parenthetical so the card still explains
+ * itself.
+ */
+export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'battlecryBuffTargetPerGoldSpent');
+  if (!def || !eff) return null;
+  if (goldSpentThisTurn <= 0) return null; // nothing spent yet — the printed rate is already accurate
+  const per = Number((eff.params as { health?: number })?.health ?? 1) * (golden ? 2 : 1);
+  const total = per * goldSpentThisTurn;
+  return `**Shout:** give a friendly minion **{{+${total} Health}}** _(+${per} per Gold spent this turn)_.`;
+}
+
 export interface StepProgress {
   current: number;
   total: number;
@@ -622,7 +655,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; shoutTick?: number; grimoireCharged?: boolean },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; grimoireCharged?: boolean },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -678,6 +711,11 @@ export function stepProgress(
   // the buy-count sibling of the Gold meter, likewise a shop-phase accrual (undefined in combat).
   const bought = def.effects.find((e) => e.on === 'cardsBought' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (bought) return p.buyTick === undefined ? null : cyc(p.buyTick, Math.max(1, n((bought.params as { every?: number })?.every, 4)));
+  // Mountainbond: the cards-PLAYED meter (`playTick`), the twin of the buy meter above. Added with the
+  // `cardsPlayed` event (2026-07-29) — without this branch its "after you play 8 cards" printed a static 8 with
+  // no indication of progress, which is exactly what the live-value rule forbids.
+  const played = def.effects.find((e) => e.on === 'cardsPlayed' && (e.params as { every?: number } | undefined)?.every !== undefined);
+  if (played) return p.playTick === undefined ? null : cyc(p.playTick, Math.max(1, n((played.params as { every?: number })?.every, 8)));
   const pup = def.effects.find((e) => e.do === 'spellCastTransform');
   if (pup) { const at = Math.max(1, n((pup.params as { at?: number })?.at, 10)); return { current: Math.min(p.spellProgress ?? 0, at), total: at }; }
   if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }

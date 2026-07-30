@@ -1,5 +1,120 @@
 # ASCENT — development log
 
+## 2026-07-29 — The Dwarf roster is complete (tranche C)
+
+The last five cards, and what each actually needed:
+
+| card | machinery |
+|---|---|
+| Paymaster Pimm | **none.** `bonusEmbersNextTurn` already existed and is paid at turn start — my earlier "needs a banked-income field" call was wrong |
+| Mountainbond | a new `cardsPlayed` event + `applyCardsPlayed` (the buy-meter's twin) with a cumulative per-instance `playTick` |
+| Edward Keg-hands | an Ale-scoped branch inside `spellCasts`, the single place cast counts are computed |
+| Guildhall Chef | `alesCastThisTurn`, counted in `noteSpellCast`, reset with the other per-turn tallies |
+| Brisbane | a per-instance `spellProgress` threshold reusing Moira's `replayBattlecry` path |
+
+**Mountainbond's Ruby was the one real trap.** I first routed it through `castSpell`, which silently did nothing:
+a Ruby is not applied like a Shop spell — the reducer applies it inline as `addBuff(target, 'Ruby', …)` at the
+minted value (base 1/1 + the run's `rubyBonus`). It now mirrors `battlecryPlayRubiesAll` (Frenzied Excavator's
+path) and fires `fireOnRubyPlayed`, so the target's own "when a Ruby is played on this" effects — Ruby Broker's
+Gold, Resonance Idol's bounce — actually see it. A bare `addBuff` would have skipped them.
+
+**Roster reconciled:** 25 of 25 present, every tier and stat line matching the owner's list.
+
+**Also learned:** a new `GameEvent` needs registering in the content schema's event enum as well as the
+`EffectFactoryId` whitelist — the schema test caught `cardsPlayed` immediately, which is the system working.
+
+**Verified.** 31 Dwarf tests (3011 total / 157 files), typecheck, typecheck:web, lint (0 errors), build:web,
+harness ✓. The new tests pin Pimm banking rather than paying now, the Chef scaling with Ales cast, the Ale tally
+resetting each turn, Edward doubling **Ales only**, Mountainbond banking below its 8-card threshold, and
+Brisbane carrying its meter across turns.
+
+## 2026-07-29 — Dwarves tranche B + the Cheap Date rework
+
+**Cheap Date is a rework, not a rename.** The roster card is a Tier 1 1/1 whose value is in SELLING it, where
+the game's card was Pouchpincher (T2 4/2, "Shout: get a Gold Pouch"). It now reads *When you sell this, get a
+random Tier 1 minion* — and needs no new factory: `onSell` fires when the minion itself is sold and
+`battlecryGainRandomMinion` is trigger-agnostic. Its old test asserted the Gold Pouch grant, so it is rewritten
+to assert the new shape in both directions — playing it must grant nothing, selling it must grant a Tier 1.
+
+**Five more Dwarves, all COMBAT-triggered.** `ALE_IDS` moved into `@game/core` so both the recruit and combat
+factories can read it, and one shared `combatGrantAle` serves Slaughter, Rally and Echo — the difference between
+them is *when* they fire, not what they do, so the factory takes a `guard` naming the check. Without that guard
+an Ale-on-Slaughter fires on every ALLY's kill; the tests pin both directions.
+
+Shipped: **Kegbreaker Korr** (Slaughter → Ale), **Blade Thrower** (Rally → Ale), **Doubletap Brewer's Echo half**,
+**Anvilshade Smith**, **Lieutenant Thane**, **Exgalloper**.
+
+**Two real bugs found while testing, both in my own first pass:**
+
+1. **Post-summon mutation is too late.** I set the summoned token's Attack after `ctx.summon` returned — but the
+   summon EVENT is already emitted by then, so the Charging Soldier went out at its printed 3 while the Smith
+   had 9. `ctx.summon` has `attackNow` and `copyStats` parameters for exactly this; both factories use them now.
+2. **Exgalloper copied the corpse.** At the moment an Echo fires the parent's `health` is 0, so an "exact copy"
+   arrived already dead. It copies `maxHealth` — the buffed body — which is the honest reading of "exact".
+
+**And one bug that wasn't.** Kegbreaker Korr looked broken until I checked: my test fought `pack`, whose
+Deathrattle changes who the killer of the exchange is, so Korr genuinely wasn't the killer. The card was always
+fine; the test was wrong. Combat tests here now use a vanilla `sandbag` body, and that reasoning is in the file
+so the next person doesn't re-debug a working card.
+
+**Verified.** 24 Dwarf tests (3004 total / 157 files), typecheck, typecheck:web, lint (0 errors), build:web,
+harness ✓.
+
+**Still missing, and each needs machinery rather than a card entry:** Paymaster Pimm (a banked-income field),
+Mountainbond (recruit-side Ruby play + a cumulative cards-played trigger), Edward Keg-hands (an Ale-scoped
+trigger multiplier), Guildhall Chef (an "Ales triggered this turn" counter), Brisbane (a cumulative spell-cast
+threshold). The file header lists them too.
+
+## 2026-07-29 — Set 2 gains the DWARF tribe (tranche A), plus two owner cuts
+
+**Two notes first.** Riot Caller is removed (its demon roster test drops 21 → 20; the generic
+`rallyImpsAttackNow` factory is left in place, now unused, so re-adding is a data-only change). Pouchpincher is
+renamed **Cheap Date** — see the follow-up below, because the name is all that matches.
+
+**A new tribe, not just new cards.** `dwarf` joins the `Tribe` union and `TribeSchema`, and Set 2's roster goes
+to five (`kobold, dragon, beast, demon, dwarf`). The newly-gated `typecheck:web` (from #676) earned its keep
+immediately: it caught **7 exhaustive `Record<Tribe, …>` maps** across Career, MinionBook, QuestBadges,
+QuestCard, questText (×2) and RunTrophies that would otherwise have shipped as runtime holes. Dwarves get the
+`anvil` glyph and the plural "Dwarves".
+
+**The tribe's identity:** Dwarves convert *throughput* — Gold spent, cards bought, spells cast — into permanent
+Attack and a stream of **Ales**. Kobolds want Rubies cast, Dragons want spells recurred, Dwarves want Gold
+moving, which is why most of them hang off `goldSpent`/`cardsBought` thresholds rather than Shout/Echo. The five
+Ales already existed as Set 2 spells (`wo_*`), so `grantRandomAle` draws from the RUN'S pool — a set without
+them grants nothing instead of injecting unreachable cards.
+
+**Shipped (13 minions + 1 token + 1 rune minion):** Oathshield Orin, Ironlung Captain, Brunni, Wardkeeper,
+Coinfire Forewoman, Broad-Axe Brakka, Runekeg, Quartermaster Dorrin, Closing-Time Foreman, Chirurgeon,
+Doubletap Brewer (Shout half), Tapkeeper, Auric Runemaster, the Charging Soldier token, and Dwarf King Brill.
+Nine new recruit factories, dual-registered in the union AND the schema. Two reuse existing channels outright
+(Wardkeeper → `battlecryGrantSpellPowerRun`, Runekeg → `onSpellCastBuffRandomTribe`), and the `goldSpent`
+dispatcher already applies `every:` thresholds, so those cards needed no threshold code.
+
+**Deliberately deferred to tranche B — each needs machinery, not another card entry:**
+
+| card | what's missing |
+|---|---|
+| Paymaster Pimm | a banked-income field on `RunState` for "Gold next turn" |
+| Mountainbond | playing a Ruby outside combat (`playRubyOn` is combat-only) |
+| Kegbreaker Korr, Blade Thrower | Slaughter/Rally are COMBAT triggers — the Ale needs the `grantToHand` carry-back |
+| Anvilshade Smith | a summon inheriting its parent's Attack *and* attacking immediately |
+| Lieutenant Thane | Rally spreading this minion's Attack to 3 friendlies |
+| Edward Keg-hands | an Ale-scoped trigger multiplier |
+| Guildhall Chef | "Ales triggered this turn" — a per-turn counter that doesn't exist |
+| Exgalloper, Brisbane | the two remaining Rune minions |
+
+**Verified.** 17 new tests that assert MECHANICS rather than roster counts — a count test passes just as
+happily when every effect is inert. They caught two real mistakes of mine: both targeted Shouts (Dorrin,
+Runemaster) resolve through a `battlecryTarget` follow-up action, not a `targetUid` on the play, so my first
+tests were driving them wrong. Also pinned: Coinfire buffs Dwarves only and Attack only, Ironlung never buffs
+itself, Dorrin grants nothing at 0 Gold spent, Tapkeeper banks its remainder below the threshold, Orin can't
+double-add Ward, and no Dwarf leaks into set 1. Gates: typecheck, typecheck:web, lint (0 errors), 2997 tests /
+157 files, build:web, harness ✓.
+
+**Follow-up for the owner — Cheap Date.** The rename is done, but the spec doesn't match the card: the game's
+minion is Tier 2, 4/2, "Shout: get a Gold Pouch", while the roster lists Cheap Date as Tier 1, 1/1, "Get a
+random T1 minion when you sell this". Renaming was the literal instruction; if the roster line is what you want,
+it's a new card body (a sell trigger), not a rename.
 ## 2026-07-29 — the dev tuner menu gets categories, and tuners get a schema
 
 **What changed.** Two connected pieces of the dev tuning surface: the menu that indexes the tuners, and the

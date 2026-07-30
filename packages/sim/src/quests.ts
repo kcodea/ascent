@@ -1,5 +1,6 @@
 import { makeRng, type QuestDef, type Tribe } from '@game/core';
 import { CARD_INDEX, QUEST_DEFS } from '@game/content';
+import { setIdOf } from './cardPool';
 import { CONFIG } from './config';
 import { getHero } from './heroes';
 import { mixSeed, TAG, type RunState } from './state';
@@ -71,8 +72,21 @@ export function generateQuestOffer(s: RunState, plan: QuestOfferPlan): string[] 
   const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
   // Never re-offer a quest you already hold (taken/active/completed), and never repeat a quest within one offer.
   const taken = new Set((s.activeQuests ?? []).map((aq) => aq.questId));
+  // SET + TRIBE SCOPING (owner 2026-07-29). Two filters, both guarding against offering a quest that cannot be
+  // completed in THIS run:
+  //   · `sets` — the set-1 and set-2 quest lists are different, and a quest naming another set's mechanics
+  //     (Fodder, Attachments, Rubies, Ales) is unwinnable. Absent = general, offerable anywhere.
+  //   · the run's own TRIBES — the offer's tribe slots were drawn from whatever the POOL contained, so a run
+  //     could be handed a Mech quest with no Mechs in its roster at all. A quest for a tribe you don't have is
+  //     dead on arrival; `neutral` is always allowed because it's the build-agnostic slot.
+  const runSet = setIdOf(s);
+  const runTribes = new Set<Tribe>([...(s.tribes ?? []), 'neutral']);
   const pool = QUEST_DEFS.filter(
-    (q) => questBucketFor(q) === plan.bucket && (!plan.lesserOnly || q.tier === 'lesser') && !taken.has(q.id),
+    (q) => questBucketFor(q) === plan.bucket
+      && (!plan.lesserOnly || q.tier === 'lesser')
+      && !taken.has(q.id)
+      && (!q.sets || q.sets.includes(runSet))
+      && runTribes.has(q.tribe),
   );
   const used = new Set<string>();
   const idsOf = (t: Tribe): string[] => pool.filter((q) => q.tribe === t && !used.has(q.id)).map((q) => q.id);

@@ -2827,7 +2827,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
   });
 
-  it('set 2 — Scalefeather Drake: its Echo carries back a next-turn spell-copy count', () => {
+  it('set 2 — Mushy: its Echo carries back a next-turn spell-copy count', () => {
     const sftest: CardDef = { id: 'sftest', name: 'SF', tribe: 'dragon', tier: 4, attack: 4, health: 1, keywords: [],
       effects: [{ on: 'onDeath', do: 'deathrattleQueueNextSpellCopy', params: { count: 1 } }], text: '' };
     const r = simulate([{ cardId: 'sftest', attack: 4, health: 1, sourceUid: 'SF' }], // 1 HP → dies, Echo fires

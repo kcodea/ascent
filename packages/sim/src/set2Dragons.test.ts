@@ -26,7 +26,7 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     expect(set2Dragons.length).toBeGreaterThan(0);
     expect(set2Dragons.every((c) => c.tribe === 'dragon')).toBe(true);
     // Sanity: every authored Dragon is a real minion, not a spell. Tokens are allowed since 2026-07-27 —
-    // Blazing Keeper hands out a Brood Whelp, which is a Dragon you play but can't buy.
+    // Commander Warpath hands out a Brood Whelp, which is a Dragon you play but can't buy.
     expect(set2Dragons.every((c) => !c.spell)).toBe(true);
     expect(set2Dragons.filter((c) => c.token).map((c) => c.id), 'the only Dragon token').toEqual(['d2_broodwhelp']);
     expect(run).toBeTruthy();
@@ -75,7 +75,7 @@ describe('set 2 — Dragon effects', () => {
     expect(CARD_INDEX[next.hand[0]!.cardId]!.spell).toBe(true);
   });
 
-  it('Roaring Matriarch: a played Shout gives your Dragons +2 Attack only (no Health)', () => {
+  it('Bathing Matriarch: a played Shout gives your Dragons +2 Attack only (no Health)', () => {
     const s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,
       board: [minion('mm', 'd2_matriarch', 'dragon', 4, 7)],
@@ -210,7 +210,7 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
   });
 });
 
-describe('set 2 — Scalefeather Drake queues NEXT turn’s first spell', () => {
+describe('set 2 — Mushy queues NEXT turn’s first spell', () => {
   it('an armed charge copies the first spell of a turn on/after its activation wave', () => {
     let s: RunState = {
       ...createRun(3), wave: 3, phase: 'recruit', embers: 40,
@@ -604,7 +604,7 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     expect(buffsOn('m2'), 'the Beast that attacked was NOT').toEqual([]);
   });
 
-  it('Blazing Keeper only offers Dragons that actually HAVE a Shout', () => {
+  it('Commander Warpath only offers Dragons that actually HAVE a Shout', () => {
     const s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 60, board: [], hand: [minion('bk', 'd2_blazingkeeper', 'dragon', 5, 3)] };
     const after = reduce(s, { type: 'play', uid: 'bk' });
     expect(after.hand.length, 'it granted something').toBe(1);
@@ -613,7 +613,7 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     expect(got.effects.some((e) => e.on === 'onPlay'), `${got.name} has a Shout`).toBe(true);
   });
 
-  it('Blazing Keeper can never roll Karwind — it watches Shouts but has none', () => {
+  it('Commander Warpath can never roll Karwind — it watches Shouts but has none', () => {
     // The owner called this one out by name. Assert against the POOL rather than a sampled roll, so it can't
     // pass by luck of the seed.
     const eligible = poolOf({ ...createRun(3), tier: 7 } as RunState).buyable.filter(
@@ -655,7 +655,7 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
 });
 
 describe('set 2 — Dragon reworks (owner batch 2026-07-27)', () => {
-  it('Blazing Keeper hands you a Brood Whelp, and the Whelp has a Shout of its own', () => {
+  it('Commander Warpath hands you a Brood Whelp, and the Whelp has a Shout of its own', () => {
     const s: RunState = { ...createRun(3), phase: 'recruit', tier: 6, embers: 60, board: [],
       hand: [minion('bk', 'd2_blazingkeeper', 'dragon', 5, 3)] };
     const after = reduce(s, { type: 'play', uid: 'bk' });

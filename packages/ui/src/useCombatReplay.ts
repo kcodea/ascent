@@ -258,7 +258,11 @@ export function computeFrame(
     } else if (e.type === 'death') {
       const u = find(e.target);
       if (u) { u.alive = false; u.health = 0; }
-      if (!e.rise && (e.side === 'player' || e.side === 'enemy')) deaths[e.side] += 1; // friendly-death tally → Avenge counter
+      // A RISE death counts (owner ruling 2026-07-27, and `killOrReborn` in the sim calls `emitAvenge` for it).
+      // This skipped `e.rise`, so the DISPLAYED Avenge counter disagreed with the tally that actually fires the
+      // effect — a Kennelmaster/Solaris behind a Rise minion looked stuck while its Avenge really was advancing
+      // (owner report 2026-07-29). The replay must mirror the sim, not hold its own older rule.
+      if (e.side === 'player' || e.side === 'enemy') deaths[e.side] += 1; // friendly-death tally → Avenge counter
       if (i < beatStart) gone.add(e.target);
     } else if (e.type === 'buff') {
       const u = find(e.target);

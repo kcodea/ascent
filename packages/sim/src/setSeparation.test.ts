@@ -102,7 +102,7 @@ describe('set separation — combat random picks respect the run’s set', () =>
   });
 
   it('a RECRUIT Discover is already set-scoped — Sea Urchin was not a leak', () => {
-    // The owner also reported Sea Urchin Discovering a Scalefeather Drake. That one is CORRECT: Sea Urchin is
+    // The owner also reported Sea Urchin Discovering a Mushy. That one is CORRECT: Sea Urchin is
     // opted into set 2, and Scalefeather is a Dragon/BEAST, so it's a legal Beast Discover in a set-2 run.
     // Recruit picks have always gone through `poolOf(state).buyable`. Pinned here so the claim is checkable
     // rather than a note in a chat log.

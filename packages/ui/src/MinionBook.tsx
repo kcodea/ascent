@@ -104,6 +104,7 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
   mech: { label: 'Mechs', icon: 'gear' },
   undead: { label: 'Undead', icon: 'skull' },
   demon: { label: 'Demons', icon: 'eye' },
+  dwarf: { label: 'Dwarves', icon: 'anvil' },
   kobold: { label: 'Kobolds', icon: 'crown' },
   neutral: { label: 'Neutral', icon: 'star' },
   spells: { label: 'Spells', icon: 'sc' },

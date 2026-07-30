@@ -75,7 +75,7 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     id: 'dm_hungerling',
-    name: 'Hungerling',
+    name: 'Demon Horse',
     tribe: 'demon',
     tier: 4,
     attack: 4,
@@ -100,18 +100,6 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'After each Shop refresh, give the **right-most** minion **+8/+8** permanently.',
   },
   {
-    id: 'dm_riotcaller',
-    name: 'Riot Caller',
-    tribe: 'demon',
-    tier: 3,
-    attack: 2,
-    health: 5,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyImpsAttackNow', params: { count: 1 } }],
-    text: '**Rally:** your **left-most Imp** attacks immediately.',
-    goldenText: '**Rally:** your **2 left-most Imps** attack immediately.',
-  },
-  {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
     id: 'dm_curator',
     name: 'Display Curator',
@@ -127,7 +115,7 @@ export const SET2_DEMONS: CardDef[] = [
   {
     // A Demon eats every time you play a Demon — the tribe's engine card.
     id: 'dm_glutton',
-    name: 'Selective Glutton',
+    name: 'Chipper',
     tribe: 'demon',
     tier: 4,
     attack: 4,
@@ -153,9 +141,9 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'Whenever you summon an **Imp**, give it **+4/+4**. **Avenge (3):** improve this by **+2/+2**.',
   },
   {
-    // Takes the stats WITHOUT eating — the offer stays buyable, which is the difference from Hungerling.
+    // Takes the stats WITHOUT eating — the offer stays buyable, which is the difference from Demon Horse.
     id: 'dm_gourmand',
-    name: 'Grand Gourmand',
+    name: 'Bob Blart',
     tribe: 'demon',
     tier: 4,
     attack: 5,

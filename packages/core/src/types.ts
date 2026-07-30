@@ -1,7 +1,11 @@
 import type { Rng } from './rng';
 import type { CombatBus } from './events';
 
-export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold';
+/** The five Set 2 "Dwarven Ale" spells — what a Dwarf's "get a Dwarven Ale" draws from. Lives in core because
+ *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
+export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
+
+export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf';
 
 /** Keyword codes (handoff A.4). */
 export type Keyword =
@@ -100,6 +104,7 @@ export type GameEvent =
   | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
+  | 'cardsPlayed' // recruit phase: the player PLAYED a card — the play-count twin of `cardsBought` (Mountainbond)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
@@ -151,7 +156,7 @@ export type EffectFactoryId =
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
-  | 'deathrattleQueueNextSpellCopy' // Scalefeather Drake: Echo — copy the first spell you cast next turn
+  | 'deathrattleQueueNextSpellCopy' // Mushy: Echo — copy the first spell you cast next turn
   | 'battlecryArmGrimoire' // Living Grimoire: Shout — charge the first-spell multiplier
   | 'onBattlecryRearmGrimoire' // Living Grimoire: every 3 Shouts, recharge it
   | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
@@ -182,7 +187,7 @@ export type EffectFactoryId =
   | 'deathrattleSummonRandomTier' // Set 2 — Gravelight Acolyte (Echo): summon N random minions of an exact tier
   | 'summonImps' // Set 2 — Imp Wrangler / Errand Fiend: summon N Imps
   | 'rallyImpsAttackNow' // Set 2 — Riot Caller (Rally): your N left-most Imps attack immediately
-  | 'onTribePlayedConsumeShop' // Set 2 — Selective Glutton: playing a Demon makes a friendly Demon eat a Shop minion
+  | 'onTribePlayedConsumeShop' // Set 2 — Chipper: playing a Demon makes a friendly Demon eat a Shop minion
   | 'onImpDeathSummonImp' // Set 2 — Endless Overseer: your first N Imp deaths each summon an Imp
   | 'onImpAttackSummonCopy' // Set 2 — Malphas (Legion): an attacking Imp summons a copy
   | 'endOfTurnEndDemonsConsumeSides' // Set 2 — Malphas (Feast): the end Demons eat their side of the row
@@ -192,32 +197,32 @@ export type EffectFactoryId =
   | 'scFillWithImpsAndBuff' // Set 2 — Legion Shepherd: fill the warband with Imps, then buff Imps per one summoned
   | 'onImpAttackBuffImps' // Set 2 — Cinder Chancellor: an Imp attacking buffs your Imps, escalating
   | 'battlecryConsumeShopRandom' // Set 2 — Cinder Clerk: Shout — consume a random Shop minion
-  | 'consumeShopRightmost' // Set 2 — Hungerling / Revolving Maw: consume the right-most Shop minion
+  | 'consumeShopRightmost' // Set 2 — Demon Horse / Revolving Maw: consume the right-most Shop minion
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Display Curator: permanent buff to minions bought from the Shop
   | 'shopRefreshedBuffRightmost' // Set 2 — Market Tormentor: each fresh Shop's right-most minion comes in buffed
-  | 'endOfTurnGainRightmostShopStats' // Set 2 — Grand Gourmand: gain the right-most shop minion's stats (no consume)
+  | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Tallymonger: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
   | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
-  | 'onBattlecryBuffTribeAlternating' // Set 2 — Roaring Matriarch: alternates Attack/Health each turn
+  | 'onBattlecryBuffTribeAlternating' // Set 2 — Bathing Matriarch: alternates Attack/Health each turn
   | 'endOfTurnAlternateMode' // …and the tick that flips it
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
   | 'onSummonTribeBuffThenDouble' // Set 2 — King Oona: a summoned Beast gets +1/+1, then doubles (gilded: triples)
   | 'onSummonTribeBuffImproveSelf' // Set 2 — Menagerie Mammoth: a summoned Beast gets +N Attack; the grant improves permanently
   | 'deathrattleImpsOverflowGrant' // Set 2 — Legion Shepherd: Echo summon Imps; each overflow buffs your Imps everywhere
   | 'scGrantRightmostEcho'         // Set 2 — Endless Overseer: graft an Imp-summoning Echo onto your right-most minion
-  | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Grand Gourmand: eat the fattest Shop minion
+  | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Bob Blart: eat the fattest Shop minion
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
-  | 'rallyBuffShopPermanent' // Set 2 — Hungerling: Rally buffs Shop minions permanently
+  | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
   | 'spellCastBuffImps' // Set 2 — Cinder Chancellor: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
   | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
   | 'battlecryPlayRubiesAll' // Set 2 — Frenzied Excavator: play a Ruby on every friendly minion
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
-  | 'battlecryGrantShoutDragon' // Set 2 — Blazing Keeper: get a random Dragon that has a Shout
+  | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight Marshal: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell' // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
@@ -452,7 +457,24 @@ export type EffectFactoryId =
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
   | 'scPlayRubies' // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
-  | 'cardsBoughtGetRubies' // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
+  | 'cardsBoughtGetRubies'
+  | 'grantRandomAle' // Set 2 Dwarves
+  | 'battlecryBuffTribeOthersAttack' // Set 2 Dwarves
+  | 'battlecryGainKeyword' // Set 2 Dwarves
+  | 'goldSpentBuffTribeAttack' // Set 2 Dwarves
+  | 'battlecryBuffTargetPerGoldSpent' // Set 2 Dwarves
+  | 'endOfTurnBuffLeftmostTribePerCard' // Set 2 Dwarves
+  | 'cardsBoughtGrantRandomSpell' // Set 2 Dwarves
+  | 'battlecryGildTarget' // Set 2 Dwarves
+  | 'goldSpentGrantTribeMinion' // Set 2 Dwarves
+  | 'combatGrantAle' // Set 2 Dwarves (combat)
+  | 'rallyGiveAttackToOthers' // Set 2 Dwarves (combat)
+  | 'echoSummonCopyNoEcho' // Set 2 Dwarves (combat)
+  | 'echoSummonInheritAttackAndCharge' // Set 2 Dwarves (combat)
+  | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
+  | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
+  | 'onPlayTribeBuffTribeByAles' // Set 2 Dwarves — Chef Gary Toast
+  | 'spellCastTriggerAdjacentShouts' // Set 2 Dwarves — High King Mykel // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn
@@ -699,7 +721,7 @@ export type QuestReward =
   // the Pair ("2 random Tier 4 minions").
   // `grantGolden` conjures each id as a GILDED (golden) copy — Rune of Stormcalling's "Gilded Karwind", Frontline
   // Glory's "Gilded Yazzus".
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; /** Set 2 — N random Dwarven Ales (owner 2026-07-29: random, not a fixed trio). */ randomAle?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -985,6 +1007,12 @@ export interface QuestDef {
   tribe: Tribe; // 'neutral' = the always-offered, build-agnostic slot
   tier: QuestTier;
   objective: QuestObjective;
+  /**
+   * Which card SETS may offer this quest. Absent = every set. Mirrors `RuneDef.sets`, and for the same reason:
+   * the set-1 and set-2 quest lists are DIFFERENT (owner 2026-07-29), and a quest whose objective names another
+   * set's mechanics — Fodder, Attachments, Rubies, Ales — can never be completed in this run.
+   */
+  sets?: readonly ('set1' | 'set2')[];
   reward: QuestReward;
   /** Which quest turn this quest is offered on (owner's two-bucket table). Absent = derived from `tier`
    *  (Capstone → turn 11, else → turn 5); set explicitly only when a quest's bucket differs from that default
@@ -1011,6 +1039,15 @@ export interface RuneDef {
   /** Only offer this rune to heroes whose power gets value from a double trigger (the sim's DOUBLEABLE_POWERS
    *  set). Rune of Empowerment uses this so it never appears for a targeted/passive-power hero. */
   requiresDoublePower?: boolean;
+  /**
+   * Which card SETS may offer this rune. Absent = every set (a rune built only from general mechanics).
+   *
+   * Load-bearing, because a rune's reward names mechanics that only exist in one set: a Fodder/Attachment/Undead
+   * rune is dead weight in a set-2 run, and a Ruby/Ale rune is unbuyable filler in set 1 — both silently waste
+   * one of the forge's few offer slots on something the run can never use (owner report 2026-07-29).
+   */
+  /** Mirrors `SetId` in `@game/content`, spelled out because content depends on core and not the reverse. */
+  sets?: readonly ('set1' | 'set2')[];
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown
@@ -1316,7 +1353,7 @@ export interface CombatSideState {
    *
    *  Every random pick in combat (a Slaughter's spell, a random-minion grant, a magnetic roll) used to filter
    *  the GLOBAL `CARD_INDEX`, so a Set-1 run could be handed a Set-2 card: Badgington's Slaughter produced a
-   *  Set-2 spell and Sea Urchin a Scalefeather Drake (owner report 2026-07-27). Recruit-phase picks already go
+   *  Set-2 spell and Sea Urchin a Mushy (owner report 2026-07-27). Recruit-phase picks already go
    *  through `poolOf(state)`; combat simply never had the set threaded in.
    *
    *  Empty/undefined = UNRESTRICTED, which keeps `EMPTY_SIDE` (the harness, the procedural threat, tests that
@@ -1504,12 +1541,12 @@ export interface CombatResult {
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
-  /** Set 2 — Hungerling: a Rally that permanently buffs SHOP minions. A Rally fires in COMBAT, but the tavern
+  /** Set 2 — Demon Horse: a Rally that permanently buffs SHOP minions. A Rally fires in COMBAT, but the tavern
    *  buff is run state, so it can only reach the run through a carry-back like every other combat→run effect
    *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
    *  channel, per the owner's rule that "give minions in the Shop" means permanent, not just this shop. */
   playerTavernBuyGain?: { attack: number; health: number };
-  /** Set 2 — Scalefeather Drake Echoes that fired this combat: how many next-turn first-spell copies to queue. */
+  /** Set 2 — Mushy Echoes that fired this combat: how many next-turn first-spell copies to queue. */
   playerNextTurnSpellCopies?: number;
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is
    *  conjured to hand in settleCombat ("get a copy of it next Shop"). Absent when no Slaughter fired. */
@@ -1657,9 +1694,9 @@ export interface CombatContext {
    *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
    *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
-  /** Permanently buff every future Shop minion (Hungerling's Rally) — carried back via `playerTavernBuyGain`. */
+  /** Permanently buff every future Shop minion (Demon Horse's Rally) — carried back via `playerTavernBuyGain`. */
   gainTavernBuy(attack: number, health: number, side: Side): void;
-  /** Set 2 — Scalefeather Drake: queue `count` next-turn first-spell copies (player-only; carried back). */
+  /** Set 2 — Mushy: queue `count` next-turn first-spell copies (player-only; carried back). */
   queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
   leftmostHandSpellFor(side: Side): string | undefined;

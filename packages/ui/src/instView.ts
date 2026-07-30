@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, alternatingBuffText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  attackGrantImproveText, perGoldSpentText, rallySpreadText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  attackGrantImproveText, perCardPlayedText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -114,6 +114,8 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             stewardText(c.id, p.golden, p.lastSpellName) ??
             tallyBuffText(c.id, p.deathrattlesTriggered, p.golden) ??
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Dorrin: the Health it grants RIGHT NOW
+            perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
+            shopBuffImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Display Curator: its climbing Shop buff
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ??
             spellThresholdText(c.id, p.golden, p.spellProgress ?? 0) ?? // Mykel: spells remaining until it fires // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??

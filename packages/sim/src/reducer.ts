@@ -680,6 +680,12 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       const def = CARD_INDEX[card.cardId];
 
+      // Set 2 — the play-count meter (Mountainbond). "Cards" means EVERYTHING you play: minions, spells and
+      // Rubies alike (owner 2026-07-29). It was on the minion branch only, so spells never counted. Fired here,
+      // once, before the type branches — every branch below is a real play. A fizzle (no legal target) returns
+      // the ORIGINAL `state`, so an increment on the draft is discarded with everything else, which is correct.
+      applyCardsPlayed(s, 1);
+
       // Funeral on Loan: a BORROWED minion never enters the board — playing it triggers its Echo (Deathrattle)
       // out of combat, then it's destroyed (consumed from hand). No board slot needed; a non-Echo body just vanishes.
       if (card.borrowed) {
@@ -910,9 +916,6 @@ function reduceCore(state: RunState, action: Action): RunState {
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
       playCard(s, card);
-      // Set 2 — the play-count meter (Mountainbond), the twin of `applyCardsBought` on the buy path. Fired after
-      // the card is on the board so its own Shout resolves first and the threshold sees the finished board.
-      applyCardsPlayed(s, 1);
       // A STANDALONE Magnetic play (no host — it took a board slot) is still "playing an Attachment": the
       // first each turn gets Tempering's Ward on itself, and Replication still copies it onto the leftmost
       // Mech (the standalone body itself qualifies if it's the leftmost Mech-tribe minion... it welds a copy).

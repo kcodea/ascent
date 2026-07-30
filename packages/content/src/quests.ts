@@ -121,6 +121,15 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_banes_existence', name: "Bane's Existence", tribe: 'demon', tier: 'capstone', objective: { event: 'shout', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['bane'] }, { kind: 'baneDemonAura', attack: 2, health: 2 }] }, sets: ['set1'] },
   // MECH — Cling Drones self-magnetize onto your Mechs every End of Turn.
   { id: 'q_clinging_on', name: 'Clinging On', tribe: 'mech', tier: 'capstone', objective: { event: 'buy', count: 8, tribe: 'mech' }, reward: { kind: 'recurringEndOfTurn', effect: 'attachClingDrones' }, sets: ['set1'] },
+  // ── DWARF (set 2) — the Gold-and-Ale tribe's quests (owner roster 2026-07-29). Only the ones that need NO new
+  // reward kind ship here; the rest of the 27-quest remainder is tracked in the queue. `wave` is set explicitly
+  // because the owner's table gives the turn directly, rather than deriving it from `tier`.
+  { id: 'q_company_recruitment', name: 'Company Recruitment', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 4, tribe: 'dwarf' }, reward: { kind: 'grant', randomTribe: 'dwarf', randomCount: 1, randomAle: 1 }, repeatable: true, sets: ['set2'] },
+  { id: 'q_barroom_bounty', name: 'Barroom Bounty', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dwarf' }, reward: { kind: 'grant', cards: ['dw_korr'], grantKeywords: ['W', 'DS'] }, sets: ['set2'] },
+  { id: 'q_runic_apprenticeship', name: 'Runic Apprenticeship', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'castSpell', count: 8 }, reward: { kind: 'spellRepeat', scope: 'firstEachTurn' }, sets: ['set2'] },
+  // War Council is NOT shipped: its reward ("your Dwarf Rallies and Slaughters trigger an additional time")
+  // has no reward kind. `lawOfTeeth` is the Beast version and is gated on `isBeast(attacker)` in the sim, so
+  // reusing it would silently grant BEAST triggers on a Dwarf quest. Needs a tribe-parameterised flag.
 ];
 
 export const QUEST_INDEX: Record<string, QuestDef> = Object.fromEntries(

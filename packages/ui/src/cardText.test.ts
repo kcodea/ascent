@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS } from '@game/content';
-import { abhorrentHorrorText, alternatingBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, alternatingBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
@@ -224,5 +224,27 @@ describe('alternatingBuffText — Bathing Matriarch', () => {
 
   it('returns null for a card that does not alternate', () => {
     expect(alternatingBuffText('karwind', 0)).toBeNull();
+  });
+});
+
+describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () => {
+  it('Display Curator prints the buff it will ACTUALLY give, not the printed base', () => {
+    // Its Shop buff climbs every trigger, so "+1/+1" is stale after the first End of Turn.
+    expect(shopBuffImproveText('dm_curator', 0), 'unclimbed should keep the printed text').toBeNull();
+    const t = shopBuffImproveText('dm_curator', 2, false)!;
+    expect(t).toContain('{{+3/+3}}');        // base 1 + 2 accrued — the value it will actually give
+    // The card prints TWO magnitudes: the buff, and the "improves by" step. Only the FIRST goes stale, so only
+    // it is replaced — the step is still +1/+1 and must survive.
+    expect(t).toContain('Improves by **+1/+1**');
+  });
+
+  it('…and doubles for a gilded copy', () => {
+    expect(shopBuffImproveText('dm_curator', 2, true)!).toContain('{{+6/+6}}');
+  });
+
+  it('Closing-Time Foreman prints the Attack it will give for cards played so far', () => {
+    expect(perCardPlayedText('dw_foreman', 0), 'nothing played yet — printed rate stands').toBeNull();
+    expect(perCardPlayedText('dw_foreman', 4, false)!).toContain('{{+4 Attack}}');
+    expect(perCardPlayedText('dw_foreman', 4, true)!).toContain('{{+8 Attack}}');
   });
 });

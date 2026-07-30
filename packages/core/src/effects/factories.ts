@@ -683,6 +683,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+
   /** Lieutenant Thane — Rally: hand THIS minion's current Attack to `count` other living friendlies. Reads its
    *  Attack live, so a buffed Thane spreads more; golden repeats the whole spread. */
   rallyGiveAttackToOthers: (ctx, self, params, payload) => {
@@ -1399,6 +1400,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  twice). Explosive on a wide board. Growth is a REAL spell, so each cast inherits the run's spell power
    *  (`ctx.spellPower`, passed in from the run loop) on top of the base — exactly like a shop-cast Growth. */
   onAllyAttackCastGrowth: (ctx, self, params, payload) => {
+    // Choose One gate, for cards where this is one BRANCH (Fatecarver). Absent `option` = ungated, so Taragosa
+    // is unaffected. Fatecarver shares this factory rather than carrying a near-copy: the duplicate I wrote
+    // first missed BOTH the spell-power scaling and `ctx.castSpell`, which is exactly what a near-copy costs.
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
     const { minion } = payload as MinionPayload;
     if (self.dead || minion.side !== self.side) return; // any ally's attack
     const sp = ctx.spellPowerFor(self.side); // per-side: an enemy Taragosa scales with the OPPONENT's spell power

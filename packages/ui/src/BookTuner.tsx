@@ -61,7 +61,7 @@ export function BookTuner() {
   const [top, setTop] = useState(DEF_TOP);
   const [depth, setDepth] = useState(DEF_DEPTH);
   const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('booktuner');
+  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('book');
 
   const style = useMemo(() => cssText(vals, grad, top, depth), [vals, grad, top, depth]);
 

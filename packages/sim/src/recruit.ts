@@ -1235,7 +1235,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Ironlung Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
+  /** Warhorn Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
    *  is why it can't reuse `battlecryBuffTribeImproving` (symmetric, and includes self). */
   battlecryBuffTribeOthersAttack: (ctx, self, params) => {
     const tribe = str(params.tribe);

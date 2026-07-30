@@ -29,6 +29,7 @@
     "pool": "tsx packages/tools/src/build-pool.ts",
     "lobby": "tsx packages/tools/src/lobby-sim.ts",
     "board:train": "tsx packages/tools/src/board-train.ts",
+    "text:audit": "tsx packages/tools/src/text-audit.ts",
     "board:elo": "tsx packages/tools/src/board-elo.ts",
     "boards:fetch": "tsx packages/tools/src/fetch-boards.ts",
     "lobby:snapshots": "tsx packages/tools/src/lobby-snapshot-check.ts",

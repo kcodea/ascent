@@ -97,7 +97,7 @@ describe('Gold and throughput', () => {
     expect(b.attack, 'a non-Dwarf was buffed').toBe(beast.attack);
   });
 
-  it('Ironlung Captain buffs its OTHER Dwarves, never itself', () => {
+  it('Warhorn Captain buffs its OTHER Dwarves, never itself', () => {
     let s = set2();
     const other = body('dw_brunni', 'o');
     s = { ...s, board: [other], hand: [body('dw_ironlung', 'cap')] };
@@ -254,7 +254,7 @@ describe('tranche C — the five that needed machinery', () => {
     let s = set2();
     const mate = body('dw_brunni', 'mate');
     // Broad-Axe Brakka is the newcomer on purpose: it is a Dwarf with NO effects of its own. My first attempt
-    // used Ironlung Captain, which ALSO buffs your Dwarves +3 Attack — the +6 that produced was two effects
+    // used Warhorn Captain, which ALSO buffs your Dwarves +3 Attack — the +6 that produced was two effects
     // stacking, not the Chef double-firing.
     s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [body('dw_brakka', 'newcomer')] };
     const before = s.board.find((x) => x.uid === 'mate')!.attack;

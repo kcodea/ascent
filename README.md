@@ -86,6 +86,9 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   and Bloodbinder's ruby lance. Cost: +34 KB gzipped of JS, 29 KB of it a primitives chunk fetched lazily
   on mount rather than at first paint (the main chunk grows under 5 KB gzipped). The
   *authoring tool* stays dev-only; a test now pins that split in both directions.
+- **The dev tuners look like instruments now.** Dark machined panels over the board instead of pale dialogs on
+  it, with the slider track lit to its value, a flagged edge on anything moved off shipped, and the main menu's
+  sheen on button hover and press. Eight ad-hoc text sizes became a four-role scale.
 - **One button resets every dev tuner to the shipped values.** Per-panel Reset only ever cleared that panel, so
   nothing put the whole toolset back at once.
 - **Tuning got a working surface.** Panel sections fold away and remember it, each panel has a find box, and a

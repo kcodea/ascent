@@ -120,6 +120,68 @@ watchers invalidate their own glob owner and only their own. Plus 12 cases in `s
 re-commit collapse, the caps, the in-session listing, the rehydrate-without-restart path, the dangling sweep
 and its write-back, and that the stored payload contains no `data:image`. The decode itself needs a DOM +
 WebGL and stays eyeball-verified, per this module's standing note.
+## 2026-07-30 — the tuner panels become instruments, and get a type scale
+
+**What changed.** The visual pass on the 46 dev tuner panels, in two commits: a new surface (the "workshop
+slate") and a type scale replacing eight ad-hoc sizes. Dev-only; stripped from production. No engine, content,
+sim, or player-visible change.
+
+**The diagnosis was in our own design doc.** DESIGN.md names "flat SaaS — cool greys, hairline borders, muted
+accents, neutral surfaces" as a confirmed anti-reference, and that is what the tuners had become: a cream fill,
+a hairline rule, a flat grey slider track, and tangerine doing four jobs at once. They were the one surface that
+opted out of the system, which is exactly why they read wrong sitting on a warm gilded board.
+
+**Two directions were mocked up cheaply before any shipped CSS was touched** — the game's own gold at tool
+density, or instruments over the board. The owner picked the second and asked to push it further. Worth
+recording that a dark dev theme was not a new idea: the Choreography panel already shipped one, so this brings
+the rest of the toolset onto a look that existed and leaves no odd panel out.
+
+**Applied by RE-DECLARING the shared surface tokens on the panel root** — the trick BookTuner already uses on
+`.book`. Every rule reads `var(--card)` / `var(--line)` / `var(--ink)`, so the whole panel reskins from one
+block instead of forty edited declarations, and anything added later inherits it for free.
+
+**Ornament that carries information, not decoration.** The slider track lights to the value's position, so a
+44-control panel can be read at a glance without reading a number. A modified row carries a lit left edge, like
+a flagged channel on a mixing desk, so "what have I changed?" is a scan rather than a hunt — and it keeps the
+revert dot and a brightened numeral, so colour is never the only signal. Section counts became chips, so a
+folded section still says how much it hides. The nameplate emblem is the glyph the dev menu lists the panel
+under.
+
+**Buttons took the main menu's sheen** on hover and a faster one on press, plus the same edge-collapse press as
+`.menubtn` — the two surfaces now speak one language. Compositor-only (`transform`/`opacity` on a pseudo
+element) with a `prefers-reduced-motion` guard, so the performance contract holds.
+
+**THE TYPE PASS FOUND MORE THAN SIZING.** The panel was rendering **sixteen distinct type styles across eight
+sizes** — 9, 10, 10.5, 11, 12, 12.5, 13, 15px, four of them inside a 2px band that no reader can tell apart.
+Four roles now: title 15, label and value 12.5, chrome 12, metadata 10.5. Label and value are treated as PEERS —
+same size, separated by weight and tabular figures — rather than by half a pixel. Two real defects surfaced:
+the find field, fold-all, selects and both button kinds were rendering at the browser's **400 weight** (form
+controls do not inherit the panel's font), which is most of why the find field read as foreign; and
+`.sfxmix-h span` was also matching `.tuner-emblem`, shrinking the new emblem to 9px and shoving it to the far
+right on the note's `margin-left: auto`.
+
+**The specificity trap bit a fourth time.** The emblem fix did not take at first: `.tunerpanel .tuner-emblem` is
+(0,2,0) and the rule breaking it, `.tunerpanel .sfxmix-h span`, is (0,2,1). Stacking a new rule could not win.
+The fix was to SUPERSEDE the old rule — the note now uses `> span:not(.tuner-emblem)` — rather than fight it.
+Worth remembering: when a fix "doesn't apply", compare specificity before assuming the rule is wrong.
+
+**DESIGN.md now documents the dev tooling surface** — its palette, the four-role type scale, the re-declared
+token technique, and the rule that ornament here must name the information it carries. Without that, every
+future tuner edit would read as drift against a system that did not describe this surface.
+
+**How it was verified.** typecheck (pkgs + web), lint, build:web, and the type detector clean on `styles.css`.
+Then measured live in the browser rather than eyeballed: the rendered text roles are exactly 15 / 12.5 / 12 /
+10.5; the emblem leads the nameplate instead of floating right; the slider `--fill` resolves to a real two-stop
+gradient; a modified row shows its 2px lit edge; and both sheen keyframes, both press states and the
+reduced-motion guard are live in the CSSOM.
+
+**Note for whoever runs the tests next.** `packages/ui/src/fx/shapeLibrary.test.ts` currently fails twice in this
+working tree, and it is NOT a code defect: `shapeLibrary.ts` eagerly globs `./defs/art/*.png`, the test asserts
+the option list equals the six built-ins exactly, and an **untracked** `defs/art/group-14035.png` (left by an FX
+workbench session, along with a modified `coins.json`) makes it seven. Any art shape imported through the
+documented promote flow breaks those two tests locally — the assertion probably wants to be "contains the
+built-ins" rather than "equals".
+
 
 ## 2026-07-30 — `burst` learns to aim along a moment, and the melee strike becomes a def
 

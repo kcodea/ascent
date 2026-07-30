@@ -441,6 +441,51 @@ derived from each frame asset's real pixel aspect and centre-anchored, so it tra
 with no measuring. `border-radius: 50%` is load-bearing — the halo is a `box-shadow`, and a `clip-path`
 would cut it away entirely.
 
+## The dev tooling surface
+
+The 46 DEV tuner panels are the one surface that does **not** wear the vellum-and-gold world, and that is a
+decision rather than drift.
+
+A tuner panel *covers the thing it tunes*. It floats over the board you are judging, often while a combat is
+playing underneath it, and it is open for hours at a time. Dressing it in the game's own gold made it compete
+with the board for the same attention, and — worse — made dev chrome indistinguishable from game UI in a
+screenshot. So the tools are **instruments over the board**, not more board: a dark warm-walnut slate, trimmed
+in the same brass, quiet where you work.
+
+This is an extension of a look that already existed. The DEV Choreography panel shipped a dark theme
+(`.sfxmix.choreo`) and this brings the rest of the toolset onto it.
+
+**Palette** (dev surface only — never use these for player-facing UI):
+
+- **Slate** `#1d1913` face, `#151109`–`#2b2620` in the panel's radial ground, `#100d08` for recessed wells.
+- **Brass** `#c8a45c` for engraved caps and section rules; `#6b5526` for brass edges; the nameplate is
+  `#3a3227 → #2a2419` with a `#6b5526` bottom rule.
+- **Ink on slate** `#efe7db` primary, `#c9bda6` secondary, `#9a8c74` metadata.
+- Tangerine (`--acc`) keeps its meaning exactly: it marks *the one thing that changes what the board is
+  showing* — the shipped-values A/B while latched, and the lit edge on a row you have moved off shipped.
+
+**How it is applied:** the shared surface tokens (`--card`, `--bg2`, `--line`, `--ink`, `--ink3`) are
+**re-declared on the panel root**, the same technique the Compendium tuner uses on `.book`. Every rule already
+reads those tokens, so the surface reskins from one block and anything added later inherits it. Do not hand-edit
+colours into individual tuner rules.
+
+**Type scale** — four roles, and no fifth:
+
+| Role | Size | Weight | Notes |
+|---|---|---|---|
+| Title | 15px | 800 | The panel's name and its emblem. The only large text. |
+| Label + value | 12.5px | 700 / 800 | **Peers.** A control's name and its number share a size and separate on weight, tabular figures and the value's well — never on half a pixel. |
+| Control | 12px | 700–800 | Find field, buttons, selects, the ✕. Form controls must be given the font explicitly; they do not inherit it. |
+| Metadata | 10.5px | 700 | Units, counts, hex, caveats, the header note, and section caps (which read larger because they are capitalised, tracked and brass). |
+
+Light text on a dark ground reads thinner than the same text on vellum, so this scale runs half a step larger
+than the cream original and adds a little tracking to the smallest role.
+
+**Ornament here must carry information.** The slider track lights to the value's position so a 44-control panel
+can be read without reading numbers; a modified row carries a lit left edge so "what have I changed?" is a scan;
+a section's count sits in a chip so a folded section still says how much it hides. Anything that cannot name the
+information it carries does not belong on this surface.
+
 ## Do's and Don'ts
 
 ### Do:

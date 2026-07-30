@@ -4237,12 +4237,12 @@ svg { width: 18px; height: 18px; }
 /* Colour rows have no number box, so the swatch takes the slider's column and the hex takes the rest. */
 .tunerpanel .tuner-row-color { grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 76px; }
 .tunerpanel .tuner-row-color input[type="color"] { width: 100%; height: 20px; padding: 0; border: 1px solid var(--line);
-  border-radius: 5px; background: none; cursor: pointer; }
+  border-radius: 5px; background: none; }
 .tunerpanel .tuner-hex { font-size: 10px; color: var(--ink3); font-variant-numeric: tabular-nums; text-align: left; }
 /* A config toggle: a real value stored as either/or, so it keeps the label + value columns of a slider row but
    swaps the slider for a checkbox and drops the number box. */
 .tunerpanel .tuner-row-toggle { grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 82px; }
-.tunerpanel .tuner-row-toggle input[type="checkbox"] { margin: 0; justify-self: start; cursor: pointer; accent-color: var(--acc); }
+.tunerpanel .tuner-row-toggle input[type="checkbox"] { margin: 0; justify-self: start; accent-color: var(--acc); }
 .tunerpanel .tuner-toggleval { font-size: 10px; color: var(--acc-dk); font-weight: 800; text-align: left; }
 /* A named choice (a blend mode, which flourish to play) — a slider cannot express it. */
 .tunerpanel .tuner-row-select { grid-template-columns: minmax(96px, 1.3fr) 1fr 28px; }
@@ -4416,14 +4416,14 @@ svg { width: 18px; height: 18px; }
 /* A milled channel with the travelled portion LIT. `--fill` is set per render by TunerPanel; the gradient is
    two hard stops, so there is no blur to repaint. */
 .tunerpanel .tuner-row input[type="range"] {
-  -webkit-appearance: none; appearance: none; height: 7px; border-radius: 99px; cursor: pointer;
+  -webkit-appearance: none; appearance: none; height: 7px; border-radius: 99px;
   background:
     linear-gradient(90deg, #f0b463 0 var(--fill, 0%), rgba(0, 0, 0, 0) var(--fill, 0%)),
     linear-gradient(180deg, #0d0a06, #12100b);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), inset 0 -1px 0 rgba(255, 230, 190, 0.05);
 }
 .tunerpanel .tuner-row input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%; cursor: pointer;
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%;
   background: linear-gradient(180deg, #fbe4ab 0%, #e0af45 45%, #a97c1c 100%);
   border: 1px solid #6f5518;
   box-shadow: inset 0 1px 0 rgba(255, 252, 240, 0.75), 0 2px 4px rgba(0, 0, 0, 0.7);
@@ -4554,6 +4554,39 @@ svg { width: 18px; height: 18px; }
   .tunerpanel .sfxmix-copy:active::after, .tunerpanel .tuner-cmp:active::after { animation: none; }
   .tunerpanel .tuner-row { transition: none; }
 }
+
+/* ---- THE GAME POINTER, EVERYWHERE IN A DEV PANEL -------------------------------------------------------
+   The game paints its own cursor: every interactive element declares `url('/cursors/gauntlet_*.svg')` with a
+   native keyword only as the FALLBACK if the asset fails. The dev panels had accumulated ~20 bare `cursor:
+   pointer` / `move` / `help` / `text` declarations — mine included — and each one beat the global rule on
+   specificity, so crossing a panel made the pointer flicker between the gauntlet and the OS hand on every row,
+   button and slider.
+
+   One block owns it for every dev panel rather than twenty rules being corrected in place, because the next
+   control anyone adds would reintroduce the flicker otherwise. Two roots are listed because the SFX Mixing Desk
+   is `.desk`, not `.sfxmix` — it never shared the tuners' shell. `.sfxmix.sfxmix` is doubled deliberately: the
+   declarations it overrides sit at (0,2,0), so a single class could not win no matter where it was placed.
+
+   The two gauntlets keep the game's own meaning — closed for "you can act on this", default for everything
+   else — so the pointer still ANSWERS, it just never leaves the game's world. */
+.sfxmix.sfxmix, .sfxmix.sfxmix *,
+.desk.desk, .desk.desk * { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.sfxmix.sfxmix button, .desk.desk button,
+.sfxmix.sfxmix input, .desk.desk input,
+.sfxmix.sfxmix select, .desk.desk select,
+.sfxmix.sfxmix label, .desk.desk label,
+.sfxmix.sfxmix [role="button"], .desk.desk [role="button"],
+.sfxmix.sfxmix .sfxmix-h.drag, .desk.desk .desk-h.drag { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* A text field still needs to say "you can type here", so it keeps the resting gauntlet and an I-beam fallback
+   rather than the grab pose. */
+.sfxmix.sfxmix input[type="text"], .desk.desk input[type="text"],
+.sfxmix.sfxmix input[type="search"], .desk.desk input[type="search"],
+.sfxmix.sfxmix input[type="number"], .desk.desk input[type="number"] {
+  cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
+/* Nothing to act on: a disabled control reverts to the resting pose, matching `.shopbtn:disabled` and friends. */
+.sfxmix.sfxmix button:disabled, .desk.desk button:disabled,
+.sfxmix.sfxmix input:disabled, .desk.desk input:disabled,
+.sfxmix.sfxmix .tuner-note { cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
 
 .sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
 .sfxmix.lunge .sfxmix-val { flex-basis: 42px; }

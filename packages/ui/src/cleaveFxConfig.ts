@@ -245,6 +245,9 @@ export const CLEAVEFX_KEYS = Object.keys(CLEAVEFX_RANGES) as (keyof CleaveFxConf
 /** Colour keys, dialled with swatches rather than sliders. */
 export const CLEAVEFX_COLOR_KEYS: (keyof CleaveFxConfig)[] = ['colorCore', 'colorClaw', 'colorGlow', 'colorDrip', 'colorFlash'];
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as CLEAVEFX_DEFAULTS };
+
 const KEY = 'ascent.cleavefx';
 let cfg: CleaveFxConfig = (() => {
   // DEV-only merge: production always runs the baked DEFAULTS so a saved tuner value can't beat main.

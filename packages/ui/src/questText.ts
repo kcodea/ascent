@@ -205,6 +205,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
+        case 'runeHuntingBell':
+          return 'Avenge (3): trigger your left-most Rally';
         case 'runeRemains':
           return `When you summon 5 minions in combat, give minions in the Shop +${r.amount ?? 3}/+${r.amount ?? 3}`;
         case 'runeReinvestment':

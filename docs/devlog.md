@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 9: the Hunting Bell (+ a rally-logic extraction)
+
+**Rune of the Hunting Bell** (basic 4) — Avenge (3): trigger your LEFT-most Rally, free. Left-most rather than
+random, so which minion answers the bell is a seating decision.
+
+The interesting part is what it shares. Rune of Rallying's "fire a Rally without an attack" was ~25 lines inline,
+and that block had ALREADY been caught once missing its Rally-tally bump (audit 2026-07-21, same class as the
+Uron rally fix). A hand-rolled second copy would have drifted the same way, so the logic is now `fireFreeRally`
++ `canRally`, shared by both runes: callers own the step and the badge pulse, the helper owns what a rally IS.
+
+Tests pin the tally as well as the effect, since the tally is the half that silently goes missing — plus a
+regression test that Rune of Rallying still fires and still counts after the extraction.
+
+Verified: typecheck (both), lint (6 pre-existing), 3212 tests, build:web, harness determinism.
+
+**Rune queue: 12 remain.** 35 of 47 done.
+
 ## 2026-07-30 — Set 2 art re-wired (149 cards) + two real payload bugs
 
 Owner redid the whole Set 2 art pass. Re-ran `npm run art:wire` (the script is now registered in package.json;

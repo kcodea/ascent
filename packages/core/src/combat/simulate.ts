@@ -900,6 +900,41 @@ export function simulate(
 
   /** The Burning Legion's per-side use counter. */
   const burningLegionSpent: Record<string, number> = {};
+  /** Can this body take a FREE rally — a card Rally, a welded Mech rally, or a welded spell rally? */
+  const canRally = (m: Minion): boolean => {
+    if (m.dead || m.health <= 0) return false;
+    return (m.keywords.includes('RL') && m.effects.some((e) => e.on === 'onAttack'))
+      || (m.rallyMechAtk ?? 0) > 0 || (m.rallySpellWeld ?? 0) > 0;
+  };
+
+  /**
+   * Fire one minion's Rally WITHOUT an attack. Extracted from Rune of Rallying (2026-07-30) so the Hunting
+   * Bell's Avenge-paced rally is the same thing rather than a near-copy — the tally bump below was already
+   * missed once in the original (audit 2026-07-21), and a second hand-rolled copy would drift the same way.
+   * Callers own the `nextStep()` and the badge pulse; this owns what a rally IS.
+   */
+  const fireFreeRally = (minion: Minion, side: Side): void => {
+    emit({ type: 'sc', source: minion.uid, text: 'Rally' });
+    // A free rally is still a Rally TRIGGER — it counts toward the Rally quests and the Author's Hand rally
+    // half exactly like an attack-path rally. Player-only, like every tally.
+    if (side === 'player') bumpRally(1);
+    if (minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack')) {
+      for (const effect of minion.effects) {
+        if (effect.on !== 'onAttack') continue;
+        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+      }
+    }
+    if ((minion.rallyMechAtk ?? 0) > 0) {
+      for (const m of boards[side]) {
+        if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
+      }
+    }
+    if ((minion.rallySpellWeld ?? 0) > 0) { // player-only: grantToHand is a no-op for a served enemy
+      const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token);
+      if (pool.length > 0) for (let i = 0; i < minion.rallySpellWeld!; i++) ctx.grantToHand(ctx.rng.pick(pool).id, minion.side, minion.uid);
+    }
+  };
+
   /** The Sealed Vault's once-per-combat latch, per side. */
   const avengeDoubleSpent: Record<string, boolean> = {};
   function registerEffect(minion: Minion, effect: EffectDef): void {
@@ -1945,34 +1980,10 @@ export function simulate(
     if (rmods.runeRallying) {
       let rallyFired = false;
       for (const minion of [...boards[rside]]) {
-        if (minion.dead || minion.health <= 0) continue;
-        const cardRally = minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack');
-        const mechRally = (minion.rallyMechAtk ?? 0) > 0;
-        const spellRally = (minion.rallySpellWeld ?? 0) > 0;
-        if (!cardRally && !mechRally && !spellRally) continue;
+        if (!canRally(minion)) continue;
         nextStep();
         if (!rallyFired) { fireTrigger('runeRallying', rside); rallyFired = true; }
-        emit({ type: 'sc', source: minion.uid, text: 'Rally' });
-        // A free rally is still a Rally trigger — count it toward Rally quests (Spark Permit, Machine Chorus,
-        // Overclocked Core, Infinite Assembly) and the Author's Hand rally half, exactly like an attack-path
-        // rally does. The Echo sibling above already bumps its tally (`bumpDeathrattles`); this block was the
-        // odd one out (audit 2026-07-21, same class as the Uron rally fix #594). Player-only, like every tally.
-        if (rside === 'player') bumpRally(1);
-        if (cardRally) {
-          for (const effect of minion.effects) {
-            if (effect.on !== 'onAttack') continue;
-            FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
-          }
-        }
-        if (mechRally) {
-          for (const m of boards[rside]) {
-            if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
-          }
-        }
-        if (spellRally) { // Perfect Core → spell to hand: player-only (grantToHand is a no-op for the enemy)
-          const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token);
-          if (pool.length > 0) for (let i = 0; i < minion.rallySpellWeld!; i++) ctx.grantToHand(ctx.rng.pick(pool).id, minion.side, minion.uid);
-        }
+        fireFreeRally(minion, rside);
       }
     }
     // Empty Graves (reworked 2026-07-21): give your LEFT-MOST minion "Rally: trigger your left-most Echo".
@@ -2055,6 +2066,13 @@ export function simulate(
   runeAvenge(3, 'runeCinderLedger', (m, side) => side === 'player' && !!m.runeCinderLedger, (side) => {
     const n = modsFor(side).runeCinderLedger ?? 6;
     ctx.grantImpBuff(n, n, side); // run-wide + carried back, the same channel Imp King uses
+  });
+  runeAvenge(3, 'runeHuntingBell', (m) => !!m.runeHuntingBell, (side) => {
+    // Left-MOST rally-capable body, so which minion answers the bell is a seating decision rather than RNG.
+    const lead = boards[side].find(canRally);
+    if (!lead) return;
+    nextStep();
+    fireFreeRally(lead, side);
   });
   runeAvenge(2, 'runeGemstorm', (m) => !!m.runeGemstorm, (side) => {
     // A Ruby is 1/1 plus the side's Ruby strength — `rubyBonusFor` is the same value the shop mints at, so a

@@ -3344,6 +3344,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeLivingTreasure: f?.runeLivingTreasure, // Gemheart Golems enter with Rise
     runeRemains: f?.runeRemains,             // every 5 combat summons buffs the Shop
     runeReinvestment: f?.runeReinvestment,   // after combat, the Shop gains per friendly summon
+    runeHuntingBell: f?.runeHuntingBell,     // Avenge (3): fire your left-most Rally, free
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

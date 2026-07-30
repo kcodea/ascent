@@ -237,6 +237,13 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeReinvestment', amount: 1 },
   },
   {
+    id: 'rune_hunting_bell',
+    name: 'Rune of the Hunting Bell',
+    cost: 4,
+    text: '**Avenge (3):** trigger your **left-most Rally**.',
+    reward: { kind: 'combatFlag', flag: 'runeHuntingBell' },
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,

@@ -1,10 +1,11 @@
-import { Mesh, MeshGeometry, Shader } from 'pixi.js';
+import { Mesh, MeshGeometry, Shader, type Renderer } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
 import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
 import { NOISE_GLSL, POSTERIZE_PAL_GLSL } from '../shaderChunks';
+import { acquireShader, prewarmShaders, releaseShader } from '../shaderPool';
 
 /**
  * An expanding posterized shockwave ring — several concentric rings expanding outward from an anchor
@@ -339,6 +340,86 @@ export function shockwaveOneShotDurationSec(rings: number, speed: number, ringDe
   return (2 * n - 1) / (n * s) + ((n - 1) * delay) / s;
 }
 
+/** The shader pool's key for this primitive (see `shaderPool.ts`). */
+const SHOCKWAVE_SHADER_KEY = 'fx-shockwave';
+
+/** Build one shockwave material. Every uniform here is a PLACEHOLDER: `writeAllUniforms` overwrites all of
+ *  them on every acquire, fresh or pooled, so this only has to satisfy `Shader.from`'s reflection pass. */
+function makeShockwaveShader(): Shader {
+  return Shader.from({
+    gl: { vertex: SHOCKWAVE_VERT, fragment: SHOCKWAVE_FRAG },
+    resources: {
+      shockwaveUniforms: {
+        uTime: { value: 0, type: 'f32' },
+        uRings: { value: 1, type: 'f32' },
+        uSpeed: { value: 1, type: 'f32' },
+        uThickness: { value: 0.1, type: 'f32' },
+        uFade: { value: 1, type: 'f32' },
+        uBands: { value: 4, type: 'f32' },
+        uAlpha: { value: 1, type: 'f32' },
+        uGlow: { value: 0, type: 'f32' },
+        uOneShot: { value: 0, type: 'f32' },
+        uPlateau: { value: 0.5, type: 'f32' },
+        uNoiseAlong: { value: 0, type: 'f32' },
+        uNoiseAcross: { value: 0, type: 'f32' },
+        uWarp: { value: 0, type: 'f32' },
+        uScroll: { value: 0, type: 'f32' },
+        uErode: { value: 0, type: 'f32' },
+        uGain: { value: 1, type: 'f32' },
+        uSquash: { value: 1, type: 'f32' },
+        uQuadScale: { value: QUAD_SCALE, type: 'f32' },
+        uRingDelay: { value: 0, type: 'f32' },
+        uEase: { value: 0, type: 'f32' },
+        uPal: { value: new Float32Array(16), type: 'vec4<f32>', size: 4 },
+      },
+    },
+  });
+}
+
+/** Build + GL-link the shockwave material at load, so the first ring of a session doesn't pay for the
+ *  compile. See `primitives/index.ts`'s `prewarmFxMaterials`. */
+export function prewarmShockwaveShaders(renderer: Renderer | null, count = 2): void {
+  prewarmShaders(SHOCKWAVE_SHADER_KEY, count, renderer, makeShockwaveShader);
+}
+
+/**
+ * The pool's mandatory ACQUIRE reset: write EVERY uniform this shader owns, unconditionally.
+ *
+ * Deliberately a superset of `setParams` — that one is an inspector-edit path and legitimately skips the
+ * three uniforms a live instance never changes (`uTime`, `uOneShot`, `uQuadScale`). A pooled shader arrives
+ * carrying the PREVIOUS fire's values for all three, so reusing `setParams` here would hand a one-shot ring
+ * the last tenant's `uOneShot = 0` (it would never fade out) and its accumulated `uTime` (it would start
+ * mid-expansion). That is exactly the intermittent, load-dependent pooling bug this function exists to
+ * prevent — so it lists every uniform, and must keep doing so if one is added.
+ */
+function writeAllUniforms(shader: Shader, params: ShockwaveParams, oneShot: boolean): void {
+  const u = (shader.resources.shockwaveUniforms as { uniforms: Record<string, number | Float32Array> })
+    .uniforms;
+  u.uTime = 0;
+  u.uRings = params.rings;
+  u.uSpeed = params.speed;
+  u.uThickness = params.thickness;
+  u.uFade = params.fade;
+  u.uBands = params.bands;
+  u.uAlpha = params.alpha;
+  u.uGlow = params.glow;
+  u.uOneShot = oneShot ? 1 : 0;
+  u.uPlateau = params.plateau;
+  u.uNoiseAlong = params.noiseAlong;
+  u.uNoiseAcross = params.noiseAcross;
+  u.uWarp = params.warp;
+  u.uScroll = params.scroll;
+  u.uErode = params.erode;
+  u.uGain = params.gain;
+  u.uSquash = params.squash;
+  // Constant for every instance — the quad and this scale are written together (see `QUAD_SCALE`), so they
+  // can never disagree about where `d == 1` is.
+  u.uQuadScale = QUAD_SCALE;
+  u.uRingDelay = params.ringDelay;
+  u.uEase = params.ease;
+  u.uPal = tupleFloats(params.palette);
+}
+
 class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   private readonly mesh: Mesh<MeshGeometry, Shader>;
   private readonly geometry: MeshGeometry;
@@ -359,36 +440,12 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
       uvs: QUAD_UVS,
       indices: QUAD_INDICES,
     });
-    this.shader = Shader.from({
-      gl: { vertex: SHOCKWAVE_VERT, fragment: SHOCKWAVE_FRAG },
-      resources: {
-        shockwaveUniforms: {
-          uTime: { value: 0, type: 'f32' },
-          uRings: { value: params.rings, type: 'f32' },
-          uSpeed: { value: params.speed, type: 'f32' },
-          uThickness: { value: params.thickness, type: 'f32' },
-          uFade: { value: params.fade, type: 'f32' },
-          uBands: { value: params.bands, type: 'f32' },
-          uAlpha: { value: params.alpha, type: 'f32' },
-          uGlow: { value: params.glow, type: 'f32' },
-          uOneShot: { value: this.oneShot ? 1 : 0, type: 'f32' },
-          uPlateau: { value: params.plateau, type: 'f32' },
-          uNoiseAlong: { value: params.noiseAlong, type: 'f32' },
-          uNoiseAcross: { value: params.noiseAcross, type: 'f32' },
-          uWarp: { value: params.warp, type: 'f32' },
-          uScroll: { value: params.scroll, type: 'f32' },
-          uErode: { value: params.erode, type: 'f32' },
-          uGain: { value: params.gain, type: 'f32' },
-          uSquash: { value: params.squash, type: 'f32' },
-          // Constant for the instance's lifetime — the quad and this scale are written together (see
-          // `QUAD_SCALE`), so they can never disagree about where `d == 1` is.
-          uQuadScale: { value: QUAD_SCALE, type: 'f32' },
-          uRingDelay: { value: params.ringDelay, type: 'f32' },
-          uEase: { value: params.ease, type: 'f32' },
-          uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
-        },
-      },
-    });
+    // Pooled, not constructed. Building a Shader per fire re-compiled and re-linked the GLSL every time —
+    // a ~68 ms main-thread block. See `particleLayerPool.ts`'s header for the full mechanism, and
+    // `shaderPool.ts` for the pooling contract. `writeAllUniforms` is the mandatory total reset.
+    this.shader = acquireShader(SHOCKWAVE_SHADER_KEY, makeShockwaveShader, (sh) =>
+      writeAllUniforms(sh, params, this.oneShot),
+    );
     this.mesh = new Mesh({ geometry: this.geometry, shader: this.shader });
     this.mesh.blendMode = params.blendMode;
     ctx.container.addChild(this.mesh);
@@ -459,13 +516,13 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   }
 
   destroy(): void {
-    // `Mesh.destroy()` deliberately does NOT cascade to `geometry`/`shader` (see `ribbon.ts`'s
-    // `RibbonInstance.destroy` for the full reasoning) — both are built fresh in the constructor and
-    // held exclusively by this instance, so we must free them ourselves or every spawn/destroy cycle
-    // leaks GPU buffers and a compiled program.
+    // `Mesh.destroy()` deliberately does NOT cascade to `geometry`/`shader` — it only nulls its own refs
+    // (verified by reading its source), so there is no double-free either way. The geometry IS per-instance
+    // (its quad is sized to this fire's `radius`) and is freed here. The SHADER goes back to the pool: its
+    // GLSL is a module constant, and destroying it with `true` is what cost ~68 ms per fire.
     this.mesh.destroy();
     this.geometry.destroy(true); // true = also free the position/UV/index buffers; we own them exclusively
-    this.shader.destroy(true); // true = also free the compiled GL program; not shared
+    releaseShader(SHOCKWAVE_SHADER_KEY, this.shader);
   }
 }
 

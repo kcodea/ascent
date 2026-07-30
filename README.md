@@ -44,6 +44,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The combat collision stutter is gone.** Every time two cards clashed, the game froze for about a sixth of
+  a second — long enough to feel, short enough to be hard to catch. The cause turned out to have nothing to do
+  with how many particles were on screen: each effect was throwing away its compiled graphics program when it
+  finished and rebuilding it from scratch the next time, and rebuilding one blocks everything else for ~68 ms.
+  Effects now reuse their programs (and the buffers behind them) from a pool, and the one unavoidable build
+  happens quietly at load instead of mid-fight. Measured worst frame during a collision: **160 ms → under
+  2 ms**, with proof that a reused effect looks byte-for-byte identical to a fresh one.
 - **The effect workbench stops fighting the person using it.** Three ceilings came down at once. Art you
   import as a particle shape now survives a page reload instead of quietly reverting to a plain circle — the
   file was written to disk correctly, but the app couldn't see a file that appeared after it started, so a

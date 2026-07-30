@@ -1,11 +1,12 @@
 /// <reference types="vite/client" />
-import { Container } from 'pixi.js';
+import { Container, type Renderer } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
 import { driveLayerHeads, type FxAnchors } from './anchors';
 import type { FxDef } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
+import { particleLayerPoolSize } from './particleLayerPool';
 import { createPlayer } from './player';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
@@ -211,16 +212,54 @@ let readying: Promise<void> | null = null;
  * leaves `canPlayDefs()` false, so every call site falls back to the hand-written FX path.
  */
 export function ensureDefsReady(): Promise<void> {
-  if (!hasPrimitives()) {
-    readying ??= import('./primitives').then(
-      () => undefined,
-      (e: unknown) => {
-        console.warn('[fx] could not load the def primitives — defs will not play:', e);
-      },
-    );
-    return readying;
-  }
-  return Promise.resolve();
+  // The pre-warm is scheduled off the SAME memoised import, but deliberately NOT inside the `!hasPrimitives()`
+  // branch below. In DEV the workbench can register the primitives before `Game.tsx` ever calls this, and then
+  // that branch is skipped entirely — which is precisely how the first version of this shipped a pre-warm that
+  // never ran. Hanging it off the (idempotent, module-cached) import instead means it happens exactly once per
+  // session on every path.
+  readying ??= import('./primitives').then(
+    (mod) => {
+      schedulePrewarm(mod.prewarmFxMaterials);
+    },
+    (e: unknown) => {
+      console.warn('[fx] could not load the def primitives — defs will not play:', e);
+    },
+  );
+  return hasPrimitives() ? Promise.resolve() : readying;
+}
+
+/** How long to keep waiting for the overlay's renderer before giving up on pre-warming, and how often to
+ *  look. A few seconds is far longer than `pixiFx.attach()` has ever taken; the cap is only there so a
+ *  session where the overlay never initialises (no WebGL) doesn't hold a timer forever. */
+const PREWARM_POLL_MS = 120;
+const PREWARM_GIVE_UP_MS = 8_000;
+
+/**
+ * Run the FX shader pre-warm as soon as the overlay has a renderer — polling for it rather than assuming.
+ *
+ * The ordering here is the whole point and it is NOT guaranteed: `Game.tsx` calls `ensureDefsReady()` on
+ * mount, and `pixiFx.attach()` → `init()` is an independent async chain that creates the `Application`. The
+ * primitives' dynamic import usually resolves FIRST, so `pixiFx.renderer` is still null at that moment and a
+ * straight-line `prewarmFxMaterials(pixiFx.renderer)` silently does nothing — leaving the ~68 ms-per-source
+ * GLSL link to land on the first combat collision, which is exactly the frame we are trying to protect.
+ *
+ * Deliberately NOT awaited by `ensureDefsReady`: nothing should wait on a pre-warm, and a caller that fires a
+ * def before the warm lands just pays the old first-fire cost once.
+ */
+function schedulePrewarm(prewarm: (renderer: Renderer | null) => void): void {
+  if (typeof window === 'undefined') return;
+  let waited = 0;
+  const tick = (): void => {
+    const renderer = pixiFx.renderer;
+    if (renderer) {
+      prewarm(renderer);
+      return;
+    }
+    waited += PREWARM_POLL_MS;
+    if (waited >= PREWARM_GIVE_UP_MS) return;
+    window.setTimeout(tick, PREWARM_POLL_MS);
+  };
+  tick();
 }
 
 // ─── the bridge ────────────────────────────────────────────────────────────────────────────────────────
@@ -338,6 +377,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     play: playDef,
     ready: ensureDefsReady,
     canPlay: canPlayDefs,
+    poolSize: (): number => particleLayerPoolSize(),
     anchors: anchorsForUnits,
     list: (): string[] => listDefs().map((d) => d.id),
   };

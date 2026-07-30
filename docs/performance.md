@@ -139,6 +139,101 @@ with 5 shielded Mechs"), the faster the pinpoint.
 
 ---
 
+## 3b. WebGL FX: shader compiles are the hidden per-frame cost
+
+Everything in §3 is about CSS paint and React reconcile. The Pixi FX overlay has a completely separate — and
+much sharper — failure mode, discovered 2026-07-30 and worth its own section because DevTools' flame chart
+attributes it to a single unlabelled `getProgramParameter` call and nothing else.
+
+### The defect: a 160 ms freeze on every combat collision
+
+The data-driven FX runtime (`packages/ui/src/fx/`) fires a def per combat moment. Each def LAYER used to
+build its own `Shader` in its primitive's constructor and free it in `destroy()` with
+`shader.destroy(true)` — `destroyPrograms = true`, which reads as scrupulous cleanup. It was a full GLSL
+recompile per fire. The chain:
+
+1. `Shader.from({ gl })` resolves its program via `GlProgram.from(src)`, memoised by raw source in Pixi's
+   module-global `programCache`. Fine on its own.
+2. `shader.destroy(true)` calls `glProgram.destroy()`, which **nulls that `programCache` entry**. The next
+   fire misses and constructs a fresh `GlProgram`.
+3. Constructing one runs Pixi's preprocessor chain, and `setProgramName` injects
+   `#define SHADER_NAME pixi-program-fragment-<N>` with a globally incrementing N — so the *preprocessed*
+   source, and therefore `GlProgram._key`, differs every time.
+4. `GlShaderSystem._programDataHash` is keyed by `_key`, so it misses too: `createProgram` +
+   `compileShader` ×2 + `linkProgram`, then a **blocking `getProgramParameter(LINK_STATUS)`** while the
+   driver compiles. Measured at **68.7 ms** for the posterized-cel particle fragment.
+5. Nothing evicts the abandoned `_programDataHash` entries. It was observed growing by one per fire,
+   unbounded, for the whole session — a GL program leak on top of the freeze.
+
+A collision fires `strike-impact` + `damage-burst` + `impact-dust` + `self-buff-gold` together, spanning two
+distinct shader sources, so it paid ~2 × 68 ms ≈ **160 ms — a ten-frame freeze, every single collision.**
+
+| Measurement (worst frame of a collision) | Before | After |
+|---|---|---|
+| 4-def collision bundle, first frame | 158–171 ms | **0.3–1.7 ms** |
+| One `impact-dust` (1 burst layer) | ~68 ms | < 1 ms |
+| One `strike-impact` (4 burst + 1 shockwave) | ~160 ms | < 1 ms |
+| GL programs compiled over 10 collisions | 20 | **0** (3 linked once, at load) |
+
+### The rules
+
+- **Never pass `true` to `Shader.destroy()` for an FX shader.** Every FX shader's GLSL is a module constant.
+  There is exactly one GL program per source for the life of the page, and holding it is `programCache`'s
+  entire job. Freeing it is not tidiness — it discards the most expensive artifact the effect owns.
+- **Pool the GPU-backed objects, don't construct-and-destroy them per fire.**
+  `particleLayerPool.ts` pools `(Shader, ParticleContainer)` PAIRS for burst/emitter/smoke (they must be
+  pooled together — `ParticleContainer.destroy()` destroys the shader it was built with).
+  `shaderPool.ts` pools just the shader for the two mesh primitives (ribbon/shockwave), whose geometry is
+  genuinely per-fire.
+- **Reset pooled state on ACQUIRE, never on release**, and reset it TOTALLY — every uniform, not a diff. An
+  early return on the release path silently hands out a dirty object, and the resulting bug is intermittent
+  and load-dependent. Both pools take the reset as a required argument so a caller cannot forget it, and
+  `particleLayerPool.test.ts` / `poolDeterminism.test.ts` assert that a recycled instance wears none of the
+  previous tenant's state and is byte-identical to a fresh one for the same seed.
+- **Pre-warm the link at load.** The compile is paid once per source per session either way; the only
+  question is when. `ensureDefsReady()` schedules `prewarmFxMaterials()`, which builds one shader per source
+  and forces the link with `renderer.shader.bind(shader, true)` (`skipSync` resolves only the program). Note
+  it has to WAIT for `pixiFx.renderer` — the primitives' dynamic import usually resolves before the overlay
+  finishes `init()`, and a straight-line call there silently no-ops.
+
+### How to re-measure this (it needs a browser, but not DevTools)
+
+`requestAnimationFrame` is unreliable in a background or hidden tab, so drive the ticker by hand and time
+each frame synchronously. Paste into the console of a DEV build:
+
+```js
+await window.__fx.ready();
+await new Promise(r => setTimeout(r, 1500));          // let the pre-warm land
+const app = window.__pixiFx.app, A = { source:{x:300,y:300}, target:{x:500,y:300} };
+const DEFS = ['strike-impact','damage-burst','impact-dust','self-buff-gold'];
+app.ticker.stop();
+let clock = performance.now();
+const step = () => { clock += 16.67; const t = performance.now(); app.ticker.update(clock); return performance.now() - t; };
+for (let i = 0; i < 8; i++) step();                    // settle
+const out = [];
+for (let c = 0; c < 10; c++) {
+  DEFS.forEach(id => window.__fx.play(id, A));
+  const f = []; for (let i = 0; i < 75; i++) f.push(step());
+  out.push(+Math.max(...f).toFixed(2));                // worst frame of this collision
+}
+app.ticker.start();
+console.log(out, 'programs:', Object.keys(app.renderer.shader._programDataHash).length);
+```
+
+Worst-frame values should be **≈ 1 ms** and the program count must **not grow** across the ten collisions.
+`window.__fx.poolSize()` reports the particle-layer pool depth (DEV only).
+
+To attribute a suspected freeze to shader compilation specifically, wrap the GL context before firing:
+
+```js
+const gl = window.__pixiFx.app.renderer.gl, orig = gl.getProgramParameter; let ms = 0, n = 0;
+gl.getProgramParameter = function (...a) { const t = performance.now(); const r = orig.apply(gl, a); ms += performance.now() - t; n++; return r; };
+// … fire an effect, tick a few frames …
+console.log({ n, ms }); gl.getProgramParameter = orig;
+```
+
+---
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.
@@ -167,6 +262,10 @@ These are the rules the audits surfaced; the codebase already follows them — k
   unreadable for anyone with that OS setting on. Perf for low-power machines comes from being compositor-only
   (transform/opacity, no paint-property loops), not from disabling motion. If reduced-motion is ever
   revisited, calm the *motion* (lunges, perpetual loops) without suppressing the informational floats.
+- **Don't construct-and-destroy GPU-backed objects per effect fire, and never free a shader's compiled GL
+  program** (`Shader.destroy(true)`). Pool the shader (and, for `ParticleContainer`, the container it was
+  built with), reset it totally on acquire, and pre-warm the link at load. See §3b — this cost a 160 ms
+  freeze on every combat collision.
 - **`Math.random` is banned in `core`/`content`/`sim`** (determinism + replay). Tools (`perf.ts`) may use
   `performance.now()` for timing.
 

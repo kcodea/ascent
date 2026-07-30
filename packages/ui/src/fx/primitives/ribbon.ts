@@ -1,10 +1,11 @@
-import { Mesh, MeshGeometry, Shader } from 'pixi.js';
+import { Mesh, MeshGeometry, Shader, type Renderer } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
 import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
 import { makeRng } from '../rng';
+import { acquireShader, prewarmShaders, releaseShader } from '../shaderPool';
 import { CURVE_PRESETS } from '../curve';
 import {
   RIBBON_MAX_SEGMENTS,
@@ -384,6 +385,70 @@ export function drainSpineTail(spine: RibbonPoint[], dropPx: number): RibbonPoin
   return spine;
 }
 
+/** The shader pool's key for this primitive (see `shaderPool.ts`). */
+const RIBBON_SHADER_KEY = 'fx-ribbon';
+
+/** Build one ribbon material. Every uniform here is a PLACEHOLDER: `writeAllUniforms` overwrites all of them
+ *  on every acquire, fresh or pooled, so this only has to satisfy `Shader.from`'s reflection pass. */
+function makeRibbonShader(): Shader {
+  return Shader.from({
+    gl: { vertex: RIBBON_VERT, fragment: RIBBON_FRAG },
+    resources: {
+      ribbonUniforms: {
+        uTime: { value: 0, type: 'f32' },
+        uBands: { value: 4, type: 'f32' },
+        uNoise: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+        uWarp: { value: 0, type: 'f32' },
+        uScroll: { value: 0, type: 'f32' },
+        uErode: { value: 0, type: 'f32' },
+        uGain: { value: 1, type: 'f32' },
+        uHead: { value: 0, type: 'f32' },
+        uTail: { value: 0, type: 'f32' },
+        uPlateau: { value: 0.5, type: 'f32' },
+        uSoft: { value: 0, type: 'f32' },
+        uAlpha: { value: 1, type: 'f32' },
+        uSeed: { value: 0, type: 'f32' },
+        uGlow: { value: 0, type: 'f32' },
+        uPal: { value: new Float32Array(16), type: 'vec4<f32>', size: 4 },
+      },
+    },
+  });
+}
+
+/** Build + GL-link the ribbon material at load, so the first ribbon of a session doesn't pay for the
+ *  compile. See `primitives/index.ts`'s `prewarmFxMaterials`. */
+export function prewarmRibbonShaders(renderer: Renderer | null, count = 2): void {
+  prewarmShaders(RIBBON_SHADER_KEY, count, renderer, makeRibbonShader);
+}
+
+/**
+ * The pool's mandatory ACQUIRE reset: write EVERY uniform this shader owns, unconditionally.
+ *
+ * Deliberately a superset of `setParams` — that one is an inspector-edit path and legitimately skips the two
+ * uniforms a live instance never changes (`uTime`, `uSeed`). A pooled shader arrives carrying the PREVIOUS
+ * fire's values for both, so reusing `setParams` here would start a fresh trail mid-noise-scroll and wearing
+ * the last tenant's phase offset. That is exactly the intermittent, load-dependent pooling bug this function
+ * exists to prevent — so it lists every uniform, and must keep doing so if one is added.
+ */
+function writeAllUniforms(shader: Shader, params: RibbonParams, seedPhase: number): void {
+  const u = (shader.resources.ribbonUniforms as { uniforms: Record<string, number | Float32Array> }).uniforms;
+  u.uTime = 0;
+  u.uBands = params.bands;
+  u.uNoise = new Float32Array([params.noiseAlong, params.noiseAcross]);
+  u.uWarp = params.warp;
+  u.uScroll = params.scroll;
+  u.uErode = params.erode;
+  u.uGain = params.gain;
+  u.uHead = params.head;
+  u.uTail = params.tail;
+  u.uPlateau = params.plateau;
+  u.uSoft = params.soft;
+  u.uAlpha = params.alpha;
+  u.uSeed = seedPhase;
+  u.uGlow = params.glow;
+  u.uPal = tupleFloats(params.palette);
+}
+
 class RibbonInstance implements FxInstance<RibbonParams> {
   private readonly mesh: Mesh<MeshGeometry, Shader>;
   private readonly geometry: MeshGeometry;
@@ -451,35 +516,22 @@ class RibbonInstance implements FxInstance<RibbonParams> {
       uvs: this.uvs,
       indices: this.indices,
     });
-    this.shader = Shader.from({
-      gl: { vertex: RIBBON_VERT, fragment: RIBBON_FRAG },
-      resources: {
-        ribbonUniforms: {
-          uTime: { value: 0, type: 'f32' },
-          uBands: { value: params.bands, type: 'f32' },
-          uNoise: { value: new Float32Array([params.noiseAlong, params.noiseAcross]), type: 'vec2<f32>' },
-          uWarp: { value: params.warp, type: 'f32' },
-          uScroll: { value: params.scroll, type: 'f32' },
-          uErode: { value: params.erode, type: 'f32' },
-          uGain: { value: params.gain, type: 'f32' },
-          uHead: { value: params.head, type: 'f32' },
-          uTail: { value: params.tail, type: 'f32' },
-          uPlateau: { value: params.plateau, type: 'f32' },
-          uSoft: { value: params.soft, type: 'f32' },
-          uAlpha: { value: params.alpha, type: 'f32' },
-          // A cosmetic per-instance phase offset into the noise field (same role as pixiFx.ts's
-          // shield-bubble `uSeed`) — but it is what made the ribbon visibly re-roll its noise on EVERY
-          // spawn, so a rebuild changed the look mid-tune. With a `ctx.seed` it is now DERIVED from that
-          // seed (one draw off a seeded stream — stable for the instance, still well spread across
-          // seeds), so the same tuning replays the same ribbon. Without one we keep the historical fresh
-          // roll: `Math.random` is fine here, the UI layer being explicitly exempt from the
-          // core/content/sim determinism ban (see eslint.config.mjs).
-          uSeed: { value: (ctx.seed === undefined ? Math.random() : makeRng(ctx.seed)()) * 1000, type: 'f32' },
-          uGlow: { value: params.glow, type: 'f32' },
-          uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
-        },
-      },
-    });
+    // Pooled, not constructed. Building a Shader per fire re-compiled and re-linked the GLSL every time —
+    // a ~68 ms main-thread block. See `particleLayerPool.ts`'s header for the full mechanism, and
+    // `shaderPool.ts` for the pooling contract. `writeAllUniforms` is the mandatory total reset.
+    //
+    // `uSeed` is a cosmetic per-instance phase offset into the noise field (same role as pixiFx.ts's
+    // shield-bubble `uSeed`) — but it is what made the ribbon visibly re-roll its noise on EVERY spawn, so a
+    // rebuild changed the look mid-tune. With a `ctx.seed` it is DERIVED from that seed (one draw off a
+    // seeded stream — stable for the instance, still well spread across seeds), so the same tuning replays
+    // the same ribbon. Without one we keep the historical fresh roll: `Math.random` is fine here, the UI
+    // layer being explicitly exempt from the core/content/sim determinism ban (see eslint.config.mjs).
+    // Computed HERE, before the acquire, so the roll happens exactly once per instance whether the shader
+    // came from the pool or not.
+    const seedPhase = (ctx.seed === undefined ? Math.random() : makeRng(ctx.seed)()) * 1000;
+    this.shader = acquireShader(RIBBON_SHADER_KEY, makeRibbonShader, (sh) =>
+      writeAllUniforms(sh, params, seedPhase),
+    );
     this.mesh = new Mesh({ geometry: this.geometry, shader: this.shader });
     this.mesh.blendMode = params.blendMode;
     this.mesh.visible = false;
@@ -579,7 +631,9 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     // geometry.destroy()/shader.destroy() itself, so there is no double-free here.
     this.mesh.destroy();
     this.geometry.destroy(true); // true = also free the position/UV/index buffers; we own them exclusively
-    this.shader.destroy(true); // true = also free the compiled GL program; not shared
+    // The SHADER goes back to the pool instead: its GLSL is a module constant, and freeing its compiled GL
+    // program with `destroy(true)` is what cost ~68 ms per fire.
+    releaseShader(RIBBON_SHADER_KEY, this.shader);
   }
 }
 

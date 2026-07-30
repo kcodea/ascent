@@ -183,9 +183,14 @@ function codeOf(src: string): string {
 
 describe('ribbon uSeed', () => {
   it('derives from ctx.seed when given, and keeps the fresh roll when not', () => {
-    expect(RIBBON_SRC).toContain(
-      "uSeed: { value: (ctx.seed === undefined ? Math.random() : makeRng(ctx.seed)()) * 1000, type: 'f32' },",
+    // The expression moved out of the `Shader.from({ resources })` literal when the shader became POOLED
+    // (see `shaderPool.ts`): a pooled shader's uniforms are placeholders, so the phase is now computed in
+    // the constructor — once per INSTANCE, before the acquire — and written by `writeAllUniforms`. Same
+    // derivation, same single draw; only its position changed.
+    expect(codeOf(RIBBON_SRC)).toContain(
+      'const seedPhase = (ctx.seed === undefined ? Math.random() : makeRng(ctx.seed)()) * 1000;',
     );
+    expect(codeOf(RIBBON_SRC)).toContain('u.uSeed = seedPhase;');
     // Exactly one Math.random left in this module, and it is that documented no-seed fallback.
     expect(codeOf(RIBBON_SRC).match(/Math\.random\(/g)).toHaveLength(1);
   });

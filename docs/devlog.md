@@ -1,5 +1,82 @@
 # ASCENT — development log
 
+## 2026-07-30 — the collision stutter was a GLSL recompile, 68 ms at a time
+
+**The report.** A quick but noticeable stutter, consistently, just as cards collide in combat.
+
+**What it actually was.** Not allocation, not particle count, not GC. Every def layer built its own `Shader`
+in its primitive's constructor and freed it in `destroy()` with `shader.destroy(true)` —
+`destroyPrograms = true`, which reads as careful cleanup and was in fact a **full GLSL compile + link on every
+single fire.** The chain, verified by reading Pixi's source and then confirmed by instrumenting the live GL
+context rather than inferred:
+
+1. `Shader.from({ gl })` resolves its program via `GlProgram.from(src)`, memoised by raw source in Pixi's
+   module-global `programCache`.
+2. `shader.destroy(true)` calls `glProgram.destroy()`, which **nulls that cache entry**, so the next fire
+   misses and constructs a fresh `GlProgram`.
+3. Constructing one runs Pixi's preprocessor chain, and `setProgramName` injects
+   `#define SHADER_NAME pixi-program-fragment-<N>` with a globally incrementing N — so the *preprocessed*
+   source, and hence `GlProgram._key`, is different every time.
+4. `GlShaderSystem._programDataHash` is keyed by that `_key`, so it misses too: `createProgram` +
+   `compileShader` ×2 + `linkProgram`, then a blocking `getProgramParameter(LINK_STATUS)` while the driver
+   compiles. Instrumenting the context attributed **68.7 ms of a 69.8 ms frame** to that single call.
+5. Nothing ever evicted the abandoned entries — `_programDataHash` was observed growing by one per fire,
+   unbounded, all session. A GL program leak riding on top of the freeze.
+
+A collision fires `strike-impact` (4 burst + 1 shockwave), `damage-burst` (2 + 1), `impact-dust` (1) and
+`self-buff-gold` (1) together, spanning two distinct shader sources — so it paid ~2 × 68 ms every time.
+
+**The numbers** (measured by stopping the ticker and driving `app.ticker.update` synchronously, so the timing
+doesn't depend on `requestAnimationFrame`; the exact console recipe is now in `docs/performance.md` §3b):
+
+| Worst frame of a collision | Before | After |
+|---|---|---|
+| 4-def collision bundle | 158–171 ms, every time | **0.3–1.7 ms** |
+| `impact-dust` alone (1 burst layer) | ~68 ms | < 1 ms |
+| `strike-impact` alone (4 burst + 1 shockwave) | ~160 ms | < 1 ms |
+| GL programs compiled across 10 collisions | 20 | **0** — the 3 FX programs link once, at load |
+
+**The fix — pooling, with the reset on ACQUIRE.** New `particleLayerPool.ts` pools `(Shader,
+ParticleContainer)` **pairs** for burst/emitter/smoke; they have to be pooled together because
+`ParticleContainer.destroy()` destroys the shader it was constructed with, and the container's per-uid GPU
+vertex buffers are worth keeping anyway. New `shaderPool.ts` pools just the shader for the two mesh
+primitives (ribbon/shockwave), whose geometry is genuinely per-fire (segment count, radius quad). Both take
+the reset as a *required argument* and run it on every acquire — pooled or freshly built, unconditionally,
+writing every uniform rather than a diff. Resetting on release is the tempting place and the wrong one: an
+early return there hands the next caller a dirty object, and the resulting bug is intermittent and
+load-dependent. The mesh primitives grew a `writeAllUniforms` that is deliberately a *superset* of
+`setParams`, because `setParams` legitimately skips the uniforms only the constructor set — `uTime`,
+`uOneShot`, `uSeed` — which are exactly the ones a recycled shader would carry over.
+
+**Pre-warm, and the trap in it.** `ensureDefsReady()` now schedules `prewarmFxMaterials()`, which builds one
+shader per source and forces the link with `renderer.shader.bind(shader, true)` (`skipSync` resolves the
+program and touches nothing else), moving the one unavoidable compile off the first collision and onto load.
+Two things had to be got right: it must **wait for `pixiFx.renderer`** (the primitives' dynamic import
+resolves before the overlay finishes `init()`, so a straight-line call silently no-ops — the first version
+did exactly that and measured as a no-op), and it must hang off the memoised import rather than the
+`!hasPrimitives()` branch (in DEV the workbench can register the primitives first, skipping that branch
+entirely).
+
+**A dead end worth recording.** Pinning `#define SHADER_NAME` into each shader source stabilises `_key` and
+would have fixed the recompile without any pooling — but combined with the still-present `destroy(true)` it
+*crashes*: `_programDataHash` hits for a `GlProgram` whose `_attributeData` was never extracted, and the
+geometry system throws on `aVertex`. Reverted; the pooling makes it unnecessary.
+
+**Determinism.** `poolDeterminism.test.ts` spawns real primitives headless (only `generateTexture` is
+stubbed) and diffs them: a burst seeded 0x5EED on a **recycled** layer produces byte-identical particle
+positions, rotations, scales, tints and alphas to one on a fresh layer — with a companion test proving a
+different seed *does* diverge, so the first isn't vacuous. Plus: a recycled container starts empty, a
+recycled ribbon reproduces its `uSeed` phase and starts with a zeroed clock, and a recycled shockwave gets
+its own `uOneShot`. `burst.ts`'s seven-draws-per-particle contract is untouched — `emit()` is byte-identical
+in the diff.
+
+**Verified**: typecheck (pkgs + web), lint (0 errors), **3199 tests green across 165 files** — 1037 of them in
+`fx/`, 12 of those new — and `build:web`. Measured before and after in a browser on the branch's own dev
+server. `npm run perf` deliberately does NOT cover this: it is the headless engine/run-loop harness and says
+so in its own header ("what it CANNOT measure: render/paint/animation cost"). WebGL FX perf has no headless
+proxy, which is why §3b of `docs/performance.md` now carries a console recipe instead.
+
+
 ## 2026-07-30 — the built-in particle fade becomes authorable
 
 **The complaint.** `burst.ts` closed its update loop with

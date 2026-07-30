@@ -260,6 +260,14 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
     `fx/prodPlayback.test.ts` fails if the split drifts either way. **This turned on 15 already-live
     bindings no player had seen** — so the next FX task is the owner watching a real fight at 1× and
     reporting which of the 15 read wrong at card scale.
+  - **The per-fire shader recompile — FIXED 2026-07-30.** Un-gating defs shipped a ~160 ms freeze on every
+    combat collision: each layer built and then `destroy(true)`-ed its own `Shader`, which evicted Pixi's
+    program cache and forced a full GLSL compile+link (a blocking 68 ms) per fire, plus an unbounded GL
+    program leak. Now pooled (`particleLayerPool.ts` / `shaderPool.ts`) and pre-warmed at load; worst
+    collision frame 160 ms → under 2 ms. Write-up: `docs/performance.md` §3b. The legacy `pixiFx` shield
+    shader was checked and is clean (it uses the no-arg `destroy()`), so it never hit this; it does still
+    build a `Shader` per bubble, which is cheap now but would be the next thing to pool if shields ever
+    show up in a profile.
   - **`shieldUp` is a result-type event** and collapses into contiguous result runs, so the demo cue doesn't
     fire on every combat (`[dmg, shieldUp]` compiles to a `damage` moment). A per-event fan-out in
     `compile.ts` is the fix if that moment needs to be reliable.

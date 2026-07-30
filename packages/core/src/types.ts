@@ -978,7 +978,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Batch 10: brood = while there is room, summon a Warded+Taunt Imp (bounded); livingEchoes = the same shape
   // with a Sunmane Herald that strikes on arrival; warChorus = your first Rally each combat fires your
   // left-most Shout.
-  | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus';
+  | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus'
+  // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
+  // plays a Ruby on your whole board.
+  | 'runeFoodChain' | 'runeAttackingGems';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1094,6 +1097,10 @@ export interface QuestCombatMods {
   runeLivingEchoes?: number;
   /** Rune of the War Chorus: your first Rally each combat also triggers your left-most Shout. */
   runeWarChorus?: boolean;
+  /** Rune of the Food Chain: the first minion summoned each combat gains your left-most Demon's stats. */
+  runeFoodChain?: boolean;
+  /** Rune of Attacking Gems: how many Rubies land on your whole board per friendly attack. */
+  runeAttackingGems?: number;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

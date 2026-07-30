@@ -947,6 +947,25 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeLivingEchoes', amount: 3 },
     sets: ['set2'], // Sunmane Herald is a set-2 Beast
   },
+  {
+    // The Demon's stats are CAPTURED at Start of Combat, not read when the summon lands — so a Demon that dies
+    // first still pays out, and the rune reads as a promise made at the bell.
+    id: 'rune_food_chain',
+    name: 'Rune of the Food Chain',
+    cost: 5,
+    epic: true,
+    text: '**Start of Combat:** the **first minion you summon** gains your **left-most Demon’s stats** this combat.',
+    reward: { kind: 'combatFlag', flag: 'runeFoodChain' },
+  },
+  {
+    id: 'rune_attacking_gems',
+    name: 'Rune of Attacking Gems',
+    cost: 4,
+    epic: true,
+    text: 'Play a **Ruby** on all of your minions every friendly **attack** in combat.',
+    reward: { kind: 'combatFlag', flag: 'runeAttackingGems', amount: 1 },
+    sets: ['set2'], // Rubies
+  },
 ];
 
 /** Lookup across BOTH runesets — the normal forge stock and the Epic forge stock share one id space so the

@@ -800,6 +800,14 @@ export function simulate(
     if (modsFor(side).gemheartCharge && card.id === 'gemheart-shard') attackNow = true;
     // Rune of Living Treasure: your Gemheart Golems enter with Rise — the keyword IS "summon an exact copy of
     // this without Echo", so this reuses Rise rather than stamping a bespoke Deathrattle onto the token.
+    // Rune of the Food Chain: the FIRST body summoned this combat inherits the captured Demon stats.
+    const fc = foodChainStats[side];
+    if (fc) {
+      foodChainStats[side] = undefined; // spent — first summon only
+      minion.attack += fc.attack;
+      minion.health += fc.health;
+      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+    }
     if (modsFor(side).runeLivingTreasure && card.id === 'gemheart-shard') {
       minion.rebornAvailable = true;
       if (!minion.keywords.includes('R')) minion.keywords.push('R');
@@ -940,6 +948,10 @@ export function simulate(
   const echoesSpent: Record<Side, number> = { player: 0, enemy: 0 };
   /** Rune of the War Chorus' once-per-combat latch, per side. */
   const warChorusSpent: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of the Food Chain: the left-most Demon's stats, captured at Start of Combat and spent on the first
+   *  summon. Captured rather than read live, so a Demon that dies before the summon still pays out — the rune
+   *  reads as a Start-of-Combat promise, not a lookup at an arbitrary later moment. */
+  const foodChainStats: Record<Side, { attack: number; health: number } | undefined> = { player: undefined, enemy: undefined };
   /**
    * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
    *
@@ -1441,6 +1453,17 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // Rune of Attacking Gems: every friendly attack plays a Ruby on your whole board. A Ruby is 1/1 plus the
+      // side's Ruby strength — the same body the shop mints — so a late-run board scales with its Rubies.
+      const gems = modsFor(attacker.side).runeAttackingGems ?? 0;
+      if (gems > 0) {
+        const rb = ctx.rubyBonusFor(attacker.side) ?? { attack: 0, health: 0 };
+        nextStep(); fireTrigger('runeAttackingGems', attacker.side);
+        for (const m of boards[attacker.side]) {
+          if (m.dead || m.health <= 0) continue;
+          for (let i = 0; i < gems; i++) ctx.buff(m, 1 + rb.attack, 1 + rb.health, 'Rune of Attacking Gems');
+        }
+      }
       // Rune of the War Chorus: your FIRST Rally each combat also triggers your left-most Shout. Gated on the
       // attacker actually having a Rally, so a plain swing does not spend it.
       if (modsFor(attacker.side).runeWarChorus && !warChorusSpent[attacker.side] && canRally(attacker)) {
@@ -1976,6 +1999,14 @@ export function simulate(
     // doubling is why it wants a big body rather than a spare one.
     // Rune of the Vanguard: give your three LEFT-most living minions Critical Strike and Ward. Left-most (not
     // right) because these are the bodies that swing first — the Crit wants to land early.
+    // Rune of the Food Chain arms here: capture the left-most living Demon's CURRENT stats.
+    if (rmods.runeFoodChain) {
+      const demon = boards[rside].find((m) => !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon'));
+      if (demon) {
+        foodChainStats[rside] = { attack: demon.attack, health: demon.health };
+        nextStep(); fireTrigger('runeFoodChain', rside);
+      }
+    }
     if (rmods.runeVanguard) {
       const front = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, 3);
       if (front.length > 0) {

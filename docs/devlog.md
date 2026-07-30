@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 11: the Food Chain, Attacking Gems
+
+- **Rune of the Food Chain** (epic 5) — the first minion you summon each combat gains your left-most Demon's
+  stats. The Demon is **captured at Start of Combat**, not read when the summon lands: a Demon that dies in the
+  opening exchange still pays out, so the rune reads as a promise made at the bell rather than a lookup at an
+  arbitrary later moment. Tests pin that only the FIRST summon is fed (a second body comes in at base) and that
+  a Demon-less board changes nothing.
+- **Rune of Attacking Gems** (epic 4) — every friendly attack plays a Ruby on your whole board, minted at
+  `rubyBonusFor(side)` like every other Ruby. The test asserts a plain run buffs +1 and a +4 `rubyBonus` run
+  buffs +5 — a flat 1/1 would pass a shape check and quietly ignore the Kobold engine, the same trap Gemstorm
+  had.
+
+Verified: typecheck (both), lint (6 pre-existing), 3229 tests, build:web, harness determinism.
+
+**Rune queue: 7 remain.** 40 of 47 done. What is left: the Spellstone (buildable, needs care around the
+Grimoire charge), and six blocked items — Counterpoint, Overflow and Profit Sharing on engine work
+(a chokepoint or carry-back channel that does not exist yet), Duplication and Facetwright on owner rulings.
+
 ## 2026-07-30 — Rune tranche 10: the Brood, Living Echoes, the War Chorus
 
 Two of these share a shape the engine did not have yet — "while you have room on the board, fill it":

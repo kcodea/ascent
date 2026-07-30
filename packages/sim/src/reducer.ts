@@ -2907,6 +2907,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeReinvestment') s.questFlags.runeReinvestment = r.amount ?? 1; // amount = Shop buff per summon
       else if (r.flag === 'runeBrood') s.questFlags.runeBrood = r.amount ?? 3;               // amount = Imps per combat
       else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = r.amount ?? 3; // amount = Heralds per combat
+      else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = r.amount ?? 1; // amount = Rubies per attack
       else s.questFlags[r.flag] = true;
       break;
     case 'questGoldTribeBuff':
@@ -3350,6 +3351,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeBrood: f?.runeBrood,                 // fill a free slot with a Warded, Taunting Imp (bounded)
     runeLivingEchoes: f?.runeLivingEchoes,   // fill a free slot with a Sunmane Herald that strikes now
     runeWarChorus: f?.runeWarChorus,         // your first Rally each combat fires your left-most Shout
+    runeFoodChain: f?.runeFoodChain,         // your first summon inherits your left-most Demon's stats
+    runeAttackingGems: f?.runeAttackingGems, // every friendly attack plays a Ruby on your whole board
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

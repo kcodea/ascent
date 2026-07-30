@@ -73,12 +73,16 @@ import type { FxBlendMode } from './blendModes';
  *  - **texture** and **blendMode**, the two container fields the primitives set themselves;
  *  - **`particleChildren`** truncated to empty, then `pc.update()` so the pipe re-uploads instead of drawing
  *    last fire's vertex buffer for a frame;
- *  - **the container transform** (position/scale/rotation/pivot/skew), **alpha**, **tint** and **visible** —
- *    none of which today's primitives touch, which is exactly why they must be reset: the day one of them
- *    does, the resulting bug would be intermittent and load-dependent, i.e. the worst kind.
+ *  - **every other piece of container render state** — the transform (position/scale/rotation/pivot/skew),
+ *    `alpha`, `tint`, `visible`, `filters`, `mask`, `zIndex`, `renderable`, `roundPixels`. No primitive
+ *    touches any of these today, which is exactly why they must be reset: the day one of them does, the
+ *    resulting bug is intermittent and load-dependent (it lands on whichever effect draws the pooled pair
+ *    next), and it is invisible in the diff that caused it.
  *
  * `boundsArea` is deliberately not reset — it is the same fixed rectangle for all three primitives and each
  * pooled container owns its own instance, so there is nothing to carry over.
+ *
+ * Release is **idempotent** and refuses destroyed containers; see `pooled` and `releaseParticleLayer`.
  */
 
 /** Ceiling on retained pairs. A collision needs ~8 concurrent particle layers; this leaves generous room for
@@ -126,6 +130,25 @@ export interface ParticleLayerRequest {
 
 const pool: ParticleLayer[] = [];
 
+/**
+ * Which containers are CURRENTLY sitting in the pool — the guard that makes `releaseParticleLayer`
+ * idempotent.
+ *
+ * Keyed on the `ParticleContainer`, deliberately, and NOT a boolean on the `ParticleLayer`: the primitives
+ * hand back a fresh object literal (`releaseParticleLayer({ shader: this.shader, pc: this.particles })`), so
+ * a flag on that object would be a flag on a value nobody keeps. The container is the stable identity.
+ *
+ * Why it matters even though only `player.ts`'s `kill()` calls `destroy()` today: a double release pushes the
+ * SAME pair into the pool twice, after which two live effects share one container and one shader and write
+ * over each other's `particleChildren`, texture, blend mode and all twelve uniforms — and at cap the second
+ * release *destroys* an object that is already in the pool, so the next acquire hands out a corpse. Silent,
+ * load-dependent, and exactly the class of bug a pool exists to avoid. With lots of workbench effects
+ * starting and stopping at arbitrary moments, "only one caller" is not a guarantee worth resting on.
+ *
+ * A `WeakSet` rather than a `Set` so a pair that gets dropped over cap (and destroyed) is not retained here.
+ */
+const pooled = new WeakSet<ParticleContainer>();
+
 function buildLayer(renderer: Renderer, style: ParticleStyle, shaping: ParticleShaping): ParticleLayer {
   const shader = createParticleMaterial(renderer, style, shaping);
   const pc = new ParticleContainer({
@@ -156,6 +179,16 @@ function resetLayer(layer: ParticleLayer, req: ParticleLayerRequest): void {
   pc.alpha = 1;
   pc.tint = 0xffffff;
   pc.visible = true;
+  // The rest of the container's own render state. No primitive sets any of these today — which is exactly
+  // the argument for resetting them, and the same argument the transform/alpha/tint lines above are already
+  // making. A list that stops short of its own rationale is a list that will be wrong the first time someone
+  // adds a filter or a mask to a primitive, and the bug it produces then is intermittent and load-dependent:
+  // the effect that inherits it is whichever one happened to draw the pooled pair next.
+  pc.filters = null;
+  pc.mask = null;
+  pc.zIndex = 0;
+  pc.renderable = true;
+  pc.roundPixels = false;
 }
 
 /**
@@ -164,6 +197,7 @@ function resetLayer(layer: ParticleLayer, req: ParticleLayerRequest): void {
  */
 export function acquireParticleLayer(req: ParticleLayerRequest): ParticleLayer {
   const layer = pool.pop() ?? buildLayer(req.renderer, req.style, req.shaping);
+  pooled.delete(layer.pc); // it is out of the pool now — a later release must be allowed to put it back
   resetLayer(layer, req);
   req.parent.addChild(layer.pc);
   return layer;
@@ -173,9 +207,14 @@ export function acquireParticleLayer(req: ParticleLayerRequest): ParticleLayer {
  * Give a layer back. MUST be called instead of `pc.destroy()` — the container has to leave its parent before
  * the player destroys that parent with `{ children: true }`, or the pooled container is destroyed underneath
  * us and the next acquire hands out a corpse.
+ *
+ * **Idempotent.** Releasing the same pair twice is a no-op, not a second pool entry — see `pooled` above for
+ * what the second entry would cost. A container that has already been destroyed (dropped over cap, or taken
+ * down as a stage descendant by `pixiFx.detach()`) is likewise refused rather than admitted as a corpse.
  */
 export function releaseParticleLayer(layer: ParticleLayer): void {
   const { pc } = layer;
+  if (pooled.has(pc) || pc.destroyed) return;
   pc.removeFromParent();
   pc.particleChildren.length = 0;
   if (pool.length >= PARTICLE_LAYER_POOL_MAX) {
@@ -184,6 +223,7 @@ export function releaseParticleLayer(layer: ParticleLayer): void {
     pc.destroy({ children: true });
     return;
   }
+  pooled.add(pc);
   pool.push(layer);
 }
 
@@ -210,17 +250,31 @@ export function prewarmParticleLayers(renderer: Renderer | null, count = 6): voi
       linkShader(renderer, layer.shader);
       linked = true; // one link per SOURCE — every pooled shader shares the same compiled program
     }
+    pooled.add(layer.pc);
     pool.push(layer);
   }
 }
 
-/** Test/diagnostic surface. */
+/** Current pool depth. Diagnostic surface — `window.__fx.poolSize()` in DEV, and the tests. */
 export function particleLayerPoolSize(): number {
   return pool.length;
 }
 
-/** Drop every pooled pair without destroying it. Test surface only — the pool is module-global, so a test
- *  that fills it must be able to hand the next test a clean slate. */
+/**
+ * Empty the pool.
+ *
+ * Not test-only: `pixiFx.detach()` calls it (via `fxRuntime.ts`) because the pools are module-global and
+ * outlive the `Application`. Detach destroys the stage with `{ children: true }`, so a container that was
+ * live at that moment is destroyed as a descendant — and if its effect later releases, a destroyed pair
+ * would enter the pool. `releaseParticleLayer` refuses destroyed containers, but the pairs *already* sitting
+ * in the pool are the other half of the problem: they hold GPU buffers keyed to a renderer that no longer
+ * exists. Dropping them lets the next `attach()` build fresh ones.
+ *
+ * Deliberately does NOT destroy what it drops — the Application teardown has already released the GPU side,
+ * and calling `destroy()` on a container the stage teardown already destroyed is the double-free this whole
+ * file exists to avoid.
+ */
 export function resetParticleLayerPool(): void {
+  for (const layer of pool) pooled.delete(layer.pc);
   pool.length = 0;
 }

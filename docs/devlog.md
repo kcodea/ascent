@@ -70,8 +70,54 @@ recycled ribbon reproduces its `uSeed` phase and starts with a zeroed clock, and
 its own `uOneShot`. `burst.ts`'s seven-draws-per-particle contract is untouched — `emit()` is byte-identical
 in the diff.
 
-**Verified**: typecheck (pkgs + web), lint (0 errors), **3199 tests green across 165 files** — 1037 of them in
-`fx/`, 12 of those new — and `build:web`. Measured before and after in a browser on the branch's own dev
+**Hardening after adversarial review.** The review confirmed the shipped lifecycle was safe — it poisoned
+every uniform in all five shaders (zero survivors), ran 800 frames with 30 concurrent 5-layer defs and random
+mid-flight cancels ending with a clean pool, and confirmed the `destroy(true)` dead end above is unreachable.
+What it *did* find were four invariants held only by convention, which is not good enough with lots of
+workbench effects starting and stopping at arbitrary moments:
+
+- **Release is now idempotent.** A double release pushed the SAME pair into the pool twice, after which two
+  live effects share one container and one shader and write over each other's particles, texture, blend mode
+  and all twelve uniforms — and at cap the second release *destroys* an object already queued for reuse, so
+  the next acquire hands out a corpse. Both pools guard with a `WeakSet` keyed on the pooled object itself,
+  not a flag on the wrapper: the primitives hand back a fresh object literal
+  (`releaseParticleLayer({ shader, pc: this.particles })`), so a flag there would be a flag on a value nobody
+  keeps. Destroyed objects are refused rather than admitted. Unreachable today (one caller), silent and
+  load-dependent tomorrow. Note the asymmetry the reviewer found: a double destroy on ribbon/shockwave
+  *throws* inside `Mesh.destroy` before it ever reaches `releaseShader`, so the mesh pool was correct by
+  accident; the particle path failed silently.
+- **`FxPlayer.destroy()` no longer leaves the transport running.** It was `killAllLive()` alone, so `playing`
+  stayed true and the next `update()` sent `reconcile()` looking for a layer that was due and no longer live
+  — and it *spawned* one, acquiring a pooled pair into a container the caller had already orphaned, which
+  nothing would ever release. Repeat and the pool starves. Guarded today only by `playDef`'s `retired()`
+  check and the workbench's teardown ordering.
+- **`pixiFx.detach()` now clears the pools.** They are module-global and outlive the `Application`; detach
+  destroys the stage with `{ children: true }`, so a live effect's container dies as a descendant. It goes
+  through a new one-field registry (`fxRuntime.ts`) rather than importing the pool, because a static import
+  from `pixiFx.ts` — which every session loads immediately — would drag the primitives' ~134 kB of GLSL out
+  of its lazily-fetched chunk and into the entry chunk and silently undo that split. `resetParticleLayerPool`
+  / `resetShaderPools` are no longer documented as test-only.
+- **The reset list now matches its own stated rationale.** It argued for resetting fields "none of which
+  today's primitives touch" and then stopped short of `filters`, `mask`, `zIndex`, `renderable` and
+  `roundPixels`. Added.
+
+Each guard was proven load-bearing by reverting it and watching the new test fail: without the `pooled`
+check, two of nine pool tests fail; without the transport flags, two of the three new `destroy` tests fail.
+The reviewer also independently extended the determinism proof to **emitter and smoke** (my suite only
+covered burst) and both are byte-identical pooled-vs-fresh — that coverage is now in the suite, parameterised
+across all three particle primitives. Re-measured after the hardening: worst collision frame **0.3–5.0 ms** across 12 collisions, zero recompiles
+(5 GL programs before and after), and a 100-collision hammer plus 40 rounds of interleaved mid-flight cancels
+left the pool at 11–12 of its 24 cap with the programs still at 5. A live-play probe confirms the widened
+reset doesn't blank anything: particles present, `visible`/`renderable` true, alpha 1, no filters, and each
+layer keeping its own blend mode.
+
+One item was deliberately NOT fixed here and is recorded in the roadmap instead: `pixiFx.clearParticles()`
+sweeps every hand-written transient but knows nothing about `playDef`'s effects, so a def firing across a
+Skip keeps playing under the fade. Pre-existing, not a pool defect, and the fix is a design question
+(cancellable registry vs. fading the whole canvas) rather than a patch.
+
+**Verified**: typecheck (pkgs + web), lint (0 errors), **3221 tests green across 166 files** — 1059 of them in
+`fx/`, 34 of those new — and `build:web`. Measured before and after in a browser on the branch's own dev
 server. `npm run perf` deliberately does NOT cover this: it is the headless engine/run-loop harness and says
 so in its own header ("what it CANNOT measure: render/paint/animation cost"). WebGL FX perf has no headless
 proxy, which is why §3b of `docs/performance.md` now carries a console recipe instead.

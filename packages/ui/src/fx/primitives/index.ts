@@ -12,7 +12,13 @@
  * the primitives resolve to a separate `assets/index-*.js`, imported from `ensureDefsReady`'s `import()`.
  */
 import type { Renderer } from 'pixi.js';
-import { prewarmParticleLayers } from '../particleLayerPool';
+import { registerFxRuntimeHooks } from '../fxRuntime';
+import {
+  particleLayerPoolSize,
+  prewarmParticleLayers,
+  resetParticleLayerPool,
+} from '../particleLayerPool';
+import { resetShaderPools } from '../shaderPool';
 import { prewarmRibbonShaders } from './ribbon';
 import { prewarmShockwaveShaders } from './shockwave';
 import './ribbon';
@@ -39,3 +45,14 @@ export function prewarmFxMaterials(renderer: Renderer | null): void {
   prewarmRibbonShaders(renderer);
   prewarmShockwaveShaders(renderer);
 }
+
+// Hand the eagerly-loaded half of the app a handle on the pools, now that they exist. Registering HERE (in
+// the barrel that loads the primitives) rather than exporting the pools directly is what keeps the GLSL out
+// of the entry chunk — see `fxRuntime.ts`'s header.
+registerFxRuntimeHooks({
+  resetPools: (): void => {
+    resetParticleLayerPool();
+    resetShaderPools();
+  },
+  poolSize: particleLayerPoolSize,
+});

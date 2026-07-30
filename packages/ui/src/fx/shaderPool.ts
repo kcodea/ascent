@@ -35,17 +35,37 @@ export const FX_SHADER_POOL_MAX = 16;
 const pools = new Map<string, Shader[]>();
 
 /**
+ * Which shaders are CURRENTLY sitting in a pool — the guard that makes `releaseShader` idempotent.
+ *
+ * A double release would put the same `Shader` in the pool twice, after which two live meshes share one
+ * uniform group and overwrite each other's palette, clock and shaping every frame; at cap the second release
+ * would *destroy* a shader already queued for reuse. Today a double `destroy()` on ribbon/shockwave happens
+ * to throw inside `Mesh.destroy()` before it ever reaches here — correct by accident, and not something to
+ * rely on when workbench effects are starting and stopping at arbitrary moments.
+ *
+ * A `WeakSet` rather than a `Set` so a shader dropped over cap isn't retained by the guard.
+ */
+const pooled = new WeakSet<Shader>();
+
+/**
  * Take a shader for `key` from the pool, or build one. `reset` runs on EVERY acquire and must write every
  * uniform the shader owns — see the pooling-contract note above.
  */
 export function acquireShader(key: string, make: () => Shader, reset: (shader: Shader) => void): Shader {
   const shader = pools.get(key)?.pop() ?? make();
+  pooled.delete(shader); // out of the pool now — a later release must be allowed to put it back
   reset(shader);
   return shader;
 }
 
-/** Return a shader to `key`'s pool, or destroy it if the pool is full. NEVER destroys the GL program. */
+/**
+ * Return a shader to `key`'s pool, or destroy it if the pool is full. NEVER destroys the GL program.
+ *
+ * **Idempotent**, and refuses an already-destroyed shader — see `pooled` above for what a second entry
+ * would cost.
+ */
 export function releaseShader(key: string, shader: Shader): void {
+  if (pooled.has(shader) || isDestroyed(shader)) return;
   let list = pools.get(key);
   if (!list) {
     list = [];
@@ -55,7 +75,14 @@ export function releaseShader(key: string, shader: Shader): void {
     shader.destroy(false); // false — see the module header. Freeing the program IS the bug.
     return;
   }
+  pooled.add(shader);
   list.push(shader);
+}
+
+/** `Shader` has no public `destroyed` accessor, but `_destroyed` is on its published type — it is the same
+ *  one-shot flag `Shader.destroy()` guards itself with. */
+function isDestroyed(shader: Shader): boolean {
+  return (shader as unknown as { _destroyed?: boolean })._destroyed === true;
 }
 
 /**
@@ -98,17 +125,27 @@ export function prewarmShaders(
       linkShader(renderer, shader);
       linked = true; // one link per SOURCE — the program data is shared by _key
     }
+    pooled.add(shader);
     list.push(shader);
   }
 }
 
-/** Pool depth for `key`. Test/diagnostic surface only. */
+/** Pool depth for `key`. Diagnostic + test surface. */
 export function shaderPoolSize(key: string): number {
   return pools.get(key)?.length ?? 0;
 }
 
-/** Drop every pooled shader without destroying it. Test surface only — the pools are module-global, so a
- *  test that fills them must be able to hand the next test a clean slate. */
+/**
+ * Empty every pool.
+ *
+ * Not test-only: `pixiFx.detach()` calls it (via `fxRuntime.ts`) because the pools are module-global and
+ * outlive the `Application` whose GPU resources their shaders' bind groups were built against. See
+ * `particleLayerPool.ts`'s `resetParticleLayerPool` for the full reasoning — it is the same argument, and
+ * likewise does not destroy what it drops.
+ */
 export function resetShaderPools(): void {
+  for (const list of pools.values()) {
+    for (const shader of list) pooled.delete(shader);
+  }
   pools.clear();
 }

@@ -5,8 +5,9 @@ import { coerceParams } from './params';
 import { getPrimitive } from './registry';
 import type { FxContext, FxInstance, FxPrimitive } from './primitive';
 import './primitives';
-import { resetParticleLayerPool } from './particleLayerPool';
-import { resetShaderPools } from './shaderPool';
+import { particleLayerPoolSize, resetParticleLayerPool } from './particleLayerPool';
+import { resetShaderPools, shaderPoolSize } from './shaderPool';
+import { fxPoolSize, resetFxPools } from './fxRuntime';
 
 /**
  * **The determinism proof for pooling.**
@@ -46,9 +47,19 @@ function spawn(id: string, seed: number, oneShot = true): FxInstance<Record<stri
   return prim.spawn(ctx, coerceParams(prim.params, {})) as FxInstance<Record<string, never>>;
 }
 
-/** Everything about a burst that the eye can see, flattened for an exact array compare. */
+/** The pooled `ParticleContainer` a particle instance is drawing into. `burst` calls its field `pc`; the
+ *  sibling `emitter`/`smoke` call theirs `particles` — a naming difference that predates the pool, and one
+ *  the tests have to bridge rather than paper over by only ever testing burst. */
+function containerOf(inst: unknown): { particleChildren: Record<string, number>[] } {
+  const holder = inst as { pc?: { particleChildren: Record<string, number>[] }; particles?: { particleChildren: Record<string, number>[] } };
+  const pc = holder.pc ?? holder.particles;
+  if (!pc) throw new Error('instance exposes neither `pc` nor `particles` — the pool wiring changed');
+  return pc;
+}
+
+/** Everything about a particle effect that the eye can see, flattened for an exact array compare. */
 function snapshotParticles(inst: unknown): number[] {
-  const pc = (inst as { pc: { particleChildren: Record<string, number>[] } }).pc;
+  const pc = containerOf(inst);
   const out: number[] = [];
   for (const p of pc.particleChildren) {
     out.push(p.x, p.y, p.rotation, p.scaleX, p.scaleY, p.tint, p.alpha);
@@ -70,45 +81,48 @@ function uniformsOf(inst: unknown, key: string): Record<string, number | Float32
 }
 
 describe('pooled instances are indistinguishable from fresh ones', () => {
-  it('burst: the same seed produces byte-identical particles on a recycled layer', () => {
-    resetParticleLayerPool();
+  // All THREE particle primitives share the one pool, so all three get the proof — burst alone would leave
+  // emitter and smoke resting on the argument that they look similar.
+  for (const id of ['burst', 'emitter', 'smoke']) {
+    it(`${id}: the same seed produces byte-identical particles on a recycled layer`, () => {
+      resetParticleLayerPool();
 
-    const fresh = spawn('burst', 0x5eed);
-    run(fresh, 8);
-    const fromFresh = snapshotParticles(fresh);
-    expect(fromFresh.length).toBeGreaterThan(0); // the comparison is only meaningful if particles exist
-    fresh.destroy(); // returns the layer to the pool
+      const fresh = spawn(id, 0x5eed);
+      run(fresh, 8);
+      const fromFresh = snapshotParticles(fresh);
+      expect(fromFresh.length).toBeGreaterThan(0); // the comparison is only meaningful if particles exist
+      fresh.destroy(); // returns the layer to the pool
 
-    const recycled = spawn('burst', 0x5eed);
-    // Proves this really is the pooled object, so the assertion below is about REUSE, not a lucky rebuild.
-    expect((recycled as unknown as { pc: unknown }).pc).toBe((fresh as unknown as { pc: unknown }).pc);
-    run(recycled, 8);
-    expect(snapshotParticles(recycled)).toEqual(fromFresh);
-  });
+      const recycled = spawn(id, 0x5eed);
+      // Proves this really is the pooled object, so the assertion below is about REUSE, not a lucky rebuild.
+      expect(containerOf(recycled)).toBe(containerOf(fresh));
+      run(recycled, 8);
+      expect(snapshotParticles(recycled)).toEqual(fromFresh);
+    });
 
-  it('burst: a DIFFERENT seed still diverges (the test above is not vacuously true)', () => {
-    resetParticleLayerPool();
-    const a = spawn('burst', 0x5eed);
-    run(a, 8);
-    const fromA = snapshotParticles(a);
-    a.destroy();
-    const b = spawn('burst', 0xd1ff);
-    run(b, 8);
-    expect(snapshotParticles(b)).not.toEqual(fromA);
-  });
+    it(`${id}: a DIFFERENT seed still diverges (the test above is not vacuously true)`, () => {
+      resetParticleLayerPool();
+      const a = spawn(id, 0x5eed);
+      run(a, 8);
+      const fromA = snapshotParticles(a);
+      a.destroy();
+      const b = spawn(id, 0xd1ff);
+      run(b, 8);
+      expect(snapshotParticles(b)).not.toEqual(fromA);
+    });
 
-  it('burst: a recycled layer starts with no particles left over from its previous tenant', () => {
-    resetParticleLayerPool();
-    const first = spawn('burst', 1);
-    run(first, 3);
-    const leftOver = snapshotParticles(first).length;
-    expect(leftOver).toBeGreaterThan(0);
-    first.destroy();
+    it(`${id}: a recycled layer starts with no particles left over from its previous tenant`, () => {
+      resetParticleLayerPool();
+      const first = spawn(id, 1);
+      run(first, 3);
+      expect(snapshotParticles(first).length).toBeGreaterThan(0);
+      first.destroy();
 
-    const second = spawn('burst', 1);
-    // Before its own first emit, the recycled container must be empty — not carrying the previous wave.
-    expect(snapshotParticles(second)).toEqual([]);
-  });
+      const second = spawn(id, 1);
+      // Before its own first emit, the recycled container must be empty — not carrying the previous wave.
+      expect(snapshotParticles(second)).toEqual([]);
+    });
+  }
 
   it('ribbon: the same seed produces the same uSeed phase on a recycled shader', () => {
     resetShaderPools();
@@ -153,3 +167,40 @@ describe('pooled instances are indistinguishable from fresh ones', () => {
     expect(uniformsOf(single, 'shockwaveUniforms').uTime).toBe(0);
   });
 });
+
+/**
+ * The pools are MODULE-GLOBAL and outlive the `Application` they were built against, so `pixiFx.detach()`
+ * has to be able to empty them. It cannot import them directly — that would drag the primitives' ~134 kB of
+ * GLSL out of its lazily-fetched chunk and into the entry chunk (see `fxRuntime.ts`) — so it goes through a
+ * registry the primitives barrel populates as it loads. These pin that the wiring is actually connected: a
+ * silently unregistered hook would leave `detach()` a no-op, which is exactly the state this replaced.
+ */
+describe('the detach teardown hook reaches the pools', () => {
+  it('resetFxPools() empties both pools once the primitives have loaded', () => {
+    const layer = acquireParticleLayerForTest();
+    layer.destroy();
+    const shader = spawn('shockwave', 1);
+    shader.destroy();
+    expect(particleLayerPoolSize()).toBeGreaterThan(0);
+    expect(shaderPoolSize('fx-shockwave')).toBeGreaterThan(0);
+
+    resetFxPools();
+
+    expect(particleLayerPoolSize()).toBe(0);
+    expect(shaderPoolSize('fx-shockwave')).toBe(0);
+    expect(fxPoolSize()).toBe(0);
+  });
+
+  it('fxPoolSize() reports the live pool depth (what window.__fx.poolSize shows)', () => {
+    resetFxPools();
+    expect(fxPoolSize()).toBe(0);
+    acquireParticleLayerForTest().destroy();
+    expect(fxPoolSize()).toBe(particleLayerPoolSize());
+    expect(fxPoolSize()).toBeGreaterThan(0);
+  });
+});
+
+/** A burst is the cheapest way to put one pooled particle pair into circulation. */
+function acquireParticleLayerForTest(): FxInstance<Record<string, never>> {
+  return spawn('burst', 1);
+}

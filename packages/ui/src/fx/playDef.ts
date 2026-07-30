@@ -6,7 +6,7 @@ import type { FxDef } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
-import { particleLayerPoolSize } from './particleLayerPool';
+import { fxPoolSize } from './fxRuntime';
 import { createPlayer } from './player';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
@@ -377,7 +377,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     play: playDef,
     ready: ensureDefsReady,
     canPlay: canPlayDefs,
-    poolSize: (): number => particleLayerPoolSize(),
+    poolSize: fxPoolSize,
     anchors: anchorsForUnits,
     list: (): string[] => listDefs().map((d) => d.id),
   };

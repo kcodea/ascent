@@ -168,6 +168,41 @@ describe('particle layer pool', () => {
     expect(particleLayerPoolSize()).toBe(PARTICLE_LAYER_POOL_MAX);
   });
 
+  // Releasing twice used to push the SAME pair into the pool twice, after which two live effects share one
+  // container and one shader and write over each other's particles, texture, blend mode and all twelve
+  // uniforms. The primitives hand back a fresh object literal each time, so the guard has to key on the
+  // container, not on the layer object.
+  it('release is idempotent — a second release is a no-op, not a second pool entry', () => {
+    const layer = acquireParticleLayer(request());
+    releaseParticleLayer(layer);
+    releaseParticleLayer(layer);
+    // A caller reconstructing the pair (which is exactly what the primitives do) must not defeat the guard.
+    releaseParticleLayer({ shader: layer.shader, pc: layer.pc });
+    expect(particleLayerPoolSize()).toBe(1);
+
+    const a = acquireParticleLayer(request());
+    const b = acquireParticleLayer(request());
+    expect(b.pc).not.toBe(a.pc); // the pool must not have handed the same container out twice
+  });
+
+  it('a released pair can be re-released after being acquired again', () => {
+    const first = acquireParticleLayer(request());
+    releaseParticleLayer(first);
+    const second = acquireParticleLayer(request());
+    expect(second.pc).toBe(first.pc);
+    releaseParticleLayer(second); // the guard cleared on acquire, so this must land
+    expect(particleLayerPoolSize()).toBe(1);
+  });
+
+  it('refuses a destroyed container instead of pooling a corpse', () => {
+    const layer = acquireParticleLayer(request());
+    releaseParticleLayer(layer);
+    const reused = acquireParticleLayer(request());
+    reused.pc.destroy({ children: true });
+    releaseParticleLayer(reused);
+    expect(particleLayerPoolSize()).toBe(0);
+  });
+
   it('never hands out a destroyed container', () => {
     const held = Array.from({ length: PARTICLE_LAYER_POOL_MAX + 2 }, () => acquireParticleLayer(request()));
     for (const layer of held) releaseParticleLayer(layer);

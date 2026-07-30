@@ -185,11 +185,27 @@ distinct shader sources, so it paid ~2 × 68 ms ≈ **160 ms — a ten-frame fre
   pooled together — `ParticleContainer.destroy()` destroys the shader it was built with).
   `shaderPool.ts` pools just the shader for the two mesh primitives (ribbon/shockwave), whose geometry is
   genuinely per-fire.
-- **Reset pooled state on ACQUIRE, never on release**, and reset it TOTALLY — every uniform, not a diff. An
-  early return on the release path silently hands out a dirty object, and the resulting bug is intermittent
-  and load-dependent. Both pools take the reset as a required argument so a caller cannot forget it, and
+- **Reset pooled state on ACQUIRE, never on release**, and reset it TOTALLY — every uniform and every piece
+  of container render state, not a diff, including fields no current caller touches. An early return on the
+  release path silently hands out a dirty object, and the resulting bug is intermittent and load-dependent.
+  Both pools take the reset as a required argument so a caller cannot forget it, and
   `particleLayerPool.test.ts` / `poolDeterminism.test.ts` assert that a recycled instance wears none of the
-  previous tenant's state and is byte-identical to a fresh one for the same seed.
+  previous tenant's state and is byte-identical to a fresh one for the same seed (burst, emitter and smoke).
+- **Make release idempotent, and refuse destroyed objects.** A double release files the same object into the
+  pool twice, after which two live effects share it and overwrite each other every frame; at cap the second
+  release *destroys* something already queued for reuse. Both pools guard with a `WeakSet` keyed on the
+  pooled object itself — not a flag on the wrapper, since callers hand back a fresh object literal. "Only
+  one caller calls this" is not a guarantee worth resting on when effects start and stop at arbitrary
+  moments.
+- **A teardown that kills instances must also stop the transport.** `FxPlayer.destroy()` used to be
+  `killAllLive()` alone, leaving `playing === true` — so the next `update()` respawned the layer and
+  acquired a pooled pair into an already-orphaned container that nothing would ever release. Pool starvation
+  by way of a missing flag.
+- **Module-global pools must be cleared when the renderer goes.** `pixiFx.detach()` destroys the stage with
+  `{ children: true }`, so a live effect's container dies as a descendant; the pools outlive it. `detach()`
+  clears them through the `fxRuntime.ts` registry — a registry rather than a direct import, because
+  importing the pool from `pixiFx.ts` would drag the primitives' ~134 kB of GLSL out of its lazily-fetched
+  chunk and into the entry chunk.
 - **Pre-warm the link at load.** The compile is paid once per source per session either way; the only
   question is when. `ensureDefsReady()` schedules `prewarmFxMaterials()`, which builds one shader per source
   and forces the link with `renderer.shader.bind(shader, true)` (`skipSync` resolves only the program). Note

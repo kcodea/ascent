@@ -28,7 +28,7 @@ import {
 } from '../defStore';
 import { getDef, listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
 import { applyVariant, presetTable } from '../presets';
-import { getImportedDataUrl } from '../shapeLibrary';
+import { getImportedDataUrl, registerSavedArt } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
 import { SeedBakeWarning } from './SeedBakeWarning';
@@ -1334,8 +1334,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       }
       const slug = artSlugOf(ref);
       const art = await saveArt(slug, dataUrl);
-      if (art.ok) artRefs.set(ref, `${ART_SHAPE_REF_PREFIX}${slug}`);
-      else failures.push(`${ref}: ${art.error}`);
+      if (art.ok) {
+        artRefs.set(ref, `${ART_SHAPE_REF_PREFIX}${slug}`);
+        // The `registerSavedDef` of art, and required for the same reason (see `shapeLibrary.registerSavedArt`):
+        // the PNG we just wrote is invisible to a build-time glob, so without this the `art:<slug>` we are
+        // rewriting the layer TO cannot resolve — in this session, or after the reload — and the shape the
+        // author just tuned silently reverts to a fallback circle.
+        registerSavedArt(slug, ref);
+      } else failures.push(`${ref}: ${art.error}`);
     }
     return { artRefs, failures };
   };

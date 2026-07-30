@@ -292,7 +292,11 @@ describe('stretching a seeded burst does not disturb its random draws either', (
   it('time 4 consumes the SAME stream in the same order — the shards live longer, the roll does not move', () => {
     const transform = axisTransform(BURST_SPECS, 1, 1, 4);
     const longer = transformParams(BURST_SPECS, BURST_DEFAULTS, transform).params as Record<string, number>;
-    expect(longer.life).toBe(1500);          // 450 x 4 = 1800, clamped to the spec max
+    // 450 x 4 = 1800, and it LANDS there now: the 2026-07-30 headroom pass raised burst `life`'s ceiling
+    // from 1500 to 6000, so a `time: 4` call stretches the whole way instead of quietly clamping a quarter of
+    // the way short. That is exactly the "clamped, so not linear at the extremes" caveat in `FxParamMeta.axis`
+    // biting less often — the stream below is unmoved either way, which is what this case is really about.
+    expect(longer.life).toBe(1800);
     expect(longer.count).toBe(BURST_DEFAULTS.count);
     expect(drawWave(longer, 20260730)).toEqual(drawWave(BURST_DEFAULTS, 20260730));
   });

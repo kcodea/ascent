@@ -1,5 +1,126 @@
 # ASCENT — development log
 
+## 2026-07-30 — the built-in particle fade becomes authorable
+
+**The complaint.** `burst.ts` closed its update loop with
+`particle.alpha = frac * frac * sampleCurve(p.alphaCurve, lifeT)` — a hardcoded quadratic fade that
+*multiplied* the authored Alpha / life curve. Flatten the curve to 1 and every shard still faded on a fixed
+ramp, and no param anywhere reached it. The owner spent real time trying to defeat it and could not.
+
+**The control: an exponent, `fade`, defaulting to 2.** `burstFadeEnvelope(frac, fade)` replaces the inline
+expression — `0` is no built-in fade at all (shards hold full opacity until they die, and the curve is the
+whole story), `1` linear, `2` the historical fall-off, `4` a hard flash. An exponent rather than a mode enum
+or a 0..1 strength because it is the only degree of freedom `frac^n` actually has, it is monotone in "how long
+a shard stays bright", and its 0 end is a real OFF instead of a fourth special case bolted onto a blend.
+
+**Byte-identity, and why it is branches rather than `Math.pow`.** `fade === 2` returns the literal
+`frac * frac`. `Math.pow` is implementation-defined in ECMAScript and is not required to agree with a multiply
+to the last bit, so routing the default through it would have changed the look of every shipped def with
+nothing in the diff to point at. Pinned across 1001 samples of `frac`. The `alphaCurve` comment's claim that
+its flat default is "a byte-identical no-op" also still holds, and still for the stated reason — `sampleCurve`
+of a flat 1 returns exactly 1 and `x * 1 === x` — which is now a claim about a *variable* envelope rather than
+a constant one, so the comment says so.
+
+**A single uniform control across all three primitives would have been wrong, and the reason is the point.**
+`emitter`/`smoke` do not fade with `frac²`; they use `moteAlpha`/`smokeMoteAlpha`, a symmetric in/out ramp
+whose WIDTH is already an authored param — `fadeIn` — that already reaches 0. At 0 the envelope collapses to a
+square: full opacity across the life, `alphaCurve` as the whole story, i.e. exactly the capability burst was
+missing. Those two primitives therefore get **no new knob**, only help text saying what their 0 end does, plus
+a test in each pinning that it really is a square. Adding a second fade control there would have been a
+redundant param on a primitive that already had one.
+
+**Verified**: 1025 fx tests green, including the byte-identity walk, the OFF case at the instant of death, the
+strict-monotone-in-exponent check at mid-life, and the endpoint behaviour at every value the slider reaches.
+
+## 2026-07-30 — the sliders stop capping the drama (41 widened ranges)
+
+**Why.** The specs capped below what authoring actually needs, and it had already cost real work: migrating
+`coins` wanted `gravity 1700` against a ceiling of 800, so it traded launch speed for arc height;
+`strike-impact`'s sparks sit *exactly* on burst `speed`'s ceiling of 800, which is the shape of a value that
+wanted to be higher. Headline moves — burst `speed` 800 → **3000**, `gravity` −400..800 → **±4000**, `life`
+1500 → **6000**, `count` 120 → **400**, `size` 40 → **200**; emitter/smoke `rate` 300 → **1200**, `life`
+2000 → **8000**, `speed` 400 → **3000**; shockwave `radius` 400 → **2000**, `rings` 5 → **12**; ribbon
+`length` 700 → **2400**, `width` 160 → **600**, `waveAmp` 40 → **300**, `drain` 2000 → **8000**.
+
+**Only `max`/`min` moved — never a `step`, and never a `min` off the step grid.** That is not tidiness, it is
+the correctness argument. `coerceParams` clamps a stored slider to `[min, max]` and never snaps to `step`, so
+a stored value written under the old spec is inside the new range and comes back out identical. But
+`settleParam` — the per-call `scale`/`intensity`/`time` path and the preset variant axes — ALSO snaps to
+`min + round((v − min) / step) * step`, a grid anchored on `min`. Moving a `step`, or a `min` by a fractional
+number of steps, would silently re-quantise every scaled call on every existing def: a look change with no
+diff to point at. Every widened `min` is a whole number of steps away from the old one, and the new
+`ranges.test.ts` pins all of it — a frozen table of the pre-widening bounds, plus proof that each new range
+CONTAINS its old one, that the min shifts are step-aligned, and that `settleParam` returns identical values
+across the whole old range. `defs.test.ts`'s existing "nothing is silently clamped" walk is the other half.
+
+**One visible consequence, and it is the feature working.** `scaleDef.test.ts`'s `time: 4` case expected
+burst `life` 450 × 4 to clamp to 1500; it now lands on 1800. That is the "scaling is CLAMPED, so it is not
+linear at the extremes" caveat in `FxParamMeta.axis` biting less often. The seeded draw stream it actually
+guards is unmoved either way.
+
+**Declined, with reasons.** Ratios and normalised fractions are not made more expressive by a wider range and
+several break their maths: `spread`, `speedVar`, `sizeVar`, `inheritVel`, `coreBias`, `fieldMix`, `glow`,
+`alpha`, `plateau`, `squash`, and emitter/smoke `fadeIn` (a fraction of life whose in and out halves would
+overlap past 0.5). `drag` is a per-16.7 ms retention factor: >1 accelerates forever and its 0.7 floor already
+stalls a shard in ~a frame. The material group (`bands`, `noiseScale`, `warp`, `scroll`, `erode`, `gain`,
+`turbScale`) is a tuned window where both ends are already qualitatively extreme. `segments` is tessellation
+cost, not drama. And shockwave **`thickness` has a real physical limit**: the band is centred on `d == 1`
+with `thickness` of half-width beyond it on a quad only `QUAD_SCALE` (1.45) times the radius, so past ~0.35
+the outer half of the band and its glow clip dead straight against the mesh boundary — the exact artefact
+`QUAD_SCALE` exists to prevent — and the quad can't grow because fragment area scales with its square. That
+one is recorded next to the spec rather than only here.
+
+**`count` and the RNG contract, checked before raising it.** `burst.emit()` draws exactly 7 values per
+particle, so `count` sets how many draws a wave consumes — but that was already true of every value on the
+old slider, and no axis reaches `count` (pinned in `scaleDef.test.ts`), so a locked seed still replays. The
+allocation ceiling is `MAX_LIVE` (800) / `MAX_MOTES` (1200), unchanged and still the real bound; the per-frame
+update is a single O(n) compacting pass and `ParticleContainer` is built for exactly this order of magnitude.
+Emitter/smoke `rate`'s new 1200 is `MAX_MOTES` itself, so the slider now reaches its own hard cap rather than
+a quarter of it.
+
+## 2026-07-30 — imported art survives a reload (the coin that vanished)
+
+**The bug, exactly.** Import a coin PNG as a particle shape, tune the effect, **Save**, reload — and the
+effect renders a fallback circle. Restarting the dev server fixed it, which was the tell.
+
+**Why.** `shapeLibrary.ts`'s `artModules()` reads `import.meta.glob('./defs/art/*.png', …)`, a Vite
+**transform** whose expansion is frozen at the moment the module was last transformed. Save does two things:
+it writes `defs/art/<slug>.png`, and it **rewrites the layer's `custom:<slug>` to `art:<slug>`** so the art
+travels with the def. Neither the write nor the rewrite invalidates the module holding the glob — so on the
+next page load the def names an id whose only resolver cannot see the file that backs it. During the editing
+session it looked fine only because the live editor state still said `custom:` and the decoded texture was
+still in memory.
+
+**Fix, in two halves — the same shape as `fxDefs.ts`'s answer for defs, plus the part art needs that defs
+don't.**
+
+1. **The closure.** `apps/web/fxDefsPlugin.ts` already watched the defs directory and invalidated
+   `fxDefs.ts` on a `.json` add/unlink. Art had no such watcher at all. It now gets the identical treatment
+   for `defs/art/*.png` against `shapeLibrary.ts`, so the reload the def write already triggers lands on a
+   module whose glob has been re-expanded. **This is the step that actually closes import → save → reload.**
+2. **The overlay.** `registerSavedArt(slug, sourceId)` — `registerSavedDef`'s counterpart — records that the
+   PNG was promoted from a local import, so the id resolves even for a write the watcher never saw and
+   whatever the ordering of invalidation vs. reload. It also closes the *in-session* half nobody had noticed:
+   previewing a just-saved def straight from the library used to draw the fallback, because `art:<slug>`
+   resolved through the same frozen glob.
+
+**Where art is NOT like a def, and what that cost.** A def is small JSON and its registry overlay can be a
+plain in-memory `Map` — one reload and the glob has it. A PNG is **binary** and its decode is **async** while
+the render-path lookup is synchronous, so the overlay has to survive the reload *and* pre-decode. It persists
+a **pointer** (`{slug, sourceId}` → the `custom:` import already in `localStorage`), never a second copy of
+the bytes: duplicating a 128px PNG per commit would double the library's storage cost and put a quota failure
+between an author and their own art. It cannot grow without bound — capped at `MAX_ART_ALIASES` (24), and
+`pruneArtAliases` sweeps every entry on every hydration for either of two permanent reasons: the glob has
+caught up (the committed file is now the authority) or the import it points at is gone.
+
+**Verified** by new coverage on both halves. `fxDefsPlugin.test.ts` had an assertion that *encoded* the bug —
+"ignores files outside the defs directory itself", firing an art PNG and expecting no reload, with the
+reasoning "reloading on those would interrupt an import for nothing" — now replaced by tests that the two
+watchers invalidate their own glob owner and only their own. Plus 12 cases in `shapeLibrary.test.ts` covering the parse, the two prune reasons, the
+re-commit collapse, the caps, the in-session listing, the rehydrate-without-restart path, the dangling sweep
+and its write-back, and that the stored payload contains no `data:image`. The decode itself needs a DOM +
+WebGL and stays eyeball-verified, per this module's standing note.
+
 ## 2026-07-30 — `burst` learns to aim along a moment, and the melee strike becomes a def
 
 **What changed.** `burst` gains a third aim mode — **`sourceToTarget`** — which centres its cone on the

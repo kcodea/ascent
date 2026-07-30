@@ -269,7 +269,9 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
 
 - **FX workbench — remaining authoring gaps.** (The three trust defects — Fire ignoring `at`/`life`, timing
   edits respawning mid-drag, no seed lock — were fixed 2026-07-25, along with duplicate-layer and per-layer
-  mute.) Still missing: **undo/redo** (no history stack at all; switching a layer's primitive irreversibly
+  mute. The three *headroom* defects the owner hit authoring a real effect — imported art not surviving a
+  reload, the physics sliders capping short of dramatic, and burst's unreachable built-in fade — were fixed
+  2026-07-30.) Still missing: **undo/redo** (no history stack at all; switching a layer's primitive irreversibly
   resets its params); **A/B compare** of two tunings (now genuinely meaningful, since a locked seed makes the
   randomness controlled); a **perf readout** beyond fps (the primitives already track live particle counts
   internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare,

@@ -150,6 +150,44 @@ export function resolveParticleRotation(
 }
 
 /**
+ * The BUILT-IN opacity envelope: how much of a shard is left at `frac` (1 at birth → 0 at death), before the
+ * authored `alphaCurve` multiplies it.
+ *
+ * ── why this is a function at all ──────────────────────────────────────────────────────────────────────
+ * This used to be a bare `frac * frac` in the update loop — a quadratic fade-out that multiplied the authored
+ * Alpha / life curve and that NO param could reach. Flatten the curve to 1 and every shard still faded on a
+ * fixed ramp; the owner spent real time trying to defeat it and could not. Exposing the EXPONENT (rather than
+ * a strength/blend, or a mode enum) is what makes the whole family reachable with one number that means
+ * something physical: it is the only degree of freedom `frac^n` has, it is monotone in "how long a shard
+ * stays bright", and its `0` end is a genuine OFF rather than a fourth special case.
+ *
+ *   0   no built-in fade at all — every shard holds full opacity until it dies, and `alphaCurve` is the whole
+ *       story (which is the point: an author who wants to draw the envelope themselves now can)
+ *   1   linear
+ *   2   THE DEFAULT and the historical behaviour — snappy, most of the life spent dim
+ *   4   very front-loaded: a hard flash that is gone almost at once
+ *
+ * ── byte-identity, and why the branches ────────────────────────────────────────────────────────────────
+ * `fade === 2` returns the LITERAL `frac * frac` expression this loop always used, not `Math.pow(frac, 2)`.
+ * `Math.pow` is implementation-defined in ECMAScript and is not required to agree with a multiply to the last
+ * bit, so routing the default through it would be a change of look with no diff to point at across every
+ * shipped def. `1` gets the same treatment for the same reason, and `<= 0` short-circuits to 1 rather than
+ * relying on `Math.pow(0, 0) === 1` at the moment of death.
+ *
+ * Deliberately NOT shared with emitter.ts/smoke.ts, which do not need it: their built-in envelope is
+ * `moteAlpha`/`smokeMoteAlpha`, a symmetric in/out ramp whose width IS an authored param (`fadeIn`) that
+ * already reaches 0, i.e. already reaches "no built-in fade". A single uniform control across all three would
+ * have meant bolting a second, redundant fade knob onto two primitives that had one. (And it would break this
+ * module's standing rule against importing across primitive modules — see `resolveParticleRotation`.)
+ */
+export function burstFadeEnvelope(frac: number, fade: number): number {
+  if (fade === 2) return frac * frac; // the historical expression, byte-for-byte
+  if (fade <= 0) return 1;
+  if (fade === 1) return frac;
+  return Math.pow(frac, fade);
+}
+
+/**
  * Pure completion predicate for a one-shot Fire: true once the burst has fired its single wave AND every
  * particle from it has died. Pulled out of `BurstInstance.isComplete()` so the state machine's core logic
  * is unit-testable without a WebGL-constructed instance (see `burst.test.ts`'s note on why the rest of the
@@ -162,12 +200,12 @@ export function burstFireComplete(oneShot: boolean, fired: boolean, liveCount: n
 
 const SPECS = {
   count: {
-    kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 120, step: 1, default: 28, essential: true,
+    kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 400, step: 1, default: 28, essential: true,
     axis: 'intensity',
-    help: 'Particles per burst.',
+    help: 'Particles per burst. The whole wave is emitted at once, so this is the density of the spray — 28 is a handful of shrapnel, the top of the range a wall of it. A burst can never put more than 800 particles on screen at once however high this and Interval go.',
   },
   interval: {
-    kind: 'slider', label: 'Interval', group: 'Emit', min: 100, max: 2000, step: 10, default: 600,
+    kind: 'slider', label: 'Interval', group: 'Emit', min: 100, max: 6000, step: 10, default: 600,
     // A duration, so it rides `time` for consistency — a stretched def's looping cadence stretches with it.
     // Inert on the shipped path either way: `playDef` always fires one-shot, where `interval` is never
     // consulted (see the `oneShot` branch in `update`), so this can never move a fired burst's particle count.
@@ -191,8 +229,8 @@ const SPECS = {
   },
 
   speed: {
-    kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 800, step: 5, default: 260, essential: true,
-    axis: 'scale', help: 'px/sec initial.',
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 3000, step: 5, default: 260, essential: true,
+    axis: 'scale', help: 'How fast a shard leaves the anchor, in px/sec. 260 is a normal spray; past ~1500 shards clear the card in a couple of frames, which is what sells a hit as violent (pair it with a short Life or they just leave).',
   },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.5,
@@ -203,16 +241,16 @@ const SPECS = {
     help: 'How quickly shards slow down — 1 keeps them flying flat out the whole way, 0.9 (the default) coasts them to a stop, 0.7 stalls them almost the moment they leave.',
   },
   gravity: {
-    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 800, step: 10, default: 0, axis: 'scale',
-    help: 'px/sec² downward.',
+    kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: 0, axis: 'scale',
+    help: 'Downward acceleration in px/sec². 0 is weightless; positive pulls shards down into an arc (coins.json throws at ~1700 to get a real ballistic lob), negative floats them up. It is signed, so the full range covers both.',
   },
   life: {
-    kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, essential: true,
+    kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 6000, step: 10, default: 450, essential: true,
     // The canonical `time` param: a duration in ms. A burst emits its whole wave at t=0, so stretching this
     // makes each shard live (and therefore fly) longer WITHOUT changing how many shards there are — which is
     // what keeps a seeded burst's 7-draws-per-particle stream byte-identical at any `time`.
     axis: 'time',
-    help: 'Particle lifetime ms.',
+    help: 'How long each shard lives, in ms. Together with Speed and Drag this decides how far it gets — a long Life on a heavily-dragged shard leaves it hanging where it stopped, which is usually the moment to fade it with Alpha / life.',
   },
   orientToVelocity: {
     kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
@@ -220,7 +258,7 @@ const SPECS = {
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0, axis: 'scale',
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 2000, step: 5, default: 0, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
   },
   turbScale: {
@@ -233,7 +271,7 @@ const SPECS = {
     help: 'Where shards are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0, axis: 'scale',
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 0, axis: 'scale',
     // `emitShape` and `emitRadius` are mutually dead at these defaults (point + 0), so only ONE of the pair
     // may declare the dependency — disabling both would be a deadlock with no way back in. Shape is the
     // gateway you pick first; picking anything but `point` unlocks the radius.
@@ -250,19 +288,19 @@ const SPECS = {
     help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9, essential: true, axis: 'scale',
-    help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 9, essential: true, axis: 'scale',
+    help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks, and the top of the range is debris the size of the card. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
   },
   sizeVar: {
     kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.5,
     help: 'How much shard sizes differ from each other, as a fraction of Size — 0 makes every shard identical, 0.5 (the default) spreads them between half and one-and-a-half size.',
   },
   stretchX: {
-    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
   },
   stretchY: {
-    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle height multiplier on top of Size.',
   },
   sizeCurve: {
@@ -286,7 +324,13 @@ const SPECS = {
   alphaCurve: {
     kind: 'curve', label: 'Alpha / life', group: 'Style',
     default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
-    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade.',
+    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade — and with Fade at 0 there is no built-in fade left, so this curve becomes the whole opacity envelope.',
+  },
+  fade: {
+    kind: 'slider', label: 'Fade', group: 'Style', min: 0, max: 4, step: 0.1, default: 2,
+    // Default 2 is the exact expression this loop always used — see `burstFadeEnvelope` for why the branch on
+    // 2 exists rather than a bare Math.pow, and why the emitter/smoke pair deliberately have no such param.
+    help: 'The built-in fade-out every shard rides, as an exponent on its remaining life. 2 (the default) is the classic snappy fall-off; 1 is linear; 4 is a hard flash that is gone almost at once; 0 turns it OFF entirely, so shards hold full opacity until they die and Alpha / life is the whole story.',
   },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
@@ -590,9 +634,11 @@ class BurstInstance implements FxInstance<BurstParams> {
 
       const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
       const lifeT = lp.age / lp.maxLife; // 0 -> 1 over life
-      // Built-in quadratic fade, times the explicit alpha-over-life curve (default flat 1 → sampleCurve
-      // returns exactly 1 and `x * 1 === x`, so the default is a byte-identical no-op).
-      particle.alpha = frac * frac * sampleCurve(p.alphaCurve, lifeT);
+      // Built-in fade (authored by `fade` — at its default of 2 `burstFadeEnvelope` returns the literal
+      // `frac * frac` this line used to inline, so the default is byte-identical), times the explicit
+      // alpha-over-life curve. That second factor's default is flat 1, where `sampleCurve` returns exactly 1
+      // and `x * 1 === x` — still a no-op, and still for that reason rather than by accident.
+      particle.alpha = burstFadeEnvelope(frac, p.fade) * sampleCurve(p.alphaCurve, lifeT);
       const s = sampleCurve(p.sizeCurve, lifeT);
       particle.scaleX = lp.scaleX0 * s;
       particle.scaleY = lp.scaleY0 * s;

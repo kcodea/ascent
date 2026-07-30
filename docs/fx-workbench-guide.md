@@ -193,6 +193,42 @@ Two things to know when you author on it:
   anchors, or staged both on the same spot. A workbench scenario that stages a source and a target will
   preview it; one that doesn't will show you the `travel` fallback, not an error.
 
+### How far the sliders go
+
+The physics ranges are wide on purpose — you are meant to be able to be **stupid** with them and dial back.
+Burst speed reaches **3000 px/sec** (a shard crosses the card in a couple of frames), gravity **±4000**
+(`coins` throws at ~1700 for a real ballistic lob), life **6 s**, count **400**, size **200 px**. Smoke and
+the emitter reach **1200 motes/sec** — which is their hard live-mote cap, so the slider now goes as far as
+the primitive does — and an **8 s** lifetime. Shockwave rings reach **2000 px** across and **12** rings;
+ribbons reach **2400 px** long, **600 px** wide, with a **300 px** wave amplitude.
+
+Some sliders are deliberately *not* wide, and it is worth knowing which so you don't go looking:
+
+- **Ratios and fractions** — Spread, Speed var, Size var, Inherit vel, Core bias, Field mix, Glow, Alpha,
+  Plateau, Squash, Fade in. `0..1` is the whole meaning; there is nothing past it.
+- **Drag** (`0.7..1`) is a per-frame retention factor. Above 1 a shard accelerates forever; 0.7 already stops
+  one in about a frame.
+- **The Texture/Noise group** (Bands, Noise scale, Warp, Scroll, Erode, Gain, Turb scale) is a tuned window —
+  both ends are already extreme, and past them it stops reading as material and starts reading as noise.
+- **Shockwave Thickness** (`≤0.3`) has a real geometric ceiling: the ring is drawn on a quad 1.45× its radius,
+  and a thicker band clips flat against that boundary along with its glow. Want a fatter ring? Raise
+  **Radius**, or add a second ring — not Thickness.
+
+### Authoring the fade
+
+Every particle primitive has a **built-in opacity envelope** underneath the **Alpha / life** curve — the two
+multiply. Both halves are yours:
+
+- **`burst` → Fade** (Style). An exponent on the shard's remaining life. `2` is the default and the classic
+  snappy fall-off, `1` is linear, `4` is a hard flash, and **`0` turns it off entirely** — shards hold full
+  opacity until they die and Alpha / life becomes the whole envelope.
+- **`emitter` / `smoke` → Fade in** (Style). These fade differently: a *symmetric* ramp in at the start and
+  out at the end, and this is its width as a fraction of life. **`0` turns it off** the same way — motes pop
+  in at full opacity and hold it, leaving Alpha / life in charge.
+
+If you have ever flattened Alpha / life to `1` and watched particles fade anyway, this is the knob you were
+looking for.
+
 ### Sizing an effect at the moment it fires — `scale`, `intensity` and `time`
 
 A def is a **fixed** composition, and that is deliberate: what you committed is what plays. But some effects
@@ -302,6 +338,14 @@ Two details:
 survives a reload, it can be shared by pushing a branch, and it shows up in the library immediately (a
 watcher invalidates the module glob, which an eager `import.meta.glob` would otherwise miss until a full
 restart). Autosave runs alongside it, so a hot-reload can't eat a tuning session.
+
+**Imported art is saved with it.** A PNG/SVG you imported into the `shape` picker lives only in *this*
+browser (`custom:<slug>`), so Save uploads it to `packages/ui/src/fx/defs/art/<slug>.png` and rewrites the
+layer to `art:<slug>` — that is what makes the def render the same on the other developer's machine. Both the
+art glob and the def glob are watcher-invalidated, so a shape you imported this session survives a reload
+without restarting the dev server; the library additionally keeps a pointer to the local import as a
+belt-and-braces (never a second copy of the bytes). If the import is later *removed* from the picker, that
+pointer goes with it — but by then the committed PNG is on disk and the glob is the resolver anyway.
 
 ---
 

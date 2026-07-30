@@ -52,9 +52,9 @@ describe('ribbon shaping params', () => {
   });
 
   it('exposes the wave triple, with amplitude 0 so the wave is off by default', () => {
-    expect(specs.waveAmp).toMatchObject({ kind: 'slider', group: 'Shape', min: 0, max: 40, step: 0.5, default: 0 });
-    expect(specs.waveFreq).toMatchObject({ kind: 'slider', group: 'Shape', min: 0.2, max: 8, step: 0.1, default: 2 });
-    expect(specs.waveSpeed).toMatchObject({ kind: 'slider', group: 'Shape', min: 0, max: 12, step: 0.1, default: 3 });
+    expect(specs.waveAmp).toMatchObject({ kind: 'slider', group: 'Shape', min: 0, max: 300, step: 0.5, default: 0 });
+    expect(specs.waveFreq).toMatchObject({ kind: 'slider', group: 'Shape', min: 0.2, max: 24, step: 0.1, default: 2 });
+    expect(specs.waveSpeed).toMatchObject({ kind: 'slider', group: 'Shape', min: 0, max: 60, step: 0.1, default: 3 });
   });
 
   it('exposes segments, defaulting to the geometry\'s own resample count', () => {

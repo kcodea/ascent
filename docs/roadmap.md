@@ -168,12 +168,23 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
-### Dev tuner migration — 41 of 47 panels to go (2026-07-29)
-The schema (`tunerSchema.ts`) and the shared `TunerPanel` are in, proven on six panels spanning 2 to 48
-controls. The remaining work, in order:
-- **Migrate the other 41.** Mechanical per panel: export the config's `DEFAULTS`, write a `TunerSpec` with a
+### Dev tuner migration — 35 of 47 panels to go (updated 2026-07-30)
+The schema (`tunerSchema.ts`) and the shared `TunerPanel` are in, proven on twelve panels spanning 2 to 48
+controls. The Buttons group (Refresh, Freeze, End Turn, Hero Power, Tavern Up) is complete.
+
+**Follow the Refresh/End Turn pattern, not the earlier one.** Those two use ONE ordered key list with the
+control kind derived per key. Hero Power and Tavern Up split their keys into hand-maintained "before the colour
+/ after the colour" arrays, which does not survive a panel with several colours in different groups (Refresh has
+five across four). Only ADJACENT controls sharing a group merge into a heading, so every colour and toggle must
+be listed inside its own group's run — `assertGroupRuns` warns in dev if one is not.
+
+- **Migrate the other 35.** Mechanical per panel: export the config's `DEFAULTS`, write a `TunerSpec` with a
   label / unit / hint / group per control. Persistence must keep running through each config's own accessors —
   a spec that re-implemented storage would silently orphan values dialled by eye over months.
+- **Panel ids must match the DevMenu key.** `useDraggablePanel(key)` injects the ✕ and closes by that key.
+  Three panels had drifted (Book, Tavern Up, Drag Feel) and their close button silently did nothing; fixed
+  2026-07-30. Any new panel or rename must keep the two in step — nothing enforces it yet, and the failure is
+  invisible until someone tries to close the panel.
 - **Five structural outliers** have no label map and need individual thought: `ChargeGlyphTuner` (209 lines,
   composes CSS vars from colour + numbers), `FrameTuner`, `BookTuner`, `LayoutTuner`, and `SfxMixer` — the
   mixer may justifiably stay bespoke.

@@ -44,6 +44,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Three dev tuner panels ignored their own close button** — their internal key disagreed with the menu's, so
+  ✕ did nothing and they could only be dismissed from the menu. Fixed, and the Buttons group (Refresh, Freeze,
+  End Turn, Hero Power, Tavern Up) now renders from the shared tuner schema: 12 of 47 panels migrated.
 - **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
   with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
   schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.
@@ -79,8 +82,6 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **Commit animation.** Pick a card and a moment in the workbench, tune the effect while watching it on the
   real card, then commit — writing the effect and its binding together, for that card only (forking it) or
   everywhere.
-- **Three new minions** — Moira (trigger adjacent Shouts), Mineral Master (Rally → Rubies on your Kobolds), and
-  **Paragon**, the all-type minion whose Rally buffs a minion of every type permanently.
 
 ## Layout
 

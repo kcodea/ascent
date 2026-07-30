@@ -4349,7 +4349,8 @@ svg { width: 18px; height: 18px; }
   box-shadow: inset 0 1px 0 rgba(255, 240, 205, 0.13), 0 1px 0 rgba(0, 0, 0, 0.5);
 }
 .tunerpanel .tuner-title { font-size: 15px; font-weight: 800; color: #fbeccd; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65); }
-.tunerpanel .sfxmix-h span { margin-left: auto; font-size: 9px; color: #a08c68; letter-spacing: 0.12em; }
+/* (The note is styled in the TYPE block below, by a selector that excludes the emblem — see the comment there.
+   A bare `.sfxmix-h span` rule here matched the emblem too, and beat the emblem's own rule on specificity.) */
 /* The emblem sits in a bezel, so it reads as set INTO the plate rather than printed on it. */
 .tunerpanel .tuner-emblem {
   flex: 0 0 auto; width: 24px; height: 24px; display: grid; place-items: center; font-size: 13px; border-radius: 7px;
@@ -4488,6 +4489,62 @@ svg { width: 18px; height: 18px; }
   transform: translateY(2px); border-bottom-width: 1px; filter: brightness(0.94); transition-duration: 0.06s; }
 .tunerpanel .tuner-cmp:active:not(:disabled), .tunerpanel .tuner-cmp:hover:active:not(:disabled) {
   transform: translateY(1px); border-bottom-width: 1px; filter: brightness(0.96); transition-duration: 0.06s; }
+
+/* ---- TYPE ----------------------------------------------------------------------------------------------
+   A ROLE SCALE, replacing eight sizes with four.
+   The panel had rendered 16 distinct type styles at 9 / 10 / 10.5 / 11 / 12 / 12.5 / 13 / 15px — four of those
+   steps live inside a 2px band, which no reader can tell apart. Size differences that small carry no
+   information; they only make a dense tool look unconsidered. Each role below earns its step, and where two
+   roles are genuinely PEERS (a control's name and its value) they share a size and separate on weight and
+   treatment instead of on half a pixel.
+
+   DARK-SURFACE COMPENSATION. Light text on a dark ground reads thinner and tighter than the same text on
+   vellum, so the primary label goes up half a step, small metadata gains a touch of tracking, and rows get real
+   line-height instead of `normal`. This is why the label is 12.5px here when it was 12px on the cream skin. */
+.sfxmix.tunerpanel {
+  --t-title: 15px;      /* the object's name — the only large text in the panel */
+  --t-label: 12.5px;    /* control names AND their values: peers, separated by weight, not size */
+  --t-control: 12px;    /* interactive chrome: find field, buttons, selects */
+  --t-meta: 10.5px;     /* units, counts, hex, caveats, the header note — glanced, never read */
+}
+.tunerpanel .tuner-title { font-size: var(--t-title); letter-spacing: 0.005em; }
+/* The note, and ONLY the note. `.sfxmix-h span` also matched `.tuner-emblem` — a span — which shrank the emblem
+   to the note's 9px and pushed it to the far right on the note's `margin-left: auto`. The emblem is the first
+   thing on the plate, so it must be excluded explicitly rather than by hoping it is not a span. */
+.tunerpanel .sfxmix-h > span:not(.tuner-emblem) {
+  margin-left: auto; font-size: var(--t-meta); font-weight: 700; letter-spacing: 0.1em; color: #a08c68;
+}
+.tunerpanel .tuner-emblem { margin-left: 0; font-size: var(--t-title); letter-spacing: normal; }
+
+/* Labels and values are peers. Same size; the value earns its emphasis from weight, tabular figures and its
+   well, so the eye can still tell name from number without a size cue doing the work. */
+.tunerpanel .sfxmix-name { font-size: var(--t-label); font-weight: 700; letter-spacing: 0.005em; line-height: 1.35; }
+.tunerpanel .tuner-num { font-size: var(--t-label); font-weight: 800; font-variant-numeric: tabular-nums; }
+.tunerpanel .tuner-row-select select, .tunerpanel .tuner-find, .tunerpanel .tuner-foldall,
+.tunerpanel .tuner-cmp, .tunerpanel .sfxmix-copy {
+  /* Form controls do not inherit the panel's font, so these were rendering at the browser's 400 weight while
+     everything around them sat at 700–800 — which is most of why the find field read as foreign. */
+  font-family: var(--font-ui); font-size: var(--t-control); font-weight: 700;
+}
+.tunerpanel .sfxmix-copy, .tunerpanel .tuner-cmp { font-weight: 800; letter-spacing: 0.01em; }
+
+/* Metadata: one size, one weight, a hair of tracking so it stays legible at the bottom of the scale on a dark
+   ground. Previously these sat at 9 / 10 / 10.5 for no reason anyone could name. */
+.tunerpanel .tuner-unit, .tunerpanel .tuner-hex, .tunerpanel .tuner-toggleval,
+.tunerpanel .tuner-note, .tunerpanel .tuner-found, .tunerpanel .tuner-gh-n {
+  font-size: var(--t-meta); font-weight: 700; letter-spacing: 0.01em;
+}
+/* Section headings read LARGER than their size because they are capitalised, tracked and brass — so they hold
+   the structural role without taking a size step away from the labels below them. */
+.tunerpanel .tuner-gh { font-size: var(--t-meta); letter-spacing: 0.13em; }
+.tunerpanel .tuner-caret { font-size: var(--t-meta); letter-spacing: normal; }
+.tunerpanel .tuner-nohit { font-size: var(--t-control); }
+.tunerpanel .lunge-read-h { font-size: var(--t-meta); letter-spacing: 0.13em; }
+.tunerpanel .lunge-read-row { font-size: var(--t-control); line-height: 1.5; font-variant-numeric: tabular-nums; }
+.tunerpanel .tuner-preview { font-size: var(--t-control); font-weight: 700; }
+/* The ✕ is injected by `useDraggablePanel`, not by this component, so it sat outside the scale at 13px — the
+   one stray size left after the pass. It is chrome, so it takes the control role. */
+.tunerpanel .devpanel-close { font-size: var(--t-control); }
 
 @media (prefers-reduced-motion: reduce) {
   .tunerpanel .sfxmix-copy:hover::after, .tunerpanel .tuner-cmp:hover::after,

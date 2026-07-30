@@ -101,7 +101,7 @@ const controls: TunerControl<Extract<keyof ExecuteConfig, string>>[] = [
   })),
 ];
 
-const SPEC: TunerSpec<ExecuteConfig> = {
+export const SPEC: TunerSpec<ExecuteConfig> = {
   id: 'execute',                    // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Execute Aura',
   note: 'dev · live · drag',

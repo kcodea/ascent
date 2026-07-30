@@ -43,7 +43,7 @@ const controls: TunerControl<Extract<keyof CardTextConfig, string>>[] = ORDER.ma
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<CardTextConfig> = {
+export const SPEC: TunerSpec<CardTextConfig> = {
   id: 'cardtext',                   // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Card Text',
   note: 'dev · live · cards',

@@ -61,7 +61,7 @@ const controls: TunerControl<Extract<keyof SwapFxConfig, string>>[] = ORDER.map(
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<SwapFxConfig> = {
+export const SPEC: TunerSpec<SwapFxConfig> = {
   id: 'swapfx',                     // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Swap',
   note: 'dev · next swap · drag',

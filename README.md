@@ -72,6 +72,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   and Bloodbinder's ruby lance. Cost: +34 KB gzipped of JS, 29 KB of it a primitives chunk fetched lazily
   on mount rather than at first paint (the main chunk grows under 5 KB gzipped). The
   *authoring tool* stays dev-only; a test now pins that split in both directions.
+- **One button resets every dev tuner to the shipped values.** Per-panel Reset only ever cleared that panel, so
+  nothing put the whole toolset back at once.
 - **Tuning got a working surface.** Panel sections fold away and remember it, each panel has a find box, and a
   hold-or-tap button A/Bs your edits against the shipped values — the question "is this actually better than what
   we ship?" used to mean reverting every control by hand. All three landed in one shared component.

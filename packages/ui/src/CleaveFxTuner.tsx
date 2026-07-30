@@ -99,7 +99,7 @@ const controls: TunerControl<Extract<keyof CleaveFxConfig, string>>[] = ORDER.ma
   return { key, label, unit, hint, group, note, min, max, step };
 });
 
-const SPEC: TunerSpec<CleaveFxConfig> = {
+export const SPEC: TunerSpec<CleaveFxConfig> = {
   id: 'cleavefx',                   // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Cleave Slash',
   note: 'dev · next cleave · drag',

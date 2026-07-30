@@ -197,7 +197,7 @@ const pushBloom = (): void => {
   chargeTune.coreMax = Number(v.coreMax);
 };
 
-const SPEC: TunerSpec<GlyphVals> = {
+export const SPEC: TunerSpec<GlyphVals> = {
   id: 'chargeglyph',                // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Charge Glyph',
   note: 'dev · live · placement is in Layout Lab',

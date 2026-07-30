@@ -63,7 +63,7 @@ const controls: TunerControl<Extract<keyof DragFeel, string>>[] = ORDER.map((key
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<DragFeel> = {
+export const SPEC: TunerSpec<DragFeel> = {
   id: 'drag',                       // matches DevMenu's key — the two must agree or the ✕ does nothing
   title: 'Drag Feel',
   // Derived, so it re-reads every render: which values you are actually feeling is otherwise invisible.

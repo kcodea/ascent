@@ -62,7 +62,7 @@ const controls: TunerControl<Extract<keyof InfuseFxConfig, string>>[] = ORDER.ma
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<InfuseFxConfig> = {
+export const SPEC: TunerSpec<InfuseFxConfig> = {
   id: 'infusefx',                   // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Fodder Infusion',
   note: 'dev · next infusion · drag',

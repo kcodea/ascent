@@ -94,7 +94,7 @@ const controls: TunerControl<Extract<keyof EndTurnConfig, string>>[] = ORDER.map
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<EndTurnConfig> = {
+export const SPEC: TunerSpec<EndTurnConfig> = {
   id: 'endturnbtn',                 // FROZEN — indexes this panel's dragged position in localStorage
   title: 'End Turn Button',
   note: 'dev · live · recruit phase',

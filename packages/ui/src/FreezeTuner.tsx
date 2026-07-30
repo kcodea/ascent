@@ -22,7 +22,7 @@ const controls: TunerControl<Extract<keyof FreezeConfig, string>>[] = FRZ_NUM_KE
   return { key, label, unit, hint, group: 'Placement — art pending', min, max, step };
 });
 
-const SPEC: TunerSpec<FreezeConfig> = {
+export const SPEC: TunerSpec<FreezeConfig> = {
   id: 'freezebtn',                  // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Freeze Button',
   note: 'dev · live · drag',

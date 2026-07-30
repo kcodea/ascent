@@ -71,7 +71,7 @@ const controls: TunerControl<string>[] = LAYOUT_VARS.map((v) => ({
   step: v.step,
 }));
 
-const SPEC: TunerSpec<LayoutConfig> = {
+export const SPEC: TunerSpec<LayoutConfig> = {
   id: 'layout',                     // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Layout Lab',
   note: 'dev · scale + position',

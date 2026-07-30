@@ -125,7 +125,7 @@ const controls: TunerControl<string>[] = SECTIONS.flatMap((s) => [
   },
 ]);
 
-const SPEC: TunerSpec<FrameVals> = {
+export const SPEC: TunerSpec<FrameVals> = {
   id: 'frame',                      // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Card Frames',
   note: 'dev · live · session only',

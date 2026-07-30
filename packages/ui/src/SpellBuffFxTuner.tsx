@@ -62,7 +62,7 @@ const controls: TunerControl<Extract<keyof SpellBuffFxConfig, string>>[] = ORDER
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<SpellBuffFxConfig> = {
+export const SPEC: TunerSpec<SpellBuffFxConfig> = {
   id: 'spellbufffx',                // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Spell Buff',
   note: 'dev · next burst · drag',

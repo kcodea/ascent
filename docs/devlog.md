@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-07-30 — one button puts every tuner back to what ships
+
+**What changed.** A **Reset all tuners** action in the dev menu (♻️) returns all 46 schema-driven panels to their
+shipped values at once. Dev-only; stripped from production. No engine, content, sim, or player-visible change.
+
+**Why.** Each panel already had its own Reset, but each one clears only its own storage key — so "put EVERYTHING
+back to what ships" meant opening forty-six panels and pressing Reset in each, which nobody does. The result is
+that a machine quietly accumulates months of half-finished experiments and you can no longer tell what players
+actually see, which is the same class of problem as the local drag override that made `main` look wrong.
+
+**It resets by CALLING each panel's own `reset()`, not by clearing storage keys.** That distinction is the whole
+design. A config module's reset also RE-APPLIES its values — pushing CSS custom properties, rewriting a `<style>`
+override — so the board repaints immediately. Deleting the keys instead would leave every module's in-memory copy
+live until a reload, and worse, run and save state live under the same `ascent.` prefix, so a prefix sweep would
+eventually take real player data with it.
+
+**`tunerAll.ts` is the registry** — the one place that knows the full set, built on each panel exporting its spec.
+The event that tells open panels their values changed lives in `tunerSchema.ts`, NOT beside the reset: `tunerAll`
+imports all forty-six panels and every panel imports `TunerPanel`, so a panel reaching back into `tunerAll` for
+that string would close the loop into a genuine import cycle.
+
+**What it does not touch.** `SfxMixer` keeps its own bespoke storage and is deliberately excluded — it is an audio
+mixing desk, not a look tuner, and wiping someone's levels is not what "reset the tuners" means to anyone. The
+confirm says so, names the panel count, and says the action cannot be undone.
+
+**How it was verified.** typecheck (pkgs + web), lint, tests, build:web. Then driven live: two panels were dirtied
+and one of them CLOSED before resetting, to prove closed panels are covered and not just the visible one.
+Declining the confirm changed nothing (`Shipped (1)` unmoved); accepting moved the open panel to `Shipped (0)`
+**without reopening it**, proving the stale-panel event works, and reopening the closed panel showed `Shipped (0)`
+with zero modified marks. Non-tuner `localStorage` keys — run state included — were confirmed intact afterwards.
+
+
 ## 2026-07-30 — `playDef` gains a per-call `time`, and the strike-point dust becomes a def
 
 **What changed.** `PlayDefOptions` gains its third and last per-call axis — **`time`** — completing the set

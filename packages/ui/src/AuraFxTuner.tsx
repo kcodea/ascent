@@ -58,7 +58,7 @@ const actions: TunerAction[] = TEST_TRIBES.map((tribe) => ({
   run: () => testAuraFx(tribe),
 }));
 
-const SPEC: TunerSpec<AuraFxConfig> = {
+export const SPEC: TunerSpec<AuraFxConfig> = {
   id: 'aurafx',                     // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Aura Wave',
   note: 'dev · next wave · drag',

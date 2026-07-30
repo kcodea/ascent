@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDraggablePanel } from './useDraggablePanel';
 import {
-  assertGroupRuns, formatValue, groupControls, unitSuffix, type TunerControl, type TunerSpec,
+  assertGroupRuns, formatValue, groupControls, TUNERS_RESET_EVENT, unitSuffix,
+  type TunerControl, type TunerSpec,
 } from './tunerSchema';
 
 /**
@@ -72,6 +73,14 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
 
   const cfg = spec.read();
   const rerender = (): void => force((n) => n + 1);
+
+  // "Reset all tuners" writes through the config modules directly, which an open panel cannot see. Without this
+  // it would sit showing stale numbers beside a board that had already changed under it.
+  useEffect(() => {
+    const onResetAll = (): void => rerender();
+    window.addEventListener(TUNERS_RESET_EVENT, onResetAll);
+    return () => window.removeEventListener(TUNERS_RESET_EVENT, onResetAll);
+  }, []);
 
   const set = (key: Extract<keyof C, string>, value: number): void => {
     spec.write(key, value);

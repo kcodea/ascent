@@ -31,7 +31,7 @@ const controls: TunerControl<Extract<keyof SpellPowerFxConfig, string>>[] =
     return { key, label, unit, hint, group, min, max, step };
   });
 
-const SPEC: TunerSpec<SpellPowerFxConfig> = {
+export const SPEC: TunerSpec<SpellPowerFxConfig> = {
   id: 'spellpowerfx',               // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Spell Power',
   note: 'dev · next cast · drag',

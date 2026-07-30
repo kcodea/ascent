@@ -52,7 +52,7 @@ const controls: TunerControl<Extract<keyof HeroBuffFxConfig, string>>[] = ORDER.
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<HeroBuffFxConfig> = {
+export const SPEC: TunerSpec<HeroBuffFxConfig> = {
   id: 'herobufffx',                 // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Hero Buff Flash',
   note: 'dev · live · drag',

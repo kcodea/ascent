@@ -31,7 +31,7 @@ const controls: TunerControl<Extract<keyof RubyPowerFxConfig, string>>[] =
     return { key, label, unit, hint, group, min, max, step };
   });
 
-const SPEC: TunerSpec<RubyPowerFxConfig> = {
+export const SPEC: TunerSpec<RubyPowerFxConfig> = {
   id: 'rubypowerfx',                // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Ruby Power',
   note: 'dev · next cast · drag',

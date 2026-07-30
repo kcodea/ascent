@@ -54,7 +54,7 @@ const controls: TunerControl<Extract<keyof FlurrySwingConfig, string>>[] = ORDER
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<FlurrySwingConfig> = {
+export const SPEC: TunerSpec<FlurrySwingConfig> = {
   id: 'flurryswing',                // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Flurry Swing',
   note: 'dev · next swing · drag',

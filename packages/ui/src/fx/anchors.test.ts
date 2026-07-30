@@ -47,6 +47,56 @@ function fakeSink(): FxHeadSink & { heads: { index: number; x: number; y: number
   return { heads, setHead: (index, x, y) => { heads.push({ index, x, y }); } };
 }
 
+/** A sink that ALSO records the aim channel — see `driveLayerHeads`'s staged-only delivery. */
+function aimSink(): FxHeadSink & {
+  heads: { index: number; x: number; y: number }[];
+  aims: { index: number; sx: number; sy: number; tx: number; ty: number }[];
+} {
+  const s = fakeSink() as ReturnType<typeof fakeSink> & {
+    aims: { index: number; sx: number; sy: number; tx: number; ty: number }[];
+  };
+  s.aims = [];
+  s.setAim = (index, sx, sy, tx, ty) => { s.aims.push({ index, sx, sy, tx, ty }); };
+  return s;
+}
+
+describe('driveLayerHeads — the source→target aim channel', () => {
+  it('hands every layer the STAGED pair, whatever anchor that layer is pinned to', () => {
+    const sink = aimSink();
+    driveLayerHeads(sink, [{ anchor: 'source' }, { anchor: 'slot' }, { anchor: 'travel' }], ANCHORS, 0.5);
+    // The vector describes the MOMENT, so it is identical for all three — not derived from each head.
+    expect(sink.aims).toEqual([
+      { index: 0, sx: 0, sy: 0, tx: 100, ty: 0 },
+      { index: 1, sx: 0, sy: 0, tx: 100, ty: 0 },
+      { index: 2, sx: 0, sy: 0, tx: 100, ty: 0 },
+    ]);
+  });
+
+  it('stays SILENT when either anchor was not staged — the invented origin must never reach a primitive', () => {
+    // This is the whole reason the gate lives here: `resolveAnchor` would hand back (0, 0) for both of these,
+    // which a primitive cannot tell apart from a fire genuinely staged at the origin.
+    for (const anchors of [{}, { source: { x: 5, y: 5 } }, { target: { x: 5, y: 5 } }] as FxAnchors[]) {
+      const sink = aimSink();
+      driveLayerHeads(sink, [{ anchor: 'target' }], anchors, 0.5);
+      expect(sink.aims).toEqual([]);
+      expect(sink.heads).toHaveLength(1); // …but heads are still driven exactly as before
+    }
+  });
+
+  it('still delivers when the two coincide — deciding that is degenerate is the primitive\'s job', () => {
+    const sink = aimSink();
+    const same: FxAnchors = { source: { x: 7, y: 9 }, target: { x: 7, y: 9 } };
+    driveLayerHeads(sink, [{ anchor: 'target' }], same, 0.5);
+    expect(sink.aims).toEqual([{ index: 0, sx: 7, sy: 9, tx: 7, ty: 9 }]);
+  });
+
+  it('is optional — a sink without setAim is driven exactly as it always was', () => {
+    const sink = fakeSink();
+    expect(() => driveLayerHeads(sink, [{ anchor: 'target' }], ANCHORS, 0.5)).not.toThrow();
+    expect(sink.heads).toEqual([{ index: 0, x: 100, y: 0 }]);
+  });
+});
+
 describe('FX_ANCHOR_IDS', () => {
   it('lists every anchor exactly once, and every one resolves', () => {
     expect(new Set(FX_ANCHOR_IDS).size).toBe(FX_ANCHOR_IDS.length);

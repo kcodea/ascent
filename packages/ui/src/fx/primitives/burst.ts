@@ -59,19 +59,31 @@ export function sampleBurstAngle(travelAngle: number, spread: number, rand: () =
  * How a burst decides WHICH WAY its cone points (the `aimMode` param). See `resolveBurstAimAngle`.
  * `travel` is first and is the default, so every def authored before this existed is untouched.
  *
- * A third mode, `awayFrom` — radiate outward along source → this layer's own anchor — was built alongside
- * these two and CUT before merge: nothing in the library asked for it. Noted so the next person doesn't
- * rediscover the design from scratch. Re-adding it is not a change to this file alone: a layer only ever
- * learns its OWN head, so it needs a source channel plumbed all the way down to the instance (an optional
- * `setSource` on `FxInstance` + `FxPlayer`, delivered from `driveLayerHeads`'s staged `anchors.source`, and
- * called only when a source was actually staged so "none" can't arrive as the invented (0, 0) origin). Worth
- * doing deliberately for a real caller; not worth carrying speculatively.
+ * ── the third mode, and the channel it cost ───────────────────────────────────────────────────────────
+ * `sourceToTarget` aims along the FIRE's own vector: source anchor → target anchor, i.e. "which way this
+ * moment went". A directional mode was built in #764 (as `awayFrom`, source → the layer's own head) and cut
+ * before merge for want of a caller; `impact` — a melee blow that fans its sparks along the attacker→defender
+ * vector — is that caller, and it arrived in #767. What was recorded then as the cost is what was paid:
+ * a layer only ever learns its OWN head, so the fire's geometry has to be plumbed down to the instance
+ * (`setAim` on `FxInstance` and `FxPlayer`, delivered by `driveLayerHeads` from the STAGED anchors, and only
+ * when they were really staged — so "none" can never arrive as `resolveAnchor`'s invented (0, 0) origin).
+ *
+ * It aims between the two ANCHORS rather than source → this layer's head, which is the one place it departs
+ * from the cut design. The vector then describes the MOMENT, not the layer: every layer of a composition
+ * blows the same way whichever anchor its author pinned it to. Under source→head a layer anchored at `source`
+ * would be degenerate and one anchored at `slot` would fan somewhere unrelated — the same def looking
+ * different for a reason invisible in the tuner. For `impact` itself the two are identical anyway: its layers
+ * are anchored at `target`, the strike point.
  */
-export const BURST_AIM_MODES = ['travel', 'fixed'] as const;
+export const BURST_AIM_MODES = ['travel', 'fixed', 'sourceToTarget'] as const;
 export type BurstAimMode = (typeof BURST_AIM_MODES)[number];
 
 /** Degrees → radians, for the `fixed` aim angle. */
 const DEG_TO_RAD = Math.PI / 180;
+
+/** Squared px below which a staged source and target count as the SAME point, i.e. no direction at all.
+ *  Matches `setHead`'s own travel-angle threshold — 0.1px of separation is not a blow direction. */
+const AIM_EPSILON_SQ = 0.01;
 
 /**
  * The BASE angle `sampleBurstAngle` centres the cone on — i.e. the authored launch direction.
@@ -85,9 +97,26 @@ const DEG_TO_RAD = Math.PI / 180;
  *    Every def that predates aiming behaves exactly as it always did.
  *  - `fixed`: the authored `angleDeg`, in SCREEN convention — 0 is +x (right), and because screen Y grows
  *    DOWNWARD, -90 is straight up and +90 straight down.
+ *  - `sourceToTarget`: `aimAngle`, the fire's staged source→target direction, delivered by `setAim`.
+ *
+ * `aimAngle` is `null` in BOTH degenerate cases, and both fall back to `travel` — which is the honest
+ * fallback because it is what a burst with no direction has always done:
+ *   • NOT STAGED. The fire never supplied a source/target pair, so `setAim` was never called. This is
+ *     distinguishable only upstream, in `driveLayerHeads`, which is why the gate lives there: `resolveAnchor`
+ *     invents `(0, 0)` for an absent anchor, and a burst that aimed at that would fan away from the screen's
+ *     top-left corner on every def that happens not to stage one.
+ *   • COINCIDENT. Both staged, but at (near enough) the same point — a self-targeted moment. `atan2(0, 0)` is
+ *     0, which would SNAP the cone to +x; the same trap `resolveParticleRotation` guards below.
  */
-export function resolveBurstAimAngle(mode: BurstAimMode, travelAngle: number, angleDeg: number): number {
-  return mode === 'fixed' ? angleDeg * DEG_TO_RAD : travelAngle;
+export function resolveBurstAimAngle(
+  mode: BurstAimMode,
+  travelAngle: number,
+  angleDeg: number,
+  aimAngle: number | null,
+): number {
+  if (mode === 'fixed') return angleDeg * DEG_TO_RAD;
+  if (mode === 'sourceToTarget') return aimAngle ?? travelAngle;
+  return travelAngle;
 }
 
 /**
@@ -151,7 +180,7 @@ const SPECS = {
   },
   aimMode: {
     kind: 'enum', label: 'Aim', group: 'Emit', options: BURST_AIM_MODES, default: 'travel',
-    help: 'Which way the cone points. travel (the default) follows the emitter\'s own direction of movement — which is nothing at all for a burst pinned to a static point, so it fans along +x there. fixed points it at the Angle you set. Does nothing at Spread 1 — a full circle has no centre to aim.',
+    help: 'Which way the cone points. travel (the default) follows the emitter\'s own direction of movement — which is nothing at all for a burst pinned to a static point, so it fans along +x there. fixed points it at the Angle you set. sourceToTarget points it along the moment itself — from the source anchor toward the target anchor, so an attacker\'s blow throws its sparks at the defender — and falls back to travel when the effect was fired without both anchors, or with the two on the same spot. Does nothing at Spread 1 — a full circle has no centre to aim.',
   },
   angle: {
     kind: 'slider', label: 'Angle', group: 'Emit', min: -180, max: 180, step: 1, default: -90,
@@ -387,6 +416,9 @@ class BurstInstance implements FxInstance<BurstParams> {
   // fresh seed per instance, i.e. exactly the previous `Math.random()` behaviour. See `fx/rng.ts`.
   private readonly rand: FxRandom;
   private travelAngle = 0; // radians; last known non-zero travel direction, aims the cone when spread < 1
+  // radians; the fire's staged source→target direction, or null for "no usable direction" (never delivered,
+  // or the two points coincide). Set by `setAim`; read ONCE PER WAVE by `emit`. See `resolveBurstAimAngle`.
+  private aimAngle: number | null = null;
   private timer = 0; // ms since last emit
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
 
@@ -424,6 +456,19 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.headSet = true;
   }
 
+  /** The fire's source→target vector (see `FxInstance.setAim`). Reaching this method AT ALL already means the
+   *  caller staged both anchors — `driveLayerHeads` will not call it otherwise — so the only thing left to
+   *  reject here is the two points COINCIDING, which has no direction. `null` in that case, and
+   *  `resolveBurstAimAngle` falls back to `travel` rather than snapping the cone to `atan2(0, 0)` = +x.
+   *
+   *  Draws no randomness and touches no particle: called every frame by the head-driving loop, read once per
+   *  WAVE by `emit`, so it cannot disturb the seeded draw sequence documented there. */
+  setAim(sx: number, sy: number, tx: number, ty: number): void {
+    const dx = tx - sx;
+    const dy = ty - sy;
+    this.aimAngle = dx * dx + dy * dy > AIM_EPSILON_SQ ? Math.atan2(dy, dx) : null;
+  }
+
   /** Push `count` fresh particles into both `live` and the container's `particleChildren` at the current
    *  head position. Called only from `update()` (never the constructor — see there).
    *
@@ -433,7 +478,8 @@ class BurstInstance implements FxInstance<BurstParams> {
    *  only its reproducibility is new. Reordering or adding a draw here changes what every saved seed
    *  replays, so treat the sequence as part of the contract.
    *
-   *  `aimMode`/`angle` (2026-07-30) deliberately do NOT participate: the cone's base angle is chosen by
+   *  `aimMode`/`angle` — and the `sourceToTarget` aim delivered by `setAim` — deliberately do NOT
+   *  participate: the cone's base angle is chosen by
    *  `resolveBurstAimAngle`, a pure function of state that draws nothing, once per WAVE rather than per
    *  particle. So an aimed burst consumes the identical stream an unaimed one did — the angles come out
    *  rotated, not re-rolled — and `aimMode: 'travel'` (the default) reproduces every saved seed exactly. */
@@ -445,7 +491,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     // The cone's centre for this whole wave. Computed ONCE, outside the loop, and drawing NOTHING from
     // `this.rand` — see `resolveBurstAimAngle`, which exists precisely so the base angle can be chosen
     // without touching the draw sequence documented above.
-    const aim = resolveBurstAimAngle(p.aimMode, this.travelAngle, p.angle);
+    const aim = resolveBurstAimAngle(p.aimMode, this.travelAngle, p.angle, this.aimAngle);
     for (let i = 0; i < n; i++) {
       const angle = sampleBurstAngle(aim, p.spread, this.rand);
       const speed = p.speed * (1 + (this.rand() * 2 - 1) * p.speedVar);

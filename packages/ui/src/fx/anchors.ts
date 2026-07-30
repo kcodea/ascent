@@ -44,10 +44,12 @@ export function resolveAnchor(anchors: FxAnchors, id: FxAnchorId, progress: numb
  *  "what can be picked" can't drift apart. */
 export const FX_ANCHOR_IDS: readonly FxAnchorId[] = ['travel', 'source', 'target', 'slot', 'cursor', 'camera'];
 
-/** The slice of `FxPlayer` the head-driving loop below needs — narrowed to exactly `setHead` so the loop is
- *  testable against a two-line fake instead of a real Pixi-backed player. */
+/** The slice of `FxPlayer` the head-driving loop below needs — narrowed to exactly `setHead` (plus the
+ *  optional `setAim`) so the loop is testable against a two-line fake instead of a real Pixi-backed player. */
 export interface FxHeadSink {
   setHead(index: number, x: number, y: number): void;
+  /** Optional so every existing sink and test fake still satisfies the type. See `driveLayerHeads`. */
+  setAim?(index: number, sx: number, sy: number, tx: number, ty: number): void;
 }
 
 /** The slice of a layer the head-driving loop reads. Structural, so both `FxLayer` and the workbench's
@@ -119,6 +121,14 @@ export function layerTravelProgress(
  * scenario's staged `FxAnchors`, so a `target`-anchored burst sits on the target even while a `travel`
  * ribbon ping-pongs past it. `null` (no custom path) = `travel` falls back to the default source→target arc.
  *
+ * It also delivers the fire's SOURCE→TARGET vector to any primitive that wants it (`FxInstance.setAim` —
+ * `burst`'s `sourceToTarget` aim is the caller it exists for), and this is the one place that can: the
+ * staged `FxAnchors` object is here, so "the caller staged a source" and "the caller staged nothing" are
+ * still distinguishable. One line later — inside `resolveAnchor` — they are not, because an absent anchor
+ * resolves to the invented `ORIGIN`, and a burst aimed from a phantom (0, 0) would fan away from the
+ * top-left corner of the screen on every fire that happened not to stage one. So the call is gated on BOTH
+ * anchors being present in the staged object, never on the resolved point.
+ *
  * Called once per frame per effect: no arrays, no closures, no `find` — the only allocation is the small
  * point `resolveAnchor` returns per layer.
  */
@@ -130,6 +140,10 @@ export function driveLayerHeads(
   head: FxPoint | null = null,
   clock: FxLayerClock | null = null,
 ): void {
+  // Hoisted out of the loop: the staged pair is a property of the FIRE, identical for every layer.
+  const src = anchors.source;
+  const tgt = anchors.target;
+  const setAim = sink.setAim;
   for (let i = 0; i < layers.length; i++) {
     const layer = layers[i];
     const anchor = layer.anchor;
@@ -145,5 +159,10 @@ export function driveLayerHeads(
         ? head
         : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW);
     sink.setHead(i, pt.x, pt.y);
+    // Three identity checks per layer, all on loop-invariant consts — narrowed here rather than hoisted into
+    // a boolean because a boolean would not narrow `src`/`tgt`/`setAim` for TypeScript inside the loop.
+    if (setAim !== undefined && src !== undefined && tgt !== undefined) {
+      setAim.call(sink, i, src.x, src.y, tgt.x, tgt.y);
+    }
   }
 }

@@ -53,6 +53,10 @@ export interface FxPlayer {
    *  This is the timing counterpart of `setLayerParams`: no respawn, no rebuild. */
   setLayerTiming(index: number, at: number, life: number | null): void;
   setHead(index: number, x: number, y: number): void;
+  /** Hand one layer the fire's source→target vector — see `FxInstance.setAim` for what it means and why the
+   *  caller (`driveLayerHeads`) only calls it when both anchors were really staged. A layer whose primitive
+   *  doesn't implement `setAim` silently ignores it, exactly as `setHead` does. */
+  setAim(index: number, sx: number, sy: number, tx: number, ty: number): void;
   timeMs(): number;
   isPlaying(): boolean;
   destroy(): void;
@@ -529,6 +533,9 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     },
     setHead(index: number, x: number, y: number): void {
       live.get(index)?.inst.setHead?.(x, y);
+    },
+    setAim(index: number, sx: number, sy: number, tx: number, ty: number): void {
+      live.get(index)?.inst.setAim?.(sx, sy, tx, ty);
     },
     timeMs: () => clock,
     isPlaying: () => playing,

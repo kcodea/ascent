@@ -169,13 +169,29 @@ default only does something for a *moving* emitter:
 |---|---|
 | **travel** (default) | the emitter's own direction of movement. A burst on a **static** anchor (`target`, `slot`, `cursor`) never moves, so this fans it along **+x, i.e. to the right** — almost never what you wanted |
 | **fixed** | the **Angle** you set, in degrees |
+| **sourceToTarget** | the **moment itself** — from the `source` anchor toward the `target` anchor, whichever anchor this layer is pinned to |
 
 **Angle is in screen degrees, and screen Y grows DOWNWARD** — so `0` is right, **`-90` is straight UP**, `+90`
 is down, `±180` is left. The slider is greyed out unless Aim is `fixed`, and none of it does anything at
 Spread `1` (a full circle has no centre to aim).
 
-`coins.json` is the worked example: two layers, both `fixed` at `-90`, one at Spread `0.18` for the coins and
-a wider `0.28` for the glints, with gravity pulling the arc back down.
+`coins.json` is the worked example for `fixed`: two layers, both `fixed` at `-90`, one at Spread `0.18` for the
+coins and a wider `0.28` for the glints, with gravity pulling the arc back down.
+
+**`sourceToTarget` is how a def gets a direction it can only learn at fire time.** There is no per-call angle
+and there will not be one — a def four callers each bend differently stops being a committed composition — so
+direction is expressed as *geometry* instead, in the two anchors the caller stages. `strike-impact.json` is
+the worked example: the melee smack fans its sparks along the blow, and `playContactImpact` stages `target` at
+the contact point and `source` at that point walked **back** along the attacker→defender vector. The cone then
+points at the defender however the attacker came in.
+
+Two things to know when you author on it:
+
+- **It is the same vector for every layer**, taken from the staged anchors — not from where a layer happens to
+  sit. Pin a layer at `slot` and it still blows along the blow.
+- **It falls back to `travel`** (i.e. `+x` for a static anchor) when the fire staged only one of the two
+  anchors, or staged both on the same spot. A workbench scenario that stages a source and a target will
+  preview it; one that doesn't will show you the `travel` fallback, not an error.
 
 ### Sizing an effect at the moment it fires — `scale`, `intensity` and `time`
 

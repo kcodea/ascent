@@ -1,5 +1,87 @@
 # ASCENT — development log
 
+## 2026-07-30 — `burst` learns to aim along a moment, and the melee strike becomes a def
+
+**What changed.** `burst` gains a third aim mode — **`sourceToTarget`** — which centres its cone on the
+direction from the fire's `source` anchor to its `target` anchor, i.e. along the moment itself.
+`pixiFx.impact()` is deleted and migrated to `fx/defs/strike-impact.json` (`pixiFx.ts` 3566 → 3465 lines,
+−101). With it go `strikeFxConfig.ts` and the whole "💥 Lunge Impact" tuner panel, and the six `smoke*` knobs
+out of `smokeConfig.ts` — the last things that read them were inside the deleted method.
+
+**Why the direction had to become geometry.** `impact(x, y, dx, dy, power)` is directional: `dx/dy` is the
+attacker→defender vector and the sparks fan that way. `playDef` has no per-call angle and deliberately must
+not grow one — a def that four callers each bend differently stops being a committed composition (see
+`scaleDef.ts`'s header). So the direction is expressed in the two things a caller *already* stages: the
+anchors. `playContactImpact` pins `target` at the contact point (where every layer sits) and `source` at that
+point walked BACK along the blow, and the def's sparks layer reads exactly that vector.
+
+**Re-adding a channel that was deliberately cut.** #764 built this mode as `awayFrom` and cut it before merge
+for want of a caller, recording next to `BURST_AIM_MODES` both the reasoning and the exact cost of re-adding
+it. That cost is what was paid, unchanged in shape: an optional `setAim` on `FxInstance` and `FxPlayer`,
+delivered by `driveLayerHeads` from the STAGED `FxAnchors` — and **only when both were actually staged**.
+That gate is the whole point and it can only live there: one line later, inside `resolveAnchor`, an absent
+anchor has already become the invented `(0, 0)`, and a burst aimed from a phantom origin would fan away from
+the screen's top-left corner on every def that happens not to stage one.
+
+**The one departure from the cut design**, made deliberately: it aims between the two ANCHORS, not
+source → this layer's own head. The vector then describes the MOMENT rather than the layer, so every layer of
+a composition blows the same way whichever anchor its author pinned it to. Under source→head a layer anchored
+at `source` would be degenerate and one at `slot` would fan somewhere unrelated — the same def looking
+different for a reason invisible in the tuner. For `impact` itself the two are identical anyway (its layers
+are all anchored at `target`, the strike point). Degenerate cases — never staged, or staged coincident — both
+collapse to `null` and fall back to `travel`, never to `atan2(0, 0)`'s silent snap to `+x`.
+
+**Determinism held to the same standard as #764.** `emit()` draws exactly 7 values per particle in a fixed
+order, and with a locked seed that order IS the contract. `resolveBurstAimAngle` stays pure, gains a fourth
+(required) `aimAngle` parameter and is still resolved ONCE PER WAVE outside the per-particle loop; `setAim`
+draws nothing and only stores an angle. So `travel` and `fixed` are byte-identical and `sourceToTarget`
+consumes the identical stream with the cone rotated. Both structural guards survive — 6 literal `this.rand()`
+occurrences, one `const aim = resolveBurstAimAngle(` call site outside the loop — the arity assertion moves
+3 → 4, and the stream-reproduction test grows two cases: `travel` is byte-identical *with the new channel
+live* (it now reaches every fire that stages both anchors, i.e. defs with nothing to do with this feature),
+and an aimed `sourceToTarget` wave differs from the unaimed one by exactly the cone's rotation, per particle.
+
+**How `power` maps.** It was both a size and a count multiplier, so it splits across both magnitude axes:
+`scale: power` (the flash and shockwave `toScale` were literally `cfg × power`) and
+`intensity: 0.7 + 0.3 × power` (the old spark-count ramp). The old spark SPEED ramp was gentler
+(`0.85 + 0.15 × power`), which `scale` would over-apply — except the sparks layer is authored at `burst`'s
+`speed` ceiling of 800 and `transformParams` clamps to the slider range, so at any `power ≥ 1` the sparks fly
+at exactly 800 either way.
+
+**Fidelity, stated plainly.** The def re-authors the effect in the primitive vocabulary; it is faithful in
+read, not pixel-identical.
+- **The heavy ring no longer gates on `power ≥ 1.15`.** A def can't branch on a per-call axis, so the ring
+  now plays on every hit, authored quieter (alpha 0.6 against the old 0.55–0.95 ramp) and growing with
+  `scale`. A light chip ripples faintly where it used to be silent.
+- **The smoke rides the spark count ramp** rather than its own slightly gentler one (`0.75 + 0.25 × power`),
+  so it is a hair thicker at the 2× damage cap.
+- **The smoke's puff count floors at 4**, not 3: `burst`'s `count` spec has a minimum of 4.
+- **Sizes are re-authored by eye**, not converted: the hand-written layers were `toScale` multipliers on
+  generated glow/shard textures, which have no px equivalent in the def vocabulary.
+- **A zero blow vector now fans right rather than up** (`travel`'s fallback vs the old `|| 1` "up" default).
+  Unobservable — two units on the same pixel does not happen on a real board.
+
+**Where the tuner went.** `strikeFxConfig.ts` (7 keys) and `StrikeFxTuner.tsx` are deleted outright: every
+key drove the deleted method, and the panel's only other content was a mirror of the Smoke tuner's own
+controls. `smokeConfig.ts` loses its six `smoke*` keys the same way and is now pulse-only, so `SmokeTuner` is
+retitled **"Strike pulse"**. Its spec `id` (`'smoke'`) and storage key (`ascent.smoke`) are FROZEN and
+deliberately unchanged, so values a player has already dialled still load. The pulse stays hand-written
+because `impactPulse`'s `rings` argument REPLACES the ring count where `intensity` would multiply it — the
+one thing still blocking it, recorded in the roadmap.
+
+**`critImpact` is explicitly NOT in this change**, and direction was never its only gap. It still owes an
+aspect-ratio channel (its `defRect` drives a rectangular Graphics flash sized to the defender card, and one
+`scale` scalar collapses `w`/`h` — the same gap `shatterAt`/`rebornSummon` have), a text primitive for the
+"CRIT!" pop, and a way to express ~20 live `critFxConfig` knobs that is really "author several defs, not one".
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors), `npm test` — **3155 passing,
+162 files** — and `npm run build:web`, all green. `defs.test.ts` validated `strike-impact.json` against the
+primitives' own specs before the method was deleted, and caught two out-of-range authored values
+(a `speed` of 15 under the 20 minimum, a `count` of 3 under the 4 minimum).
+
+**Follow-ups.** The def's look wants an eyeball pass in a real fight — the layer magnitudes are a first
+authoring, and the workbench is where they should be tuned rather than in the JSON.
+
 ## 2026-07-30 — one button puts every tuner back to what ships
 
 **What changed.** A **Reset all tuners** action in the dev menu (♻️) returns all 46 schema-driven panels to their
@@ -118,6 +200,7 @@ axes composing without reaching each other, a census of which real primitives de
 **Follow-ups.** `impactPulse` is now unblocked on magnitude AND time — what remains is that its `rings`
 argument REPLACES the count where `intensity` multiplies it; a shockwave-based def plus an
 `intensity: rings / 2` at the call sites would close it. `impact`/`critImpact` still want direction.
+
 ## 2026-07-30 — Phase 2: fold a panel down, find a control, and A/B against what ships
 
 **What changed.** Three additions to the shared `TunerPanel`, so all 46 panels get them at once: **foldable
@@ -692,6 +775,7 @@ double-add Ward, and no Dwarf leaks into set 1. Gates: typecheck, typecheck:web,
 minion is Tier 2, 4/2, "Shout: get a Gold Pouch", while the roster lists Cheap Date as Tier 1, 1/1, "Get a
 random T1 minion when you sell this". Renaming was the literal instruction; if the roster line is what you want,
 it's a new card body (a sell trigger), not a rename.
+
 ## 2026-07-29 — the dev tuner menu gets categories, and tuners get a schema
 
 **What changed.** Two connected pieces of the dev tuning surface: the menu that indexes the tuners, and the
@@ -2422,6 +2506,7 @@ gilded triple and the Mammoth's escalation + carry-back.
 200 HP, so she never died and never summoned anything to buff. And `npm run typecheck` **excludes
 `packages/ui`** (it's covered by `npm run typecheck:web`, which is not in the CI gate list and currently has 8
 pre-existing errors) — a UI-only change can look green against the wrong gate. Both cost time here.
+
 ## 2026-07-28 — Scene Builder: minimize to a bottom-right dock
 
 **What changed.** The DEV Scene Builder's header **✕ now minimizes it to a dock** instead of no-op-closing.
@@ -3627,6 +3712,7 @@ Assets: 7 webp at native size, 72 KB total.
 and the rendered aspect ratios match the source art exactly (1.04, 1.74, 2.45, 3.15, 3.86, 4.55, 5.25) —
 proving width tracks tier while height stays pinned. Chrome overrides confirmed: transparent background, zero
 padding, no border.
+
 ## 2026-07-26 (per-tribe card frames)
 
 ### feat(ui): per-tribe TAUNT shields too
@@ -4964,6 +5050,7 @@ build:web + harness green.
   now also grants +1/+1 or +3 Attack). Left at their set-1 spec for now.
 * New tokens (T-Rex Baby, Mage-Pup) and a genuinely novel mechanic — Moonhowl Mentor's "when you buy a Shop
   spell, teach it to a Mage-Pup; End of Turn, get that Mage-Pup" — need rulings before they're built.
+
 ## 2026-07-24 (PROD CRASH — `useGame is not defined` in the packaged exe)
 
 ### fix(ui): import useGame in useCombatReplay; make store.ts test-safe
@@ -4991,6 +5078,7 @@ tests in those two suites). typecheck + lint + build:web green.
 
 Process note to self: my gate check grepped `× ` for failures, which misses FAILED SUITES (collection errors) —
 those need an exit-code check. That's how a 1586→1575 drop nearly slipped by.
+
 ## 2026-07-24 (bake the owner's tuned Refresh button)
 
 ### chore(ui): commit the tuned Refresh FX defaults
@@ -7288,6 +7376,7 @@ P4 (opportunistically migrate the 34 existing tuners onto the schema). Also trac
 `typecheck:web` into CI, without which these type-level tests aren't enforced there (and the ~50
 pre-existing `packages/ui` type errors stay invisible). Swapping the shipped `pixiFx.trail` wisps for the
 ribbon is a deliberate later PR, once the owner has tuned the look.
+
 ## 2026-07-24 (gilded cards materialise in gold)
 ### feat(ui): the golden plate tint is on the Card Plate tuner
 ### tweak(ui): lock in the owner's golden plate tone
@@ -7666,6 +7755,7 @@ the fan's `matrix(1, 0, 0, 1, 0, 33.3856)` for the whole burst. The animations r
 Follow-up: defaults are a starting point — bake the owner's tuned values once they land.
 
 ## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
+
 ## 2026-07-24 (placing / rearranging a card slides it home)
 
 ### feat(ui): placing or rearranging a minion slides it into the slot
@@ -9190,6 +9280,7 @@ faster and bigger with a touch of stagger — `spd` 25 → 50, `spdVar` → 1, `
 `stag` 0 → 0.14. The wireframe timing was already right and did not move.
 
 **Verified:** typecheck + lint + 1385 tests + `build:web` all green; mask confirmed in `dist` at 42 KB.
+
 ## 2026-07-22 (sets: play an unreleased set in the Scene Builder)
 
 ### feat(sim/ui): a set toggle in the Scene Builder, so set 2 can be built without disrupting set 1
@@ -10100,6 +10191,7 @@ no-legal-target case, and Kennelmaster's board-wide/Attack-only scope.
 **Follow-up.** `rallyGrantRandomSpell` and `rallyTribeAura` now have no card using them (Badgington and
 Solaris were their only consumers). Left in place deliberately — they're valid primitives for set 2 — but
 worth removing in their own PR if nothing picks them up.
+
 ## 2026-07-21 (hand-card backplate)
 
 ### feat(ui): hand cards gain an ornate backplate that dissolves when played
@@ -11816,6 +11908,7 @@ rule. The test now asserts the real invariant — Rallies **per rally swing**: e
 with Uron.
 
 1268 tests, typecheck, lint, build:web green.
+
 ## 2026-07-21o (Heckbinder, third pass + freeze jitter)
 
 ### fix(ui): the Fodder aura was missed in TWO more display paths; Freeze sits still
@@ -12603,6 +12696,7 @@ un-attributed file.
 Verified in the browser after a dev-server **restart** (a reload does not re-evaluate the eager
 `import.meta.glob`): all four serve as `image/webp` at 512x512 with the new byte sizes, and render
 correctly side by side.
+
 ## 2026-07-20 (balance batch)
 
 ### tweak(content): Ryme / Brightwing Broker / Combinator / Grim / Guardian Drake + retire Vineweaver Drake
@@ -13094,6 +13188,7 @@ set 1 — which is exactly what they are — so nothing needed re-stamping.
 
 
 Full guide: `docs/card-sets.md`.
+
 ## 2026-07-19 (later still)
 
 ### fix(ui): kill the three looping paint-property animations (shop-phase frame budget)
@@ -16232,6 +16327,7 @@ played immediately after (tracked via `comboArmed` in the reducer, reset each tu
   Gold Pouch display-text assertion.
 
 Verified: `typecheck` + `lint` + **1046 tests** + `build:web` all green.
+
 ## 2026-07-14 (session 42)
 
 ### fix(fx): second-deathrattle skull + summon-wait lost when a DR unit dies attacking a Target Dummy
@@ -22360,6 +22456,7 @@ Verified: `playerRating.test.ts` rewritten around the new model (truly-winning +
 cover-is-top-4 +12, miss-but-summit 0, floors, promo/demo hysteresis) — `typecheck` + `lint` + `test` (**486**)
 + `build:web` green; live end screen shows `Summit Bonus +8 · Final Win +16 · Rating +36` on a flawless win.
 Numbers are starting dials — flag any you want higher/lower.
+
 ## 2026-07-05 (session 21)
 
 ### feat(ui): the damage number sticks to the struck card (no upward float)
@@ -22679,6 +22776,7 @@ Verified live (browser store, throwaway `newRun(777,'nadja')` with a planted 10-
 and a simulated mid-run `wave 8` history): tier badges on every hand card, no pill/outline clipping, hand
 clears the hero frame (+59px), 2×2 frame lays out clean (portrait/name top, power/Resolve bottom), dash
 track renders ✓/✕/dash/orange correctly. `typecheck` + `lint` + `test` (483) + `build:web` green.
+
 ## 2026-07-05 (session 20)
 
 ### fix(ui): damage numbers actually suppress on the attacker (the target-only rule was a no-op)

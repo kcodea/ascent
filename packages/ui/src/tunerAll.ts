@@ -55,7 +55,6 @@ import { SPEC as SpellBuffFxSpec } from './SpellBuffFxTuner';
 import { SPEC as SpellPowerFxSpec } from './SpellPowerFxTuner';
 import { SPEC as StepCounterSpec } from './StepCounterTuner';
 import { SPEC as StepProcFxSpec } from './StepProcFxTuner';
-import { SPEC as StrikeFxSpec } from './StrikeFxTuner';
 import { SPEC as SwapFxSpec } from './SwapFxTuner';
 import { SPEC as TavernUpSpec } from './TavernUpTuner';
 import { SPEC as TrailSpec } from './TrailTuner';
@@ -106,7 +105,6 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   SpellPowerFxSpec,
   StepCounterSpec,
   StepProcFxSpec,
-  StrikeFxSpec,
   SwapFxSpec,
   TavernUpSpec,
   TrailSpec,

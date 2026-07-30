@@ -2677,7 +2677,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) if (m.cardId === 'impscrap') ctx.buff(m, a, h, self.uid);
   },
 
-  /** Set 2 — Cinder Chancellor: whenever an Imp attacks, give your Imps +atk/+hp for the rest of the combat,
+  /** Set 2 — Rouge Rogue: whenever an Imp attacks, give your Imps +atk/+hp for the rest of the combat,
    *  improving by `improve` every `improveEvery` Imp attacks. The escalation rides `summonBonus` (per-instance,
    *  so it resets each fight — "this combat"), and the attack tally rides `attackSeen`. */
   onImpAttackBuffImps: (ctx, self, params, payload) => {

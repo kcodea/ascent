@@ -1167,7 +1167,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
 
-  /** Set 2 — Cinder Chancellor:on each SHOP SPELL cast, give your Imps +atk/+hp EVERYWHERE (the run-wide Imp
+  /** Set 2 — Rouge Rogue:on each SHOP SPELL cast, give your Imps +atk/+hp EVERYWHERE (the run-wide Imp
    *  enchant, so Imps summoned later inherit it). `spellCast` is already Ruby-blind, so "Shop Spell" holds. */
   spellCastBuffImps: (ctx, self, params) => {
     const a = num(params.attack, 1) * gold(self);
@@ -2168,7 +2168,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Contract Butcher (Shout) / Display Curator (End of Turn): "give minions in the Shop +atk/+hp".
+  /** Set 2 — Contract Butcher (Shout) / Soul Defiler (End of Turn): "give minions in the Shop +atk/+hp".
    *
    *  PERMANENT, via the same `tavernBuyBonus` channel Staff of Guel uses — NOT the per-offer channel (owner
    *  ruling 2026-07-25). The vocabulary is exact: "minions in the Shop" is a lasting buff on everything you buy

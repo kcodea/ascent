@@ -58,6 +58,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_pillaging',
+    sets: ['set1'],
     name: 'Rune of Pillaging',
     cost: 6,
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
@@ -99,8 +100,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_scale',
     name: 'Rune of Bulk Order',
     cost: 5,
-    text: 'Whenever you spend Gold, give **3 random allies +2/+2**.',
-    reward: { kind: 'runeScale', count: 3, attack: 2, health: 2 },
+    text: 'Every **5 Gold** you spend, give **3 random allies +3/+3**.',
+    reward: { kind: 'runeScale', count: 3, attack: 3, health: 3, per: 5 },
   },
   {
     id: 'rune_action',
@@ -236,6 +237,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_warden',
+    sets: ['set1'],
     name: 'Rune of the Warden',
     cost: 5,
     text: 'Get a **Spear Warden**. When you have room in combat, summon a **Spear Warden**.',
@@ -327,6 +329,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_spearline',
+    sets: ['set1'],
     name: 'Rune of the Spearline',
     cost: 7,
     epic: true,
@@ -361,6 +364,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_frontline_glory',
+    sets: ['set1'],
     name: 'Rune of Frontline Glory',
     cost: 8,
     epic: true,
@@ -369,6 +373,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_soul_taxes',
+    sets: ['set1'],
     name: 'Rune of Soul Taxes',
     cost: 4,
     epic: true,
@@ -394,6 +399,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_den_mother',
+    sets: ['set1'],
     name: 'Rune of the Den Mother',
     cost: 7,
     epic: true,
@@ -445,6 +451,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Batch 4b: the two new signature cards ──
   {
     id: 'rune_feast',
+    sets: ['set1'],
     name: 'Rune of the Feast',
     cost: 5,
     epic: true,
@@ -453,6 +460,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_reconfiguration',
+    sets: ['set1'],
     name: 'Rune of Reconfiguration',
     cost: 6,
     epic: true,
@@ -539,6 +547,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_mastery',
+    sets: ['set1'],
     name: 'Rune of Mastery',
     cost: 7,
     epic: true,

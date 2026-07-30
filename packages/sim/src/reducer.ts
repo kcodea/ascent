@@ -56,18 +56,30 @@ function spendGold(s: RunState, amount: number): void {
       for (const c of s.board) if (isTribe(c, g.tribe)) addBuff(c, 'The Golden Ledger', g.attack, g.health);
     }
   }
-  // Rune of Scale (Epic): each Gold-spend gives `count` random board minions +atk/+hp. Once per spend transaction
-  // (a buy / roll / tier-up / hero power), not per Gold. Seeded off the run's RNG cursor.
+  // Rune of Bulk Order: gives `count` random board minions +atk/+hp when you spend Gold. With `per` set (owner
+  // sheet 2026-07-30: "Every 5 Gold spent") it pays once per `per` Gold and BANKS the remainder across
+  // transactions, so two 3-Gold buys pay once — the same threshold contract the Golden Ledger uses. Without
+  // `per` it falls back to once per spend transaction. Seeded off the run's RNG cursor.
   if (s.runeScale && amount > 0 && s.board.length > 0) {
     const { count, attack, health } = s.runeScale;
+    let payouts = 1;
+    if (s.runeScale.per) {
+      s.runeScale.tick = (s.runeScale.tick ?? 0) + amount;
+      payouts = 0;
+      while (s.runeScale.tick >= s.runeScale.per) { s.runeScale.tick -= s.runeScale.per; payouts += 1; }
+      if (payouts === 0) return;
+    }
     const rng = makeRng(s.rngCursor);
     const pool = [...s.board];
     // Wrapped for FX so each picked ally gets a descend (sourceless — the rune has no board anchor) rather than
     // a silent stat jump. RNG is unchanged: the picks still run inside, s.rngCursor advances exactly as before.
     captureBuffFx(s, undefined, 'spell', () => {
-      for (let i = 0; i < count && pool.length > 0; i++) {
-        const pick = pool.splice(rng.int(pool.length), 1)[0]!;
-        addBuff(pick, 'Rune of Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
+      for (let p = 0; p < payouts; p++) {
+        const picks = [...pool];
+        for (let i = 0; i < count && picks.length > 0; i++) {
+          const pick = picks.splice(rng.int(picks.length), 1)[0]!;
+          addBuff(pick, 'Rune of Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
+        }
       }
     });
     s.rngCursor = rng.state();
@@ -3058,7 +3070,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeDenMother = true; // Rune of the Den Mother: Den Mother buffs herself too
       break;
     case 'runeScale':
-      s.runeScale = { count: r.count, attack: r.attack, health: r.health }; // each Gold-spend buffs random allies
+      s.runeScale = { count: r.count, attack: r.attack, health: r.health, per: r.per, tick: 0 }; // Gold-spend buffs random allies
       break;
     case 'runeCopies':
       // Rune of Copies: arm the per-turn copy — at the start of each shop, copy a random board minion to hand.

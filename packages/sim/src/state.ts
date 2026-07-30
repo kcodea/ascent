@@ -701,7 +701,7 @@ export interface RunState {
    *  the value/generate powers (scalingGold / gainMaxMana / fortify / dynamiteDig). */
   runeEmpowerment?: boolean;
   /** Rune of Scale (Epic): every Gold-spend gives `count` random board minions +attack/+health. */
-  runeScale?: { count: number; attack: number; health: number };
+  runeScale?: { count: number; attack: number; health: number; per?: number; tick?: number };
   /** Rune of Copies (Epic): copy a random board minion to hand at the start of every turn. */
   runeCopies?: boolean;
   /** Rune of Tempering: the FIRST Attachment (Magnetic) you play each turn also gives that minion Ward. */

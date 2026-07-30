@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-07-30 — Three renames, set-1 rune scoping, Bulk Order retuned
+
+**Renames** (owner 2026-07-30): Display Curator → **Soul Defiler**, Velvet Rope Fiend → **Bug Huggies**, Cinder
+Chancellor → **Rouge Rogue**. Card *ids* are unchanged (`dm_curator`, `dm_velvet`, `dm_chancellor`), so the art
+files — keyed by id, not name — survive untouched. Historical devlog entries were deliberately NOT rewritten:
+they are a record of what was true when written.
+
+**Set-1 rune scoping.** Owner ruling: every rune absent from the set-2 sheet is set-1 specific. Ten runes gained
+`sets: ['set1']` (Frontline Glory, Mastery, Pillaging, Reconfiguration, Soul Taxes, Den Mother, Feast, Spearline,
+Warden, Rising Graves); eleven already carried it from the earlier scoping pass.
+
+**Rune of Bulk Order** keeps its name (owner ruling — the sheet's "Rune of Scale" row IS this rune), so it is NOT
+set-1 scoped. But the sheet retunes its effect: "Whenever you spend Gold, 3 random allies +2/+2" →
+**"Every 5 Gold spent, 3 random allies +3/+3"**. `runeScale` gained an optional `per` threshold that BANKS the
+remainder across transactions — two 3-Gold buys pay once, and a 10-Gold buy pays twice. Absent `per`, it still
+falls back to once-per-transaction, so no other rune using the kind changed behaviour.
+
+**rune_brisbane** confirmed as High King Mykel (owner) — no change needed. **Martial Training** is dropped from
+the quest roster (owner: "master at arms quest is removed"), so Set 2's quests are COMPLETE at 26.
+
+Verified: typecheck (both), lint (6 pre-existing), 3140 tests, build:web, harness determinism.
+
 ## 2026-07-30 — Bane's Presence correction + the rune-roster audit
 
 **Bane's Presence** — owner correction: "the effect is repeatable, not the quest." Dropped `repeatable: true`.

@@ -195,11 +195,11 @@ export type EffectFactoryId =
   | 'avengeImproveSummonBuff' // Set 2 — Broodwright: Avenge improves its own summon grant
   | 'onSummonImpBuff' // Set 2 — Broodwright: an Imp you summon gains +X/+Y (improvable via summonBonus)
   | 'scFillWithImpsAndBuff' // Set 2 — Legion Shepherd: fill the warband with Imps, then buff Imps per one summoned
-  | 'onImpAttackBuffImps' // Set 2 — Cinder Chancellor: an Imp attacking buffs your Imps, escalating
+  | 'onImpAttackBuffImps' // Set 2 — Rouge Rogue: an Imp attacking buffs your Imps, escalating
   | 'battlecryConsumeShopRandom' // Set 2 — Cinder Clerk: Shout — consume a random Shop minion
   | 'consumeShopRightmost' // Set 2 — Demon Horse / Revolving Maw: consume the right-most Shop minion
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
-  | 'buffShopPermanent' // Set 2 — Contract Butcher / Display Curator: permanent buff to minions bought from the Shop
+  | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
   | 'shopRefreshedBuffRightmost' // Set 2 — Market Tormentor: each fresh Shop's right-most minion comes in buffed
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Tallymonger: buff your spells and Imps
@@ -216,7 +216,7 @@ export type EffectFactoryId =
   | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Bob Blart: eat the fattest Shop minion
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
-  | 'spellCastBuffImps' // Set 2 — Cinder Chancellor: a Shop spell buffs your Imps everywhere
+  | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
   | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
@@ -823,7 +823,7 @@ export type QuestReward =
   // Rune of the Den Mother: your Den Mother also buffs herself when she buffs another Beast.
   | { kind: 'runeDenMother' }
   // Rune of Scale (Epic): every time you spend Gold, give `count` random board minions +attack/+health.
-  | { kind: 'runeScale'; count: number; attack: number; health: number }
+  | { kind: 'runeScale'; count: number; attack: number; health: number; /** Gold threshold: pay once per `per` Gold, banking the remainder. Absent = once per spend transaction. */ per?: number }
   // Rune of Copies (Epic): copy a random board minion to your hand now, and again at the start of every turn.
   | { kind: 'runeCopies' }
   // Rune of Tempering: the first Attachment you play each turn also gives that minion Ward.

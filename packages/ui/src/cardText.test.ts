@@ -228,7 +228,7 @@ describe('alternatingBuffText — Bathing Matriarch', () => {
 });
 
 describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () => {
-  it('Display Curator prints the buff it will ACTUALLY give, not the printed base', () => {
+  it('Soul Defiler prints the buff it will ACTUALLY give, not the printed base', () => {
     // Its Shop buff climbs every trigger, so "+1/+1" is stale after the first End of Turn.
     expect(shopBuffImproveText('dm_curator', 0), 'unclimbed should keep the printed text').toBeNull();
     const t = shopBuffImproveText('dm_curator', 2, false)!;

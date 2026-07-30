@@ -151,7 +151,7 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
 
 
 
-describe('set 2 — Contract Butcher / Display Curator buff the shop', () => {
+describe('set 2 — Contract Butcher / Soul Defiler buff the shop', () => {
   it('Butcher permanently buffs what you buy from the Shop', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
@@ -390,7 +390,7 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
  * a mismatch is silent, so neither showed up as a failing test.
  */
 describe('set 2 — regressions from the effect-param audit', () => {
-  it('Velvet Rope Fiend grants a REAL card id (it passed `spellId`; the factory reads `cardId`)', () => {
+  it('Bug Huggies grants a REAL card id (it passed `spellId`; the factory reads `cardId`)', () => {
     const eff = CARD_INDEX['dm_velvet']!.effects.find((e) => e.do === 'deathrattleGrantSpell')!;
     const granted = eff.params?.cardId as string;
     // The wrong key meant `str(params.cardId)` → '' → a hand-grant of the empty id, which crashed the

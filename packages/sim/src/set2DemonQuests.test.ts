@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, QUEST_DEFS } from '@game/content';
 import { createRun, reduce, type RunState } from './index';
-import { applyRunShopBuff, applyShopRefreshQuestBuff, applyShoutsForShopBuff } from './recruit';
+import { applyGoldSpent, applyRunShopBuff, applyShopRefreshQuestBuff, applyShoutsForShopBuff } from './recruit';
 
 /**
  * SET 2 — the DEMON shop line. The Set-2 Demon manipulates the SHOP rather than eating Fodder, so all three
@@ -91,5 +91,37 @@ describe('the quest data', () => {
     expect(bonus(s)).toEqual({ a: 4, h: 4 });
     const kinds = (questById('q_stock_the_shelves').reward as { rewards: { kind: string }[] }).rewards.map((x) => x.kind);
     expect(kinds).toEqual(['grant', 'shopBuff']);
+  });
+});
+
+describe('Rune of Bulk Order — every 5 Gold, not every transaction', () => {
+  /**
+   * Owner sheet 2026-07-30 moved this from "whenever you spend Gold, +2/+2" to "every 5 Gold spent, +3/+3".
+   * The threshold BANKS across transactions, so two 3-Gold buys pay once — a per-transaction reading would pay
+   * twice, and a non-banking one would never pay for small buys.
+   */
+  const armed = (): RunState => ({
+    ...set2(), embers: 30,
+    board: [{ uid: 'a', cardId: 'pack', tribe: 'beast', attack: 3, health: 3, keywords: [], golden: false }],
+    runeScale: { count: 3, attack: 3, health: 3, per: 5, tick: 0 },
+  } as RunState);
+  const atk = (s: RunState) => s.board[0]!.attack;
+
+  it('banks the remainder and pays once at 5 Gold', () => {
+    let s = armed();
+    const base = atk(s);
+    for (let i = 0; i < 4; i++) s = reduce(s, { type: 'roll' }); // 4 Gold
+    expect(atk(s), 'paid out below the threshold').toBe(base);
+    s = reduce(s, { type: 'roll' }); // 5th Gold
+    expect(atk(s), 'never paid at the threshold').toBe(base + 3);
+  });
+
+  it('a single big spend pays for every threshold it crosses', () => {
+    const s = armed();
+    applyGoldSpent(s, 0); // no-op; the payout rides the reducer's spend hook
+    let n = armed();
+    for (let i = 0; i < 10; i++) n = reduce(n, { type: 'roll' });
+    expect(atk(n), '10 Gold should pay exactly twice').toBe(3 + 6);
+    expect(s.board[0]!.attack).toBe(3);
   });
 });

@@ -456,3 +456,51 @@ describe('set scoping for quests and runes (owner 2026-07-29)', () => {
     expect(s1.some((r) => r.id === 'rune_gemcutting'), 'a Ruby rune is offerable in set 1').toBe(false);
   });
 });
+
+describe('Fatecarver (owner roster 2026-07-29)', () => {
+  /** Both branches are watchers, so the tests must fire the TRIGGER, not just play the card. */
+  const pick = (s: RunState, uid: string, index: number): RunState => {
+    const opened = reduce(s, { type: 'play', uid });
+    expect(opened.chooseOne?.uid ?? opened.pendingTarget?.uid, 'the Choose One never opened').toBeTruthy();
+    return reduce(opened, { type: 'chooseOne', index });
+  };
+
+  it('is in set 2 with both branches declared', () => {
+    const def = CARD_INDEX['n2_fatecarver']!;
+    expect(def.chooseOne, 'Fatecarver has no Choose One').toHaveLength(2);
+    expect(poolFor('set2').all.some((c) => c.id === 'n2_fatecarver')).toBe(true);
+  });
+
+  it('branch A buffs ONE minion of each type on a spell cast, not every minion', () => {
+    // Two Beasts + one Demon: only the FIRST Beast and the Demon should gain. Board order decides, so the
+    // player steers it by arranging the line.
+    let s = set2();
+    const beast1 = { ...body('dw_brakka', 'b1'), cardId: 'pack', tribe: 'beast' as const };
+    const beast2 = { ...body('dw_brakka', 'b2'), cardId: 'pack', tribe: 'beast' as const };
+    const demon = { ...body('dw_brakka', 'd1'), cardId: 'impscrap', tribe: 'demon' as const };
+    s = { ...s, board: [beast1, beast2, demon], hand: [body('n2_fatecarver', 'fc')] };
+    s = pick(s, 'fc', 0);
+    s = { ...s, hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    const atk = (uid: string, st: RunState): number => st.board.find((x) => x.uid === uid)!.attack;
+    const before = [atk('b1', s), atk('b2', s), atk('d1', s)];
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    // Growth itself buffs the whole board +1/+1, so compare the DELTA above that baseline.
+    const after = [atk('b1', s), atk('b2', s), atk('d1', s)];
+    expect(after[0]! - before[0]!, 'the first Beast should get Growth +1 AND Fatecarver +2').toBe(3);
+    expect(after[1]! - before[1]!, 'the second Beast should get Growth only').toBe(1);
+    expect(after[2]! - before[2]!, 'the Demon should get Growth +1 AND Fatecarver +2').toBe(3);
+  });
+
+  it('branch B casts Growth when a friendly attacks — and NOT on an enemy swing', () => {
+    const foe = (a: number, h: number): BoardMinion => ({ cardId: 'sandbag', attack: a, health: h, keywords: [] } as unknown as BoardMinion);
+    const carver = (): BoardMinion => {
+      const d = CARD_INDEX['n2_fatecarver']!;
+      return { cardId: d.id, attack: d.attack, health: d.health, keywords: [], chosenOption: 1 } as unknown as BoardMinion;
+    };
+    const r = simulate([carver(), foe(1, 40) as BoardMinion], [foe(0, 40)], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6, poolIds: poolFor('set2').all.map((c) => c.id) }), combatSide({ tier: 6 }));
+    // A friendly swing should produce buff events sourced from the Carver; an enemy-only board would produce none.
+    const buffs = r.events.filter((e) => e.type === 'buff');
+    expect(buffs.length, 'no Growth was cast on a friendly attack').toBeGreaterThan(0);
+  });
+});

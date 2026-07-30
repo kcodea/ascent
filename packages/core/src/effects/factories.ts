@@ -683,6 +683,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /**
+   * Fatecarver (Choose One, second branch) — when a FRIENDLY minion attacks, cast Growth on your board.
+   *
+   * "Cast Growth" is spelled out as the buff it produces rather than routed through the spell system: a Shop
+   * spell has no combat cast path, and Growth is simply +1/+1 to your board (`spellBuffAll`). Guarded on the
+   * attacker being ours — without that it would fire on the enemy's swings too, which is the standard bug in
+   * this family. Golden casts it twice.
+   */
+  onFriendlyAttackCastGrowth: (ctx, self, params, payload) => {
+    // Same Choose One gate as the recruit half — a persistent branch is a printed effect that checks the pick.
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    const a = num(params.attack, 1);
+    const h = num(params.health, 1);
+    for (let i = 0; i < mul(self); i++) {
+      for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   /** Lieutenant Thane — Rally: hand THIS minion's current Attack to `count` other living friendlies. Reads its
    *  Attack live, so a buffed Thane spreads more; golden repeats the whole spread. */
   rallyGiveAttackToOthers: (ctx, self, params, payload) => {

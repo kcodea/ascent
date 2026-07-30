@@ -474,6 +474,8 @@ export type EffectFactoryId =
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
   | 'onTribeSummonedBuffTribe' // Set 2 Dwarves — Chef Gary Toast (watches OTHER plays, not its own Shout)
+  | 'onSpellCastBuffOnePerTribe' // Set 2 — Fatecarver (Choose One A)
+  | 'onFriendlyAttackCastGrowth' // Set 2 — Fatecarver (Choose One B)
   | 'spellCastTriggerAdjacentShouts' // Set 2 Dwarves — High King Mykel // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)

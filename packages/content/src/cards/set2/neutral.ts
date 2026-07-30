@@ -123,4 +123,28 @@ export const SET2_NEUTRAL: CardDef[] = [
     text: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+3/+3** permanently.',
     goldenText: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+6/+6** permanently.',
   },
+  {
+    // Owner roster addition 2026-07-29. Two branches, deliberately different SHAPES rather than two stat buffs:
+    // branch A pays off the spell/Dragon half of set 2 (per-cast, per-type spread), branch B pays off a wide
+    // aggressive board (per-attack, board-wide). Which one is live is a real read on your build.
+    id: 'n2_fatecarver',
+    name: 'Fatecarver',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    // Both branches are PERSISTENT, so they are printed effects gated on `option` rather than
+    // `chooseOne[].effects` — the latter fires once at pick time and never again (see Malphas).
+    effects: [
+      { on: 'spellCast', do: 'onSpellCastBuffOnePerTribe', params: { option: 0, attack: 2, health: 2 } },
+      { on: 'onAttack', do: 'onFriendlyAttackCastGrowth', params: { option: 1, attack: 1, health: 1 } },
+    ],
+    chooseOne: [
+      { text: 'When you cast a **Shop spell**, give **1 minion of each type +2/+2**.', goldenText: 'When you cast a **Shop spell**, give **1 minion of each type +4/+4**.', effects: [] },
+      { text: 'When a friendly minion attacks, cast **Growth**.', goldenText: 'When a friendly minion attacks, cast **Growth twice**.', effects: [] },
+    ],
+    text: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +2/+2**, or cast **Growth** when a friendly minion attacks.',
+    goldenText: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +4/+4**, or cast **Growth twice** when a friendly minion attacks.',
+  },
 ];

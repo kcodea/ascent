@@ -1,88 +1,97 @@
-import { useState } from 'react';
-import { STRIKEFX_KEYS, STRIKEFX_RANGES, getStrikeFxConfig, resetStrikeFxConfig, setStrikeFxValue, type StrikeFxConfig } from './strikeFxConfig';
-import { SMOKE_RANGES, getSmokeConfig, setSmokeValue, type SmokeConfig } from './smokeConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { STRIKEFX_DEFAULTS, STRIKEFX_RANGES, getStrikeFxConfig, resetStrikeFxConfig, setStrikeFxValue, type StrikeFxConfig } from './strikeFxConfig';
+import { SMOKE_DEFAULTS, SMOKE_RANGES, getSmokeConfig, setSmokeValue, type SmokeConfig } from './smokeConfig';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only "Lunge Strike Effects" tuner — the whole combat strike-impact package in one panel: the melee
- * flash / shockwave / heavy ring / sparks (`strikeFxConfig` → `pixiFx.impact`),
- * plus the impact smoke + dust billow + energy pulse (which live in `smokeConfig` alongside the card-drop dust,
- * surfaced here so it's all dialed together). Drag the sliders to tune by eye — values persist to localStorage
- * and apply to the NEXT strike (watch a fight to judge). "Copy" grabs the merged JSON to paste back as the
- * shipped defaults; "Reset" clears the strike-FX config (the smoke/dust keys reset from the Smoke tuner). Panel-
- * only: opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
+ * DEV-only tuner for the whole combat strike-impact package in one panel: the melee flash / shockwave / heavy
+ * ring / sparks from `strikeFxConfig`, PLUS the impact smoke, dust billow and energy pulse — which live in
+ * `smokeConfig` alongside the card-drop dust, and are surfaced here so the package tunes together. Values apply
+ * to the NEXT strike; watch a fight to judge.
+ *
+ * TWO CONFIGS, ONE PANEL. The spec's `read` merges both objects and `write` dispatches on the key, so
+ * persistence still runs through each config's own accessors. "Copy values" therefore yields the merged JSON,
+ * as the hand-rolled panel did.
+ *
+ * The asymmetry that used to be buried in a doc comment: **Reset clears only the strike keys.** The smoke, dust
+ * and pulse values are shared with the Smoke & Dust tuner, so resetting them from here would silently undo work
+ * done in that panel and to the card-drop dust. Those controls now say so individually via their caveat marker,
+ * rather than the fact living in prose nobody reads mid-tune.
  */
-const STRIKE_LABELS: Record<keyof StrikeFxConfig, string> = {
-  flashSize: 'flash size',
-  shockwaveSize: 'shockwave size',
-  ringScale: 'heavy ring',
-  sparkCount: 'spark count',
-  sparkSpeed: 'spark speed',
-  sparkSpread: 'spark spread°',
-  sparkSize: 'spark size',
+
+/** The strike-relevant subset of `smokeConfig`. The rest of that config is card-drop dust and is not shown here. */
+const SMOKE_KEYS = [
+  'smokeCount', 'smokeRise', 'smokeDrift', 'smokeLife', 'smokeGrow', 'smokeAlpha',
+  'impDustCount', 'impDustSpeed', 'impDustLife', 'impDustSize',
+  'impPulseRadius', 'impPulseDur', 'impPulseRings',
+] as const;
+type SmokeKey = (typeof SMOKE_KEYS)[number];
+
+/** The panel's value shape: the strike config plus the borrowed smoke keys. */
+type StrikePanelConfig = StrikeFxConfig & Pick<SmokeConfig, SmokeKey>;
+
+const SHARED =
+  'Shared with the Smoke & Dust tuner and with the card-drop dust. This panel’s Reset does NOT clear it — '
+  + 'reset it from Smoke & Dust if you want the shipped value back.';
+
+const STRIKE: Record<keyof StrikeFxConfig, [string, TunerUnit | undefined, string]> = {
+  flashSize:     ['Flash size', '×', 'Size of the white impact flash at the point of contact.'],
+  shockwaveSize: ['Shockwave size', '×', 'Size of the expanding shockwave ring.'],
+  ringScale:     ['Heavy ring size', '×', 'Size of the slower, heavier second ring. 0 removes it.'],
+  sparkCount:    ['Spark count', undefined, 'How many sparks the hit throws.'],
+  sparkSpeed:    ['Spark speed', '×', 'How fast the sparks fly out.'],
+  sparkSpread:   ['Spark spread', '°', 'How wide an arc the sparks cover. 360 throws them in every direction.'],
+  sparkSize:     ['Spark size', '×', 'Size of each spark.'],
 };
 
-// The smoke / dust billow / energy pulse of a strike live in smokeConfig (shared with the card-drop dust);
-// surface just the strike-relevant keys here so the whole package tunes in one panel.
-const SMOKE_SUBSET: { key: keyof SmokeConfig; label: string }[] = [
-  { key: 'smokeCount', label: 'smoke count' },
-  { key: 'smokeRise', label: 'smoke rise' },
-  { key: 'smokeDrift', label: 'smoke drift' },
-  { key: 'smokeLife', label: 'smoke life ms' },
-  { key: 'smokeGrow', label: 'smoke grow' },
-  { key: 'smokeAlpha', label: 'smoke alpha' },
-  { key: 'impDustCount', label: 'dust count' },
-  { key: 'impDustSpeed', label: 'dust speed' },
-  { key: 'impDustLife', label: 'dust life ms' },
-  { key: 'impDustSize', label: 'dust size' },
-  { key: 'impPulseRadius', label: 'pulse radius' },
-  { key: 'impPulseDur', label: 'pulse time ms' },
-  { key: 'impPulseRings', label: 'pulse rings' },
+const SMOKE: Record<SmokeKey, [string, TunerUnit | undefined, string, string]> = {
+  smokeCount:     ['Puff count', undefined, 'How many smoke puffs the impact throws.', 'Impact smoke'],
+  smokeRise:      ['Rise', 'px', 'How far the smoke lifts as it fades. 0 keeps it flat.', 'Impact smoke'],
+  smokeDrift:     ['Spread', 'px', 'How far the puffs billow outward from the hit.', 'Impact smoke'],
+  smokeLife:      ['Lifetime', 'ms', 'How long one puff lasts before it has fully faded.', 'Impact smoke'],
+  smokeGrow:      ['Expansion', '×', 'How much a puff grows over its life.', 'Impact smoke'],
+  smokeAlpha:     ['Opacity', 'opacity', 'Peak opacity of the smoke.', 'Impact smoke'],
+  impDustCount:   ['Puff count', undefined, 'How many dust puffs erupt from the strike point.', 'Impact dust'],
+  impDustSpeed:   ['Billow speed', 'px/s', 'How fast that dust pushes outward.', 'Impact dust'],
+  impDustLife:    ['Lifetime', 'ms', 'How long one puff lasts.', 'Impact dust'],
+  impDustSize:    ['Puff radius', 'px', 'Size of each puff.', 'Impact dust'],
+  impPulseRadius: ['Ring radius', 'px', 'How far the energy ring expands from the strike point.', 'Energy pulse'],
+  impPulseDur:    ['Ring lifetime', 'ms', 'How long a ring takes to expand and fade.', 'Energy pulse'],
+  impPulseRings:  ['Ring count', undefined, 'How many rings fire. 0 disables the pulse entirely.', 'Energy pulse'],
+};
+
+const STRIKE_ORDER = Object.keys(STRIKE) as (keyof StrikeFxConfig)[];
+
+const controls: TunerControl<Extract<keyof StrikePanelConfig, string>>[] = [
+  ...STRIKE_ORDER.map((key) => {
+    const [label, unit, hint] = STRIKE[key];
+    const [min, max, step] = STRIKEFX_RANGES[key];
+    return { key, label, unit, hint, group: 'Melee impact', min, max, step };
+  }),
+  ...SMOKE_KEYS.map((key) => {
+    const [label, unit, hint, group] = SMOKE[key];
+    const [min, max, step] = SMOKE_RANGES[key];
+    return { key, label, unit, hint, group, note: SHARED, min, max, step };
+  }),
 ];
 
-export function StrikeFxTuner() {
-  const [sfxCfg, setSfxCfg] = useState<StrikeFxConfig>(getStrikeFxConfig());
-  const [smCfg, setSmCfg] = useState<SmokeConfig>(getSmokeConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('strikefx');
+const STRIKE_KEY_SET = new Set<string>(STRIKE_ORDER);
 
-  const setStrike = (k: keyof StrikeFxConfig, v: number): void => { setStrikeFxValue(k, v); setSfxCfg({ ...getStrikeFxConfig() }); };
-  const setSmoke = (k: keyof SmokeConfig, v: number): void => { setSmokeValue(k, v); setSmCfg({ ...getSmokeConfig() }); };
-  const copy = (): void => {
-    const smoke = Object.fromEntries(SMOKE_SUBSET.map(({ key }) => [key, getSmokeConfig()[key]]));
-    void navigator.clipboard?.writeText(JSON.stringify({ ...getStrikeFxConfig(), ...smoke }, null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetStrikeFxConfig(); setSfxCfg({ ...getStrikeFxConfig() }); };
+const SPEC: TunerSpec<StrikePanelConfig> = {
+  id: 'strikefx',                   // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Lunge Impact',
+  note: 'dev · next strike · drag',
+  read: () => ({ ...getStrikeFxConfig(), ...getSmokeConfig() }) as StrikePanelConfig,
+  write: (key, value) => {
+    if (STRIKE_KEY_SET.has(key)) setStrikeFxValue(key as keyof StrikeFxConfig, value);
+    else setSmokeValue(key as keyof SmokeConfig, value);
+  },
+  // Strike keys only, deliberately — see the note at the top of this file.
+  reset: resetStrikeFxConfig,
+  defaults: { ...STRIKEFX_DEFAULTS, ...SMOKE_DEFAULTS } as StrikePanelConfig,
+  controls,
+};
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Lunge Strike Effects <span>dev · next strike · drag</span></div>
-      {STRIKEFX_KEYS.map((k) => {
-        const [min, max, step] = STRIKEFX_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name">{STRIKE_LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={sfxCfg[k]} onChange={(e) => setStrike(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{sfxCfg[k]}</span>
-          </div>
-        );
-      })}
-      {SMOKE_SUBSET.map(({ key, label }) => {
-        const [min, max, step] = SMOKE_RANGES[key];
-        return (
-          <div className="sfxmix-row" key={key}>
-            <span className="sfxmix-name">{label}</span>
-            <input type="range" min={min} max={max} step={step} value={smCfg[key]} onChange={(e) => setSmoke(key, Number(e.target.value))} />
-            <span className="sfxmix-val">{smCfg[key]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export function StrikeFxTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

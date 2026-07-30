@@ -113,8 +113,6 @@ export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
   tribeNameSize: 'Tribe-name label — font size (× card width).',
 };
 
-export const PLATE_KEYS = Object.keys(DEFAULTS) as (keyof CardPlateConfig)[];
-
 const KEY = 'ascent.cardplate';
 let cfg: CardPlateConfig = (() => {
   // DEV-ONLY localStorage override: a tuner's saved tweaks must never beat the shipped DEFAULTS in a

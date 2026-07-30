@@ -80,17 +80,6 @@ const DEFAULTS: WeldFxConfig = {
   wiggleMs: 350, wigglePx: 2, wiggleDeg: 1.8, wiggleScale: 1.05,
 };
 
-export const WELDFX_KEYS = [
-  'ringStart', 'ringEnd', 'ringMs', 'ringWidth', 'ringAlpha', 'ringGlowWidth',
-  'ringSides', 'ringAspect', 'ringRotation', 'ringSpin',
-  'easeStart', 'easeFinish',
-  'spokeCount', 'spokeLen', 'spokeWidth', 'spokeAlpha', 'spokeGap',
-  'flashSize', 'flashMs', 'flashAlpha',
-  'sparkCount', 'sparkSpeed', 'sparkSpread', 'sparkSize', 'sparkLife', 'sparkGravity',
-  'playScale', 'autoScale',
-  'wiggleMs', 'wigglePx', 'wiggleDeg', 'wiggleScale',
-] as const satisfies readonly (keyof WeldFxConfig)[];
-
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const WELDFX_RANGES: Partial<Record<keyof WeldFxConfig, [number, number, number]>> = {
   ringStart: [40, 500, 5], ringEnd: [0, 200, 2], ringMs: [80, 1200, 10],
@@ -107,6 +96,9 @@ export const WELDFX_RANGES: Partial<Record<keyof WeldFxConfig, [number, number, 
 
 /** Fixed gold palette — a weld reads as forge-work, not a tribe buff (owner brief: yellow/glow/spark). */
 export const WELD_COLORS = { colorRing: '#ffd766', colorFlash: '#fff2b8', colorSpark: '#fef962' };
+
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as WELDFX_DEFAULTS };
 
 const KEY = 'ascent.weldfx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.

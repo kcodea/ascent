@@ -1,5 +1,120 @@
 # ASCENT — development log
 
+## 2026-07-30 — the last five tuners, including the three that had no config module at all
+
+**What changed.** The remaining panels move onto the tuner schema — Lunge, Layout Lab, Compendium, Card Frames,
+Charge Glyph — taking it to **46 of 48**. The two left are `SfxMixer`, parked by owner request to be thought
+about separately, and `ShieldTuner`, which is being handled on its own because it is dead (it tunes a value
+nothing reads). Dev-only; stripped from production. No engine, content, sim, or player-visible change.
+
+**Three of the five had no config module to point at.** Every other tuner drives a module that owns a
+`localStorage` key and writes CSS custom properties one-to-one. Card Frames, the Compendium palette and the
+Charge Glyph instead *compose* CSS: a colour and two radii become one `drop-shadow` pair; three colours and a
+stop become one gradient. There is no single var per control, so each of them kept its values in React state,
+built a stylesheet with `useMemo`, and wrote it into a specificity-bumped `<style>` element — the same fifty
+lines three times over, including the same easy-to-forget teardown. `cssTunerStore.ts` now provides the
+`get`/`set`/`reset` trio a spec needs and owns the `<style>` element and its removal. Removing it on close is
+load-bearing rather than tidy: a left-behind override keeps the board tinted with the panel that caused it gone.
+
+**Two small schema additions, both forced by real cases rather than speculation.** `copy` overrides what the
+Copy button emits, because those three paste back a *rule in styles.css*, not a config object — and they emit
+the UNDOUBLED selectors, since the doubling only exists to beat the very rule you are about to replace.
+`valueLabels` renders a name where a slider's number is an index into a list: the lunge tuner's three easing
+controls were `0–7` sliders over `STRIKE_EASES`, so you picked a curve by dragging to `3`. They show
+`power3.in` now, and stay sliders because that list is genuinely ordered, from linear to violently late.
+
+**The readout slot earned its keep twice.** Lunge measures as well as controls — the strike duration is derived
+from a travel distance that changes every combat as rows re-centre, so a dialled number can be silently
+overridden by the min/max clamp, and the panel shows what the vector functions actually produced on the last
+swing plus how often it clamped. The Charge Glyph needs the same slot for the opposite reason: the glyph only
+exists in the last twenty seconds of a turn, so without a scrub that holds the fill at a chosen point most of
+its controls cannot be judged at all. Both are about what you can currently SEE rather than what ships, which
+is why they sit above the controls instead of being faked as extra rows among them. Its CSS moved from
+`.sfxmix.lunge` to `.sfxmix`, since it is now a schema slot any panel can use.
+
+**Language.** Layout Lab's control metadata already lived in `LAYOUT_VARS`, so its migration was a mapping — but
+the per-knob comments that explained the non-obvious ones are now hints you can read in the panel: that the hand
+overlap is a fraction of card width so it stays proportional, and that the buy/sell edges move the actual drop
+hit-test and not just the gradient. Card Frames' real legibility problem was that "all Y 0.005" never said what
+it was a fraction OF (card height), and that its two sections tune the same knobs on different art — the gold
+oval and the purple square crop differently and seat their tier pip at different heights — which a subheading
+alone did not convey. Its keys are now prefixed per section so the two cannot cross-write.
+
+**A sweep of 32 dead exports.** Each migrated config had exported a `*_KEYS` array that only its old hand-rolled
+panel iterated. They do not trip lint, because exports are exempt from `no-unused-vars`, so they would have sat
+there indefinitely looking load-bearing. Removed with their doc comments; nothing else referenced them (the only
+remaining mentions are in the plan documents that introduced them).
+
+**How it was verified.** typecheck (pkgs + web), 3034 tests, build:web, and `eslint packages/ui` clean — 0
+errors, 3 pre-existing warnings. The repo-wide `npm run lint` reports 434 errors, all inside a vendored minified
+bundle in untracked local skill directories (`.agents/`, `.claude/`, `.github/skills/`); none are in repo source
+and CI lints a clean checkout. All five panel ids were checked against their `DevMenu` keys, the failure mode
+that silently broke three ✕ buttons last commit.
+
+**Follow-ups.** The owner accuracy pass on every hint written across this whole migration is still outstanding —
+they were drafted from config source, and no code can confirm that "comet", "wisp" or "cracked" is the
+vocabulary we actually use. `.github/skills/` is untracked but not ignored; committing it would break CI lint.
+Phase 2 (visualisation) and Phase 3 (workflow) now have one component to land in, which was the point.
+
+## 2026-07-30 — the Buttons group moves onto the tuner schema, and three panels get their ✕ back
+
+**What changed.** Six more tuners onto the schema from [#751](https://github.com/kcodea/ascent/pull/751)'s
+foundation — Tavern Up, Refresh, End Turn, plus key fixes on Book and Drag Feel — taking it to **12 of 47**.
+Dev-only; stripped from production. No engine, content, sim, or player-visible change.
+
+**A real bug the migration surfaced: three panels ignored their own close button.** `useDraggablePanel(key)`
+injects each panel's ✕ and closes by that key, but three panels passed a key `DevMenu` does not use —
+`BookTuner` said `booktuner` against the menu's `book`, `TavernUpTuner` said `tavernup` against `tavernupbtn`,
+and `DragTuner` said `dragfeel` against `drag`. So the ✕ called `close()` against an id absent from the open set
+and did nothing; those panels could only be dismissed by toggling them off in the menu. Confirmed empirically
+rather than by reading: clicking every ✕ closed Damage Float (whose keys agreed) and left the other three open.
+All three now use the menu's key. One consequence worth recording — a panel's remembered SIZE lives under
+`ascent.devpanel.<key>`, so those three open at the default width once and then remember again; their tuned
+VALUES were never at risk, since those live in each config's own key.
+
+**Three lookalike checkboxes, split apart.** End Turn had three checkboxes in identical row markup that were
+three different kinds of thing. "Preview pressed" and "glow always on" are panel-local previews: they save
+nothing and exist only so a transient state can be held still while its sliders are dragged. "Pressed art ·
+cracked gem" is a *real config value* — `pressedVariant` stores 2 or 3, picking which pressed art the button
+uses, and the panel rendered it inline as `checked ? 3 : 2`. The schema now separates them: previews are declared
+`toggles` owned by the panel, and the config value is a control of `kind: 'toggle'` that declares both of its
+values. Verified in the browser that ticking writes **3** and clearing writes **2** to `ascent.endturnbtn` — not
+1 and 0, which is exactly how a generic boolean toggle would quietly break which art the button shows. It reads
+"cracked" / "dulled" now instead of a bare number.
+
+**Preview switches became a schema concept** (introduced with Hero Power). Each pins a body class while on, and
+the panel clears every one when it closes — a pinned "glow always on" outliving its panel would leave the board
+lit with no visible cause. Per-panel defaults are preserved exactly: End Turn's glow starts on, its pressed
+preview off, Refresh's and Tavern Up's glow off. That asymmetry is intentional in the originals (one pointer
+cannot both hold hover and drag a slider) and easy to flatten by accident.
+
+**A duplicate-section guard.** Only ADJACENT controls sharing a group merge into one heading — declaration order
+stays authoritative, because hoisting a stray control up to its group's first appearance would reorder a panel
+behind the author's back. The cost is that an interrupted group renders twice under the same title, which is
+always an authoring slip: Hero Power's glow colour was appended after its Glow fit controls and opened a second
+"Face glow" section, caught only by counting headings in a DOM dump. `assertGroupRuns` now warns in dev with the
+panel id and the offending title.
+
+**Refresh changed the shape of these files.** It has five colour controls spread across four groups, which the
+earlier panels' hand-maintained "before the colour / after the colour" arrays cannot express. One ordered list
+now holds every key and the kind is derived from whether the key is a colour — the pattern the remaining panels
+should follow. The old panel rendered all five colours in a block at the very bottom, so "cost coin · colour"
+sat nowhere near "cost coin · x / y / size"; each colour now sits in its own section.
+
+**Counts.** Tavern Up 32 controls / 7 sections · Refresh 35 / 10 · End Turn 31 / 7. Roughly 90 `gem ·` /
+`glow ·` / `press ·` / `click ·` label prefixes became real headings across the three.
+
+**How it was verified.** typecheck, typecheck:web, 3034 tests, lint (2 pre-existing warnings in `packages/ui`),
+build:web. Live DOM checks per panel: correct `data-devpanel` keys, ✕ closing all three previously-stuck panels,
+no duplicate sections, the group guard silent, no horizontal overflow, the toggle writing 2/3, and the preview
+body classes appearing and clearing on schedule.
+
+**Follow-ups.** 35 panels remain, including the five structural outliers (`ChargeGlyphTuner` at 209 lines,
+`FrameTuner`, `BookTuner`, `LayoutTuner`, `SfxMixer` — the mixer may justifiably stay bespoke). `ShieldTuner`
+is still deliberately unmigrated and is being handled separately: it is dead, tuning a value nothing reads.
+Every hint written so far still wants an owner accuracy pass — they were drafted from config source, and no code
+can confirm that "cracked", "comet" or "wisp" is the vocabulary we actually use.
+
 ## 2026-07-29 — The Dwarf roster is complete (tranche C)
 
 The last five cards, and what each actually needed:

@@ -1,84 +1,84 @@
-import { useState } from 'react';
 import {
-  INFUSEFX_KEYS, INFUSEFX_COLOR_KEYS, INFUSEFX_RANGES, getInfuseFxConfig, resetInfuseFxConfig, setInfuseFxValue, type InfuseFxConfig,
+  INFUSEFX_COLOR_KEYS, INFUSEFX_DEFAULTS, INFUSEFX_RANGES,
+  getInfuseFxConfig, resetInfuseFxConfig, setInfuseFxValue, type InfuseFxConfig,
 } from './infuseFxConfig';
-import { useDraggablePanel } from './useDraggablePanel';
 import { testInfuseFx } from './fxTestFire';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only "Fodder Infusion" tuner — the send-Fodder-to-the-shop tendrils (`infuseFxConfig` →
- * `pixiFx.buffTendril` fan-out in Recruit): count/spread/stagger of the branches, the per-ribbon look,
- * the strike flash + motes, and the source pulse. Persists to localStorage; edits apply to the NEXT
- * infusion — play a Godfodder (Fodder pick) or Soulfeeder, or end a turn with Maw of the Pit, to judge.
- * "Copy" grabs the JSON to bake back as the shipped defaults; "Reset" clears. Dev-only.
+ * DEV-only tuner for the FODDER INFUSION — the tendrils that fan out from a source to the shop line when Fodder
+ * is sent there. Applies to the NEXT infusion: play a Godfodder or Soulfeeder, or end a turn with Maw of the Pit,
+ * to judge — or use Test.
+ *
+ * The FAN controls (count, spread, stagger) are the ones that decide whether this reads as several distinct
+ * tendrils or one wash, which is why they sit in their own group above the per-ribbon look.
  */
-const INFUSE_LABELS: Partial<Record<keyof InfuseFxConfig, string>> = {
-  count: 'tendrils',
-  spreadFrac: 'spread (row ×)',
-  staggerMs: 'stagger ms',
-  endYOff: 'strike y-off',
-  travelMs: 'travel ms',
-  retractMs: 'retract ms',
-  curve: 'curve',
-  wobbleAmp: 'wobble px',
-  wobbleFreq: 'wobble freq',
-  baseWidth: 'base width',
-  tipWidth: 'tip width',
-  coreAlpha: 'core α',
-  glowWidth: 'glow width',
-  glowAlpha: 'glow α',
-  flashSize: 'strike flash',
-  flashMs: 'flash ms',
-  moteCount: 'motes',
-  moteSpeed: 'mote speed',
-  moteLife: 'mote life ms',
-  pulseSize: 'source pulse',
-  pulseAlpha: 'pulse α',
-  pulseMs: 'pulse ms',
-  colorCore: 'core',
-  colorGlow: 'glow',
+const COLOR_SET = new Set<string>(INFUSEFX_COLOR_KEYS.map(String));
+
+const SPECS: Record<keyof InfuseFxConfig, [string, TunerUnit | undefined, string, string]> = {
+  count:      ['Tendril count', undefined, 'How many tendrils fan out at once.', 'Fan'],
+  spreadFrac: ['Spread', '×', 'How wide the fan reaches across the shop row.', 'Fan'],
+  staggerMs:  ['Stagger', 'ms', 'Delay between one tendril leaving and the next, so they read as separate strands.', 'Fan'],
+  endYOff:    ['Strike height', 'px', 'Vertical offset of where a tendril lands on its target.', 'Fan'],
+
+  travelMs:   ['Travel time', 'ms', 'How long a tendril takes to reach its target.', 'Ribbon'],
+  retractMs:  ['Retract time', 'ms', 'How long it takes to withdraw afterwards.', 'Ribbon'],
+  curve:      ['Curve', '×', 'How far the ribbon bows from straight. 0 is straight.', 'Ribbon'],
+  wobbleAmp:  ['Wobble distance', 'px', 'How far the ribbon wavers along its length.', 'Ribbon'],
+  wobbleFreq: ['Wobble frequency', '×', 'How many waves that wobble makes.', 'Ribbon'],
+  baseWidth:  ['Source width', 'px', 'Ribbon width at the source end.', 'Ribbon'],
+  tipWidth:   ['Tip width', 'px', 'Ribbon width at the tip that lands.', 'Ribbon'],
+  coreAlpha:  ['Core opacity', 'opacity', 'Opacity of the bright core stroke.', 'Ribbon'],
+  glowWidth:  ['Glow width', 'px', 'Thickness of the soft glow around it. 0 removes it.', 'Ribbon'],
+  glowAlpha:  ['Glow opacity', 'opacity', 'Opacity of that glow.', 'Ribbon'],
+  colorCore:  ['Core colour', undefined, 'Colour of the core stroke.', 'Ribbon'],
+  colorGlow:  ['Glow colour', undefined, 'Colour of the glow around it.', 'Ribbon'],
+
+  flashSize:  ['Flash size', 'px', 'Diameter of the flash where a tendril lands. 0 removes it.', 'Landing'],
+  flashMs:    ['Flash time', 'ms', 'How long that flash lasts.', 'Landing'],
+  moteCount:  ['Mote count', undefined, 'How many motes burst on landing. 0 removes them.', 'Landing'],
+  moteSpeed:  ['Mote speed', 'px/s', 'How fast those motes fly out.', 'Landing'],
+  moteLife:   ['Mote lifetime', 'ms', 'How long one mote lasts.', 'Landing'],
+
+  pulseSize:  ['Pulse size', 'px', 'Diameter of the pulse on the SOURCE as the tendrils leave. 0 removes it.', 'Source pulse'],
+  pulseAlpha: ['Pulse opacity', 'opacity', 'Opacity of that pulse.', 'Source pulse'],
+  pulseMs:    ['Pulse time', 'ms', 'How long the source pulse lasts.', 'Source pulse'],
 };
 
-export function InfuseFxTuner() {
-  const [cfg, setCfg] = useState<InfuseFxConfig>(getInfuseFxConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('infusefx');
+/** Declaration order IS render order; the two colours sit inside the Ribbon run. */
+const ORDER: (keyof InfuseFxConfig)[] = [
+  'count', 'spreadFrac', 'staggerMs', 'endYOff',
+  'travelMs', 'retractMs', 'curve', 'wobbleAmp', 'wobbleFreq',
+  'baseWidth', 'tipWidth', 'coreAlpha', 'glowWidth', 'glowAlpha', 'colorCore', 'colorGlow',
+  'flashSize', 'flashMs', 'moteCount', 'moteSpeed', 'moteLife',
+  'pulseSize', 'pulseAlpha', 'pulseMs',
+];
 
-  const set = (k: keyof InfuseFxConfig, v: number | string): void => { setInfuseFxValue(k, v); setCfg({ ...getInfuseFxConfig() }); };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getInfuseFxConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetInfuseFxConfig(); setCfg({ ...getInfuseFxConfig() }); };
+const controls: TunerControl<Extract<keyof InfuseFxConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  if (COLOR_SET.has(key)) return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+  const [min, max, step] = INFUSEFX_RANGES[key]!;
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  const sliderKeys = INFUSEFX_KEYS.filter((k) => !INFUSEFX_COLOR_KEYS.includes(k));
+const SPEC: TunerSpec<InfuseFxConfig> = {
+  id: 'infusefx',                   // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Fodder Infusion',
+  note: 'dev · next infusion · drag',
+  read: getInfuseFxConfig,
+  write: (key, value) => setInfuseFxValue(key, value),
+  writeColor: (key, value) => setInfuseFxValue(key, value),
+  reset: resetInfuseFxConfig,
+  defaults: INFUSEFX_DEFAULTS,
+  controls,
+  actions: [{
+    label: '▶ Test',
+    hint: 'Fires the tendrils from your first board minion (or the hero portrait) to the shop line — no Godfodder needed.',
+    run: () => testInfuseFx(),
+  }],
+};
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Fodder Infusion <span>dev · next infusion · drag</span></div>
-      {sliderKeys.map((k) => {
-        const [min, max, step] = INFUSEFX_RANGES[k]!;
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name">{INFUSE_LABELS[k] ?? k}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k] as number} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      {INFUSEFX_COLOR_KEYS.map((k) => (
-        <div className="sfxmix-row" key={k}>
-          <span className="sfxmix-name">{INFUSE_LABELS[k] ?? k}</span>
-          <input type="color" value={cfg[k] as string} onChange={(e) => set(k, e.target.value)} />
-          <span className="sfxmix-val">{cfg[k]}</span>
-        </div>
-      ))}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={testInfuseFx} title="Fire the tendrils from your first board minion (or hero portrait) to the shop line — no Godfodder needed">▶ Test FX</button>
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export function InfuseFxTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

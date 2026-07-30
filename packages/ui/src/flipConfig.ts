@@ -31,7 +31,6 @@ export const FLIP_DESC: Record<keyof FlipConfig, string> = {
   dragMs: 'Pre-emptive slide: how long cards take to open the slot as you DRAG a card across the row (ms).',
   commitMs: 'Settle after DROPPING — 0 = instant (the cards already slid into place during the drag).',
 };
-export const FLIP_KEYS = Object.keys(DEFAULTS) as (keyof FlipConfig)[];
 
 // v2: bump the key so the earlier hand-tuned values (which had drag near-0 and commit slow — backwards) are
 // discarded and these corrected defaults take effect. Re-tune from here.

@@ -23,7 +23,7 @@ import { assertGroupRuns, formatValue, groupControls, unitSuffix, type TunerSpec
 export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): JSX.Element {
   const [, force] = useState(0);
   const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel(spec.id);
+  const { panelRef, panelElRef, headerPointerDown, panelStyle } = useDraggablePanel(spec.id);
 
   // Preview switches. Each pins a body class while on, and every one is removed when the panel closes — a
   // pinned "glow always on" that outlived its panel would leave the board lit with no visible cause.
@@ -45,7 +45,9 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
     rerender();
   };
   const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(spec.read(), null, 2));
+    // JSON to paste into a config module's DEFAULTS, unless the spec emits something else — the CSS-composing
+    // panels paste back a rule in styles.css, not a config object.
+    void navigator.clipboard?.writeText(spec.copy ? spec.copy() : JSON.stringify(spec.read(), null, 2));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   };
@@ -60,8 +62,11 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
     <div className="sfxmix tunerpanel" ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>
         {spec.title}
-        {spec.note && <span>{spec.note}</span>}
+        {spec.note && <span>{typeof spec.note === 'function' ? spec.note() : spec.note}</span>}
       </div>
+
+      {/* A measuring panel's readout goes first: what actually happened outranks what you might change. */}
+      {spec.readout?.()}
 
       {/* Preview switches sit ABOVE the controls and wear their own row style, because they change what you
           can see rather than what the game ships. */}
@@ -84,6 +89,34 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         <div className="tuner-section" key={groupTitle ?? '__ungrouped'}>
           {groupTitle && <div className="tuner-gh">{groupTitle}</div>}
           {controls.map((c) => {
+            if (c.kind === 'select') {
+              const current = String(cfg[c.key]);
+              const shippedSel = spec.defaults ? String(spec.defaults[c.key]) : undefined;
+              return (
+                <div className="sfxmix-row tuner-row tuner-row-select" key={c.key}>
+                  <span className="sfxmix-name" title={c.hint}>
+                    {c.label}
+                    {shippedSel !== undefined && current !== shippedSel && (
+                      <button
+                        className="tuner-mod"
+                        onClick={() => { spec.writeColor?.(c.key, shippedSel); rerender(); }}
+                        title={`Changed from the shipped “${shippedSel}” — click to put it back`}
+                        aria-label={`Revert ${c.label} to ${shippedSel}`}
+                      >●</button>
+                    )}
+                  </span>
+                  <select
+                    value={current}
+                    aria-label={c.label}
+                    onChange={(e) => { spec.writeColor?.(c.key, e.target.value); rerender(); }}
+                  >
+                    {(c.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <span className="sfxmix-val" />
+                </div>
+              );
+            }
+
             if (c.kind === 'color') {
               const hex = String(cfg[c.key]);
               const shippedHex = spec.defaults ? String(spec.defaults[c.key]) : undefined;
@@ -113,6 +146,38 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
             const value = Number(cfg[c.key]);
             const shipped = spec.defaults ? Number(spec.defaults[c.key]) : undefined;
             const modified = shipped !== undefined && value !== shipped;
+
+            if (c.kind === 'toggle') {
+              const on = c.onValue ?? 1;
+              const off = c.offValue ?? 0;
+              const isOn = value >= on;
+              return (
+                <div className="sfxmix-row tuner-row tuner-row-toggle" key={c.key}>
+                  <span className="sfxmix-name" title={c.hint}>
+                    {c.label}
+                    {c.note && <span className="tuner-note" title={c.note} aria-label={c.note}>†</span>}
+                    {modified && shipped !== undefined && (
+                      <button
+                        className="tuner-mod"
+                        onClick={() => set(c.key, shipped)}
+                        title={`Changed from the shipped value — click to put it back`}
+                        aria-label={`Revert ${c.label}`}
+                      >●</button>
+                    )}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={isOn}
+                    aria-label={c.label}
+                    onChange={(e) => set(c.key, e.target.checked ? on : off)}
+                  />
+                  <span className="sfxmix-val tuner-toggleval">
+                    {c.onOffLabels ? c.onOffLabels[isOn ? 0 : 1] : (isOn ? 'on' : 'off')}
+                  </span>
+                </div>
+              );
+            }
+
             return (
               <div className="sfxmix-row tuner-row" key={c.key}>
                 <span className="sfxmix-name" title={c.hint}>
@@ -159,7 +224,11 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                     if (Number.isFinite(v)) set(c.key, v);
                   }}
                 />
-                <span className="sfxmix-val tuner-unit" aria-hidden>{unitSuffix(c.unit)}</span>
+                {/* A value that indexes a named list shows the NAME here — picking an easing curve by reading
+                    "3" is how the lunge tuner used to work. */}
+                <span className="sfxmix-val tuner-unit" aria-hidden={!c.valueLabels}>
+                  {c.valueLabels ? (c.valueLabels[value] ?? String(value)) : unitSuffix(c.unit)}
+                </span>
               </div>
             );
           })}
@@ -167,10 +236,10 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
       ))}
 
       <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
+        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : (spec.copyLabel ?? 'Copy values')}</button>
         <button className="sfxmix-copy" onClick={resetAll}>Reset</button>
         {spec.actions?.map((a) => (
-          <button className="sfxmix-copy" key={a.label} onClick={a.run} title={a.hint}>{a.label}</button>
+          <button className="sfxmix-copy" key={a.label} onClick={() => a.run(panelElRef.current)} title={a.hint}>{a.label}</button>
         ))}
       </div>
     </div>

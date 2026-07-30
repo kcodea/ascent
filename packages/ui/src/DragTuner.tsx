@@ -44,7 +44,7 @@ export function DragTuner() {
     document.body.classList.toggle('dsh-preview', preview);
     return () => document.body.classList.remove('dsh-preview');
   }, [preview]);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('dragfeel');
+  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('drag');
 
   const [override, setOverride] = useState(hasLocalDragOverride());
   const set = (k: keyof DragFeel, v: number): void => {

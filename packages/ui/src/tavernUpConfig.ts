@@ -208,6 +208,8 @@ export const TVB_NUM_KEYS = [
   'artDim',
 ] as const;
 export const TVB_COLOR_KEYS = ['glowColor'] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as TVB_DEFAULTS };
 
 const KEY = 'ascent.tavernupbtn';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).

@@ -4184,6 +4184,36 @@ svg { width: 18px; height: 18px; }
 .tunerpanel .tuner-section + .tuner-section { margin-top: 9px; }
 .tunerpanel .tuner-gh { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--ink3); padding: 3px 0 4px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+/* A section heading is a BUTTON now (fold / unfold), so it has to shed the button defaults and keep looking
+   like the heading it already was. */
+.tunerpanel .tuner-gh-btn { display: flex; align-items: center; gap: 5px; width: 100%; border: none; border-bottom: 1px solid var(--line);
+  background: none; cursor: pointer; text-align: left; }
+.tunerpanel .tuner-gh-btn:hover { color: var(--ink); }
+.tunerpanel .tuner-gh-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.tunerpanel .tuner-gh-btn.folded { color: var(--ink3); opacity: 0.85; }
+.tunerpanel .tuner-caret { font-size: 9px; width: 8px; }
+/* The count is what makes a folded section worth folding: you can still see how much is hidden in it. */
+.tunerpanel .tuner-gh-n { margin-left: auto; font-weight: 700; letter-spacing: 0; opacity: 0.75; font-variant-numeric: tabular-nums; }
+
+/* The working bar — find, fold-all, and the shipped A/B. */
+.tunerpanel .tuner-tools { display: flex; align-items: center; gap: 6px; padding: 2px 0 7px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--line); }
+.tunerpanel .tuner-find { flex: 1 1 auto; min-width: 0; padding: 3px 7px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg2); color: var(--ink); font-family: var(--font-ui); font-size: 11px; }
+.tunerpanel .tuner-find:focus { outline: none; border-color: var(--acc); background: var(--card); }
+.tunerpanel .tuner-foldall { flex: 0 0 auto; width: 22px; padding: 2px 0; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg2); color: var(--ink3); font-size: 11px; line-height: 1; cursor: pointer; }
+.tunerpanel .tuner-foldall:hover { color: var(--ink); border-color: var(--acc); }
+.tunerpanel .tuner-cmp { flex: 0 0 auto; padding: 3px 8px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg2); color: var(--ink); font-family: var(--font-ui); font-weight: 700; font-size: 10.5px;
+  cursor: pointer; white-space: nowrap; user-select: none; touch-action: none; }
+.tunerpanel .tuner-cmp:hover:not(:disabled) { border-color: var(--acc); }
+.tunerpanel .tuner-cmp:disabled { opacity: 0.45; cursor: default; }
+/* While it is on, the board is showing values that are NOT yours — that has to be unmissable, or you will tune
+   on top of the shipped set and wonder why your numbers keep moving. */
+.tunerpanel .tuner-cmp.on { background: var(--acc); border-color: var(--acc-dk); color: #2a2017; }
+.tunerpanel .tuner-found { flex: 0 0 auto; font-size: 10px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.tunerpanel .tuner-nohit { padding: 10px 2px; font-size: 11px; color: var(--ink3); }
 /* name · slider · number · unit */
 .tunerpanel .tuner-row { display: grid; grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 54px 28px;
   align-items: center; gap: 7px; margin: 4px 0; }

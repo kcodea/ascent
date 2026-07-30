@@ -371,7 +371,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Deathrattle: buff all living friends of `tribe` (+atk/+hp). */
   deathrattleBuffTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    // `tribes` (plural) buffs SEVERAL tribes in one pass — Scalefeather Drake's "Beasts & Dragons". Done as one
+    // `tribes` (plural) buffs SEVERAL tribes in one pass — Mushy's "Beasts & Dragons". Done as one
     // aura per tribe rather than two copies of this effect on the card, so a Beast/Dragon dual-type is buffed
     // ONCE rather than twice. Falls back to the single `tribe` param every other card uses.
     const many = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : null;
@@ -806,7 +806,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
-  /** Set 2 — Scalefeather Drake (Echo): queue `count` copies of the FIRST spell you cast next turn (golden 2).
+  /** Set 2 — Mushy (Echo): queue `count` copies of the FIRST spell you cast next turn (golden 2).
    *  Payload-guarded like every Deathrattle. The copy itself is granted in the RECRUIT phase (a spell id isn't
    *  known until you cast it), so this only banks the count — carried back via `playerNextTurnSpellCopies`. */
   deathrattleQueueNextSpellCopy: (ctx, self, params, payload) => {
@@ -2713,7 +2713,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
 
-  /** Set 2 — Hungerling (Rally): permanently buff every minion in the SHOP.
+  /** Set 2 — Demon Horse (Rally): permanently buff every minion in the SHOP.
    *
    *  Lives in COMBAT because a Rally is an attack trigger, but the tavern buff is run state — so it goes
    *  through `gainTavernBuy`, the same carry-back shape Ruby strength and the Undead aura use. Writing this

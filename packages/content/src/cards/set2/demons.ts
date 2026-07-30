@@ -75,7 +75,7 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     id: 'dm_hungerling',
-    name: 'Hungerling',
+    name: 'Demon Horse',
     tribe: 'demon',
     tier: 4,
     attack: 4,
@@ -115,7 +115,7 @@ export const SET2_DEMONS: CardDef[] = [
   {
     // A Demon eats every time you play a Demon — the tribe's engine card.
     id: 'dm_glutton',
-    name: 'Selective Glutton',
+    name: 'Chipper',
     tribe: 'demon',
     tier: 4,
     attack: 4,
@@ -141,7 +141,7 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'Whenever you summon an **Imp**, give it **+4/+4**. **Avenge (3):** improve this by **+2/+2**.',
   },
   {
-    // Takes the stats WITHOUT eating — the offer stays buyable, which is the difference from Hungerling.
+    // Takes the stats WITHOUT eating — the offer stays buyable, which is the difference from Demon Horse.
     id: 'dm_gourmand',
     name: 'Grand Gourmand',
     tribe: 'demon',

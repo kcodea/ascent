@@ -131,7 +131,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // Dragon/BEAST: a delayed spell-copier. Its Echo (dying in combat is the usual path) queues a copy of
     // NEXT turn's opening spell — so it pays off after the fight rather than before, unlike the recall line.
     id: 'd2_scalefeather',
-    name: 'Scalefeather Drake',
+    name: 'Mushy',
     tribe: 'dragon',
     tribe2: 'beast',
     tier: 4,
@@ -197,7 +197,7 @@ export const SET2_DRAGONS: CardDef[] = [
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.
     id: 'd2_chronicler',
-    name: 'Drachronicler',
+    name: 'Scalefeather',
     tribe: 'dragon',
     tier: 3,
     attack: 3,

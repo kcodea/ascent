@@ -529,7 +529,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // The consume swirl is a PER-ACTION payload too. It used to be cleared only by the handful of call sites that
   // assigned it wholesale, while every other consumer APPENDED — so Set 2's shop-eating Demons grew the list
   // across actions and the UI replayed every past consume on each new one. That showed up as ghost minions
-  // stacking over the shop, and as a card that hadn't eaten (Hungerling) appearing to eat alongside one that had
+  // stacking over the shop, and as a card that hadn't eaten (Demon Horse) appearing to eat alongside one that had
   // (Revolving Maw) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
   // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
   s.fodderEaten = [];
@@ -2065,7 +2065,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
       count: (prev?.count ?? 0) + result.playerNextTurnSpellCopies,
     };
   }
-  // Hungerling's Rally: the Shop buff it earned in combat lands on the run-wide tavern channel, so it applies
+  // Demon Horse's Rally: the Shop buff it earned in combat lands on the run-wide tavern channel, so it applies
   // to every future offer rather than evaporating with the fight.
   if (result.playerTavernBuyGain) {
     s.tavernBuyBonus.atk += result.playerTavernBuyGain.attack;

@@ -156,7 +156,7 @@ export type EffectFactoryId =
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
-  | 'deathrattleQueueNextSpellCopy' // Scalefeather Drake: Echo — copy the first spell you cast next turn
+  | 'deathrattleQueueNextSpellCopy' // Mushy: Echo — copy the first spell you cast next turn
   | 'battlecryArmGrimoire' // Living Grimoire: Shout — charge the first-spell multiplier
   | 'onBattlecryRearmGrimoire' // Living Grimoire: every 3 Shouts, recharge it
   | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
@@ -187,7 +187,7 @@ export type EffectFactoryId =
   | 'deathrattleSummonRandomTier' // Set 2 — Gravelight Acolyte (Echo): summon N random minions of an exact tier
   | 'summonImps' // Set 2 — Imp Wrangler / Errand Fiend: summon N Imps
   | 'rallyImpsAttackNow' // Set 2 — Riot Caller (Rally): your N left-most Imps attack immediately
-  | 'onTribePlayedConsumeShop' // Set 2 — Selective Glutton: playing a Demon makes a friendly Demon eat a Shop minion
+  | 'onTribePlayedConsumeShop' // Set 2 — Chipper: playing a Demon makes a friendly Demon eat a Shop minion
   | 'onImpDeathSummonImp' // Set 2 — Endless Overseer: your first N Imp deaths each summon an Imp
   | 'onImpAttackSummonCopy' // Set 2 — Malphas (Legion): an attacking Imp summons a copy
   | 'endOfTurnEndDemonsConsumeSides' // Set 2 — Malphas (Feast): the end Demons eat their side of the row
@@ -197,7 +197,7 @@ export type EffectFactoryId =
   | 'scFillWithImpsAndBuff' // Set 2 — Legion Shepherd: fill the warband with Imps, then buff Imps per one summoned
   | 'onImpAttackBuffImps' // Set 2 — Cinder Chancellor: an Imp attacking buffs your Imps, escalating
   | 'battlecryConsumeShopRandom' // Set 2 — Cinder Clerk: Shout — consume a random Shop minion
-  | 'consumeShopRightmost' // Set 2 — Hungerling / Revolving Maw: consume the right-most Shop minion
+  | 'consumeShopRightmost' // Set 2 — Demon Horse / Revolving Maw: consume the right-most Shop minion
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Display Curator: permanent buff to minions bought from the Shop
   | 'shopRefreshedBuffRightmost' // Set 2 — Market Tormentor: each fresh Shop's right-most minion comes in buffed
@@ -215,7 +215,7 @@ export type EffectFactoryId =
   | 'scGrantRightmostEcho'         // Set 2 — Endless Overseer: graft an Imp-summoning Echo onto your right-most minion
   | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Grand Gourmand: eat the fattest Shop minion
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
-  | 'rallyBuffShopPermanent' // Set 2 — Hungerling: Rally buffs Shop minions permanently
+  | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
   | 'spellCastBuffImps' // Set 2 — Cinder Chancellor: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
@@ -1353,7 +1353,7 @@ export interface CombatSideState {
    *
    *  Every random pick in combat (a Slaughter's spell, a random-minion grant, a magnetic roll) used to filter
    *  the GLOBAL `CARD_INDEX`, so a Set-1 run could be handed a Set-2 card: Badgington's Slaughter produced a
-   *  Set-2 spell and Sea Urchin a Scalefeather Drake (owner report 2026-07-27). Recruit-phase picks already go
+   *  Set-2 spell and Sea Urchin a Mushy (owner report 2026-07-27). Recruit-phase picks already go
    *  through `poolOf(state)`; combat simply never had the set threaded in.
    *
    *  Empty/undefined = UNRESTRICTED, which keeps `EMPTY_SIDE` (the harness, the procedural threat, tests that
@@ -1541,12 +1541,12 @@ export interface CombatResult {
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
-  /** Set 2 — Hungerling: a Rally that permanently buffs SHOP minions. A Rally fires in COMBAT, but the tavern
+  /** Set 2 — Demon Horse: a Rally that permanently buffs SHOP minions. A Rally fires in COMBAT, but the tavern
    *  buff is run state, so it can only reach the run through a carry-back like every other combat→run effect
    *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
    *  channel, per the owner's rule that "give minions in the Shop" means permanent, not just this shop. */
   playerTavernBuyGain?: { attack: number; health: number };
-  /** Set 2 — Scalefeather Drake Echoes that fired this combat: how many next-turn first-spell copies to queue. */
+  /** Set 2 — Mushy Echoes that fired this combat: how many next-turn first-spell copies to queue. */
   playerNextTurnSpellCopies?: number;
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is
    *  conjured to hand in settleCombat ("get a copy of it next Shop"). Absent when no Slaughter fired. */
@@ -1694,9 +1694,9 @@ export interface CombatContext {
    *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
    *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
-  /** Permanently buff every future Shop minion (Hungerling's Rally) — carried back via `playerTavernBuyGain`. */
+  /** Permanently buff every future Shop minion (Demon Horse's Rally) — carried back via `playerTavernBuyGain`. */
   gainTavernBuy(attack: number, health: number, side: Side): void;
-  /** Set 2 — Scalefeather Drake: queue `count` next-turn first-spell copies (player-only; carried back). */
+  /** Set 2 — Mushy: queue `count` next-turn first-spell copies (player-only; carried back). */
   queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
   leftmostHandSpellFor(side: Side): string | undefined;

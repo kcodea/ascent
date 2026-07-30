@@ -210,7 +210,7 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
   });
 });
 
-describe('set 2 — Scalefeather Drake queues NEXT turn’s first spell', () => {
+describe('set 2 — Mushy queues NEXT turn’s first spell', () => {
   it('an armed charge copies the first spell of a turn on/after its activation wave', () => {
     let s: RunState = {
       ...createRun(3), wave: 3, phase: 'recruit', embers: 40,

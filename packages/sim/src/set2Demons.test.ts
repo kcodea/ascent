@@ -90,7 +90,7 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   it('the SHOP-consume swirl payload does NOT accumulate across actions', () => {
     // The bug: the payload was appended to but cleared only by a few call sites, so each new consume replayed
     // every PREVIOUS one. On screen that stacked ghost minions over the shop and made a card that hadn't eaten
-    // (Hungerling) look like it ate alongside one that had (Revolving Maw).
+    // (Demon Horse) look like it ate alongside one that had (Revolving Maw).
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
       board: [], hand: [minion('c1', 'dm_clerk', 1, 1), minion('c2', 'dm_clerk', 1, 1)],
@@ -339,7 +339,7 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
 
   it('Malphas FEAST fires every turn, and only when Feast was the pick', () => {
     // Malphas must be ON the board and be the only End-of-Turn eater — an earlier version of this test used a
-    // Hungerling as filler, which ate the shop by itself and made the assertion pass vacuously.
+    // Demon Horse as filler, which ate the shop by itself and made the assertion pass vacuously.
     const build = (pick: number | undefined): RunState => {
       const st: RunState = {
         ...createRun(1), phase: 'recruit',
@@ -561,7 +561,7 @@ describe('set 2 — the reworked Demon consumers (owner batch 2026-07-27)', () =
     expect(s.shopEaten?.some((e) => e.eaterUid === 'v'), 'Vhal itself consumed').toBe(true);
   });
 
-  it('Hungerling’s Rally carries a PERMANENT shop buff back out of combat', () => {
+  it('Demon Horse’s Rally carries a PERMANENT shop buff back out of combat', () => {
     // A Rally fires in COMBAT but the tavern buff is run state, so it can only reach the run through a
     // carry-back — the same shape Ruby strength and the Undead aura use. Written as a recruit factory (my
     // first attempt) the card would have done nothing at all: a combat Rally never reaches that table.

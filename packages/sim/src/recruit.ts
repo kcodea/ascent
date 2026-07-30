@@ -2029,7 +2029,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     consumeShopMinion(ctx.state, self, i, num(params.times, 1) * gold(self));
   },
 
-  /** Set 2 — Selective Glutton: whenever you PLAY a `tribe` minion, a friendly of that tribe Consumes a Shop
+  /** Set 2 — Chipper: whenever you PLAY a `tribe` minion, a friendly of that tribe Consumes a Shop
    *  minion. Hooked on `onSummon` (the recruit-phase "a minion entered play" event), guarded to the tribe.
    *
    *  The EATER is a random friendly of the tribe, not necessarily the Glutton or the minion just played — the
@@ -2065,7 +2065,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     consumeShopMinion(ctx.state, self, pick, num(params.times, 1) * (self.golden ? 2 : 1));
   },
 
-  /** Set 2 — Hungerling / Revolving Maw: consume the RIGHT-most Shop minion. Golden doubles the stats gained
+  /** Set 2 — Demon Horse / Revolving Maw: consume the RIGHT-most Shop minion. Golden doubles the stats gained
    *  ("and gain double its stats"), not the number eaten. */
   consumeShopRightmost: (ctx, self, params) => {
     const i = rightmostShopMinion(ctx.state);
@@ -2753,7 +2753,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
   },
 
-  /** Set 2 — Scalefeather Drake (Echo), recruit half: Ryme (or another re-trigger) can fire this in the shop.
+  /** Set 2 — Mushy (Echo), recruit half: Ryme (or another re-trigger) can fire this in the shop.
    *  Arms the same run charge the combat factory carries back — activating NEXT turn (`wave + 1`), never the
    *  current one, which is what "next turn" means even when it died mid-recruit. */
   deathrattleQueueNextSpellCopy: (ctx, self, params) => {
@@ -5152,7 +5152,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
   // Set 2 — Chef Gary Toast reads "Ales triggered this turn", so the tally lives with the other per-turn counters.
   if (ALE_IDS.includes(spellDef.id)) state.alesCastThisTurn = (state.alesCastThisTurn ?? 0) + 1;
-  // Scalefeather Drake: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it
+  // Mushy: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it
   // catches every cast path once; the wave gate makes "next turn" exact — a charge armed in this turn's combat
   // has `activateWave = wave + 1`, so it can't pay out until the following turn.
   const sfCharge = state.nextTurnSpellCopies;

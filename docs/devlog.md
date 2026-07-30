@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 4: the recruit-phase batch (5 runes)
+
+Deliberately chosen as a group: every one hangs off a SINGLE existing chokepoint, so none carried the
+out-of-turn-queue risk that stopped Counterpoint.
+
+- **Rune of Resonance** (basic 1) — two existing primitives: `rubyExtraCasts`/`firstEachTurn` plus a new
+  `grantRuby` End-of-Turn effect. The EoT Ruby is MINTED (base 1/1 + live `rubyBonus`), not conjured, like every
+  other Ruby source.
+- **Rune of Investment** (basic 1) — the sell path mints Rubies, also at live strength.
+- **Rune of the Open Market** (epic 2) — rides the Consume chokepoint with its OWN per-turn latch. It shares the
+  trigger with Bottomless Banquet but not the effect; one shared latch would let the quest silently suppress the
+  rune. A test holds both and asserts the Shop buff AND the doubled Consume.
+- **Rune of Runic Exchange** (epic 2) — a new `spellCastNonAle` meter. The payout IS an Ale, so counting Ales
+  would let the rune feed itself; the test casts five Ales and asserts zero progress.
+- **Rune of the Brokerage** (epic 2) — lifts the Ruby Broker per-turn cap. The tick still counts (the inspect
+  panel reads it), it just stops gating.
+
+**The exhaustive `Record`s paid off twice this commit.** Adding the `grantRuby` EoT effect and the
+`spellCastNonAle` meter both failed to compile until their display text was written — which is exactly what
+those types were introduced for after the Open Tab blank-text defect.
+
+Verified: typecheck (both), lint (6 pre-existing), 3177 tests, build:web, harness determinism.
+
+**Rune queue: 25 remain.** 22 of 47 done.
+
 ## 2026-07-30 — Rune tranche 3: four combat flags + a Warding correction
 
 **Shipped (4):**

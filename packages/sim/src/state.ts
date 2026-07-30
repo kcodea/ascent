@@ -430,11 +430,17 @@ export interface RunState {
    *  Merchant's Chorus). An ARRAY, so several can be held at once and each keeps its own banked remainder.
    *  `usedThisTurn` backs `oncePerTurn`; it resets with the other per-turn tallies. */
   runeThresholds?: {
-    meter: 'gold' | 'spellCast' | 'castRuby' | 'cardsBought' | 'shout'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout'; per: number; tick: number;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
     oncePerTurn?: boolean; usedThisTurn?: boolean;
   }[];
+  /** Rune of the Brokerage: Ruby Brokers ignore their per-turn cap. */
+  runeBrokerage?: boolean;
+  /** Rune of Investment: Rubies minted per minion sold. */
+  runeSellRubies?: number;
+  /** Rune of the Open Market: the first Shop-minion Consume each turn buffs the Shop. `used` resets per turn. */
+  runeOpenMarket?: { attack: number; health: number; usedThisTurn?: boolean };
   motherlode?: { count: number; tribe?: Tribe };
   /** Bottomless Banquet: the first Shop-minion Consume each turn eats a second. Reset with the per-turn tallies. */
   consumeDoubleFirstEachTurn?: boolean;
@@ -912,7 +918,7 @@ export interface RunState {
   questGoldTribeBuff?: { tribe: Tribe; per: number; attack: number; health: number; tick: number };
   /** War Council: the tribe whose Rallies and Slaughters trigger an extra time. */
   questTribeRallySlaughter?: Tribe;
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

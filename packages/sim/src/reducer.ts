@@ -1180,6 +1180,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
         // floated can't drift (they did: the bonus used to be added inline here only).
         s.embers += sellValueWithBonus(sold, s);
+        // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
+        if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
         if (s.nextSellBonus) s.nextSellBonus = 0;
       }
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
@@ -2396,6 +2398,7 @@ function advanceCombat(s: RunState): void {
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave
   s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
   for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
+  if (s.runeOpenMarket) s.runeOpenMarket.usedThisTurn = false; // the Open Market re-arms each turn
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
   // Funeral on Loan: a borrowed card that wasn't played STAYS IN HAND (owner 2026-07-29). It used to be
@@ -2902,6 +2905,15 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'rubyExtraCasts':
       if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
       else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
+      break;
+    case 'runeBrokerage':
+      s.runeBrokerage = true;
+      break;
+    case 'runeSellRubies':
+      s.runeSellRubies = (s.runeSellRubies ?? 0) + r.count;
+      break;
+    case 'runeOpenMarket':
+      s.runeOpenMarket = { attack: r.attack, health: r.health, usedThisTurn: false };
       break;
     case 'runeThreshold':
       // An ARRAY: several threshold runes can be held at once, each banking its own remainder.

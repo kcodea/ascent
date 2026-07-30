@@ -790,10 +790,17 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'castRuby' | 'cardsBought' | 'shout'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
       oncePerTurn?: boolean }
+  /** Rune of the Brokerage: your Ruby Brokers lose their per-turn cap. */
+  | { kind: 'runeBrokerage' }
+  /** Rune of Investment: selling a minion mints `count` Rubies. */
+  | { kind: 'runeSellRubies'; count: number }
+  /** Rune of the Open Market: the FIRST Shop minion your Demons Consume each turn buffs the Shop +X/+X
+   *  permanently. Shares the Bottomless Banquet trigger, not its effect. */
+  | { kind: 'runeOpenMarket'; attack: number; health: number }
   | { kind: 'motherlode'; count: number; /** Absent = ANY friendly minion (Rune of the Motherlode); set = tribe-scoped (the quest). */ tribe?: Tribe }
   /** Bottomless Banquet: the first Shop minion your Demons Consume each turn, they Consume another. */
   | { kind: 'consumeDoubleFirstEachTurn' }
@@ -813,7 +820,7 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }

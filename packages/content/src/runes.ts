@@ -182,6 +182,23 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeHatchery' },
   },
   {
+    // Two halves, both existing primitives: the per-turn Ruby multicast and an End-of-Turn Ruby.
+    id: 'rune_resonance',
+    name: 'Rune of Resonance',
+    cost: 1,
+    text: 'Your **first Ruby** played from hand each turn casts an **extra time**. Get a **Ruby** every turn.',
+    reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn' }, { kind: 'recurringEndOfTurn', effect: 'grantRuby' }] },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_investment',
+    name: 'Rune of Investment',
+    cost: 1,
+    text: 'Get **2 Rubies** when you **sell** a minion.',
+    reward: { kind: 'runeSellRubies', count: 2 },
+    sets: ['set2'], // Rubies
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,
@@ -768,6 +785,34 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'When your **last minion dies**, summon **7 Imps** with **Ward**.',
     reward: { kind: 'combatFlag', flag: 'runeFinality', amount: 7 },
+  },
+  {
+    id: 'rune_open_market',
+    name: 'Rune of the Open Market',
+    cost: 2,
+    epic: true,
+    text: 'The first time you **Consume a Shop minion** each turn, give your **Shop +3/+3** permanently.',
+    reward: { kind: 'runeOpenMarket', attack: 3, health: 3 },
+    sets: ['set2'], // Shop-minion Consume is a set-2 Demon mechanic
+  },
+  {
+    // The meter excludes Ales — the payout IS an Ale, so counting them would let the rune feed itself.
+    id: 'rune_runic_exchange',
+    name: 'Rune of Runic Exchange',
+    cost: 2,
+    epic: true,
+    text: 'Every **3 Shop spells** you cast, get a random **Dwarven Ale**. Dwarven Ales do not count.',
+    reward: { kind: 'runeThreshold', meter: 'spellCastNonAle', per: 3, grantAle: 1 },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_brokerage',
+    name: 'Rune of the Brokerage',
+    cost: 2,
+    epic: true,
+    text: 'Your **Ruby Brokers** can be triggered **endlessly**.',
+    reward: { kind: 'runeBrokerage' },
+    sets: ['set2'], // Rubies
   },
 ];
 

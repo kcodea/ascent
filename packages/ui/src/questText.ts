@@ -143,6 +143,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   recastFirstSpell: 'End of Turn: cast the first spell you cast this turn again',
   grantAles: 'End of Turn: get 2 Dwarven Ales',
   copyFirstSpell: 'End of Turn: get a copy of the first spell you cast this turn',
+  grantRuby: 'End of Turn: get a Ruby',
 };
 
 export function questRewardText(r: QuestReward, live?: { completed?: boolean; shoutCharges?: number; repeatTurns?: number }): string {
@@ -318,7 +319,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         : `Your Rubies cast ${times}`;
     }
     case 'runeThreshold': {
-      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', shout: 'Shouts you trigger' };
+      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', shout: 'Shouts you trigger' };
       const parts: string[] = [];
       if (r.grantSpell) parts.push(r.grantSpell === 1 ? 'get a random Shop spell' : `get ${r.grantSpell} random Shop spells`);
       if (r.grantAle) parts.push(r.grantAle === 1 ? 'get a random Dwarven Ale' : `get ${r.grantAle} random Dwarven Ales`);
@@ -329,6 +330,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       }
       return `Every ${r.per} ${METER[r.meter]}, ${parts.join(' and ')}${r.oncePerTurn ? ' (once per turn)' : ''}`;
     }
+    case 'runeBrokerage':
+      return 'Your Ruby Brokers can be triggered endlessly';
+    case 'runeSellRubies':
+      return `Get ${r.count === 1 ? 'a Ruby' : `${r.count} Rubies`} when you sell a minion`;
+    case 'runeOpenMarket':
+      return `The first time you Consume a Shop minion each turn, give your Shop +${r.attack}/+${r.health} permanently`;
     case 'motherlode':
       return `Whenever you get a Ruby, play a copy on ${r.count} random friendly ${r.tribe ? TRIBE_PLURAL[r.tribe] : 'minions'}`;
     case 'consumeDoubleFirstEachTurn':

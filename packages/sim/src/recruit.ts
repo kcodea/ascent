@@ -685,7 +685,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'castRuby' | 'cardsBought' | 'shout', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -1235,7 +1235,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (golden raises the cap by 1). `rubyRecvTick` is a per-instance counter reset each wave. */
   rubyPlayedGold: (ctx, self, params) => {
     const cap = num(params.cap, 2) + (self.golden ? 1 : 0);
-    if ((self.rubyRecvTick ?? 0) >= cap) return;
+    // Rune of the Brokerage lifts the per-turn cap entirely — the tick still counts (the inspect panel reads it),
+    // it just stops gating.
+    if (!ctx.state.runeBrokerage && (self.rubyRecvTick ?? 0) >= cap) return;
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
     ctx.state.embers += num(params.gold, 3);
   },
@@ -5136,6 +5138,13 @@ export function feastConsume(state: RunState, center: BoardCard, count: number):
 export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex: number, times = 1): boolean {
   // Bottomless Banquet: the FIRST Shop minion your Demons Consume each turn, they Consume another. Guarded by a
   // per-turn latch set before the recursive call, so the extra Consume can't itself re-trigger the reward.
+  // Rune of the Open Market: the FIRST Shop minion Consumed each turn buffs the Shop permanently. Shares the
+  // trigger with Bottomless Banquet but not the effect, and keeps its own latch so holding both pays both.
+  const om = state.runeOpenMarket;
+  if (om && !om.usedThisTurn && state.shop[offerIndex]) {
+    om.usedThisTurn = true;
+    applyRunShopBuff(state, om.attack, om.health, 'Rune of the Open Market');
+  }
   if (state.consumeDoubleFirstEachTurn && !state.consumeDoubleUsedThisTurn && CARD_INDEX[state.shop[offerIndex]?.cardId ?? '']) {
     state.consumeDoubleUsedThisTurn = true;
     const other = state.shop.findIndex((o, n) => {
@@ -5331,6 +5340,8 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   advanceRuneThresholds(state, 'spellCast', 1);
+  // Rune of Runic Exchange pays out in Ales, so counting Ales would let it feed itself — its meter excludes them.
+  if (!ALE_IDS.includes(spellDef.id)) advanceRuneThresholds(state, 'spellCastNonAle', 1);
   // Living Grimoire's charge is spent by this cast (consumed here at the real cast, not in the read-only
   // `spellCasts` the UI previews with). `casts` was already computed with the charge, so the full multiplied
   // count still resolves; clearing after keeps the NEXT spell single.
@@ -5484,6 +5495,9 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); fireRecruitDeathrattles(makeContext(state), leftmost); }
+  } else if (effect === 'grantRuby') {
+    // MINTED, not conjured — a Ruby is base 1/1 plus the run's live `rubyBonus`, like every other Ruby source.
+    step(() => mintRubies(state, 1));
   } else if (effect === 'copyFirstSpell') {
     // Runic Refrain: get a COPY of the turn's first spell — it lands in hand to cast later, where Rune of
     // Recurrence's `recastFirstSpell` casts it again immediately. Deliberately different rewards.

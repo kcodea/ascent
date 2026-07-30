@@ -1644,39 +1644,6 @@ class FxController {
   }
 
   /**
-   * A tiny dust puff at a single point (x, y) — the dry-dirt motes kicked up where the mouse taps the
-   * empty board. A much smaller sibling of `dust()`: a handful of tan puffs burst outward from the point,
-   * hug the ground (vertical motion damped, gentle gravity), and fade fast. Purely tactile feedback.
-   */
-  clickPuff(x: number, y: number): void {
-    if (!this.ready) return;
-    const SIZE = 1.2; // puff size (1.0 = base); +20% per owner request
-    const puffs = 7;
-    for (let i = 0; i < puffs; i++) {
-      const ang = (i / puffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const dx = Math.cos(ang);
-      const dy = Math.sin(ang);
-      const speed = 26 + Math.random() * 46; // gentle — a small kick, not a billow
-      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans (match the card-landing dust)
-      this.spawn(this.glowTex!, {
-        x: x + (Math.random() - 0.5) * 4,
-        y: y + (Math.random() - 0.5) * 4,
-        vx: dx * speed,
-        vy: dy * speed * 0.5 - (3 + Math.random() * 7), // vertical damped + a slight lift → stays flat
-        drag: 0.18,                                      // settles quickly
-        gravity: 120,
-        life: 260 + Math.random() * 180,
-        fromScale: (0.14 + Math.random() * 0.1) * SIZE,
-        toScale: (0.5 + Math.random() * 0.28) * SIZE,    // billow a touch but stay small
-        spin: (Math.random() - 0.5) * 1.2,
-        tint: tan,
-        blend: 'normal',
-        peakAlpha: 0.16 + Math.random() * 0.1,           // subtle
-      });
-    }
-  }
-
-  /**
    * One step of a motion trail behind a moving card — a wind-whoosh wisp left at (x, y), oriented along
    * the movement vector (dx, dy). Callers distance-gate on `getTrailConfig().emitSpacing` (the drag rAF
    * handler + the combat lunge's onUpdate), so emission density tracks speed — no movement, no trail.

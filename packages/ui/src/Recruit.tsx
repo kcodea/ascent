@@ -3211,7 +3211,8 @@ export function Recruit() {
     if (heroArmed || drag) return;
     if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar')) return;
     sfx.clickThock();
-    pixiFx.clickPuff(e.clientX, e.clientY); // small Pixi dust at the cursor (sibling of the card-landing dust)
+    // Small dust at the cursor (sibling of the card-landing dust) — the authored `click-puff` def.
+    playDef('click-puff', { source: { x: e.clientX, y: e.clientY }, target: { x: e.clientX, y: e.clientY } });
   };
 
   // End Turn → face the Omen. End-of-Turn effects play out *one at a time* on the still-mounted

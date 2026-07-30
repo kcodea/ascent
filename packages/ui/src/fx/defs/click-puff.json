@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "click-puff",
+  "label": "Click puff",
+  "tags": ["dust", "cursor", "tactile"],
+  "duration": 520,
+  "layers": [
+    {
+      "primitive": "burst",
+      "name": "dirt puffs",
+      "anchor": "target",
+      "at": 0,
+      "life": 520,
+      "params": {
+        "count": 8,
+        "spread": 1,
+        "speed": 46,
+        "speedVar": 0.6,
+        "drag": 0.78,
+        "gravity": 120,
+        "life": 380,
+        "shape": "circle",
+        "size": 8,
+        "sizeVar": 0.5,
+        "sizeCurve": [[0, 0.35], [1, 1.7]],
+        "alphaCurve": [[0, 0.32], [1, 0.22]],
+        "coreBias": 0.35,
+        "bands": 3,
+        "plateau": 0.3,
+        "glow": 0,
+        "erode": 0.3,
+        "blendMode": "normal",
+        "palette": [4866100, 9075294, 13218959, 14931643]
+      }
+    }
+  ]
+}

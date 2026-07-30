@@ -216,6 +216,8 @@ export const RFB_NUM_KEYS = [
   'artDim',
 ] as const;
 export const RFB_COLOR_KEYS = ['glowColor', 'shineColor', 'costColor', 'costFreeColor', 'blastColor'] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as RFB_DEFAULTS };
 
 const KEY = 'ascent.refreshbtn';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).

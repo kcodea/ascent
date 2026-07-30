@@ -202,6 +202,8 @@ export const ETB_NUM_KEYS = [
   'strikeRings', 'strikeRingRadius', 'strikeRingLife',
 ] as const;
 export const ETB_COLOR_KEYS = ['glowColor', 'boltColor'] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as ETB_DEFAULTS };
 
 const KEY = 'ascent.endturnbtn';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).

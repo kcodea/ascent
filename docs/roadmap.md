@@ -21,6 +21,13 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
+  Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
+  onto **Bug** Huggies (one letter apart) — confirm that is the intended art, and confirm the card name.
+- **Set 2 balance is unplayed.** 26 quests and 96 runes are implemented and tested, but almost none have been
+  played. Objective counts (Endless Inventory's 180 shop stats, Heart of the Mountain's 150) and rune magnitudes
+  are starting dials, not tuned numbers. Needs live play before it is trustworthy.
+
 - **Close the human-board gap (bots).** Expert covers 4.70 wins vs real player boards (par 9), 0 course
   survivals, and per-round win rate collapses after round 6. Evidence so far says the gap is CAPABILITY,
   not evaluation: every structural fix (replacement macros, spell casting) paid; every learned/statistical

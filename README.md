@@ -44,6 +44,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Set 2 content is complete: 26 quests and the full 96-rune roster.** The last stretch leaned on a handful of
+  reusable primitives rather than bespoke code per item — a threshold dispatcher ("every N of X, do Y"), a
+  gold-gain chokepoint, a shared free-rally helper — so most items became data plus a test. Two engine gaps
+  closed along the way: Gold is now credited through one path, and combat can carry an untyped board buff back
+  to the run.
 - **Lobby mode stopped hitching.** Starting a lobby ran seven full headless runs to build its opponent seats —
   twice, since they were built only to be probed and then evicted. Recordings are now lazy, memoized, and warmed
   in shop-phase idle time: 750 ms → 21 ms to start, 950 ms → 4 ms for round 1. And dying in a lobby replayed the

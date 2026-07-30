@@ -95,6 +95,9 @@ export const QUESTTENDRIL_RANGES: Partial<Record<keyof QuestTendrilConfig, [numb
   pulseSize: [0, 120, 2], pulseAlpha: [0, 1, 0.02], pulseMs: [40, 1000, 10],
 };
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as QUESTTENDRIL_DEFAULTS };
+
 const KEY = 'ascent.questTendril';
 
 let cfg: QuestTendrilConfig = load();

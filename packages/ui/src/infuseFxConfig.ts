@@ -86,6 +86,9 @@ export const INFUSEFX_RANGES: Partial<Record<keyof InfuseFxConfig, [number, numb
   pulseSize: [0, 200, 2], pulseAlpha: [0, 1, 0.05], pulseMs: [0, 1000, 10],
 };
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as INFUSEFX_DEFAULTS };
+
 const KEY = 'ascent.infusefx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: InfuseFxConfig = (() => {

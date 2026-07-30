@@ -166,6 +166,9 @@ export const SBF_NUM_KEYS = [
 ] as const;
 export const SBF_COLOR_KEYS = ['pinkColor', 'goldColor', 'purpleColor'] as const;
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as SBF_DEFAULTS };
+
 const KEY = 'ascent.spellbufffx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: SpellBuffFxConfig = (() => {

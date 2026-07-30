@@ -362,7 +362,7 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     ['Rune of Lazarus', 'lazarus'],
     ['Rune of the High King', 'dw_brill'],
     ['Rune of Exgalloper', 'dw_exgalloper'],
-    ['Rune of High King Mykel', 'dw_brisbane'],
+    ['Rune of Mykel', 'dw_brisbane'], // renamed to match the owner's sheet (2026-07-30)
   ])('%s grants %s', (name, cardId) => {
     const rune = all.find((r) => r.name === name);
     expect(rune, `${name} is missing`).toBeDefined();

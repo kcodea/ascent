@@ -312,7 +312,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         : `Your Rubies cast ${times}`;
     }
     case 'motherlode':
-      return `Whenever you get a Ruby, play a copy on ${r.count} random friendly ${TRIBE_PLURAL[r.tribe]}`;
+      return `Whenever you get a Ruby, play a copy on ${r.count} random friendly ${r.tribe ? TRIBE_PLURAL[r.tribe] : 'minions'}`;
     case 'consumeDoubleFirstEachTurn':
       return 'The first time your Demons Consume a Shop minion each turn, they Consume another';
     case 'spellCost':

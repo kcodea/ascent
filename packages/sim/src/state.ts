@@ -426,7 +426,7 @@ export interface RunState {
    *  doubler re-arms. `tick` banks the remainder across turns like the other threshold rewards. */
   endlessVerse?: { per: number; tick: number };
   /** Motherlode: on every Ruby gained, cast a copy on `count` random friendly `tribe` minions. */
-  motherlode?: { count: number; tribe: Tribe };
+  motherlode?: { count: number; tribe?: Tribe };
   /** Bottomless Banquet: the first Shop-minion Consume each turn eats a second. Reset with the per-turn tallies. */
   consumeDoubleFirstEachTurn?: boolean;
   consumeDoubleUsedThisTurn?: boolean;

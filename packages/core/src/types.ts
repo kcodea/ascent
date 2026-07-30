@@ -781,7 +781,7 @@ export type QuestReward =
    *  the same turn, so a Shout-heavy board can spend the doubler more than once a turn. */
   | { kind: 'endlessVerse'; per: number }
   /** Motherlode: whenever you GET a Ruby, cast a copy of it on `count` random friendly Kobolds. */
-  | { kind: 'motherlode'; count: number; tribe: Tribe }
+  | { kind: 'motherlode'; count: number; /** Absent = ANY friendly minion (Rune of the Motherlode); set = tribe-scoped (the quest). */ tribe?: Tribe }
   /** Bottomless Banquet: the first Shop minion your Demons Consume each turn, they Consume another. */
   | { kind: 'consumeDoubleFirstEachTurn' }
   // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,

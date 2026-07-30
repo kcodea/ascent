@@ -29,7 +29,9 @@ describe('Runeforge — framework', () => {
     validateRunes();
     // A hardcoded count is a tripwire for accidental additions, so it moves deliberately: +1 for Gemcutting
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
-    expect(RUNES.length).toBe(33); // +1: the set-2 Menagerie twin (2026-07-29)
+    // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
+    // deliberate look. Bump it with the count. +2 (2026-07-30): Recollection + the First Round.
+    expect(RUNES.length).toBe(35);
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 

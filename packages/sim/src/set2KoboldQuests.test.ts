@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX, QUEST_DEFS } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { RUBY_ID, mintRubies, rubyCastCount } from './recruit';
 
@@ -90,5 +90,50 @@ describe('the quest data itself', () => {
     const s = completeByCastingRuby(set2(), 'q_unstable_riches');
     expect(s.rubyCasts, 'the Ruby meter did not move').toBeGreaterThan(0);
     expect(s.spellsCast, 'a Ruby advanced the Shop-spell meter').toBe(0);
+  });
+});
+
+describe('the Set-2 rune batch (owner sheet 2026-07-30)', () => {
+  const byName = (n: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.name === n);
+
+  it("ships the six new runes at the sheet's costs and tiers", () => {
+    const want: [string, number, boolean][] = [
+      ['Rune of Recollection', 3, false],
+      ['Rune of the First Round', 4, false],
+      ['Rune of the Motherlode', 5, true],
+      ['Rune of Adventuring', 6, true],
+      ['Rune of the Choir', 4, true],
+      ['Rune of the High King', 4, true],
+    ];
+    for (const [name, cost, epic] of want) {
+      const r = byName(name);
+      expect(r, `${name} is missing`).toBeDefined();
+      expect(r!.cost, `${name} cost`).toBe(cost);
+      expect(!!r!.epic, `${name} epic`).toBe(epic);
+    }
+  });
+
+  it('Rune of Mykel and Rune of the High King grant DIFFERENT Dwarf kings', () => {
+    // The sheet lists both; the game had only one. Confusing them would silently make one rune a duplicate.
+    const mykel = byName('Rune of Mykel')!.reward as { cards?: string[] };
+    const high = byName('Rune of the High King')!.reward as { cards?: string[] };
+    expect(mykel.cards).toEqual(['dw_brisbane']);
+    expect(high.cards).toEqual(['dw_brill']);
+    expect(CARD_INDEX['dw_brill']).toBeDefined();
+  });
+
+  it('the Motherlode RUNE is untribed where the QUEST is Kobold-scoped', () => {
+    // One primitive, two scopes — the rune hits any friendly minion, the quest only Kobolds.
+    const rune = byName('Rune of the Motherlode')!.reward as { tribe?: string; count: number };
+    const quest = questById('q_motherlode').reward as { tribe?: string };
+    expect(rune.tribe, 'the rune should not be tribe-filtered').toBeUndefined();
+    expect(rune.count).toBe(2);
+    expect(quest.tribe).toBe('kobold');
+  });
+
+  it('reuses existing primitives rather than inventing new reward kinds', () => {
+    expect((byName('Rune of Recollection')!.reward as { effect?: string }).effect).toBe('copyFirstSpell');
+    expect((byName('Rune of the First Round')!.reward as { effect?: string }).effect).toBe('grantAles');
+    expect((byName('Rune of Adventuring')!.reward as { scope?: string }).scope).toBe('always');
   });
 });

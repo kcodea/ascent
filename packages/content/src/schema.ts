@@ -537,7 +537,7 @@ z.object({ kind: z.literal('shopBuffPerShouts'), per: z.number().int().positive(
 z.object({ kind: z.literal('shopBuffOnRefresh'), attack: z.number().int(), health: z.number().int(), step: z.number().int(), per: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('spellCost'), cost: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).strict(),
-z.object({ kind: z.literal('motherlode'), count: z.number().int().positive(), tribe: TribeSchema }).strict(),
+z.object({ kind: z.literal('motherlode'), count: z.number().int().positive(), tribe: TribeSchema.optional() }).strict(),
 z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),

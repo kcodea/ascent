@@ -930,7 +930,7 @@ function fireOnRubyGained(state: RunState): void {
     // a late-run Motherlode pays full strength rather than 1/1.
     const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
     for (let c = 0; c < ml.count; c++) {
-      const pool = state.board.filter((m) => isTribe(m, ml.tribe));
+      const pool = ml.tribe ? state.board.filter((m) => isTribe(m, ml.tribe!)) : [...state.board];
       if (pool.length === 0) break;
       const rng = makeRng(state.rngCursor);
       const target = pool[rng.int(pool.length)]!;

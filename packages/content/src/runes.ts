@@ -104,6 +104,24 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeScale', count: 3, attack: 3, health: 3, per: 5 },
   },
   {
+    // Shares Runic Refrain's EoT primitive — a COPY to hand, not a recast (that is Rune of Recurrence).
+    id: 'rune_recollection',
+    name: 'Rune of Recollection',
+    cost: 3,
+    text: '**End of Turn:** get a **copy** of the first spell you cast this turn.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'copyFirstSpell' },
+    sets: ['set2'],
+  },
+  {
+    // Shares Open Tab's primitive (2 random Ales at End of Turn).
+    id: 'rune_first_round',
+    name: 'Rune of the First Round',
+    cost: 4,
+    text: '**End of Turn:** get **2 random Dwarven Ales**.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' },
+    sets: ['set2'], // Ales
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,
@@ -603,8 +621,8 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_brisbane',
-    name: 'Rune of High King Mykel',
-    cost: 5,
+    name: 'Rune of Mykel',
+    cost: 4,
     epic: true,
     text: 'Get a **High King Mykel**.',
     reward: { kind: 'grant', cards: ['dw_brisbane'] },
@@ -629,6 +647,42 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Dwarven Ales** trigger an **additional time**.',
     sets: ['set2'],
     reward: { kind: 'aleExtraCasts', amount: 1 },
+  },
+  {
+    // The run-wide twin of the Motherlode quest — same primitive, no tribe filter (any friendly minion).
+    id: 'rune_motherlode',
+    name: 'Rune of the Motherlode',
+    cost: 5,
+    epic: true,
+    text: 'Whenever you get a **Ruby**, play a copy on **2 random friendly minions**.',
+    reward: { kind: 'motherlode', count: 2 },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_adventuring',
+    name: 'Rune of Adventuring',
+    cost: 6,
+    epic: true,
+    text: 'Your **Rally** effects trigger **twice**.',
+    reward: { kind: 'rallyRepeat', scope: 'always' },
+  },
+  {
+    id: 'rune_choir',
+    name: 'Rune of the Choir',
+    cost: 4,
+    epic: true,
+    text: 'Your **Shouts** trigger an **additional time**. Get a **Shout** minion.',
+    reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'grant', randomFilter: 'shout' }] },
+  },
+  {
+    // Distinct from Rune of Mykel (which grants High King Mykel) — this one is the Brill grant.
+    id: 'rune_high_king',
+    name: 'Rune of the High King',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Dwarf King, Brill**.',
+    reward: { kind: 'grant', cards: ['dw_brill'] },
+    sets: ['set2'],
   },
 ];
 

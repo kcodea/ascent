@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-07-30 — First rune tranche: the six that needed no new machinery
+
+Six runes, all reusing primitives built for the quests — which is what the parameterised approach was for:
+- **Rune of Recollection** (basic 3) — `copyFirstSpell`, shared with Runic Refrain.
+- **Rune of the First Round** (basic 4) — `grantAles`, shared with Open Tab.
+- **Rune of the Motherlode** (epic 5) — the Motherlode quest's primitive with `tribe` made OPTIONAL: the rune
+  hits any friendly minion, the quest only Kobolds. One primitive, two scopes.
+- **Rune of Adventuring** (epic 6) — `rallyRepeat` / `always`.
+- **Rune of the Choir** (epic 4) — `shoutRepeat` / `always` + a random Shout minion.
+- **Rune of the High King** (epic 4) — grants Dwarf King, Brill.
+
+`rune_brisbane` renamed **Rune of High King Mykel → Rune of Mykel** (cost 5 → 4) to match the sheet. The sheet
+lists TWO Dwarf-king runes and the game had one; Mykel grants `dw_brisbane`, the High King grants `dw_brill`.
+A test pins that they differ, since confusing them would silently make one rune a duplicate of the other.
+
+Also loosened `RUNES.length` from a bare hardcoded number to a commented tripwire — it exists to force a
+deliberate look when runes are added, not to specify a total.
+
+Verified: typecheck (both), lint (6 pre-existing), 3144 tests, build:web, harness determinism.
+
+**Rune queue: 41 remain** (21 basic, 20 epic). The rest need new machinery — mostly threshold triggers
+(every-N-Rubies / spells / buys / deaths), Shop-row manipulation, and a handful of new combat flags.
+
 ## 2026-07-30 — Three renames, set-1 rune scoping, Bulk Order retuned
 
 **Renames** (owner 2026-07-30): Display Curator → **Soul Defiler**, Velvet Rope Fiend → **Bug Huggies**, Cinder

@@ -203,6 +203,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
+        case 'runeVanguard':
+          return 'Start of Combat: give your three left-most minions Critical Strike and Ward';
+        case 'runeFinality':
+          return `When your last minion dies, summon ${r.amount ?? 7} Imps with Ward`;
+        case 'runeHatchery':
+          return 'Minions summoned by an Echo have +3/+3 and Taunt';
         case 'avengeFirstDouble':
           return 'Your first Avenge each combat triggers twice';
         case 'candlelightToll':

@@ -23,7 +23,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_warding',
     name: 'Rune of Warding',
     cost: 3,
-    text: '**Start of Combat:** give your **right-most** minion **Ward** and **double its Health**.',
+    text: '**Start of Combat:** give your **right-most** minion **Ward** and **triple its Health**.',
     reward: { kind: 'combatFlag', flag: 'runeWarding' },
   },
   {
@@ -165,6 +165,21 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'After you trigger **3 Shouts** in a turn, give minions in the **Shop +4/+4**. Once per turn.',
     reward: { kind: 'runeThreshold', meter: 'shout', per: 3, buff: { target: 'shop', attack: 4, health: 4 }, oncePerTurn: true },
+  },
+  {
+    // Pure data — `rallyRepeat`/`firstEachCombat` already exists (Spark Permit, Overclocked Core).
+    id: 'rune_stampede',
+    name: 'Rune of the Stampede',
+    cost: 4,
+    text: 'Your **first** friendly **Rally** each combat triggers **twice**.',
+    reward: { kind: 'rallyRepeat', scope: 'firstEachCombat' },
+  },
+  {
+    id: 'rune_hatchery',
+    name: 'Rune of the Hatchery',
+    cost: 4,
+    text: 'Minions summoned by an **Echo** have **+3/+3** and **Taunt**.',
+    reward: { kind: 'combatFlag', flag: 'runeHatchery' },
   },
   {
     id: 'rune_action',
@@ -736,6 +751,23 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Every **3 cards** you buy, get a random **Shop spell**.',
     reward: { kind: 'runeThreshold', meter: 'cardsBought', per: 3, grantSpell: 1 },
+  },
+  {
+    id: 'rune_vanguard',
+    name: 'Rune of the Vanguard',
+    cost: 1,
+    epic: true,
+    text: '**Start of Combat:** give your **three left-most** minions **Critical Strike** and **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeVanguard' },
+  },
+  {
+    // The Warded sibling of Pit Without End — its own latch, so holding both pays both.
+    id: 'rune_finality',
+    name: 'Rune of Finality',
+    cost: 6,
+    epic: true,
+    text: 'When your **last minion dies**, summon **7 Imps** with **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeFinality', amount: 7 },
   },
 ];
 

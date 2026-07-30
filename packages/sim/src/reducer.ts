@@ -2885,6 +2885,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // The Burning Legion carries a USE COUNT rather than a boolean — an unbounded "Imps copy themselves"
       // fills the board on the first swing.
       else if (r.flag === 'burningLegion') s.questFlags.burningLegion = r.amount ?? 3;
+      else if (r.flag === 'runeFinality') s.questFlags.runeFinality = r.amount ?? 7; // amount = Warded Imps summoned
       else s.questFlags[r.flag] = true;
       break;
     case 'questGoldTribeBuff':
@@ -3297,6 +3298,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     candlelightToll: f?.candlelightToll, // Candlelight Toll: a dying Kobold grants a Ruby
     gemheartCharge: f?.gemheartCharge,   // Heart of the Mountain: Gemheart Golems attack on summon
     burningLegionUses: f?.burningLegion, // The Burning Legion: bounded Imp self-copies
+    runeVanguard: f?.runeVanguard,         // Rune of the Vanguard: SoC Crit + Ward on your 3 left-most
+    runeFinality: f?.runeFinality,         // Rune of Finality: your last death summons Warded Imps
+    runeHatchery: f?.runeHatchery ? { attack: 3, health: 3 } : undefined, // Echo summons enter +3/+3 with Taunt
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

@@ -947,7 +947,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 2 quests: candlelightToll = a friendly Kobold dying grants you a Ruby; gemheartCharge = Gemheart
   // Golems attack the moment they're summoned; burningLegion = an attacking Imp summons a copy of itself
   // (bounded by `burningLegionUses`, since an unbounded version fills the board on the first swing).
-  | 'candlelightToll' | 'gemheartCharge' | 'burningLegion';
+  | 'candlelightToll' | 'gemheartCharge' | 'burningLegion'
+  // Rune batch 3: vanguard = SoC give your 3 left-most Critical Strike + Ward; finality = your LAST minion
+  // dying summons 7 Imps with Ward (the Warded sibling of pitWithoutEnd); hatchery = Echo summons enter
+  // +3/+3 with Taunt.
+  | 'runeVanguard' | 'runeFinality' | 'runeHatchery';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1031,6 +1035,12 @@ export interface QuestCombatMods {
   runeFury?: boolean;
   /** The Sealed Vault: the first Avenge each combat re-fires (once per side per fight). */
   avengeFirstDouble?: boolean;
+  /** Rune of the Vanguard: Start of Combat, give your 3 left-most minions Critical Strike and Ward. */
+  runeVanguard?: boolean;
+  /** Rune of Finality: how many WARDED Imps your last minion's death summons. */
+  runeFinality?: number;
+  /** Rune of the Hatchery: Echo summons enter with +attack/+health and Taunt. */
+  runeHatchery?: { attack: number; health: number };
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

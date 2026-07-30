@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 3: four combat flags + a Warding correction
+
+**Shipped (4):**
+- **Rune of the Stampede** (basic 4) — pure data; `rallyRepeat`/`firstEachCombat` already existed.
+- **Rune of the Hatchery** (basic 4) — Echo summons enter +3/+3 with Taunt. Applied at the summon site, BEFORE
+  the summon snapshot, so the replay shows the real body rather than the base card.
+- **Rune of the Vanguard** (epic 1) — Start of Combat, your three left-most gain Critical Strike + Ward.
+  Left-most (not right, like Warding) because these are the bodies that swing first — the Crit wants to land early.
+- **Rune of Finality** (epic 6) — the Warded sibling of Pit Without End, with its OWN once-per-fight latch.
+  Sharing `pitDone` would let whichever ran first silently eat the other, and the loss would be invisible except
+  as "this rune feels weak". A test holds both runes and asserts 14 Imps.
+
+**Rune of Warding corrected**: the sheet says TRIPLE its Health; the game doubled. Fixed, with a test asserting
+a 20-Health body gains +40.
+
+**HELD BACK — Rune of Counterpoint.** "When a friendly minion dies, your left-most minion attacks immediately."
+The flag fires (the `questTrigger` event is emitted, verified), but the queued strike never resolves into an
+`attack` event: measured 14 attacks with and without, across two board shapes. Tried three routes — pushing
+`pendingAttackOnSummon` directly, `ctx.attackNow`, and `ctx.attackNow` followed by an explicit
+`flushImmediateAttacks()` — all three no-ops. The out-of-turn attack queue evidently does not accept a strike
+queued from inside a death cascade the way it does from Start of Combat (First Claws) or an Avenge (Solaris
+Fang), and finding out why is a combat-core investigation, not a content change.
+
+Pulled the rune, the flag, and the sim block rather than ship a rune that reads correctly and does nothing —
+the same failure mode as the first cut of The Sealed Vault. Worth picking up with fresh context.
+
+Verified: typecheck (both), lint (6 pre-existing), 3167 tests, build:web, harness determinism.
+
+**Rune queue: 30 remain.** 17 of 47 done.
+
 ## 2026-07-30 — Fatecarver's spell branch: verified, not rewired
 
 Owner ask: "Fatecarver should trigger from things like Runefire's end of turn effect." Investigated before

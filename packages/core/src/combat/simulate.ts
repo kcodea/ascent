@@ -277,6 +277,8 @@ export function simulate(
   // Imps the player summoned this combat — the `summonImp` objective.
   let playerImpsSummoned = 0;
   const pitDone: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of Finality's own once-per-fight latch — separate from `pitDone` so holding both runes pays both. */
+  const finalityDone: Record<Side, boolean> = { player: false, enemy: false };
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
@@ -780,6 +782,15 @@ export function simulate(
     // immediate-attack queue so it lands + strikes as one beat (the Whelp path). Rune of Aftershocks no
     // longer touches the summon — as of 2026-07-21 it buffs your whole board when an Echo TRIGGERS (see asEcho).
     if (echoDepth > 0 && modsFor(side).runeUndertow) attackNow = true;
+    // Rune of the Hatchery: bodies summoned BY an Echo come in +3/+3 with Taunt. Applied at the summon site so
+    // it lands before the summon snapshot — the replay shows the real body, not the base card.
+    const hatch = echoDepth > 0 ? modsFor(side).runeHatchery : undefined;
+    if (hatch) {
+      minion.attack += hatch.attack;
+      minion.health += hatch.health;
+      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+      if (!minion.keywords.includes('T')) minion.keywords.push('T');
+    }
     // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
     // the Whelp and Rune of the Undertow use — so the summon and its strike land as one beat.
     if (modsFor(side).gemheartCharge && card.id === 'gemheart-shard') attackNow = true;
@@ -1191,6 +1202,14 @@ export function simulate(
       pitDone[side] = true;
       const imp = cards['impscrap'];
       if (imp) { nextStep(); for (let i = 0; i < pitImps; i++) summonMinion(side, imp, undefined); }
+    }
+    // Rune of Finality: the Warded sibling of Pit Without End — same "your last minion died" trigger, but the
+    // Imps arrive with Ward. Its own latch, so holding both runes pays both once rather than one eating the other.
+    const finalImps = modsFor(side).runeFinality ?? 0;
+    if (finalImps > 0 && !finalityDone[side] && countLiving(side) === 0) {
+      finalityDone[side] = true;
+      const imp = cards['impscrap'];
+      if (imp) { nextStep(); for (let i = 0; i < finalImps; i++) summonMinion(side, imp, undefined, ['DS']); }
     }
   }
 
@@ -1839,6 +1858,22 @@ export function simulate(
     // Rune of Warding: give the RIGHT-most living minion a Ward and DOUBLE its Health (owner ruling 2026-07-29;
     // was the left-most, Ward only). Right-most so it protects the tail your opponent reaches last, and the
     // doubling is why it wants a big body rather than a spare one.
+    // Rune of the Vanguard: give your three LEFT-most living minions Critical Strike and Ward. Left-most (not
+    // right) because these are the bodies that swing first — the Crit wants to land early.
+    if (rmods.runeVanguard) {
+      const front = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, 3);
+      if (front.length > 0) {
+        nextStep(); fireTrigger('runeVanguard', rside);
+        for (const m of front) {
+          if (!m.keywords.includes('CR')) m.keywords.push('CR');
+          if (!m.divineShield) {
+            m.divineShield = true;
+            if (!m.keywords.includes('DS')) m.keywords.push('DS');
+            emit({ type: 'shieldUp', target: m.uid });
+          }
+        }
+      }
+    }
     if (rmods.runeWarding) {
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const lead = living[living.length - 1];
@@ -1849,8 +1884,9 @@ export function simulate(
           if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
           emit({ type: 'shieldUp', target: lead.uid });
         }
-        // Double the CURRENT Health, and lift maxHealth with it so healing/Rise can't clip it back down.
-        const gain = lead.health;
+        // TRIPLE the current Health (owner sheet 2026-07-30; was double), lifting maxHealth with it so
+        // healing/Rise can't clip it back down. `gain` is 2x because it is ADDED to the existing body.
+        const gain = lead.health * 2;
         lead.health += gain;
         lead.maxHealth = Math.max(lead.maxHealth ?? lead.health, lead.health);
         emit({ type: 'buff', target: lead.uid, attack: 0, health: gain, source: lead.uid });

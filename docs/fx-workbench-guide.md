@@ -6,7 +6,8 @@ workbench's own **Browse all**.
 
 **Dev only.** The workbench, the primitives and the defs are all stripped from a production build —
 `canPlayDefs()` is false there. Nothing in this guide affects what players get until someone explicitly
-decides to ship the primitives.
+decides to ship the primitives. (One deliberate exception: `fx/presets/presets.json`, ~1 KB, rides along in
+the bundle — [the appendix](#appendix--why-presetsjson-ships) explains why it can't be stripped.)
 
 ---
 
@@ -40,18 +41,73 @@ Dev menu → **🎨 FX Workbench**. It takes over the screen; the game keeps run
 
 ## 2. Pick a starting point
 
-**Browse all** opens the library through three lenses:
+**Never start from a blank composition.** Hand-authoring a def from scratch is how you end up with a file
+that passes validation and looks like nothing. Both routes below hand you something that already plays, and
+leave you tuning numbers — which is the part worth your time.
+
+### ＋ New effect — the preset gallery
+
+The first button in the toolbar. It opens a grid of **archetypes** — what the effect *does* — each offering
+a few **variants**:
+
+| Archetype | | Variants |
+|---|---|---|
+| ⚡ **Bolt** | travels fast and lands hard | thin · heavy · crackling · beam |
+| 💥 **Blast** | detonates in place | thin · heavy · crackling |
+
+Hovering a variant **previews** it on the stage; clicking lands it in the editor as a tuned, working
+composition, pre-named `<archetype>-<variant>`. Nothing is written to disk until you Save.
+
+A variant is not a second file. It's the archetype's **base def** with a table of multipliers applied to
+its **slider params only** — `thin` is `size ×0.6, speed ×1.3, count ×0.7`, and so on — each result clamped
+to that param's range and snapped to its step. Params of any other kind (toggle, enum, colour, palette,
+curve, shape) have no numeric range, so "multiply it" is undefined: those are left exactly as authored and
+reported as *missed* rather than silently half-applied. In DEV, a key that reached nothing on any layer
+logs `[fx] preset '<archetype>/<variant>': N key(s) reached nothing` — that's a preset-table bug, not an
+authoring one.
+
+> **The two shipped bases are unreviewed first passes.** `preset-bolt` and `preset-blast` are structurally
+> correct and validated by tests, but nobody has judged them at real card scale yet. The gallery shell and
+> the base *content* ship separately on purpose: a base the owner rejects costs one JSON file, not the
+> feature. Tune them in the workbench like any other def — they are ordinary def files.
+
+Three details worth knowing before they surprise you:
+
+- **The bases don't appear in Browse all.** Ids prefixed `preset-` are filtered out of the catalog
+  (`PRESET_ID_PREFIX` in `fx/ui/catalog.ts`). Deliberate: Browse all's *by event* lens is the **coverage
+  map**, where "nothing bound" is a signal to act on — and the bases are unbound by design, so leaving them
+  in would pad that column with permanent false positives. They stay reachable in the rail's **Start from**
+  picker, which is the editor's file list. They have to be reachable somewhere, or they could never be tuned.
+  What the rail *does* hide is **materialised variants** — ids carrying the `--` separator. Hovering a variant
+  registers it (a preview can't play until it exists by id), so without that filter a single sweep across
+  Bolt's four variants would add four entries to your file list that you never chose and can't delete. Bases
+  have no `--`, variants always do.
+- **A materialised variant drops its base's `label`, `tags` and `seed`.** `label`/`tags` are the library
+  browser's search + grouping index and the workbench has no editor for them — inheriting would file every
+  Bolt-derived effect under words the author never wrote and can't change. `seed` matters more: `loadDef`
+  reads it to decide whether to **lock** the seed (§5), so an inherited one would silently hand you a frozen
+  composition. A fresh variant starts unlabelled, untagged and rolling free, exactly like any other new def.
+- **A variant that only partly landed tells you.** `applyVariant` reports every transform key that reached no
+  slider param in `missed`; picking such a variant puts an amber line above the def name / Save row naming
+  those keys. The three causes of a miss (no primitive declares the key; the key names a non-slider param; the
+  current value can't be multiplied) share **one** bucket on purpose — to an author they all mean *this part of
+  the recipe did nothing*, and the difference is a preset-table detail they can't act on. It's a warning, not
+  an error: the composition is fully usable. Shown on **pick** only — warning on every card the pointer crosses
+  while browsing would be noise.
+- **`presets.json` ships in the production bundle** (~1 KB) — see [the appendix](#appendix--why-presetsjson-ships).
+
+### Browse all — start from something already bound
+
+The second route: an existing def that already reads well. **Browse all** opens the library through three
+lenses:
 
 - **by look** — shape, colour, motion, all derived from the defs themselves
 - **by event** — every moment kind with its bound def, or *nothing bound*. This is the coverage map
 - **by card** — grouped by tribe, showing which cards have bespoke effects
 
 Hovering a row **previews** it on the stage without touching your work. **⧉** duplicates it as a fresh
-template.
-
-> **Start from something close.** Hand-authoring a def from scratch is how you end up with a file that
-> passes validation and looks like nothing. Duplicating a def that already reads well gets you a working
-> starting position and leaves you tuning numbers, which is the part worth your time.
+template. Prefer this over the gallery when something close to what you want already plays in the game — you
+inherit a look that has survived a real fight, not just a starting position.
 
 ---
 
@@ -108,12 +164,23 @@ Two details:
   produce correlated streams, so a burst and a smoke plume would emit in near-lockstep and read as a bug.
 - A seed change applies to the **next** spawn. It won't restart an effect mid-play.
 
-> **⚠️ The one that bites.** Saving while the seed is locked **bakes that seed into the def file**, and
-> `playDef` honours it — so every play in the real game is the identical roll. Every proc of that card,
-> forever, the same. Occasionally that's what you want (a signature, exactly-choreographed hit). Usually it
-> isn't: repeated procs start reading as mechanical. **Unlock before you Save** unless you mean it. No def
-> currently in `fx/defs/` carries a baked seed. The lock state persists across reloads, so it is easy to
-> forget it's on.
+> **⚠️ Saving while the seed is locked bakes that seed into the def file**, and `playDef` honours it — so every
+> play in the real game is the identical roll. Every proc of that card, forever, the same. Occasionally that's
+> exactly what you want (a signature, exactly-choreographed hit). Usually it isn't: repeated procs start reading
+> as mechanical, because the eye learns the pattern. No def currently in `fx/defs/` carries a baked seed.
+>
+> **You will be told, at both places that write a seed.** For as long as the lock is on, an amber line naming
+> the exact seed and what baking it means — with a one-click **Unlock** beside it — sits directly under the
+> **Save** button *and* directly above **Commit animation** in the rail panel. One shared `SeedBakeWarning`
+> component, rendered twice, deliberately: Save lives in `.fxwb-side` and Commit in `.fxrail`, two columns that
+> scroll independently, so a warning next to Save says nothing about a Commit happening with it scrolled out of
+> view — and Commit is the path that matters more, since it writes `bindings.json` and makes the effect live.
+> It renders on the *lock state*, not after a write attempt, so neither button can be reached without it having
+> been on screen.
+>
+> Save deliberately does **not** auto-unlock. That would silently change what gets written and would break the
+> signature-hit case outright. Making the hazard visible at the moment of decision is the fix; the decision
+> stays yours.
 
 ---
 
@@ -147,9 +214,37 @@ The panel shows the resulting def id and how many bindings the commit will touch
 numbers you changed. The commit order is fixed: the def file writes first, `bindings.json` second, so a def
 failure changes nothing and a binding failure leaves only an unbound def (inert, not silently wrong).
 
-**Writing `bindings.json` triggers a full page reload** — it's a static import, so it can't hot-reload — which
-means the workbench unmounts before you can read a success message. Check `git status` for the two changed
-files instead; that's the real confirmation.
+**A commit forces a full page reload, and BOTH its writes cause one.** `bindings.json` is a static import Vite
+can't hot-reload; the def file lands in the globbed defs directory, where `fxDefsPlugin` answers an `add` by
+invalidating the glob owner and sending `full-reload` outright — and a `change` reloads too, since nothing in
+the import graph sets up an `import.meta.hot.accept` boundary. So the reload is set in motion by the **first**
+write, not the last, and the workbench unmounts before the `Committed → …` line can paint.
+
+The note is therefore parked in `localStorage` **as soon as the def write succeeds** — before the
+`await saveBindings` round trip, because Vite's client can call `location.reload()` at any point during it, and
+parking afterwards means a reload timed inside that await leaves nothing parked and no banner at all.
+
+Crucially that mid-flight note is **amber and does not claim completion**:
+`Commit STARTED → <def> · def written, binding not confirmed`. It survives only when a reload lands in the very
+window where the binding may never have been written, so opening it with `Committed →` in success green would be
+character-identical to full success in exactly the half-done case — the author reads "done" and then finds the
+effect doesn't fire. The success path overwrites it green a round trip later, so on a normal commit the amber is
+never seen; it persists only when it is true.
+
+Every other exit corrects it too: a failed binding write parks
+`Commit INCOMPLETE → <def> was written but its binding was not: …` (the def *is* on disk, so silence would
+misreport an orphan file the author wouldn't know to `git checkout`), and a thrown commit parks the equivalent.
+Art-upload failures are **folded into the parked text** and hold it amber, because the in-component error line
+dies with the component — without that, the one case where something went wrong would be the case whose
+surviving evidence looks clean. The key is cleared at the start of every commit and again as the banner is read,
+so it appears exactly once and a stale line can never be presented as this commit's confirmation. A note older
+than ~10 minutes is prefixed `Earlier — `; older than a day it isn't shown at all.
+
+**Be precise about when you see it.** The banner appears the next time the workbench is *opened*, not the
+instant the page reloads. The reload closes the workbench (it's mounted from `DevMenu`, whose state resets), so
+the confirmation waits in storage until you reopen it. That's a real limitation, not a bug: the alternative is
+persisting the whole DevMenu open-state across reloads, which is a much bigger change than this fix warranted.
+`git status` on the two changed files remains the instant cross-check.
 
 Hand-editing `bindings.json` still works and is sometimes faster for a small tweak:
 
@@ -205,10 +300,24 @@ along one side and hosts the proc harness in the space it vacates: pick a card, 
 against tunable sandbags, get the list of moments that card actually caused, and seek the replay to any one
 of them on the real board. Click **Full editor** to collapse the harness back and restore the full workbench.
 
-While in rail mode, `.fxwb-rail .fxwb-top { display: none }` hides the whole transport bar — Fire, scrub,
-seed lock — **and the workbench's close button along with it**, since both live in the same `fxwb-top`
-container. That's not a trap: the mode toggle itself lives in `.fxwb-side`, which stays visible in rail mode,
-so "Full editor" always gets you back to the transport bar and the close button in one click.
+While in rail mode both bars are hidden: `.fxwb-rail .fxwb-top { display: none }` takes the seed lock, the
+backdrop swatches, the fps readout **and the workbench's close button** with it, and
+`.fxwb-rail .fxwb-transport { display: none }` takes the Timeline, the duration/loop/playback dials and the
+seed row. Neither is a trap. The mode toggle itself lives in `.fxwb-side`, which stays visible, so "Full
+editor" gets you back to all of it (and to ✕) in one click.
+
+The two controls you actually need *while watching* — retrigger and scrub — do not wait for that round trip:
+the rail carries its own compact **`.fxwb-railtransport`** (▶/⏸ · 🔥 Fire · the scrubber, no Timeline) pinned
+sticky to the bottom of the rail, calling the same `togglePlay` / `fire` / `scrub` handlers as the main bar.
+The full transport stays hidden rather than being unhidden here for a layout reason: it is
+`position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width
+Timeline, so it would paint a band straight across the board this mode exists to show.
+
+**Those three controls and nothing else is a deliberate call** (owner ruling, 2026-07-29). The rail bar is not
+a miniature of the transport and shouldn't grow into one — the point of rail mode is the board, not the dials.
+One known consequence: the 🔒 seed toggle isn't there, so in rail mode you can **unlock** a seed (via the
+warning's Unlock button, which is present next to Commit) but not re-**lock** one. Click **Full editor** for
+that. Accepted, not an oversight.
 
 ---
 
@@ -216,6 +325,9 @@ so "Full editor" always gets you back to the transport bar and the close button 
 
 `git add` the def **and** `bindings.json` together — a def with no binding is inert, and a binding naming a
 def that doesn't exist is a silent no-op that a test will catch but a player never would.
+
+The `Committed → <def> · <path>` confirmation survives the reload the write itself forces, and appears the next
+time you open the workbench — see §7 for exactly how and for the timing caveat.
 
 ---
 
@@ -226,6 +338,37 @@ def that doesn't exist is a silent no-op that a test will catch but a player nev
 - **Anchors are a fire-time snapshot**, so an effect doesn't follow a unit that moves. Deliberate — per-frame
   layout reads are banned — but revisit if a follow-the-unit effect is ever wanted.
 - **~30 legacy `pixiFx` effects** predate defs and aren't authorable here.
-- **Committing writes a full page reload** — the workbench unmounts before a success message can be read;
-  check `git status` for the two changed files instead.
+- **Committing still costs you a page reload** (`bindings.json` is a static import Vite can't hot-reload), and
+  the reload closes the workbench. The confirmation now survives it (§7) but waits until you reopen the tool.
 - **No editing a def's `label`/`tags` from the panel**, and no unbind affordance — both still hand-edit only.
+- **Only two preset archetypes so far** (Bolt, Blast), and both are unreviewed first passes. Eight more are
+  queued — wave, chain, cloud, swell, drip, vortex, slam, beam — landing one at a time so each gets judged at
+  real card scale rather than eight at once.
+
+---
+
+## Appendix — why `presets.json` ships
+
+Two decisions in this subsystem look like mistakes at a glance. They aren't; don't "fix" them without
+reading this.
+
+**`presets.json` is in the production bundle.** Everything else in the workbench is DEV-stripped, so the
+obvious question is why this ~1 KB of JSON isn't. Because it's a **static import**, and static imports are
+hoisted — a runtime `if (import.meta.env.DEV)` can't gate one the way `fxDefs.ts` gates its `import.meta.glob`
+(a glob is a build-time construct the bundler can elide; a plain `import` is not). The asymmetry with
+`fxDefs.ts` is therefore real and deliberate, not an oversight. The alternative — a dynamic `import()` —
+makes `presetTable()` async and that ripples straight into the gallery overlay's render path, which is a
+disproportionate amount of machinery to save a kilobyte.
+
+**`parsePresetTable` throws; `choreo/bindings.ts` deliberately does not.** The two files use the same
+hand-rolled validation style (no zod in `ui`) and reach opposite conclusions on failure, on purpose:
+
+- `bindings.ts` **ships and runs** in the production bundle, so a malformed entry there must degrade — one
+  dropped binding is a missing effect, recoverable. It uses `devError`.
+- `presetTable.ts` backs a **menu**. A half-loaded table is a silently incomplete gallery: archetypes just
+  aren't there, with nothing to tell the author why. So it throws.
+
+That is safe **only because the parse is lazy**. `presetTable()` parses on first call and caches
+(`fx/presets/index.ts`), and the only caller is the DEV-only gallery — so in production the parse never runs
+and the throw can never fire. Make the parse eager (`const TABLE = parsePresetTable(raw)` at module scope)
+and a bad JSON edit becomes a hard crash at module load for every player. The laziness is load-bearing.

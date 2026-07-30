@@ -44,6 +44,23 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
+  with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
+  schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.
+- **FX library cleanup — and two "dead code" leads that weren't.** Five leftover workbench drafts deleted from
+  `fx/defs/`. `death-dissolve` was investigated and **kept**: no binding names it, but `useCombatReplay` plays it
+  directly for every plain death. Same for `pixiFx.discoverBurst`, which fires on every Discover open and is the
+  only reason the second Pixi context exists. Both are now documented as do-not-delete.
+- **FX workbench: stop hiding things.** Four papercuts in the effects authoring tool, one principle — make
+  failure visible. "Watch in combat" now carries its own ▶/⏸ · 🔥 Fire · scrubber, so you can retrigger and scrub
+  while watching an effect on a real card; the commit confirmation survives the page reload committing itself
+  forces, instead of being unreadable by construction; a locked seed warns under Save (naming the seed, with a
+  one-click unlock) before it bakes one frozen roll into a shipped def forever; and a preset variant whose
+  adjustments reached nothing says so in the UI rather than only in the console.
+- **＋ New effect — the FX workbench gets an on-ramp.** A preset gallery of archetypes (⚡ Bolt, 💥 Blast), each
+  with variants (thin / heavy / crackling / beam), lands a tuned, working composition in the editor instead of a
+  blank page. A variant is a multiplier table applied to slider params only — clamped, snapped, and loud about
+  anything it couldn't apply. The two shipped bases are first passes awaiting a tuning pass.
 - **Lobby: real players at the table.** An 8-seat lobby now seats up to 3 REAL player runs from the shared
   board pool — their actual boards, in their actual order — alongside bots wearing player handles. Measured over
   9 lobbies, recorded player runs place 3.63 against the bots' 6.58.
@@ -64,14 +81,6 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   everywhere.
 - **Three new minions** — Moira (trigger adjacent Shouts), Mineral Master (Rally → Rubies on your Kobolds), and
   **Paragon**, the all-type minion whose Rally buffs a minion of every type permanently.
-- **Tier 7 now needs access** — the Summit rift, or a hero/quest that grants it. Beyond the Summit only promises
-  "up to Tier 7" when the run can actually keep the promise.
-- **Control every tribe and Wayfinder offers only all-type minions** — the payoff for assembling one of each.
-- **Cards say "Shop spells" wherever Rubies don't count** — 57 card texts and the quest strings, Ancient Runes
-  included. Gemgorge Fiend and Living Grimoire stay inclusive, because a Ruby really does feed them.
-- **Tallymonger finally animates** at End of Turn — both the spell-power flourish and the Imp aura wash.
-- **Discover spells count as spells** — Sprout and friends never fired a single spell trigger.
-- **Rise counts as a death** for Avenge and the death tallies.
 
 ## Layout
 

@@ -1,52 +1,41 @@
-import { useState } from 'react';
-import { FLIP_KEYS, FLIP_RANGES, FLIP_DESC, getFlipConfig, resetFlipConfig, setFlipValue, type FlipConfig } from './flipConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { FLIP_DEFAULTS, FLIP_RANGES, getFlipConfig, resetFlipConfig, setFlipValue, type FlipConfig } from './flipConfig';
+import { TunerPanel } from './TunerPanel';
+import type { TunerSpec } from './tunerSchema';
 
 /**
- * DEV-only floating tuner for the warband/shop Flip slide — the reposition animation (reorder, close a sold
- * gap, make room). Drag the sliders to dial the live-drag glide (`dragMs`) and the committed settle (`commitMs`)
- * by eye — values persist to localStorage and apply to the NEXT reposition (drag a card or sell one to judge).
- * "Copy" grabs the JSON to paste back as the shipped defaults in `flipConfig.ts`; "Reset" clears to defaults.
- * Panel-only: opened from the Dev Tuning Menu (DevMenu.tsx); dev-only, so it's stripped from production.
+ * DEV-only tuner for the warband/shop reposition slide — the movement when cards reorder, close a sold gap, or
+ * make room for a played unit. Values persist to localStorage and apply to the NEXT reposition, so drag a card
+ * or sell one to judge a change.
+ *
+ * Migrated to the shared `TunerPanel`: this file is now the panel's *description*, not its implementation.
+ * Persistence still runs entirely through `flipConfig`'s own accessors, so previously dialled values survive.
  */
-const LABELS: Record<keyof FlipConfig, string> = {
-  dragMs: 'drag slide ms',
-  commitMs: 'commit settle ms (0=off)',
+const SPEC: TunerSpec<FlipConfig> = {
+  id: 'flip',                       // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Reposition Slide',
+  note: 'dev · next move · drag',
+  read: getFlipConfig,
+  write: setFlipValue,
+  reset: resetFlipConfig,
+  defaults: FLIP_DEFAULTS,
+  controls: [
+    {
+      key: 'dragMs',
+      label: 'Slide while dragging',
+      hint: 'How long cards take to open a slot as you drag a card across the row.',
+      unit: 'ms',
+      min: FLIP_RANGES.dragMs[0], max: FLIP_RANGES.dragMs[1], step: FLIP_RANGES.dragMs[2],
+    },
+    {
+      key: 'commitMs',
+      label: 'Settle after drop',
+      hint: 'The settle once you let go. 0 is instant — on a slow drag the cards have already slid into place.',
+      unit: 'ms',
+      min: FLIP_RANGES.commitMs[0], max: FLIP_RANGES.commitMs[1], step: FLIP_RANGES.commitMs[2],
+    },
+  ],
 };
 
-export function FlipTuner() {
-  const [cfg, setCfg] = useState<FlipConfig>(getFlipConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('flip');
-
-  const set = (k: keyof FlipConfig, v: number): void => {
-    setFlipValue(k, v);
-    setCfg({ ...getFlipConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getFlipConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetFlipConfig(); setCfg({ ...getFlipConfig() }); };
-
-  return (
-    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Reposition Slide <span>dev · next move · drag</span></div>
-      {FLIP_KEYS.map((k) => {
-        const [min, max, step] = FLIP_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={FLIP_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export function FlipTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

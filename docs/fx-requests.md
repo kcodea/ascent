@@ -68,8 +68,12 @@ Three that would show the most:
 - **`ascend`** — a rare, expensive moment that deserves to feel expensive.
 - **`maxGold`** — a purely positive economic beat with no visual language yet.
 
-(`death-dissolve.json` exists but is bound to nothing — worth deciding whether to wire it to `death` or
-retire it.)
+> **`death-dissolve` is NOT an orphan — do not delete it.** It is absent from `bindings.json`, but
+> `useCombatReplay.ts` calls `playDef('death-dissolve', …)` **directly**, and it plays for every PLAIN death
+> (no Deathrattle, no Rise). It can't be a cue: a cue is picked by moment KIND, and a kind is derived from the
+> event alone, which cannot see whether the dying card has an `onDeath` effect — so the call sits in the `else`
+> of the skull's own gate, which is what guarantees skull and dissolve never both fire for one unit. Any future
+> "wire `death` up properly" pass has to keep that mutual exclusion. (Audited + kept 2026-07-29.)
 
 ---
 

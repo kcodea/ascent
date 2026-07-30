@@ -115,6 +115,443 @@ double-add Ward, and no Dwarf leaks into set 1. Gates: typecheck, typecheck:web,
 minion is Tier 2, 4/2, "Shout: get a Gold Pouch", while the roster lists Cheap Date as Tier 1, 1/1, "Get a
 random T1 minion when you sell this". Renaming was the literal instruction; if the roster line is what you want,
 it's a new card body (a sell trigger), not a rename.
+## 2026-07-29 — the dev tuner menu gets categories, and tuners get a schema
+
+**What changed.** Two connected pieces of the dev tuning surface: the menu that indexes the tuners, and the
+beginning of a single shared panel the tuners themselves render through. Dev-only — all of it is stripped from
+production. No engine, content, sim, or player-visible change.
+
+**The audit that set the direction.** Measured rather than eyeballed: **47 panels, 43 with a label map, 867
+individually-labelled controls, and only 16 configs shipping any hover explanation** — so roughly 600 controls
+had no explanation anywhere. The unit vocabulary across those labels: `ms` ×83, `px` ×52, `α` ×30, `°` ×29,
+`×` ×28, `%` ×15, bare `s` ×9, `px/s` ×4, **`deg` ×1**. Degrees spelled two ways; opacity spelled `α` in thirty
+labels and "opacity" elsewhere. That reframed the job: it is not 47 UIs to redesign, it is 867 numbers to name
+inside one UI built once. Rebuilding chrome 47 times fixes no labels, and fixing labels in 47 places makes
+every later improvement a 47-file edit.
+
+**The menu.** Was 53 entries in one flat, historically-ordered list wrapped into four 174px columns (~736px
+wide) — the two Execute panels sat 22 rows apart under the same emoji, and eight glyphs were used more than
+once. Now nine categories, filter-as-you-type across label + description + synonyms, arrow-key navigation with
+the cursor shared between keyboard and hover, an open-panel count on the 🛠️ button, and Close all. Every entry
+carries a one-line description sourced from that panel's own doc comment, because labels like "Weld", "Step
+Proc" and "Trail" name the internal effect rather than the thing you see. Synonyms keep muscle memory working:
+`windfury` finds Flurry Swing, `divine shield` finds Ward Dome, `magnetize` finds Weld.
+
+**The schema.** A panel is now a `TunerSpec` — `{ key, label, hint, unit, min, max, step, group, kind }` plus
+`read`/`write`/`reset`/`defaults` — rendered by one `TunerPanel`. **Persistence is wrapped, never replaced:**
+forty config modules own their own localStorage key and their own get/set/reset holding values dialled by eye
+over months, so a spec points at those accessors and adds only presentation metadata. Verified live that an
+edit still writes the original key (`ascent.flip.v3`) and creates no new ones.
+
+What the schema buys beyond deleting duplication: units are declared and rendered rather than typed into
+labels, so the spellings cannot drift again; sections are real (`CardPlateTuner` had been faking them by
+prefixing every label — "plate · width", "gold · sepia"); a number box sits beside every slider, because a
+slider cannot express "exactly 180"; and a modified-from-shipped mark doubles as a one-click per-control
+revert, so "is this still the shipped value?" is answerable without reading the config source.
+
+**Six panels migrated** — deliberately the extremes first: Reposition Slide (2 controls), Step Counter (3),
+Damage Float (7), Motion Trail (11), Card Plate (14), and **Execute Aura (48, the largest tuner in the
+project)**. If the schema holds at both ends it holds anywhere.
+
+**Three things the plan got wrong, found by building.**
+- The units contract banned bare seconds. Several configs genuinely store seconds because they feed CSS
+  durations directly, and normalising them would rewrite stored values — a behaviour change, not a refactor.
+  Both units exist now; declaring the unit fixes the real problem, which was a bare `2.4` that might be either.
+- Controls needed a per-control caveat. `CardPlateTuner` has three sliders that are not live (`Card` is
+  memoized for combat performance), and the old panel warned with one blanket line at its foot that never said
+  which three. A control now carries its own note.
+- `ExecuteTuner` had already invented half the schema before it existed — its config declared groups, colour
+  groups, and a modified-key list. Good evidence the shape was right.
+
+**Two layout defects, both fixed.** A freshly-opened schema panel overflowed horizontally: `.sfxmix` defaults
+to 290px, sized for the old three-column row, while a schema row has four. Panels persist their size but only
+after you resize one, so the default is what you actually meet. The deeper cause was worse — the tuner CSS was
+**unscoped and defined earlier in styles.css than the `.sfxmix-row` rules it was meant to override**. Those are
+`display: flex` with fixed flex bases and tie on specificity, so source order decided, flex won, and the grid
+never applied at all: the slider computed to 0px and the number box to 233px. Every layout rule is now scoped
+`.tunerpanel …`.
+
+**A duplicated invariant, caught before it could rot.** `ExecuteTuner` had copied the config's group table into
+a local `SECTIONS` array. `executeConfig.test.ts` asserts those groups cover every numeric key exactly once,
+but it only checks the config's copy — the two could have drifted with the test still green. The tuner imports
+`EXECUTE_GROUPS` now.
+
+**How it was verified.** typecheck, typecheck:web, **2905 tests**, lint (3 pre-existing warnings), build:web.
+Live DOM checks for each migrated panel: correct grid tracks, no overflow at the 400px opening width, sections
+and units rendering, a hint on every control, and the modified mark reverting to the shipped value.
+
+**Follow-ups.** 41 panels remain, including five structural outliers with no label map (`ChargeGlyphTuner` at
+209 lines, `FrameTuner`, `BookTuner`, `LayoutTuner`, `SfxMixer` — the last may justifiably stay bespoke). The
+migration leaves five dead exports behind (`TRAIL_KEYS`, `FLOAT_KEYS`, `SC_KEYS`, `PLATE_KEYS`, `FLIP_KEYS`);
+they do not trip lint because exports are exempt, and should be swept once enough panels are done. Every hint
+written so far needs an owner accuracy pass — they were drafted from source, and no code can confirm that
+"comet" is what we call those arcs.
+
+## 2026-07-29 — chore(fx): strip five orphan defs, and TWO "dead code" leads that were live
+
+The first step of the `pixiFx` → def migration: a zero-risk cleanup pass. Nothing here changes what a player
+sees. Two of the three items on the list turned out to be **wrong about being dead**, and both are now recorded
+in the docs so the next pass doesn't try again.
+
+**Deleted five workbench drafts** from `packages/ui/src/fx/defs/`: `blue-glow-trail`, `blue-trail-detonate`,
+`ember-lance`, `self-buff-bloom`, `test-red-blast`. Verified first that no binding, no `playDef` call and no
+source file names any of them — the only live references were in `catalog.test.ts` (below). Defs load through
+an `import.meta.glob('./defs/*.json')`, so there is no index to keep in step; deleting the file is the whole
+edit. `bindings.test.ts` also mentions three of the five, but only as **opaque string ids** handed to
+`setBinding` — the resolver never loads a def file, so those cases keep testing exactly what they tested.
+
+**`catalog.test.ts` re-pointed, not weakened.** Two cases genuinely read `blue-glow-trail` out of the REAL
+committed registry, and both are asserting the *unbound* half of the binding roll-up: `bindingsByDef()` must
+have **no entry** for a def nothing binds to, and `buildCatalog()` must still give that def
+`{ kinds: [], cards: [] }` rather than `undefined`. Both now use **`burst-thin-trail`** — the closest surviving
+equivalent (a committed, deliberately unbound travelling ribbon + burst draft, the direct descendant of
+`blue-glow-trail`'s tuning). A comment on the first case says what the def has to *be* for the assertion to
+mean anything, so a future bind re-points it instead of deleting the case.
+
+**`death-dissolve` was investigated and KEPT.** It reads as an orphan — nothing in `bindings.json` names it —
+but `useCombatReplay.ts:1233` calls `playDef('death-dissolve', a)` **directly**, and it plays for **every plain
+death** (no Deathrattle, no Rise). Deleting it would have silently removed a live effect with no test failing.
+It can't be an `fxDef` cue: a cue is chosen by moment KIND, a kind is derived from the event alone, and the
+event cannot see whether the dying card has an `onDeath` effect — so the call sits in the `else` of the skull's
+own gate, inside the skull's own loop, which is what guarantees skull and dissolve never both fire for one unit.
+Recorded as a do-not-delete note in `docs/fx-requests.md` (which previously invited retiring it) and in
+`docs/roadmap.md`.
+
+**`discoverBurst` was NOT dead either — kept.** The brief said `pixiFx.discoverBurst` (`pixiFx.ts:1856`) had
+zero call sites outside its own definition. It does not: `Recruit.tsx:2764` fires it every time a Discover
+opens (`discoverFx.attach(el).then(() => discoverFx.discoverBurst(…))`), and per `pixiFx.ts:670` that burst is
+the **sole** reason the second full-viewport `discoverFx` WebGL context exists at all. So the planned second
+commit was dropped rather than executed — it would have deleted the golden Discover eruption and orphaned an
+entire Pixi Application. It stays on the list as an effect to *port*, and the roadmap now says so explicitly.
+
+**Verified:** `npm run typecheck` + `npm run lint` + `npm test` + `npm run build:web` all green, and
+`npx vitest run packages/ui/src/fx/` green on its own (37 files / 939 tests).
+
+
+## 2026-07-29 — Review round 2: the mid-flight note was quietly green
+
+One Important finding, and a sharp one — **the fix for round 1's finding 2 recreated round 1's finding 1, in the
+same window.** Parking the note early (so a reload inside `await saveBindings` couldn't swallow it) parked it at
+`artLevel`, which is `'ok'` on the normal path. So if the reload landed in that window — the *same* window whose
+loss the early parking exists to prevent, hence the same probability — the surviving evidence was a **green**
+banner opening `Committed → <def> · def written` for a commit whose binding may never have been written.
+`· def written` is literally true and deliberately omits the binding, but green plus `Committed →` is
+character-identical to full success: the author reads "done", then finds the effect doesn't fire.
+
+Fixed with no new mechanism. The mid-flight note is now amber and does not assert completion —
+`Commit STARTED → <def> · def written, binding not confirmed` — and the success path overwrites it green a round
+trip later. On a normal commit the amber lives for one HTTP round trip and is never seen; it survives only in
+the case where it is true.
+
+**Three Minors alongside it.**
+
+- **The `catch` neither overwrote nor cleared the note, while a comment claimed every path did.** Verified
+  currently harmless *by luck*: `post()` catches everything and resolves so `saveBindings` can't reject,
+  `savePatch()` has its own try/catch, and `bindingsJson()` is plain serialisation — nothing in the window can
+  throw today. But the comment asserted an invariant the code didn't enforce, in the one function that keeps
+  getting extended: one added `await` and a half-true note would outlive a thrown commit. Now a
+  `parkedOptimistic` flag lets the `catch` park `Commit INCOMPLETE → <def> was written, then the commit
+  failed: …`, so the invariant is real rather than lucky.
+- **Two false comments corrected.** "Every `return` below is a failure that leaves without parking one" was
+  stale — the bind-failure return deliberately parks one now.
+- **`scroll-padding-bottom` was described as something it isn't.** It only affects scrolls the *browser*
+  performs (`scrollIntoView`, focus/Tab, scroll-snap); it does nothing for wheel or drag scrolling, so it never
+  stopped the sticky rail bar covering the seed warning. The property is kept — it's a genuine win for tabbing
+  to Save — and the comment now says what it actually does. **I did not add the suggested real
+  `padding-bottom`**: `.fxwb-railtransport` is the last child and is sticky, so container padding would push it
+  64px up off the rail's bottom edge and break its full-width seat, and it protects nothing — the content the
+  bar can overlay is always earlier in flow than the bar, so scrolling to the end always reveals it. Written
+  down in the CSS so the same "fix" isn't attempted again.
+
+**Three surviving mutants killed.** Round 1's mutation testing found three: `age > COMMIT_NOTE_MAX_AGE_MS` → `>=`
+and `age > COMMIT_NOTE_FRESH_MS` → `>=` both survived because every threshold test sampled `threshold + 1` and
+never the boundary itself, and dropping the write-side `note === ''` guard survived because the load side rejects
+empty notes too, masking it. Added two boundary tests (exactly the window / exactly a day old — both thresholds
+are exclusive, so the boundary stays on the friendlier side) and one that asserts the raw storage key is `null`
+after `saveCommitNote('', …)` rather than going through `loadCommitNote`. All three mutants now kill exactly one
+test each, re-verified by hand.
+
+Also documented: `SeedBakeWarning`'s `onUnlock` receives a *toggle* (`toggleSeedLock`), which is safe only
+because the `if (!seedLocked) return null` guard means the component exists solely while locked — noted in the
+prop comment so relaxing that guard doesn't silently turn the button into a re-lock.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors, 6 pre-existing warnings),
+`npm run build:web` (✓ 5.75s), `npm test`: **159 files, 3034 tests passed**. `defStore.test.ts` now runs 64.
+Still **not browser-verified** — no jsdom; all layout claims remain code-and-CSS review.
+
+## 2026-07-29 — Review fixes on the friction batch: the evidence has to be true, not just present
+
+Code review on the batch below returned three Important findings, all on items 2 and 3, all legitimate. The
+theme is that "make failure visible" is not satisfied by *showing something* — the thing shown has to be
+accurate, and it has to be present at every place a decision gets made.
+
+**1. A partly-failed commit showed a green success banner and destroyed the evidence.** Art-upload failures
+reach the success line: `setCommitError` carried them, but that state dies with the component in the forced
+reload, while the parked note was unconditionally the clean success string. So the one case where something went
+wrong was the case whose surviving evidence said everything was fine — a straight inversion of the premise. Art
+failures are now **folded into the parked text** (`Committed → <def> · <path> — but art didn't travel: …`) and
+flip the banner to a new amber `.fxwb-def-committed-warn` instead of the green success treatment. The trailing
+comment claiming "Only reached on full success" was false and is gone.
+
+**2. The note was parked after the writes that cause the reload, so the reload could pre-empt it.** The old
+comment blamed `saveBindings` for the reload. Incomplete: `saveDef` writes into the globbed defs directory and
+`fxDefsPlugin` answers an `add` there by sending `full-reload` immediately — and a `change` reloads too, because
+nothing in the import graph sets up an `import.meta.hot.accept` boundary (verified: zero matches in
+`packages/ui/src` and `apps/web`). The reload is set in motion by the **first** write, and `saveCommitNote` sat
+two lines and a full `await saveBindings` HTTP round trip later, so a reload timed anywhere inside that await
+parked nothing and showed no banner — the exact silent failure the item exists to eliminate. The note is now
+parked **optimistically the moment the def write succeeds**, then corrected: to the real binding path on
+success, or to a `Commit INCOMPLETE → <def> was written but its binding was not` warning if the binding failed.
+That last case deliberately overwrites rather than clears — the def *is* on disk, so silence would read as "the
+commit never happened" while a real file sits in the working tree.
+
+**3. Item 3's guarantee didn't cover Commit, which is the path that matters more.** "You can't reach Save
+without having seen it" was true for Save and false for Commit: in rail mode the Commit button is in
+`CommitPanel` inside `.fxrail`, a separate independently-scrolling column from `.fxwb-side` where the warning
+sat under ~40 inspector sliders. Both columns are on screen at once but scroll independently, so a baked seed
+could go into `bindings.json` with the warning out of view. The warning is now a shared **`SeedBakeWarning`**
+component rendered in *both* places — under Save and directly above Commit animation — with a `writeVerb` prop
+so the sentence reads true next to either. (Verified clean, no action: both `save()` and `commit()` read the
+render-closure `seed`/`seedLocked`, the same values the warning renders, so there is no stale-state mismatch.)
+
+**Three Minors, also fixed.** `discardRestored` replaces the composition without going through `loadDef`, so it
+now clears `variantWarning` itself — otherwise "part of the Crackling variant did nothing" outlived the
+Crackling composition. The parked note could first surface days later presented as fresh (the reload closes the
+workbench, so it waits for the next *open*), so the payload is now `{ note, at, level }` and a new **pure**
+`presentCommitNote(parked, now)` prefixes anything older than 10 minutes with `Earlier — ` and drops anything
+older than a day; it takes `now` as an argument rather than reading a clock, so the thresholds are testable
+without faking one. And `.fxwb-side` gained `scroll-padding-bottom: 64px` so the sticky rail bar can't park on
+top of the seed warning it was softening.
+
+**Deliberately not done.** The rail bar stays **three controls and nothing else** (owner call): the known
+consequence is that rail mode can unlock a seed but not re-lock one, which is now written down in the guide's §9
+rather than fixed. Also skipped as noted-and-deliberate: `aria-live` on the banners, two dev tabs consuming each
+other's note, hostile note *contents* (it is escaped React text), and echoing the variant warning at the top of
+the rail.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors, 6 pre-existing warnings),
+`npm run build:web`, and `npm test`: **159 files, 3032 tests passed**. `defStore.test.ts` now runs 62 tests —
+the eight added here cover the `warn` level surviving a round trip, four corrupted/wrong-shaped payload rejections
+(including the bare string an older build would have parked), and the five `presentCommitNote` threshold cases.
+Two of the new behaviours were mutation-checked: forcing `level` to `'ok'` and removing the max-age cutoff each
+kill exactly one test. Still **not browser-verified** — no jsdom, so all layout claims remain code-and-CSS review.
+
+## 2026-07-29 — FX workbench friction batch: make the tool stop hiding things
+
+Four small, unrelated papercuts in the FX workbench, done together because they share two files and one
+principle: **make failure visible**. Nearly every defect in this subsystem has presented as "nothing
+happened", indistinguishable from "not wired yet". UI-only, DEV-only — no engine, content or sim change.
+
+**1. Fire and scrub survive rail mode.** "Watch in combat" collapses the editor to a rail and hosts the combat
+harness in the vacated space — and used to take ▶/⏸, 🔥 Fire, the scrubber *and* the Timeline down with it
+(`.fxwb-rail .fxwb-transport { display: none }`), so while watching an effect play on a real card you could
+not retrigger or scrub the effect you were tuning. The full bar stays hidden, deliberately: it is
+`position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width Timeline,
+so unhiding it would paint a band straight across the board the mode exists to show. Instead the rail carries
+its own compact **`.fxwb-railtransport`** — ▶/⏸, 🔥 Fire, the scrubber and the time readout, no Timeline —
+calling the *same* `togglePlay` / `fire` / `scrub` handlers as the main bar (a second surface for one
+behaviour, never a second implementation). It is `position: sticky; bottom: 0` inside `.fxwb-side`, which is
+the scroll container, so it cannot be scrolled away behind the layer list and forty sliders; negative side
+margins plus matching padding let its opaque background span the rail's full width so scrolled content passes
+*behind* it. `.fxwb-top` stays hidden as before — the ✕ lives there, but the mode toggle in `.fxwb-side` is
+always visible, so "Full editor" is one click back to it.
+
+**2. The commit confirmation survives the reload commit itself causes.** `commit()` ended with
+`setCommitNote('Committed → …')`, which was structurally unreadable: writing `bindings.json` — a *static*
+import Vite cannot hot-reload — forces a full page reload, and the workbench unmounts before that line can
+paint. The documented way to confirm the tool's **primary action** was "check `git status`". Now `commit()`
+parks the note in `localStorage` (`ascent.fx.commitnote.v1`, versioned like the session key) on full success
+only, and the next mount picks it up and shows it as a green banner at the top of the rail. Three properties
+worth keeping: the note is **cleared at the start of every commit**, so a failed commit can never leave the
+previous run's success line behind for the next reload to present as its own; it is **cleared on mount**, so
+it shows exactly once and can't resurface on a later unrelated reload; and the read-then-clear is deliberately
+**split** across the `useState` initializer and a mount effect rather than fused into one "take" call, because
+React may invoke an initializer twice (dev StrictMode does) and a clearing read would hand the second one
+`null`. It is its own state rather than seeding `commitNote`, because `commitNote` renders inside
+`CommitPanel` — which exists only in rail mode with a card and moment selected, i.e. exactly the context the
+reload destroys. `saveCommitNote` / `loadCommitNote` / `clearCommitNote` live in `defStore.ts` beside the
+session helpers and share their best-effort contract: hostile or absent storage degrades to "no note", never
+to a throw. Five new `defStore` tests cover the round trip, the empty-string case, independence from the
+session snapshot, and both storage-failure modes.
+
+**3. Saving with the seed locked warns instead of surprising.** `save()` and `commit()` write
+`seedLocked ? seed : undefined`, which is right: unlocked means "roll fresh", so writing a seed anyway would
+freeze a look the author deliberately left free. The hazard is the other direction — forgetting the lock is on.
+A baked seed makes **every play of that effect in the real game the identical roll, forever**: occasionally
+wanted (an exactly-choreographed signature hit), usually not, because repeated procs start reading as
+mechanical. And the lock state is in the session snapshot, so it survives reloads and is easy to forget.
+Save **deliberately does not auto-unlock** — that would silently change what gets written and break the
+legitimate baked-seed case. Instead an amber line now sits directly under the Save button for as long as the
+lock is on, naming the actual seed value and what it means, with a one-click **Unlock** (the same
+`toggleSeedLock` the transport's 🔒 calls). It renders on the *lock state*, not after a save attempt, so Save
+cannot be reached without it having been on screen — and because it lives in `.fxwb-side`, it is equally
+visible in rail mode, where Commit writes the same seed.
+
+**4. A preset variant that did nothing now says so.** `applyVariant` reports every transform key that reached
+no slider param in `missed`, and `materialiseVariant` DEV-`console.warn`s it — but the preset gallery is the
+*first* thing a new author touches and the console is the least likely place they're looking. You picked
+"Crackling", got a normal-looking composition, and never learned part of it was a no-op. `materialiseVariant`
+now returns `{ stored, missed, archetypeLabel, variantLabel }` instead of the bare def, and picking a variant
+sets an amber line above the def name / Save row: *"Bolt · crackling: 2 parts of this variant did nothing here
+(turbulence, count) — nothing in this composition takes those adjustments. The rest applied, and the effect is
+fine to use."* On **pick** only, never on hover-preview — a preview is a glance, and warning on every card the
+pointer crosses is noise you learn to ignore. `missed`'s three causes (a key no primitive declares, a key
+naming a non-slider param, a value that can't be multiplied) stay in ONE bucket, and the wording is written to
+their shared meaning: *this part of the recipe reached nothing*. Splitting them would surface a preset-table
+detail the author can't act on differently. Cleared by `loadDef`, so the warning belongs to the composition on
+screen rather than to the session.
+
+**A fifth item was investigated and deliberately left alone: `fanOut`.** It was queued as "jargon in the
+binding table", but the UI never showed the word — `CommitPanel` labels the control **Plays** and its options
+read *"once, between the moment's two units"*, *"once per enemy damaged"*, *"once per unit that buffed itself"*.
+The only place `fanOut` appears as a word is the hand-edited `bindings.json`, where it is a key name and
+therefore correct. Nothing to fix; don't re-open it.
+
+### Two places we deliberately didn't do the obvious thing
+
+Both are the kind of "fix" a later reader will be tempted to apply. Don't.
+
+1. **Save does not auto-unlock the seed.** The obvious fix for "people forget the lock is on" is to unlock on
+   save. It's wrong twice over: it silently changes what gets written (the author asked for a locked seed and
+   would get an unlocked def), and it destroys the legitimate case outright — an exactly-choreographed
+   signature hit *wants* one frozen roll baked in, and there would then be no way to author one. Visibility at
+   the moment of decision costs nothing and removes the same surprise.
+2. **The rail transport is a compact reimplementation, not `.fxwb-transport` unhidden.** Unhiding the real bar
+   in rail mode looks like a one-line CSS win. It isn't: the bar is
+   `position: absolute; left: 0; right: var(--fxwb-rail); bottom: 0` and is built around the full-width
+   Timeline, so in rail mode it fights the harness for space and paints a band across the board — the one thing
+   the mode exists to show. Three controls re-rendered inside the rail, calling the *same* handlers, is the
+   cheaper and more honest answer. It is a second **surface**, never a second implementation.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors; 6 pre-existing unused-import warnings
+in `packages/sim/**`, `packages/tools/**`, `Recruit.tsx`, `SceneBuilder.tsx` — none in a file this batch
+touched), `npm run build:web` (✓ built in 5.80s) and `npm test`: **159 files, 3024 tests passed**, up from 3019.
+The five new cases are all in `packages/ui/src/fx/defStore.test.ts` under a new `commit note` describe —
+round-trips and clears; is null when nothing has been parked; treats an empty string as no note; is independent
+of the session snapshot; silently no-ops when storage is hostile or absent. That file now runs 54 tests.
+
+**Not browser-verified — say so plainly.** No React test exists or is possible in this repo (no jsdom, no
+`@testing-library/react`, and adding either was explicitly out of scope), and the workbench is a DEV overlay
+behind `DevMenu`, so nothing here was exercised in a real browser. Every layout and interaction claim above is
+**code-and-CSS review only**. The three things that most warrant a ten-second eyeball: the sticky rail
+transport pinning correctly at the bottom of a scrolled rail, the green commit banner's placement at the top of
+the rail, and the amber seed warning sitting under Save without crowding it.
+
+## 2026-07-29 — ＋ New effect: the FX workbench gets an on-ramp
+
+**What changed.** The workbench had no way to *start*. Every route in — Browse all's ⧉ duplicate, the rail's
+"Start from" picker — assumed you already knew which existing def was close to the thing in your head, and the
+only alternative was hand-authoring a def that reliably passed validation and looked like nothing. A **＋ New
+effect** button now sits first in the toolbar and opens a **preset gallery**: a grid of archetypes (⚡ **Bolt**
+— travels fast and lands hard; 💥 **Blast** — detonates in place), each offering variants (**thin** ·
+**heavy** · **crackling** · **beam**). Hover previews on the stage; click lands a tuned, working composition
+in the editor, pre-named `<archetype>-<variant>`. Nothing touches disk until Save. UI-only, DEV-only.
+
+**A variant is a multiplier table, not a second file.** `fx/presets/presets.json` holds the archetypes and a
+set of shared **variant axes** — `thin` is `size ×0.6, speed ×1.3, count ×0.7`; `heavy` is `size ×1.6,
+speed ×0.7, life ×1.25`; and so on — plus optional per-archetype absolute **overrides** (Bolt's `beam` pins
+`turbulence` to 0). `applyVariant` walks every layer of the base def and applies each key it finds, to
+**slider params only**: clamped to the spec's range, snapped to its step, then re-clamped, because a snap can
+land back outside a range whose span isn't a whole number of steps. Every other param kind (toggle, enum,
+colour, palette, curve, shape) has no numeric range, so "multiply it" is undefined — those are left exactly as
+authored and reported in `missed`, never half-applied. A result that isn't finite goes to `missed` too:
+writing `NaN` into a param while reporting it in `applied` would be the function claiming success as it
+poisons the def. In DEV, any key that reached nothing on any layer logs a `[fx] preset '…'` warning — that's a
+preset-table bug, and it is otherwise completely silent.
+
+**The five decisions worth not un-making.** All five are now written down in
+[`docs/fx-workbench-guide.md`](fx-workbench-guide.md) (§2 and its appendix) and repeated in the code:
+
+1. **`presets.json` ships in the production bundle** (~1 KB). It's a *static import*, and static imports are
+   hoisted, so a runtime `if (DEV)` can't gate it the way `fxDefs.ts` gates its `import.meta.glob` (a glob is
+   a build-time construct the bundler can elide; a plain `import` is not). The asymmetry with `fxDefs.ts` is
+   deliberate, not an oversight. A dynamic `import()` would fix it and make `presetTable()` async, rippling
+   into the overlay's render path — disproportionate machinery to save a kilobyte.
+2. **`parsePresetTable` throws where `choreo/bindings.ts` deliberately doesn't.** Same hand-rolled validation
+   style (no zod in `ui`), opposite failure policy: `bindings.ts` runs in production, so it degrades via
+   `devError` — one dropped binding is a missing effect, recoverable. A half-loaded *menu* is a silently
+   incomplete gallery with nothing to tell the author why, so this one throws. That is safe **only because
+   the parse is lazy**: `presetTable()` parses on first call and caches, and the sole caller is the DEV-only
+   gallery, so in production the parse never runs. Make it eager and a bad JSON edit becomes a hard crash at
+   module load for every player. The laziness is load-bearing.
+3. **Preset bases are hidden from Browse all but still listed in the rail's "Start from" picker.**
+   `PRESET_ID_PREFIX` filters `preset-` ids out of `buildCatalog()`. Browse all's *by event* lens is the
+   **coverage map**, where "nothing bound" is a signal to act on — and the bases are unbound by design, so
+   leaving them in would pad that column with permanent false positives. The rail is the editor's file list
+   and reads `listDefs()` directly; the bases must stay reachable *somewhere* or they could never be tuned.
+4. **A materialised variant strips its base's `label`, `tags` and `seed`.** `label`/`tags` are the library
+   browser's search + grouping index and the workbench has no editor for them, so inheriting would file every
+   Bolt-derived effect under words the author never wrote and can't change (a derived "Bolt (heavy)" is the
+   same defect with friendlier spelling). `seed` matters more: `loadDef` reads it to decide whether to **lock**
+   the seed, so an inherited one would hand the author a silently frozen composition. Neither shipped base
+   carries a seed today; the strip keeps that true if one ever does. `version` and `duration` carry through —
+   those are the def's data, not its filing.
+5. **The two bases are unreviewed first passes.** `preset-bolt` and `preset-blast` are structurally correct
+   and test-validated but visually unjudged at real card scale. The gallery *shell* and the base *content*
+   ship separately on purpose: a base the owner rejects costs one JSON file, not the feature.
+
+**Hovering a variant no longer litters the author's file list.** `materialiseVariant` writes into the
+module-level def registry, and it runs on **hover** as well as on click — a preview has to be registered
+before `playDef` can resolve it by id. Unfiltered, sweeping the mouse across Bolt's four variants silently
+added four entries to the rail's own def list: files the author never chose, can't delete, and that vanish on
+reload. Browse all doesn't have this problem because `buildCatalog` filters the whole `preset-` prefix; the
+rail deliberately **can't** do that, because the bases must stay visible and editable there (decision 3
+above). So the rail takes a narrower cut — it filters on the **variant separator** (`--`), not the prefix.
+Bases carry no `--`; materialised variants always do. `VARIANT_ID_SEP` and the `authoredDefs()` helper sit
+directly beneath `materialiseVariant`, the one function that produces the id, so the producer and the filter
+can't drift. (Edge worth knowing: a hand-typed Save name of `foo--bar` passes `SLUG_RE` and would be hidden
+too — `slugify` collapses `--` to `-`, so it takes deliberately typing an already-valid double-dashed slug,
+which no def in `fx/defs/` does.)
+
+**Also hardened along the way** (all from review passes on the branch): archetype and axis ids are rejected if
+they're `__proto__` / `constructor` / `prototype` — an id of `__proto__` previously parsed clean and then
+vanished from `Object.keys` on a by-id lookup while still being readable by indexed access, the exact silent
+corruption `UNSAFE_KEYS` exists to prevent, and `applyVariant` indexes by these ids. `applyVariant` is generic
+over the def type so a `StoredFxDef` isn't erased to `FxDef` through the call. `materialiseVariant` registers
+the computed def **before** playing or loading it, because `playDef` resolves by id and an unregistered id is
+a silent no-op indistinguishable from "the button isn't wired". The gallery and Browse all are mutually
+exclusive — both are full-screen at the same z-index, so each opener closes the other rather than leaving one
+buried under the other.
+
+**How it was verified.** Full gate green on the branch after merging `origin/main`
+(`f767b776`, the title-menu PR — merged clean, no conflicts): `npm run typecheck` (pkgs + web) clean,
+`npm run lint` 0 errors / 3 pre-existing warnings, `npm test` **2944 passed across 155 files**, `npm run
+build:web` built in 6.11s. **38 of those tests are new**, in `packages/ui/src/fx/presets/`: 21 on the table
+parser (every rejection path, reserved ids, overrides), 14 on `applyVariant` (slider-only, the fractional-step
+float dust that 88 of 121 registered slider specs would hit, the second clamp after a snap, non-finite refusal,
+non-slider-holding-a-number isolated from value-isn't-a-number), and 3 integrity tests pinning that every
+archetype's `base` resolves to a real def and every variant an archetype lists has an axis.
+
+**The browser pass** (run during the wiring step, before the docs commit). Dev menu → 🎨 FX Workbench opened
+with rail buttons `["＋ New effect", "Browse all", "Watch in combat"]`. **＋ New effect** rendered the grid:
+`⚡ Bolt / travels fast and lands hard` and `💥 Blast / detonates in place`. Bolt offered `Thin, Heavy,
+Crackling, Beam`. **Hovering Crackling** registered `preset-bolt--crackling` and took the fx layer from 2 to 3
+children — `playDef` mounted and started a preview. No `[fx]` warnings, so `missed` was empty for these axes.
+**Clicking Heavy** closed the gallery, pre-filled the name `bolt-heavy`, and the registered def's burst `size`
+read **16 against the base's 10** — the variant genuinely applied rather than loading the base. **Browse all**
+showed 21 rows with no `preset-` id and no `--` variant id present. The only console noise was a pre-existing
+`GSAP target not found.` ×2, which fires on load before the workbench opens.
+
+**What that pass could NOT establish: the preview was never observed visually.** The Claude_Browser pane runs
+at a 0×0 `document.hidden` viewport with zero rAF frames, so the ticker had to be pumped by hand via
+`window.__pixiFx.update(16)` in a real tab. *Presence* was proven by the container's child count, not by
+watching anything. Every claim above is structural — ids, counts, numbers — and none of it is a judgement
+about how the effects **look**. That is exactly why the two bases still want the owner's eye.
+
+**Follow-ups.** The remaining **eight archetype bases** (wave, chain, cloud, swell, drip, vortex, slam, beam)
+— content, landing one at a time so each is reviewed side by side at real card scale rather than eight at
+once. A **friction batch**: keep Fire and the scrub bar alive in rail mode; persist a commit-success toast
+across the forced page reload; relabel `fanOut` in plain language; auto-unlock the seed on Save. And the
+standing one: absorb the **~30 legacy `pixiFx` effects** into the workbench, stripping the defs nobody asked
+for. Two smaller gaps found while writing this up: **`missed` is DEV-warned only and never surfaced in the
+UI**, so an author who picks a variant that silently did nothing sees a normal-looking composition — and the
+gallery is the *first* thing a new author touches, which makes the console the least likely place for them to
+be looking; given "make failure visible" is this subsystem's entire ethos, that gap should close. And
+**`applied` counts params *written*, not *changed*** — a ×1 multiplier still lands there — so `applied.length`
+can't be used as a "did this variant do anything" signal, which is worth knowing before some future UI tries.
+Above all, **the two bases want the owner's eye in the workbench** — they are ordinary def files and tune like
+any other.
+
 
 ## 2026-07-29 — One snapshot seat per player
 
@@ -787,6 +1224,7 @@ Also added: a structural test that no module in `productionBots/` outside the th
 `RunState` or the reducer, so a future evaluator physically cannot reach hidden state.
 
 **Verified.** typecheck, lint (3 pre-existing warnings), 2920 tests, build:web, harness determinism.
+
 
 ## 2026-07-29 — the title menu becomes an object you can press
 

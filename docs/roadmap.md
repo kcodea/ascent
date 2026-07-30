@@ -168,6 +168,32 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+### Dev tuner migration — 41 of 47 panels to go (2026-07-29)
+The schema (`tunerSchema.ts`) and the shared `TunerPanel` are in, proven on six panels spanning 2 to 48
+controls. The remaining work, in order:
+- **Migrate the other 41.** Mechanical per panel: export the config's `DEFAULTS`, write a `TunerSpec` with a
+  label / unit / hint / group per control. Persistence must keep running through each config's own accessors —
+  a spec that re-implemented storage would silently orphan values dialled by eye over months.
+- **Five structural outliers** have no label map and need individual thought: `ChargeGlyphTuner` (209 lines,
+  composes CSS vars from colour + numbers), `FrameTuner`, `BookTuner`, `LayoutTuner`, and `SfxMixer` — the
+  mixer may justifiably stay bespoke.
+- **Owner accuracy pass on the hints.** Every hint so far was drafted from config source and doc comments. No
+  code can confirm the *vocabulary* is right — whether "comet", "wisp" or "blob" is what we actually call these
+  things. This wants a read-through, not a rewrite.
+- **Sweep the dead exports** the migration leaves behind (`TRAIL_KEYS`, `FLOAT_KEYS`, `SC_KEYS`, `PLATE_KEYS`,
+  `FLIP_KEYS` so far). They do not trip lint because exports are exempt from no-unused-vars.
+- **Then Phase 2 (visualisation) and Phase 3 (workflow)** — collapsible sections, a real curve picker to
+  replace easing chosen by array index, in-panel search, before/after compare, and a Test button on every FX
+  panel (only 19 of 47 have one). All of these now land in ONE component, which was the point of the schema.
+
+### A CSS specificity trap has bitten three times (2026-07-29)
+Three separate defects this week were the same shape: two rules tie on specificity, so whichever sits later in
+`styles.css` wins silently. `.menubtn:active` lost to `.menubtn:hover` (you are always hovering when you
+click, so the press state rendered never); `.menubtn.active` then overrode the press again for the primary
+button; and the unscoped `.tuner-row` grid lost to `.sfxmix-row`'s flex, collapsing a slider to 0px. Each fix
+raised specificity deliberately and left a comment saying why the extra selector is not redundant. Worth
+considering a lint rule or a convention — `styles.css` is ~6000 lines and this will recur.
+
 - **Title screen: two phantom focus stops (found 2026-07-29).** `.gearbtn` and `.devmenu-btn` sit at
   `z-index: 85`, painted behind the opaque `.titlescreen` (`z-index: 450`), but stay `visibility: visible` —
   so they are invisible *and* focusable, and Tab lands on them twice before it reaches the menu column. Every
@@ -224,8 +250,8 @@ The career surface exists; deepen what a finished run *remembers*.
   mute.) Still missing: **undo/redo** (no history stack at all; switching a layer's primitive irreversibly
   resets its params); **A/B compare** of two tunings (now genuinely meaningful, since a locked seed makes the
   randomness controlled); a **perf readout** beyond fps (the primitives already track live particle counts
-  internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare, preset/palette library,
-  perf HUD. P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
+  internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare,
+  perf HUD. (The **preset library** half of that P3 line shipped 2026-07-29 as the ＋ New effect gallery.) P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
   regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests
   aren't enforced there and the ~50 pre-existing `packages/ui` type errors stay invisible. Swapping the
@@ -242,6 +268,25 @@ The career surface exists; deepen what a finished run *remembers*.
   moment remains unbuilt. Also open from ②: `SceneBuilder.setEnemies` still duplicates `sandbagBoard`'s
   board-building and the two could drift; rail mode costs 640px of width, tight below ~1400px; and the
   harness stages sandbags only, so a final look-check against a real pooled opponent stays manual.
+
+- **FX preset gallery — eight more archetype bases.** The ＋ New effect gallery shipped 2026-07-29 with two:
+  ⚡ Bolt and 💥 Blast, both **unreviewed first passes** awaiting the owner's eye in the workbench. Queued next
+  (content, not shell): **wave, chain, cloud, swell, drip, vortex, slam, beam** — landing **one at a time** so
+  each is judged side by side at real card scale rather than eight at once. The shell needs no change to take
+  them: a new base is a def file plus one entry in `fx/presets/presets.json`. Trap to know while authoring one:
+  **`applied` counts params *written*, not *changed*** (a ×1 multiplier still lands there), so `applied.length`
+  is NOT a usable "did this variant do anything" signal — `missed` is, and picking a variant that only partly
+  landed now warns in the UI.
+
+- **Absorb the ~30 legacy `pixiFx` effects into the workbench.** They predate the def format and aren't
+  authorable there, so half the game's FX are still edited by hand in TypeScript while the other half are
+  data. Port them to defs, bind them through `bindings.json`, and **strip the defs nobody asked for** while
+  doing it — the library is already carrying entries no brief ever requested. ✅ The def strip landed
+  2026-07-29 (five workbench drafts deleted: `blue-glow-trail`, `blue-trail-detonate`, `ember-lance`,
+  `self-buff-bloom`, `test-red-blast`). **`death-dissolve` stays** — it looks orphaned because no binding
+  names it, but `useCombatReplay` plays it directly for every plain death (see `docs/fx-requests.md`).
+  Likewise **`discoverBurst` is NOT dead `pixiFx`** — `Recruit.tsx` fires it on every Discover open, and it's
+  the sole reason the second `discoverFx` Pixi app exists; it needs a real port, not a delete.
 
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own

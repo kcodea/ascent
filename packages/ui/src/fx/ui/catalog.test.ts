@@ -99,8 +99,11 @@ describe('bindingsByDef', () => {
     expect(ruby?.cards.find((c) => c.cardId === 'bloodbinder')?.tribe).toBe('demon');
   });
 
+  // `burst-thin-trail` is a committed but deliberately unbound def (a travelling ribbon + burst draft): no
+  // kind cue and no card override names it. If a future migration DOES bind it, re-point this at whatever
+  // committed def is still unbound rather than deleting the case — "unbound ⇒ no entry" is the invariant.
   it('has no entry for a def nothing binds to', () => {
-    expect(index.get('blue-glow-trail')).toBeUndefined();
+    expect(index.get('burst-thin-trail')).toBeUndefined();
   });
 });
 
@@ -141,15 +144,24 @@ describe('binding integrity', () => {
   });
 });
 
-import { buildCatalog } from './catalog';
+import { buildCatalog, PRESET_ID_PREFIX } from './catalog';
+import { registerSavedDef } from '../fxDefs';
 
 describe('buildCatalog', () => {
   it('returns one entry per registered def, exactly once', async () => {
     await import('../primitives');
     const { listDefs } = await import('../fxDefs');
     const catalog = buildCatalog();
-    expect(catalog.length).toBe(listDefs().length);
+    const browsable = listDefs().filter((d) => !d.id.startsWith(PRESET_ID_PREFIX));
+    expect(catalog.length).toBe(browsable.length);
     expect(new Set(catalog.map((e) => e.def.id)).size).toBe(catalog.length);
+  });
+
+  // Preset bases are start-points, deliberately bound to nothing. Leaving them in would pad the "nothing
+  // bound" column of the by-event lens — the exact signal that lens exists to give.
+  it('excludes preset bases — they are start-points, not bound effects', () => {
+    registerSavedDef({ version: 1, id: 'preset-bolt', duration: 100, layers: [] } as never);
+    expect(buildCatalog().some((e) => e.def.id === 'preset-bolt')).toBe(false);
   });
 
   it('carries the derived facets and the bindings on each entry', async () => {
@@ -161,7 +173,7 @@ describe('buildCatalog', () => {
 
   it('gives an unbound def empty bindings rather than undefined', async () => {
     await import('../primitives');
-    const entry = buildCatalog().find((e) => e.def.id === 'blue-glow-trail');
+    const entry = buildCatalog().find((e) => e.def.id === 'burst-thin-trail');
     expect(entry?.bindings).toEqual({ kinds: [], cards: [] });
   });
 

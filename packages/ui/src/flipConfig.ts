@@ -56,6 +56,9 @@ export function setFlipValue(key: keyof FlipConfig, value: number): void {
     /* ignore */
   }
 }
+/** The shipped values, exported so a tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as FLIP_DEFAULTS };
+
 export function resetFlipConfig(): void {
   cfg = { ...DEFAULTS };
   try {

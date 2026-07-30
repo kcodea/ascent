@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ART_DATA_URL_PREFIX,
+  COMMIT_NOTE_FRESH_MS,
+  COMMIT_NOTE_MAX_AGE_MS,
   FX_DEF_VERSION,
+  clearCommitNote,
   clearSession,
   coerceDef,
   isValidSlug,
+  loadCommitNote,
   loadSession,
   parseDef,
+  presentCommitNote,
   saveArt,
   saveBindings,
+  saveCommitNote,
   saveDef,
   saveSession,
   slugify,
@@ -464,6 +470,123 @@ describe('session autosave', () => {
     expect(() => saveSession({ a: 1 })).not.toThrow();
     expect(loadSession()).toBeNull();
     expect(() => clearSession()).not.toThrow();
+  });
+
+  // The commit confirmation rides the same storage seam, for a different reason: a commit's writes force a
+  // full page reload, so the note has to outlive the component that set it.
+  describe('commit note', () => {
+    it('round-trips, and clearing means the note shows exactly once', () => {
+      saveCommitNote('Committed → bolt-heavy · src/fx/bindings.json', 1_000);
+      expect(loadCommitNote()).toEqual({
+        note: 'Committed → bolt-heavy · src/fx/bindings.json',
+        at: 1_000,
+        level: 'ok',
+      });
+      clearCommitNote();
+      expect(loadCommitNote()).toBeNull();
+    });
+
+    it('is null when nothing has been parked', () => {
+      expect(loadCommitNote()).toBeNull();
+    });
+
+    it('treats an empty string as no note, and writes NOTHING to storage', () => {
+      saveCommitNote('', 1_000);
+      expect(loadCommitNote()).toBeNull();
+      // Asserted against the raw key, not just through `loadCommitNote`: the load side rejects `note === ''`
+      // too, so going through it would pass even with the write-side guard deleted. This is the assertion that
+      // pins the guard — an empty note must leave no key behind at all.
+      expect(localStorage.getItem('ascent.fx.commitnote.v1')).toBeNull();
+    });
+
+    it('carries the warn level, so a partial commit is never dressed as a success', () => {
+      saveCommitNote('Commit INCOMPLETE → x', 1_000, 'warn');
+      expect(loadCommitNote()?.level).toBe('warn');
+    });
+
+    it('is independent of the session snapshot', () => {
+      saveSession({ duration: 900 });
+      saveCommitNote('Committed → x · y', 1_000);
+      clearSession();
+      expect(loadCommitNote()?.note).toBe('Committed → x · y');
+    });
+
+    it('returns null (never throws) on a corrupted or wrong-shaped payload', () => {
+      localStorage.setItem('ascent.fx.commitnote.v1', '{ broken');
+      expect(loadCommitNote()).toBeNull();
+      // A bare string is what an older build parked; it has no timestamp, so it can't be aged and is dropped.
+      localStorage.setItem('ascent.fx.commitnote.v1', '"a plain string"');
+      expect(loadCommitNote()).toBeNull();
+      localStorage.setItem('ascent.fx.commitnote.v1', JSON.stringify({ note: 'x' }));
+      expect(loadCommitNote()).toBeNull();
+      localStorage.setItem('ascent.fx.commitnote.v1', JSON.stringify({ note: 'x', at: 'soon' }));
+      expect(loadCommitNote()).toBeNull();
+    });
+
+    it('silently no-ops when storage is hostile or absent', () => {
+      vi.stubGlobal('localStorage', {
+        getItem: () => {
+          throw new Error('denied');
+        },
+        setItem: () => {
+          throw new Error('quota');
+        },
+        removeItem: () => {
+          throw new Error('denied');
+        },
+      });
+      expect(() => saveCommitNote('n', 1_000)).not.toThrow();
+      expect(loadCommitNote()).toBeNull();
+      expect(() => clearCommitNote()).not.toThrow();
+
+      vi.stubGlobal('localStorage', undefined);
+      expect(() => saveCommitNote('n', 1_000)).not.toThrow();
+      expect(loadCommitNote()).toBeNull();
+      expect(() => clearCommitNote()).not.toThrow();
+    });
+  });
+
+  // `presentCommitNote` is PURE and takes `now`, so the thresholds are testable without faking a clock. It
+  // matters because the forced reload CLOSES the workbench: a note can wait in storage across arbitrarily many
+  // unrelated reloads and browser sessions before the tool is next opened.
+  describe('presentCommitNote', () => {
+    const parked = { note: 'Committed → x · y', at: 1_000_000, level: 'ok' as const };
+
+    it('is null for no note at all', () => {
+      expect(presentCommitNote(null, parked.at)).toBeNull();
+    });
+
+    it('shows a fresh note verbatim', () => {
+      expect(presentCommitNote(parked, parked.at + 1_000)).toEqual({ text: parked.note, level: 'ok' });
+    });
+
+    it('prefixes a note older than the freshness window instead of implying it just happened', () => {
+      const shown = presentCommitNote(parked, parked.at + COMMIT_NOTE_FRESH_MS + 1);
+      expect(shown?.text).toBe(`Earlier — ${parked.note}`);
+    });
+
+    it('drops a note older than the maximum age entirely', () => {
+      expect(presentCommitNote(parked, parked.at + COMMIT_NOTE_MAX_AGE_MS + 1)).toBeNull();
+    });
+
+    // Both thresholds are EXCLUSIVE (`>`, not `>=`), so the boundary itself is still the friendlier side. Probed
+    // explicitly because a test that only ever samples `threshold + 1` cannot tell `>` from `>=` — either
+    // comparison passes it, and both mutants survived the first round of mutation testing.
+    it('is exclusive at the freshness boundary — exactly the window old is still verbatim', () => {
+      expect(presentCommitNote(parked, parked.at + COMMIT_NOTE_FRESH_MS)?.text).toBe(parked.note);
+    });
+
+    it('is exclusive at the max-age boundary — exactly a day old is still shown', () => {
+      expect(presentCommitNote(parked, parked.at + COMMIT_NOTE_MAX_AGE_MS)).not.toBeNull();
+    });
+
+    it('treats a negative age (clock change) as fresh rather than hiding it', () => {
+      expect(presentCommitNote(parked, parked.at - 5_000)?.text).toBe(parked.note);
+    });
+
+    it('preserves the level through presentation', () => {
+      expect(presentCommitNote({ ...parked, level: 'warn' }, parked.at)?.level).toBe('warn');
+    });
   });
 });
 

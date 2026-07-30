@@ -104,6 +104,7 @@ export function simulate(
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
   const rubyBonusGain = { attack: 0, health: 0 };
+  const boardBuffGain = { attack: 0, health: 0 }; // Rune of Overflow — permanent, carried back to the warband
   const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
@@ -837,6 +838,15 @@ export function simulate(
     // on the wasted body (the combat half of its recruit overflow buff).
     if (living(side).length >= 7) {
       bus.emit('summonOverflow', { side });
+      // Rune of Overflow: a summon that does not fit buffs your whole board PERMANENTLY. Buffed live here so it
+      // matters this fight, and banked for the carry-back so it survives the settle — the word "permanently" is
+      // the whole card, and a combat-only buff would silently drop it.
+      const ov = modsFor(side).runeOverflow ?? 0;
+      if (ov > 0) {
+        nextStep(); fireTrigger('runeOverflow', side);
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ov, ov, 'Rune of Overflow');
+        if (side === 'player') { boardBuffGain.attack += ov; boardBuffGain.health += ov; }
+      }
       return minion;
     }
     const arr = boards[side];
@@ -2143,6 +2153,16 @@ export function simulate(
     const n = modsFor(side).runeCinderLedger ?? 6;
     ctx.grantImpBuff(n, n, side); // run-wide + carried back, the same channel Imp King uses
   });
+  // Rune of Counterpoint — Avenge (1), i.e. EVERY friendly death, sends your left-most in for a free swing.
+  //
+  // Routed through `runeAvenge` + `ctx.attackNow` deliberately. An earlier cut queued the strike straight from
+  // the death handler and it never resolved into an attack: measured identical to baseline across two board
+  // shapes, through three different queueing attempts. Solaris Fang has done exactly this from an Avenge for
+  // ages, so the working path was the avenge dispatch, not the raw death site — this uses that.
+  runeAvenge(1, 'runeCounterpoint', (m) => !!m.runeCounterpoint, (side) => {
+    const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.attack > 0);
+    if (lead) ctx.attackNow?.(lead, false);
+  });
   runeAvenge(3, 'runeHuntingBell', (m) => !!m.runeHuntingBell, (side) => {
     // Left-MOST rally-capable body, so which minion answers the bell is a seating decision rather than RNG.
     const lead = boards[side].find(canRally);
@@ -2438,6 +2458,7 @@ export function simulate(
     playerSlaughterCopy: slaughterCopyId,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
+    playerBoardBuffGain: boardBuffGain.attack > 0 || boardBuffGain.health > 0 ? { ...boardBuffGain } : undefined,
     playerMagneticBuffGain: magneticBuffGain.attack > 0 || magneticBuffGain.health > 0 ? magneticBuffGain : undefined,
     playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the

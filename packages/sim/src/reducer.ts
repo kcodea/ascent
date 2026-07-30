@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -832,6 +832,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
         advanceRuneThresholds(s, 'castRuby', casts); // Rune of the Cindergem
         consumeGrimoireCharge(s); // a Ruby spends the Grimoire charge, same as a Shop Spell
+        // Rune of the Spellstone: the Ruby ALSO counts as a Shop-spell cast. Deliberately after the Grimoire
+        // spend and before the umbrella fire below, and via a narrow counter rather than `noteSpellCast` —
+        // that would re-fire the umbrella this path already fires.
+        if (s.runeSpellstone && def) countRubyAsShopSpell(s, def, casts);
         fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
@@ -2224,6 +2228,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // Imp King / Brood Matron Avenge: their in-combat Imp buffs are permanent — accrue them into the run-wide
   // Imp buff so future Imps (next fights) inherit them.
+  // Rune of Overflow: fold the combat's permanent board buff onto every minion the run still holds. Applied to
+  // hand as well as board — a body you were about to play earned it too.
+  if (result.playerBoardBuffGain) {
+    const g = result.playerBoardBuffGain;
+    for (const c of [...s.board, ...s.hand]) addBuff(c, 'Rune of Overflow', g.attack, g.health);
+  }
   if (result.playerImpBuffGain) {
     s.impBuff ??= { attack: 0, health: 0 };
     s.impBuff.attack += result.playerImpBuffGain.attack;
@@ -2920,6 +2930,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeBrood') s.questFlags.runeBrood = r.amount ?? 3;               // amount = Imps per combat
       else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = r.amount ?? 3; // amount = Heralds per combat
       else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = r.amount ?? 1; // amount = Rubies per attack
+      else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = r.amount ?? 4;           // amount = the permanent board buff
       else s.questFlags[r.flag] = true;
       break;
     case 'questGoldTribeBuff':
@@ -2942,6 +2953,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeDuplication':
       s.runeDuplication = true;
+      break;
+    case 'runeSpellstone':
+      s.runeSpellstone = true;
+      break;
+    case 'runeWhiteWolf':
+      s.runeWhiteWolf = true;
       break;
     case 'runeProfitSharing':
       s.runeProfitSharing = { tribe: r.tribe, attack: r.attack, health: r.health };
@@ -3374,6 +3391,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeWarChorus: f?.runeWarChorus,         // your first Rally each combat fires your left-most Shout
     runeFoodChain: f?.runeFoodChain,         // your first summon inherits your left-most Demon's stats
     runeAttackingGems: f?.runeAttackingGems, // every friendly attack plays a Ruby on your whole board
+    runeOverflow: f?.runeOverflow,           // an overflowed summon permanently buffs your warband
+    runeCounterpoint: f?.runeCounterpoint,   // a friendly death frees your left-most for a swing
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

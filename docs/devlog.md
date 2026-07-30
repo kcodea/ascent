@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-07-30 — The last four runes + Chimerus: the Set 2 rune roster is COMPLETE
+
+**Final audit vs the owner's 96-row sheet: 0 cost mismatches, 0 basic/epic mismatches, 0 genuinely missing.**
+(The one name the differ reports, "Rune of Scale", is Rune of Bulk Order — owner ruling.)
+
+- **Rune of the White Wolf** (epic 4) — buying a Shop spell teaches it to a Mage-Pup. Required extracting
+  `teachMagePup` out of `grantMagePupTaught`: the per-turn CAP counts Mentors ON BOARD, so a rune with no body
+  would have computed a ceiling of 0 and silently never taught. The rune now contributes to that same ceiling,
+  so a Mentor plus the rune teaches twice — there is a test for exactly that, since a separate ceiling was the
+  tempting shortcut.
+- **Rune of Overflow** (epic 5) — needed a NEW carry-back channel. Every existing one is tribe-scoped (Imps,
+  Beasts, Fodder, Rubies, spell power, Gold), so an untyped "your minions" buff had nowhere to land and would
+  have vanished at settle, leaving a rune whose headline word — "permanently" — did nothing. Added
+  `CombatResult.playerBoardBuffGain`, folded onto board AND hand at settle.
+- **Rune of the Spellstone** (epic 6) — a Ruby cast counts as a Shop-spell cast, via a narrow
+  `countRubyAsShopSpell` rather than `noteSpellCast`. That function also fires the Ruby+Spell umbrella and
+  spends the Grimoire charge, both of which the Ruby path already does; reusing it would have double-fired every
+  "every N casts" card. A test pins `rubyCasts === 1` after a single Ruby.
+- **Rune of Counterpoint** (epic 7) — **it was working all along.** The earlier session recorded it as a dead
+  no-op after three attempts. The bug was in the MEASUREMENT: total attack events. A grinding fight runs to the
+  same length either way, so an extra out-of-turn swing does not change that total — Solaris Fang, which has
+  queued a strike this exact way for ages, shows no change by that metric either. Counting the LEADER's own
+  swings shows it plainly: 17 without, 20 with. Routed through `runeAvenge(1)` (a friendly death IS Avenge 1)
+  to match the proven Solaris path.
+- **Rune of Chimerus** (epic 3, owner request) — pure data; epic like every other named-minion grant rune.
+
+Verified: typecheck (both), lint (6 pre-existing), 3256 tests, build:web, harness determinism.
+
+**Set 2 content is now complete: 26 quests and the full 96-rune roster**, plus the 12 set-1-scoped runes.
+
 ## 2026-07-30 — The gold-gain chokepoint + Rune of Profit Sharing
 
 **`gainGold(state, amount)` is now the single credit path for Gold.** Twelve sites across the reducer and the

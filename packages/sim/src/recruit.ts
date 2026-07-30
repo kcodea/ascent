@@ -717,6 +717,69 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
 }
 
 /**
+ * Teach a bought Shop spell to a Mage-Pup and hand it over.
+ *
+ * Extracted from `grantMagePupTaught` (2026-07-30) so Rune of the White Wolf can teach too. The CAP is why it
+ * had to move: it counts Mentors ON BOARD, so a rune — which has no body — would compute a ceiling of 0 and
+ * silently never teach. The rune now contributes to that same ceiling, so holding a Mentor AND the rune raises
+ * the cap rather than the two firing independently.
+ */
+export function teachMagePup(state: RunState, spellId: string): void {
+  const spell = CARD_INDEX[spellId];
+  if (!spell?.spell) return;
+  const boardCap = state.board.reduce(
+    (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
+    0,
+  );
+  const cap = boardCap + (state.runeWhiteWolf ? 1 : 0);
+  const used = state.moonhowlTeachesThisTurn ?? 0;
+  if (used >= cap) return; // "once per turn" (twice for a golden Mentor, +1 for the rune)
+  if (state.hand.length >= CONFIG.handMax) return; // no room — don't burn the teach on a card that can't land
+  const def = CARD_INDEX['b2_magepup'];
+  if (!def) return;
+  state.moonhowlTeachesThisTurn = used + 1;
+  state.hand.push({
+    uid: `t${state.uidSeq++}`,
+    cardId: def.id,
+    tribe: def.tribe,
+    attack: def.attack,
+    health: def.health,
+    keywords: [...def.keywords],
+    golden: false,
+    taughtSpellId: spellId,
+  });
+}
+
+/**
+ * Rune of the Spellstone: make a Ruby cast COUNT as a Shop-spell cast.
+ *
+ * Deliberately NOT `noteSpellCast`. That function also fires the Ruby+Spell umbrella and consumes the Living
+ * Grimoire charge, and the Ruby cast path in the reducer already does both — routing a Ruby through it would
+ * double-fire every "every 3 casts" card and mis-spend the Grimoire. This does only the parts that make a Ruby
+ * read as a Shop spell: the run and per-turn tallies, the board's `spellCast` watchers, and the spellCast rune
+ * meter. The quest meter rides the reducer's `spellsCast` delta, so it follows for free.
+ */
+export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: number): void {
+  if (casts <= 0) return;
+  state.spellsCast += casts;
+  state.spellsThisTurn += casts;
+  advanceRuneThresholds(state, 'spellCast', casts);
+  advanceRuneThresholds(state, 'spellCastNonAle', casts); // a Ruby is not an Ale
+  const ctx = makeContext(state);
+  for (let i = 0; i < casts; i++) {
+    for (const card of [...state.board]) {
+      const def = CARD_INDEX[card.cardId];
+      if (!def) continue;
+      for (const effect of def.effects) {
+        if (effect.on !== 'spellCast') continue;
+        const fn = RECRUIT_FACTORIES[effect.do];
+        if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef: rubyDef }));
+      }
+    }
+  }
+}
+
+/**
  * THE GOLD-GAIN CHOKEPOINT. Every path that hands the player Gold routes through here.
  *
  * Added 2026-07-30 for Rune of Profit Sharing ("whenever you gain Gold, give your Dwarves +3/+3"), which had no
@@ -1578,31 +1641,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  tally, so two Mentors teach twice — the tally lives on the run, not the instance, because the cap is
    *  "how many spells got taught this turn", not "how many times this body acted". Respects the hand cap. */
   grantMagePupTaught: (ctx, self, _params, payload) => {
-    const spellId = payload.spellId ?? '';
-    const spell = CARD_INDEX[spellId];
-    if (!spell?.spell) return;
-    // Cap: this Mentor allows 1 teach (2 golden); the run-level tally is what actually gates, so a second
-    // Mentor on board raises the ceiling rather than each firing independently.
-    const cap = ctx.state.board.reduce(
-      (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
-      0,
-    );
-    const used = ctx.state.moonhowlTeachesThisTurn ?? 0;
-    if (used >= cap) return; // "once per turn" (twice for a golden Mentor)
-    if (ctx.state.hand.length >= CONFIG.handMax) return; // no room — don't burn the teach on a card that can't land
-    const def = CARD_INDEX['b2_magepup'];
-    if (!def) return;
-    ctx.state.moonhowlTeachesThisTurn = used + 1;
-    ctx.state.hand.push({
-      uid: `t${ctx.state.uidSeq++}`,
-      cardId: def.id,
-      tribe: def.tribe,
-      attack: def.attack,
-      health: def.health,
-      keywords: [...def.keywords],
-      golden: false,
-      taughtSpellId: spellId,
-    });
+    teachMagePup(ctx.state, payload.spellId ?? '');
     void self;
   },
 
@@ -5003,6 +5042,8 @@ export function replayRecurringEndOfTurn(state: RunState): boolean {
  * would change what every existing buy-trigger sees.
  */
 export function applySpellBought(state: RunState, spellId: string): void {
+  // Rune of the White Wolf: the rune teaches on its own, sharing the per-turn ceiling with any Mentor on board.
+  if (state.runeWhiteWolf) teachMagePup(state, spellId);
   // A dedicated loop rather than the generic `fire`, which is typed to a minion-only payload — this event's
   // subject is the SPELL, and the board minion is just the watcher. Mirrors `fireOnRubyGained`.
   for (const card of [...state.board]) {

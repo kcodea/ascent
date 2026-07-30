@@ -994,6 +994,55 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeProfitSharing', tribe: 'dwarf', attack: 3, health: 3 },
     sets: ['set2'], // Dwarves
   },
+  {
+    // Shares the Moonhowl Mentor's per-turn teach ceiling rather than owning its own, so holding both raises the
+    // cap instead of the two firing independently.
+    id: 'rune_white_wolf',
+    name: 'Rune of the White Wolf',
+    cost: 4,
+    epic: true,
+    text: 'Once per turn, when you **buy a Shop spell**, teach it to a **Mage-Pup**.',
+    reward: { kind: 'runeWhiteWolf' },
+    sets: ['set2'], // Mage-Pup is a set-2 Beast token
+  },
+  {
+    // "Permanently" required a new carry-back channel — every other one is tribe-scoped, so an untyped
+    // whole-warband buff had nowhere to land and would have vanished at settle.
+    id: 'rune_overflow',
+    name: 'Rune of Overflow',
+    cost: 5,
+    epic: true,
+    text: 'Whenever you summon a minion that **does not fit**, give your minions **+4/+4 permanently**.',
+    reward: { kind: 'combatFlag', flag: 'runeOverflow', amount: 4 },
+  },
+  {
+    // Counted through a narrow helper, NOT `noteSpellCast` — the Ruby path already fires the Ruby+Spell umbrella
+    // and spends the Grimoire charge, so reusing that function would double-fire every "every 3 casts" card.
+    id: 'rune_spellstone',
+    name: 'Rune of the Spellstone',
+    cost: 6,
+    epic: true,
+    text: '**Rubies** you cast count as **Shop spells**.',
+    reward: { kind: 'runeSpellstone' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_counterpoint',
+    name: 'Rune of Counterpoint',
+    cost: 7,
+    epic: true,
+    text: 'When a friendly minion **dies**, your **left-most** minion **attacks immediately**.',
+    reward: { kind: 'combatFlag', flag: 'runeCounterpoint' },
+  },
+  {
+    // Epic, like every other named-minion grant rune (Yazzus, Lazarus, Exgalloper, Mykel, the High King).
+    id: 'rune_chimerus',
+    name: 'Rune of Chimerus',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Chimerus**.',
+    reward: { kind: 'grant', cards: ['chimerus'] },
+  },
 ];
 
 /** Lookup across BOTH runesets — the normal forge stock and the Epic forge stock share one id space so the

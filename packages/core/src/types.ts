@@ -807,6 +807,10 @@ export type QuestReward =
   | { kind: 'runeDuplication' }
   /** Rune of Profit Sharing: whenever you GAIN Gold, give your <tribe> +X/+X wherever they are. */
   | { kind: 'runeProfitSharing'; tribe: Tribe; attack: number; health: number }
+  /** Rune of the White Wolf: once per turn, buying a Shop spell teaches it to a Mage-Pup. */
+  | { kind: 'runeWhiteWolf' }
+  /** Rune of the Spellstone: Rubies you cast count as Shop spells. */
+  | { kind: 'runeSpellstone' }
   /** Rune of Investment: selling a minion mints `count` Rubies. */
   | { kind: 'runeSellRubies'; count: number }
   /** Rune of the Open Market: the FIRST Shop minion your Demons Consume each turn buffs the Shop +X/+X
@@ -988,7 +992,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus'
   // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
   // plays a Ruby on your whole board.
-  | 'runeFoodChain' | 'runeAttackingGems';
+  | 'runeFoodChain' | 'runeAttackingGems'
+  // Rune of Overflow: a summon that does not fit permanently buffs your whole warband.
+  | 'runeOverflow'
+  // Rune of Counterpoint: a friendly death sends your left-most minion in for a free swing.
+  | 'runeCounterpoint';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1108,6 +1116,10 @@ export interface QuestCombatMods {
   runeFoodChain?: boolean;
   /** Rune of Attacking Gems: how many Rubies land on your whole board per friendly attack. */
   runeAttackingGems?: number;
+  /** Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit. */
+  runeOverflow?: number;
+  /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
+  runeCounterpoint?: boolean;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */
@@ -1746,6 +1758,11 @@ export interface CombatResult {
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
+  /** A PERMANENT buff earned in combat for your whole warband, carried back onto the run's board (Rune of
+   *  Overflow). Every other carry-back is tribe-scoped — Imps, Beasts, Fodder, Rubies — so "your minions"
+   *  needed its own untyped channel; without one, a combat buff simply vanishes at settle and a rune whose
+   *  text says "permanently" does nothing. */
+  playerBoardBuffGain?: { attack: number; health: number };
   /** Chorus Engine's Rally: the permanent ATTACHMENT enchant earned this combat. Applied at settle exactly like
    *  Scrap Herald — every Magnetic on board/in hand gains it and `magneticBuyAtk/Hp` stacks, so it reaches
    *  welded, held and future Attachments ("wherever they are"). Absent = none. */

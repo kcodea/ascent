@@ -206,6 +206,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
+        case 'runeCounterpoint':
+          return 'When a friendly minion dies, your left-most minion attacks immediately';
+        case 'runeOverflow':
+          return `Whenever you summon a minion that does not fit, give your minions +${r.amount ?? 4}/+${r.amount ?? 4} permanently`;
         case 'runeFoodChain':
           return "Start of Combat: the first minion you summon gains your left-most Demon's stats this combat";
         case 'runeAttackingGems':
@@ -364,6 +368,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     }
     case 'runeFacetwright':
       return "Your Facetwright's Choice casts give both effects";
+    case 'runeSpellstone':
+      return 'Rubies you cast count as Shop spells';
+    case 'runeWhiteWolf':
+      return 'Once per turn, when you buy a Shop spell, teach it to a Mage-Pup';
     case 'runeProfitSharing':
       return `Whenever you gain Gold, give your ${TRIBE_PLURAL[r.tribe]} +${r.attack}/+${r.health}`;
     case 'runeDuplication':

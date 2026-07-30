@@ -587,7 +587,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
         // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
-        s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined });
+        const restored: BoardCard = { ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined };
+        // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
+        // Touch appeared to do nothing on a displaced minion). This branch restores `held` verbatim and never
+        // read `offer.golden`, so the gild was silently discarded — it looked tier-related because displacement
+        // is how a high-tier minion tends to end up in the shop, but it affected every displaced minion.
+        if (offer.golden && !restored.golden) gildMinion(restored);
+        s.hand.push(restored);
         drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount

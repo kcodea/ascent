@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-07-30 — Set 2 quests: the Kobold line, two grant quests, and a blank-reward defect
+
+**7 quests** (running total 14 of 27). Three small primitives carry the Kobold line, all pushing dials the tribe
+already lives on rather than inventing a third Kobold resource:
+
+- `castRuby` — a quest objective event on its OWN meter, deliberately not folded into `castSpell`. The two must
+  stay unfillable by each other's cards: "Cast 8 Rubies" can't be finished by Shop Spells, and a Dwarf spell
+  quest can't be finished by a Kobold board. Advances by the multiplied cast count off the `rubyCasts` delta.
+- `rubyStatGain` — raises the run's Ruby STRENGTH (`rubyBonus`) and grows Rubies already in hand. Both halves
+  matter: bumping `rubyBonus` alone would leave a held Ruby weaker than one drawn a second later.
+- `rubyExtraCasts` — run-level extra casts, additive with Prismcaster (same channel, so neither shadows the
+  other). `scope: 'firstEachTurn'` is gated on `rubyCastsThisTurn === 0`, which keeps the read side-effect free
+  so the UI's ×N badge can preview it without spending the freebie — the Spell Thesis pattern.
+
+Quests: First Strike, Open the Vein, Gem Circuit, Unstable Riches, Faultline Coronation (Kobold), plus First
+Blood and Market Feast, which are pure data — both minions already ship in set 2.
+
+**Defect found and fixed:** `questRewardText` ends in `default: return ''`, so the three reward kinds shipped in
+the last three commits — `tribeRallySlaughterExtra`, `aleExtraCasts`, `questGoldTribeBuff` — rendered a quest
+card with a name, an objective, and a **blank reward line**. `randomAle` had never been rendered either. All are
+filled in, and a test now walks the real `QUEST_DEFS` asserting no quest renders empty text, so the next reward
+kind added without a text case fails instead of shipping silent.
+
+Verified: typecheck (both projects), lint, 3111 tests, build:web, harness determinism. Kobold quest tests drive
+the REAL objective path — a real buy, a real Ruby cast — rather than reaching past the module-private
+`applyQuestReward`, which would let a reward pass while being unreachable in a game.
+
+Still to go: 13 quests — Dragon (Runic Refrain, The Endless Verse, The Sealed Vault), Demon (Bane's Presence,
+Stock the Shelves, The Burning Legion, Endless Inventory, Bottomless Banquet), Kobold (Candlelight Toll,
+Motherlode, Heart of the Mountain), Dwarf (The Company Store), Neutral (Martial Training — BLOCKED, see below).
+
 ## 2026-07-29 — The Dwarf roster is complete (tranche C)
 
 The last five cards, and what each actually needed:

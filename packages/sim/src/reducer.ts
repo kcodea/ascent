@@ -324,6 +324,10 @@ export function reduce(state: RunState, action: Action): RunState {
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
+    // Kobold quests: "Cast N Rubies" runs on its OWN meter. Deliberately not folded into `castSpell` — the
+    // two objectives must stay unfillable by each other's cards (see `castRuby` in types.ts).
+    const rubyCastDelta = (next.rubyCasts ?? 0) - (state.rubyCasts ?? 0);
+    if (rubyCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castRuby', rubyCastDelta);
     // Spell Power FX: one bump per action in which SPELL POWER WENT UP, by any source and any amount — not
     // per spell CAST (owner correction 2026-07-21: Cinderwing Matron's Shout buffs spell power and must fire
     // this, while casting a spell in a run with no spell-power sources must not). Both stats are watched:
@@ -2790,6 +2794,10 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // Set 2 — N random Dwarven ALES specifically (owner 2026-07-29). Drawn from the run's pool like every other
       // grant, so a set without the Ales grants nothing instead of injecting cards the run can't otherwise have.
       if ((r.randomAle ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id)), r.randomAle!, true);
+      // Rubies are MINTED, never conjured: a Ruby's stats are base 1/1 plus the run's live `rubyBonus`, so
+      // handing over a raw pool copy would give a late-run Kobold deck 1/1 Rubies while every other source
+      // pays full strength.
+      if ((r.randomRuby ?? 0) > 0) mintRubies(s, r.randomRuby!);
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
       for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
@@ -2842,6 +2850,18 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'questGoldTribeBuff':
       s.questGoldTribeBuff = { tribe: r.tribe, per: r.per, attack: r.attack, health: r.health, tick: 0 };
+      break;
+    case 'rubyStatGain': {
+      // Raises Ruby STRENGTH rather than buffing anything on the board: Rubies in hand grow with it (see
+      // `rubyStatGain` in recruit.ts), and every future Ruby is minted at the new value.
+      const rb = s.rubyBonus ?? { attack: 0, health: 0 };
+      s.rubyBonus = { attack: rb.attack + r.attack, health: rb.health + r.health };
+      for (const c of s.hand) if (CARD_INDEX[c.cardId]?.ruby) { c.attack += r.attack; c.health += r.health; }
+      break;
+    }
+    case 'rubyExtraCasts':
+      if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
+      else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
       break;
     case 'aleExtraCasts':
       s.aleExtraCasts = (s.aleExtraCasts ?? 0) + (r.amount ?? 1);

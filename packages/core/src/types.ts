@@ -690,6 +690,11 @@ export type QuestObjectiveEvent =
   // Rulebreaker (neutral) set: `winRound` counts combat wins; `castSpell` counts spells cast; `authorsHand` is the
   // compound Shout+Echo+Rally objective (each must reach `count`; per-key progress in `ActiveQuest.subProgress`).
   | 'winRound' | 'castSpell' | 'authorsHand'
+  // Set 2 (Kobold): `castRuby` counts RUBIES cast — its own meter, NOT `castSpell`. The two are deliberately
+  // separate: a Kobold quest reading "Cast 8 Rubies" must not be filled by Shop Spells, and `castSpell`
+  // (Shop Spells) must not be filled by Rubies. Advances by the multiplied cast count, so a Ruby that casts
+  // 3 times moves the meter 3.
+  | 'castRuby'
   // Compound (Fried Circuits / Forsaken Will): a general multi-part objective — `QuestObjective.parts` holds the
   // sub-objectives (each its own event + count), and the quest completes when ALL parts fill.
   | 'compound';
@@ -722,7 +727,7 @@ export type QuestReward =
   // the Pair ("2 random Tier 4 minions").
   // `grantGolden` conjures each id as a GILDED (golden) copy — Rune of Stormcalling's "Gilded Karwind", Frontline
   // Glory's "Gilded Yazzus".
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; /** Set 2 — N random Dwarven Ales (owner 2026-07-29: random, not a fixed trio). */ randomAle?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; /** Set 2 — N random Dwarven Ales (owner 2026-07-29: random, not a fixed trio). */ randomAle?: number; /** Set 2 — N Rubies, minted at the run's live `rubyBonus` like any other Ruby you're handed. */ randomRuby?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -748,6 +753,13 @@ export type QuestReward =
   | { kind: 'aleExtraCasts'; amount?: number }
   /** "Every N Gold spent, give your <tribe> +X/+X" — threshold-based and tribe-scoped. */
   | { kind: 'questGoldTribeBuff'; tribe: Tribe; per: number; attack: number; health: number }
+  /** "Give your Rubies +X/+X permanently" — raises the run's Ruby STRENGTH (`rubyBonus`), so every Ruby still in
+   *  hand AND every future one is minted stronger. Rubies already CAST keep the stats they landed with. */
+  | { kind: 'rubyStatGain'; attack: number; health: number }
+  /** "Your Rubies cast an additional time" — run-level extra casts, additive with Prismcaster. `scope`
+   *  `firstEachTurn` limits it to the turn's FIRST Ruby (Gem Circuit); `always` applies to every Ruby
+   *  (Unstable Riches). */
+  | { kind: 'rubyExtraCasts'; amount: number; scope: 'always' | 'firstEachTurn' }
   // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,
   // stacks like Drakko); `firstEachRound` makes the FIRST Shout you play each turn trigger twice (Warm Embers).
   | { kind: 'shoutRepeat'; scope: 'always' | 'firstEachRound' }

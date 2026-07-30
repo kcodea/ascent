@@ -580,7 +580,12 @@ export function consumeGrimoireCharge(state: RunState): void {
  */
 
 export function rubyCastCount(state: RunState): number {
-  const extra = state.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+  let extra = state.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+  // Quest rewards add to the SAME channel Prismcaster feeds, so the two stack additively rather than one
+  // shadowing the other. `firstEachTurn` is read-only here for the same reason `spellCasts` is: the freebie is
+  // spent by the real cast path bumping `rubyCastsThisTurn`, so the UI can preview the badge without consuming it.
+  extra += state.rubyExtraCasts ?? 0;
+  if ((state.rubyCastsThisTurn ?? 0) === 0) extra += state.rubyFirstExtraCasts ?? 0;
   return (1 + extra) * grimoireMultActive(state);
 }
 

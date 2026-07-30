@@ -485,6 +485,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'rally', 'playAttachment',
   'consumeFodder', 'consumeStats', 'summonImp',
   'winRound', 'castSpell', 'authorsHand',
+  'castRuby',
   'compound',
 ]);
 export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy']);
@@ -498,6 +499,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
     randomCount: z.number().int().positive().optional(),
     randomSpell: z.number().int().positive().optional(),
     randomAle: z.number().int().positive().optional(),
+    randomRuby: z.number().int().positive().optional(),
     randomFilter: z.enum(['shout', 'endOfTurn', 'echo', 'rally', 'attachment']).optional(),
     randomFilterCount: z.number().int().positive().optional(),
     randomFilterExactTier: z.boolean().optional(),
@@ -526,6 +528,8 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
 z.object({ kind: z.literal('tribeRallySlaughterExtra'), tribe: TribeSchema }).strict(),
 z.object({ kind: z.literal('aleExtraCasts'), amount: z.number().int().positive().optional() }).strict(),
 z.object({ kind: z.literal('questGoldTribeBuff'), tribe: TribeSchema, per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
+z.object({ kind: z.literal('rubyStatGain'), attack: z.number().int(), health: z.number().int() }).strict(),
+z.object({ kind: z.literal('rubyExtraCasts'), amount: z.number().int().positive(), scope: z.enum(['always', 'firstEachTurn']) }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
   z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles']) }).strict(),

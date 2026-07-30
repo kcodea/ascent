@@ -52,6 +52,8 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Win ${o.count} ${o.count === 1 ? 'round' : 'rounds'}`;
     case 'castSpell':
       return `Cast ${o.count} Shop spells`;
+    case 'castRuby':
+      return `Cast ${o.count} ${o.count === 1 ? 'Ruby' : 'Rubies'}`;
     case 'authorsHand':
       return `Trigger Shout, Echo, and Rally ${o.count} times each`;
     case 'sell':
@@ -126,6 +128,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if (r.randomTribe && (r.randomCount ?? 0) > 0) parts.push(randomMinionPhrase(r.randomTribe, r.randomCount!));
       if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random Shop spell' : `${r.randomSpell} random Shop spells`);
       if (r.randomFilter) parts.push(`a random ${FILTER_NAME[r.randomFilter]} minion${r.randomFilterExactTier ? ' of your tier' : ''}`);
+      if ((r.randomAle ?? 0) > 0) parts.push(r.randomAle === 1 ? 'a random Dwarven Ale' : `${r.randomAle} random Dwarven Ales`);
+      if ((r.randomRuby ?? 0) > 0) parts.push(r.randomRuby === 1 ? 'a Ruby' : `${r.randomRuby} Rubies`);
       // Gilded grants (Leader of the Pack → a Golden Pack Leader). Rendered before the plain cards.
       const goldenCounts = new Map<string, number>();
       for (const id of r.grantGolden ?? []) goldenCounts.set(id, (goldenCounts.get(id) ?? 0) + 1);
@@ -260,6 +264,24 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return r.onWave
         ? `Visit the ${r.forge === 'epic' ? 'Epic ' : ''}Runeforge on turn ${r.onWave}`
         : `Start of next turn, visit the ${r.forge === 'epic' ? 'Epic ' : ''}Runeforge${r.gold ? ` and gain ${r.gold} Gold that turn` : ''}`;
+    // Set 2 quest rewards. These five were shipping with NO text at all — `default: return ''` meant the
+    // quest card showed a name and an objective above an empty reward line.
+    case 'tribeRallySlaughterExtra':
+      return `Your ${TRIBE_PLURAL[r.tribe]} Rallies and Slaughters trigger an additional time`;
+    case 'aleExtraCasts':
+      return (r.amount ?? 1) === 1
+        ? 'Your Dwarven Ales trigger an additional time'
+        : `Your Dwarven Ales trigger ${r.amount} additional times`;
+    case 'questGoldTribeBuff':
+      return `Every ${r.per} Gold spent gives your ${TRIBE_PLURAL[r.tribe]} +${r.attack}/+${r.health}`;
+    case 'rubyStatGain':
+      return `Your Rubies gain +${r.attack}/+${r.health} permanently`;
+    case 'rubyExtraCasts': {
+      const times = r.amount === 1 ? 'an additional time' : `${r.amount} additional times`;
+      return r.scope === 'firstEachTurn'
+        ? `Your first Ruby each turn casts ${times}`
+        : `Your Rubies cast ${times}`;
+    }
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

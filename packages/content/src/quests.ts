@@ -130,6 +130,17 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_war_council', name: 'War Council', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'attack', count: 18, tribe: 'dwarf' }, reward: { kind: 'tribeRallySlaughterExtra', tribe: 'dwarf' }, sets: ['set2'] },
   { id: 'q_open_tab', name: 'Open Tab', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 14 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' }, sets: ['set2'] },
   { id: 'q_bottomless_cellar', name: 'Bottomless Cellar', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'castSpell', count: 15 }, reward: { kind: 'aleExtraCasts', amount: 1 }, sets: ['set2'] },
+  // ── SET 2 — KOBOLD (owner roster 2026-07-29). The Ruby engine's quest line: every objective runs on the
+  //    `castRuby` meter or on buys, and the rewards all push the same two dials the tribe already lives on —
+  //    Ruby STRENGTH (`rubyBonus`) and Ruby CAST COUNT — rather than inventing a third Kobold resource.
+  { id: 'q_first_strike', name: 'First Strike', tribe: 'kobold', tier: 'lesser', wave: 5, objective: { event: 'castRuby', count: 8 }, reward: { kind: 'grant', randomTribe: 'kobold', randomCount: 1, randomRuby: 3 }, sets: ['set2'] },
+  { id: 'q_open_the_vein', name: 'Open the Vein', tribe: 'kobold', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 5, tribe: 'kobold' }, reward: { kind: 'rubyStatGain', attack: 2, health: 2 }, sets: ['set2'] },
+  { id: 'q_gem_circuit', name: 'Gem Circuit', tribe: 'kobold', tier: 'lesser', wave: 5, objective: { event: 'castRuby', count: 12 }, reward: { kind: 'rubyExtraCasts', amount: 2, scope: 'firstEachTurn' }, sets: ['set2'] },
+  { id: 'q_unstable_riches', name: 'Unstable Riches', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'castRuby', count: 18 }, reward: { kind: 'rubyExtraCasts', amount: 1, scope: 'always' }, sets: ['set2'] },
+  { id: 'q_faultline_coronation', name: 'Faultline Coronation', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'buy', count: 12 }, reward: { kind: 'rubyStatGain', attack: 4, health: 4 }, sets: ['set2'] },
+  // ── SET 2 — the two straight "get this minion" quests. Pure data: both minions already ship in set 2.
+  { id: 'q_first_blood', name: 'First Blood', tribe: 'dragon', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['d2_skald'], grantKeywords: ['DS'] }, sets: ['set2'] },
+  { id: 'q_market_feast', name: 'Market Feast', tribe: 'demon', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 7 }, reward: { kind: 'grant', cards: ['dm_tormentor'] }, sets: ['set2'] },
   { id: 'q_golden_ledger', name: 'The Golden Ledger', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'slaughter', count: 16, tribe: 'dwarf' }, reward: { kind: 'questGoldTribeBuff', tribe: 'dwarf', per: 5, attack: 3, health: 3 }, sets: ['set2'] },
 ];
 

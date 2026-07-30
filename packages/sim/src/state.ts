@@ -413,6 +413,12 @@ export interface RunState {
    *  Cards that trigger on the umbrella of BOTH read `spellsCast + rubyCasts`. Absent = 0. */
   rubyCasts?: number;
   rubyCastsThisTurn?: number;
+  /** Set 2 quests — run-level EXTRA Ruby casts, additive with Prismcaster's per-minion `rubyExtraCast`.
+   *  `rubyExtraCasts` applies to every Ruby (Unstable Riches); `rubyFirstExtraCasts` only to the turn's first
+   *  (Gem Circuit), gated on `rubyCastsThisTurn === 0` so reading the count stays side-effect free — the real
+   *  cast path spends the freebie by bumping that counter, exactly like Spell Thesis. */
+  rubyExtraCasts?: number;
+  rubyFirstExtraCasts?: number;
   /** Chrono Staff: this turn's End-of-Turn effects fire one extra time (a per-turn flag — stacks with
    *  Chronos, not with itself). Set on cast, reset at the next turn start. Absent = false. */
   extraEotThisTurn?: boolean;

@@ -479,6 +479,9 @@ export function setExecuteValue(key: keyof ExecuteConfig, value: number | string
   commit();
 }
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as EXECUTE_DEFAULTS };
+
 export function resetExecuteConfig(): void {
   cfg = { ...DEFAULTS };
   try {

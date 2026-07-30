@@ -41,6 +41,8 @@ export const FRZ_DESC: Record<keyof FreezeConfig, string> = {
 };
 
 export const FRZ_NUM_KEYS = ['x', 'y', 'scale'] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as FRZ_DEFAULTS };
 
 const KEY = 'ascent.freezebtn';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).

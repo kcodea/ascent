@@ -1,5 +1,77 @@
 # ASCENT — development log
 
+## 2026-07-29 — the dev tuner menu gets categories, and tuners get a schema
+
+**What changed.** Two connected pieces of the dev tuning surface: the menu that indexes the tuners, and the
+beginning of a single shared panel the tuners themselves render through. Dev-only — all of it is stripped from
+production. No engine, content, sim, or player-visible change.
+
+**The audit that set the direction.** Measured rather than eyeballed: **47 panels, 43 with a label map, 867
+individually-labelled controls, and only 16 configs shipping any hover explanation** — so roughly 600 controls
+had no explanation anywhere. The unit vocabulary across those labels: `ms` ×83, `px` ×52, `α` ×30, `°` ×29,
+`×` ×28, `%` ×15, bare `s` ×9, `px/s` ×4, **`deg` ×1**. Degrees spelled two ways; opacity spelled `α` in thirty
+labels and "opacity" elsewhere. That reframed the job: it is not 47 UIs to redesign, it is 867 numbers to name
+inside one UI built once. Rebuilding chrome 47 times fixes no labels, and fixing labels in 47 places makes
+every later improvement a 47-file edit.
+
+**The menu.** Was 53 entries in one flat, historically-ordered list wrapped into four 174px columns (~736px
+wide) — the two Execute panels sat 22 rows apart under the same emoji, and eight glyphs were used more than
+once. Now nine categories, filter-as-you-type across label + description + synonyms, arrow-key navigation with
+the cursor shared between keyboard and hover, an open-panel count on the 🛠️ button, and Close all. Every entry
+carries a one-line description sourced from that panel's own doc comment, because labels like "Weld", "Step
+Proc" and "Trail" name the internal effect rather than the thing you see. Synonyms keep muscle memory working:
+`windfury` finds Flurry Swing, `divine shield` finds Ward Dome, `magnetize` finds Weld.
+
+**The schema.** A panel is now a `TunerSpec` — `{ key, label, hint, unit, min, max, step, group, kind }` plus
+`read`/`write`/`reset`/`defaults` — rendered by one `TunerPanel`. **Persistence is wrapped, never replaced:**
+forty config modules own their own localStorage key and their own get/set/reset holding values dialled by eye
+over months, so a spec points at those accessors and adds only presentation metadata. Verified live that an
+edit still writes the original key (`ascent.flip.v3`) and creates no new ones.
+
+What the schema buys beyond deleting duplication: units are declared and rendered rather than typed into
+labels, so the spellings cannot drift again; sections are real (`CardPlateTuner` had been faking them by
+prefixing every label — "plate · width", "gold · sepia"); a number box sits beside every slider, because a
+slider cannot express "exactly 180"; and a modified-from-shipped mark doubles as a one-click per-control
+revert, so "is this still the shipped value?" is answerable without reading the config source.
+
+**Six panels migrated** — deliberately the extremes first: Reposition Slide (2 controls), Step Counter (3),
+Damage Float (7), Motion Trail (11), Card Plate (14), and **Execute Aura (48, the largest tuner in the
+project)**. If the schema holds at both ends it holds anywhere.
+
+**Three things the plan got wrong, found by building.**
+- The units contract banned bare seconds. Several configs genuinely store seconds because they feed CSS
+  durations directly, and normalising them would rewrite stored values — a behaviour change, not a refactor.
+  Both units exist now; declaring the unit fixes the real problem, which was a bare `2.4` that might be either.
+- Controls needed a per-control caveat. `CardPlateTuner` has three sliders that are not live (`Card` is
+  memoized for combat performance), and the old panel warned with one blanket line at its foot that never said
+  which three. A control now carries its own note.
+- `ExecuteTuner` had already invented half the schema before it existed — its config declared groups, colour
+  groups, and a modified-key list. Good evidence the shape was right.
+
+**Two layout defects, both fixed.** A freshly-opened schema panel overflowed horizontally: `.sfxmix` defaults
+to 290px, sized for the old three-column row, while a schema row has four. Panels persist their size but only
+after you resize one, so the default is what you actually meet. The deeper cause was worse — the tuner CSS was
+**unscoped and defined earlier in styles.css than the `.sfxmix-row` rules it was meant to override**. Those are
+`display: flex` with fixed flex bases and tie on specificity, so source order decided, flex won, and the grid
+never applied at all: the slider computed to 0px and the number box to 233px. Every layout rule is now scoped
+`.tunerpanel …`.
+
+**A duplicated invariant, caught before it could rot.** `ExecuteTuner` had copied the config's group table into
+a local `SECTIONS` array. `executeConfig.test.ts` asserts those groups cover every numeric key exactly once,
+but it only checks the config's copy — the two could have drifted with the test still green. The tuner imports
+`EXECUTE_GROUPS` now.
+
+**How it was verified.** typecheck, typecheck:web, **2905 tests**, lint (3 pre-existing warnings), build:web.
+Live DOM checks for each migrated panel: correct grid tracks, no overflow at the 400px opening width, sections
+and units rendering, a hint on every control, and the modified mark reverting to the shipped value.
+
+**Follow-ups.** 41 panels remain, including five structural outliers with no label map (`ChargeGlyphTuner` at
+209 lines, `FrameTuner`, `BookTuner`, `LayoutTuner`, `SfxMixer` — the last may justifiably stay bespoke). The
+migration leaves five dead exports behind (`TRAIL_KEYS`, `FLOAT_KEYS`, `SC_KEYS`, `PLATE_KEYS`, `FLIP_KEYS`);
+they do not trip lint because exports are exempt, and should be swept once enough panels are done. Every hint
+written so far needs an owner accuracy pass — they were drafted from source, and no code can confirm that
+"comet" is what we call those arcs.
+
 ## 2026-07-29 — chore(fx): strip five orphan defs, and TWO "dead code" leads that were live
 
 The first step of the `pixiFx` → def migration: a zero-risk cleanup pass. Nothing here changes what a player
@@ -364,6 +436,7 @@ be looking; given "make failure visible" is this subsystem's entire ethos, that 
 can't be used as a "did this variant do anything" signal, which is worth knowing before some future UI tries.
 Above all, **the two bases want the owner's eye in the workbench** — they are ordinary def files and tune like
 any other.
+
 
 ## 2026-07-29 — One snapshot seat per player
 
@@ -1036,6 +1109,7 @@ Also added: a structural test that no module in `productionBots/` outside the th
 `RunState` or the reducer, so a future evaluator physically cannot reach hidden state.
 
 **Verified.** typecheck, lint (3 pre-existing warnings), 2920 tests, build:web, harness determinism.
+
 
 ## 2026-07-29 — the title menu becomes an object you can press
 

@@ -1,64 +1,38 @@
-import { useState } from 'react';
-import {
-  FRZ_NUM_KEYS,
-  FRZ_RANGES,
-  FRZ_DESC,
-  getFreezeConfig,
-  resetFreezeConfig,
-  setFreezeValue,
-  type FreezeConfig,
-} from './freezeConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { FRZ_DEFAULTS, FRZ_NUM_KEYS, FRZ_RANGES, getFreezeConfig, resetFreezeConfig, setFreezeValue, type FreezeConfig } from './freezeConfig';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the FREEZE button's placement (`freezeConfig.ts` / `FreezeButton.tsx`).
+ * DEV-only tuner for the FREEZE button's placement. Position and scale only, on purpose: the freeze ART is not
+ * in yet, so glow / sheen / press dials would have nothing to act on. It grows to match the Refresh tuner once
+ * the art lands — which is why the section below is named for what it covers rather than left unlabelled.
  *
- * Position + scale only, on purpose: the freeze ART isn't in yet, so glow/sheen/press dials would have
- * nothing to act on. It grows to match the 🔄 Refresh tuner once the art lands.
- *
- * Values persist to localStorage (dev only); "Copy values" grabs the JSON to bake into DEFAULTS + the
- * styles.css fallbacks. Opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
+ * Values persist to localStorage and apply live through `applyFreezeVars()`. "Copy values" grabs the JSON to
+ * bake into DEFAULTS *and* the styles.css fallbacks.
  */
-const LABELS: Record<keyof FreezeConfig, string> = {
-  x: 'position · x',
-  y: 'position · y',
-  scale: 'scale',
+const SPECS: Record<(typeof FRZ_NUM_KEYS)[number], [string, TunerUnit | undefined, string]> = {
+  x:     ['Horizontal offset', 'px', 'Offset from the stage-pinned base point on the board’s right edge. Scales with the board.'],
+  y:     ['Vertical offset', 'px', 'Offset from that base point. Positive moves the button down. Scales with the board.'],
+  scale: ['Button size', '×', 'Overall size of the button.'],
 };
 
-export function FreezeTuner() {
-  const [cfg, setCfg] = useState<FreezeConfig>(getFreezeConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('freezebtn');
+const controls: TunerControl<Extract<keyof FreezeConfig, string>>[] = FRZ_NUM_KEYS.map((key) => {
+  const [label, unit, hint] = SPECS[key];
+  const [min, max, step] = FRZ_RANGES[key];
+  return { key, label, unit, hint, group: 'Placement — art pending', min, max, step };
+});
 
-  const set = (k: keyof FreezeConfig, v: number): void => {
-    setFreezeValue(k, v);
-    setCfg({ ...getFreezeConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getFreezeConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetFreezeConfig(); setCfg({ ...getFreezeConfig() }); };
+const SPEC: TunerSpec<FreezeConfig> = {
+  id: 'freezebtn',                  // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Freeze Button',
+  note: 'dev · live · drag',
+  read: getFreezeConfig,
+  write: setFreezeValue,
+  reset: resetFreezeConfig,
+  defaults: FRZ_DEFAULTS,
+  controls,
+};
 
-  return (
-    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Freeze <span>dev · live · drag</span></div>
-      <div className="sfxmix-sub">Placement only — art pending</div>
-      {FRZ_NUM_KEYS.map((k) => {
-        const [min, max, step] = FRZ_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={FRZ_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export function FreezeTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

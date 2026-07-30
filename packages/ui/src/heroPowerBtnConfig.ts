@@ -133,6 +133,8 @@ export const HPB_NUM_KEYS = [
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
 ] as const;
 export const HPB_COLOR_KEYS = ['glowColor'] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as HPB_DEFAULTS };
 
 const KEY = 'ascent.heropowerbtn';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).

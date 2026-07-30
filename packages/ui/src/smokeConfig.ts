@@ -90,6 +90,8 @@ export const SMOKE_RANGES: Record<keyof SmokeConfig, [number, number, number]> =
   impPulseRings: [0, 2, 1],
 };
 export const SMOKE_KEYS = Object.keys(DEFAULTS) as (keyof SmokeConfig)[];
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as SMOKE_DEFAULTS };
 
 const KEY = 'ascent.smoke';
 let cfg: SmokeConfig = (() => {

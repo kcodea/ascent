@@ -24,6 +24,8 @@ export const SHIELD_DESC: Record<keyof ShieldConfig, string> = {
   recruitDy: 'Divine-shield / reborn bubble vertical offset on shop & warband cards (fraction of card height; + = down).',
 };
 export const SHIELD_KEYS = Object.keys(DEFAULTS) as (keyof ShieldConfig)[];
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as SHIELD_DEFAULTS };
 
 const KEY = 'ascent.shield';
 let cfg: ShieldConfig = (() => {

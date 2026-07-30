@@ -1,53 +1,45 @@
-import { useState } from 'react';
-import { SC_KEYS, SC_RANGES, getStepCounterConfig, resetStepCounterConfig, setStepCounterValue, type StepCounterConfig } from './stepCounterConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { SC_DEFAULTS, SC_RANGES, getStepCounterConfig, resetStepCounterConfig, setStepCounterValue, type StepCounterConfig } from './stepCounterConfig';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the STEP COUNTER — the white "X/N" numbers under a step-scaler card (Guel, Tara, Avenge
- * units, …). Drag the sliders to dial the number SIZE and its X / Y placement below the card; values write to CSS
- * variables live, so any on-board counter updates immediately (put an Avenge unit / Guel on your board to watch).
- * "Copy" grabs the JSON; to SHIP a look, paste the values back as the CSS fallbacks in styles.css (`.stepcounter`
- * `font-size` / `left` / `bottom`). "Reset" clears to defaults. Opened from the Dev Tuning Menu; dev-only.
+ * DEV-only tuner for the step counter — the white "X/N" numbers under a step-scaler card (Guel, Tara, Avenge
+ * units, …). Values write to CSS variables live, so any counter already on the board moves immediately; put an
+ * Avenge unit or Guel on your board to watch.
+ *
+ * Shipping a look here means pasting the values back as the CSS FALLBACKS in styles.css (`.stepcounter`
+ * `font-size` / `left` / `bottom`), not into a config DEFAULTS block.
+ *
+ * LANGUAGE. `y` read "y / below (px)" — two candidate names and a unit in one label, and it still did not say
+ * the thing that actually matters: the value is a CSS `bottom`, so MORE NEGATIVE moves the counter DOWN. That
+ * now lives in the hint.
  */
-const LABELS: Record<keyof StepCounterConfig, string> = {
-  size: 'text size (px)',
-  x: 'x offset (px)',
-  y: 'y / below (px)',
+const SPECS: Record<keyof StepCounterConfig, [string, TunerUnit | undefined, string]> = {
+  size: ['Number size', 'px', 'Font size of the "X/N" counter.'],
+  x:    ['Horizontal offset', 'px', 'Offset from centre. Positive moves right, negative moves left, 0 is centred under the card.'],
+  y:    ['Vertical position', 'px', 'Distance below the card, as a CSS bottom value — MORE NEGATIVE sits lower, further below the card edge.'],
 };
 
-export function StepCounterTuner() {
-  const [cfg, setCfg] = useState<StepCounterConfig>(getStepCounterConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('stepcounter');
+/** Declaration order IS render order. Three controls, so no sections. */
+const ORDER: (keyof StepCounterConfig)[] = ['size', 'x', 'y'];
 
-  const set = (k: keyof StepCounterConfig, v: number): void => {
-    setStepCounterValue(k, v); // writes CSS vars live
-    setCfg({ ...getStepCounterConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getStepCounterConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetStepCounterConfig(); setCfg({ ...getStepCounterConfig() }); };
+const controls: TunerControl<Extract<keyof StepCounterConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint] = SPECS[key];
+  const [min, max, step] = SC_RANGES[key];
+  return { key, label, unit, hint, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge float-tuner" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Step Counter <span>dev · live · drag</span></div>
-      {SC_KEYS.map((k) => {
-        const [min, max, step] = SC_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name">{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+const SPEC: TunerSpec<StepCounterConfig> = {
+  id: 'stepcounter',                // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Step Counter',
+  note: 'dev · live · drag',
+  read: getStepCounterConfig,
+  write: setStepCounterValue,
+  reset: resetStepCounterConfig,
+  defaults: SC_DEFAULTS,
+  controls,
+};
+
+export function StepCounterTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

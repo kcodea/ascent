@@ -4102,20 +4102,123 @@ svg { width: 18px; height: 18px; }
 .escboards { display: grid; gap: 8px; }
 .escboards-msg { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
 /* ── Dev Tuning Menu (DEV only) — one 🛠️ button replacing the old row of floating tuner buttons ── */
-.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
-/* Width is CONTENT-DRIVEN (was a fixed 190px): the items grid below wraps into a new column every 15 rows, and
-   because the panel is RIGHT-anchored, each extra column widens it to the LEFT (owner call 2026-07-19 — the
-   one-column list had outgrown the viewport). max-width guards tiny windows. */
-.devmenu { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 64px); z-index: 9991; width: max-content; max-width: calc(100vw - 24px); background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 8px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; }
-.devmenu-h { font-weight: 800; font-size: 12px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 6px 6px; }
-/* 15 rows per column, then overflow flows into the NEXT column (to the right of the first). Each column keeps
-   the old panel's usable width (174px = 190 − 2×8 padding) so single-column layouts look identical. */
-.devmenu-items { display: grid; grid-auto-flow: column; grid-template-rows: repeat(15, min-content); grid-auto-columns: 174px; column-gap: 8px; }
-.devmenu-item { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 7px 8px; margin: 1px 0; border: 0; border-radius: 8px; background: transparent; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: var(--ink); cursor: pointer; text-align: left; }
-.devmenu-item:hover { background: var(--bg2); }
+/* ============================ DEV TUNING MENU ================================================================
+   A searchable, grouped index of every tuner panel. It replaced a flat 53-row list wrapped into four 174px
+   columns (~736px wide) whose order was historical — the two Execute panels sat 22 rows apart under the same
+   emoji. Now: one scrolling column, sticky group headings, filter-as-you-type, and arrow-key navigation.
+   Dressed in the shipped vocabulary (vellum face, gold rim, ink text, warm shadows) so dev chrome reads as
+   part of the same object family as the game rather than a bolted-on tool.
+   ========================================================================================================== */
+.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s ease; }
+.devmenu-btn:hover { transform: translateY(-1px); border-color: var(--acc); }
+.devmenu-btn:active { transform: translateY(1px); }
+/* The button carries a badge when panels are open, so you can tell at a glance that the board is wearing dev
+   overlays — the old menu gave no signal once it was closed. */
+.devmenu-btn.has-open { border-color: var(--acc); }
+.devmenu-count { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 10px; line-height: 17px; text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+
+.devmenu { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 64px); z-index: 9991;
+  width: 296px; max-width: calc(100vw - 24px);
+  display: flex; flex-direction: column; max-height: min(72vh, 620px);
+  background: var(--card); border: 2px solid var(--gold); border-radius: 14px; padding: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 18px 44px -10px rgba(0, 0, 0, 0.55);
+  font-family: var(--font-ui); box-sizing: border-box; }
+
+.devmenu-top { display: flex; gap: 6px; align-items: center; padding-bottom: 7px; }
+.devmenu-search { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 9px; border: 2px solid var(--line);
+  background: var(--bg2); color: var(--ink); font-family: var(--font-ui); font-weight: 700; font-size: 13px; outline: none; }
+.devmenu-search::placeholder { color: var(--ink3); font-weight: 600; }
+.devmenu-search:focus { border-color: var(--acc); background: var(--card); }
+.devmenu-closeall { flex: none; padding: 7px 9px; border-radius: 9px; border: 2px solid var(--line); background: var(--bg2);
+  font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: var(--ink2); cursor: pointer; white-space: nowrap;
+  transition: border-color 0.12s ease, color 0.12s ease; }
+.devmenu-closeall:hover { border-color: var(--threat); color: var(--threat-dk); }
+
+.devmenu-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.devmenu-group + .devmenu-group { margin-top: 4px; }
+/* Sticky so the category stays legible while you scroll a long group. */
+.devmenu-gh { position: sticky; top: 0; z-index: 1; background: var(--card);
+  font-weight: 800; font-size: 10px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 5px 6px 4px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+
+.devmenu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; margin: 1px 0;
+  border: 0; border-radius: 8px; background: transparent; font-family: var(--font-ui); font-weight: 700; font-size: 13px;
+  color: var(--ink); cursor: pointer; text-align: left; }
+.devmenu-ic { flex: none; width: 18px; font-size: 13px; text-align: center; }
+.devmenu-lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.devmenu-tick { flex: none; font-size: 11px; color: var(--acc-dk); }
+/* `.cursor` is the keyboard/pointer highlight — ONE row is highlighted at a time whether you arrowed to it or
+   hovered it, so the two input methods can't disagree about what Enter would activate. */
+.devmenu-item.cursor { background: var(--bg2); }
 .devmenu-item.on { background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); }
-.devmenu-item span { font-size: 11px; color: var(--acc-dk); }
+.devmenu-item.on.cursor { background: color-mix(in srgb, var(--acc) 22%, var(--card)); }
+.devmenu-item.action .devmenu-tick { color: var(--ink3); }
+
+.devmenu-empty { padding: 16px 8px; font-size: 12px; font-weight: 600; color: var(--ink3); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.devmenu-clear { padding: 5px 12px; border-radius: 8px; border: 2px solid var(--line); background: var(--bg2);
+  font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: var(--ink2); cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease; }
+.devmenu-clear:hover { border-color: var(--acc); color: var(--acc-dk); }
+.devmenu-foot { flex: none; padding: 7px 6px 1px; border-top: 1px solid var(--line); margin-top: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink3); text-align: center; }
 .sfxmix { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; resize: both; overflow: auto; min-width: 220px; max-width: 92vw; min-height: 110px; max-height: 88vh; }
+/* ---- SHARED TUNER PANEL (schema-driven) ------------------------------------------------------------------
+   Additive only. Panels migrated to `TunerPanel` keep every `.sfxmix*` class the hand-rolled ones use, so a
+   half-migrated toolset still reads as one product; these rules add what the schema made possible — sections,
+   a units column, a number box, and the modified-from-shipped mark. */
+/* OPENING WIDTH. `.sfxmix` defaults to 290px, which was sized for the old three-column row
+   (name · slider · value). A schema row has four columns — name · slider · number box · unit — and at 290px
+   the panel overflowed horizontally the moment it opened, so every fresh panel had to be dragged wider before
+   it could be read. Panels remember their SIZE (`ascent.devpanel.<key>`) but not until you resize one, so the
+   default is what you actually meet. 400px fits the widest label in the migrated set with room to spare. */
+.tunerpanel { width: 400px; }
+/* Grid children default to `min-width: auto`, which means they refuse to shrink below their content and push
+   the panel wider instead of fitting it. This is what actually produced the overflow. */
+/* EVERY layout rule below is scoped `.tunerpanel …` on purpose, not for tidiness. A schema row reuses the
+   `.sfxmix-row` / `.sfxmix-name` / `.sfxmix-val` classes so a half-migrated toolset still looks like one
+   product — but those rules are `display: flex` with fixed `flex` bases, they tie these on specificity, and
+   they are DEFINED LATER in this file. An unscoped `.tuner-row { display: grid }` therefore lost silently:
+   the grid never applied, the slider collapsed to 0px and the number box stretched to 233px. The extra
+   `.tunerpanel` raises these to (0,2,0) so they win wherever they sit in the file. */
+.tunerpanel .tuner-section + .tuner-section { margin-top: 9px; }
+.tunerpanel .tuner-gh { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink3); padding: 3px 0 4px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+/* name · slider · number · unit */
+.tunerpanel .tuner-row { display: grid; grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 54px 28px;
+  align-items: center; gap: 7px; margin: 4px 0; }
+/* Grid children default to `min-width: auto` and refuse to shrink below their content, pushing the panel wider
+   instead of fitting it; the flex bases inherited from `.sfxmix-*` would also fight the tracks. */
+.tunerpanel .tuner-row > * { min-width: 0; flex: none; }
+.tunerpanel .tuner-row input[type="range"] { width: 100%; min-width: 0; }
+.tunerpanel .tuner-row .sfxmix-name { flex: none; }
+.tunerpanel .tuner-row .sfxmix-val { flex: none; text-align: left; }
+.tunerpanel .tuner-num { width: 100%; min-width: 0; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg2); color: var(--ink); font-family: var(--font-ui); font-weight: 700; font-size: 11px;
+  text-align: right; -moz-appearance: textfield; }
+.tunerpanel .tuner-num::-webkit-outer-spin-button,
+.tunerpanel .tuner-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.tunerpanel .tuner-num:focus { outline: none; border-color: var(--acc); background: var(--card); }
+.tunerpanel .tuner-unit { font-size: 10px; color: var(--ink3); text-align: left; white-space: nowrap; }
+/* The modified mark doubles as the revert button — it only exists when the value differs from shipped. */
+.tunerpanel .tuner-mod { margin-left: 5px; padding: 0; border: 0; background: none; color: var(--acc); font-size: 9px;
+  line-height: 1; cursor: pointer; vertical-align: middle; }
+.tunerpanel .tuner-mod:hover { color: var(--threat); }
+/* Colour rows have no number box, so the swatch takes the slider's column and the hex takes the rest. */
+.tunerpanel .tuner-row-color { grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 76px; }
+.tunerpanel .tuner-row-color input[type="color"] { width: 100%; height: 20px; padding: 0; border: 1px solid var(--line);
+  border-radius: 5px; background: none; cursor: pointer; }
+.tunerpanel .tuner-hex { font-size: 10px; color: var(--ink3); font-variant-numeric: tabular-nums; text-align: left; }
+/* Per-control caveat marker — hover it for the reason. Muted so it reads as an aside, not an error. */
+.tunerpanel .tuner-note { margin-left: 4px; color: var(--ink3); font-size: 10px; cursor: help; vertical-align: super; }
+/* Preview switches. Deliberately NOT styled as a control row: they pin a transient state so it can be tuned,
+   and previously wore the same row markup as the real sliders while writing nothing to the config. */
+.tunerpanel .tuner-previews { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 5px 0 7px; margin-bottom: 4px;
+  border-bottom: 1px dashed var(--line); }
+.tunerpanel .tuner-preview { display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: var(--ink2); }
+.tunerpanel .tuner-preview input { margin: 0; cursor: pointer; accent-color: var(--acc); }
+
 .sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
 .sfxmix-h.drag { cursor: move; user-select: none; touch-action: none; }
 .sfxmix-h span { font-size: 10px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; }

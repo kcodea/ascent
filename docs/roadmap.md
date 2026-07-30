@@ -260,6 +260,22 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
     `fx/prodPlayback.test.ts` fails if the split drifts either way. **This turned on 15 already-live
     bindings no player had seen** — so the next FX task is the owner watching a real fight at 1× and
     reporting which of the 15 read wrong at card scale.
+  - **The per-fire shader recompile — FIXED 2026-07-30.** Un-gating defs shipped a ~160 ms freeze on every
+    combat collision: each layer built and then `destroy(true)`-ed its own `Shader`, which evicted Pixi's
+    program cache and forced a full GLSL compile+link (a blocking 68 ms) per fire, plus an unbounded GL
+    program leak. Now pooled (`particleLayerPool.ts` / `shaderPool.ts`) and pre-warmed at load; worst
+    collision frame 160 ms → under 2 ms. Write-up: `docs/performance.md` §3b. The legacy `pixiFx` shield
+    shader was checked and is clean (it uses the no-arg `destroy()`), so it never hit this; it does still
+    build a `Shader` per bubble, which is cheap now but would be the next thing to pool if shields ever
+    show up in a profile.
+  - **`clearParticles()` doesn't reach def-driven FX.** `pixiFx.clearParticles()` (the Skip fade, and the
+    recruit-phase transitions in `Recruit.tsx`) sweeps every hand-written transient — `live`, `skullPops`,
+    `tendrils`, `critFxs`, `descends` — but knows nothing about `playDef`'s effects, which own their own
+    containers and updaters. A def firing across a skip therefore keeps playing under the fade instead of
+    being cleared with everything else. Pre-existing (it predates pooling and is not a pool defect), and the
+    fix is a design question rather than a patch: either `playDef` registers each live play in a cancellable
+    set that `clearParticles` drains, or transitions fade the whole FX canvas and leave the plays alone
+    (which is what `setVisible` already does for the skip fade). Surfaced by the pooling review 2026-07-30.
   - **`shieldUp` is a result-type event** and collapses into contiguous result runs, so the demo cue doesn't
     fire on every combat (`[dmg, shieldUp]` compiles to a `damage` moment). A per-event fan-out in
     `compile.ts` is the fix if that moment needs to be reliable.

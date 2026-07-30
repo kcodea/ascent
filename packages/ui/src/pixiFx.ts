@@ -10,6 +10,7 @@ import {
 import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
+import { resetFxPools } from './fx/fxRuntime';
 
 /**
  * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
@@ -881,6 +882,13 @@ class FxController {
     this.shields.clear();
     this.shieldGeo?.destroy();
     this.shieldGeo = null;
+    // Drop the def-runtime pools before the Application goes. They are MODULE-GLOBAL, so they outlive this
+    // `detach()` — and the stage teardown below (`{ children: true }`) destroys any container a live def
+    // effect still has mounted, so without this a later release could file a destroyed pair back into the
+    // pool, and the pairs already sitting in it would hold GPU buffers keyed to a renderer that no longer
+    // exists. A no-op in a session that never loaded the primitives (see `fxRuntime.ts` for why this is a
+    // registry call rather than a direct import — the GLSL must stay out of the entry chunk).
+    resetFxPools();
     this.app.ticker.remove(this.update);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     if (this.shieldApp) {

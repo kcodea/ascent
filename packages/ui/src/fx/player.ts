@@ -540,6 +540,18 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     timeMs: () => clock,
     isPlaying: () => playing,
     destroy(): void {
+      // Clearing the transport flags is NOT decoration — without it a post-destroy `update()` respawns.
+      // `killAllLive()` empties `live`, but `update()` → `reconcile()` reads `playing`, sees a layer that is
+      // due and no longer live, and SPAWNS it: with pooling, that acquires a pooled pair into a container
+      // the caller has already orphaned, and nothing will ever release it. Repeat and the pool starves.
+      // `playDef`'s `retired()` check and the workbench's teardown ordering both happen to prevent that
+      // today; with lots of effects starting and stopping at arbitrary moments, "happens to" is not enough.
+      // Deliberately not a call to `stop()`: this is teardown, not a rewind — the clock is left where it
+      // died rather than reset, because destroy() promises no reuse.
+      playing = false;
+      firing = false;
+      firingRepeats = false;
+      inGap = false;
       killAllLive();
     },
   };

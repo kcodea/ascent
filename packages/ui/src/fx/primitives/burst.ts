@@ -1,10 +1,9 @@
-import { Particle, ParticleContainer, Rectangle, Shader, type Texture } from 'pixi.js';
+import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
 import { sampleCurve, CURVE_PRESETS } from '../curve';
 import {
-  createParticleMaterial,
   updateParticleMaterial,
   updateParticleMaterialShaping,
   setParticleTime,
@@ -14,6 +13,7 @@ import {
   type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
+import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
@@ -472,15 +472,18 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.oneShot = ctx.oneShot === true;
     this.rand = makeRng(ctx.seed ?? randomSeed());
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
-    this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
-    this.pc = new ParticleContainer({
+    // Pooled, not constructed: building a fresh Shader here re-compiled and re-linked the GLSL on every fire
+    // — a ~68 ms main-thread block per collision. See `particleLayerPool.ts`'s header.
+    const layer = acquireParticleLayer({
+      renderer: ctx.renderer,
+      parent: ctx.container,
       texture: this.texture,
-      shader: this.shader,
-      boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
-      dynamicProperties: { position: true, rotation: true, color: true, vertex: true },
+      blendMode: params.blendMode,
+      style: styleOf(params),
+      shaping: shapingOf(params),
     });
-    this.pc.blendMode = params.blendMode;
-    ctx.container.addChild(this.pc);
+    this.shader = layer.shader;
+    this.pc = layer.pc;
     // Deliberately no emit here. `headX/headY` default to (0, 0) until the first real `setHead()` call,
     // and the real caller (`FxPlayer.update` → this instance's `update()`, THEN `FxPlayer.setHead` →
     // this instance's `setHead()` — see Workbench.tsx's ticker, which calls `p.update(dtMs)` before
@@ -707,23 +710,11 @@ class BurstInstance implements FxInstance<BurstParams> {
   }
 
   destroy(): void {
-    // The ParticleContainer and our own shader are ours to free. Shape textures are shared across every
-    // burst/emitter instance (cached per-renderer in `shapeTextures.ts`) and must outlive any single
-    // instance's destroy() — and it does: `ParticleContainer.destroy({ children: true })` only destroys
-    // the container/particle structs
-    // (`children: true` here means "also destroy the Particle instances", not the shared texture — see
-    // ParticleContainer.destroy()'s `destroyTexture` branch, which we never opt into), and `Shader.destroy`
-    // never touches its texture resources (only `resources`/`groups` refs and, with `true`, the compiled GL
-    // program) — verified by reading both destroy() implementations.
-    //
-    // Order matters: `ParticleContainer.destroy()` ALSO calls `this.shader?.destroy()` internally (with no
-    // args, i.e. destroyPrograms=false) since we handed it `shader: this.shader` in the constructor. Shader
-    // guards its own destroy with a `_destroyed` flag, so whichever destroy() call lands first "wins" — if
-    // `pc.destroy()` ran first, its no-arg call would set `_destroyed` and our own `destroy(true)` after it
-    // would silently no-op, leaking the compiled GL program. Destroying the shader ourselves FIRST (with
-    // `true`) makes the container's later internal call the no-op instead, which is the harmless direction.
-    this.shader.destroy(true);
-    this.pc.destroy({ children: true });
+    // Back to the pool, NOT destroyed. `releaseParticleLayer` unparents the container first — the player
+    // destroys our owning container with `{ children: true }` immediately after this returns, which would
+    // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in
+    // `shapeTextures.ts`; nothing here touches them.
+    releaseParticleLayer({ shader: this.shader, pc: this.pc });
   }
 }
 

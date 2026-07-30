@@ -1,5 +1,127 @@
 # ASCENT — development log
 
+## 2026-07-30 — the collision stutter was a GLSL recompile, 68 ms at a time
+
+**The report.** A quick but noticeable stutter, consistently, just as cards collide in combat.
+
+**What it actually was.** Not allocation, not particle count, not GC. Every def layer built its own `Shader`
+in its primitive's constructor and freed it in `destroy()` with `shader.destroy(true)` —
+`destroyPrograms = true`, which reads as careful cleanup and was in fact a **full GLSL compile + link on every
+single fire.** The chain, verified by reading Pixi's source and then confirmed by instrumenting the live GL
+context rather than inferred:
+
+1. `Shader.from({ gl })` resolves its program via `GlProgram.from(src)`, memoised by raw source in Pixi's
+   module-global `programCache`.
+2. `shader.destroy(true)` calls `glProgram.destroy()`, which **nulls that cache entry**, so the next fire
+   misses and constructs a fresh `GlProgram`.
+3. Constructing one runs Pixi's preprocessor chain, and `setProgramName` injects
+   `#define SHADER_NAME pixi-program-fragment-<N>` with a globally incrementing N — so the *preprocessed*
+   source, and hence `GlProgram._key`, is different every time.
+4. `GlShaderSystem._programDataHash` is keyed by that `_key`, so it misses too: `createProgram` +
+   `compileShader` ×2 + `linkProgram`, then a blocking `getProgramParameter(LINK_STATUS)` while the driver
+   compiles. Instrumenting the context attributed **68.7 ms of a 69.8 ms frame** to that single call.
+5. Nothing ever evicted the abandoned entries — `_programDataHash` was observed growing by one per fire,
+   unbounded, all session. A GL program leak riding on top of the freeze.
+
+A collision fires `strike-impact` (4 burst + 1 shockwave), `damage-burst` (2 + 1), `impact-dust` (1) and
+`self-buff-gold` (1) together, spanning two distinct shader sources — so it paid ~2 × 68 ms every time.
+
+**The numbers** (measured by stopping the ticker and driving `app.ticker.update` synchronously, so the timing
+doesn't depend on `requestAnimationFrame`; the exact console recipe is now in `docs/performance.md` §3b):
+
+| Worst frame of a collision | Before | After |
+|---|---|---|
+| 4-def collision bundle | 158–171 ms, every time | **0.3–1.7 ms** |
+| `impact-dust` alone (1 burst layer) | ~68 ms | < 1 ms |
+| `strike-impact` alone (4 burst + 1 shockwave) | ~160 ms | < 1 ms |
+| GL programs compiled across 10 collisions | 20 | **0** — the 3 FX programs link once, at load |
+
+**The fix — pooling, with the reset on ACQUIRE.** New `particleLayerPool.ts` pools `(Shader,
+ParticleContainer)` **pairs** for burst/emitter/smoke; they have to be pooled together because
+`ParticleContainer.destroy()` destroys the shader it was constructed with, and the container's per-uid GPU
+vertex buffers are worth keeping anyway. New `shaderPool.ts` pools just the shader for the two mesh
+primitives (ribbon/shockwave), whose geometry is genuinely per-fire (segment count, radius quad). Both take
+the reset as a *required argument* and run it on every acquire — pooled or freshly built, unconditionally,
+writing every uniform rather than a diff. Resetting on release is the tempting place and the wrong one: an
+early return there hands the next caller a dirty object, and the resulting bug is intermittent and
+load-dependent. The mesh primitives grew a `writeAllUniforms` that is deliberately a *superset* of
+`setParams`, because `setParams` legitimately skips the uniforms only the constructor set — `uTime`,
+`uOneShot`, `uSeed` — which are exactly the ones a recycled shader would carry over.
+
+**Pre-warm, and the trap in it.** `ensureDefsReady()` now schedules `prewarmFxMaterials()`, which builds one
+shader per source and forces the link with `renderer.shader.bind(shader, true)` (`skipSync` resolves the
+program and touches nothing else), moving the one unavoidable compile off the first collision and onto load.
+Two things had to be got right: it must **wait for `pixiFx.renderer`** (the primitives' dynamic import
+resolves before the overlay finishes `init()`, so a straight-line call silently no-ops — the first version
+did exactly that and measured as a no-op), and it must hang off the memoised import rather than the
+`!hasPrimitives()` branch (in DEV the workbench can register the primitives first, skipping that branch
+entirely).
+
+**A dead end worth recording.** Pinning `#define SHADER_NAME` into each shader source stabilises `_key` and
+would have fixed the recompile without any pooling — but combined with the still-present `destroy(true)` it
+*crashes*: `_programDataHash` hits for a `GlProgram` whose `_attributeData` was never extracted, and the
+geometry system throws on `aVertex`. Reverted; the pooling makes it unnecessary.
+
+**Determinism.** `poolDeterminism.test.ts` spawns real primitives headless (only `generateTexture` is
+stubbed) and diffs them: a burst seeded 0x5EED on a **recycled** layer produces byte-identical particle
+positions, rotations, scales, tints and alphas to one on a fresh layer — with a companion test proving a
+different seed *does* diverge, so the first isn't vacuous. Plus: a recycled container starts empty, a
+recycled ribbon reproduces its `uSeed` phase and starts with a zeroed clock, and a recycled shockwave gets
+its own `uOneShot`. `burst.ts`'s seven-draws-per-particle contract is untouched — `emit()` is byte-identical
+in the diff.
+
+**Hardening after adversarial review.** The review confirmed the shipped lifecycle was safe — it poisoned
+every uniform in all five shaders (zero survivors), ran 800 frames with 30 concurrent 5-layer defs and random
+mid-flight cancels ending with a clean pool, and confirmed the `destroy(true)` dead end above is unreachable.
+What it *did* find were four invariants held only by convention, which is not good enough with lots of
+workbench effects starting and stopping at arbitrary moments:
+
+- **Release is now idempotent.** A double release pushed the SAME pair into the pool twice, after which two
+  live effects share one container and one shader and write over each other's particles, texture, blend mode
+  and all twelve uniforms — and at cap the second release *destroys* an object already queued for reuse, so
+  the next acquire hands out a corpse. Both pools guard with a `WeakSet` keyed on the pooled object itself,
+  not a flag on the wrapper: the primitives hand back a fresh object literal
+  (`releaseParticleLayer({ shader, pc: this.particles })`), so a flag there would be a flag on a value nobody
+  keeps. Destroyed objects are refused rather than admitted. Unreachable today (one caller), silent and
+  load-dependent tomorrow. Note the asymmetry the reviewer found: a double destroy on ribbon/shockwave
+  *throws* inside `Mesh.destroy` before it ever reaches `releaseShader`, so the mesh pool was correct by
+  accident; the particle path failed silently.
+- **`FxPlayer.destroy()` no longer leaves the transport running.** It was `killAllLive()` alone, so `playing`
+  stayed true and the next `update()` sent `reconcile()` looking for a layer that was due and no longer live
+  — and it *spawned* one, acquiring a pooled pair into a container the caller had already orphaned, which
+  nothing would ever release. Repeat and the pool starves. Guarded today only by `playDef`'s `retired()`
+  check and the workbench's teardown ordering.
+- **`pixiFx.detach()` now clears the pools.** They are module-global and outlive the `Application`; detach
+  destroys the stage with `{ children: true }`, so a live effect's container dies as a descendant. It goes
+  through a new one-field registry (`fxRuntime.ts`) rather than importing the pool, because a static import
+  from `pixiFx.ts` — which every session loads immediately — would drag the primitives' ~134 kB of GLSL out
+  of its lazily-fetched chunk and into the entry chunk and silently undo that split. `resetParticleLayerPool`
+  / `resetShaderPools` are no longer documented as test-only.
+- **The reset list now matches its own stated rationale.** It argued for resetting fields "none of which
+  today's primitives touch" and then stopped short of `filters`, `mask`, `zIndex`, `renderable` and
+  `roundPixels`. Added.
+
+Each guard was proven load-bearing by reverting it and watching the new test fail: without the `pooled`
+check, two of nine pool tests fail; without the transport flags, two of the three new `destroy` tests fail.
+The reviewer also independently extended the determinism proof to **emitter and smoke** (my suite only
+covered burst) and both are byte-identical pooled-vs-fresh — that coverage is now in the suite, parameterised
+across all three particle primitives. Re-measured after the hardening: worst collision frame **0.3–5.0 ms** across 12 collisions, zero recompiles
+(5 GL programs before and after), and a 100-collision hammer plus 40 rounds of interleaved mid-flight cancels
+left the pool at 11–12 of its 24 cap with the programs still at 5. A live-play probe confirms the widened
+reset doesn't blank anything: particles present, `visible`/`renderable` true, alpha 1, no filters, and each
+layer keeping its own blend mode.
+
+One item was deliberately NOT fixed here and is recorded in the roadmap instead: `pixiFx.clearParticles()`
+sweeps every hand-written transient but knows nothing about `playDef`'s effects, so a def firing across a
+Skip keeps playing under the fade. Pre-existing, not a pool defect, and the fix is a design question
+(cancellable registry vs. fading the whole canvas) rather than a patch.
+
+**Verified**: typecheck (pkgs + web), lint (0 errors), **3221 tests green across 166 files** — 1059 of them in
+`fx/`, 34 of those new — and `build:web`. Measured before and after in a browser on the branch's own dev
+server. `npm run perf` deliberately does NOT cover this: it is the headless engine/run-loop harness and says
+so in its own header ("what it CANNOT measure: render/paint/animation cost"). WebGL FX perf has no headless
+proxy, which is why §3b of `docs/performance.md` now carries a console recipe instead.
+
 ## 2026-07-30 — the coins effect gets its imported art, and two tests stop forbidding committed art
 
 **What changed.** Commits the FX workbench session that was sitting uncommitted in the working tree: the `coins`
@@ -149,6 +271,7 @@ watchers invalidate their own glob owner and only their own. Plus 12 cases in `s
 re-commit collapse, the caps, the in-session listing, the rehydrate-without-restart path, the dangling sweep
 and its write-back, and that the stored payload contains no `data:image`. The decode itself needs a DOM +
 WebGL and stays eyeball-verified, per this module's standing note.
+
 ## 2026-07-30 — the tuner panels become instruments, and get a type scale
 
 **What changed.** The visual pass on the 46 dev tuner panels, in two commits: a new surface (the "workshop

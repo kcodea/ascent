@@ -4220,6 +4220,9 @@ svg { width: 18px; height: 18px; }
   border-radius: 6px; background: var(--bg2); color: var(--ink); font-family: var(--font-ui); font-weight: 700;
   font-size: 11px; cursor: pointer; }
 .tunerpanel .tuner-row-select select:focus { outline: none; border-color: var(--acc); background: var(--card); }
+/* A value column showing a NAME rather than a unit needs room to breathe and must not be clipped. */
+.tunerpanel .tuner-row:has(.tuner-unit:not(:empty)) { grid-template-columns: minmax(96px, 1.3fr) minmax(60px, 1fr) 54px minmax(28px, auto); }
+.tunerpanel .tuner-unit { overflow: hidden; text-overflow: ellipsis; }
 /* Per-control caveat marker — hover it for the reason. Muted so it reads as an aside, not an error. */
 .tunerpanel .tuner-note { margin-left: 4px; color: var(--ink3); font-size: 10px; cursor: help; vertical-align: super; }
 /* Preview switches. Deliberately NOT styled as a control row: they pin a transient state so it can be tuned,
@@ -4245,31 +4248,28 @@ svg { width: 18px; height: 18px; }
 .sfxmix-val.hex { flex: 0 0 62px; font-variant-numeric: normal; text-transform: uppercase; }
 .sfxmix-play { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 10px; color: var(--ink); }
 .sfxmix-copy { width: 100%; margin-top: 10px; padding: 7px; border-radius: 9px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
-.sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
-.sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
 .lunge-btns { display: flex; gap: 8px; }
 .lunge-btns .sfxmix-copy { flex: 1; }
-/* Lunge tuner: grouped sections + the live vector readout (see LungeTuner.tsx for why it's shaped this way). */
-.sfxmix.lunge .lunge-mod { margin: 4px 0 6px; padding: 4px 6px; border-radius: 5px; background: rgba(244, 197, 66, 0.16); color: #b07d05; font-size: 11px; font-weight: 700; line-height: 1.35; }
-.sfxmix.lunge .lunge-sec { margin-top: 9px; }
-.sfxmix.lunge .lunge-sec-h { font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink3); border-bottom: 1px solid var(--line); padding-bottom: 3px; margin-bottom: 4px; }
-.sfxmix.lunge .lunge-read { margin: 6px 0 2px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0, 0, 0, 0.04); }
-.sfxmix.lunge .lunge-read-h { display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink3); margin-bottom: 4px; }
-.sfxmix.lunge .lunge-read-h button { border: none; background: none; font: inherit; color: var(--acc); cursor: pointer; text-transform: none; letter-spacing: 0; }
-.sfxmix.lunge .lunge-read-row { display: flex; align-items: baseline; gap: 6px; font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
-.sfxmix.lunge .lunge-read-row > span:first-child { flex: 0 0 62px; color: var(--ink3); }
-.sfxmix.lunge .lunge-read-row b { flex: 0 0 66px; font-weight: 800; color: var(--ink); }
-.sfxmix.lunge .lunge-read-row > span:last-child { color: var(--ink3); }
-.sfxmix.lunge .lunge-read-row b.clamp { color: #c0392b; }
-.sfxmix.lunge .lunge-read-row.tally { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
-.sfxmix.lunge .lunge-read-row.tally.warn b { color: #c0392b; }
-.sfxmix.dragfeel .sfxmix-name { flex-basis: 120px; }
-.sfxmix.dragfeel .sfxmix-val { flex-basis: 46px; }
+/* The tuner READOUT block — a measurement (the lunge tuner's last swing) or a preview harness (the charge glyph's
+   scrub), rendered above the controls. Scoped to `.sfxmix` rather than one panel's class, because it is now the
+   schema's readout slot and any panel can carry one. */
+.sfxmix .lunge-read { margin: 6px 0 2px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0, 0, 0, 0.04); }
+.sfxmix .lunge-read-h { display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink3); margin-bottom: 4px; }
+.sfxmix .lunge-read-h button { border: none; background: none; font: inherit; color: var(--acc); cursor: pointer; text-transform: none; letter-spacing: 0; }
+.sfxmix .lunge-read-row { display: flex; align-items: baseline; gap: 6px; font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.sfxmix .lunge-read-row > span:first-child { flex: 0 0 62px; color: var(--ink3); }
+.sfxmix .lunge-read-row b { flex: 0 0 66px; font-weight: 800; color: var(--ink); }
+.sfxmix .lunge-read-row > span:last-child { color: var(--ink3); }
+.sfxmix .lunge-read-row b.clamp { color: #c0392b; }
+.sfxmix .lunge-read-row.tally { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+.sfxmix .lunge-read-row.tally.warn b { color: #c0392b; }
+/* A preview harness is a readout you can drive, so it wears the same frame as one and keeps the preview row's
+   separation from the controls below. */
+.tunerpanel .tuner-harness { display: block; padding: 6px 7px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0, 0, 0, 0.04); }
+.tunerpanel .tuner-harness .sfxmix-copy { margin-top: 6px; padding: 5px; font-size: 12px; }
+.sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
+.sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
 .sfxmix.flip .sfxmix-name { flex-basis: 100px; }
-/* Layout Lab: short labels + a section header per region group. */
-.sfxmix.layoutlab .sfxmix-name { flex-basis: 74px; }
-.sfxmix.layoutlab .sfxmix-val { flex-basis: 48px; }
-.layoutlab-grouphead { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--acc-dk); margin: 9px 0 2px; border-bottom: 1px solid var(--line); padding-bottom: 2px; }
 /* Choreography panel: a scrollable moment rail + a per-cue numeric editor, wider than the base sfxmix frame. */
 /* Choreography panel — a distinct DARK dev-tool theme (vs the light game tuners), matching the mockup. */
 .sfxmix.choreo { width: 448px; background: #1c1a17; border-color: #3a352e; color: #efe7db; }

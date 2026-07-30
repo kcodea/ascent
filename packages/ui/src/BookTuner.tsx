@@ -1,128 +1,113 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useDraggablePanel } from './useDraggablePanel';
+import { useEffect } from 'react';
+import { createCssTunerStore } from './cssTunerStore';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec } from './tunerSchema';
 
 /**
- * DEV-only floating tuner for the COMPENDIUM palette (styles.css "Compendium palette + scale").
+ * DEV-only tuner for the COMPENDIUM palette (styles.css "Compendium palette + scale").
  *
- * The book recolours by re-declaring the shared ink/card/line vars scoped to `.book`, so every descendant
- * rule follows — which means the whole palette is tunable from one place. This panel writes an override
- * `<style>` (specificity-bumped so it always wins) and every picker updates the open Compendium LIVE.
+ * The book recolours by re-declaring the shared ink/card/line vars scoped to `.book`, so every descendant rule
+ * follows and the whole palette is tunable from one place. This panel composes those declarations and applies
+ * them live through a `<style>` override; "Copy CSS" emits the block to bake into `styles.css`.
  *
  * The SHIPPED look is the game's standard cream (a blue scheme was tried and reverted, owner call), so the
- * defaults below mirror `:root`'s `--card`/`--ink`/`--line`/`--bg2` — Reset returns you to what ships, and
- * the panel starts as a no-op rather than silently re-tinting the book the moment it is opened.
+ * defaults mirror `:root` — opening the panel is a no-op rather than silently re-tinting the book, and Reset
+ * returns you to what players see.
  *
  * Two traps this exists to avoid, both hit while hand-picking the navy:
- *  - The panel/header used to mix the GOLD accent into the surface, so a correct colour var still rendered
+ *  - The panel and header used to mix the GOLD accent into their surface, so a correct colour var still rendered
  *    grey. The overrides here state each surface directly — what you pick is what paints.
- *  - Inverting to a dark surface left the CONTROL CHROME (rail, tabs, Glossary/Gilded, close, search) pale
- *    on pale, because it reads `--bg2`. That is a knob here, so it can never silently disagree again.
+ *  - Inverting to a dark surface left the CONTROL CHROME (rail, tabs, Glossary, close, search) pale on pale,
+ *    because it reads one shared var. That var is a control here, so the two can never silently disagree again.
  *
- * "Copy CSS" grabs the paste-ready block to bake into styles.css as the shipped defaults.
- * Dev-only (mounted from DevMenu) → stripped from production.
+ * The panel edits nothing while the Compendium is closed, which was invisible in the old layout — it is now the
+ * header note.
  */
-type Swatch = { key: string; label: string; def: string; hint?: string };
+interface BookVals {
+  card: string; head: string; rail: string; bg2: string; line: string; ink: string; ink3: string;
+  grad: number; top: string; depth: number;
+}
 
-// Defaults MIRROR the shipped values in styles.css — keep in sync when you bake in new numbers.
-const SWATCHES: Swatch[] = [
-  { key: 'card', label: 'surface', def: '#fffdf8', hint: 'the panel body behind the cards' },
-  { key: 'head', label: 'header bar', def: '#fdf3e2' },
-  { key: 'rail', label: 'side rail', def: '#f6efe2' },
-  { key: 'bg2', label: 'buttons / tabs', def: '#efe5d4', hint: 'rail buttons, tier tabs, Glossary, close' },
-  { key: 'line', label: 'borders', def: '#e7dcc7' },
-  { key: 'ink', label: 'text', def: '#2a2017' },
-  { key: 'ink3', label: 'text (dim)', def: '#9c8b71', hint: 'counts, power blurbs' },
-];
-
-type Vals = Record<string, string>;
-const defaults = (): Vals => Object.fromEntries(SWATCHES.map((s) => [s.key, s.def]));
+const DEFAULTS: BookVals = {
+  // These MIRROR the shipped values in styles.css — keep them in sync when you bake in new colours.
+  card: '#fffdf8',
+  head: '#fdf3e2',
+  rail: '#f6efe2',
+  bg2:  '#efe5d4',
+  line: '#e7dcc7',
+  ink:  '#2a2017',
+  ink3: '#9c8b71',
+  grad: 1,
+  top: '#fdf6ea',   // the shipped cream panel's subtly warmer top edge
+  depth: 16,
+};
 
 /**
- * The surface can be a FLAT fill or a GRADIENT (owner request: "give it some depth"). The gradient runs
- * from `top` down to the surface colour, so the flat pick stays the base and the second colour only lifts
- * the top edge — dialling `depth` to 0 makes it visually identical to flat.
+ * The surface can be a FLAT fill or a GRADIENT (owner request: "give it some depth"). The gradient runs from the
+ * top colour DOWN to the surface colour, so the flat pick stays the base and the second colour only lifts the top
+ * edge — which is why a falloff of 0 looks identical to flat.
  */
-const DEF_GRAD = true;
-const DEF_TOP = '#fdf6ea'; // the shipped cream panel's subtly warmer top edge
-const DEF_DEPTH = 16; // % of the panel height the top colour occupies before it lands on the surface
+const cssText = (v: BookVals, sel: string): string =>
+  `${sel} {\n`
+  + `  --card: ${v.card}; --line: ${v.line}; --ink: ${v.ink}; --ink3: ${v.ink3};\n`
+  + `  --bg2: ${v.bg2}; --bg3: ${v.bg2};\n`
+  + `}\n`
+  + `${sel} { background: ${v.grad ? `linear-gradient(180deg, ${v.top} 0%, ${v.card} ${v.depth}%)` : v.card}; }\n`
+  + `${sel} .book-head { background: ${v.head}; }\n`
+  + `${sel} .book-rail { background: ${v.rail}; }`;
 
-const cssText = (v: Vals, grad: boolean, top: string, depth: number): string =>
-  `.book.book {\n` +
-  `  --card: ${v.card}; --line: ${v.line}; --ink: ${v.ink}; --ink3: ${v.ink3};\n` +
-  `  --bg2: ${v.bg2}; --bg3: ${v.bg2};\n` +
-  `}\n` +
-  `.book.book { background: ${grad ? `linear-gradient(180deg, ${top} 0%, ${v.card} ${depth}%)` : v.card}; }\n` +
-  `.book.book .book-head { background: ${v.head}; }\n` +
-  `.book.book .book-rail { background: ${v.rail}; }`;
+const store = createCssTunerStore<BookVals>({
+  styleId: 'booktuner',
+  defaults: DEFAULTS,
+  css: (v) => cssText(v, '.book.book'),
+});
 
-export function BookTuner() {
-  const [vals, setVals] = useState<Vals>(defaults);
-  const [grad, setGrad] = useState(DEF_GRAD);
-  const [top, setTop] = useState(DEF_TOP);
-  const [depth, setDepth] = useState(DEF_DEPTH);
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('book');
+const color = (key: keyof BookVals, label: string, hint: string, group: string): TunerControl<keyof BookVals & string> =>
+  ({ key, label, hint, group, kind: 'color', min: 0, max: 0, step: 0 });
 
-  const style = useMemo(() => cssText(vals, grad, top, depth), [vals, grad, top, depth]);
+const controls: TunerControl<keyof BookVals & string>[] = [
+  color('card', 'Surface',        'The panel body behind the cards. Also the colour a gradient surface lands on.', 'Palette'),
+  color('head', 'Header bar',     'The bar across the top of the book.', 'Palette'),
+  color('rail', 'Side rail',      'The vertical strip of navigation down the side.', 'Palette'),
+  color('bg2',  'Buttons + tabs', 'All the control chrome at once: rail buttons, tier tabs, Glossary, Gilded, close, search. Invert the surface without moving this and it goes pale on pale.', 'Palette'),
+  color('line', 'Borders',        'Every rule and divider in the book.', 'Palette'),
+  color('ink',  'Text',           'Body text.', 'Palette'),
+  color('ink3', 'Text, dimmed',   'Secondary text — counts and power blurbs.', 'Palette'),
 
-  // Live apply: keep a single <style id="booktuner"> in sync with the pickers.
-  useEffect(() => {
-    let el = document.getElementById('booktuner') as HTMLStyleElement | null;
-    if (!el) {
-      el = document.createElement('style');
-      el.id = 'booktuner';
-      document.head.appendChild(el);
-    }
-    el.textContent = style;
-  }, [style]);
-  // Drop the override when the panel closes, so the shipped palette comes back.
-  useEffect(() => () => { document.getElementById('booktuner')?.remove(); }, []);
+  {
+    key: 'grad', label: 'Gradient surface', group: 'Surface depth', kind: 'toggle',
+    hint: 'Whether the panel body fades from a second colour at its top edge instead of being one flat fill.',
+    onOffLabels: ['on', 'flat'], min: 0, max: 1, step: 1,
+  },
+  {
+    ...color('top', 'Top colour', 'The colour the surface fades FROM at its top edge.', 'Surface depth'),
+    note: 'Only visible while the gradient is on.',
+  },
+  {
+    key: 'depth', label: 'Falloff', unit: '%', group: 'Surface depth',
+    hint: 'How far down the panel the top colour reaches before it lands on the surface colour. At 0 the gradient is indistinguishable from flat.',
+    note: 'Only visible while the gradient is on.',
+    min: 2, max: 100, step: 1,
+  },
+];
 
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(style);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => {
-    setVals(defaults()); setGrad(DEF_GRAD); setTop(DEF_TOP); setDepth(DEF_DEPTH);
-  };
+const SPEC: TunerSpec<BookVals> = {
+  id: 'book',                       // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Compendium',
+  note: 'dev · open the Compendium to see changes',
+  read: store.get,
+  write: store.set,
+  writeColor: store.set,
+  reset: store.reset,
+  defaults: DEFAULTS,
+  controls,
+  // Undoubled selector: the doubling only exists to beat the very rule you are about to replace.
+  copy: () => cssText(store.get(), '.book'),
+  copyLabel: 'Copy CSS',
+};
 
-  return (
-    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Compendium <span>dev · live · drag</span></div>
-      <div className="sfxmix-sub">Open the Compendium to see changes</div>
-      {SWATCHES.map((s) => (
-        <div className="sfxmix-row" key={s.key} title={s.hint}>
-          <span className="sfxmix-name">{s.label}</span>
-          <input type="color" value={vals[s.key]} onChange={(e) => setVals({ ...vals, [s.key]: e.target.value })} />
-          <span className="sfxmix-val">{vals[s.key]}</span>
-        </div>
-      ))}
-
-      <div className="sfxmix-sub">Surface depth</div>
-      <div className="sfxmix-row">
-        <span className="sfxmix-name">gradient</span>
-        <input type="checkbox" checked={grad} onChange={(e) => setGrad(e.target.checked)} />
-        <span className="sfxmix-val">{grad ? 'on' : 'flat'}</span>
-      </div>
-      <div className="sfxmix-row" title="The colour the panel fades FROM at the top edge">
-        <span className="sfxmix-name">top colour</span>
-        <input type="color" value={top} disabled={!grad} onChange={(e) => setTop(e.target.value)} />
-        <span className="sfxmix-val">{top}</span>
-      </div>
-      <div className="sfxmix-row" title="How far down the top colour reaches before landing on the surface">
-        <span className="sfxmix-name">falloff</span>
-        <input
-          type="range" min={2} max={100} step={1} value={depth} disabled={!grad}
-          onChange={(e) => setDepth(Number(e.target.value))}
-        />
-        <span className="sfxmix-val">{depth}%</span>
-      </div>
-
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export function BookTuner(): JSX.Element {
+  // The override lives only as long as the panel — a left-behind tint would recolour the book with no visible cause.
+  useEffect(store.mount, []);
+  return <TunerPanel spec={SPEC} />;
 }

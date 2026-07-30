@@ -145,7 +145,6 @@ export const PG_DESC: Record<string, string> = {
   cDeep: 'Gold — outer.', cMid: 'Gold — middle.', cCore: 'Gold — core.',
   grad: '0 = flat mid colour. 1 = the full ramp.',
 };
-export const PG_NUM_KEYS = Object.keys(PG_RANGES);
 export const PG_COLOR_KEYS = ['cDeep', 'cMid', 'cCore'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as PG_DEFAULTS };

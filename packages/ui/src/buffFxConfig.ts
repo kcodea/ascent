@@ -51,14 +51,6 @@ const DEFAULTS: BuffFxConfig = {
   sparkCount: 46, sparkSpeed: D.pulse.sparkSpeed, sparkSize: 3, sparkLife: D.pulse.sparkLife,
 };
 
-export const BUFFFX_KEYS = [
-  'waveGapMs', 'waveMaxTotalMs', 'waveMaxCount',
-  'startHeight', 'dropMs', 'retractMs', 'baseWidth', 'tipWidth', 'coreAlpha',
-  'ringCount', 'ringSize', 'ringWidth', 'ringMs',
-  'coreFlashSize', 'coreFlashMs',
-  'sparkCount', 'sparkSpeed', 'sparkSize', 'sparkLife',
-] as const satisfies readonly (keyof BuffFxConfig)[];
-
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const BUFFFX_RANGES: Partial<Record<keyof BuffFxConfig, [number, number, number]>> = {
   waveGapMs: [0, 600, 10], waveMaxTotalMs: [200, 3000, 50], waveMaxCount: [1, 20, 1],

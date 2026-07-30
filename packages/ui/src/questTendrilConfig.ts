@@ -75,14 +75,6 @@ const DEFAULTS: QuestTendrilConfig = {
   colorMote: '#ffcf5a',
 };
 
-export const QUESTTENDRIL_KEYS = [
-  'enabled', 'curve', 'staggerMs', 'travelMs', 'retractMs', 'wobbleAmp', 'wobbleFreq',
-  'baseWidth', 'tipWidth', 'coreAlpha', 'glowWidth', 'glowAlpha',
-  'flashSize', 'flashMs', 'moteCount', 'moteSpeed', 'moteLife',
-  'pulseSize', 'pulseAlpha', 'pulseMs',
-  'colorCore', 'colorGlow', 'colorFlash', 'colorMote',
-] as const satisfies readonly (keyof QuestTendrilConfig)[];
-
 export const QUESTTENDRIL_COLOR_KEYS: (keyof QuestTendrilConfig)[] = ['colorCore', 'colorGlow', 'colorFlash', 'colorMote'];
 
 export const QUESTTENDRIL_RANGES: Partial<Record<keyof QuestTendrilConfig, [number, number, number]>> = {

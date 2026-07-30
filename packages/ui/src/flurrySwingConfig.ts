@@ -106,13 +106,6 @@ export const FSW_DESC: Record<keyof FlurrySwingConfig, string> = {
   glowColor: 'Glow — colour.',
 };
 
-/** Keys grouped by control type for the tuner UI. */
-export const FSW_NUM_KEYS = [
-  'power',
-  'slashCount', 'slashSize', 'slashLife', 'slashSpeed', 'slashSpread',
-  'sparkCount', 'sparkSpeed', 'sparkLife', 'sparkSize', 'sparkSpread',
-  'glowSize', 'glowAlpha',
-] as const;
 export const FSW_COLOR_KEYS = ['slashColor', 'sparkColor', 'glowColor'] as const;
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */

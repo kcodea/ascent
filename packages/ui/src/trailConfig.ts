@@ -58,7 +58,6 @@ export const TRAIL_RANGES: Record<keyof TrailConfig, [number, number, number]> =
   count: [1, 10, 1],
   width: [0, 150, 2],
 };
-export const TRAIL_KEYS = Object.keys(DEFAULTS) as (keyof TrailConfig)[];
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as TRAIL_DEFAULTS };
 

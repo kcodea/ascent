@@ -44,9 +44,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The dev tuners are one component now — 46 of 48 panels.** Every panel renders from a declarative spec that
+  gives it real sections, a declared unit per control, a hover hint saying what you would see change, a number
+  box beside each slider, and a one-click revert to the shipped value. The last three had no config module at
+  all — they compose CSS — and now share one store that also owns tearing their override back down on close.
+  `SfxMixer` is parked by owner request; `ShieldTuner` is handled separately (it is dead code).
 - **Three dev tuner panels ignored their own close button** — their internal key disagreed with the menu's, so
-  ✕ did nothing and they could only be dismissed from the menu. Fixed, and the Buttons group (Refresh, Freeze,
-  End Turn, Hero Power, Tavern Up) now renders from the shared tuner schema: 12 of 47 panels migrated.
+  ✕ did nothing and they could only be dismissed from the menu. Fixed.
 - **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
   with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
   schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.

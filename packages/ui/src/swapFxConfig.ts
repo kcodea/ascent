@@ -61,14 +61,6 @@ const DEFAULTS: SwapFxConfig = {
   colorOutGlow: '#c44dff',
 };
 
-export const SWAPFX_KEYS = [
-  'travelMs', 'retractMs', 'curve', 'wobbleAmp', 'wobbleFreq',
-  'baseWidth', 'tipWidth', 'coreAlpha', 'glowWidth', 'glowAlpha', 'arrowSize',
-  'flashSize', 'flashMs', 'moteCount', 'moteSpeed', 'moteLife',
-  'haloSize', 'haloAlpha',
-  'colorInCore', 'colorInGlow', 'colorOutCore', 'colorOutGlow',
-] as const satisfies readonly (keyof SwapFxConfig)[];
-
 export const SWAPFX_COLOR_KEYS: (keyof SwapFxConfig)[] = ['colorInCore', 'colorInGlow', 'colorOutCore', 'colorOutGlow'];
 
 /** Slider bounds for the DEV tuner — [min, max, step] per numeric key. */

@@ -66,15 +66,6 @@ const DEFAULTS: InfuseFxConfig = {
   colorGlow: '#c64dff',
 };
 
-export const INFUSEFX_KEYS = [
-  'count', 'spreadFrac', 'staggerMs', 'endYOff',
-  'travelMs', 'retractMs', 'curve', 'wobbleAmp', 'wobbleFreq',
-  'baseWidth', 'tipWidth', 'coreAlpha', 'glowWidth', 'glowAlpha',
-  'flashSize', 'flashMs', 'moteCount', 'moteSpeed', 'moteLife',
-  'pulseSize', 'pulseAlpha', 'pulseMs',
-  'colorCore', 'colorGlow',
-] as const satisfies readonly (keyof InfuseFxConfig)[];
-
 export const INFUSEFX_COLOR_KEYS: (keyof InfuseFxConfig)[] = ['colorCore', 'colorGlow'];
 
 /** Slider bounds for the DEV tuner — [min, max, step] per numeric key. */

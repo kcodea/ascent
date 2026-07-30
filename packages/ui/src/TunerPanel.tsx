@@ -45,7 +45,9 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
     rerender();
   };
   const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(spec.read(), null, 2));
+    // JSON to paste into a config module's DEFAULTS, unless the spec emits something else — the CSS-composing
+    // panels paste back a rule in styles.css, not a config object.
+    void navigator.clipboard?.writeText(spec.copy ? spec.copy() : JSON.stringify(spec.read(), null, 2));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   };
@@ -62,6 +64,9 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         {spec.title}
         {spec.note && <span>{typeof spec.note === 'function' ? spec.note() : spec.note}</span>}
       </div>
+
+      {/* A measuring panel's readout goes first: what actually happened outranks what you might change. */}
+      {spec.readout?.()}
 
       {/* Preview switches sit ABOVE the controls and wear their own row style, because they change what you
           can see rather than what the game ships. */}
@@ -219,7 +224,11 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                     if (Number.isFinite(v)) set(c.key, v);
                   }}
                 />
-                <span className="sfxmix-val tuner-unit" aria-hidden>{unitSuffix(c.unit)}</span>
+                {/* A value that indexes a named list shows the NAME here — picking an easing curve by reading
+                    "3" is how the lunge tuner used to work. */}
+                <span className="sfxmix-val tuner-unit" aria-hidden={!c.valueLabels}>
+                  {c.valueLabels ? (c.valueLabels[value] ?? String(value)) : unitSuffix(c.unit)}
+                </span>
               </div>
             );
           })}
@@ -227,7 +236,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
       ))}
 
       <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
+        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : (spec.copyLabel ?? 'Copy values')}</button>
         <button className="sfxmix-copy" onClick={resetAll}>Reset</button>
         {spec.actions?.map((a) => (
           <button className="sfxmix-copy" key={a.label} onClick={() => a.run(panelElRef.current)} title={a.hint}>{a.label}</button>

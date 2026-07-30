@@ -240,8 +240,6 @@ export const CLEAVEFX_RANGES: Record<string, [number, number, number]> = {
   flashMs: [40, 600, 10],
 };
 
-/** Numeric keys, in tuner order. Colours are dialled separately (swatch inputs). */
-export const CLEAVEFX_KEYS = Object.keys(CLEAVEFX_RANGES) as (keyof CleaveFxConfig)[];
 /** Colour keys, dialled with swatches rather than sliders. */
 export const CLEAVEFX_COLOR_KEYS: (keyof CleaveFxConfig)[] = ['colorCore', 'colorClaw', 'colorGlow', 'colorDrip', 'colorFlash'];
 

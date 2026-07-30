@@ -89,16 +89,6 @@ const DEFAULTS: GustFxConfig = {
   colorGlow: '#8b4dd5',
 };
 
-export const GUSTFX_KEYS = [
-  'sweepMs', 'staggerMs', 'arcMs', 'holdMs', 'fadeMs',
-  'streaks', 'streakLen', 'streakTravel', 'streakWidth', 'streakCurve', 'spreadY',
-  'arcHeight', 'arcBulge', 'arcWidth', 'arcTravel', 'edgeOut',
-  'washAlpha', 'washPad', 'impactSize', 'impactMs', 'impactAlpha', 'sparkCount', 'sparkSize', 'sparkLife', 'sparkRise',
-  'liftPx', 'liftDeg', 'liftMs', 'liftStagger',
-  'coreAlpha', 'glowWidth', 'glowAlpha', 'taper',
-  'colorCore', 'colorGlow',
-] as const satisfies readonly (keyof GustFxConfig)[];
-
 export const GUSTFX_COLOR_KEYS: (keyof GustFxConfig)[] = ['colorCore', 'colorGlow'];
 
 /** Slider bounds for the DEV tuner — [min, max, step] per numeric key (mirrors the rig's ranges). */

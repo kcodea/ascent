@@ -1,5 +1,61 @@
 # ASCENT — development log
 
+## 2026-07-30 — the last five tuners, including the three that had no config module at all
+
+**What changed.** The remaining panels move onto the tuner schema — Lunge, Layout Lab, Compendium, Card Frames,
+Charge Glyph — taking it to **46 of 48**. The two left are `SfxMixer`, parked by owner request to be thought
+about separately, and `ShieldTuner`, which is being handled on its own because it is dead (it tunes a value
+nothing reads). Dev-only; stripped from production. No engine, content, sim, or player-visible change.
+
+**Three of the five had no config module to point at.** Every other tuner drives a module that owns a
+`localStorage` key and writes CSS custom properties one-to-one. Card Frames, the Compendium palette and the
+Charge Glyph instead *compose* CSS: a colour and two radii become one `drop-shadow` pair; three colours and a
+stop become one gradient. There is no single var per control, so each of them kept its values in React state,
+built a stylesheet with `useMemo`, and wrote it into a specificity-bumped `<style>` element — the same fifty
+lines three times over, including the same easy-to-forget teardown. `cssTunerStore.ts` now provides the
+`get`/`set`/`reset` trio a spec needs and owns the `<style>` element and its removal. Removing it on close is
+load-bearing rather than tidy: a left-behind override keeps the board tinted with the panel that caused it gone.
+
+**Two small schema additions, both forced by real cases rather than speculation.** `copy` overrides what the
+Copy button emits, because those three paste back a *rule in styles.css*, not a config object — and they emit
+the UNDOUBLED selectors, since the doubling only exists to beat the very rule you are about to replace.
+`valueLabels` renders a name where a slider's number is an index into a list: the lunge tuner's three easing
+controls were `0–7` sliders over `STRIKE_EASES`, so you picked a curve by dragging to `3`. They show
+`power3.in` now, and stay sliders because that list is genuinely ordered, from linear to violently late.
+
+**The readout slot earned its keep twice.** Lunge measures as well as controls — the strike duration is derived
+from a travel distance that changes every combat as rows re-centre, so a dialled number can be silently
+overridden by the min/max clamp, and the panel shows what the vector functions actually produced on the last
+swing plus how often it clamped. The Charge Glyph needs the same slot for the opposite reason: the glyph only
+exists in the last twenty seconds of a turn, so without a scrub that holds the fill at a chosen point most of
+its controls cannot be judged at all. Both are about what you can currently SEE rather than what ships, which
+is why they sit above the controls instead of being faked as extra rows among them. Its CSS moved from
+`.sfxmix.lunge` to `.sfxmix`, since it is now a schema slot any panel can use.
+
+**Language.** Layout Lab's control metadata already lived in `LAYOUT_VARS`, so its migration was a mapping — but
+the per-knob comments that explained the non-obvious ones are now hints you can read in the panel: that the hand
+overlap is a fraction of card width so it stays proportional, and that the buy/sell edges move the actual drop
+hit-test and not just the gradient. Card Frames' real legibility problem was that "all Y 0.005" never said what
+it was a fraction OF (card height), and that its two sections tune the same knobs on different art — the gold
+oval and the purple square crop differently and seat their tier pip at different heights — which a subheading
+alone did not convey. Its keys are now prefixed per section so the two cannot cross-write.
+
+**A sweep of 32 dead exports.** Each migrated config had exported a `*_KEYS` array that only its old hand-rolled
+panel iterated. They do not trip lint, because exports are exempt from `no-unused-vars`, so they would have sat
+there indefinitely looking load-bearing. Removed with their doc comments; nothing else referenced them (the only
+remaining mentions are in the plan documents that introduced them).
+
+**How it was verified.** typecheck (pkgs + web), 3034 tests, build:web, and `eslint packages/ui` clean — 0
+errors, 3 pre-existing warnings. The repo-wide `npm run lint` reports 434 errors, all inside a vendored minified
+bundle in untracked local skill directories (`.agents/`, `.claude/`, `.github/skills/`); none are in repo source
+and CI lints a clean checkout. All five panel ids were checked against their `DevMenu` keys, the failure mode
+that silently broke three ✕ buttons last commit.
+
+**Follow-ups.** The owner accuracy pass on every hint written across this whole migration is still outstanding —
+they were drafted from config source, and no code can confirm that "comet", "wisp" or "cracked" is the
+vocabulary we actually use. `.github/skills/` is untracked but not ignored; committing it would break CI lint.
+Phase 2 (visualisation) and Phase 3 (workflow) now have one component to land in, which was the point.
+
 ## 2026-07-30 — the Buttons group moves onto the tuner schema, and three panels get their ✕ back
 
 **What changed.** Six more tuners onto the schema from [#751](https://github.com/kcodea/ascent/pull/751)'s

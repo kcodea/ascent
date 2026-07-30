@@ -194,19 +194,6 @@ export const TVB_DESC: Record<keyof TavernUpConfig, string> = {
   artDim: 'Disabled (can’t afford / locked) — the GEM’s brightness while dimmed (the stone never dims).',
 };
 
-/** Keys grouped by control type for the tuner UI. */
-export const TVB_NUM_KEYS = [
-  'x', 'y', 'scale',
-  'gemX', 'gemY', 'gemS',
-  'pipX', 'pipY', 'pipS',
-  'costX', 'costY', 'costS',
-  'glowX', 'glowY', 'glowW', 'glowH',
-  'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
-  'sheenCycle', 'sheenAlpha',
-  'flashMs', 'dustCount', 'dustSize', 'dustLife',
-  'rings', 'ringRadius', 'ringLife',
-  'artDim',
-] as const;
 export const TVB_COLOR_KEYS = ['glowColor'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as TVB_DEFAULTS };

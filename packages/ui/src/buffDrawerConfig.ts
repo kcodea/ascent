@@ -78,11 +78,6 @@ export const BFD_DESC: Record<keyof BuffDrawerConfig, string> = {
   minW: 'Drawer — minimum width, so short values don’t make it collapse narrow.',
 };
 
-export const BFD_NUM_KEYS = [
-  'tabX', 'tabY', 'tabS', 'tabH', 'tabW',
-  'bodyX', 'bodyY', 'bodyS', 'minW', 'textS', 'titleS',
-] as const;
-
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as BFD_DEFAULTS };
 

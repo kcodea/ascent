@@ -54,13 +54,6 @@ const DEFAULTS: AuraFxConfig = {
   moteTail: 0.54,
 };
 
-export const AURAFX_KEYS = [
-  'travelMs', 'fadeMs',
-  'fillAlpha', 'glowAlpha', 'glowSize', 'glowSpacing',
-  'widthScale', 'heightScale', 'offsetX', 'offsetY',
-  'moteCount', 'moteSize', 'moteLife', 'moteRise', 'moteTail',
-] as const satisfies readonly (keyof AuraFxConfig)[];
-
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const AURAFX_RANGES: Partial<Record<keyof AuraFxConfig, [number, number, number]>> = {
   travelMs: [150, 2400, 10], fadeMs: [80, 2000, 10],

@@ -66,6 +66,13 @@ export interface TunerControl<K extends string = string> {
   /** Optional words shown instead of the raw number, e.g. `['cracked', 'dulled']`. */
   onOffLabels?: [string, string];
   /**
+   * For a `range` whose number is an INDEX into a named list — show the name in the value column instead of the
+   * index. The lunge tuner picks an easing curve this way: `easeShortIdx` is a slider over `STRIKE_EASES`, and
+   * without this you are choosing a curve by typing `3`. It stays a slider rather than becoming a select because
+   * the list is genuinely ORDERED, from linear to violently late, so dragging along it means something.
+   */
+  valueLabels?: readonly string[];
+  /**
    * For `kind: 'select'` only — the allowed STRING values. A handful of configs store a named choice rather
    * than a number (a CSS blend mode, which flourish the gild plays), and a slider cannot express that. Options
    * are written through `writeText`, not `write`, because the value is not a number.
@@ -142,6 +149,28 @@ export interface TunerSpec<C extends object> {
   actions?: TunerAction[];
   /** Preview switches that pin an otherwise-transient state so it can be tuned. See `TunerToggle`. */
   toggles?: TunerToggle[];
+  /**
+   * An optional block rendered ABOVE the controls, for the two things that are neither a control nor a preview
+   * switch:
+   *  - a live MEASUREMENT. The lunge tuner shows what its vector functions actually produced on the last swing,
+   *    including whether the duration was CLAMPED — the difference between "my numbers are wrong" and "my
+   *    numbers are being overridden".
+   *  - a preview HARNESS more elaborate than a body class. The charge glyph only appears in the last twenty
+   *    seconds of a turn, so its panel needs a scrub bar to hold the fill at a chosen point.
+   * Both are about what you can currently SEE rather than what the game ships, which is why they sit above the
+   * controls instead of being faked as extra rows among them.
+   */
+  readout?: () => JSX.Element | null;
+  /**
+   * Override what "Copy values" puts on the clipboard, and what the button says.
+   *
+   * The default copies the config as JSON, which is what you paste back into a config module's `DEFAULTS`. Three
+   * tuners have no config module and COMPOSE CSS instead — their values only exist as a stylesheet, and what you
+   * paste back is a rule in `styles.css`. Those emit the undoubled selectors, since the doubling only exists to
+   * beat the very rule you are about to replace.
+   */
+  copy?: () => string;
+  copyLabel?: string;
 }
 
 /**

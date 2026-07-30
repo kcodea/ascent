@@ -134,7 +134,6 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   shBlur: 'Drag shadow SOFTNESS while lifted (blur px). Softer = higher off the table.',
   shFade: 'Drag shadow OPACITY while lifted. Lower = a lighter, airier shadow (reads as higher/further).',
 };
-export const DRAG_KEYS = Object.keys(DEFAULTS) as (keyof DragFeel)[];
 
 const KEY = 'ascent.dragfeel';
 

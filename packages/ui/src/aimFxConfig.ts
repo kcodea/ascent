@@ -54,13 +54,6 @@ const DEFAULTS: AimFxConfig = {
   colorBurst: '#ffa985',
 };
 
-export const AIMFX_KEYS = [
-  'coreWidth', 'coreAlpha', 'glowWidth', 'glowAlpha',
-  'curve', 'curveVar', 'wobbleAmp', 'wobbleSpeed', 'breathe', 'dotSize',
-  'colorCore', 'colorGlow',
-  'burstCount', 'burstSpeed', 'burstSize', 'burstLife', 'colorBurst',
-] as const satisfies readonly (keyof AimFxConfig)[];
-
 export const AIMFX_COLOR_KEYS: (keyof AimFxConfig)[] = ['colorCore', 'colorGlow', 'colorBurst'];
 
 /** Slider bounds for the DEV tuner — [min, max, step] per numeric key. */

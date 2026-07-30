@@ -190,17 +190,6 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   pressedVariant: 'Pressed art: OFF = the dim gem (pressed2), ON = the cracked gem (pressed3).',
 };
 
-/** Keys grouped by control type for the tuner UI. */
-export const ETB_NUM_KEYS = [
-  'x', 'y', 'scale',
-  'sheenCycle', 'sheenAlpha',
-  'glowX', 'glowY', 'glowW', 'glowH',
-  'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
-  'boltRate', 'boltScale', 'boltMag', 'boltWidth', 'boltLife', 'boltAlpha',
-  'strikeBolts', 'strikeFlash',
-  'strikeDustCount', 'strikeDustSize', 'strikeDustLife',
-  'strikeRings', 'strikeRingRadius', 'strikeRingLife',
-] as const;
 export const ETB_COLOR_KEYS = ['glowColor', 'boltColor'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as ETB_DEFAULTS };

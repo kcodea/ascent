@@ -203,18 +203,6 @@ export const RFB_DESC: Record<keyof RefreshConfig, string> = {
   artDim: 'Disabled (can’t afford) — the button art’s brightness while dimmed.',
 };
 
-/** Keys grouped by control type for the tuner UI. */
-export const RFB_NUM_KEYS = [
-  'x', 'y', 'scale',
-  'labelY', 'labelS',
-  'costX', 'costY', 'costS',
-  'glowW', 'glowH', 'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
-  'sheenCycle', 'sheenAlpha',
-  'shineMs', 'shineAlpha', 'shineSize', 'shineBlur',
-  'dustCount', 'dustSize', 'dustLife',
-  'blastCount', 'blastSpeed', 'blastSpread', 'blastLife', 'blastSize',
-  'artDim',
-] as const;
 export const RFB_COLOR_KEYS = ['glowColor', 'shineColor', 'costColor', 'costFreeColor', 'blastColor'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as RFB_DEFAULTS };

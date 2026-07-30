@@ -1,5 +1,65 @@
 # ASCENT — development log
 
+## 2026-07-30 — batch 1 of the pixiFx migration: three effects become authored defs
+
+**What changed.** `damageBurst`, `clickPuff` and `coins` are gone from `packages/ui/src/pixiFx.ts` and exist
+now as `packages/ui/src/fx/defs/damage-burst.json`, `click-puff.json` and `coins.json`, played through
+`playDef(id, anchors)` at their call sites. Three commits, one per effect. `pixiFx.ts` drops **3757 → 3648
+lines (−109)**, including the bespoke `coinTex` / `makeCoinTexture` gold-coin texture that retired with
+`coins`. No engine, content or sim change; player-visible only as the effects themselves.
+
+**Why now, and not a month ago.** The def runtime was `import.meta.env.DEV`-gated until `b32c2302` (see the
+entry above), so until last week deleting a hand-written method would have deleted the effect for players
+outright. Now `ensureDefsReady()` runs on mount in production, `canPlayDefs()` is true in a normal session,
+and a migration is a migration rather than a removal.
+
+**The pattern later batches copy.** For each effect: read the old implementation for counts/speeds/lifetimes/
+colours/blends → author a def by copying param ranges out of a known-good shipped def (`ruby-lance.json`,
+`ward-gained.json`) rather than inventing values → validate with `npx vitest run
+packages/ui/src/fx/defs.test.ts`, which checks every param NAME and VALUE against the primitives' own SPECS
+→ swap the call site to `playDef` → delete the method plus anything that becomes orphaned with it. Two
+things about that order are load-bearing. The validation runs BEFORE the deletion, because `playDef` fails
+by returning `null` — a typo'd param name is silently dropped by `coerceParams` and an unknown def id is a
+silent no-op, so nothing tells you the effect is gone except looking at the game. And the call sites are
+found by grepping the METHOD NAME across `packages` + `apps`, never `pixiFx.<method>(`: there are two
+`FxController` instances (`pixiFx` and `discoverFx`), and an earlier survey of this exact codebase missed a
+`discoverFx.discoverBurst(...)` call precisely that way.
+
+**These three do NOT go in `bindings.json`,** and that is the rule, not an exception: a binding is chosen by
+combat *moment kind*, and none of these is one. `clickPuff` is a pointer-down on the empty table; `coins` is
+a sell gesture (and a `maxGold` cue handler); `damageBurst` is the defeat blast landing on the Resolve bar
+(and a cue handler that keeps a hand-written `impactPulse` beside it). They call `playDef` directly, the way
+`useCombatReplay` already does for `death-dissolve`.
+
+**What the defs contain.** `damage-burst` is three layers — a 4-particle white-hot core that scales up and
+fades, a crimson `shockwave` ring, and 26 velocity-oriented shards on a rim→core crimson/orange/white
+palette. `click-puff` is one `burst` on `normal` blend with a dry-dirt palette, a size curve that GROWS
+(0.35 → 1.7) so puffs billow, gentle gravity, and an alpha curve held near 0.3 to match the original's
+subtlety. `coins` is gold discs on `normal` blend plus a small additive star sparkle standing in for the
+glint the retired coin texture used to bake in.
+
+**One honest fidelity loss, in `coins`.** The old version fired a ±33° UPWARD fan. `burst`'s cone (`spread` <
+1) aims along the emitter's travel direction, which for a static point anchor is 0 — a sideways fan. So the
+def uses full-circle spread with heavy gravity: the coins pop out and rain down rather than arcing up and
+back. Same read, different silhouette leaving the point. Restoring the fan exactly needs an authored launch
+direction on `burst`, which isn't worth a primitive change for one effect. The owner's brief for this batch
+was *re-author, better if possible; don't chase pixel parity* — so this is flagged rather than hidden.
+
+**No tuner panel owned any of the three** (`grep` across `packages/ui/src/*Tuner*.tsx` + `tunerSchema.ts` is
+clean), so nothing had to move alongside them.
+
+**What batch 1 says about the rest.** The nine effects `impact`, `impactDust`, `dust`, `deathrattle`,
+`shatterAt`, `rebornSummon`, `critImpact`, `refreshBlast` and `impactPulse` are **blocked** — every one takes
+per-call geometry or intensity (`dx/dy/power`, `w/h`, `size`, a whole `cfg` object) that `playDef` has no way
+to pass, since a def's params are fixed at authoring time. They need `playDef` to gain a per-call
+scale/intensity parameter first; that is the next piece of work and was deliberately out of scope here.
+Batch 1 was the easy end of the list: three point effects with no arguments beyond `(x, y)`.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors; 7 pre-existing warnings), `npm test`
+— **161 files / 3097 tests green** — and `npm run build:web`. `npx vitest run packages/ui/src/fx/defs.test.ts`
+passes 10 tests with the three new files in the glob.
+
+
 ## 2026-07-30 — the last five tuners, including the three that had no config module at all
 
 **What changed.** The remaining panels move onto the tuner schema — Lunge, Layout Lab, Compendium, Card Frames,

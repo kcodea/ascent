@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The first hand-written FX become data.** Now that authored effects actually reach players (below), the
+  ~28 hand-tuned methods in `pixiFx.ts` can start moving to the workbench. Batch 1: the crimson damage burst,
+  the click dust puff and the gold coin sprinkle are authored defs, taking `pixiFx.ts` from 3757 to 3648
+  lines. The nine effects that take a per-call size or intensity are blocked until `playDef` can pass one.
 - **Authored FX reach players.** The whole def runtime was dev-only by design, so nothing authored in the FX
   workbench had ever been seen outside a dev session. Three `import.meta.env.DEV` gates came out and the
   effects ship: **15 already-live bindings turn on** — attack exchanges, buff waves, keyword gain/loss, quest

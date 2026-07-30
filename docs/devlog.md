@@ -1,5 +1,64 @@
 # ASCENT — development log
 
+## 2026-07-30 — the Buttons group moves onto the tuner schema, and three panels get their ✕ back
+
+**What changed.** Six more tuners onto the schema from [#751](https://github.com/kcodea/ascent/pull/751)'s
+foundation — Tavern Up, Refresh, End Turn, plus key fixes on Book and Drag Feel — taking it to **12 of 47**.
+Dev-only; stripped from production. No engine, content, sim, or player-visible change.
+
+**A real bug the migration surfaced: three panels ignored their own close button.** `useDraggablePanel(key)`
+injects each panel's ✕ and closes by that key, but three panels passed a key `DevMenu` does not use —
+`BookTuner` said `booktuner` against the menu's `book`, `TavernUpTuner` said `tavernup` against `tavernupbtn`,
+and `DragTuner` said `dragfeel` against `drag`. So the ✕ called `close()` against an id absent from the open set
+and did nothing; those panels could only be dismissed by toggling them off in the menu. Confirmed empirically
+rather than by reading: clicking every ✕ closed Damage Float (whose keys agreed) and left the other three open.
+All three now use the menu's key. One consequence worth recording — a panel's remembered SIZE lives under
+`ascent.devpanel.<key>`, so those three open at the default width once and then remember again; their tuned
+VALUES were never at risk, since those live in each config's own key.
+
+**Three lookalike checkboxes, split apart.** End Turn had three checkboxes in identical row markup that were
+three different kinds of thing. "Preview pressed" and "glow always on" are panel-local previews: they save
+nothing and exist only so a transient state can be held still while its sliders are dragged. "Pressed art ·
+cracked gem" is a *real config value* — `pressedVariant` stores 2 or 3, picking which pressed art the button
+uses, and the panel rendered it inline as `checked ? 3 : 2`. The schema now separates them: previews are declared
+`toggles` owned by the panel, and the config value is a control of `kind: 'toggle'` that declares both of its
+values. Verified in the browser that ticking writes **3** and clearing writes **2** to `ascent.endturnbtn` — not
+1 and 0, which is exactly how a generic boolean toggle would quietly break which art the button shows. It reads
+"cracked" / "dulled" now instead of a bare number.
+
+**Preview switches became a schema concept** (introduced with Hero Power). Each pins a body class while on, and
+the panel clears every one when it closes — a pinned "glow always on" outliving its panel would leave the board
+lit with no visible cause. Per-panel defaults are preserved exactly: End Turn's glow starts on, its pressed
+preview off, Refresh's and Tavern Up's glow off. That asymmetry is intentional in the originals (one pointer
+cannot both hold hover and drag a slider) and easy to flatten by accident.
+
+**A duplicate-section guard.** Only ADJACENT controls sharing a group merge into one heading — declaration order
+stays authoritative, because hoisting a stray control up to its group's first appearance would reorder a panel
+behind the author's back. The cost is that an interrupted group renders twice under the same title, which is
+always an authoring slip: Hero Power's glow colour was appended after its Glow fit controls and opened a second
+"Face glow" section, caught only by counting headings in a DOM dump. `assertGroupRuns` now warns in dev with the
+panel id and the offending title.
+
+**Refresh changed the shape of these files.** It has five colour controls spread across four groups, which the
+earlier panels' hand-maintained "before the colour / after the colour" arrays cannot express. One ordered list
+now holds every key and the kind is derived from whether the key is a colour — the pattern the remaining panels
+should follow. The old panel rendered all five colours in a block at the very bottom, so "cost coin · colour"
+sat nowhere near "cost coin · x / y / size"; each colour now sits in its own section.
+
+**Counts.** Tavern Up 32 controls / 7 sections · Refresh 35 / 10 · End Turn 31 / 7. Roughly 90 `gem ·` /
+`glow ·` / `press ·` / `click ·` label prefixes became real headings across the three.
+
+**How it was verified.** typecheck, typecheck:web, 3034 tests, lint (2 pre-existing warnings in `packages/ui`),
+build:web. Live DOM checks per panel: correct `data-devpanel` keys, ✕ closing all three previously-stuck panels,
+no duplicate sections, the group guard silent, no horizontal overflow, the toggle writing 2/3, and the preview
+body classes appearing and clearing on schedule.
+
+**Follow-ups.** 35 panels remain, including the five structural outliers (`ChargeGlyphTuner` at 209 lines,
+`FrameTuner`, `BookTuner`, `LayoutTuner`, `SfxMixer` — the mixer may justifiably stay bespoke). `ShieldTuner`
+is still deliberately unmigrated and is being handled separately: it is dead, tuning a value nothing reads.
+Every hint written so far still wants an owner accuracy pass — they were drafted from config source, and no code
+can confirm that "cracked", "comet" or "wisp" is the vocabulary we actually use.
+
 ## 2026-07-29 — The Dwarf roster is complete (tranche C)
 
 The last five cards, and what each actually needed:

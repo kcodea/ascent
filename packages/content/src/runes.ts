@@ -259,6 +259,23 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeWarChorus' },
   },
   {
+    id: 'rune_facetwright',
+    name: 'Rune of Facetwright',
+    cost: 4,
+    text: "Get a **Facetwright's Choice**. Repeat at the **start of every turn**. They give **both** effects.",
+    reward: { kind: 'multi', rewards: [{ kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
+    sets: ['set2'], // Facetwright's Choice is a set-2 spell
+  },
+  {
+    // Owner ruling 2026-07-30: only offered when the rune system is on, and an Epic forge is then guaranteed —
+    // so this is never a dead pick.
+    id: 'rune_duplication',
+    name: 'Rune of Duplication',
+    cost: 4,
+    text: 'After you forge your **Epic Rune**, this transforms into a **copy of it**.',
+    reward: { kind: 'runeDuplication' },
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,

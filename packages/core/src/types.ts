@@ -800,6 +800,11 @@ export type QuestReward =
   | { kind: 'runeSharedTable'; attack: number; health: number }
   /** Rune of Redirection: a Ruby played on your left-most minion also casts on your right-most. */
   | { kind: 'runeRedirection' }
+  /** Rune of Facetwright: your Facetwright's Choice casts give BOTH halves instead of one. */
+  | { kind: 'runeFacetwright' }
+  /** Rune of Duplication: after you forge your Epic Rune, this becomes a copy of it — its reward applies a
+   *  second time. */
+  | { kind: 'runeDuplication' }
   /** Rune of Investment: selling a minion mints `count` Rubies. */
   | { kind: 'runeSellRubies'; count: number }
   /** Rune of the Open Market: the FIRST Shop minion your Demons Consume each turn buffs the Shop +X/+X
@@ -824,7 +829,7 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }

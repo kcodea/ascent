@@ -5517,6 +5517,11 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     const eater = state.board.find((c) => isTribe(c, 'demon'));
     const i = rightmostShopMinion(state);
     if (eater && i >= 0) step(() => consumeShopMinion(state, eater, i));
+  } else if (effect === 'grantFacetwright') {
+    // Rune of Facetwright: a Facetwright's Choice every turn. Drawn from the run's pool like every other grant,
+    // so a set without the card grants nothing rather than injecting something the run cannot otherwise see.
+    const fw = poolOf(state).spells.find((c) => c.id === 'facetwright');
+    if (fw) step(() => conjureToHand(state, [fw], 1, true));
   } else if (effect === 'grantRuby') {
     // MINTED, not conjured — a Ruby is base 1/1 plus the run's live `rubyBonus`, like every other Ruby source.
     step(() => mintRubies(state, 1));

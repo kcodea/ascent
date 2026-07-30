@@ -73,6 +73,27 @@ export function resetLobbyDrivers(seats: readonly LobbySeatState[]): void {
   for (const seat of seats) DRIVERS.delete(driverKey(seat));
 }
 
+/**
+ * Build ONE seat's driver and its board for the CURRENT round, ahead of the round that needs it.
+ *
+ * A hybrid seat's recording is an autoplayed run (~100ms), and it is built lazily so lobby creation stays off
+ * the hero-select transition. Lazily, though, means "all seven at once during the first combat" — the hitch
+ * moves rather than goes. The UI calls this per seat in idle time during the shop phase, so by the time the
+ * round resolves the work is already done. It also covers a RESUMED lobby, whose driver cache is empty: those
+ * seats have to be rebuilt AND re-advanced to wherever the lobby had got to.
+ *
+ * Safe to call any number of times, in any order: a driver is cached, and asking for a round it has already
+ * reached is a no-op. Doing it early can't change what the lobby produces — this is exactly the request the
+ * round itself would make.
+ */
+export function warmLobbySeat(lobby: RunLobby, index: number): void {
+  const seat = lobby.seats[index];
+  if (!seat || seat.kind === 'player' || !seat.alive) return;
+  const d = driverFor(seat);
+  if (!d) return;
+  if (!d.prepare(lobby.round)) d.finalBoard?.();
+}
+
 export function driverFor(seat: LobbySeatState): SeatDriver | null {
   if (seat.kind === 'player') return null; // the live run supplies the player's board
   const key = driverKey(seat);
@@ -112,6 +133,17 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   let picked = 0;
   // Handles must be unique across the table — two seats with one name reads as a rendering bug.
   const taken = new Set<string>(['you']);
+  // EVERY seat whose driver we build, seated or not. The probe below caches a driver for candidates it then
+  // rejects, and evicting only the seats that made it left those behind — a live driver already advanced to
+  // round 1, kept for the rest of the session.
+  const probed: LobbySeatState[] = [];
+  /** Can this seat field a board? Cheap where the driver offers a cheap answer (see `SeatDriver.canFieldBoard`). */
+  const canPlay = (seat: LobbySeatState): boolean => {
+    probed.push(seat);
+    const d = driverFor(seat);
+    if (d?.canFieldBoard) return d.canFieldBoard();
+    return !!(d?.prepare(1) ?? d?.finalBoard?.());
+  };
 
   // REAL PLAYER RUNS FIRST (owner call 2026-07-29). Every seat used to be generated; now any run in the
   // registered pool with enough material can hold one, replaying that player's actual boards in their actual
@@ -148,8 +180,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
       armor: r.startingArmor,
       alive: true,
     };
-    const d = driverFor(seat);
-    if (!d?.prepare(1) && !d?.finalBoard?.()) continue; // no round-1 board — skip rather than seat a ghost
+    if (!canPlay(seat)) continue; // no round-1 board — skip rather than seat a ghost
     taken.add(seat.label.toLowerCase());
     if (who) seatedAuthors.add(who);
     seats.push(seat);
@@ -172,14 +203,14 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
       armor: r.startingArmor,
       alive: true,
     };
-    const d = driverFor(seat);
-    if (!d?.prepare(1) && !d?.finalBoard?.()) continue; // this hero can't be driven — try the next
+    if (!canPlay(seat)) continue; // this hero can't be driven — try the next
     taken.add(seat.label.toLowerCase());
     seats.push(seat);
     picked++;
   }
-  // The probe above advanced live drivers to round 1; drop them so the lobby starts every seat clean.
-  resetLobbyDrivers(seats);
+  // The probe above advanced live drivers to round 1; drop them so the lobby starts every seat clean. Every
+  // PROBED seat, not just the seated ones — a rejected candidate's driver is cached too.
+  resetLobbyDrivers(probed);
   return { version: 1, seed, round: 1, seats, encounters: [], quietRounds: 0, finished: false, rules: r };
 }
 

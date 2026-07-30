@@ -441,6 +441,10 @@ export interface RunState {
   runeSharedTable?: { attack: number; health: number };
   /** Rune of Redirection: a Ruby on your left-most also casts on your right-most. */
   runeRedirection?: boolean;
+  /** Rune of Facetwright: a Facetwright's Choice cast resolves BOTH branches, not the picked one. */
+  runeFacetwright?: boolean;
+  /** Rune of Duplication: the next Epic rune bought also applies its reward a second time. */
+  runeDuplication?: boolean;
   /** Rune of Investment: Rubies minted per minion sold. */
   runeSellRubies?: number;
   /** Rune of the Open Market: the first Shop-minion Consume each turn buffs the Shop. `used` resets per turn. */
@@ -922,7 +926,7 @@ export interface RunState {
   questGoldTribeBuff?: { tribe: Tribe; per: number; attack: number; health: number; tick: number };
   /** War Council: the tribe whose Rallies and Slaughters trigger an extra time. */
   questTribeRallySlaughter?: Tribe;
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

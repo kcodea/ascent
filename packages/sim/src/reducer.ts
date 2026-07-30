@@ -1076,7 +1076,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         const offer = co.targetUid && !target ? s.shop.find((o) => o.uid === co.targetUid && !CARD_INDEX[o.cardId]?.spell) : undefined;
         if (co.targetUid && !target && !offer) { s.hand.splice(hi, 1); s.chooseOne = undefined; return s; }
         const casts = spellCasts(s, def);
-        const synthetic = { ...def, effects: option.effects };
+        // Rune of Facetwright: "they give both effects" — resolve EVERY branch instead of the picked one. The
+        // pick still happens (the player chooses which is highlighted), it just stops being exclusive. Scoped to
+        // the Facetwright's Choice spell by id, since the rune names that card rather than Choose One generally.
+        const bothBranches = s.runeFacetwright && def.id === 'facetwright';
+        const synthetic = { ...def, effects: bothBranches ? (def.chooseOne ?? []).flatMap((o) => o.effects) : option.effects };
         for (let n = 0; n < casts; n++) {
           if (offer) castSpellOnOffer(s, synthetic, offer);
           else castSpell(s, synthetic, target);
@@ -1297,6 +1301,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       spendGold(s, rune.cost);
       // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
       applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+      // Rune of Duplication: "after you forge your Epic Rune, this transforms into a copy of it" — the Epic's
+      // reward applies a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
+      // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it.
+      if (s.runeDuplication && s.runeforgeEpic) {
+        s.runeDuplication = undefined;
+        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+        (s.ownedRunes ??= []).push(rune.id); // shows as a second badge — the copy is a real rune you hold
+      }
       (s.ownedRunes ??= []).push(rune.id);
       // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
       // hero-power charge alone for it.
@@ -2924,6 +2936,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'rubyExtraCasts':
       if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
       else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
+      break;
+    case 'runeFacetwright':
+      s.runeFacetwright = true;
+      break;
+    case 'runeDuplication':
+      s.runeDuplication = true;
       break;
     case 'runeSharedTable':
       s.runeSharedTable = { attack: r.attack, health: r.health };

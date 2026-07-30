@@ -144,6 +144,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   grantAles: 'End of Turn: get 2 Dwarven Ales',
   copyFirstSpell: 'End of Turn: get a copy of the first spell you cast this turn',
   grantRuby: 'End of Turn: get a Ruby',
+  grantFacetwright: "Start of every turn: get a Facetwright's Choice",
   demonEatsRightmostShop: 'End of Turn: your left-most Demon Consumes the right-most Shop minion',
 };
 
@@ -361,6 +362,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       }
       return `Every ${r.per} ${METER[r.meter]}, ${parts.join(' and ')}${r.oncePerTurn ? ' (once per turn)' : ''}`;
     }
+    case 'runeFacetwright':
+      return "Your Facetwright's Choice casts give both effects";
+    case 'runeDuplication':
+      return 'After you forge your Epic Rune, this transforms into a copy of it';
     case 'runeSharedTable':
       return `Your Dwarven Ale casts each give one friendly minion of each type +${r.attack}/+${r.health}`;
     case 'runeRedirection':

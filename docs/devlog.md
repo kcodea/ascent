@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 12: Facetwright + Duplication (owner rulings unblocked both)
+
+Both were blocked on questions the owner answered today.
+
+**Rune of Facetwright** (basic 4). "Facetwright's Choice" turned out to be an EXISTING set-2 spell — Choose One:
+your Rubies gain +1 Attack, or +1 Health. So the rune is two halves: a `grantFacetwright` recurring grant, and
+a flag that makes the cast resolve BOTH branches instead of the picked one. The pick still happens; it just
+stops being exclusive. Scoped by card id, since the rune names that card rather than Choose One in general —
+a test contrasts against another Choose One spell to prove the scoping holds.
+
+**Rune of Duplication** (basic 4). Owner ruling: it is only offered when the rune system is on, in which case an
+Epic forge is guaranteed — so it is never a dead pick — and "in the case where a rune gives a minion, the player
+would get 2". Implemented as: the next EPIC rune bought applies its reward a second time, spent on use, and the
+copy is pushed to `ownedRunes` so it shows as a real second badge. Gated on `runeforgeEpic`, so the basic forge
+that sold you Duplication cannot consume its own charge — that has its own test, since it is the obvious way to
+get this wrong.
+
+Verified: typecheck (both), lint (6 pre-existing), 3237 tests, build:web, harness determinism.
+
+**Rune queue: 5 remain.** 42 of 47 done — and only ONE is content work: the Spellstone. The other four
+(Counterpoint, Overflow, Profit Sharing, and Spellstone's Grimoire interaction) all want engine changes:
+an out-of-turn attack queue that accepts a strike from a death cascade, a generic permanent-buff carry-back,
+a single gold-gain chokepoint, and a cast path that can count a Ruby as a spell without double-spending the
+Grimoire charge.
+
 ## 2026-07-30 — Rune tranche 11: the Food Chain, Attacking Gems
 
 - **Rune of the Food Chain** (epic 5) — the first minion you summon each combat gains your left-most Demon's

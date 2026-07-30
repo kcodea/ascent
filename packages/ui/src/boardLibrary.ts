@@ -8,7 +8,7 @@
  * deterministic: a finished run is `{ seed, heroId, actions }`, and `replayRun` re-derives its per-wave
  * boards byte-identically, so we store the replay's snapshots rather than capturing live.
  */
-import { registerOpponents, replayRun, type BoardSnapshot, type Replay, createLobbyRun } from '@game/sim';
+import { registerOpponents, replayRun, type BoardSnapshot, type Replay } from '@game/sim';
 
 const KEY = 'ascent.boards';
 const CAP = 300; // keep the most recent N captured boards (≈ 15–30 runs); FIFO so the pool stays fresh
@@ -42,38 +42,64 @@ export function loadStoredBoards(): BoardSnapshot[] {
   }
 }
 
+/** Stamp a finished run's per-wave boards with provenance and append them to the stored library, capped to the
+ *  most recent CAP. Shared by both capture paths (replayed and live-captured) so they can't drift.
+ *  `setId` is the set the RUN was played under, not the live one — a run finishing after a set flip captured
+ *  boards made of its own set's cards, and that is what makes them servable later. */
+function storeBoards(snapshots: readonly BoardSnapshot[], setId: BoardSnapshot['setId'], author?: string): BoardSnapshot[] {
+  // Only keep boards with minions — an empty board (power 0) is never a useful opponent.
+  const capturedAt = new Date().toISOString().slice(0, 10);
+  const patch = `${__APP_VERSION__}+${__BUILD_SHA__}`; // the build these boards were captured under (for pruning old patches)
+  const fresh = snapshots
+    .filter((s) => s.minions.length > 0)
+    // Stamp a stable id per captured board — the key the fight-result ledger attributes wins/losses to once
+    // this board is served as someone's opponent. crypto.randomUUID is fine here (UI layer, not the
+    // Math.random-banned sim). Each wave's board is its own trackable entity.
+    .map((s) => ({ ...s, id: crypto.randomUUID(), origin: 'self' as const, ...(author ? { author } : {}), capturedAt, patch,
+      setId: setId ?? 'set1' }));
+  if (fresh.length === 0) return [];
+  // localStorage write is its own best-effort step, so a quota/availability failure still returns the fresh
+  // boards (the remote upload in store.ts must run even when local persistence is unavailable).
+  try { localStorage.setItem(KEY, JSON.stringify(dedupe([...loadStoredBoards(), ...fresh]).slice(-CAP))); } catch { /* ignore */ }
+  return fresh; // hand the captured boards back so the caller can also push them to the remote pool
+}
+
 /** Capture a finished run's per-wave boards (deterministically, via `replayRun`) and append them to the
- *  stored library, capped to the most recent CAP. Stamps your attribution (origin:'self' + name + date) so
- *  these boards carry "by you" when served — and so they can be exported with provenance for a friend's pool.
- *  Best-effort — board capture never blocks the game. */
+ *  stored library. Stamps your attribution (origin:'self' + name + date) so these boards carry "by you" when
+ *  served — and so they can be exported with provenance for a friend's pool.
+ *  Best-effort — board capture never blocks the game.
+ *
+ *  NOT for lobby runs — see `saveCapturedBoards`. Replaying a lobby run re-simulates all seven opponent seats
+ *  from scratch, which measured at ~20 SECONDS of blocked main thread on a 12-round run. */
 export function saveRunBoards(replay: Replay, author?: string): BoardSnapshot[] {
   try {
-    // A LOBBY run needs its lobby attached before replaying: `createRun(…, 'lobby')` alone doesn't build the
-    // seats, so replaying without it diverged from the first combat and captured the wrong boards — which is why
-    // lobby runs appeared not to save snapshots at all (owner 2026-07-29).
-    const initial = replay.mode === 'lobby' ? createLobbyRun(replay.seed, replay.heroId) : undefined;
-    const { final, snapshots } = replayRun(replay, initial);
+    // A lobby replay without its seats attached diverges from the first combat and captures boards that were
+    // never played. Refusing it is deliberate: attaching them costs ~20 s, and the caller already has the real
+    // boards. Silently capturing the wrong ones is the failure this guard exists to make impossible.
+    if (replay.mode === 'lobby') return [];
+    const { final, snapshots } = replayRun(replay);
     // ONLY persist a run that actually FINISHED — won (victory) or lost (gameover). The caller already gates
     // on the gameover/victory transition; this guard makes it impossible for an in-progress / abandoned run
     // to be snapshotted even if anything ever calls this wrongly.
     if (final.phase !== 'gameover' && final.phase !== 'victory') return [];
-    // Only keep boards with minions — an empty board (power 0) is never a useful opponent.
-    const capturedAt = new Date().toISOString().slice(0, 10);
-    const patch = `${__APP_VERSION__}+${__BUILD_SHA__}`; // the build these boards were captured under (for pruning old patches)
-    const fresh = snapshots
-      .filter((s) => s.minions.length > 0)
-      // Stamp a stable id per captured board — the key the fight-result ledger attributes wins/losses to once
-      // this board is served as someone's opponent. crypto.randomUUID is fine here (UI layer, not the
-      // Math.random-banned sim). Each wave's board is its own trackable entity.
-      .map((s) => ({ ...s, id: crypto.randomUUID(), origin: 'self' as const, ...(author ? { author } : {}), capturedAt, patch,
-        // The set the RUN was played under, not the live one — a run finishing after a set flip captured
-        // boards made of its own set's cards, and that is what makes them servable later.
-        setId: final.setId ?? 'set1' }));
-    if (fresh.length === 0) return [];
-    // localStorage write is its own best-effort step, so a quota/availability failure still returns the fresh
-    // boards (the remote upload in store.ts must run even when local persistence is unavailable).
-    try { localStorage.setItem(KEY, JSON.stringify(dedupe([...loadStoredBoards(), ...fresh]).slice(-CAP))); } catch { /* ignore */ }
-    return fresh; // hand the captured boards back so the caller can also push them to the remote pool
+    return storeBoards(snapshots, final.setId, author);
+  } catch {
+    return []; // capture is best-effort, never fatal
+  }
+}
+
+/**
+ * Persist boards that were captured AS THE RUN WAS PLAYED, rather than re-derived from its action log.
+ *
+ * The replay path exists because a run is `(seed, action-log)` and re-deriving its boards is cheaper than
+ * storing them. That trade inverts for a LOBBY run: replaying one re-runs seven opponent seats through every
+ * round, each of them a live bot doing a fight-grounded search per shop turn — measured at ~20 s of synchronous
+ * main-thread work, right as the end screen appeared. The boards are identical either way (`replayRun` captures
+ * `snapshotBoard` at exactly the point the store does), so the lobby simply keeps them as it goes.
+ */
+export function saveCapturedBoards(snapshots: readonly BoardSnapshot[], setId: BoardSnapshot['setId'], author?: string): BoardSnapshot[] {
+  try {
+    return storeBoards(snapshots, setId, author);
   } catch {
     return []; // capture is best-effort, never fatal
   }

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "impact-dust",
+  "label": "Impact dust",
+  "tags": ["dust", "impact", "tan"],
+  "duration": 700,
+  "layers": [
+    {
+      "primitive": "burst",
+      "name": "tan billow",
+      "anchor": "target",
+      "at": 0,
+      "life": 700,
+      "params": {
+        "count": 22,
+        "spread": 1,
+        "emitShape": "box",
+        "emitRadius": 4,
+        "speed": 400,
+        "speedVar": 0.5,
+        "drag": 0.72,
+        "gravity": 130,
+        "life": 700,
+        "shape": "circle",
+        "size": 24,
+        "sizeVar": 0.3,
+        "sizeCurve": [[0, 0.45], [1, 1.9]],
+        "alphaCurve": [[0, 0.36], [1, 0.26]],
+        "coreBias": 0.35,
+        "bands": 3,
+        "plateau": 0.3,
+        "glow": 0,
+        "erode": 0.3,
+        "blendMode": "normal",
+        "palette": [4866100, 9075294, 13218959, 14931643]
+      }
+    }
+  ]
+}

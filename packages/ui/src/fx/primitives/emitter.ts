@@ -43,6 +43,11 @@ const SPECS = {
   },
   life: {
     kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 2000, step: 10, default: 700, essential: true,
+    // A duration, so it rides `time`. Note this param does DOUBLE duty in a one-shot: it is both the mote
+    // lifetime and the EMIT WINDOW (`withinEmitWindow(emitElapsedMs, life)` below), so stretching it emits
+    // proportionally more motes at the same `rate`. That is inherent to a continuous emitter running for
+    // longer, and is spelled out on `FxScaleAxes.time` along with why `rate` is not the answer to it.
+    axis: 'time',
     help: 'Mote lifetime in ms.',
   },
   spread: {

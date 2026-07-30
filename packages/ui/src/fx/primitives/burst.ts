@@ -139,6 +139,10 @@ const SPECS = {
   },
   interval: {
     kind: 'slider', label: 'Interval', group: 'Emit', min: 100, max: 2000, step: 10, default: 600,
+    // A duration, so it rides `time` for consistency — a stretched def's looping cadence stretches with it.
+    // Inert on the shipped path either way: `playDef` always fires one-shot, where `interval` is never
+    // consulted (see the `oneShot` branch in `update`), so this can never move a fired burst's particle count.
+    axis: 'time',
     help: 'Gap in ms between repeat bursts while the preview is looping. Fire throws exactly one burst, so this does nothing there — turn Loop on to see it.',
   },
   spread: {
@@ -173,7 +177,14 @@ const SPECS = {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 800, step: 10, default: 0, axis: 'scale',
     help: 'px/sec² downward.',
   },
-  life: { kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, essential: true, help: 'Particle lifetime ms.' },
+  life: {
+    kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, essential: true,
+    // The canonical `time` param: a duration in ms. A burst emits its whole wave at t=0, so stretching this
+    // makes each shard live (and therefore fly) longer WITHOUT changing how many shards there are — which is
+    // what keeps a seeded burst's 7-draws-per-particle stream byte-identical at any `time`.
+    axis: 'time',
+    help: 'Particle lifetime ms.',
+  },
   orientToVelocity: {
     kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
     help: 'Point each particle along its direction of travel (good for shards, arrows, and imported directional art). Overrides spin/rotation while on.',

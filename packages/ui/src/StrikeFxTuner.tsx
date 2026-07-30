@@ -5,24 +5,23 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
  * DEV-only tuner for the whole combat strike-impact package in one panel: the melee flash / shockwave / heavy
- * ring / sparks from `strikeFxConfig`, PLUS the impact smoke, dust billow and energy pulse — which live in
- * `smokeConfig` alongside the card-drop dust, and are surfaced here so the package tunes together. Values apply
- * to the NEXT strike; watch a fight to judge.
+ * ring / sparks from `strikeFxConfig`, PLUS the impact smoke and energy pulse — which live in `smokeConfig`,
+ * and are surfaced here so the package tunes together. Values apply to the NEXT strike; watch a fight to judge.
+ * (The tan billow beside them is the authored `impact-dust` def now, tuned in the FX workbench.)
  *
  * TWO CONFIGS, ONE PANEL. The spec's `read` merges both objects and `write` dispatches on the key, so
  * persistence still runs through each config's own accessors. "Copy values" therefore yields the merged JSON,
  * as the hand-rolled panel did.
  *
- * The asymmetry that used to be buried in a doc comment: **Reset clears only the strike keys.** The smoke, dust
- * and pulse values are shared with the Smoke & Dust tuner, so resetting them from here would silently undo work
- * done in that panel and to the card-drop dust. Those controls now say so individually via their caveat marker,
+ * The asymmetry that used to be buried in a doc comment: **Reset clears only the strike keys.** The smoke and
+ * pulse values are shared with the Smoke & Dust tuner, so resetting them from here would silently undo work
+ * done in that panel. Those controls now say so individually via their caveat marker,
  * rather than the fact living in prose nobody reads mid-tune.
  */
 
-/** The strike-relevant subset of `smokeConfig`. The rest of that config is card-drop dust and is not shown here. */
+/** The strike-relevant subset of `smokeConfig` — everything it still holds, as it happens. */
 const SMOKE_KEYS = [
   'smokeCount', 'smokeRise', 'smokeDrift', 'smokeLife', 'smokeGrow', 'smokeAlpha',
-  'impDustCount', 'impDustSpeed', 'impDustLife', 'impDustSize',
   'impPulseRadius', 'impPulseDur', 'impPulseRings',
 ] as const;
 type SmokeKey = (typeof SMOKE_KEYS)[number];
@@ -31,7 +30,7 @@ type SmokeKey = (typeof SMOKE_KEYS)[number];
 type StrikePanelConfig = StrikeFxConfig & Pick<SmokeConfig, SmokeKey>;
 
 const SHARED =
-  'Shared with the Smoke & Dust tuner and with the card-drop dust. This panel’s Reset does NOT clear it — '
+  'Shared with the Smoke & Dust tuner. This panel’s Reset does NOT clear it — '
   + 'reset it from Smoke & Dust if you want the shipped value back.';
 
 const STRIKE: Record<keyof StrikeFxConfig, [string, TunerUnit | undefined, string]> = {
@@ -51,10 +50,6 @@ const SMOKE: Record<SmokeKey, [string, TunerUnit | undefined, string, string]> =
   smokeLife:      ['Lifetime', 'ms', 'How long one puff lasts before it has fully faded.', 'Impact smoke'],
   smokeGrow:      ['Expansion', '×', 'How much a puff grows over its life.', 'Impact smoke'],
   smokeAlpha:     ['Opacity', 'opacity', 'Peak opacity of the smoke.', 'Impact smoke'],
-  impDustCount:   ['Puff count', undefined, 'How many dust puffs erupt from the strike point.', 'Impact dust'],
-  impDustSpeed:   ['Billow speed', 'px/s', 'How fast that dust pushes outward.', 'Impact dust'],
-  impDustLife:    ['Lifetime', 'ms', 'How long one puff lasts.', 'Impact dust'],
-  impDustSize:    ['Puff radius', 'px', 'Size of each puff.', 'Impact dust'],
   impPulseRadius: ['Ring radius', 'px', 'How far the energy ring expands from the strike point.', 'Energy pulse'],
   impPulseDur:    ['Ring lifetime', 'ms', 'How long a ring takes to expand and fade.', 'Energy pulse'],
   impPulseRings:  ['Ring count', undefined, 'How many rings fire. 0 disables the pulse entirely.', 'Energy pulse'],

@@ -1,5 +1,93 @@
 # ASCENT — development log
 
+## 2026-07-30 — `playDef` gains a per-call `time`, and the strike-point dust becomes a def
+
+**What changed.** `PlayDefOptions` gains its third and last per-call axis — **`time`** — completing the set
+(`scale` → geometry, `intensity` → quantity, `time` → duration). `pixiFx.impactDust()` is deleted and
+migrated to `fx/defs/impact-dust.json`, fired through all three dials at its six call sites; the orphaned
+`impDust*` knobs come out of `smokeConfig.ts`, the Smoke tuner and the Strike FX tuner with it.
+
+**Why `time` is not `speed`.** `PlayDefOptions.speed` rescales the playback CLOCK: at `speed: 0.5` particles
+also *move* at half rate and cover the same ground. The blocked callers wanted the other thing — the
+hand-written `impactDust`/`impactPulse` took a per-call `life` MULTIPLIER, which keeps the velocities and lets
+the dust hang (and travel) further. Both are legitimate and they are different effects, so `time` is a
+separate dial rather than a rename of `speed`.
+
+**The hazard the whole design is shaped around: two things are called "life".**
+- `FxLayer.life` — the layer's WINDOW: how long the layer exists, in ms from its `at`.
+- a primitive's `params.life` — one PARTICLE's lifetime.
+
+`playDef` fires via `fireOnce`, and `player.ts`'s rule for that pass is that a layer which DECLARES a `life`
+is bounded by that window (only an undeclared one runs past `def.duration` to true completion). **Thirteen of
+the 22 shipped defs declare layer windows** — `damage-burst` alone has three. So a params-only stretch would
+push particles past a window that had not moved and they would be **silently cut off**: `damage-burst`'s "hot
+core" is a 240ms particle inside a 320ms window, so at `time: 2` it would want 480ms of a window still closing
+at 320. `scaleDef` therefore rescales the whole temporal FRAME together — every layer's `at`, `life` and
+`travelMs`, the def's `duration`, and the duration params. `bow` is deliberately left alone (a fraction of the
+source→target span, i.e. a shape).
+
+**Two axis declarations, not one — `timeInverse`.** A `shockwave` has no duration param at all: `speed` is
+"expansions per second", so one expansion takes `1 / speed` and that IS the effect's clock. Left off the axis,
+a stretched shockwave layer would hold an empty quad open long after its rings had finished. So a param whose
+PERIOD is the thing being stretched declares `axis: 'timeInverse'` and is multiplied by `1/time`. It is the
+only such param in the library today, and it is what will make `impactPulse` migratable. (There is
+deliberately no inverse flavour for `scale`, even though `turbScale`/`noiseScale` are 1/px and would want one
+— nobody has asked for an inverse-geometry caller.)
+
+**The `rate` decision, written down where the next person will read it** (`FxScaleAxes.time`). `rate` on
+`emitter`/`smoke` is particles per SECOND, so stretching time around it changes how many particles exist. It
+is **off the time axis** and stays on `intensity`. In order of weight: (1) a param has ONE axis, and `rate`
+is already the literal "how many" dial; (2) dividing it would contradict what `time` means — "the same
+effect, for longer", not a thinner one — and would clamp out at `rate`'s `min` of 5 quickly; (3) it keeps the
+consequence honest and stateable, which it now is: a one-shot emitter's emit window IS its `params.life`
+(`withinEmitWindow`), so `time: k` emits ≈ k× as many motes. That is the same shape as `intensity` — the
+stream is the SAME stream, continued, so the motes already there are byte-identical. A caller wanting
+longer-but-not-denser passes `intensity: 1 / time` alongside.
+
+**Determinism.** The structural guarantee is the one locked seeds actually depend on, and it holds by
+construction: **`time` reaches no `count` param.** `burst` emits its whole wave at t=0 and draws exactly 7
+values per particle (`burst.test.ts` guards the count textually), so a seeded burst draws the identical
+sequence in the identical order at any `time` — pinned in `scaleDef.test.ts` by reproducing the draw stream
+at `time: 4` and asserting it equals the unstretched one. The continuous-emitter caveat above is stated
+rather than hidden; it is inherent to a plume running for longer, not a rounding error.
+
+**`time: 1` is an EXACT no-op**, the same contract the other two axes carry and for the same reason: "multiply
+by 1.0 and re-snap" would silently move a param authored off its own step grid, so a def would play
+differently the day someone passed `time: 1` than it did the day before. Pinned with `toBe`, not `toEqual`,
+including the caller-error values (`0`, negative, `NaN`, `±Infinity`) that normalise to 1.
+
+**Clamping is real here too.** Duration params have spec `max` values, so `time: 10` on burst `life` (max
+1500) is not 10×. Layer WINDOWS are the deliberate exception — they have no declared range and are never
+clamped, because a window has to be free to follow the longest thing inside it.
+
+**The end-to-end proof — `impactDust` → `impact-dust`.** The roadmap named this one explicitly ("only
+`scale`/`intensity` short … but its `life` override is a TIME axis nothing expresses yet"), and it exercises
+all three dials at real call sites on day one: `EndTurnButton`, `TavernUpButton` and `RefreshButton` each pass
+`{ intensity: dustCount, scale: dustSize, time: dustLife }` from their own tuners, and `impact.ts`'s three
+melee branches pass `intensity: dustIntensity(power)` — exactly the `impDustCount * (0.8 + 0.2 * power)` the
+hand-written method did with `power`. One `burst` layer on the sanctioned dry-dirt palette (`click-puff`'s,
+which already carries the old `0xC9B48F` tan verbatim), `box` emit shape at radius 4 for the old ±4px spawn
+jitter, drag + settle gravity, and a size curve that billows 0.45 → 1.9 as each puff fades.
+
+*Two honest fidelity notes.* (1) The hand-written version damped each puff's vertical velocity (`vy * 0.7`)
+and added a small upward lift so the cloud stayed FLAT; `burst` has no per-axis velocity shaping, so the def's
+puffs fan evenly in every direction. (2) Base `size` is 24 of a possible 40, so End Turn's `strikeDustSize`
+of 1.6 lands at 38 — just inside the ceiling, with little headroom above it. Both are worth an eyeball on the
+board; the second is a one-line re-author if the owner wants more range.
+
+**Verified.** `npm run typecheck && npm run lint && npm test && npm run build:web` all green — 3143 tests
+across 162 files, of which the FX suite (`packages/ui/src/fx/`) is 990 across 39 files. New coverage in
+`fx/scaleDef.test.ts` (the frame rescale incl. `bow`/unbounded-layer cases, the float-dust clear, the
+window-outlives-its-particle invariant, clamping on params vs the deliberate lack of it on windows, the three
+axes composing without reaching each other, a census of which real primitives declare which axis, and the
+`time: 4` determinism replay) and `choreo/channels/impact.test.ts` (the def fires at the contact point with
+`power` carried as `intensity`).
+
+**Follow-ups.** `impactPulse` is now unblocked on magnitude AND time — what remains is that its `rings`
+argument REPLACES the count where `intensity` multiplies it; a shockwave-based def plus an
+`intensity: rings / 2` at the call sites would close it. `impact`/`critImpact` still want direction.
+
+
 ## 2026-07-30 — `playDef` gains per-call `scale` and `intensity`, and the card-drop dust becomes a def
 
 **What changed.** `PlayDefOptions` gains two multipliers — **`scale`** (geometry) and **`intensity`**

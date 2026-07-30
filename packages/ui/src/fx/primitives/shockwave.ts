@@ -190,6 +190,12 @@ const SPECS = {
   },
   speed: {
     kind: 'slider', label: 'Speed', group: 'Ring', min: 0.1, max: 3, step: 0.05, default: 0.9, essential: true,
+    // The only `timeInverse` param in the library, and the reason that flavour exists. A shockwave has no
+    // duration param at all: one expansion takes `1 / speed` seconds, so this IS the effect's clock. Left off
+    // the time axis, a stretched layer window would hold an empty quad open long after the rings had finished
+    // (or, looping, run extra cycles); ×1/time lengthens the period with everything else, which is exactly
+    // what `impactPulse`'s per-call `life` multiplier meant.
+    axis: 'timeInverse',
     help: 'Expansions per second.',
   },
   thickness: {

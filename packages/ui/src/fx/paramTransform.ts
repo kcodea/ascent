@@ -5,7 +5,7 @@ import type { FxParamSpecs } from './params';
  *
  * Two callers, both of which need EXACTLY this and must never drift from each other:
  *   • `presets/applyVariant.ts` — the authoring-time variant axes ("Bigger", "Faster") in the preset gallery.
- *   • `scaleDef.ts` — the per-call `scale` / `intensity` a `playDef` caller passes at runtime.
+ *   • `scaleDef.ts` — the per-call `scale` / `intensity` / `time` a `playDef` caller passes at runtime.
  * `applyVariant` had all of it inline first; this module is that logic lifted out unchanged so the runtime
  * path could reuse it rather than grow a second, subtly different copy of the clamp/snap/guard rules.
  *

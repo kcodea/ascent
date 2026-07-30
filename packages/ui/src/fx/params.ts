@@ -33,10 +33,18 @@ export type FxParamDependency = {
 };
 
 /**
- * The two per-call axes a `playDef` caller can dial (`PlayDefOptions.scale` / `.intensity`), and which a
- * param declares itself to respond to. See {@link FxParamMeta.axis} and `scaleDef.ts`.
+ * The per-call axes a `playDef` caller can dial (`PlayDefOptions.scale` / `.intensity` / `.time`), and which
+ * a param declares itself to respond to. See {@link FxParamMeta.axis} and `scaleDef.ts`.
+ *
+ * Three DIALS, four declarations: `time` has two, because the time axis is the only one whose quantities come
+ * in both flavours. A param measured in milliseconds rides it directly (`'time'`, ×k); a param measured in
+ * *per second* — whose PERIOD is the duration — has to ride it inversely (`'timeInverse'`, ×1/k) or the thing
+ * it drives finishes at the same moment however far the rest of the effect is stretched. There is no
+ * equivalent for `scale`, and deliberately so: `turbScale`/`noiseScale` are 1/px and would want exactly this
+ * treatment, but nobody has asked for an inverse-geometry caller, and inventing one speculatively is how a
+ * two-dial system becomes a six-dial one.
  */
-export const FX_SCALE_AXES = ['scale', 'intensity'] as const;
+export const FX_SCALE_AXES = ['scale', 'intensity', 'time', 'timeInverse'] as const;
 export type FxScaleAxis = (typeof FX_SCALE_AXES)[number];
 
 /** Fields every spec carries regardless of `kind`. Intersected onto the union below rather than repeated in
@@ -68,6 +76,17 @@ type FxParamMeta = {
    *  - `'intensity'` — QUANTITY. How many things there are: a particle count, an emission rate, a ring count.
    *    Nothing else — "more intense" must never be a licence to also brighten, lengthen or enlarge, or two
    *    callers dialling the same number get two unrelated effects.
+   *  - `'time'` — a DURATION in milliseconds: a particle lifetime, a repeat interval. `time: 2` means the
+   *    effect LASTS twice as long **at the same velocities**, so its particles travel twice as far. That is
+   *    what makes it a different dial from `PlayDefOptions.speed`, which rescales the whole playback clock
+   *    and therefore slows the motion down to cover the same ground. Because velocities are preserved, a
+   *    px-per-second param (`speed`, `gravity`, ribbon `drain`, a spin rate) must NOT declare it — those are
+   *    `scale`'s, and holding them still is the entire point.
+   *  - `'timeInverse'` — a PER-SECOND rate whose period is the thing being stretched (shockwave `speed` is
+   *    "expansions per second", so one expansion takes `1 / speed`). Multiplied by **1/time**, so the period
+   *    lengthens with everything else. Only for a rate that IS the effect's clock: an animation rate that
+   *    merely decorates the surface (texture `scroll`, ribbon `waveSpeed`) rides neither, for the same reason
+   *    `scale` leaves the material alone.
    *
    * Only a `kind: 'slider'` param may declare an axis — no other kind has the `min`/`max`/`step` the
    * multiply needs to stay legal. `validateSpecs` rejects it anywhere else.

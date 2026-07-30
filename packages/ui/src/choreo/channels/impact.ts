@@ -1,12 +1,27 @@
 import gsap from 'gsap';
 import { sfx } from '../../sfx';
 import { pixiFx } from '../../pixiFx';
+import { playDef } from '../../fx/playDef';
 import { setTransition } from './lunge';
 
 /** Map an attack's swing damage → the impact's `power` scale (1 = baseline). Ramps gently: a 1-3 dmg chip
  *  stays at the familiar burst, ~8 dmg reads clearly heavier, and it caps at 2× so a 40-damage finisher
  *  doesn't whiteout the board. */
 export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8 + swing / 10));
+
+/**
+ * How a swing's `power` reaches the `impact-dust` def: as `playDef`'s per-call **`intensity`**, i.e. the
+ * particle COUNT. Exactly what the hand-written `pixiFx.impactDust` did with it — `impDustCount * (0.8 +
+ * 0.2 * power)` — with the base count now authored in the def (22, the old `impDustCount` default), so this
+ * is only the multiplier. A baseline hit is 1.0 and the 2× damage cap lands at 1.2.
+ */
+export const dustIntensity = (power: number): number => 0.8 + 0.2 * power;
+
+/** The tan billow at a strike point — the authored `impact-dust` def, migrated out of `pixiFx.impactDust`.
+ *  Three of the four branches below fire it, so it is one call rather than three. */
+function strikeDust(x: number, y: number, power: number): void {
+  playDef('impact-dust', { source: { x, y }, target: { x, y } }, { intensity: dustIntensity(power) });
+}
 
 /**
  * Impact channel (choreographer phase 3b) — the melee "smack": the hit sound, the WebGL flash + spark spray +
@@ -49,7 +64,7 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
     // takes no direction — it plays the same left→right animation whichever way the attacker swung, because
     // mirroring it would flip the claws' hook (see cleaveSlash).
     pixiFx.cleaveSlash(r.left + r.width / 2, r.top + r.height / 2);
-    pixiFx.impactDust(fx.x, fx.y, power);
+    strikeDust(fx.x, fx.y, power);
   } else if (flurrySlash) {
     // Flurry REPLACES the standard strike VFX with the wind-slash gust so a Flurry attacker's hits read as
     // wind — and it WINS even on a CRIT (a Flurry crit shows the wind-slash, not the crimson flourish; owner
@@ -59,10 +74,10 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   } else if (crit) {
     // The crit REPLACES the normal impact burst with its own amplified flourish; the dust billow still reads.
     pixiFx.critImpact(fx.x, fx.y, dx, dy, { x: r.left, y: r.top, w: r.width, h: r.height });
-    pixiFx.impactDust(fx.x, fx.y, power);
+    strikeDust(fx.x, fx.y, power);
   } else {
     pixiFx.impact(fx.x, fx.y, dx, dy, power);
-    pixiFx.impactDust(fx.x, fx.y, power); // card-drop-style tan billow from the strike point
+    strikeDust(fx.x, fx.y, power); // card-drop-style tan billow from the strike point
     pixiFx.impactPulse(fx.x, fx.y, power); // expanding energy ring(s) from the strike point
   }
   gsap.killTweensOf(defender);

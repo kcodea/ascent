@@ -46,7 +46,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **Removed the dead "Shield Place" tuner.** The DEV panel had outlived its consumer: `syncShields` is gone and
   Ward/Reborn are CSS dome stacks, so dragging its slider only wrote a localStorage value nothing read. Its one
-  knob — the dome's vertical offset — is already live in the 🔵 Ward Dome tuner as `domeY`.
+  knob — the dome's vertical offset — is already live in the 🔵 Ward Dome tuner as `domeY`. Also ESLint-ignores
+  `.claude/**`, so locally-installed agent plugins stop making `npm run lint` red on a clean tree (78 → 0).
 
 - **Fixed hand cards growing and overlapping** - the hand "make room" glide was baking the hover
   zoom into card width; it is reverted until it can be done transform-safely.

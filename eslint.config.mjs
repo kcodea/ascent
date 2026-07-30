@@ -25,7 +25,11 @@ const banMathRandom = {
 export default tseslint.config(
   // `apps/desktop/release/**` is packaged build output (a copy of main.cjs plus the whole Electron
   // runtime) — linting it reports the same findings twice and would fail on vendored code.
-  { ignores: ['**/node_modules/**', '**/dist/**', '**/*.tsbuildinfo', 'apps/desktop/release/**'] },
+  // `.claude/**` is per-machine agent tooling: locally-installed plugins/skills and worktrees, all
+  // gitignored. CI never sees it, so linting it only produces errors in OUR shells that no PR can fix
+  // (and that drown out real findings) — a dev with a plugin installed would get a red `npm run lint`
+  // on a clean tree.
+  { ignores: ['**/node_modules/**', '**/dist/**', '**/*.tsbuildinfo', 'apps/desktop/release/**', '.claude/**'] },
   ...tseslint.configs.recommended,
   {
     // Electron's main process is CommonJS: it is loaded by Electron itself, not bundled, so `require` is the

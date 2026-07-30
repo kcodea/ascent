@@ -38,8 +38,16 @@ rather than ported — porting a panel that does nothing would only make dead co
 that batch (Motion Trail, Damage Float, Step Counter, Card Plate, Execute Aura, Reposition Slide) is verified
 live.
 
-**Verified:** `npm run typecheck` + `npm run typecheck:web` + `npm test` + `npm run build:web` all green, and a
-repo-wide grep for `ShieldTuner` / `shieldConfig` / `ascent:shieldcfg` returns no hits outside the devlog.
+**Also: `.claude/**` is now ESLint-ignored.** Flushing this out surfaced that a bare `npm run lint` was red on a
+clean tree — 78 errors, every one from `.claude/skills/impeccable/**`, a locally-installed agent plugin. That
+directory is per-machine tooling (plugins, skills, worktrees) and is gitignored, so CI never lints it: the errors
+existed only in our shells, no PR could fix them, and they buried the real findings. Added `.claude/**` to the
+`ignores` list in `eslint.config.mjs` alongside `node_modules` / `dist` / `apps/desktop/release`. `npm run lint`
+goes 78 errors → **0**, leaving the 6 pre-existing unused-import warnings.
+
+**Verified:** `npm run typecheck` + `npm run typecheck:web` + `npm run lint` + `npm test` + `npm run build:web`
+all green, and a repo-wide grep for `ShieldTuner` / `shieldConfig` / `ascent:shieldcfg` returns no hits outside
+the devlog.
 
 ## 2026-07-31 — cards, chips and rows get a commit state, and the press gets its sound
 

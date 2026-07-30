@@ -525,6 +525,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
 z.object({ kind: z.literal('tribeRallySlaughterExtra'), tribe: TribeSchema }).strict(),
 z.object({ kind: z.literal('aleExtraCasts'), amount: z.number().int().positive().optional() }).strict(),
+z.object({ kind: z.literal('questGoldTribeBuff'), tribe: TribeSchema, per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
   z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles']) }).strict(),

@@ -620,3 +620,45 @@ describe('the run-wide Ale multiplier (Bottomless Cellar / Rune of the Bottomles
     expect(r.sets).toEqual(['set2']);
   });
 });
+
+describe('The Golden Ledger (Dwarf quest)', () => {
+  /**
+   * `spendGold` is private to the reducer, so these drive REAL purchases — which is the honest test anyway: the
+   * payout must survive the actual shop path, not a hand-rolled call.
+   */
+  const armed = (): RunState => ({
+    ...set2(),
+    embers: 20,
+    board: [body('dw_brunni', 'd'), { ...body('dw_brakka', 'b'), cardId: 'pack', tribe: 'beast' as const, uid: 'b' }],
+    questGoldTribeBuff: { tribe: 'dwarf', per: 5, attack: 3, health: 3, tick: 0 },
+  } as RunState);
+  const atk = (s: RunState, uid: string): number => s.board.find((x) => x.uid === uid)!.attack;
+
+  it('banks the remainder, then pays out once the threshold is crossed', () => {
+    // A per-transaction rule would pay on every buy; a non-banking one would never pay for small buys. Two buys
+    // of 3 Gold must pay exactly once at 5.
+    let s = armed();
+    const base = atk(s, 'd');
+    s = reduce(s, { type: 'roll' });                       // 1 Gold
+    expect(atk(s, 'd'), 'paid out below the threshold').toBe(base);
+    for (let i = 0; i < 5; i++) s = reduce(s, { type: 'roll' }); // 6 Gold total → one payout
+    expect(atk(s, 'd'), 'never paid out after crossing 5 Gold').toBe(base + 3);
+  });
+
+  it('buffs Dwarves only — a Beast on the same board is untouched', () => {
+    let s = armed();
+    const beastBefore = atk(s, 'b');
+    for (let i = 0; i < 6; i++) s = reduce(s, { type: 'roll' });
+    expect(atk(s, 'd')).toBeGreaterThan(CARD_INDEX['dw_brunni']!.attack);
+    expect(atk(s, 'b'), 'a Beast was buffed by a Dwarf reward').toBe(beastBefore);
+  });
+
+  it('is a set-2 Dwarf quest with a 5-Gold threshold', () => {
+    const q = QUEST_DEFS.find((x) => x.id === 'q_golden_ledger')!;
+    expect(q.sets).toEqual(['set2']);
+    const r = q.reward as { kind: string; per?: number; tribe?: string };
+    expect(r.kind).toBe('questGoldTribeBuff');
+    expect(r.per).toBe(5);
+    expect(r.tribe).toBe('dwarf');
+  });
+});

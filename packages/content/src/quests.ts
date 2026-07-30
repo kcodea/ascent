@@ -130,6 +130,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_war_council', name: 'War Council', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'attack', count: 18, tribe: 'dwarf' }, reward: { kind: 'tribeRallySlaughterExtra', tribe: 'dwarf' }, sets: ['set2'] },
   { id: 'q_open_tab', name: 'Open Tab', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 14 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' }, sets: ['set2'] },
   { id: 'q_bottomless_cellar', name: 'Bottomless Cellar', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'castSpell', count: 15 }, reward: { kind: 'aleExtraCasts', amount: 1 }, sets: ['set2'] },
+  { id: 'q_golden_ledger', name: 'The Golden Ledger', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'slaughter', count: 16, tribe: 'dwarf' }, reward: { kind: 'questGoldTribeBuff', tribe: 'dwarf', per: 5, attack: 3, health: 3 }, sets: ['set2'] },
 ];
 
 export const QUEST_INDEX: Record<string, QuestDef> = Object.fromEntries(

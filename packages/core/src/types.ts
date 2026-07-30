@@ -746,6 +746,8 @@ export type QuestReward =
   | { kind: 'tribeRallySlaughterExtra'; tribe: Tribe }
   /** "Your Dwarven Ales trigger an additional time" — run-wide, additive with Edward Keg-hands. */
   | { kind: 'aleExtraCasts'; amount?: number }
+  /** "Every N Gold spent, give your <tribe> +X/+X" — threshold-based and tribe-scoped. */
+  | { kind: 'questGoldTribeBuff'; tribe: Tribe; per: number; attack: number; health: number }
   // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,
   // stacks like Drakko); `firstEachRound` makes the FIRST Shout you play each turn trigger twice (Warm Embers).
   | { kind: 'shoutRepeat'; scope: 'always' | 'firstEachRound' }

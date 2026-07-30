@@ -45,6 +45,17 @@ function spendGold(s: RunState, amount: number): void {
       conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), 1);
     }
   }
+  // The Golden Ledger: every `per` GOLD spent, your tribe gains stats. Threshold-based, unlike Rune of Bulk
+  // Order below which pays per transaction — so a run can hold both and they don't collide. The remainder banks
+  // in `tick`, so two small buys pay out exactly as one big one does.
+  if (s.questGoldTribeBuff && amount > 0) {
+    const g = s.questGoldTribeBuff;
+    g.tick += amount;
+    while (g.tick >= g.per) {
+      g.tick -= g.per;
+      for (const c of s.board) if (isTribe(c, g.tribe)) addBuff(c, 'The Golden Ledger', g.attack, g.health);
+    }
+  }
   // Rune of Scale (Epic): each Gold-spend gives `count` random board minions +atk/+hp. Once per spend transaction
   // (a buy / roll / tier-up / hero power), not per Gold. Seeded off the run's RNG cursor.
   if (s.runeScale && amount > 0 && s.board.length > 0) {
@@ -2828,6 +2839,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'pitWithoutEnd') s.pitWithoutEndImps = r.amount ?? 0; // amount = Imps on board wipe
       else if (r.flag === 'assemblyLine') s.questFlags.assemblyLine = r.amount ?? 4; // Avenge N → a Money Bot to hand
       else s.questFlags[r.flag] = true;
+      break;
+    case 'questGoldTribeBuff':
+      s.questGoldTribeBuff = { tribe: r.tribe, per: r.per, attack: r.attack, health: r.health, tick: 0 };
       break;
     case 'aleExtraCasts':
       s.aleExtraCasts = (s.aleExtraCasts ?? 0) + (r.amount ?? 1);

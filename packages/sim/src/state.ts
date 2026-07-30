@@ -875,6 +875,9 @@ export interface RunState {
   /** Bottomless Cellar / Rune of the Bottomless Cask: extra times your Dwarven ALES cast, run-wide. Stacks
    *  ADDITIVELY with Edward Keg-hands, who is a board presence rather than a run flag. */
   aleExtraCasts?: number;
+  /** The Golden Ledger: every `per` Gold spent, your `tribe` gains +attack/+health. `tick` banks the remainder
+   *  across turns, so a 4-Gold buy followed by a 1-Gold buy pays out exactly once. */
+  questGoldTribeBuff?: { tribe: Tribe; per: number; attack: number; health: number; tick: number };
   /** War Council: the tribe whose Rallies and Slaughters trigger an extra time. */
   questTribeRallySlaughter?: Tribe;
   questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles')[];

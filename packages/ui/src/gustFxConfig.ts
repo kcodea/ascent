@@ -112,6 +112,9 @@ export const GUSTFX_RANGES: Partial<Record<keyof GustFxConfig, [number, number, 
   coreAlpha: [0, 1, 0.05], glowWidth: [0, 48, 1], glowAlpha: [0, 1, 0.05], taper: [0, 1, 1],
 };
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as GUSTFX_DEFAULTS };
+
 const KEY = 'ascent.gustfx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: GustFxConfig = (() => {

@@ -108,6 +108,9 @@ export const WELDFX_RANGES: Partial<Record<keyof WeldFxConfig, [number, number, 
 /** Fixed gold palette — a weld reads as forge-work, not a tribe buff (owner brief: yellow/glow/spark). */
 export const WELD_COLORS = { colorRing: '#ffd766', colorFlash: '#fff2b8', colorSpark: '#fef962' };
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as WELDFX_DEFAULTS };
+
 const KEY = 'ascent.weldfx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: WeldFxConfig = (() => {

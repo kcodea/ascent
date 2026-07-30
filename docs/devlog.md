@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-07-29 — chore(ui): delete the dead "Shield Place" tuner
+
+**A DEV panel that looked functional and did nothing.** `ShieldTuner` was the last survivor of the Pixi
+aura-bubble system: it tuned `shieldConfig.recruitDy`, a vertical nudge for the divine-shield / reborn bubble on
+recruit cards, read by `syncShields` on each reconcile. `syncShields` was deleted when Ward and Reborn became CSS
+dome stacks in `Card.tsx` — and the tuner was never removed with it. What was left:
+
+- `shieldConfig.ts` exported `SHIELD_RANGES` / `SHIELD_DESC` / `SHIELD_KEYS` / `getShieldConfig` /
+  `setShieldValue` / `resetShieldConfig` and, tellingly, **no `apply*Vars()`** — every other CSS-driven tuner
+  config (`freezeConfig`, `stepCounterConfig`, `floatConfig`) has one that writes custom properties onto
+  `:root`. `shieldConfig` wrote nothing anywhere. `getShieldConfig` had no caller outside its own tuner.
+- `ShieldTuner.tsx` dispatched `window.dispatchEvent(new Event('ascent:shieldcfg'))` after every set and reset
+  to force the (deleted) re-sync. **Nothing listened.** The dispatch, the config, and the panel formed a closed
+  loop: dragging the slider persisted a number to `localStorage` that no code on any path ever read.
+- Its doc comment still described `syncShields` reading the config each reconcile — documentation for a
+  function that no longer exists.
+
+**Deleted rather than rewired**, because the rewire target already ships. `wardConfig.ts` + `WardTuner.tsx`
+(🔵 Ward Dome) are the live CSS-var replacement — `applyWardVars()` writes the properties the dome CSS consumes,
+and its **"Bubble box"** group exposes `domeW` / `domeH` / `domeX` / `domeY`. `domeY` *is* the dome's vertical
+offset, i.e. the exact knob `recruitDy` claimed to provide, except it works. Adding an `applyShieldVars()` would
+have built a second, competing control for one property.
+
+**Changed:** removed `packages/ui/src/ShieldTuner.tsx` and `packages/ui/src/shieldConfig.ts`; dropped the
+`{ key: 'shield', label: '🛡 Shield Place' }` entry and its import from `DevMenu.tsx`'s `TUNERS`. No CSS to
+remove — the panel borrowed the shared `sfxmix lunge flip` classes. The roadmap's dead-code-purge entry loses
+the `shieldConfig`/`ShieldTuner` clause; the orphaned `pixiFx.setShield` / `clearShield` / `setShieldsVisible` /
+`shieldLayer` / `hasAura` half of that item still stands.
+
+**Stale localStorage left behind** (harmless, never read again, listed so a future keyspace sweep can find it):
+`ascent.shield` (the config itself) and `ascent.devpanel.shield` (the panel's saved position/size from
+`useDraggablePanel('shield')`).
+
+**Context:** found during the dev-tuner schema migration (#751), where ShieldTuner was deliberately *skipped*
+rather than ported — porting a panel that does nothing would only make dead code look maintained. The rest of
+that batch (Motion Trail, Damage Float, Step Counter, Card Plate, Execute Aura, Reposition Slide) is verified
+live.
+
+**Verified:** `npm run typecheck` + `npm run typecheck:web` + `npm test` + `npm run build:web` all green, and a
+repo-wide grep for `ShieldTuner` / `shieldConfig` / `ascent:shieldcfg` returns no hits outside the devlog.
+
 ## 2026-07-31 — cards, chips and rows get a commit state, and the press gets its sound
 
 **The click cue moved from one screen to all of them.** The title column had its own delegated `pointerdown`
@@ -2019,6 +2060,7 @@ the REAL objective path — a real buy, a real Ruby cast — rather than reachin
 Still to go: 13 quests — Dragon (Runic Refrain, The Endless Verse, The Sealed Vault), Demon (Bane's Presence,
 Stock the Shelves, The Burning Legion, Endless Inventory, Bottomless Banquet), Kobold (Candlelight Toll,
 Motherlode, Heart of the Mountain), Dwarf (The Company Store), Neutral (Martial Training — BLOCKED, see below).
+
 
 ## 2026-07-29 — The Dwarf roster is complete (tranche C)
 

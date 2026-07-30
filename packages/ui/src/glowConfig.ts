@@ -76,6 +76,8 @@ export const GLOW_DESC: Record<keyof GlowConfig, string> = {
 /** Keys grouped by control type for the tuner UI. */
 export const GLOW_NUM_KEYS = ['width', 'height', 'lineBlur', 'lineAlpha', 'bloomBlur', 'bloomAlpha', 'bloomStrength'] as const;
 export const GLOW_COLOR_KEYS = ['lineColor', 'bloomColor'] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as GLOW_DEFAULTS };
 
 const KEY = 'ascent.glow';
 let cfg: GlowConfig = (() => {

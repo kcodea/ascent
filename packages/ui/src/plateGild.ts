@@ -147,6 +147,8 @@ export const PG_DESC: Record<string, string> = {
 };
 export const PG_NUM_KEYS = Object.keys(PG_RANGES);
 export const PG_COLOR_KEYS = ['cDeep', 'cMid', 'cCore'] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as PG_DEFAULTS };
 export const PG_FLOURISHES = ['rays', 'crown', 'seal', 'rings', 'none'] as const;
 
 const KEY = 'ascent.plategild';

@@ -83,6 +83,9 @@ export type CardTextNumKey = Exclude<keyof CardTextConfig, 'boxBlend'>;
 export const CTX_KEYS = (Object.keys(DEFAULTS) as (keyof CardTextConfig)[])
   .filter((k): k is CardTextNumKey => k !== 'boxBlend');
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as CTX_DEFAULTS };
+
 const KEY = 'ascent.cardtext';
 let cfg: CardTextConfig = (() => {
   if (!import.meta.env.DEV) return { ...DEFAULTS };

@@ -32,7 +32,7 @@ export type TunerUnit =
   | 'cards';  // a count of card widths
 
 /** How a control is presented. `range` is the overwhelming majority; the rest exist so the odd ones fit too. */
-export type TunerControlKind = 'range' | 'color' | 'toggle';
+export type TunerControlKind = 'range' | 'color' | 'toggle' | 'select';
 
 export interface TunerControl<K extends string = string> {
   /** The config key this control writes. */
@@ -65,6 +65,12 @@ export interface TunerControl<K extends string = string> {
   offValue?: number;
   /** Optional words shown instead of the raw number, e.g. `['cracked', 'dulled']`. */
   onOffLabels?: [string, string];
+  /**
+   * For `kind: 'select'` only — the allowed STRING values. A handful of configs store a named choice rather
+   * than a number (a CSS blend mode, which flourish the gild plays), and a slider cannot express that. Options
+   * are written through `writeText`, not `write`, because the value is not a number.
+   */
+  options?: readonly string[];
 }
 
 /**
@@ -110,14 +116,20 @@ export interface TunerSpec<C extends object> {
    */
   id: string;
   title: string;
-  /** The small right-hand note in the header (e.g. "dev · next move · drag"). */
-  note?: string;
+  /**
+   * The small right-hand note in the header (e.g. "dev · next move · drag"). A FUNCTION when the note is
+   * derived from the current values and must re-read on every render: the plate-gild tuner shows the effect's
+   * computed total, which its own controls bend in two directions — `crownLead` overlaps the crown into the
+   * fuse and SHORTENS the run, while a flourish longer than its beat EXTENDS it. A static string there would
+   * be a lie the moment you moved a slider.
+   */
+  note?: string | (() => string);
   controls: TunerControl<Extract<keyof C, string>>[];
   /** Live read of the config module's current values. */
   read: () => C;
   /** Write one value through the config module's own setter, so its persistence stays authoritative. */
   write: (key: Extract<keyof C, string>, value: number) => void;
-  /** Same, for `kind: 'color'` controls. Required only by panels that declare one. */
+  /** Same, for `kind: 'color'` and `kind: 'select'` controls — both write a string. */
   writeColor?: (key: Extract<keyof C, string>, value: string) => void;
   /** Reset via the config module's own reset, so it clears the same storage key it wrote. */
   reset: () => void;

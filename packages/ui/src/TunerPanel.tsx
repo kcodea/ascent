@@ -60,7 +60,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
     <div className="sfxmix tunerpanel" ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>
         {spec.title}
-        {spec.note && <span>{spec.note}</span>}
+        {spec.note && <span>{typeof spec.note === 'function' ? spec.note() : spec.note}</span>}
       </div>
 
       {/* Preview switches sit ABOVE the controls and wear their own row style, because they change what you
@@ -84,6 +84,34 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         <div className="tuner-section" key={groupTitle ?? '__ungrouped'}>
           {groupTitle && <div className="tuner-gh">{groupTitle}</div>}
           {controls.map((c) => {
+            if (c.kind === 'select') {
+              const current = String(cfg[c.key]);
+              const shippedSel = spec.defaults ? String(spec.defaults[c.key]) : undefined;
+              return (
+                <div className="sfxmix-row tuner-row tuner-row-select" key={c.key}>
+                  <span className="sfxmix-name" title={c.hint}>
+                    {c.label}
+                    {shippedSel !== undefined && current !== shippedSel && (
+                      <button
+                        className="tuner-mod"
+                        onClick={() => { spec.writeColor?.(c.key, shippedSel); rerender(); }}
+                        title={`Changed from the shipped “${shippedSel}” — click to put it back`}
+                        aria-label={`Revert ${c.label} to ${shippedSel}`}
+                      >●</button>
+                    )}
+                  </span>
+                  <select
+                    value={current}
+                    aria-label={c.label}
+                    onChange={(e) => { spec.writeColor?.(c.key, e.target.value); rerender(); }}
+                  >
+                    {(c.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <span className="sfxmix-val" />
+                </div>
+              );
+            }
+
             if (c.kind === 'color') {
               const hex = String(cfg[c.key]);
               const shippedHex = spec.defaults ? String(spec.defaults[c.key]) : undefined;

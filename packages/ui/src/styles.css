@@ -4214,6 +4214,12 @@ svg { width: 18px; height: 18px; }
 .tunerpanel .tuner-row-toggle { grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 82px; }
 .tunerpanel .tuner-row-toggle input[type="checkbox"] { margin: 0; justify-self: start; cursor: pointer; accent-color: var(--acc); }
 .tunerpanel .tuner-toggleval { font-size: 10px; color: var(--acc-dk); font-weight: 800; text-align: left; }
+/* A named choice (a blend mode, which flourish to play) — a slider cannot express it. */
+.tunerpanel .tuner-row-select { grid-template-columns: minmax(96px, 1.3fr) 1fr 28px; }
+.tunerpanel .tuner-row-select select { width: 100%; min-width: 0; padding: 2px 4px; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--bg2); color: var(--ink); font-family: var(--font-ui); font-weight: 700;
+  font-size: 11px; cursor: pointer; }
+.tunerpanel .tuner-row-select select:focus { outline: none; border-color: var(--acc); background: var(--card); }
 /* Per-control caveat marker — hover it for the reason. Muted so it reads as an aside, not an error. */
 .tunerpanel .tuner-note { margin-left: 4px; color: var(--ink3); font-size: 10px; cursor: help; vertical-align: super; }
 /* Preview switches. Deliberately NOT styled as a control row: they pin a transient state so it can be tuned,

@@ -83,6 +83,9 @@ export const BFD_NUM_KEYS = [
   'bodyX', 'bodyY', 'bodyS', 'minW', 'textS', 'titleS',
 ] as const;
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as BFD_DEFAULTS };
+
 const KEY = 'ascent.buffdrawer';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).
 let cfg: BuffDrawerConfig = (() => {

@@ -594,10 +594,10 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_brisbane',
-    name: 'Rune of Brisbane',
+    name: 'Rune of High King Mykel',
     cost: 5,
     epic: true,
-    text: 'Get a **Brisbane**.',
+    text: 'Get a **High King Mykel**.',
     reward: { kind: 'grant', cards: ['dw_brisbane'] },
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },

@@ -1212,7 +1212,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Guildhall Chef: when you play a minion of `tribe`, buff `count` of them — magnitude IMPROVED by each Ale
+  /** Chef Gary Toast: when you play a minion of `tribe`, buff `count` of them — magnitude IMPROVED by each Ale
    *  cast this turn, so the Ale engine feeds it. Reads the tally live, so the printed number must fold it in. */
   onPlayTribeBuffTribeByAles: (ctx, self, params) => {
     const tribe = str(params.tribe);
@@ -2821,7 +2821,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /**
-   * Brisbane (Rune) — every `every` spells you cast, trigger an ADJACENT Shout.
+   * High King Mykel (Rune) — every `every` spells you cast, trigger an ADJACENT Shout.
    *
    * Rides the `spellCast` event with a per-instance tally (`spellProgress`), which is how every other "every N
    * spells" card counts, so the meter carries round to round rather than resetting when a turn ends mid-progress.
@@ -3164,9 +3164,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  card tier is ≤ the spell's `targetMaxTier`. Doubles the BASE stats via a tracked 'Gild' buff (accrued
    *  buffs are NOT doubled — see `gildMinion`) + flips golden. Cap read from the spell def via `_maxTier`. */
   spellGildTarget: (ctx, self, params) => {
-    const limit = num(params._maxTier, maxTierFor(ctx.state.rift));
+    // NO CAP unless the spell declares one (owner bug report 2026-07-29). This defaulted to
+    // `maxTierFor(state.rift)` — 6 in a normal run — so gilding a TIER 7 minion silently did nothing:
+    // Goldcrafter and Eyes of Aresmar both refused them, which is exactly the "T7s can't be goldened" report.
+    // The cap exists for Oner's Gild (`targetMaxTier: 4`), a deliberate restriction on a cheap spell; a spell
+    // with no declared cap was always meant to have none, as its own comment says.
+    const declared = params._maxTier;
     const targetTier = CARD_INDEX[self.cardId]?.tier ?? 1;
-    if (self.golden || targetTier > limit) return;
+    if (self.golden) return;
+    if (declared !== undefined && targetTier > num(declared, 7)) return;
     gildMinion(self);
   },
 
@@ -5144,7 +5150,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
   // re-record (spellsThisTurn is nonzero by then).
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
-  // Set 2 — Guildhall Chef reads "Ales triggered this turn", so the tally lives with the other per-turn counters.
+  // Set 2 — Chef Gary Toast reads "Ales triggered this turn", so the tally lives with the other per-turn counters.
   if (ALE_IDS.includes(spellDef.id)) state.alesCastThisTurn = (state.alesCastThisTurn ?? 0) + 1;
   // Scalefeather Drake: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it
   // catches every cast path once; the wave gate makes "next turn" exact — a charge armed in this turn's combat

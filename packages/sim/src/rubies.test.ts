@@ -168,7 +168,7 @@ describe('Ruby engine (set 2)', () => {
     s = reduce(s, { type: 'play', uid: 'ab' }); // Shout: your Rubies +1/+1
     expect(s.rubyBonus).toMatchObject({ attack: 1, health: 1 });
     const before = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
-    applyEndOfTurn(s); // EoT: play a Ruby (2/2 with the bonus) on a Kobold (Brisbane itself)
+    applyEndOfTurn(s); // EoT: play a Ruby (2/2 with the bonus) on a Kobold (High King Mykel itself)
     expect(s.board.reduce((sum, c) => sum + c.attack + c.health, 0)).toBe(before + 4);
   });
 

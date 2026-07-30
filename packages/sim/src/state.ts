@@ -374,7 +374,7 @@ export interface RunState {
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */
   goldSpentThisTurn?: number;
-  /** Set 2 — Ales CAST this turn (Guildhall Chef scales off it). Reset with the other per-turn tallies. */
+  /** Set 2 — Ales CAST this turn (Chef Gary Toast scales off it). Reset with the other per-turn tallies. */
   alesCastThisTurn?: number;
   /** Set 2 — cards PLAYED this run, cumulative. Mountainbond's "after you play 8 cards" is a running total, not
    *  a per-turn one, so it can't ride `playedThisTurn` (which clears every turn). */
@@ -769,7 +769,7 @@ export interface RunState {
    *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
   shoutExtraAlways?: number;
-  /** Set 2 — Elderhorn, the First Roar (Choose One). Extra fires its chosen mode grants to BEAST triggers:
+  /** Set 2 — Elderhorn (Choose One). Extra fires its chosen mode grants to BEAST triggers:
    *  `beastHuntExtra` covers Rallies + Slaughters (Hunt), `beastRitualExtra` covers Echoes (Ritual). Golden
    *  grants 2 instead of 1 per mode. Run-level so they survive combats, passed into the fight via
    *  `CombatSideState` (the same route `handSpellIds` takes). Absent = 0. */

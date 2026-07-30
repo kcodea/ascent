@@ -473,8 +473,8 @@ export type EffectFactoryId =
   | 'echoSummonInheritAttackAndCharge' // Set 2 Dwarves (combat)
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
-  | 'onPlayTribeBuffTribeByAles' // Set 2 Dwarves — Guildhall Chef
-  | 'spellCastTriggerAdjacentShouts' // Set 2 Dwarves — Brisbane // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
+  | 'onPlayTribeBuffTribeByAles' // Set 2 Dwarves — Chef Gary Toast
+  | 'spellCastTriggerAdjacentShouts' // Set 2 Dwarves — High King Mykel // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn

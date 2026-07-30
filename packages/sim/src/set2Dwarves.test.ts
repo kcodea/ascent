@@ -248,7 +248,7 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.bonusEmbersNextTurn).toBe(1);
   });
 
-  it('Guildhall Chef climbs with Ales cast this turn', () => {
+  it('Chef Gary Toast climbs with Ales cast this turn', () => {
     // Base +3/+3; each Ale cast this turn adds +1. Two Ales → +5/+5.
     const chefBuff = (ales: number): number => {
       let s = set2();
@@ -301,7 +301,7 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'no Ruby landed').toBeGreaterThan(before);
   });
 
-  it('Brisbane triggers an adjacent Shout every 8 spells, carrying the meter across turns', () => {
+  it('High King Mykel triggers an adjacent Shout every 8 spells, carrying the meter across turns', () => {
     // Neighbour is Doubletap Brewer, whose Shout grants an Ale — an observable payload.
     let s = set2();
     s = { ...s, board: [body('dw_brewer', 'left'), body('dw_brisbane', 'b')], hand: [] };
@@ -341,7 +341,7 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     ['Rune of Lazarus', 'lazarus'],
     ['Rune of the High King', 'dw_brill'],
     ['Rune of Exgalloper', 'dw_exgalloper'],
-    ['Rune of Brisbane', 'dw_brisbane'],
+    ['Rune of High King Mykel', 'dw_brisbane'],
   ])('%s grants %s', (name, cardId) => {
     const rune = all.find((r) => r.name === name);
     expect(rune, `${name} is missing`).toBeDefined();
@@ -366,5 +366,41 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     for (const id of ['dw_brill', 'dw_exgalloper', 'dw_brisbane']) {
       expect(buyable.has(id), `${id} is buyable`).toBe(false);
     }
+  });
+});
+
+describe('gilding a Tier 7 minion (owner bug report 2026-07-29)', () => {
+  /**
+   * `spellGildTarget` defaulted its tier cap to `maxTierFor(state.rift)` — 6 in a normal run — so gilding a
+   * TIER 7 minion silently did nothing. Goldcrafter and Eyes of Aresmar both refused them. A declared cap
+   * (Oner's Gild, `targetMaxTier: 4`) is a deliberate restriction and still applies.
+   */
+  const gild = (targetCardId: string, spellId: string): boolean => {
+    const d = CARD_INDEX[targetCardId]!;
+    const spell = CARD_INDEX[spellId]!;
+    let s: RunState = {
+      ...createRun(1, 'drakko'),
+      board: [{ uid: 't', cardId: d.id, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false }],
+      hand: [{ uid: 'sp', cardId: spell.id, tribe: spell.tribe, attack: 0, health: 1, keywords: [], golden: false }],
+    } as RunState;
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 't' });
+    return s.board.find((c) => c.uid === 't')!.golden === true;
+  };
+  const anyT7 = Object.values(CARD_INDEX).find((d) => d && d.tier === 7 && !d.spell && !d.token)!;
+  const anyT3 = Object.values(CARD_INDEX).find((d) => d && d.tier === 3 && !d.spell && !d.token)!;
+
+  it('Goldcrafter gilds a TIER 7 minion', () => {
+    expect(gild(anyT7.id, 'goldcrafter'), `${anyT7.name} could not be gilded`).toBe(true);
+  });
+
+  it('…and still gilds an ordinary minion', () => {
+    expect(gild(anyT3.id, 'goldcrafter')).toBe(true);
+  });
+
+  it('a spell that DECLARES a cap still enforces it', () => {
+    // Oner's Gild caps at Tier 4 on purpose — the fix must not remove a deliberate restriction.
+    const capped = Object.values(CARD_INDEX).find((d) => d && d.spell && d.targetMaxTier !== undefined);
+    if (!capped) return;
+    expect(gild(anyT7.id, capped.id), `${capped.name} ignored its own cap`).toBe(false);
   });
 });

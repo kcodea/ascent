@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, alternatingBuffText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  attackGrantImproveText, perGoldSpentText, rallySpreadText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  attackGrantImproveText, perGoldSpentText, rallySpreadText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -114,7 +114,8 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             stewardText(c.id, p.golden, p.lastSpellName) ??
             tallyBuffText(c.id, p.deathrattlesTriggered, p.golden) ??
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Dorrin: the Health it grants RIGHT NOW
-            guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // per-instance: a shop/hand Guel reads at base
+            guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ??
+            spellThresholdText(c.id, p.golden, p.spellProgress ?? 0) ?? // Mykel: spells remaining until it fires // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
             alternatingBuffText(c.id, p.eotTick ?? 0, p.golden) ?? // Matriarch: name the stat it is giving THIS turn
@@ -217,7 +218,7 @@ export function instView(
       ? ((): ReturnType<typeof stepProgress> => {
           const sp = stepProgress(inst.cardId, {
             spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
-            ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick,
+            ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick, playTick: inst.playTick,
             shoutTick: inst.shoutTick, grimoireCharged: live?.grimoireCharged,
           });
           // Normally a fresh 0/N is hidden as noise (owner ruling). The Living Grimoire is the deliberate

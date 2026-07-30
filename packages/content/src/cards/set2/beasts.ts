@@ -32,7 +32,7 @@ export const SET2_BEASTS: CardDef[] = [
     // actually assembled. Gilded doubles the chosen mode (2 additional triggers), NOT gain-both (owner
     // 2026-07-24) — which is why it does not set `chooseBothWhenGolden` the way Orivax does.
     id: 'b2_elderhorn',
-    name: 'Elderhorn, the First Roar',
+    name: 'Elderhorn',
     tribe: 'beast',
     tier: 7,
     attack: 8,

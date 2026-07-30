@@ -12,8 +12,8 @@ import type { CardDef } from '@game/core';
  *   · Paymaster Pimm    — none, as it turned out: `bonusEmbersNextTurn` already existed and pays at turn start
  *   · Mountainbond      — a new `cardsPlayed` event + `applyCardsPlayed`, the twin of the buy-count meter
  *   · Edward Keg-hands  — an Ale-scoped branch inside `spellCasts`, the one place cast counts are computed
- *   · Guildhall Chef    — `alesCastThisTurn`, reset with the other per-turn tallies
- *   · Brisbane          — a per-instance `spellProgress` threshold reusing Moira's `replayBattlecry` path
+ *   · Chef Gary Toast    — `alesCastThisTurn`, reset with the other per-turn tallies
+ *   · High King Mykel          — a per-instance `spellProgress` threshold reusing Moira's `replayBattlecry` path
  */
 export const SET2_DWARVES: CardDef[] = [
   {
@@ -273,7 +273,7 @@ export const SET2_DWARVES: CardDef[] = [
     // The magnitude climbs with Ales cast this turn, which is what ties the Chef to the tribe's engine rather
     // than making it a generic tribe-buffer.
     id: 'dw_chef',
-    name: 'Guildhall Chef',
+    name: 'Chef Gary Toast',
     tribe: 'dwarf',
     tier: 6,
     attack: 6,
@@ -354,7 +354,7 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     // Dwarf/Dragon — the bridge between the Ale tribe and the spell tribe. Its meter is per-instance and carries
     // round to round, like every other "every N spells" card.
     id: 'dw_brisbane',
-    name: 'Brisbane',
+    name: 'High King Mykel',
     tribe: 'dwarf',
     tribe2: 'dragon',
     tier: 6,
@@ -363,7 +363,7 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastTriggerAdjacentShouts', params: { every: 8 } }],
     token: true, // forge-only: Source = Rune
-    text: 'When you cast **8 spells**, trigger an **adjacent Shout**.',
-    goldenText: 'When you cast **8 spells**, trigger **both adjacent Shouts**.',
+    text: 'When you cast **8 Shop spells**, trigger an **adjacent Shout**.',
+    goldenText: 'When you cast **8 Shop spells**, trigger **both adjacent Shouts**.',
   },
 ];

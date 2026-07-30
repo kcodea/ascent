@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 8: the two Shop carry-backs
+
+- **Rune of the Remains** (basic 3) — every 5 friendly minions summoned in combat buffs the Shop +3/+3.
+- **Rune of Reinvestment** (basic 5) — after combat, the Shop gains +1/+1 per friendly minion summoned. Paid
+  ONCE at settle rather than per summon, so the Shop sees one combined buff instead of a drip.
+
+Both count summons at the single placement chokepoint (`bumpQuestTally('summonCombat', …)`), so a token, a Rise
+and a resummon each count exactly once — counting at the call sites instead would have missed or doubled some.
+Both write `tavernBuyGain` ADDITIVELY; a test holds both runes and asserts the total is the sum, since writing
+rather than adding would have let one silently replace the other.
+
+Tests derive their expectations from the summons the fight actually produced, not from an assumed count — the
+same discipline the Last Call test needed.
+
+**DEFERRED — Rune of Overflow** ("whenever you summon a minion that does not fit, give your minions +4/+4
+permanently"). There is no permanent board-buff carry-back channel in `CombatResult`: combat buffs vanish at
+settle, and the existing carry-backs are all typed (Imps, Beasts, Fodder, tavern, Ruby, spell power, Gold).
+Making "your minions" persist needs a new generic channel, which is engine work rather than content, and doing
+it wrong ships a rune whose headline word — "permanently" — silently does nothing.
+
+Verified: typecheck (both), lint (6 pre-existing), 3207 tests, build:web, harness determinism.
+
+**Rune queue: 13 remain.** 34 of 47 done.
+
 ## 2026-07-30 — Rune tranche 7: Blood and Coin, the Wild Hunt, Living Treasure
 
 - **Rune of Blood and Coin** (basic 3) — every 4 friendly deaths banks 4 Gold for next turn, through

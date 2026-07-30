@@ -281,6 +281,8 @@ export function simulate(
   const finalityDone: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of the Wild Hunt's escalating per-attack Health grant, per side. */
   const wildHuntGrown: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Friendly minions summoned this combat — the Remains' threshold and Reinvestment's settle-time multiplier. */
+  let playerSummonCount = 0;
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
@@ -850,6 +852,16 @@ export function simulate(
     emit({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
     if (side === 'player') {
       bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
+      // Rune of the Remains / Rune of Reinvestment both key off friendly summons. Counted here, at the single
+      // placement chokepoint, so a token, a Rise and a resummon all count exactly once each.
+      if (minion.side === 'player') {
+        playerSummonCount += 1;
+        const remains = modsFor('player').runeRemains ?? 0;
+        if (remains > 0 && playerSummonCount % 5 === 0) {
+          fireTrigger('runeRemains', 'player');
+          ctx.gainTavernBuy(remains, remains, 'player');
+        }
+      }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
     bus.emit('onSummon', { minion, side });
@@ -2280,6 +2292,13 @@ export function simulate(
       return out;
     });
 
+  // Rune of Reinvestment: pays ONCE when the fight settles, scaled by how many bodies you put on the board.
+  // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip.
+  const reinvest = modsFor('player').runeReinvestment ?? 0;
+  if (reinvest > 0 && playerSummonCount > 0) {
+    tavernBuyGain.attack += reinvest * playerSummonCount;
+    tavernBuyGain.health += reinvest * playerSummonCount;
+  }
   return {
     events,
     result,

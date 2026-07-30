@@ -970,7 +970,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeGemstorm'
   // Batch 7: bloodAndCoin = every N friendly deaths banks Gold for next turn; wildHunt = a Beast attacking
   // pumps a run-wide Health aura, escalating; livingTreasure = your Gemheart Golems gain Rise.
-  | 'runeBloodAndCoin' | 'runeWildHunt' | 'runeLivingTreasure';
+  | 'runeBloodAndCoin' | 'runeWildHunt' | 'runeLivingTreasure'
+  // remains = every 5 combat summons buffs the Shop; reinvestment = after combat, the Shop gains per summon.
+  | 'runeRemains' | 'runeReinvestment';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1074,6 +1076,10 @@ export interface QuestCombatMods {
   runeWildHunt?: number;
   /** Rune of Living Treasure: your Gemheart Golems enter with Rise. */
   runeLivingTreasure?: boolean;
+  /** Rune of the Remains: Shop buff per 5 friendly minions summoned in combat. */
+  runeRemains?: number;
+  /** Rune of Reinvestment: Shop buff per friendly minion summoned, paid once when the fight settles. */
+  runeReinvestment?: number;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

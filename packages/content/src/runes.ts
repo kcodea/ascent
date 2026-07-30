@@ -222,6 +222,21 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeBloodAndCoin', amount: 4 },
   },
   {
+    id: 'rune_remains',
+    name: 'Rune of the Remains',
+    cost: 3,
+    text: 'When you summon **5 minions** in combat, give minions in the **Shop +3/+3**.',
+    reward: { kind: 'combatFlag', flag: 'runeRemains', amount: 3 },
+  },
+  {
+    // Pays ONCE at settle rather than per summon, so the Shop sees one combined buff instead of a drip.
+    id: 'rune_reinvestment',
+    name: 'Rune of Reinvestment',
+    cost: 5,
+    text: 'After combat, give the next **Shop +1/+1** for every friendly minion you summoned during combat.',
+    reward: { kind: 'combatFlag', flag: 'runeReinvestment', amount: 1 },
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,

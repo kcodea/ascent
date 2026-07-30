@@ -205,6 +205,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
+        case 'runeRemains':
+          return `When you summon 5 minions in combat, give minions in the Shop +${r.amount ?? 3}/+${r.amount ?? 3}`;
+        case 'runeReinvestment':
+          return `After combat, give the next Shop +${r.amount ?? 1}/+${r.amount ?? 1} for every friendly minion you summoned`;
         case 'runeBloodAndCoin':
           return `Every 4 friendly deaths in combat, gain ${r.amount ?? 4} Gold next turn`;
         case 'runeWildHunt':

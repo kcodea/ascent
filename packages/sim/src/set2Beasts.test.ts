@@ -520,7 +520,7 @@ describe('set 2 — Menagerie Mammoth (owner rework 2026-07-27)', () => {
   });
 });
 
-describe('set 2 — Roaring Matriarch alternates each turn (owner spec 2026-07-25)', () => {
+describe('set 2 — Bathing Matriarch alternates each turn (owner spec 2026-07-25)', () => {
   const play = (s: RunState, uid: string) => reduce(s, { type: 'play', uid });
   const setup = (eotTick?: number): RunState => ({
     ...createRun(1), phase: 'recruit', embers: 60,

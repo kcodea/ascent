@@ -2667,7 +2667,15 @@ const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dyn
 function runeforgePool(s: RunState): string[] {
   const set = s.runeforgeEpic ? EPIC_RUNES : RUNES;
   const canDouble = DOUBLEABLE_POWERS.has(getHero(s.heroId).power.kind);
-  return set.filter((rn) => !rn.requiresDoublePower || canDouble).map((rn) => rn.id);
+  // SET SCOPING (owner report 2026-07-29): a rune whose reward names another set's mechanics — Fodder,
+  // Attachments and Undead in set 1; Rubies and Ales in set 2 — can never pay off in this run, and offering it
+  // burns one of the forge's few slots. `sets` absent means "general mechanics only", so it stays offerable
+  // everywhere; the run's PINNED set decides, never the live registry.
+  const runSet = setIdOf(s);
+  return set
+    .filter((rn) => !rn.requiresDoublePower || canDouble)
+    .filter((rn) => !rn.sets || rn.sets.includes(runSet))
+    .map((rn) => rn.id);
 }
 
 /** Draw `n` distinct rune ids from `ids`, preferring ones not in `avoid` (a re-roll's current offer) but falling

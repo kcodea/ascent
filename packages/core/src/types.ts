@@ -206,7 +206,7 @@ export type EffectFactoryId =
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
   | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
-  | 'onBattlecryBuffTribeAlternating' // Set 2 — Roaring Matriarch: alternates Attack/Health each turn
+  | 'onBattlecryBuffTribeAlternating' // Set 2 — Bathing Matriarch: alternates Attack/Health each turn
   | 'endOfTurnAlternateMode' // …and the tick that flips it
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
   | 'onSummonTribeBuffThenDouble' // Set 2 — King Oona: a summoned Beast gets +1/+1, then doubles (gilded: triples)
@@ -222,7 +222,7 @@ export type EffectFactoryId =
   | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
   | 'battlecryPlayRubiesAll' // Set 2 — Frenzied Excavator: play a Ruby on every friendly minion
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
-  | 'battlecryGrantShoutDragon' // Set 2 — Blazing Keeper: get a random Dragon that has a Shout
+  | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight Marshal: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell' // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
@@ -1033,6 +1033,15 @@ export interface RuneDef {
   /** Only offer this rune to heroes whose power gets value from a double trigger (the sim's DOUBLEABLE_POWERS
    *  set). Rune of Empowerment uses this so it never appears for a targeted/passive-power hero. */
   requiresDoublePower?: boolean;
+  /**
+   * Which card SETS may offer this rune. Absent = every set (a rune built only from general mechanics).
+   *
+   * Load-bearing, because a rune's reward names mechanics that only exist in one set: a Fodder/Attachment/Undead
+   * rune is dead weight in a set-2 run, and a Ruby/Ale rune is unbuyable filler in set 1 — both silently waste
+   * one of the forge's few offer slots on something the run can never use (owner report 2026-07-29).
+   */
+  /** Mirrors `SetId` in `@game/content`, spelled out because content depends on core and not the reverse. */
+  sets?: readonly ('set1' | 'set2')[];
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown

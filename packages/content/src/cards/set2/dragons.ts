@@ -300,7 +300,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // means a Dragon with an `onPlay`, which deliberately excludes payoff cards like Karwind that only WATCH
     // Shouts without having one (owner ruling 2026-07-25). Tier-capped by the shop like every other random get.
     id: 'd2_blazingkeeper',
-    name: 'Blazing Keeper',
+    name: 'Commander Warpath', // renamed 2026-07-29 (owner); id unchanged so saved runs and pool boards still resolve
     tribe: 'dragon',
     tier: 5,
     attack: 5,
@@ -314,7 +314,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // Set 1's Karwind pays on Battlecries; the Matriarch is the Attack-only Dragon version, so the tribe has a
     // Shout payoff that isn't a full Karwind. Same `battlecryTriggered` channel.
     id: 'd2_matriarch',
-    name: 'Roaring Matriarch',
+    name: 'Bathing Matriarch', // renamed 2026-07-29 (owner); id unchanged so saved runs and pool boards still resolve
     tribe: 'dragon',
     tier: 4,
     attack: 2,

@@ -206,7 +206,7 @@ describe('cardText helpers', () => {
   });
 });
 
-describe('alternatingBuffText — Roaring Matriarch', () => {
+describe('alternatingBuffText — Bathing Matriarch', () => {
   it('names the stat it is giving THIS turn, and what is coming next', () => {
     const t0 = alternatingBuffText('d2_matriarch', 0)!;
     expect(t0, 'first turn: Attack').toContain('{{+2 Attack}}');

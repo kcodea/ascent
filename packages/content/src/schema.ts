@@ -580,6 +580,7 @@ export const RuneDefSchema = z.object({
   text: z.string().min(1),
   reward: QuestRewardSchema,
   epic: z.boolean().optional(),
+  sets: z.array(z.enum(['set1', 'set2'])).readonly().optional(),
   requiresDoublePower: z.boolean().optional(),
 }).strict();
 

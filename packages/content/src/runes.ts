@@ -23,7 +23,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_warding',
     name: 'Rune of Warding',
     cost: 3,
-    text: '**Start of Combat:** give your left-most minion **Ward**.',
+    text: '**Start of Combat:** give your **right-most** minion **Ward** and **double its Health**.',
     reward: { kind: 'combatFlag', flag: 'runeWarding' },
   },
   {
@@ -32,6 +32,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'After you play an **Attachment** from hand, get a random Shop spell.',
     reward: { kind: 'runeStructure' },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_slaying',
@@ -53,6 +54,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Whenever you **Consume** Fodder, improve future Fodder by **+1 Attack** or **+1 Health** (random).',
     reward: { kind: 'runeConsume', attack: 1, health: 1 },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_pillaging',
@@ -132,17 +134,32 @@ export const RUNES: RuneDef[] = [
     id: 'rune_menagerie',
     name: 'Rune of the Menagerie',
     cost: 5,
-    // NOT reconciled to the roster's Set 2 line-up, deliberately — see the decisions list. This rune is in the
-    // SHARED pool, so hardcoding Kobold + Dwarf makes it grant NOTHING in a set-1 run (those tribes aren't in a
-    // set-1 roster), which is the exact mirror of the bug it would fix. It needs a per-set line-up or a
-    // "random tribe from YOUR run's roster" reward, both of which are owner calls.
+    // PER-SET line-up (owner ruling 2026-07-29). One rune per set, each `sets`-scoped, because the tribes a
+    // Menagerie can grant only exist in one set: asking a set-2 run for Mech/Undead granted NOTHING, and the
+    // reverse would be just as dead. Same id prefix, different ids, so `ownedRunes` stays unambiguous.
     text: 'Get a random **Beast, Demon, Dragon, Mech, and Undead**.',
+    sets: ['set1'],
     reward: { kind: 'multi', rewards: [
       { kind: 'grant', randomTribe: 'beast', randomCount: 1 },
       { kind: 'grant', randomTribe: 'demon', randomCount: 1 },
       { kind: 'grant', randomTribe: 'dragon', randomCount: 1 },
       { kind: 'grant', randomTribe: 'mech', randomCount: 1 },
       { kind: 'grant', randomTribe: 'undead', randomCount: 1 },
+    ] },
+  },
+  {
+    // The set-2 twin of the Menagerie — same shape, this set's tribes.
+    id: 'rune_menagerie_set2',
+    name: 'Rune of the Menagerie',
+    cost: 5,
+    text: 'Get a random **Beast, Demon, Dragon, Kobold, and Dwarf**.',
+    sets: ['set2'],
+    reward: { kind: 'multi', rewards: [
+      { kind: 'grant', randomTribe: 'beast', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'demon', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'dragon', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'kobold', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'dwarf', randomCount: 1 },
     ] },
   },
   // ── Set 2 rune batch (owner roster 2026-07-29) — the GRANT-shaped ones, which need no new reward kind. ──
@@ -153,6 +170,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Get **5 Rubies**.',
     reward: { kind: 'grant', cards: ['ruby', 'ruby', 'ruby', 'ruby', 'ruby'] },
+    sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
   {
@@ -192,6 +210,7 @@ export const RUNES: RuneDef[] = [
     cost: 2,
     text: 'Get **5 random Attachments**.',
     reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 5 },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_bartering',
@@ -213,6 +232,7 @@ export const RUNES: RuneDef[] = [
     cost: 1,
     text: 'Whenever a friendly **Mech loses Ward**, get a random **Attachment** next shop.',
     reward: { kind: 'combatFlag', flag: 'runeSalvage' },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_warden',
@@ -235,6 +255,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'The first **Attachment** you play each turn also gives that minion **Ward**.',
     reward: { kind: 'runeTempering' },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_aftershocks',
@@ -254,7 +275,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_trophy',
     name: 'Rune of the Trophy',
     cost: 5,
-    text: 'The first time a friendly minion triggers **Slaughter** each combat, get a copy of it next Shop.',
+    text: 'Get a copy of the first minion you **kill** in combat.',
     reward: { kind: 'combatFlag', flag: 'runeTrophy' },
   },
 ];
@@ -294,6 +315,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of Combat:** give two friendly **Undead Rise**.',
     reward: { kind: 'combatFlag', flag: 'runeRisingGraves' },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_broodpit',
@@ -327,6 +349,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Beatbot** and **2 Attachments**.',
     reward: { kind: 'grant', cards: ['beatboxer'], randomFilter: 'attachment', randomFilterCount: 2 },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_stormcalling',
@@ -384,6 +407,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**End of Turn:** attach **Money Bots** to your left-most and right-most Mechs.',
     reward: { kind: 'recurringEndOfTurn', effect: 'weldMoneyBotsEdgeMechs' },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   // ── Batch 6: combat runes + Second Path ──
   {
@@ -451,6 +475,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get **10 random Attachments**.',
     reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 10 },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_gilded_spark',
@@ -467,7 +492,9 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 6,
     epic: true,
     text: 'Whenever a **Demon Consumes** Fodder, your **left-most minion** also gains its stats.',
+    // Set 1 only — set 2 has no Fodder. Its set-2 twin consumes a SHOP minion instead (owner ruling 2026-07-29).
     reward: { kind: 'runeTransfusion' },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_mirror_march',
@@ -492,6 +519,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'The first **Attachment** you play each turn also attaches a **copy** to your left-most Mech.',
     reward: { kind: 'runeReplication' },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
     id: 'rune_conductor',
@@ -524,6 +552,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'The first time you **Consume** Fodder each turn, all your other **Demons Consume** a copy of it.',
     reward: { kind: 'runeEndlessAppetite' },
+    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   // ── Set 2 rune batch (owner roster 2026-07-29) — "get a named minion" runes. Each names a card that now
   // exists, so they are pure grants; the rest of the roster needs new reward kinds and is not shipped yet.
@@ -534,6 +563,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Yazzus**.',
     reward: { kind: 'grant', cards: ['yazzus'] },
+    sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
     id: 'rune_lazarus',
@@ -542,6 +572,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Lazarus**.',
     reward: { kind: 'grant', cards: ['lazarus'] },
+    sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
     id: 'rune_high_king',
@@ -550,6 +581,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Dwarf King, Brill**.',
     reward: { kind: 'grant', cards: ['dw_brill'] },
+    sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
     id: 'rune_exgalloper',
@@ -558,6 +590,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get an **Exgalloper**.',
     reward: { kind: 'grant', cards: ['dw_exgalloper'] },
+    sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
     id: 'rune_brisbane',
@@ -566,6 +599,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Brisbane**.',
     reward: { kind: 'grant', cards: ['dw_brisbane'] },
+    sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
     // 3 RANDOM Ales (owner 2026-07-29), not a fixed trio — the variety is the point.
@@ -575,6 +609,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get an **Edward Keg-hands** and **3 Dwarven Ales**.',
     reward: { kind: 'grant', cards: ['dw_edward'], randomAle: 3 },
+    sets: ['set2'], // Rubies / Ales / set-2 cards
   },
 ];
 

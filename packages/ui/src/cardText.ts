@@ -160,7 +160,7 @@ export function ascendProgressText(cardId: string, ascendProgress: number): stri
  * instead of a count. Returns null for non-cadence cards so callers fall back to the printed text.
  */
 /**
- * Roaring Matriarch alternates WHICH stat it pumps every turn (Attack on its first turn, then Health, …). The
+ * Bathing Matriarch alternates WHICH stat it pumps every turn (Attack on its first turn, then Health, …). The
  * card-text rule is absolute here: a card that alternates must never print the stat it isn't currently giving,
  * so this rewrites "+N Attack" to the live stat AND appends what's coming next turn.
  *
@@ -601,6 +601,24 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
   const n = deathrattlesTriggered * per * (golden ? 2 : 1);
   const base = (golden && def.goldenText) || def.text;
   return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${n}/+${n}}}`);
+}
+
+/**
+ * Quartermaster Dorrin — "+N Health per Gold spent this turn" folded into the ACTUAL Health it will grant now.
+ *
+ * The hard rule (CLAUDE.md): a card whose magnitude depends on live run state prints the number it will really
+ * produce, not the rate. At 0 Gold spent the rate is all there is to say, so the printed text stands; once you
+ * have spent anything, the total replaces it and the rate moves into the parenthetical so the card still explains
+ * itself.
+ */
+export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'battlecryBuffTargetPerGoldSpent');
+  if (!def || !eff) return null;
+  if (goldSpentThisTurn <= 0) return null; // nothing spent yet — the printed rate is already accurate
+  const per = Number((eff.params as { health?: number })?.health ?? 1) * (golden ? 2 : 1);
+  const total = per * goldSpentThisTurn;
+  return `**Shout:** give a friendly minion **{{+${total} Health}}** _(+${per} per Gold spent this turn)_.`;
 }
 
 export interface StepProgress {

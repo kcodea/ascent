@@ -2210,7 +2210,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Roaring Matriarch: each Shout you trigger buffs your Dragons, and WHICH stat it buffs alternates
+  /** Set 2 — Bathing Matriarch: each Shout you trigger buffs your Dragons, and WHICH stat it buffs alternates
    *  every turn — Attack on its first turn, Health on the next, and so on (owner spec 2026-07-25).
    *
    *  The phase is PER-INSTANCE (`eotTick`, advanced by the `endOfTurnAlternateMode` half below) rather than
@@ -2250,7 +2250,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
   },
 
-  /** Set 2 — Blazing Keeper (Shout): get a random Dragon that HAS a Shout.
+  /** Set 2 — Commander Warpath (Shout): get a random Dragon that HAS a Shout.
    *
    *  "Has a Shout" is `onPlay`, which is exactly what the keyword means — so this picks up Dragons whose
    *  Shout does anything at all, and correctly excludes payoff cards like Karwind that only WATCH Shouts
@@ -5009,7 +5009,7 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
 
 /** The RIGHT-most edible shop offer's index, or -1. "Right-most" is the tail of the row, which is what the
  *  cards say; spells/Rubies sitting in the row are skipped since they aren't minions. */
-/** Set 2 — Roaring Matriarch: which stat its next grant will pump. Attack on the instance's FIRST turn, then
+/** Set 2 — Bathing Matriarch: which stat its next grant will pump. Attack on the instance's FIRST turn, then
  *  alternating each turn. Shared by the effect and the printed text so the two can never disagree. */
 export function alternateModeOf(card: { eotTick?: number }): 'attack' | 'health' {
   return ((card.eotTick ?? 0) % 2) === 0 ? 'attack' : 'health';

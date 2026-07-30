@@ -583,3 +583,40 @@ describe('Open Tab (Dwarf quest)', () => {
     expect(q.objective.event).toBe('spendGold');
   });
 });
+
+describe('the run-wide Ale multiplier (Bottomless Cellar / Rune of the Bottomless Cask)', () => {
+  const goldFromAle = (mut: (s: RunState) => RunState): number => {
+    let s = mut(set2());
+    s = { ...s, hand: [{ uid: 'a', cardId: 'wo_mine', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    const before = s.embers;
+    return reduce(s, { type: 'play', uid: 'a' }).embers - before;
+  };
+
+  it('one extra cast doubles a Golden Ale’s payout', () => {
+    const plain = goldFromAle((s) => s);
+    expect(goldFromAle((s) => ({ ...s, aleExtraCasts: 1 })), 'the run flag did nothing').toBe(plain * 2);
+  });
+
+  it('stacks ADDITIVELY with Edward Keg-hands, not multiplicatively', () => {
+    // Both read "trigger an additional time", so Edward (×2) plus one run-wide extra is ×3, not ×4.
+    const plain = goldFromAle((s) => s);
+    const both = goldFromAle((s) => ({ ...s, aleExtraCasts: 1, board: [body('dw_edward', 'e')] }));
+    expect(both).toBe(plain * 3);
+  });
+
+  it('does not touch NON-Ale spells', () => {
+    let s = set2();
+    s = { ...s, aleExtraCasts: 3, board: [body('dw_brunni', 'b')], hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    const before = s.board[0]!.attack;
+    s = reduce(s, { type: 'play', uid: 'g' });
+    expect(s.board[0]!.attack - before, 'Growth was multiplied by the ALE flag').toBe(1);
+  });
+
+  it('both the quest and the rune ride the same primitive', () => {
+    const q = QUEST_DEFS.find((x) => x.id === 'q_bottomless_cellar')!;
+    const r = [...RUNES, ...EPIC_RUNES].find((x) => x.id === 'rune_bottomless_cask')!;
+    expect((q.reward as { kind: string }).kind).toBe('aleExtraCasts');
+    expect((r.reward as { kind: string }).kind).toBe('aleExtraCasts');
+    expect(r.sets).toEqual(['set2']);
+  });
+});

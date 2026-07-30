@@ -744,6 +744,8 @@ export type QuestReward =
   /** "Your <tribe> Rallies and Slaughters trigger an additional time" — the tribe-scoped twin of the Beast-only
    *  `lawOfTeeth` flag, so any tribe's version is data rather than a new hard-coded flag. */
   | { kind: 'tribeRallySlaughterExtra'; tribe: Tribe }
+  /** "Your Dwarven Ales trigger an additional time" — run-wide, additive with Edward Keg-hands. */
+  | { kind: 'aleExtraCasts'; amount?: number }
   // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,
   // stacks like Drakko); `firstEachRound` makes the FIRST Shout you play each turn trigger twice (Warm Embers).
   | { kind: 'shoutRepeat'; scope: 'always' | 'firstEachRound' }

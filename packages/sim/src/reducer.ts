@@ -2829,6 +2829,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'assemblyLine') s.questFlags.assemblyLine = r.amount ?? 4; // Avenge N → a Money Bot to hand
       else s.questFlags[r.flag] = true;
       break;
+    case 'aleExtraCasts':
+      s.aleExtraCasts = (s.aleExtraCasts ?? 0) + (r.amount ?? 1);
+      break;
     case 'tribeRallySlaughterExtra':
       // War Council: arm the tribe-scoped extra trigger. One field, any tribe — see the note on the flag.
       s.questTribeRallySlaughter = r.tribe;

@@ -611,6 +611,16 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['dw_edward'], randomAle: 3 },
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },
+  {
+    // Shares Bottomless Cellar's primitive — the run-wide Ale multiplier, additive with Edward Keg-hands.
+    id: 'rune_bottomless_cask',
+    name: 'Rune of the Bottomless Cask',
+    cost: 6,
+    epic: true,
+    text: 'Your **Dwarven Ales** trigger an **additional time**.',
+    sets: ['set2'],
+    reward: { kind: 'aleExtraCasts', amount: 1 },
+  },
 ];
 
 /** Lookup across BOTH runesets — the normal forge stock and the Epic forge stock share one id space so the

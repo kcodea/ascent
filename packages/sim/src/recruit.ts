@@ -604,6 +604,9 @@ export function spellCasts(state: RunState, def: CardDef): number {
   if (ALE_IDS.includes(def.id)) {
     const edwards = state.board.filter((c) => c.cardId === 'dw_edward');
     if (edwards.length > 0) mult *= edwards.some((c) => c.golden) ? 3 : 2;
+    // Run-wide Ale multiplier (Bottomless Cellar, Rune of the Bottomless Cask). ADDED rather than multiplied,
+    // because both read "trigger an ADDITIONAL time" — the same distinction Nimbus makes below.
+    mult += state.aleExtraCasts ?? 0;
   }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on

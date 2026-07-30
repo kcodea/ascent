@@ -49,6 +49,25 @@ export function summonBuffText(cardId: string, summonBonus: number, golden = fal
  * step) stays printed. Golden reads from goldenText and doubles the live grant. Returns null with no accrual
  * (falls back to the printed text), matching `summonBuffText`'s contract.
  */
+/**
+ * Display Curator — its Shop buff CLIMBS every trigger, so the printed "+1/+1" goes stale on the first End of
+ * Turn. Prints the magnitude it will actually give next (owner ask 2026-07-29: show the current value, on every
+ * card that has one).
+ *
+ * The accrual rides `summonBonus`, the same field `summonBuffTribeImprove` uses — hence the shared shape here.
+ */
+export function shopBuffImproveText(cardId: string, summonBonus: number, golden = false): string | null {
+  if (summonBonus <= 0) return null; // not yet climbed — the printed base is still accurate
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'buffShopPermanent' && (e.params as { improve?: number } | undefined)?.improve);
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
+  const m = (base + summonBonus) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  // Replace only the FIRST magnitude — the second is the "improves by" step, which does not change.
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${m}}}`);
+}
+
 export function summonImproveText(cardId: string, summonBonus: number, golden: boolean): string | null {
   if (summonBonus <= 0) return null;
   const def = CARD_INDEX[cardId];

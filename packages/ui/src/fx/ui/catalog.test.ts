@@ -99,8 +99,11 @@ describe('bindingsByDef', () => {
     expect(ruby?.cards.find((c) => c.cardId === 'bloodbinder')?.tribe).toBe('demon');
   });
 
+  // `burst-thin-trail` is a committed but deliberately unbound def (a travelling ribbon + burst draft): no
+  // kind cue and no card override names it. If a future migration DOES bind it, re-point this at whatever
+  // committed def is still unbound rather than deleting the case — "unbound ⇒ no entry" is the invariant.
   it('has no entry for a def nothing binds to', () => {
-    expect(index.get('blue-glow-trail')).toBeUndefined();
+    expect(index.get('burst-thin-trail')).toBeUndefined();
   });
 });
 
@@ -170,7 +173,7 @@ describe('buildCatalog', () => {
 
   it('gives an unbound def empty bindings rather than undefined', async () => {
     await import('../primitives');
-    const entry = buildCatalog().find((e) => e.def.id === 'blue-glow-trail');
+    const entry = buildCatalog().find((e) => e.def.id === 'burst-thin-trail');
     expect(entry?.bindings).toEqual({ kinds: [], cards: [] });
   });
 

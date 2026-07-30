@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-07-30 — Set 2 quests COMPLETE (26 of 27; one blocked)
+
+The last five: Candlelight Toll, Motherlode, Heart of the Mountain (Kobold), The Burning Legion, Bottomless
+Banquet (Demon). All are run-wide RULES rather than effects stamped onto individual bodies, so a Kobold summoned
+mid-combat or a Ruby minted later inherits them — the property a per-body implementation silently loses.
+
+- `candlelightToll` / `gemheartCharge` / `burningLegion` — combat flags. Burning Legion carries a USE COUNT, not
+  a boolean: unbounded, the first swing turns any board into a 7-Imp wall regardless of what else you built.
+  Gemheart Golems ride the existing `attackNow` queue (the Whelp / Undertow path), so summon and strike land as
+  one beat.
+- `motherlode` — a run-level `onGetRuby` rule minting at base 1/1 + the run's live `rubyBonus`, like every other
+  Ruby source.
+- `consumeDoubleFirstEachTurn` + a new `shopMinionsEaten` meter and `consumeShopMinion` objective. Deliberately
+  separate from the Fodder tally: a set-2 Demon eats the tavern row where a set-1 Demon eats Fodder, and neither
+  quest should be fillable by the other's mechanic. The per-turn latch is set BEFORE the recursive call so the
+  bonus Consume can't re-trigger itself.
+
+**The blank-reward test earned its keep immediately** — it failed this commit on my own three new combat flags,
+plus `avengeFirstDouble` from the previous one, which would otherwise have shipped with empty reward lines.
+
+Verified: typecheck (both), lint (6 pre-existing warnings), 3138 tests, build:web, harness determinism.
+
+**BLOCKED — Martial Training** ("Attack 10 times → get a Master-at-Arms"). That minion does not exist in the
+game; it needs a tribe, tier, stats and text before the quest can be written. Owner call.
+
 ## 2026-07-30 — Set 2 quests: the Demon shop line + the Dragon spell line (21 of 27)
 
 **7 more quests.** Demon: Stock the Shelves, Bane's Presence, Endless Inventory. Dragon: Runic Refrain, The

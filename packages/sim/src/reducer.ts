@@ -470,6 +470,10 @@ export function reduce(state: RunState, action: Action): RunState {
     const fcBefore = state.runFodderConsumed ?? { count: 0, stats: 0 };
     const fcAfter = next.runFodderConsumed ?? { count: 0, stats: 0 };
     if (fcAfter.count > fcBefore.count) advanceQuestsBy(next, (o) => o.event === 'consumeFodder', fcAfter.count - fcBefore.count);
+    // Bottomless Banquet: SHOP minions eaten, on its own meter — a set-2 Demon eats the tavern row where a
+    // set-1 Demon eats Fodder, and neither quest should be fillable by the other's mechanic.
+    const eatenDelta = (next.shopMinionsEaten ?? 0) - (state.shopMinionsEaten ?? 0);
+    if (eatenDelta > 0) advanceQuestsBy(next, (o) => o.event === 'consumeShopMinion', eatenDelta);
     if (fcAfter.stats > fcBefore.stats) advanceQuestsBy(next, (o) => o.event === 'consumeStats', fcAfter.stats - fcBefore.stats);
   }
   // Bump the FX sequence once per action that actually buffed OTHERS (including the Hunter reaction wrapped
@@ -2376,6 +2380,7 @@ function advanceCombat(s: RunState): void {
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave
+  s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
   // Funeral on Loan: a borrowed card that wasn't played STAYS IN HAND (owner 2026-07-29). It used to be
@@ -2862,6 +2867,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'sharedCircuit') s.sharedCircuitWard = r.amount ?? 0; // amount = Mechs warded at SoC
       else if (r.flag === 'pitWithoutEnd') s.pitWithoutEndImps = r.amount ?? 0; // amount = Imps on board wipe
       else if (r.flag === 'assemblyLine') s.questFlags.assemblyLine = r.amount ?? 4; // Avenge N → a Money Bot to hand
+      // The Burning Legion carries a USE COUNT rather than a boolean — an unbounded "Imps copy themselves"
+      // fills the board on the first swing.
+      else if (r.flag === 'burningLegion') s.questFlags.burningLegion = r.amount ?? 3;
       else s.questFlags[r.flag] = true;
       break;
     case 'questGoldTribeBuff':
@@ -2878,6 +2886,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'rubyExtraCasts':
       if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
       else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
+      break;
+    case 'motherlode':
+      s.motherlode = { count: r.count, tribe: r.tribe };
+      break;
+    case 'consumeDoubleFirstEachTurn':
+      s.consumeDoubleFirstEachTurn = true;
       break;
     case 'spellCost':
       s.spellCostMod += r.cost;
@@ -3261,6 +3275,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
 
     runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
     runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
+    candlelightToll: f?.candlelightToll, // Candlelight Toll: a dying Kobold grants a Ruby
+    gemheartCharge: f?.gemheartCharge,   // Heart of the Mountain: Gemheart Golems attack on summon
+    burningLegionUses: f?.burningLegion, // The Burning Legion: bounded Imp self-copies
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

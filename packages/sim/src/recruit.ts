@@ -921,8 +921,23 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
   for (let r = 0; r < minted; r++) fireOnRubyGained(state);
 }
 
-/** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained. */
+/** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained, plus the
+ *  run-level Motherlode reward, which is the same rule with no minion source. */
 function fireOnRubyGained(state: RunState): void {
+  const ml = state.motherlode;
+  if (ml) {
+    // A Ruby is base 1/1 plus the run's live `rubyBonus` — the same value every other Ruby source mints at, so
+    // a late-run Motherlode pays full strength rather than 1/1.
+    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    for (let c = 0; c < ml.count; c++) {
+      const pool = state.board.filter((m) => isTribe(m, ml.tribe));
+      if (pool.length === 0) break;
+      const rng = makeRng(state.rngCursor);
+      const target = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      addBuff(target, 'Motherlode', 1 + bonus.attack, 1 + bonus.health);
+    }
+  }
   for (const card of state.board) {
     const def = CARD_INDEX[card.cardId];
     if (!def?.effects.some((e) => e.on === 'onGetRuby')) continue;
@@ -5079,12 +5094,23 @@ export function feastConsume(state: RunState, center: BoardCard, count: number):
  * Returns true if something was eaten, so a caller can tell "no legal target" from "done".
  */
 export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex: number, times = 1): boolean {
+  // Bottomless Banquet: the FIRST Shop minion your Demons Consume each turn, they Consume another. Guarded by a
+  // per-turn latch set before the recursive call, so the extra Consume can't itself re-trigger the reward.
+  if (state.consumeDoubleFirstEachTurn && !state.consumeDoubleUsedThisTurn && CARD_INDEX[state.shop[offerIndex]?.cardId ?? '']) {
+    state.consumeDoubleUsedThisTurn = true;
+    const other = state.shop.findIndex((o, n) => {
+      const d = CARD_INDEX[o.cardId];
+      return n !== offerIndex && !!d && !d.spell && !d.ruby;
+    });
+    if (other >= 0) consumeShopMinion(state, eater, other, times);
+  }
   const offer = state.shop[offerIndex];
   if (!offer) return false;
   const def = CARD_INDEX[offer.cardId];
   if (!def || def.spell || def.ruby) return false; // spells/Rubies in the row aren't minions — never edible
   const { attack: fa, health: fh } = offerBuyStats(state, offer);
   state.shop.splice(offerIndex, 1); // eaten — leaves the tavern
+  state.shopMinionsEaten = (state.shopMinionsEaten ?? 0) + 1; // Bottomless Banquet's objective meter
   const ctx = makeContext(state);
   const gainA = fa * times;
   const gainH = fh * times;

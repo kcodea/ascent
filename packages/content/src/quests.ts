@@ -130,6 +130,13 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_war_council', name: 'War Council', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'attack', count: 18, tribe: 'dwarf' }, reward: { kind: 'tribeRallySlaughterExtra', tribe: 'dwarf' }, sets: ['set2'] },
   { id: 'q_open_tab', name: 'Open Tab', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 14 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' }, sets: ['set2'] },
   { id: 'q_bottomless_cellar', name: 'Bottomless Cellar', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'castSpell', count: 15 }, reward: { kind: 'aleExtraCasts', amount: 1 }, sets: ['set2'] },
+  // ── SET 2 — the last Kobold + Demon quests. All five hang off run-wide RULES rather than stamping effects
+  //    onto individual bodies, so minions summoned mid-combat inherit them too.
+  { id: 'q_candlelight_toll', name: 'Candlelight Toll', tribe: 'kobold', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 10 }, reward: { kind: 'combatFlag', flag: 'candlelightToll' }, sets: ['set2'] },
+  { id: 'q_motherlode', name: 'Motherlode', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'spendGold', count: 26 }, reward: { kind: 'motherlode', count: 2, tribe: 'kobold' }, sets: ['set2'] },
+  { id: 'q_heart_of_the_mountain', name: 'Heart of the Mountain', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'shopStats', count: 150 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', grantGolden: ['k_gemheart'] }, { kind: 'combatFlag', flag: 'gemheartCharge' }] }, sets: ['set2'] },
+  { id: 'q_burning_legion', name: 'The Burning Legion', tribe: 'demon', tier: 'greater', wave: 11, objective: { event: 'summonImp', count: 25 }, reward: { kind: 'combatFlag', flag: 'burningLegion', amount: 3 }, sets: ['set2'] },
+  { id: 'q_bottomless_banquet', name: 'Bottomless Banquet', tribe: 'demon', tier: 'greater', wave: 11, objective: { event: 'consumeShopMinion', count: 12 }, reward: { kind: 'consumeDoubleFirstEachTurn' }, sets: ['set2'] },
   // ── SET 2 — DRAGON (spell half) + the Dwarf capstone. All four hang off spell machinery that already exists:
   //    `firstSpellThisTurnId`, Spell Thesis's per-turn doubler, `spellCostMod`, and the Avenge re-fire.
   { id: 'q_runic_refrain', name: 'Runic Refrain', tribe: 'dragon', tier: 'lesser', wave: 5, objective: { event: 'castSpell', count: 12 }, reward: { kind: 'recurringEndOfTurn', effect: 'copyFirstSpell' }, sets: ['set2'] },

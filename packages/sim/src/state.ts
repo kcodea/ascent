@@ -425,6 +425,14 @@ export interface RunState {
   /** The Endless Verse: every `per` Shouts triggered, clear `spellFirstUsedThisTurn` so the turn's spell
    *  doubler re-arms. `tick` banks the remainder across turns like the other threshold rewards. */
   endlessVerse?: { per: number; tick: number };
+  /** Motherlode: on every Ruby gained, cast a copy on `count` random friendly `tribe` minions. */
+  motherlode?: { count: number; tribe: Tribe };
+  /** Bottomless Banquet: the first Shop-minion Consume each turn eats a second. Reset with the per-turn tallies. */
+  consumeDoubleFirstEachTurn?: boolean;
+  consumeDoubleUsedThisTurn?: boolean;
+  /** Lifetime count of SHOP minions your Demons have Consumed — the `consumeShopMinion` objective's meter.
+   *  Separate from the Fodder tally: the two consume mechanics must not fill each other's quests. */
+  shopMinionsEaten?: number;
   /** Endless Inventory: after each shop refresh, buff the shop — and improve the magnitude by `step` every
    *  `per` refreshes. `grown` is the accrued improvement, `tick` the progress toward the next step. */
   shopBuffOnRefresh?: { attack: number; health: number; step: number; per: number; grown: number; tick: number };
@@ -641,7 +649,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeUndertow?: boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeUndertow?: boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying

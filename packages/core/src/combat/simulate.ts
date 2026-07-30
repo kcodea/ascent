@@ -780,6 +780,9 @@ export function simulate(
     // immediate-attack queue so it lands + strikes as one beat (the Whelp path). Rune of Aftershocks no
     // longer touches the summon — as of 2026-07-21 it buffs your whole board when an Echo TRIGGERS (see asEcho).
     if (echoDepth > 0 && modsFor(side).runeUndertow) attackNow = true;
+    // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
+    // the Whelp and Rune of the Undertow use — so the summon and its strike land as one beat.
+    if (modsFor(side).gemheartCharge && card.id === 'gemheart-shard') attackNow = true;
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
     // the next flushImmediateAttacks — i.e. AFTER the current clash's death cascade fully resolves. So the
@@ -864,6 +867,8 @@ export function simulate(
     } finally { echoDepth--; }
   };
 
+  /** The Burning Legion's per-side use counter. */
+  const burningLegionSpent: Record<string, number> = {};
   /** The Sealed Vault's once-per-combat latch, per side. */
   const avengeDoubleSpent: Record<string, boolean> = {};
   function registerEffect(minion: Minion, effect: EffectDef): void {
@@ -1137,6 +1142,12 @@ export function simulate(
     minion.dead = true;
     minion.health = 0;
     emit({ type: 'death', target: minion.uid, side: minion.side });
+    // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
+    // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
+    // carry-back channel every hand grant uses.
+    if (modsFor(minion.side).candlelightToll && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
+      ctx.grantToHand('ruby', minion.side, minion.uid);
+    }
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
     if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
@@ -1318,6 +1329,17 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // The Burning Legion: an attacking Imp summons a copy of itself, while uses remain AND there is room.
+      // Bounded by `burningLegionUses` — an unbounded version fills the board on the first swing and turns
+      // every fight into a 7-Imp wall regardless of what else you built.
+      const legion = modsFor(attacker.side).burningLegionUses ?? 0;
+      if (legion > 0 && cards[attacker.cardId]?.imp && !attacker.dead) {
+        const def = cards[attacker.cardId];
+        if (def && countLiving(attacker.side) < 7) {
+          burningLegionSpent[attacker.side] = (burningLegionSpent[attacker.side] ?? 0) + 1;
+          if (burningLegionSpent[attacker.side]! <= legion) summonMinion(attacker.side, def, attacker.uid);
+        }
+      }
       // Uron: your RALLIES trigger extra times. Deliberately NOT a second bus.emit — that would also
       // re-tick Rally quests and re-notify broadcast ally-attack watchers (Crypt Drake). Only the
       // attacker's own on-attack effects repeat.

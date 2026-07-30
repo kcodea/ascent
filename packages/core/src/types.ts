@@ -698,6 +698,9 @@ export type QuestObjectiveEvent =
   // Set 2 (Demon): `shopStats` counts +Attack/+Health granted to SHOP minions — both direct offer buffs and
   // increases to the run's buy-bonus (which every future offer inherits). Advances by (attack + health).
   | 'shopStats'
+  // Set 2 (Demon): `consumeShopMinion` counts SHOP minions your Demons eat — distinct from `consumeFodder`,
+  // which counts set-1 Fodder. The two consume mechanics must not fill each other's quests.
+  | 'consumeShopMinion'
   // Compound (Fried Circuits / Forsaken Will): a general multi-part objective — `QuestObjective.parts` holds the
   // sub-objectives (each its own event + count), and the quest completes when ALL parts fill.
   | 'compound';
@@ -777,6 +780,10 @@ export type QuestReward =
   /** The Endless Verse: the first spell each turn casts twice — and triggering `per` Shouts RE-ARMS it within
    *  the same turn, so a Shout-heavy board can spend the doubler more than once a turn. */
   | { kind: 'endlessVerse'; per: number }
+  /** Motherlode: whenever you GET a Ruby, cast a copy of it on `count` random friendly Kobolds. */
+  | { kind: 'motherlode'; count: number; tribe: Tribe }
+  /** Bottomless Banquet: the first Shop minion your Demons Consume each turn, they Consume another. */
+  | { kind: 'consumeDoubleFirstEachTurn' }
   // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,
   // stacks like Drakko); `firstEachRound` makes the FIRST Shout you play each turn trigger twice (Warm Embers).
   | { kind: 'shoutRepeat'; scope: 'always' | 'firstEachRound' }
@@ -923,7 +930,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeRebirth' | 'runeAftershocks' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
   // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
-  | 'avengeFirstDouble';
+  | 'avengeFirstDouble'
+  // Set 2 quests: candlelightToll = a friendly Kobold dying grants you a Ruby; gemheartCharge = Gemheart
+  // Golems attack the moment they're summoned; burningLegion = an attacking Imp summons a copy of itself
+  // (bounded by `burningLegionUses`, since an unbounded version fills the board on the first swing).
+  | 'candlelightToll' | 'gemheartCharge' | 'burningLegion';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1007,6 +1018,12 @@ export interface QuestCombatMods {
   runeFury?: boolean;
   /** The Sealed Vault: the first Avenge each combat re-fires (once per side per fight). */
   avengeFirstDouble?: boolean;
+  /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
+  candlelightToll?: boolean;
+  /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */
+  gemheartCharge?: boolean;
+  /** The Burning Legion: how many times an attacking Imp may summon a copy of itself this combat. */
+  burningLegionUses?: number;
   /** Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once. */
   runeRallying?: boolean;
   /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */

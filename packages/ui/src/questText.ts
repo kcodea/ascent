@@ -54,6 +54,10 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Cast ${o.count} Shop spells`;
     case 'castRuby':
       return `Cast ${o.count} ${o.count === 1 ? 'Ruby' : 'Rubies'}`;
+    case 'shopStats':
+      return `Grant ${o.count} total stats to Shop minions`;
+    case 'consumeShopMinion':
+      return `Consume ${o.count} Shop minions`;
     case 'authorsHand':
       return `Trigger Shout, Echo, and Rally ${o.count} times each`;
     case 'sell':
@@ -199,6 +203,14 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
+        case 'avengeFirstDouble':
+          return 'Your first Avenge each combat triggers twice';
+        case 'candlelightToll':
+          return 'Give your Kobolds "Echo: get a Ruby"';
+        case 'gemheartCharge':
+          return 'Your Gemheart Golems attack immediately when summoned';
+        case 'burningLegion':
+          return `When an Imp attacks, summon a copy of it if you have room (${r.amount ?? 3} times)`;
         case 'bloodTrail':
           return 'Start of Combat: your leftmost minion gains "Slaughter: get a random Beast" this combat';
         case 'echoingCoop':
@@ -299,6 +311,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         ? `Your first Ruby each turn casts ${times}`
         : `Your Rubies cast ${times}`;
     }
+    case 'motherlode':
+      return `Whenever you get a Ruby, play a copy on ${r.count} random friendly ${TRIBE_PLURAL[r.tribe]}`;
+    case 'consumeDoubleFirstEachTurn':
+      return 'The first time your Demons Consume a Shop minion each turn, they Consume another';
     case 'spellCost':
       return `Your Shop spells cost ${r.cost} less`;
     case 'endlessVerse':

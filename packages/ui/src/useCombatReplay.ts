@@ -27,6 +27,7 @@ import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
+import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
 
@@ -1192,7 +1193,9 @@ export function useCombatReplay(
           if (!el) continue;
           const { cx, cy, w, h } = layoutRectOf(el);
           if (w < 1 || h < 1) continue; // not laid out yet → no valid spawn rect
-          pixiFx.dust(cx, cy, w, h);
+          // The authored `landing-dust` def, sized to THIS card via `playDef`'s per-call `scale` (which is
+          // what the hand-written `pixiFx.dust(cx, cy, w, h)` used its w/h for).
+          playDef('landing-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { scale: cardFxScale(w) });
         }
       },
       // A transform (Tara→Taragosa, Spirit Pup→Worgen) → bloom a flash over the unit, masking the card swap

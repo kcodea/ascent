@@ -177,6 +177,40 @@ Spread `1` (a full circle has no centre to aim).
 `coins.json` is the worked example: two layers, both `fixed` at `-90`, one at Spread `0.18` for the coins and
 a wider `0.28` for the glints, with gravity pulling the arc back down.
 
+### Sizing an effect at the moment it fires — `scale` and `intensity`
+
+A def is a **fixed** composition, and that is deliberate: what you committed is what plays. But some effects
+have to know something you can't know while authoring — how wide *this* card is, how hard *this* hit landed.
+Two per-call dials carry exactly that, and nothing else:
+
+```ts
+playDef('landing-dust', anchors, { scale: cardFxScale(w), intensity: 1.5 });
+```
+
+| Dial | Means | Reaches |
+|---|---|---|
+| `scale` | **bigger** — geometry | params measured in px or px-per-time: `size`, `emitRadius`, `speed`, `gravity`, `turbulence`, `radius`, `length`, `width`, `waveAmp`, `drain` |
+| `intensity` | **more** — quantity | params that count things: burst `count`, emitter/smoke `rate`, shockwave `rings` |
+
+Both default to `1`, and **`1` is an exact no-op** — the def isn't even copied, so nothing you authored moves
+and a locked seed replays identically. `0`, a negative number and a non-finite number are all caller error
+and fall back to `1`.
+
+A param responds to a dial only if its spec says so (`axis: 'scale'` / `axis: 'intensity'` in the primitive's
+`SPECS`, sliders only). Ratios, durations, colours and style params ride neither on purpose, and so do
+spatial *frequencies* like Turb scale and Noise scale — those are `1/px`, so they would have to scale
+*inversely*, which one multiplier can't do. Adding a dial to a param is a one-line spec change; adding a
+whole new dial is not, and should be argued for rather than assumed.
+
+> ⚠️ **Scaling is clamped, so it is NOT linear at the extremes.** Every scaled param is held to its own
+> slider range. If `size` is authored at 34 of a possible 40, `scale: 10` moves it to 40 and stops — the
+> effect grows 1.2×, not 10×. **If you want an effect to have real headroom on a dial, author its base value
+> well below the ceiling.** "I doubled the scale and it barely changed" is almost always this.
+
+`landing-dust.json` is the worked example: one burst layer, authored for a reference-size card
+(`FX_REF_CARD_W` = 222px, see `fx/cardScale.ts`), fired at `scale: cardFxScale(w)` so it tracks the real card
+and — at the Recruit placement site only — `intensity: 1.5` for a thicker cloud.
+
 ---
 
 ## 5. The seed — lock it while tuning

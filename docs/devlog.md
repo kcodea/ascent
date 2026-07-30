@@ -1,5 +1,95 @@
 # ASCENT — development log
 
+## 2026-07-30 — `playDef` gains per-call `scale` and `intensity`, and the card-drop dust becomes a def
+
+**What changed.** `PlayDefOptions` gains two multipliers — **`scale`** (geometry) and **`intensity`**
+(quantity) — that a caller passes at fire time. They reach only the params that opt IN, by declaring a new
+optional **`axis`** on their `FxParamSpec`. `pixiFx.dust()` is deleted and migrated to
+`fx/defs/landing-dust.json`, played through both multipliers at its two call sites; the now-orphaned `dust*`
+knobs come out of `smokeConfig.ts` and the Smoke tuner with it.
+
+**Why.** A def is a fixed composition, and that is most of its value. But nine hand-written `pixiFx` effects
+were blocked on the one thing a fixed composition can't do: the CALLER knows something the author cannot —
+how wide this card is, how much damage this hit did. Batch 1 shipped without them and the roadmap has carried
+"blocks the next migration batch" since.
+
+**The design — reuse, not a second system.** `presets/applyVariant.ts` already solved the hard half for the
+authoring-time variant axes: multiply slider params only, clamp to each param's `min`/`max`, snap to its
+`step`, clear the float dust, refuse anything that doesn't land on a finite number, never mutate the base.
+That arithmetic is now `fx/paramTransform.ts` (`settleParam` + `transformParams`), lifted out unchanged and
+shared. `applyVariant` is a thin wrapper over it — it kept only the part that is specific to a variant (the
+`missed` diagnostic). `UNSAFE_KEYS` moved there too, so the shipped `playDef` path doesn't import the
+DEV-only preset parser to read three strings.
+
+On top of it, `fx/scaleDef.ts`:
+- **`axisTransform(specs, scale, intensity)`** — the param-name → multiplier map a primitive's specs imply.
+  A multiplier of exactly 1 is OMITTED, which is what lets the layer be skipped entirely.
+- **`normalizeAxis`** — `undefined`, `0`, negative, `NaN` and `±Infinity` all fall back to **1**, matching
+  how `PlayDefOptions.speed` already treats its own bad input. (Both guards are load-bearing: `NaN > 0` is
+  false, but `Infinity > 0` is true, and `Infinity` would pin every axis param to its `max` *and* poison
+  `0 × Infinity` into a `NaN`.)
+- **`scaleDef(def, axes)`** — returns the input **by identity** when neither axis is in play. Not "multiplies
+  by 1.0 and re-snaps": a param whose authored value sits off its own step grid would be silently moved onto
+  it, so a def would play differently the day someone passed `scale: 1` than it did the day before.
+
+**Which params ride which axis.** One rule, stated in the `axis` doc comment: a param measured in **pixels or
+px-per-time** takes `scale` (positions ×k with the clock untouched implies velocity ×k and acceleration ×k,
+so the shape and the timing are preserved); a param that **counts things** takes `intensity`; everything else
+takes neither.
+- `scale` — burst/emitter/smoke: `speed`, `gravity`, `turbulence`, `emitRadius`, `size`; shockwave: `radius`;
+  ribbon: `length`, `width`, `waveAmp`, `drain`.
+- `intensity` — burst: `count`; emitter/smoke: `rate`; shockwave: `rings`.
+- Deliberately NOT marked: ratios (`spread`, `drag`, every `*Var`), durations (`life`, `interval`), style
+  (`alpha`, `glow`, `bands`), and **spatial frequencies** — `turbScale`/`noiseScale` are 1/px and would have
+  to scale INVERSELY, which a single multiplier cannot express. Ribbon `segments` is a tessellation QUALITY
+  knob, not a quantity, so "more intense" must not re-tessellate it.
+
+**Determinism.** `burst.emit()` draws exactly 7 values per particle in a fixed order and `burst.test.ts`
+guards that count textually, because moving it re-rolls every seed anyone has locked. Scaling is invisible to
+it **structurally**: `scale` is declared only on geometry, never on a count, so the number of particles — and
+therefore the number of draws — cannot move. `scaleDef.test.ts` pins that on the real burst specs
+(`axisTransform(BURST_SPECS, 2, 1)` must not contain `count`) and then reproduces the draw sequence the way
+`burst.test.ts` does: at `scale: 2` every draw comes off the identical stream at the identical position,
+speed and size come out exactly doubled, and every later draw is untouched. `intensity` DOES change the draw
+count — that is inherent to "more particles", and is exactly why the two axes are separate.
+
+**Clamping is a real behaviour, not a formality.** Every axis param is held to its own slider range, so
+`scale: 10` on a `size` already near its `max` moves it to the max and no further. Scaling is therefore NOT
+linear at the extremes, and an author who wants headroom must leave the base value well below its ceiling.
+Said in as many words on `FxParamMeta.axis`, because "I doubled scale and it barely changed" is otherwise a
+bug report.
+
+**Explicitly out of scope: direction.** `impact`/`critImpact` also want a launch angle, and the right shape
+for that is an `aimMode: 'sourceToTarget'` on `burst` derived from the anchors `playDef` already receives —
+not a per-call angle. That needs the source channel that was built and cut in #764 for want of a caller. It
+is not re-added here.
+
+**The end-to-end proof — `dust` → `landing-dust`.** Chosen over `deathrattle` (nominally simpler, but its
+skull is a canvas-built SVG texture no def can reproduce) because it exercises BOTH axes at real call sites:
+the combat summon poof passes `scale: cardFxScale(w)`, and the Recruit placement poof passes that plus
+`intensity: 1.5` — precisely the `density` argument the hand-written call used. `fx/cardScale.ts` is the one
+place "how big is this card right now" is answered (`FX_REF_CARD_W` 222 = `--ch-base` 384 × `--card-scale`
+0.77 × the 0.752 width ratio), so the several card-anchored effects still to migrate agree on a reference
+instead of each inventing one.
+
+*One honest fidelity note:* the hand-written version projected each puff onto the card's rectangular edge and
+pushed it OUTWARD; the def emits from a `ring` with a full-circle spread, so the puffs fan in every direction
+rather than only away from the card. Per-particle outward emission is a capability no primitive has (and is
+NOT what a `sourceToTarget` aim mode would give, either — that is one direction for a whole wave). At these
+speeds, with the same tan palette, drag and settle gravity, it still reads as a low tan billow escaping from
+under a landed card. Worth a look on the board; if the owner wants the outward push, that is a new emission
+mode on `burst`, not a scaling problem.
+
+**Verified.** `npm run typecheck && npm run lint && npm test && npm run build:web` all green; the FX suite is
+`packages/ui/src/fx/` — see the PR for exact counts. New coverage in `fx/scaleDef.test.ts` (identity no-op
+including the caller-error values, clamping, snapping, non-finite/ non-numeric refusal, unregistered-primitive
+pass-through, `validateSpecs` rejecting an `axis` on a non-slider, and the three determinism cases).
+
+**Follow-ups.** The remaining eight, and what each still owes beyond `scale`/`intensity`, are itemised in
+`docs/roadmap.md` — the short version: `impactDust`/`impactPulse` want a TIME axis nobody has built,
+`shatterAt`/`rebornSummon` want an aspect ratio that one scalar collapses, `impact`/`critImpact` want the
+direction above, and `refreshBlast` is really "author several defs, not one".
+
 ## 2026-07-30 — `burst` gets an authored launch direction, and `coins` gets its fan back
 
 **What changed.** The `burst` primitive gains two params — **`aimMode`** (`travel` | `fixed`) and

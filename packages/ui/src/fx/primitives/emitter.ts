@@ -38,6 +38,7 @@ import { registerPrimitive } from '../registry';
 const SPECS = {
   rate: {
     kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 300, step: 5, default: 80, essential: true,
+    axis: 'intensity',
     help: 'Motes per second.',
   },
   life: {
@@ -49,14 +50,17 @@ const SPECS = {
     help: '1 = emit in all directions, lower = upward cone.',
   },
 
-  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 60, essential: true, help: 'px/sec initial.' },
+  speed: {
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 60, essential: true,
+    axis: 'scale', help: 'px/sec initial.',
+  },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
     enabledWhen: { param: 'speed', above: 0 },
     help: 'How much motes differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
   },
   gravity: {
-    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30,
+    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30, axis: 'scale',
     help: 'px/sec² (negative = rise, like embers).',
   },
   orientToVelocity: {
@@ -65,7 +69,7 @@ const SPECS = {
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0,
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
   },
   turbScale: {
@@ -78,7 +82,7 @@ const SPECS = {
     help: 'Where motes are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0, axis: 'scale',
     // Only one half of the mutually-dead shape/radius pair may declare the dependency, or the two lock each
     // other out permanently at these defaults. Shape is the gateway; see burst.ts for the same note.
     enabledWhen: { param: 'emitShape', not: 'point' },
@@ -94,7 +98,7 @@ const SPECS = {
     help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 7, essential: true,
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 7, essential: true, axis: 'scale',
     help: 'How big a mote is across, in px — 7 reads as sparks, 30 as fat glowing blobs. Size var jitters it per mote and the Size / life curve rescales it as the mote ages.',
   },
   sizeVar: {

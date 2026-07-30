@@ -3,10 +3,12 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the board's soft smoke and dust. Three separate effects share this panel, which is why the
- * sections matter here more than most: combat impact smoke, the footprint billow when a card is placed, and the
- * dust + energy pulse fired from a strike point. Values persist to localStorage and apply to the NEXT impact or
- * drop, so land a hit or place a card to judge a change.
+ * DEV-only tuner for the board's soft smoke and dust. Two separate effects share this panel, which is why the
+ * sections matter here more than most: combat impact smoke, and the dust + energy pulse fired from a strike
+ * point. Values persist to localStorage and apply to the NEXT impact, so land a hit to judge a change.
+ *
+ * The card-drop footprint billow used to be a third section here; it is an authored def now
+ * (`fx/defs/landing-dust.json`) and is tuned in the FX workbench instead.
  *
  * LANGUAGE. The old labels prefixed every one to fake grouping ("smoke · count", "impact dust · life ms") and
  * used "alpha" for three different things across three different effects. Groups are real now, so a label only
@@ -20,11 +22,6 @@ const SPECS: Record<keyof SmokeConfig, [string, TunerUnit | undefined, string, s
   smokeGrow:      ['Expansion', '×', 'How much a puff grows over its life.', 'Combat impact smoke'],
   smokeAlpha:     ['Opacity', 'opacity', 'Peak opacity of the smoke.', 'Combat impact smoke'],
 
-  dustCount:      ['Puff count', undefined, 'How many dust puffs ring a placed minion’s footprint.', 'Card-drop dust'],
-  dustSpeed:      ['Billow speed', 'px/s', 'How fast the dust pushes outward.', 'Card-drop dust'],
-  dustLife:       ['Lifetime', 'ms', 'How long one dust puff lasts.', 'Card-drop dust'],
-  dustGrow:       ['Expansion', '×', 'Final size of a puff relative to where it started.', 'Card-drop dust'],
-  dustAlpha:      ['Opacity', 'opacity', 'Peak opacity of the dust.', 'Card-drop dust'],
 
   impDustCount:   ['Puff count', undefined, 'How many dust puffs erupt from the strike point.', 'Strike-point dust'],
   impDustSpeed:   ['Billow speed', 'px/s', 'How fast that dust pushes outward.', 'Strike-point dust'],
@@ -39,7 +36,6 @@ const SPECS: Record<keyof SmokeConfig, [string, TunerUnit | undefined, string, s
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
 const ORDER: (keyof SmokeConfig)[] = [
   'smokeCount', 'smokeRise', 'smokeDrift', 'smokeLife', 'smokeGrow', 'smokeAlpha',
-  'dustCount', 'dustSpeed', 'dustLife', 'dustGrow', 'dustAlpha',
   'impDustCount', 'impDustSpeed', 'impDustLife', 'impDustSize',
   'impPulseRadius', 'impPulseDur', 'impPulseRings',
 ];

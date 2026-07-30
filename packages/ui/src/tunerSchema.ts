@@ -57,6 +57,25 @@ export interface TunerControl<K extends string = string> {
   kind?: TunerControlKind;
 }
 
+/**
+ * A panel-local preview switch — NOT a config value, and this distinction is the point.
+ *
+ * Several tuners dial a look that only exists in a transient state: the hero-power glow appears on hover or
+ * when the power is ready, so its sliders are unusable unless that state can be pinned. Those panels each
+ * hand-rolled a checkbox that toggled a body class, sitting in the same row markup as the real controls and
+ * looking identical to them, while writing nothing and persisting nothing. Declaring them separately keeps
+ * "things that change the game" and "things that change what I can currently see" from wearing the same face.
+ */
+export interface TunerToggle {
+  id: string;
+  label: string;
+  hint?: string;
+  /** Class pinned on `document.body` while the toggle is on. */
+  bodyClass: string;
+  /** Whether it starts on — usually true, since the point is to make a hidden state visible. */
+  defaultOn?: boolean;
+}
+
 export interface TunerAction {
   label: string;
   run: () => void;
@@ -94,6 +113,8 @@ export interface TunerSpec<C extends object> {
   defaults?: C;
   /** Panel-specific buttons — "Test", "Fire", "Demo". */
   actions?: TunerAction[];
+  /** Preview switches that pin an otherwise-transient state so it can be tuned. See `TunerToggle`. */
+  toggles?: TunerToggle[];
 }
 
 /**
@@ -123,6 +144,12 @@ export function formatValue(value: number, unit?: TunerUnit): string {
 /**
  * Group a control list for rendering, preserving declaration order and keeping ungrouped controls in a leading
  * unnamed section. Returns `[groupTitle | null, controls][]`.
+ *
+ * Only ADJACENT controls sharing a group merge — declaration order stays authoritative, because silently
+ * hoisting a stray control up to its group's first appearance would reorder a panel behind the author's back.
+ * The cost is that a group interrupted by another one renders TWICE under the same heading, which is always a
+ * mistake in the spec; `assertGroupRuns` below turns that into a dev-time warning instead of something you
+ * only notice by counting headings in a screenshot.
  */
 export function groupControls<K extends string>(
   controls: TunerControl<K>[],
@@ -135,6 +162,27 @@ export function groupControls<K extends string>(
     else out.push([g, [c]]);
   }
   return out;
+}
+
+/**
+ * Dev-time check: warn when a group title appears in more than one run, which renders a duplicate heading. Hit
+ * exactly this while migrating the hero-power tuner — its glow colour was appended after the Glow fit controls
+ * and opened a second "Face glow" section. With 39 panels still to migrate, a warning is cheaper than each one
+ * being caught by eye.
+ */
+export function assertGroupRuns<K extends string>(panelId: string, controls: TunerControl<K>[]): void {
+  const seen = new Set<string>();
+  let prev: string | null = null;
+  for (const [title] of groupControls(controls)) {
+    if (title !== null && title !== prev && seen.has(title)) {
+      console.warn(
+        `[tuner:${panelId}] group "${title}" appears in more than one run, so it renders as two headings. `
+        + 'Move those controls together in the spec — only adjacent controls merge into one section.',
+      );
+    }
+    if (title !== null) seen.add(title);
+    prev = title;
+  }
 }
 
 /**

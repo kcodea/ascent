@@ -4211,6 +4211,13 @@ svg { width: 18px; height: 18px; }
 .tunerpanel .tuner-hex { font-size: 10px; color: var(--ink3); font-variant-numeric: tabular-nums; text-align: left; }
 /* Per-control caveat marker — hover it for the reason. Muted so it reads as an aside, not an error. */
 .tunerpanel .tuner-note { margin-left: 4px; color: var(--ink3); font-size: 10px; cursor: help; vertical-align: super; }
+/* Preview switches. Deliberately NOT styled as a control row: they pin a transient state so it can be tuned,
+   and previously wore the same row markup as the real sliders while writing nothing to the config. */
+.tunerpanel .tuner-previews { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 5px 0 7px; margin-bottom: 4px;
+  border-bottom: 1px dashed var(--line); }
+.tunerpanel .tuner-preview { display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: var(--ink2); }
+.tunerpanel .tuner-preview input { margin: 0; cursor: pointer; accent-color: var(--acc); }
 
 .sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
 .sfxmix-h.drag { cursor: move; user-select: none; touch-action: none; }

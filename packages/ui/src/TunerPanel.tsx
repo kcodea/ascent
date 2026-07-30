@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDraggablePanel } from './useDraggablePanel';
-import { formatValue, groupControls, unitSuffix, type TunerSpec } from './tunerSchema';
+import { assertGroupRuns, formatValue, groupControls, unitSuffix, type TunerSpec } from './tunerSchema';
 
 /**
  * The one DEV tuner panel. Every tuner renders through this from a `TunerSpec`; the 47 hand-rolled panels it
@@ -25,6 +25,18 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel(spec.id);
 
+  // Preview switches. Each pins a body class while on, and every one is removed when the panel closes — a
+  // pinned "glow always on" that outlived its panel would leave the board lit with no visible cause.
+  const [previewOn, setPreviewOn] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries((spec.toggles ?? []).map((t) => [t.id, t.defaultOn ?? true])));
+  const toggleClasses = (spec.toggles ?? []).map((t) => `${t.id}:${t.bodyClass}:${previewOn[t.id] ? 1 : 0}`).join('|');
+  useEffect(() => {
+    const toggles = spec.toggles ?? [];
+    for (const t of toggles) document.body.classList.toggle(t.bodyClass, !!previewOn[t.id]);
+    return () => { for (const t of toggles) document.body.classList.remove(t.bodyClass); };
+    // `toggleClasses` is the value-identity of the toggle set; `spec.toggles` is a stable module constant.
+  }, [toggleClasses, spec.toggles, previewOn]);
+
   const cfg = spec.read();
   const rerender = (): void => force((n) => n + 1);
 
@@ -40,6 +52,9 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
   const resetAll = (): void => { spec.reset(); rerender(); };
 
   const sections = groupControls(spec.controls);
+  // Runs once per panel open: a spec whose groups are interrupted renders duplicate headings, which is always
+  // an authoring slip rather than an intent.
+  useEffect(() => { assertGroupRuns(spec.id, spec.controls); }, [spec.id, spec.controls]);
 
   return (
     <div className="sfxmix tunerpanel" ref={panelRef} style={panelStyle}>
@@ -47,6 +62,23 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         {spec.title}
         {spec.note && <span>{spec.note}</span>}
       </div>
+
+      {/* Preview switches sit ABOVE the controls and wear their own row style, because they change what you
+          can see rather than what the game ships. */}
+      {(spec.toggles ?? []).length > 0 && (
+        <div className="tuner-previews">
+          {(spec.toggles ?? []).map((t) => (
+            <label className="tuner-preview" key={t.id} title={t.hint}>
+              <input
+                type="checkbox"
+                checked={!!previewOn[t.id]}
+                onChange={(e) => setPreviewOn((s) => ({ ...s, [t.id]: e.target.checked }))}
+              />
+              <span>{t.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
 
       {sections.map(([groupTitle, controls]) => (
         <div className="tuner-section" key={groupTitle ?? '__ungrouped'}>

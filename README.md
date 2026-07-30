@@ -44,6 +44,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Authored FX reach players.** The whole def runtime was dev-only by design, so nothing authored in the FX
+  workbench had ever been seen outside a dev session. Three `import.meta.env.DEV` gates came out and the
+  effects ship: **15 already-live bindings turn on** — attack exchanges, buff waves, keyword gain/loss, quest
+  trigger/complete, rally, reveal, spell cast + progress, ward gain, venom spent, HP grants, cards to hand,
+  and Bloodbinder's ruby lance. Cost: +34 KB gzipped of JS, 29 KB of it a primitives chunk fetched lazily
+  on mount rather than at first paint (the main chunk grows under 5 KB gzipped). The
+  *authoring tool* stays dev-only; a test now pins that split in both directions.
 - **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
   with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
   schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.

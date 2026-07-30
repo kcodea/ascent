@@ -1,5 +1,89 @@
 # ASCENT — development log
 
+## 2026-07-29 — Authored FX reach players (the three-gate un-gate)
+
+**Everything authored in the FX workbench had never been seen by a player.** Defs were DEV-only by an original
+decision — stop half-finished effects leaking into the shipped game. The owner reversed that: the effects ship
+now, the *tool* still doesn't.
+
+**There were THREE gates, not two, and the third is the one that matters.**
+
+| # | site | what it did |
+|---|---|---|
+| 1 | `fx/fxDefs.ts` — `readModules()` | `if (!import.meta.env.DEV) return {}` → the def registry was force-empty for players |
+| 2 | `fx/playDef.ts` — `ensureDefsReady()` | `import.meta.env.DEV && !hasPrimitives()` → the primitives' dynamic `import()` was dead-code-eliminated |
+| 3 | `Game.tsx` — the mount effect | `if (import.meta.env.DEV) void ensureDefsReady()` → **nothing ever called it in prod** |
+
+An earlier spike removed 1 and 2 and stopped. That combination is the worst of both: it ships every byte —
+the defs, the five primitives, their GLSL — and then plays nothing, because without the call in (3) the
+primitives never register, `canPlayDefs()` stays permanently false, and every binding is silently inert with
+no error to explain it. Worth naming as a shape: **two of the three gates ship bytes, the third makes them
+run.** Removing a subset is strictly worse than removing none.
+
+**The measured cost is ~9× what the spike's number said.** The spike reported +15,625 B raw / +4,001 B gzipped
+and that figure was main-chunk-only. Re-measured against this branch's own baseline (total JS 2,366,000 B;
+main chunk 2,115,485 B raw / 597,665 B gzip):
+
+- main chunk **+17,829 B raw / +4,868 B gzipped** — that's the def JSON
+- a **new 133,773 B (29,338 B gzipped) chunk** — the primitives + GLSL, which the dynamic `import()` keeps out
+  of the entry chunk, fetched lazily on Game mount rather than blocking first paint
+- **total JS +151,602 B raw / +34,206 B gzipped** (2,366,000 → 2,517,602, +6.4%)
+
+The lazy chunk is the mitigation that makes the number acceptable: nothing in it is on the first-paint path.
+Keeping that `import()` dynamic is now load-bearing for a *performance* reason rather than a stripping one.
+
+**15 bindings that were already live turned on.** `bindings.json` has been accumulating entries this whole
+time, all of them inert: `attackExchange`, `buffWave`, `hpGrant`, `keyword`, `keywordLost`, `questComplete`,
+`questTrigger`, `rally`, `reveal`, `scCast`, `shieldGain`, `spellProgress`, `toHand`, `venomSpent`, plus
+`bloodbinder`/`scCast` → `ruby-lance`. So this is a **visual change to the shipped game**, not plumbing.
+Two of those (`questTrigger`/`questComplete`) name no unit, so their anchors still resolve to null and they
+remain dormant — pre-existing, tracked in the roadmap.
+
+**What stayed fenced, deliberately:** saving a def / bindings / art (`defStore.ts` — they POST to a dev-server
+endpoint that doesn't exist in a build), the imported-art glob (`shapeLibrary.ts` — that folder is where the
+workbench's art import *writes*, so an un-gated glob would bundle whatever the author happened to drop in; the
+practical consequence is that a def referencing `art:<slug>` falls back to a procedural shape for players), the
+`window.__fx` console handle, and the workbench UI under `DevMenu`. The split is **runtime ships, authoring
+does not**.
+
+**A subtlety the un-gate creates.** `coerceDef` resolves each layer's primitive through the registry and DROPS
+layers whose primitive is unknown, and `fxDefs.index()` caches on first read — so a `getDef()` landing before
+the primitives register would cache every def stripped to zero layers, permanently, and `playDef` declines a
+def with no playable layers. The shipped game is safe (the only prod caller is `playDef`, behind
+`canPlayDefs()`, which can't be true until the primitives are in), but it is now a real ordering constraint
+rather than a DEV curiosity, so it's documented in `fxDefs.ts` and pinned by a test.
+
+**Tests: the contract had NOTHING holding it.** All 939 `fx/` tests passed with the gates removed — which is
+exactly how a boundary like this drifts by accident (946 now, with the 7 added here). New
+`fx/prodPlayback.test.ts` (7 cases) pins the split in both directions using `vi.stubEnv('DEV', false)` +
+`vi.resetModules()` + a dynamic import, so the module under
+test evaluates its gate code with `DEV` false. Each case asserts the stub actually took effect, so it can't
+silently degrade into a test that passes either way. **Control experiment run:** re-adding all three gates
+fails 5 of the 7 (the 2 survivors are the authoring-fence cases, which pin the opposite direction) — so these
+tests are load-bearing, verified rather than assumed. One thing deliberately NOT tested and said so in the
+file: the art glob, because `defs/art/` holds only a `.gitkeep` today, so an "empty outside DEV" assertion
+would pass with or without the gate.
+
+The Game.tsx case reads the file as **source** and asserts the `ensureDefsReady()` line carries no DEV check.
+Mounting `Game` headless would need a DOM, the store, a Pixi renderer and the whole app tree — a test of the
+harness, not of the gate. The syntactic fact is the whole contract.
+
+**Comments: nine files asserted the old behaviour and were wrong.** Corrected `playDef.ts` (the "── production
+──" header, which said in bold "**Nothing here un-gates that**"; plus `canPlayDefs`, `ensureDefsReady`, the
+miss-warning rationale, and the `window.__fx` block), `fxDefs.ts`, `primitives/index.ts` (said the barrel "must
+stay behind a DEV-gated dynamic `import()`"), `Game.tsx`, `choreo/score.ts` (twice — "defs are a dev-authoring
+payload that doesn't ship"), `choreo/bindings.ts` ("`canPlayDefs()` is false in production and authored defs
+never play there"), `shapeLibrary.ts` ("nothing in prod plays a def yet"), `ui/Workbench.tsx`,
+`ui/sessionState.ts`, and the stale "today, nothing" in `fxDefs.test.ts`. The guide's **"Dev only."** banner is
+rewritten around the headline: the tool is dev-only, the effects you author now ship.
+
+**Verified.** Un-gate proven in the *built* output, not just by compiling: every def id present in the main
+chunk; `uBands`/`posterizePal`/`gl_Position` and all five primitive ids present in the lazy chunk; and the
+minified prod code reads `P.useEffect(()=>{r0e()},[])` where `r0e` is `ensureDefsReady` — an unconditional
+call, which a surviving DEV guard would have folded to `if(false)` and removed along with it. `score.ts`'s
+channel is there too as `if(o.ch==="fxDef"){if(!oP())continue;`, gated only on `canPlayDefs`. Full gate green:
+typecheck (pkgs + web), lint 0 errors (6 pre-existing warnings), 3087 tests / 161 files, build:web.
+
 ## 2026-07-29 — The Dwarf roster is complete (tranche C)
 
 The last five cards, and what each actually needed:

@@ -230,9 +230,15 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
 
 - **FX — the bridge SHIPPED 2026-07-25** (`playDef` + `combatAnchors` + an `fxDef` Score channel, proven in a
   live browser with the committed `ward-gained` def bound to the new `shieldGain` moment). What's left on it:
-  - **The prod decision.** Defs are inert for players: the primitives ship only via a DEV-gated dynamic
-    import, so `canPlayDefs()` is false in a production build. Turning it on means shipping the primitives +
-    their GLSL — measure that before flipping. The bridge scaffolding itself already costs +3.24 kB gzip.
+  - **The prod decision — MADE, and SHIPPED 2026-07-29.** Defs now play for players. Three gates came out
+    (the `fxDefs.ts` glob, `playDef.ts`'s dynamic import, and the `ensureDefsReady()` call in `Game.tsx` —
+    the third is the one that makes the other two do anything), at a measured **+151,602 B raw / +34,206 B
+    gzipped** of total JS — +17,829 B / +4,868 B gzipped in the main chunk (the defs) and 133,773 B
+    (29,338 B gzipped) in a new lazily-fetched primitives chunk. An earlier estimate quoted only the
+    main-chunk figure and so understated this ~9×. Authoring stayed fenced: saving, art, `window.__fx`, `DevMenu`.
+    `fx/prodPlayback.test.ts` fails if the split drifts either way. **This turned on 15 already-live
+    bindings no player had seen** — so the next FX task is the owner watching a real fight at 1× and
+    reporting which of the 15 read wrong at card scale.
   - **`shieldUp` is a result-type event** and collapses into contiguous result runs, so the demo cue doesn't
     fire on every combat (`[dmg, shieldUp]` compiles to a `damage` moment). A per-event fan-out in
     `compile.ts` is the fix if that moment needs to be reliable.

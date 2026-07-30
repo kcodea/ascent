@@ -136,8 +136,9 @@ export function clampDuration(v: unknown, bounds: DurationBounds): number {
  * Parse whatever `loadSession()` handed back into a usable session, or null if there is nothing to restore.
  *
  * Deliberately registry-BLIND: at mount the primitives may not have self-registered yet (they arrive via a
- * DEV-gated dynamic import), so dropping "unknown" primitives here would throw away a perfectly good
- * session on a cold boot. The registry-aware pass is `pruneUnknownPrimitives`, run once the registry is live.
+ * dynamic import, so the registry is empty for a beat), so dropping "unknown" primitives here would throw
+ * away a perfectly good session on a cold boot. The registry-aware pass is `pruneUnknownPrimitives`, run once
+ * the registry is live.
  */
 export function normalizeSession(raw: unknown, bounds: DurationBounds): WorkbenchSession | null {
   if (raw === null || typeof raw !== 'object') return null;

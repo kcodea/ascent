@@ -122,6 +122,51 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'], // Ales
   },
   {
+    id: 'rune_chorus',
+    name: 'Rune of the Chorus',
+    cost: 3,
+    text: 'When you trigger **3 Shouts**, get a random **Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, grantSpell: 1 },
+  },
+  {
+    id: 'rune_overtime',
+    name: 'Rune of Overtime',
+    cost: 1,
+    text: 'Every **15 Gold** you spend, get a random **Dwarven Ale**.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 15, grantAle: 1 },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_infernal_ink',
+    name: 'Rune of Infernal Ink',
+    cost: 4,
+    text: 'Every **3 Shop spells** you cast, give minions in the **Shop +3/+3**.',
+    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 3, buff: { target: 'shop', attack: 3, health: 3 } },
+  },
+  {
+    id: 'rune_cindergem',
+    name: 'Rune of the Cindergem',
+    cost: 4,
+    text: 'Every **3 Rubies** you cast, improve your **Imps by +2/+2**.',
+    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 2, health: 2 } },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_showcase',
+    name: 'Rune of the Showcase',
+    cost: 3,
+    text: 'When you spend **10 Gold**, give the **right-most minion** in the Shop **+4/+4**.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 10, buff: { target: 'shopRightmost', attack: 4, health: 4 } },
+  },
+  {
+    // `oncePerTurn` is the whole difference from the Chorus — a Shout-heavy turn pays once, not four times.
+    id: 'rune_merchants_chorus',
+    name: "Rune of the Merchant's Chorus",
+    cost: 3,
+    text: 'After you trigger **3 Shouts** in a turn, give minions in the **Shop +4/+4**. Once per turn.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, buff: { target: 'shop', attack: 4, health: 4 }, oncePerTurn: true },
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,
@@ -683,6 +728,14 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Dwarf King, Brill**.',
     reward: { kind: 'grant', cards: ['dw_brill'] },
     sets: ['set2'],
+  },
+  {
+    id: 'rune_long_shift',
+    name: 'Rune of the Long Shift',
+    cost: 2,
+    epic: true,
+    text: 'Every **3 cards** you buy, get a random **Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'cardsBought', per: 3, grantSpell: 1 },
   },
 ];
 

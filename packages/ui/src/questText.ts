@@ -311,6 +311,18 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         ? `Your first Ruby each turn casts ${times}`
         : `Your Rubies cast ${times}`;
     }
+    case 'runeThreshold': {
+      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', shout: 'Shouts you trigger' };
+      const parts: string[] = [];
+      if (r.grantSpell) parts.push(r.grantSpell === 1 ? 'get a random Shop spell' : `get ${r.grantSpell} random Shop spells`);
+      if (r.grantAle) parts.push(r.grantAle === 1 ? 'get a random Dwarven Ale' : `get ${r.grantAle} random Dwarven Ales`);
+      if (r.grantRuby) parts.push(r.grantRuby === 1 ? 'get a Ruby' : `get ${r.grantRuby} Rubies`);
+      if (r.buff) {
+        const who = r.buff.target === 'imps' ? 'your Imps' : r.buff.target === 'shop' ? 'minions in the Shop' : 'the right-most minion in the Shop';
+        parts.push(`give ${who} ${statPhrase(r.buff.attack, r.buff.health)}`);
+      }
+      return `Every ${r.per} ${METER[r.meter]}, ${parts.join(' and ')}${r.oncePerTurn ? ' (once per turn)' : ''}`;
+    }
     case 'motherlode':
       return `Whenever you get a Ruby, play a copy on ${r.count} random friendly ${r.tribe ? TRIBE_PLURAL[r.tribe] : 'minions'}`;
     case 'consumeDoubleFirstEachTurn':

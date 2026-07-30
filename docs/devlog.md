@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 2: the threshold group (7 runes, one primitive)
+
+`runeThreshold` — "every `per` of `meter`, do one thing". ONE reward kind rather than a family of
+near-identical ones, because these runes differ only in which meter they watch and what they pay. A hook per
+rune would drift on the parts that must NOT differ, and each drift would look correct in isolation:
+- the remainder BANKS across transactions (9 Gold then 6 Gold pays a 15-Gold rune once);
+- a single large transaction pays EVERY threshold it crosses (32 Gold against a 15-Gold rune owes two payouts,
+  not one — a naive `if (tick >= per)` swallows the rest);
+- `oncePerTurn` caps payouts per TURN, not per run (the Merchant's Chorus).
+
+Armed as an ARRAY, so several threshold runes can be held at once and each keeps its own bank — a shared
+counter would give the wrong total when a per-5 and a per-15 rune are both held.
+
+Meters wired to the real play paths: `gold` (applyGoldSpent), `cardsBought` (applyCardsBought), `spellCast`
+(noteSpellCast — every cast path routes through it), `castRuby` (the reducer's Ruby cast site), `shout`
+(`lastShoutFires`, the same field the Shout quest objective reads).
+
+Shipped: the Chorus, Overtime, Infernal Ink, the Cindergem, the Showcase, the Merchant's Chorus (basic), the
+Long Shift (epic). Two details worth keeping: `shopRightmost` buffs the OFFER rather than `tavernBuyBonus`, so
+the Showcase can't leak onto every future shop; and a `grantSpell` payout excludes Ales, since Ales are Shop
+spells in set 2 and an unfiltered grant would hand them to runes that never mention them.
+
+Verified: typecheck (both), lint (6 pre-existing), 3155 tests, build:web, harness determinism.
+
+**Rune queue: 34 remain.** Groups left: Shop-row manipulation (Hunger, Open Market, Reinvestment), combat flags
+(Vanguard, Counterpoint, Finality, Food Chain, Overflow, Procession, Wild Hunt, Living Echoes, Stampede, Brood,
+Hatchery, War Chorus, Hunting Bell, Last Call, Gemstorm, Cinder Ledger, Attacking Gems, Living Treasure),
+combat-to-shop carry-backs (Blood and Coin, the Remains, Trophy-likes), and genuine one-offs (Duplication,
+Facetwright, Spellstone, Brokerage, Resonance, Redirection, Investment, Profit Sharing, Shared Table, White
+Wolf, Runic Exchange — the last needs an Ale-excluding spell meter).
+
 ## 2026-07-30 — First rune tranche: the six that needed no new machinery
 
 Six runes, all reusing primitives built for the quests — which is what the parameterised approach was for:

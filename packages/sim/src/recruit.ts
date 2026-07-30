@@ -678,6 +678,44 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
   }
 }
 
+/**
+ * Advance every armed threshold rune watching `meter` by `amount`, paying out once per `per` banked.
+ *
+ * ONE dispatcher rather than a hook per rune: the runes in this group differ only in meter and payload, and
+ * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
+ * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
+ */
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'castRuby' | 'cardsBought' | 'shout', amount: number): void {
+  if (amount <= 0 || !state.runeThresholds?.length) return;
+  for (const t of state.runeThresholds) {
+    if (t.meter !== meter) continue;
+    t.tick += amount;
+    while (t.tick >= t.per) {
+      t.tick -= t.per;
+      if (t.oncePerTurn && t.usedThisTurn) continue; // banked but not paid — the cap is per turn, not per run
+      t.usedThisTurn = true;
+      payRuneThreshold(state, t);
+    }
+  }
+}
+
+function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThresholds']>[number]): void {
+  const pool = poolOf(state);
+  if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
+  if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
+  if (t.grantRuby) mintRubies(state, t.grantRuby);
+  const b = t.buff;
+  if (!b) return;
+  if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
+  else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
+  else {
+    // `shopRightmost` buffs the OFFER sitting on the right, not the run-wide buy bonus — the Showcase is about
+    // the row in front of you, so it must not leak onto future shops the way `applyRunShopBuff` does.
+    const offer = [...state.shop].reverse().find((o) => !CARD_INDEX[o.cardId]?.spell && !CARD_INDEX[o.cardId]?.ruby);
+    if (offer) addOfferBuff(offer, 'Rune of the Showcase', b.attack, b.health);
+  }
+}
+
 /** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
 export function spellCostReduction(state: RunState): number {
   let n = state.spellCostMod;
@@ -3971,6 +4009,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
  */
 export function applyGoldSpent(state: RunState, amount: number): void {
   if (amount <= 0) return;
+  advanceRuneThresholds(state, 'gold', amount);
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -4021,6 +4060,7 @@ export function applyCardsPlayed(state: RunState, count: number): void {
 
 export function applyCardsBought(state: RunState, count: number): void {
   if (count <= 0) return;
+  advanceRuneThresholds(state, 'cardsBought', count);
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -5290,6 +5330,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   const castUmbrellaBefore = state.spellsCast + (state.rubyCasts ?? 0);
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
+  advanceRuneThresholds(state, 'spellCast', 1);
   // Living Grimoire's charge is spent by this cast (consumed here at the real cast, not in the read-only
   // `spellCasts` the UI previews with). `casts` was already computed with the charge, so the full multiplied
   // count still resolves; clearing after keeps the NEXT spell single.

@@ -426,6 +426,15 @@ export interface RunState {
    *  doubler re-arms. `tick` banks the remainder across turns like the other threshold rewards. */
   endlessVerse?: { per: number; tick: number };
   /** Motherlode: on every Ruby gained, cast a copy on `count` random friendly `tribe` minions. */
+  /** Armed threshold runes (Cindergem, Infernal Ink, Overtime, the Chorus, the Long Shift, the Showcase, the
+   *  Merchant's Chorus). An ARRAY, so several can be held at once and each keeps its own banked remainder.
+   *  `usedThisTurn` backs `oncePerTurn`; it resets with the other per-turn tallies. */
+  runeThresholds?: {
+    meter: 'gold' | 'spellCast' | 'castRuby' | 'cardsBought' | 'shout'; per: number; tick: number;
+    grantSpell?: number; grantAle?: number; grantRuby?: number;
+    buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
+    oncePerTurn?: boolean; usedThisTurn?: boolean;
+  }[];
   motherlode?: { count: number; tribe?: Tribe };
   /** Bottomless Banquet: the first Shop-minion Consume each turn eats a second. Reset with the per-turn tallies. */
   consumeDoubleFirstEachTurn?: boolean;

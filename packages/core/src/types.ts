@@ -781,6 +781,19 @@ export type QuestReward =
    *  the same turn, so a Shout-heavy board can spend the doubler more than once a turn. */
   | { kind: 'endlessVerse'; per: number }
   /** Motherlode: whenever you GET a Ruby, cast a copy of it on `count` random friendly Kobolds. */
+  /**
+   * A THRESHOLD rune: every `per` of `meter`, do one thing. One reward kind rather than a family of near-identical
+   * ones, because the runes in this group differ only in which meter they watch and what they pay — Cindergem
+   * (3 Rubies → Imps +2/+2), Infernal Ink (3 spells → Shop +3/+3), Overtime (15 Gold → an Ale), the Chorus
+   * (3 Shouts → a spell), the Long Shift (3 buys → a spell), the Showcase (10 Gold → the right-most offer +4/+4).
+   *
+   * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
+   * at one per turn (the Merchant's Chorus).
+   */
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'castRuby' | 'cardsBought' | 'shout'; per: number;
+      grantSpell?: number; grantAle?: number; grantRuby?: number;
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
+      oncePerTurn?: boolean }
   | { kind: 'motherlode'; count: number; /** Absent = ANY friendly minion (Rune of the Motherlode); set = tribe-scoped (the quest). */ tribe?: Tribe }
   /** Bottomless Banquet: the first Shop minion your Demons Consume each turn, they Consume another. */
   | { kind: 'consumeDoubleFirstEachTurn' }

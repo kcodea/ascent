@@ -115,6 +115,9 @@ export const FSW_NUM_KEYS = [
 ] as const;
 export const FSW_COLOR_KEYS = ['slashColor', 'sparkColor', 'glowColor'] as const;
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as FSW_DEFAULTS };
+
 const KEY = 'ascent.flurryswingfx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: FlurrySwingConfig = (() => {

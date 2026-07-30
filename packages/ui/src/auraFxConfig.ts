@@ -70,6 +70,9 @@ export const AURAFX_RANGES: Partial<Record<keyof AuraFxConfig, [number, number, 
   moteTail: [0.1, 1, 0.02],
 };
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as AURAFX_DEFAULTS };
+
 const KEY = 'ascent.aurafx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: AuraFxConfig = (() => {

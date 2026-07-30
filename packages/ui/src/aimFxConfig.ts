@@ -71,6 +71,9 @@ export const AIMFX_RANGES: Partial<Record<keyof AimFxConfig, [number, number, nu
   burstCount: [0, 60, 1], burstSpeed: [50, 1200, 10], burstSize: [2, 24, 1], burstLife: [100, 1500, 10],
 };
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as AIMFX_DEFAULTS };
+
 const KEY = 'ascent.aimfx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: AimFxConfig = (() => {

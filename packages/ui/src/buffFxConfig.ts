@@ -69,6 +69,9 @@ export const BUFFFX_RANGES: Partial<Record<keyof BuffFxConfig, [number, number, 
   sparkCount: [0, 120, 1], sparkSpeed: [0, 900, 10], sparkSize: [1, 24, 1], sparkLife: [100, 2000, 10],
 };
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as BUFFFX_DEFAULTS };
+
 const KEY = 'ascent.bufffx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: BuffFxConfig = (() => {

@@ -279,6 +279,8 @@ export function simulate(
   const pitDone: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of Finality's own once-per-fight latch — separate from `pitDone` so holding both runes pays both. */
   const finalityDone: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of the Wild Hunt's escalating per-attack Health grant, per side. */
+  const wildHuntGrown: Record<Side, number> = { player: 0, enemy: 0 };
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
@@ -794,6 +796,12 @@ export function simulate(
     // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
     // the Whelp and Rune of the Undertow use — so the summon and its strike land as one beat.
     if (modsFor(side).gemheartCharge && card.id === 'gemheart-shard') attackNow = true;
+    // Rune of Living Treasure: your Gemheart Golems enter with Rise — the keyword IS "summon an exact copy of
+    // this without Echo", so this reuses Rise rather than stamping a bespoke Deathrattle onto the token.
+    if (modsFor(side).runeLivingTreasure && card.id === 'gemheart-shard') {
+      minion.rebornAvailable = true;
+      if (!minion.keywords.includes('R')) minion.keywords.push('R');
+    }
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
     // the next flushImmediateAttacks — i.e. AFTER the current clash's death cascade fully resolves. So the
@@ -1203,6 +1211,13 @@ export function simulate(
       const imp = cards['impscrap'];
       if (imp) { nextStep(); for (let i = 0; i < pitImps; i++) summonMinion(side, imp, undefined); }
     }
+    // Rune of Blood and Coin: every N friendly deaths banks Gold for next turn. Player-only — a served enemy
+    // has no run to carry Gold back into.
+    const bacStep = modsFor(side).runeBloodAndCoin ?? 0;
+    if (bacStep > 0 && side === 'player' && deaths[side] % 4 === 0) {
+      fireTrigger('runeBloodAndCoin', side);
+      bonusGoldGain += bacStep;
+    }
     // Rune of Finality: the Warded sibling of Pit Without End — same "your last minion died" trigger, but the
     // Imps arrive with Ward. Its own latch, so holding both runes pays both once rather than one eating the other.
     const finalImps = modsFor(side).runeFinality ?? 0;
@@ -1388,6 +1403,15 @@ export function simulate(
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
+      // Rune of the Wild Hunt: a Beast attacking gives your WHOLE board +N Health and improves N permanently.
+      // Distinct from The Old Hunt, which pumps the Beast-only aura symmetrically — this one is Health-only,
+      // board-wide, and its step GROWS, so it is tracked per side rather than read from a static mod.
+      const wildStep = modsFor(attacker.side).runeWildHunt ?? 0;
+      if (wildStep > 0 && isBeast(attacker)) {
+        wildHuntGrown[attacker.side] += wildStep;
+        const n = wildHuntGrown[attacker.side];
+        for (const m of boards[attacker.side]) if (!m.dead && m.health > 0) ctx.buff(m, 0, n, 'Rune of the Wild Hunt');
+      }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
         // Reworked 2026-07-21: the grant is now SYMMETRIC (+N/+N, was Attack-only), so it pumps both aura

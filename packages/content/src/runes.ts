@@ -215,6 +215,13 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'], // Consuming Shop minions is a set-2 Demon mechanic
   },
   {
+    id: 'rune_blood_and_coin',
+    name: 'Rune of Blood and Coin',
+    cost: 3,
+    text: 'Every **4 friendly deaths** in combat, gain **4 Gold** next turn.',
+    reward: { kind: 'combatFlag', flag: 'runeBloodAndCoin', amount: 4 },
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,
@@ -872,6 +879,26 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Rubies played on your **left-most** minion also cast on your **right-most** minion.',
     reward: { kind: 'runeRedirection' },
     sets: ['set2'], // Rubies
+  },
+  {
+    // The Health-only, board-wide sibling of The Old Hunt — and its step GROWS, where the quest's does not.
+    id: 'rune_wild_hunt',
+    name: 'Rune of the Wild Hunt',
+    cost: 3,
+    epic: true,
+    text: 'When a **Beast** attacks, give your minions **+3 Health** and improve this by **3** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 3 },
+  },
+  {
+    // Rise IS "summon an exact copy of this without Echo", so this reuses the keyword rather than stamping a
+    // bespoke Deathrattle onto the token.
+    id: 'rune_living_treasure',
+    name: 'Rune of Living Treasure',
+    cost: 4,
+    epic: true,
+    text: 'Your **Gemheart Golems** gain **Rise**.',
+    reward: { kind: 'combatFlag', flag: 'runeLivingTreasure' },
+    sets: ['set2'], // Gemheart Golems are a set-2 Kobold token
   },
 ];
 

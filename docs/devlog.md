@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 7: Blood and Coin, the Wild Hunt, Living Treasure
+
+- **Rune of Blood and Coin** (basic 3) — every 4 friendly deaths banks 4 Gold for next turn, through
+  `bonusGoldGain` (the Bounty Bot carry-back channel). Player-only: a served enemy has no run to carry Gold into.
+- **Rune of the Wild Hunt** (epic 3) — a Beast attacking gives your WHOLE board +3 Health, and the step GROWS.
+  Deliberately distinct from The Old Hunt, which pumps the Beast-only aura symmetrically at a fixed rate: this
+  one is Health-only, board-wide, and escalating, so it tracks its own per-side accumulator rather than reading
+  a static mod. The test pins that the first grant is 3 and a later one is strictly larger — a flat
+  implementation passes every shape check and quietly drops the "improve permanently" half.
+- **Rune of Living Treasure** (epic 4) — your Gemheart Golems gain **Rise**. The sheet's wording, "Echo: Summon
+  an exact copy of this without Echo", IS Rise, so this reuses the keyword rather than stamping a bespoke
+  Deathrattle onto the token.
+
+Verified: typecheck (both), lint (6 pre-existing), 3201 tests, build:web, harness determinism.
+
+**Rune queue: 15 remain.** 32 of 47 done. What is left is the hard tail — mostly one-offs with no existing
+machinery to lean on, plus the three blocked items (Counterpoint, Duplication, Facetwright) and Profit Sharing,
+which needs a gold-gain chokepoint the reducer does not currently have.
+
 ## 2026-07-30 — Rune audit (clean) + tranche 6 (4 runes)
 
 **Audit vs the owner's 96-row sheet: 0 cost mismatches, 0 basic/epic mismatches.** Of the 12 runes in the game

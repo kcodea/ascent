@@ -2901,6 +2901,8 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeFinality') s.questFlags.runeFinality = r.amount ?? 7; // amount = Warded Imps summoned
       else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = r.amount ?? 6; // amount = the Imp improve
       else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = r.amount ?? 2; // amount = Rubies per Kobold
+      else if (r.flag === 'runeBloodAndCoin') s.questFlags.runeBloodAndCoin = r.amount ?? 4; // amount = Gold banked
+      else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = r.amount ?? 3;        // amount = Health per Beast attack
       else s.questFlags[r.flag] = true;
       break;
     case 'questGoldTribeBuff':
@@ -3335,6 +3337,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeCinderLedger: f?.runeCinderLedger,   // Avenge (3): improve your Imps run-wide
     runeProcession: f?.runeProcession,       // Avenge (4): double your right-most minion
     runeGemstorm: f?.runeGemstorm,           // Avenge (2): Rubies onto every friendly Kobold
+    runeBloodAndCoin: f?.runeBloodAndCoin,   // every 4 friendly deaths banks Gold for next turn
+    runeWildHunt: f?.runeWildHunt,           // a Beast attacking pumps a board-wide Health aura
+    runeLivingTreasure: f?.runeLivingTreasure, // Gemheart Golems enter with Rise
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

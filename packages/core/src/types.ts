@@ -967,7 +967,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // cinderLedger = improve your Imps run-wide; procession = double your right-most minion's stats.
   | 'runeLastCall' | 'runeCinderLedger' | 'runeProcession'
   // Rune of Gemstorm: Avenge (2) — play 2 Rubies on each friendly Kobold.
-  | 'runeGemstorm';
+  | 'runeGemstorm'
+  // Batch 7: bloodAndCoin = every N friendly deaths banks Gold for next turn; wildHunt = a Beast attacking
+  // pumps a run-wide Health aura, escalating; livingTreasure = your Gemheart Golems gain Rise.
+  | 'runeBloodAndCoin' | 'runeWildHunt' | 'runeLivingTreasure';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1065,6 +1068,12 @@ export interface QuestCombatMods {
   runeProcession?: boolean;
   /** Rune of Gemstorm: Rubies played on each friendly Kobold at every second friendly death. */
   runeGemstorm?: number;
+  /** Rune of Blood and Coin: Gold banked for next turn per 4 friendly deaths. */
+  runeBloodAndCoin?: number;
+  /** Rune of the Wild Hunt: Health granted board-wide per Beast attack, escalating by the same step. */
+  runeWildHunt?: number;
+  /** Rune of Living Treasure: your Gemheart Golems enter with Rise. */
+  runeLivingTreasure?: boolean;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

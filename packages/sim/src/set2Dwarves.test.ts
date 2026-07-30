@@ -537,3 +537,28 @@ describe('Dwarf quests (owner roster 2026-07-29)', () => {
     expect(q('q_war_council'), 'War Council shipped with a borrowed Beast flag').toBeUndefined();
   });
 });
+
+describe('bug fixes 2026-07-29 (owner report)', () => {
+  it("Mountainbond's meter counts SPELLS, not just minions", () => {
+    // "Cards" means everything you play — minions, spells, Rubies. The meter was on the minion branch only.
+    let s = set2();
+    s = { ...s, board: [body('dw_mountainbond', 'mb'), body('dw_brunni', 'mate')], hand: [] };
+    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    for (let i = 0; i < 5; i++) {
+      s = { ...s, hand: [{ uid: `sp${i}`, cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+      s = reduce(s, { type: 'play', uid: `sp${i}` });
+    }
+    // 5 Growths each buff the board +1/+1 (+10 across two minions); Mountainbond's Ruby adds on top of that.
+    const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    expect(after, 'five spells did not reach the 5-card threshold').toBeGreaterThan(before + 20);
+  });
+
+  it("Fatecarver's Growth branch uses the SHARED factory, so it scales with spell power", () => {
+    // My first version was a near-copy that missed both the spell-power scaling and `ctx.castSpell`. It shares
+    // Taragosa's factory now — one definition of "cast Growth on an ally attack".
+    const def = CARD_INDEX['n2_fatecarver']!;
+    const growth = def.effects.find((e) => e.on === 'onAttack');
+    expect(growth?.do, 'Fatecarver still has its own Growth copy').toBe('onAllyAttackCastGrowth');
+    expect((growth?.params as { option?: number })?.option, 'the branch gate is missing').toBe(1);
+  });
+});

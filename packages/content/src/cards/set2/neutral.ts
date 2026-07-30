@@ -138,7 +138,9 @@ export const SET2_NEUTRAL: CardDef[] = [
     // `chooseOne[].effects` — the latter fires once at pick time and never again (see Malphas).
     effects: [
       { on: 'spellCast', do: 'onSpellCastBuffOnePerTribe', params: { option: 0, attack: 2, health: 2 } },
-      { on: 'onAttack', do: 'onFriendlyAttackCastGrowth', params: { option: 1, attack: 1, health: 1 } },
+      // `spellId` is required by the content validator — it is what makes the cast a REAL Growth cast (Guel and the
+      // spell counters see it), not just a buff wearing Growth's name.
+      { on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { option: 1, attack: 1, health: 1, spellId: 'growth' } },
     ],
     chooseOne: [
       { text: 'When you cast a **Shop spell**, give **1 minion of each type +2/+2**.', goldenText: 'When you cast a **Shop spell**, give **1 minion of each type +4/+4**.', effects: [] },

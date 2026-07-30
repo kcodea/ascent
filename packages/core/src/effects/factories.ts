@@ -683,25 +683,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /**
-   * Fatecarver (Choose One, second branch) — when a FRIENDLY minion attacks, cast Growth on your board.
-   *
-   * "Cast Growth" is spelled out as the buff it produces rather than routed through the spell system: a Shop
-   * spell has no combat cast path, and Growth is simply +1/+1 to your board (`spellBuffAll`). Guarded on the
-   * attacker being ours — without that it would fire on the enemy's swings too, which is the standard bug in
-   * this family. Golden casts it twice.
-   */
-  onFriendlyAttackCastGrowth: (ctx, self, params, payload) => {
-    // Same Choose One gate as the recruit half — a persistent branch is a printed effect that checks the pick.
-    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
-    const { minion } = payload as MinionPayload;
-    if (self.dead || !minion || minion.side !== self.side) return;
-    const a = num(params.attack, 1);
-    const h = num(params.health, 1);
-    for (let i = 0; i < mul(self); i++) {
-      for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
-    }
-  },
 
   /** Lieutenant Thane — Rally: hand THIS minion's current Attack to `count` other living friendlies. Reads its
    *  Attack live, so a buffed Thane spreads more; golden repeats the whole spread. */
@@ -1419,6 +1400,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  twice). Explosive on a wide board. Growth is a REAL spell, so each cast inherits the run's spell power
    *  (`ctx.spellPower`, passed in from the run loop) on top of the base — exactly like a shop-cast Growth. */
   onAllyAttackCastGrowth: (ctx, self, params, payload) => {
+    // Choose One gate, for cards where this is one BRANCH (Fatecarver). Absent `option` = ungated, so Taragosa
+    // is unaffected. Fatecarver shares this factory rather than carrying a near-copy: the duplicate I wrote
+    // first missed BOTH the spell-power scaling and `ctx.castSpell`, which is exactly what a near-copy costs.
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
     const { minion } = payload as MinionPayload;
     if (self.dead || minion.side !== self.side) return; // any ally's attack
     const sp = ctx.spellPowerFor(self.side); // per-side: an enemy Taragosa scales with the OPPONENT's spell power

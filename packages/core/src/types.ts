@@ -796,6 +796,10 @@ export type QuestReward =
       oncePerTurn?: boolean }
   /** Rune of the Brokerage: your Ruby Brokers lose their per-turn cap. */
   | { kind: 'runeBrokerage' }
+  /** Rune of the Shared Table: every Dwarven Ale cast gives one friendly minion of each type +X/+X. */
+  | { kind: 'runeSharedTable'; attack: number; health: number }
+  /** Rune of Redirection: a Ruby played on your left-most minion also casts on your right-most. */
+  | { kind: 'runeRedirection' }
   /** Rune of Investment: selling a minion mints `count` Rubies. */
   | { kind: 'runeSellRubies'; count: number }
   /** Rune of the Open Market: the FIRST Shop minion your Demons Consume each turn buffs the Shop +X/+X
@@ -820,7 +824,7 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -961,7 +965,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeVanguard' | 'runeFinality' | 'runeHatchery'
   // Avenge runes (batch 5), all riding the existing `runeAvenge` helper: lastCall = an Ale to hand;
   // cinderLedger = improve your Imps run-wide; procession = double your right-most minion's stats.
-  | 'runeLastCall' | 'runeCinderLedger' | 'runeProcession';
+  | 'runeLastCall' | 'runeCinderLedger' | 'runeProcession'
+  // Rune of Gemstorm: Avenge (2) — play 2 Rubies on each friendly Kobold.
+  | 'runeGemstorm';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1057,6 +1063,8 @@ export interface QuestCombatMods {
   runeCinderLedger?: number;
   /** Rune of the Procession: Avenge (4) — double your right-most minion's stats. */
   runeProcession?: boolean;
+  /** Rune of Gemstorm: Rubies played on each friendly Kobold at every second friendly death. */
+  runeGemstorm?: number;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

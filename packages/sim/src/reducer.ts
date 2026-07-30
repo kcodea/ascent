@@ -807,6 +807,16 @@ function reduceCore(state: RunState, action: Action): RunState {
             // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
             fireOnRubyPlayed(s, boardTarget, card.attack, card.health);
           }
+          // Rune of Redirection: a Ruby landing on your LEFT-most minion also casts on your right-most. Fires
+          // the target's own on-Ruby watchers too, so the second landing is a real Ruby cast rather than a
+          // silent stat copy. Guarded against a one-minion board, where left-most IS right-most.
+          const tail = s.board[s.board.length - 1];
+          if (s.runeRedirection && boardTarget === s.board[0] && tail && tail !== boardTarget) {
+            for (let n = 0; n < casts; n++) {
+              addBuff(tail, 'Ruby', card.attack, card.health);
+              fireOnRubyPlayed(s, tail, card.attack, card.health);
+            }
+          }
           // Warding Ruby: grant its keyword (Ward = DS) to the target — permanent in the shop phase (baked here).
           const kw = def.rubyGrantKeyword;
           if (kw && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
@@ -2890,6 +2900,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'burningLegion') s.questFlags.burningLegion = r.amount ?? 3;
       else if (r.flag === 'runeFinality') s.questFlags.runeFinality = r.amount ?? 7; // amount = Warded Imps summoned
       else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = r.amount ?? 6; // amount = the Imp improve
+      else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = r.amount ?? 2; // amount = Rubies per Kobold
       else s.questFlags[r.flag] = true;
       break;
     case 'questGoldTribeBuff':
@@ -2906,6 +2917,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'rubyExtraCasts':
       if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
       else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
+      break;
+    case 'runeSharedTable':
+      s.runeSharedTable = { attack: r.attack, health: r.health };
+      break;
+    case 'runeRedirection':
+      s.runeRedirection = true;
       break;
     case 'runeBrokerage':
       s.runeBrokerage = true;
@@ -3317,6 +3334,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeLastCall: f?.runeLastCall,           // Avenge (3): a random Dwarven Ale to hand
     runeCinderLedger: f?.runeCinderLedger,   // Avenge (3): improve your Imps run-wide
     runeProcession: f?.runeProcession,       // Avenge (4): double your right-most minion
+    runeGemstorm: f?.runeGemstorm,           // Avenge (2): Rubies onto every friendly Kobold
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

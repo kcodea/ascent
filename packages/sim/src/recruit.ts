@@ -5324,7 +5324,23 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // re-record (spellsThisTurn is nonzero by then).
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
   // Set 2 — Chef Gary Toast reads "Ales triggered this turn", so the tally lives with the other per-turn counters.
-  if (ALE_IDS.includes(spellDef.id)) state.alesCastThisTurn = (state.alesCastThisTurn ?? 0) + 1;
+  if (ALE_IDS.includes(spellDef.id)) {
+    state.alesCastThisTurn = (state.alesCastThisTurn ?? 0) + 1;
+    // Rune of the Shared Table: every Ale cast buffs ONE friendly minion of each type. Same "one per tribe"
+    // spread Fatecarver uses, so a dual-tribe body fills both its slots rather than being counted twice.
+    const st = state.runeSharedTable;
+    if (st) {
+      const seen = new Set<string>();
+      for (const c of state.board) {
+        const def = CARD_INDEX[c.cardId];
+        if (!def) continue;
+        const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+        if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
+        for (const t of tribes) seen.add(t);
+        addBuff(c, 'Rune of the Shared Table', st.attack, st.health);
+      }
+    }
+  }
   // Mushy: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it
   // catches every cast path once; the wave gate makes "next turn" exact — a charge armed in this turn's combat
   // has `activateWave = wave + 1`, so it can't pay out until the following turn.
@@ -5495,6 +5511,12 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); fireRecruitDeathrattles(makeContext(state), leftmost); }
+  } else if (effect === 'demonEatsRightmostShop') {
+    // Rune of Hunger: your LEFT-most Demon eats the right-most Shop minion. Reuses `rightmostShopMinion` +
+    // `consumeShopMinion`, so the eater gains exactly what a card-driven Consume would give it.
+    const eater = state.board.find((c) => isTribe(c, 'demon'));
+    const i = rightmostShopMinion(state);
+    if (eater && i >= 0) step(() => consumeShopMinion(state, eater, i));
   } else if (effect === 'grantRuby') {
     // MINTED, not conjured — a Ruby is base 1/1 plus the run's live `rubyBonus`, like every other Ruby source.
     step(() => mintRubies(state, 1));

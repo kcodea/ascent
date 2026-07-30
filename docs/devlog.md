@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune audit (clean) + tranche 6 (4 runes)
+
+**Audit vs the owner's 96-row sheet: 0 cost mismatches, 0 basic/epic mismatches.** Of the 12 runes in the game
+but not on the sheet, 11 carry `sets: ['set1']` as the owner ruled; the twelfth is Rune of Bulk Order, which IS
+the sheet's "Rune of Scale" row and so correctly stays in both sets. 22 runes genuinely missing.
+
+**Shipped (4):**
+- **Rune of Hunger** (basic 2) — an EoT effect reusing `rightmostShopMinion` + `consumeShopMinion`, so the
+  eater gains exactly what a card-driven Consume gives.
+- **Rune of the Shared Table** (epic 3) — every Ale cast buffs ONE friendly minion of each type, using the same
+  one-per-tribe spread Fatecarver uses (a dual-tribe body fills both slots rather than being counted twice).
+- **Rune of Redirection** (epic 4) — a Ruby on your left-most also casts on your right-most, firing the second
+  target's own on-Ruby watchers so it is a real cast rather than a silent stat copy. Guarded against a
+  one-minion board, where left-most IS right-most and the body would otherwise take the Ruby twice.
+- **Rune of Gemstorm** (epic 2) — another `runeAvenge` registration. Rubies are minted at `rubyBonusFor(side)`,
+  the same strength the shop mints at; the test asserts a high-`rubyBonus` run produces strictly bigger buffs,
+  which a flat 1/1 implementation would fail.
+
+**Test note.** The Shared Table test first failed because I built a "Demon" by overriding the instance `tribe`
+on a Beast card. The rune reads the CARD DEF's tribes (matching Fatecarver), so the override was invisible —
+the test now uses a real Demon card. Worth remembering: instance `tribe` and def tribe are not interchangeable
+in tests.
+
+Verified: typecheck (both), lint (6 pre-existing), 3194 tests, build:web, harness determinism.
+
+**Rune queue: 18 remain.** 29 of 47 done.
+
 ## 2026-07-30 — Rune tranche 5: the Avenge batch (3 runes, zero new machinery)
 
 `runeAvenge` already existed (Broodpit / Spearline / Appraisal / Soul Taxes) and owns the modulo, the per-side

@@ -144,6 +144,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   grantAles: 'End of Turn: get 2 Dwarven Ales',
   copyFirstSpell: 'End of Turn: get a copy of the first spell you cast this turn',
   grantRuby: 'End of Turn: get a Ruby',
+  demonEatsRightmostShop: 'End of Turn: your left-most Demon Consumes the right-most Shop minion',
 };
 
 export function questRewardText(r: QuestReward, live?: { completed?: boolean; shoutCharges?: number; repeatTurns?: number }): string {
@@ -204,6 +205,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
+        case 'runeGemstorm':
+          return `Avenge (2): play ${r.amount ?? 2} Rubies on each friendly Kobold`;
         case 'runeLastCall':
           return 'Avenge (3): get a random Dwarven Ale';
         case 'runeCinderLedger':
@@ -336,6 +339,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       }
       return `Every ${r.per} ${METER[r.meter]}, ${parts.join(' and ')}${r.oncePerTurn ? ' (once per turn)' : ''}`;
     }
+    case 'runeSharedTable':
+      return `Your Dwarven Ale casts each give one friendly minion of each type +${r.attack}/+${r.health}`;
+    case 'runeRedirection':
+      return 'Rubies played on your left-most minion also cast on your right-most minion';
     case 'runeBrokerage':
       return 'Your Ruby Brokers can be triggered endlessly';
     case 'runeSellRubies':

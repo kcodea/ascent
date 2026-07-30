@@ -207,6 +207,14 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'], // Ales
   },
   {
+    id: 'rune_hunger',
+    name: 'Rune of Hunger',
+    cost: 2,
+    text: '**End of Turn:** your **left-most Demon** Consumes the **right-most Shop** minion.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'demonEatsRightmostShop' },
+    sets: ['set2'], // Consuming Shop minions is a set-2 Demon mechanic
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,
@@ -837,6 +845,33 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Avenge (4):** **double** your **right-most** minion’s stats.',
     reward: { kind: 'combatFlag', flag: 'runeProcession' },
+  },
+  {
+    id: 'rune_gemstorm',
+    name: 'Rune of Gemstorm',
+    cost: 2,
+    epic: true,
+    text: '**Avenge (2):** play **2 Rubies** on each friendly **Kobold**.',
+    reward: { kind: 'combatFlag', flag: 'runeGemstorm', amount: 2 },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_shared_table',
+    name: 'Rune of the Shared Table',
+    cost: 3,
+    epic: true,
+    text: 'Your **Dwarven Ale** casts each give **one friendly minion of each type +2/+2**.',
+    reward: { kind: 'runeSharedTable', attack: 2, health: 2 },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_redirection',
+    name: 'Rune of Redirection',
+    cost: 4,
+    epic: true,
+    text: 'Rubies played on your **left-most** minion also cast on your **right-most** minion.',
+    reward: { kind: 'runeRedirection' },
+    sets: ['set2'], // Rubies
   },
 ];
 

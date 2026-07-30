@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-07-30 — Set 2 art re-wired (149 cards) + two real payload bugs
+
+Owner redid the whole Set 2 art pass. Re-ran `npm run art:wire` (the script is now registered in package.json;
+it had only ever been run directly). **149 matched, 24 unmatched, 7 set-2 minions still have no art.**
+
+Four new aliases for attributed files whose name no longer matches the card: `BigHuggies.png` -> `dm_velvet`
+(the card is **Bug** Huggies — one letter apart, flagged to the owner), `GemShard.png` -> `gemheart-shard`,
+`GroveweaverAlt2.png` -> the `b2_groveweaver2` slot, and `CinderChancellor` -> `dm_chancellor` (pre-rename name,
+now filling the `2` variant while `RougeRogue.png` takes the base).
+
+Three defects found while doing it — the wiring "worked" in all three cases and would have shipped wrong:
+
+1. **The webp shadow.** `indexArt` resolves `.webp` over `.png` for the same id. Dropping fresh PNGs beside
+   stale WEBPs changed nothing on screen — the old art kept winning and the tool reported 149 happy matches.
+   The tool now regenerates each webp sibling from the new source via sharp. First run after the fix: 109 files
+   actually changed, where the naive copy had moved 6.
+2. **Resolution drift.** Every art file already in the repo is 512x512; the new masters are ~1254. Shipping
+   them raw took each webp from ~78KB to ~350KB across 150 assets. Both outputs are now resized to 512.
+3. **Dead-weight PNGs.** Vite's glob emits every matched file, so the PNGs ship in the bundle even though the
+   loader never selects one when a webp exists — 145 raw masters were **322MB** against 20MB of webp. The PNG
+   is now written resized rather than copied. **Bundle: 360MB -> 130MB.**
+
+Also made the tool's precedence deterministic. Two files can target one card (its current name and its
+pre-rename name both in the folder) and whichever copied last used to win by directory-listing luck. Alias
+matches now copy first so an exact current-name match always lands on top, and a new CONTESTED section reports
+every such collision instead of leaving it to be inferred. All 4 collisions resolve to the current-name file.
+
+Verified: the running dev server's own `artFor` resolves every re-wired id (including the two brand-new ones)
+to a `.webp`; each generated file decodes at 512x512. Server RESTARTED, not reloaded — the glob is eager, so
+44 new files would not otherwise appear. Gates: typecheck (both), lint, 3207 tests, build:web, harness.
+
+**Still unwired, for the owner:** 7 minions have no art at all (Storm Chaser, Mineral Master, Runekeg, Moira,
+Oathbound Avenger, Bellringer Voss, Lastlight Marshal). Of the 24 unmatched files, 5 are art for cards that do
+not exist (Cinderwall Captain, Hellrider, Pit Drillmaster, Blu, Mushroom Dragon, Denkeeper Oona), 4 are stale
+pre-rename duplicates now superseded, and the rest are un-attributed (`content3.png`, UUID exports).
+
 ## 2026-07-30 — Rune tranche 8: the two Shop carry-backs
 
 - **Rune of the Remains** (basic 3) — every 5 friendly minions summoned in combat buffs the Shop +3/+3.

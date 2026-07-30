@@ -5347,6 +5347,11 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     if (n > 0) {
       for (let i = 0; i < n; i++) step(() => { for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', 1, 1); });
     }
+  } else if (effect === 'grantAles') {
+    // Open Tab (Dwarf quest): pour Ales at End of Turn, for the rest of the run. Draws from the RUN'S pool like
+    // every other Ale grant, so a set without them pours nothing rather than injecting unreachable cards.
+    const ales = poolOf(state).spells.filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length > 0) step(() => conjureToHand(state, ales, 2));
   } else if (effect === 'triggerLeftmostEcho') {
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));

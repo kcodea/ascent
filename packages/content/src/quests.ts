@@ -130,6 +130,7 @@ export const QUEST_DEFS: QuestDef[] = [
   // War Council is NOT shipped: its reward ("your Dwarf Rallies and Slaughters trigger an additional time")
   // has no reward kind. `lawOfTeeth` is the Beast version and is gated on `isBeast(attacker)` in the sim, so
   // reusing it would silently grant BEAST triggers on a Dwarf quest. Needs a tribe-parameterised flag.
+  { id: 'q_open_tab', name: 'Open Tab', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 14 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' }, sets: ['set2'] },
 ];
 
 export const QUEST_INDEX: Record<string, QuestDef> = Object.fromEntries(

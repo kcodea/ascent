@@ -562,3 +562,19 @@ describe('bug fixes 2026-07-29 (owner report)', () => {
     expect((growth?.params as { option?: number })?.option, 'the branch gate is missing').toBe(1);
   });
 });
+
+describe('Open Tab (Dwarf quest)', () => {
+  it('pours 2 Ales at End of Turn once its reward is active', () => {
+    let s = set2();
+    s = { ...s, questRecurringEndOfTurn: ['grantAles'], board: [], hand: [] };
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'no Ales poured').toBe(2);
+  });
+
+  it('is a set-2 Dwarf quest on the Gold-spent objective', () => {
+    const q = QUEST_DEFS.find((x) => x.id === 'q_open_tab')!;
+    expect(q.sets).toEqual(['set2']);
+    expect(q.tribe).toBe('dwarf');
+    expect(q.objective.event).toBe('spendGold');
+  });
+});

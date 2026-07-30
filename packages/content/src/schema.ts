@@ -525,7 +525,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive(), immediate: z.boolean().optional() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),

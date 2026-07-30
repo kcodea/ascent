@@ -184,6 +184,22 @@ describe('moteAlpha', () => {
     expect(() => moteAlpha(0.5, 0)).not.toThrow();
     expect(Number.isFinite(moteAlpha(0.5, 0))).toBe(true);
   });
+
+  /**
+   * fadeIn 0 is a genuine OFF, and that is why the emitter got no new control when `burst` gained `fade`
+   * (2026-07-30). Burst's built-in fade was a bare `frac * frac` no param could reach; this one's WIDTH has
+   * always been authored, and driving it to the slider's own minimum collapses the envelope to a square —
+   * full opacity across the whole life, leaving `alphaCurve` as the entire opacity story. The ramps do not
+   * literally vanish (they compress into the epsilon floor), so this is asserted where an author can see it:
+   * everywhere except the last ten-thousandth of a life.
+   */
+  it('collapses to a square envelope at fadeIn 0 — the built-in fade is genuinely OFF', () => {
+    for (const t of [0.0001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.9998]) {
+      expect(moteAlpha(t, 0)).toBe(1);
+    }
+    // Compare against a real fade to show the difference is not vacuous.
+    expect(moteAlpha(0.05, 0.2)).toBeLessThan(1);
+  });
 });
 
 describe('withinEmitWindow', () => {

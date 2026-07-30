@@ -44,6 +44,14 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The effect workbench stops fighting the person using it.** Three ceilings came down at once. Art you
+  import as a particle shape now survives a page reload instead of quietly reverting to a plain circle — the
+  file was written to disk correctly, but the app couldn't see a file that appeared after it started, so a
+  tuned effect appeared to vanish. The physics sliders got roughly four times the range, because "as dramatic
+  as it goes" was landing short of what effects actually wanted (one had to trade launch speed for arc height
+  to fake a lob the ceiling wouldn't allow). And the fade every particle rides — previously baked in, so
+  particles faded whatever you drew on the opacity curve — is now a control that can be turned off entirely.
+  Nothing already made looks different; every existing effect is pinned to that by test.
 - **The melee smack is an authored effect now, and effects can aim along the blow.** An authored effect is a
   fixed recipe, but a strike has to fan its sparks *at the defender* — a direction that only exists at the
   moment of the hit. Rather than let callers bend a recipe with an angle (which would stop it being a recipe),

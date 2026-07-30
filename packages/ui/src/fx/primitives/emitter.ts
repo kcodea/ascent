@@ -159,7 +159,10 @@ const SPECS = {
   },
   fadeIn: {
     kind: 'slider', label: 'Fade in', group: 'Style', min: 0, max: 0.5, step: 0.01, default: 0.1,
-    help: 'Fraction of life spent fading in (and, symmetrically, fading out at the end).',
+    // This IS the emitter's built-in-fade control, and its 0 end is a genuine OFF (`moteAlpha` collapses to a
+    // square envelope there — pinned in emitter.test.ts). That is why the 2026-07-30 pass gave `burst` a new
+    // `fade` param and gave this primitive nothing: burst's `frac * frac` was unreachable, this never was.
+    help: 'Fraction of life spent fading in, and symmetrically fading out at the end. 0 turns the built-in fade OFF — motes pop in at full opacity and hold it until they die, which is when Alpha / life becomes the whole opacity envelope.',
   },
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style', essential: true,

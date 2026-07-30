@@ -186,7 +186,9 @@ const SPECS = {
   },
   fadeIn: {
     kind: 'slider', label: 'Fade in', group: 'Style', min: 0, max: 0.5, step: 0.01, default: 0.2,
-    help: 'Fraction of life spent fading in (and, symmetrically, fading out at the end) — soft on both ends.',
+    // Smoke's built-in-fade control, with the same genuine OFF at 0 as the emitter's — see that param, and
+    // `burstFadeEnvelope` for why burst needed a new knob and these two did not.
+    help: 'Fraction of life spent fading in, and symmetrically fading out at the end — soft on both ends. 0 turns the built-in fade OFF: puffs pop in at full opacity and hold it until they die, which is when Alpha / life becomes the whole opacity envelope.',
   },
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style', essential: true,

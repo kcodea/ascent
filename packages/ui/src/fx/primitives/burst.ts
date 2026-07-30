@@ -150,6 +150,44 @@ export function resolveParticleRotation(
 }
 
 /**
+ * The BUILT-IN opacity envelope: how much of a shard is left at `frac` (1 at birth → 0 at death), before the
+ * authored `alphaCurve` multiplies it.
+ *
+ * ── why this is a function at all ──────────────────────────────────────────────────────────────────────
+ * This used to be a bare `frac * frac` in the update loop — a quadratic fade-out that multiplied the authored
+ * Alpha / life curve and that NO param could reach. Flatten the curve to 1 and every shard still faded on a
+ * fixed ramp; the owner spent real time trying to defeat it and could not. Exposing the EXPONENT (rather than
+ * a strength/blend, or a mode enum) is what makes the whole family reachable with one number that means
+ * something physical: it is the only degree of freedom `frac^n` has, it is monotone in "how long a shard
+ * stays bright", and its `0` end is a genuine OFF rather than a fourth special case.
+ *
+ *   0   no built-in fade at all — every shard holds full opacity until it dies, and `alphaCurve` is the whole
+ *       story (which is the point: an author who wants to draw the envelope themselves now can)
+ *   1   linear
+ *   2   THE DEFAULT and the historical behaviour — snappy, most of the life spent dim
+ *   4   very front-loaded: a hard flash that is gone almost at once
+ *
+ * ── byte-identity, and why the branches ────────────────────────────────────────────────────────────────
+ * `fade === 2` returns the LITERAL `frac * frac` expression this loop always used, not `Math.pow(frac, 2)`.
+ * `Math.pow` is implementation-defined in ECMAScript and is not required to agree with a multiply to the last
+ * bit, so routing the default through it would be a change of look with no diff to point at across every
+ * shipped def. `1` gets the same treatment for the same reason, and `<= 0` short-circuits to 1 rather than
+ * relying on `Math.pow(0, 0) === 1` at the moment of death.
+ *
+ * Deliberately NOT shared with emitter.ts/smoke.ts, which do not need it: their built-in envelope is
+ * `moteAlpha`/`smokeMoteAlpha`, a symmetric in/out ramp whose width IS an authored param (`fadeIn`) that
+ * already reaches 0, i.e. already reaches "no built-in fade". A single uniform control across all three would
+ * have meant bolting a second, redundant fade knob onto two primitives that had one. (And it would break this
+ * module's standing rule against importing across primitive modules — see `resolveParticleRotation`.)
+ */
+export function burstFadeEnvelope(frac: number, fade: number): number {
+  if (fade === 2) return frac * frac; // the historical expression, byte-for-byte
+  if (fade <= 0) return 1;
+  if (fade === 1) return frac;
+  return Math.pow(frac, fade);
+}
+
+/**
  * Pure completion predicate for a one-shot Fire: true once the burst has fired its single wave AND every
  * particle from it has died. Pulled out of `BurstInstance.isComplete()` so the state machine's core logic
  * is unit-testable without a WebGL-constructed instance (see `burst.test.ts`'s note on why the rest of the
@@ -286,7 +324,13 @@ const SPECS = {
   alphaCurve: {
     kind: 'curve', label: 'Alpha / life', group: 'Style',
     default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
-    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade.',
+    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade — and with Fade at 0 there is no built-in fade left, so this curve becomes the whole opacity envelope.',
+  },
+  fade: {
+    kind: 'slider', label: 'Fade', group: 'Style', min: 0, max: 4, step: 0.1, default: 2,
+    // Default 2 is the exact expression this loop always used — see `burstFadeEnvelope` for why the branch on
+    // 2 exists rather than a bare Math.pow, and why the emitter/smoke pair deliberately have no such param.
+    help: 'The built-in fade-out every shard rides, as an exponent on its remaining life. 2 (the default) is the classic snappy fall-off; 1 is linear; 4 is a hard flash that is gone almost at once; 0 turns it OFF entirely, so shards hold full opacity until they die and Alpha / life is the whole story.',
   },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
@@ -590,9 +634,11 @@ class BurstInstance implements FxInstance<BurstParams> {
 
       const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
       const lifeT = lp.age / lp.maxLife; // 0 -> 1 over life
-      // Built-in quadratic fade, times the explicit alpha-over-life curve (default flat 1 → sampleCurve
-      // returns exactly 1 and `x * 1 === x`, so the default is a byte-identical no-op).
-      particle.alpha = frac * frac * sampleCurve(p.alphaCurve, lifeT);
+      // Built-in fade (authored by `fade` — at its default of 2 `burstFadeEnvelope` returns the literal
+      // `frac * frac` this line used to inline, so the default is byte-identical), times the explicit
+      // alpha-over-life curve. That second factor's default is flat 1, where `sampleCurve` returns exactly 1
+      // and `x * 1 === x` — still a no-op, and still for that reason rather than by accident.
+      particle.alpha = burstFadeEnvelope(frac, p.fade) * sampleCurve(p.alphaCurve, lifeT);
       const s = sampleCurve(p.sizeCurve, lifeT);
       particle.scaleX = lp.scaleX0 * s;
       particle.scaleY = lp.scaleY0 * s;

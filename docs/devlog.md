@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-07-30 — the built-in particle fade becomes authorable
+
+**The complaint.** `burst.ts` closed its update loop with
+`particle.alpha = frac * frac * sampleCurve(p.alphaCurve, lifeT)` — a hardcoded quadratic fade that
+*multiplied* the authored Alpha / life curve. Flatten the curve to 1 and every shard still faded on a fixed
+ramp, and no param anywhere reached it. The owner spent real time trying to defeat it and could not.
+
+**The control: an exponent, `fade`, defaulting to 2.** `burstFadeEnvelope(frac, fade)` replaces the inline
+expression — `0` is no built-in fade at all (shards hold full opacity until they die, and the curve is the
+whole story), `1` linear, `2` the historical fall-off, `4` a hard flash. An exponent rather than a mode enum
+or a 0..1 strength because it is the only degree of freedom `frac^n` actually has, it is monotone in "how long
+a shard stays bright", and its 0 end is a real OFF instead of a fourth special case bolted onto a blend.
+
+**Byte-identity, and why it is branches rather than `Math.pow`.** `fade === 2` returns the literal
+`frac * frac`. `Math.pow` is implementation-defined in ECMAScript and is not required to agree with a multiply
+to the last bit, so routing the default through it would have changed the look of every shipped def with
+nothing in the diff to point at. Pinned across 1001 samples of `frac`. The `alphaCurve` comment's claim that
+its flat default is "a byte-identical no-op" also still holds, and still for the stated reason — `sampleCurve`
+of a flat 1 returns exactly 1 and `x * 1 === x` — which is now a claim about a *variable* envelope rather than
+a constant one, so the comment says so.
+
+**A single uniform control across all three primitives would have been wrong, and the reason is the point.**
+`emitter`/`smoke` do not fade with `frac²`; they use `moteAlpha`/`smokeMoteAlpha`, a symmetric in/out ramp
+whose WIDTH is already an authored param — `fadeIn` — that already reaches 0. At 0 the envelope collapses to a
+square: full opacity across the life, `alphaCurve` as the whole story, i.e. exactly the capability burst was
+missing. Those two primitives therefore get **no new knob**, only help text saying what their 0 end does, plus
+a test in each pinning that it really is a square. Adding a second fade control there would have been a
+redundant param on a primitive that already had one.
+
+**Verified**: 1025 fx tests green, including the byte-identity walk, the OFF case at the instant of death, the
+strict-monotone-in-exponent check at mid-life, and the endpoint behaviour at every value the slider reaches.
+
 ## 2026-07-30 — the sliders stop capping the drama (41 widened ranges)
 
 **Why.** The specs capped below what authoring actually needs, and it had already cost real work: migrating
@@ -81,7 +113,10 @@ between an author and their own art. It cannot grow without bound — capped at 
 `pruneArtAliases` sweeps every entry on every hydration for either of two permanent reasons: the glob has
 caught up (the committed file is now the authority) or the import it points at is gone.
 
-**Verified** by 12 new cases in `shapeLibrary.test.ts` covering the parse, the two prune reasons, the
+**Verified** by new coverage on both halves. `fxDefsPlugin.test.ts` had an assertion that *encoded* the bug —
+"ignores files outside the defs directory itself", firing an art PNG and expecting no reload, with the
+reasoning "reloading on those would interrupt an import for nothing" — now replaced by tests that the two
+watchers invalidate their own glob owner and only their own. Plus 12 cases in `shapeLibrary.test.ts` covering the parse, the two prune reasons, the
 re-commit collapse, the caps, the in-session listing, the rehydrate-without-restart path, the dangling sweep
 and its write-back, and that the stored payload contains no `data:image`. The decode itself needs a DOM +
 WebGL and stays eyeball-verified, per this module's standing note.

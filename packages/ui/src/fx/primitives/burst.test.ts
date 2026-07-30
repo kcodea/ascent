@@ -5,6 +5,7 @@ import { sampleCurve } from '../curve';
 import { makeRng } from '../rng';
 import {
   BURST_AIM_MODES,
+  burstFadeEnvelope,
   burstFireComplete,
   burstPrimitive,
   resolveBurstAimAngle,
@@ -62,7 +63,8 @@ describe('burst param specs', () => {
   });
 
   // Alpha-over-life curve: same flat-default no-op invariant as biasCurve above. The advance loop multiplies
-  // it into the built-in `frac * frac` fade, so a flat 1 leaves that fade byte-identical (x * 1 === x).
+  // it into the built-in fade envelope, so a flat 1 leaves that fade byte-identical (x * 1 === x) — a claim
+  // that has to keep holding for the RIGHT reason now that the envelope itself is authored (`fade`).
   it('exposes an alphaCurve curve param defaulting to the flat (no-op) [[0,1],[1,1]]', () => {
     const spec = burstPrimitive.params.alphaCurve;
     expect(spec).toBeDefined();
@@ -398,5 +400,55 @@ describe('burst aim leaves the seeded draw sequence untouched', () => {
     }
     // And with no aim delivered it is byte-identical to the pre-aim stream, fallback and all.
     expect(drawWave((t) => resolveBurstAimAngle('sourceToTarget', t, 0, null), TRAVEL, 5150)).toEqual(before);
+  });
+});
+
+describe('burstFadeEnvelope (the built-in fade, now authored)', () => {
+  // THE assertion of this whole change: the default must reproduce the bare `frac * frac` the update loop
+  // inlined for the life of the primitive, to the LAST BIT — every shipped def's look rests on it, and
+  // `Math.pow` is not required by the spec to agree with a multiply.
+  it('is byte-identical to `frac * frac` at its default of 2', () => {
+    const spec = burstPrimitive.params.fade;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('slider');
+    expect(spec.default).toBe(2);
+    for (let i = 0; i <= 1000; i++) {
+      const frac = i / 1000;
+      expect(burstFadeEnvelope(frac, 2)).toBe(frac * frac);
+    }
+  });
+
+  // The capability the owner could not reach before: no built-in fade at all, so the authored Alpha / life
+  // curve is the entire opacity envelope.
+  it('is OFF at 0 — full opacity for the whole life, including the instant of death', () => {
+    for (const frac of [1, 0.75, 0.5, 0.25, 0.01, 0]) {
+      expect(burstFadeEnvelope(frac, 0)).toBe(1);
+    }
+  });
+
+  it('is exactly linear at 1', () => {
+    for (const frac of [1, 0.9, 0.5, 0.3, 0]) expect(burstFadeEnvelope(frac, 1)).toBe(frac);
+  });
+
+  it('front-loads harder as the exponent rises, and never leaves [0, 1]', () => {
+    // Mid-life: a bigger exponent must leave strictly less alpha (0.5 > 0.25 > 0.0625).
+    const mid = [0, 1, 2, 4].map((n) => burstFadeEnvelope(0.5, n));
+    expect(mid).toEqual([...mid].sort((a, b) => b - a));
+    expect(new Set(mid).size).toBe(mid.length);
+    for (const n of [0, 0.5, 1, 2, 2.5, 4]) {
+      for (let i = 0; i <= 20; i++) {
+        const a = burstFadeEnvelope(i / 20, n);
+        expect(a).toBeGreaterThanOrEqual(0);
+        expect(a).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('holds the endpoints for every exponent the slider can reach', () => {
+    const spec = burstPrimitive.params.fade as { min: number; max: number; step: number };
+    for (let n = spec.min; n <= spec.max + 1e-9; n += spec.step) {
+      expect(burstFadeEnvelope(1, n)).toBe(1);                  // birth: nothing faded yet
+      expect(burstFadeEnvelope(0, n)).toBe(n <= 0 ? 1 : 0);     // death: gone, unless the fade is off
+    }
   });
 });

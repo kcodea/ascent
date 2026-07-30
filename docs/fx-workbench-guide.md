@@ -214,6 +214,21 @@ Some sliders are deliberately *not* wide, and it is worth knowing which so you d
   and a thicker band clips flat against that boundary along with its glow. Want a fatter ring? Raise
   **Radius**, or add a second ring — not Thickness.
 
+### Authoring the fade
+
+Every particle primitive has a **built-in opacity envelope** underneath the **Alpha / life** curve — the two
+multiply. Both halves are yours:
+
+- **`burst` → Fade** (Style). An exponent on the shard's remaining life. `2` is the default and the classic
+  snappy fall-off, `1` is linear, `4` is a hard flash, and **`0` turns it off entirely** — shards hold full
+  opacity until they die and Alpha / life becomes the whole envelope.
+- **`emitter` / `smoke` → Fade in** (Style). These fade differently: a *symmetric* ramp in at the start and
+  out at the end, and this is its width as a fraction of life. **`0` turns it off** the same way — motes pop
+  in at full opacity and hold it, leaving Alpha / life in charge.
+
+If you have ever flattened Alpha / life to `1` and watched particles fade anyway, this is the knob you were
+looking for.
+
 ### Sizing an effect at the moment it fires — `scale`, `intensity` and `time`
 
 A def is a **fixed** composition, and that is deliberate: what you committed is what plays. But some effects

@@ -199,6 +199,14 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'], // Rubies
   },
   {
+    id: 'rune_last_call',
+    name: 'Rune of Last Call',
+    cost: 1,
+    text: '**Avenge (3):** get a random **Dwarven Ale**.',
+    reward: { kind: 'combatFlag', flag: 'runeLastCall' },
+    sets: ['set2'], // Ales
+  },
+  {
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 6,
@@ -813,6 +821,22 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Ruby Brokers** can be triggered **endlessly**.',
     reward: { kind: 'runeBrokerage' },
     sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_cinder_ledger',
+    name: 'Rune of the Cinder Ledger',
+    cost: 3,
+    epic: true,
+    text: '**Avenge (3):** improve your **Imps by +6/+6** wherever they are.',
+    reward: { kind: 'combatFlag', flag: 'runeCinderLedger', amount: 6 },
+  },
+  {
+    id: 'rune_procession',
+    name: 'Rune of the Procession',
+    cost: 3,
+    epic: true,
+    text: '**Avenge (4):** **double** your **right-most** minion’s stats.',
+    reward: { kind: 'combatFlag', flag: 'runeProcession' },
   },
 ];
 

@@ -958,7 +958,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Rune batch 3: vanguard = SoC give your 3 left-most Critical Strike + Ward; finality = your LAST minion
   // dying summons 7 Imps with Ward (the Warded sibling of pitWithoutEnd); hatchery = Echo summons enter
   // +3/+3 with Taunt.
-  | 'runeVanguard' | 'runeFinality' | 'runeHatchery';
+  | 'runeVanguard' | 'runeFinality' | 'runeHatchery'
+  // Avenge runes (batch 5), all riding the existing `runeAvenge` helper: lastCall = an Ale to hand;
+  // cinderLedger = improve your Imps run-wide; procession = double your right-most minion's stats.
+  | 'runeLastCall' | 'runeCinderLedger' | 'runeProcession';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1048,6 +1051,12 @@ export interface QuestCombatMods {
   runeFinality?: number;
   /** Rune of the Hatchery: Echo summons enter with +attack/+health and Taunt. */
   runeHatchery?: { attack: number; health: number };
+  /** Rune of Last Call: Avenge (3) — a random Dwarven Ale to hand. */
+  runeLastCall?: boolean;
+  /** Rune of the Cinder Ledger: Avenge (3) — improve your Imps by +6/+6 wherever they are. */
+  runeCinderLedger?: number;
+  /** Rune of the Procession: Avenge (4) — double your right-most minion's stats. */
+  runeProcession?: boolean;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

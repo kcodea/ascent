@@ -2889,6 +2889,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // fills the board on the first swing.
       else if (r.flag === 'burningLegion') s.questFlags.burningLegion = r.amount ?? 3;
       else if (r.flag === 'runeFinality') s.questFlags.runeFinality = r.amount ?? 7; // amount = Warded Imps summoned
+      else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = r.amount ?? 6; // amount = the Imp improve
       else s.questFlags[r.flag] = true;
       break;
     case 'questGoldTribeBuff':
@@ -3313,6 +3314,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeVanguard: f?.runeVanguard,         // Rune of the Vanguard: SoC Crit + Ward on your 3 left-most
     runeFinality: f?.runeFinality,         // Rune of Finality: your last death summons Warded Imps
     runeHatchery: f?.runeHatchery ? { attack: 3, health: 3 } : undefined, // Echo summons enter +3/+3 with Taunt
+    runeLastCall: f?.runeLastCall,           // Avenge (3): a random Dwarven Ale to hand
+    runeCinderLedger: f?.runeCinderLedger,   // Avenge (3): improve your Imps run-wide
+    runeProcession: f?.runeProcession,       // Avenge (4): double your right-most minion
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise

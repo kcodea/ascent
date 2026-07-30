@@ -16,7 +16,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { extraTriggerFires } from '../types';
+import { ALE_IDS, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES } from '../effects/factories';
@@ -2008,6 +2008,26 @@ export function simulate(
   });
   // Economy avenge runes — PLAYER-ONLY (grant to the run's spell power / max Gold; no enemy meaning).
   runeAvenge(4, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
+  // Batch 5 (owner sheet 2026-07-30). All three go through `runeAvenge`, which already owns the modulo, the
+  // per-side mask and the Rune of Fury re-fire — so these are registrations, not new machinery.
+  runeAvenge(3, 'runeLastCall', (m, side) => side === 'player' && !!m.runeLastCall, (side) => {
+    // Player-only: `grantToHand` has no meaning for a served enemy. A set without the Ales grants nothing
+    // rather than injecting cards the run could never otherwise see.
+    const ales = ctx.poolCards(side).filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length > 0) ctx.grantToHand(ctx.rng.pick(ales).id, side, undefined);
+  });
+  runeAvenge(3, 'runeCinderLedger', (m, side) => side === 'player' && !!m.runeCinderLedger, (side) => {
+    const n = modsFor(side).runeCinderLedger ?? 6;
+    ctx.grantImpBuff(n, n, side); // run-wide + carried back, the same channel Imp King uses
+  });
+  runeAvenge(4, 'runeProcession', (m) => !!m.runeProcession, (side) => {
+    // Right-most LIVING body: doubling a corpse would read as the rune doing nothing.
+    const living = boards[side].filter((m) => !m.dead && m.health > 0);
+    const tail = living[living.length - 1];
+    if (!tail) return;
+    nextStep();
+    ctx.buff(tail, tail.attack, tail.health, 'Rune of the Procession');
+  });
   runeAvenge(4, 'runeSoulTaxes', (m, side) => side === 'player' && !!m.runeSoulTaxes, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
   // Deep Hunger (Demon capstone, reworked 2026-07-21): Avenge (3) → add 2 Fodder to your next shop. Was "the
   // leftmost Demon gains Slaughter: add 3 Fodder". Player-only — a served enemy has no shop to stock.

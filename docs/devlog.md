@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-07-30 — Rune tranche 5: the Avenge batch (3 runes, zero new machinery)
+
+`runeAvenge` already existed (Broodpit / Spearline / Appraisal / Soul Taxes) and owns the modulo, the per-side
+mask and the Rune of Fury re-fire — so these three are REGISTRATIONS, not new engine work:
+
+- **Rune of Last Call** (basic 1) — Avenge (3): a random Dwarven Ale to hand. Player-only (`grantToHand` has no
+  meaning for a served enemy), and a set without the Ales grants nothing rather than injecting unreachable cards.
+- **Rune of the Cinder Ledger** (epic 3) — Avenge (3): improve your Imps +6/+6 run-wide, through `grantImpBuff`
+  — the same carry-back channel Imp King uses. A combat-only buff would vanish at settle and the rune would read
+  as "improve your Imps" while improving nothing that lasts; the test asserts `playerImpBuffGain`.
+- **Rune of the Procession** (epic 3) — Avenge (4): double your right-most LIVING minion. Living, because
+  doubling a corpse reads as the rune doing nothing.
+
+**A test-authoring note worth keeping.** The first Last Call test asserted "2 fodder = no payout" and failed:
+the back-line body I assumed would survive did not, so the fight produced 3 deaths and the rune correctly paid.
+The test now derives the expectation from the deaths the fight ACTUALLY produced (`floor(deaths / 3)`) rather
+than from the board size. Assuming a death count silently tests the wrong threshold.
+
+Verified: typecheck (both), lint (6 pre-existing), 3184 tests, build:web, harness determinism.
+
+**Rune queue: 22 remain.** 25 of 47 done.
+
 ## 2026-07-30 — Rune tranche 4: the recruit-phase batch (5 runes)
 
 Deliberately chosen as a group: every one hangs off a SINGLE existing chokepoint, so none carried the

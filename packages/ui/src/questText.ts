@@ -204,6 +204,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
+        case 'runeLastCall':
+          return 'Avenge (3): get a random Dwarven Ale';
+        case 'runeCinderLedger':
+          return `Avenge (3): improve your Imps by +${r.amount ?? 6}/+${r.amount ?? 6} wherever they are`;
+        case 'runeProcession':
+          return "Avenge (4): double your right-most minion's stats";
         case 'runeVanguard':
           return 'Start of Combat: give your three left-most minions Critical Strike and Ward';
         case 'runeFinality':

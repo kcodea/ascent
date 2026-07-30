@@ -1051,7 +1051,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
   },
 
-  /** Set 2 — Grand Gourmand (End of Turn): Consume the HIGHEST-HEALTH minion in the Shop (× golden).
+  /** Set 2 — Bob Blart (End of Turn): Consume the HIGHEST-HEALTH minion in the Shop (× golden).
    *  Health, not stats, so it reliably eats the fat body a player was saving rather than the biggest threat. */
   endOfTurnConsumeHighestHealthShop: (ctx, self, params) => {
     for (let n = 0; n < num(params.times, 1) * gold(self); n++) {
@@ -2131,7 +2131,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addOfferBuff(ctx.state.shop[i]!, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
   },
 
-  /** Set 2 — Grand Gourmand (End of Turn): gain the RIGHT-most Shop minion's stats `times` over WITHOUT eating
+  /** Set 2 — Bob Blart (End of Turn): gain the RIGHT-most Shop minion's stats `times` over WITHOUT eating
    *  it — the offer stays in the tavern. Deliberately not `consumeShopMinion`: no consume fires, so it doesn't
    *  feed Pactstone / Glutton / Abhorrent Horror, and the minion is still buyable. */
   endOfTurnGainRightmostShopStats: (ctx, self, params) => {

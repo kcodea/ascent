@@ -143,7 +143,7 @@ export const SET2_DEMONS: CardDef[] = [
   {
     // Takes the stats WITHOUT eating — the offer stays buyable, which is the difference from Demon Horse.
     id: 'dm_gourmand',
-    name: 'Grand Gourmand',
+    name: 'Bob Blart',
     tribe: 'demon',
     tier: 4,
     attack: 5,

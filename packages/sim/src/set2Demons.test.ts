@@ -536,7 +536,7 @@ describe('set 2 — Market Tormentor', () => {
 });
 
 describe('set 2 — the reworked Demon consumers (owner batch 2026-07-27)', () => {
-  it('Grand Gourmand eats the HIGHEST-HEALTH shop minion, not the right-most', () => {
+  it('Bob Blart eats the HIGHEST-HEALTH shop minion, not the right-most', () => {
     const s: RunState = {
       ...createRun(3), phase: 'recruit',
       board: [minion('g', 'dm_gourmand', 5, 5)], hand: [],

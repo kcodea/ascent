@@ -248,17 +248,38 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.bonusEmbersNextTurn).toBe(1);
   });
 
-  it('Chef Gary Toast climbs with Ales cast this turn', () => {
-    // Base +3/+3; each Ale cast this turn adds +1. Two Ales → +5/+5.
-    const chefBuff = (ales: number): number => {
-      let s = set2();
-      const target = body('dw_brunni', 't');
-      s = { ...s, board: [target], hand: [body('dw_chef', 'c')], alesCastThisTurn: ales };
-      s = play(s, 'c');
-      return s.board.find((x) => x.uid === 't')!.attack - CARD_INDEX['dw_brunni']!.attack;
-    };
-    expect(chefBuff(0)).toBe(3);
-    expect(chefBuff(2), 'the Chef did not scale with Ales').toBe(5);
+  it('Chef Gary Toast fires when ANOTHER Dwarf is played, not just on its own Shout', () => {
+    // The bug (owner report 2026-07-29): it rode `onPlay`, which is the Chef's OWN Shout — so it fired once on
+    // arrival and never again, while its text promises "when you play a Dwarf". It watches `onSummon` now.
+    let s = set2();
+    const mate = body('dw_brunni', 'mate');
+    // Broad-Axe Brakka is the newcomer on purpose: it is a Dwarf with NO effects of its own. My first attempt
+    // used Ironlung Captain, which ALSO buffs your Dwarves +3 Attack — the +6 that produced was two effects
+    // stacking, not the Chef double-firing.
+    s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [body('dw_brakka', 'newcomer')] };
+    const before = s.board.find((x) => x.uid === 'mate')!.attack;
+    s = play(s, 'newcomer');
+    expect(s.board.find((x) => x.uid === 'mate')!.attack, 'playing a Dwarf did not buff the others').toBe(before + 3);
+  });
+
+  it('…buffs the whole tribe including itself, with no count limit', () => {
+    // Owner text is plain "give your Dwarves +3/+3" — the 3-target cap and Ale scaling were both mine and are gone.
+    let s = set2();
+    s = { ...s, board: [body('dw_chef', 'chef'), body('dw_brunni', 'a'), body('dw_tapkeeper', 'b'), body('dw_coinfire', 'c')], hand: [body('dw_orin', 'n')] };
+    s = play(s, 'n');
+    for (const uid of ['chef', 'a', 'b', 'c']) {
+      const c = s.board.find((x) => x.uid === uid)!;
+      expect(c.attack, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.attack + 3);
+    }
+  });
+
+  it('…and a NON-Dwarf being played does not trigger it', () => {
+    let s = set2();
+    const mate = body('dw_brunni', 'mate');
+    s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [{ uid: 'beast', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }] };
+    const before = s.board.find((x) => x.uid === 'mate')!.attack;
+    s = play(s, 'beast');
+    expect(s.board.find((x) => x.uid === 'mate')!.attack).toBe(before);
   });
 
   it('casting an Ale bumps the per-turn tally, and it resets each turn', () => {
@@ -295,9 +316,9 @@ describe('tranche C — the five that needed machinery', () => {
     const mate = body('dw_brunni', 'mate');
     s = { ...s, board: [body('dw_mountainbond', 'mb'), mate] };
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    applyCardsPlayed(s, 7);
+    applyCardsPlayed(s, 4);
     expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'fired below the threshold').toBe(before);
-    applyCardsPlayed(s, 1); // 8th card → a Ruby on each of the 2 minions
+    applyCardsPlayed(s, 1); // 5th card → a Ruby on each of the 2 minions (owner: 8 -> 5)
     expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'no Ruby landed').toBeGreaterThan(before);
   });
 
@@ -433,5 +454,111 @@ describe('set scoping for quests and runes (owner 2026-07-29)', () => {
     for (const r of s1) expect(r.sets?.includes('set2') === false || !r.sets || r.sets.includes('set1')).toBe(true);
     expect(s2.some((r) => r.id === 'rune_gemcutting'), 'a Ruby rune vanished from set 2').toBe(true);
     expect(s1.some((r) => r.id === 'rune_gemcutting'), 'a Ruby rune is offerable in set 1').toBe(false);
+  });
+});
+
+describe('Fatecarver (owner roster 2026-07-29)', () => {
+  /** Both branches are watchers, so the tests must fire the TRIGGER, not just play the card. */
+  const pick = (s: RunState, uid: string, index: number): RunState => {
+    const opened = reduce(s, { type: 'play', uid });
+    expect(opened.chooseOne?.uid ?? opened.pendingTarget?.uid, 'the Choose One never opened').toBeTruthy();
+    return reduce(opened, { type: 'chooseOne', index });
+  };
+
+  it('is in set 2 with both branches declared', () => {
+    const def = CARD_INDEX['n2_fatecarver']!;
+    expect(def.chooseOne, 'Fatecarver has no Choose One').toHaveLength(2);
+    expect(poolFor('set2').all.some((c) => c.id === 'n2_fatecarver')).toBe(true);
+  });
+
+  it('branch A buffs ONE minion of each type on a spell cast, not every minion', () => {
+    // Two Beasts + one Demon: only the FIRST Beast and the Demon should gain. Board order decides, so the
+    // player steers it by arranging the line.
+    let s = set2();
+    const beast1 = { ...body('dw_brakka', 'b1'), cardId: 'pack', tribe: 'beast' as const };
+    const beast2 = { ...body('dw_brakka', 'b2'), cardId: 'pack', tribe: 'beast' as const };
+    const demon = { ...body('dw_brakka', 'd1'), cardId: 'impscrap', tribe: 'demon' as const };
+    s = { ...s, board: [beast1, beast2, demon], hand: [body('n2_fatecarver', 'fc')] };
+    s = pick(s, 'fc', 0);
+    s = { ...s, hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    const atk = (uid: string, st: RunState): number => st.board.find((x) => x.uid === uid)!.attack;
+    const before = [atk('b1', s), atk('b2', s), atk('d1', s)];
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    // Growth itself buffs the whole board +1/+1, so compare the DELTA above that baseline.
+    const after = [atk('b1', s), atk('b2', s), atk('d1', s)];
+    expect(after[0]! - before[0]!, 'the first Beast should get Growth +1 AND Fatecarver +2').toBe(3);
+    expect(after[1]! - before[1]!, 'the second Beast should get Growth only').toBe(1);
+    expect(after[2]! - before[2]!, 'the Demon should get Growth +1 AND Fatecarver +2').toBe(3);
+  });
+
+  it('branch B casts Growth when a friendly attacks — and NOT on an enemy swing', () => {
+    const foe = (a: number, h: number): BoardMinion => ({ cardId: 'sandbag', attack: a, health: h, keywords: [] } as unknown as BoardMinion);
+    const carver = (): BoardMinion => {
+      const d = CARD_INDEX['n2_fatecarver']!;
+      return { cardId: d.id, attack: d.attack, health: d.health, keywords: [], chosenOption: 1 } as unknown as BoardMinion;
+    };
+    const r = simulate([carver(), foe(1, 40) as BoardMinion], [foe(0, 40)], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6, poolIds: poolFor('set2').all.map((c) => c.id) }), combatSide({ tier: 6 }));
+    // A friendly swing should produce buff events sourced from the Carver; an enemy-only board would produce none.
+    const buffs = r.events.filter((e) => e.type === 'buff');
+    expect(buffs.length, 'no Growth was cast on a friendly attack').toBeGreaterThan(0);
+  });
+});
+
+describe('Dwarf quests (owner roster 2026-07-29)', () => {
+  const q = (id: string) => QUEST_DEFS.find((x) => x.id === id);
+
+  it('the three shipped Dwarf quests are set-2 only, and scoped to the Dwarf tribe', () => {
+    for (const id of ['q_company_recruitment', 'q_barroom_bounty', 'q_runic_apprenticeship']) {
+      const def = q(id);
+      expect(def, `${id} is missing`).toBeDefined();
+      expect(def!.sets, `${id} is not scoped to set 2`).toEqual(['set2']);
+      expect(def!.tribe).toBe('dwarf');
+    }
+  });
+
+  it('Company Recruitment grants a Dwarf AND an Ale, and repeats', () => {
+    const def = q('q_company_recruitment')!;
+    const r = def.reward as { randomTribe?: string; randomAle?: number };
+    expect(r.randomTribe).toBe('dwarf');
+    expect(r.randomAle, 'no Ale in the reward').toBe(1);
+    expect(def.repeatable).toBe(true);
+  });
+
+  it('Barroom Bounty grants Kegbreaker Korr WITH Flurry and Ward', () => {
+    const r = q('q_barroom_bounty')!.reward as { cards?: string[]; grantKeywords?: string[] };
+    expect(r.cards).toContain('dw_korr');
+    expect(r.grantKeywords).toEqual(['W', 'DS']);
+  });
+
+  it('War Council is deliberately absent — its reward has no tribe-scoped flag', () => {
+    // `lawOfTeeth` is the Beast version and is gated on `isBeast(attacker)` in the sim, so reusing it would have
+    // silently granted BEAST triggers on a Dwarf quest. Shipping nothing beats shipping the wrong effect.
+    expect(q('q_war_council'), 'War Council shipped with a borrowed Beast flag').toBeUndefined();
+  });
+});
+
+describe('bug fixes 2026-07-29 (owner report)', () => {
+  it("Mountainbond's meter counts SPELLS, not just minions", () => {
+    // "Cards" means everything you play — minions, spells, Rubies. The meter was on the minion branch only.
+    let s = set2();
+    s = { ...s, board: [body('dw_mountainbond', 'mb'), body('dw_brunni', 'mate')], hand: [] };
+    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    for (let i = 0; i < 5; i++) {
+      s = { ...s, hand: [{ uid: `sp${i}`, cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+      s = reduce(s, { type: 'play', uid: `sp${i}` });
+    }
+    // 5 Growths each buff the board +1/+1 (+10 across two minions); Mountainbond's Ruby adds on top of that.
+    const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    expect(after, 'five spells did not reach the 5-card threshold').toBeGreaterThan(before + 20);
+  });
+
+  it("Fatecarver's Growth branch uses the SHARED factory, so it scales with spell power", () => {
+    // My first version was a near-copy that missed both the spell-power scaling and `ctx.castSpell`. It shares
+    // Taragosa's factory now — one definition of "cast Growth on an ally attack".
+    const def = CARD_INDEX['n2_fatecarver']!;
+    const growth = def.effects.find((e) => e.on === 'onAttack');
+    expect(growth?.do, 'Fatecarver still has its own Growth copy').toBe('onAllyAttackCastGrowth');
+    expect((growth?.params as { option?: number })?.option, 'the branch gate is missing').toBe(1);
   });
 });

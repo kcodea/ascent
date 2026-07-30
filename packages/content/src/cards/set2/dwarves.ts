@@ -279,9 +279,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 6,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'onPlayTribeBuffTribeByAles', params: { tribe: 'dwarf', count: 3, attack: 3, step: 1 } }],
-    text: 'When you play a **Dwarf**, give **3** friendly **Dwarves +3/+3**. Improves per **Ale** triggered this turn.',
-    goldenText: 'When you play a **Dwarf**, give **3** friendly **Dwarves +6/+6**. Improves per **Ale** triggered this turn.',
+    effects: [{ on: 'onSummon', do: 'onTribeSummonedBuffTribe', params: { tribe: 'dwarf', attack: 3 } }],
+    text: 'When you play a **Dwarf**, give your **Dwarves +3/+3**.',
+    goldenText: 'When you play a **Dwarf**, give your **Dwarves +6/+6**.',
   },
   {
     // The Dwarf/Kobold bridge: it pays the Ruby engine from the Dwarves' card-throughput side. The tally is
@@ -294,9 +294,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'cardsPlayed', do: 'cardsPlayedPlayRubies', params: { every: 8, count: 1 } }],
-    text: 'After you play **8 cards**, play a **Ruby** on your minions.',
-    goldenText: 'After you play **8 cards**, play **2 Rubies** on your minions.',
+    effects: [{ on: 'cardsPlayed', do: 'cardsPlayedPlayRubies', params: { every: 5, count: 1 } }],
+    text: 'After you play **5 cards**, play a **Ruby** on your minions.',
+    goldenText: 'After you play **5 cards**, play **2 Rubies** on your minions.',
   },
 ];
 

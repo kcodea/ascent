@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyEndOfTurn, fireOnRubyCast, offerBuyStats, rightmostShopMinion } from './recruit';
+import { applyEndOfTurn, fireOnRubyCast, offerBuyStats } from './recruit';
 
 /**
  * Set 2's DEMON tribe. Its identity is Consume-from-the-Shop (eight cards) braided with an Imp swarm line.
@@ -448,90 +448,37 @@ describe('set 2 — regressions from the effect-param audit', () => {
  * every FRESH Shop roll comes in buffed. The old version was a one-shot Shout that ran `buffCardTypeRunWide`
  * — so it fired once and buffed every copy of that card id for the rest of the run.
  */
-describe('set 2 — Market Tormentor', () => {
-  const withTormentor = (): RunState => ({
-    ...createRun(11), phase: 'recruit', embers: 99, freeRolls: 99,
-    board: [minion('T', 'dm_tormentor', 3, 4)], hand: [],
-    shop: shop('sandbag', 'alley', 'stray'),
-  });
-  /** The buffed stats of whatever is currently right-most. */
-  const rightmost = (s: RunState) => {
-    const i = rightmostShopMinion(s);
-    return i < 0 ? null : { offer: s.shop[i]!, ...offerBuyStats(s, s.shop[i]!) };
+describe('set 2 — Market Tormentor (SHOUT since 2026-07-29)', () => {
+  /**
+   * It was "after each Shop refresh"; the owner changed it to a Shout. These tests moved with it — the four they
+   * replace asserted a per-refresh trigger that no longer exists, and would have kept passing only if the change
+   * had not been made.
+   */
+  const rightmostBuff = (s: RunState): number => {
+    const i = [...s.shop].reverse().findIndex((o) => !CARD_INDEX[o.cardId]?.spell);
+    const offer = s.shop[s.shop.length - 1 - i]!;
+    return (offer.atk ?? 0) + (offer.hp ?? 0);
   };
 
-  it('buffs the right-most minion of EVERY fresh roll, not just once', () => {
-    let s = withTormentor();
-    for (let roll = 1; roll <= 3; roll++) {
-      s = reduce(s, { type: 'roll' });
-      const r = rightmost(s)!;
-      const def = CARD_INDEX[r.offer.cardId]!;
-      expect(r.attack, `roll ${roll}: right-most is buffed`).toBe(def.attack + 4);
-      expect(r.health, `roll ${roll}`).toBe(def.health + 4);
-    }
-  });
-
-  it('buffs the OFFER, not every copy of that card id', () => {
-    // The old `buffCardTypeRunWide` bug: buffing the id meant a second copy in a later shop was also +4/+4.
-    let s = withTormentor();
-    s = reduce(s, { type: 'roll' });
-    const buffedId = rightmost(s)!.offer.cardId;
-    // Any OTHER offer of the same id in the same row must be untouched.
-    const others = s.shop.filter((o) => o.cardId === buffedId && o !== rightmost(s)!.offer);
-    for (const o of others) expect(o.atk ?? 0, 'a sibling copy is not buffed').toBe(0);
-    expect(s.cardBuffs?.[buffedId], 'and nothing was written to the run-wide per-card channel').toBeUndefined();
-  });
-
-  it('the buff rides the CARD, so re-ordering the shop does not move it', () => {
-    let s = withTormentor();
-    s = reduce(s, { type: 'roll' });
-    const buffed = rightmost(s)!.offer;
-    s.shop.reverse(); // the player drags things around
-    expect(buffed.atk, 'the same offer still carries it').toBe(4);
-    const nowRight = rightmost(s)!.offer;
-    if (nowRight !== buffed) expect(nowRight.atk ?? 0, 'the new right-most did NOT inherit it').toBe(0);
-  });
-
-  it('a fresh TURN shop counts as a fresh roll', () => {
-    // The bug the owner hit: `shopRefreshed` only fired on the MANUAL reroll, so the turn-start row — the most
-    // common fresh shop there is — was never buffed. Settle a combat to reach the start-of-turn refresh.
-    const s: RunState = {
-      ...createRun(11), wave: 3, phase: 'combat', combatSettled: false, frozen: false,
-      board: [minion('T', 'dm_tormentor', 3, 4)], hand: [], shop: [],
-      lastCombat: {
-        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
-        initial: { player: [], enemy: [] },
-      },
-    } as unknown as RunState;
-    const after = reduce(s, { type: 'resolveCombat' }); // settleCombat only applies damage; resolveCombat advances the wave
-    expect(after.phase, 'we actually reached a new recruit phase').toBe('recruit');
-    expect(after.shop.length, 'and it dealt a fresh shop').toBeGreaterThan(0);
-    const r = rightmost(after)!;
-    expect(r.attack, "the turn-start row's right-most is buffed too").toBe(CARD_INDEX[r.offer.cardId]!.attack + 4);
-  });
-
-  it('a minion CONSUMED off the fresh shop is eaten at its BUFFED stats', () => {
-    // Owner ruling: the buff lands before any consume triggers, so the eater gets the buffed body.
+  it('buffs the right-most Shop minion when PLAYED', () => {
     let s: RunState = {
-      ...createRun(11), phase: 'recruit', embers: 99, freeRolls: 99,
-      // Maw sits LEFT of the Tormentor on purpose — board order must not decide who resolves first.
-      board: [minion('m', 'dm_maw', 8, 8), minion('T', 'dm_tormentor', 3, 4)], hand: [],
+      ...createRun(11), phase: 'recruit', embers: 99,
+      board: [], hand: [minion('T', 'dm_tormentor', 4, 4)],
       shop: shop('sandbag', 'alley', 'stray'),
     };
-    for (let i = 0; i < 4; i++) s = reduce(s, { type: 'roll' }); // the Maw's 4th refresh: it eats
-    const eaten = s.shopEaten ?? [];
-    expect(eaten.length, 'the Maw ate on its 4th refresh').toBeGreaterThan(0);
-    const last = eaten[eaten.length - 1]!;
-    const base = CARD_INDEX[last.cardId]!;
-    // If the Tormentor resolved second, this would be the unbuffed statline.
-    expect(last.attack + last.health, 'eaten at buffed stats').toBeGreaterThan(base.attack + base.health);
+    const before = rightmostBuff(s);
+    s = reduce(s, { type: 'play', uid: 'T' });
+    expect(rightmostBuff(s) - before, 'the Shout did not buff the right-most offer').toBe(8); // +4/+4
   });
 
-  it('golden doubles the grant', () => {
-    let s = withTormentor();
-    s.board[0]!.golden = true;
+  it('does NOT fire on a refresh any more', () => {
+    let s: RunState = {
+      ...createRun(11), phase: 'recruit', embers: 99, freeRolls: 99,
+      board: [minion('T', 'dm_tormentor', 4, 4)], hand: [],
+      shop: shop('sandbag', 'alley', 'stray'),
+    };
     s = reduce(s, { type: 'roll' });
-    expect(rightmost(s)!.offer.atk).toBe(8);
+    expect(rightmostBuff(s), 'refreshing still triggered it').toBe(0);
   });
 });
 

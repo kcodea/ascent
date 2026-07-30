@@ -61,7 +61,7 @@ const controls: TunerControl<Extract<keyof CardPlateConfig, string>>[] = ORDER.m
   return { key, label, unit, hint, group, note, min, max, step };
 });
 
-const SPEC: TunerSpec<CardPlateConfig> = {
+export const SPEC: TunerSpec<CardPlateConfig> = {
   id: 'cardplate',                  // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Card Plate',
   note: 'dev · live · hand cards',

@@ -190,6 +190,10 @@ controls. What is left, and what the migration left owing:
 a find box inside each panel, and a hold-or-tap A/B against the shipped values. All three landed in ONE
 component, which was the point of the schema.
 
+A **Reset all tuners** action (♻️ in the dev menu) followed on the same day: per-panel Reset only ever cleared
+one panel's key, so nothing put the whole toolset back to shipped. It calls each panel's own `reset()` via the
+`tunerAll.ts` registry rather than sweeping storage keys — run and save state share the `ascent.` prefix.
+
 Still on the table from Phase 2, deliberately not built:
 - **A Test button on every FX panel** — 26 of 46 panels have no way to fire their effect, so you must stage a
   real Execute kill or Rally proc just to see it once. Cost varies per panel: some already have a `pixiFx` test

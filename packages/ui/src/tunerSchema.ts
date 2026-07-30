@@ -19,6 +19,16 @@
  * the mixture unambiguous, which was the actual problem — a bare "2.4" that might be either.
  */
 
+/**
+ * Announced after "Reset all tuners" has written through every config module. Open panels listen for it, since
+ * they otherwise have no way to know their values changed under them.
+ *
+ * It lives HERE rather than beside the reset itself because `tunerAll.ts` imports all forty-six panels, and every
+ * panel imports `TunerPanel` — a panel reaching back into `tunerAll` for this string would close that loop into a
+ * genuine import cycle.
+ */
+export const TUNERS_RESET_EVENT = 'ascent:tunersreset';
+
 /** The complete unit vocabulary. A control that renders a bare number declares no unit at all. */
 export type TunerUnit =
   | 'ms'      // milliseconds

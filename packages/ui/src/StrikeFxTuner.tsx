@@ -72,7 +72,7 @@ const controls: TunerControl<Extract<keyof StrikePanelConfig, string>>[] = [
 
 const STRIKE_KEY_SET = new Set<string>(STRIKE_ORDER);
 
-const SPEC: TunerSpec<StrikePanelConfig> = {
+export const SPEC: TunerSpec<StrikePanelConfig> = {
   id: 'strikefx',                   // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Lunge Impact',
   note: 'dev · next strike · drag',

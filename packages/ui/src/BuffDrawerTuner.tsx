@@ -43,7 +43,7 @@ const controls: TunerControl<Extract<keyof BuffDrawerConfig, string>>[] = ORDER.
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<BuffDrawerConfig> = {
+export const SPEC: TunerSpec<BuffDrawerConfig> = {
   id: 'buffdrawer',                 // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Buffs Drawer',
   note: 'dev · live · drag',

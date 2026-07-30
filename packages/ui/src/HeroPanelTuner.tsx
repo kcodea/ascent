@@ -54,7 +54,7 @@ const controls: TunerControl<Extract<keyof HeroPanelConfig, string>>[] = ORDER.m
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<HeroPanelConfig> = {
+export const SPEC: TunerSpec<HeroPanelConfig> = {
   id: 'heropanel',                  // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Hero Panel',
   note: 'dev · live · drag',

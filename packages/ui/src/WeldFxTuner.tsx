@@ -84,7 +84,7 @@ const actions: TunerAction[] = (['play', 'auto'] as const).map((kind) => ({
   run: () => testWeldFx(kind),
 }));
 
-const SPEC: TunerSpec<WeldFxConfig> = {
+export const SPEC: TunerSpec<WeldFxConfig> = {
   id: 'weldfx',                     // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Weld',
   note: 'dev · next weld · drag',

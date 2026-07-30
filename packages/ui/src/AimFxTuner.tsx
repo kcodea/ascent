@@ -52,7 +52,7 @@ const controls: TunerControl<Extract<keyof AimFxConfig, string>>[] = ORDER.map((
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<AimFxConfig> = {
+export const SPEC: TunerSpec<AimFxConfig> = {
   id: 'aimfx',                      // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Hero Aim',
   note: 'dev · live while aiming',

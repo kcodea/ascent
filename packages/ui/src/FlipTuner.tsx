@@ -10,7 +10,7 @@ import type { TunerSpec } from './tunerSchema';
  * Migrated to the shared `TunerPanel`: this file is now the panel's *description*, not its implementation.
  * Persistence still runs entirely through `flipConfig`'s own accessors, so previously dialled values survive.
  */
-const SPEC: TunerSpec<FlipConfig> = {
+export const SPEC: TunerSpec<FlipConfig> = {
   id: 'flip',                       // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Reposition Slide',
   note: 'dev · next move · drag',

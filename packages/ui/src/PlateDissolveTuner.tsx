@@ -71,7 +71,7 @@ const controls: TunerControl<Extract<keyof PlateDissolveConfig, string>>[] = ORD
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<PlateDissolveConfig> = {
+export const SPEC: TunerSpec<PlateDissolveConfig> = {
   id: 'platedissolve',              // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Plate Dissolve',
   note: 'dev · play a minion',

@@ -83,7 +83,7 @@ const controls: TunerControl<Extract<keyof ExecuteFxConfig, string>>[] = [
   ),
 ];
 
-const SPEC: TunerSpec<ExecuteFxConfig> = {
+export const SPEC: TunerSpec<ExecuteFxConfig> = {
   id: 'executefx',                  // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Execute Strike',
   note: 'dev · read at fire time',

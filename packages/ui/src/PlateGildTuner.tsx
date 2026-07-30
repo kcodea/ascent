@@ -93,7 +93,7 @@ const controls: TunerControl<Extract<keyof PlateGildConfig, string>>[] = ORDER.m
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<PlateGildConfig> = {
+export const SPEC: TunerSpec<PlateGildConfig> = {
   id: 'plategild',                  // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Plate Gild',
   note: () => `dev · ${Math.round(plateGildDuration())}ms total`,

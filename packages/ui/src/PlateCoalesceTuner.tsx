@@ -69,7 +69,7 @@ const controls: TunerControl<Extract<keyof PlateCoalesceConfig, string>>[] = ORD
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<PlateCoalesceConfig> = {
+export const SPEC: TunerSpec<PlateCoalesceConfig> = {
   id: 'platecoalesce',              // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Plate Coalesce',
   note: 'dev · card generated',

@@ -75,7 +75,7 @@ const controls: TunerControl<Extract<keyof CritFxConfig, string>>[] = ORDER.map(
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<CritFxConfig> = {
+export const SPEC: TunerSpec<CritFxConfig> = {
   id: 'critfx',                     // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Critical Strike',
   note: 'dev · next crit · drag',

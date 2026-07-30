@@ -29,7 +29,7 @@ const controls: TunerControl<Extract<keyof StepCounterConfig, string>>[] = ORDER
   return { key, label, unit, hint, min, max, step };
 });
 
-const SPEC: TunerSpec<StepCounterConfig> = {
+export const SPEC: TunerSpec<StepCounterConfig> = {
   id: 'stepcounter',                // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Step Counter',
   note: 'dev · live · drag',

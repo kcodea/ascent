@@ -39,7 +39,7 @@ const controls: TunerControl<Extract<keyof SmokeConfig, string>>[] = ORDER.map((
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<SmokeConfig> = {
+export const SPEC: TunerSpec<SmokeConfig> = {
   id: 'smoke',                      // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Smoke & Dust',
   note: 'dev · next impact · drag',

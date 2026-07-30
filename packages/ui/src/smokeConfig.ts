@@ -1,9 +1,13 @@
 /**
  * Tunable parameters for the board's soft particle smoke/dust — the warm-grey puffs that rise off a combat
- * impact (`pixiFx.impact`) and the tan dust ring kicked up under a placed card (`pixiFx.dust`). Same pattern
+ * impact (`pixiFx.impact`) and the dust + energy pulse fired from a strike point. Same pattern
  * as `lungeConfig.ts`/`trailConfig.ts`: one mutable, localStorage-persisted config dialed by eye via the DEV
  * Smoke tuner (`SmokeTuner.tsx`); `getSmokeConfig()` is read at spawn time, so changes apply to the next
- * impact/drop. The DEFAULTS reproduce the previously-hardcoded look exactly (nothing changes until you tune).
+ * impact. The DEFAULTS reproduce the previously-hardcoded look exactly (nothing changes until you tune).
+ *
+ * NOTE: the card-drop footprint dust used to live here too. It is an authored def now (`fx/defs/landing-dust.json`,
+ * played through `playDef` with a per-call `scale`/`intensity`), tuned in the FX workbench rather than by these
+ * sliders — so its `dust*` knobs were removed with the hand-written `pixiFx.dust()` they drove.
  */
 export interface SmokeConfig {
   /** Combat impact: number of smoke puffs per hit. */
@@ -18,16 +22,6 @@ export interface SmokeConfig {
   smokeGrow: number;
   /** Combat impact: peak opacity (kept low so it wisps over the cream board). */
   smokeAlpha: number;
-  /** Card drop: number of dust puffs around the ring (× the per-call density). */
-  dustCount: number;
-  /** Card drop: outward billow speed (px/s). */
-  dustSpeed: number;
-  /** Card drop: base puff lifetime (ms). */
-  dustLife: number;
-  /** Card drop: final expansion scale (× the per-call scale). */
-  dustGrow: number;
-  /** Card drop: peak opacity. */
-  dustAlpha: number;
   /** Combat impact — card-drop-style dust erupting from the corner clack point: puff count. */
   impDustCount: number;
   /** Combat impact dust: outward billow speed (px/s). */
@@ -52,12 +46,6 @@ const DEFAULTS: SmokeConfig = {
   smokeLife: 400,
   smokeGrow: 6,
   smokeAlpha: 0.15,
-  // Card-drop dust (a placed minion's footprint billow) — unchanged.
-  dustCount: 22,
-  dustSpeed: 195,
-  dustLife: 1180,
-  dustGrow: 1.2,
-  dustAlpha: 0.32,
   // Combat impact dust + energy pulse (fired from the strike point) — owner-tuned (2026-07-10).
   impDustCount: 22,
   impDustSpeed: 450,
@@ -76,11 +64,6 @@ export const SMOKE_RANGES: Record<keyof SmokeConfig, [number, number, number]> =
   smokeLife: [100, 2200, 20],
   smokeGrow: [0.5, 6, 0.1],
   smokeAlpha: [0, 1, 0.01],
-  dustCount: [0, 40, 1],
-  dustSpeed: [0, 320, 5],
-  dustLife: [100, 1600, 20],
-  dustGrow: [0.5, 4, 0.1],
-  dustAlpha: [0, 1, 0.01],
   impDustCount: [0, 30, 1],
   impDustSpeed: [0, 600, 10],
   impDustLife: [100, 1200, 20],

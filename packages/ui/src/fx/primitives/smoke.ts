@@ -51,6 +51,7 @@ const DEG_TO_RAD = Math.PI / 180;
 const SPECS = {
   rate: {
     kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 300, step: 5, default: 40, essential: true,
+    axis: 'intensity',
     help: 'Motes per second — smoke is sparse and lingering, so this runs low.',
   },
   life: {
@@ -62,7 +63,9 @@ const SPECS = {
     help: '1 = emit in all directions, lower = a tighter upward cone.',
   },
 
-  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 30, help: 'px/sec initial — gentle drift.' },
+  speed: {
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 30, axis: 'scale',
+    help: 'px/sec initial — gentle drift.' },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
     enabledWhen: { param: 'speed', above: 0 },
@@ -70,6 +73,7 @@ const SPECS = {
   },
   gravity: {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30, essential: true,
+    axis: 'scale',
     help: 'px/sec² (negative = rise, like smoke/embers).',
   },
   spin: {
@@ -91,7 +95,7 @@ const SPECS = {
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 40,
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 40, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes the column billow and wander — 0 = straight lines.',
   },
   turbScale: {
@@ -104,7 +108,7 @@ const SPECS = {
     help: 'Where puffs are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc (the default — a soft-edged smoke source), or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 8,
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 8, axis: 'scale',
     // Only one half of the mutually-dead shape/radius pair may declare the dependency (see burst.ts) —
     // shape is the gateway, radius the thing it unlocks. Smoke ships with both live (disc + 8px).
     enabledWhen: { param: 'emitShape', not: 'point' },
@@ -120,7 +124,7 @@ const SPECS = {
     help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 14, essential: true,
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 14, essential: true, axis: 'scale',
     help: 'How big a puff is across, in px, at birth — 14 gives a chunky column, low values a thin wispy one. Size var jitters it per puff and the Size / life curve grows it as the puff rises.',
   },
   sizeVar: {

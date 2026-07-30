@@ -1569,50 +1569,6 @@ class FxController {
   }
 
   /**
-   * A puff of dry-dirt dust ringing a card's footprint (cx/cy = card center, w/h = its size) —
-   * like a flat stone dropped into dust. Fired when a minion is placed on / moved across the board.
-   * Puffs spawn around the card's perimeter and billow **outward** (away from the card), hugging the
-   * ground (vertical motion damped, gentle gravity) and fading fast — dusty tan on normal blend, low
-   * alpha so it stays subtle. The caller raises the landed card above the FX layer for the duration,
-   * so the dust reads as escaping out from *under* the card on every side. `scale` (default 1) inflates the
-   * whole plume — both the ring spread and the puff sizes — for a bigger billow (callers may pass >1).
-   * `density` (default 1) multiplies the puff COUNT for a thicker cloud without changing its size.
-   */
-  dust(cx: number, cy: number, w: number, h: number, scale = 1, density = 1): void {
-    if (!this.ready) return;
-    const sm = getSmokeConfig(); // live-tunable (DEV Smoke tuner); defaults reproduce the original look
-    const halfW = w * 0.5 * scale;
-    const halfH = h * 0.5 * scale;
-    const puffs = Math.max(1, Math.round(sm.dustCount * density));
-    for (let i = 0; i < puffs; i++) {
-      const ang = (i / puffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.4; // around the ring
-      const dx = Math.cos(ang);
-      const dy = Math.sin(ang);
-      // project the direction onto the card's rectangular edge so puffs start at the card's border
-      const edge = 1 / Math.max(Math.abs(dx) / halfW, Math.abs(dy) / halfH);
-      const ex = cx + dx * edge;
-      const ey = cy + dy * edge;
-      const speed = sm.dustSpeed * (0.42 + Math.random());
-      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans
-      this.spawn(this.glowTex!, {
-        x: ex + (Math.random() - 0.5) * 8,
-        y: ey + (Math.random() - 0.5) * 8,
-        vx: dx * speed,
-        vy: dy * speed * 0.45 - (4 + Math.random() * 14), // vertical damped + a slight lift → stays flat
-        drag: 0.2,                                         // dust slows quickly
-        gravity: 130,                                      // gentle settle — no rising column
-        life: sm.dustLife * (1 + Math.random() * 0.68),
-        fromScale: (0.3 + Math.random() * 0.2) * scale,
-        toScale: sm.dustGrow * (0.75 + Math.random() * 0.42) * scale, // billow as it dissipates
-        spin: (Math.random() - 0.5) * 1.2,
-        tint: tan,
-        blend: 'normal',
-        peakAlpha: sm.dustAlpha * (0.78 + Math.random() * 0.47),
-      });
-    }
-  }
-
-  /**
    * One step of a motion trail behind a moving card — a wind-whoosh wisp left at (x, y), oriented along
    * the movement vector (dx, dy). Callers distance-gate on `getTrailConfig().emitSpacing` (the drag rAF
    * handler + the combat lunge's onUpdate), so emission density tracks speed — no movement, no trail.

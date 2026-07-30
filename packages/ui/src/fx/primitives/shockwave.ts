@@ -185,6 +185,7 @@ void main() {
 const SPECS = {
   rings: {
     kind: 'slider', label: 'Rings', group: 'Ring', min: 1, max: 5, step: 1, default: 2, essential: true,
+    axis: 'intensity',
     help: 'Concurrent expanding rings.',
   },
   speed: {
@@ -201,6 +202,7 @@ const SPECS = {
   },
   radius: {
     kind: 'slider', label: 'Radius', group: 'Ring', min: 40, max: 400, step: 5, default: 160, essential: true,
+    axis: 'scale',
     help: 'Max ring radius, px.',
   },
   squash: {

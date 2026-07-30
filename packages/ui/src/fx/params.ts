@@ -32,8 +32,15 @@ export type FxParamDependency = {
   above?: number;
 };
 
+/**
+ * The two per-call axes a `playDef` caller can dial (`PlayDefOptions.scale` / `.intensity`), and which a
+ * param declares itself to respond to. See {@link FxParamMeta.axis} and `scaleDef.ts`.
+ */
+export const FX_SCALE_AXES = ['scale', 'intensity'] as const;
+export type FxScaleAxis = (typeof FX_SCALE_AXES)[number];
+
 /** Fields every spec carries regardless of `kind`. Intersected onto the union below rather than repeated in
- *  all eight members — both are optional, so every pre-existing spec stays valid untouched. */
+ *  all eight members — all three are optional, so every pre-existing spec stays valid untouched. */
 type FxParamMeta = {
   /**
    * One of the ~5-7 params that actually carry this primitive's read. The inspector's default "Essentials"
@@ -43,6 +50,35 @@ type FxParamMeta = {
   essential?: boolean;
   /** What has to be true elsewhere in this spec record for the param to do anything. See {@link FxParamDependency}. */
   enabledWhen?: FxParamDependency;
+  /**
+   * Which per-call axis this param rides when a `playDef` caller passes `scale` / `intensity`.
+   *
+   * A def is a FIXED composition, but a caller often knows something the author cannot: how big the card is,
+   * how much damage landed. These two multipliers are how that reaches the def, and this field is the only
+   * declaration of which params they touch. Omitted (the default) means the param is deaf to both — which is
+   * correct for the large majority, and is why `scale: 1` can be a genuine no-op rather than a re-snap of
+   * every slider in the def.
+   *
+   *  - `'scale'` — GEOMETRY. Reserved for a param measured in pixels or in px-per-time (a size, an emission
+   *    radius, an extent, a speed, an acceleration). Multiplying all of them together makes the same effect
+   *    bigger while keeping its shape and its timing: positions ×k with the clock untouched implies velocity
+   *    ×k and acceleration ×k. A param that is a RATIO (spread, drag, a `*Var` jitter fraction), a DURATION,
+   *    or a spatial FREQUENCY (a noise scale is 1/px, so it would have to scale INVERSELY — which one
+   *    multiplier cannot express) must NOT declare it.
+   *  - `'intensity'` — QUANTITY. How many things there are: a particle count, an emission rate, a ring count.
+   *    Nothing else — "more intense" must never be a licence to also brighten, lengthen or enlarge, or two
+   *    callers dialling the same number get two unrelated effects.
+   *
+   * Only a `kind: 'slider'` param may declare an axis — no other kind has the `min`/`max`/`step` the
+   * multiply needs to stay legal. `validateSpecs` rejects it anywhere else.
+   *
+   * **Scaling is CLAMPED, so it is not linear at the extremes.** Every axis param is held to its own slider
+   * range: `scale: 10` on a `size` already near its `max` moves it to the max and no further, and the effect
+   * grows far less than tenfold. That is deliberate (an out-of-range param is silently rewritten at load —
+   * see `coerceParams`) but it means an author who wants real headroom on an axis must leave the base value
+   * well below its ceiling. "I doubled scale and it barely changed" is almost always this.
+   */
+  axis?: FxScaleAxis;
 };
 
 export type FxParamSpec = FxParamMeta &
@@ -367,6 +403,12 @@ export function validateSpecs(specs: FxParamSpecs): string[] {
       if (dep.is === undefined && dep.not === undefined && dep.above === undefined) {
         problems.push(`'${key}': enabledWhen must declare at least one of is/not/above`);
       }
+    }
+    // An `axis` on a non-slider is inert forever — `transformParams` refuses every other kind, since none of
+    // them has the min/max/step the multiply needs. Silently ignoring it would leave an author believing a
+    // param responds to `scale` when nothing will ever touch it.
+    if (spec.axis !== undefined && spec.kind !== 'slider') {
+      problems.push(`'${key}': axis '${spec.axis}' is only meaningful on a slider (this is a '${spec.kind}')`);
     }
     if (spec.kind === 'slider') {
       if (spec.min > spec.max) problems.push(`'${key}': min ${spec.min} exceeds max ${spec.max}`);

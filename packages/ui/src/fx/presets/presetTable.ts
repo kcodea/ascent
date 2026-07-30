@@ -11,8 +11,11 @@
  */
 
 /** Keys that must never be used to index into an object we then assign to: `out['__proto__'] = x` invokes
- *  the inherited prototype setter. Same guard, same reason, as `choreo/bindings.ts`. */
-export const UNSAFE_KEYS: readonly string[] = ['__proto__', 'constructor', 'prototype'];
+ *  the inherited prototype setter. Same guard, same reason, as `choreo/bindings.ts`. Declared in
+ *  `../paramTransform` (the shipped param-multiplying path needs it too and must not import this DEV-only
+ *  parser to get it) and re-exported here, where this table's own validation reads it. */
+export { UNSAFE_KEYS } from '../paramTransform';
+import { UNSAFE_KEYS } from '../paramTransform';
 
 /** True for a plain object we can safely index into — excludes `null` and arrays. Copied from
  *  `choreo/bindings.ts`'s `isRecord`, which established this exact narrowing for the same reason. */

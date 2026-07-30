@@ -311,11 +311,20 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   parameter below as well, since their `dx/dy` arrives at fire time. (A third `awayFrom` mode was built and
   cut for want of a caller; the reasoning, and what re-adding it would cost, is recorded next to
   `BURST_AIM_MODES` in `burst.ts`.)
-- **`playDef` needs a per-call scale/intensity parameter — this blocks the next migration batch.** Nine
-  effects cannot move until it exists, because each takes per-call geometry or intensity a def's fixed
-  params can't express: `impact` + `critImpact` (`dx/dy/power`), `impactDust`, `impactPulse`, `dust` and
-  `rebornSummon` and `shatterAt` (the card's `w/h`), `deathrattle` (`size`), and `refreshBlast` (a whole
-  `cfg` object from its tuner). Do this before batch 2.
+- **`playDef` per-call `scale` / `intensity` — ✅ SHIPPED 2026-07-30.** Two multipliers on `PlayDefOptions`,
+  reaching only the params that opt in by declaring an `axis` in their spec (`scale` = geometry, `intensity` =
+  counts). `1` is an exact no-op and `scale` never touches a count, so seeded defs replay byte-for-byte.
+  `dust` is migrated as the proof (`fx/defs/landing-dust.json`; the card-drop `dust*` knobs are gone from the
+  Smoke tuner with it). What the remaining eight still owe:
+  - **Only `scale`/`intensity` short:** `deathrattle` (`size`), `shatterAt` + `rebornSummon` (the card's
+    `w/h` — note both want an *aspect*, and one scalar collapses it to the width), `impactDust` (`power` +
+    per-button `count`/`size` multipliers — but its `life` override is a TIME axis nothing expresses yet).
+  - **Also need direction:** `impact` and `critImpact` (`dx/dy`). The shape for that is an
+    `aimMode: 'sourceToTarget'` on `burst` derived from the anchors `playDef` already receives — which needs
+    a source channel plumbed to the primitive instance (built and cut in #764 for want of a caller; see
+    `BURST_AIM_MODES` in `burst.ts`). Build it when those two migrate.
+  - **Need more than magnitude:** `impactPulse` (`radius`/`life`/`rings` per call — `life` is time again) and
+    `refreshBlast` (a whole `cfg` object from its tuner, which is really "author several defs, not one").
 
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own

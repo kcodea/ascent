@@ -44,6 +44,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Effects can be sized at the moment they fire.** An authored effect is a fixed recipe, which is most of
+  its value — but a lot of them need to know something only the caller knows: how big this card is, how hard
+  this hit landed. Two per-call dials now carry exactly that, and nothing else: bigger, and more. The dust
+  kicked up under a landed minion is the first effect to move across on them, and now sizes itself to the
+  card it lands under. Existing effects are untouched down to the exact random roll a locked seed replays.
 - **Bursts can be aimed.** A `burst`'s cone used to fan along the emitter's direction of travel — which is
   *nothing* for an effect pinned to a fixed point, so a directional pop from a static anchor couldn't be
   authored at all. Two new params fix that — point the cone at any angle you choose — and the gold coin

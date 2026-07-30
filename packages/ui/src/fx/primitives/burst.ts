@@ -134,6 +134,7 @@ export function burstFireComplete(oneShot: boolean, fired: boolean, liveCount: n
 const SPECS = {
   count: {
     kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 120, step: 1, default: 28, essential: true,
+    axis: 'intensity',
     help: 'Particles per burst.',
   },
   interval: {
@@ -156,7 +157,10 @@ const SPECS = {
     help: 'Where the cone points, in degrees, when Aim is fixed. Screen convention: 0 is right, and because the screen\'s Y axis grows DOWNWARD, -90 is straight UP, +90 straight DOWN, and ±180 is left. Does nothing while Aim is travel.',
   },
 
-  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 800, step: 5, default: 260, essential: true, help: 'px/sec initial.' },
+  speed: {
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 800, step: 5, default: 260, essential: true,
+    axis: 'scale', help: 'px/sec initial.',
+  },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.5,
     help: 'Randomises speed ± this fraction.',
@@ -166,7 +170,7 @@ const SPECS = {
     help: 'How quickly shards slow down — 1 keeps them flying flat out the whole way, 0.9 (the default) coasts them to a stop, 0.7 stalls them almost the moment they leave.',
   },
   gravity: {
-    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 800, step: 10, default: 0,
+    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 800, step: 10, default: 0, axis: 'scale',
     help: 'px/sec² downward.',
   },
   life: { kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, essential: true, help: 'Particle lifetime ms.' },
@@ -176,7 +180,7 @@ const SPECS = {
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0,
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
   },
   turbScale: {
@@ -189,7 +193,7 @@ const SPECS = {
     help: 'Where shards are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0, axis: 'scale',
     // `emitShape` and `emitRadius` are mutually dead at these defaults (point + 0), so only ONE of the pair
     // may declare the dependency — disabling both would be a deadlock with no way back in. Shape is the
     // gateway you pick first; picking anything but `point` unlocks the radius.
@@ -206,7 +210,7 @@ const SPECS = {
     help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9, essential: true,
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9, essential: true, axis: 'scale',
     help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
   },
   sizeVar: {

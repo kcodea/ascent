@@ -43,6 +43,7 @@ import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
+import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
@@ -3494,7 +3495,10 @@ export function Recruit() {
         el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
         window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
       }
-      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1, 1.5); // original size, +50% denser cloud
+      // The authored `landing-dust` def: sized to this card (`scale`) and, as the hand-written call did with
+      // its `density` argument, +50% denser here than the combat-summon poof (`intensity`).
+      const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      playDef('landing-dust', { source: c, target: c }, { scale: cardFxScale(r.width), intensity: 1.5 });
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 

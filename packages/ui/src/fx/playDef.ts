@@ -8,6 +8,7 @@ import { anchorsForUnits } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
 import { createPlayer } from './player';
 import { hasPrimitives } from './registry';
+import { scaleDef, type FxScaleAxes } from './scaleDef';
 
 /**
  * Play a COMMITTED def once, in the real game, and clean itself up. The runtime half of the workbench →
@@ -59,10 +60,14 @@ import { hasPrimitives } from './registry';
  * treats as "no FX for this moment" and moves on.
  */
 
-export interface PlayDefOptions {
+export interface PlayDefOptions extends FxScaleAxes {
   /** Playback rate multiplier (e.g. the combat-speed dial). Non-finite or ≤ 0 falls back to 1 — a paused
    *  fire-and-forget effect would never retire, so "0" is treated as caller error rather than honoured. */
   speed?: number;
+  /* `scale` / `intensity` come from `FxScaleAxes` — the per-call geometric and quantity multipliers. Both
+   * default to 1, and 1 is an EXACT no-op (the def object is not even copied). Only params that declare an
+   * `axis` in their spec respond, and each is clamped to its own slider range, so scaling is NOT linear at
+   * the extremes. See `scaleDef.ts` and `FxParamMeta.axis`. */
   /** Called EXACTLY once when the effect retires — whether it played out naturally or was cancelled — and
    *  after teardown has finished, so the callback sees a fully cleaned-up world. */
   onDone?: () => void;
@@ -238,7 +243,10 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   const renderer = pixiFx.renderer;
   if (!renderer) return null;
 
-  const def = playableDef(stored);
+  // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
+  // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
+  // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
+  const def = scaleDef(playableDef(stored), opts);
   const layers = def.layers;
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.

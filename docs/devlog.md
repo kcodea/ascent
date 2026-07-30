@@ -45,6 +45,36 @@ existed only in our shells, no PR could fix them, and they buried the real findi
 `ignores` list in `eslint.config.mjs` alongside `node_modules` / `dist` / `apps/desktop/release`. `npm run lint`
 goes 78 errors → **0**, leaving the 6 pre-existing unused-import warnings.
 
+**Also: audited the roadmap's whole "Dead-code purge" item, and cleared the CSS half.** The bullet turned out to
+be wrong in four places — two of them traps that would have caused visible regressions:
+
+- **`battlecryGrantKeyword` is live.** `cards/set1/beasts.ts` uses it twice. Struck from the purge.
+- **The Reborn-tears DOM is already gone.** Nothing to remove; the only "tear" hits left are `teardown` prose.
+- **`.disc-gem` is live** — rendered by `Recruit.tsx`, and its rule is a deliberate `display: none`. Deleting it
+  would have made the gems *reappear*.
+- **`.ob` is live** — the OMEN-era base rule now also feeds the odds bar's `.oddsbar .ob.win/.draw/.lose`
+  segments, so removing it would have changed live rendering.
+
+**Deleted (CSS, verified unused):** the OMEN block, `.chip` (incl. its `.statusbar` overrides), `.toast`,
+`.legend`, `.tavernbox`, `.zt`/`.zh`/`.hint` and their entries in three combined selectors — plus a bonus find,
+the `.emberproj` projection popup, whose only entry point was `.chip.g:hover`, so it died with `.chip`. Every
+one confirmed by `className` search: the surviving hits are distinct hyphenated classes (`questbadge-chip`,
+`balchart-legend`, `fxwb-*-hint`), and the removed descendant rules (`.chip .ic`, `.oc .k`, `.eu .s`, …) are
+scoped under parents that no longer exist.
+
+**The effect-id count was badly stale: 69, not "~17".** New `docs/dead-effect-ids.md` carries the verified
+inventory — every id with no `do: '<id>'` usage in any content data, listed with the files to sweep. Two
+methodology traps are documented there because both nearly produced a wrong answer: a word-boundary regex built
+through a shell heredoc collapsed `\b` to a literal backspace and reported *every* id as unreferenced; and stale
+test prose reads like usage (`hoardbreaker`'s comment names `onKillCastSpell`, but the card only carries
+`rallyCastSpell`).
+
+**Left open, with reasons on the roadmap:** the Pixi aura-bubble removal is bigger than the bullet implied — the
+dead bubbles own an entire second WebGL `Application` (`shieldApp`) plus the `underParent` mount contract,
+already ticker-stopped as dormant. Dropping a full-viewport GL context deserves its own PR and a render profile.
+The 69 ids and the `reAttackOnKill` chain are engine-owned; `reAttackOnKill` in particular is *working*
+machinery in `minion.ts`/`simulate.ts` that simply no card uses, so removing it is an owner call, not a cleanup.
+
 **Verified:** `npm run typecheck` + `npm run typecheck:web` + `npm run lint` + `npm test` + `npm run build:web`
 all green, and a repo-wide grep for `ShieldTuner` / `shieldConfig` / `ascent:shieldcfg` returns no hits outside
 the devlog.

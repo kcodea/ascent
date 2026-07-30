@@ -695,13 +695,30 @@ effects (the `.dr` collapse hold can trail them) — tune live against the skull
 ### Tech-debt watch (fold into whichever PR touches it)
 Split `Recruit.tsx` (~2.5k — proposed seams: `recruitViews` / `useCardDrag` / `useLossSequence` / overlays)
 and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
-`recruit.ts` (2k); consider sub-reducers in `reducer.ts` as actions grow. **Dead-code purge:** ~17 dead
-effect-factory ids (`factories.ts` + `types.ts` union + `schema.ts` enum, 3-place sweep each) +
-`battlecryGrantKeyword` chain + `reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache`; Card renders removed
-Reborn-tears DOM; **the orphaned Pixi aura-bubble system** (`pixiFx.setShield`/`clearShield`/`setShieldsVisible`/`shieldLayer`/`hasAura` have no
-callers now the tracker is gone, and `breakShield` is down to its own shape-editor demo — but keep
-`shatterAt`/`rebornSummon`, still fired by the death-burst/reborn path); a confirmed dead-CSS list (OMEN
-block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).
+`recruit.ts` (2k); consider sub-reducers in `reducer.ts` as actions grow.
+
+**Dead-code purge** (audited 2026-07-29 — the old estimates were wrong in four places; see
+[`docs/dead-effect-ids.md`](dead-effect-ids.md) for the method and the evidence):
+- ✅ **Dead CSS — done.** The OMEN block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt`/`.zh`/`.hint` and
+  the `.emberproj` popup (reachable only via `.chip.g:hover`, so dead with it) are gone. **`.disc-gem` and
+  `.ob` were NOT dead** and stay: `.disc-gem` is rendered by `Recruit.tsx` and its rule is a deliberate
+  `display: none` (deleting it makes the gems reappear), and `.ob`'s base rule still feeds the odds bar's
+  `.oddsbar .ob.win/.draw/.lose` segments.
+- 🔵 **The orphaned Pixi aura-bubble system — PR open (#756).** `setShield`/`clearShield`/`setShieldsVisible`/
+  `hasAura`/`auraRect`/`breakShield`/`shieldPop` + the `shields` map, `ShieldBubble`, `shieldLayer` and
+  `shieldGeo` had no production callers, and the bubbles owned a **third** full-viewport WebGL `Application`
+  (`shieldApp`, after the main canvas and `discoverFx`) plus the `underParent` mount contract — already
+  ticker-stopped as "dormant" rather than removed. `shatterAt`/`rebornSummon` are kept, still fired by the
+  death-burst/reborn path via `choreo/channels/aura.ts`. Bundle −21,515 bytes, measured. **Wants an eyeball on
+  a real ward break + reborn before merge** — it deletes a renderer path, which no gate covers.
+- ⬜ **69 dead effect-factory ids** (not ~17): the verified inventory is in
+  [`docs/dead-effect-ids.md`](dead-effect-ids.md), each with the files to sweep. Engine-owned; re-run the
+  sweep first, since an id goes live the moment one card adopts it.
+- ⬜ **`reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache`.** No card uses the id, but the machinery in
+  `minion.ts` + `simulate.ts` is live code — deleting it removes a working mechanic, so it's an owner call
+  rather than a pure cleanup.
+- ❌ **`battlecryGrantKeyword` is NOT dead** — `cards/set1/beasts.ts` uses it twice. Struck from the purge.
+- ❌ **The Reborn-tears DOM is already gone** — nothing left to remove.
 
 ---
 

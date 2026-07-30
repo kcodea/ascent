@@ -56,6 +56,50 @@ export function sampleBurstAngle(travelAngle: number, spread: number, rand: () =
 }
 
 /**
+ * How a burst decides WHICH WAY its cone points (the `aimMode` param). See `resolveBurstAimAngle`.
+ * `travel` is first and is the default, so every def authored before this existed is untouched.
+ */
+export const BURST_AIM_MODES = ['travel', 'fixed', 'awayFrom'] as const;
+export type BurstAimMode = (typeof BURST_AIM_MODES)[number];
+
+/** Degrees → radians, for the `fixed` aim angle. */
+const DEG_TO_RAD = Math.PI / 180;
+
+/**
+ * The BASE angle `sampleBurstAngle` centres the cone on — i.e. the authored launch direction.
+ *
+ * `sampleBurstAngle` takes whatever base it is handed; choosing that base is this function's whole job, and
+ * it is kept separate for one load-bearing reason: **it draws no randomness.** `emit()`'s RNG contract is 7
+ * draws per particle in a fixed order (see there), so a seeded def must replay byte-for-byte across this
+ * change. A pure function of existing state cannot disturb that sequence — there is nothing here that could.
+ *
+ *  - `travel` (the default): the emitter's own direction of travel, which is 0 for a static point anchor.
+ *    Every def that predates aiming behaves exactly as it always did.
+ *  - `fixed`: the authored `angleDeg`, in SCREEN convention — 0 is +x (right), and because screen Y grows
+ *    DOWNWARD, -90 is straight up and +90 straight down.
+ *  - `awayFrom`: radiate outward, along source → this layer's own anchor point. DEGENERATE CASE: when the
+ *    two points coincide there is no outward direction — `Math.atan2(0, 0)` is 0, which would silently snap
+ *    every such burst to firing right — so it falls back to `travel`'s behaviour instead. `source === null`
+ *    (a scenario that stages no source anchor, so `setSource` was never called) takes the same fallback.
+ */
+export function resolveBurstAimAngle(
+  mode: BurstAimMode,
+  travelAngle: number,
+  angleDeg: number,
+  source: { x: number; y: number } | null,
+  headX: number,
+  headY: number,
+): number {
+  if (mode === 'fixed') return angleDeg * DEG_TO_RAD;
+  if (mode === 'awayFrom' && source !== null) {
+    const dx = headX - source.x;
+    const dy = headY - source.y;
+    if (dx * dx + dy * dy > 1e-6) return Math.atan2(dy, dx);
+  }
+  return travelAngle;
+}
+
+/**
  * The rotation a particle should hold THIS frame. Two mutually exclusive modes, matching the
  * `orientToVelocity` param:
  *  - OFF (the default): advance the particle's own spin — `prevRot + spinRad * dtSec`, byte-for-byte the
@@ -107,7 +151,18 @@ const SPECS = {
   },
   spread: {
     kind: 'slider', label: 'Spread', group: 'Emit', min: 0, max: 1, step: 0.01, default: 1,
-    help: '1 = full circle, lower narrows to a forward cone along the travel direction.',
+    help: '1 = full circle, lower narrows to a cone — 0.18 is a ±33° fan, 0 a single line. Aim decides which way that cone points.',
+  },
+  aimMode: {
+    kind: 'enum', label: 'Aim', group: 'Emit', options: BURST_AIM_MODES, default: 'travel',
+    help: 'Which way the cone points. travel (the default) follows the emitter\'s own direction of movement — which is nothing at all for a burst pinned to a static point, so it fans along +x there. fixed points it at the Angle you set. awayFrom radiates outward from the source anchor, so a burst on the target sprays on away from where the effect came from. Does nothing at Spread 1 — a full circle has no centre to aim.',
+  },
+  angle: {
+    kind: 'slider', label: 'Angle', group: 'Emit', min: -180, max: 180, step: 1, default: -90,
+    enabledWhen: { param: 'aimMode', is: 'fixed' },
+    // Screen space, so UP is NEGATIVE. Stated in the help rather than left to the reader because getting the
+    // sign backwards produces a burst that fires into the floor and looks like a tuning mistake, not a bug.
+    help: 'Where the cone points, in degrees, when Aim is fixed. Screen convention: 0 is right, and because the screen\'s Y axis grows DOWNWARD, -90 is straight UP, +90 straight DOWN, and ±180 is left. Does nothing while Aim is travel or awayFrom.',
   },
 
   speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 800, step: 5, default: 260, essential: true, help: 'px/sec initial.' },
@@ -326,6 +381,12 @@ class BurstInstance implements FxInstance<BurstParams> {
   // fresh seed per instance, i.e. exactly the previous `Math.random()` behaviour. See `fx/rng.ts`.
   private readonly rand: FxRandom;
   private travelAngle = 0; // radians; last known non-zero travel direction, aims the cone when spread < 1
+  // The composition's `source` anchor, when one was staged (see `setSource` / `FxInstance.setSource`). Held
+  // as a reused object rather than two scalars so `emit()` can hand it straight to `resolveBurstAimAngle`
+  // without allocating a point per wave. `sourceSet` stays false when nothing ever supplied one — `awayFrom`
+  // must be able to tell "no source" from "a source at (0, 0)".
+  private readonly source = { x: 0, y: 0 };
+  private sourceSet = false;
   private timer = 0; // ms since last emit
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
 
@@ -363,6 +424,13 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.headSet = true;
   }
 
+  /** Where the effect came FROM (see `FxInstance.setSource`) — read only by the `awayFrom` aim mode. */
+  setSource(x: number, y: number): void {
+    this.source.x = x;
+    this.source.y = y;
+    this.sourceSet = true;
+  }
+
   /** Push `count` fresh particles into both `live` and the container's `particleChildren` at the current
    *  head position. Called only from `update()` (never the constructor — see there).
    *
@@ -370,14 +438,30 @@ class BurstInstance implements FxInstance<BurstParams> {
    *  distributions and the ORDER of the draws are byte-for-byte what they were — 7 per particle: angle,
    *  speed, size, bias, the two emission-shape offsets, then spin — so the statistical look is unchanged and
    *  only its reproducibility is new. Reordering or adding a draw here changes what every saved seed
-   *  replays, so treat the sequence as part of the contract. */
+   *  replays, so treat the sequence as part of the contract.
+   *
+   *  `aimMode`/`angle` (2026-07-30) deliberately do NOT participate: the cone's base angle is chosen by
+   *  `resolveBurstAimAngle`, a pure function of state that draws nothing, once per WAVE rather than per
+   *  particle. So an aimed burst consumes the identical stream an unaimed one did — the angles come out
+   *  rotated, not re-rolled — and `aimMode: 'travel'` (the default) reproduces every saved seed exactly. */
   private emit(): void {
     const p = this.params;
     const room = MAX_LIVE - this.live.length;
     const n = Math.min(p.count, room);
     const children = this.pc.particleChildren;
+    // The cone's centre for this whole wave. Computed ONCE, outside the loop, and drawing NOTHING from
+    // `this.rand` — see `resolveBurstAimAngle`, which exists precisely so the base angle can be chosen
+    // without touching the draw sequence documented above.
+    const aim = resolveBurstAimAngle(
+      p.aimMode,
+      this.travelAngle,
+      p.angle,
+      this.sourceSet ? this.source : null,
+      this.headX,
+      this.headY,
+    );
     for (let i = 0; i < n; i++) {
-      const angle = sampleBurstAngle(this.travelAngle, p.spread, this.rand);
+      const angle = sampleBurstAngle(aim, p.spread, this.rand);
       const speed = p.speed * (1 + (this.rand() * 2 - 1) * p.speedVar);
       const size = Math.max(0.5, p.size * (1 + (this.rand() * 2 - 1) * p.sizeVar));
       const { scaleX: scaleX0, scaleY: scaleY0 } = resolveParticleScale(size, p.stretchX, p.stretchY);

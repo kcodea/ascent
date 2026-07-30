@@ -44,6 +44,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Bursts can be aimed.** A `burst`'s cone used to fan along the emitter's direction of travel — which is
+  *nothing* for an effect pinned to a fixed point, so a directional pop from a static anchor couldn't be
+  authored at all. Two new params fix that (point it at an angle you choose, or straight out from wherever the
+  effect came from), and the gold coin sprinkle gets its upward fan back instead of popping in every direction.
+  Every existing effect is untouched, down to the exact random roll a locked seed replays.
 - **The first hand-written FX become data.** Now that authored effects actually reach players (below), the
   ~28 hand-tuned methods in `pixiFx.ts` can start moving to the workbench. Batch 1: the crimson damage burst,
   the click dust puff and the gold coin sprinkle are authored defs, taking `pixiFx.ts` from 3757 to 3648

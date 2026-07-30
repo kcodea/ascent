@@ -1,5 +1,68 @@
 # ASCENT — development log
 
+## 2026-07-30 — `burst` gets an authored launch direction, and `coins` gets its fan back
+
+**What changed.** The `burst` primitive gains two params — **`aimMode`** (`travel` | `fixed` | `awayFrom`) and
+**`angle`** (degrees) — that decide which way its cone points. `packages/ui/src/fx/defs/coins.json` is
+re-authored onto them and fires the ±33° upward fan the migration lost this morning.
+
+**Why.** `burst`'s cone (`spread` < 1) has always been centred on `travelAngle` — the emitter's own direction
+of movement, derived from head deltas. For a burst pinned to a *static* point anchor that is 0, i.e. the cone
+fans along +x. So a directional burst from a fixed point was simply not expressible, and batch 1's `coins` had
+to use a full-circle spread with heavy gravity instead of an upward fan (flagged honestly in that entry's
+"one deliberate re-authoring"). It also blocked every directional effect still to migrate: `impact` and
+`critImpact` take an explicit `dx/dy` and are directional by definition.
+
+**The design.** `sampleBurstAngle(base, spread, rand)` was already pure, exported and tested, and its
+signature did not need to change — the *caller* decides which base angle to hand it. A new pure
+`resolveBurstAimAngle(mode, travelAngle, angleDeg, source, headX, headY)` makes that choice:
+
+- **`travel`** — today's behaviour, and **the default**, so an absent `aimMode` coerces to it and every def
+  authored before this exists is byte-identical.
+- **`fixed`** — the authored `angle`, in screen convention. Y grows *downward* on screen, so **`-90` is
+  straight up**; the param's `help` says so in as many words, because getting that sign backwards produces a
+  burst that fires into the floor and reads as a tuning mistake rather than a bug. `enabledWhen:
+  { param: 'aimMode', is: 'fixed' }` greys the slider out in the other two modes.
+- **`awayFrom`** — radiate outward along source → this layer's own anchor. Degenerate case (the two points
+  coincide): `Math.atan2(0, 0)` is 0, which would silently aim every such burst right, so it falls back to
+  `travel`.
+
+**The constraint that governed the whole change: the seeded RNG contract.** `emit()` draws exactly **7 values
+per particle in a fixed order**, and with `ctx.seed` set that sequence *is* the contract — a locked seed has
+to replay the same burst forever. So choosing a base angle had to be a pure computation over existing state,
+never a new draw. It is: `resolveBurstAimAngle` takes no `rand` and is called **once per wave, outside the
+loop**. An *aimed* burst therefore consumes the identical stream an unaimed one did — the cone rotates, the
+roll does not change.
+
+**Plumbing for `awayFrom`.** A layer only ever learns its own head, so `FxInstance` gains an optional
+`setSource?(x, y)`, `FxPlayer` a `setSource(index, x, y)`, and `driveLayerHeads` delivers the staged `source`
+alongside each head — one hoisted lookup per frame, not per layer. It is called **only when the scenario
+actually stages a `source`**: "no source" must not arrive as `resolveAnchor`'s invented (0, 0) origin, or
+`awayFrom` would radiate from the top-left corner of the screen. Every existing sink and test fake is
+unaffected (the hook is optional on both sides), and both `playDef` and the workbench route through
+`driveLayerHeads`, so authoring and playback see the same point.
+
+**`coins` now.** Layer 1 (the coin discs): `spread 0.18` (= ±32.4°, the old `±1.15/2` rad fan), `aimMode
+fixed`, `angle -90`, speed 380 ±30%, drag 0.88, gravity 800, plus a `box` emit shape at radius 9 for the old
+`±9px / ±4px` spawn jitter. Layer 2 (the star glints): the same `-90` aim on a wider `0.28` cone. The old
+full-circle-plus-gravity version popped coins out in every direction and rained them down; this arcs them up
+out of the point and back, which is what the hand-written effect did. Gravity is capped at 800 by the param
+spec where the original used 1700, so the launch speed comes down to match (380 vs 380–700) — same arc height,
+slower fall.
+
+**Verified.** `npm run typecheck` + `lint` + `test` + `build:web` green. New tests: the aim pair's specs
+(default `travel`, the `enabledWhen`, the range, and that the help states which way is up), every branch of
+`resolveBurstAimAngle` including both degenerate `awayFrom` cases, `driveLayerHeads`' source channel in both
+directions, and — the important one — a reproduction of `emit()`'s seven-draw-per-particle sequence run two
+ways off one seed, asserting the pre-aim and post-aim streams are `toEqual`-identical for `aimMode: 'travel'`
+and that a `fixed` aim changes only the angle, by exactly the cone's rotation. `fx/defs.test.ts` validates
+every committed def's params against the primitives' SPECS and stays green, which is also what proves the new
+params are well-formed.
+
+**Follow-up.** `awayFrom` is the speculative one — nothing in the library asks for it yet, and the plumbing it
+needs is the only part of this change that touches shared files. It is cheap and it fails safe, but if a
+reviewer wants the surface smaller, it is the piece to cut.
+
 ## 2026-07-30 — batch 1 of the pixiFx migration: three effects become authored defs
 
 **What changed.** `damageBurst`, `clickPuff` and `coins` are gone from `packages/ui/src/pixiFx.ts` and exist

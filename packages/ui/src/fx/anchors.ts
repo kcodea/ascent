@@ -48,6 +48,16 @@ export const FX_ANCHOR_IDS: readonly FxAnchorId[] = ['travel', 'source', 'target
  *  testable against a two-line fake instead of a real Pixi-backed player. */
 export interface FxHeadSink {
   setHead(index: number, x: number, y: number): void;
+  /**
+   * Optional companion to `setHead`: the composition's `source` anchor, for a primitive that needs to know
+   * where the effect came FROM as well as where it is (see `FxInstance.setSource` — `burst`'s `awayFrom` aim
+   * is the only consumer today).
+   *
+   * Optional on the SINK so every existing two-line test fake still satisfies the type, and called only when
+   * the staged anchors actually carry a `source` — a scenario with none must leave the primitive's fallback
+   * in play rather than being handed `resolveAnchor`'s (0, 0) origin as if it were a real point.
+   */
+  setSource?(index: number, x: number, y: number): void;
 }
 
 /** The slice of a layer the head-driving loop reads. Structural, so both `FxLayer` and the workbench's
@@ -130,6 +140,9 @@ export function driveLayerHeads(
   head: FxPoint | null = null,
   clock: FxLayerClock | null = null,
 ): void {
+  // Hoisted out of the loop: one lookup per frame, not per layer, and every layer of a composition shares
+  // the same `source` by definition.
+  const src = anchors.source;
   for (let i = 0; i < layers.length; i++) {
     const layer = layers[i];
     const anchor = layer.anchor;
@@ -145,5 +158,7 @@ export function driveLayerHeads(
         ? head
         : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW);
     sink.setHead(i, pt.x, pt.y);
+    // The extra point, only when it genuinely exists — see `FxHeadSink.setSource`.
+    if (src !== undefined) sink.setSource?.(i, src.x, src.y);
   }
 }

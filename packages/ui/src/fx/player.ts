@@ -53,6 +53,9 @@ export interface FxPlayer {
    *  This is the timing counterpart of `setLayerParams`: no respawn, no rebuild. */
   setLayerTiming(index: number, at: number, life: number | null): void;
   setHead(index: number, x: number, y: number): void;
+  /** Hand a layer the composition's `source` anchor (see `FxInstance.setSource`). A no-op for every
+   *  primitive that doesn't implement the hook, which is all of them but `burst`. */
+  setSource(index: number, x: number, y: number): void;
   timeMs(): number;
   isPlaying(): boolean;
   destroy(): void;
@@ -529,6 +532,9 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     },
     setHead(index: number, x: number, y: number): void {
       live.get(index)?.inst.setHead?.(x, y);
+    },
+    setSource(index: number, x: number, y: number): void {
+      live.get(index)?.inst.setSource?.(x, y);
     },
     timeMs: () => clock,
     isPlaying: () => playing,

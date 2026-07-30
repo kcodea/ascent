@@ -94,7 +94,7 @@ const controls: TunerControl<Extract<keyof TavernUpConfig, string>>[] = [
   ...AFTER_COLOUR.map(num),
 ];
 
-const SPEC: TunerSpec<TavernUpConfig> = {
+export const SPEC: TunerSpec<TavernUpConfig> = {
   id: 'tavernupbtn',                // matches DevMenu's key — see the note above; they must agree
   title: 'Tavern Up',
   note: 'dev · live · hover/press it',

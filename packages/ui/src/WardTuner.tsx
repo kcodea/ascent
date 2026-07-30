@@ -94,7 +94,7 @@ if (import.meta.env.DEV) {
   }
 }
 
-const SPEC: TunerSpec<WardConfig> = {
+export const SPEC: TunerSpec<WardConfig> = {
   id: 'ward',                       // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Ward Dome',
   note: 'dev · live · warded card',

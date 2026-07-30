@@ -82,6 +82,38 @@ primitives' own specs before the method was deleted, and caught two out-of-range
 **Follow-ups.** The def's look wants an eyeball pass in a real fight — the layer magnitudes are a first
 authoring, and the workbench is where they should be tuned rather than in the JSON.
 
+## 2026-07-30 — one button puts every tuner back to what ships
+
+**What changed.** A **Reset all tuners** action in the dev menu (♻️) returns all 46 schema-driven panels to their
+shipped values at once. Dev-only; stripped from production. No engine, content, sim, or player-visible change.
+
+**Why.** Each panel already had its own Reset, but each one clears only its own storage key — so "put EVERYTHING
+back to what ships" meant opening forty-six panels and pressing Reset in each, which nobody does. The result is
+that a machine quietly accumulates months of half-finished experiments and you can no longer tell what players
+actually see, which is the same class of problem as the local drag override that made `main` look wrong.
+
+**It resets by CALLING each panel's own `reset()`, not by clearing storage keys.** That distinction is the whole
+design. A config module's reset also RE-APPLIES its values — pushing CSS custom properties, rewriting a `<style>`
+override — so the board repaints immediately. Deleting the keys instead would leave every module's in-memory copy
+live until a reload, and worse, run and save state live under the same `ascent.` prefix, so a prefix sweep would
+eventually take real player data with it.
+
+**`tunerAll.ts` is the registry** — the one place that knows the full set, built on each panel exporting its spec.
+The event that tells open panels their values changed lives in `tunerSchema.ts`, NOT beside the reset: `tunerAll`
+imports all forty-six panels and every panel imports `TunerPanel`, so a panel reaching back into `tunerAll` for
+that string would close the loop into a genuine import cycle.
+
+**What it does not touch.** `SfxMixer` keeps its own bespoke storage and is deliberately excluded — it is an audio
+mixing desk, not a look tuner, and wiping someone's levels is not what "reset the tuners" means to anyone. The
+confirm says so, names the panel count, and says the action cannot be undone.
+
+**How it was verified.** typecheck (pkgs + web), lint, tests, build:web. Then driven live: two panels were dirtied
+and one of them CLOSED before resetting, to prove closed panels are covered and not just the visible one.
+Declining the confirm changed nothing (`Shipped (1)` unmoved); accepting moved the open panel to `Shipped (0)`
+**without reopening it**, proving the stale-panel event works, and reopening the closed panel showed `Shipped (0)`
+with zero modified marks. Non-tuner `localStorage` keys — run state included — were confirmed intact afterwards.
+
+
 ## 2026-07-30 — `playDef` gains a per-call `time`, and the strike-point dust becomes a def
 
 **What changed.** `PlayDefOptions` gains its third and last per-call axis — **`time`** — completing the set
@@ -168,6 +200,47 @@ axes composing without reaching each other, a census of which real primitives de
 **Follow-ups.** `impactPulse` is now unblocked on magnitude AND time — what remains is that its `rings`
 argument REPLACES the count where `intensity` multiplies it; a shockwave-based def plus an
 `intensity: rings / 2` at the call sites would close it. `impact`/`critImpact` still want direction.
+
+## 2026-07-30 — Phase 2: fold a panel down, find a control, and A/B against what ships
+
+**What changed.** Three additions to the shared `TunerPanel`, so all 46 panels get them at once: **foldable
+sections** that remember what you closed, a **find box** inside each panel, and a **hold-or-tap A/B** against the
+shipped values. Dev-only; stripped from production. No engine, content, sim, or player-visible change.
+
+**Why these three.** 16 of the 46 panels carry more than 25 controls — Execute Aura 48, Cleave Slash 44, Card
+Pills 43 — which is taller than the screen, so the panel you are tuning is mostly scrolling. Folding and finding
+are the same problem (*get me to the control I want*) and so landed as one change. The find box only appears on
+panels with 10+ controls; below that it would be clutter.
+
+**The A/B is the one that changes how tuning works.** Judging a tune means answering "is this better than what we
+ship?", and until now the only way to ask was to revert each control by hand, look, then put them all back — by
+which point you have lost the version you were judging. The button writes the shipped values, keeps yours in a
+ref, and hands them back on release. **Hold** is momentary; **tap** latches it on, because the FX panels read
+their config at fire time and you cannot hold the button and press Test with one pointer.
+
+It deliberately goes through each panel's REAL setters rather than a preview path, because that is the only route
+that actually repaints the board — every config module applies its values as a side effect of being written. The
+cost is that the shipped values touch `localStorage` for the duration of the hold; a crash mid-hold would leave
+them saved, which is the same state Reset produces, so the worst case is recoverable. That buys an A/B that works
+on all 46 panels instead of the handful that could be taught a second write path.
+
+**Two details that are easy to get wrong.** A fold is IGNORED while you are searching — a match you cannot see is
+worse than a section you did not mean to open — and the section heading shows its match count as `1/2` so you can
+tell what the filter is hiding. And the panel restores your values on UNMOUNT: closing a panel mid-compare must
+not leave the shipped values live on the board with the panel that caused it gone.
+
+**How it was verified.** typecheck (pkgs + web), 3124 tests, build:web, `eslint packages/ui` clean. Then driven
+live against Cleave Slash (44 controls, 9 sections) on the dev server: folding a section dropped 44 rows to 42
+and persisted to `ascent.tunerfold`; fold-all took it to 0 rows and expand-all back to 44; a search for "hit"
+returned `1 of 44` and rendered its match from inside a FOLDED section, proving search overrides the fold; an
+unmatched term showed the empty state. For the A/B, three numbers and one colour were edited, and under hold
+**exactly those 4 of 42 values changed** while the other 38 stayed put — then all 42 restored byte-identical on
+release, the colour included. Tap-to-latch and tap-again-to-release were checked separately, as was closing the
+panel while latched (values came back). Test edits were reset afterwards.
+
+**Follow-ups.** Two Phase 2 items were considered and deliberately not built: a Test button for the 26 panels
+that have no way to fire their effect, and a visual easing picker (3 controls on 1 panel). The owner's accuracy
+pass on all 1,020 hints came back with **no edits needed**, closing the largest item the migration left owing.
 
 
 ## 2026-07-30 — `playDef` gains per-call `scale` and `intensity`, and the card-drop dust becomes a def
@@ -702,6 +775,7 @@ double-add Ward, and no Dwarf leaks into set 1. Gates: typecheck, typecheck:web,
 minion is Tier 2, 4/2, "Shout: get a Gold Pouch", while the roster lists Cheap Date as Tier 1, 1/1, "Get a
 random T1 minion when you sell this". Renaming was the literal instruction; if the roster line is what you want,
 it's a new card body (a sell trigger), not a rename.
+
 ## 2026-07-29 — the dev tuner menu gets categories, and tuners get a schema
 
 **What changed.** Two connected pieces of the dev tuning surface: the menu that indexes the tuners, and the
@@ -2432,6 +2506,7 @@ gilded triple and the Mammoth's escalation + carry-back.
 200 HP, so she never died and never summoned anything to buff. And `npm run typecheck` **excludes
 `packages/ui`** (it's covered by `npm run typecheck:web`, which is not in the CI gate list and currently has 8
 pre-existing errors) — a UI-only change can look green against the wrong gate. Both cost time here.
+
 ## 2026-07-28 — Scene Builder: minimize to a bottom-right dock
 
 **What changed.** The DEV Scene Builder's header **✕ now minimizes it to a dock** instead of no-op-closing.
@@ -3637,6 +3712,7 @@ Assets: 7 webp at native size, 72 KB total.
 and the rendered aspect ratios match the source art exactly (1.04, 1.74, 2.45, 3.15, 3.86, 4.55, 5.25) —
 proving width tracks tier while height stays pinned. Chrome overrides confirmed: transparent background, zero
 padding, no border.
+
 ## 2026-07-26 (per-tribe card frames)
 
 ### feat(ui): per-tribe TAUNT shields too
@@ -4974,6 +5050,7 @@ build:web + harness green.
   now also grants +1/+1 or +3 Attack). Left at their set-1 spec for now.
 * New tokens (T-Rex Baby, Mage-Pup) and a genuinely novel mechanic — Moonhowl Mentor's "when you buy a Shop
   spell, teach it to a Mage-Pup; End of Turn, get that Mage-Pup" — need rulings before they're built.
+
 ## 2026-07-24 (PROD CRASH — `useGame is not defined` in the packaged exe)
 
 ### fix(ui): import useGame in useCombatReplay; make store.ts test-safe
@@ -5001,6 +5078,7 @@ tests in those two suites). typecheck + lint + build:web green.
 
 Process note to self: my gate check grepped `× ` for failures, which misses FAILED SUITES (collection errors) —
 those need an exit-code check. That's how a 1586→1575 drop nearly slipped by.
+
 ## 2026-07-24 (bake the owner's tuned Refresh button)
 
 ### chore(ui): commit the tuned Refresh FX defaults
@@ -7298,6 +7376,7 @@ P4 (opportunistically migrate the 34 existing tuners onto the schema). Also trac
 `typecheck:web` into CI, without which these type-level tests aren't enforced there (and the ~50
 pre-existing `packages/ui` type errors stay invisible). Swapping the shipped `pixiFx.trail` wisps for the
 ribbon is a deliberate later PR, once the owner has tuned the look.
+
 ## 2026-07-24 (gilded cards materialise in gold)
 ### feat(ui): the golden plate tint is on the Card Plate tuner
 ### tweak(ui): lock in the owner's golden plate tone
@@ -7676,6 +7755,7 @@ the fan's `matrix(1, 0, 0, 1, 0, 33.3856)` for the whole burst. The animations r
 Follow-up: defaults are a starting point — bake the owner's tuned values once they land.
 
 ## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
+
 ## 2026-07-24 (placing / rearranging a card slides it home)
 
 ### feat(ui): placing or rearranging a minion slides it into the slot
@@ -9200,6 +9280,7 @@ faster and bigger with a touch of stagger — `spd` 25 → 50, `spdVar` → 1, `
 `stag` 0 → 0.14. The wireframe timing was already right and did not move.
 
 **Verified:** typecheck + lint + 1385 tests + `build:web` all green; mask confirmed in `dist` at 42 KB.
+
 ## 2026-07-22 (sets: play an unreleased set in the Scene Builder)
 
 ### feat(sim/ui): a set toggle in the Scene Builder, so set 2 can be built without disrupting set 1
@@ -10110,6 +10191,7 @@ no-legal-target case, and Kennelmaster's board-wide/Attack-only scope.
 **Follow-up.** `rallyGrantRandomSpell` and `rallyTribeAura` now have no card using them (Badgington and
 Solaris were their only consumers). Left in place deliberately — they're valid primitives for set 2 — but
 worth removing in their own PR if nothing picks them up.
+
 ## 2026-07-21 (hand-card backplate)
 
 ### feat(ui): hand cards gain an ornate backplate that dissolves when played
@@ -11826,6 +11908,7 @@ rule. The test now asserts the real invariant — Rallies **per rally swing**: e
 with Uron.
 
 1268 tests, typecheck, lint, build:web green.
+
 ## 2026-07-21o (Heckbinder, third pass + freeze jitter)
 
 ### fix(ui): the Fodder aura was missed in TWO more display paths; Freeze sits still
@@ -12613,6 +12696,7 @@ un-attributed file.
 Verified in the browser after a dev-server **restart** (a reload does not re-evaluate the eager
 `import.meta.glob`): all four serve as `image/webp` at 512x512 with the new byte sizes, and render
 correctly side by side.
+
 ## 2026-07-20 (balance batch)
 
 ### tweak(content): Ryme / Brightwing Broker / Combinator / Grim / Guardian Drake + retire Vineweaver Drake
@@ -13104,6 +13188,7 @@ set 1 — which is exactly what they are — so nothing needed re-stamping.
 
 
 Full guide: `docs/card-sets.md`.
+
 ## 2026-07-19 (later still)
 
 ### fix(ui): kill the three looping paint-property animations (shop-phase frame budget)
@@ -16242,6 +16327,7 @@ played immediately after (tracked via `comboArmed` in the reducer, reset each tu
   Gold Pouch display-text assertion.
 
 Verified: `typecheck` + `lint` + **1046 tests** + `build:web` all green.
+
 ## 2026-07-14 (session 42)
 
 ### fix(fx): second-deathrattle skull + summon-wait lost when a DR unit dies attacking a Target Dummy
@@ -22370,6 +22456,7 @@ Verified: `playerRating.test.ts` rewritten around the new model (truly-winning +
 cover-is-top-4 +12, miss-but-summit 0, floors, promo/demo hysteresis) — `typecheck` + `lint` + `test` (**486**)
 + `build:web` green; live end screen shows `Summit Bonus +8 · Final Win +16 · Rating +36` on a flawless win.
 Numbers are starting dials — flag any you want higher/lower.
+
 ## 2026-07-05 (session 21)
 
 ### feat(ui): the damage number sticks to the struck card (no upward float)
@@ -22689,6 +22776,7 @@ Verified live (browser store, throwaway `newRun(777,'nadja')` with a planted 10-
 and a simulated mid-run `wave 8` history): tier badges on every hand card, no pill/outline clipping, hand
 clears the hero frame (+59px), 2×2 frame lays out clean (portrait/name top, power/Resolve bottom), dash
 track renders ✓/✕/dash/orange correctly. `typecheck` + `lint` + `test` (483) + `build:web` green.
+
 ## 2026-07-05 (session 20)
 
 ### fix(ui): damage numbers actually suppress on the attacker (the target-only rule was a no-op)

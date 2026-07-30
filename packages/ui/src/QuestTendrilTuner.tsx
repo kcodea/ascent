@@ -67,7 +67,7 @@ const controls: TunerControl<Extract<keyof QuestTendrilConfig, string>>[] = ORDE
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<QuestTendrilConfig> = {
+export const SPEC: TunerSpec<QuestTendrilConfig> = {
   id: 'questtendril',               // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Quest Tendril',
   note: 'dev · next proc · drag',

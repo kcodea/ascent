@@ -39,7 +39,7 @@ const controls: TunerControl<Extract<keyof TrailConfig, string>>[] = ORDER.map((
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<TrailConfig> = {
+export const SPEC: TunerSpec<TrailConfig> = {
   id: 'trail',                      // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Motion Trail',
   note: 'dev · drag a card · drag',

@@ -91,7 +91,7 @@ const controls: TunerControl<keyof BookVals & string>[] = [
   },
 ];
 
-const SPEC: TunerSpec<BookVals> = {
+export const SPEC: TunerSpec<BookVals> = {
   id: 'book',                       // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Compendium',
   note: 'dev · open the Compendium to see changes',

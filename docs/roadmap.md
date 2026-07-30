@@ -176,9 +176,9 @@ controls. What is left, and what the migration left owing:
   are per-sound with a play button, and it may justifiably stay bespoke.
 - **`ShieldTuner`** — deliberately unmigrated because it is DEAD: nothing reads the value it tunes (no
   `apply*Vars()`, `syncShields` is gone, its storage key has no listener). Handled as its own task.
-- **Owner accuracy pass on the hints.** Every hint across all 46 panels was drafted from config source and doc
-  comments. No code can confirm the *vocabulary* is right — whether "comet", "wisp" or "cracked" is what we
-  actually call these things. This wants a read-through, not a rewrite. It is the largest outstanding item.
+- **✅ Owner accuracy pass on the hints — DONE (2026-07-30).** All 1,020 labels and hints were reviewed against
+  a generated sheet (46 panels, every label / unit / range / hint / caveat / preview switch / action button).
+  Owner verdict: **no edits needed**. The vocabulary drafted from config source was right; nothing to change.
 - **Panel ids must match the DevMenu key.** `useDraggablePanel(key)` injects the ✕ and closes by that key.
   Three panels had drifted and their close button silently did nothing; fixed 2026-07-30. Any new panel or
   rename must keep the two in step — nothing enforces it, and the failure is invisible until someone tries to
@@ -186,10 +186,21 @@ controls. What is left, and what the migration left owing:
 - **`.github/skills/` is untracked but not ignored.** It contains a vendored minified bundle that produces 434
   `no-unused-expressions` errors; committing it would break CI lint. Either ignore it or leave it untracked.
 
-**Then Phase 2 (visualisation) and Phase 3 (workflow)** — collapsible sections, a real curve picker (easing is
-still an ordered slider, now at least showing curve NAMES rather than an index), in-panel search, before/after
-compare, and a Test button on every FX panel (only 19 of 48 have one). All of these now land in ONE component,
-which was the point of the schema.
+**Phase 2 — ✅ the two the owner picked shipped 2026-07-30.** Foldable sections that remember what you closed,
+a find box inside each panel, and a hold-or-tap A/B against the shipped values. All three landed in ONE
+component, which was the point of the schema.
+
+A **Reset all tuners** action (♻️ in the dev menu) followed on the same day: per-panel Reset only ever cleared
+one panel's key, so nothing put the whole toolset back to shipped. It calls each panel's own `reset()` via the
+`tunerAll.ts` registry rather than sweeping storage keys — run and save state share the `ascent.` prefix.
+
+Still on the table from Phase 2, deliberately not built:
+- **A Test button on every FX panel** — 26 of 46 panels have no way to fire their effect, so you must stage a
+  real Execute kill or Rally proc just to see it once. Cost varies per panel: some already have a `pixiFx` test
+  hook to wire up, others need one written.
+- **A visual easing picker.** Easing is an ordered slider that now at least shows curve NAMES rather than an
+  index. A picker drawing each curve would be better, but it affects 3 controls on 1 panel.
+- **Phase 3 (workflow)** — still unscoped.
 
 ### A CSS specificity trap has bitten three times (2026-07-29)
 Three separate defects this week were the same shape: two rules tie on specificity, so whichever sits later in

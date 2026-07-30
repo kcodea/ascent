@@ -50,6 +50,7 @@ import { HeroPanelTuner } from './HeroPanelTuner';
 import { pixiFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { FxWorkbench } from './fx/ui/Workbench';
+import { ALL_TUNER_SPECS, resetAllTuners } from './tunerAll';
 
 /**
  * DEV-only Dev Tuning Menu — the single 🛠️ button that indexes every tuner panel.
@@ -225,6 +226,21 @@ export function DevMenu() {
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },
     { id: 'workbench', icon: '🎨', label: 'FX Workbench', hint: 'Author effects and bind them to combat moments', run: () => setWbOpen(true) },
+    // Destructive and irreversible, so it asks first and names the number — and it says what it does NOT touch,
+    // because "reset the tuners" could reasonably be read as including the audio levels.
+    {
+      id: 'resetall', icon: '♻️', label: 'Reset all tuners',
+      hint: `Put every one of the ${ALL_TUNER_SPECS.length} tuner panels back to its shipped values`,
+      run: () => {
+        const ok = window.confirm(
+          `Reset all ${ALL_TUNER_SPECS.length} tuner panels to the shipped values?\n\n`
+          + 'Every value you have dialled on this machine is discarded — across every panel, not just the open '
+          + 'ones. This cannot be undone.\n\n'
+          + 'The SFX Mixing Desk is not affected.',
+        );
+        if (ok) resetAllTuners();
+      },
+    },
   ], []);
 
   // Filter across label, group title and the `alt` synonyms, so an old name still finds its panel.

@@ -40,7 +40,7 @@ const controls: TunerControl<Extract<keyof StepProcFxConfig, string>>[] = ORDER.
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<StepProcFxConfig> = {
+export const SPEC: TunerSpec<StepProcFxConfig> = {
   id: 'stepprocfx',                 // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Step Proc',
   note: 'dev · next proc · drag',

@@ -102,7 +102,7 @@ const controls: TunerControl<Extract<keyof RefreshConfig, string>>[] = ORDER.map
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<RefreshConfig> = {
+export const SPEC: TunerSpec<RefreshConfig> = {
   id: 'refreshbtn',                 // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Refresh',
   note: 'dev · live · hover/press it',

@@ -104,7 +104,7 @@ function LungeReadout(): JSX.Element {
   );
 }
 
-const SPEC: TunerSpec<LungeConfig> = {
+export const SPEC: TunerSpec<LungeConfig> = {
   id: 'lunge',                      // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Lunge',
   note: 'dev · next attack · session only',

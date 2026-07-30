@@ -43,7 +43,7 @@ const controls: TunerControl<Extract<keyof GlowConfig, string>>[] = ORDER.map((k
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<GlowConfig> = {
+export const SPEC: TunerSpec<GlowConfig> = {
   id: 'glow',                       // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Hover Glow',
   note: 'dev · live · cards',

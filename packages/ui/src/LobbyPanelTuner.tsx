@@ -36,7 +36,7 @@ const controls: TunerControl<Extract<keyof LobbyPanelConfig, string>>[] = ORDER.
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<LobbyPanelConfig> = {
+export const SPEC: TunerSpec<LobbyPanelConfig> = {
   id: 'lobbypanel',                 // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Lobby Rail',
   note: 'dev · live · drag',

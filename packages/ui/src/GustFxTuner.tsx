@@ -83,7 +83,7 @@ const controls: TunerControl<Extract<keyof GustFxConfig, string>>[] = ORDER.map(
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<GustFxConfig> = {
+export const SPEC: TunerSpec<GustFxConfig> = {
   id: 'gustfx',                     // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Buff Gust',
   note: 'dev · next gust · drag',

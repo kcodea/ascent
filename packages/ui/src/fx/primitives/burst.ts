@@ -162,12 +162,12 @@ export function burstFireComplete(oneShot: boolean, fired: boolean, liveCount: n
 
 const SPECS = {
   count: {
-    kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 120, step: 1, default: 28, essential: true,
+    kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 400, step: 1, default: 28, essential: true,
     axis: 'intensity',
-    help: 'Particles per burst.',
+    help: 'Particles per burst. The whole wave is emitted at once, so this is the density of the spray — 28 is a handful of shrapnel, the top of the range a wall of it. A burst can never put more than 800 particles on screen at once however high this and Interval go.',
   },
   interval: {
-    kind: 'slider', label: 'Interval', group: 'Emit', min: 100, max: 2000, step: 10, default: 600,
+    kind: 'slider', label: 'Interval', group: 'Emit', min: 100, max: 6000, step: 10, default: 600,
     // A duration, so it rides `time` for consistency — a stretched def's looping cadence stretches with it.
     // Inert on the shipped path either way: `playDef` always fires one-shot, where `interval` is never
     // consulted (see the `oneShot` branch in `update`), so this can never move a fired burst's particle count.
@@ -191,8 +191,8 @@ const SPECS = {
   },
 
   speed: {
-    kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 800, step: 5, default: 260, essential: true,
-    axis: 'scale', help: 'px/sec initial.',
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 3000, step: 5, default: 260, essential: true,
+    axis: 'scale', help: 'How fast a shard leaves the anchor, in px/sec. 260 is a normal spray; past ~1500 shards clear the card in a couple of frames, which is what sells a hit as violent (pair it with a short Life or they just leave).',
   },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.5,
@@ -203,16 +203,16 @@ const SPECS = {
     help: 'How quickly shards slow down — 1 keeps them flying flat out the whole way, 0.9 (the default) coasts them to a stop, 0.7 stalls them almost the moment they leave.',
   },
   gravity: {
-    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 800, step: 10, default: 0, axis: 'scale',
-    help: 'px/sec² downward.',
+    kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: 0, axis: 'scale',
+    help: 'Downward acceleration in px/sec². 0 is weightless; positive pulls shards down into an arc (coins.json throws at ~1700 to get a real ballistic lob), negative floats them up. It is signed, so the full range covers both.',
   },
   life: {
-    kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, essential: true,
+    kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 6000, step: 10, default: 450, essential: true,
     // The canonical `time` param: a duration in ms. A burst emits its whole wave at t=0, so stretching this
     // makes each shard live (and therefore fly) longer WITHOUT changing how many shards there are — which is
     // what keeps a seeded burst's 7-draws-per-particle stream byte-identical at any `time`.
     axis: 'time',
-    help: 'Particle lifetime ms.',
+    help: 'How long each shard lives, in ms. Together with Speed and Drag this decides how far it gets — a long Life on a heavily-dragged shard leaves it hanging where it stopped, which is usually the moment to fade it with Alpha / life.',
   },
   orientToVelocity: {
     kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
@@ -220,7 +220,7 @@ const SPECS = {
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0, axis: 'scale',
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 2000, step: 5, default: 0, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
   },
   turbScale: {
@@ -233,7 +233,7 @@ const SPECS = {
     help: 'Where shards are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0, axis: 'scale',
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 0, axis: 'scale',
     // `emitShape` and `emitRadius` are mutually dead at these defaults (point + 0), so only ONE of the pair
     // may declare the dependency — disabling both would be a deadlock with no way back in. Shape is the
     // gateway you pick first; picking anything but `point` unlocks the radius.
@@ -250,19 +250,19 @@ const SPECS = {
     help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9, essential: true, axis: 'scale',
-    help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 9, essential: true, axis: 'scale',
+    help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks, and the top of the range is debris the size of the card. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
   },
   sizeVar: {
     kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.5,
     help: 'How much shard sizes differ from each other, as a fraction of Size — 0 makes every shard identical, 0.5 (the default) spreads them between half and one-and-a-half size.',
   },
   stretchX: {
-    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
   },
   stretchY: {
-    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle height multiplier on top of Size.',
   },
   sizeCurve: {

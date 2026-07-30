@@ -1,5 +1,51 @@
 # ASCENT — development log
 
+## 2026-07-30 — the sliders stop capping the drama (41 widened ranges)
+
+**Why.** The specs capped below what authoring actually needs, and it had already cost real work: migrating
+`coins` wanted `gravity 1700` against a ceiling of 800, so it traded launch speed for arc height;
+`strike-impact`'s sparks sit *exactly* on burst `speed`'s ceiling of 800, which is the shape of a value that
+wanted to be higher. Headline moves — burst `speed` 800 → **3000**, `gravity` −400..800 → **±4000**, `life`
+1500 → **6000**, `count` 120 → **400**, `size` 40 → **200**; emitter/smoke `rate` 300 → **1200**, `life`
+2000 → **8000**, `speed` 400 → **3000**; shockwave `radius` 400 → **2000**, `rings` 5 → **12**; ribbon
+`length` 700 → **2400**, `width` 160 → **600**, `waveAmp` 40 → **300**, `drain` 2000 → **8000**.
+
+**Only `max`/`min` moved — never a `step`, and never a `min` off the step grid.** That is not tidiness, it is
+the correctness argument. `coerceParams` clamps a stored slider to `[min, max]` and never snaps to `step`, so
+a stored value written under the old spec is inside the new range and comes back out identical. But
+`settleParam` — the per-call `scale`/`intensity`/`time` path and the preset variant axes — ALSO snaps to
+`min + round((v − min) / step) * step`, a grid anchored on `min`. Moving a `step`, or a `min` by a fractional
+number of steps, would silently re-quantise every scaled call on every existing def: a look change with no
+diff to point at. Every widened `min` is a whole number of steps away from the old one, and the new
+`ranges.test.ts` pins all of it — a frozen table of the pre-widening bounds, plus proof that each new range
+CONTAINS its old one, that the min shifts are step-aligned, and that `settleParam` returns identical values
+across the whole old range. `defs.test.ts`'s existing "nothing is silently clamped" walk is the other half.
+
+**One visible consequence, and it is the feature working.** `scaleDef.test.ts`'s `time: 4` case expected
+burst `life` 450 × 4 to clamp to 1500; it now lands on 1800. That is the "scaling is CLAMPED, so it is not
+linear at the extremes" caveat in `FxParamMeta.axis` biting less often. The seeded draw stream it actually
+guards is unmoved either way.
+
+**Declined, with reasons.** Ratios and normalised fractions are not made more expressive by a wider range and
+several break their maths: `spread`, `speedVar`, `sizeVar`, `inheritVel`, `coreBias`, `fieldMix`, `glow`,
+`alpha`, `plateau`, `squash`, and emitter/smoke `fadeIn` (a fraction of life whose in and out halves would
+overlap past 0.5). `drag` is a per-16.7 ms retention factor: >1 accelerates forever and its 0.7 floor already
+stalls a shard in ~a frame. The material group (`bands`, `noiseScale`, `warp`, `scroll`, `erode`, `gain`,
+`turbScale`) is a tuned window where both ends are already qualitatively extreme. `segments` is tessellation
+cost, not drama. And shockwave **`thickness` has a real physical limit**: the band is centred on `d == 1`
+with `thickness` of half-width beyond it on a quad only `QUAD_SCALE` (1.45) times the radius, so past ~0.35
+the outer half of the band and its glow clip dead straight against the mesh boundary — the exact artefact
+`QUAD_SCALE` exists to prevent — and the quad can't grow because fragment area scales with its square. That
+one is recorded next to the spec rather than only here.
+
+**`count` and the RNG contract, checked before raising it.** `burst.emit()` draws exactly 7 values per
+particle, so `count` sets how many draws a wave consumes — but that was already true of every value on the
+old slider, and no axis reaches `count` (pinned in `scaleDef.test.ts`), so a locked seed still replays. The
+allocation ceiling is `MAX_LIVE` (800) / `MAX_MOTES` (1200), unchanged and still the real bound; the per-frame
+update is a single O(n) compacting pass and `ParticleContainer` is built for exactly this order of magnitude.
+Emitter/smoke `rate`'s new 1200 is `MAX_MOTES` itself, so the slider now reaches its own hard cap rather than
+a quarter of it.
+
 ## 2026-07-30 — imported art survives a reload (the coin that vanished)
 
 **The bug, exactly.** Import a coin PNG as a particle shape, tune the effect, **Save**, reload — and the

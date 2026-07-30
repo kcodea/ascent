@@ -213,7 +213,7 @@ const SPECS = {
     help: 'How quickly the trail ramps up to full brightness at the head.',
   },
   tail: {
-    kind: 'slider', label: 'Tail', group: 'Shape', min: 0.3, max: 4, step: 0.05, default: 1.6,
+    kind: 'slider', label: 'Tail', group: 'Shape', min: 0.3, max: 12, step: 0.05, default: 1.6,
     help: 'Exponent of the tail fade — higher tapers off sooner.',
   },
   soft: {
@@ -221,12 +221,12 @@ const SPECS = {
     help: 'How crisp the trail\'s outline is — 0.5 is a hard cel cut-out, 6 feathers the edge out over several pixels. The Glow halo has its own soft edge and is unaffected.',
   },
   length: {
-    kind: 'slider', label: 'Length', group: 'Shape', min: 60, max: 700, step: 5, default: 300, essential: true,
+    kind: 'slider', label: 'Length', group: 'Shape', min: 60, max: 2400, step: 5, default: 300, essential: true,
     axis: 'scale',
     help: 'Max spine arc length in px — how far back the trail reaches.',
   },
   width: {
-    kind: 'slider', label: 'Width', group: 'Shape', min: 8, max: 160, step: 1, default: 54, essential: true,
+    kind: 'slider', label: 'Width', group: 'Shape', min: 8, max: 600, step: 1, default: 54, essential: true,
     axis: 'scale',
     help: 'How thick the trail is in px at its fattest. Head pinch, Tail feather and the Width / length curve all scale it along the length, so this sets the ceiling rather than a constant width.',
   },
@@ -252,21 +252,21 @@ const SPECS = {
     help: 'Width multiplier along the trail (0 = head, 1 = tail). Flat 1 = a constant-width ribbon; drag above the 1x line to bulge, below to taper — anywhere along the length.',
   },
   waveAmp: {
-    kind: 'slider', label: 'Wave amp', group: 'Shape', min: 0, max: 40, step: 0.5, default: 0, axis: 'scale',
+    kind: 'slider', label: 'Wave amp', group: 'Shape', min: 0, max: 300, step: 0.5, default: 0, axis: 'scale',
     help: 'Amplitude (px) of a travelling sine that bends the ribbon\'s spine sideways, so the trail snakes. 0 = a straight-following ribbon (the default look).',
   },
   waveFreq: {
-    kind: 'slider', label: 'Wave freq', group: 'Shape', min: 0.2, max: 8, step: 0.1, default: 2,
+    kind: 'slider', label: 'Wave freq', group: 'Shape', min: 0.2, max: 24, step: 0.1, default: 2,
     enabledWhen: { param: 'waveAmp', above: 0 },
     help: 'Wave cycles along the trail\'s length. Only bites once Wave amp is above 0.',
   },
   waveSpeed: {
-    kind: 'slider', label: 'Wave speed', group: 'Shape', min: 0, max: 12, step: 0.1, default: 3,
+    kind: 'slider', label: 'Wave speed', group: 'Shape', min: 0, max: 60, step: 0.1, default: 3,
     enabledWhen: { param: 'waveAmp', above: 0 },
     help: 'How fast the wave travels (rad/sec); 0 freezes it in place. Only bites once Wave amp is above 0.',
   },
   drain: {
-    kind: 'slider', label: 'Drain', group: 'Shape', min: 0, max: 2000, step: 10, default: 0, axis: 'scale',
+    kind: 'slider', label: 'Drain', group: 'Shape', min: 0, max: 8000, step: 10, default: 0, axis: 'scale',
     help: 'How fast (px/sec) the tail retracts into the head once the head STOPS moving — the trail carries on arriving and shrinks to nothing, instead of freezing as a static streak or blinking out whole when the layer ends. 0 (the default) is the old freeze-in-place behaviour.',
   },
   segments: {

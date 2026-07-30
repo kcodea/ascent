@@ -50,12 +50,12 @@ const DEG_TO_RAD = Math.PI / 180;
 
 const SPECS = {
   rate: {
-    kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 300, step: 5, default: 40, essential: true,
+    kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 1200, step: 5, default: 40, essential: true,
     axis: 'intensity',
     help: 'Motes per second — smoke is sparse and lingering, so this runs low.',
   },
   life: {
-    kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 2000, step: 10, default: 1500, essential: true,
+    kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 8000, step: 10, default: 1500, essential: true,
     // A duration, so it rides `time` — and, exactly as in `emitter.ts`, it is also the one-shot EMIT WINDOW
     // (`smokeWithinEmitWindow`), so a stretched plume emits proportionally more puffs at the same `rate`.
     // See `FxScaleAxes.time` for why `rate` deliberately stays off this axis.
@@ -68,7 +68,7 @@ const SPECS = {
   },
 
   speed: {
-    kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 30, axis: 'scale',
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 3000, step: 5, default: 30, axis: 'scale',
     help: 'px/sec initial — gentle drift.' },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
@@ -76,12 +76,12 @@ const SPECS = {
     help: 'How much puffs differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
   },
   gravity: {
-    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30, essential: true,
+    kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: -30, essential: true,
     axis: 'scale',
     help: 'px/sec² (negative = rise, like smoke/embers).',
   },
   spin: {
-    kind: 'slider', label: 'Spin', group: 'Motion', min: 0, max: 180, step: 1, default: 25,
+    kind: 'slider', label: 'Spin', group: 'Motion', min: 0, max: 1440, step: 1, default: 25,
     enabledWhen: { param: 'orientToVelocity', is: false },
     help: 'Degrees/sec each puff slowly rotates — 25 is a lazy tumble, 0 leaves every puff frozen at the angle it was born with. Ignored entirely while Orient to velocity is on.',
   },
@@ -99,7 +99,7 @@ const SPECS = {
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 40, axis: 'scale',
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 2000, step: 5, default: 40, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes the column billow and wander — 0 = straight lines.',
   },
   turbScale: {
@@ -112,7 +112,7 @@ const SPECS = {
     help: 'Where puffs are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc (the default — a soft-edged smoke source), or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 8, axis: 'scale',
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 8, axis: 'scale',
     // Only one half of the mutually-dead shape/radius pair may declare the dependency (see burst.ts) —
     // shape is the gateway, radius the thing it unlocks. Smoke ships with both live (disc + 8px).
     enabledWhen: { param: 'emitShape', not: 'point' },
@@ -128,7 +128,7 @@ const SPECS = {
     help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 14, essential: true, axis: 'scale',
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 14, essential: true, axis: 'scale',
     help: 'How big a puff is across, in px, at birth — 14 gives a chunky column, low values a thin wispy one. Size var jitters it per puff and the Size / life curve grows it as the puff rises.',
   },
   sizeVar: {
@@ -136,11 +136,11 @@ const SPECS = {
     help: 'How much puff sizes differ from each other, as a fraction of Size — 0 makes every puff identical (and the column read mechanical), 0.4 (the default) spreads them between 0.6x and 1.4x.',
   },
   stretchX: {
-    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
   },
   stretchY: {
-    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle height multiplier on top of Size.',
   },
   sizeCurve: {

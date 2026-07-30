@@ -193,6 +193,27 @@ Two things to know when you author on it:
   anchors, or staged both on the same spot. A workbench scenario that stages a source and a target will
   preview it; one that doesn't will show you the `travel` fallback, not an error.
 
+### How far the sliders go
+
+The physics ranges are wide on purpose — you are meant to be able to be **stupid** with them and dial back.
+Burst speed reaches **3000 px/sec** (a shard crosses the card in a couple of frames), gravity **±4000**
+(`coins` throws at ~1700 for a real ballistic lob), life **6 s**, count **400**, size **200 px**. Smoke and
+the emitter reach **1200 motes/sec** — which is their hard live-mote cap, so the slider now goes as far as
+the primitive does — and an **8 s** lifetime. Shockwave rings reach **2000 px** across and **12** rings;
+ribbons reach **2400 px** long, **600 px** wide, with a **300 px** wave amplitude.
+
+Some sliders are deliberately *not* wide, and it is worth knowing which so you don't go looking:
+
+- **Ratios and fractions** — Spread, Speed var, Size var, Inherit vel, Core bias, Field mix, Glow, Alpha,
+  Plateau, Squash, Fade in. `0..1` is the whole meaning; there is nothing past it.
+- **Drag** (`0.7..1`) is a per-frame retention factor. Above 1 a shard accelerates forever; 0.7 already stops
+  one in about a frame.
+- **The Texture/Noise group** (Bands, Noise scale, Warp, Scroll, Erode, Gain, Turb scale) is a tuned window —
+  both ends are already extreme, and past them it stops reading as material and starts reading as noise.
+- **Shockwave Thickness** (`≤0.3`) has a real geometric ceiling: the ring is drawn on a quad 1.45× its radius,
+  and a thicker band clips flat against that boundary along with its glow. Want a fatter ring? Raise
+  **Radius**, or add a second ring — not Thickness.
+
 ### Sizing an effect at the moment it fires — `scale`, `intensity` and `time`
 
 A def is a **fixed** composition, and that is deliberate: what you committed is what plays. But some effects

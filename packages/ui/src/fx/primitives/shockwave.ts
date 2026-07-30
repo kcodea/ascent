@@ -184,12 +184,12 @@ void main() {
  */
 const SPECS = {
   rings: {
-    kind: 'slider', label: 'Rings', group: 'Ring', min: 1, max: 5, step: 1, default: 2, essential: true,
+    kind: 'slider', label: 'Rings', group: 'Ring', min: 1, max: 12, step: 1, default: 2, essential: true,
     axis: 'intensity',
     help: 'Concurrent expanding rings.',
   },
   speed: {
-    kind: 'slider', label: 'Speed', group: 'Ring', min: 0.1, max: 3, step: 0.05, default: 0.9, essential: true,
+    kind: 'slider', label: 'Speed', group: 'Ring', min: 0.1, max: 12, step: 0.05, default: 0.9, essential: true,
     // The only `timeInverse` param in the library, and the reason that flavour exists. A shockwave has no
     // duration param at all: one expansion takes `1 / speed` seconds, so this IS the effect's clock. Left off
     // the time axis, a stretched layer window would hold an empty quad open long after the rings had finished
@@ -200,14 +200,21 @@ const SPECS = {
   },
   thickness: {
     kind: 'slider', label: 'Thickness', group: 'Ring', min: 0.01, max: 0.3, step: 0.005, default: 0.06, essential: true,
+    // DELIBERATELY left at 0.3 by the 2026-07-30 headroom pass, which widened `rings`, `radius`, `speed`,
+    // `fade` and `ease` around it. This one has a real geometric ceiling: the band is centred on `d == 1`
+    // with `thickness` of half-width beyond it, drawn on a quad only `QUAD_SCALE` (1.45) times the radius —
+    // so past ~0.35 the band's outer half, its soft edge and its glow are clipped dead straight against the
+    // mesh boundary (the exact artefact QUAD_SCALE exists to prevent, owner-reported with a screenshot). The
+    // quad cannot simply grow either: fragment area scales with its square, and `shockwave.test.ts` caps it.
+    // A thicker ring wants a bigger `radius` (now up to 2000) or a second ring, not a wider band.
     help: 'Ring band width.',
   },
   fade: {
-    kind: 'slider', label: 'Fade', group: 'Ring', min: 0.3, max: 3, step: 0.05, default: 1.2,
+    kind: 'slider', label: 'Fade', group: 'Ring', min: 0.3, max: 8, step: 0.05, default: 1.2,
     help: 'How fast a ring fades as it grows.',
   },
   radius: {
-    kind: 'slider', label: 'Radius', group: 'Ring', min: 40, max: 400, step: 5, default: 160, essential: true,
+    kind: 'slider', label: 'Radius', group: 'Ring', min: 40, max: 2000, step: 5, default: 160, essential: true,
     axis: 'scale',
     help: 'Max ring radius, px.',
   },
@@ -223,7 +230,7 @@ const SPECS = {
     help: 'Extra stagger between successive rings; 0 keeps them evenly phased (the default cadence).',
   },
   ease: {
-    kind: 'slider', label: 'Ease', group: 'Ring', min: 0.3, max: 3, step: 0.05, default: 1,
+    kind: 'slider', label: 'Ease', group: 'Ring', min: 0.3, max: 8, step: 0.05, default: 1,
     help: 'Expansion curve — below 1 punches out fast then settles, above 1 accelerates; 1 is linear.',
   },
   bands: {

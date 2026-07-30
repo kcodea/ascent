@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-07-30 — Fatecarver's spell branch: verified, not rewired
+
+Owner ask: "Fatecarver should trigger from things like Runefire's end of turn effect." Investigated before
+changing anything — and the wiring was already correct. Every spell-cast path in the game funnels through
+`castSpell` → `noteSpellCast`, or calls `noteSpellCast` directly (the two Discover paths), and Fatecarver's
+branch is a `spellCast` watcher fired by that one chokepoint. Runefire's `endOfTurnRecastFirstSpell` recasts via
+`castSpell`, so it always counted.
+
+So this commit adds no behaviour — it adds the tests that were missing, because "already works" is only worth
+anything if something holds it in place. Covered: Runefire's EoT recast, a direct `castSpell`, a spell played
+from hand, and a MULTI-cast spell (Ancient Runes doubling) firing Fatecarver once per cast rather than once per
+play. Plus the negative: branch B (attack) staying silent on spell casts, since a leaking `option` gate would
+grant both halves.
+
+**A note on how the tests are written.** The first cut asserted absolute Attack totals and failed — not because
+Fatecarver was broken, but because Growth buffs the target itself, so the number measured both effects at once
+and would have passed with either one broken. Every assertion now compares against the SAME board without
+Fatecarver, so it measures only Fatecarver's contribution. That is the honest shape for any "does X also
+trigger" test.
+
+Verified: typecheck (both), lint (6 pre-existing), 3160 tests, build:web, harness determinism.
+
 ## 2026-07-30 — Rune tranche 2: the threshold group (7 runes, one primitive)
 
 `runeThreshold` — "every `per` of `meter`, do one thing". ONE reward kind rather than a family of

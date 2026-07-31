@@ -7,6 +7,11 @@ import { openEpicRuneforge, questCombatMods, reduce } from './reducer';
 import { buffFodderRunWide, buffImpsRunWide, dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, noteFodderConsumed, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
+import { pinSet1Era } from './testPin';
+
+// This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
+// still-shipped mechanics. Pin the era rather than rewrite the fixtures. See `testPin.ts`.
+pinSet1Era();
 
 /** A 1/1 Beast board card (id 'alley') for board-setup tests. */
 const mkAlley = (uid: string): RunState['board'][number] => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
@@ -537,14 +542,14 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(commit.recruitBuffFx).toHaveLength(0); // …and emits NO events (itemizeFx is projection-only)
   });
 
-  it('Rune of Spending: the projection itemizes one +3/+3 event per Gold spent (owner sheet 2026-07-31)', () => {
+  it('Rune of Spending: the projection itemizes one +1/+2 event per Gold spent (owner re-tune 2026-07-31)', () => {
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['runeSpending'], goldSpentThisTurn: 4, board: [mkAlley('a')] };
     const { steps, fx } = projectEndOfTurnSteps(s);
     const evs = fx[0]!.buffFx.filter((e) => e.targetUid === 'a');
     expect(evs).toHaveLength(4);
-    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 3 && e.health === 3)).toBe(true);
-    expect(steps[0]!['a']).toEqual({ attack: 13, health: 13 }); // 1/1 + 4 × +3/+3
+    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 1 && e.health === 2)).toBe(true);
+    expect(steps[0]!['a']).toEqual({ attack: 5, health: 9 }); // 1/1 + 4 × +1/+2
   });
 
   it('Rune of Action: a spell played counts as a card played (playedThisTurn)', () => {

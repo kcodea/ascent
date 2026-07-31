@@ -6849,6 +6849,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    underneath as the only supporting detail. No Oath verdict, Renown delta, record, pips, tags or run stats:
    none of them exist in a mode with no course and no rating (owner ask 2026-07-29). */
 .endscreen.lobbyend .endbox { gap: calc(14 * var(--u-base)); }
+/* Lobby post-game rating — the BIG number (current rating) with the placement's ± delta beside it. Static
+   colors + a one-shot entrance via the existing endbox animation; nothing loops. */
+.endmmr { display: flex; align-items: baseline; justify-content: center; gap: 12px; margin: 6px 0 2px; }
+.endmmr-now { font-family: var(--disp, inherit); font-weight: 800; font-size: 64px; line-height: 1; letter-spacing: 1px; }
+.endmmr-delta { font-weight: 800; font-size: 26px; }
+.endmmr.up .endmmr-delta { color: #58c470; }
+.endmmr.down .endmmr-delta { color: #e06060; }
+.endmmr-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.65; }
+.endplace-practice { display: block; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; margin-top: 4px; }
+
 .endplace { display: flex; flex-direction: column; align-items: center; line-height: 0.92; }
 .endplace-num { font-family: var(--font-disp, var(--font-ui)); font-weight: 900;
   font-size: clamp(64px, 11vh, 132px); letter-spacing: -0.02em;

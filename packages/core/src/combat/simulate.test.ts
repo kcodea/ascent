@@ -2966,18 +2966,23 @@ describe('simulate (handoff A.3)', () => {
     expect(fromParagon, 'the Paragon grants nothing itself — it only scales Rubies as they land').toEqual([]);
   });
 
-  it('set 2 — Geode Guardian: on death, plays a Ruby on each adjacent minion (carry-back)', () => {
-    const gdtest: CardDef = { id: 'gdtest', name: 'GD', tribe: 'kobold', tier: 2, attack: 2, health: 1, keywords: [],
-      effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };
-    const gdnb: CardDef = { id: 'gdnb', name: 'NB', tribe: 'kobold', tier: 1, attack: 1, health: 100, keywords: [], effects: [], text: '' };
-    const r = simulate([
-      { cardId: 'gdtest', attack: 2, health: 1, sourceUid: 'GD' }, // dies (1 HP)
-      { cardId: 'gdnb', attack: 1, health: 100, sourceUid: 'NB' }, // right neighbour, survives
-    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, gdtest, gdnb },
+  it('set 2 — Geode Guardian (2026-07-31 rework): Echo summons 2 Taunt Golems with a Ruby each — Gilded still 2', () => {
+    const run = (golden: boolean) => simulate([
+      { cardId: 'k_geode', attack: golden ? 2 : 1, health: 1, sourceUid: 'GD', golden },
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 2, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    // The neighbour got the Ruby as a combat buff; nothing carries back (not Engraved — owner 2026-07-31).
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 1)).toBe(true);
-    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'NB')).toBeFalsy();
+    const r = run(false);
+    const golems = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'gemheart-shard');
+    expect(golems.length).toBe(2);
+    for (const g of golems) expect((g as { minion: { keywords: string[] } }).minion.keywords).toContain('T');
+    // Each golem got a Ruby (a 1/1 buff at base strength), and nothing persists (not Engraved).
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 1).length).toBeGreaterThanOrEqual(2);
+    expect(r.playerPermaBuffs?.length ?? 0).toBe(0);
+    // Gilded: the COUNT stays 2 (owner's explicit call); the Rubies double instead.
+    const g = run(true);
+    const gGolems = g.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'gemheart-shard');
+    expect(gGolems.length, 'a Gilded Guardian must still summon exactly 2').toBe(2);
+    expect(g.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2), 'the Gilded Rubies should be doubled').toBe(true);
   });
 
   it('set 2 — Crownvein Vanguard: Rally buffs your Rubies AND plays Rubies on Kobolds', () => {

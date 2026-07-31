@@ -5,6 +5,11 @@ import { OPPONENT_POOL, pickOpponent, registerOpponents } from './opponents';
 import { MATCHMAKING, adjustedWinRate, bandWeight, clearBoardRecords, registerBoardRecords } from './matchmaking';
 import { makeRng } from '@game/core';
 import type { BoardSnapshot } from './snapshot';
+import { pinSet1Era } from './testPin';
+
+// This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
+// still-shipped mechanics. Pin the era rather than rewrite the fixtures. See `testPin.ts`.
+pinSet1Era();
 
 /** A minimal servable snapshot; `id` keys its ledger record. */
 const snap = (wave: number, seed: number, id?: string): BoardSnapshot => ({

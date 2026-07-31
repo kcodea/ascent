@@ -56,7 +56,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_spending',
     name: 'Rune of Spending',
     cost: 3,
-    text: '**End of Turn:** give your left-most minion **+3/+3** for each Gold spent this turn.',
+    text: '**End of Turn:** give your left-most minion **+1/+2** for each Gold spent this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeSpending' },
   },
   {

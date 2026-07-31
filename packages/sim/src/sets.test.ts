@@ -89,7 +89,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
       // The Ales (owner batch 2026-07-25, renamed 2026-07-26) — a set-2-only cycle of five Tier-3 spells.
       'wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack',
       // Owner batch 2026-07-31: the currency-locked pair (Ales / Rubies are set-2) + the two Dwarf steal spells.
-      'onthehouse', 'rubyexcavation', 'deepdelvewrit', 'ironcladreq',
+      'onthehouse', 'rubyexcavation', 'deepdelvewrit', 'ironcladreq', 'cupcakes',
     ];
     for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });

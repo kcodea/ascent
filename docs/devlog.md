@@ -1,5 +1,112 @@
 # ASCENT — development log
 
+## 2026-07-31 — Geode Guardian keeps Taunt; "two" not "2"
+
+Taunt restored (badge + text) and the Echo reads "summon **two** 1/1 Gemheart Golems" — the word, not the
+numeral, so no display path can mistake the fixed count for a doubleable magnitude.
+
+## 2026-07-31 — Geode Guardian's Golems, the true season reset, and server-authoritative MMR
+
+**Geode Guardian** (1/2, Taunt gone): Echo summons **2** 1/1 Gemheart Golems with Taunt and plays a Ruby on
+each. The COUNT is deliberately fixed — a Gilded copy still summons 2 (the owner's explicit call); gilding
+doubles the Rubies instead. New combat factory (`deathrattleSummonGolemsWithRuby`); the deathrattle-buffer cue
+classifier learned the id; the Resonance-Idol bounce tests (whose machinery outlived the old card shape) now
+drive the adjacent-play factory through a synthetic card.
+
+**The true season reset**: `PlayerProfile.season` + `CURRENT_SEASON = 2`. A stored profile from an older
+season — including every pre-season profile, which carries none — resets to fresh on load. Bumping the
+constant resets every client at next launch; no server round-trip.
+
+**Supabase is authoritative over local MMR**: `fetchPlayerRating(author)` reads the player's `profiles` row at
+launch (and on rename), and a present row's rating REPLACES the local one (`adoptServerRating` — the Line
+re-derives fresh; high-water marks only rise). Editing a row in Supabase now overrides any client. A missing
+row (fresh season / offline / anonymous) leaves the local profile alone.
+
+Gemheart Golem art re-wired (the owner's new file).
+
+Verified: typecheck (both), lint (7 pre-existing), 3509 tests, build:web, harness determinism.
+
+## 2026-07-31 — Gemline T4, the Compendium learns which set is live, art re-wire
+
+Gemline Martyr to T4. The title-screen Compendium was frozen in set 1: a hardcoded five-tribe list (Mechs,
+Undead — no Kobolds or Dwarves) and a `run.setId ?? 'set1'` pool read off whatever stale run object the title
+held. It now reads the ACTIVE set from the title (tribe chips + pool + count — live-verified: Kobolds/Dwarves
+in, Mechs/Undead out, 133 minions), while a mid-run book keeps showing the run's own pinned set. Minion +
+spell art re-wired (4 changed: Sovereign, Spell Warden, Hellrider, Void Curator).
+
+Verified: typecheck (both), lint (7 pre-existing), 3509 tests, build:web, live DOM.
+
+## 2026-07-31 — MMR tuned; practice becomes a lobby
+
+**Placement deltas** are the owner's: 1st→8th = +100 / +71 / +42 / +13 / −12 / −36 / −62 / −92.
+
+**Practice is a lobby now**: `createLobbyRun` grew a mode param, the store routes practice through it, and the
+lobby machinery keys on the LOBBY'S PRESENCE rather than `mode === 'lobby'` (two sites). On top of the shared
+flow: the player is INVULNERABLE (the seat shrugs each round off — health restored, never eliminated; the
+other seven fight and die normally), the run ends after round 15 unless the lobby was already won, the
+practice shop-timer multiplier still applies (it always keyed on the mode), and practice reads the shared
+board pool but writes nothing — every upload path was already gated on `mode !== 'practice'`. The practice
+end screen shows the placement with a "Practice — unrated" tag and no rating block.
+
+Verified: typecheck (both), lint (7 pre-existing), 3509 tests, build:web, harness determinism.
+
+## 2026-07-31 — The ladder is the game: MMR, the Hall, and the balance report go lobby-only
+
+**Rating comes from the LOBBY only now.** `resolveLobbyRating(profile, placement)` pays by finish
+([+60, +40, +25, +10, −10, −25, −40, −60] for 1st→8th — tunable constants), floored at 0, clamped on a
+malformed placement. The Line (course par) still tracks the rating through the same promotion/demotion bands,
+so course runs inherit their Oath from your ladder standing; `resolveRunRating` no longer feeds the live
+profile (kept for the course verdict math + era-pinned tests). The LOBBY end screen shows the new rating BIG
+(64px) with the ± delta beside it, green/gold up, red down; the course end screen's rating block self-hides
+(its `lastRating` is null now).
+
+**Hall of Champions = winning lobby boards.** `uploadVictory` fires only for a placement-#1 lobby finish, and
+tags the row (`board.mode` inside the existing jsonb — no schema migration needed); the Hall filters to
+tagged rows, so pre-rework victories age out rather than mixing in.
+
+**The balance report reads the ladder.** Telemetry uploads only from lobby runs, tagged the same
+migration-free way (a `mode:lobby` sentinel in the `hero_offer` jsonb, stripped back out by the reader), and
+the report filters to lobby rows.
+
+Live-verified in the DOM (staged 4th-of-8 finish → "130 +10 Rating" rendered at 64px, green delta).
+
+Verified: typecheck (both), lint (7 pre-existing), 3506 tests, build:web.
+
+## 2026-07-31 — Seven fixes off the first live set-2 session
+
+Rune of Spending re-tuned to **+1/+2 per Gold** (from the sheet's +3/+3). Brunni gains **Taunt**. Lieutenant
+Thane's Rally gives its Attack to **3 RANDOM** friendly minions — it took the left-most three, which made
+board order do the targeting; picks are distinct per repetition and re-rolled for the golden pass. Brood Whelp
+targets **Dragons only** (`targetTribe`), text to match. Prismcaster to **T5**; Faultline Scrapper to **4/1**.
+
+And the Forgemaster tracker: the Runesmith's countdown above the hero power still counted to the OLD turn-7
+forge (the screenshot's "3t" at round 4) while the forge itself correctly opened on turn 5 — the retime moved
+the mechanic but not the countdown. It counts to 5 now.
+
+Verified: typecheck (both), lint (7 pre-existing), 3504 tests, build:web, harness determinism.
+
+## 2026-07-31 — SET 2 GOES LIVE: quests off, Runeforge on — plus Cupcakes
+
+The three switches flipped: `SETS.set1.enabled = false` / `set2 = true` (first-enabled-wins), and in CONFIG
+`questsEnabled = false` + `runeforgeEnabled = true` (basic forge turn 6, epic turn 9, every hero, free). The
+owner's double-check is pinned as a go-live test suite running against the SHIPPED defaults: a new run pins
+set 2; turns 5/11 open no quest; **Fi still gets her turn-4 Lesser quest and Coran his turn-10 quest** (both
+via `questOfferPlan`'s above-the-gate hero clauses, verified through the real turn advance); the forge opens
+on 6 and 9.
+
+**Cupcakes** (set 2, T4, 4 Gold): target a Demon — it Consumes 4 RANDOM Shop minions, one roll per bite, with
+the target as the eater so every consume payoff sees a genuine Demon eat. This is the card the mystery
+`Cupcakes.png` art file was for; it wired the moment the card existed.
+
+Fallout: eleven legacy suites (run.test, runes.test, matchmaking, lobby, tier7, setSeparation, runTelemetry,
+rifts) pinned to the set-1 era via a new `pinSet1Era()` helper — they test still-shipped set-1 content and the
+quest-era loop, so they pin the era they were written for instead of rewriting fixtures. One subtle case: the
+board-rating ladders in run.test were built at MODULE scope, before any beforeAll could pin the set, and
+saturated every rating at 1 — they build lazily now. The systemToggles suite arms its own flags explicitly in
+both directions instead of assuming the defaults.
+
+Verified: typecheck (both), lint (7 pre-existing), 3504 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Full spell-art re-wire; the wire script gains a SPELLS job
 
 The owner reworked a batch of spell art, so `art:wire` grew its fourth job: every spell + Ruby by name from

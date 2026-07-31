@@ -4,6 +4,11 @@ import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRun, reduce, type RunState } from './index';
+import { pinSet1Era } from './testPin';
+
+// This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
+// still-shipped mechanics. Pin the era rather than rewrite the fixtures. See `testPin.ts`.
+pinSet1Era();
 
 /**
  * SET 1 AND SET 2 MUST NOT MIX (owner 2026-07-27: "it's very important").

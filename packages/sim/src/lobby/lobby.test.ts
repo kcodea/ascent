@@ -9,6 +9,11 @@ import { createRun } from '../state';
 import { reduce } from '../reducer';
 import { CONFIG } from '../config';
 import { DEFAULT_BOT } from '../bots/index';
+import { pinSet1Era } from '../testPin';
+
+// This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
+// still-shipped mechanics. Pin the era rather than rewrite the fixtures. See `testPin.ts`.
+pinSet1Era();
 
 /**
  * The 8-seat lobby prototype (owner direction 2026-07-29).

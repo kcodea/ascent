@@ -136,7 +136,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   quickStudy: 'End of Turn: get a Gold Font and 2 random Shop spells',
   grantRandomAttachments: 'End of Turn: get 2 random Attachments',
   buffMechsPerAttachment: 'End of Turn: give your Mechs +2/+2 for every Attachment they have',
-  runeSpending: 'End of Turn: give your leftmost minion +3/+3 for each Gold you spent this turn',
+  runeSpending: 'End of Turn: give your leftmost minion +1/+2 for each Gold you spent this turn',
   runeAction: 'End of Turn: give your leftmost minion +1/+1 for every card you played this turn',
   triggerLeftmostEcho: "End of Turn: trigger your leftmost minion's Echo",
   weldMoneyBotsEdgeMechs: 'End of Turn: weld a Money Bot onto your leftmost and rightmost Mech',

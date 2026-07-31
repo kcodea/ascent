@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
 import type { BoardMinion, Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -17,7 +17,7 @@ import { sfx } from './sfx';
 import { liveBoardView } from './instView';
 import { loadStoredBoards, saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
-import { fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
+import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, saveRunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -475,6 +475,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const playerName = name.slice(0, 24).trim();
     try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
     set({ playerName });
+    syncProfileFromServer(playerName); // the server row (if any) is authoritative for the new identity
   },
   playerAvatar: loadPlayerAvatar(),
   setPlayerAvatar: (id) => {
@@ -587,31 +588,43 @@ export const useGame = create<GameStore>((set, get) => ({
           // `wonFinal` = won the last round (round 17) — a victory means the last history entry is the round-17
           // result; winning it earns the big final-win bonus on top of the summit bonus. Winning the two rounds
           // before it (15 & 16) earns the escalating end-game ramp (+8 / +12). `history` is 0-indexed by round.
-          const wonRound = (round: number): boolean => next.history[round - 1] === 'win';
-          const wonFinal = won && next.history[next.history.length - 1] === 'win';
-          const change = resolveRunRating(s.profile, {
-            scoredWins: runRecord(next).wins, line: next.line, completed: won,
-            wonFinal, wonRound15: wonRound(15), wonRound16: wonRound(16),
-          });
-          saveProfile(change.profile);
-          set({ profile: change.profile, lastRating: change });
-          const history = saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));
+          // MMR comes from the LOBBY only (owner rework 2026-07-31): a lobby finish resolves a placement-based
+          // rating change; a course/rift finish no longer touches the profile (its end screen shows the Oath
+          // verdict with no rating movement — `lastRating` stays null and the block self-hides).
+          const lobbySeat = next.lobby?.seats.find((seat) => seat.id === 's0');
+          const lobbyPlacement = next.lobby
+            ? lobbySeat?.placement ?? (won ? 1 : next.lobby.seats.filter((seat) => seat.alive).length + 1)
+            : null;
+          const change = lobbyPlacement != null ? resolveLobbyRating(s.profile, lobbyPlacement) : null;
+          if (change) {
+            saveProfile(change.profile);
+            set({ profile: change.profile, lastRating: change });
+          } else {
+            set({ lastRating: null });
+          }
+          const history = saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined }));
           // Player Leaderboard: upsert this named player's slot — rating (the "MMR") + total games + favorite
           // hero, both derived from the just-updated local history (games = runs, favorite = most-played hero).
           // Best-effort + skipped for anonymous players (see uploadPlayerProfile).
           const career = careerStats(history);
           void uploadPlayerProfile({
-            author, rating: change.profile.rating, gamesPlayed: career.runs,
+            author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
             favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
           });
           // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
           // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
-          try {
-            const telemetry = reconstructRunTelemetry(replay, heroOffer);
-            void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
-          } catch { /* best-effort — telemetry must never disrupt the end screen */ }
-          if (won) {
+          // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the
+          // real ladder, and course/rift rows would dilute it.
+          if (next.mode === 'lobby') {
+            try {
+              const telemetry = { ...reconstructRunTelemetry(replay, heroOffer), mode: 'lobby' };
+              void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
+            } catch { /* best-effort — telemetry must never disrupt the end screen */ }
+          }
+          // Hall of Champions: WINNING LOBBY BOARDS only (owner rework 2026-07-31) — placement #1 finishes.
+          if (won && next.mode === 'lobby' && lobbyPlacement === 1) {
             void uploadVictory({
+              mode: 'lobby',
               heroId: next.heroId, author, wave: next.wave,
               wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
               board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
@@ -673,8 +686,10 @@ export const useGame = create<GameStore>((set, get) => ({
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
       const seed = randomSeed();
-      const run = s.pendingMode === 'lobby'
-        ? createLobbyRun(seed, heroId)
+      // Practice is a lobby too (2026-07-31): same seats + recorded opponents, its own rules on top. It
+      // reads the shared board pool but never writes (every upload path is gated on mode !== 'practice').
+      const run = s.pendingMode === 'lobby' || s.pendingMode === 'practice'
+        ? createLobbyRun(seed, heroId, {}, s.pendingMode)
         : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
@@ -738,6 +753,24 @@ if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 }
+
+/** The server's `profiles` row is AUTHORITATIVE over the local rating (owner control 2026-07-31): at launch —
+ *  and whenever the player (re)names themselves — a named player's server rating, if present, replaces the
+ *  local one. Editing a row in Supabase therefore overrides any client on its next launch; a missing row (a
+ *  fresh season, a new player, offline) leaves the local profile alone. Best-effort and deferred — never
+ *  blocks startup. */
+export function syncProfileFromServer(name: string): void {
+  if (!name) return;
+  void fetchPlayerRating(name).then((serverRating) => {
+    if (serverRating == null) return;
+    const s = useGame.getState();
+    if (s.profile.rating === serverRating) return;
+    const adopted = adoptServerRating(s.profile, serverRating);
+    saveProfile(adopted);
+    useGame.setState({ profile: adopted });
+  });
+}
+if (typeof window !== 'undefined') syncProfileFromServer(loadPlayerName());
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
 // Discover / game-over / End-of-Turn UI). Stripped from production builds. The `typeof window` guard matters:

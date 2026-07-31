@@ -1,4 +1,4 @@
-import { initialProfile, MAX_LINE, MIN_LINE, type PlayerProfile } from '@game/sim';
+import { CURRENT_SEASON, initialProfile, MAX_LINE, MIN_LINE, type PlayerProfile } from '@game/sim';
 
 /**
  * The player profile persistence seam (rating + Line + high-water marks).
@@ -30,7 +30,12 @@ export function loadProfile(): PlayerProfile {
     const raw = localStorage.getItem(KEY);
     if (!raw) return initialProfile();
     const parsed = JSON.parse(raw) as unknown;
-    return isValid(parsed) ? parsed : initialProfile();
+    if (!isValid(parsed)) return initialProfile();
+    // SEASON GATE (the true reset, owner ask 2026-07-31): a profile from an older season — including every
+    // pre-season profile, which carries no season at all — starts fresh. Bumping CURRENT_SEASON resets
+    // every client on its next launch, no server round-trip needed.
+    if ((parsed as PlayerProfile).season !== CURRENT_SEASON) return initialProfile();
+    return parsed;
   } catch {
     return initialProfile();
   }

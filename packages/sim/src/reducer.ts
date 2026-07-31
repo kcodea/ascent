@@ -2124,7 +2124,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
  * every seat twice for one round.
  */
 function settleLobbyRound(s: RunState, result: CombatResult): void {
-  if (s.mode !== 'lobby' || !s.lobby) return;
+  if (!s.lobby) return; // practice carries a lobby too (2026-07-31) — the machinery keys on its presence
   if (s.lobbySettledRound === s.lobby.round) return;
   s.lobbySettledRound = s.lobby.round;
   s.lobby = settleRunLobbyRound(
@@ -2132,6 +2132,15 @@ function settleLobbyRound(s: RunState, result: CombatResult): void {
     result,
   );
   const me = s.lobby.seats[0]!;
+  // PRACTICE invulnerability: the player's seat shrugs the round off — health restored to what it was going in,
+  // never eliminated. The other seven seats fight and die normally, so the lobby still runs its course.
+  if (s.mode === 'practice') {
+    me.resolve = s.resolve;
+    me.armor = s.armor;
+    me.alive = true;
+    me.placement = undefined;
+    return;
+  }
   // The seat's health becomes the run's, so the HUD and every health-aware effect read the number that actually
   // matters. The ordinary damage path in `settleCombat` is explicitly skipped for lobby mode, so this is the
   // only writer and there is no double-charge.
@@ -2476,9 +2485,15 @@ function advanceCombat(s: RunState): void {
     s.phase = 'gameover';
     return;
   }
+  // PRACTICE-lobby curtain: the player can't die (invulnerable), so the run ends after round 15 unless the
+  // lobby already finished (every bot dead = the practice "win", handled by the lobby check below).
+  if (s.mode === 'practice' && s.lobby && !s.lobby.finished && s.wave >= 15) {
+    s.phase = 'gameover';
+    return;
+  }
   // A lobby seat's Resolve is the LOBBY's to manage; the run's own copy is bookkeeping and must not end it.
   // The run ends when the PLAYER'S SEAT is knocked out, whatever the lobby does afterwards.
-  if (s.mode === 'lobby' && s.lobby) {
+  if (s.lobby) {
     if (playerEliminated(s.lobby) || s.lobby.finished) {
       s.phase = 'gameover';
       return;

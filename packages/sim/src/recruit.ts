@@ -3511,6 +3511,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Cupcakes — cast on a friendly DEMON: it Consumes `times` RANDOM Shop minions, one roll per bite (so the
+   *  spread is real, not one minion eaten four times). The eater is the TARGET (`self` on a targeted cast), so
+   *  every consume payoff fires for a genuine Demon eat. */
+  spellTargetConsumesShop: (ctx, self, params) => {
+    for (let n = 0; n < num(params.times, 4); n++) {
+      const edible = ctx.state.shop
+        .map((_, i) => i)
+        .filter((i) => { const d = CARD_INDEX[ctx.state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (edible.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      const pick = edible[rng.int(edible.length)]!;
+      ctx.state.rngCursor = rng.state();
+      consumeShopMinion(ctx.state, self, pick, 1);
+    }
+  },
+
   /** Deep Delve Writ / Ironclad Requisition — cast: STEAL Shop offers into hand for free. `tribe` narrows the
    *  pick to that tribe's minions (the Writ's Dwarf); `perTribe` steals one RANDOM card (minions and spells
    *  alike) per friendly minion of that tribe (the Requisition). Stolen minions arrive shaped like a buy —
@@ -5661,11 +5677,11 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
       step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 3, 3); });
     }
   } else if (effect === 'runeSpending') {
-    // Rune of Spending (owner sheet 2026-07-31): the leftmost minion gets +3/+3 PER Gold spent this turn.
-    // The old +1 max Gold rider is gone with the rework. One step per Gold, so the FX ticks like a payout.
+    // Rune of Spending (owner re-tune 2026-07-31, from +3/+3): the leftmost minion gets +1/+2 PER Gold spent
+    // this turn. One step per Gold, so the FX ticks like a payout.
     const n = state.goldSpentThisTurn ?? 0;
     const leftmost = state.board[0];
-    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 3, 3));
+    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 1, 2));
   } else if (effect === 'runeAction') {
     // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn — one
     // step per card played, each step buffing the (up to) three leftmost.

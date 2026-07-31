@@ -694,9 +694,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
     const amount = self.attack;
     if (amount <= 0) return;
-    const friends = ctx.living(self.side).filter((m) => m !== self);
+    // RANDOM `count` friends (owner fix 2026-07-31) — it took the left-most 3, which made board order do the
+    // targeting. Distinct picks per repetition, re-rolled for the golden second pass.
     for (let r = 0; r < mul(self); r++) {
-      for (const m of friends.slice(0, num(params.count, 3))) ctx.buff(m, amount, 0, self.uid);
+      const pool = ctx.living(self.side).filter((m) => m !== self);
+      for (let n = 0; n < num(params.count, 3) && pool.length > 0; n++) {
+        const m = pool.splice(ctx.rng.int(pool.length), 1)[0]!;
+        ctx.buff(m, amount, 0, self.uid);
+      }
     }
   },
 
@@ -723,6 +728,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (!copy) break; // board full
       // Drop the Echo so the copy can't summon another on ITS death, and so on to the board cap.
       copy.effects = copy.effects.filter((e) => e.on !== 'onDeath');
+    }
+  },
+
+  /** Geode Guardian (owner rework 2026-07-31) — Echo: summon `count` Gemheart Golems with Taunt and play
+   *  `rubies` Rubies on each. The COUNT is deliberately NOT golden-doubled (a Gilded copy still summons 2 —
+   *  owner's explicit call); the Rubies are, via `playRubyOn`'s per-cast stacking. */
+  deathrattleSummonGolemsWithRuby: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const golem = ctx.getCard('gemheart-shard');
+    if (!golem) return;
+    for (let i = 0; i < num(params.count, 2); i++) {
+      const summoned = ctx.summon(self.side, golem, self.uid, ['T']);
+      if (!summoned) break; // board full
+      playRubyOn(ctx, self, summoned, num(params.rubies, 1) * mul(self));
     }
   },
 

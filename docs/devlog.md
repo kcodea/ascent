@@ -238,6 +238,64 @@ so leaving it inline is inert. A timer here would be one more hold to leak — s
 **Verified:** `typecheck` clean (pkgs + web), `lint` 0 errors, **3417 tests** / 186 files green, `build:web`
 green. Feel needs an eyeball — the checks prove no regression, not that the motion reads well.
 
+## 2026-07-30 — the FX library said seven playing effects were bound to nothing
+
+**The problem: one label was covering three different truths.** The library browser
+(`packages/ui/src/fx/ui/`) only ever knew about `choreo/bindings.json`, so a def with no binding rendered as
+"unbound" — and until recently that was near enough honest, because unbound really did mean inert. The
+migration out of hand-written `pixiFx` methods broke it: `coins`, `click-puff`, `damage-burst`,
+`landing-dust`, `impact-dust`, `death-dissolve` and `strike-impact` are all now defs fired by a direct
+`playDef('<id>', …)` call at the site where the thing happens, with no binding at all. Every one of them
+plays constantly, and every one of them landed in the "nothing bound" column of the coverage map. The owner
+tried to read the by-event lens and could not tell what it meant — which is fair, since it was flattening
+*plays via a binding*, *plays via a call*, and *genuinely dead* into one word.
+
+**The mechanism, and why it cannot drift.** The obvious fix — a list of "these ids are called from code" —
+is the same defect one migration later: the next person adds a direct call, forgets the list, and the view
+quietly lies again. So the list is DERIVED. New `packages/ui/src/fx/directCallScan.ts` is a pure text pass
+that finds every `playDef(…)` in `packages/ui/src` and splits it into literal ids vs expression ids;
+`packages/ui/src/fx/directCalls.ts` is a committed snapshot of that scan's output (7 defs, 6 files); and
+`directCalls.test.ts` re-runs the scan against the real files on every `npm test`, failing with the exact
+object to paste if the two disagree. Adding a direct call and forgetting the file turns CI red and names
+the def. Verified by temporarily adding a `playDef('burst-thin-trail', …)` call — the guard failed as
+designed and printed the replacement.
+
+Two details that decide whether it actually works:
+- **The scan reads whole files, not lines.** `strike-impact` — the melee smack, about the most-played effect
+  in the game — is fired from `choreo/channels/impact.ts` as a call whose id sits on its own line. A
+  line-at-a-time regex sees `playDef(` with nothing after it and files the biggest migrated effect as
+  unresolvable, i.e. commits the exact under-report being fixed. There is a test for that shape specifically.
+- **The blind spot is stated, not hidden.** A call whose id is a *variable* cannot be resolved without
+  running the game. Those sites are enumerated in `DYNAMIC_CALL_SITES`, pinned per-file by the test, and
+  printed under the by-event lens. All three today are `choreo/score.ts` firing `binding.def` — the binding
+  path the map already shows in full — so nothing is currently missing; a new dynamic site anywhere else
+  fails the test rather than silently shrinking the map. `codeScanCaveat()` derives that sentence from the
+  snapshot, so it can't become a stale reassurance.
+
+**UI — three states, visually distinct.** `FxUsage = 'bound' | 'code' | 'unused'` is decided once in
+`usageOf()` (catalog.ts) so no lens can disagree with another. Every row in the *by look* lens now carries a
+wiring badge — always rendered, all three states, because a badge that only appears on the bad case teaches
+the reader that no badge means fine, which is how "unbound" came to mean "inert" in the first place. `bound`
+and `code` are two greens (both PLAY, differing only in how); `unused` is grey, hollow and dashed, so the
+dead ones separate at a glance before a word is read. A `code` badge tooltips the files that fire it. The
+**Wiring** facet went from `all / bound / unbound` to `all / bound / from code / unused` — `unbound` is gone
+rather than kept, because it selected fourteen defs of which seven play constantly and so answered nothing.
+Call-site paths also feed the search box, so "which effects does Recruit play?" is a search.
+
+**The by-event lens keeps its kind list and gains a second section.** A direct call has no `MomentKind`, so
+it can never have a row in `kindCoverage()` — the tempting conclusion is that it has no place in the lens at
+all. That reading is what produced the defect: the lens is understood as *the* map of what plays and when, so
+an effect that plays and is absent reads as an effect that never fires. It gets **Played from code (no moment
+kind)**, keyed by call site instead of by kind — which is exactly what a direct call's trigger is — with the
+caveat sentence beneath it.
+
+**Tests.** `catalog.test.ts` and `catalogView.test.ts` updated rather than deleted: `burst-thin-trail` keeps
+its meaning as the *genuinely inert* fixture (now asserted `usage: 'unused'` with no call sites, and
+documented as the control the `code` case is measured against), a new case pins all seven migrated defs as
+`code` and never `unused`, and `bindingsByDef()` gains a case asserting it is still right to omit
+`strike-impact` — the absence is not a bindings bug, it is what `usage` exists to explain. Gate: typecheck +
+lint (0 errors, 7 pre-existing warnings) + **3459 tests / 188 files** + `build:web`, all green.
+
 ## 2026-07-30 — the frame budget is 4.17 ms, and the perf HUD was calibrated to a monitor nobody owns
 
 **The problem, in one line: a fixed millisecond threshold silently encodes an assumed refresh rate.**

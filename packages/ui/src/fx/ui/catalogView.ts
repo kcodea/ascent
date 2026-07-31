@@ -1,17 +1,26 @@
 import type { FxCatalogEntry } from './catalog';
-import type { FxHue, FxMotion } from './catalog';
+import type { FxHue, FxMotion, FxUsage } from './catalog';
 
 export type { FxCatalogEntry };
+
+/**
+ * The wiring facet, which used to be `'all' | 'bound' | 'unbound'`.
+ *
+ * `unbound` was retired rather than kept alongside the new values, deliberately: it selected fourteen defs of
+ * which seven play constantly, so it answered a question nobody was asking. The three states it collapsed are
+ * now separately selectable, and `unused` is the one an author actually wants — "what in here is dead?".
+ */
+export type FxUsageFilter = 'all' | FxUsage;
 
 export interface FxFilter {
   search: string;
   hues: FxHue[];
   shapes: string[];
   motion: FxMotion | null;
-  bound: 'all' | 'bound' | 'unbound';
+  usage: FxUsageFilter;
 }
 
-export const EMPTY_FILTER: FxFilter = { search: '', hues: [], shapes: [], motion: null, bound: 'all' };
+export const EMPTY_FILTER: FxFilter = { search: '', hues: [], shapes: [], motion: null, usage: 'all' };
 
 /** Everything one entry can be matched against by the search box, lower-cased once per call. */
 function searchableText(e: FxCatalogEntry): string {
@@ -23,12 +32,12 @@ function searchableText(e: FxCatalogEntry): string {
     e.facets.hue,
     ...e.bindings.kinds,
     ...e.bindings.cards.map((c) => c.name),
+    // The files that fire it, so "which effects does Recruit play?" is a search rather than a code hunt.
+    ...e.callSites,
   ]
     .join(' ')
     .toLowerCase();
 }
-
-const isBound = (e: FxCatalogEntry): boolean => e.bindings.kinds.length > 0 || e.bindings.cards.length > 0;
 
 /** Filters combine as AND; an empty facet list means "no constraint", not "match nothing". */
 export function applyFilter(entries: FxCatalogEntry[], filter: FxFilter): FxCatalogEntry[] {
@@ -37,8 +46,7 @@ export function applyFilter(entries: FxCatalogEntry[], filter: FxFilter): FxCata
     if (filter.hues.length > 0 && !filter.hues.includes(e.facets.hue)) return false;
     if (filter.shapes.length > 0 && !filter.shapes.includes(e.facets.shape)) return false;
     if (filter.motion !== null && e.facets.motion !== filter.motion) return false;
-    if (filter.bound === 'bound' && !isBound(e)) return false;
-    if (filter.bound === 'unbound' && isBound(e)) return false;
+    if (filter.usage !== 'all' && e.usage !== filter.usage) return false;
     if (needle !== '' && !searchableText(e).includes(needle)) return false;
     return true;
   });

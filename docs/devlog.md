@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-07-31 — End Turn lock to 2s; Reinvestment's text tells the truth
+
+The start-of-round End Turn inert window drops 5s → 2s (the double-click guard outstayed its welcome).
+
+Rune of Reinvestment: TEXT-only fix — the buff always landed on `tavernBuyBonus`, the PERMANENT run-wide shop
+channel, so "give the next Shop" under-sold the rune. It now says "permanently give the Shop".
+
 ## 2026-07-30 — FX defs choose their canvas: over the cards, or under them
 
 Every authored effect mounted on one Pixi layer, so every effect drew above everything. A ground slam and a

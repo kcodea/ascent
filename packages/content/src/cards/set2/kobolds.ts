@@ -318,9 +318,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_hoardmaster',
     name: 'Hoardmaster Krik',
     tribe: 'kobold',
-    tier: 6,
-    attack: 5,
-    health: 9,
+    tier: 5,
+    attack: 4,
+    health: 7,
     keywords: [],
     // `goldSpent` carries the same continuous per-instance meter `cardsBought` does (see `applyGoldSpent`), so
     // the cadence needs no new plumbing — only the event and the threshold change.

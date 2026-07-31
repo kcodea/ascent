@@ -835,7 +835,7 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -873,6 +873,7 @@ export type QuestReward =
   | { kind: 'runeEndlessAppetite' }
   // Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects.
   | { kind: 'runeConductor' }
+  | { kind: 'runeMatriarch' } // Runebloom Matriarchs trigger twice
   | { kind: 'mintRubies'; count: number; attack: number; health: number } // Gemcutting: Rubies at a FIXED stat line
   | { kind: 'runeSecondPath' } // Discover 2 Tier 6 minions, stats set to 20/20
   | { kind: 'runeChampion' } // Discover a T4, T5 and T6 minion of the board's dominant tribe
@@ -1134,6 +1135,9 @@ export interface QuestCombatMods {
   /** Rune of Forthcoming (2026-07-31 rework): Start of Combat — the left-most minion gains Ward and attacks
    *  immediately. (Was a turn-priority flag read by the reducer, not a combat mod.) */
   runeForthcoming?: boolean;
+  /** Rune of the Spellstone, combat half (owner ask 2026-07-31): a Ruby played IN combat also counts as a
+   *  spell cast — it fires the `spellCast` trigger, so per-spell improvers (Groveweaver) advance. */
+  runeSpellstone?: boolean;
   /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */
   runeRisingGraves?: boolean;
   /** Rune of the Broodpit: every 6 friendly deaths, summon 2 Imps with Taunt. */
@@ -1917,6 +1921,8 @@ export interface CombatContext {
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
    *  (the buff/damage) is applied by the caller — this just fires the `spellCast` trigger + counts it. */
   castSpell(side: Side): void;
+  /** Rune of the Spellstone (combat half): is the mod armed for `side`? Read by the Ruby-play primitive. */
+  spellstoneFor?(side: Side): boolean;
   /** Abhorrent Horror: total Fodder stats consumed this turn for a given side (attack + health) — the player's
    *  live run state, or a served enemy's captured tally. `scGainFodderStats` reads its OWN side at Start of
    *  Combat (so an enemy Horror gains the ENEMY's consumed stats, not the player's). {0,0} if none. */

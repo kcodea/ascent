@@ -133,6 +133,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   triggerLeftmostShout: 'End of Turn: trigger your leftmost Shout',
   grantRandomShout: 'End of Turn: get a random Shout minion',
   grantAles3: 'End of Turn: get 3 random Dwarven Ales',
+  quickStudy: 'End of Turn: get a Gold Font and 2 random Shop spells',
   grantRandomAttachments: 'End of Turn: get 2 random Attachments',
   buffMechsPerAttachment: 'End of Turn: give your Mechs +2/+2 for every Attachment they have',
   runeSpending: 'End of Turn: give your leftmost minion +3/+3 for each Gold you spent this turn',

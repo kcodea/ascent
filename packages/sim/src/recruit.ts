@@ -774,10 +774,11 @@ export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: n
     for (const card of [...state.board]) {
       const def = CARD_INDEX[card.cardId];
       if (!def) continue;
+      const reps = state.runeMatriarch && card.cardId === 'b2_runebloom' ? 2 : 1; // Rune of the Matriarch
       for (const effect of def.effects) {
         if (effect.on !== 'spellCast') continue;
         const fn = RECRUIT_FACTORIES[effect.do];
-        if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef: rubyDef }));
+        if (fn) for (let rep = 0; rep < reps; rep++) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef: rubyDef }));
       }
     }
   }
@@ -5482,12 +5483,14 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
+    // Rune of the Matriarch: Runebloom Matriarch's per-spell trigger fires twice.
+    const reps = state.runeMatriarch && card.cardId === 'b2_runebloom' ? 2 : 1;
     for (const effect of def.effects) {
       if (effect.on !== 'spellCast') continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       // `spellDef` lets a watcher record WHICH spell was cast (Spellkeeper's "the first one"), not just that
       // one was. Fires only for SHOP SPELLS — Rubies don't route through `castSpell`, so they never count here.
-      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
+      if (fn) for (let rep = 0; rep < reps; rep++) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
     }
   }
 }
@@ -5599,6 +5602,12 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     if (n > 0) {
       for (let i = 0; i < n; i++) step(() => { for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', 1, 1); });
     }
+  } else if (effect === 'quickStudy') {
+    // Rune of Quick Study: a Gold Font (`manafont`) + 2 random Shop spells, every turn.
+    const font = CARD_INDEX['manafont'];
+    if (font) step(() => conjureToHand(state, [font], 1, true));
+    const spells = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id));
+    if (spells.length > 0) step(() => conjureToHand(state, spells, 2));
   } else if (effect === 'grantAles' || effect === 'grantAles3') {
     // Open Tab (Dwarf quest): pour Ales at End of Turn, for the rest of the run. Draws from the RUN'S pool like
     // every other Ale grant, so a set without them pours nothing rather than injecting unreachable cards.

@@ -3260,6 +3260,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       for (const t of [4, 5, 6]) queueDiscover(s, { kind: 'minion', tier: t, exactTier: t, tribe: champTribe });
       break;
     }
+    case 'runeMatriarch':
+      s.runeMatriarch = true;
+      break;
     case 'runeConductor':
       // Owner sheet 2026-07-31: End of Turn effects trigger 2 MORE times — riding `endOfTurnExtra`, the same
       // permanent repeat counter Parliament of Flame uses (was: a start-of-shop full EoT re-trigger).
@@ -3492,6 +3495,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeMirrorMarch: f?.runeMirrorMarch, // Rune of the Mirror March: SoC summon a copy of your leftmost
     runeTrophy: f?.runeTrophy, // Rune of the Trophy: first Slaughter → a copy of the slaughterer next shop
     runeMastery: s.runeMastery, // Rune of Mastery: your Improve steps apply twice (combat half)
+    runeSpellstone: s.runeSpellstone, // Rune of the Spellstone: combat Rubies also count as spell casts
   };
 }
 

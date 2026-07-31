@@ -947,7 +947,7 @@ export interface RunState {
   questGoldTribeBuff?: { tribe: Tribe; per: number; attack: number; health: number; tick: number };
   /** War Council: the tribe whose Rallies and Slaughters trigger an extra time. */
   questTribeRallySlaughter?: Tribe;
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };
@@ -975,6 +975,8 @@ export interface RunState {
    *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
    *  — `recurringEndOfTurn` fires every turn and could not express it. */
   runeSummit?: boolean;
+  /** Rune of the Matriarch: Runebloom Matriarch's per-spell trigger fires twice. */
+  runeMatriarch?: boolean;
   /** Rune of Slaying: kills banked toward the next every-6th dominant-type minion payout. */
   runeSlayingKills?: number;
   runeSummitTick?: number;

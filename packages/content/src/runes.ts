@@ -92,7 +92,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_rallying',
     name: 'Rune of Rallying',
     cost: 5,
-    text: '**Start of Combat:** trigger your **Rally** effects.',
+    text: '**Start of Combat:** trigger your **left-most Rally** effect.',
     reward: { kind: 'combatFlag', flag: 'runeRallying' },
   },
   {
@@ -359,11 +359,13 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'gainGold', amount: 7, immediate: true },
   },
   {
+    // Owner clarification 2026-07-31: ALL of it recurs — a Gold Font (the set-1 max-Gold spell, id
+    // `manafont`) plus 2 random Shop spells, every turn.
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
     cost: 5,
-    text: 'Get **3 random Shop spells**.',
-    reward: { kind: 'grant', randomSpell: 3 },
+    text: '**End of Turn:** get a **Gold Font** and **2 random Shop spells**.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy' },
   },
   {
     // The BASIC route to Tier 7 (Summit is parked, so no rift grants it). Every 2nd shop, Discover a Tier 7
@@ -532,6 +534,16 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Beatbot** and **2 Attachments**.',
     reward: { kind: 'grant', cards: ['beatboxer'], randomFilter: 'attachment', randomFilterCount: 2 },
     sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
+  },
+  {
+    // Doubles Runebloom Matriarch's per-spell trigger — recruit-phase, where the card actually fires.
+    id: 'rune_matriarch',
+    name: 'Rune of the Matriarch',
+    cost: 5,
+    epic: true,
+    text: 'Your **Runebloom Matriarchs** trigger **twice**.',
+    reward: { kind: 'runeMatriarch' },
+    sets: ['set2'], // Runebloom Matriarch is a set-2 Beast
   },
   {
     id: 'rune_stormcalling',

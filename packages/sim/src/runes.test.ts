@@ -564,10 +564,12 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 
-  it('Rune of Quick Study: conjures 3 random spells to hand', () => {
+  it('Rune of Quick Study: arms the recurring per-turn payout, nothing immediate', () => {
+    // Owner clarification 2026-07-31: the whole payout recurs (Gold Font + 2 Shop spells, every turn) —
+    // the immediate 3-spell grant was the pre-clarification shape. The payout itself is pinned below.
     const s = buyRune('rune_quick_study', 10, { tier: 3, hand: [] });
-    const spells = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell);
-    expect(spells.length).toBe(3);
+    expect(s.questRecurringEndOfTurn).toContain('quickStudy');
+    expect(s.hand).toHaveLength(0);
   });
 
   it('Rune of Spare Parts: conjures 5 random Attachments to hand', () => {
@@ -678,6 +680,35 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(next.wave).toBe(8);
     expect(next.runeforgeEpic).toBe(true);
     expect(next.epicForgeWave).toBeUndefined(); // consumed — turn 9's visit comes from the baseline, not this
+  });
+
+  it('Rune of Quick Study: EVERY turn pays a Gold Font + 2 random Shop spells (owner clarification 2026-07-31)', () => {
+    const armed: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', hand: [],
+      questRecurringEndOfTurn: ['quickStudy'] };
+    applyEndOfTurn(armed);
+    expect(armed.hand.filter((c) => c.cardId === 'manafont')).toHaveLength(1); // the Gold Font
+    const spells = armed.hand.filter((c) => c.cardId !== 'manafont' && CARD_INDEX[c.cardId]?.spell);
+    expect(spells).toHaveLength(2);
+  });
+
+  it('Rune of the Matriarch: Runebloom Matriarch fires TWICE per Shop spell', () => {
+    const beastBoard = (): RunState['board'] => [
+      { uid: 'rb', cardId: 'b2_runebloom', tribe: 'beast', attack: 5, health: 9, keywords: [], golden: false },
+    ];
+    const cast = (runeOn: boolean): RunState => {
+      let s: RunState = { ...createRun(11), phase: 'recruit', embers: 10, runeMatriarch: runeOn || undefined,
+        board: beastBoard(), hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+      s = reduce(s, { type: 'play', uid: 'sp' });
+      return s;
+    };
+    // The Matriarch's per-cast payout is 3× (+3/+3) onto Beasts — itself the only Beast here, so its own
+    // stat gain measures the trigger count directly: doubled trigger = doubled gain over baseline.
+    // Growth itself adds +1 to the board — subtract it, or the doubling assertion double-counts the spell.
+    const base = cast(false).board[0]!;
+    const doubled = cast(true).board[0]!;
+    const matriarchGain = base.attack - 5 - 1;
+    expect(matriarchGain).toBeGreaterThan(0); // fixture: the trigger fired at all
+    expect(doubled.attack - 5 - 1).toBe(matriarchGain * 2);
   });
 
   it('Rune of Slaying: every 6 kills banks a minion of the dominant type (owner change 2026-07-31)', () => {

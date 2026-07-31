@@ -43,6 +43,9 @@ function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: numbe
   const a = (1 + rb.attack) * per * mult;
   const h = (1 + rb.health) * per * mult;
   applyRubyStats(ctx, self, target, a, h);
+  // Rune of the Spellstone: this Ruby ALSO counts as a spell cast — fire the trigger so per-spell improvers
+  // (Groveweaver, Sovereign, Guel's combat tally) advance, exactly as the recruit path counts it.
+  if (ctx.spellstoneFor?.(self.side)) ctx.castSpell(self.side);
   // Tell the TARGET a Ruby landed on it, so its own `onRubyPlayed` effects fire — the combat half of the recruit
   // `fireOnRubyPlayed`. Without this, a Geode Guardian Echo playing Rubies onto a Resonance Idol did nothing
   // (owner report 2026-07-25): the Idol's bounce existed only as a RECRUIT factory, so mid-combat Rubies had no
@@ -1461,6 +1464,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  live event so the countdown climbs; the permanent carry-back to the run card happens at settle. The
    *  Dragon buff itself fires once at Start of Combat (frozen at the seeded tally), so this only grows future
    *  combats' grant. Identical body to `spellCastTransform`, named for its own card so intent stays clear. */
+  /** Set 2 — Groveweaver / Thunderous Sovereign, COMBAT half (owner ask 2026-07-31): a spell cast IN combat
+   *  (Taragosa's Growth — or a Ruby, under Rune of the Spellstone) advances the Improve PERMANENTLY. The
+   *  accrual rides `summonBonus`, which `playerSummonBonus` already carries back to the run card, so the
+   *  printed value climbs for good — exactly like a recruit-phase cast. */
+  onSpellCastImproveSummon: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * ctx.improveRepsFor(self.side);
+    ctx.log({ type: 'improve', target: self.uid, amount: num(params.step, 1) * ctx.improveRepsFor(self.side) });
+  },
+
   spellCastImproveSelf: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;

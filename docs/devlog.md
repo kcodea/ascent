@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-07-31 — Owner follow-ups: Matriarch rune, combat casts improve Groveweaver, three clarifications
+
+**New rune — Rune of the Matriarch** (epic, 5, set 2): Runebloom Matriarchs trigger twice. A per-card repeat
+in BOTH recruit spellCast dispatch loops (the real-cast one and the Spellstone Ruby one).
+
+**Combat casts now improve the per-spell improvers PERMANENTLY** (owner screenshot: Taragosa casting Growths
+next to a Groveweaver). `onSpellCastImproveSummon` gained a combat twin — the accrual rides `summonBonus`,
+which `playerSummonBonus` already persists, so the printed value climbs for good. And under **Rune of the
+Spellstone**, a Ruby played IN combat now fires the `spellCast` trigger too (a `spellstoneFor` read on the
+CombatContext + one line in the Ruby-play primitive), so Ruby-storms advance Groveweaver exactly like spells.
+The no-rune case is pinned negative — a plain combat Ruby must NOT advance it.
+
+**Clarifications applied:** Rune of Rallying triggers the LEFT-MOST Rally only (was: every Rally); Rune of
+Quick Study recurs entirely (a Gold Font — the set-1 `manafont` spell — plus 2 random Shop spells, every
+turn); Hoardmaster Krik T5 4/7. Pure Soul stays unkeyworded pending Mike.
+
+Verified: typecheck (both), lint (7 pre-existing), 3457 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Owner batch: 16 card fixes, three rules changes, and the 98-rune audit
 
 **Card fixes.** Four gilded texts were leftovers from cards' PREVIOUS shapes (Frenzied Excavator still printed

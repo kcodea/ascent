@@ -751,6 +751,7 @@ export function simulate(
       if (side === 'player') playerCombatSpells += 1; // carried back → permanently bumps the run's spellsCast
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
+    spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
   };
 
   /**
@@ -2099,13 +2100,14 @@ export function simulate(
       }
     }
     // Rune of Rallying: trigger each minion's Rally (on-attack) effects once — a free rally without an attack.
+    // Rune of Rallying (owner clarification 2026-07-31): trigger the LEFT-MOST Rally effect only — it used
+    // to fire every Rally on the board.
     if (rmods.runeRallying) {
-      let rallyFired = false;
-      for (const minion of [...boards[rside]]) {
-        if (!canRally(minion)) continue;
+      const first = [...boards[rside]].find((m) => canRally(m));
+      if (first) {
         nextStep();
-        if (!rallyFired) { fireTrigger('runeRallying', rside); rallyFired = true; }
-        fireFreeRally(minion, rside);
+        fireTrigger('runeRallying', rside);
+        fireFreeRally(first, rside);
       }
     }
     // Empty Graves (reworked 2026-07-21): give your LEFT-MOST minion "Rally: trigger your left-most Echo".

@@ -1,5 +1,10 @@
 # ASCENT — development log
 
+## 2026-07-31 — Geode Guardian keeps Taunt; "two" not "2"
+
+Taunt restored (badge + text) and the Echo reads "summon **two** 1/1 Gemheart Golems" — the word, not the
+numeral, so no display path can mistake the fixed count for a doubleable magnitude.
+
 ## 2026-07-31 — Geode Guardian's Golems, the true season reset, and server-authoritative MMR
 
 **Geode Guardian** (1/2, Taunt gone): Echo summons **2** 1/1 Gemheart Golems with Taunt and plays a Ruby on

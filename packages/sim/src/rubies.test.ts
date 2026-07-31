@@ -32,6 +32,9 @@ describe('Ruby engine (set 2)', () => {
     expect(target.buffs?.find((b) => b.source === 'Ruby')).toMatchObject({ attack: 1, health: 1 });
     expect(s.hand.find((c) => c.uid === ruby.uid)).toBeUndefined(); // consumed
     expect(s.rubyCasts).toBe(1);
+    // A Ruby is a CARD PLAYED (owner ruling 2026-07-31: everything you literally play or cast counts) —
+    // Closing-Time Foreman and Rune of Action read this list, and the Ruby branch used to skip it.
+    expect(s.playedThisTurn).toContain(RUBY_ID);
     expect(s.spellsCast).toBe(spellsBefore); // NOT a Shop Spell — the spell-cast counter is untouched
   });
 

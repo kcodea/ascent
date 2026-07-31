@@ -43,6 +43,9 @@ function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: numbe
   const a = (1 + rb.attack) * per * mult;
   const h = (1 + rb.health) * per * mult;
   applyRubyStats(ctx, self, target, a, h);
+  // Rune of the Spellstone: this Ruby ALSO counts as a spell cast — fire the trigger so per-spell improvers
+  // (Groveweaver, Sovereign, Guel's combat tally) advance, exactly as the recruit path counts it.
+  if (ctx.spellstoneFor?.(self.side)) ctx.castSpell(self.side);
   // Tell the TARGET a Ruby landed on it, so its own `onRubyPlayed` effects fire — the combat half of the recruit
   // `fireOnRubyPlayed`. Without this, a Geode Guardian Echo playing Rubies onto a Resonance Idol did nothing
   // (owner report 2026-07-25): the Idol's bounce existed only as a RECRUIT factory, so mid-combat Rubies had no
@@ -104,14 +107,15 @@ function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: num
   // and a plain `ctx.buff` is indistinguishable from any other combat buff. Combat-local (see `rubyGain`);
   // the recruit-phase equivalent is the `Ruby` entry in `buffs`.
   target.rubyGain = { attack: (target.rubyGain?.attack ?? 0) + a, health: (target.rubyGain?.health ?? 0) + h };
-  if (!target.keywords.includes('EG')) {
-    target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
+  // Combat Rubies are TEMPORARY by rule (owner ruling 2026-07-31, off the Gemstorm rune): they persist only
+  // on an ENGRAVED minion — whose `ctx.buff` above already accrued the gain into `permaGain` — or when a card
+  // explicitly prints "permanently" (none currently does; such a card would thread a `permanent` param here).
+  // This REVERSES the earlier "Ruby buffs are always permanent" ruling that used to add `permaGain` for every
+  // recipient. `permaRuby` stays as the LABEL for the Engraved share, so the carry-back split (Ruby vs the
+  // rest, simulate ~2405) keeps attributing correctly — it must only accrue when the gain actually persists.
+  if (target.keywords.includes('EG')) {
+    target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
   }
-  // Record the RUBY share of the permanent gain. Without this the carry-back had only two labels — Engraved or
-  // Flowing Monk — so a combat Ruby showed up on the run board attributed to Flowing Monk, a card that need not
-  // even be in the run (owner report 2026-07-25). EG minions accrue the same stats through `ctx.buff`, so this
-  // is tracked for both and subtracted out at collection time.
-  target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
 }
 function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
   if (per <= 0) return;
@@ -1460,6 +1464,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  live event so the countdown climbs; the permanent carry-back to the run card happens at settle. The
    *  Dragon buff itself fires once at Start of Combat (frozen at the seeded tally), so this only grows future
    *  combats' grant. Identical body to `spellCastTransform`, named for its own card so intent stays clear. */
+  /** Set 2 — Groveweaver / Thunderous Sovereign, COMBAT half (owner ask 2026-07-31): a spell cast IN combat
+   *  (Taragosa's Growth — or a Ruby, under Rune of the Spellstone) advances the Improve PERMANENTLY. The
+   *  accrual rides `summonBonus`, which `playerSummonBonus` already carries back to the run card, so the
+   *  printed value climbs for good — exactly like a recruit-phase cast. */
+  onSpellCastImproveSummon: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * ctx.improveRepsFor(self.side);
+    ctx.log({ type: 'improve', target: self.uid, amount: num(params.step, 1) * ctx.improveRepsFor(self.side) });
+  },
+
   spellCastImproveSelf: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
@@ -2512,15 +2527,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rallyProcLeftmostEcho: (ctx, self, _params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
+    // ANY `onDeath` effect is an Echo — not just the ones whose factory id happens to start with
+    // "deathrattle". The old prefix filter is why the Stag proc'd Exgalloper via Sylus's amplifier but never
+    // directly: `echoSummonCopyNoEcho`, `summonImps`, the `echoSummon*` family were all invisible to it
+    // (owner report 2026-07-31, via Rune of Living Treasure).
     const target = ctx.living(self.side).find(
-      (m) => m !== self && m.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle')),
+      (m) => m !== self && m.effects.some((e) => e.on === 'onDeath'),
     );
     if (!target) return;
     for (let r = 0; r < mul(self); r++) {
       ctx.log({ type: 'rally', source: self.uid, target: target.uid });
       ctx.countDeathrattle?.(target.side);
       for (const effect of target.effects) {
-        if (effect.on !== 'onDeath' || !effect.do.startsWith('deathrattle')) continue;
+        if (effect.on !== 'onDeath') continue;
         FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
       }
     }
@@ -2715,7 +2734,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rallyBuffShopPermanent: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
-    ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side);
+    ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
   },
 
   /** Set 2 — Traveling Skald: whenever a FRIENDLY minion of `tribe` attacks, give IT +atk/+hp. Watches every

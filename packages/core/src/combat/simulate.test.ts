@@ -2725,10 +2725,11 @@ describe('simulate (handoff A.3)', () => {
     }
   });
 
-  it('set 2 — a Start-of-Combat Ruby cast buffs friends by base 1/1 + rubyBonus and carries back PERMANENTLY', () => {
+  it('set 2 — a Start-of-Combat Ruby cast buffs friends by base 1/1 + rubyBonus, THIS COMBAT ONLY', () => {
     // A synthetic Kobold plays 1 Ruby on your Kobolds at Start of Combat. With rubyBonus +1/+1 a Ruby is 2/2,
-    // so each Kobold gets +2/+2 — permanent (owner: Ruby buffs are always permanent), so it appears in
-    // playerPermaBuffs even though neither minion is Engraved. The neutral dummy is NOT a Kobold → untouched.
+    // so each Kobold gets +2/+2 — for the FIGHT. Combat Rubies are temporary by rule (owner 2026-07-31,
+    // REVERSING the earlier always-permanent ruling): they persist only on an Engraved minion. The neutral
+    // dummy is NOT a Kobold → untouched either way.
     const kobtest: CardDef = { id: 'kobtest', name: 'Ruby Caster', tribe: 'kobold', tier: 3, attack: 2, health: 8, keywords: [],
       effects: [{ on: 'startOfCombat', do: 'scPlayRubies', params: { count: 1, tribe: 'kobold' } }], text: '' };
     const dummy: CardDef = { id: 'kdummy', name: 'Dummy', tribe: 'neutral', tier: 1, attack: 1, health: 10, keywords: [], effects: [], text: '' };
@@ -2739,14 +2740,27 @@ describe('simulate (handoff A.3)', () => {
     ];
     const r = simulate(p, [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), cards,
       combatSide({ tier: 6, tribes: ['kobold'], rubyBonus: { attack: 1, health: 1 } }), combatSide({ tier: 1 }));
-    // The Kobold caster got its own +2/+2 (a Ruby = 1/1 + rubyBonus 1/1), carried back, NOT Engraved.
-    const kPerma = r.playerPermaBuffs?.find((b) => b.sourceUid === 'K');
-    expect(kPerma).toMatchObject({ attack: 2, health: 2, engraved: false });
-    // The neutral dummy is not a Kobold → no Ruby, no carry-back.
-    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'D')).toBe(false);
+    // The Kobold caster got its own +2/+2 IN the fight (a Ruby = 1/1 + rubyBonus 1/1)…
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+    // …but NOT permanently — it isn't Engraved, so nothing carries back. This is the assertion that flipped
+    // with the ruling; the permanent variant lives in the Engraved test below.
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'K')).toBeFalsy();
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'D')).toBeFalsy();
   });
 
-  it('set 2 — an Avenge Ruby cast fires on a friendly death and carries back permanently', () => {
+  it('set 2 — the SAME Ruby cast on an ENGRAVED minion DOES carry back (the one sanctioned path)', () => {
+    const kobtest: CardDef = { id: 'kobtest', name: 'Ruby Caster', tribe: 'kobold', tier: 3, attack: 2, health: 8, keywords: ['EG'],
+      effects: [{ on: 'startOfCombat', do: 'scPlayRubies', params: { count: 1, tribe: 'kobold' } }], text: '' };
+    const cards = { ...CARD_INDEX, kobtest };
+    const r = simulate([{ cardId: 'kobtest', attack: 2, health: 8, sourceUid: 'K' }],
+      [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), cards,
+      combatSide({ tier: 6, tribes: ['kobold'], rubyBonus: { attack: 1, health: 1 } }), combatSide({ tier: 1 }));
+    // Engraved accrues every combat buff — including the Ruby — into permaGain, labelled as the Ruby share.
+    const perma = r.playerPermaBuffs?.filter((b) => b.sourceUid === 'K') ?? [];
+    expect(perma.some((b) => b.ruby && b.attack >= 2 && b.health >= 2), 'the Engraved Ruby share did not carry back').toBe(true);
+  });
+
+  it('set 2 — an Avenge Ruby cast fires on a friendly death and buffs THIS COMBAT (no carry-back)', () => {
     const gemtest: CardDef = { id: 'gemtest', name: 'Gem Avenger', tribe: 'kobold', tier: 6, attack: 2, health: 100, keywords: [],
       effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 1, rubies: 1 } }], text: '' };
     const sac: CardDef = { id: 'gsac', name: 'Sac', tribe: 'kobold', tier: 1, attack: 1, health: 1, keywords: [], effects: [], text: '' };
@@ -2757,12 +2771,10 @@ describe('simulate (handoff A.3)', () => {
     ];
     const r = simulate(p, [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), cards,
       combatSide({ tier: 6, tribes: ['kobold'], rubyBonus: { attack: 1, health: 1 } }), combatSide({ tier: 1 }));
-    // The sac dies → Avenge(1) plays 1 Ruby (2/2 with the +1/+1 bonus) on every living Kobold → the tanky
-    // caster carries it back permanently (carry-back survives even if it later dies — see the Taurus case).
-    const gPerma = r.playerPermaBuffs?.find((b) => b.sourceUid === 'G');
-    expect(gPerma).toBeDefined();
-    expect(gPerma!.attack).toBeGreaterThanOrEqual(2); // ≥ one Ruby (2/2)
-    expect(gPerma!.attack % 2).toBe(0);
+    // The sac dies → Avenge(1) plays 1 Ruby (2/2 with the +1/+1 bonus) on every living Kobold — visible as a
+    // combat buff, but temporary: not Engraved, so nothing reaches playerPermaBuffs (owner ruling 2026-07-31).
+    expect(r.events.some((e) => e.type === 'buff' && e.target && e.attack === 2 && e.health === 2)).toBe(true);
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'G')).toBeFalsy();
   });
 
   it('set 2 — Gemline Martyr: Avenge gets a Ruby AND plays Rubies on the LEFT-MOST minion', () => {
@@ -2779,8 +2791,10 @@ describe('simulate (handoff A.3)', () => {
     ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), cards,
       combatSide({ tier: 3, tribes: ['kobold'] }), combatSide({ tier: 1 }));
     expect(r.playerRubyGrants).toBeGreaterThanOrEqual(1); // got a Ruby (to hand)
-    // 2 Rubies (1/1 each, no bonus) played on the left-most survivor (GM) → +2/+2 carried back.
-    expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'GM')).toMatchObject({ attack: 2, health: 2 });
+    // 2 Rubies (1/1 each, no bonus) played on the left-most (GM) — one +2/+2 combat buff (`per` folds the
+    // count into a single application), temporary (not Engraved).
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'GM')).toBeFalsy();
   });
 
   it('set 2 — Frenzied Excavator scales its Start-of-Combat Ruby play with cards bought this turn', () => {
@@ -2790,8 +2804,9 @@ describe('simulate (handoff A.3)', () => {
     const r = simulate([{ cardId: 'frtest', attack: 6, health: 50, sourceUid: 'F' }],
       [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), cards,
       combatSide({ tier: 5, tribes: ['kobold'], cardsBoughtThisTurn: 8 }), combatSide({ tier: 1 }));
-    // 8 cards / 4 = 2 steps × 1 Ruby = 2 Rubies (2/2 total, no rubyBonus) → carried back.
-    expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
+    // 8 cards / 4 = 2 steps × 1 Ruby = 2 Rubies (2/2 total in ONE folded buff, no rubyBonus) — temporary.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'F')).toBeFalsy();
   });
 
   it('set 2 — Thunderous Sovereign: Start of Combat triggers your Dragons’ Shouts', () => {
@@ -2960,7 +2975,9 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'gdnb', attack: 1, health: 100, sourceUid: 'NB' }, // right neighbour, survives
     ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, gdtest, gdnb },
       combatSide({ tier: 2, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'NB')).toBe(true); // neighbour got a Ruby, carried back
+    // The neighbour got the Ruby as a combat buff; nothing carries back (not Engraved — owner 2026-07-31).
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 1)).toBe(true);
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'NB')).toBeFalsy();
   });
 
   it('set 2 — Crownvein Vanguard: Rally buffs your Rubies AND plays Rubies on Kobolds', () => {
@@ -2976,8 +2993,10 @@ describe('simulate (handoff A.3)', () => {
     ], [{ cardId: 'sandbag', attack: 1, health: 400 }], makeRng(3), { ...CARD_INDEX, cvtest, cvk2 },
       combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
     expect(r.playerRubyBonusGain?.attack).toBeGreaterThanOrEqual(1); // Rally buffed your Rubies
-    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'CV')).toBe(true); // played a Ruby on the first 2 Kobolds
-    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'K2')).toBe(true);
+    // The Rubies landed on the Kobolds as combat buffs — temporary now (not Engraved; owner 2026-07-31).
+    expect(r.events.some((e) => e.type === 'buff' && e.attack >= 1 && e.health >= 1)).toBe(true);
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'CV')).toBeFalsy();
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'K2')).toBeFalsy();
   });
 
   it('set 2 — Faultline Scrapper: taking damage raises your Ruby strength (carried back)', () => {
@@ -3786,14 +3805,14 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     expect(withFC.events.some((ev) => ev.type === 'attack')).toBe(true);
   });
 
-  it('Packcraft: summoning a BEAST buffs your Beasts +1/+1 — and a non-Beast summon does not', () => {
+  it('Packcraft: summoning a BEAST buffs your Beasts +2/+2 — and a non-Beast summon does not', () => {
     // Mama Pup dies → its Deathrattle summons 2 Pups (Beasts) → Packcraft fires → Beasts get +1/+1.
     const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, { cardId: 'pack', attack: 1, health: 1 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
     const r = simMods(p, e, 1, { runePackcraft: true });
     const packBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft');
     expect(packBuffs.length).toBeGreaterThan(0);
-    expect(packBuffs.every((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true); // +1/+1, not +1/+0
+    expect(packBuffs.every((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true); // +2/+2 (owner sheet 2026-07-31)
     // Spearline summons a Spear Warden (NOT a Beast) — that summon alone must not fire Packcraft.
     const p2: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, ...Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }))];
     const r2 = simMods(p2, e, 1, { runeSpearline: true, runePackcraft: true });
@@ -4027,20 +4046,18 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
     simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
-  it('Rune of Rebirth: Start of Combat grants Rise to 2 random friendly minions', () => {
-    // Three vanilla bodies, none with Rise; the rune hands exactly two of them the R keyword up front.
-    const p: BoardMinion[] = [
-      { cardId: 'sandbag', attack: 1, health: 20 },
-      { cardId: 'sandbag', attack: 1, health: 20 },
-      { cardId: 'sandbag', attack: 1, health: 20 },
-    ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 40 }];
+  it('Rune of Rebirth: SoC grants ONE random minion the exact-copy Echo (owner sheet 2026-07-31)', () => {
+    // A fragile body: when the Echo lands on it and it dies, an exact copy (current stats) re-summons.
+    // Rise is gone from this rune — Rise returned the PRINTED body, the same defect Living Treasure had.
+    const p: BoardMinion[] = [{ cardId: 'drummer', attack: 3, health: 4 }];
+    const e: BoardMinion[] = [{ cardId: 'drummer', attack: 5, health: 40 }];
     const r = simMods(p, e, 1, { runeRebirth: true });
-    const grants = r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'R');
-    expect(grants.length).toBe(2); // exactly 2, and to distinct bodies
-    expect(new Set(grants.map((ev) => (ev.type === 'keyword' ? ev.target : ''))).size).toBe(2);
+    expect(r.events.some((ev) => ev.type === 'sc' && /gains an Echo/.test(ev.text ?? ''))).toBe(true);
+    // The body dies → the grafted Echo re-summons a copy of it.
+    const resummon = r.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'drummer');
+    expect(resummon.length, 'the Echo should re-summon the body once').toBe(1);
     const without = simMods(p, e, 1, {});
-    expect(without.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R')).toBe(false);
+    expect(without.events.some((ev) => ev.type === 'summon')).toBe(false);
   });
 
   it('Rune of Aftershocks: TRIGGERING an Echo buffs your board +4/+4', () => {
@@ -4070,18 +4087,18 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
     expect(knit && knit.type === 'summon' ? knit.minion.attack : 0).toBe(CARD_INDEX['knit']!.attack);
   });
 
-  it('Rune of the Undertow: an Echo-summoned token attacks immediately (before the next normal swing)', () => {
-    // Pack dies to the tanky enemy; its Pups summon and each strikes out-of-turn right after landing.
+  it('Rune of the Undertow: minions summoned in combat arrive with WARD (owner sheet 2026-07-31)', () => {
+    // Pack dies; its Pups summon — each must carry Ward in its summon snapshot (granted pre-emit).
     const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
     const r = simMods(p, e, 1, { runeUndertow: true });
-    const evs = r.events;
-    const pupSummonIdx = evs.findIndex((ev) => ev.type === 'summon' && ev.minion?.cardId === 'pup');
-    expect(pupSummonIdx).toBeGreaterThanOrEqual(0);
-    const pupUid = (() => { const ev = evs[pupSummonIdx]!; return ev.type === 'summon' ? ev.minion.uid : ''; })();
-    // The very next attack event after the pup lands is the pup's own immediate strike.
-    const nextAttack = evs.slice(pupSummonIdx + 1).find((ev) => ev.type === 'attack');
-    expect(nextAttack && nextAttack.type === 'attack' ? nextAttack.attacker : '').toBe(pupUid);
+    const pups = r.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'pup');
+    expect(pups.length).toBeGreaterThan(0);
+    expect(pups.every((ev) => ev.type === 'summon' && ev.minion.keywords.includes('DS')),
+      'a combat summon arrived without Ward').toBe(true);
+    const without = simMods(p, e, 1, {});
+    const bare = without.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'pup');
+    expect(bare.every((ev) => ev.type === 'summon' && !ev.minion.keywords.includes('DS'))).toBe(true);
   });
 
   it('Rune of the Mirror March: SoC summons an exact copy of the leftmost minion (current stats)', () => {

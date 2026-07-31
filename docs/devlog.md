@@ -1,5 +1,254 @@
 # ASCENT — development log
 
+## 2026-07-31 — Full spell-art re-wire; the wire script gains a SPELLS job
+
+The owner reworked a batch of spell art, so `art:wire` grew its fourth job: every spell + Ruby by name from
+the Spells source folder, same strict-match/alias/report pipeline as minions and runes. 78 matched (aliases
+for four attributed drifts: Ironclad Requisition's shortened id, Pre-emptive Assault filed as "Attack",
+Rival's Reflection's plural, and the Triple Reward token's `discoverspell` id). One file stays deliberately
+unmatched: **Cupcakes.png** — no card by that name exists; flagged to the owner. Also normalizes the whole
+spell art set to the 512px png+webp pair convention.
+
+Verified: typecheck, lint (7 pre-existing), build:web.
+
+## 2026-07-31 — Three runes, seven spells, and the gold "(temporary)" grant display
+
+**Runes.** Rune of Contraband (basic 2, set 2): the first Ruby each turn pays a random Ale and the first Ale
+pays a Ruby — two per-turn latches beside Gemscript's. Rune of Cadence (epic 3): buying a minion arms a
+1-Gold discount on the next Shop spell and casting a Shop spell arms one on the next minion — the armed flags
+persist until spent, ride `spellCostReduction` and the minion buy path, and the shop's price coins show the
+live discounted number. Rune of Gemscript (epic 4, set 2): the first Shop spell each turn raises RUBY power
++1/+1 (run bonus + held Rubies) and the first Ruby raises SPELL power +1/+1.
+
+**Spells.** Set-agnostic: Decoy Sigil (T4/2 — banks a next-combat Training Dummy, summoned far right by the
+Brood slot-filler machinery the first time the board has room; new 1/1 Taunt+Ward token), Weaken (T5/3 — SoC
+sets a random enemy to 1 Health, seeded), Quick Study (T4/3 — spell power +1/+1; distinct from the RUNE of the
+same name). Set-2 only (owner correction: Ales/Rubies are set-2 currencies): On the House (T5/4 — 3 random
+Ales), Ruby Excavation (T6/3 — 2 Rubies on every friendly minion), plus the two Dwarf steal spells — Deep
+Delve Writ (T3/2 — steal a random Dwarf from the Shop) and Ironclad Requisition (T6/7 — steal a random Shop
+card per friendly Dwarf). "Steal" is a free buy: `offerBuyStats` folds the offer's buffs in. The sets
+leak-tripwire had to be told about all four — exactly its job.
+
+**Temporary grants show themselves** (owner ask): a next-combat spell (Last Stand, Field Maneuvers,
+Executioner's Edge) now tags its target — the spell's name in gold parentheses in the card text (a new
+`((…))` → `.desctemp` marker, static color), a 0/0 entry in the buff list, and the promised keyword badge
+previewing on the minion. All of it is spent in `faceOmen` alongside the real keyword bank. Live-verified in
+the DOM (gold #e7c14d span rendering on a staged board).
+
+All new-spell/rune art wired (the three rune arts + seven spell arts were authored ahead by the owner).
+
+Verified: typecheck (both), lint (7 pre-existing), 3471 tests, build:web, harness determinism, live DOM.
+
+## 2026-07-31 — Eight stat moves, Runekeg's self-exclusion, and the free once-per-game re-roll
+
+Stats/tiers (owner batch): Runefire T6 6/9, Demon Horse T3 3/3, Broodwright T3 2/5, Warhorn Captain T2 3/2,
+Brunni T2 2/1, Runekeg T3, Frenzied Excavator T4 4/3, Lastlight T3 3/2.
+
+Runekeg reads "**other** Dwarves" now and can no longer buff itself — an `excludeSelf` param on the shared
+`onSpellCastBuffRandomTribe` factory (Runebloom Matriarch keeps self-inclusion). Pinned both ways: alone the
+keg gets nothing; with an ally, the ally gets the +2/+2 and the keg still doesn't.
+
+**Runeforge re-rolls are FREE, once per GAME** (was: 2 Gold, once per visit): re-rolling the basic forge
+forfeits the epic forge's re-roll. A run-level `runeforgeRerollUsed` beside the per-visit flag; the UI button
+says "Free", hides once spent, and its tooltip states the trade-off.
+
+Verified: typecheck (both), lint (7 pre-existing), 3459 tests, build:web, harness determinism.
+
+## 2026-07-31 — Minion art re-wire (owner batch)
+
+Full re-run of `art:wire --apply` over the Set 2 Minions source after the owner's changes. Four minions
+actually changed — Runebloom Matriarch, Solaris Fang, Filing Clerk, Legion Shepherd — plus the new Rune of the
+Matriarch art (authored alongside the rune added earlier today). 144 minions matched, 0 missing, art complete
+across minions AND runes. Verified: build:web.
+
+## 2026-07-31 — Owner follow-ups: Matriarch rune, combat casts improve Groveweaver, three clarifications
+
+**New rune — Rune of the Matriarch** (epic, 5, set 2): Runebloom Matriarchs trigger twice. A per-card repeat
+in BOTH recruit spellCast dispatch loops (the real-cast one and the Spellstone Ruby one).
+
+**Combat casts now improve the per-spell improvers PERMANENTLY** (owner screenshot: Taragosa casting Growths
+next to a Groveweaver). `onSpellCastImproveSummon` gained a combat twin — the accrual rides `summonBonus`,
+which `playerSummonBonus` already persists, so the printed value climbs for good. And under **Rune of the
+Spellstone**, a Ruby played IN combat now fires the `spellCast` trigger too (a `spellstoneFor` read on the
+CombatContext + one line in the Ruby-play primitive), so Ruby-storms advance Groveweaver exactly like spells.
+The no-rune case is pinned negative — a plain combat Ruby must NOT advance it.
+
+**Clarifications applied:** Rune of Rallying triggers the LEFT-MOST Rally only (was: every Rally); Rune of
+Quick Study recurs entirely (a Gold Font — the set-1 `manafont` spell — plus 2 random Shop spells, every
+turn); Hoardmaster Krik T5 4/7. Pure Soul stays unkeyworded pending Mike.
+
+Verified: typecheck (both), lint (7 pre-existing), 3457 tests, build:web, harness determinism.
+
+## 2026-07-31 — Owner batch: 16 card fixes, three rules changes, and the 98-rune audit
+
+**Card fixes.** Four gilded texts were leftovers from cards' PREVIOUS shapes (Frenzied Excavator still printed
+its old Start-of-Combat scaler — and wore the SC badge for it; Embermouth Whelp, Water Dragon, Moonlit
+Scavenger). Stats: Traveling Skald 2/4, Packstrider 2/2, Big Huggies T4 + Taunt, Soul Defiler 6/6 T5, Runic
+Archivist T5 5/5. Market Tormentor's slot buff is +4/+2 (+8/+4 gilded). Ashen Broodlord reworked: the first 2
+times a friendly Demon Consumes a SHOP minion each turn pays a random Shop spell — keyed on a new `shop` flag
+in the consume payload, since a Fodder eat fires the same event and must not count.
+
+**Combat Rubies are TEMPORARY now** (owner ruling off the Gemstorm rune, REVERSING "Ruby buffs are always
+permanent"): they persist only on an Engraved minion. One line in `applyRubyStats`; six tests flipped from
+asserting the old rule, plus a new one proving the Engraved path still carries back.
+
+**Everything played counts as a card played.** The Ruby branch was the one hand-consuming path that never
+pushed into `playedThisTurn`, so Closing-Time Foreman and Rune of Action undercounted every Ruby. Also
+stripped the `_italics_` underscores that printed literally on Foreman/Dorrin (the Card renderer only knows
+bold).
+
+**Warding Rubies** grant Ward only to a KOBOLD target now, with matching text on both display paths.
+
+**Rune of Living Treasure was granting Rise, not the exact-copy Echo** — Rise resummons the PRINTED body,
+which is why a 7/3 shard came back a 1/1. It now grafts Exgalloper's `echoSummonCopyNoEcho` (current stats),
+and the graft is visible to Echo-amplifiers. Which exposed the Echohorn Stag bug: its Rally only matched
+effects whose factory id STARTS WITH "deathrattle", so `echoSummonCopyNoEcho`, `summonImps` and the whole
+`echoSummon*` family were invisible to it (Sylus worked — his amplifier uses `extraTriggerFires`). The filter
+is now "any `onDeath` effect". Found + fixed a double-registration on the graft (the summon path registers
+`minion.effects` itself; registering explicitly summoned TWO copies per death) — the chain-termination test
+caught it.
+
+**The rune audit** (owner's 98-row sheet vs the game): 24 changes landed. Highlights — Rouge Rogue-class
+finds: Rune of the Epic Forge did NOTHING (it scheduled the epic forge for wave 9, where the systemic baseline
+already opens one; now turn 8 per the owner). Reworks: Slaying (every 6 kills → a dominant-type minion, from
+max-Gold-per-Slaughter), Second Path (two T6 Discovers set to 20/20 — `DiscoverSpec.setStats` is new),
+Champion (T4+T5+T6 Discovers of the dominant tribe), Conductor (EoT ×3 via `endOfTurnExtra`, from a
+start-of-shop re-trigger), Undertow (combat summons gain Ward, from echo-summons-charge), Forthcoming (SoC
+left-most attacks immediately + Ward, from always-attack-first), Rebirth (ONE random minion gains the
+exact-copy Echo, from 2× Rise), Recurrence (recasts twice), Double Fisting (3 Ales EVERY turn), Gemcutting
+(7 Rubies at a fixed 3/3 — `mintRubies` grew a stat override), Quick Study left as-is pending owner wording.
+Values: Broodpit + Appraisal Avenge 4→3, Scales +2/+2, Packcraft +2/+2, Summit every 3rd shop, Stormcalling
+ungilded. Names: Bulk Order stays (the owner re-confirmed over the sheet). All 16 tests pinning old behaviour
+rewritten to the sheet.
+
+**Rune art is COMPLETE** — the owner authored the last 8; the wire script needed a full-stem alias (the
+set-2 Menagerie twin's `...2.png` was being eaten by the `2`-variant convention) and its missing-art report
+stripped a trailing `2` off ids, permanently mis-reporting `rune_menagerie_set2`. 0 runes without art.
+
+Verified: typecheck (both), lint (7 pre-existing), 3452 tests, build:web, harness determinism.
+
+## 2026-07-31 — Set 2 wiring audit: a dead card effect, a wrong-turn copy, and six stale texts
+
+A systematic pass over every Set-2 effect: is it registered where its trigger fires, does its combat form emit
+events the replay animates, does every carry-back channel get applied at settle, and does every
+state-dependent text print its live value. Methodology: inventoried all ~130 (trigger, effect) pairs from the
+card data, cross-checked each against the combat/recruit factory tables, scanned every combat factory body for
+silent stat mutations (none — all go through `ctx.buff`), and diffed every `CombatResult.player*` field
+against its settle application (all applied; `playerQuestEvents` is UI-consumed by the replay's quest ticker).
+
+**Rouge Rogue was wired to the wrong effect entirely.** Its printed rule — "whenever an Imp attacks, +3/+3
+this combat, improving every 3 Imp attacks" — had a fully-built, schema-registered combat factory
+(`onImpAttackBuffImps`) that NO card referenced. The card carried `spellCastBuffImps` instead: a recruit-phase
+per-spell +1/+1. Re-wired; and because the escalation rides `summonBonus` (the same field the PERMANENT
+improvers use), `simulate`'s carry-back now excludes it so "this combat" stays true. Fixture note: proving the
+escalation took three tries — Target Dummy gains +1 Attack per hit and snowballed the Imps dead, and Legion
+Shepherd's Imps are an Echo that never fires against a harmless wall. The test now uses Imp Wranglers
+(Start-of-Combat summons) against an inert Drummer.
+
+**Recaller copied the wrong turn's spell.** Its rule says "the last Shop spell you cast this turn", but the
+factory read `lastSpellCastId` — run-lifetime state (Steward of Spells needs that one) — so on a turn with no
+casts it quietly copied a previous turn's spell. A per-turn `lastSpellThisTurnId` now backs it, reset beside
+its first-spell sibling.
+
+**Six texts now print what they actually do** (the live-text hard rule): King Oona and Broodwright fold their
+Avenge-improved summon grant; Rouge Rogue folds its per-combat escalation; the three Dragon copiers (Recaller,
+Spellvault Drake, Spell Warden) name the ACTUAL spell they will hand over; Reinforcing Ale and Tribe Portal
+(set 1, same resolver) name the most-common type they would give right now. Verified live in the DOM with a
+staged throwaway run — which caught two things the tests couldn't: the `live` useMemo in Recruit was missing
+deps for the new fields (and for `topTribe`'s board dependency), and my first pass keyed the type-namer to the
+wrong spell id (a stale grep said Ruby Shipment; the DOM said Reinforcing Ale).
+
+Also confirmed as CORRECT, no change: all 40 Set-2 combat factories emit through animating channels; every
+carry-back passes a `sourceUid` telegraph except `grantBonusGold` and Mushy's next-turn copy queue, which are
+silent in Set 1 too (parity, noted for a future cue pass); the Imp buff cues via `tribeAura`; shop-offer
+spells now get the same live-text extras the hand path had.
+
+Verified: typecheck (both), lint (7 pre-existing), 3446 tests, build:web, harness determinism, live DOM.
+
+## 2026-07-31 — Market Tormentor, third shape: a permanent right-most SLOT buff
+
+My per-refresh restore earlier today was still wrong — the owner's full spec: a SHOUT that buffs the
+right-most Shop SLOT +4/+4 for the rest of the run. It lands on the current shop when played, re-lands on
+every fresh roll's right-most, STACKS (two normals + a gilded = +16/+16), and does NOT need the Tormentor on
+board — the slot remembers, not the minion.
+
+So the state moved from the board to the run: `rightmostSlotBuff` accumulates per Shout, the Shout applies its
+INCREMENT to the current row (earlier stacks already landed there), and `applyShopRefreshed` applies the full
+total to each fresh roll. The factory id is renamed `buffRightmostSlotPermanent` — the old name described a
+trigger the effect no longer has. The two-pass BUFF_FIRST loop in `applyShopRefreshed` is gone: it existed
+solely to run this effect's board watcher before consuming watchers, and now that the buff is run-level state
+applied at the top of the function, the position IS the ordering. Hellrider still eats the buffed body — that
+rule (owner 2026-07-25) has a test pinning it via `shopEaten`, which records stats as-eaten.
+
+Tests now quote the owner's spec verbatim, including his worked +16/+16 example — the previous two rewrites
+each pinned the then-current implementation, which is how a regression passed CI for two days.
+
+Verified: typecheck (both), 3442 tests.
+
+## 2026-07-31 — Market Tormentor fires on every refresh again
+
+The owner reported the buff "not working properly". It had been changed from a per-refresh trigger to a
+one-shot Shout on 2026-07-29 — so it bought itself ONE buffed offer on play and then did nothing for the rest
+of the run, which is not a tier-4 body. Moved back to `on: 'shopRefreshed'`; the factory is trigger-agnostic,
+so only the event and the text changed.
+
+Everything downstream had stayed wired for the per-refresh path the entire time it was unreachable:
+`applyShopRefreshed`'s two-pass buff-before-consume ordering names `shopRefreshedBuffRightmost` by id so a
+Hellrider eats the BUFFED body, and the turn-start deal counts as a refresh. None of it was running.
+
+Confirmed the owner's two other requirements rather than assuming them: PERMANENT (the buff rides the offer
+into the bought minion via `offerBuyStats`, so it survives the shop rolling away) and STACKING (`addOfferBuff`
+accumulates per source, so two Tormentors give +8/+8 and a golden gives +8/+8). Both now have tests.
+
+**Worth naming:** the test that should have caught this was `does NOT fire on a refresh any more` — it passed
+for two days while the card was broken, because it had been rewritten to expect the broken behaviour. The
+replacements asserted the owner's spec in his words instead of the code's current shape.
+
+Verified: typecheck (both), lint (7 pre-existing), 3441 tests, build:web.
+
+## 2026-07-31 — Gilding keeps the accrual, Orivax counts from play, the Shop buff telegraphs
+
+**Gilding no longer resets to base** (owner report: a Soul Defiler granting +4/+4 gilded into +2/+2).
+`checkTriples` preserved a grown magnitude through three per-card branches, each keyed to its own whitelist —
+and any accruing effect on NONE of those lists fell through to `undefined`, so the golden started from base. Six
+effects were affected, and because the lists are opt-in, every NEW accruing effect inherited the bug.
+
+Added a final branch covering the rest, combining the two highest copies — the Karthus / Crypt Drake rule,
+which was the owner's instruction: follow the lead already set rather than invent a fourth. `ACCRUES_SUMMON_BONUS`
+now sits beside the merge so the two are read together.
+
+Two effects are DELIBERATELY excluded: `overflowBuffRandom` (Flowing Monk) and `spellCastImproveSelf` (Runescale
+Drake) also write `summonBonus`, but each already has its own merge — `overflowBonus` and `spellProgress`. Listing
+them double-counted and broke Flowing Monk's "countdown starts fresh" rule; its existing test caught that.
+
+**Orivax counts from when it is PLAYED**, not the turn's first spell. It gated on `spellsThisTurn === 0`, so
+playing it after casting a spell gave nothing until next turn — the card did less the later in a turn you
+played it, the opposite of how a tempo card should read. `spellMultMark` records the count at install.
+
+**The Shop buff earned in combat now telegraphs.** `gainTavernBuy` accumulated with no cue at all and only
+surfaced in the next shop. It takes a `sourceUid` and emits the same `sc` narration spell power and Ruby power
+use, with a matching replay hook.
+
+**And a correction to my own first pass:** I had also added a telegraph to `grantImpBuff` — but that path
+already emits `tribeAura`, which the replay blooms as the board aura-wash. It was never silent, and a second cue
+would have double-announced one gain. Reverted, including the parameter, rather than left as an unused arg.
+
+Verified: typecheck (both), lint (7 pre-existing), 3439 tests, build:web, harness determinism.
+## 2026-07-31 — Rune of the High King shipped twice; the validator now forbids the whole class
+
+Owner report with screenshot: the Compendium showed Rune of the High King five times. The data had it TWICE —
+two byte-identical entries in `EPIC_RUNES` (the second landed in the 96-rune batch, #762) — and nothing could
+notice: `RUNE_INDEX` silently collapses duplicate ids, and the Compendium's gallery keys by `rune.id`, so the
+duplicate React keys smeared stale card nodes across the grid as the search re-rendered (2 in the data, 5 on
+screen). The Runeforge could also legitimately stock the rune twice, since its offer draws from the raw array.
+
+Removed the duplicate, and made `validateRunes` reject the class rather than the instance: duplicate ids
+throw, and duplicate NAMES throw *within a set scope*. Not globally — the first draft did that and instantly
+tripped over Rune of the Menagerie, which deliberately exists twice under one name (a set-1 and a set-2 twin
+with disjoint `sets`, so no run can be offered both). The validator now encodes exactly that rule, and the
+test pins both directions: a same-set name dupe throws, the Menagerie twins pass.
+
+Verified: typecheck (both), lint (7 pre-existing), 3434 tests, build:web.
 ## 2026-07-30 — the damage numbers were never above the effects, and two nested stacking contexts were why
 
 **Owner report: the `death-dissolve` effect plays *over* the damage number.** True, and not specific to that

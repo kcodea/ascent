@@ -222,6 +222,10 @@ export interface BoardCard {
   /** Set 2 — Spellkeeper Drake: SHOP SPELLS cast this turn WHILE this minion has been on board, and the id of
    *  the first such spell. Per-instance (a Spellkeeper played mid-turn counts from its own placement, not turn
    *  start — owner 2026-07-24). Reset each turn; a fresh card starts at 0/undefined, so placement is the floor. */
+  /** Next-combat spell grants on this minion (Last Stand's Rise, …) — display-only in the shop: the label
+   *  prints gold-parenthesized in the card text + buff list, and the keyword badge previews. `faceOmen`
+   *  stamps the REAL grant from `pendingCombatKeywords` and clears these. */
+  tempGrants?: { label: string; keyword: string }[];
   boardSpellCount?: number;
   boardFirstSpellId?: string;
   /** Set 2 — Moonhowl Mentor's Mage-Pup: the SHOP SPELL this token was taught. Its Shout casts that spell, so
@@ -264,7 +268,7 @@ export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby';
 
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean }
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
   | { kind: 'pool'; ids: string[]; borrowed?: boolean };
 
@@ -462,6 +466,11 @@ export interface RunState {
   /** Lifetime count of SHOP minions your Demons have Consumed — the `consumeShopMinion` objective's meter.
    *  Separate from the Fodder tally: the two consume mechanics must not fill each other's quests. */
   shopMinionsEaten?: number;
+  /** Market Tormentor: the accumulated right-most-SLOT buff. Run-level on purpose — the owner's spec is that
+   *  the buff outlives the Tormentor (a Shout, not an aura), stacks across plays, and re-lands on the
+   *  right-most minion of every fresh roll. Applied incrementally to the CURRENT shop at Shout time and in
+   *  full to each new roll (`applyShopRefreshed`). */
+  rightmostSlotBuff?: { attack: number; health: number };
   /** Endless Inventory: after each shop refresh, buff the shop — and improve the magnitude by `step` every
    *  `per` refreshes. `grown` is the accrued improvement, `tick` the progress toward the next step. */
   shopBuffOnRefresh?: { attack: number; health: number; step: number; per: number; grown: number; tick: number };
@@ -471,6 +480,10 @@ export interface RunState {
   /** Steward of Spells: the id of the most recent spell cast this run (persists across turns until the next
    *  cast). Absent until a spell is cast. */
   lastSpellCastId?: string;
+  /** The last Shop spell cast THIS TURN (reset each wave) — Recaller's copy target. Distinct from
+   *  `lastSpellCastId`, which is run-lifetime (Steward of Spells): Recaller's printed rule says "this turn",
+   *  and reading the run-lifetime field made it copy LAST turn's spell on a turn where none was cast. */
+  lastSpellThisTurnId?: string;
   /** Player-side Deathrattles triggered across the whole run — Grim's buff scales with this. */
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */
@@ -901,6 +914,9 @@ export interface RunState {
    *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than
    *  clobber, and read gated on `spellsThisTurn === 0` so it stays side-effect-free in the UI's cast preview. */
   spellFirstMultEachTurn?: number;
+  /** Orivax (Spellweave): the spells-this-turn count when it was PLAYED. Its multiplier applies while the
+   *  count is still at this mark, so playing it mid-turn still multiplies your next spell. Reset each turn. */
+  spellMultMark?: number;
   spellFirstUsedThisTurn?: boolean;
   /** Set 2 — Living Grimoire: the multiplier its charge applies to the FIRST spell of a turn (2 base, 3 golden).
    *  Absent/0 = discharged. Run-level rather than per-instance because `spellCasts` — which the UI also calls to
@@ -935,7 +951,7 @@ export interface RunState {
   questGoldTribeBuff?: { tribe: Tribe; per: number; attack: number; health: number; tick: number };
   /** War Council: the tribe whose Rallies and Slaughters trigger an extra time. */
   questTribeRallySlaughter?: Tribe;
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };
@@ -957,10 +973,35 @@ export interface RunState {
   discoverLockWave?: number;
   /** Funeral on Loan: the OPEN Discover hands its pick over BORROWED (play → trigger Echo + destroy). */
   discoverBorrowed?: boolean;
+  /** Rune of the Second Path: the queued Discover's pick has its stats OVERWRITTEN to this line (20/20). */
+  discoverSetStats?: { attack: number; health: number };
   /** Rune of the Summit: armed on purchase; `runeSummitTick` counts shops opened since, and every 2nd one
    *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
    *  — `recurringEndOfTurn` fires every turn and could not express it. */
   runeSummit?: boolean;
+  /** Rune of Contraband: first Ruby cast each turn → a random Ale; first Ale cast each turn → a Ruby. */
+  runeContraband?: boolean;
+  contrabandRubyUsed?: boolean;
+  contrabandAleUsed?: boolean;
+  /** Rune of Cadence: buying a minion arms a 1-Gold discount on the next Shop spell, and casting a Shop
+   *  spell arms one on the next minion. The armed flags persist until spent (not turn-scoped). */
+  runeCadence?: boolean;
+  cadenceSpellOff?: boolean;
+  cadenceMinionOff?: boolean;
+  /** Rune of Gemscript: first Shop spell each turn → Ruby power +1/+1; first Ruby each turn → spell power +1/+1. */
+  runeGemscript?: boolean;
+  gemscriptSpellUsed?: boolean;
+  gemscriptRubyUsed?: boolean;
+  /** Decoy Sigil casts banked for the NEXT combat (each = one Training Dummy slot-filler). */
+  pendingDecoys?: number;
+  /** Weaken casts banked for the NEXT combat (each = one random enemy set to 1 Health at SoC). */
+  pendingWeaken?: number;
+  /** The run's ONE free Runeforge re-roll is spent (owner 2026-07-31: rerolls are free, once per game). */
+  runeforgeRerollUsed?: boolean;
+  /** Rune of the Matriarch: Runebloom Matriarch's per-spell trigger fires twice. */
+  runeMatriarch?: boolean;
+  /** Rune of Slaying: kills banked toward the next every-6th dominant-type minion payout. */
+  runeSlayingKills?: number;
   runeSummitTick?: number;
 
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted

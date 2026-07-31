@@ -55,6 +55,19 @@ describe('set 2 — Dragon effects', () => {
     expect(s.hand.filter((c) => c.cardId === 'growth').length).toBe(1);
   });
 
+  it("Recaller: \"this turn\" means THIS turn — last turn's spell is not a target (audit 2026-07-31)", () => {
+    // The factory read `lastSpellCastId`, which is run-LIFETIME (Steward of Spells needs that one) — so on a
+    // turn with no casts, the Shout quietly copied a spell from a previous turn. The printed rule says "this
+    // turn"; a per-turn record (`lastSpellThisTurnId`) now backs it, reset with its first-spell sibling.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20, board: [],
+      lastSpellCastId: 'growth', // a PREVIOUS turn's cast — run-lifetime state, present at turn start
+      hand: [minion('r1', 'd2_recaller', 'dragon', 5, 4)],
+    };
+    s = reduce(s, { type: 'play', uid: 'r1' });
+    expect(s.hand.filter((c) => c.cardId === 'growth').length, "it copied last turn's spell").toBe(0);
+  });
+
   it('Spellvault Drake: End of Turn copies the FIRST spell cast that turn', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,
@@ -546,7 +559,7 @@ describe('set 2 — the cast meter is the umbrella of Rubies + Shop Spells', () 
   });
 });
 
-describe('set 2 — Ashen Broodlord (owner change 2026-07-25)', () => {
+describe('set 2 — Ashen Broodlord (owner rework 2026-07-31: any friendly DEMON shop consume, first 2/turn)', () => {
   /** Board + a shop row of DISTINCT real minions to eat. */
   const setup = (broodlordGolden = false): RunState => {
     const s: RunState = { ...createRun(4), phase: 'recruit' };
@@ -568,11 +581,17 @@ describe('set 2 — Ashen Broodlord (owner change 2026-07-25)', () => {
     expect(got.token, 'and a Shop spell, not a Ruby — the card says "Shop spell"').toBeFalsy();
   });
 
-  it('only fires for ITS OWN consume, not another minion eating', () => {
+  it('a DEMON board-mate eating now pays too — and the per-turn cap holds at 2', () => {
+    // The 2026-07-25 shape was "when THIS Consumes"; the 2026-07-31 rework is "the first 2 times a friendly
+    // DEMON Consumes a Shop minion each turn". The Broodlord (a Demon itself) plus the clerk = three eats,
+    // but only the first two pay.
     const s = setup();
-    // The OTHER demon eats. Broodlord is on the board watching, and must stay quiet.
+    s.shop.push({ uid: 's2', cardId: 'alley' });
+    consumeShopMinion(s, s.board[1]!, 0); // the OTHER demon eats — pays now
+    expect(s.hand.length, 'a friendly Demon consuming must pay under the rework').toBe(1);
+    consumeShopMinion(s, s.board[0]!, 0);
     consumeShopMinion(s, s.board[1]!, 0);
-    expect(s.hand.length, 'a board-mate consuming is not "when THIS Consumes"').toBe(0);
+    expect(s.hand.length, 'the third consume must hit the per-turn cap').toBe(2);
   });
 
   it('golden grants two', () => {

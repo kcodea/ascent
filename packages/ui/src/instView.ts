@@ -1,10 +1,11 @@
+import type { Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, alternatingBuffText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  attackGrantImproveText, perCardPlayedText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  attackGrantImproveText, copyCastSpellText, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -40,6 +41,13 @@ export interface LiveTextParams {
   goldPouchValue?: number;
   /** Name of the most recent spell cast this run (`lastSpellCastId` → name) — Steward of Spells shows what it copies. */
   lastSpellName?: string;
+  /** The first / last Shop spell cast THIS TURN (names) — Spellvault Drake and Recaller print what they copy. */
+  firstSpellThisTurnName?: string;
+  lastSpellThisTurnName?: string;
+  /** Spell Warden's own since-placed first-spell record (`BoardCard.boardFirstSpellId` → name). */
+  keeperFirstSpellName?: string;
+  /** The board's dominant tribe — Ruby Shipment names the type it would hand over right now. */
+  topTribe?: string | null;
   /** Triple-reward Discover spell: the tier captured when it was granted, so its "peek one tier up" text stays
    *  frozen (falls back to the live run tier when absent). */
   grantedTier?: number;
@@ -86,7 +94,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier })
+        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -112,6 +120,9 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??
+            copyCastSpellText(c.id, p.golden, { firstThisTurn: p.firstSpellThisTurnName, lastThisTurn: p.lastSpellThisTurnName, keeperFirst: p.keeperFirstSpellName }) ?? // the Dragon copiers name the spell they will give
+            improvingSummonText(c.id, p.summonBonus ?? 0, p.golden) ?? // Oona / Broodwright: the Avenge-improved grant
+            rougeRogueText(c.id, p.golden, p.summonBonus ?? 0) ?? // Rouge Rogue: its per-combat escalating Imp grant
             tallyBuffText(c.id, p.deathrattlesTriggered, p.golden) ??
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Dorrin: the Health it grants RIGHT NOW
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
@@ -158,7 +169,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -177,6 +188,9 @@ export function instView(
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
+    firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,
+    keeperFirstSpellName: inst.boardFirstSpellId ? CARD_INDEX[inst.boardFirstSpellId]?.name : undefined,
+    topTribe: live?.topTribe,
     rubyBonus: live?.rubyBonus,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
     taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught
@@ -196,15 +210,22 @@ export function instView(
   // A BUFFED Ruby (minted above its printed 1/1 by the run's `rubyBonus`, or grown in hand) shows its grant in
   // green via the standard `{{…}}` modified-value marker — the same cue every other scaled number uses.
   const rubyVal = `+${shownAtk}/+${shownHp}`;
+  // Next-combat spell grants (Last Stand, …): the granting spell's name rides the text as a gold
+  // parenthesized tag — ((label)) renders via the Card's `desctemp` marker — and the promised keyword badge
+  // previews on the minion until combat spends it.
+  const tempTags = (inst.tempGrants ?? []).map((g) => ` ((${g.label}))`).join('');
+  const shownKeywords = inst.tempGrants?.length
+    ? [...inst.keywords, ...inst.tempGrants.map((g) => g.keyword as Keyword).filter((k) => !inst.keywords.includes(k))]
+    : inst.keywords;
   const shownText = c.ruby
-    ? `Give a minion **${shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal}**${c.rubyGrantKeyword === 'DS' ? ' and **Ward**' : ''}.`
+    ? `Give a minion **${shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal}**${c.rubyGrantKeyword === 'DS' ? '. Also give it **Ward** if it is a **Kobold**' : ''}.`
     : text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     chosenOption: inst.chosenOption, // a resolved Choose One also wears the ART of the branch it became
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,
     attack: shownAtk, health: shownHp,
-    keywords: inst.keywords, text: shownText,
+    keywords: shownKeywords, text: shownText + tempTags,
     goldenText,
     golden: inst.golden,
     tier: c.tier, spell, ruby: c.ruby, target: c.target,

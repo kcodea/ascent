@@ -31,8 +31,18 @@ describe('Runeforge — framework', () => {
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
     // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
     // deliberate look. Bump it with the count. +10 (2026-07-30): Recollection, the First Round, six threshold runes, the Stampede, the Hatchery, Resonance, Investment, Last Call, Hunger, Blood and Coin, the Remains, Reinvestment the Hunting Bell, the Brood + the War Chorus. (Epics are counted separately.)
-    expect(RUNES.length).toBe(55);
+    expect(RUNES.length).toBe(56); // +1 Contraband (2026-07-31)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
+  });
+
+  it('rejects a DUPLICATE rune id or name (a second Rune of the High King actually shipped, 2026-07-31)', () => {
+    // RUNE_INDEX silently collapses duplicate ids, so nothing downstream ever noticed — the Runeforge stocked
+    // the rune twice and the Compendium smeared extra copies across its gallery off the duplicate React keys.
+    const king = EPIC_RUNES.find((r) => r.id === 'rune_high_king')!;
+    expect(() => validateRunes([...RUNES, ...EPIC_RUNES, { ...king }])).toThrow(/duplicate rune id/);
+    expect(() => validateRunes([...RUNES, ...EPIC_RUNES, { ...king, id: 'rune_other_king' }])).toThrow(/duplicate rune name/);
+    // …but the Menagerie twin pattern stays legal: one name across DISJOINT set scopes is deliberate.
+    expect(() => validateRunes()).not.toThrow();
   });
 
   it('opens on turn 5 for Runesmith with a random 4 distinct runes', () => {
@@ -44,11 +54,11 @@ describe('Runeforge — framework', () => {
     for (const id of s.runeforgeOffer!) expect(RUNE_INDEX[id]).toBeDefined();
   });
 
-  it('rerollRuneforge spends 2 Gold once and swaps in a fresh, non-overlapping set of 4', () => {
+  it('rerollRuneforge is FREE and swaps in a fresh, non-overlapping set of 4 (owner 2026-07-31)', () => {
     const s = reduce(atForgeCombat(), { type: 'resolveCombat' });
     const before = s.runeforgeOffer!;
     const r = reduce(s, { type: 'rerollRuneforge' });
-    expect(r.embers).toBe(s.embers - 2);
+    expect(r.embers).toBe(s.embers); // free now
     expect(r.runeforgeRerolled).toBe(true);
     expect(r.runeforgeOffer!.length).toBe(4);
     expect(new Set(r.runeforgeOffer).size).toBe(4);
@@ -58,9 +68,10 @@ describe('Runeforge — framework', () => {
     expect(reduce(r, { type: 'rerollRuneforge' })).toBe(r);
   });
 
-  it("rerollRuneforge you can't afford is a no-op", () => {
-    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 1, runeforgeOffer: ['rune_warding', 'rune_fury', 'rune_slaying'] };
-    expect(reduce(s, { type: 'rerollRuneforge' })).toBe(s);
+  it('rerollRuneforge works at 0 Gold — the cost is gone (owner 2026-07-31)', () => {
+    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 0, runeforgeOffer: ['rune_warding', 'rune_fury', 'rune_slaying'] };
+    const r = reduce(s, { type: 'rerollRuneforge' });
+    expect(r.runeforgeRerolled).toBe(true); // no Gold gate any more
   });
 
   it('does NOT open for a non-Runesmith hero', () => {
@@ -169,16 +180,18 @@ describe('Runeforge — rune effects fire in play', () => {
     expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 0)).toBe('Gain **1 Gold**.');
   });
 
-  it('Slaying: each Slaughter this combat raises your max Gold by 1', () => {
+  it('Slaying: kills BANK across combats — under 6, nothing pays yet (owner change 2026-07-31)', () => {
     const before = createRun(1, 'runesmith').maxEmbers;
     const s = reduce({
-      ...createRun(1, 'runesmith'), phase: 'combat', questFlags: { runeSlaying: true },
+      ...createRun(1, 'runesmith'), phase: 'combat', hand: [], questFlags: { runeSlaying: true },
       lastCombat: {
         events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] },
         playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 3, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} },
       } as CombatResult,
-    }, { type: 'settleCombat' }); // settle WITHOUT advancing, so the raise is observable on this state
-    expect(s.maxEmbers).toBe(before + 3); // 3 slaughters × +1 max Gold
+    }, { type: 'settleCombat' }); // settle WITHOUT advancing, so the bank is observable on this state
+    expect(s.runeSlayingKills).toBe(3); // banked, below the 6-kill threshold
+    expect(s.hand).toHaveLength(0); // no payout yet
+    expect(s.maxEmbers).toBe(before); // the old max-Gold rider is GONE
   });
 
   it('Summoning: casting a spell improves your Imps +1/+1 (run-wide)', () => {
@@ -409,11 +422,11 @@ describe('Epic Runeforge', () => {
     expect(s.heroPowerSpent).toBeFalsy(); // the Epic forge is quest-opened, not the hero power
   });
 
-  it('re-rolling the Epic forge spends 2 Gold once and redraws from the Epic set', () => {
+  it('re-rolling the Epic forge is FREE and redraws from the Epic set (owner 2026-07-31)', () => {
     const s: RunState = { ...createRun(1, 'baggerben'), wave: 6, phase: 'recruit', embers: 10 };
     openEpicRuneforge(s);
     const r = reduce(s, { type: 'rerollRuneforge' });
-    expect(r.embers).toBe(8);
+    expect(r.embers).toBe(10); // free
     expect(r.runeforgeRerolled).toBe(true);
     expect(r.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
     for (const id of r.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
@@ -458,14 +471,14 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect([fx[0]!.attack, fx[0]!.health]).toEqual([3, 3]);
   });
 
-  it('Rune of Scales: casting a spell descends +1/+1 onto each board Dragon (Beasts untouched)', () => {
+  it('Rune of Scales: casting a spell descends +2/+2 onto each board Dragon (Beasts untouched)', () => {
     const mkDragon = (uid: string): RunState['board'][number] => ({ uid, cardId: 'yazzus', tribe: 'dragon', attack: 2, health: 2, keywords: [], golden: false });
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeScales: true,
       board: [mkDragon('d1'), mkAlley('b'), mkDragon('d2')],
       hand: [{ uid: 'sp1', cardId: 'preemptive', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'sp1' });
-    const dragonFx = s.recruitBuffFx.filter((e) => e.sourceUid === undefined && e.attack === 1 && e.health === 1 && (e.targetUid === 'd1' || e.targetUid === 'd2'));
-    expect(dragonFx.length).toBe(2); // one descend per Dragon
+    const dragonFx = s.recruitBuffFx.filter((e) => e.sourceUid === undefined && e.attack === 2 && e.health === 2 && (e.targetUid === 'd1' || e.targetUid === 'd2'));
+    expect(dragonFx.length).toBe(2); // one descend per Dragon (+2/+2, owner sheet 2026-07-31)
     expect(s.recruitBuffFx.some((e) => e.targetUid === 'b')).toBe(false); // the Beast gets nothing
   });
 
@@ -524,14 +537,14 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(commit.recruitBuffFx).toHaveLength(0); // …and emits NO events (itemizeFx is projection-only)
   });
 
-  it('Rune of Spending: the projection itemizes one +1/+1 event per Gold spent', () => {
+  it('Rune of Spending: the projection itemizes one +3/+3 event per Gold spent (owner sheet 2026-07-31)', () => {
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['runeSpending'], goldSpentThisTurn: 4, board: [mkAlley('a')] };
     const { steps, fx } = projectEndOfTurnSteps(s);
     const evs = fx[0]!.buffFx.filter((e) => e.targetUid === 'a');
     expect(evs).toHaveLength(4);
-    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 1 && e.health === 1)).toBe(true);
-    expect(steps[0]!['a']).toEqual({ attack: 5, health: 5 }); // 1/1 + 4/+4 total, unchanged
+    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 3 && e.health === 3)).toBe(true);
+    expect(steps[0]!['a']).toEqual({ attack: 13, health: 13 }); // 1/1 + 4 × +3/+3
   });
 
   it('Rune of Action: a spell played counts as a card played (playedThisTurn)', () => {
@@ -552,10 +565,12 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 
-  it('Rune of Quick Study: conjures 3 random spells to hand', () => {
+  it('Rune of Quick Study: arms the recurring per-turn payout, nothing immediate', () => {
+    // Owner clarification 2026-07-31: the whole payout recurs (Gold Font + 2 Shop spells, every turn) —
+    // the immediate 3-spell grant was the pre-clarification shape. The payout itself is pinned below.
     const s = buyRune('rune_quick_study', 10, { tier: 3, hand: [] });
-    const spells = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell);
-    expect(spells.length).toBe(3);
+    expect(s.questRecurringEndOfTurn).toContain('quickStudy');
+    expect(s.hand).toHaveLength(0);
   });
 
   it('Rune of Spare Parts: conjures 5 random Attachments to hand', () => {
@@ -570,10 +585,22 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     for (const id of s.discover!) expect(CARD_INDEX[id]?.tier).toBe(5); // pinned tier, not the run's tier
   });
 
-  it('Rune of the Champion (Epic): opens a Discover of Tier-6 minions', () => {
-    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, tier: 3, runeforgeOffer: ['rune_champion'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
-    expect(s.discover?.length).toBeGreaterThan(0);
-    for (const id of s.discover!) expect(CARD_INDEX[id]?.tier).toBe(6);
+  it('Rune of the Champion (Epic): a T4, T5 and T6 Discover of the dominant tribe (owner sheet 2026-07-31)', () => {
+    // A Beast-heavy board → all three Discovers are Beast-typed, tiers 4 then 5 then 6.
+    const beast = Object.values(CARD_INDEX).find((c) => c.tribe === 'beast' && !c.spell && !c.token)!;
+    const mkB = (uid: string): RunState['board'][number] => ({ uid, cardId: beast.id, tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    let s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, tier: 3,
+      board: [mkB('b1'), mkB('b2')], runeforgeOffer: ['rune_champion'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    const tiersSeen: number[] = [];
+    for (let hop = 0; hop < 3 && s.discover?.length; hop++) {
+      tiersSeen.push(CARD_INDEX[s.discover[0]!]!.tier);
+      for (const id of s.discover) {
+        const d = CARD_INDEX[id]!;
+        expect(d.tribe === 'beast' || d.tribe2 === 'beast' || !!d.universalTribe, `${d.name} is not a Beast`).toBe(true);
+      }
+      s = reduce(s, { type: 'discover', index: 0 });
+    }
+    expect(tiersSeen).toEqual([4, 5, 6]);
   });
 
   it('Rune of the Armory (Epic): conjures 10 random Attachments (hand-cap-safe)', () => {
@@ -647,14 +674,54 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(embersOnOpen).toBeGreaterThanOrEqual(4); // the +4 Gold landed this turn
   });
 
-  it('Rune of the Epic Forge: schedules the Epic forge for turn 9', () => {
+  it('Rune of the Epic Forge: schedules an EARLY epic forge for turn 8 (the systemic turn-9 one still comes)', () => {
     const armed = buyRune('rune_epic_forge', 10);
-    expect(armed.epicForgeWave).toBe(9);
-    // Advance from wave 8 combat → turn 9: the Epic forge opens.
-    const next: RunState = reduce({ ...armed, wave: 8, phase: 'combat', epicForgeWave: 9, lastCombat: win }, { type: 'resolveCombat' });
-    expect(next.wave).toBe(9);
+    expect(armed.epicForgeWave).toBe(8); // one turn ahead of the wave-9 baseline (owner 2026-07-31)
+    const next: RunState = reduce({ ...armed, wave: 7, phase: 'combat', lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(8);
     expect(next.runeforgeEpic).toBe(true);
-    expect(next.epicForgeWave).toBeUndefined(); // consumed
+    expect(next.epicForgeWave).toBeUndefined(); // consumed — turn 9's visit comes from the baseline, not this
+  });
+
+  it('Rune of Quick Study: EVERY turn pays a Gold Font + 2 random Shop spells (owner clarification 2026-07-31)', () => {
+    const armed: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', hand: [],
+      questRecurringEndOfTurn: ['quickStudy'] };
+    applyEndOfTurn(armed);
+    expect(armed.hand.filter((c) => c.cardId === 'manafont')).toHaveLength(1); // the Gold Font
+    const spells = armed.hand.filter((c) => c.cardId !== 'manafont' && CARD_INDEX[c.cardId]?.spell);
+    expect(spells).toHaveLength(2);
+  });
+
+  it('Rune of the Matriarch: Runebloom Matriarch fires TWICE per Shop spell', () => {
+    const beastBoard = (): RunState['board'] => [
+      { uid: 'rb', cardId: 'b2_runebloom', tribe: 'beast', attack: 5, health: 9, keywords: [], golden: false },
+    ];
+    const cast = (runeOn: boolean): RunState => {
+      let s: RunState = { ...createRun(11), phase: 'recruit', embers: 10, runeMatriarch: runeOn || undefined,
+        board: beastBoard(), hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+      s = reduce(s, { type: 'play', uid: 'sp' });
+      return s;
+    };
+    // The Matriarch's per-cast payout is 3× (+3/+3) onto Beasts — itself the only Beast here, so its own
+    // stat gain measures the trigger count directly: doubled trigger = doubled gain over baseline.
+    // Growth itself adds +1 to the board — subtract it, or the doubling assertion double-counts the spell.
+    const base = cast(false).board[0]!;
+    const doubled = cast(true).board[0]!;
+    const matriarchGain = base.attack - 5 - 1;
+    expect(matriarchGain).toBeGreaterThan(0); // fixture: the trigger fired at all
+    expect(doubled.attack - 5 - 1).toBe(matriarchGain * 2);
+  });
+
+  it('Rune of Slaying: every 6 kills banks a minion of the dominant type (owner change 2026-07-31)', () => {
+    const beast = Object.values(CARD_INDEX).find((c) => c.tribe === 'beast' && !c.spell && !c.token)!;
+    const mkB = (uid: string): RunState['board'][number] => ({ uid, cardId: beast.id, tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    const armed: RunState = { ...buyRune('rune_slaying', 10), board: [mkB('b1'), mkB('b2')], hand: [], phase: 'combat',
+      lastCombat: { ...win, playerQuestTally: { slaughter: 8 } } as unknown as CombatResult };
+    const settled = reduce(armed, { type: 'resolveCombat' });
+    // 8 kills → one payout (6) + 2 banked for the next combat.
+    const granted = settled.hand.filter((c) => { const d = CARD_INDEX[c.cardId]; return d && (d.tribe === 'beast' || d.tribe2 === 'beast' || d.universalTribe); });
+    expect(granted.length, 'no dominant-type minion was granted at 6 kills').toBeGreaterThanOrEqual(1);
+    expect(settled.runeSlayingKills).toBe(2);
   });
 });
 
@@ -668,10 +735,11 @@ describe('Runes batch 4 — grant runes (existing cards + Gilded-grant)', () => 
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('M') && c.cardId !== 'beatboxer').length).toBe(2);
   });
 
-  it('Rune of Stormcalling: grants a GILDED Karwind + a random Shout minion', () => {
+  it('Rune of Stormcalling: grants a Karwind (UNGILDED, owner sheet 2026-07-31) + a random Shout minion', () => {
     const s = buyEpic('rune_stormcalling');
     const karwind = s.hand.find((c) => c.cardId === 'karwind');
-    expect(karwind?.golden).toBe(true); // Gilded
+    expect(karwind, 'no Karwind granted').toBeTruthy();
+    expect(karwind?.golden ?? false).toBe(false); // plain — the Gilded grant was the pre-sheet version
     // a Shout = a Battlecry (onPlay effect) minion, other than the Karwind
     expect(s.hand.some((c) => c.cardId !== 'karwind' && CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onPlay'))).toBe(true);
   });
@@ -696,13 +764,13 @@ describe('Runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / D
   };
   const spell = (uid = 'gp'): RunState['hand'][number] => ({ uid, cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 
-  it('Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand)', () => {
+  it('Rune of Scales: each spell cast gives your Dragons +2/+2 (board + hand)', () => {
     // A Dragon on board + a non-Dragon; cast a spell → only the Dragon grows.
     let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 5, runeScales: true,
       board: [mk('d', 'karwind'), mkAlley('b')], hand: [spell()] };
     const dragonBefore = s.board[0]!.attack;
     s = reduce(s, { type: 'play', uid: 'gp' });
-    expect(s.board[0]!.attack).toBe(dragonBefore + 1); // Dragon +1
+    expect(s.board[0]!.attack).toBe(dragonBefore + 2); // Dragon +2 (owner sheet 2026-07-31)
     expect(s.board[1]!.attack).toBe(1); // non-Dragon unchanged
   });
 
@@ -741,16 +809,16 @@ describe('Runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / D
     expect(s.board[2]!.attack + s.board[2]!.health).toBeGreaterThan(2 + 1); // rightmost Mech welded
   });
 
-  it('Rune of the Second Path: Discovers from the Greater-Quest reward minion pool', () => {
-    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeforgeOffer: ['rune_second_path'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
-    expect(s.discover?.length).toBeGreaterThan(0);
-    const pool = new Set<string>();
-    const collect = (r: { kind: string; cards?: string[]; rewards?: { kind: string; cards?: string[] }[] }): void => {
-      if ((r.kind === 'grant' || r.kind === 'recurringGrant') && r.cards) r.cards.forEach((id) => pool.add(id));
-      if (r.kind === 'multi') r.rewards?.forEach(collect);
-    };
-    for (const q of Object.values(QUEST_INDEX)) if (q.tier === 'greater') collect(q.reward as never);
-    for (const id of s.discover!) expect(pool.has(id)).toBe(true); // every option is a greater-quest reward minion
+  it('Rune of the Second Path: TWO Tier-6 Discovers whose picks land at 20/20 (owner sheet 2026-07-31)', () => {
+    let s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: ['rune_second_path'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    for (const hop of [1, 2]) {
+      expect(s.discover?.length, `Discover ${hop} did not open`).toBeGreaterThan(0);
+      for (const id of s.discover!) expect(CARD_INDEX[id]?.tier).toBe(6);
+      s = reduce(s, { type: 'discover', index: 0 });
+      const picked = s.hand.at(-1)!;
+      expect([picked.attack, picked.health], `pick ${hop} was not set to 20/20`).toEqual([20, 20]);
+    }
+    expect(s.discover).toBeUndefined(); // exactly two
   });
 
   it('Rune of the Warden: grants a Spear Warden and arms the Start-of-Combat summon flag', () => {
@@ -881,7 +949,7 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect(buyRune('rune_mirror_march').questFlags?.runeMirrorMarch).toBe(true);
     expect(buyRune('rune_recurrence').questRecurringEndOfTurn).toContain('recastFirstSpell');
     expect(buyRune('rune_replication').runeReplication).toBe(true);
-    expect(buyRune('rune_conductor').runeConductor).toBe(true);
+    expect(buyRune('rune_conductor').endOfTurnExtra).toBe(2); // rides the permanent EoT-repeat counter now
     expect(buyRune('rune_undertow').questFlags?.runeUndertow).toBe(true);
     expect(buyRune('rune_endless_appetite').runeEndlessAppetite).toBe(true);
   });
@@ -953,19 +1021,19 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect(s.board[1]!.attack).toBe(3);
   });
 
-  it('Rune of Recurrence: End of Turn recasts the first spell — untargeted (Growth) and aimed (random ally)', () => {
-    // Untargeted: Growth (+1/+1 board-wide) recast at EoT.
+  it('Rune of Recurrence: End of Turn recasts the first spell TWICE (owner sheet 2026-07-31)', () => {
+    // Untargeted: Growth (+1/+1 board-wide) recast twice at EoT → +2/+2 total.
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['recastFirstSpell'], firstSpellThisTurnId: 'growth',
       board: [mkAlley('m')] };
     applyEndOfTurn(s);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([1 + 1, 1 + 1]);
-    // Aimed: Patch Job (+1/+1 baseline at 0 Gold spent) recast onto a (seeded-random) board minion.
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([1 + 2, 1 + 2]);
+    // Aimed: Patch Job (+1/+1 baseline at 0 Gold spent) recast twice onto a (seeded-random) board minion.
     const t: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['recastFirstSpell'], firstSpellThisTurnId: 'patchjob', goldSpentThisTurn: 0,
       board: [mkAlley('m')] };
     applyEndOfTurn(t);
-    expect(t.board[0]!.attack).toBeGreaterThanOrEqual(1 + 1);
+    expect(t.board[0]!.attack).toBeGreaterThanOrEqual(1 + 2);
     // No spell cast this turn → a clean no-op.
     const u: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['recastFirstSpell'], board: [mkAlley('m')] };
@@ -973,16 +1041,19 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect([u.board[0]!.attack, u.board[0]!.health]).toEqual([1, 1]);
   });
 
-  it('Rune of the Conductor: the shop OPENS by triggering your End of Turn effects (Skybound buffs a Dragon)', () => {
-    // Was driven by Vineweaver's EoT Growth cast before that card was retired; Skybound's End of Turn
-    // (buff the weakest friendly Dragon by 50% of the strongest's stats) is the same observable proof
-    // that the End-of-Turn pass ran as the shop opened.
-    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'combat', embers: 10, runeConductor: true,
-      board: [mkCard('sk', 'skybound', 'dragon', 10, 10), mkCard('d', 'supporter', 'dragon', 2, 2)], lastCombat: win };
-    s = reduce(s, { type: 'resolveCombat' });
-    const d = s.board.find((c) => c.uid === 'd')!;
-    expect(d.attack).toBeGreaterThan(2); // the weakest Dragon grew at shop open
-    expect(d.health).toBeGreaterThan(2);
+  it('Rune of the Conductor: End of Turn effects run 2 EXTRA times (owner sheet 2026-07-31)', () => {
+    // Rides `endOfTurnRepeats` (the Parliament-of-Flame counter): with the rune, one End of Turn resolves
+    // an EoT effect 1 + 2 times. Skybound's EoT (buff the weakest Dragon by 50% of the strongest) fires
+    // thrice — measured against a rune-less control on the identical board.
+    const board = (): RunState['board'] => [mkCard('sk', 'skybound', 'dragon', 10, 10), mkCard('d', 'supporter', 'dragon', 2, 2)];
+    const withRune: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', endOfTurnExtra: 2, board: board() };
+    applyEndOfTurn(withRune);
+    const control: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', board: board() };
+    applyEndOfTurn(control);
+    const grown = withRune.board.find((c) => c.uid === 'd')!;
+    const base = control.board.find((c) => c.uid === 'd')!;
+    expect(base.attack).toBeGreaterThan(2); // the effect fired at all (fixture sanity)
+    expect(grown.attack).toBeGreaterThan(base.attack); // …and the rune made it fire MORE
   });
 
   it('Rune of the Trophy: settleCombat conjures a plain copy of the recorded slaughterer to hand', () => {
@@ -1127,6 +1198,19 @@ describe('Rune of the Summit (every 2nd shop → a Tier 7 Discover)', () => {
     { type: 'resolveCombat' },
   );
 
+  it("re-rolling is FREE but once per GAME — the basic forge spends the epic forge's re-roll (owner 2026-07-31)", () => {
+    let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 0,
+      runeforgeOffer: ['rune_fury', 'rune_warding'] };
+    const before = s.runeforgeOffer!;
+    s = reduce(s, { type: 'rerollRuneforge' }); // at 0 Gold — free now
+    expect(s.runeforgeOffer).not.toEqual(before);
+    expect(s.runeforgeRerollUsed).toBe(true);
+    // A later EPIC forge: the game-wide re-roll is spent, so the action is a no-op.
+    const epic: RunState = { ...s, wave: 9, runeforgeOffer: ['rune_broodpit', 'rune_appraisal'], runeforgeEpic: true, runeforgeRerolled: undefined };
+    const after = reduce(epic, { type: 'rerollRuneforge' });
+    expect(after.runeforgeOffer).toEqual(['rune_broodpit', 'rune_appraisal']);
+  });
+
   it('arms on purchase with a zeroed tick', () => {
     const s = buyRune('rune_summit');
     expect(s.runeSummit).toBe(true);
@@ -1147,18 +1231,19 @@ describe('Rune of the Summit (every 2nd shop → a Tier 7 Discover)', () => {
     return (s.discoverQueue ?? []).some((q) => q.kind === 'minion' && q.exactTier === 7);
   };
 
-  it('fires on the SECOND shop, not the first, then repeats every 2nd', () => {
+  it('fires on the THIRD shop, then repeats every 3rd (owner sheet 2026-07-31)', () => {
     let s: RunState = { ...buyRune('rune_summit'), wave: 3, hand: [], board: [] };
     s = openShop(s); // shop 1 — nothing yet
     expect(s.runeSummitTick).toBe(1);
     expect(raisedT7(s)).toBe(false);
-    s = openShop(s); // shop 2 — fires (wave 5: queues behind that turn's quest offer)
-    expect(s.runeSummitTick).toBe(2);
-    expect(raisedT7(s)).toBe(true);
-    s = openShop(s); // shop 3 — quiet again
+    s = openShop(s); // shop 2 — still quiet
     expect(raisedT7(s)).toBe(false);
-    s = openShop(s); // shop 4 — fires again
-    expect(s.runeSummitTick).toBe(4);
+    s = openShop(s); // shop 3 — fires
+    expect(s.runeSummitTick).toBe(3);
+    expect(raisedT7(s)).toBe(true);
+    s = openShop(s); s = openShop(s); // shops 4–5 — quiet
+    expect(raisedT7(s)).toBe(false);
+    s = openShop(s); // shop 6 — fires again
     expect(raisedT7(s)).toBe(true);
   });
 

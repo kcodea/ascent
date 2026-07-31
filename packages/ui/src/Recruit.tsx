@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
 import { SYM_KINDS } from './choreo/channels/float';
@@ -388,6 +388,11 @@ interface ShopViewOpts {
   squirlScoutBuff?: number;
   /** Name of the most recent spell cast this run — Steward of Spells shows what it copies. */
   lastSpellName?: string;
+  firstSpellThisTurnName?: string;
+  lastSpellThisTurnName?: string;
+  topTribe?: string | null;
+  /** Live minion price (Rune of Cadence's armed discount folded in); falls back to the config default. */
+  minionCost?: number;
   /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line it grants the shop. */
   rubyBonus?: { attack: number; health: number };
   /** Whether this run can actually reach Tier 7 — Beyond the Summit only promises it when true. */
@@ -403,7 +408,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
     undeadBuyAtk: o.undeadBuyAtk ?? 0, soulsmanGold: o.soulsmanGold ?? 0, cardBuffs: o.cardBuffs, impAura: o.impAura,
     goldSpent: o.goldSpent ?? 0, goldPouchValue: o.goldPouchValue ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff,
-    lastSpellName: o.lastSpellName, rubyBonus: o.rubyBonus, tier7Access: o.tier7Access,
+    lastSpellName: o.lastSpellName, firstSpellThisTurnName: o.firstSpellThisTurnName, lastSpellThisTurnName: o.lastSpellThisTurnName, topTribe: o.topTribe, rubyBonus: o.rubyBonus, tier7Access: o.tier7Access,
   };
 }
 function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
@@ -419,7 +424,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     const cost = Math.max(0, base - (opts.spellCostMod ?? 0));
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0),
+      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never }),
       cost, costChanged: cost < base, spell: true,
       target: c.target, tier: c.tier, castMult: opts.castMult,
     };
@@ -432,7 +437,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: h.attack, health: h.health, keywords: h.keywords,
-      text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: h.golden,
+      text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: opts.minionCost ?? CONFIG.minionCost, tier: c.tier, golden: h.golden,
       baseAttack: c.attack, baseHealth: c.health,
     };
   }
@@ -485,7 +490,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
     // Moe's guaranteed Attachment carries a discounted price (`card.cost`) — show it on a green coin.
     // Freedom rift: a minion offer reads FREE (0 Gold, green) until the turn's free buy is spent.
-    cost: opts.freeFirstBuy ? 0 : (card.cost ?? CONFIG.minionCost), costChanged: opts.freeFirstBuy || card.cost !== undefined,
+    cost: opts.freeFirstBuy ? 0 : (card.cost ?? opts.minionCost ?? CONFIG.minionCost), costChanged: opts.freeFirstBuy || card.cost !== undefined || (opts.minionCost !== undefined && opts.minionCost < CONFIG.minionCost),
     tier: c.tier, golden: card.golden,
     baseAttack: c.attack * goldMul, baseHealth: c.health * goldMul,
   };
@@ -1742,7 +1747,7 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
@@ -1790,8 +1795,10 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1 }),
-    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult],
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1 }),
+    // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
+    // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
+    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -4442,14 +4449,13 @@ export function Recruit() {
               })}
             </div>
             <div className="forge-actions">
-              {!run.runeforgeRerolled && (
+              {!run.runeforgeRerolled && !run.runeforgeRerollUsed && (
                 <button
                   className="forge-reroll"
-                  disabled={run.embers < 2}
                   onClick={() => dispatch({ type: 'rerollRuneforge' })}
-                  title={run.embers < 2 ? 'Need 2 Gold to re-roll' : 'Re-roll all three Runes (once)'}
+                  title="Re-roll the offered Runes — free, once per game (spending it here forfeits the other forge's re-roll)"
                 >
-                  <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">2 Gold</b>
+                  <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
                 </button>
               )}
               <button className="forge-skip" onClick={() => dispatch({ type: 'skipRuneforge' })}>Leave without a Rune</button>

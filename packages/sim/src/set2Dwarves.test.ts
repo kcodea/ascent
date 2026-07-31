@@ -26,6 +26,28 @@ const playAimed = (s: RunState, uid: string, targetUid: string): RunState => {
   return reduce(opened, { type: 'battlecryTarget', targetUid });
 };
 
+describe('Runekeg — "other Dwarves" (owner 2026-07-31)', () => {
+  it('never buffs itself, even as the only Dwarf', () => {
+    let s: RunState = { ...createRun(11), phase: 'recruit', embers: 10,
+      board: [{ uid: 'keg', cardId: 'dw_runekeg', tribe: 'dwarf', attack: 2, health: 4, keywords: [], golden: false }],
+      hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    const keg = s.board[0]!;
+    // Growth's own +1/+1 lands; the keg's per-spell +2/+2 must NOT land on the keg itself.
+    expect(keg.buffs?.some((b) => b.source === 'Runekeg')).toBeFalsy();
+    // With another Dwarf present, THAT one gets the buff.
+    let t: RunState = { ...createRun(11), phase: 'recruit', embers: 10,
+      board: [
+        { uid: 'keg', cardId: 'dw_runekeg', tribe: 'dwarf', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'ally', cardId: 'dw_brunni', tribe: 'dwarf', attack: 2, health: 1, keywords: [], golden: false },
+      ],
+      hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    t = reduce(t, { type: 'play', uid: 'sp' });
+    expect(t.board[1]!.attack).toBeGreaterThanOrEqual(2 + 1 + 2); // growth +1, keg +2
+    expect(t.board[0]!.buffs?.some((b) => b.source === 'Runekeg')).toBeFalsy();
+  });
+});
+
 describe('the tribe itself', () => {
   it('dwarf is a playable tribe of set 2, and set 1 can never see it', () => {
     expect(poolFor('set2').all.some((c) => c.tribe === 'dwarf')).toBe(true);
@@ -359,16 +381,25 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     expect(grantedIds(rune!)).toContain(cardId);
   });
 
-  it('Rune of Gemcutting grants exactly 5 Rubies', () => {
+  it('Rune of Gemcutting mints 7 Rubies at a FIXED 3/3 (owner sheet 2026-07-31)', () => {
     const rune = all.find((r) => r.name === 'Rune of Gemcutting')!;
-    expect(grantedIds(rune).filter((id) => id === 'ruby')).toHaveLength(5);
+    expect(rune.reward).toMatchObject({ kind: 'mintRubies', count: 7, attack: 3, health: 3 });
+    // And through the reducer: seven 3/3 Rubies land in hand — NOT the run's 1/1 + rubyBonus line.
+    let st: RunState = { ...createRun(3), phase: 'recruit', hand: [], rubyBonus: { attack: 0, health: 0 } };
+    st = { ...st, embers: 99, runeforgeOffer: [rune.id], runeforgeEpic: undefined };
+    st = reduce(st, { type: 'buyRune', index: 0 });
+    const rubies = st.hand.filter((c) => c.cardId === 'ruby');
+    expect(rubies).toHaveLength(7);
+    expect(rubies.every((c) => c.attack === 3 && c.health === 3), 'a minted Ruby was not 3/3').toBe(true);
   });
 
-  it('Rune of Double Fisting grants Edward plus 3 RANDOM Ales', () => {
-    // Random rather than a fixed trio (owner 2026-07-29), so the Ales are a count on the reward, not card ids.
+  it('Rune of Double Fisting grants Edward, and 3 random Ales EVERY TURN (owner sheet 2026-07-31)', () => {
+    // The Ales recur — a recurringEndOfTurn reward, not a one-shot trio.
     const rune = all.find((r) => r.name === 'Rune of Double Fisting')!;
-    expect(grantedIds(rune)).toContain('dw_edward');
-    expect((rune.reward as { randomAle?: number }).randomAle, 'not three random Ales').toBe(3);
+    const multi = rune.reward as { kind: string; rewards: { kind: string; cards?: string[]; effect?: string }[] };
+    expect(multi.kind).toBe('multi');
+    expect(multi.rewards.some((r2) => r2.kind === 'grant' && r2.cards?.includes('dw_edward'))).toBe(true);
+    expect(multi.rewards.some((r2) => r2.kind === 'recurringEndOfTurn' && r2.effect === 'grantAles3')).toBe(true);
   });
 
   it('the rune-granted minions are NOT buyable from the shop', () => {

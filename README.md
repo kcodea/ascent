@@ -44,6 +44,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Damage numbers are readable again.** Combat effects were painting over the damage numbers — the
+  death-dissolve in particular buried them completely. The numbers now draw on top of every effect, in
+  every situation, so a hit always reads. (They also cost the game slightly less to draw than before.)
 - **Removed the dead "Shield Place" tuner.** The DEV panel had outlived its consumer: `syncShields` is gone and
   Ward/Reborn are CSS dome stacks, so dragging its slider only wrote a localStorage value nothing read. Its one
   knob — the dome's vertical offset — is already live in the 🔵 Ward Dome tuner as `domeY`. Also ESLint-ignores

@@ -1,5 +1,67 @@
 # ASCENT — development log
 
+## 2026-07-30 — the damage numbers were never above the effects, and two nested stacking contexts were why
+
+**Owner report: the `death-dissolve` effect plays *over* the damage number.** True, and not specific to that
+effect — no combat float was ever above the Pixi FX canvas. Two traps, nested, and fixing either one alone
+changes nothing:
+
+1. **`.unit` is its own stacking context in combat** — `position: relative` plus `z-index: 8` (`.attacking`),
+   `12` (`.struck`), `14` (`.reborn`). A float rendered as a sibling of its `<Card>` therefore had its
+   `z-index: 25` scoped *inside* its unit: globally it painted at 8/12/14, under `.pixifx` (z110), with 25
+   only ordering it against its own card. **No value for the canvas's z-index can fix that** — pick 20 and it
+   covers the number on a struck unit; pick 7 and every effect drops under the whole unit.
+2. **`.app` is `position: relative; z-index: 1` and a SIBLING of `.pixifx` under `#root`.** So even after
+   lifting the float out of the unit to board level, *nothing rendered anywhere inside `.app` can beat the
+   canvas at any z-index.* This was found the honest way — the first pass put the overlay in `.app` at z112
+   and the browser's own `elementFromPoint` still returned `pixifx` at the number's centre. The same node
+   appended to `<body>` returned the number.
+
+**The fix: combat floats render in a board-level overlay portalled to `<body>`, beside `.pixifx`.** A float
+is no longer a child of its unit at all. Each one gets a `.floatanchor` (z112) — a viewport-fixed, *card-sized*
+stand-in for the unit it belongs to — and the number sits inside it, so every per-kind rule (`.float`'s
+`bottom: 15%` corner, the centred `.float.dmg`, `.float.sym`'s `top: 38%`) and both keyframes (`floatup` /
+`floatupc` / `floatsym`) resolve against a card box exactly as they did before. Nothing about the animation
+changed; they are still `transform`/`opacity`, still compositor-only. Numbers now win over effects in every
+unit state, with **no per-effect decision to make ever again**. The killing-blow `.deathfloat` overlay is
+portalled with them (it had the same z26-inside-`.app` problem, unreported but identical).
+
+**Position: a snapshot, not a live track.** `spawnFloats` now takes a `slotRectOf` (the caller's
+`layoutRectOf` reading) and stamps each float with the unit's layout-frame centre + footprint **once, at
+spawn**. It is never re-read while the float lives. That is the house rule for anchored FX (`fx/playDef.ts`,
+"when are anchors sampled") and it is what `CLAUDE.md` requires: re-resolving per frame means a
+`getBoundingClientRect()` per frame, on several floats at once. Using the **slot** rather than the raw rect
+matters — a float on a lunging attacker is placed where the card lives and returns to, not out in mid-board
+where it happens to be at the instant of firing (the exact failure `layoutRectOf` exists to prevent). It also
+means a number stays where the hit landed when the board reflows around a death, instead of sliding sideways
+with a card that is only re-seating itself. The killing-blow float now measures through the same helper as
+everything else (it used a raw `getBoundingClientRect`); for a dying defender the two agree, and for a dying
+attacker mid-pull-home the slot is the correct answer. A float whose unit is unmeasurable is dropped — a
+number pinned at the viewport origin is worse than no number.
+
+**This is also a small perf win, not a cost.** The per-uid float bucketing `Map` in `useCombatReplay` is gone
+(it was rebuilt on every spawn *and* every expiry purely so the memoized `Unit` could compare float arrays by
+reference), and `Unit` no longer re-renders at all when a number appears or clears — only the small overlay
+list reconciles. Measured in the real page against the **4.17 ms** budget: an 8-float burst (mount + a
+*forced* synchronous style+layout the real path doesn't even do) is **0.60 ms median / 0.90 ms p95 / 1.80 ms
+max** over 200 runs; the 8 spawn-time rect reads are **0.00 ms median / 0.10 ms p95**.
+
+**Left alone deliberately:** Recruit's sell-gold pill (also `.deathfloat`, but in the shop, where the only
+thing on the canvas is the coin sprinkle that is *meant* to read around the pill) and `Card.tsx`'s
+recruit-phase `+X/+X` buff float (shop-only, positioned against its own card, never under a combat effect).
+Moving either would be churn for a defect nobody has.
+
+**Verified.** `npm run typecheck && npm run lint && npm test && npm run build:web` all green — 3435 tests
+across 187 files. `spawnFloats` gained cases for the carried anchor box and for the unmeasurable-unit drop.
+In a live page on the branch's own dev server, with the FX canvas and the float both made hit-testable, the
+browser reports the number as topmost at its own centre — and reports `pixifx` as topmost for the pre-fix
+in-unit structure and for the non-portalled board-level one, so both halves of the diagnosis are demonstrated
+rather than argued.
+
+**Follow-up:** the live *replay* could not be exercised end-to-end — the Chrome extension was unavailable and
+the fallback preview pane runs hidden, where rAF never ticks and the GSAP-driven beat clock never advances.
+The layering claim (which is the defect) is browser-proven; the spawn wiring is covered by the unit tests and
+the typecheck. Worth an eyeball on a real fight.
 ## 2026-07-29 — chore(ui): delete the dead "Shield Place" tuner
 
 **A DEV panel that looked functional and did nothing.** `ShieldTuner` was the last survivor of the Pixi

@@ -7,18 +7,14 @@ import { liveCardText } from './instView';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
-/** Keyword-proc floats (shield/reborn/rally) that bloom big in the card centre, staggered after the
- *  damage number so the two never collide. Damage/buff numbers stay in the HP/stat corner.
- *  `poison` (Execute) was dropped 2026-07-22 — its red ☠ was a third signifier on a beat that already has
- *  the crescent strike and the victim's flash. */
-const SYM_KINDS = new Set(['shield', 'shieldup', 'reborn', 'rally']);
-
-type Float = { id: number; text: string; kind: string };
+/* Floats (damage numbers, keyword glyphs) used to render HERE, as siblings of the `<Card>`. They now live in
+   a board-level overlay in `Recruit.tsx` (`.floatanchor`) so their z-index is globally comparable and the
+   numbers stay readable OVER the Pixi FX canvas — the reasoning is in `choreo/channels/float.ts`. A unit
+   therefore no longer re-renders when a float spawns or expires. */
 interface UnitProps {
   u: UnitFrame;
   side: 'foe' | 'you';
   anim?: string;
-  floats?: Float[];
   /** Pulse the trigger medallion this beat — this unit's effect just fired in combat. */
   triggered?: boolean;
   /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks (fired mid-lunge, at the
@@ -34,8 +30,8 @@ interface UnitProps {
 const sameKeywords = (a: string[], b: string[]): boolean =>
   a === b || (a.length === b.length && a.every((k, i) => k === b[i]));
 
-/** A combat unit — the same Card as recruit, wrapped for animations, floats, and the DS ring. */
-function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, statFlash }: UnitProps) {
+/** A combat unit — the same Card as recruit, wrapped for animations and the DS ring. */
+function UnitInner({ u, side, anim, triggered, rallyPulse, statHold, statFlash }: UnitProps) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
@@ -118,9 +114,6 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
   return (
     <div className={cls} data-uid={u.uid} data-card={u.cardId}>
       <Card card={view} pulse={triggered} pulseRally={rallyPulse} />
-      {floats?.map((f) => (
-        <span key={f.id} className={`float ${f.kind}${SYM_KINDS.has(f.kind) ? ' sym' : ''}`}>{f.text}</span>
-      ))}
     </div>
   );
 }
@@ -128,10 +121,9 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
 /**
  * Memoized so an unchanged unit skips re-render on every combat beat. `computeFrame` rebuilds fresh
  * `UnitFrame` objects each beat, so a reference compare always misses — we compare the rendered fields
- * by VALUE. The `floats` prop is stabilized upstream (`useCombatReplay` hands out a shared empty array
- * for float-less units), so a reference compare on it is correct: float-less units stay equal, and a
- * unit that just gained a float gets a new array and re-renders. Result: only the 1–3 units that
- * actually changed in a beat reconcile, instead of the whole board (×2 in dev StrictMode).
+ * by VALUE. Result: only the 1–3 units that actually changed in a beat reconcile, instead of the whole board
+ * (×2 in dev StrictMode). Floats are no longer part of this at all — they render board-level, so a spawning
+ * or expiring number costs the units nothing.
  */
 export const Unit = memo(UnitInner, (a, b) =>
   a.side === b.side &&
@@ -140,7 +132,6 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.rallyPulse === b.rallyPulse &&
   a.statHold === b.statHold &&
   a.statFlash === b.statFlash &&
-  a.floats === b.floats &&
   a.u.uid === b.u.uid &&
   a.u.attack === b.u.attack &&
   a.u.health === b.u.health &&

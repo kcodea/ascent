@@ -1,13 +1,40 @@
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 
-/** A floating number/glyph shown over a unit for a few seconds (damage/poison/shield/buff/keyword/gold). */
+/**
+ * A floating number/glyph shown over a unit for a few seconds (damage/poison/shield/buff/keyword/gold).
+ *
+ * Rendered in a BOARD-LEVEL overlay (`.floatanchor` in Recruit.tsx), not inside the `.unit`. It used to be a
+ * sibling of the unit's `<Card>`, which made it unreadable under the Pixi FX canvas: `.unit` becomes its own
+ * stacking context in combat (`.attacking` z8, `.struck` z12, `.reborn` z14), so the float's `z-index: 25`
+ * only ordered it against its OWN card — globally it painted at 8/12/14, under `.pixifx` (z110). No canvas
+ * z-index can fix that (pick 20 and it covers the number on a struck unit; pick 7 and every effect drops under
+ * the whole unit). Lifting the float out of the unit makes its z-index globally comparable, so the number wins
+ * over every effect in every unit state, with no per-effect decision.
+ *
+ * `x`/`y` are the unit's LAYOUT-frame centre and `w`/`h` its footprint, both SNAPSHOT at spawn (see
+ * `spawnFloats`). The overlay reproduces that box so every per-kind rule (`bottom: 15%`, `.float.sym`'s
+ * `top: 38%`, the centred `.float.dmg`) and both keyframes (`floatup`/`floatupc`, `floatsym`) keep working
+ * verbatim — they are still positioned against a card-sized box, it just lives at board level now.
+ */
 export interface Float {
   id: number;
   uid: string;
   text: string;
   kind: string;
+  /** Viewport centre of the unit's SLOT at spawn. */
+  x: number;
+  y: number;
+  /** The unit's footprint at spawn — the anchor box the per-kind percentage rules resolve against. */
+  w: number;
+  h: number;
 }
+
+/** Keyword-proc floats (shield/reborn/rally) that bloom big in the card centre, staggered after the damage
+ *  number so the two never collide. Damage/gold numbers stay in the stat corner. (`poison`/Execute was dropped
+ *  2026-07-22 — its red ☠ was a third signifier on a beat that already carries the crescent strike and the
+ *  victim's red flash.) Lived in `Unit.tsx` until the floats moved to the board overlay. */
+export const SYM_KINDS = new Set(['shield', 'shieldup', 'reborn', 'rally']);
 
 /** A damage float for a minion that DIES this moment. Its unit collapses (`.unit.dying`, width→0) and is
  *  removed next moment, which would clip an in-unit float — so the killing-blow number is rendered in a
@@ -51,13 +78,30 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
  * `useCombatReplay.ts`. Buff events are summed per target so a multi-proc effect (e.g. a re-procced
  * Deathrattle) shows one correct total, not several partials. `attackerUid` suppresses the attacker's own
  * retaliation number (only the struck unit shows a number) — pass `attackerOfImpact(beats, beatIdx - 1)`.
- * A unit dying THIS moment gets its damage number positioned in a board overlay via `findEl` instead of an
- * in-unit float (its slot collapses next moment, which would clip it).
+ * A unit dying THIS moment gets a `DeathFloat` (a shorter-lived, card-centred variant) instead of a normal
+ * float, because its slot collapses next moment.
+ *
+ * ── the position snapshot ────────────────────────────────────────────────────────────────────────────
+ * EVERY float is now placed from a `rectOf` reading taken ONCE, here, at spawn — never re-read while it
+ * lives. That matches the house rule for anchored FX (`fx/playDef.ts`, "when are anchors sampled"): a combat
+ * moment is an event at a point in time, and re-resolving its geometry would mean a `getBoundingClientRect()`
+ * per frame, which this repo bans (CLAUDE.md). A float lives ~1.5s and fires on an event, so ONE read per
+ * spawned float is not a hot path — it is the same one-per-event read `deathFloats` have always done.
+ *
+ * The consequence, stated plainly: a unit that moves after the float spawns does NOT drag its number along.
+ * That is what we want. `rectOf` is the caller's `layoutRectOf`-based SLOT reading, so a float on a lunging
+ * attacker is placed where the card lives and returns to, not out in mid-board where it happens to be at the
+ * instant of firing — the exact failure `layoutRectOf` was written for (the "phantom mid-board ring",
+ * 2026-07-21). And when the board reflows around a death, the number stays where the hit landed instead of
+ * sliding sideways with a card that is only re-seating itself.
+ *
+ * A float whose unit can't be measured (`rectOf` → null) is dropped: with no anchor there is nowhere
+ * board-level to put it, and a number pinned at the viewport origin is worse than no number.
  */
 export function spawnFloats(
   moment: Moment,
   events: CombatEvent[],
-  findEl: (uid: string) => Element | null,
+  rectOf: (uid: string) => { cx: number; cy: number; w: number; h: number } | null,
   attackerUid: string | null,
 ): { floats: Float[]; deathFloats: DeathFloat[] } {
   const dying = new Set<string>();
@@ -72,11 +116,13 @@ export function spawnFloats(
     const f = floatFor(e);
     if (!f) continue;
     if (f.kind === 'dmg' && f.uid === attackerUid) continue;
+    const r = rectOf(f.uid);
+    if (!r) continue;
     if (f.kind === 'dmg' && dying.has(f.uid)) {
-      const r = findEl(f.uid)?.getBoundingClientRect();
-      if (r) { deaths.push({ id: i, x: r.left + r.width / 2, y: r.top + r.height * 0.5, text: f.text, kind: f.kind }); continue; }
+      deaths.push({ id: i, x: r.cx, y: r.cy, text: f.text, kind: f.kind });
+      continue;
     }
-    spawned.push({ id: i, ...f });
+    spawned.push({ id: i, ...f, x: r.cx, y: r.cy, w: r.w, h: r.h });
   }
   return { floats: spawned, deathFloats: deaths };
 }

@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-07-31 — Fix: the scout card was invisible (owner report)
+
+The hover card opened and was never seen. `.lobbyrail` is a scroll container (`overflow-y: auto`), so it CLIPS
+absolutely-positioned descendants that fall outside its box — and the card deliberately opens to the rail's
+LEFT, i.e. always outside it. React state, layout and measurements were all correct; the pixels were clipped.
+
+Now `position: fixed`, anchored to the hovered seat's measured box (one read per hover, not per frame). Fixed
+escapes overflow clipping, and the rail has no transform/filter, so nothing re-anchors it.
+
+**Why my verification missed it, which is the more useful lesson.** I "confirmed" the card by dispatching a
+synthetic `mouseover` and then asserting on `getBoundingClientRect` — which reports the LAYOUT box whether or
+not anything is painted. So a clipped element measures exactly like a visible one. Worse, my earlier attempt
+with a REAL hover produced nothing, and I attributed that to a tooling race rather than treating it as the
+signal it was. A DOM check answers "did React render it"; only a screenshot answers "can you see it".
+
+Re-verified with a real mouse hover in a live lobby: the card is visible in the screenshot, `position: fixed`,
+and fully on-screen for both the top and bottom seats (the centred card could otherwise run off the bottom).
+Note `elementFromPoint` is NOT a visibility test here — the card is `pointer-events: none`, so hit-testing
+passes through it by design.
+
 ## 2026-07-31 — The lobby rail: uniform seats + a scout card on hover
 
 **Every seat is the same size now** (owner ask). The next opponent used to get a large portrait card above the

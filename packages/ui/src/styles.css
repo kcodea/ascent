@@ -6656,7 +6656,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    Opens LEFT of the rail (the rail is already at the right edge of the stage, so a right-side card would open
    off-screen). `pointer-events: none` so crossing the card can never re-trigger or block the row beneath it. */
 .lobbyscout {
-  position: absolute; z-index: 80; top: 50%; right: calc(100% + 6 * var(--lrow)); transform: translateY(-50%);
+  /* FIXED, not absolute: the rail is a scroll container (`overflow-y: auto`) and therefore CLIPS absolutely
+     positioned descendants that fall outside it — which this card, opening to the rail's left, always does.
+     `top`/`right` are supplied inline from the hovered seat's measured box. */
+  position: fixed; z-index: 80; transform: translateY(-50%);
   width: calc(112 * var(--lu)); pointer-events: none;
   display: flex; flex-direction: column; gap: calc(4 * var(--lu));
   padding: calc(7 * var(--lu)); border-radius: calc(8 * var(--lu));

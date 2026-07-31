@@ -25,7 +25,13 @@ import { Icon } from './Icon';
 export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
   // Hooks must run unconditionally — the early return for a missing lobby lives after them.
   const firedRound = useRef(0);
-  const [hovered, setHovered] = useState<string | null>(null);
+  // The hovered seat AND where it sits on screen. The anchor is measured because the card is `position: fixed`
+  // — see `ScoutCard`. One measurement per hover, not per frame, so this does not violate the layout-read rule.
+  const [hovered, setHovered] = useState<{ id: string; top: number; right: number } | null>(null);
+  const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
+    const b = e.currentTarget.getBoundingClientRect();
+    setHovered({ id, top: b.top + b.height / 2, right: b.left });
+  };
 
   // WHAT YOU JUST DID TO THEM. The rail prints every seat's loss as a static number, but a win is the moment
   // the mode is about and shouldn't read the same as a draw until you scan the table — so the damage you dealt
@@ -79,8 +85,8 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
               data-seat={seat.id}
               className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${seat.alive ? '' : ' dead'}`}
               // Scouting is for OPPONENTS — your own board is on screen in front of you.
-              onMouseEnter={isYou ? undefined : () => setHovered(seat.id)}
-              onMouseLeave={isYou ? undefined : () => setHovered((h) => (h === seat.id ? null : h))}
+              onMouseEnter={isYou ? undefined : (e) => openScout(e, seat.id)}
+              onMouseLeave={isYou ? undefined : () => setHovered((h) => (h?.id === seat.id ? null : h))}
             >
               <img className="lobbyface" src={heroArt(seat.heroId)} alt="" />
               {/* Name and chip share ONE grid cell so adding the chip cannot shift the health column — the row
@@ -108,7 +114,7 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
                   <span style={{ width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%` }} />
                 </span>
               )}
-              {hovered === seat.id && <ScoutCard lobby={lobby} seat={seat} intel={intel} />}
+              {hovered?.id === seat.id && <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} />}
             </div>
           );
         })}
@@ -128,11 +134,19 @@ const TRIBE_LABEL: Record<string, string> = {
  * Rendered ONLY while hovered rather than always-mounted-and-hidden — eight of these permanently in the tree,
  * each mapping the encounter log, is work the shop phase does not need to do every frame.
  */
-function ScoutCard({ lobby, seat, intel }: { lobby: RunLobby; seat: LobbySeatState; intel?: SeatIntel }): JSX.Element {
+function ScoutCard({ lobby, seat, intel, at }: {
+  lobby: RunLobby; seat: LobbySeatState; intel?: SeatIntel; at: { top: number; right: number };
+}): JSX.Element {
   const results = seatResults(lobby, seat.id, 3);
   const stale = intel && intel.round < lobby.round;
   return (
-    <div className="lobbyscout" role="tooltip">
+    // POSITION: FIXED, anchored to the measured seat. The rail is a scroll container
+    // (`overflow-y: auto`), which CLIPS absolutely-positioned descendants outside its box — and this card
+    // deliberately opens to the LEFT of the rail, i.e. outside it. Absolute positioning left it laid out
+    // correctly and completely invisible, which is exactly what an "it opens" DOM check reports as working.
+    // Fixed escapes overflow clipping; the rail has no transform/filter, so nothing re-anchors it.
+    <div className="lobbyscout" role="tooltip"
+      style={{ top: at.top, right: `calc(100vw - ${at.right}px + 6px)` }}>
       <div className="lobbyscout-head">
         <span className="lobbyscout-name">{seat.label}</span>
         <span className="lobbyscout-hero">{getHero(seat.heroId).power.name}</span>

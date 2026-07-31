@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-07-31 — Seven fixes off the first live set-2 session
+
+Rune of Spending re-tuned to **+1/+2 per Gold** (from the sheet's +3/+3). Brunni gains **Taunt**. Lieutenant
+Thane's Rally gives its Attack to **3 RANDOM** friendly minions — it took the left-most three, which made
+board order do the targeting; picks are distinct per repetition and re-rolled for the golden pass. Brood Whelp
+targets **Dragons only** (`targetTribe`), text to match. Prismcaster to **T5**; Faultline Scrapper to **4/1**.
+
+And the Forgemaster tracker: the Runesmith's countdown above the hero power still counted to the OLD turn-7
+forge (the screenshot's "3t" at round 4) while the forge itself correctly opened on turn 5 — the retime moved
+the mechanic but not the countdown. It counts to 5 now.
+
+Verified: typecheck (both), lint (7 pre-existing), 3504 tests, build:web, harness determinism.
+
 ## 2026-07-31 — SET 2 GOES LIVE: quests off, Runeforge on — plus Cupcakes
 
 The three switches flipped: `SETS.set1.enabled = false` / `set2 = true` (first-enabled-wins), and in CONFIG

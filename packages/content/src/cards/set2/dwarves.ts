@@ -48,9 +48,9 @@ export const SET2_DWARVES: CardDef[] = [
     tier: 2,
     attack: 2,
     health: 1,
-    keywords: [],
+    keywords: ['T'],
     effects: [{ on: 'endOfTurn', do: 'grantRandomAle', params: { count: 1 } }],
-    text: '**End of Turn:** get a **Dwarven Ale**.',
+    text: '**Taunt.** **End of Turn:** get a **Dwarven Ale**.',
     goldenText: '**End of Turn:** get **2 Dwarven Ales**.',
   },
   {
@@ -227,7 +227,7 @@ export const SET2_DWARVES: CardDef[] = [
     health: 6,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyGiveAttackToOthers', params: { count: 3 } }],
-    text: "**Rally:** give this minion's **Attack** to **3** friendly minions.",
+    text: "**Rally:** give this minion's **Attack** to **3 random** friendly minions.",
     goldenText: "**Rally:** give this minion's **Attack** to **3** friendly minions **twice**.",
   },
   {

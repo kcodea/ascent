@@ -244,7 +244,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_reinvestment',
     name: 'Rune of Reinvestment',
     cost: 5,
-    text: 'After combat, give the next **Shop +1/+1** for every friendly minion you summoned during combat.',
+    // TEXT fix only (owner 2026-07-31): the buff always landed on `tavernBuyBonus` — the PERMANENT run-wide
+    // shop channel — so "the next Shop" under-sold what the rune actually does.
+    text: 'After combat, permanently give the **Shop +1/+1** for every friendly minion you summoned during combat.',
     reward: { kind: 'combatFlag', flag: 'runeReinvestment', amount: 1 },
   },
   {

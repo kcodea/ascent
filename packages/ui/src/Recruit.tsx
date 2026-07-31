@@ -75,7 +75,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 /** How long the End Turn button stays inert at the start of a recruit round (owner ask 2026-07-27) — long
  *  enough that a double-click meant for the previous round can't skip the new one, short enough that a player
  *  who genuinely wants to end instantly barely notices. */
-const END_TURN_LOCK_MS = 5000;
+const END_TURN_LOCK_MS = 2000; // 5000 → 2000 (owner re-tune 2026-07-31: the long lock outstayed its welcome)
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.

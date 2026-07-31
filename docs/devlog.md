@@ -3782,6 +3782,51 @@ Verified: `npm test` (1785) + `npm run build:web` green; `npm run typecheck`/`li
 files. (Pre-existing `typecheck:web` errors in `Unit.tsx`/`useCombatReplay.ts` are unrelated — untouched here.)
 Audio itself is for the owner to judge by ear.
 
+
+## 2026-07-28 (revert the hand "make room" glide - it inflated cards)
+
+### fix(ui): remove the Flip-based hand glide (cards grew on every interaction)
+
+**Owner report:** after the hand slide work, cards would get stuck and grow **bigger and bigger with every
+interaction** while in hand; others jumbled, sat on top of each other "as if being played", and neighbours
+slid underneath and became invisible.
+
+Root cause, and it is mine - from #735 (`handGrowFlipRef`) and #737 (`handCompFlipRef`). Three facts compose:
+
+1. `.row.hand .card:hover` applies **`scale(1.06)`** (`styles.css`).
+2. Both glides captured `Flip.getState('.row.hand > .card')` **outside a drag** - per commit in the shop, per
+   beat in combat. `getState` measures `getBoundingClientRect`, which **folds in the live hover transform**, so
+   a hovered card was recorded 6% larger than its layout box.
+3. `Flip.from` was called **without `scale: true`**, so GSAP morphs **`width`/`height`** rather than scale -
+   writing the recorded (inflated) size as **inline layout width** on the card.
+
+So each capture-while-hovered baked the 1.06 into the element's real width; the next hover multiplied on top of
+that, and the next... **compounding 6% per interaction** - exactly "bigger and bigger". An inflated card in a
+negative-margin flex row (`--z-hand-gap`) then overlaps its neighbours, and `:hover { z-index: 50 }` puts it
+over them while they slide underneath - the rest of the report. Interrupted glides compound it: a new
+`Flip.from` before the last finished means `onComplete` never runs, so the `transition: none` we set stays
+inline and the cards snap instead of sliding.
+
+**The corroboration:** the pre-existing drag-reorder glide uses the identical `Flip.from` call and has never
+done this - because it only captures **at drop time**, while `body.dragging` is on, and
+`body.dragging .row.hand .card:hover` explicitly resets the transform to the unscaled version (`styles.css`
+line 992). The original author fenced exactly this hazard; my captures ran outside that fence.
+
+**Reverted both glides**, restoring the drag-reorder path as the only Flip consumer on the hand, with a comment
+at the call site recording why a general capture is unsafe. Everything else from the session stays: the
+coalesce landing on its own beat, the hand cap, the pacing, the deferred-Battlecry announcement, and the
+stuck-timer fixes. The only loss is the "make room" glide - cards blink to their new slots again, which is
+cosmetic where this bug was not.
+
+**If we re-attempt it**, the capture must not see a hover-inflated box. Options, roughly in order of safety:
+drive the motion through the existing `handSlidePx` channel (a transient per-uid offset + the CSS transition -
+the same mechanism the drag "make room" already uses, and transform-safe because React owns the whole
+transform string); or capture `offsetLeft` (transform-immune - the warband path documents exactly this) rather
+than rects; or, least safe, keep Flip but pass `scale: true` and suppress the hover rule during the capture.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green. Net
+-66/+11 in `Recruit.tsx` - this removes machinery.
+
 ## 2026-07-27 (stuck-cue timer audit)
 
 ### fix(ui): audit every cleanup-cancelled cue timer — four stuck cues

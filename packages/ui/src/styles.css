@@ -3300,21 +3300,39 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 .card:focus-visible, .btn:focus-visible, .hero:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
 /* Combat floats. Non-damage floats (poison/shield/buff/gold) pop over each card's own stat corner. The
    DAMAGE number is different: only the unit being ATTACKED shows one (the attacker's retaliation floats no
-   number — see useCombatReplay.ts), and it's centred ON the card face (`.unit .float.dmg` below) so it reads
+   number — see useCombatReplay.ts), and it's centred ON the card face (`.floatanchor .float.dmg` below) so it reads
    like a hit landing on the minion. A killing blow renders in the `.deathfloat` overlay, centred at the
    dying unit's last spot. */
 .float { position: absolute; bottom: 15%; right: 7px; font-family: var(--font-ui); font-weight: 900; font-size: var(--float-size, 34px); pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup var(--float-dur, 1.4s) cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
 /* Killing-blow damage number for a dying unit — anchored in a board overlay at the minion's last spot
    (the unit itself collapses), centred there; the inner .float rides the floatup rise from the anchor.
    It clears FASTER than a normal float (≈0.9s) so a lone number over a vanished unit doesn't hang. */
-.deathfloat { position: fixed; z-index: 26; pointer-events: none; transform: translate(-50%, -50%); }
+/* Anchor for a combat float — a card-sized, viewport-fixed stand-in for the `.unit` the number belongs to,
+   centred on the unit's slot (JS supplies left/top/width/height, captured once at spawn).
+
+   z112 only WORKS because Recruit portals these to <body>. Two stacking traps had the numbers buried under
+   the FX canvas: `.unit` is its own stacking context in combat (`.attacking` z8 / `.struck` z12 /
+   `.reborn` z14), and `.app` is `position: relative; z-index: 1` — a SIBLING of `.pixifx` (z110) under
+   `#root`. So no z-index written anywhere inside `.app` can beat the canvas. At <body> level, z112 does:
+   above every effect, below the dragged card (z115) / modals (z160+) / dev chrome, none of which coexist
+   with a live combat float. Because the anchor is card-sized, `.float`'s per-kind rules below (the
+   `bottom: 15%` corner, the centred `.float.dmg`, `.float.sym`'s `top: 38%`) resolve exactly as they did
+   inside the unit. */
+.floatanchor { position: fixed; z-index: 112; pointer-events: none; transform: translate(-50%, -50%); }
+/* Keyword glyphs bloom over the damage number (they used to win via `.float.sym`'s z28 inside the shared
+   unit; at board level each float is its own anchor, so the ordering moves up to the anchor). */
+.floatanchor.symanchor { z-index: 113; }
+/* Same overlay, same z112 — the COMBAT killing-blow copy is portalled to <body> alongside `.floatanchor`.
+   (Recruit's sell-gold pill reuses this class but stays inside `.app`, where z112 is scoped under `.app`'s
+   z1 and the coin sprinkle still reads over it — deliberate; see the comment at that render site.) */
+.deathfloat { position: fixed; z-index: 112; pointer-events: none; transform: translate(-50%, -50%); }
 .deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; animation-name: floatstickc; animation-duration: var(--death-float-dur, 0.9s); }
 .float.dmg { color: #fff; background: var(--threat); padding: 3px 13px; border-radius: 12px; font-size: var(--float-dmg-size, 42px); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38); }
-/* An in-unit damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit
-   landing on the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain
-   transform here would be overwritten by the animation). The `.deathfloat` overlay copy is untouched (it's
-   not inside `.unit`) — it's already centred by its container. */
-.unit .float.dmg { top: 50%; left: 50%; right: auto; bottom: auto; animation-name: floatupc; }
+/* A damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit landing on
+   the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain transform here
+   would be overwritten by the animation) — resolved against the `.floatanchor` box, which is the unit's card
+   box. The `.deathfloat` overlay copy is untouched — it's already centred by its container. */
+.floatanchor .float.dmg { top: 50%; left: 50%; right: auto; bottom: auto; animation-name: floatupc; }
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }

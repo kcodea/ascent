@@ -1,7 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
+import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
 import { QuestCard } from './QuestCard';
@@ -3842,7 +3844,6 @@ export function Recruit() {
                 u={u}
                 side="foe"
                 anim={replay.anims[u.uid]}
-                floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 statHold={replay.statHoldFor(u.uid)}
@@ -3895,7 +3896,6 @@ export function Recruit() {
                 u={u}
                 side="you"
                 anim={replay.anims[u.uid]}
-                floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 statHold={replay.statHoldFor(u.uid)}
@@ -4031,16 +4031,58 @@ export function Recruit() {
           />
         ))}
 
-      {/* Killing-blow damage numbers for units that died this beat — rendered here, not inside the unit
-          (which collapses + is removed), so the number reads + lingers at the spot the minion fell. */}
-      {fighting &&
-        replay.deathFloats.map((f) => (
-          <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
-            <span className={`float ${f.kind}`}>{f.text}</span>
-          </div>
-        ))}
+      {/* ── Combat damage numbers, PORTALLED TO <body> ────────────────────────────────────────────────
+          Damage numbers, keyword glyphs and the max-Gold pill used to render as children of their `<Unit>`,
+          where the Pixi FX canvas covered them (the owner's "death-dissolve plays over the damage number"
+          report). TWO nested stacking traps caused that, and the fix has to clear BOTH:
 
-      {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value). */}
+            1. `.unit` is its own stacking context in combat (`.attacking` z8, `.struck` z12, `.reborn` z14),
+               so an in-unit float's `z-index: 25` only ordered it against its own card — globally it painted
+               at 8/12/14, under `.pixifx` (z110). No canvas z-index can fix that from inside the unit: pick
+               20 and it covers the number on a struck unit; pick 7 and every effect drops under the unit.
+            2. `.app` is itself `position: relative; z-index: 1` and a SIBLING of `.pixifx` under `#root` —
+               so nothing rendered anywhere inside `.app` can beat the canvas either, at any z-index. (Browser-
+               verified: an anchor at z112 inside `.app` still lost the `elementFromPoint` test to `.pixifx`;
+               the same node appended to <body> won it.)
+
+          Hence the portal: these overlays mount beside `.pixifx` in the ROOT stacking context, where
+          `.floatanchor`/`.deathfloat` (z112) genuinely outrank it. Same house pattern as `Card`'s hover
+          reveal. They're `pointer-events: none`, so nothing about input changes.
+
+          Each `.floatanchor` reproduces the unit's card box (centre + footprint SNAPSHOT at spawn — see
+          `spawnFloats`), so every per-kind CSS rule and both keyframes still resolve against a card-sized box
+          exactly as they did inside the unit. */}
+      {fighting &&
+        createPortal(
+          <>
+            {replay.floats.map((f) => {
+              const sym = SYM_KINDS.has(f.kind);
+              return (
+                <div
+                  key={`float-${f.id}`}
+                  className={`floatanchor${sym ? ' symanchor' : ''}`}
+                  style={{ left: f.x, top: f.y, width: f.w, height: f.h } as CSSProperties}
+                  aria-hidden="true"
+                >
+                  <span className={`float ${f.kind}${sym ? ' sym' : ''}`}>{f.text}</span>
+                </div>
+              );
+            })}
+            {/* Killing-blow numbers for units that died this beat — never inside the unit (which collapses +
+                is removed), so the number reads + lingers at the spot the minion fell. */}
+            {replay.deathFloats.map((f) => (
+              <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties} aria-hidden="true">
+                <span className={`float ${f.kind}`}>{f.text}</span>
+              </div>
+            ))}
+          </>,
+          document.body,
+        )}
+
+      {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value).
+          Deliberately NOT portalled with the combat numbers above: this is the shop, where the only thing on
+          the FX canvas is the sell-coin sprinkle — which is meant to read as coins spilling AROUND the pill,
+          not as something burying a damage number. Moving it would be churn for a defect nobody has. */}
       {sellFloats.map((f) => (
         <div key={`sell-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
           {/* Above-base sells (Hoarder, Trail Forager, Rune of Bartering) float GREEN so the bonus reads. */}

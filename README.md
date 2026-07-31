@@ -44,6 +44,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Damage numbers are readable again.** Combat effects were painting over the damage numbers — the
+  death-dissolve in particular buried them completely. The numbers now draw on top of every effect, in
+  every situation, so a hit always reads. (They also cost the game slightly less to draw than before.)
 - **The effects library stopped calling live effects dead.** Seven visual effects — the coin shower, the
   click puff, the melee smack and others — had been moved out of hand-written code into the authoring tool's
   own format, and the tool's coverage map, which only knew about one way of wiring an effect up, listed every

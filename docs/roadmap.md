@@ -29,6 +29,15 @@ The five buckets below are ordered by when we intend to act, not by size:
   `long`/`jank` counts rather than the mean, to find what else the 60 Hz calibration was hiding — phase
   transitions and the shop open are the standing suspects.
 
+- **Eyeball the new float overlay on a real fight.** Combat damage numbers now render in a `<body>`-portalled
+  overlay above the FX canvas (shipped 2026-07-30). The layering is browser-proven and the spawn path is
+  unit-tested, but the live replay itself could not be driven end-to-end in this session (no foregrounded
+  browser available — a hidden tab never ticks rAF, so the GSAP beat clock never advances). Watch one fight
+  and confirm the numbers land where they used to, including a killing blow and a keyword glyph.
+- **The shop's gold/sell pill is still under the coin sprinkle.** Same class of stacking issue as the combat
+  floats, deliberately left alone because the sprinkle reading *around* the pill is arguably correct. Decide
+  whether it should be portalled too, or leave it.
+
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
   Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
   onto **Bug** Huggies (one letter apart) — confirm that is the intended art, and confirm the card name.

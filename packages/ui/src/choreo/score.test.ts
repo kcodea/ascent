@@ -22,7 +22,7 @@ const withCard = (uid: string, cardId: string) => ({ cardIds: new Map([[uid, car
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
-  events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null, meleePair: null,
+  events, combatSpeed: 1, onShake: vi.fn(), slotRectOf: () => ({ cx: 0, cy: 0, w: 100, h: 140 }), attackerUid: null, meleePair: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
   onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), onAscend: vi.fn(), onExecuteFx: vi.fn(), ...overrides,
 });
@@ -50,7 +50,8 @@ describe('score', () => {
   it('runMomentCues fires the float channel for a damage moment', () => {
     const c = ctx([{ type: 'dmg', target: 'b', amount: 4, remainingHp: 2 }]);
     runMomentCues(moment('damage', c.events), c);
-    expect(c.onFloats).toHaveBeenCalledWith([{ id: 0, uid: 'b', text: '4', kind: 'dmg' }]);
+    // The float carries the anchor box `slotRectOf` reported at spawn — it renders board-level, not in the unit.
+    expect(c.onFloats).toHaveBeenCalledWith([{ id: 0, uid: 'b', text: '4', kind: 'dmg', x: 0, y: 0, w: 100, h: 140 }]);
     expect(c.onDeathFloats).not.toHaveBeenCalled();
   });
 

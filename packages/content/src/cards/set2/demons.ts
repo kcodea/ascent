@@ -89,8 +89,8 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Rally:** give minions in the Shop **+4/+4**.',
   },
   {
-    // PERMANENT, so it goes through the run-wide per-card channel rather than the per-offer one — the buff
-    // follows that card for the rest of the run instead of dying on the next refresh.
+    // PERMANENT means the buff rides the OFFER into the bought minion (via `offerBuyStats`) rather than
+    // expiring with the shop — not that it is run-wide on every copy of that card id.
     id: 'dm_tormentor',
     name: 'Market Tormentor',
     tribe: 'demon',
@@ -98,11 +98,14 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    // Owner change 2026-07-29: a SHOUT, not a per-refresh trigger. The factory is trigger-agnostic (it just
-    // buffs the right-most Shop minion), so only the event moves.
-    effects: [{ on: 'onPlay', do: 'shopRefreshedBuffRightmost', params: { attack: 4, health: 4 } }],
-    text: '**Shout:** give the **right-most** minion in the Shop **+4/+4** permanently.',
-    goldenText: '**Shout:** give the **right-most** minion in the Shop **+8/+8** permanently.',
+    // BACK TO PER-REFRESH (owner report 2026-07-31: "right-most minion of every refresh gets the buff
+    // permanently"). It was briefly a one-shot Shout (2026-07-29); as a Shout the card bought itself one buffed
+    // offer and then did nothing for the rest of the run, which is not a tier-4 body. Every consumer of the
+    // per-refresh path — `applyShopRefreshed`'s two-pass buff-before-consume ordering, and the turn-start deal
+    // — was still wired for this effect the whole time it was unreachable.
+    effects: [{ on: 'shopRefreshed', do: 'shopRefreshedBuffRightmost', params: { attack: 4, health: 4 } }],
+    text: 'After each Shop refresh, give the **right-most** minion **+4/+4** permanently.',
+    goldenText: 'After each Shop refresh, give the **right-most** minion **+8/+8** permanently.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.

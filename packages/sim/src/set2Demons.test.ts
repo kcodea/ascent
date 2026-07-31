@@ -444,41 +444,58 @@ describe('set 2 — regressions from the effect-param audit', () => {
 });
 
 /**
- * Market Tormentor, rebuilt to the owner's spec (2026-07-25): while it's on board, the RIGHT-most minion of
- * every FRESH Shop roll comes in buffed. The old version was a one-shot Shout that ran `buffCardTypeRunWide`
- * — so it fired once and buffed every copy of that card id for the rest of the run.
+ * Market Tormentor: while it's on board, the RIGHT-most minion of every FRESH Shop roll comes in buffed, and
+ * the buff is PERMANENT — it rides the offer into the minion you buy.
+ *
+ * This is the second time these tests have moved. They were written for the per-refresh trigger (2026-07-25),
+ * rewritten to pin a one-shot Shout (2026-07-29), and are now back — the owner reported the Shout as a bug on
+ * 2026-07-31. Worth naming: the Shout rewrite is what let the regression through silently. `does NOT fire on a
+ * refresh any more` PASSED for two days while the card was doing almost nothing, because the test had been
+ * changed to expect the broken behaviour. So these assert the OWNER'S SPEC in his words, not the code's shape.
  */
-describe('set 2 — Market Tormentor (SHOUT since 2026-07-29)', () => {
-  /**
-   * It was "after each Shop refresh"; the owner changed it to a Shout. These tests moved with it — the four they
-   * replace asserted a per-refresh trigger that no longer exists, and would have kept passing only if the change
-   * had not been made.
-   */
+describe('set 2 — Market Tormentor (per-refresh)', () => {
   const rightmostBuff = (s: RunState): number => {
     const i = [...s.shop].reverse().findIndex((o) => !CARD_INDEX[o.cardId]?.spell);
     const offer = s.shop[s.shop.length - 1 - i]!;
     return (offer.atk ?? 0) + (offer.hp ?? 0);
   };
-
-  it('buffs the right-most Shop minion when PLAYED', () => {
-    let s: RunState = {
-      ...createRun(11), phase: 'recruit', embers: 99,
-      board: [], hand: [minion('T', 'dm_tormentor', 4, 4)],
-      shop: shop('sandbag', 'alley', 'stray'),
-    };
-    const before = rightmostBuff(s);
-    s = reduce(s, { type: 'play', uid: 'T' });
-    expect(rightmostBuff(s) - before, 'the Shout did not buff the right-most offer').toBe(8); // +4/+4
+  const onBoard = (): RunState => ({
+    ...createRun(11), phase: 'recruit', embers: 99, freeRolls: 99,
+    board: [minion('T', 'dm_tormentor', 4, 4)], hand: [],
+    shop: shop('sandbag', 'alley', 'stray'),
   });
 
-  it('does NOT fire on a refresh any more', () => {
-    let s: RunState = {
-      ...createRun(11), phase: 'recruit', embers: 99, freeRolls: 99,
-      board: [minion('T', 'dm_tormentor', 4, 4)], hand: [],
-      shop: shop('sandbag', 'alley', 'stray'),
-    };
+  it('buffs the right-most minion of EVERY refresh, not once', () => {
+    let s = onBoard();
+    for (const roll of [1, 2, 3]) {
+      s = reduce(s, { type: 'roll' });
+      expect(rightmostBuff(s), `refresh ${roll} did not buff the right-most offer`).toBe(8); // +4/+4
+    }
+  });
+
+  it('the buff is PERMANENT — it follows the minion you buy', () => {
+    let s = onBoard();
     s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s), 'refreshing still triggered it').toBe(0);
+    const i = s.shop.length - 1 - [...s.shop].reverse().findIndex((o) => !CARD_INDEX[o.cardId]?.spell);
+    const offer = s.shop[i]!;
+    const base = CARD_INDEX[offer.cardId]!;
+    const bought = offerBuyStats(s, offer);
+    expect(bought.attack - base.attack!, 'the offer buff was dropped on purchase').toBe(4);
+    expect(bought.health - base.health!, 'the offer buff was dropped on purchase').toBe(4);
+  });
+
+  it('STACKS — two Tormentors both buff the same offer', () => {
+    // The owner asked for stacking explicitly. `addOfferBuff` accumulates per source, so this is really a test
+    // that BOTH bodies get their watcher run rather than the row being buffed once per refresh.
+    let s: RunState = { ...onBoard(), board: [minion('T', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4)] };
+    s = reduce(s, { type: 'roll' });
+    expect(rightmostBuff(s), 'the second copy did nothing').toBe(16); // +8/+8
+  });
+
+  it('a GOLDEN copy doubles it', () => {
+    let s: RunState = { ...onBoard(), board: [{ ...minion('T', 'dm_tormentor', 8, 8), golden: true }] };
+    s = reduce(s, { type: 'roll' });
+    expect(rightmostBuff(s)).toBe(16); // +8/+8
   });
 });
 

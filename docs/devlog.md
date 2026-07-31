@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-07-31 — Market Tormentor fires on every refresh again
+
+The owner reported the buff "not working properly". It had been changed from a per-refresh trigger to a
+one-shot Shout on 2026-07-29 — so it bought itself ONE buffed offer on play and then did nothing for the rest
+of the run, which is not a tier-4 body. Moved back to `on: 'shopRefreshed'`; the factory is trigger-agnostic,
+so only the event and the text changed.
+
+Everything downstream had stayed wired for the per-refresh path the entire time it was unreachable:
+`applyShopRefreshed`'s two-pass buff-before-consume ordering names `shopRefreshedBuffRightmost` by id so a
+Hellrider eats the BUFFED body, and the turn-start deal counts as a refresh. None of it was running.
+
+Confirmed the owner's two other requirements rather than assuming them: PERMANENT (the buff rides the offer
+into the bought minion via `offerBuyStats`, so it survives the shop rolling away) and STACKING (`addOfferBuff`
+accumulates per source, so two Tormentors give +8/+8 and a golden gives +8/+8). Both now have tests.
+
+**Worth naming:** the test that should have caught this was `does NOT fire on a refresh any more` — it passed
+for two days while the card was broken, because it had been rewritten to expect the broken behaviour. The
+replacements asserted the owner's spec in his words instead of the code's current shape.
+
+Verified: typecheck (both), lint (7 pre-existing), 3441 tests, build:web.
+
 ## 2026-07-31 — Gilding keeps the accrual, Orivax counts from play, the Shop buff telegraphs
 
 **Gilding no longer resets to base** (owner report: a Soul Defiler granting +4/+4 gilded into +2/+2).

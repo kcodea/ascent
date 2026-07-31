@@ -90,7 +90,7 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   it('the SHOP-consume swirl payload does NOT accumulate across actions', () => {
     // The bug: the payload was appended to but cleared only by a few call sites, so each new consume replayed
     // every PREVIOUS one. On screen that stacked ghost minions over the shop and made a card that hadn't eaten
-    // (Demon Horse) look like it ate alongside one that had (Revolving Maw).
+    // (Demon Horse) look like it ate alongside one that had (Hellrider).
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
       board: [], hand: [minion('c1', 'dm_clerk', 1, 1), minion('c2', 'dm_clerk', 1, 1)],
@@ -137,7 +137,7 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
     expect(s.runFodderConsumed?.count ?? 0).toBe(0);
   });
 
-  it('Revolving Maw eats exactly ONE minion on its 4th refresh', () => {
+  it('Hellrider eats exactly ONE minion on its 4th refresh', () => {
     // The report said it ate "all of them". It eats the right-most, once — the appearance of more was the
     // accumulated swirl above.
     let s: RunState = {
@@ -268,7 +268,7 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(20);
   });
 
-  it('Revolving Maw eats on every 4th REFRESH, counting from its own arrival', () => {
+  it('Hellrider eats on every 4th REFRESH, counting from its own arrival', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 99, freeRolls: 99,
       board: [minion('m', 'dm_maw', 8, 8)], hand: [],

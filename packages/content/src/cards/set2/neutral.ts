@@ -77,7 +77,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     // Echo: its death hands Ward to two survivors — a body that trades early and leaves the line tougher than
     // it found it (owner change 2026-07-25, replacing a positional Start of Combat).
     id: 'n2_lastlight',
-    name: 'Lastlight Marshal',
+    name: 'Lastlight',
     tribe: 'neutral',
     tier: 5,
     attack: 5,

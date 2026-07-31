@@ -70,7 +70,7 @@ describe('set 2 — Oathbound Avenger', () => {
   });
 });
 
-describe('set 2 — Lastlight Marshal', () => {
+describe('set 2 — Lastlight', () => {
   // Swept across seeds on purpose: with THREE eligible bodies and two grants, a non-distinct pick only
   // collides on some seeds — the first version of this test passed on seed 3 against a broken implementation.
   it.each([1, 2, 3, 4, 5, 6, 7, 8])('Echo: two OTHER friendly minions gain Ward when it dies (seed %i)', (seed) => {

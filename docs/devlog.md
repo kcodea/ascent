@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-07-31 — Three renames — and Set 2 minion art is COMPLETE
+
+Lastlight Marshal → **Lastlight**, Tallymonger → **Void Curator**, Revolving Maw → **Hellrider**. Card IDs are
+unchanged (`n2_lastlight`, `dm_tallymonger`, `dm_maw`), so existing art, saved runs and board snapshots are
+untouched.
+
+The renames closed the last art gap on their own, which is why they were worth re-running the wiring for:
+- `Lastlight.png` had been sitting unmatched because the card was "Lastlight Marshal". It now matches exactly —
+  and it was the ONLY set-2 minion still without art. **Set 2 minion art: 0 missing.**
+- `Hellrider.png` was likewise unmatched (no card was called Hellrider). It now wires to `dm_maw`, and the older
+  `RevolvingMaw.png` correctly stops matching anything — the current-name file is the authoritative art.
+- `Tallymonger.png` is the reverse case: the art is filed under the PRE-rename name, so it gets an explicit
+  alias, same as the other pre-rename entries.
+
+Verified: typecheck (both), lint (7 pre-existing), 3402 tests, build:web, harness determinism.
+
+**Remaining art gap: 8 runes** — Investment, Hunger, the Menagerie (the set-2 twin `rune_menagerie_set2`; the
+art matched the set-1 rune), Mykel, Double Fisting, the Brokerage, Attacking Gems, the White Wolf.
+
 ## 2026-07-31 — The lobby round settles on END COMBAT, not when the replay ends
 
 Owner ask: the next opponent and the round's results should not appear until you press return-to-shop.

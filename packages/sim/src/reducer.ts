@@ -578,7 +578,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // assigned it wholesale, while every other consumer APPENDED — so Set 2's shop-eating Demons grew the list
   // across actions and the UI replayed every past consume on each new one. That showed up as ghost minions
   // stacking over the shop, and as a card that hadn't eaten (Demon Horse) appearing to eat alongside one that had
-  // (Revolving Maw) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
+  // (Hellrider) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
   // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
   s.fodderEaten = [];
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
@@ -1229,7 +1229,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       s.frozen = false;
       refreshTavern(s);
-      // Set 2 — tell the board a refresh happened (Revolving Maw counts them). Fired AFTER `refreshTavern`, so a
+      // Set 2 — tell the board a refresh happened (Hellrider counts them). Fired AFTER `refreshTavern`, so a
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
       applyShopRefreshed(s);
       return s;

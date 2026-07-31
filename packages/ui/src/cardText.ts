@@ -746,7 +746,7 @@ export function stepProgress(
   // the buy-count sibling of the Gold meter, likewise a shop-phase accrual (undefined in combat).
   const bought = def.effects.find((e) => e.on === 'cardsBought' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (bought) return p.buyTick === undefined ? null : cyc(p.buyTick, Math.max(1, n((bought.params as { every?: number })?.every, 4)));
-  // Revolving Maw: the REFRESH meter. Its tally rides `eotTick` (see `onShopRefreshConsume`), so this branch
+  // Hellrider: the REFRESH meter. Its tally rides `eotTick` (see `onShopRefreshConsume`), so this branch
   // must come before the End-of-Turn cadence one would otherwise claim that field — the two are different
   // triggers sharing one counter.
   const refreshed = def.effects.find((e) => e.on === 'shopRefreshed' && (e.params as { every?: number } | undefined)?.every !== undefined);

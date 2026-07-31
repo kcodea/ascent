@@ -2835,7 +2835,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(minion, a, h, self.uid);
   },
 
-  /** Set 2 — Lastlight Marshal (Echo): give `count` friendly minions Ward (golden doubles).
+  /** Set 2 — Lastlight (Echo): give `count` friendly minions Ward (golden doubles).
    *
    *  Prefers minions that DON'T already have a shield — handing Ward to a shielded body is a wasted grant, and
    *  on a wide board the random pick would do that often. Falls back to the full living set only if everyone is

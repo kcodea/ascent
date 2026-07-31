@@ -55,6 +55,10 @@ const ALIASES: Record<string, string> = {
   gemshard: 'gemheart-shard',        // the Gemheart Golem token, named in the source after its id
   groveweaveralt: 'b2_groveweaver',  // "GroveweaverAlt2" -> the b2_groveweaver2 variant slot
   cinderchancellor: 'dm_chancellor', // pre-rename name; RougeRogue.png wins the base slot, this fills `2`
+  // 2026-07-31 renames. Hellrider and Lastlight now match their cards by name exactly, so they need no entry
+  // (and RevolvingMaw.png correctly stops matching anything — Hellrider.png is the current art). Only Void
+  // Curator's art is still filed under its old name.
+  tallymonger: 'dm_tallymonger',     // -> Void Curator
   // (no alias for DenkeeperOona: a KingOona.png under the CURRENT name also exists, and an alias would race it —
   //  whichever copied last would win. The current-name file is authoritative.)
 };

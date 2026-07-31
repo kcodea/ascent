@@ -2199,7 +2199,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Revolving Maw: every `every` refreshes, consume the RIGHT-most Shop minion. The count is
+  /** Set 2 — Hellrider: every `every` refreshes, consume the RIGHT-most Shop minion. The count is
    *  per-instance (`eotTick`, already reset-safe and carried on the card), so it means "four refreshes since
    *  this arrived" rather than four since the run began. Golden doubles the stats gained, not the frequency. */
   onShopRefreshConsume: (ctx, self, params) => {
@@ -2248,7 +2248,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     consumeShopMinion(ctx.state, self, pick, num(params.times, 1) * (self.golden ? 2 : 1));
   },
 
-  /** Set 2 — Demon Horse / Revolving Maw: consume the RIGHT-most Shop minion. Golden doubles the stats gained
+  /** Set 2 — Demon Horse / Hellrider: consume the RIGHT-most Shop minion. Golden doubles the stats gained
    *  ("and gain double its stats"), not the number eaten. */
   consumeShopRightmost: (ctx, self, params) => {
     const i = rightmostShopMinion(ctx.state);
@@ -2307,7 +2307,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the shop afterwards doesn't move it — it's attached to the card, not to the position.
    *
    *  Ordering matters and is enforced by `applyShopRefreshed`: this runs before consuming watchers, so a
-   *  Revolving Maw that eats the right-most eats the BUFFED body. */
+   *  Hellrider that eats the right-most eats the BUFFED body. */
   shopRefreshedBuffRightmost: (ctx, self, params) => {
     const i = rightmostShopMinion(ctx.state);
     if (i < 0) return;
@@ -2325,7 +2325,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), attack * times, health * times);
   },
 
-  /** Set 2 — Tallymonger (End of Turn): give your SPELLS and IMPS +atk/+hp. Two run-wide channels: the spell
+  /** Set 2 — Void Curator (End of Turn): give your SPELLS and IMPS +atk/+hp. Two run-wide channels: the spell
    *  stat bonus (`spellBonus`, what every stat spell gains) and the Imp enchant (`buffImpsRunWide`, which
    *  reaches Imps "wherever they are" — board, hand and future summons). */
   endOfTurnBuffSpellsAndImps: (ctx, self, params) => {
@@ -2398,7 +2398,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  The phase is PER-INSTANCE (`eotTick`, advanced by the `endOfTurnAlternateMode` half below) rather than
    *  global wave parity, so a Matriarch always starts on Attack no matter which turn you bought it — the same
-   *  reasoning as Revolving Maw counting refreshes "from its own arrival". Two copies can therefore sit out of
+   *  reasoning as Hellrider counting refreshes "from its own arrival". Two copies can therefore sit out of
    *  phase, which is a feature: one covers each stat.
    *
    *  `alternateModeOf` is exported so the printed text can name the stat that's live RIGHT NOW — the card-text
@@ -5058,7 +5058,7 @@ export function applySpellBought(state: RunState, spellId: string): void {
 }
 
 /**
- * Set 2 — the tavern was REFRESHED. Fires `shopRefreshed` so a watcher can count rolls (Revolving Maw: every 4).
+ * Set 2 — the tavern was REFRESHED. Fires `shopRefreshed` so a watcher can count rolls (Hellrider: every 4).
  *
  * The tally deliberately lives PER-INSTANCE on the watching card, not as a run-wide counter: "every 4 refreshes"
  * should mean four since that body arrived, so a Maw bought on turn 8 doesn't immediately fire off refreshes it
@@ -5068,7 +5068,7 @@ export function applyShopRefreshed(state: RunState): void {
   applyShopRefreshQuestBuff(state); // before the board watchers, so a Market Tormentor's row is already buffed
   // TWO PASSES, and the order is load-bearing (owner ruling 2026-07-25): watchers that STAT-BUFF the new row
   // resolve before watchers that CONSUME from it, so anything eating the right-most minion eats the buffed
-  // body. Board order can't be trusted for this — a Revolving Maw sitting left of a Market Tormentor would
+  // body. Board order can't be trusted for this — a Hellrider sitting left of a Market Tormentor would
   // otherwise eat the offer a moment before it got buffed.
   const BUFF_FIRST = new Set(['shopRefreshedBuffRightmost']);
   for (const pass of [true, false]) {
@@ -5677,11 +5677,11 @@ export interface EotStepFx {
    *  grant arriving on ITS beat instead (owner ask 2026-07-27). cardIds, not uids: the projection runs on a
    *  throwaway clone whose uids are not the ones `faceOmen` will mint. */
   handGrants: string[];
-  /** SPELL POWER this beat added (Aeon Guard, Tallymonger). Carried per-beat for the same reason `welds` is:
+  /** SPELL POWER this beat added (Aeon Guard, Void Curator). Carried per-beat for the same reason `welds` is:
    *  the action-level `spellPowerFxSeq` bump lands after the phase has flipped to combat, so the shop-anchored
    *  flourish has nothing left to play over. Absent = no rise. */
   spellPower?: { attack: number; health: number };
-  /** The IMP AURA this beat added (Tallymonger). The action-level aura-wash watcher is explicitly gated on
+  /** The IMP AURA this beat added (Void Curator). The action-level aura-wash watcher is explicitly gated on
    *  `next.phase === 'recruit'` and End of Turn flips to combat, so an End-of-Turn imp buff never washed
    *  (owner report 2026-07-28). The beat still renders the board, so the cue belongs here. */
   impAura?: { attack: number; health: number };

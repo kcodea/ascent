@@ -217,7 +217,7 @@ describe('"Shop spells" wording ruling (owner 2026-07-27)', () => {
 });
 
 describe('End-of-Turn FX beats (owner report 2026-07-28)', () => {
-  it('Tallymonger carries BOTH a spell-power rise and an Imp-aura rise on its beat', () => {
+  it('Void Curator carries BOTH a spell-power rise and an Imp-aura rise on its beat', () => {
     // The bug was two separate misses: the spell cue matched on Aeon Guard's factory id specifically, and the
     // aura wash is gated on the run still being in recruit AFTER the action — which End of Turn never is.
     const s: RunState = {

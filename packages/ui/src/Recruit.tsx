@@ -3320,7 +3320,7 @@ export function Recruit() {
         const gold = run.board.find((c) => c.uid === b.uid)?.golden ? 2 : 1;
         // SPELL POWER raised on this beat. Driven by the PROJECTION's measured delta, not by matching a
         // factory id: this used to test `eff.do === 'battlecryBuffSpellPower'`, which is Aeon Guard's factory
-        // and nobody else's — so Tallymonger, which raises the same channel through
+        // and nobody else's — so Void Curator, which raises the same channel through
         // `endOfTurnBuffSpellsAndImps`, played no cue at all (owner report 2026-07-28). Reading the delta means
         // any card that moves spell power at End of Turn animates, including ones not written yet.
         //
@@ -3338,7 +3338,7 @@ export function Recruit() {
             fireSpellBuffOnHandSpells(run.hand);
           }
         }
-        // IMP AURA washed on this beat (Tallymonger). The action-level wash watcher is gated on the run still
+        // IMP AURA washed on this beat (Void Curator). The action-level wash watcher is gated on the run still
         // being in recruit AFTER the action, and End of Turn flips to combat — so an End-of-Turn imp buff never
         // washed. The board is still on screen during the beats, so it plays here.
         if (beatFx[i]?.impAura) fireAuraWave('demon');

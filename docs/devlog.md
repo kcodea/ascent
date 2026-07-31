@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-07-31 — Minion art re-wire (owner batch)
+
+Full re-run of `art:wire --apply` over the Set 2 Minions source after the owner's changes. Four minions
+actually changed — Runebloom Matriarch, Solaris Fang, Filing Clerk, Legion Shepherd — plus the new Rune of the
+Matriarch art (authored alongside the rune added earlier today). 144 minions matched, 0 missing, art complete
+across minions AND runes. Verified: build:web.
+
 ## 2026-07-31 — Owner follow-ups: Matriarch rune, combat casts improve Groveweaver, three clarifications
 
 **New rune — Rune of the Matriarch** (epic, 5, set 2): Runebloom Matriarchs trigger twice. A per-card repeat

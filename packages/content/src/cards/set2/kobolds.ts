@@ -34,18 +34,18 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
   },
   {
-    // Start of Combat scaler: plays Rubies on your Kobolds based on the run's per-turn cards-bought count
-    // (threaded into combat). Permanent carry-back.
+    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
+    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
     id: 'k_frenzied',
     name: 'Frenzied Excavator',
     tribe: 'kobold',
     tier: 5,
     attack: 6,
     health: 3,
-    keywords: ['SC'],
+    keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
     text: '**Shout:** play a Ruby on all of your minions.',
-    goldenText: '**Start of Combat:** Play **2 Rubies** on your Kobolds for every **4 cards** bought this turn.',
+    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
   },
   {
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,

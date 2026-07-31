@@ -559,7 +559,7 @@ describe('set 2 — the cast meter is the umbrella of Rubies + Shop Spells', () 
   });
 });
 
-describe('set 2 — Ashen Broodlord (owner change 2026-07-25)', () => {
+describe('set 2 — Ashen Broodlord (owner rework 2026-07-31: any friendly DEMON shop consume, first 2/turn)', () => {
   /** Board + a shop row of DISTINCT real minions to eat. */
   const setup = (broodlordGolden = false): RunState => {
     const s: RunState = { ...createRun(4), phase: 'recruit' };
@@ -581,11 +581,17 @@ describe('set 2 — Ashen Broodlord (owner change 2026-07-25)', () => {
     expect(got.token, 'and a Shop spell, not a Ruby — the card says "Shop spell"').toBeFalsy();
   });
 
-  it('only fires for ITS OWN consume, not another minion eating', () => {
+  it('a DEMON board-mate eating now pays too — and the per-turn cap holds at 2', () => {
+    // The 2026-07-25 shape was "when THIS Consumes"; the 2026-07-31 rework is "the first 2 times a friendly
+    // DEMON Consumes a Shop minion each turn". The Broodlord (a Demon itself) plus the clerk = three eats,
+    // but only the first two pay.
     const s = setup();
-    // The OTHER demon eats. Broodlord is on the board watching, and must stay quiet.
+    s.shop.push({ uid: 's2', cardId: 'alley' });
+    consumeShopMinion(s, s.board[1]!, 0); // the OTHER demon eats — pays now
+    expect(s.hand.length, 'a friendly Demon consuming must pay under the rework').toBe(1);
+    consumeShopMinion(s, s.board[0]!, 0);
     consumeShopMinion(s, s.board[1]!, 0);
-    expect(s.hand.length, 'a board-mate consuming is not "when THIS Consumes"').toBe(0);
+    expect(s.hand.length, 'the third consume must hit the per-turn cap').toBe(2);
   });
 
   it('golden grants two', () => {

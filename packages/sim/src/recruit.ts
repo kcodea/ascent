@@ -1025,10 +1025,11 @@ export const RUBY_ID = 'ruby';
  * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
  * (their buff baked in) don't grow. Respects the hand cap. Deterministic (no RNG) — same card, same Ruby.
  */
-export function mintRubies(state: RunState, count: number, rubyId: string = RUBY_ID): void {
+export function mintRubies(state: RunState, count: number, rubyId: string = RUBY_ID, statOverride?: { attack: number; health: number }): void {
   const def = CARD_INDEX[rubyId];
   if (!def) return;
-  const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+  // Rune of Gemcutting mints at a FIXED line (3/3) instead of the run's 1/1 + rubyBonus.
+  const bonus = statOverride ? { attack: statOverride.attack - def.attack, health: statOverride.health - def.health } : (state.rubyBonus ?? { attack: 0, health: 0 });
   let minted = 0;
   for (let i = 0; i < count && state.hand.length < CONFIG.handMax; i++) {
     state.hand.push({
@@ -2360,6 +2361,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  by construction rather than by an explicit Ruby check. */
   onConsumeSelfGrantSpell: (ctx, self, params, payload) => {
     if ((payload as { minion?: BoardCard } | undefined)?.minion !== self) return;
+    const spells = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
+    conjureToHand(ctx.state, spells, num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Ashen Broodlord (owner rework 2026-07-31): the first `cap` times ANY friendly Demon Consumes a
+   *  SHOP minion each turn, get a random Shop spell (golden: 2 per proc — `count` × gold; the cap stays).
+   *
+   *  Keyed on the payload's `shop` flag, which only `consumeShopMinion` sets — a Fodder eat fires the same
+   *  `onConsume` event and must not count ("Consumes a Shop minion" is the printed rule). The per-turn cap
+   *  rides `rubyRecvTick`, the per-instance counter the per-turn consume latches already use — it resets each
+   *  wave with the rest of the per-turn state, and the Broodlord has no other use for it. */
+  onDemonShopConsumeGrantSpell: (ctx, self, params, payload) => {
+    const p = payload as { minion?: BoardCard; shop?: boolean } | undefined;
+    if (!p?.shop || !p.minion || !isTribe(p.minion, 'demon')) return;
+    const cap = num(params.cap, 2);
+    if ((self.rubyRecvTick ?? 0) >= cap) return;
+    self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
     const spells = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
     conjureToHand(ctx.state, spells, num(params.count, 1) * gold(self));
   },
@@ -4290,8 +4308,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
     // locked hand card (only set if the offer actually opened). Hourglass Reserve (`lockWave`) + Funeral on Loan
     // (`borrowed`) ride the same lifecycle.
-    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; state.discoverLockWave = spec.lockWave; state.discoverBorrowed = spec.borrowed; }
-    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; state.discoverLockWave = undefined; state.discoverBorrowed = undefined; }
+    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; state.discoverLockWave = spec.lockWave; state.discoverBorrowed = spec.borrowed; state.discoverSetStats = spec.setStats; }
+    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; state.discoverLockWave = undefined; state.discoverBorrowed = undefined; state.discoverSetStats = undefined; }
   }
 }
 
@@ -4592,7 +4610,7 @@ function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: Board
 function fire(
   ctx: RecruitContext,
   event: 'onBuy' | 'onSummon' | 'onConsume',
-  payload: { minion: BoardCard },
+  payload: { minion: BoardCard; shop?: boolean }, // `shop`: this consume ate a SHOP minion (Broodlord's gate)
 ): void {
   // Snapshot: a handler may summon, which mutates the board.
   for (const card of [...ctx.state.board]) {
@@ -5256,7 +5274,7 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
   // shrank the run's pool, and with eight Demons eating — two of them every single turn — a long run would
   // visibly run the pool dry.
   returnToPool(state, def.id);
-  fire(ctx, 'onConsume', { minion: eater }); // Pactstone / Maw / Glutton pay off, same as a Fodder consume
+  fire(ctx, 'onConsume', { minion: eater, shop: true }); // `shop` distinguishes a SHOP eat from a Fodder one (Broodlord counts only these)
   // Deliberately NOT `noteFodderConsumed`: that tally is about FODDER. Feeding it here inflated Abhorrent
   // Horror's "stats from Fodder consumed" window and ticked Rune of Consumption's permanent Fodder-aura improve
   // — both paying out for eating something that isn't Fodder at all (owner report 2026-07-25, "maybe something
@@ -5458,7 +5476,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand) — descends onto each affected board Dragon.
   if (state.runeScales) {
     captureBuffFx(state, undefined, 'spell', () => {
-      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 1, 1);
+      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 2, 2); // +2/+2 (owner sheet 2026-07-31)
     });
   }
   for (const card of [...state.board]) {
@@ -5569,11 +5587,11 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
       step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 3, 3); });
     }
   } else if (effect === 'runeSpending') {
-    // Rune of Spending: +1 max Gold, and grant your leftmost minion +1/+1 PER Gold you spent this turn.
-    state.maxGoldBonus = (state.maxGoldBonus ?? 0) + 1;
+    // Rune of Spending (owner sheet 2026-07-31): the leftmost minion gets +3/+3 PER Gold spent this turn.
+    // The old +1 max Gold rider is gone with the rework. One step per Gold, so the FX ticks like a payout.
     const n = state.goldSpentThisTurn ?? 0;
     const leftmost = state.board[0];
-    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 1, 1));
+    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 3, 3));
   } else if (effect === 'runeAction') {
     // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn — one
     // step per card played, each step buffing the (up to) three leftmost.
@@ -5581,11 +5599,11 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     if (n > 0) {
       for (let i = 0; i < n; i++) step(() => { for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', 1, 1); });
     }
-  } else if (effect === 'grantAles') {
+  } else if (effect === 'grantAles' || effect === 'grantAles3') {
     // Open Tab (Dwarf quest): pour Ales at End of Turn, for the rest of the run. Draws from the RUN'S pool like
     // every other Ale grant, so a set without them pours nothing rather than injecting unreachable cards.
     const ales = poolOf(state).spells.filter((c) => ALE_IDS.includes(c.id));
-    if (ales.length > 0) step(() => conjureToHand(state, ales, 2));
+    if (ales.length > 0) step(() => conjureToHand(state, ales, effect === 'grantAles3' ? 3 : 2)); // Double Fisting pours 3
   } else if (effect === 'triggerLeftmostEcho') {
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
@@ -5615,15 +5633,19 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // when no spell was cast this turn (or an aimed spell finds an empty board).
     const def = state.firstSpellThisTurnId ? CARD_INDEX[state.firstSpellThisTurnId] : undefined;
     if (def?.spell) {
-      if (def.target) {
-        if (state.board.length > 0) {
-          const rng = makeRng(state.rngCursor);
-          const target = state.board[rng.int(state.board.length)]!;
-          state.rngCursor = rng.state();
-          castSpell(state, def, target);
+      // TWICE (owner sheet 2026-07-31). An aimed spell re-rolls its target per cast, matching the single-cast
+      // owner ruling that it lands on a seeded-random friendly.
+      for (let rep = 0; rep < 2; rep++) {
+        if (def.target) {
+          if (state.board.length > 0) {
+            const rng = makeRng(state.rngCursor);
+            const target = state.board[rng.int(state.board.length)]!;
+            state.rngCursor = rng.state();
+            castSpell(state, def, target);
+          }
+        } else {
+          castSpell(state, def);
         }
-      } else {
-        castSpell(state, def);
       }
     }
   } else if (effect === 'undeadPlayedAtk') {

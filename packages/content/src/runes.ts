@@ -35,18 +35,19 @@ export const RUNES: RuneDef[] = [
     sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
+    // Owner change 2026-07-31 (second pass): a KILL-COUNTER payoff, replacing the max-Gold-per-Slaughter
+    // shape. Kills accumulate across combats; every 6th pays a minion of the board's dominant type.
     id: 'rune_slaying',
-    sets: ['set1'], // removed from set 2 (owner 2026-07-31)
     name: 'Rune of Slaying',
     cost: 3,
-    text: 'Whenever you trigger **Slaughter**, gain **+1 max Gold**.',
+    text: 'When you kill **6 enemies**, get a minion of your **most common type**.',
     reward: { kind: 'combatFlag', flag: 'runeSlaying' },
   },
   {
     id: 'rune_spending',
     name: 'Rune of Spending',
     cost: 3,
-    text: '**End of Turn:** gain **+1 max Gold** and give your left-most minion **+1/+1** for each Gold spent this turn.',
+    text: '**End of Turn:** give your left-most minion **+3/+3** for each Gold spent this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeSpending' },
   },
   {
@@ -83,7 +84,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_forthcoming',
     name: 'Rune of Forthcoming',
     cost: 2,
-    text: 'You **always attack first**.',
+    text: '**Start of Combat:** your left-most minion attacks immediately and gains **Ward**.',
     reward: { kind: 'combatFlag', flag: 'runeForthcoming' },
   },
   // ── Moved into the Basic forge (2026-07-10 re-batch) ──
@@ -99,7 +100,7 @@ export const RUNES: RuneDef[] = [
     // is a Dragon card — scales belong to Dragons, so the Gold-scaling rune is the one that moves. The ID is
     // deliberately unchanged: `ownedRunes` on saved runs stores ids, and renaming it would orphan them.
     id: 'rune_scale',
-    name: 'Rune of Bulk Order',
+    name: 'Rune of Bulk Order',   // the owner re-confirmed Bulk Order over the sheet's "Scale" (2026-07-31)
     cost: 5,
     text: 'Every **5 Gold** you spend, give **3 random allies +3/+3**.',
     reward: { kind: 'runeScale', count: 3, attack: 3, health: 3, per: 5 },
@@ -287,8 +288,10 @@ export const RUNES: RuneDef[] = [
     id: 'rune_epic_forge',
     name: 'Rune of the Epic Forge',
     cost: 3,
-    text: 'Visit the **Epic Forge** on turn 9.',
-    reward: { kind: 'scheduleRuneforge', forge: 'epic', onWave: 9 },
+    // An EARLY epic forge: turn 8, one turn ahead of the systemic turn-9 visit (owner 2026-07-31). A
+    // schedule to wave 9 itself would do nothing — the baseline already sets the same boolean there.
+    text: 'Visit an **additional Epic Forge** on turn 8.',
+    reward: { kind: 'scheduleRuneforge', forge: 'epic', onWave: 8 },
   },
   {
     id: 'rune_kindling',
@@ -342,8 +345,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_gemcutting',
     name: 'Rune of Gemcutting',
     cost: 4,
-    text: 'Get **5 Rubies**.',
-    reward: { kind: 'grant', cards: ['ruby', 'ruby', 'ruby', 'ruby', 'ruby'] },
+    // Owner sheet 2026-07-31: SEVEN Rubies minted at a fixed 3/3, not the run's 1/1+bonus line.
+    text: 'Get **7 Rubies** that give **+3/+3**.',
+    reward: { kind: 'mintRubies', count: 7, attack: 3, health: 3 },
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
@@ -368,7 +372,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_summit',
     name: 'Rune of the Summit',
     cost: 5,
-    text: '**In 2 turns:** **Discover** a **Tier 7** minion. Repeats every **2 turns**.',
+    text: '**In 3 turns:** **Discover** a **Tier 7** minion. Repeats every **3 turns**.',
     reward: { kind: 'runeSummit' },
   },
   {
@@ -397,7 +401,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_packcraft',
     name: 'Rune of Packcraft',
     cost: 2,
-    text: 'Whenever you summon a **Beast** in combat, give your **Beasts +1/+1**.',
+    text: 'Whenever you summon a **Beast** in combat, give your **Beasts +2/+2** this combat.',
     reward: { kind: 'combatFlag', flag: 'runePackcraft' },
   },
   {
@@ -418,10 +422,12 @@ export const RUNES: RuneDef[] = [
   },
   // ── Batch 7a additions (owner designs 2026-07-17) ──
   {
+    // Owner sheet 2026-07-31: ONE random minion gains the exact-copy Echo (was: 2 random gain Rise — the
+    // same Rise-vs-exact-copy distinction Living Treasure hit; Rise returns the printed body).
     id: 'rune_rebirth',
     name: 'Rune of Rebirth',
     cost: 4,
-    text: '**Start of Combat:** give **2 random** friendly minions **Rise**.',
+    text: '**Start of Combat:** give a random friendly minion **Echo:** summon an exact copy of this without Echo.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
   },
   {
@@ -436,7 +442,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_aftershocks',
     name: 'Rune of Aftershocks',
     cost: 4,
-    text: 'Triggering an **Echo** gives your minions **+4/+4**.',
+    text: 'Triggering an **Echo** gives your minions **+4/+4** this combat.',
     reward: { kind: 'combatFlag', flag: 'runeAftershocks' },
   },
   {
@@ -497,7 +503,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Broodpit',
     cost: 3,
     epic: true,
-    text: '**Avenge (4):** summon **2 Imps with Taunt**.',
+    text: '**Avenge (3):** summon **2 Imps with Taunt**.',
     reward: { kind: 'combatFlag', flag: 'runeBroodpit' },
   },
   {
@@ -514,7 +520,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Appraisal',
     cost: 3,
     epic: true,
-    text: '**Avenge (4):** improve your Shop spells by **+1/+1**.',
+    text: '**Avenge (3):** improve your Shop spells by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
   },
   // ── Batch 4: grant runes (existing cards + a Gilded-grant option) ──
@@ -532,8 +538,9 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Stormcalling',
     cost: 5,
     epic: true,
-    text: 'Get a **Gilded Karwind** and a random **Shout** minion.',
-    reward: { kind: 'grant', grantGolden: ['karwind'], randomFilter: 'shout', randomFilterCount: 1 },
+    text: 'Get a **Karwind** and a random **Shout** minion.',
+    // Ungilded (owner sheet 2026-07-31 — it granted a Gilded copy before).
+    reward: { kind: 'grant', cards: ['karwind'], randomFilter: 'shout', randomFilterCount: 1 },
   },
   {
     id: 'rune_frontline_glory',
@@ -559,7 +566,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Scales',
     cost: 2,
     epic: true,
-    text: 'Whenever you cast a **Shop spell**, give your **Dragons +1/+1**.',
+    text: 'Whenever you cast a **Shop spell**, give your **Dragons +2/+2**.',
     reward: { kind: 'runeScales' },
   },
   {
@@ -606,12 +613,13 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeInheritance' },
   },
   {
+    // Owner sheet 2026-07-31 (was: Discover a Greater-Quest reward minion).
     id: 'rune_second_path',
     name: 'Rune of the Second Path',
     cost: 4,
     epic: true,
-    text: '**Discover** a **Greater Quest** reward minion.',
-    reward: { kind: 'discoverGreaterQuest' },
+    text: '**Discover 2 Tier 6** minions and set their stats to **20/20**.',
+    reward: { kind: 'runeSecondPath' },
   },
   {
     id: 'rune_twilight',
@@ -642,12 +650,14 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   // ── Batch 1 additions (grants / discovers — no new combat mechanics) ──
   {
+    // Owner sheet 2026-07-31 (was: Discover a Tier 6 minion). The tribe resolves against the board at forge
+    // time — the same dominant-tribe read Tribe Portal uses.
     id: 'rune_champion',
     name: 'Rune of the Champion',
     cost: 3,
     epic: true,
-    text: '**Discover** a **Tier 6** minion.',
-    reward: { kind: 'discover', tier: 6 },
+    text: '**Discover** a **Tier 4, 5, and 6** minion of your **most common type**.',
+    reward: { kind: 'runeChampion' },
   },
   {
     id: 'rune_armory',
@@ -690,7 +700,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Recurrence',
     cost: 4,
     epic: true,
-    text: '**End of Turn:** cast the **first Shop spell** you cast this turn again.',
+    text: '**End of Turn:** cast the **first Shop spell** you cast this turn again, **twice**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
   },
   {
@@ -707,7 +717,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Conductor',
     cost: 4,
     epic: true,
-    text: '**Start of Shop:** trigger all your **End of Turn** effects.',
+    text: 'Your **End of Turn** effects trigger **2 more times**.',
     reward: { kind: 'runeConductor' },
   },
   {
@@ -715,7 +725,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Undertow',
     cost: 4,
     epic: true,
-    text: 'Minions summoned by an **Echo** attack immediately.',
+    text: 'Minions summoned in combat gain **Ward**.',
     reward: { kind: 'combatFlag', flag: 'runeUndertow' },
   },
   {
@@ -793,8 +803,9 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Double Fisting',
     cost: 6,
     epic: true,
-    text: 'Get an **Edward Keg-hands** and **3 Dwarven Ales**.',
-    reward: { kind: 'grant', cards: ['dw_edward'], randomAle: 3 },
+    // Owner sheet 2026-07-31: the Ales RECUR — 3 random Ales every turn, not a one-shot trio.
+    text: 'Get an **Edward Keg-hands**, and **3 random Dwarven Ales** every turn.',
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dw_edward'] }, { kind: 'recurringEndOfTurn', effect: 'grantAles3' }] },
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
@@ -939,13 +950,13 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 3 },
   },
   {
-    // Rise IS "summon an exact copy of this without Echo", so this reuses the keyword rather than stamping a
-    // bespoke Deathrattle onto the token.
+    // Grafts Exgalloper's exact-copy Echo (NOT Rise — Rise resummons the printed body, so a grown shard came
+    // back at base stats; owner report 2026-07-31).
     id: 'rune_living_treasure',
     name: 'Rune of Living Treasure',
     cost: 4,
     epic: true,
-    text: 'Your **Gemheart Golems** gain **Rise**.',
+    text: 'Your **Gemheart Golems** gain **Echo:** summon an exact copy of this without Echo.',
     reward: { kind: 'combatFlag', flag: 'runeLivingTreasure' },
     sets: ['set2'], // Gemheart Golems are a set-2 Kobold token
   },

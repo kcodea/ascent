@@ -72,7 +72,7 @@ export const SET2_TOKENS: CardDef[] = [
     ruby: true,
     rubyGrantKeyword: 'DS',
     target: 'friendly',
-    text: 'Give a minion **+1/+1** and **Ward**.',
+    text: 'Give a minion **+1/+1**. Also give it **Ward** if it is a **Kobold**.',
   },
   {
     // Gemheart Carver's Echo summons this with stats copied from the Rubies on Gemheart (via `copyStats`), so

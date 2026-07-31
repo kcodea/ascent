@@ -722,7 +722,8 @@ export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, g
   if (cardsPlayedThisTurn <= 0) return null;
   const per = Number((eff.params as { attack?: number })?.attack ?? 1) * (golden ? 2 : 1);
   const total = per * cardsPlayedThisTurn;
-  return `**End of Turn:** give your **left-most Dwarf {{+${total} Attack}}** _(+${per} per card played this turn)_.`;
+  // Plain parentheses, no `_italics_` — the Card renderer only knows **bold**, so underscores print literally.
+  return `**End of Turn:** give your **left-most Dwarf {{+${total} Attack}}** (+${per} per card played this turn).`;
 }
 
 export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {
@@ -732,7 +733,7 @@ export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, gold
   if (goldSpentThisTurn <= 0) return null; // nothing spent yet — the printed rate is already accurate
   const per = Number((eff.params as { health?: number })?.health ?? 1) * (golden ? 2 : 1);
   const total = per * goldSpentThisTurn;
-  return `**Shout:** give a friendly minion **{{+${total} Health}}** _(+${per} per Gold spent this turn)_.`;
+  return `**Shout:** give a friendly minion **{{+${total} Health}}** (+${per} per Gold spent this turn).`;
 }
 
 export interface StepProgress {

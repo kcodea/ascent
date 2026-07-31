@@ -467,7 +467,7 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
   it('the Shout buffs the CURRENT shop immediately', () => {
     let s = base();
     s = reduce(s, { type: 'play', uid: 'T' });
-    expect(rightmostBuff(s)).toBe(8); // +4/+4
+    expect(rightmostBuff(s)).toBe(6); // +4/+2 (owner value change 2026-07-31: attack-forward, not symmetric)
   });
 
   it('the buff CARRIES ACROSS refreshes — no Tormentor on board required', () => {
@@ -476,19 +476,19 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     s = { ...s, board: [] }; // sell it; the SLOT remembers, not the minion (owner: "i do not need it on board")
     for (const roll of [1, 2]) {
       s = reduce(s, { type: 'roll' });
-      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(8);
+      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(6); // +4/+2
     }
   });
 
-  it("STACKS to the owner's worked example: two normals + a gilded = +16/+16", () => {
+  it("STACKS to the owner's worked example shape: two normals + a gilded = +16/+8", () => {
     let s: RunState = { ...base(), hand: [
       minion('T1', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4),
       { ...minion('T3', 'dm_tormentor', 8, 8), golden: true },
     ] };
     for (const uid of ['T1', 'T2', 'T3']) s = reduce(s, { type: 'play', uid });
-    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(32); // +16/+16
+    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(24); // +16/+8: 4+4+8 attack, 2+2+4 health
     s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(32);
+    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(24);
   });
 
   it('the buff rides the offer into the minion you BUY', () => {
@@ -500,7 +500,7 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     const def = CARD_INDEX[offer.cardId]!;
     const bought = offerBuyStats(s, offer);
     expect(bought.attack - def.attack!).toBe(4);
-    expect(bought.health - def.health!).toBe(4);
+    expect(bought.health - def.health!).toBe(2);
   });
 
   it('a Hellrider consuming the right-most eats the BUFFED body (buff-before-consume ordering)', () => {
@@ -517,7 +517,29 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     expect(eaten, 'Hellrider did not fire on this refresh').toBeTruthy();
     const def = CARD_INDEX[eaten!.cardId]!;
     expect(eaten!.attack - def.attack!, 'the eaten body was not buffed before the consume').toBe(4);
-    expect(eaten!.health - def.health!, 'the eaten body was not buffed before the consume').toBe(4);
+    expect(eaten!.health - def.health!, 'the eaten body was not buffed before the consume').toBe(2);
+  });
+});
+
+describe('set 2 — Ashen Broodlord (owner rework 2026-07-31)', () => {
+  // Vhal's End of Turn makes itself + neighbours each Consume a random Shop minion — three friendly-Demon
+  // SHOP consumes in one action, which is exactly the shape the Broodlord's "first 2 each turn" cap exists for.
+  const base = (): RunState => ({
+    ...createRun(11), phase: 'recruit', embers: 99,
+    board: [
+      minion('B', 'd2_broodlord', 6, 8),
+      minion('V', 'dm_vhal', 5, 8),
+      minion('D', 'dm_wrangler', 2, 4),
+    ],
+    hand: [],
+    shop: shop('sandbag', 'alley', 'stray'),
+  });
+
+  it('pays a Shop spell per friendly-Demon SHOP consume, capped at 2 per turn', () => {
+    const s = base();
+    applyEndOfTurn(s); // Vhal fires here — same direct call the Bob Blart test above uses
+    const spells = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell && !CARD_INDEX[c.cardId]?.ruby);
+    expect(spells.length, 'three consumes should pay the CAP (2), not 3').toBe(2);
   });
 });
 

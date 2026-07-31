@@ -1,5 +1,53 @@
 # ASCENT — development log
 
+## 2026-07-31 — Owner batch: 16 card fixes, three rules changes, and the 98-rune audit
+
+**Card fixes.** Four gilded texts were leftovers from cards' PREVIOUS shapes (Frenzied Excavator still printed
+its old Start-of-Combat scaler — and wore the SC badge for it; Embermouth Whelp, Water Dragon, Moonlit
+Scavenger). Stats: Traveling Skald 2/4, Packstrider 2/2, Big Huggies T4 + Taunt, Soul Defiler 6/6 T5, Runic
+Archivist T5 5/5. Market Tormentor's slot buff is +4/+2 (+8/+4 gilded). Ashen Broodlord reworked: the first 2
+times a friendly Demon Consumes a SHOP minion each turn pays a random Shop spell — keyed on a new `shop` flag
+in the consume payload, since a Fodder eat fires the same event and must not count.
+
+**Combat Rubies are TEMPORARY now** (owner ruling off the Gemstorm rune, REVERSING "Ruby buffs are always
+permanent"): they persist only on an Engraved minion. One line in `applyRubyStats`; six tests flipped from
+asserting the old rule, plus a new one proving the Engraved path still carries back.
+
+**Everything played counts as a card played.** The Ruby branch was the one hand-consuming path that never
+pushed into `playedThisTurn`, so Closing-Time Foreman and Rune of Action undercounted every Ruby. Also
+stripped the `_italics_` underscores that printed literally on Foreman/Dorrin (the Card renderer only knows
+bold).
+
+**Warding Rubies** grant Ward only to a KOBOLD target now, with matching text on both display paths.
+
+**Rune of Living Treasure was granting Rise, not the exact-copy Echo** — Rise resummons the PRINTED body,
+which is why a 7/3 shard came back a 1/1. It now grafts Exgalloper's `echoSummonCopyNoEcho` (current stats),
+and the graft is visible to Echo-amplifiers. Which exposed the Echohorn Stag bug: its Rally only matched
+effects whose factory id STARTS WITH "deathrattle", so `echoSummonCopyNoEcho`, `summonImps` and the whole
+`echoSummon*` family were invisible to it (Sylus worked — his amplifier uses `extraTriggerFires`). The filter
+is now "any `onDeath` effect". Found + fixed a double-registration on the graft (the summon path registers
+`minion.effects` itself; registering explicitly summoned TWO copies per death) — the chain-termination test
+caught it.
+
+**The rune audit** (owner's 98-row sheet vs the game): 24 changes landed. Highlights — Rouge Rogue-class
+finds: Rune of the Epic Forge did NOTHING (it scheduled the epic forge for wave 9, where the systemic baseline
+already opens one; now turn 8 per the owner). Reworks: Slaying (every 6 kills → a dominant-type minion, from
+max-Gold-per-Slaughter), Second Path (two T6 Discovers set to 20/20 — `DiscoverSpec.setStats` is new),
+Champion (T4+T5+T6 Discovers of the dominant tribe), Conductor (EoT ×3 via `endOfTurnExtra`, from a
+start-of-shop re-trigger), Undertow (combat summons gain Ward, from echo-summons-charge), Forthcoming (SoC
+left-most attacks immediately + Ward, from always-attack-first), Rebirth (ONE random minion gains the
+exact-copy Echo, from 2× Rise), Recurrence (recasts twice), Double Fisting (3 Ales EVERY turn), Gemcutting
+(7 Rubies at a fixed 3/3 — `mintRubies` grew a stat override), Quick Study left as-is pending owner wording.
+Values: Broodpit + Appraisal Avenge 4→3, Scales +2/+2, Packcraft +2/+2, Summit every 3rd shop, Stormcalling
+ungilded. Names: Bulk Order stays (the owner re-confirmed over the sheet). All 16 tests pinning old behaviour
+rewritten to the sheet.
+
+**Rune art is COMPLETE** — the owner authored the last 8; the wire script needed a full-stem alias (the
+set-2 Menagerie twin's `...2.png` was being eaten by the `2`-variant convention) and its missing-art report
+stripped a trailing `2` off ids, permanently mis-reporting `rune_menagerie_set2`. 0 runes without art.
+
+Verified: typecheck (both), lint (7 pre-existing), 3452 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Set 2 wiring audit: a dead card effect, a wrong-turn copy, and six stale texts
 
 A systematic pass over every Set-2 effect: is it registered where its trigger fires, does its combat form emit

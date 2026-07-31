@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -817,12 +817,17 @@ function reduceCore(state: RunState, action: Action): RunState {
               fireOnRubyPlayed(s, tail, card.attack, card.health);
             }
           }
-          // Warding Ruby: grant its keyword (Ward = DS) to the target — permanent in the shop phase (baked here).
+          // Warding Ruby: grant its keyword (Ward = DS) — but only to a KOBOLD (owner spec 2026-07-31: "give it
+          // Ward if it is a Kobold"). The stat half lands on anyone; the keyword is the tribe payoff.
           const kw = def.rubyGrantKeyword;
-          if (kw && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
+          if (kw && isTribe(boardTarget, 'kobold') && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
         } else if (offer) { for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health); }
         else return state;
         s.hand.splice(i, 1);
+        // A Ruby is a card played (owner ruling 2026-07-31: EVERYTHING you literally play or cast counts —
+        // minions, Shop spells, Rubies, tokens). This was the one hand-consuming branch that never pushed,
+        // so Closing-Time Foreman and Rune of Action undercounted on every Ruby.
+        s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
         const rubyCastsBefore = s.rubyCasts ?? 0;
         // The trigger meter is the UMBRELLA of Rubies + Shop Spells (see `fireOnRubyCast`), so both paths must
         // measure the SAME number — counting rubies on their own meter here would let the two drift and a
@@ -1541,6 +1546,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           ...(s.discoverLockWave ? { lockedUntilWave: s.discoverLockWave } : {}), // Hourglass Reserve
           ...(s.discoverBorrowed ? { borrowed: true } : {}), // Funeral on Loan
         };
+        // Rune of the Second Path: the pick's stats are SET to the authored line (20/20), replacing the
+        // conjured stats entirely — an override, not a buff.
+        if (s.discoverSetStats) { taken.attack = s.discoverSetStats.attack; taken.health = s.discoverSetStats.health; }
         // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
         // transform a triple applies, so the stats/keywords stay consistent with every other golden.
         if (s.discoverGolden) gildMinion(taken);
@@ -1552,6 +1560,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.discoverLockWave = undefined;
       s.discoverBorrowed = undefined;
       s.discoverGolden = undefined;
+      s.discoverSetStats = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
       // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue
@@ -1728,7 +1737,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       });
       // Player-only one-fight rune overrides.
       const config: CombatConfig = {
-        playerAttacksFirst: (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming,
+        playerAttacksFirst: s.attackFirstNext ?? false, // Forthcoming is a Start-of-Combat strike now, not turn priority
         playerRallyDouble: s.rallyDoubleNext ?? false,
       };
       const resolveCombatVs = (enemy: BoardMinion[], enemyState: CombatSideState): CombatResult => {
@@ -2355,10 +2364,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
   advanceCombatQuests(s, result);
   // A combat-completed quest may have granted a card to hand — if so, check for a triple (your 3rd copy → golden).
   if (s.hand.length > handBeforeQuests) checkTriples(s);
-  // Rune of Slaying (reworked 2026-07-21): every Slaughter (enemy felled) this combat raises your max Gold by 1.
-  // Applied at settle rather than via ctx.grantMaxGold, which is Soulsman-only and would pollute its run tally.
+  // Rune of Slaying (owner change 2026-07-31, second pass): kills BANK across combats — every 6th pays a
+  // minion of the board's dominant type into hand (the same resolver Reinforcing Ale uses). Replaces the
+  // max-Gold-per-Slaughter shape entirely; the leftover progress carries in `runeSlayingKills`.
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
-    s.maxEmbers += result.playerQuestTally.slaughter;
+    s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
+    while (s.runeSlayingKills >= 6) {
+      s.runeSlayingKills -= 6;
+      grantTopTypeMinion(s);
+    }
   }
   // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
   // current run-board/hand Beasts (so they keep the gain without re-buying).
@@ -2643,15 +2657,13 @@ function advanceCombat(s: RunState): void {
   // zeroed counters at shop open, so those specific rewards contribute nothing here by design. Wrapped
   // sourceless for FX (descends onto every gainer via the recruitFxSeq boundary), and the triggers count
   // toward "Trigger N End of Turn effects" quests like real ones.
-  if (s.runeConductor) {
-    captureBuffFx(s, undefined, 'spell', () => applyEndOfTurn(s));
-    advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0);
-  }
+  // (Rune of the Conductor's old start-of-shop EoT re-trigger lived here; the 2026-07-31 rework moved it to
+  // `endOfTurnExtra` — the rune now simply repeats your End of Turn twice more, like Parliament of Flame.)
   // Rune of the Summit: every 2nd shop opens a Tier 7 Discover. `exactTier: 7` is a FIXED-tier offer, so it
   // resolves with no rift active — which is the entire point (Tier 7 is otherwise unreachable outside one).
   if (s.runeSummit) {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
-    if (s.runeSummitTick % 2 === 0) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 });
+    if (s.runeSummitTick % 3 === 0) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); // every 3rd shop (owner sheet 2026-07-31)
   }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
@@ -3232,8 +3244,26 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeSummit = true;
       s.runeSummitTick = 0;
       break;
+    case 'mintRubies':
+      // Rune of Gemcutting: Rubies at a FIXED stat line, not 1/1 + rubyBonus.
+      mintRubies(s, r.count, undefined, { attack: r.attack, health: r.health });
+      break;
+    case 'runeSecondPath':
+      // Two Tier-6 Discovers whose picks are overwritten to 20/20 (owner sheet 2026-07-31).
+      queueDiscover(s, { kind: 'minion', tier: 6, exactTier: 6, setStats: { attack: 20, health: 20 } });
+      queueDiscover(s, { kind: 'minion', tier: 6, exactTier: 6, setStats: { attack: 20, health: 20 } });
+      break;
+    case 'runeChampion': {
+      // A T4, T5 and T6 Discover of the board's dominant tribe, resolved NOW (forge time) — the same
+      // dominant-tribe read Tribe Portal uses. No dominant tribe (empty/neutral board) → untyped Discovers.
+      const champTribe = dominantBoardTribe(s) ?? undefined;
+      for (const t of [4, 5, 6]) queueDiscover(s, { kind: 'minion', tier: t, exactTier: t, tribe: champTribe });
+      break;
+    }
     case 'runeConductor':
-      s.runeConductor = true; // Rune of the Conductor: start of every shop triggers your End of Turn effects
+      // Owner sheet 2026-07-31: End of Turn effects trigger 2 MORE times — riding `endOfTurnExtra`, the same
+      // permanent repeat counter Parliament of Flame uses (was: a start-of-shop full EoT re-trigger).
+      s.endOfTurnExtra = (s.endOfTurnExtra ?? 0) + 2;
       break;
     case 'runeMastery':
       s.runeMastery = true; // Rune of Mastery: every Improve step applies twice (shop + combat)
@@ -3431,7 +3461,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeGemstorm: f?.runeGemstorm,           // Avenge (2): Rubies onto every friendly Kobold
     runeBloodAndCoin: f?.runeBloodAndCoin,   // every 4 friendly deaths banks Gold for next turn
     runeWildHunt: f?.runeWildHunt,           // a Beast attacking pumps a board-wide Health aura
-    runeLivingTreasure: f?.runeLivingTreasure, // Gemheart Golems enter with Rise
+    runeLivingTreasure: f?.runeLivingTreasure, // Gemheart Golems gain the exact-copy Echo
     runeRemains: f?.runeRemains,             // every 5 combat summons buffs the Shop
     runeReinvestment: f?.runeReinvestment,   // after combat, the Shop gains per friendly summon
     runeHuntingBell: f?.runeHuntingBell,     // Avenge (3): fire your left-most Rally, free
@@ -3444,6 +3474,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeCounterpoint: f?.runeCounterpoint,   // a friendly death frees your left-most for a swing
     avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
+    runeForthcoming: f?.runeForthcoming, // Rune of Forthcoming: SoC left-most gains Ward + attacks immediately (2026-07-31 rework)
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise
     runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 6 → 2 Taunt Imps
     runeSpearline: f?.runeSpearline, // Rune of the Spearline: Avenge 4 → Spear Warden attacks now

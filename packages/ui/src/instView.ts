@@ -210,7 +210,7 @@ export function instView(
   // green via the standard `{{…}}` modified-value marker — the same cue every other scaled number uses.
   const rubyVal = `+${shownAtk}/+${shownHp}`;
   const shownText = c.ruby
-    ? `Give a minion **${shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal}**${c.rubyGrantKeyword === 'DS' ? ' and **Ward**' : ''}.`
+    ? `Give a minion **${shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal}**${c.rubyGrantKeyword === 'DS' ? '. Also give it **Ward** if it is a **Kobold**' : ''}.`
     : text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,

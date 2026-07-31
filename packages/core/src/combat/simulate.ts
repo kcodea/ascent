@@ -790,7 +790,8 @@ export function simulate(
     // Echo summons (a Deathrattle is resolving right now): Rune of the Undertow routes the body onto the
     // immediate-attack queue so it lands + strikes as one beat (the Whelp path). Rune of Aftershocks no
     // longer touches the summon — as of 2026-07-21 it buffs your whole board when an Echo TRIGGERS (see asEcho).
-    if (echoDepth > 0 && modsFor(side).runeUndertow) attackNow = true;
+    // (Rune of the Undertow's old echo-summons-attack-immediately behaviour lived here; the 2026-07-31
+    // rework grants combat summons WARD instead — see the grant beside the Living Treasure graft below.)
     // Rune of the Hatchery: bodies summoned BY an Echo come in +3/+3 with Taunt. Applied at the summon site so
     // it lands before the summon snapshot — the replay shows the real body, not the base card.
     const hatch = echoDepth > 0 ? modsFor(side).runeHatchery : undefined;
@@ -813,9 +814,25 @@ export function simulate(
       minion.health += fc.health;
       minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
     }
+    // Rune of the Undertow (owner sheet 2026-07-31): minions summoned in combat arrive with Ward. Granted
+    // BEFORE the summon event is emitted, so the snapshot carries the shield from the first frame.
+    if (modsFor(side).runeUndertow && !minion.divineShield) {
+      minion.divineShield = true;
+      if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+    }
     if (modsFor(side).runeLivingTreasure && card.id === 'gemheart-shard') {
-      minion.rebornAvailable = true;
-      if (!minion.keywords.includes('R')) minion.keywords.push('R');
+      // Rune of Living Treasure grafts the EXACT-COPY Echo (Exgalloper's), not Rise. It shipped as Rise on the
+      // theory that "Rise IS summon an exact copy" — but Rise resummons the PRINTED body, so a 7/3 shard came
+      // back a 1/1 (owner report 2026-07-31); the Echo copies current stats. Being a real `onDeath` effect
+      // also means every Echo-amplifier (Sylus, Echohorn Stag) now applies. The chain terminates the same way
+      // Exgalloper's does: the factory strips ALL onDeath effects from the copy it summons — including this
+      // graft, which lands first (this line runs during the copy's summon) — and a stripped effect
+      // self-disables via the `minion.effects.includes` guard in `registerEffect`.
+      // Push ONLY — no explicit registerEffect: `registerEffects(minion)` below registers everything in
+      // `minion.effects`, and registering here too subscribed the Echo TWICE (it summoned two copies per death,
+      // caught by the chain-termination test).
+      const eff: EffectDef = { on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} };
+      minion.effects = [...minion.effects, eff];
     }
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
@@ -2021,6 +2038,21 @@ export function simulate(
         nextStep(); fireTrigger('runeFoodChain', rside);
       }
     }
+    // Rune of Forthcoming (owner sheet 2026-07-31): the LEFT-MOST minion gains Ward and attacks immediately.
+    // Replaces the old "you always attack first" turn-priority version (see the reducer's playerAttacksFirst).
+    if (rmods.runeForthcoming) {
+      const front = boards[rside].filter((m) => !m.dead && m.health > 0)[0];
+      if (front) {
+        nextStep(); fireTrigger('runeForthcoming', rside);
+        if (!front.divineShield) {
+          front.divineShield = true;
+          if (!front.keywords.includes('DS')) front.keywords.push('DS');
+          emit({ type: 'shieldUp', target: front.uid });
+        }
+        ctx.attackNow?.(front, false);
+        flushImmediateAttacks();
+      }
+    }
     if (rmods.runeVanguard) {
       const front = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, 3);
       if (front.length > 0) {
@@ -2089,20 +2121,20 @@ export function simulate(
         emit({ type: 'keyword', target: lm.uid, keyword: 'RL', source: lm.uid });
       }
     }
-    // Rune of Rebirth (reworked 2026-07-21): give 2 RANDOM friendly minions Rise (any tribe). Previously it
-    // made every Rise return at full Health instead. Random pick is drawn off the seeded combat rng, so it
-    // replays identically. Sibling of Rising Graves below (which is Undead-only + left-most).
+    // Rune of Rebirth (owner sheet 2026-07-31): ONE random friendly minion gains the EXACT-COPY Echo —
+    // the same Rise-vs-copy distinction Living Treasure hit (Rise returns the printed body; the Echo copies
+    // current stats). Registered explicitly: the initial board's effects were already registered before
+    // Start of Combat, so the normal registration pass will not see this graft.
     if (rmods.runeRebirth) {
-      const eligible = boards[rside].filter((m) => !m.dead && m.health > 0 && !m.rebornAvailable);
-      let given = 0;
-      while (given < 2 && eligible.length > 0) {
-        const m = eligible.splice(ctx.rng.int(eligible.length), 1)[0]!;
+      const eligible = boards[rside].filter((m) => !m.dead && m.health > 0 && !m.effects.some((e) => e.do === 'echoSummonCopyNoEcho'));
+      if (eligible.length > 0) {
+        const m = eligible[ctx.rng.int(eligible.length)]!;
         nextStep(); // step FIRST so the badge pulse lands on the grant's own beat
-        if (given === 0) fireTrigger('runeRebirth', rside);
-        m.rebornAvailable = true;
-        if (!m.keywords.includes('R')) m.keywords.push('R');
-        emit({ type: 'keyword', target: m.uid, keyword: 'R', source: m.uid });
-        given++;
+        fireTrigger('runeRebirth', rside);
+        const eff: EffectDef = { on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} };
+        m.effects = [...m.effects, eff];
+        registerEffect(m, eff);
+        emit({ type: 'sc', source: m.uid, text: `${m.name} gains an Echo`, cast: true });
       }
     }
     // Rune of Rising Graves: give the two left-most Undead Rise (Reborn) — a foldable `keyword` R grant.
@@ -2135,7 +2167,7 @@ export function simulate(
     });
   };
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.
-  runeAvenge(4, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // summon 2 Imps with Taunt
+  runeAvenge(3, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // Avenge (3): summon 2 Imps with Taunt (owner sheet 2026-07-31)
     const imp = cards['impscrap'];
     if (imp) { nextStep(); for (let i = 0; i < 2; i++) summonMinion(side, imp, undefined, ['T']); }
   });
@@ -2144,7 +2176,7 @@ export function simulate(
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }
   });
   // Economy avenge runes — PLAYER-ONLY (grant to the run's spell power / max Gold; no enemy meaning).
-  runeAvenge(4, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
+  runeAvenge(3, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
   // Batch 5 (owner sheet 2026-07-30). All three go through `runeAvenge`, which already owns the modulo, the
   // per-side mask and the Rune of Fury re-fire — so these are registrations, not new machinery.
   runeAvenge(3, 'runeLastCall', (m, side) => side === 'player' && !!m.runeLastCall, (side) => {
@@ -2205,7 +2237,7 @@ export function simulate(
       const { minion, side } = payload as { minion: Minion; side: Side };
       if (!modsFor(side).runePackcraft) return;
       if (!isBeast(minion)) return; // Beast summons only
-      for (const m of boards[side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, 1, 1, 'Rune of Packcraft');
+      for (const m of boards[side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, 2, 2, 'Rune of Packcraft'); // +2/+2 (owner sheet 2026-07-31)
     });
   }
   // Rune of Inheritance: when your LEFT-MOST living minion dies, your right-most living minion gains its stats. Per side.

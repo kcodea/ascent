@@ -103,18 +103,18 @@ export const SET2_DEMONS: CardDef[] = [
     // roll's right-most, STACKS across plays (two normals + a gilded = +16/+16), and does NOT need the
     // Tormentor to stay on board — the slot remembers, not the minion. The first shape (per-refresh watcher)
     // died with the body; the second (one-shot Shout) buffed exactly one offer ever. Both were wrong.
-    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 4, health: 4 } }],
-    text: '**Shout:** the **right-most Shop slot** gets **+4/+4** for the rest of the run. Stacks.',
-    goldenText: '**Shout:** the **right-most Shop slot** gets **+8/+8** for the rest of the run. Stacks.',
+    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 4, health: 2 } }],
+    text: '**Shout:** the **right-most Shop slot** gets **+4/+2** for the rest of the run. Stacks.',
+    goldenText: '**Shout:** the **right-most Shop slot** gets **+8/+4** for the rest of the run. Stacks.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
     id: 'dm_curator',
     name: 'Soul Defiler',
     tribe: 'demon',
-    tier: 4,
-    attack: 5,
-    health: 3,
+    tier: 5,
+    attack: 6,
+    health: 6,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'buffShopPermanent', params: { attack: 1, health: 1, improve: 1 } }],
     text: '**End of Turn:** give minions in the Shop **+1/+1**. Improves by **+1/+1** each time this triggers.',
@@ -165,16 +165,16 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_velvet',
     name: 'Big Huggies',
     tribe: 'demon',
-    tier: 5,
+    tier: 4,
     attack: 5,
     health: 2,
-    keywords: [],
+    keywords: ['T'],
     // `cardId`, NOT `spellId` — the factory reads `params.cardId`, so the wrong key granted the EMPTY string and
     // the hand-grant preview then crashed on `CARD_INDEX['']` (owner report 2026-07-25). `count` is likewise not
     // a param here: the factory grants `mul(self)` copies, which is already the golden "2 Staves".
     effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'staffofguel' } }],
-    text: '**Echo:** get a **Staff of Guel**.',
-    goldenText: '**Echo:** get **2 Staves of Guel**.',
+    text: '**Taunt.** **Echo:** get a **Staff of Guel**.',
+    goldenText: '**Taunt.** **Echo:** get **2 Staves of Guel**.',
   },
   {
     // The pay-off scales with the room you LEFT — a lone Shepherd fills six slots and buffs six times.

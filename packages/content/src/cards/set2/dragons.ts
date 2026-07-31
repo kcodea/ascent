@@ -28,7 +28,8 @@ export const SET2_DRAGONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 1, health: 1 } }],
     text: 'After you trigger a **Shout**, gain **+1/+1**.',
-    goldenText: '**Shout:** give another friendly Dragon **+4/+2**.',
+    // The golden text was a leftover from the card's old buff-another-Dragon Shout shape.
+    goldenText: 'After you trigger a **Shout**, gain **+2/+2**.',
   },
   {
     // The tribe's Tier-1 spell payoff: a body that grows every turn you cast, so casting early has a floor
@@ -125,7 +126,8 @@ export const SET2_DRAGONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 4 } }],
     text: '**Avenge (4):** get a random Shop spell.',
-    goldenText: '**Avenge (4):** get **2** copies of the left-most spell in your hand.',
+    // The golden text was a leftover from the old Vault-Curator copy shape.
+    goldenText: '**Avenge (4):** get **2** random Shop spells.',
   },
   {
     // Dragon/BEAST: a delayed spell-copier. Its Echo (dying in combat is the usual path) queues a copy of
@@ -162,9 +164,11 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 6,
     health: 8,
     keywords: [],
-    effects: [{ on: 'onConsume', do: 'onConsumeSelfGrantSpell', params: { count: 1 } }],
-    text: 'When this **Consumes** a minion, get a **Shop spell**.',
-    goldenText: 'When this **Consumes** a minion, get **2 Shop spells**.',
+    // Owner rework 2026-07-31: from "when THIS consumes" (which required outside help to ever fire — the
+    // Broodlord has no consume of its own) to a capped payoff on the tribe's whole consume engine.
+    effects: [{ on: 'onConsume', do: 'onDemonShopConsumeGrantSpell', params: { cap: 2, count: 1 } }],
+    text: 'The first **2** times a friendly Demon **Consumes** a Shop minion each turn, get a random **Shop spell**.',
+    goldenText: 'The first **2** times a friendly Demon **Consumes** a Shop minion each turn, get **2** random **Shop spells**.',
   },
   {
     // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the
@@ -184,9 +188,9 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_archivist',
     name: 'Runic Archivist',
     tribe: 'dragon',
-    tier: 6,
-    attack: 4,
-    health: 7,
+    tier: 5,
+    attack: 5,
+    health: 5,
     keywords: [],
     // Owner rework 2026-07-27 — the recast moved to Water Dragon; the Archivist now pays for SELLING. The
     // tally rides on the card (`soldProgress`) and carries round to round.
@@ -260,8 +264,8 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Traveling Skald',
     tribe: 'dragon',
     tier: 2,
-    attack: 4,
-    health: 5,
+    attack: 2,
+    health: 4,
     keywords: [],
     effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 2, health: 1 } }],
     text: 'When a friendly **Dragon** attacks, give it **+2/+1**.',

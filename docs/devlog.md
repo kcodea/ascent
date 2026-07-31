@@ -131,6 +131,50 @@ collision in `styles.css`, and the first found by looking for it rather than by 
 live in the CSSOM with their `:hover:active` pairs, the rule-order proof above, and hero select re-checked for
 layout — Back still `absolute` at (30, 24), which is the regression this same work caused last time.
 
+## 2026-07-28 (the hand make-room glide, done transform-safely)
+
+### feat(ui): the hand glides on a card-count change, via a CSS var instead of Flip
+
+Second attempt at the owner's ask, after the first was reverted for inflating cards (see the entry below).
+Same feel, a mechanism that cannot reproduce that failure.
+
+**How it works.** A new `--hand-glide` CSS var is composed inside `.row.hand .card`'s transform (and the
+`:hover` variant, so hovering mid-glide doesn't drop the offset). On a hand-count change the effect seeds each
+surviving card with the pixel delta back to where it just sat, forces one reflow, then sets the var to `0px` —
+and the row's own `transition: transform` carries it home.
+
+**Why this can't inflate a card.** The failure last time was: `Flip.getState` measures
+`getBoundingClientRect`, which folds in the `:hover scale(1.06)`; Flip then morphs `width`/`height` from what
+it measured, baking the hover zoom into inline layout width, compounding 6% per interaction. This version
+removes both halves of that:
+
+- It measures **`offsetLeft`** — the pure LAYOUT position, immune to *every* transform (hover zoom, the drag's
+  make-room slide, an in-flight glide). The warband's commit FLIP documents the same offsetLeft-vs-rect
+  reasoning; this now matches it.
+- It only ever writes a **CSS custom property and a transition**. Nothing in this path can write `width` or
+  `height`, so a size can't drift no matter how the measurements land.
+
+React never writes `--hand-glide`, so the two can't fight over the transform string the way inline transform
+and GSAP would.
+
+**Interactions handled.**
+- **Drag-reorder** still belongs to GSAP Flip, untouched — its capture happens at drop time, while
+  `body.dragging` neutralises the `:hover` rule, so its measurement was never pollutable.
+- **Mid-drag** the glide stands down: the drag owns the row through `handSlidePx`. On the drop commit the
+  drag is over, and because `offsetLeft` ignored the slide transforms, the delta we seed is exactly where the
+  card visually sits — it continues rather than snapping back, which was the failure mode that forced the
+  per-commit capture in the first version.
+- **Entering cards** have no previous position and are skipped; `playBuySlide` still owns the bought card.
+- **Combat** is skipped entirely (the hand is frozen); the positions map is cleared on the way in.
+
+**No cleanup timer**, deliberately: the var settles at `0px`, which is what its default already resolves to,
+so leaving it inline is inert. A timer here would be one more hold to leak — see the stuck-cue audit.
+
+**Perf:** one forced layout per commit over at most `CONFIG.handMax` cards, the same shape as the warband's
+`commitRectsRef`, and wrapped in `perfMonitor.measure('layout:handglide')`.
+
+**Verified:** `typecheck` clean (pkgs + web), `lint` 0 errors, **3417 tests** / 186 files green, `build:web`
+green. Feel needs an eyeball — the checks prove no regression, not that the motion reads well.
 
 ## 2026-07-30 — the frame budget is 4.17 ms, and the perf HUD was calibrated to a monitor nobody owns
 

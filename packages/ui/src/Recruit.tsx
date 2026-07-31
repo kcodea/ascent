@@ -1461,6 +1461,9 @@ export function Recruit() {
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
   const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // Each hand card's LAYOUT x (offsetLeft) as of the previous commit — the make-room glide's "from". Layout,
+  // not a rect, so no transform (hover zoom, drag slide, live glide) can ever leak into it.
+  const handLeftsRef = useRef<Map<string, number>>(new Map());
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
   const commitRectsRef = useRef<Map<string, number> | null>(null);
@@ -3131,16 +3134,68 @@ export function Recruit() {
         onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
       });
     };
-    /* ONLY a drag-reorder glides here. A general "make room on any hand-count change" pass was added and
-       REVERTED (2026-07-27) — see the devlog: capturing `Flip.getState` outside a drag records the CSS
-       hover `scale(1.06)` in the card's bounds, and Flip (without `scale: true`) morphs width/height, so the
-       hover scale got baked into inline layout width and compounded on every interaction. The drop-time
-       capture below is safe precisely because `body.dragging` neutralises that hover rule (styles.css). */
+    /* A drag-REORDER is Flip's: it captures at drop time, while `body.dragging` neutralises the `:hover`
+       rule, so its measurement can't be polluted (styles.css). Everything else goes through the CSS
+       `--hand-glide` channel below — never Flip — because a capture taken outside a drag WOULD see that
+       hover `scale(1.06)`, and Flip morphs width/height from what it measures (see the 2026-07-28 devlog). */
     const st = handReorderFlipRef.current;
     if (!st) return;
     handReorderFlipRef.current = null;
     glide(st);
   }, [handOrderKey]);
+
+  /* ---- MAKE ROOM / CLOSE THE GAP when the hand's card count changes (owner ask 2026-07-27) -------------
+     A buy, a play, a cast — anything that adds or removes a hand card — re-centres the fan, and every other
+     card would blink to its new slot. Seed each survivor with the delta back to where it just sat, then
+     release it to 0 so the row's own `transition: transform` carries it home.
+
+     Measured with **`offsetLeft`, not a rect**: offsetLeft is the pure LAYOUT position and is immune to any
+     transform — the hover zoom, the drag's make-room slide, an in-flight glide. That is the whole reason
+     this replaced the Flip version, which measured rects and baked the hover scale into layout width. (The
+     warband's commit FLIP documents the same offsetLeft-vs-rect reasoning.)
+
+     Skipped mid-drag: the drag owns the row's motion through `handSlidePx`, and the pre-emptive slide has
+     already opened the gap. On the drop commit the drag is over, and because offsetLeft ignored the slide
+     transforms the delta we seed is exactly where the card visually sits — so it continues rather than
+     snapping back. Entering cards have no previous position and are skipped; `playBuySlide` owns those. */
+  useLayoutEffect(() => {
+    if (inCombat || dragRef.current?.active) return;
+    const prev = handLeftsRef.current;
+    const els = [...document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')];
+    const moved: HTMLElement[] = [];
+    for (const el of els) {
+      const old = prev.get(el.dataset.uid ?? '');
+      if (old === undefined) continue;                 // just arrived — not ours to move
+      const d = old - el.offsetLeft;
+      if (Math.abs(d) < 0.5) continue;                 // didn't move
+      el.style.setProperty('transition', 'none');      // seed instantly, or the seed itself animates
+      el.style.setProperty('--hand-glide', `${d}px`);
+      moved.push(el);
+    }
+    if (moved.length === 0) return;
+    void document.body.offsetWidth;                    // commit the seed before releasing it
+    for (const el of moved) {
+      el.style.removeProperty('transition');           // hand the motion back to the CSS transition
+      el.style.setProperty('--hand-glide', '0px');
+    }
+    // Deliberately NO cleanup timer: the var settles at `0px`, which is what the default already resolves
+    // to, so leaving it inline is inert. A timer here would be one more hold to leak (see the 2026-07-27
+    // stuck-cue audit).
+  }, [handOrderKey, inCombat]);
+
+  /* Every hand card's layout x, refreshed each commit for the glide above. Declared AFTER it so that within
+     one commit the glide reads the PREVIOUS frame's positions and this then overwrites them. One forced
+     layout over at most `CONFIG.handMax` cards — the same shape as the warband's `commitRectsRef`. */
+  useLayoutEffect(() => {
+    if (inCombat) { handLeftsRef.current.clear(); return; }
+    perfMonitor.measure('layout:handglide', () => {
+      const next = new Map<string, number>();
+      for (const el of document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')) {
+        next.set(el.dataset.uid ?? '', el.offsetLeft);
+      }
+      handLeftsRef.current = next;
+    });
+  });
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
   const fireSpark = (x: number, y: number): void => {

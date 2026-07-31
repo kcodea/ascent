@@ -1818,6 +1818,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // applies), then advance past it (terminal check / next wave).
       if (s.phase !== 'combat' || !s.lastCombat) return state;
       if (!s.combatSettled) settleCombat(s, s.lastCombat);
+      // The lobby round settles HERE rather than when the replay ended, so the table's new health, the
+      // eliminations and your next opponent all appear together when you choose to leave the fight.
+      settleLobbyRound(s, s.lastCombat);
       advanceCombat(s);
       return s;
     }
@@ -2028,26 +2031,40 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
 }
 
+/**
+ * LOBBY MODE: settle the whole ROUND from the player's fight.
+ *
+ * The player's fight is authoritative and just happened, so both sides' damage reads straight off that ONE
+ * result, then the other three pairings resolve. Combat is not symmetric (the winner flips 22% of the time when
+ * the sides are swapped), so re-simulating the player's fight from the opponent's chair would contradict the
+ * replay they just watched.
+ *
+ * DEFERRED TO THE END-COMBAT BUTTON (owner ask 2026-07-31). This used to run inside `settleCombat`, i.e. the
+ * moment the replay finished — so the rail showed the table's new health, the eliminations and your NEXT
+ * opponent while you were still looking at the fight you had just watched. It now runs on `resolveCombat`, the
+ * action behind "return to shop", so the round's consequences land when the player asks to see them.
+ *
+ * Idempotent via `lobbySettledRound`: settling twice would resolve the other pairings a second time and charge
+ * every seat twice for one round.
+ */
+function settleLobbyRound(s: RunState, result: CombatResult): void {
+  if (s.mode !== 'lobby' || !s.lobby) return;
+  if (s.lobbySettledRound === s.lobby.round) return;
+  s.lobbySettledRound = s.lobby.round;
+  s.lobby = settleRunLobbyRound(
+    { ...s.lobby, seats: s.lobby.seats.map((x) => ({ ...x })), encounters: [...s.lobby.encounters] },
+    result,
+  );
+  const me = s.lobby.seats[0]!;
+  // The seat's health becomes the run's, so the HUD and every health-aware effect read the number that actually
+  // matters. The ordinary damage path in `settleCombat` is explicitly skipped for lobby mode, so this is the
+  // only writer and there is no double-charge.
+  s.resolve = Math.max(0, me.resolve);
+  s.armor = Math.max(0, me.armor);
+}
+
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */
 function settleCombat(s: RunState, result: CombatResult): void {
-  // LOBBY MODE: the player's fight is authoritative and just happened, so the whole ROUND settles from it —
-  // both sides' damage read straight off that ONE result, then the other three pairings resolved. Combat is not
-  // symmetric (the winner flips 22% of the time when the sides are swapped), so re-simulating the player's fight
-  // from the opponent's chair would contradict the replay the player just watched.
-  //
-  // This lives in the FUNCTION, not the `settleCombat` case: `resolveCombat` calls this directly when the player
-  // skips the replay, so hooking only the case silently skipped the lobby on the most common path.
-  if (s.mode === 'lobby' && s.lobby && !s.combatSettled) {
-    s.lobby = settleRunLobbyRound(
-      { ...s.lobby, seats: s.lobby.seats.map((x) => ({ ...x })), encounters: [...s.lobby.encounters] },
-      result,
-    );
-    const me = s.lobby.seats[0]!;
-    // The seat's health becomes the run's, so the HUD and every health-aware effect read the number that
-    // actually matters. Applied BEFORE the ordinary damage below, which then no-ops against it.
-    s.resolve = Math.max(0, me.resolve);
-    s.armor = Math.max(0, me.armor);
-  }
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
   // Loss-streak tracking (matchmaking softener): a loss extends the streak; a WIN breaks it and re-arms the

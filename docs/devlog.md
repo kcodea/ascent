@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-07-31 — The lobby round settles on END COMBAT, not when the replay ends
+
+Owner ask: the next opponent and the round's results should not appear until you press return-to-shop.
+
+The lobby settle used to live inside `settleCombat`, which runs the moment the replay finishes — so the rail
+showed the table's new health, the eliminations and your NEXT opponent while you were still looking at the
+fight you had just watched. Extracted to `settleLobbyRound` and moved to the `resolveCombat` case, the action
+behind the button, so the round's consequences all land together when the player asks to see them.
+
+Three details that make it safe:
+- The player's own Resolve/Armor sync moved with it, so the HUD does not disagree with the rail for the gap
+  between the replay ending and the button. The ordinary damage path in `settleCombat` is already skipped for
+  lobby mode, so this remains the only writer — no double-charge.
+- `lobbySettledRound` guards idempotence. `resolveCombat` is phase-guarded, but settling one round twice would
+  re-resolve the other three pairings and charge every seat a second time, which is worth a real defence rather
+  than relying on a phase check staying true.
+- The SKIP path still works. `resolveCombat` calls `settleCombat` directly when the player skips the replay —
+  the exact bug this test file was originally written for — so deferring the table must not re-open it. There
+  is a test for that specific path.
+
+Verified: 4 new tests (table untouched while in the combat view; one press resolves all 4 pairings; a second
+press changes nothing; and the skip path still settles), plus typecheck (both), lint, 3402 tests, build:web,
+harness determinism.
+
 ## 2026-07-31 — Fix: the scout card was invisible (owner report)
 
 The hover card opened and was never seen. `.lobbyrail` is a scroll container (`overflow-y: auto`), so it CLIPS

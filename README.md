@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Effects can now play *behind* the cards.** Every visual effect used to draw in front of everything, so a
+  ground slam sat on top of the minions it was supposed to be shaking. An effect can now choose its layer —
+  over the cards, as before, or under them on the board itself — with a toggle in the authoring tool. (It's
+  beneath *every* card, not just its own; that's a limit of how cards and effects are drawn.)
 - **Damage numbers are readable again.** Combat effects were painting over the damage numbers — the
   death-dissolve in particular buried them completely. The numbers now draw on top of every effect, in
   every situation, so a hit always reads. (They also cost the game slightly less to draw than before.)

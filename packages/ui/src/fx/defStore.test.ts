@@ -241,6 +241,24 @@ describe('coerceDef / toStoredDef', () => {
     expect('seed' in toStoredDef('x', 500, [], Number.NaN)).toBe(false);
   });
 
+  // The canvas slot is the third field (after seed, and label/tags) to follow the omit-unless-set rule, and
+  // it is the one where getting it wrong is most visible: a def that accidentally serialised `slot: 'over'`
+  // would still PLAY correctly, but every existing def file on disk would show a diff. The default must be an
+  // omission, not a written value.
+  it('toStoredDef writes the slot only for the non-default canvas', () => {
+    expect(toStoredDef('x', 500, [], undefined, 'under').slot).toBe('under');
+    expect('slot' in toStoredDef('x', 500, [])).toBe(false);
+    expect('slot' in toStoredDef('x', 500, [], undefined, 'over')).toBe(false);
+  });
+
+  it('coerceDef takes only the literal "under" slot, and omits it otherwise', () => {
+    expect(coerceDef({ duration: 100, layers: [], slot: 'under' })?.slot).toBe('under');
+    expect('slot' in (coerceDef({ duration: 100, layers: [] }) ?? {})).toBe(false);
+    expect('slot' in (coerceDef({ duration: 100, layers: [], slot: 'over' }) ?? {})).toBe(false);
+    expect('slot' in (coerceDef({ duration: 100, layers: [], slot: 'UNDER' }) ?? {})).toBe(false);
+    expect('slot' in (coerceDef({ duration: 100, layers: [], slot: true }) ?? {})).toBe(false);
+  });
+
   it('coerceDef keeps a finite seed', () => {
     expect(coerceDef({ duration: 100, layers: [], seed: 12345 })?.seed).toBe(12345);
     expect(coerceDef({ duration: 100, layers: [], seed: 0 })?.seed).toBe(0);

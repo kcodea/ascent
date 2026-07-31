@@ -1,5 +1,5 @@
 import { BOW_LIMIT } from './anchors';
-import type { FxAnchorId, FxLayer } from './def';
+import type { FxAnchorId, FxLayer, FxSlot } from './def';
 import { coerceParams } from './params';
 import { getPrimitive } from './registry';
 
@@ -73,6 +73,12 @@ export interface StoredFxDef {
    */
   label?: string;
   tags?: string[];
+  /**
+   * Which canvas the effect draws on — `'under'` (beneath every card) or, when absent, over them.
+   * OPTIONAL and omitted-unless-`'under'` on exactly the same terms as `seed`/`label`/`tags` above: that is
+   * what makes this a true no-op for every def already on disk, and why `FX_DEF_VERSION` is not bumped.
+   */
+  slot?: FxSlot;
   layers: StoredFxLayer[];
 }
 
@@ -210,6 +216,10 @@ export function coerceDef(raw: unknown): StoredFxDef | null {
     const tags = raw.tags.filter((t): t is string => typeof t === 'string' && t.trim() !== '').map((t) => t.trim());
     if (tags.length > 0) def.tags = tags;
   }
+  // Only the literal string `'under'` selects the under-card canvas. `'over'`, absent, a typo, `true`, a
+  // number — all mean the default slot, and all serialise back out as an OMISSION, so a def that never
+  // touched this field round-trips byte-identically.
+  if (raw.slot === 'under') def.slot = 'under';
   return def;
 }
 
@@ -227,9 +237,18 @@ export function parseDef(json: string): StoredFxDef | null {
 /** Build a `StoredFxDef` from the workbench's live editor state. `seed` is written only when a finite one is
  *  supplied — the workbench passes it ONLY while the seed is LOCKED, so an unlocked composition deliberately
  *  saves no seed and therefore keeps meaning "roll fresh every time". */
-export function toStoredDef(id: string, duration: number, layers: StoredFxLayer[], seed?: number): StoredFxDef {
+export function toStoredDef(
+  id: string,
+  duration: number,
+  layers: StoredFxLayer[],
+  seed?: number,
+  slot?: FxSlot,
+): StoredFxDef {
   const def: StoredFxDef = { version: FX_DEF_VERSION, id, duration, layers };
   if (typeof seed === 'number' && Number.isFinite(seed)) def.seed = seed;
+  // Written ONLY for the non-default slot, so an author who never touches the toggle keeps saving the exact
+  // JSON they saved before this field existed.
+  if (slot === 'under') def.slot = 'under';
   return def;
 }
 

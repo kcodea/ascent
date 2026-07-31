@@ -217,13 +217,20 @@ describe('set 2 — a Ruby played in COMBAT fires the target’s onRubyPlayed', 
   const rubyBuffs = (r: { events: readonly { type: string }[] }): BuffEvent[] =>
     (r.events as readonly BuffEvent[]).filter((e) => e.type === 'buff' && e.health > 0);
 
-  it('Geode Guardian’s Echo bounces off an adjacent Resonance Idol', () => {
-    // Board order matters: [outer, Idol, Geode]. Geode dies, plays a Ruby on its neighbour (the Idol), and the
-    // Idol bounces those stats onward to ITS other neighbour (`outer`, m0). Before the fix the Ruby landed on
-    // the Idol and stopped there — the Idol's bounce was a recruit-only factory.
+  // Geode Guardian no longer plays Rubies on its neighbours (2026-07-31 rework: it summons Golems instead),
+  // so these Idol-bounce tests drive the ADJACENT-play factory through a synthetic card — the machinery under
+  // test (a combat Ruby firing the target's onRubyPlayed) outlived the card that first exposed it.
+  const adjRattler = { id: 'adj_rattler', name: 'AdjRattler', tribe: 'kobold' as const, tier: 2, attack: 1, health: 1, keywords: [],
+    effects: [{ on: 'onDeath' as const, do: 'deathrattlePlayRubiesAdjacent' as const, params: { rubies: 1 } }], text: '' };
+  const CARDS_ADJ = { ...CARD_INDEX, adj_rattler: adjRattler };
+
+  it("a dying adjacent-Ruby rattler's Ruby bounces off an adjacent Resonance Idol", () => {
+    // Board order matters: [outer, Idol, rattler]. The rattler dies, plays a Ruby on its neighbour (the Idol),
+    // and the Idol bounces those stats onward to ITS other neighbour (`outer`, m0). Before the fix the Ruby
+    // landed on the Idol and stopped there — the Idol's bounce was a recruit-only factory.
     const r = simulate(
-      [bm('sandbag', 'OUT', 1, 40), bm('k_resonance', 'IDOL', 2, 40), bm('k_geode', 'GEO', 1, 1)],
-      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARD_INDEX,
+      [bm('sandbag', 'OUT', 1, 40), bm('k_resonance', 'IDOL', 2, 40), bm('adj_rattler', 'GEO', 1, 1)],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARDS_ADJ,
       combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }),
     );
     const buffs = rubyBuffs(r);
@@ -237,8 +244,8 @@ describe('set 2 — a Ruby played in COMBAT fires the target’s onRubyPlayed', 
     // The recursion guard: a bounced Ruby must not itself count as "a Ruby played on" the neighbour. Without it
     // this pair ping-pongs until the stack blows, so terminating at all IS the assertion.
     const r = simulate(
-      [bm('k_resonance', 'I1', 2, 40), bm('k_resonance', 'I2', 2, 40), bm('k_geode', 'GEO', 1, 1)],
-      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARD_INDEX,
+      [bm('k_resonance', 'I1', 2, 40), bm('k_resonance', 'I2', 2, 40), bm('adj_rattler', 'GEO', 1, 1)],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARDS_ADJ,
       combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }),
     );
     expect(r.result).toBeTruthy();

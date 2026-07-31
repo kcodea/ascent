@@ -176,6 +176,26 @@ export async function uploadVictory(v: {
   }
 }
 
+/** Fetch THIS player's server-side rating from `profiles` (by author name) — null when absent/offline. The
+ *  server value is authoritative (owner control 2026-07-31): the store adopts it over the local profile at
+ *  launch, so editing the row in Supabase overrides any client. */
+export async function fetchPlayerRating(author: string): Promise<number | null> {
+  const c = client();
+  if (!c || !author) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(c.from('profiles').select('rating').eq('author', author).limit(1)),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data?.length) return null;
+    const rating = (result.data[0] as { rating?: unknown }).rating;
+    return typeof rating === 'number' && Number.isFinite(rating) ? rating : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch the latest `limit` victory runs (newest first) for the leaderboard. Best-effort + time-boxed; [] on
  *  any failure / no backend. */
 export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {

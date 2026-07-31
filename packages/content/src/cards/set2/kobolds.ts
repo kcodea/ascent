@@ -234,12 +234,14 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Geode Guardian',
     tribe: 'kobold',
     tier: 2,
-    attack: 2,
-    health: 4,
-    keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }],
-    text: 'Taunt. **Echo:** Play a Ruby on adjacent minions.',
-    goldenText: 'Taunt. **Echo:** Play **2 Rubies** on adjacent minions.',
+    attack: 1,
+    health: 2,
+    keywords: [],
+    // Owner rework 2026-07-31 (from "play a Ruby on adjacent"). The COUNT is fixed — a Gilded copy still
+    // summons 2 (the owner was explicit); gilding doubles the Rubies played on them instead.
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonGolemsWithRuby', params: { count: 2, rubies: 1 } }],
+    text: '**Echo:** summon **2** 1/1 **Gemheart Golems** with **Taunt**, and play a **Ruby** on them.',
+    goldenText: '**Echo:** summon **2** 1/1 **Gemheart Golems** with **Taunt**, and play **2 Rubies** on them.',
   },
   {
     // Three triggers: Shout (onPlay) + Echo (combat death) both buff your Rubies; End of Turn plays a Ruby on

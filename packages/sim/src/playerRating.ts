@@ -17,6 +17,10 @@
  */
 
 export interface PlayerProfile {
+  /** The ladder season this profile belongs to. A stored profile from an older season is RESET on load —
+   *  the true season reset (owner ask 2026-07-31). Season 1 = the course-rating era; season 2 = the lobby
+   *  ladder. Bump {@link CURRENT_SEASON} to reset everyone. */
+  season?: number;
   /** Skill rating. Starts at {@link STARTING_RATING}; floored at 0. Drives the Line via the promo/demo buffer. */
   rating: number;
   /** The Line tier currently assigned ({@link MIN_LINE}–{@link MAX_LINE}). Sticky: only moves when the rating
@@ -28,6 +32,9 @@ export interface PlayerProfile {
   /** New-Line grace (softens the first misses after a promotion). Reserved for a follow-up — not applied yet. */
   lineGrace?: { line: number; missesRemaining: number };
 }
+
+/** The live ladder season — bumping this resets every stored profile on next load. */
+export const CURRENT_SEASON = 2;
 
 /** Starting rating for a new player: 0 → **Line 7** (the bottom band), so everyone climbs up from the floor. */
 export const STARTING_RATING = 0;
@@ -64,7 +71,23 @@ export function lineForRating(rating: number): number {
 /** A fresh profile: {@link STARTING_RATING} (0 → Line 7) — a new player starts at the bottom of the ladder. */
 export function initialProfile(): PlayerProfile {
   const line = lineForRating(STARTING_RATING);
-  return { rating: STARTING_RATING, currentLine: line, highestRating: STARTING_RATING, highestLine: line };
+  return { season: CURRENT_SEASON, rating: STARTING_RATING, currentLine: line, highestRating: STARTING_RATING, highestLine: line };
+}
+
+/** Adopt a SERVER-side rating over the local profile (owner control 2026-07-31: the `profiles` table is
+ *  authoritative — editing a row there overrides the player's local value on next launch). The Line re-derives
+ *  fresh (no hysteresis: the server number is a ruling, not a match result); high-water marks only rise. */
+export function adoptServerRating(profile: PlayerProfile, serverRating: number): PlayerProfile {
+  const rating = Math.max(0, Math.round(serverRating));
+  const line = lineForRating(rating);
+  return {
+    ...profile,
+    season: CURRENT_SEASON,
+    rating,
+    currentLine: line,
+    highestRating: Math.max(profile.highestRating, rating),
+    highestLine: Math.max(profile.highestLine, line),
+  };
 }
 
 /** Resolve the Line after a rating change, applying the promotion/demotion buffer from the *current* Line so

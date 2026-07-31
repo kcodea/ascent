@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
 import type { BoardMinion, Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -17,7 +17,7 @@ import { sfx } from './sfx';
 import { liveBoardView } from './instView';
 import { loadStoredBoards, saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
-import { fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
+import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, saveRunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -475,6 +475,7 @@ export const useGame = create<GameStore>((set, get) => ({
     const playerName = name.slice(0, 24).trim();
     try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
     set({ playerName });
+    syncProfileFromServer(playerName); // the server row (if any) is authoritative for the new identity
   },
   playerAvatar: loadPlayerAvatar(),
   setPlayerAvatar: (id) => {
@@ -752,6 +753,24 @@ if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 }
+
+/** The server's `profiles` row is AUTHORITATIVE over the local rating (owner control 2026-07-31): at launch —
+ *  and whenever the player (re)names themselves — a named player's server rating, if present, replaces the
+ *  local one. Editing a row in Supabase therefore overrides any client on its next launch; a missing row (a
+ *  fresh season, a new player, offline) leaves the local profile alone. Best-effort and deferred — never
+ *  blocks startup. */
+export function syncProfileFromServer(name: string): void {
+  if (!name) return;
+  void fetchPlayerRating(name).then((serverRating) => {
+    if (serverRating == null) return;
+    const s = useGame.getState();
+    if (s.profile.rating === serverRating) return;
+    const adopted = adoptServerRating(s.profile, serverRating);
+    saveProfile(adopted);
+    useGame.setState({ profile: adopted });
+  });
+}
+if (typeof window !== 'undefined') syncProfileFromServer(loadPlayerName());
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
 // Discover / game-over / End-of-Turn UI). Stripped from production builds. The `typeof window` guard matters:

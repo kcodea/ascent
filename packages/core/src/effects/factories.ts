@@ -731,6 +731,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Geode Guardian (owner rework 2026-07-31) — Echo: summon `count` Gemheart Golems with Taunt and play
+   *  `rubies` Rubies on each. The COUNT is deliberately NOT golden-doubled (a Gilded copy still summons 2 —
+   *  owner's explicit call); the Rubies are, via `playRubyOn`'s per-cast stacking. */
+  deathrattleSummonGolemsWithRuby: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const golem = ctx.getCard('gemheart-shard');
+    if (!golem) return;
+    for (let i = 0; i < num(params.count, 2); i++) {
+      const summoned = ctx.summon(self.side, golem, self.uid, ['T']);
+      if (!summoned) break; // board full
+      playRubyOn(ctx, self, summoned, num(params.rubies, 1) * mul(self));
+    }
+  },
+
   /**
    * Anvilshade Smith — Echo: summon a token that INHERITS this minion's Attack and swings at once.
    *

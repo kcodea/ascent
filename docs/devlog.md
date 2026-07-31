@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-07-31 — Geode Guardian's Golems, the true season reset, and server-authoritative MMR
+
+**Geode Guardian** (1/2, Taunt gone): Echo summons **2** 1/1 Gemheart Golems with Taunt and plays a Ruby on
+each. The COUNT is deliberately fixed — a Gilded copy still summons 2 (the owner's explicit call); gilding
+doubles the Rubies instead. New combat factory (`deathrattleSummonGolemsWithRuby`); the deathrattle-buffer cue
+classifier learned the id; the Resonance-Idol bounce tests (whose machinery outlived the old card shape) now
+drive the adjacent-play factory through a synthetic card.
+
+**The true season reset**: `PlayerProfile.season` + `CURRENT_SEASON = 2`. A stored profile from an older
+season — including every pre-season profile, which carries none — resets to fresh on load. Bumping the
+constant resets every client at next launch; no server round-trip.
+
+**Supabase is authoritative over local MMR**: `fetchPlayerRating(author)` reads the player's `profiles` row at
+launch (and on rename), and a present row's rating REPLACES the local one (`adoptServerRating` — the Line
+re-derives fresh; high-water marks only rise). Editing a row in Supabase now overrides any client. A missing
+row (fresh season / offline / anonymous) leaves the local profile alone.
+
+Gemheart Golem art re-wired (the owner's new file).
+
+Verified: typecheck (both), lint (7 pre-existing), 3509 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Gemline T4, the Compendium learns which set is live, art re-wire
 
 Gemline Martyr to T4. The title-screen Compendium was frozen in set 1: a hardcoded five-tribe list (Mechs,

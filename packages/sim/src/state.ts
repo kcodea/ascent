@@ -699,6 +699,10 @@ export interface RunState {
   runeforgeOffer?: string[];
   /** The Runeforge's single re-roll (2 Gold) has been used this visit — the offer can't be re-rolled again. */
   runeforgeRerolled?: boolean;
+  /** Per-slot Gold discounts aligned with `runeforgeOffer` — the PIVOT discount (a seeded chance on offered
+   *  runes that do NOT follow the board, easing a direction change; owner ask 2026-07-31). Cleared with the
+   *  offer; recomputed on a re-roll. */
+  runeforgeDiscounts?: (number | undefined)[];
   /** The open forge is the EPIC Runeforge (drawn from `EPIC_RUNES`, opened by a quest — not the Runesmith's
    *  hero-power forge). Drives the reroll pool, the "Epic" UI label, and skips consuming the hero-power charge. */
   runeforgeEpic?: boolean;

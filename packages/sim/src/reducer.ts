@@ -1,5 +1,5 @@
 import { ALE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
@@ -1337,8 +1337,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       const runeId = offer[action.index];
       const rune = runeId != null ? RUNE_INDEX[runeId] : undefined;
       if (!rune) return state; // invalid pick
-      if (s.embers < rune.cost) return state; // can't afford — no-op (the UI greys it out)
-      spendGold(s, rune.cost);
+      const runeCost = Math.max(0, rune.cost - (s.runeforgeDiscounts?.[action.index] ?? 0)); // pivot discount
+      if (s.embers < runeCost) return state; // can't afford — no-op (the UI greys it out)
+      spendGold(s, runeCost);
       // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
       applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
       // Rune of Duplication: "after you forge your Epic Rune, this transforms into a copy of it" — the Epic's
@@ -1374,7 +1375,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // shown) from whichever runeset this forge is; seeded off a salted stream so it's deterministic.
       if (!s.runeforgeOffer || s.runeforgeRerolled || s.runeforgeRerollUsed) return state;
       const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 1));
-      s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, rng, new Set(s.runeforgeOffer));
+      const redrawn = drawRuneOffer(s, rng, new Set(s.runeforgeOffer));
+      s.runeforgeOffer = redrawn.offer;
+      s.runeforgeDiscounts = redrawn.discounts;
       s.runeforgeRerolled = true;
       s.runeforgeRerollUsed = true;
       return s;
@@ -2617,7 +2620,9 @@ function advanceCombat(s: RunState): void {
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
-    s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+    const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+    s.runeforgeOffer = drawn.offer;
+    s.runeforgeDiscounts = drawn.discounts;
   } else if ((CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
     // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
     // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
@@ -2895,6 +2900,66 @@ function runeforgePool(s: RunState): string[] {
     .map((rn) => rn.id);
 }
 
+/** The synergy tags the player's BOARD currently exhibits: its tribes, plus the mechanics its cards carry
+ *  (Rally keyword, Echo/Shout/Avenge triggers, Consume/Ruby/Ale/spell/Gold/summon effect families). Derived
+ *  from the card defs, so new cards profile themselves. */
+export function boardSynergyTags(s: RunState): Set<SynergyTag> {
+  const tags = new Set<SynergyTag>();
+  for (const c of s.board) {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) continue;
+    for (const t of [def.tribe, def.tribe2]) if (t && t !== 'neutral') tags.add(t);
+    if (c.keywords.includes('RL') || def.keywords.includes('RL')) tags.add('rally');
+    if (def.ruby) tags.add('ruby');
+    for (const e of def.effects) {
+      const doId = e.do.toLowerCase();
+      if (e.on === 'onDeath') tags.add('echo');
+      if (e.on === 'onPlay') tags.add('shout');
+      if (e.on === 'avenge') tags.add('avenge');
+      if (e.on === 'onAttack') tags.add('rally');
+      if (e.on === 'spellCast' || e.on === 'cast' || e.on === 'spellBought') tags.add('spells');
+      if (e.on === 'goldSpent') tags.add('gold');
+      if (e.on === 'onSummon') tags.add('summon');
+      if (e.on === 'onConsume' || doId.includes('consume')) tags.add('consume');
+      if (doId.includes('rub')) tags.add('ruby');
+      if (doId.includes('ale')) tags.add('ale');
+      if (doId.includes('summon')) tags.add('summon');
+    }
+  }
+  return tags;
+}
+
+/** The pivot-discount roll: offered runes that do NOT follow the board get a seeded chance of a Gold discount
+ *  (basic 1–2, epic 2–4) — a nudge toward changing direction rather than a tax on staying the course. */
+const PIVOT_DISCOUNT_CHANCE = 0.4;
+
+/** Build a forge offer with the synergy guarantee (owner ask 2026-07-31): ONE slot is drawn from the runes
+ *  that follow something on the player's board (a tribe or a mechanic), when any such rune exists; the rest
+ *  draw uniformly. Returns the ids plus the aligned pivot discounts, both seeded off `rng` so replays hold. */
+function drawRuneOffer(s: RunState, rng: ReturnType<typeof makeRng>, avoid: Set<string> = new Set()): { offer: string[]; discounts: (number | undefined)[] } {
+  const pool = runeforgePool(s);
+  const tags = boardSynergyTags(s);
+  const matches = (id: string): boolean => {
+    const rn = RUNE_INDEX[id];
+    return !!rn && runeSynergies(rn).some((t) => tags.has(t));
+  };
+  const synergyPool = pool.filter((id) => matches(id) && !avoid.has(id));
+  const offer = drawRunes(pool, RUNEFORGE_OFFER, rng, avoid);
+  // Guarantee: if nothing drawn follows the board but a follower exists, swap one in at a seeded slot.
+  if (synergyPool.length > 0 && !offer.some(matches)) {
+    const pick = synergyPool[rng.int(synergyPool.length)]!;
+    offer[rng.int(offer.length)] = pick;
+  }
+  // Pivot discounts — only on runes that do NOT follow the board.
+  const span = s.runeforgeEpic ? [2, 3, 4] : [1, 2];
+  const discounts = offer.map((id) => {
+    if (matches(id)) return undefined;
+    if (rng.next() >= PIVOT_DISCOUNT_CHANCE) return undefined;
+    return span[rng.int(span.length)]!;
+  });
+  return { offer, discounts };
+}
+
 /** Draw `n` distinct rune ids from `ids`, preferring ones not in `avoid` (a re-roll's current offer) but falling
  *  back to the avoided set if there aren't enough fresh ones — so a small Epic pool still yields a full offer. */
 function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, avoid: Set<string> = new Set()): string[] {
@@ -2915,7 +2980,9 @@ export function openEpicRuneforge(s: RunState): void {
   s.runeforgeEpic = true;
   s.runeforgeNoCharge = true; // reached by a quest/rune, not the hero power
   s.runeforgeRerolled = undefined;
-  s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+  const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+  s.runeforgeOffer = drawn.offer;
+  s.runeforgeDiscounts = drawn.discounts;
 }
 
 /** Open the BASIC Runeforge from a quest/rune (The Runeforge quest), granting `gold` this turn. Uses the normal
@@ -2924,7 +2991,9 @@ function openScheduledBasicRuneforge(s: RunState, gold = 0): void {
   s.runeforgeEpic = undefined;
   s.runeforgeNoCharge = true;
   s.runeforgeRerolled = undefined;
-  s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3)));
+  const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3)));
+  s.runeforgeOffer = drawn.offer;
+  s.runeforgeDiscounts = drawn.discounts;
   if (gold > 0) gainGold(s, gold);
 }
 
@@ -2951,6 +3020,7 @@ function copyRandomBoardMinion(s: RunState): void {
 /** Close any open forge — clears the offer + its per-visit flags. */
 function closeRuneforge(s: RunState): void {
   s.runeforgeOffer = undefined;
+  s.runeforgeDiscounts = undefined;
   s.runeforgeEpic = undefined;
   s.runeforgeNoCharge = undefined;
   s.runeforgeRerolled = undefined;

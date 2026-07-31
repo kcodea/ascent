@@ -33,7 +33,15 @@ function cardViewOf(id: string): CardView | null {
  * the effect it grants for the run. Bought for its cost on click (greyed when you can't afford it). A rune that
  * grants a minion (Pillaging → a Pillager) floats a full preview of that card on hover, like QuestCard.
  */
-export function RuneCard({ rune, affordable, onBuy }: { rune: RuneDef; affordable: boolean; onBuy: () => void }) {
+export function RuneCard({ rune, affordable, onBuy, cost }: {
+  rune: RuneDef;
+  affordable: boolean;
+  onBuy: () => void;
+  /** Live price when it differs from the printed one (the forge's pivot discount) — rendered green. */
+  cost?: number;
+}) {
+  const shownCost = cost ?? rune.cost;
+  const discounted = shownCost < rune.cost;
   const rewardCards = rewardCardIds(rune.reward).map(cardViewOf).filter((v): v is CardView => v !== null);
   const hasPreview = rewardCards.length > 0;
   const [tip, setTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
@@ -67,11 +75,11 @@ export function RuneCard({ rune, affordable, onBuy }: { rune: RuneDef; affordabl
       disabled={!affordable}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}
-      aria-label={`${rune.name} — buy for ${rune.cost} Gold`}
+      aria-label={`${rune.name} — buy for ${shownCost} Gold`}
     >
       {art && <img className="runecard-art" src={art} alt="" aria-hidden />}
       {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
-      <span className="runecard-cost" title={`Costs ${rune.cost} Gold`}><span className="costn">{rune.cost}</span></span>
+      <span className={`runecard-cost${discounted ? ' discounted' : ''}`} title={discounted ? `Pivot discount — ${shownCost} Gold (was ${rune.cost})` : `Costs ${shownCost} Gold`}><span className="costn">{shownCost}</span></span>
       <span className="runecard-emblem" aria-hidden><Icon name="sc" /></span>
       <div className="runecard-head">
         <div className="runecard-kicker">{rune.epic ? 'Epic Rune' : 'Rune'}</div>

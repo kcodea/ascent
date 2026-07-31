@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-07-31 — The lobby rail: uniform seats + a scout card on hover
+
+**Every seat is the same size now** (owner ask). The next opponent used to get a large portrait card above the
+table, which made the rail two different things stacked — and made the one seat you most want to COMPARE
+against the others the only one you couldn't. The next foe is marked in place instead: a NEXT chip sharing the
+name's grid cell, so adding it cannot shift the health column. Measured live: all 8 rows are exactly 126x51.
+
+**Scouting moved to hover, for all seven opponents** rather than just the imminent one. Each enemy seat opens a
+dark-glass card — the same recipe as the hero / buff / quest panels (vertical fill, gold-mixed hairline, inner
+top highlight) — with the board's dominant tribe, tier and triples, plus its last three fights as
+`vs <name> −30`, coloured by result.
+
+**The intel is RECORDED, never derived on demand.** `prepare()` costs 200-900 ms for a bot seat, so answering
+"what tier is seat 5 on" from a render would stall the shop phase once per hovered seat. `settleRunLobbyRound`
+already builds every board, so `boardIntel` reads them there for free. The imminent foe is the exception and
+reads live, because `playerOpponent` has already prepared that board — which also means it has CURRENT intel on
+round 1, before any settle has recorded any.
+
+Two judgement calls worth naming:
+- The dominant tribe is counted off the BODIES, not taken from the snapshot's `tribes` field. That field is the
+  run's five ACTIVE tribes — what the shop could offer — which is a different question from what the board in
+  front of you is made of.
+- Intel older than the current round is LABELLED ("as of round N") rather than presented as current, and a seat
+  with none says so instead of printing zeroes that look like a read.
+
+**Also fixed while in here:** `.lobbybar` — the seat health bar — was rendered by the panel but had no CSS rule
+at all, so it painted nothing. It has been dead markup since the rail was written. Now a real bar under the
+name, blue for your seat.
+
+Verified: 11 new unit tests on `boardIntel` / `seatResults` (including that `outcome` is written from A's side
+and must invert for B — getting that wrong would show every opponent winning the fight you won), plus a live
+lobby in the browser: 8 uniform rows, the old card gone, the chip present, the health bar painting, and the
+scout card opening left of the rail and fully on-screen with real values. Gates: typecheck (both), lint
+(7 pre-existing), 3398 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Big Huggies, rune art (111), and Chimerus
 
 **Name correction.** The card is **Big** Huggies, not Bug — I mis-transcribed the owner's rename and then aliased

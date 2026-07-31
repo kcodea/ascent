@@ -6640,35 +6640,80 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-size: calc(9 * var(--lfont)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
 .lobbyalive { color: #f4d58a; font-weight: 700; }
 
-/* NEXT FOE — the one enemy this shop phase is about, so it gets a card rather than a marker in a row.
-   Stacked (art over name over health) because the rail is narrow; horizontally it had nowhere to go. */
-.lobbynext { flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--lfoe));
-  padding: calc(6 * var(--lfoe)) calc(5 * var(--lfoe)); border-radius: calc(7 * var(--lfoe));
-  background: linear-gradient(180deg, #3a1f22, #2a171a);
-  box-shadow: inset 0 0 0 1px rgba(255, 130, 120, 0.55); text-align: center; }
-.lobbynextface { width: calc(58 * var(--lfoe)); height: calc(58 * var(--lfoe)); border-radius: calc(7 * var(--lfoe));
-  object-fit: cover; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); }
-.lobbynextinfo { display: flex; flex-direction: column; line-height: 1.15; width: 100%; min-width: 0; }
-.lobbynextlbl { font-size: calc(7 * var(--lfoe)); letter-spacing: 0.10em; text-transform: uppercase; color: rgba(255, 160, 150, 0.9); }
-.lobbynextname { font-size: calc(15 * var(--lfoe)); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lobbynextsub { font-size: calc(8 * var(--lfoe)); color: rgba(255, 255, 255, 0.66);
+/* NEXT-FOE MARKER — a chip in the row, not a card above the table (owner ask 2026-07-31). The rail used to be
+   two different things stacked: a big portrait card for the imminent opponent, then a list of everyone else.
+   That made the one seat you most want to COMPARE against the others the only one you couldn't. Every row is
+   now identical and the next foe is marked in place. */
+.lobbynextchip { justify-self: start; align-self: center;
+  font-size: calc(7 * var(--lfont)); font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
+  color: #ffd9d4; padding: calc(1 * var(--lrow)) calc(4 * var(--lrow));
+  border-radius: 999px; background: rgba(255, 110, 100, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 140, 130, 0.55); white-space: nowrap; }
+
+/* ── SCOUT CARD ──────────────────────────────────────────────────────────────
+   The hover read on one opponent. Dark glass, matching the hero / buff / quest panels: a vertical fill, a
+   gold-mixed hairline, an inner top highlight, and a soft drop shadow.
+   Opens LEFT of the rail (the rail is already at the right edge of the stage, so a right-side card would open
+   off-screen). `pointer-events: none` so crossing the card can never re-trigger or block the row beneath it. */
+.lobbyscout {
+  position: absolute; z-index: 80; top: 50%; right: calc(100% + 6 * var(--lrow)); transform: translateY(-50%);
+  width: calc(112 * var(--lu)); pointer-events: none;
+  display: flex; flex-direction: column; gap: calc(4 * var(--lu));
+  padding: calc(7 * var(--lu)); border-radius: calc(8 * var(--lu));
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -4px var(--shadow);
+  /* One-shot fade+slide on open. Safe to touch opacity/transform here — this is not a looping animation, and
+     both are compositor-only properties (docs/performance.md). */
+  animation: lobbyscoutin 120ms ease-out; }
+@keyframes lobbyscoutin {
+  from { opacity: 0; transform: translateY(-50%) translateX(calc(3 * var(--lu))); }
+  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+.lobbyscout-head { display: flex; flex-direction: column; line-height: 1.15; }
+.lobbyscout-name { font-size: calc(12 * var(--lfont)); font-weight: 800; color: #f4ecdb;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lobbynexthp { display: flex; align-items: baseline; justify-content: center; gap: calc(3 * var(--lfoe)); font-size: calc(12 * var(--lfoe)); }
+.lobbyscout-hero { font-size: calc(8 * var(--lfont)); color: #b7a98f;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Three equal columns so the numbers line up between seats — the point is comparing opponents, and a
+   content-width layout makes two cards you open in sequence disagree about where "tier" sits. */
+.lobbyscout-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(3 * var(--lu));
+  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.lobbyscout-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.lobbyscout-stat b { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--acc); }
+.lobbyscout-stat i { font-size: calc(7 * var(--lfont)); font-style: normal; letter-spacing: 0.07em;
+  text-transform: uppercase; color: #b7a98f; }
+.lobbyscout-stale { font-size: calc(7 * var(--lfont)); color: #8d8271; }
+.lobbyscout-empty { font-size: calc(8 * var(--lfont)); color: #8d8271; font-style: italic; }
+
+.lobbyscout-log { display: flex; flex-direction: column; gap: calc(2 * var(--lu));
+  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.lobbyscout-row { display: flex; justify-content: space-between; align-items: baseline; gap: calc(4 * var(--lu));
+  font-size: calc(9 * var(--lfont)); }
+.lobbyscout-vs { color: #d9cfba; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobbyscout-dmg { font-weight: 800; white-space: nowrap; }
+/* Result colour rides the ROW, so the damage number reads as "what happened" rather than needing a separate
+   win/loss glyph beside it. */
+.lobbyscout-row.win .lobbyscout-dmg { color: #6fe39a; }
+.lobbyscout-row.lose .lobbyscout-dmg { color: #ff6b6b; }
+.lobbyscout-row.draw .lobbyscout-dmg { color: #c9bca3; }
 
 /* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
    height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a
    constant and left the dial doing nothing but resizing portraits.) The rail's height dial is now a CAP. */
 .lobbyseats { flex: none; display: flex; flex-direction: column; gap: calc(2 * var(--lrow)); }
 .lobbyseat { position: relative; flex: none; display: grid;
-  grid-template-columns: calc(18 * var(--lrow)) 1fr auto; grid-template-rows: auto auto;
+  grid-template-columns: calc(18 * var(--lrow)) 1fr auto; grid-template-rows: auto auto auto;
   align-items: center; column-gap: calc(4 * var(--lrow)); padding: calc(3 * var(--lrow)) calc(5 * var(--lrow)) calc(4 * var(--lrow));
   border-radius: calc(5 * var(--lrow)); font-size: calc(11 * var(--lfont)); color: #f2ecff;
   background: #211c2e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
 .lobbyseat.you { background: #1f3a5c; box-shadow: inset 0 0 0 1px rgba(140, 200, 255, 0.6); }
 .lobbyseat.foe { background: #3a2126; box-shadow: inset 0 0 0 1px rgba(255, 130, 120, 0.75); }
 .lobbyseat.dead { opacity: 0.5; }
-.lobbyface { grid-row: 1 / span 2; width: calc(18 * var(--lrow)); height: calc(18 * var(--lrow));
+.lobbyface { grid-row: 1 / span 3; width: calc(18 * var(--lrow)); height: calc(18 * var(--lrow));
   border-radius: 50%; object-fit: cover; }
+.lobbynameline { display: flex; align-items: center; gap: calc(3 * var(--lrow)); min-width: 0; }
 .lobbyname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobbyseat.dead .lobbyname { text-decoration: line-through; }
 .lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 700; color: #ff8d8d; }
@@ -6677,6 +6722,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* Damage from the round that just resolved — sits under the name, so the row keeps ONE stable shape whether or
    not a number is present (an inline cell reflowed the health column between seats). */
+/* HEALTH BAR — the element was rendered by the panel but had no rule at all, so it painted nothing. Given a
+   row of its own beneath the name so it reads as the seat's whole remaining pool at a glance, next to the exact
+   number on the right. */
+.lobbybar { grid-column: 2 / span 2; height: calc(3 * var(--lrow)); border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10); overflow: hidden; }
+.lobbybar > span { display: block; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, #ff8d8d, #ffc38d); }
+.lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, #8cc8ff, #b9e2ff); }
 .lobbydmg { grid-column: 2 / span 2; font-size: calc(9 * var(--lfont)); font-weight: 800; color: #ff6b6b;
   line-height: 1; min-height: calc(8 * var(--lfont)); animation: lobbydmgpop 420ms ease-out; }
 @keyframes lobbydmgpop {

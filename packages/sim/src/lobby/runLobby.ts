@@ -1,4 +1,4 @@
-import type { BoardMinion, CombatOutcome, CombatResult } from '@game/core';
+import type { BoardMinion, CombatOutcome, CombatResult, Tribe } from '@game/core';
 import type { BoardSnapshot } from '../snapshot';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
@@ -39,6 +39,25 @@ export interface LobbySeatState {
   policy?: SeatPolicy;
   placement?: number;
   eliminatedRound?: number;
+  /** Scouting intel about the board this seat last fielded — what the rail's hover card reads.
+   *
+   *  RECORDED at settle, never derived on demand. `prepare()` costs 200-900 ms for a bot seat, so calling it
+   *  from a render to answer "what tier is seat 5 on" would stall the shop phase once per hovered seat. Settle
+   *  already prepares every board, so this is free there. */
+  intel?: SeatIntel;
+}
+
+/** What one seat's last-fielded board looked like, for the rail's hover card. */
+export interface SeatIntel {
+  /** Tavern tier the board was captured at. */
+  tier: number;
+  /** Triples made this run. */
+  triples: number;
+  /** The board's DOMINANT tribe — the one most of its bodies share, which is what reads as "what they're
+   *  playing". Absent when the board is all-neutral or empty. */
+  topTribe?: Tribe;
+  /** Round the intel is from, so a stale read is visible rather than presented as current. */
+  round: number;
 }
 
 export interface RunLobby {
@@ -346,6 +365,64 @@ function hit(seat: LobbySeatState, amount: number): void {
  * the winner flips 22% of the time when the sides are swapped), so a second resolve would contradict what the
  * player just watched.
  */
+/**
+ * Read a prepared board as scouting intel.
+ *
+ * The dominant tribe is counted off the BODIES rather than taken from the snapshot's `tribes` field: that field
+ * is the run's five ACTIVE tribes (what the shop could offer), which is a different question from what the
+ * board in front of you is actually made of. A Dragon run holding six Beasts reads as Beasts here, correctly.
+ */
+export function boardIntel(board: PreparedBoard, round: number): SeatIntel {
+  const counts = new Map<Tribe, number>();
+  for (const m of board.minions) {
+    const def = CARD_INDEX[m.cardId];
+    if (!def) continue;
+    for (const t of [def.tribe, def.tribe2]) {
+      if (!t || t === 'neutral') continue; // neutral is the absence of a tribe, not a tribe to lead with
+      counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+  }
+  let topTribe: Tribe | undefined;
+  let best = 0;
+  for (const [t, n] of counts) if (n > best) { best = n; topTribe = t; }
+  return { tier: board.tier, triples: board.snapshot?.triples ?? 0, topTribe, round };
+}
+
+/** One past fight from a seat's point of view — the rail's "last 3 results" list. */
+export interface SeatResult {
+  round: number;
+  foeLabel: string;
+  outcome: CombatOutcome;
+  dealt: number;
+  taken: number;
+}
+
+/**
+ * The last `n` fights this seat actually FOUGHT, newest first.
+ *
+ * Byes and couldn't-field-a-board rounds are filtered out: `fought: false` exists precisely because a 0-damage
+ * draw and a seat that never showed up are indistinguishable otherwise, and listing the latter as a result
+ * would read as a stalemate that never happened.
+ */
+export function seatResults(lobby: RunLobby, seatId: string, n = 3): SeatResult[] {
+  const label = (id: string): string => lobby.seats.find((s) => s.id === id)?.label ?? id;
+  const out: SeatResult[] = [];
+  for (let i = lobby.encounters.length - 1; i >= 0 && out.length < n; i--) {
+    const e = lobby.encounters[i]!;
+    if (!e.fought || (e.a !== seatId && e.b !== seatId)) continue;
+    const isA = e.a === seatId;
+    out.push({
+      round: e.round,
+      foeLabel: label(isA ? e.b : e.a),
+      // `outcome` is written from A's side, so B reads it inverted.
+      outcome: isA ? e.outcome : (e.outcome === 'win' ? 'lose' : e.outcome === 'lose' ? 'win' : 'draw'),
+      dealt: isA ? e.damageToB : e.damageToA,
+      taken: isA ? e.damageToA : e.damageToB,
+    });
+  }
+  return out;
+}
+
 export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult): RunLobby {
   if (lobby.finished) return lobby;
   const { pairs, bye } = pairRunLobby(lobby);
@@ -374,6 +451,9 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     } else {
       const boardA = driverFor(a)?.prepare(lobby.round) ?? driverFor(a)?.finalBoard?.() ?? null;
       const boardB = driverFor(b)?.prepare(lobby.round) ?? driverFor(b)?.finalBoard?.() ?? null;
+      // Free intel: these boards are already built for the fight, so reading them costs nothing extra.
+      if (boardA) a.intel = boardIntel(boardA, lobby.round);
+      if (boardB) b.intel = boardIntel(boardB, lobby.round);
       if (!boardA || !boardB) {
         lobby.encounters.push({ round: lobby.round, a: a.id, b: b.id, outcome: 'draw', damageToA: 0, damageToB: 0, fought: false });
         continue;

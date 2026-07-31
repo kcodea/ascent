@@ -222,6 +222,10 @@ export interface BoardCard {
   /** Set 2 — Spellkeeper Drake: SHOP SPELLS cast this turn WHILE this minion has been on board, and the id of
    *  the first such spell. Per-instance (a Spellkeeper played mid-turn counts from its own placement, not turn
    *  start — owner 2026-07-24). Reset each turn; a fresh card starts at 0/undefined, so placement is the floor. */
+  /** Next-combat spell grants on this minion (Last Stand's Rise, …) — display-only in the shop: the label
+   *  prints gold-parenthesized in the card text + buff list, and the keyword badge previews. `faceOmen`
+   *  stamps the REAL grant from `pendingCombatKeywords` and clears these. */
+  tempGrants?: { label: string; keyword: string }[];
   boardSpellCount?: number;
   boardFirstSpellId?: string;
   /** Set 2 — Moonhowl Mentor's Mage-Pup: the SHOP SPELL this token was taught. Its Shout casts that spell, so
@@ -975,6 +979,23 @@ export interface RunState {
    *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
    *  — `recurringEndOfTurn` fires every turn and could not express it. */
   runeSummit?: boolean;
+  /** Rune of Contraband: first Ruby cast each turn → a random Ale; first Ale cast each turn → a Ruby. */
+  runeContraband?: boolean;
+  contrabandRubyUsed?: boolean;
+  contrabandAleUsed?: boolean;
+  /** Rune of Cadence: buying a minion arms a 1-Gold discount on the next Shop spell, and casting a Shop
+   *  spell arms one on the next minion. The armed flags persist until spent (not turn-scoped). */
+  runeCadence?: boolean;
+  cadenceSpellOff?: boolean;
+  cadenceMinionOff?: boolean;
+  /** Rune of Gemscript: first Shop spell each turn → Ruby power +1/+1; first Ruby each turn → spell power +1/+1. */
+  runeGemscript?: boolean;
+  gemscriptSpellUsed?: boolean;
+  gemscriptRubyUsed?: boolean;
+  /** Decoy Sigil casts banked for the NEXT combat (each = one Training Dummy slot-filler). */
+  pendingDecoys?: number;
+  /** Weaken casts banked for the NEXT combat (each = one random enemy set to 1 Health at SoC). */
+  pendingWeaken?: number;
   /** The run's ONE free Runeforge re-roll is spent (owner 2026-07-31: rerolls are free, once per game). */
   runeforgeRerollUsed?: boolean;
   /** Rune of the Matriarch: Runebloom Matriarch's per-spell trigger fires twice. */

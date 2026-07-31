@@ -10,6 +10,20 @@ import type { CardDef } from '@game/core';
  */
 export const NEUTRAL: CardDef[] = [
   {
+    // Decoy Sigil's next-combat token: a 1/1 wall with Taunt + Ward. Unlike the Target Dummy below it gains
+    // no Attack from being hit — it exists to soak exactly two hits and die.
+    id: 'trainingdummy',
+    name: 'Training Dummy',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: ['T', 'DS'],
+    effects: [],
+    token: true,
+    text: '**Taunt.** **Ward.**',
+  },
+  {
     id: 'sandbag',
     name: 'Target Dummy',
     tribe: 'neutral',

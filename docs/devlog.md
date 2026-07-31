@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-07-31 — Three runes, seven spells, and the gold "(temporary)" grant display
+
+**Runes.** Rune of Contraband (basic 2, set 2): the first Ruby each turn pays a random Ale and the first Ale
+pays a Ruby — two per-turn latches beside Gemscript's. Rune of Cadence (epic 3): buying a minion arms a
+1-Gold discount on the next Shop spell and casting a Shop spell arms one on the next minion — the armed flags
+persist until spent, ride `spellCostReduction` and the minion buy path, and the shop's price coins show the
+live discounted number. Rune of Gemscript (epic 4, set 2): the first Shop spell each turn raises RUBY power
++1/+1 (run bonus + held Rubies) and the first Ruby raises SPELL power +1/+1.
+
+**Spells.** Set-agnostic: Decoy Sigil (T4/2 — banks a next-combat Training Dummy, summoned far right by the
+Brood slot-filler machinery the first time the board has room; new 1/1 Taunt+Ward token), Weaken (T5/3 — SoC
+sets a random enemy to 1 Health, seeded), Quick Study (T4/3 — spell power +1/+1; distinct from the RUNE of the
+same name). Set-2 only (owner correction: Ales/Rubies are set-2 currencies): On the House (T5/4 — 3 random
+Ales), Ruby Excavation (T6/3 — 2 Rubies on every friendly minion), plus the two Dwarf steal spells — Deep
+Delve Writ (T3/2 — steal a random Dwarf from the Shop) and Ironclad Requisition (T6/7 — steal a random Shop
+card per friendly Dwarf). "Steal" is a free buy: `offerBuyStats` folds the offer's buffs in. The sets
+leak-tripwire had to be told about all four — exactly its job.
+
+**Temporary grants show themselves** (owner ask): a next-combat spell (Last Stand, Field Maneuvers,
+Executioner's Edge) now tags its target — the spell's name in gold parentheses in the card text (a new
+`((…))` → `.desctemp` marker, static color), a 0/0 entry in the buff list, and the promised keyword badge
+previewing on the minion. All of it is spent in `faceOmen` alongside the real keyword bank. Live-verified in
+the DOM (gold #e7c14d span rendering on a staged board).
+
+All new-spell/rune art wired (the three rune arts + seven spell arts were authored ahead by the owner).
+
+Verified: typecheck (both), lint (7 pre-existing), 3471 tests, build:web, harness determinism, live DOM.
+
 ## 2026-07-31 — Eight stat moves, Runekeg's self-exclusion, and the free once-per-game re-roll
 
 Stats/tiers (owner batch): Runefire T6 6/9, Demon Horse T3 3/3, Broodwright T3 2/5, Warhorn Captain T2 3/2,

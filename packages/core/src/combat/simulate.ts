@@ -993,6 +993,16 @@ export function simulate(
    */
   function fillFreeSlots(): void {
     for (const side of ['player', 'enemy'] as Side[]) {
+      // Decoy Sigil: each banked cast fills ONE freed slot with a Training Dummy (1/1 Taunt + Ward), far
+      // right (the default append position). Same bounded once-per-cast shape as the Brood below.
+      const decoys = modsFor(side).decoySigils ?? 0;
+      const dummy = cards['trainingdummy'];
+      while (decoys > 0 && decoysSpent[side] < decoys && countLiving(side) < 7 && dummy) {
+        decoysSpent[side] += 1;
+        nextStep();
+        emit({ type: 'sc', source: boards[side].find((m) => !m.dead)?.uid ?? '', text: 'Decoy Sigil deploys a Training Dummy', cast: true });
+        summonMinion(side, dummy, undefined, ['T', 'DS']);
+      }
       const brood = modsFor(side).runeBrood ?? 0;
       const imp = cards['impscrap'];
       while (brood > 0 && broodSpent[side] < brood && countLiving(side) < 7 && imp) {
@@ -1010,6 +1020,7 @@ export function simulate(
     }
   }
 
+  const decoysSpent: Record<Side, number> = { player: 0, enemy: 0 };
   /** The Sealed Vault's once-per-combat latch, per side. */
   const avengeDoubleSpent: Record<string, boolean> = {};
   function registerEffect(minion: Minion, effect: EffectDef): void {
@@ -2037,6 +2048,19 @@ export function simulate(
       if (demon) {
         foodChainStats[rside] = { attack: demon.attack, health: demon.health };
         nextStep(); fireTrigger('runeFoodChain', rside);
+      }
+    }
+    // Weaken (next-combat spell): set N random living ENEMIES (from this side's view) to 1 Health.
+    const weaken = rmods.weakenTargets ?? 0;
+    if (weaken > 0) {
+      const other: Side = rside === 'player' ? 'enemy' : 'player';
+      const pool = boards[other].filter((m) => !m.dead && m.health > 1);
+      for (let w = 0; w < weaken && pool.length > 0; w++) {
+        const m = pool.splice(ctx.rng.int(pool.length), 1)[0]!;
+        nextStep();
+        m.health = 1;
+        m.maxHealth = Math.min(m.maxHealth ?? 1, 1) || 1;
+        emit({ type: 'sc', source: m.uid, text: `${m.name} is Weakened to 1 Health`, cast: true });
       }
     }
     // Rune of Forthcoming (owner sheet 2026-07-31): the LEFT-MOST minion gains Ward and attacks immediately.

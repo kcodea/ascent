@@ -809,6 +809,7 @@ export function gainGold(state: RunState, amount: number): void {
 export function spellCostReduction(state: RunState): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
+  if (state.cadenceSpellOff) n += 1; // Rune of Cadence: the armed one-shot spell discount (spent at buy)
   return n;
 }
 
@@ -3486,6 +3487,69 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.pendingSCImps = (ctx.state.pendingSCImps ?? 0) + num(params.count, 3);
   },
 
+  /** Decoy Sigil — cast: bank one next-combat Training Dummy (1/1, Taunt + Ward, far right), summoned by the
+   *  Rune-of-the-Brood slot-filler the first time the board has room. Stacks per cast. */
+  spellDecoyNextCombat: (ctx, _self, params) => {
+    ctx.state.pendingDecoys = (ctx.state.pendingDecoys ?? 0) + num(params.count, 1);
+  },
+
+  /** Weaken — cast: bank a next-combat Start-of-Combat "set a random enemy's Health to 1". Stacks per cast. */
+  spellWeakenNextCombat: (ctx, _self, params) => {
+    ctx.state.pendingWeaken = (ctx.state.pendingWeaken ?? 0) + num(params.count, 1);
+  },
+
+  /** Ruby Excavation — cast: play `rubies` Rubies on EVERY friendly minion (each worth 1/1 + the run's
+   *  rubyBonus, like any recruit-phase Ruby). Fires each target's on-Ruby watchers per Ruby. */
+  spellPlayRubiesAll: (ctx, _self, params) => {
+    const per = num(params.rubies, 2);
+    const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+    for (const target of [...ctx.state.board]) {
+      for (let r = 0; r < per; r++) {
+        addBuff(target, 'Ruby', 1 + b.attack, 1 + b.health);
+        fireOnRubyPlayed(ctx.state, target, 1 + b.attack, 1 + b.health);
+      }
+    }
+  },
+
+  /** Deep Delve Writ / Ironclad Requisition — cast: STEAL Shop offers into hand for free. `tribe` narrows the
+   *  pick to that tribe's minions (the Writ's Dwarf); `perTribe` steals one RANDOM card (minions and spells
+   *  alike) per friendly minion of that tribe (the Requisition). Stolen minions arrive shaped like a buy —
+   *  `offerBuyStats` folds the offer's accumulated buffs in — and the hand cap forfeits any overflow. */
+  spellStealShop: (ctx, _self, params) => {
+    const st = ctx.state;
+    const tribe = str(params.tribe);
+    const perTribe = str(params.perTribe);
+    const count = perTribe ? st.board.filter((c) => isTribe(c, perTribe as never)).length : num(params.count, 1);
+    const rng = makeRng(st.rngCursor);
+    for (let n = 0; n < count; n++) {
+      if (st.hand.length >= CONFIG.handMax) break;
+      const pool = st.shop
+        .map((o, idx) => ({ o, idx, def: CARD_INDEX[o.cardId] }))
+        .filter(({ def }) => {
+          if (!def) return false;
+          if (!tribe) return true; // the Requisition takes anything the row holds, spells included
+          return !def.spell && !def.ruby && (def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe);
+        });
+      if (pool.length === 0) break;
+      const pick = pool[rng.int(pool.length)]!;
+      st.shop.splice(pick.idx, 1);
+      const def = pick.def!;
+      if (def.spell || def.ruby) {
+        st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+      } else {
+        const stats = offerBuyStats(st, pick.o);
+        st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: stats.attack, health: stats.health, keywords: [...def.keywords], golden: !!pick.o.golden });
+      }
+    }
+    st.rngCursor = rng.state();
+  },
+
+  /** Quick Study (the spell) — cast: permanently raise the run's SPELL power by +atk/+hp. */
+  spellGainSpellPower: (ctx, _self, params) => {
+    const st = ctx.state;
+    st.spellBonus = { attack: (st.spellBonus?.attack ?? 0) + num(params.attack, 1), health: (st.spellBonus?.health ?? 0) + num(params.health, 1) };
+  },
+
   /** Farseer's Report — cast: reveal `count` random minions from your NEXT opponent's warband
    *  (`servedBoards[wave]`, the preview pinned at turn start) onto the OpponentFrame. Their actual stats are
    *  captured. No next opponent (procedural threat) → fizzles. Cleared at turn start (the opponent changes). */
@@ -3773,6 +3837,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       keyword,
       ...(typeof params.critChance === 'number' ? { critChance: params.critChance } : {}),
     });
+    // Show the promise on the minion until combat spends it (owner ask 2026-07-31): the granting spell's name
+    // lands gold-parenthesized in the card text (via `tempGrants` → instView) and as a 0/0 entry in the buff
+    // list, and the keyword badge previews. Parentheses = temporary; cleared in `faceOmen` with the real bank.
+    const label = str(params.label) || 'Next combat';
+    (self.tempGrants ??= []).push({ label, keyword });
+    (self.buffs ??= []).push({ source: `(${label})`, attack: 0, health: 0, count: 1 });
   },
 
   /** Channeling the Devourer — cast: devour the targeted friendly minion (`self`, removed from the

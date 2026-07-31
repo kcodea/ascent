@@ -593,6 +593,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const cost = Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s));
         if (s.embers < cost || s.hand.length >= CONFIG.handMax) return state;
         spendGold(s, cost);
+        if (s.cadenceSpellOff) s.cadenceSpellOff = undefined; // Rune of Cadence: the armed spell discount is spent
         s.hand.push({
           uid: `b${s.uidSeq++}`,
           cardId: spellDef.id,
@@ -651,10 +652,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // "Freedom" rift: the FIRST minion bought each turn is free (overrides every price source below).
       const freeBuy = s.rift === 'freedom' && !s.freeBuyUsedThisTurn;
-      const buyCost = freeBuy ? 0 : (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)); // Moe's set price > Merchant's Mark override > Hank/default
+      // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says.
+      const cadenceOff = !freeBuy && s.cadenceMinionOff ? 1 : 0;
+      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff); // Moe's set price > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
+      if (cadenceOff) s.cadenceMinionOff = undefined; // spent
+      if (s.runeCadence) s.cadenceSpellOff = true; // …and buying a minion arms the spell discount
       if (freeBuy) s.freeBuyUsedThisTurn = true;
       // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
       // purchase (buy 1 → +step, buy 2 → +2·step, …). The buff bakes into the offer's atk/hp when it's bought.
@@ -828,6 +833,17 @@ function reduceCore(state: RunState, action: Action): RunState {
         // minions, Shop spells, Rubies, tokens). This was the one hand-consuming branch that never pushed,
         // so Closing-Time Foreman and Rune of Action undercounted on every Ruby.
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
+        // Rune of Contraband: the FIRST Ruby cast each turn smuggles back a random Dwarven Ale.
+        if (s.runeContraband && !s.contrabandRubyUsed) {
+          s.contrabandRubyUsed = true;
+          const ales = poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id));
+          if (ales.length > 0) conjureToHand(s, ales, 1);
+        }
+        // Rune of Gemscript: the FIRST Ruby cast each turn raises the run's SPELL power +1/+1.
+        if (s.runeGemscript && !s.gemscriptRubyUsed) {
+          s.gemscriptRubyUsed = true;
+          s.spellBonus = { attack: (s.spellBonus?.attack ?? 0) + 1, health: (s.spellBonus?.health ?? 0) + 1 };
+        }
         const rubyCastsBefore = s.rubyCasts ?? 0;
         // The trigger meter is the UMBRELLA of Rubies + Shop Spells (see `fireOnRubyCast`), so both paths must
         // measure the SAME number — counting rubies on their own meter here would let the two drift and a
@@ -900,6 +916,21 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
+        // Rune of Contraband: the FIRST Dwarven Ale cast each turn smuggles back a Ruby.
+        if (s.runeContraband && !s.contrabandAleUsed && ALE_IDS.includes(card.cardId)) {
+          s.contrabandAleUsed = true;
+          mintRubies(s, 1);
+        }
+        // Rune of Gemscript: the FIRST Shop spell cast each turn raises RUBY power +1/+1 (run bonus + held Rubies,
+        // the same shape the Veinbreaker burst uses).
+        if (s.runeGemscript && !s.gemscriptSpellUsed) {
+          s.gemscriptSpellUsed = true;
+          const b = s.rubyBonus ?? { attack: 0, health: 0 };
+          s.rubyBonus = { attack: b.attack + 1, health: b.health + 1 };
+          for (const c of s.hand) if (CARD_INDEX[c.cardId]?.ruby) { c.attack += 1; c.health += 1; }
+        }
+        // Rune of Cadence: casting a Shop spell arms the 1-Gold discount on your next minion.
+        if (s.runeCadence) s.cadenceMinionOff = true;
         // A spell that conjures minions (Undead Army, Summon Stone) can hand you a 3rd copy — combine it.
         checkTriples(s);
         return s;
@@ -1673,6 +1704,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         s.pendingCombatKeywords = [];
       }
+      // The display-only temp grants (Last Stand's gold tag, …) are consumed alongside the real keyword bank
+      // above — combat is what they promised. Their 0/0 buff-list entries go with them.
+      for (const c of s.board) {
+        if (!c.tempGrants) continue;
+        c.buffs = c.buffs?.filter((b) => !c.tempGrants!.some((g) => `(${g.label})` === b.source));
+        c.tempGrants = undefined;
+      }
       // Open the Gates (Set 2): banked Imps enter this fight on the player board, as many as fit the 7-slot cap
       // (the "whenever you have room" clause). Added before the odds sims so every sim sees them, then spent.
       if (s.pendingSCImps) {
@@ -2365,6 +2403,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   advanceCombatQuests(s, result);
   // A combat-completed quest may have granted a card to hand — if so, check for a triple (your 3rd copy → golden).
   if (s.hand.length > handBeforeQuests) checkTriples(s);
+  // Decoy Sigil / Weaken were spent on the fight that just resolved — clear the banks.
+  s.pendingDecoys = undefined;
+  s.pendingWeaken = undefined;
   // Rune of Slaying (owner change 2026-07-31, second pass): kills BANK across combats — every 6th pays a
   // minion of the board's dominant type into hand (the same resolver Reinforcing Ale uses). Replaces the
   // max-Gold-per-Slaughter shape entirely; the leftover progress carries in `runeSlayingKills`.
@@ -2506,6 +2547,10 @@ function advanceCombat(s: RunState): void {
   s.consumesThisTurn = 0; // Endless Appetite's "first Consume each turn" gate resets each wave
   s.firstSpellThisTurnId = undefined; // Rune of Recurrence's first-spell record resets each wave
   s.lastSpellThisTurnId = undefined; // Recaller's last-spell-this-turn record resets each wave
+  s.contrabandRubyUsed = undefined; // Rune of Contraband's two first-each-turn latches
+  s.contrabandAleUsed = undefined;
+  s.gemscriptSpellUsed = undefined; // Rune of Gemscript's two first-each-turn latches
+  s.gemscriptRubyUsed = undefined;
   // Set 2 — Living Grimoire RE-ARMS at the start of each turn, which is what makes its printed rule ("the
   // first spell you cast EACH TURN casts twice") true. It used to arm only on play and via the 3-Shout reset,
   // so on any later turn where you hadn't triggered 3 Shouts the card silently did nothing — the owner read
@@ -3261,6 +3306,15 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       for (const t of [4, 5, 6]) queueDiscover(s, { kind: 'minion', tier: t, exactTier: t, tribe: champTribe });
       break;
     }
+    case 'runeContraband':
+      s.runeContraband = true;
+      break;
+    case 'runeCadence':
+      s.runeCadence = true;
+      break;
+    case 'runeGemscript':
+      s.runeGemscript = true;
+      break;
     case 'runeMatriarch':
       s.runeMatriarch = true;
       break;
@@ -3456,6 +3510,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     candlelightToll: f?.candlelightToll, // Candlelight Toll: a dying Kobold grants a Ruby
     gemheartCharge: f?.gemheartCharge,   // Heart of the Mountain: Gemheart Golems attack on summon
     burningLegionUses: f?.burningLegion, // The Burning Legion: bounded Imp self-copies
+    decoySigils: s.pendingDecoys || undefined, // Decoy Sigil: next-combat Training Dummy slot-fillers
+    weakenTargets: s.pendingWeaken || undefined, // Weaken: SoC set N random enemies to 1 Health
     runeVanguard: f?.runeVanguard,         // Rune of the Vanguard: SoC Crit + Ward on your 3 left-most
     runeFinality: f?.runeFinality,         // Rune of Finality: your last death summons Warded Imps
     runeHatchery: f?.runeHatchery ? { attack: 3, health: 3 } : undefined, // Echo summons enter +3/+3 with Taunt

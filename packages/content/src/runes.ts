@@ -44,6 +44,15 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeSlaying' },
   },
   {
+    // Cross-currency smuggling: each turn, the first Ruby pays an Ale and the first Ale pays a Ruby.
+    id: 'rune_contraband',
+    name: 'Rune of Contraband',
+    cost: 2,
+    text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
+    reward: { kind: 'runeContraband' },
+    sets: ['set2'], // Rubies + Ales are set-2 currencies
+  },
+  {
     id: 'rune_spending',
     name: 'Rune of Spending',
     cost: 3,
@@ -534,6 +543,25 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Beatbot** and **2 Attachments**.',
     reward: { kind: 'grant', cards: ['beatboxer'], randomFilter: 'attachment', randomFilterCount: 2 },
     sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
+  },
+  {
+    // The shop's two purchases discount each other, alternating.
+    id: 'rune_cadence',
+    name: 'Rune of Cadence',
+    cost: 3,
+    epic: true,
+    text: 'After you buy a minion, your next **Shop spell** costs **1 less**. After you cast a **Shop spell**, your next **minion** costs **1 less**.',
+    reward: { kind: 'runeCadence' },
+  },
+  {
+    // The two currencies feed each other's power, one step per turn each.
+    id: 'rune_gemscript',
+    name: 'Rune of Gemscript',
+    cost: 4,
+    epic: true,
+    text: 'The first **Shop spell** you cast each turn gives your **Rubies +1/+1**. The first **Ruby** you cast gives your **Shop spells +1/+1**.',
+    reward: { kind: 'runeGemscript' },
+    sets: ['set2'], // Rubies
   },
   {
     // Doubles Runebloom Matriarch's per-spell trigger — recruit-phase, where the card actually fires.

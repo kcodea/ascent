@@ -1,3 +1,4 @@
+import type { Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
@@ -209,6 +210,13 @@ export function instView(
   // A BUFFED Ruby (minted above its printed 1/1 by the run's `rubyBonus`, or grown in hand) shows its grant in
   // green via the standard `{{…}}` modified-value marker — the same cue every other scaled number uses.
   const rubyVal = `+${shownAtk}/+${shownHp}`;
+  // Next-combat spell grants (Last Stand, …): the granting spell's name rides the text as a gold
+  // parenthesized tag — ((label)) renders via the Card's `desctemp` marker — and the promised keyword badge
+  // previews on the minion until combat spends it.
+  const tempTags = (inst.tempGrants ?? []).map((g) => ` ((${g.label}))`).join('');
+  const shownKeywords = inst.tempGrants?.length
+    ? [...inst.keywords, ...inst.tempGrants.map((g) => g.keyword as Keyword).filter((k) => !inst.keywords.includes(k))]
+    : inst.keywords;
   const shownText = c.ruby
     ? `Give a minion **${shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal}**${c.rubyGrantKeyword === 'DS' ? '. Also give it **Ward** if it is a **Kobold**' : ''}.`
     : text;
@@ -217,7 +225,7 @@ export function instView(
     chosenOption: inst.chosenOption, // a resolved Choose One also wears the ART of the branch it became
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,
     attack: shownAtk, health: shownHp,
-    keywords: inst.keywords, text: shownText,
+    keywords: shownKeywords, text: shownText + tempTags,
     goldenText,
     golden: inst.golden,
     tier: c.tier, spell, ruby: c.ruby, target: c.target,

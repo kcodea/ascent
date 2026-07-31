@@ -225,7 +225,12 @@ export type EffectFactoryId =
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell'
-  | 'onDemonShopConsumeGrantSpell' // Ashen Broodlord: first N friendly-Demon SHOP consumes each turn → a Shop spell // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
+  | 'onDemonShopConsumeGrantSpell' // Ashen Broodlord: first N friendly-Demon SHOP consumes each turn → a Shop spell
+  | 'spellPlayRubiesAll' // Ruby Excavation: play N Rubies on every friendly minion
+  | 'spellGainSpellPower' // Quick Study (spell): permanently raise the run's spell power
+  | 'spellDecoyNextCombat' // Decoy Sigil: bank a next-combat Training Dummy slot-filler
+  | 'spellStealShop' // Deep Delve Writ / Ironclad Requisition: take Shop offers into hand for free
+  | 'spellWeakenNextCombat' // Weaken: bank a next-combat "set a random enemy to 1 Health" // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
   | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
@@ -874,6 +879,9 @@ export type QuestReward =
   // Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects.
   | { kind: 'runeConductor' }
   | { kind: 'runeMatriarch' } // Runebloom Matriarchs trigger twice
+  | { kind: 'runeContraband' } // first Ruby/turn → an Ale; first Ale/turn → a Ruby
+  | { kind: 'runeCadence' } // buy-a-minion ↔ cast-a-spell alternating 1-Gold discounts
+  | { kind: 'runeGemscript' } // first spell/turn → Ruby power +1/+1; first Ruby/turn → spell power +1/+1
   | { kind: 'mintRubies'; count: number; attack: number; health: number } // Gemcutting: Rubies at a FIXED stat line
   | { kind: 'runeSecondPath' } // Discover 2 Tier 6 minions, stats set to 20/20
   | { kind: 'runeChampion' } // Discover a T4, T5 and T6 minion of the board's dominant tribe
@@ -1138,6 +1146,11 @@ export interface QuestCombatMods {
   /** Rune of the Spellstone, combat half (owner ask 2026-07-31): a Ruby played IN combat also counts as a
    *  spell cast — it fires the `spellCast` trigger, so per-spell improvers (Groveweaver) advance. */
   runeSpellstone?: boolean;
+  /** Decoy Sigil (next-combat spell): summon this many 1/1 Training Dummies (Taunt + Ward), one at a time,
+   *  far right, whenever the board first has room — the Rune-of-the-Brood slot-filler machinery. */
+  decoySigils?: number;
+  /** Weaken (next-combat spell): at Start of Combat, set this many random living enemies to 1 Health. */
+  weakenTargets?: number;
   /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */
   runeRisingGraves?: boolean;
   /** Rune of the Broodpit: every 6 friendly deaths, summon 2 Imps with Taunt. */

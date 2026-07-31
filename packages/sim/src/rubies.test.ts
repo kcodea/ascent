@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { type CardDef, combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { mintRubies, applyGoldSpent, applyEndOfTurn, RUBY_ID } from './recruit';
@@ -220,8 +220,8 @@ describe('set 2 — a Ruby played in COMBAT fires the target’s onRubyPlayed', 
   // Geode Guardian no longer plays Rubies on its neighbours (2026-07-31 rework: it summons Golems instead),
   // so these Idol-bounce tests drive the ADJACENT-play factory through a synthetic card — the machinery under
   // test (a combat Ruby firing the target's onRubyPlayed) outlived the card that first exposed it.
-  const adjRattler = { id: 'adj_rattler', name: 'AdjRattler', tribe: 'kobold' as const, tier: 2, attack: 1, health: 1, keywords: [],
-    effects: [{ on: 'onDeath' as const, do: 'deathrattlePlayRubiesAdjacent' as const, params: { rubies: 1 } }], text: '' };
+  const adjRattler: CardDef = { id: 'adj_rattler', name: 'AdjRattler', tribe: 'kobold', tier: 2, attack: 1, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };
   const CARDS_ADJ = { ...CARD_INDEX, adj_rattler: adjRattler };
 
   it("a dying adjacent-Ruby rattler's Ruby bounces off an adjacent Resonance Idol", () => {

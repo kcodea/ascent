@@ -893,6 +893,9 @@ export interface RunState {
    *  Serializable by construction — opponent DRIVERS are rebuilt from `(kind, seed, heroId)` rather than stored,
    *  because they are closures and `RunState` is deep-cloned every dispatch. Absent for an ordinary run. */
   lobby?: import('./lobby/runLobby').RunLobby;
+  /** The lobby round already settled. The end-combat button owns settling now, and resolving one round
+   *  twice would charge every seat twice and re-resolve the other pairings. */
+  lobbySettledRound?: number;
   spellFirstDoubleEachTurn?: boolean;
   /** Set 2 — Orivax (Spellweave): a MULTIPLIER on the turn's first spell (3 = casts 3 times). Permanent,
    *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than
@@ -1158,9 +1161,9 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     setId, // …and the card set (defaults to the live one) — for the same reason (see RunState.setId)
   };
   rollShop(state);
-  // Guardian (Runeguard): schedule the Epic Runeforge for turn 10 — advanceCombat's start-of-turn
+  // Guardian (Runeguard): schedule the Epic Runeforge for turn 8 — advanceCombat's start-of-turn
   // sequencing opens it (behind any quest offer). Cleared once it fires.
-  if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 10;
+  if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 8; // hero forge, one turn ahead of the system's 9
   if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && state.hand.length < CONFIG.handMax) {

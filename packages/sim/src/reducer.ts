@@ -578,7 +578,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // assigned it wholesale, while every other consumer APPENDED — so Set 2's shop-eating Demons grew the list
   // across actions and the UI replayed every past consume on each new one. That showed up as ghost minions
   // stacking over the shop, and as a card that hadn't eaten (Demon Horse) appearing to eat alongside one that had
-  // (Revolving Maw) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
+  // (Hellrider) — owner report 2026-07-25. Clearing here makes each action's consumes self-contained, which
   // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
   s.fodderEaten = [];
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
@@ -1229,7 +1229,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       s.frozen = false;
       refreshTavern(s);
-      // Set 2 — tell the board a refresh happened (Revolving Maw counts them). Fired AFTER `refreshTavern`, so a
+      // Set 2 — tell the board a refresh happened (Hellrider counts them). Fired AFTER `refreshTavern`, so a
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
       applyShopRefreshed(s);
       return s;
@@ -1818,6 +1818,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // applies), then advance past it (terminal check / next wave).
       if (s.phase !== 'combat' || !s.lastCombat) return state;
       if (!s.combatSettled) settleCombat(s, s.lastCombat);
+      // The lobby round settles HERE rather than when the replay ended, so the table's new health, the
+      // eliminations and your next opponent all appear together when you choose to leave the fight.
+      settleLobbyRound(s, s.lastCombat);
       advanceCombat(s);
       return s;
     }
@@ -2028,26 +2031,40 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
 }
 
+/**
+ * LOBBY MODE: settle the whole ROUND from the player's fight.
+ *
+ * The player's fight is authoritative and just happened, so both sides' damage reads straight off that ONE
+ * result, then the other three pairings resolve. Combat is not symmetric (the winner flips 22% of the time when
+ * the sides are swapped), so re-simulating the player's fight from the opponent's chair would contradict the
+ * replay they just watched.
+ *
+ * DEFERRED TO THE END-COMBAT BUTTON (owner ask 2026-07-31). This used to run inside `settleCombat`, i.e. the
+ * moment the replay finished — so the rail showed the table's new health, the eliminations and your NEXT
+ * opponent while you were still looking at the fight you had just watched. It now runs on `resolveCombat`, the
+ * action behind "return to shop", so the round's consequences land when the player asks to see them.
+ *
+ * Idempotent via `lobbySettledRound`: settling twice would resolve the other pairings a second time and charge
+ * every seat twice for one round.
+ */
+function settleLobbyRound(s: RunState, result: CombatResult): void {
+  if (s.mode !== 'lobby' || !s.lobby) return;
+  if (s.lobbySettledRound === s.lobby.round) return;
+  s.lobbySettledRound = s.lobby.round;
+  s.lobby = settleRunLobbyRound(
+    { ...s.lobby, seats: s.lobby.seats.map((x) => ({ ...x })), encounters: [...s.lobby.encounters] },
+    result,
+  );
+  const me = s.lobby.seats[0]!;
+  // The seat's health becomes the run's, so the HUD and every health-aware effect read the number that actually
+  // matters. The ordinary damage path in `settleCombat` is explicitly skipped for lobby mode, so this is the
+  // only writer and there is no double-charge.
+  s.resolve = Math.max(0, me.resolve);
+  s.armor = Math.max(0, me.armor);
+}
+
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */
 function settleCombat(s: RunState, result: CombatResult): void {
-  // LOBBY MODE: the player's fight is authoritative and just happened, so the whole ROUND settles from it —
-  // both sides' damage read straight off that ONE result, then the other three pairings resolved. Combat is not
-  // symmetric (the winner flips 22% of the time when the sides are swapped), so re-simulating the player's fight
-  // from the opponent's chair would contradict the replay the player just watched.
-  //
-  // This lives in the FUNCTION, not the `settleCombat` case: `resolveCombat` calls this directly when the player
-  // skips the replay, so hooking only the case silently skipped the lobby on the most common path.
-  if (s.mode === 'lobby' && s.lobby && !s.combatSettled) {
-    s.lobby = settleRunLobbyRound(
-      { ...s.lobby, seats: s.lobby.seats.map((x) => ({ ...x })), encounters: [...s.lobby.encounters] },
-      result,
-    );
-    const me = s.lobby.seats[0]!;
-    // The seat's health becomes the run's, so the HUD and every health-aware effect read the number that
-    // actually matters. Applied BEFORE the ordinary damage below, which then no-ops against it.
-    s.resolve = Math.max(0, me.resolve);
-    s.armor = Math.max(0, me.armor);
-  }
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
   // Loss-streak tracking (matchmaking softener): a loss extends the streak; a WIN breaks it and re-arms the
@@ -2487,9 +2504,11 @@ function advanceCombat(s: RunState): void {
   // turn 7, no turn-5 quest) are folded into `questOfferPlan`.
   const questPlan = questOfferPlan(s);
   const questOffer = questPlan ? generateQuestOffer(s, questPlan) : [];
-  // Runesmith: the Runeforge opens exactly once, on turn 7 — offer a random 3 of the runes for the player to buy
+  // Runesmith: the Runeforge opens exactly once, on turn 5 — offer a random 3 of the runes for the player to buy
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
-  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 7 && !s.heroPowerSpent;
+  // The HERO forge is turn 5 — deliberately EARLIER than the universal system's turn-6 basic forge, so a
+  // Runesmith is ahead of the curve rather than redundant with it (owner 2026-07-31).
+  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 5 && !s.heroPowerSpent;
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
@@ -2523,7 +2542,7 @@ function advanceCombat(s: RunState): void {
   // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
   if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
   // Runeforge system: EVERY hero visits the Epic Runeforge on turn 9 (free — openEpicRuneforge flags it
-  // no-charge). Independent of Runeguard's own epic forge on turn 12, which its power schedules separately.
+  // no-charge). Independent of Runeguard's own epic forge on turn 8, which its power schedules separately.
   if (CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
   // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
   s.pendingForgeDeferred = false;

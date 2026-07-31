@@ -246,3 +246,60 @@ describe('lobby rules — no rematch inside 3 rounds, and the odd seat faces a g
     }
   });
 });
+
+describe('the round settles on END COMBAT, not when the replay finishes (owner ask 2026-07-31)', () => {
+  /** Drive to the point where a combat has been resolved and the replay has settled, but the player has not
+   *  yet pressed "return to shop". */
+  const upToEndCombat = (seed: number): RunState => {
+    let s = createLobbyRun(seed, 'drakko');
+    let guard = 0;
+    while (s.phase !== 'combat' && guard++ < 500) {
+      const next = reduce(s, DEFAULT_BOT.act(s));
+      if (next === s) break;
+      s = next;
+    }
+    // The replay finishing is its own action; it must NOT carry the table with it.
+    return reduce(s, { type: 'settleCombat' });
+  };
+
+  it('the table is untouched while you are still looking at the fight', () => {
+    const s = upToEndCombat(4);
+    expect(s.phase, 'expected to be sitting in the combat view').toBe('combat');
+    expect(s.combatSettled, 'the replay should have settled the combat itself').toBe(true);
+    // The whole point: no other pairing has resolved, so no seat has moved and there is no new opponent.
+    expect(s.lobby!.encounters.filter((e) => e.fought).length, 'the table settled before the player asked').toBe(0);
+    expect(s.lobby!.round, 'the lobby advanced early').toBe(1);
+  });
+
+  it('pressing end combat resolves the whole table at once', () => {
+    const before = upToEndCombat(4);
+    const after = reduce(before, { type: 'resolveCombat' });
+    expect(after.lobby!.encounters.filter((e) => e.round === 1 && e.fought).length, '8 seats is 4 fights').toBe(4);
+    expect(after.lobby!.round).toBe(2);
+  });
+
+  it('cannot settle the same round twice', () => {
+    // `resolveCombat` is guarded by phase, but the round marker is the real defence — settling twice would
+    // re-resolve the other three pairings and charge every seat a second time for one round.
+    const s = reduce(upToEndCombat(4), { type: 'resolveCombat' });
+    const hp = s.lobby!.seats.map((x) => x.resolve + x.armor);
+    const again = reduce(s, { type: 'resolveCombat' });
+    expect(again.lobby!.seats.map((x) => x.resolve + x.armor)).toEqual(hp);
+    expect(again.lobby!.encounters.filter((e) => e.round === 1 && e.fought).length).toBe(4);
+  });
+
+  it('still settles when the player SKIPS the replay', () => {
+    // The skip path calls resolveCombat without a prior settleCombat — the original bug this file was written
+    // for. Deferring the table must not re-open it.
+    let s = createLobbyRun(4, 'drakko');
+    let guard = 0;
+    while (s.phase !== 'combat' && guard++ < 500) {
+      const next = reduce(s, DEFAULT_BOT.act(s));
+      if (next === s) break;
+      s = next;
+    }
+    const skipped = reduce(s, { type: 'resolveCombat' }); // no settleCombat first
+    expect(skipped.lobby!.encounters.filter((e) => e.round === 1 && e.fought).length).toBe(4);
+    expect(skipped.lobby!.round).toBe(2);
+  });
+});

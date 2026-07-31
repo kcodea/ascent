@@ -160,7 +160,7 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     id: 'dm_velvet',
-    name: 'Bug Huggies',
+    name: 'Big Huggies',
     tribe: 'demon',
     tier: 5,
     attack: 5,
@@ -188,7 +188,7 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     id: 'dm_tallymonger',
-    name: 'Tallymonger',
+    name: 'Void Curator',
     tribe: 'demon',
     tier: 5,
     attack: 6,
@@ -255,7 +255,7 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     id: 'dm_maw',
-    name: 'Revolving Maw',
+    name: 'Hellrider',
     tribe: 'demon',
     tier: 6,
     attack: 8,

@@ -197,16 +197,6 @@ describe('tranche B — combat-trigger Dwarves', () => {
       .map((e) => (e as unknown as { minion?: { cardId?: string; attack: number; health: number } }).minion)
       .filter((m): m is { cardId?: string; attack: number; health: number } => m?.cardId === cardId);
 
-  it('Kegbreaker Korr pours an Ale on ITS OWN kill', () => {
-    expect(ales(fight([mine('dw_korr')], [foe(0, 1)])).length).toBe(1);
-  });
-
-  it('…but not on an ally’s kill — the attacker guard', () => {
-    // Korr at 0 Attack cannot kill; the ally does. Without the guard this is where the bug shows.
-    const korr = { ...mine('dw_korr'), attack: 0 } as BoardMinion;
-    expect(ales(fight([korr, mine('dw_ironlung')], [foe(0, 1)])).length).toBe(0);
-  });
-
   it('Doubletap Brewer’s Echo pours when it dies', () => {
     expect(ales(fight([mine('dw_brewer')], [foe(20, 20)])).length).toBeGreaterThan(0);
   });
@@ -332,9 +322,9 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'the adjacent Shout never fired').toBeGreaterThan(0);
   });
 
-  it('the whole Dwarf roster is in set 2 — 21 minions + token + 3 rune minions', () => {
+  it('the whole Dwarf roster is in set 2 — 20 minions + token + 3 rune minions', () => {
     const dwarfIds = poolFor('set2').all.filter((c) => c.id.startsWith('dw_')).map((c) => c.id);
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(25);
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(24);
   });
 });
 
@@ -525,10 +515,10 @@ describe('Dwarf quests (owner roster 2026-07-29)', () => {
     expect(def.repeatable).toBe(true);
   });
 
-  it('Barroom Bounty grants Kegbreaker Korr WITH Flurry and Ward', () => {
+  it('Barroom Bounty grants a Brunni WITH Ward', () => {
     const r = q('q_barroom_bounty')!.reward as { cards?: string[]; grantKeywords?: string[] };
-    expect(r.cards).toContain('dw_korr');
-    expect(r.grantKeywords).toEqual(['W', 'DS']);
+    expect(r.cards, 'Korr was removed 2026-07-31 — the quest grants a Brunni now').toContain('dw_brunni');
+    expect(r.grantKeywords, 'Ward only now — the Flurry went with Korr').toEqual(['DS']);
   });
 
   it('War Council uses a TRIBE-scoped reward, never the Beast flag', () => {

@@ -53,7 +53,7 @@ export const CONFIG = {
 
   // Runeforge: the master on/off for the Runeforge as a UNIVERSAL system. `true` → EVERY hero visits the basic
   // Runeforge on turn 6 and the Epic Runeforge on turn 9 (free — no hero-power charge). `false` → only the
-  // runeforge-native heroes access it (Runesmith basic on turn 7, Runeguard epic on turn 12), which is always
+  // runeforge-native heroes access it (Runesmith basic on turn 5, Runeguard epic on turn 8), which is always
   // true independent of this flag. Separate from the `runic` rift (which independently grants the turn-6 basic
   // forge to all heroes); if both are on, turn 6 still opens exactly one basic forge. Default off.
   runeforgeEnabled: false,

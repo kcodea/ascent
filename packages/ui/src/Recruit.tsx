@@ -1410,7 +1410,7 @@ export function Recruit() {
      visibly grows at the moment the effect fires, rather than when the dispatch that commits them lands.
      Two sources, and they can't overlap: End-of-Turn beats (still `recruit`, cleared as `faceOmen` flips the
      phase) and in-combat grants. Filtered against CARD_INDEX — a grant of an id the index doesn't know (a
-     card-data typo: Bug Huggies once granted the empty string) used to throw inside the map and
+     card-data typo: Big Huggies once granted the empty string) used to throw inside the map and
      white-screen the whole Recruit tree. A bad grant should show nothing, not take down the game.
 
      CAPPED AT THE HAND LIMIT. A preview is a promise that the card is yours, and the sim only keeps grants
@@ -3270,7 +3270,7 @@ export function Recruit() {
         const gold = run.board.find((c) => c.uid === b.uid)?.golden ? 2 : 1;
         // SPELL POWER raised on this beat. Driven by the PROJECTION's measured delta, not by matching a
         // factory id: this used to test `eff.do === 'battlecryBuffSpellPower'`, which is Aeon Guard's factory
-        // and nobody else's — so Tallymonger, which raises the same channel through
+        // and nobody else's — so Void Curator, which raises the same channel through
         // `endOfTurnBuffSpellsAndImps`, played no cue at all (owner report 2026-07-28). Reading the delta means
         // any card that moves spell power at End of Turn animates, including ones not written yet.
         //
@@ -3288,7 +3288,7 @@ export function Recruit() {
             fireSpellBuffOnHandSpells(run.hand);
           }
         }
-        // IMP AURA washed on this beat (Tallymonger). The action-level wash watcher is gated on the run still
+        // IMP AURA washed on this beat (Void Curator). The action-level wash watcher is gated on the run still
         // being in recruit AFTER the action, and End of Turn flips to combat — so an End-of-Turn imp buff never
         // washed. The board is still on screen during the beats, so it plays here.
         if (beatFx[i]?.impAura) fireAuraWave('demon');

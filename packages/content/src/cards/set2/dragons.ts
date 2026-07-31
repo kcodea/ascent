@@ -140,7 +140,7 @@ export const SET2_DRAGONS: CardDef[] = [
     keywords: [],
     // Shout AND Echo, so it pays on both ends. The two halves use different factories on purpose: the Shout is
     // a recruit grant (`spellId`), the Echo a combat one (`cardId`) — the keys differ per factory and mixing
-    // them up silently grants nothing (the Bug Huggies bug, 2026-07-25).
+    // them up silently grants nothing (the Big Huggies bug, 2026-07-25).
     effects: [
       { on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'growth', count: 1 } },
       { on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'growth' } },

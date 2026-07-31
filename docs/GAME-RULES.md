@@ -114,11 +114,11 @@ Source: `packages/sim/src/quests.ts`.
 Runes are run-long permanent buffs bought from a **Runeforge**, available only to specific heroes
 (never in the regular shop / Discover / quest pool):
 
-- **Basic Runeforge** — hero **Runesmith**: opens on **turn 7**, offers a random 3 Basic Runes, buy
+- **Basic Runeforge** — hero **Runesmith**: opens on **turn 5**, offers a random 3 Basic Runes, buy
   ONE (re-roll once for 2 Gold). Its power text and `oncePerGame` comment both say turn 7 (the
   internal comment "fires on the turn-6 advance" refers to the setup tick that *opens* the turn-7
   offer). Verified turn = **7**.
-- **Epic Runeforge** — hero **Runeguard**: opens on **turn 12**, buy one Epic Rune
+- **Epic Runeforge** — hero **Runeguard**: opens on **turn 8**, buy one Epic Rune
   (scheduled at run start via `epicForgeWave`).
 
 Each rune's effect reuses the quest `QuestReward` application engine — it just takes effect with no

@@ -78,12 +78,15 @@ export const BEASTS: CardDef[] = [
     tier: 4,
     attack: 5,
     health: 5,
-    keywords: ['SL'],
+    keywords: ['RL'],
+    // Rally, not Slaughter (owner 2026-07-31): it now pays for ATTACKING rather than for landing a kill, so it
+    // no longer needs a favourable trade to do anything. `rallyGrantSpell` is the shared Rally spell-grant
+    // (Perfect Core's), which already handles the golden multiplier and the carry-back to hand.
     effects: [
-      { on: 'onKill', do: 'onKillGrantRandomSpell', params: { count: 1 } },
+      { on: 'onAttack', do: 'rallyGrantSpell' },
     ],
-    text: '**Slaughter:** get a random Shop spell.',
-    goldenText: '**Slaughter:** get **2** random Shop spells.',
+    text: '**Rally:** get a random Shop spell.',
+    goldenText: '**Rally:** get **2** random Shop spells.',
   },
   {
     // Quest reward (Forager's Trail): a sticky value bank — its sell price climbs +1 Gold per Beast you play.

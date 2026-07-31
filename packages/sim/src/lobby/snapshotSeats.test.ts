@@ -171,3 +171,46 @@ describe('one active snapshot per player (owner rule 2026-07-29)', () => {
     expect(lobby.seats).toHaveLength(8);
   });
 });
+
+describe("set separation — a lobby never seats another set's boards", () => {
+  /**
+   * The gap this closes: Ascent matchmaking has always filtered snapshots by set (`nextOpponent`), but the
+   * LOBBY path called `playerRunsFrom()` with no set at all. Flipping the live set to 2 would therefore have
+   * seated set-1 recordings against a set-2 board — and it would have WORKED, fielding set-1 minions, so the
+   * only symptom is cards appearing that the run could never otherwise see.
+   */
+  const set2Board = (author: string, wave: number): BoardSnapshot =>
+    ({ ...board(author, 'drakko', 4242, wave, 3), setId: 'set2' } as BoardSnapshot);
+  const SET2_RUN = [1, 2, 3, 4, 5, 6].map((w) => set2Board('set2player', w));
+
+  beforeAll(() => { registerOpponents([...SET2_RUN]); });
+
+  it('filters runs to the asking set', () => {
+    const all = playerRunsFrom();
+    const only1 = playerRunsFrom(undefined, undefined, 'set1');
+    const only2 = playerRunsFrom(undefined, undefined, 'set2');
+    expect(all.length, 'the unfiltered view should still see everything').toBeGreaterThan(only1.length);
+    expect(only2.length, 'the set-2 run is missing').toBeGreaterThan(0);
+    expect(only2.every((r) => r.author === 'set2player'), 'a set-1 run leaked into the set-2 view').toBe(true);
+    expect(only1.some((r) => r.author === 'set2player'), 'the set-2 run leaked into set 1').toBe(false);
+  });
+
+  it('a set-2 lobby seats no set-1 run', () => {
+    const lobby = createRunLobby(7, 'drakko', { snapshotSeats: 4 }, 'set2');
+    const seated = lobby.seats.filter((x) => x.kind === 'snapshot').map((x) => x.runKey);
+    // Whatever it seats must be resolvable within set 2 — a set-1 key would resolve to null here.
+    for (const key of seated) {
+      expect(playerRunByKey(key!, undefined, 'set2'), `seat ${key} is not a set-2 run`).not.toBeNull();
+    }
+  });
+
+  it('the lobby records its set, so a RESTORE resolves against the same one', () => {
+    // The seat only stores a runKey (`author|hero|seed`), which says nothing about the set — without this the
+    // restore path would fall back to the unfiltered pool.
+    expect(createRunLobby(7, 'drakko', {}, 'set2').setId).toBe('set2');
+  });
+
+  it('an unfiltered call still sees everything — the tools and pre-set tests depend on it', () => {
+    expect(playerRunsFrom().some((r) => r.author === 'set2player')).toBe(true);
+  });
+});

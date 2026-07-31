@@ -109,7 +109,7 @@ export type GameEvent =
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
   | 'rubyCast' // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
-  | 'shopRefreshed' // set 2 recruit phase: the tavern was rolled (Revolving Maw counts refreshes)
+  | 'shopRefreshed' // set 2 recruit phase: the tavern was rolled (Hellrider counts refreshes)
   | 'passive' // declared but NEVER dispatched: marks a card whose effect is read by another system rather
   //  than fired by an event (Deepdelve Paragon — `playRubyOn` scans the board for it). Keeping it in the
   //  effects list means the card is still data-driven and greppable, instead of a card id hardcoded in core.
@@ -191,21 +191,20 @@ export type EffectFactoryId =
   | 'onImpDeathSummonImp' // Set 2 — Endless Overseer: your first N Imp deaths each summon an Imp
   | 'onImpAttackSummonCopy' // Set 2 — Malphas (Legion): an attacking Imp summons a copy
   | 'endOfTurnEndDemonsConsumeSides' // Set 2 — Malphas (Feast): the end Demons eat their side of the row
-  | 'onShopRefreshConsume' // Set 2 — Revolving Maw: every N refreshes, eat the right-most Shop minion
+  | 'onShopRefreshConsume' // Set 2 — Hellrider: every N refreshes, eat the right-most Shop minion
   | 'avengeImproveSummonBuff' // Set 2 — Broodwright: Avenge improves its own summon grant
   | 'onSummonImpBuff' // Set 2 — Broodwright: an Imp you summon gains +X/+Y (improvable via summonBonus)
   | 'scFillWithImpsAndBuff' // Set 2 — Legion Shepherd: fill the warband with Imps, then buff Imps per one summoned
   | 'onImpAttackBuffImps' // Set 2 — Rouge Rogue: an Imp attacking buffs your Imps, escalating
   | 'battlecryConsumeShopRandom' // Set 2 — Cinder Clerk: Shout — consume a random Shop minion
-  | 'consumeShopRightmost' // Set 2 — Demon Horse / Revolving Maw: consume the right-most Shop minion
+  | 'consumeShopRightmost' // Set 2 — Demon Horse / Hellrider: consume the right-most Shop minion
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
   | 'shopRefreshedBuffRightmost' // Set 2 — Market Tormentor: each fresh Shop's right-most minion comes in buffed
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
-  | 'endOfTurnBuffSpellsAndImps' // Set 2 — Tallymonger: buff your spells and Imps
+  | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
-  | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
   | 'onBattlecryBuffTribeAlternating' // Set 2 — Bathing Matriarch: alternates Attack/Health each turn
   | 'endOfTurnAlternateMode' // …and the tick that flips it
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
@@ -224,7 +223,7 @@ export type EffectFactoryId =
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
   | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
-  | 'deathrattleGrantWardRandom' // Set 2 — Lastlight Marshal: Echo — give N friendly minions Ward
+  | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell' // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand

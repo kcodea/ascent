@@ -65,11 +65,13 @@ describe('runeforge system (CONFIG.runeforgeEnabled)', () => {
     expect(advanceTo('warden', 8).runeforgeOffer).toBeFalsy();
   });
 
-  it('native heroes keep their own forge with the system OFF (Runesmith turn 7, Runeguard turn 12)', () => {
-    const rs = advanceTo('runesmith', 6); // → turn 7
+  it('native heroes keep their own forge with the system OFF (Runesmith turn 5, Runeguard turn 8)', () => {
+    // The HERO forges sit one turn AHEAD of the universal system's 6 / 9 (owner 2026-07-31), so a runeforge
+    // hero is early to the forge rather than redundant with a system that would have opened one anyway.
+    const rs = advanceTo('runesmith', 4); // → turn 5
     expect(rs.runeforgeOffer?.length).toBeGreaterThan(0);
     expect(rs.runeforgeEpic).toBeFalsy(); // basic
-    const rg = advanceTo('runeguard', 11); // → turn 12
+    const rg = advanceTo('runeguard', 7); // → turn 8
     expect(rg.runeforgeOffer?.length).toBeGreaterThan(0);
     expect(rg.runeforgeEpic).toBe(true); // epic
   });

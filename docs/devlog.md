@@ -142,6 +142,204 @@ files, all passing**), `npm run build:web` — all green. Effect verified unchan
 **Follow-up.** The residual setup tail is the triple's React commit + three card-subtree clones. Worth its own
 pass if the owner still feels it: either fewer/cheaper clones, or letting the commit land a frame before the
 effect opens.
+## 2026-07-31 — Card batch: removals, reworks, and the Set 2 art re-wire
+
+**Removed.** Oathbound Avenger (and its now-orphaned `avengeBuffRandomFriendlyShield` factory — nothing else
+used it, so it went with the card rather than lingering as dead machinery). Kegbreaker Korr. Rune of Slaying is
+now `sets: ['set1']`.
+
+**Reworked.**
+- **Badgington** — Slaughter → **Rally**: it pays for attacking rather than for landing a kill, so it no longer
+  needs a favourable trade to do anything. Reuses `rallyGrantSpell` (Perfect Core's), which already owns the
+  golden multiplier and the carry-back to hand.
+- **Elderhorn** — the first Choose One branch is **Rallies only**; Slaughters dropped out of the text.
+  ⚠️ TEXT-ONLY so far: the branch still runs `battlecryGrantBeastHunt`, whose `beastHuntExtra` flag is read at
+  BOTH the attack and the kill site in `simulate`, so Slaughters are still doubled in play. Splitting that flag
+  is engine work — flagged rather than half-done.
+- **Brood Whelp** — now TARGETED (`target: 'friendly'` + `battlecryBuffTarget`): you pick who gets the +5 Attack
+  instead of the card picking a Dragon for you, which is the whole decision on a tier-1 token.
+- **Barroom Bounty** — granted Korr, so it now grants a **Brunni with Ward** (owner call after the removal).
+
+**Art re-wired from the adjusted masters.** 145 minions + 21 quest-reward + 111 runes. Mushy and Scalefeather
+are fixed: the owner supplied correctly-named `Mushy.png` / `Scalefeather.png`, which now match by name, so the
+two stale pre-rename aliases were deleted rather than left to compete with the current art. The file sizes show
+the swap landing — `d2_chronicler` now carries what `d2_scalefeather` used to, which is what the rename implied.
+
+Verified: typecheck (both), lint (7 pre-existing), 3403 tests, build:web, harness determinism.
+
+## 2026-07-31 — Lobbies now respect the card set (they did not)
+
+Found while answering the owner's question "if I turn set 1 off and set 2 on, will lobbies stop serving set-1
+boards, or do I need to wipe the DB?" — the answer was **no, and no**.
+
+Ascent matchmaking has filtered snapshots by set since the sets work landed (`nextOpponent`, deliberately at
+PICK time so two runs on different sets each find their own boards). The LOBBY path never did: `createRunLobby`
+called `playerRunsFrom()` with no set at all. Flipping the live set to 2 would have seated set-1 recordings —
+and it would have WORKED, fielding set-1 minions against a set-2 board. The only symptom is cards appearing
+that the run could never otherwise see, which is the kind of thing that reads as a balance mystery for weeks.
+
+`playerRunsFrom` / `playerRunByKey` take an optional `setId` and filter exactly as `nextOpponent` does (absent =
+no filter, which the tools and pre-sets tests rely on). `createLobbyRun` passes the run's pinned set, and the
+lobby STORES it: a seat only keeps a `runKey` (`author|hero|seed`), which says nothing about the set, so without
+it a restored lobby would fall back to the unfiltered pool. Threaded into `driverFor` for the same reason.
+
+**No DB wipe is needed, and it would have been the wrong fix twice over**: it does not prevent the bug (new
+set-1 boards reappear the moment anyone plays set 1) and it throws away recordings that are correct for set 1.
+
+Verified: 4 new tests (the filter both ways, a set-2 lobby seating only resolvable set-2 runs, the lobby
+recording its set for restores, and the unfiltered call still seeing everything), 3406 tests, typecheck (both),
+lint, build:web, harness determinism.
+
+## 2026-07-31 — Runeforge timing: hero forges to 5 / 8 (the SYSTEM was already 6 / 9)
+
+Owner correction. The ask was about the runeforge SYSTEM — every player visits the basic forge on turn 6 and the
+Epic on turn 9 — which `CONFIG.runeforgeEnabled` already did. I misread it as a request to unify every path and
+retimed the two hero powers to match, which was a design decision that was not mine to make.
+
+Corrected to what the owner actually wants: **Runesmith's forge is turn 5, Runeguard's Epic is turn 8** — one
+turn AHEAD of the system's 6 / 9, so a runeforge hero is early to the forge rather than redundant with a system
+that would have opened one anyway. (They were 7 and 10 before; the docs said 12, so the Guardian entry had been
+stale for a while and is now correct too.)
+
+The universal system is untouched at 6 / 9, and `CONFIG.runeforgeEnabled` stays **false** — turning it on is the
+owner's call, not a side effect of a timing change.
+
+Swept every stale reference rather than just the code: hero power text (player-facing), the `HeroPowerKind`
+comments, `runes.ts`'s header, `config.ts`, `GAME-RULES.md`, and 4 tests. `rifts.test.ts` was deliberately left
+alone — it exercises the RIFT path with a non-forge hero, so the hero timing does not apply to it.
+
+Verified: typecheck (both), lint (7 pre-existing), 3402 tests, build:web, harness determinism.
+
+## 2026-07-31 — Three renames — and Set 2 minion art is COMPLETE
+
+Lastlight Marshal → **Lastlight**, Tallymonger → **Void Curator**, Revolving Maw → **Hellrider**. Card IDs are
+unchanged (`n2_lastlight`, `dm_tallymonger`, `dm_maw`), so existing art, saved runs and board snapshots are
+untouched.
+
+The renames closed the last art gap on their own, which is why they were worth re-running the wiring for:
+- `Lastlight.png` had been sitting unmatched because the card was "Lastlight Marshal". It now matches exactly —
+  and it was the ONLY set-2 minion still without art. **Set 2 minion art: 0 missing.**
+- `Hellrider.png` was likewise unmatched (no card was called Hellrider). It now wires to `dm_maw`, and the older
+  `RevolvingMaw.png` correctly stops matching anything — the current-name file is the authoritative art.
+- `Tallymonger.png` is the reverse case: the art is filed under the PRE-rename name, so it gets an explicit
+  alias, same as the other pre-rename entries.
+
+Verified: typecheck (both), lint (7 pre-existing), 3402 tests, build:web, harness determinism.
+
+**Remaining art gap: 8 runes** — Investment, Hunger, the Menagerie (the set-2 twin `rune_menagerie_set2`; the
+art matched the set-1 rune), Mykel, Double Fisting, the Brokerage, Attacking Gems, the White Wolf.
+
+## 2026-07-31 — The lobby round settles on END COMBAT, not when the replay ends
+
+Owner ask: the next opponent and the round's results should not appear until you press return-to-shop.
+
+The lobby settle used to live inside `settleCombat`, which runs the moment the replay finishes — so the rail
+showed the table's new health, the eliminations and your NEXT opponent while you were still looking at the
+fight you had just watched. Extracted to `settleLobbyRound` and moved to the `resolveCombat` case, the action
+behind the button, so the round's consequences all land together when the player asks to see them.
+
+Three details that make it safe:
+- The player's own Resolve/Armor sync moved with it, so the HUD does not disagree with the rail for the gap
+  between the replay ending and the button. The ordinary damage path in `settleCombat` is already skipped for
+  lobby mode, so this remains the only writer — no double-charge.
+- `lobbySettledRound` guards idempotence. `resolveCombat` is phase-guarded, but settling one round twice would
+  re-resolve the other three pairings and charge every seat a second time, which is worth a real defence rather
+  than relying on a phase check staying true.
+- The SKIP path still works. `resolveCombat` calls `settleCombat` directly when the player skips the replay —
+  the exact bug this test file was originally written for — so deferring the table must not re-open it. There
+  is a test for that specific path.
+
+Verified: 4 new tests (table untouched while in the combat view; one press resolves all 4 pairings; a second
+press changes nothing; and the skip path still settles), plus typecheck (both), lint, 3402 tests, build:web,
+harness determinism.
+
+## 2026-07-31 — Fix: the scout card was invisible (owner report)
+
+The hover card opened and was never seen. `.lobbyrail` is a scroll container (`overflow-y: auto`), so it CLIPS
+absolutely-positioned descendants that fall outside its box — and the card deliberately opens to the rail's
+LEFT, i.e. always outside it. React state, layout and measurements were all correct; the pixels were clipped.
+
+Now `position: fixed`, anchored to the hovered seat's measured box (one read per hover, not per frame). Fixed
+escapes overflow clipping, and the rail has no transform/filter, so nothing re-anchors it.
+
+**Why my verification missed it, which is the more useful lesson.** I "confirmed" the card by dispatching a
+synthetic `mouseover` and then asserting on `getBoundingClientRect` — which reports the LAYOUT box whether or
+not anything is painted. So a clipped element measures exactly like a visible one. Worse, my earlier attempt
+with a REAL hover produced nothing, and I attributed that to a tooling race rather than treating it as the
+signal it was. A DOM check answers "did React render it"; only a screenshot answers "can you see it".
+
+Re-verified with a real mouse hover in a live lobby: the card is visible in the screenshot, `position: fixed`,
+and fully on-screen for both the top and bottom seats (the centred card could otherwise run off the bottom).
+Note `elementFromPoint` is NOT a visibility test here — the card is `pointer-events: none`, so hit-testing
+passes through it by design.
+
+## 2026-07-31 — The lobby rail: uniform seats + a scout card on hover
+
+**Every seat is the same size now** (owner ask). The next opponent used to get a large portrait card above the
+table, which made the rail two different things stacked — and made the one seat you most want to COMPARE
+against the others the only one you couldn't. The next foe is marked in place instead: a NEXT chip sharing the
+name's grid cell, so adding it cannot shift the health column. Measured live: all 8 rows are exactly 126x51.
+
+**Scouting moved to hover, for all seven opponents** rather than just the imminent one. Each enemy seat opens a
+dark-glass card — the same recipe as the hero / buff / quest panels (vertical fill, gold-mixed hairline, inner
+top highlight) — with the board's dominant tribe, tier and triples, plus its last three fights as
+`vs <name> −30`, coloured by result.
+
+**The intel is RECORDED, never derived on demand.** `prepare()` costs 200-900 ms for a bot seat, so answering
+"what tier is seat 5 on" from a render would stall the shop phase once per hovered seat. `settleRunLobbyRound`
+already builds every board, so `boardIntel` reads them there for free. The imminent foe is the exception and
+reads live, because `playerOpponent` has already prepared that board — which also means it has CURRENT intel on
+round 1, before any settle has recorded any.
+
+Two judgement calls worth naming:
+- The dominant tribe is counted off the BODIES, not taken from the snapshot's `tribes` field. That field is the
+  run's five ACTIVE tribes — what the shop could offer — which is a different question from what the board in
+  front of you is made of.
+- Intel older than the current round is LABELLED ("as of round N") rather than presented as current, and a seat
+  with none says so instead of printing zeroes that look like a read.
+
+**Also fixed while in here:** `.lobbybar` — the seat health bar — was rendered by the panel but had no CSS rule
+at all, so it painted nothing. It has been dead markup since the rail was written. Now a real bar under the
+name, blue for your seat.
+
+Verified: 11 new unit tests on `boardIntel` / `seatResults` (including that `outcome` is written from A's side
+and must invert for B — getting that wrong would show every opponent winning the fight you won), plus a live
+lobby in the browser: 8 uniform rows, the old card gone, the chip present, the health bar painting, and the
+scout card opening left of the rail and fully on-screen with real values. Gates: typecheck (both), lint
+(7 pre-existing), 3398 tests, build:web, harness determinism.
+
+## 2026-07-31 — Big Huggies, rune art (111), and Chimerus
+
+**Name correction.** The card is **Big** Huggies, not Bug — I mis-transcribed the owner's rename and then aliased
+the (correct) `BigHuggies.png` onto the wrong name to compensate. Card renamed across 5 files; the alias is gone,
+since the filename now matches exactly.
+
+**Rune art: 111 files, 0 unmatched.** Plus 21 quest-reward minions, which quietly closed **6 of the 7** minions
+that had no art — only Lastlight Marshal is left.
+
+`art:wire` now runs THREE jobs through one pipeline (minions, quest-reward minions, runes) rather than gaining a
+second script. The shared parts are exactly the ones that would drift: the 512px resize, the webp regeneration,
+alias-loses-to-exact precedence, and the reporting — three of which were bugs found the hard way on the minion
+pass.
+
+**Two matching problems, deliberately solved differently:**
+- The art folder disagrees with the rune list about "Rune of X" vs "Rune of **the** X", in BOTH directions,
+  across 7 files. That is one systematic authoring variance, not seven typos, so it is absorbed in
+  normalization (`noThe`, camelCase-aware) rather than as seven alias entries.
+- Three files are genuine one-offs — `RuneOfScale` (the owner's ruling that Scale IS Bulk Order),
+  `RuneoftheMotherload` (misspelled), `SpellOfPillaging` (authored as a "Spell") — so those got explicit aliases.
+
+**A bug worth recording.** `noThe` silently matched nothing for two rounds because a `` written through a bash
+heredoc had become a literal BACKSPACE (0x08) in the source: the regex was matching backspace-the-backspace.
+It survived a Read (invisible) and defeated two Edit attempts (the string never matched). Found by dumping the
+line with `repr`. Swept the rest of the tree for stray 0x08 — none.
+
+Verified live: the dev server's own `runeArt`/`artFor` resolve every wired id to a `.webp`, and the two that
+return NONE are exactly the two the tool reports as having no source. Server RESTARTED, not reused — the glob is
+eager and 192 files are new. Gates: typecheck (both), lint (7 pre-existing), 3387 tests, harness determinism.
+
+**Still unwired:** Lastlight Marshal, and 8 runes — Investment, Hunger, the Menagerie (set-2 twin `rune_menagerie_set2`;
+the art matched the set-1 rune), Mykel, Double Fisting, the Brokerage, Attacking Gems, the White Wolf.
 
 ## 2026-07-30 — the collision stutter was a GLSL recompile, 68 ms at a time
 

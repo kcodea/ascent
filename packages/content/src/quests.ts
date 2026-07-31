@@ -125,7 +125,7 @@ export const QUEST_DEFS: QuestDef[] = [
   // reward kind ship here; the rest of the 27-quest remainder is tracked in the queue. `wave` is set explicitly
   // because the owner's table gives the turn directly, rather than deriving it from `tier`.
   { id: 'q_company_recruitment', name: 'Company Recruitment', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 4, tribe: 'dwarf' }, reward: { kind: 'grant', randomTribe: 'dwarf', randomCount: 1, randomAle: 1 }, repeatable: true, sets: ['set2'] },
-  { id: 'q_barroom_bounty', name: 'Barroom Bounty', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dwarf' }, reward: { kind: 'grant', cards: ['dw_korr'], grantKeywords: ['W', 'DS'] }, sets: ['set2'] },
+  { id: 'q_barroom_bounty', name: 'Barroom Bounty', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dwarf' }, reward: { kind: 'grant', cards: ['dw_brunni'], grantKeywords: ['DS'] }, sets: ['set2'] },
   { id: 'q_runic_apprenticeship', name: 'Runic Apprenticeship', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'castSpell', count: 8 }, reward: { kind: 'spellRepeat', scope: 'firstEachTurn' }, sets: ['set2'] },
   { id: 'q_war_council', name: 'War Council', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'attack', count: 18, tribe: 'dwarf' }, reward: { kind: 'tribeRallySlaughterExtra', tribe: 'dwarf' }, sets: ['set2'] },
   { id: 'q_open_tab', name: 'Open Tab', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 14 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' }, sets: ['set2'] },

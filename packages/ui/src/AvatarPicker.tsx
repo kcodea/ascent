@@ -38,7 +38,7 @@ export function AvatarPicker() {
       <div className="avatarpick-panel" onClick={(e) => e.stopPropagation()}>
         <div className="avatarpick-head">
           <span className="avatarpick-title">Choose your avatar</span>
-          <button className="avatarpick-close" onClick={close} aria-label="Close">✕</button>
+          <button className="avatarpick-close pressable" onClick={close} aria-label="Close">✕</button>
         </div>
         <div className="avatarpick-scroll">
           <div className="avatarpick-group">

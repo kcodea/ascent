@@ -181,7 +181,7 @@ export function BalancePanel() {
   return (
     <div className="balpage">
       <div className="baltopbar">
-        <button className="lbback" onClick={back}>← Back</button>
+        <button className="lbback pressable" onClick={back}>← Back</button>
         {/* Section picker + Refresh, centred at the top. */}
         <div className="balhead-c">
           <div className="balcontrols">

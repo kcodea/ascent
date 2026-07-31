@@ -3993,6 +3993,117 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .menubtn:active .mbicon, .menubtn:hover:active .mbicon { transform: none; }
 /* Keyboard parity: the same gold the hover reaches for, as a ring the mouse path never shows. */
 .menubtn:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 3px; border-color: rgba(230, 200, 130, 0.95); }
+/* ============================================================================================================
+   PRESSABLE — the tactile grammar, extracted once.
+   ============================================================================================================
+   DESIGN.md: "Do give anything clickable or draggable a hard offset edge… every control has thickness, built to
+   be pressed." The title menu honours that; almost nothing else did. `Play Again` is the clearest case — it
+   carries a 7px hard edge, so it LOOKS like a thick object, and pressing it moved nothing at all.
+
+   This is the grammar `.menubtn` established, extracted so a screen opts in with a class instead of a copy.
+   Copying it per screen is how the tuners ended up with eight font sizes.
+
+   THE ONE RULE THAT MAKES IT FEEL PHYSICAL: a pressed control LOSES EXACTLY THE THICKNESS IT TRAVELS. The edge
+   collapses from `--pr-edge` to 1px while the face moves down by the same amount, so it reads as compressed
+   against the surface rather than sliding across it. Travel is therefore DERIVED, never hand-set — a button
+   with a 7px edge travels 6px, one with a 2px edge travels 1px, and neither can drift out of agreement.
+
+   Each button keeps its own face. The primitive owns motion, the edge, the sheen and the focus ring; the
+   surface supplies its colours through the vars below, so a tangerine CTA and a translucent Back button share
+   behaviour without forking it.
+
+   PERFORMANCE. Press animates `transform` + `filter`; the sheen animates `transform` + `opacity` on a
+   pseudo-element. Compositor-only, no looping paint (`docs/performance.md`). `box-shadow` changes only on the
+   press transition itself, which is a one-shot state change, not a loop. */
+.pressable {
+  --pr-edge: 4px;                                   /* resting thickness */
+  --pr-edge-c: var(--shadow);
+  --pr-inset: 0 0 #0000;                            /* the button's own lit top edge, if it has one */
+  --pr-amb: 0 0 #0000;                              /* its ambient drop shadow, if it has one */
+  --pr-travel: calc(var(--pr-edge) - 1px);          /* derived — never set this by hand */
+  --pr-hover-lift: 1px;
+  /* NO `position` HERE, deliberately. A primitive must never take part in layout: `.pressable` and `.hsback`
+     are both single-class selectors, so they TIE on specificity, and this rule sits later in the file — a
+     `position: relative` here silently beat `.hsback`'s `position: absolute`, dropped the Back button into the
+     normal flow, and pushed the entire hero-select screen down. Containment for the sheen is granted per
+     surface below, and only where the surface is statically positioned; an absolutely positioned button is
+     already a containing block and needs nothing. */
+  overflow: hidden;                                 /* clips the sheen to the button's own rim */
+  box-shadow: var(--pr-inset), 0 var(--pr-edge) 0 var(--pr-edge-c), var(--pr-amb);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease,
+              box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.14s ease;
+}
+/* Hover lifts the face a hair and warms it: the object turns toward the light before you commit. */
+.pressable:hover { transform: translateY(calc(var(--pr-hover-lift) * -1)); filter: brightness(1.07); }
+
+/* PRESS. `:hover:active` is NOT redundant — a bare `:active` ties `:hover` on specificity, and you are always
+   hovering when you click, so whichever sits later in the file wins. Stating both makes the press
+   unconditional, whatever a later edit does to the order. This exact trap has cost this file five defects. */
+.pressable:active,
+.pressable:hover:active {
+  transform: translateY(var(--pr-travel));
+  filter: brightness(0.94);
+  box-shadow: var(--pr-inset), 0 1px 0 var(--pr-edge-c), var(--pr-amb);
+  transition-duration: 0.06s;                       /* leaves faster than it arrives */
+}
+.pressable:disabled, .pressable.disabled { pointer-events: none; }
+.pressable:disabled:active, .pressable.disabled:active { transform: none; filter: none; }
+/* Keyboard parity: the ring the mouse path never shows. */
+.pressable:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+
+/* SHEEN — the band that crosses the title plaques, on the same keyframes so the surfaces speak one language. */
+.pressable::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 38%; z-index: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 244, 214, 0.16) 44%, rgba(255, 250, 232, 0.28) 52%,
+              rgba(255, 244, 214, 0.14) 60%, transparent);
+  transform: translateX(-140%) skewX(-18deg); opacity: 0;
+}
+.pressable:hover::after { animation: mbsheen 0.62s cubic-bezier(0.22, 0.6, 0.28, 1); }
+.pressable:active::after { animation: mbsheen 0.34s cubic-bezier(0.3, 0.7, 0.2, 1); }
+/* Anything the button paints itself must sit above the band. */
+.pressable > * { position: relative; z-index: 1; }
+
+/* QUIET — kept, but no longer the default for secondary controls. The first pass tiered Back and the pause-menu
+   rows down to a 2px edge with no sheen, on the argument that a navigational control should not flash like the
+   primary action. Judged side by side against `Play Again`, the owner chose the full plaque everywhere off the
+   title screen: the restraint read as those buttons being unfinished rather than deliberately quieter. It stays
+   defined for a surface that genuinely needs it. */
+.pressable.quiet { --pr-edge: 2px; --pr-hover-lift: 0px; }
+.pressable.quiet::after { display: none; }
+
+/* TEXT — a control with no face at all (the end-screen's board link). It cannot have thickness, so it presses
+   by settling one pixel and dimming; giving it a plaque would invent an object that is not there. */
+.pressable.text { --pr-edge: 0px; --pr-travel: 1px; --pr-hover-lift: 0px; box-shadow: none; overflow: visible; }
+.pressable.text::after { display: none; }
+.pressable.text:active, .pressable.text:hover:active { box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable { transition: filter 0.1s ease, border-color 0.1s ease; }
+  .pressable:hover, .pressable:active, .pressable:hover:active { transform: none; }
+  .pressable:hover::after, .pressable:active::after { animation: none; }
+}
+
+/* ---- the hot-path surfaces opt in ---------------------------------------------------------------------- */
+/* Play Again — the biggest CTA in the game, and the one that already looked thick without behaving like it. Its
+   own 7px edge and ambient shadow move into the primitive's vars so the press can collapse them. */
+.endplay { position: relative;                       /* static in flow, so the sheen needs a containing block */
+  --pr-edge: 7px; --pr-edge-c: var(--acc-dk);
+  --pr-inset: inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  --pr-amb: 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
+/* Resume — the pause menu's primary. It had no edge at all, so it gains one in its own accent. */
+.escclose { position: relative; --pr-edge: 4px; --pr-edge-c: var(--acc-dk); }
+/* Every other surface takes the SAME character — real thickness and the sheen — with the depth scaled to the
+   button. `Play Again` is the ceiling at 7px because it is the largest object on screen; a 40px icon button
+   carrying the same edge would read as a rendering bug rather than a heavy control. */
+.escbtn   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(90, 66, 30, 0.3); }
+.hsback   { --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }   /* absolute already — no containment needed */
+.lbback   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }
+/* A 132px gold disc: it can carry real depth, and the edge takes the coin's own dark gold. */
+.caravatar { position: relative; --pr-edge: 5px; --pr-edge-c: #a8780f; }
+/* 40px icon buttons — the floor. 3px still reads as an object without swamping the glyph. */
+.book-close       { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(90, 66, 30, 0.32); }
+.avatarpick-close { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(0, 0, 0, 0.45); }
+
 /* Active (Play) — the brighter blue call-to-action from the mockup. */
 .menubtn.active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150, 200, 245, 0.9); color: #fff;
   /* Thickness in its OWN darkened hue (the rule every primary control in the game follows), plus a neutral

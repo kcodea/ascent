@@ -79,7 +79,7 @@ export function Career() {
   return (
     <div className="lbpage">
       <div className="lbtopbar">
-        <button className="lbback" onClick={back}>← Back</button>
+        <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="taunt" />
           <div>
@@ -105,7 +105,7 @@ export function Career() {
               {/* LEFT — Profile + Insights + Hero record (one full-height panel) */}
               <aside className="carcard carprofilecard">
                 <div className="caravatar-wrap">
-                  <button className="caravatar" onClick={openAvatarPicker} title="Change your avatar">
+                  <button className="caravatar pressable" onClick={openAvatarPicker} title="Change your avatar">
                     {avatarImg ? <img src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
                   </button>
                   <div className="caravatar-badge" title={`Oath ${profile.currentLine}`}>{profile.currentLine}</div>

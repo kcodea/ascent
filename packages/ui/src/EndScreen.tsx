@@ -65,7 +65,7 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             ? <span className="endempty">— empty —</span>
             : run.board.map((m) => <Card key={m.uid} card={boardView(m, run)} suppressPop />)}
         </div>
-        <button className="endplay" onClick={onPlayAgain}>Play Again</button>
+        <button className="endplay pressable" onClick={onPlayAgain}>Play Again</button>
       </div>
     </div>
   );
@@ -223,7 +223,7 @@ export function EndScreen({ won }: { won: boolean }) {
             click it again — or the label — to return). */}
         <div className="endboardlabel">
           {viewWave !== null ? (
-            <button type="button" className="endboard-back" onClick={() => setViewWave(null)}>
+            <button type="button" className="endboard-back pressable text" onClick={() => setViewWave(null)}>
               Round {viewWave} · {run.history[viewWave - 1] === 'win' ? 'Won' : run.history[viewWave - 1] === 'lose' ? 'Lost' : 'Draw'}
               <span className="endboard-backhint"> ↩ Final warband</span>
             </button>
@@ -241,7 +241,7 @@ export function EndScreen({ won }: { won: boolean }) {
           )}
         </div>
 
-        <button className="endplay" onClick={() => openTitle()}>Play Again</button>
+        <button className="endplay pressable" onClick={() => openTitle()}>Play Again</button>
       </div>
     </div>
   );

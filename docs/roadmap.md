@@ -188,6 +188,19 @@ The career surface exists; deepen what a finished run *remembers*.
   production while looking right in dev. Three had silently drifted (`shopUiY`, `shopY`, `wbY`) before an
   audit caught them on 2026-07-21. A test that parses both and asserts they match would make it impossible.
 
+### Tactile pass — buttons done, cards and chips next (2026-07-30)
+`.pressable` carries the title menu's grammar across every UI screen; see DESIGN.md → Pressable. Still open:
+
+- **Selection cards and chips want their own treatment** (owner request). Deliberately NOT folded into the
+  button press: a card lifts toward you, a plaque presses away, and merging the two reads as one idea fighting
+  itself. Covers `herocard`, `modecard`, `book-kwchip`, glossary rows.
+- **In-board shop controls are excluded on purpose** — Refresh, Freeze, End Turn, Tavern Up and Hero Power have
+  hand-tuned pressed ART and their own tuner panels, which a CSS press would fight. Unify only if the art is
+  retired.
+- **`.menubtn` still holds its own copy of the grammar.** It composes a horizontal hover slide the primitive
+  does not model, and regressing the one screen the owner already likes for a refactor was not worth it.
+  Fold it in when the primitive grows a slide axis.
+
 ## Next
 
 ### The gild's remaining setup tail (opened 2026-07-30)

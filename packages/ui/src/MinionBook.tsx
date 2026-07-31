@@ -444,7 +444,7 @@ export function MinionBook() {
               <Icon name="crown" /> Gilded
             </button>
           )}
-          <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
+          <button className="book-close pressable" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
         </div>
 
         {glossary ? (

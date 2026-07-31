@@ -1,11 +1,71 @@
 # ASCENT — performance (the north star)
 
 **Performance is ASCENT's north star. The game must feel snappy at all times** — instant shop response, a
-60fps combat replay, drag that tracks the cursor with no stutter. Snappiness is fundamental to the feel of
-play; a hitch at the wrong moment reads as a bug even when the logic is correct. Treat a frame drop as a
-defect, not a polish item. When a change *could* cost performance, measure it (below) before shipping.
+combat replay that never drops a frame, drag that tracks the cursor with no stutter. Snappiness is
+fundamental to the feel of play; a hitch at the wrong moment reads as a bug even when the logic is correct.
+Treat a frame drop as a defect, not a polish item. When a change *could* cost performance, measure it
+(below) before shipping — **against the budget in §0, on the `worst` frame, not the mean.**
 
 This doc is how we keep it honest — half of it I can automate, half we do together.
+
+---
+
+## 0. The frame budget (the number every measurement is judged against)
+
+| | Refresh | Budget per frame |
+|---|---|---|
+| **Target** | **240 Hz** | **4.17 ms** |
+| Stretch | 360 Hz (the owner's display) | 2.78 ms |
+| Legacy reference | 60 Hz | 16.67 ms |
+
+**The whole game, combat *and* shop, must fit in 4.17 ms.** Not the average frame — *every* frame. That
+includes the shop opening, a drag, a combat collision, an autosave, and whatever React does when a phase
+changes.
+
+### `worst`, not mean, is the metric
+
+A mean improvement that leaves the worst frame where it was **has not fixed anything a player can feel**. A
+hitch is one frame; averages are exactly the instrument that hides it. Real example from this repo: the
+`plateGild` canvas fix cut the mean frame in the gild's opening window by **24%** (6.48 → 5.82 ms) — a
+genuine win, correctly measured — but the *worst* frame in that same window was ~16.7 ms, which read as
+"fine, that's a 60 fps frame" and is **4× over budget** on the hardware the game is played on. Judge a
+change by:
+
+1. `worst` frame in the affected window (must trend toward ≤ 4.17 ms),
+2. then the `long` / `jank` counts,
+3. then p95. The mean is context, not a verdict.
+
+### The calibration trap (why this section exists)
+
+**A fixed millisecond threshold silently encodes an assumed refresh rate.** `perfMonitor` shipped with
+`LONG_FRAME_MS = 33` / `JANK_MS = 50`, which look like neutral "slow frame" numbers and are in fact *60 Hz*
+numbers: 2 and 3 frames at 16.67 ms. On a 360 Hz display a frame drops at 2.8 ms, so `long` only counted
+after ~8 dropped frames and `jank` after ~12 — **the HUD reported a clean session while the game dropped
+frames continuously.** The number that looks fine at 60 Hz is four times over budget at 240.
+
+So the thresholds are no longer constants. They are **derived from the display we are actually presenting
+to** (`packages/ui/src/refreshRate.ts`):
+
+- `long` = **2 frame intervals** (dropped at least one frame), `jank` = **3** (a visible hitch). At 60 Hz
+  that is exactly 33.3 / 50.0, so every log recorded before this change stays comparable; at 240 Hz it is
+  **8.33 / 12.5**; at 360 Hz, **5.56 / 8.33**.
+- The refresh is estimated from the **low decile of observed rAF intervals**, not the mean or median. Load
+  can only make a frame interval *longer*, never shorter, so the fastest sustained cadence is the panel —
+  and a loaded warm-up second (module eval, shader link, first paint) can no longer read as a low refresh
+  rate and under-report for the rest of the session. Estimates snap to the ladder of real panel rates, which
+  is what keeps a VRR/G-Sync display from wobbling the thresholds every second.
+- Adoption is **asymmetric on purpose**: a *faster* reading is adopted immediately (nothing can fake a short
+  interval), a *slower* one needs three consecutive corroborating windows. So a throttled or occluded
+  second cannot permanently re-baseline the HUD, while genuinely dragging the window to a 60 Hz monitor
+  does re-calibrate a few seconds later. Backgrounded buckets (`hidden`) are never fed in at all.
+- Anything outside 24–1000 Hz is rejected as *no evidence* rather than clamped — a clamped absurd sample
+  would masquerade as a real reading.
+
+**Reading the HUD:** the `display · budget` row tells you which calibration is in force
+(`240 Hz · 4.17 ms`). `60 Hz (assumed)` means no window has been measured yet — the first second. The
+`long / jank` row prints its own thresholds, and every exported bucket carries the `hz` it was measured
+against, because `long: 0` means "smooth" at one refresh and "we weren't looking" at another. The export
+header also carries `display`, `thresholds` and the `budget` above, so a saved log is self-describing.
 
 ---
 
@@ -22,8 +82,9 @@ What it records, once per second, into an exportable timeline:
 | | |
 |---|---|
 | `fps` | frames actually presented. A **ceiling**, not a score — rAF is capped at the display refresh, so 60 means "nothing dropped", not "fast". |
-| `med / p95 / worst` | frame times. **`worst` is the number that finds hitches** — a 500ms stall inside an otherwise smooth second is invisible in an average. |
-| `long` / `jank` | frames over 33ms (dropped one) / over 50ms (a visible hitch). |
+| `med / p95 / worst` | frame times. **`worst` is the number that finds hitches** — a 500ms stall inside an otherwise smooth second is invisible in an average, and it is judged against the §0 budget, not against 16.7 ms. |
+| `long` / `jank` | frames over 2 / 3 frame intervals — **derived from the detected refresh** (§0), not fixed ms. 8.33 / 12.5 ms at 240 Hz. |
+| `display · budget` | the detected refresh and its per-frame budget — the calibration the two rows above are measured against. `(assumed)` = not yet measured. |
 | `longest task` | longest main-thread block, from `PerformanceObserver('longtask')`. Attributed by the browser, not inferred. |
 | counters | live particles, sprite pool, weld rings, shields (from `pixiFx`). |
 | `heap`, `dom nodes` | leak detection — a climbing node count shows up as slow style recalc. |
@@ -290,7 +351,14 @@ These are the rules the audits surfaced; the codebase already follows them — k
   until ~330ms — so all of that cost landed in the ~120ms window where the gild *opens*, which is exactly
   where the owner felt it hitch. Create the layer on first draw (`needFx()` / `needFl()`), and let the
   "clear" be conditional on having painted. Measured: mean frame in the first 120ms after the buy went from
-  6.48ms to 5.82ms against a 3.85ms no-gild control — a 24% cut of the gild's share.
+  6.48ms to 5.82ms against a 3.85ms no-gild control — a 24% cut of the gild's share. **That is a mean, and
+  a mean is not a verdict** (§0): the worst frame in that window was still ~16.7 ms, 4× the 240 Hz budget.
+  The fix was real; the window is not closed.
+- **Never write a fixed millisecond threshold for "a slow frame".** A ms constant silently encodes an
+  assumed refresh rate — `LONG_FRAME_MS = 33` is "2 frames at 60 Hz" wearing a neutral costume, and on a
+  360 Hz display it only fired after eight dropped frames, so the HUD read clean while the game stuttered.
+  Express the threshold in **frame intervals** and derive the milliseconds from the measured refresh
+  (`refreshRate.ts`). Same rule for anything else timed against "a frame": don't hardcode 16.7.
 - **Hoist `getComputedStyle` out of a loop that clones the same element repeatedly, and append clones through
   one `DocumentFragment`.** `plateGild` resolved the *same* source card's computed style once per clone (3×
   `getComputedStyle` + 72 `getPropertyValue`) and appended the three clones one at a time. One read + one

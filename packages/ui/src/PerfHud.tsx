@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { perfMonitor, type PerfBucket, LONG_FRAME_MS, JANK_MS } from './perfMonitor';
+import { perfMonitor, perfThresholds, type PerfBucket, type FrameThresholds } from './perfMonitor';
+import { thresholdsFor } from './refreshRate';
 import { useDraggablePanel } from './useDraggablePanel';
 
 /**
@@ -24,12 +25,16 @@ import { useDraggablePanel } from './useDraggablePanel';
  * Reading it: **fps is a ceiling, not a score** — rAF is capped at the display refresh, so 60 means
  * "nothing dropped", not "fast". The numbers that find problems are worst-frame, the jank count, and
  * HOTSPOTS, which is measured time attributed to named code rather than correlation.
+ *
+ * The long/jank thresholds are DERIVED from the measured refresh (see `refreshRate.ts`), so they are read
+ * fresh from `perfThresholds()` on each bucket render rather than imported as constants — a 240 Hz display
+ * warns at 8.33 ms where a 60 Hz one warns at 33.3. The `display` row shows which calibration is in force.
  */
 const SPARK_H = 34;
 
-function color(worst: number): string {
-  if (worst > JANK_MS) return '#e5446b'; // --threat
-  if (worst > LONG_FRAME_MS) return '#f0902e'; // --acc
+function color(worst: number, th: FrameThresholds): string {
+  if (worst > th.jankMs) return '#e5446b'; // --threat
+  if (worst > th.longFrameMs) return '#f0902e'; // --acc
   return '#1f9d6b'; // --tier-2 green
 }
 
@@ -84,21 +89,24 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, SPARK_H);
     const hist = histRef.current.slice(-w); // one column per pixel — the panel's width IS the time window
+    const th = perfThresholds();
     // Scale to the worst frame in view, floored at the jank threshold so a calm stretch doesn't amplify
     // ordinary noise into alarming peaks.
-    const peak = Math.max(JANK_MS, ...hist.map((b) => b.worst));
+    const peak = Math.max(th.jankMs, ...hist.map((b) => b.worst));
     ctx.strokeStyle = 'rgba(42,32,23,0.22)'; // --ink at low alpha: the "dropped a frame" reference line
     ctx.setLineDash([2, 3]);
     ctx.beginPath();
-    const y33 = SPARK_H - (LONG_FRAME_MS / peak) * SPARK_H;
-    ctx.moveTo(0, y33);
-    ctx.lineTo(w, y33);
+    const yLong = SPARK_H - (th.longFrameMs / peak) * SPARK_H;
+    ctx.moveTo(0, yLong);
+    ctx.lineTo(w, yLong);
     ctx.stroke();
     ctx.setLineDash([]);
     const x0 = w - hist.length; // right-aligned: newest at the grip edge
     hist.forEach((b, i) => {
       const h = Math.max(1, (b.worst / peak) * SPARK_H);
-      ctx.fillStyle = b.hidden ? 'rgba(156,139,113,0.35)' : color(b.worst);
+      // Each column is coloured against the calibration that was in force WHEN IT WAS RECORDED — if the
+      // detected refresh moved mid-session, recolouring the history to the new one would be a lie.
+      ctx.fillStyle = b.hidden ? 'rgba(156,139,113,0.35)' : color(b.worst, thresholdsFor(b.hz));
       ctx.fillRect(x0 + i, SPARK_H - h, 1, h);
     });
   }, [bucket, open]);
@@ -111,6 +119,9 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
   }, []);
 
   const b = bucket;
+  // Re-read every bucket render (1/s), never cached: the detected refresh can move mid-session.
+  const th = perfThresholds();
+  const { detected } = perfMonitor.display;
   const marks = b ? Object.entries(b.marks).sort((x, y) => y[1] - x[1]) : [];
   // Measured spans this second, worst single call first — the attribution the marks alone can't give.
   const hot = b ? Object.entries(b.timings ?? {}).sort((x, y) => y[1].max - x[1].max).slice(0, 5) : [];
@@ -121,7 +132,7 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
         <span className="perfhud-title">◆ Perf</span>
         <span className="perfhud-fps" ref={fpsRef}>–</span>
         <span className="perfhud-unit">fps</span>
-        <span className="perfhud-worst" style={{ color: color(b?.worst ?? 0) }}>
+        <span className="perfhud-worst" style={{ color: color(b?.worst ?? 0, th) }}>
           {b ? `${b.worst.toFixed(0)}ms` : '–'}
         </span>
         <button className="perfhud-x" onClick={() => setOpen((o) => !o)} title={open ? 'Collapse' : 'Expand'}>
@@ -134,16 +145,22 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
 
       {open && (
         <div className="perfhud-body">
+          {/* The calibration everything below is measured against — the thresholds are meaningless without
+              it, and "60 Hz (assumed)" is the tell that no window has been measured yet. */}
+          <Row
+            k="display · budget"
+            v={`${th.refreshHz.toFixed(0)} Hz${detected ? '' : ' (assumed)'} · ${th.frameMs.toFixed(2)} ms`}
+          />
           <Row k="frame med / p95" v={b ? `${b.med.toFixed(1)} / ${b.p95.toFixed(1)} ms` : '–'} />
-          <Row k="worst frame" v={b ? `${b.worst.toFixed(1)} ms` : '–'} warn={(b?.worst ?? 0) > LONG_FRAME_MS} />
-          <Row k={`long / jank (>${LONG_FRAME_MS}/${JANK_MS}ms)`} v={b ? `${b.long} / ${b.jank}` : '–'} warn={(b?.jank ?? 0) > 0} />
-          <Row k="longest task" v={b?.task ? `${b.task.toFixed(0)} ms` : '–'} warn={(b?.task ?? 0) > JANK_MS} />
+          <Row k="worst frame" v={b ? `${b.worst.toFixed(1)} ms` : '–'} warn={(b?.worst ?? 0) > th.longFrameMs} />
+          <Row k={`long / jank (>${th.longFrameMs}/${th.jankMs}ms)`} v={b ? `${b.long} / ${b.jank}` : '–'} warn={(b?.jank ?? 0) > 0} />
+          <Row k="longest task" v={b?.task ? `${b.task.toFixed(0)} ms` : '–'} warn={(b?.task ?? 0) > th.jankMs} />
 
           <div className="perfhud-sub">Hotspots · measured</div>
           {hot.length === 0
             ? <div className="perfhud-empty">nothing measured this second</div>
             : hot.map(([k, v]) => (
-              <Row key={k} k={`${k}${v.n > 1 ? ` ×${v.n}` : ''}`} v={`${v.max.toFixed(1)} ms`} warn={v.max > LONG_FRAME_MS} />
+              <Row key={k} k={`${k}${v.n > 1 ? ` ×${v.n}` : ''}`} v={`${v.max.toFixed(1)} ms`} warn={v.max > th.longFrameMs} />
             ))}
 
           <div className="perfhud-sub">Scene</div>

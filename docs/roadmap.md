@@ -21,6 +21,14 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Re-measure the known hitches against the 240 Hz budget (4.17 ms).** The budget and the derived HUD
+  thresholds shipped 2026-07-30 ([`performance.md`](performance.md) §0), which means the numbers will look
+  worse without anything having regressed — the instrument was under-reporting, not the game improving.
+  First known item: the **gild's worst frame is still ~16.7 ms** (4× budget) even after the canvas fix that
+  cut its mean by 24%. Then a full-run capture with `?perf=1` on the real display, read on `worst` and the
+  `long`/`jank` counts rather than the mean, to find what else the 60 Hz calibration was hiding — phase
+  transitions and the shop open are the standing suspects.
+
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
   Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
   onto **Bug** Huggies (one letter apart) — confirm that is the intended art, and confirm the card name.

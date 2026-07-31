@@ -66,6 +66,13 @@ export interface SeatDriver {
   /** The last board this driver can field, if any. The driver reports what it HAS; the lobby decides what
    *  running dry means (`ExhaustionPolicy`) — otherwise a design rule would be buried in each driver. */
   finalBoard?(): PreparedBoard | null;
+  /** A CHEAP "can this driver field a board at all?" probe, for seat selection.
+   *
+   *  `createRunLobby` has to reject a hero no bot can play, and it did that by asking every candidate for its
+   *  round-1 board — which for a hybrid seat means autoplaying a whole run (~100ms) purely to answer yes/no,
+   *  seven times, synchronously, on the hero-select → game transition. A driver that can answer more cheaply
+   *  says so here; the lobby falls back to the board request for those that can't. */
+  canFieldBoard?(): boolean;
   /** Told what happened. A recording ignores it; a live run settles and plays its next shop. */
   settle(outcome: SeatRoundOutcome): void;
 }

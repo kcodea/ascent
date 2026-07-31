@@ -50,7 +50,7 @@ export function summonBuffText(cardId: string, summonBonus: number, golden = fal
  * (falls back to the printed text), matching `summonBuffText`'s contract.
  */
 /**
- * Display Curator — its Shop buff CLIMBS every trigger, so the printed "+1/+1" goes stale on the first End of
+ * Soul Defiler — its Shop buff CLIMBS every trigger, so the printed "+1/+1" goes stale on the first End of
  * Turn. Prints the magnitude it will actually give next (owner ask 2026-07-29: show the current value, on every
  * card that has one).
  *

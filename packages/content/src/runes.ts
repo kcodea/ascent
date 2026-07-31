@@ -23,7 +23,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_warding',
     name: 'Rune of Warding',
     cost: 3,
-    text: '**Start of Combat:** give your **right-most** minion **Ward** and **double its Health**.',
+    text: '**Start of Combat:** give your **right-most** minion **Ward** and **triple its Health**.',
     reward: { kind: 'combatFlag', flag: 'runeWarding' },
   },
   {
@@ -44,7 +44,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_spending',
     name: 'Rune of Spending',
-    cost: 6,
+    cost: 3,
     text: '**End of Turn:** gain **+1 max Gold** and give your left-most minion **+1/+1** for each Gold spent this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeSpending' },
   },
@@ -58,6 +58,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_pillaging',
+    sets: ['set1'],
     name: 'Rune of Pillaging',
     cost: 6,
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
@@ -99,8 +100,180 @@ export const RUNES: RuneDef[] = [
     id: 'rune_scale',
     name: 'Rune of Bulk Order',
     cost: 5,
-    text: 'Whenever you spend Gold, give **3 random allies +2/+2**.',
-    reward: { kind: 'runeScale', count: 3, attack: 2, health: 2 },
+    text: 'Every **5 Gold** you spend, give **3 random allies +3/+3**.',
+    reward: { kind: 'runeScale', count: 3, attack: 3, health: 3, per: 5 },
+  },
+  {
+    // Shares Runic Refrain's EoT primitive — a COPY to hand, not a recast (that is Rune of Recurrence).
+    id: 'rune_recollection',
+    name: 'Rune of Recollection',
+    cost: 3,
+    text: '**End of Turn:** get a **copy** of the first spell you cast this turn.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'copyFirstSpell' },
+    sets: ['set2'],
+  },
+  {
+    // Shares Open Tab's primitive (2 random Ales at End of Turn).
+    id: 'rune_first_round',
+    name: 'Rune of the First Round',
+    cost: 4,
+    text: '**End of Turn:** get **2 random Dwarven Ales**.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_chorus',
+    name: 'Rune of the Chorus',
+    cost: 3,
+    text: 'When you trigger **3 Shouts**, get a random **Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, grantSpell: 1 },
+  },
+  {
+    id: 'rune_overtime',
+    name: 'Rune of Overtime',
+    cost: 1,
+    text: 'Every **15 Gold** you spend, get a random **Dwarven Ale**.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 15, grantAle: 1 },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_infernal_ink',
+    name: 'Rune of Infernal Ink',
+    cost: 4,
+    text: 'Every **3 Shop spells** you cast, give minions in the **Shop +3/+3**.',
+    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 3, buff: { target: 'shop', attack: 3, health: 3 } },
+  },
+  {
+    id: 'rune_cindergem',
+    name: 'Rune of the Cindergem',
+    cost: 4,
+    text: 'Every **3 Rubies** you cast, improve your **Imps by +2/+2**.',
+    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 2, health: 2 } },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_showcase',
+    name: 'Rune of the Showcase',
+    cost: 3,
+    text: 'When you spend **10 Gold**, give the **right-most minion** in the Shop **+4/+4**.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 10, buff: { target: 'shopRightmost', attack: 4, health: 4 } },
+  },
+  {
+    // `oncePerTurn` is the whole difference from the Chorus — a Shout-heavy turn pays once, not four times.
+    id: 'rune_merchants_chorus',
+    name: "Rune of the Merchant's Chorus",
+    cost: 3,
+    text: 'After you trigger **3 Shouts** in a turn, give minions in the **Shop +4/+4**. Once per turn.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, buff: { target: 'shop', attack: 4, health: 4 }, oncePerTurn: true },
+  },
+  {
+    // Pure data — `rallyRepeat`/`firstEachCombat` already exists (Spark Permit, Overclocked Core).
+    id: 'rune_stampede',
+    name: 'Rune of the Stampede',
+    cost: 4,
+    text: 'Your **first** friendly **Rally** each combat triggers **twice**.',
+    reward: { kind: 'rallyRepeat', scope: 'firstEachCombat' },
+  },
+  {
+    id: 'rune_hatchery',
+    name: 'Rune of the Hatchery',
+    cost: 4,
+    text: 'Minions summoned by an **Echo** have **+3/+3** and **Taunt**.',
+    reward: { kind: 'combatFlag', flag: 'runeHatchery' },
+  },
+  {
+    // Two halves, both existing primitives: the per-turn Ruby multicast and an End-of-Turn Ruby.
+    id: 'rune_resonance',
+    name: 'Rune of Resonance',
+    cost: 1,
+    text: 'Your **first Ruby** played from hand each turn casts an **extra time**. Get a **Ruby** every turn.',
+    reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn' }, { kind: 'recurringEndOfTurn', effect: 'grantRuby' }] },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_investment',
+    name: 'Rune of Investment',
+    cost: 1,
+    text: 'Get **2 Rubies** when you **sell** a minion.',
+    reward: { kind: 'runeSellRubies', count: 2 },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_last_call',
+    name: 'Rune of Last Call',
+    cost: 1,
+    text: '**Avenge (3):** get a random **Dwarven Ale**.',
+    reward: { kind: 'combatFlag', flag: 'runeLastCall' },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_hunger',
+    name: 'Rune of Hunger',
+    cost: 2,
+    text: '**End of Turn:** your **left-most Demon** Consumes the **right-most Shop** minion.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'demonEatsRightmostShop' },
+    sets: ['set2'], // Consuming Shop minions is a set-2 Demon mechanic
+  },
+  {
+    id: 'rune_blood_and_coin',
+    name: 'Rune of Blood and Coin',
+    cost: 3,
+    text: 'Every **4 friendly deaths** in combat, gain **4 Gold** next turn.',
+    reward: { kind: 'combatFlag', flag: 'runeBloodAndCoin', amount: 4 },
+  },
+  {
+    id: 'rune_remains',
+    name: 'Rune of the Remains',
+    cost: 3,
+    text: 'When you summon **5 minions** in combat, give minions in the **Shop +3/+3**.',
+    reward: { kind: 'combatFlag', flag: 'runeRemains', amount: 3 },
+  },
+  {
+    // Pays ONCE at settle rather than per summon, so the Shop sees one combined buff instead of a drip.
+    id: 'rune_reinvestment',
+    name: 'Rune of Reinvestment',
+    cost: 5,
+    text: 'After combat, give the next **Shop +1/+1** for every friendly minion you summoned during combat.',
+    reward: { kind: 'combatFlag', flag: 'runeReinvestment', amount: 1 },
+  },
+  {
+    id: 'rune_hunting_bell',
+    name: 'Rune of the Hunting Bell',
+    cost: 4,
+    text: '**Avenge (3):** trigger your **left-most Rally**.',
+    reward: { kind: 'combatFlag', flag: 'runeHuntingBell' },
+  },
+  {
+    // Bounded per combat: unbounded, a slot refills the instant it empties and the board can never shrink.
+    id: 'rune_brood',
+    name: 'Rune of the Brood',
+    cost: 3,
+    text: 'When you have **space** in combat, summon an **Imp** with **Ward** and **Taunt**. **3 times** per combat.',
+    reward: { kind: 'combatFlag', flag: 'runeBrood', amount: 3 },
+  },
+  {
+    id: 'rune_war_chorus',
+    name: 'Rune of the War Chorus',
+    cost: 3,
+    text: 'Your **first Rally** each combat triggers your **left-most Shout**.',
+    reward: { kind: 'combatFlag', flag: 'runeWarChorus' },
+  },
+  {
+    id: 'rune_facetwright',
+    name: 'Rune of Facetwright',
+    cost: 4,
+    text: "Get a **Facetwright's Choice**. Repeat at the **start of every turn**. They give **both** effects.",
+    reward: { kind: 'multi', rewards: [{ kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
+    sets: ['set2'], // Facetwright's Choice is a set-2 spell
+  },
+  {
+    // Owner ruling 2026-07-30: only offered when the rune system is on, and an Epic forge is then guaranteed —
+    // so this is never a dead pick.
+    id: 'rune_duplication',
+    name: 'Rune of Duplication',
+    cost: 4,
+    text: 'After you forge your **Epic Rune**, this transforms into a **copy of it**.',
+    reward: { kind: 'runeDuplication' },
   },
   {
     id: 'rune_action',
@@ -119,7 +292,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_kindling',
     name: 'Rune of Kindling',
-    cost: 4,
+    cost: 6,
     text: 'Whenever you cast a Shop spell, give your **left-most minion +3/+3**.',
     reward: { kind: 'runeKindling' },
   },
@@ -167,7 +340,7 @@ export const RUNES: RuneDef[] = [
     // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
     id: 'rune_gemcutting',
     name: 'Rune of Gemcutting',
-    cost: 3,
+    cost: 4,
     text: 'Get **5 Rubies**.',
     reward: { kind: 'grant', cards: ['ruby', 'ruby', 'ruby', 'ruby', 'ruby'] },
     sets: ['set2'], // Rubies / Ales / set-2 cards
@@ -183,7 +356,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
-    cost: 1,
+    cost: 5,
     text: 'Get **3 random Shop spells**.',
     reward: { kind: 'grant', randomSpell: 3 },
   },
@@ -193,14 +366,14 @@ export const RUNES: RuneDef[] = [
     // ceiling. Repeats for the rest of the run.
     id: 'rune_summit',
     name: 'Rune of the Summit',
-    cost: 4,
+    cost: 5,
     text: '**In 2 turns:** **Discover** a **Tier 7** minion. Repeats every **2 turns**.',
     reward: { kind: 'runeSummit' },
   },
   {
     id: 'rune_scout',
     name: 'Rune of the Scout',
-    cost: 2,
+    cost: 3,
     text: '**Discover** a **Tier 5** minion.',
     reward: { kind: 'discover', tier: 5 },
   },
@@ -215,14 +388,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_bartering',
     name: 'Rune of Bartering',
-    cost: 3,
+    cost: 5,
     text: '**Shout** minions sell for **2 Gold**.',
     reward: { kind: 'runeBartering' },
   },
   {
     id: 'rune_packcraft',
     name: 'Rune of Packcraft',
-    cost: 6,
+    cost: 2,
     text: 'Whenever you summon a **Beast** in combat, give your **Beasts +1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runePackcraft' },
   },
@@ -236,6 +409,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_warden',
+    sets: ['set1'],
     name: 'Rune of the Warden',
     cost: 5,
     text: 'Get a **Spear Warden**. When you have room in combat, summon a **Spear Warden**.',
@@ -245,7 +419,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_rebirth',
     name: 'Rune of Rebirth',
-    cost: 5,
+    cost: 4,
     text: '**Start of Combat:** give **2 random** friendly minions **Rise**.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
   },
@@ -267,7 +441,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_refrain',
     name: 'Rune of Refrain',
-    cost: 5,
+    cost: 6,
     text: 'Your **Shout** minions have a **20%** chance to return to your hand after you play them.',
     reward: { kind: 'runeRefrain' },
   },
@@ -302,7 +476,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_reliquary',
     name: 'Rune of the Reliquary',
-    cost: 4,
+    cost: 3,
     epic: true,
     text: '**End of Turn:** trigger your left-most **Echo**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostEcho' },
@@ -320,13 +494,14 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_broodpit',
     name: 'Rune of the Broodpit',
-    cost: 2,
+    cost: 3,
     epic: true,
     text: '**Avenge (4):** summon **2 Imps with Taunt**.',
     reward: { kind: 'combatFlag', flag: 'runeBroodpit' },
   },
   {
     id: 'rune_spearline',
+    sets: ['set1'],
     name: 'Rune of the Spearline',
     cost: 7,
     epic: true,
@@ -336,7 +511,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_appraisal',
     name: 'Rune of Appraisal',
-    cost: 5,
+    cost: 3,
     epic: true,
     text: '**Avenge (4):** improve your Shop spells by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
@@ -354,13 +529,14 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_stormcalling',
     name: 'Rune of Stormcalling',
-    cost: 6,
+    cost: 5,
     epic: true,
     text: 'Get a **Gilded Karwind** and a random **Shout** minion.',
     reward: { kind: 'grant', grantGolden: ['karwind'], randomFilter: 'shout', randomFilterCount: 1 },
   },
   {
     id: 'rune_frontline_glory',
+    sets: ['set1'],
     name: 'Rune of Frontline Glory',
     cost: 8,
     epic: true,
@@ -369,6 +545,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_soul_taxes',
+    sets: ['set1'],
     name: 'Rune of Soul Taxes',
     cost: 4,
     epic: true,
@@ -379,7 +556,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_scales',
     name: 'Rune of Scales',
-    cost: 1,
+    cost: 2,
     epic: true,
     text: 'Whenever you cast a **Shop spell**, give your **Dragons +1/+1**.',
     reward: { kind: 'runeScales' },
@@ -387,13 +564,14 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_twin_gilding',
     name: 'Rune of Twin Gilding',
-    cost: 5,
+    cost: 7,
     epic: true,
     text: 'You only need **2 copies** of cards to **Gild** them.',
     reward: { kind: 'runeTwinGilding' },
   },
   {
     id: 'rune_den_mother',
+    sets: ['set1'],
     name: 'Rune of the Den Mother',
     cost: 7,
     epic: true,
@@ -413,7 +591,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_first_claws',
     name: 'Rune of First Claws',
-    cost: 5,
+    cost: 7,
     epic: true,
     text: '**Start of Combat:** your left-most and right-most **Beasts** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeFirstClaws' },
@@ -421,7 +599,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_inheritance',
     name: 'Rune of Inheritance',
-    cost: 6,
+    cost: 4,
     epic: true,
     text: 'When your **left-most minion dies**, your **right-most minion** gains its stats.',
     reward: { kind: 'combatFlag', flag: 'runeInheritance' },
@@ -429,7 +607,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_second_path',
     name: 'Rune of the Second Path',
-    cost: 3,
+    cost: 4,
     epic: true,
     text: '**Discover** a **Greater Quest** reward minion.',
     reward: { kind: 'discoverGreaterQuest' },
@@ -445,6 +623,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Batch 4b: the two new signature cards ──
   {
     id: 'rune_feast',
+    sets: ['set1'],
     name: 'Rune of the Feast',
     cost: 5,
     epic: true,
@@ -453,6 +632,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_reconfiguration',
+    sets: ['set1'],
     name: 'Rune of Reconfiguration',
     cost: 6,
     epic: true,
@@ -463,7 +643,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_champion',
     name: 'Rune of the Champion',
-    cost: 1,
+    cost: 3,
     epic: true,
     text: '**Discover** a **Tier 6** minion.',
     reward: { kind: 'discover', tier: 6 },
@@ -480,7 +660,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_gilded_spark',
     name: 'Rune of the Gilded Spark',
-    cost: 2,
+    cost: 1,
     epic: true,
     text: 'Get a **Goldcrafter**. Get another in **2 turns**.',
     reward: { kind: 'grant', cards: ['goldcrafter'], repeatInTurns: 2 },
@@ -489,7 +669,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_transfusion',
     name: 'Rune of Transfusion',
-    cost: 6,
+    cost: 4,
     epic: true,
     text: 'Whenever a **Demon Consumes** Fodder, your **left-most minion** also gains its stats.',
     // Set 1 only — set 2 has no Fodder. Its set-2 twin consumes a SHOP minion instead (owner ruling 2026-07-29).
@@ -499,7 +679,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_mirror_march',
     name: 'Rune of the Mirror March',
-    cost: 6,
+    cost: 5,
     epic: true,
     text: '**Start of Combat:** when you have room, summon a **copy of your left-most minion**.',
     reward: { kind: 'combatFlag', flag: 'runeMirrorMarch' },
@@ -507,7 +687,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_recurrence',
     name: 'Rune of Recurrence',
-    cost: 5,
+    cost: 4,
     epic: true,
     text: '**End of Turn:** cast the **first Shop spell** you cast this turn again.',
     reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
@@ -532,13 +712,14 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_undertow',
     name: 'Rune of the Undertow',
-    cost: 3,
+    cost: 4,
     epic: true,
     text: 'Minions summoned by an **Echo** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeUndertow' },
   },
   {
     id: 'rune_mastery',
+    sets: ['set1'],
     name: 'Rune of Mastery',
     cost: 7,
     epic: true,
@@ -594,8 +775,8 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_brisbane',
-    name: 'Rune of High King Mykel',
-    cost: 5,
+    name: 'Rune of Mykel',
+    cost: 4,
     epic: true,
     text: 'Get a **High King Mykel**.',
     reward: { kind: 'grant', cards: ['dw_brisbane'] },
@@ -610,6 +791,257 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get an **Edward Keg-hands** and **3 Dwarven Ales**.',
     reward: { kind: 'grant', cards: ['dw_edward'], randomAle: 3 },
     sets: ['set2'], // Rubies / Ales / set-2 cards
+  },
+  {
+    // Shares Bottomless Cellar's primitive — the run-wide Ale multiplier, additive with Edward Keg-hands.
+    id: 'rune_bottomless_cask',
+    name: 'Rune of the Bottomless Cask',
+    cost: 5,
+    epic: true,
+    text: 'Your **Dwarven Ales** trigger an **additional time**.',
+    sets: ['set2'],
+    reward: { kind: 'aleExtraCasts', amount: 1 },
+  },
+  {
+    // The run-wide twin of the Motherlode quest — same primitive, no tribe filter (any friendly minion).
+    id: 'rune_motherlode',
+    name: 'Rune of the Motherlode',
+    cost: 5,
+    epic: true,
+    text: 'Whenever you get a **Ruby**, play a copy on **2 random friendly minions**.',
+    reward: { kind: 'motherlode', count: 2 },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_adventuring',
+    name: 'Rune of Adventuring',
+    cost: 6,
+    epic: true,
+    text: 'Your **Rally** effects trigger **twice**.',
+    reward: { kind: 'rallyRepeat', scope: 'always' },
+  },
+  {
+    id: 'rune_choir',
+    name: 'Rune of the Choir',
+    cost: 4,
+    epic: true,
+    text: 'Your **Shouts** trigger an **additional time**. Get a **Shout** minion.',
+    reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'grant', randomFilter: 'shout' }] },
+  },
+  {
+    // Distinct from Rune of Mykel (which grants High King Mykel) — this one is the Brill grant.
+    id: 'rune_high_king',
+    name: 'Rune of the High King',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Dwarf King, Brill**.',
+    reward: { kind: 'grant', cards: ['dw_brill'] },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_long_shift',
+    name: 'Rune of the Long Shift',
+    cost: 2,
+    epic: true,
+    text: 'Every **3 cards** you buy, get a random **Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'cardsBought', per: 3, grantSpell: 1 },
+  },
+  {
+    id: 'rune_vanguard',
+    name: 'Rune of the Vanguard',
+    cost: 1,
+    epic: true,
+    text: '**Start of Combat:** give your **three left-most** minions **Critical Strike** and **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeVanguard' },
+  },
+  {
+    // The Warded sibling of Pit Without End — its own latch, so holding both pays both.
+    id: 'rune_finality',
+    name: 'Rune of Finality',
+    cost: 6,
+    epic: true,
+    text: 'When your **last minion dies**, summon **7 Imps** with **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeFinality', amount: 7 },
+  },
+  {
+    id: 'rune_open_market',
+    name: 'Rune of the Open Market',
+    cost: 2,
+    epic: true,
+    text: 'The first time you **Consume a Shop minion** each turn, give your **Shop +3/+3** permanently.',
+    reward: { kind: 'runeOpenMarket', attack: 3, health: 3 },
+    sets: ['set2'], // Shop-minion Consume is a set-2 Demon mechanic
+  },
+  {
+    // The meter excludes Ales — the payout IS an Ale, so counting them would let the rune feed itself.
+    id: 'rune_runic_exchange',
+    name: 'Rune of Runic Exchange',
+    cost: 2,
+    epic: true,
+    text: 'Every **3 Shop spells** you cast, get a random **Dwarven Ale**. Dwarven Ales do not count.',
+    reward: { kind: 'runeThreshold', meter: 'spellCastNonAle', per: 3, grantAle: 1 },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_brokerage',
+    name: 'Rune of the Brokerage',
+    cost: 2,
+    epic: true,
+    text: 'Your **Ruby Brokers** can be triggered **endlessly**.',
+    reward: { kind: 'runeBrokerage' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_cinder_ledger',
+    name: 'Rune of the Cinder Ledger',
+    cost: 3,
+    epic: true,
+    text: '**Avenge (3):** improve your **Imps by +6/+6** wherever they are.',
+    reward: { kind: 'combatFlag', flag: 'runeCinderLedger', amount: 6 },
+  },
+  {
+    id: 'rune_procession',
+    name: 'Rune of the Procession',
+    cost: 3,
+    epic: true,
+    text: '**Avenge (4):** **double** your **right-most** minion’s stats.',
+    reward: { kind: 'combatFlag', flag: 'runeProcession' },
+  },
+  {
+    id: 'rune_gemstorm',
+    name: 'Rune of Gemstorm',
+    cost: 2,
+    epic: true,
+    text: '**Avenge (2):** play **2 Rubies** on each friendly **Kobold**.',
+    reward: { kind: 'combatFlag', flag: 'runeGemstorm', amount: 2 },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_shared_table',
+    name: 'Rune of the Shared Table',
+    cost: 3,
+    epic: true,
+    text: 'Your **Dwarven Ale** casts each give **one friendly minion of each type +2/+2**.',
+    reward: { kind: 'runeSharedTable', attack: 2, health: 2 },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_redirection',
+    name: 'Rune of Redirection',
+    cost: 4,
+    epic: true,
+    text: 'Rubies played on your **left-most** minion also cast on your **right-most** minion.',
+    reward: { kind: 'runeRedirection' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // The Health-only, board-wide sibling of The Old Hunt — and its step GROWS, where the quest's does not.
+    id: 'rune_wild_hunt',
+    name: 'Rune of the Wild Hunt',
+    cost: 3,
+    epic: true,
+    text: 'When a **Beast** attacks, give your minions **+3 Health** and improve this by **3** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 3 },
+  },
+  {
+    // Rise IS "summon an exact copy of this without Echo", so this reuses the keyword rather than stamping a
+    // bespoke Deathrattle onto the token.
+    id: 'rune_living_treasure',
+    name: 'Rune of Living Treasure',
+    cost: 4,
+    epic: true,
+    text: 'Your **Gemheart Golems** gain **Rise**.',
+    reward: { kind: 'combatFlag', flag: 'runeLivingTreasure' },
+    sets: ['set2'], // Gemheart Golems are a set-2 Kobold token
+  },
+  {
+    // Same "while you have room" shape as the Brood, with a body that strikes on arrival.
+    id: 'rune_living_echoes',
+    name: 'Rune of Living Echoes',
+    cost: 5,
+    epic: true,
+    text: 'When you have **space** on your board, summon a **Sunmane Herald** that **attacks immediately**.',
+    reward: { kind: 'combatFlag', flag: 'runeLivingEchoes', amount: 3 },
+    sets: ['set2'], // Sunmane Herald is a set-2 Beast
+  },
+  {
+    // The Demon's stats are CAPTURED at Start of Combat, not read when the summon lands — so a Demon that dies
+    // first still pays out, and the rune reads as a promise made at the bell.
+    id: 'rune_food_chain',
+    name: 'Rune of the Food Chain',
+    cost: 5,
+    epic: true,
+    text: '**Start of Combat:** the **first minion you summon** gains your **left-most Demon’s stats** this combat.',
+    reward: { kind: 'combatFlag', flag: 'runeFoodChain' },
+  },
+  {
+    id: 'rune_attacking_gems',
+    name: 'Rune of Attacking Gems',
+    cost: 4,
+    epic: true,
+    text: 'Play a **Ruby** on all of your minions every friendly **attack** in combat.',
+    reward: { kind: 'combatFlag', flag: 'runeAttackingGems', amount: 1 },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // Rides the run's single gold-GAIN chokepoint (`gainGold`), added for this rune — Gold was credited in a
+    // dozen places, and wiring eleven would have shipped a rune that silently misses the twelfth.
+    id: 'rune_profit_sharing',
+    name: 'Rune of Profit Sharing',
+    cost: 4,
+    epic: true,
+    text: 'Whenever you **gain Gold**, give your **Dwarves +3/+3**.',
+    reward: { kind: 'runeProfitSharing', tribe: 'dwarf', attack: 3, health: 3 },
+    sets: ['set2'], // Dwarves
+  },
+  {
+    // Shares the Moonhowl Mentor's per-turn teach ceiling rather than owning its own, so holding both raises the
+    // cap instead of the two firing independently.
+    id: 'rune_white_wolf',
+    name: 'Rune of the White Wolf',
+    cost: 4,
+    epic: true,
+    text: 'Once per turn, when you **buy a Shop spell**, teach it to a **Mage-Pup**.',
+    reward: { kind: 'runeWhiteWolf' },
+    sets: ['set2'], // Mage-Pup is a set-2 Beast token
+  },
+  {
+    // "Permanently" required a new carry-back channel — every other one is tribe-scoped, so an untyped
+    // whole-warband buff had nowhere to land and would have vanished at settle.
+    id: 'rune_overflow',
+    name: 'Rune of Overflow',
+    cost: 5,
+    epic: true,
+    text: 'Whenever you summon a minion that **does not fit**, give your minions **+4/+4 permanently**.',
+    reward: { kind: 'combatFlag', flag: 'runeOverflow', amount: 4 },
+  },
+  {
+    // Counted through a narrow helper, NOT `noteSpellCast` — the Ruby path already fires the Ruby+Spell umbrella
+    // and spends the Grimoire charge, so reusing that function would double-fire every "every 3 casts" card.
+    id: 'rune_spellstone',
+    name: 'Rune of the Spellstone',
+    cost: 6,
+    epic: true,
+    text: '**Rubies** you cast count as **Shop spells**.',
+    reward: { kind: 'runeSpellstone' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_counterpoint',
+    name: 'Rune of Counterpoint',
+    cost: 7,
+    epic: true,
+    text: 'When a friendly minion **dies**, your **left-most** minion **attacks immediately**.',
+    reward: { kind: 'combatFlag', flag: 'runeCounterpoint' },
+  },
+  {
+    // Epic, like every other named-minion grant rune (Yazzus, Lazarus, Exgalloper, Mykel, the High King).
+    id: 'rune_chimerus',
+    name: 'Rune of Chimerus',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Chimerus**.',
+    reward: { kind: 'grant', cards: ['chimerus'] },
   },
 ];
 

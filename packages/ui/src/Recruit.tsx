@@ -1417,7 +1417,7 @@ export function Recruit() {
      visibly grows at the moment the effect fires, rather than when the dispatch that commits them lands.
      Two sources, and they can't overlap: End-of-Turn beats (still `recruit`, cleared as `faceOmen` flips the
      phase) and in-combat grants. Filtered against CARD_INDEX — a grant of an id the index doesn't know (a
-     card-data typo: Velvet Rope Fiend once granted the empty string) used to throw inside the map and
+     card-data typo: Bug Huggies once granted the empty string) used to throw inside the map and
      white-screen the whole Recruit tree. A bad grant should show nothing, not take down the game.
 
      CAPPED AT THE HAND LIMIT. A preview is a promise that the card is yours, and the sim only keeps grants

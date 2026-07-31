@@ -580,7 +580,12 @@ export function consumeGrimoireCharge(state: RunState): void {
  */
 
 export function rubyCastCount(state: RunState): number {
-  const extra = state.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+  let extra = state.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+  // Quest rewards add to the SAME channel Prismcaster feeds, so the two stack additively rather than one
+  // shadowing the other. `firstEachTurn` is read-only here for the same reason `spellCasts` is: the freebie is
+  // spent by the real cast path bumping `rubyCastsThisTurn`, so the UI can preview the badge without consuming it.
+  extra += state.rubyExtraCasts ?? 0;
+  if ((state.rubyCastsThisTurn ?? 0) === 0) extra += state.rubyFirstExtraCasts ?? 0;
   return (1 + extra) * grimoireMultActive(state);
 }
 
@@ -604,6 +609,9 @@ export function spellCasts(state: RunState, def: CardDef): number {
   if (ALE_IDS.includes(def.id)) {
     const edwards = state.board.filter((c) => c.cardId === 'dw_edward');
     if (edwards.length > 0) mult *= edwards.some((c) => c.golden) ? 3 : 2;
+    // Run-wide Ale multiplier (Bottomless Cellar, Rune of the Bottomless Cask). ADDED rather than multiplied,
+    // because both read "trigger an ADDITIONAL time" — the same distinction Nimbus makes below.
+    mult += state.aleExtraCasts ?? 0;
   }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
@@ -616,6 +624,180 @@ export function spellCasts(state: RunState, def: CardDef): number {
  *  what actually resolves. */
 export function implosionCasts(state: RunState): number {
   return 1 + state.board.filter((c) => isTribe(c, 'demon')).length;
+}
+
+/**
+ * Buff the SHOP by +attack/+health from a run-level source (a quest reward), through the same `tavernBuyBonus`
+ * channel the Staff of Guel and Contract Butcher use — so "a quest buffs the shop" and "a card buffs the shop"
+ * are one mechanic, not two that drift apart.
+ *
+ * Fodder is enchanted run-wide for the same reason `spellBuffShop` does it: a bought Fodder takes tavern buffs
+ * through that channel rather than the buy-buff, so skipping it would silently exclude Fodder from every
+ * shop-buff quest.
+ */
+export function applyRunShopBuff(state: RunState, attack: number, health: number, source: string): void {
+  if (attack <= 0 && health <= 0) return;
+  state.tavernBuyBonus.atk += attack;
+  state.tavernBuyBonus.hp += health;
+  buffFodderRunWide(state, attack, health, source, false);
+}
+
+/** Endless Inventory: called after every shop refresh. The magnitude GROWS by `step` every `per` refreshes, so
+ *  the printed value has to be read live (see `questText`) rather than the base rate. */
+export function applyShopRefreshQuestBuff(state: RunState): void {
+  const q = state.shopBuffOnRefresh;
+  if (!q) return;
+  applyRunShopBuff(state, q.attack + q.grown, q.health + q.grown, 'Endless Inventory');
+  q.tick += 1;
+  while (q.tick >= q.per) { q.tick -= q.per; q.grown += q.step; }
+}
+
+/**
+ * The Endless Verse: bank `n` triggered Shouts and, once per `per` banked, RE-ARM the turn's spell doubler by
+ * clearing `spellFirstUsedThisTurn`. That flag is what Spell Thesis spends when the turn's first spell casts, so
+ * clearing it hands the doubler back rather than granting a separate one — the two stack naturally.
+ */
+export function applyShoutsForEndlessVerse(state: RunState, n: number): void {
+  const q = state.endlessVerse;
+  if (!q || n <= 0) return;
+  q.tick += n;
+  while (q.tick >= q.per) {
+    q.tick -= q.per;
+    state.spellFirstUsedThisTurn = false;
+  }
+}
+
+/** Bane's Presence: bank `n` triggered Shouts and buff the shop once per `per` banked. */
+export function applyShoutsForShopBuff(state: RunState, n: number): void {
+  const q = state.shopBuffPerShouts;
+  if (!q || n <= 0) return;
+  q.tick += n;
+  while (q.tick >= q.per) {
+    q.tick -= q.per;
+    applyRunShopBuff(state, q.attack, q.health, "Bane's Presence");
+  }
+}
+
+/**
+ * Advance every armed threshold rune watching `meter` by `amount`, paying out once per `per` banked.
+ *
+ * ONE dispatcher rather than a hook per rune: the runes in this group differ only in meter and payload, and
+ * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
+ * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
+ */
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout', amount: number): void {
+  if (amount <= 0 || !state.runeThresholds?.length) return;
+  for (const t of state.runeThresholds) {
+    if (t.meter !== meter) continue;
+    t.tick += amount;
+    while (t.tick >= t.per) {
+      t.tick -= t.per;
+      if (t.oncePerTurn && t.usedThisTurn) continue; // banked but not paid — the cap is per turn, not per run
+      t.usedThisTurn = true;
+      payRuneThreshold(state, t);
+    }
+  }
+}
+
+function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThresholds']>[number]): void {
+  const pool = poolOf(state);
+  if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
+  if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
+  if (t.grantRuby) mintRubies(state, t.grantRuby);
+  const b = t.buff;
+  if (!b) return;
+  if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
+  else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
+  else {
+    // `shopRightmost` buffs the OFFER sitting on the right, not the run-wide buy bonus — the Showcase is about
+    // the row in front of you, so it must not leak onto future shops the way `applyRunShopBuff` does.
+    const offer = [...state.shop].reverse().find((o) => !CARD_INDEX[o.cardId]?.spell && !CARD_INDEX[o.cardId]?.ruby);
+    if (offer) addOfferBuff(offer, 'Rune of the Showcase', b.attack, b.health);
+  }
+}
+
+/**
+ * Teach a bought Shop spell to a Mage-Pup and hand it over.
+ *
+ * Extracted from `grantMagePupTaught` (2026-07-30) so Rune of the White Wolf can teach too. The CAP is why it
+ * had to move: it counts Mentors ON BOARD, so a rune — which has no body — would compute a ceiling of 0 and
+ * silently never teach. The rune now contributes to that same ceiling, so holding a Mentor AND the rune raises
+ * the cap rather than the two firing independently.
+ */
+export function teachMagePup(state: RunState, spellId: string): void {
+  const spell = CARD_INDEX[spellId];
+  if (!spell?.spell) return;
+  const boardCap = state.board.reduce(
+    (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
+    0,
+  );
+  const cap = boardCap + (state.runeWhiteWolf ? 1 : 0);
+  const used = state.moonhowlTeachesThisTurn ?? 0;
+  if (used >= cap) return; // "once per turn" (twice for a golden Mentor, +1 for the rune)
+  if (state.hand.length >= CONFIG.handMax) return; // no room — don't burn the teach on a card that can't land
+  const def = CARD_INDEX['b2_magepup'];
+  if (!def) return;
+  state.moonhowlTeachesThisTurn = used + 1;
+  state.hand.push({
+    uid: `t${state.uidSeq++}`,
+    cardId: def.id,
+    tribe: def.tribe,
+    attack: def.attack,
+    health: def.health,
+    keywords: [...def.keywords],
+    golden: false,
+    taughtSpellId: spellId,
+  });
+}
+
+/**
+ * Rune of the Spellstone: make a Ruby cast COUNT as a Shop-spell cast.
+ *
+ * Deliberately NOT `noteSpellCast`. That function also fires the Ruby+Spell umbrella and consumes the Living
+ * Grimoire charge, and the Ruby cast path in the reducer already does both — routing a Ruby through it would
+ * double-fire every "every 3 casts" card and mis-spend the Grimoire. This does only the parts that make a Ruby
+ * read as a Shop spell: the run and per-turn tallies, the board's `spellCast` watchers, and the spellCast rune
+ * meter. The quest meter rides the reducer's `spellsCast` delta, so it follows for free.
+ */
+export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: number): void {
+  if (casts <= 0) return;
+  state.spellsCast += casts;
+  state.spellsThisTurn += casts;
+  advanceRuneThresholds(state, 'spellCast', casts);
+  advanceRuneThresholds(state, 'spellCastNonAle', casts); // a Ruby is not an Ale
+  const ctx = makeContext(state);
+  for (let i = 0; i < casts; i++) {
+    for (const card of [...state.board]) {
+      const def = CARD_INDEX[card.cardId];
+      if (!def) continue;
+      for (const effect of def.effects) {
+        if (effect.on !== 'spellCast') continue;
+        const fn = RECRUIT_FACTORIES[effect.do];
+        if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef: rubyDef }));
+      }
+    }
+  }
+}
+
+/**
+ * THE GOLD-GAIN CHOKEPOINT. Every path that hands the player Gold routes through here.
+ *
+ * Added 2026-07-30 for Rune of Profit Sharing ("whenever you gain Gold, give your Dwarves +3/+3"), which had no
+ * single site to hang off — Gold was added in a dozen places across the reducer and the recruit factories, and
+ * wiring eleven of them would have shipped a rune that silently misses whichever income the twelfth provides.
+ *
+ * Spending has its own path (`spendGold` in the reducer); this is the credit side only.
+ */
+export function gainGold(state: RunState, amount: number): void {
+  if (amount <= 0) return;
+  state.embers += amount;
+  const ps = state.runeProfitSharing;
+  if (ps) {
+    // Buffs the tribe wherever it is (board + hand), like every other "+X/+X to your <tribe>" run effect.
+    for (const c of [...state.board, ...state.hand]) {
+      if (isTribe(c, ps.tribe)) addBuff(c, 'Rune of Profit Sharing', ps.attack, ps.health);
+    }
+  }
 }
 
 /** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
@@ -861,8 +1043,23 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
   for (let r = 0; r < minted; r++) fireOnRubyGained(state);
 }
 
-/** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained. */
+/** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained, plus the
+ *  run-level Motherlode reward, which is the same rule with no minion source. */
 function fireOnRubyGained(state: RunState): void {
+  const ml = state.motherlode;
+  if (ml) {
+    // A Ruby is base 1/1 plus the run's live `rubyBonus` — the same value every other Ruby source mints at, so
+    // a late-run Motherlode pays full strength rather than 1/1.
+    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    for (let c = 0; c < ml.count; c++) {
+      const pool = ml.tribe ? state.board.filter((m) => isTribe(m, ml.tribe!)) : [...state.board];
+      if (pool.length === 0) break;
+      const rng = makeRng(state.rngCursor);
+      const target = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      addBuff(target, 'Motherlode', 1 + bonus.attack, 1 + bonus.health);
+    }
+  }
   for (const card of state.board) {
     const def = CARD_INDEX[card.cardId];
     if (!def?.effects.some((e) => e.on === 'onGetRuby')) continue;
@@ -1092,7 +1289,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
 
-  /** Set 2 — Cinder Chancellor:on each SHOP SPELL cast, give your Imps +atk/+hp EVERYWHERE (the run-wide Imp
+  /** Set 2 — Rouge Rogue:on each SHOP SPELL cast, give your Imps +atk/+hp EVERYWHERE (the run-wide Imp
    *  enchant, so Imps summoned later inherit it). `spellCast` is already Ruby-blind, so "Shop Spell" holds. */
   spellCastBuffImps: (ctx, self, params) => {
     const a = num(params.attack, 1) * gold(self);
@@ -1122,9 +1319,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (golden raises the cap by 1). `rubyRecvTick` is a per-instance counter reset each wave. */
   rubyPlayedGold: (ctx, self, params) => {
     const cap = num(params.cap, 2) + (self.golden ? 1 : 0);
-    if ((self.rubyRecvTick ?? 0) >= cap) return;
+    // Rune of the Brokerage lifts the per-turn cap entirely — the tick still counts (the inspect panel reads it),
+    // it just stops gating.
+    if (!ctx.state.runeBrokerage && (self.rubyRecvTick ?? 0) >= cap) return;
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
-    ctx.state.embers += num(params.gold, 3);
+    gainGold(ctx.state, num(params.gold, 3));
   },
 
   /** Set 2 — Candle Conduit: when you get a Ruby, cast a Ruby (base 1/1 + rubyBonus) on a random friendly
@@ -1235,7 +1434,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Ironlung Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
+  /** Warhorn Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
    *  is why it can't reuse `battlecryBuffTribeImproving` (symmetric, and includes self). */
   battlecryBuffTribeOthersAttack: (ctx, self, params) => {
     const tribe = str(params.tribe);
@@ -1442,31 +1641,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  tally, so two Mentors teach twice — the tally lives on the run, not the instance, because the cap is
    *  "how many spells got taught this turn", not "how many times this body acted". Respects the hand cap. */
   grantMagePupTaught: (ctx, self, _params, payload) => {
-    const spellId = payload.spellId ?? '';
-    const spell = CARD_INDEX[spellId];
-    if (!spell?.spell) return;
-    // Cap: this Mentor allows 1 teach (2 golden); the run-level tally is what actually gates, so a second
-    // Mentor on board raises the ceiling rather than each firing independently.
-    const cap = ctx.state.board.reduce(
-      (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
-      0,
-    );
-    const used = ctx.state.moonhowlTeachesThisTurn ?? 0;
-    if (used >= cap) return; // "once per turn" (twice for a golden Mentor)
-    if (ctx.state.hand.length >= CONFIG.handMax) return; // no room — don't burn the teach on a card that can't land
-    const def = CARD_INDEX['b2_magepup'];
-    if (!def) return;
-    ctx.state.moonhowlTeachesThisTurn = used + 1;
-    ctx.state.hand.push({
-      uid: `t${ctx.state.uidSeq++}`,
-      cardId: def.id,
-      tribe: def.tribe,
-      attack: def.attack,
-      health: def.health,
-      keywords: [...def.keywords],
-      golden: false,
-      taughtSpellId: spellId,
-    });
+    teachMagePup(ctx.state, payload.spellId ?? '');
     void self;
   },
 
@@ -1892,7 +2067,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Hoard Whelp — Sell: gain `amount` Gold (golden doubles). Fired by the reducer's sell case via `fireOnSell`. */
   onSellGainGold: (ctx, self, params) => {
-    ctx.state.embers += num(params.amount, 6) * gold(self);
+    gainGold(ctx.state, num(params.amount, 6) * gold(self));
   },
 
   /** Salvatore McKlusky (Tier 7) — selling this opens `count` back-to-back minion Discovers at `tier`
@@ -2093,7 +2268,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Contract Butcher (Shout) / Display Curator (End of Turn): "give minions in the Shop +atk/+hp".
+  /** Set 2 — Contract Butcher (Shout) / Soul Defiler (End of Turn): "give minions in the Shop +atk/+hp".
    *
    *  PERMANENT, via the same `tavernBuyBonus` channel Staff of Guel uses — NOT the per-offer channel (owner
    *  ruling 2026-07-25). The vocabulary is exact: "minions in the Shop" is a lasting buff on everything you buy
@@ -2172,7 +2347,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onConsumeGoldFlat: (ctx, self, params) => {
     if ((self.rubyRecvTick ?? 0) >= 1) return; // "the first time" each turn
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
-    ctx.state.embers += num(params.gold, 3) * gold(self);
+    gainGold(ctx.state, num(params.gold, 3) * gold(self));
   },
 
   /** Set 2 — Ashen Broodlord: when THIS body Consumes a minion, get a Shop spell (golden: 2).
@@ -3396,7 +3571,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Insurance Policy — cast: if you LOST your last combat, gain `gold` Gold (else nothing). Reads the pinned
    *  `lastCombat` result; a draw doesn't count (only 'lose'). No last combat yet (turn 1) → no payout. */
   spellGoldIfLostLast: (ctx, _self, params) => {
-    if (ctx.state.lastCombat?.result === 'lose') ctx.state.embers += num(params.gold, 5);
+    if (ctx.state.lastCombat?.result === 'lose') gainGold(ctx.state, num(params.gold, 5));
   },
 
   /** Mend — cast: heal the hero by `amount`, capped at the run's max Resolve (no overheal). Reads
@@ -3613,7 +3788,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = state.board.indexOf(self);
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
-    state.embers += sellValueOf(sold, state); // the Gold the player gets from the sell (bartering-aware)
+    gainGold(state, sellValueOf(sold, state)); // the Gold the player gets from the sell (bartering-aware)
     // It COUNTS AS A SELL, so Robin's Spoils banks its +1 next-turn Gold too (parity with the reducer's
     // sell case — this path used to skip it).
     if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
@@ -3634,7 +3809,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = state.board.indexOf(self);
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
-    state.embers += sellValueOf(sold, state); // bartering-aware (parity with the reducer's sell)
+    gainGold(state, sellValueOf(sold, state)); // bartering-aware (parity with the reducer's sell)
     if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
     returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
     const beast = [...state.board].reverse().find((c) => isTribe(c, 'beast')); // right-most Beast (board order)
@@ -3896,6 +4071,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
  */
 export function applyGoldSpent(state: RunState, amount: number): void {
   if (amount <= 0) return;
+  advanceRuneThresholds(state, 'gold', amount);
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -3946,6 +4122,7 @@ export function applyCardsPlayed(state: RunState, count: number): void {
 
 export function applyCardsBought(state: RunState, count: number): void {
   if (count <= 0) return;
+  advanceRuneThresholds(state, 'cardsBought', count);
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -4865,6 +5042,8 @@ export function replayRecurringEndOfTurn(state: RunState): boolean {
  * would change what every existing buy-trigger sees.
  */
 export function applySpellBought(state: RunState, spellId: string): void {
+  // Rune of the White Wolf: the rune teaches on its own, sharing the per-turn ceiling with any Mentor on board.
+  if (state.runeWhiteWolf) teachMagePup(state, spellId);
   // A dedicated loop rather than the generic `fire`, which is typed to a minion-only payload — this event's
   // subject is the SPELL, and the board minion is just the watcher. Mirrors `fireOnRubyGained`.
   for (const card of [...state.board]) {
@@ -4886,6 +5065,7 @@ export function applySpellBought(state: RunState, spellId: string): void {
  * was never present for. A dedicated loop rather than the generic `fire`, whose payload is minion-shaped.
  */
 export function applyShopRefreshed(state: RunState): void {
+  applyShopRefreshQuestBuff(state); // before the board watchers, so a Market Tormentor's row is already buffed
   // TWO PASSES, and the order is load-bearing (owner ruling 2026-07-25): watchers that STAT-BUFF the new row
   // resolve before watchers that CONSUME from it, so anything eating the right-most minion eats the buffed
   // body. Board order can't be trusted for this — a Revolving Maw sitting left of a Market Tormentor would
@@ -5018,12 +5198,30 @@ export function feastConsume(state: RunState, center: BoardCard, count: number):
  * Returns true if something was eaten, so a caller can tell "no legal target" from "done".
  */
 export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex: number, times = 1): boolean {
+  // Bottomless Banquet: the FIRST Shop minion your Demons Consume each turn, they Consume another. Guarded by a
+  // per-turn latch set before the recursive call, so the extra Consume can't itself re-trigger the reward.
+  // Rune of the Open Market: the FIRST Shop minion Consumed each turn buffs the Shop permanently. Shares the
+  // trigger with Bottomless Banquet but not the effect, and keeps its own latch so holding both pays both.
+  const om = state.runeOpenMarket;
+  if (om && !om.usedThisTurn && state.shop[offerIndex]) {
+    om.usedThisTurn = true;
+    applyRunShopBuff(state, om.attack, om.health, 'Rune of the Open Market');
+  }
+  if (state.consumeDoubleFirstEachTurn && !state.consumeDoubleUsedThisTurn && CARD_INDEX[state.shop[offerIndex]?.cardId ?? '']) {
+    state.consumeDoubleUsedThisTurn = true;
+    const other = state.shop.findIndex((o, n) => {
+      const d = CARD_INDEX[o.cardId];
+      return n !== offerIndex && !!d && !d.spell && !d.ruby;
+    });
+    if (other >= 0) consumeShopMinion(state, eater, other, times);
+  }
   const offer = state.shop[offerIndex];
   if (!offer) return false;
   const def = CARD_INDEX[offer.cardId];
   if (!def || def.spell || def.ruby) return false; // spells/Rubies in the row aren't minions — never edible
   const { attack: fa, health: fh } = offerBuyStats(state, offer);
   state.shop.splice(offerIndex, 1); // eaten — leaves the tavern
+  state.shopMinionsEaten = (state.shopMinionsEaten ?? 0) + 1; // Bottomless Banquet's objective meter
   const ctx = makeContext(state);
   const gainA = fa * times;
   const gainH = fh * times;
@@ -5159,7 +5357,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     if (effect.on === 'cast' && effect.do === 'gainEmbers') {
       // Rune of Pillaging: your Gold Pouches (the Gold Pouch spell) are worth `goldPouchValue` Gold instead of 1.
       const gain = spellDef.id === 'emberpouch' && state.goldPouchValue ? state.goldPouchValue : num(effect.params?.amount);
-      state.embers += gain;
+      gainGold(state, gain);
     }
   }
   // …then the bookkeeping every cast owes the run, shared with the Discover-spell path in the reducer.
@@ -5188,7 +5386,23 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // re-record (spellsThisTurn is nonzero by then).
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
   // Set 2 — Chef Gary Toast reads "Ales triggered this turn", so the tally lives with the other per-turn counters.
-  if (ALE_IDS.includes(spellDef.id)) state.alesCastThisTurn = (state.alesCastThisTurn ?? 0) + 1;
+  if (ALE_IDS.includes(spellDef.id)) {
+    state.alesCastThisTurn = (state.alesCastThisTurn ?? 0) + 1;
+    // Rune of the Shared Table: every Ale cast buffs ONE friendly minion of each type. Same "one per tribe"
+    // spread Fatecarver uses, so a dual-tribe body fills both its slots rather than being counted twice.
+    const st = state.runeSharedTable;
+    if (st) {
+      const seen = new Set<string>();
+      for (const c of state.board) {
+        const def = CARD_INDEX[c.cardId];
+        if (!def) continue;
+        const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+        if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
+        for (const t of tribes) seen.add(t);
+        addBuff(c, 'Rune of the Shared Table', st.attack, st.health);
+      }
+    }
+  }
   // Mushy: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it
   // catches every cast path once; the wave gate makes "next turn" exact — a charge armed in this turn's combat
   // has `activateWave = wave + 1`, so it can't pay out until the following turn.
@@ -5203,6 +5417,9 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   const castUmbrellaBefore = state.spellsCast + (state.rubyCasts ?? 0);
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
+  advanceRuneThresholds(state, 'spellCast', 1);
+  // Rune of Runic Exchange pays out in Ales, so counting Ales would let it feed itself — its meter excludes them.
+  if (!ALE_IDS.includes(spellDef.id)) advanceRuneThresholds(state, 'spellCastNonAle', 1);
   // Living Grimoire's charge is spent by this cast (consumed here at the real cast, not in the read-only
   // `spellCasts` the UI previews with). `casts` was already computed with the charge, so the full multiplied
   // count still resolves; clearing after keeps the NEXT spell single.
@@ -5347,10 +5564,34 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     if (n > 0) {
       for (let i = 0; i < n; i++) step(() => { for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', 1, 1); });
     }
+  } else if (effect === 'grantAles') {
+    // Open Tab (Dwarf quest): pour Ales at End of Turn, for the rest of the run. Draws from the RUN'S pool like
+    // every other Ale grant, so a set without them pours nothing rather than injecting unreachable cards.
+    const ales = poolOf(state).spells.filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length > 0) step(() => conjureToHand(state, ales, 2));
   } else if (effect === 'triggerLeftmostEcho') {
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); fireRecruitDeathrattles(makeContext(state), leftmost); }
+  } else if (effect === 'demonEatsRightmostShop') {
+    // Rune of Hunger: your LEFT-most Demon eats the right-most Shop minion. Reuses `rightmostShopMinion` +
+    // `consumeShopMinion`, so the eater gains exactly what a card-driven Consume would give it.
+    const eater = state.board.find((c) => isTribe(c, 'demon'));
+    const i = rightmostShopMinion(state);
+    if (eater && i >= 0) step(() => consumeShopMinion(state, eater, i));
+  } else if (effect === 'grantFacetwright') {
+    // Rune of Facetwright: a Facetwright's Choice every turn. Drawn from the run's pool like every other grant,
+    // so a set without the card grants nothing rather than injecting something the run cannot otherwise see.
+    const fw = poolOf(state).spells.find((c) => c.id === 'facetwright');
+    if (fw) step(() => conjureToHand(state, [fw], 1, true));
+  } else if (effect === 'grantRuby') {
+    // MINTED, not conjured — a Ruby is base 1/1 plus the run's live `rubyBonus`, like every other Ruby source.
+    step(() => mintRubies(state, 1));
+  } else if (effect === 'copyFirstSpell') {
+    // Runic Refrain: get a COPY of the turn's first spell — it lands in hand to cast later, where Rune of
+    // Recurrence's `recastFirstSpell` casts it again immediately. Deliberately different rewards.
+    const def = state.firstSpellThisTurnId ? CARD_INDEX[state.firstSpellThisTurnId] : undefined;
+    if (def?.spell) step(() => conjureToHand(state, [def], 1, true));
   } else if (effect === 'recastFirstSpell') {
     // Rune of Recurrence: cast the FIRST spell you cast this turn again, free. An AIMED spell re-targets a
     // seeded-random friendly board minion (owner call 2026-07-17); untargeted spells just resolve. Skipped

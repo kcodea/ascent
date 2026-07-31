@@ -107,7 +107,7 @@ export const SET2_DEMONS: CardDef[] = [
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
     id: 'dm_curator',
-    name: 'Display Curator',
+    name: 'Soul Defiler',
     tribe: 'demon',
     tier: 4,
     attack: 5,
@@ -160,7 +160,7 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     id: 'dm_velvet',
-    name: 'Velvet Rope Fiend',
+    name: 'Bug Huggies',
     tribe: 'demon',
     tier: 5,
     attack: 5,
@@ -228,7 +228,7 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     id: 'dm_chancellor',
-    name: 'Cinder Chancellor',
+    name: 'Rouge Rogue',
     tribe: 'demon',
     tier: 6,
     attack: 4,

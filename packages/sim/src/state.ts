@@ -413,6 +413,58 @@ export interface RunState {
    *  Cards that trigger on the umbrella of BOTH read `spellsCast + rubyCasts`. Absent = 0. */
   rubyCasts?: number;
   rubyCastsThisTurn?: number;
+  /** Set 2 quests — run-level EXTRA Ruby casts, additive with Prismcaster's per-minion `rubyExtraCast`.
+   *  `rubyExtraCasts` applies to every Ruby (Unstable Riches); `rubyFirstExtraCasts` only to the turn's first
+   *  (Gem Circuit), gated on `rubyCastsThisTurn === 0` so reading the count stays side-effect free — the real
+   *  cast path spends the freebie by bumping that counter, exactly like Spell Thesis. */
+  rubyExtraCasts?: number;
+  rubyFirstExtraCasts?: number;
+  /** Bane's Presence: every `per` Shouts triggered, buff the shop +attack/+health. `tick` banks the remainder
+   *  across turns, so three Shouts spread over two turns still pay exactly once. */
+  shopBuffPerShouts?: { per: number; attack: number; health: number; tick: number };
+  /** The Endless Verse: every `per` Shouts triggered, clear `spellFirstUsedThisTurn` so the turn's spell
+   *  doubler re-arms. `tick` banks the remainder across turns like the other threshold rewards. */
+  endlessVerse?: { per: number; tick: number };
+  /** Motherlode: on every Ruby gained, cast a copy on `count` random friendly `tribe` minions. */
+  /** Armed threshold runes (Cindergem, Infernal Ink, Overtime, the Chorus, the Long Shift, the Showcase, the
+   *  Merchant's Chorus). An ARRAY, so several can be held at once and each keeps its own banked remainder.
+   *  `usedThisTurn` backs `oncePerTurn`; it resets with the other per-turn tallies. */
+  runeThresholds?: {
+    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout'; per: number; tick: number;
+    grantSpell?: number; grantAle?: number; grantRuby?: number;
+    buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
+    oncePerTurn?: boolean; usedThisTurn?: boolean;
+  }[];
+  /** Rune of the Brokerage: Ruby Brokers ignore their per-turn cap. */
+  runeBrokerage?: boolean;
+  /** Rune of the Shared Table: each Ale cast buffs one friendly minion of every type. */
+  runeSharedTable?: { attack: number; health: number };
+  /** Rune of Redirection: a Ruby on your left-most also casts on your right-most. */
+  runeRedirection?: boolean;
+  /** Rune of Facetwright: a Facetwright's Choice cast resolves BOTH branches, not the picked one. */
+  runeFacetwright?: boolean;
+  /** Rune of Duplication: the next Epic rune bought also applies its reward a second time. */
+  runeDuplication?: boolean;
+  /** Rune of Profit Sharing: whenever you GAIN Gold, buff this tribe wherever it is. */
+  runeProfitSharing?: { tribe: Tribe; attack: number; health: number };
+  /** Rune of the White Wolf: buying a Shop spell teaches it to a Mage-Pup (shares the Mentor per-turn cap). */
+  runeWhiteWolf?: boolean;
+  /** Rune of the Spellstone: a Ruby you cast also counts as a Shop-spell cast. */
+  runeSpellstone?: boolean;
+  /** Rune of Investment: Rubies minted per minion sold. */
+  runeSellRubies?: number;
+  /** Rune of the Open Market: the first Shop-minion Consume each turn buffs the Shop. `used` resets per turn. */
+  runeOpenMarket?: { attack: number; health: number; usedThisTurn?: boolean };
+  motherlode?: { count: number; tribe?: Tribe };
+  /** Bottomless Banquet: the first Shop-minion Consume each turn eats a second. Reset with the per-turn tallies. */
+  consumeDoubleFirstEachTurn?: boolean;
+  consumeDoubleUsedThisTurn?: boolean;
+  /** Lifetime count of SHOP minions your Demons have Consumed — the `consumeShopMinion` objective's meter.
+   *  Separate from the Fodder tally: the two consume mechanics must not fill each other's quests. */
+  shopMinionsEaten?: number;
+  /** Endless Inventory: after each shop refresh, buff the shop — and improve the magnitude by `step` every
+   *  `per` refreshes. `grown` is the accrued improvement, `tick` the progress toward the next step. */
+  shopBuffOnRefresh?: { attack: number; health: number; step: number; per: number; grown: number; tick: number };
   /** Chrono Staff: this turn's End-of-Turn effects fire one extra time (a per-turn flag — stacks with
    *  Chronos, not with itself). Set on cast, reset at the next turn start. Absent = false. */
   extraEotThisTurn?: boolean;
@@ -626,7 +678,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeUndertow?: boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeUndertow?: boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -678,7 +730,7 @@ export interface RunState {
    *  the value/generate powers (scalingGold / gainMaxMana / fortify / dynamiteDig). */
   runeEmpowerment?: boolean;
   /** Rune of Scale (Epic): every Gold-spend gives `count` random board minions +attack/+health. */
-  runeScale?: { count: number; attack: number; health: number };
+  runeScale?: { count: number; attack: number; health: number; per?: number; tick?: number };
   /** Rune of Copies (Epic): copy a random board minion to hand at the start of every turn. */
   runeCopies?: boolean;
   /** Rune of Tempering: the FIRST Attachment (Magnetic) you play each turn also gives that minion Ward. */
@@ -872,7 +924,15 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell')[];
+  /** Bottomless Cellar / Rune of the Bottomless Cask: extra times your Dwarven ALES cast, run-wide. Stacks
+   *  ADDITIVELY with Edward Keg-hands, who is a board presence rather than a run flag. */
+  aleExtraCasts?: number;
+  /** The Golden Ledger: every `per` Gold spent, your `tribe` gains +attack/+health. `tick` banks the remainder
+   *  across turns, so a 4-Gold buy followed by a 1-Gold buy pays out exactly once. */
+  questGoldTribeBuff?: { tribe: Tribe; per: number; attack: number; health: number; tick: number };
+  /** War Council: the tribe whose Rallies and Slaughters trigger an extra time. */
+  questTribeRallySlaughter?: Tribe;
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

@@ -115,6 +115,16 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   `SfxMixer` is parked by owner request; `ShieldTuner` is handled separately (it is dead code).
 - **Three dev tuner panels ignored their own close button** — their internal key disagreed with the menu's, so
   ✕ did nothing and they could only be dismissed from the menu. Fixed.
+- **Set 2 content is complete: 26 quests and the full 96-rune roster.** The last stretch leaned on a handful of
+  reusable primitives rather than bespoke code per item — a threshold dispatcher ("every N of X, do Y"), a
+  gold-gain chokepoint, a shared free-rally helper — so most items became data plus a test. Two engine gaps
+  closed along the way: Gold is now credited through one path, and combat can carry an untyped board buff back
+  to the run.
+- **Lobby mode stopped hitching.** Starting a lobby ran seven full headless runs to build its opponent seats —
+  twice, since they were built only to be probed and then evicted. Recordings are now lazy, memoized, and warmed
+  in shop-phase idle time: 750 ms → 21 ms to start, 950 ms → 4 ms for round 1. And dying in a lobby replayed the
+  *entire* lobby to recapture its boards — ~20 s of frozen end screen; lobby runs now capture their boards as
+  they play, so the longest task after death is 83 ms.
 - **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
   with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
   schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.

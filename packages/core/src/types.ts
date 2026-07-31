@@ -195,11 +195,11 @@ export type EffectFactoryId =
   | 'avengeImproveSummonBuff' // Set 2 — Broodwright: Avenge improves its own summon grant
   | 'onSummonImpBuff' // Set 2 — Broodwright: an Imp you summon gains +X/+Y (improvable via summonBonus)
   | 'scFillWithImpsAndBuff' // Set 2 — Legion Shepherd: fill the warband with Imps, then buff Imps per one summoned
-  | 'onImpAttackBuffImps' // Set 2 — Cinder Chancellor: an Imp attacking buffs your Imps, escalating
+  | 'onImpAttackBuffImps' // Set 2 — Rouge Rogue: an Imp attacking buffs your Imps, escalating
   | 'battlecryConsumeShopRandom' // Set 2 — Cinder Clerk: Shout — consume a random Shop minion
   | 'consumeShopRightmost' // Set 2 — Demon Horse / Revolving Maw: consume the right-most Shop minion
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
-  | 'buffShopPermanent' // Set 2 — Contract Butcher / Display Curator: permanent buff to minions bought from the Shop
+  | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
   | 'shopRefreshedBuffRightmost' // Set 2 — Market Tormentor: each fresh Shop's right-most minion comes in buffed
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Tallymonger: buff your spells and Imps
@@ -216,7 +216,7 @@ export type EffectFactoryId =
   | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Bob Blart: eat the fattest Shop minion
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
-  | 'spellCastBuffImps' // Set 2 — Cinder Chancellor: a Shop spell buffs your Imps everywhere
+  | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
   | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
@@ -690,6 +690,17 @@ export type QuestObjectiveEvent =
   // Rulebreaker (neutral) set: `winRound` counts combat wins; `castSpell` counts spells cast; `authorsHand` is the
   // compound Shout+Echo+Rally objective (each must reach `count`; per-key progress in `ActiveQuest.subProgress`).
   | 'winRound' | 'castSpell' | 'authorsHand'
+  // Set 2 (Kobold): `castRuby` counts RUBIES cast — its own meter, NOT `castSpell`. The two are deliberately
+  // separate: a Kobold quest reading "Cast 8 Rubies" must not be filled by Shop Spells, and `castSpell`
+  // (Shop Spells) must not be filled by Rubies. Advances by the multiplied cast count, so a Ruby that casts
+  // 3 times moves the meter 3.
+  | 'castRuby'
+  // Set 2 (Demon): `shopStats` counts +Attack/+Health granted to SHOP minions — both direct offer buffs and
+  // increases to the run's buy-bonus (which every future offer inherits). Advances by (attack + health).
+  | 'shopStats'
+  // Set 2 (Demon): `consumeShopMinion` counts SHOP minions your Demons eat — distinct from `consumeFodder`,
+  // which counts set-1 Fodder. The two consume mechanics must not fill each other's quests.
+  | 'consumeShopMinion'
   // Compound (Fried Circuits / Forsaken Will): a general multi-part objective — `QuestObjective.parts` holds the
   // sub-objectives (each its own event + count), and the quest completes when ALL parts fill.
   | 'compound';
@@ -722,7 +733,7 @@ export type QuestReward =
   // the Pair ("2 random Tier 4 minions").
   // `grantGolden` conjures each id as a GILDED (golden) copy — Rune of Stormcalling's "Gilded Karwind", Frontline
   // Glory's "Gilded Yazzus".
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; /** Set 2 — N random Dwarven Ales (owner 2026-07-29: random, not a fixed trio). */ randomAle?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; /** Set 2 — N random Dwarven Ales (owner 2026-07-29: random, not a fixed trio). */ randomAle?: number; /** Set 2 — N Rubies, minted at the run's live `rubyBonus` like any other Ruby you're handed. */ randomRuby?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -741,6 +752,73 @@ export type QuestReward =
   // Arm a run-wide combat modifier consumed by `simulate()` (see QuestCombatMods): Blood Trail, Echoing Coop,
   // Law of Teeth, The Old Hunt. `amount` parameterizes the flag where it needs a magnitude (Old Hunt's aura step).
   | { kind: 'combatFlag'; flag: QuestCombatFlag; amount?: number }
+  /** "Your <tribe> Rallies and Slaughters trigger an additional time" — the tribe-scoped twin of the Beast-only
+   *  `lawOfTeeth` flag, so any tribe's version is data rather than a new hard-coded flag. */
+  | { kind: 'tribeRallySlaughterExtra'; tribe: Tribe }
+  /** "Your Dwarven Ales trigger an additional time" — run-wide, additive with Edward Keg-hands. */
+  | { kind: 'aleExtraCasts'; amount?: number }
+  /** "Every N Gold spent, give your <tribe> +X/+X" — threshold-based and tribe-scoped. */
+  | { kind: 'questGoldTribeBuff'; tribe: Tribe; per: number; attack: number; health: number }
+  /** "Give your Rubies +X/+X permanently" — raises the run's Ruby STRENGTH (`rubyBonus`), so every Ruby still in
+   *  hand AND every future one is minted stronger. Rubies already CAST keep the stats they landed with. */
+  | { kind: 'rubyStatGain'; attack: number; health: number }
+  /** "Your Rubies cast an additional time" — run-level extra casts, additive with Prismcaster. `scope`
+   *  `firstEachTurn` limits it to the turn's FIRST Ruby (Gem Circuit); `always` applies to every Ruby
+   *  (Unstable Riches). */
+  | { kind: 'rubyExtraCasts'; amount: number; scope: 'always' | 'firstEachTurn' }
+  /** "Give Shop minions +X/+X" — one-shot, into the same `tavernBuyBonus` channel the Staff of Guel uses, so a
+   *  quest and a card buffing the shop are the same mechanic. */
+  | { kind: 'shopBuff'; attack: number; health: number }
+  /** Bane's Presence: every `per` Shouts you trigger, buff the shop +X/+X. The remainder banks across turns. */
+  | { kind: 'shopBuffPerShouts'; per: number; attack: number; health: number }
+  /** Endless Inventory: after each shop refresh, buff the shop +X/+X — and improve THAT by +step/+step every
+   *  `per` refreshes, so the reward compounds over a roll-heavy run. */
+  | { kind: 'shopBuffOnRefresh'; attack: number; health: number; step: number; per: number }
+  /** The Company Store: your Shop spells cost `cost` less for the rest of the run (the spell-side twin of
+   *  `minionCost`). Feeds `spellCostMod`, which Lazarus also writes to, so the two stack. */
+  | { kind: 'spellCost'; cost: number }
+  /** The Endless Verse: the first spell each turn casts twice — and triggering `per` Shouts RE-ARMS it within
+   *  the same turn, so a Shout-heavy board can spend the doubler more than once a turn. */
+  | { kind: 'endlessVerse'; per: number }
+  /** Motherlode: whenever you GET a Ruby, cast a copy of it on `count` random friendly Kobolds. */
+  /**
+   * A THRESHOLD rune: every `per` of `meter`, do one thing. One reward kind rather than a family of near-identical
+   * ones, because the runes in this group differ only in which meter they watch and what they pay — Cindergem
+   * (3 Rubies → Imps +2/+2), Infernal Ink (3 spells → Shop +3/+3), Overtime (15 Gold → an Ale), the Chorus
+   * (3 Shouts → a spell), the Long Shift (3 buys → a spell), the Showcase (10 Gold → the right-most offer +4/+4).
+   *
+   * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
+   * at one per turn (the Merchant's Chorus).
+   */
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout'; per: number;
+      grantSpell?: number; grantAle?: number; grantRuby?: number;
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
+      oncePerTurn?: boolean }
+  /** Rune of the Brokerage: your Ruby Brokers lose their per-turn cap. */
+  | { kind: 'runeBrokerage' }
+  /** Rune of the Shared Table: every Dwarven Ale cast gives one friendly minion of each type +X/+X. */
+  | { kind: 'runeSharedTable'; attack: number; health: number }
+  /** Rune of Redirection: a Ruby played on your left-most minion also casts on your right-most. */
+  | { kind: 'runeRedirection' }
+  /** Rune of Facetwright: your Facetwright's Choice casts give BOTH halves instead of one. */
+  | { kind: 'runeFacetwright' }
+  /** Rune of Duplication: after you forge your Epic Rune, this becomes a copy of it — its reward applies a
+   *  second time. */
+  | { kind: 'runeDuplication' }
+  /** Rune of Profit Sharing: whenever you GAIN Gold, give your <tribe> +X/+X wherever they are. */
+  | { kind: 'runeProfitSharing'; tribe: Tribe; attack: number; health: number }
+  /** Rune of the White Wolf: once per turn, buying a Shop spell teaches it to a Mage-Pup. */
+  | { kind: 'runeWhiteWolf' }
+  /** Rune of the Spellstone: Rubies you cast count as Shop spells. */
+  | { kind: 'runeSpellstone' }
+  /** Rune of Investment: selling a minion mints `count` Rubies. */
+  | { kind: 'runeSellRubies'; count: number }
+  /** Rune of the Open Market: the FIRST Shop minion your Demons Consume each turn buffs the Shop +X/+X
+   *  permanently. Shares the Bottomless Banquet trigger, not its effect. */
+  | { kind: 'runeOpenMarket'; attack: number; health: number }
+  | { kind: 'motherlode'; count: number; /** Absent = ANY friendly minion (Rune of the Motherlode); set = tribe-scoped (the quest). */ tribe?: Tribe }
+  /** Bottomless Banquet: the first Shop minion your Demons Consume each turn, they Consume another. */
+  | { kind: 'consumeDoubleFirstEachTurn' }
   // Dragon Shout rewards: `always` grants a permanent extra Battlecry trigger (Hoardwake / The Hoard Wakes,
   // stacks like Drakko); `firstEachRound` makes the FIRST Shout you play each turn trigger twice (Warm Embers).
   | { kind: 'shoutRepeat'; scope: 'always' | 'firstEachRound' }
@@ -757,7 +835,7 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -780,7 +858,7 @@ export type QuestReward =
   // Rune of the Den Mother: your Den Mother also buffs herself when she buffs another Beast.
   | { kind: 'runeDenMother' }
   // Rune of Scale (Epic): every time you spend Gold, give `count` random board minions +attack/+health.
-  | { kind: 'runeScale'; count: number; attack: number; health: number }
+  | { kind: 'runeScale'; count: number; attack: number; health: number; /** Gold threshold: pay once per `per` Gold, banking the remainder. Absent = once per spend transaction. */ per?: number }
   // Rune of Copies (Epic): copy a random board minion to your hand now, and again at the start of every turn.
   | { kind: 'runeCopies' }
   // Rune of Tempering: the first Attachment you play each turn also gives that minion Ward.
@@ -884,7 +962,41 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Batch 7 combat runes: Rebirth (Rise with full Health), Aftershocks (Echo summons +4/+4), Undertow (Echo
   // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
   // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
-  | 'runeRebirth' | 'runeAftershocks' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy';
+  | 'runeRebirth' | 'runeAftershocks' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
+  // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
+  // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
+  | 'avengeFirstDouble'
+  // Set 2 quests: candlelightToll = a friendly Kobold dying grants you a Ruby; gemheartCharge = Gemheart
+  // Golems attack the moment they're summoned; burningLegion = an attacking Imp summons a copy of itself
+  // (bounded by `burningLegionUses`, since an unbounded version fills the board on the first swing).
+  | 'candlelightToll' | 'gemheartCharge' | 'burningLegion'
+  // Rune batch 3: vanguard = SoC give your 3 left-most Critical Strike + Ward; finality = your LAST minion
+  // dying summons 7 Imps with Ward (the Warded sibling of pitWithoutEnd); hatchery = Echo summons enter
+  // +3/+3 with Taunt.
+  | 'runeVanguard' | 'runeFinality' | 'runeHatchery'
+  // Avenge runes (batch 5), all riding the existing `runeAvenge` helper: lastCall = an Ale to hand;
+  // cinderLedger = improve your Imps run-wide; procession = double your right-most minion's stats.
+  | 'runeLastCall' | 'runeCinderLedger' | 'runeProcession'
+  // Rune of Gemstorm: Avenge (2) — play 2 Rubies on each friendly Kobold.
+  | 'runeGemstorm'
+  // Batch 7: bloodAndCoin = every N friendly deaths banks Gold for next turn; wildHunt = a Beast attacking
+  // pumps a run-wide Health aura, escalating; livingTreasure = your Gemheart Golems gain Rise.
+  | 'runeBloodAndCoin' | 'runeWildHunt' | 'runeLivingTreasure'
+  // remains = every 5 combat summons buffs the Shop; reinvestment = after combat, the Shop gains per summon.
+  | 'runeRemains' | 'runeReinvestment'
+  // Rune of the Hunting Bell: Avenge (3) — trigger your left-most Rally, free.
+  | 'runeHuntingBell'
+  // Batch 10: brood = while there is room, summon a Warded+Taunt Imp (bounded); livingEchoes = the same shape
+  // with a Sunmane Herald that strikes on arrival; warChorus = your first Rally each combat fires your
+  // left-most Shout.
+  | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus'
+  // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
+  // plays a Ruby on your whole board.
+  | 'runeFoodChain' | 'runeAttackingGems'
+  // Rune of Overflow: a summon that does not fit permanently buffs your whole warband.
+  | 'runeOverflow'
+  // Rune of Counterpoint: a friendly death sends your left-most minion in for a free swing.
+  | 'runeCounterpoint';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -902,6 +1014,13 @@ export interface QuestCombatMods {
   echoingCoop?: boolean;
   /** Law of Teeth: your Beasts' Slaughters (on-kill) AND Rallies (on-attack) each trigger one extra time. */
   lawOfTeeth?: boolean;
+  /**
+   * The TRIBE-parameterised twin of `lawOfTeeth` ("your <tribe> Rallies and Slaughters trigger an additional
+   * time"). Added because War Council needed the Dwarf version and `lawOfTeeth` is hard-gated on
+   * `isBeast(attacker)` — reusing it would have silently granted BEAST triggers on a Dwarf quest. Any future
+   * tribe gets this for free as data.
+   */
+  tribeRallySlaughterExtra?: Tribe;
   /** The Old Hunt: >0 arms it — every Beast attack pumps your run-wide Beast Attack aura by this much
    *  (live this fight + carried back via `playerBeastBuyAtkGain`). */
   oldHuntStep?: number;
@@ -959,6 +1078,54 @@ export interface QuestCombatMods {
   runeWarding?: boolean;
   /** Rune of Fury: every Avenge you trigger fires one extra time (its effect runs twice). */
   runeFury?: boolean;
+  /** The Sealed Vault: the first Avenge each combat re-fires (once per side per fight). */
+  avengeFirstDouble?: boolean;
+  /** Rune of the Vanguard: Start of Combat, give your 3 left-most minions Critical Strike and Ward. */
+  runeVanguard?: boolean;
+  /** Rune of Finality: how many WARDED Imps your last minion's death summons. */
+  runeFinality?: number;
+  /** Rune of the Hatchery: Echo summons enter with +attack/+health and Taunt. */
+  runeHatchery?: { attack: number; health: number };
+  /** Rune of Last Call: Avenge (3) — a random Dwarven Ale to hand. */
+  runeLastCall?: boolean;
+  /** Rune of the Cinder Ledger: Avenge (3) — improve your Imps by +6/+6 wherever they are. */
+  runeCinderLedger?: number;
+  /** Rune of the Procession: Avenge (4) — double your right-most minion's stats. */
+  runeProcession?: boolean;
+  /** Rune of Gemstorm: Rubies played on each friendly Kobold at every second friendly death. */
+  runeGemstorm?: number;
+  /** Rune of Blood and Coin: Gold banked for next turn per 4 friendly deaths. */
+  runeBloodAndCoin?: number;
+  /** Rune of the Wild Hunt: Health granted board-wide per Beast attack, escalating by the same step. */
+  runeWildHunt?: number;
+  /** Rune of Living Treasure: your Gemheart Golems enter with Rise. */
+  runeLivingTreasure?: boolean;
+  /** Rune of the Remains: Shop buff per 5 friendly minions summoned in combat. */
+  runeRemains?: number;
+  /** Rune of Reinvestment: Shop buff per friendly minion summoned, paid once when the fight settles. */
+  runeReinvestment?: number;
+  /** Rune of the Hunting Bell: every 3 friendly deaths, fire your left-most Rally without an attack. */
+  runeHuntingBell?: boolean;
+  /** Rune of the Brood: how many times a free board slot summons a Warded, Taunting Imp this combat. */
+  runeBrood?: number;
+  /** Rune of Living Echoes: how many times a free board slot summons a Sunmane Herald that attacks now. */
+  runeLivingEchoes?: number;
+  /** Rune of the War Chorus: your first Rally each combat also triggers your left-most Shout. */
+  runeWarChorus?: boolean;
+  /** Rune of the Food Chain: the first minion summoned each combat gains your left-most Demon's stats. */
+  runeFoodChain?: boolean;
+  /** Rune of Attacking Gems: how many Rubies land on your whole board per friendly attack. */
+  runeAttackingGems?: number;
+  /** Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit. */
+  runeOverflow?: number;
+  /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
+  runeCounterpoint?: boolean;
+  /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
+  candlelightToll?: boolean;
+  /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */
+  gemheartCharge?: boolean;
+  /** The Burning Legion: how many times an attacking Imp may summon a copy of itself this combat. */
+  burningLegionUses?: number;
   /** Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once. */
   runeRallying?: boolean;
   /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */
@@ -1591,6 +1758,11 @@ export interface CombatResult {
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
+  /** A PERMANENT buff earned in combat for your whole warband, carried back onto the run's board (Rune of
+   *  Overflow). Every other carry-back is tribe-scoped — Imps, Beasts, Fodder, Rubies — so "your minions"
+   *  needed its own untyped channel; without one, a combat buff simply vanishes at settle and a rune whose
+   *  text says "permanently" does nothing. */
+  playerBoardBuffGain?: { attack: number; health: number };
   /** Chorus Engine's Rally: the permanent ATTACHMENT enchant earned this combat. Applied at settle exactly like
    *  Scrap Herald — every Magnetic on board/in hand gains it and `magneticBuyAtk/Hp` stacks, so it reaches
    *  welded, held and future Attachments ("wherever they are"). Absent = none. */

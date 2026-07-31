@@ -91,13 +91,58 @@ export function recordedSeat(label: string, snaps: readonly BoardSnapshot[]): Se
 }
 
 /**
+ * MEMOIZED RECORDINGS. `autoplayRun` is a pure function of `(seed, heroId)` — same inputs, same boards — which is
+ * exactly the property `driverFor` already leans on when it rebuilds a driver from scratch. It also costs ~100ms.
+ *
+ * Without a cache that cost is paid repeatedly for the SAME recording: `createRunLobby` builds each seat's driver
+ * to probe it, then `resetLobbyDrivers` evicts them all so live seats start clean, so every recording is
+ * immediately autoplayed a second time on first use. Caching the snapshots (not the driver, which is stateful)
+ * keeps the eviction doing its job while making the rebuild free.
+ */
+const RECORDINGS = new Map<string, BoardSnapshot[]>();
+/** Bounded so a long session of lobbies can't grow it without limit; eviction only costs a recompute. */
+const RECORDING_CAP = 128;
+
+function recordingFor(seed: number, heroId?: string): BoardSnapshot[] {
+  const key = `${seed}|${heroId ?? ''}`;
+  const hit = RECORDINGS.get(key);
+  if (hit) return hit;
+  const snaps = autoplayRun(seed, heroId);
+  if (RECORDINGS.size >= RECORDING_CAP) {
+    const oldest = RECORDINGS.keys().next().value;
+    if (oldest !== undefined) RECORDINGS.delete(oldest);
+  }
+  RECORDINGS.set(key, snaps);
+  return snaps;
+}
+
+/**
  * Record a run headlessly so it can hold a seat. Uses the existing autoplay + per-wave snapshot machinery, so a
  * generated seat and a real player's uploaded run are the same data shape — the prototype can prove the whole
  * loop today, and swapping in genuine uploaded runs later changes nothing but the source.
+ *
+ * LAZY: the autoplay doesn't run until a board is actually asked for. Constructing this driver used to be the
+ * single most expensive thing in `createRunLobby` — seven recordings autoplayed synchronously before the first
+ * frame of the run. Deferring it means a seat that is built only to be probed, or one whose recording is never
+ * reached, costs nothing.
  */
 export function recordRun(seed: number, heroId?: string, label?: string): SeatDriver & { readonly lastWave: number } {
-  const snaps = autoplayRun(seed, heroId);
-  return recordedSeat(label ?? `${heroId ?? 'run'}#${seed}`, snaps);
+  const name = label ?? `${heroId ?? 'run'}#${seed}`;
+  let inner: (SeatDriver & { readonly lastWave: number }) | null = null;
+  const rec = (): SeatDriver & { readonly lastWave: number } => (inner ??= recordedSeat(name, recordingFor(seed, heroId)));
+  return {
+    kind: 'recorded',
+    label: name,
+    // Answered from the argument when there is one, so reading it doesn't force the recording. Falling back to
+    // the recording's own hero keeps the no-argument case (tests) behaving exactly as before.
+    get heroId(): string { return heroId ?? rec().heroId; },
+    get lastWave(): number { return rec().lastWave; },
+    prepare: (round) => rec().prepare(round),
+    finalBoard: () => rec().finalBoard?.() ?? null,
+    settle: () => {
+      /* a recording cannot react — see `recordedSeat` */
+    },
+  };
 }
 
 /**
@@ -188,10 +233,16 @@ export function hybridSeat(seed: number, heroId?: string, label?: string, policy
   return {
     kind: 'recorded', // it presents as a recording — that is what the player sees for most of the lobby
     label: recorded.label,
-    heroId: recorded.heroId,
-    lastRecordedWave: recorded.lastWave,
+    // The LIVE half's hero, not the recording's: both derive it from the same `(seed, heroId)` so they agree,
+    // but the live one is already built and reading the recording's would autoplay a run just to name a hero.
+    heroId: live.heroId,
+    get lastRecordedWave(): number { return recorded.lastWave; },
     prepare: (round) => recorded.prepare(round) ?? live.prepare(round),
     finalBoard: () => live.finalBoard?.() ?? recorded.finalBoard?.() ?? null,
+    // Probe the LIVE half only. The question seat selection is asking is "can a bot play this hero at all", and
+    // the live bot answers it in ~5ms where the recording costs ~100ms. It also answers it more truthfully: a
+    // hero whose recording comes back empty still fields boards here, because `prepare` falls through to live.
+    canFieldBoard: () => !!(live.prepare(1) ?? live.finalBoard?.()),
     settle: (o) => { recorded.settle(o); live.settle(o); },
   };
 }

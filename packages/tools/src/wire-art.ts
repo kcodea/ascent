@@ -65,6 +65,15 @@ const ALIASES: Record<string, string> = {
 
 /** Rune-art aliases — same doctrine as ALIASES: only for files that ARE attributed but whose name does not
  *  match a rune exactly. */
+/** Spell-art aliases — same doctrine: only files that ARE attributed but whose name doesn't match. */
+const SPELL_ALIASES: Record<string, string> = {
+  ironcladrequisition: 'ironcladreq', // id shortened; the art carries the full name
+  preemptiveattack: 'preemptive',     // card is Pre-emptive ASSAULT; the art file says Attack
+  rivalsreflections: 'rivalsreflection', // extra plural s
+  triplereward: 'discoverspell',      // the Triple Reward token's id (a Discover token, not flagged `spell`)
+  // (Cupcakes.png stays UNMATCHED on purpose: no card by that name exists — reported to the owner 2026-07-31.)
+};
+
 const RUNE_ALIASES: Record<string, string> = {
   // FULL-STEM alias, checked before the `2`-variant convention strips the suffix: `RuneOTheMenagerie2.png` is
   // the SET-2 TWIN's art (a different rune, `rune_menagerie_set2`), not a second-art variant of the set-1 rune.
@@ -87,6 +96,10 @@ const noThe = (s: string): string => norm(s.replace(/([a-z0-9])([A-Z])/g, '$1 $2
 const cardsByName = new Map<string, string>();
 for (const c of poolFor('set2').all) cardsByName.set(norm(c.name), c.id);
 for (const c of Object.values(CARD_INDEX)) if (c) cardsByName.set(norm(c.name), c.id);
+
+// Every SPELL (and Ruby) by normalized name, across all sets — the fourth job's index.
+const spellsByName = new Map<string, string>();
+for (const c of Object.values(CARD_INDEX)) if (c && (c.spell || c.ruby)) spellsByName.set(norm(c.name), c.id);
 
 const runesByName = new Map<string, string>();
 for (const r of [...RUNES, ...EPIC_RUNES]) {
@@ -113,6 +126,10 @@ const JOBS: Job[] = [
   {
     label: 'runes', src: 'C:/Game Assets/Ascent Art/Runes',
     dirs: ['.'], dest: 'packages/ui/src/art/runes', index: runesByName, aliases: RUNE_ALIASES,
+  },
+  {
+    label: 'spells', src: 'C:/Game Assets/Ascent Art/Spells',
+    dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: SPELL_ALIASES,
   },
 ];
 

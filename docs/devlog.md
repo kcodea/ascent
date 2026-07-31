@@ -1,5 +1,16 @@
 # ASCENT — development log
 
+## 2026-07-31 — Full spell-art re-wire; the wire script gains a SPELLS job
+
+The owner reworked a batch of spell art, so `art:wire` grew its fourth job: every spell + Ruby by name from
+the Spells source folder, same strict-match/alias/report pipeline as minions and runes. 78 matched (aliases
+for four attributed drifts: Ironclad Requisition's shortened id, Pre-emptive Assault filed as "Attack",
+Rival's Reflection's plural, and the Triple Reward token's `discoverspell` id). One file stays deliberately
+unmatched: **Cupcakes.png** — no card by that name exists; flagged to the owner. Also normalizes the whole
+spell art set to the 512px png+webp pair convention.
+
+Verified: typecheck, lint (7 pre-existing), build:web.
+
 ## 2026-07-31 — Three runes, seven spells, and the gold "(temporary)" grant display
 
 **Runes.** Rune of Contraband (basic 2, set 2): the first Ruby each turn pays a random Ale and the first Ale

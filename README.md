@@ -44,6 +44,23 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Fixed hand cards growing and overlapping** - the hand "make room" glide was baking the hover
+  zoom into card width; it is reverted until it can be done transform-safely.
+- **The game now has a real speed limit — and the speed-o-meter was reading the wrong dial.** The target is
+  **240 frames a second** (with 360 as the stretch), which leaves about **4 milliseconds** to draw each
+  frame. The in-game performance readout had been judging frames against a 60-per-second monitor, so on the
+  display we actually play on it only complained after *eight* frames had already been dropped — it reported
+  a clean session while the game stuttered. It now measures the display it is running on and sets its own
+  thresholds from that, resists being fooled by a busy first second or a throttled tab, and records which
+  display a log came from so old logs stay readable. The budget itself is written down, along with the rule
+  that the **worst** frame is what counts, not the average.
+- **The gild opens without the hitch.** Combining three copies into a gilded card had a small stutter right as
+  the animation started. It was not the gold glow or the flourish drawing — it was that the effect built two
+  full-screen drawing surfaces the instant it began and wiped them clean every frame, though nothing is
+  painted on either of them until a third of a second later. They are now created at the moment they are first
+  drawn on, the three flying card copies are measured once instead of three times and go in together, and the
+  card-art glow is only rewritten when it actually changes. Measured over the first eighth of a second of a
+  real triple: the gild's cost per frame is down **24%**, with the effect looking identical.
 - **The combat collision stutter is gone.** Every time two cards clashed, the game froze for about a sixth of
   a second — long enough to feel, short enough to be hard to catch. The cause turned out to have nothing to do
   with how many particles were on screen: each effect was throwing away its compiled graphics program when it

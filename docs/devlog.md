@@ -1,5 +1,147 @@
 # ASCENT — development log
 
+## 2026-07-30 — the frame budget is 4.17 ms, and the perf HUD was calibrated to a monitor nobody owns
+
+**The problem, in one line: a fixed millisecond threshold silently encodes an assumed refresh rate.**
+
+`perfMonitor` shipped with `LONG_FRAME_MS = 33` and `JANK_MS = 50`. Those read as neutral "slow frame"
+numbers and are nothing of the kind — they are *2 and 3 frames at 60 Hz*. The owner plays on a **360 Hz**
+display and wants the whole game, combat and shop, comfortable at **240 Hz**. At 360 Hz a frame drops at
+~2.8 ms, so `long` only started counting after roughly **eight** dropped frames and `jank` after twelve:
+**the HUD reported a clean session while the game dropped frames continuously.** `docs/performance.md`
+stated the right thing qualitatively ("`worst` is the number that finds hitches") and gave no number at all,
+which is how, earlier the same day, a real and correctly-measured optimisation (the `plateGild` canvas fix,
+mean frame −24%) was signed off with a **16.7 ms worst frame** — fine at 60 Hz, **4× over budget** on the
+hardware the game is actually played on.
+
+**Docs — the budget is now written down.** `docs/performance.md` gains a §0: target **240 Hz / 4.17 ms**,
+stretch 360 Hz / 2.78 ms, and the flat statement that **`worst`, not mean, is the metric** — a mean
+improvement that leaves the worst frame where it was has not fixed anything a player can feel. The
+`plateGild` entry in the anti-patterns list is annotated with exactly that: the fix was real, the window is
+not closed. A new anti-pattern forbids writing a fixed ms threshold for "a slow frame" anywhere.
+
+**Engine — the thresholds are derived, not constant** (new `packages/ui/src/refreshRate.ts`, pure and fully
+unit-tested; hardcoding 240 would have been the same mistake one notch along).
+
+- **Detection.** `screen.refreshRate` is non-standard and absent everywhere we ship, so the only signal is
+  the rAF cadence. The naive read — the mean or median interval over a warm-up second — is exactly wrong:
+  the first second of a session is the most loaded second there is (module eval, shader link, first paint),
+  so a loaded warm-up reads as a low refresh rate and then under-reports forever. The fix is the *direction*
+  of the error: **load can only make an interval longer, never shorter**, so the refresh is the fastest
+  sustained cadence and the robust estimator is the **low decile** of the observed intervals. A window that
+  is 90% jank still reports the truth. A decile rather than the bare minimum because rAF occasionally
+  double-fires with a near-zero delta, which the minimum would latch onto.
+- **VRR.** A G-Sync display never holds a clean cadence, so a raw estimate wanders (143.2, 146.9, 141.8 …)
+  and the thresholds would wobble with it. Estimates **snap to a ladder of real panel rates** when within
+  6%, parking the whole neighbourhood on 144.
+- **Throttling can't re-baseline it.** `nextRefreshState` is deliberately asymmetric: a *faster* reading is
+  adopted immediately (nothing can manufacture a short interval, and under-reporting is the failure that
+  started this), a *slower* one needs **three consecutive, mutually-consistent** windows. A transient
+  throttle — occluded window, power saving, a browser intervention unrelated to our load — expires; dragging
+  the window onto a 60 Hz panel genuinely re-calibrates a few seconds later. Backgrounded buckets, which
+  `perfMonitor` already flags `hidden`, are never fed to the estimator at all.
+- **Sanity.** Anything outside **24–1000 Hz** is rejected as *no evidence* rather than clamped — clamping
+  would launder a broken sample into a confident-looking reading. `null` holds the current estimate and
+  breaks any pending slow streak.
+- **Derivation.** `long` = 2 frame intervals, `jank` = 3. At 60 Hz that is 33.3 / 50.0 — the historic
+  constants, bit for bit, so every log recorded before today stays comparable. At 240 Hz it is 8.33 / 12.5.
+
+**A second 60 Hz assumption fixed in passing:** `MAX_FRAMES_PER_BUCKET` was 256, so a 1s bucket on a 360 Hz
+display truncated and `fps` topped out at 256 on hardware doing 360. Now 1024 (the whole plausible band),
+and the buffer is allocated in `start()` instead of as a field initializer — so the **disabled path now
+allocates nothing at all**, which is strictly cheaper than before rather than 4 kB worse.
+
+**Interpretability.** Every bucket records the `hz` in force when it closed (`long: 0` means "smooth" at one
+refresh and "we weren't looking" at another), and the export header carries `display` (refresh + whether it
+was measured or assumed), the full `thresholds`, and the project `budget`. The HUD gained a
+`display · budget` row showing `240 Hz · 4.17 ms` (or `60 Hz (assumed)` before the first window closes),
+prints its own derived thresholds in the `long / jank` label, and colours each sparkline column against the
+calibration in force *when that column was recorded* rather than recolouring history.
+
+**Verified.** `npm run typecheck && npm run lint && npm test && npm run build:web` all green — 3417 tests
+across 186 files (lint: 0 errors, 7 pre-existing unused-import warnings, none in the touched files).
+26 new tests in `refreshRate.test.ts` pin the adversarial cases specifically, because a mis-derived
+threshold fails *silently*: a loaded warm-up (90% janking frames still reads 240), rAF double-fires, a
+throttled window, an absurd 20000 Hz / 5 Hz sample, VRR jitter across four amplitudes, an intermittent slow
+window that must never accumulate, mutually-inconsistent slow readings that must never corroborate each
+other, and a sustained slow rate that must. `perfMonitor.test.ts` pins that the same second reads clean at
+60 Hz and 2-long/1-jank at 240.
+
+**Follow-up:** the HUD is now honest about the 240 Hz budget, which means the numbers it reports will get
+worse overnight without anything having regressed. The gild's 16.7 ms worst frame is the first known item.
+
+## 2026-07-30 — the gild hitch is the FX canvases, allocated 300ms before anything draws on them
+
+**The report.** "A similar hitch when gilding a card and having the gilded animation start." Similar to the
+combat collision stutter (fixed the same day) — but **not the same cause**: `plateGild.ts` contains no
+`pixiFx` at all. It is a GSAP/DOM effect over cloned card elements. The two fixes do not rhyme.
+
+**Measuring it.** Driven in a real, visible Chrome tab (a hidden tab does not run `rAF` and does not paint,
+so nothing about this is measurable in the preview pane). A triple was rigged deterministically through the
+store — a fat board plus two copies of `burialimp` on it and a third in the shop — and completed with a real
+`dispatch({type:'buy'})`, so the React commit, the gild and `buySlide` all ran exactly as they do in play.
+The metric is the **mean `rAF` interval**, bucketed into a *setup* window (0–120ms after the dispatch) and a
+*body* window (120–1150ms), median of 8 runs, with a **control** that buys a card which does NOT complete a
+triple — the same commit shape, no gild. The display idles at ~2.8ms/frame, so a control run is the floor.
+
+**The before numbers, with attribution.**
+
+| window | control (buy, no triple) | triple, gild blocked | triple + gild |
+|---|---|---|---|
+| setup 0–120ms, mean frame | 4.12ms | 5.20ms | **7.04ms** |
+| body 120–1150ms, mean frame | 3.02ms | 2.94ms | 3.22ms |
+
+So the hitch **is** at the start, as reported: the gild's own share of the setup window is ~1.8ms/frame over
+~17 frames, on top of ~1.1ms/frame for the triple's own React commit. The body is nearly free.
+
+Knob-by-knob differentials, same harness, isolated what the gild spends it on:
+- **`flourishType: 'none'` → setup 7.04ms → 6.29ms.** The flourish does not draw until the crown (~330ms in),
+  yet removing it made the *setup* window cheaper — the tell. Its canvas is a full-viewport compositing layer
+  from frame 1 and `drawFlourish` ran `clearRect(0, 0, vw, vh)` on it every frame regardless.
+- **Skipping both canvases' clears entirely → 6.14ms.** Same story for the mote canvas: the motes start at
+  `mergeStart` (~260ms) and the trail-dim `fillRect` covered the whole viewport before then, over nothing.
+- **`g1v/g2v = 0` (kill the wireframe's 88px + 134px `drop-shadow`) → 7.02ms, `centreScale 0.6` → 7.12ms,
+  `cardFlash 0` → 7.04ms, the `.golden` plate/frame filters off → 6.64ms.** None of them move the setup
+  window. The big blurred filter is *not* the cause, which is the opposite of what the shape of the code
+  suggests; it showed up only on a noisier spike metric and does not survive a stable one.
+- A **synthetic** `playPlateGild` on a card with no state change at all costs +0.07ms/frame in setup — i.e.
+  the effect is cheap in isolation; it only bites when it lands on the same frames as the triple's commit.
+
+**The fix.** Nothing about the drawing changed; only *when* the machinery starts existing.
+- Both canvases are created and appended **lazily** (`needFx()` / `needFl()`), on the frame their first draw
+  actually happens. `z-index` (301 behind the cards, 305 in front) decides paint order, not DOM order, so
+  appending late is safe. `drawFlourish` now clears only if it has painted, and never touches a canvas that
+  does not exist. `done()` removes them only if they were made.
+- `cloneCard` no longer resolves the source card's computed style per clone — every clone is a clone of the
+  *same* element, so `readSizeVars` does one `getComputedStyle` + 24 `getPropertyValue` instead of three and
+  seventy-two — and the three clones go into the document through one `DocumentFragment`.
+- The `.art` element is resolved once instead of a `querySelector` per frame, and its `filter` is written only
+  when the string changes. `filter` is a paint property; for the whole first half of the run `flash` is 0, so
+  the loop was re-asserting `filter: ''` on every frame of the beat where the gild opens.
+
+**The after numbers**, same harness, interleaved control/gild, median of 8:
+
+| | before | after |
+|---|---|---|
+| setup mean, control | 3.89ms | 3.85ms |
+| setup mean, triple + gild | 6.48ms | **5.82ms** |
+| **gild's share of setup** | **2.59ms/frame** | **1.97ms/frame** (−24%) |
+| body mean, triple + gild | 3.22ms | 3.33ms |
+| synchronous `playPlateGild` | 1.7ms (IQR 1.5–1.9, n=31) | **1.3–1.5ms** (IQR 1.1–1.7, n=31) |
+
+**Honest limits.** The *worst single frame* in the setup window is unchanged (16.8ms → 16.7ms) — the mean
+improved, the tail did not. That tail is the triple's React commit plus the first paint of three cloned,
+1.5×-scaled card subtrees, which is a bigger job than this PR. A little cost also moved from setup into the
+body (+0.11ms/frame) because the canvases are now allocated mid-run; that is the intended direction, since the
+body has ~13ms of headroom per frame and the opening does not. On this machine the absolute stutter is small
+(a 16ms frame); it is felt because the display idles at ~360Hz, where 16ms is four dropped frames.
+
+**Verified.** `npm run typecheck` (pkgs + web), `npm run lint` (0 errors), `npm test` (**3221 tests, 166
+files, all passing**), `npm run build:web` — all green. Effect verified unchanged by eye in the live tab.
+
+**Follow-up.** The residual setup tail is the triple's React commit + three card-subtree clones. Worth its own
+pass if the owner still feels it: either fewer/cheaper clones, or letting the commit land a frame before the
+effect opens.
 ## 2026-07-31 — Card batch: removals, reworks, and the Set 2 art re-wire
 
 **Removed.** Oathbound Avenger (and its now-orphaned `avengeBuffRandomFriendlyShield` factory — nothing else
@@ -3837,6 +3979,51 @@ Added a UI-hover cue that plays when the pointer enters an interactive control. 
 Verified: `npm test` (1785) + `npm run build:web` green; `npm run typecheck`/`lint` clean for the changed
 files. (Pre-existing `typecheck:web` errors in `Unit.tsx`/`useCombatReplay.ts` are unrelated — untouched here.)
 Audio itself is for the owner to judge by ear.
+
+
+## 2026-07-28 (revert the hand "make room" glide - it inflated cards)
+
+### fix(ui): remove the Flip-based hand glide (cards grew on every interaction)
+
+**Owner report:** after the hand slide work, cards would get stuck and grow **bigger and bigger with every
+interaction** while in hand; others jumbled, sat on top of each other "as if being played", and neighbours
+slid underneath and became invisible.
+
+Root cause, and it is mine - from #735 (`handGrowFlipRef`) and #737 (`handCompFlipRef`). Three facts compose:
+
+1. `.row.hand .card:hover` applies **`scale(1.06)`** (`styles.css`).
+2. Both glides captured `Flip.getState('.row.hand > .card')` **outside a drag** - per commit in the shop, per
+   beat in combat. `getState` measures `getBoundingClientRect`, which **folds in the live hover transform**, so
+   a hovered card was recorded 6% larger than its layout box.
+3. `Flip.from` was called **without `scale: true`**, so GSAP morphs **`width`/`height`** rather than scale -
+   writing the recorded (inflated) size as **inline layout width** on the card.
+
+So each capture-while-hovered baked the 1.06 into the element's real width; the next hover multiplied on top of
+that, and the next... **compounding 6% per interaction** - exactly "bigger and bigger". An inflated card in a
+negative-margin flex row (`--z-hand-gap`) then overlaps its neighbours, and `:hover { z-index: 50 }` puts it
+over them while they slide underneath - the rest of the report. Interrupted glides compound it: a new
+`Flip.from` before the last finished means `onComplete` never runs, so the `transition: none` we set stays
+inline and the cards snap instead of sliding.
+
+**The corroboration:** the pre-existing drag-reorder glide uses the identical `Flip.from` call and has never
+done this - because it only captures **at drop time**, while `body.dragging` is on, and
+`body.dragging .row.hand .card:hover` explicitly resets the transform to the unscaled version (`styles.css`
+line 992). The original author fenced exactly this hazard; my captures ran outside that fence.
+
+**Reverted both glides**, restoring the drag-reorder path as the only Flip consumer on the hand, with a comment
+at the call site recording why a general capture is unsafe. Everything else from the session stays: the
+coalesce landing on its own beat, the hand cap, the pacing, the deferred-Battlecry announcement, and the
+stuck-timer fixes. The only loss is the "make room" glide - cards blink to their new slots again, which is
+cosmetic where this bug was not.
+
+**If we re-attempt it**, the capture must not see a hover-inflated box. Options, roughly in order of safety:
+drive the motion through the existing `handSlidePx` channel (a transient per-uid offset + the CSS transition -
+the same mechanism the drag "make room" already uses, and transform-safe because React owns the whole
+transform string); or capture `offsetLeft` (transform-immune - the warband path documents exactly this) rather
+than rects; or, least safe, keep Flip but pass `scale: true` and suppress the hover rule during the capture.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, **1785 tests** / 108 files green, `build:web` green. Net
+-66/+11 in `Recruit.tsx` - this removes machinery.
 
 ## 2026-07-27 (stuck-cue timer audit)
 

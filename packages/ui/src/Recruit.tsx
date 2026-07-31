@@ -973,13 +973,6 @@ export function Recruit() {
   const grantPlayedRef = useRef<string[]>([]);
   // How many hand-grant previews have already materialised (index into `handPreviews`).
   const grantsShownRef = useRef(0);
-  /* The hand row's layout captured on the commit BEFORE a grant lands. Appending a card re-centres the fan,
-     so every card already in hand snaps to a new slot the instant the new one appears — this glides them
-     instead (owner ask 2026-07-27), the same "make room" read the warband has.
-     GSAP Flip rather than the warband/shop manual x-tween: hand cards carry their fan rotation and the
-     translateY tuck IN their transform, and a bare x-tween wipes both — the same reason the reorder glide
-     next to it uses Flip. */
-  const handGrowFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   /* cardIds an End-of-Turn BEAT has granted to hand so far, appended one beat at a time. `faceOmen` commits
      every End-of-Turn grant in a single dispatch after the LAST beat, so the whole batch used to appear at
      once, after every pulse had already fired. Showing the projection's per-beat grants (`EotStepFx.handGrants`)
@@ -1449,26 +1442,7 @@ export function Recruit() {
   useLayoutEffect(() => {
     const prev = grantsShownRef.current;
     grantsShownRef.current = handPreviews.length;
-    const grew = handPreviews.length > prev;
-    // MAKE ROOM: glide everything that was already in hand from where it sat to its new slot. The card that
-    // just arrived is not in the captured state, so Flip leaves it alone and the coalesce owns it. The base
-    // `.card { transition: transform }` is killed for the glide or it fights Flip (the reorder judder).
-    const st = handGrowFlipRef.current;
-    handGrowFlipRef.current = null;
-    if (grew && st) {
-      const settled = gsap.utils.toArray<HTMLElement>('.row.hand > .card');
-      gsap.set(settled, { transition: 'none' });
-      Flip.from(st, {
-        duration: getFlipConfig().commitMs / 1000,
-        ease: 'power2.out',
-        onComplete: () => gsap.set(settled, { clearProps: 'transition' }),
-      });
-    }
-    // Re-arm for the NEXT beat's grant. Only during a fight: this effect re-runs every beat there (the
-    // replay hands back a fresh `handGrantsShown`), so the capture stays one commit ahead. The End-of-Turn
-    // path captures at its own call site instead, where it knows a grant is coming.
-    if (inCombat && !run.combatSettled) handGrowFlipRef.current = Flip.getState('.row.hand > .card');
-    if (!grew) return;
+    if (handPreviews.length <= prev) return;
     const els = document.querySelectorAll<HTMLElement>('.row.hand > .card:not([data-uid])');
     for (let i = prev; i < handPreviews.length; i++) {
       const el = els[i];
@@ -1487,10 +1461,6 @@ export function Recruit() {
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
   const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
-  // The hand's layout as of the PREVIOUS commit, so a buy / play / cast that changes the card count can glide
-  // the survivors to their new slots instead of blinking them there. Re-captured every commit — see the pair
-  // of layout effects near `handOrderKey`.
-  const handCompFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
   const commitRectsRef = useRef<Map<string, number> | null>(null);
@@ -3161,36 +3131,16 @@ export function Recruit() {
         onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
       });
     };
+    /* ONLY a drag-reorder glides here. A general "make room on any hand-count change" pass was added and
+       REVERTED (2026-07-27) — see the devlog: capturing `Flip.getState` outside a drag records the CSS
+       hover `scale(1.06)` in the card's bounds, and Flip (without `scale: true`) morphs width/height, so the
+       hover scale got baked into inline layout width and compounded on every interaction. The drop-time
+       capture below is safe precisely because `body.dragging` neutralises that hover rule (styles.css). */
     const st = handReorderFlipRef.current;
-    if (st) { handReorderFlipRef.current = null; glide(st); return; }
-    /* ---- MAKE ROOM / CLOSE THE GAP on any other hand-count change (owner ask 2026-07-27) ------------
-       A buy, a play, a cast — anything that adds or removes a hand card — re-centres the fan, and every
-       other card used to blink to its new slot. Glide them instead, the same read the warband has and the
-       same motion the in-combat coalesce got.
-
-       `handCompFlipRef` is re-captured EVERY commit (see the effect just below), so the state we animate
-       from is always the immediately-preceding frame. That matters mid-drag: the hand is already sliding to
-       make room via `handSlidePx`, and animating from a state captured before the drag began would rewind
-       those cards to their resting spots and re-glide them — a visible snap back. One frame back is the
-       real previous position in every case.
-
-       Entering cards (the one you just bought) aren't in the captured state, so Flip leaves them alone and
-       `playBuySlide` still owns that motion. Skipped in combat, where the hand is frozen and the preview
-       previews have their own capture (`handGrowFlipRef`). */
-    const comp = handCompFlipRef.current;
-    if (comp && !inCombat) glide(comp);
-  }, [handOrderKey, inCombat]);
-
-  /* The hand's layout, refreshed every commit for the glide above. Declared AFTER it so that within one
-     commit the glide reads the PREVIOUS frame's capture and this then overwrites it. Bounded work — the hand
-     is at most `CONFIG.handMax` cards — and it is the same per-commit `Flip.getState` the warband/tavern row
-     already pays for. */
-  useLayoutEffect(() => {
-    if (inCombat) { handCompFlipRef.current = null; return; }   // hand is frozen in a fight — don't pay for it
-    perfMonitor.measure('layout:handflip', () => {
-      handCompFlipRef.current = Flip.getState('.row.hand > .card');
-    });
-  });
+    if (!st) return;
+    handReorderFlipRef.current = null;
+    glide(st);
+  }, [handOrderKey]);
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
   const fireSpark = (x: number, y: number): void => {
@@ -3399,12 +3349,7 @@ export function Recruit() {
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
         // Cards this beat grants to hand arrive ON the beat — each coalesces beside the pulse that produced
         // it, instead of the whole turn's batch materialising at once when `faceOmen` finally commits.
-        // Capture the hand's layout FIRST: React hasn't flushed this state update yet, so the row is still
-        // at its old width and the watcher can glide the existing cards out to make room.
-        if (bfx.handGrants.length > 0) {
-          handGrowFlipRef.current = Flip.getState('.row.hand > .card');
-          setEotGrants((g) => [...g, ...bfx.handGrants]);
-        }
+        if (bfx.handGrants.length > 0) setEotGrants((g) => [...g, ...bfx.handGrants]);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');
       }

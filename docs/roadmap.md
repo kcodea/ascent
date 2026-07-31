@@ -21,6 +21,14 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Re-measure the known hitches against the 240 Hz budget (4.17 ms).** The budget and the derived HUD
+  thresholds shipped 2026-07-30 ([`performance.md`](performance.md) §0), which means the numbers will look
+  worse without anything having regressed — the instrument was under-reporting, not the game improving.
+  First known item: the **gild's worst frame is still ~16.7 ms** (4× budget) even after the canvas fix that
+  cut its mean by 24%. Then a full-run capture with `?perf=1` on the real display, read on `worst` and the
+  `long`/`jank` counts rather than the mean, to find what else the 60 Hz calibration was hiding — phase
+  transitions and the shop open are the standing suspects.
+
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
   Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
   onto **Bug** Huggies (one letter apart) — confirm that is the intended art, and confirm the card name.
@@ -181,6 +189,15 @@ The career surface exists; deepen what a finished run *remembers*.
   audit caught them on 2026-07-21. A test that parses both and asserts they match would make it impossible.
 
 ## Next
+
+### The gild's remaining setup tail (opened 2026-07-30)
+The gild's own opening cost is down 24% (see the devlog), but the **worst single frame** in the first 120ms of
+a triple is unchanged at ~16.7ms. What is left is not the effect: it is the triple's React commit plus the
+first paint of three cloned, 1.5×-scaled card subtrees landing on the same frames. Worth a pass only if the
+owner still feels it — the options are fewer or cheaper clones, or letting the commit land a frame before the
+effect opens. Measure with the setup/body `rAF`-interval harness described in the devlog entry, against a
+buy-that-does-not-triple control.
+
 
 ### Dev tuner migration — done bar two panels (updated 2026-07-30)
 The schema (`tunerSchema.ts`) and the shared `TunerPanel` now carry **46 of 48** panels, spanning 2 to 48
@@ -486,6 +503,15 @@ SoC badge beats shipped (#541). Remaining, in impact order:
 - **Step-0 fold** — run-wide auras (Undead/Imp/Beast/Magnetic/card enchants) bake silently into the
   initial board; Fleeting Vigor is baked pre-sim with one un-stepped `sc` narration. Fine if intended —
   listed for completeness.
+
+### Re-attempt the hand "make room" glide, safely (reverted 2026-07-28)
+The hand should glide open/closed when its card count changes instead of blinking - the owner liked it, but
+the Flip-based implementation inflated cards (see the devlog: hover `scale(1.06)` folded into `Flip.getState`
+bounds, then morphed into inline width). Any retry must capture a **transform-immune** measure. Preferred:
+drive it through the existing `handSlidePx` channel (transient per-uid offset + the CSS transition), which is
+what the drag "make room" already does and keeps React owning the whole transform string. Alternative:
+`offsetLeft` deltas like the warband commit path. Only capture Flip state while `body.dragging` neutralises
+the hover rule.
 
 ### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
 The Aura Wash + EoT beat replay closed the big ones — plus the triggered rune buffs (Rune of Kindling /

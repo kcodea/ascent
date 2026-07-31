@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { aggregateFrames, perfMonitor, summarize, type PerfBucket } from './perfMonitor';
+import { aggregateFrames, perfMonitor, perfThresholds, summarize, type PerfBucket } from './perfMonitor';
+import { thresholdsFor } from './refreshRate';
 
 /**
  * The sampler itself is rAF- + DOM-bound and can't run headlessly (a hidden tab suspends rAF entirely), so
@@ -7,7 +8,7 @@ import { aggregateFrames, perfMonitor, summarize, type PerfBucket } from './perf
  * pure functions and pinned here.
  */
 const bucket = (over: Partial<PerfBucket> = {}): PerfBucket => ({
-  t: 0, fps: 60, med: 16, p95: 17, worst: 18, long: 0, jank: 0, task: 0,
+  t: 0, fps: 60, med: 16, p95: 17, worst: 18, long: 0, jank: 0, hz: 60, task: 0,
   counts: {}, heapMb: 0, nodes: 0, marks: {}, timings: {}, ...over,
 });
 
@@ -42,6 +43,27 @@ describe('perf monitor — frame aggregation', () => {
 
   it('clamps p95 on tiny samples rather than reading past the end', () => {
     expect(aggregateFrames([20], 100).p95).toBe(20);
+  });
+
+  it('counts long/jank against the DERIVED thresholds, so 240 Hz is not judged by 60 Hz numbers', () => {
+    // The defect: at 240 Hz a frame drops at 4.17 ms, but the fixed 33/50 constants only counted a drop
+    // after ~8 of them. The same second reads clean at 60 Hz and badly at 240.
+    const frames = [4, 4, 10, 4, 14, 4]; // one dropped frame, one visible hitch — on a 240 Hz panel
+    expect(aggregateFrames(frames, 1000, thresholdsFor(60))).toMatchObject({ long: 0, jank: 0 });
+    expect(aggregateFrames(frames, 1000, thresholdsFor(240))).toMatchObject({ long: 2, jank: 1 });
+  });
+
+  it('defaults to the 60 Hz calibration when no thresholds are supplied (replaying an old log)', () => {
+    const frames = [16, 16, 40, 16, 80, 16];
+    expect(aggregateFrames(frames, 1000)).toMatchObject(aggregateFrames(frames, 1000, thresholdsFor(60)));
+  });
+});
+
+describe('perf monitor — the thresholds in force', () => {
+  it('starts at the assumed 60 Hz calibration before any window has been measured', () => {
+    // The monitor never started in this process, so nothing has re-derived them.
+    expect(perfThresholds()).toMatchObject(thresholdsFor(60));
+    expect(perfMonitor.display.detected).toBe(false);
   });
 });
 
@@ -147,5 +169,16 @@ describe('perf monitor — measure() as a wrapper', () => {
     perfMonitor.measure('x', () => 1);
     expect(perfMonitor.isRunning).toBe(false);
     expect(summarize(perfMonitor.history()).hotspots).toEqual([]);
+  });
+
+  it('the whole annotation surface is inert while stopped — the disabled path stays free', () => {
+    // Call sites are unguarded by design, so every one of these runs in the prod build on every dispatch,
+    // FX fire and render commit whether or not anyone opted in. None may allocate or record.
+    perfMonitor.mark('fx:weld');
+    perfMonitor.count('react:commit', 5);
+    perfMonitor.record('reduce:buy', 42);
+    expect(perfMonitor.history()).toEqual([]);
+    expect(perfMonitor.latest()).toBeNull();
+    expect(perfMonitor.display).toEqual({ refreshHz: 60, detected: false });
   });
 });

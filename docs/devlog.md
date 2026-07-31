@@ -1,5 +1,10 @@
 # ASCENT — development log
 
+## 2026-07-31 — Title banner: the Set 2 launch announcement
+
+The title-screen note swaps from the rift-window thank-you to the owner's launch copy: "Welcome to Set 2's
+Launch! Reset your career manually and hop into the game. Runes are active and occur on turns 6 + 9. GL HF."
+
 ## 2026-07-31 — Geode Guardian keeps Taunt; "two" not "2"
 
 Taunt restored (badge + text) and the Echo reads "summon **two** 1/1 Gemheart Golems" — the word, not the

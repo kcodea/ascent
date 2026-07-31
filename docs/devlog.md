@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-07-31 — Runeforge offers follow the board; pivots arrive discounted
+
+Runes had NO baked-in associations — every forge draw was uniform. Now:
+
+**Synergy tags, derived not authored.** `runeSynergies(rune)` parses the rune's printed TEXT into tags
+(tribes + rally/echo/shout/avenge/consume/ruby/ale/spells/gold/summon; Imps count as Demon) — the text is the
+rune's contract, so a rework re-tags automatically and no annotation can go stale. An explicit `synergy`
+override exists for any rune whose text ever under-describes it. `boardSynergyTags(state)` profiles the
+player's board the same way, from card defs (keywords + effect trigger/id families).
+
+**One offered rune is GUARANTEED to follow the board** (a tribe or a mechanic you're fielding), whenever any
+such rune exists — swapped into a seeded slot when the uniform draw whiffs. **Pivot runes** (offers that do
+NOT follow the board) get a seeded 40% chance of a Gold discount — 1–2 on the basic forge, 2–4 on the epic —
+a nudge toward changing direction, not a tax on staying the course. The discount renders green on the rune's
+coin and the buy path charges the same number; re-rolls redraw both, and everything rides the forge's
+existing seeded streams so replays hold.
+
+Tests: tag derivation samples; 40 seeds × demon board → every offer contains a follower; discounts land only
+on non-followers, within range, and the buy charges the discounted price.
+
+Verified: typecheck (both), lint (7 pre-existing), 3512 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Launch banner top-center + larger; Ascent leaves the mode picker
 
 The title banner moves from the right edge to TOP-CENTER, wider (min(560px, 60vw)) with 30px title / 17px

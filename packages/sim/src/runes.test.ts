@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { CombatResult } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, runeSynergies, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { HEROES } from './heroes';
-import { openEpicRuneforge, questCombatMods, reduce } from './reducer';
+import { boardSynergyTags, openEpicRuneforge, questCombatMods, reduce } from './reducer';
 import { buffFodderRunWide, buffImpsRunWide, dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, noteFodderConsumed, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
@@ -28,6 +28,62 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
   const s: RunState = { ...createRun(1, 'runesmith'), wave: 7, phase: 'recruit', embers, runeforgeOffer: [runeId], ...over };
   return reduce(s, { type: 'buyRune', index: 0 });
 };
+
+describe('Runeforge — synergy offers + pivot discounts (owner ask 2026-07-31)', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+  const demonBoard = (): RunState['board'] => [
+    { uid: 'd1', cardId: 'dm_wrangler', tribe: 'demon', attack: 2, health: 4, keywords: [], golden: false },
+    { uid: 'd2', cardId: 'dm_clerk', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false },
+  ];
+
+  it('runeSynergies derives tags from the printed text', () => {
+    expect(runeSynergies(RUNE_INDEX['rune_summoning']!)).toContain('demon'); // "improves your Imps"
+    expect(runeSynergies(RUNE_INDEX['rune_adventuring']!)).toContain('rally'); // "Rally effects trigger twice"
+    expect(runeSynergies(RUNE_INDEX['rune_gemcutting']!)).toContain('ruby');
+    expect(runeSynergies(RUNE_INDEX['rune_profit_sharing']!)).toContain('dwarf');
+  });
+
+  it('a DEMON board is guaranteed at least one demon-following rune in the offer', () => {
+    // 40 seeds: with the guarantee every offer has a follower; without it a uniform draw whiffs often.
+    for (let seed = 1; seed <= 40; seed++) {
+      const s: RunState = { ...createRun(seed, 'runesmith'), setId: 'set2', wave: 4, phase: 'combat', hand: [],
+        board: demonBoard(), lastCombat: win };
+      const opened = reduce(s, { type: 'resolveCombat' }); // → turn 5, the Runesmith forge opens
+      const offer = opened.runeforgeOffer;
+      if (!offer) continue; // (a hero-power edge — not what this test is about)
+      const tags = boardSynergyTags(opened);
+      expect(offer.some((id) => runeSynergies(RUNE_INDEX[id]!).some((t) => tags.has(t))),
+        `seed ${seed}: no offered rune follows the board`).toBe(true);
+    }
+  });
+
+  it('pivot discounts land only on non-following runes, within range, and the buy charges the discounted price', () => {
+    let found = false;
+    for (let seed = 1; seed <= 60 && !found; seed++) {
+      const s: RunState = { ...createRun(seed, 'runesmith'), setId: 'set2', wave: 4, phase: 'combat', hand: [],
+        board: demonBoard(), lastCombat: win };
+      const opened = reduce(s, { type: 'resolveCombat' });
+      const offer = opened.runeforgeOffer;
+      const discounts = opened.runeforgeDiscounts;
+      if (!offer || !discounts) continue;
+      const tags = boardSynergyTags(opened);
+      discounts.forEach((d, i) => {
+        if (d === undefined) return;
+        expect(d, 'basic-forge discounts are 1–2 Gold').toBeGreaterThanOrEqual(1);
+        expect(d).toBeLessThanOrEqual(2);
+        expect(runeSynergies(RUNE_INDEX[offer[i]!]!).some((t) => tags.has(t)),
+          'a discount landed on a rune that FOLLOWS the board').toBe(false);
+      });
+      const di = discounts.findIndex((d) => d !== undefined);
+      if (di < 0) continue;
+      found = true;
+      const rune = RUNE_INDEX[offer[di]!]!;
+      const bought = reduce({ ...opened, embers: 20 }, { type: 'buyRune', index: di });
+      expect(20 - bought.embers, 'the buy must charge the discounted price').toBe(Math.max(0, rune.cost - discounts[di]!));
+    }
+    expect(found, '60 seeds produced no pivot discount at a 40% rate — the roll is broken').toBe(true);
+  });
+});
 
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {

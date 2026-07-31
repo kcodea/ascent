@@ -4443,9 +4443,13 @@ export function Recruit() {
             <div className="disc-cards forge-cards">
               {run.runeforgeOffer.map((id, i) => {
                 const rune = RUNE_INDEX[id];
-                return rune ? (
-                  <RuneCard key={id} rune={rune} affordable={run.embers >= rune.cost} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
-                ) : null;
+                if (!rune) return null;
+                // The pivot discount (aligned array, seeded at draw): a rune that doesn't follow the board can
+                // arrive cheaper — the buy path charges the same number.
+                const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
+                return (
+                  <RuneCard key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
+                );
               })}
             </div>
             <div className="forge-actions">

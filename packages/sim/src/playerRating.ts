@@ -138,7 +138,7 @@ export interface RatingChange {
 
 /** Rating deltas by LOBBY placement (1st → 8th). The ladder's only rating source since 2026-07-31 —
  *  course/rift runs no longer move the profile. Symmetric-ish and tunable; top-half gains, bottom-half pays. */
-export const LOBBY_PLACEMENT_DELTAS: readonly number[] = [60, 40, 25, 10, -10, -25, -40, -60];
+export const LOBBY_PLACEMENT_DELTAS: readonly number[] = [100, 71, 42, 13, -12, -36, -62, -92]; // owner tuning 2026-07-31
 
 /** Apply a finished LOBBY's placement to the profile — the ONLY rating source (owner rework 2026-07-31).
  *  Returns the same `RatingChange` shape the end screen + history consume; the Line fields still resolve

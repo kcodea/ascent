@@ -6857,6 +6857,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .endmmr.up .endmmr-delta { color: #58c470; }
 .endmmr.down .endmmr-delta { color: #e06060; }
 .endmmr-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.65; }
+.endplace-practice { display: block; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; margin-top: 4px; }
 
 .endplace { display: flex; flex-direction: column; align-items: center; line-height: 0.92; }
 .endplace-num { font-family: var(--font-disp, var(--font-ui)); font-weight: 900;

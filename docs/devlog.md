@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-07-31 — MMR tuned; practice becomes a lobby
+
+**Placement deltas** are the owner's: 1st→8th = +100 / +71 / +42 / +13 / −12 / −36 / −62 / −92.
+
+**Practice is a lobby now**: `createLobbyRun` grew a mode param, the store routes practice through it, and the
+lobby machinery keys on the LOBBY'S PRESENCE rather than `mode === 'lobby'` (two sites). On top of the shared
+flow: the player is INVULNERABLE (the seat shrugs each round off — health restored, never eliminated; the
+other seven fight and die normally), the run ends after round 15 unless the lobby was already won, the
+practice shop-timer multiplier still applies (it always keyed on the mode), and practice reads the shared
+board pool but writes nothing — every upload path was already gated on `mode !== 'practice'`. The practice
+end screen shows the placement with a "Practice — unrated" tag and no rating block.
+
+Verified: typecheck (both), lint (7 pre-existing), 3509 tests, build:web, harness determinism.
+
 ## 2026-07-31 — The ladder is the game: MMR, the Hall, and the balance report go lobby-only
 
 **Rating comes from the LOBBY only now.** `resolveLobbyRating(profile, placement)` pays by finish

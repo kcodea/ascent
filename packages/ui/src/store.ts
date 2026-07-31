@@ -685,8 +685,10 @@ export const useGame = create<GameStore>((set, get) => ({
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
       const seed = randomSeed();
-      const run = s.pendingMode === 'lobby'
-        ? createLobbyRun(seed, heroId)
+      // Practice is a lobby too (2026-07-31): same seats + recorded opponents, its own rules on top. It
+      // reads the shared board pool but never writes (every upload path is gated on mode !== 'practice').
+      const run = s.pendingMode === 'lobby' || s.pendingMode === 'practice'
+        ? createLobbyRun(seed, heroId, {}, s.pendingMode)
         : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);

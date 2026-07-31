@@ -574,8 +574,11 @@ export function lobbyOpponentBoard(
  * Start a run that is a seat in an 8-seat lobby: ordinary Ascent play, no course clock, and the run ends when
  * the player's SEAT is knocked out rather than after 17 rounds.
  */
-export function createLobbyRun(seed: number, heroId: string, rules: Partial<LobbyRules> = {}): RunState {
-  const run = createRun(seed, heroId, 'lobby');
+export function createLobbyRun(seed: number, heroId: string, rules: Partial<LobbyRules> = {}, mode: 'lobby' | 'practice' = 'lobby'): RunState {
+  // PRACTICE is a lobby too since 2026-07-31 — same 8 seats, same recorded opponents (reads the shared pool;
+  // writes nothing back), same flow. Its extra rules (invulnerability, the round-15 curtain, the shop-timer
+  // multiplier) all key off `mode === 'practice'` downstream.
+  const run = createRun(seed, heroId, mode);
   // The run pins its set at creation; the lobby seats from the SAME set, so a set-2 run never faces a seat
   // driven by a set-1 recording (whose bodies are cards this run cannot otherwise see).
   const lobby = createRunLobby(seed, heroId, rules, run.setId);

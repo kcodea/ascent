@@ -195,10 +195,10 @@ describe("resolveLobbyRating — the ladder's only rating source (owner rework 2
   });
 
   it('the Line (course par) tracks lobby MMR through the same promotion bands', () => {
-    // 780 + a 1st (+60) crosses the Line-8 promotion at 800.
+    // 780 + a 1st (+100) crosses the Line-8 promotion at 800.
     const p: PlayerProfile = { rating: 780, currentLine: 7, highestRating: 780, highestLine: 7 };
     const c = resolveLobbyRating(p, 1);
-    expect(c.ratingAfter).toBe(840);
+    expect(c.ratingAfter).toBe(880);
     expect(c.promoted).toBe(true);
     expect(c.profile.currentLine).toBe(8);
     // …and the course-only components stay zero: a lobby has no Oath verdict.

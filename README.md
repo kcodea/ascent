@@ -44,6 +44,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The gild opens without the hitch.** Combining three copies into a gilded card had a small stutter right as
+  the animation started. It was not the gold glow or the flourish drawing — it was that the effect built two
+  full-screen drawing surfaces the instant it began and wiped them clean every frame, though nothing is
+  painted on either of them until a third of a second later. They are now created at the moment they are first
+  drawn on, the three flying card copies are measured once instead of three times and go in together, and the
+  card-art glow is only rewritten when it actually changes. Measured over the first eighth of a second of a
+  real triple: the gild's cost per frame is down **24%**, with the effect looking identical.
 - **The combat collision stutter is gone.** Every time two cards clashed, the game froze for about a sixth of
   a second — long enough to feel, short enough to be hard to catch. The cause turned out to have nothing to do
   with how many particles were on screen: each effect was throwing away its compiled graphics program when it

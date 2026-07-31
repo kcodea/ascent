@@ -282,6 +282,19 @@ These are the rules the audits surfaced; the codebase already follows them — k
   program** (`Shader.destroy(true)`). Pool the shader (and, for `ParticleContainer`, the container it was
   built with), reset it totally on acquire, and pre-warm the link at load. See §3b — this cost a 160 ms
   freeze on every combat collision.
+- **Don't allocate a full-viewport `<canvas>` (or any full-screen compositing layer) before the beat that
+  draws on it, and don't clear one that has nothing on it.** A fixed, full-viewport canvas is a compositor
+  layer the moment it is in the document, and a per-frame `clearRect`/`fillRect` over it is a couple of
+  million pixels of work whether or not anything was drawn. `plateGild` built both of its canvases in its
+  first line and cleared them every frame, though the motes don't start until ~260ms in and the flourish
+  until ~330ms — so all of that cost landed in the ~120ms window where the gild *opens*, which is exactly
+  where the owner felt it hitch. Create the layer on first draw (`needFx()` / `needFl()`), and let the
+  "clear" be conditional on having painted. Measured: mean frame in the first 120ms after the buy went from
+  6.48ms to 5.82ms against a 3.85ms no-gild control — a 24% cut of the gild's share.
+- **Hoist `getComputedStyle` out of a loop that clones the same element repeatedly, and append clones through
+  one `DocumentFragment`.** `plateGild` resolved the *same* source card's computed style once per clone (3×
+  `getComputedStyle` + 72 `getPropertyValue`) and appended the three clones one at a time. One read + one
+  append: synchronous setup 1.7ms → 1.3–1.5ms (medians of 31).
 - **`Math.random` is banned in `core`/`content`/`sim`** (determinism + replay). Tools (`perf.ts`) may use
   `performance.now()` for timing.
 

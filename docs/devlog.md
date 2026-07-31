@@ -1,5 +1,58 @@
 # ASCENT — development log
 
+## 2026-07-31 — cards, chips and rows get a commit state, and the press gets its sound
+
+**The click cue moved from one screen to all of them.** The title column had its own delegated `pointerdown`
+playing the "thock" on the way down; every other menu control, hero card, mode card, chip and row was silent
+under the finger. Now that they all COMPRESS (see the commit state below and `.pressable`), the sound belongs
+with the compression rather than with one screen — so the listener is one app-wide delegated handler in `Game`,
+and the title's local copy is deleted. Two listeners would have fired it twice on exactly those plaques.
+
+**Hover and click now share one policy.** `MENU_SFX_SEL` / `MENU_SFX_SKIP` are hoisted constants both delegated
+listeners read. A control that ticks on hover and then goes silent under the finger reads as a bug in the sound,
+not as a deliberate distinction — and the two lists had no mechanism keeping them in step. The skip list is
+unchanged and still excludes the in-game shop and combat HUD controls, which are gameplay actions with their own
+dedicated sounds, plus dev panels; minion cards are `div`s and never matched in the first place.
+
+**Verified** by resolving the policy against live DOM: a hero card and a Back button both resolve to THOCK, a
+bare container resolves to no cue. The sound itself needs a real user gesture to unlock the audio context, so
+that part is confirmed by ear rather than by the automated pass.
+
+### The commit state itself
+
+**What changed.** Selection cards, keyword chips and list rows now respond to being chosen. Player-facing; no
+markup changes — these are existing classes gaining a state.
+
+**The gap was not "no feedback", it was "no commit".** Cards already lift: a hero card rises 8px on hover, turns
+its border accent and reveals the hero's power art and text; a mode card rises 6px and reveals its description.
+But the click itself did nothing — you hovered, it lifted, you chose, and the screen simply changed. The single
+moment that carried a decision was the one with no response.
+
+**Three directions were mocked as a live page and judged by hand** rather than argued about: collapse the lift
+(set the card down), push past the rest position (press it into the table), or hold the lift while the ring
+snaps tight (latch). The owner chose the push, which is the same press vector as `.pressable` — so a card and a
+button now answer a click the same way.
+
+**A card still does not get `.pressable`.** It has no hard edge to collapse and no sheen; its language is
+lift-and-reveal. What the two share is the vector, not the treatment — bolting a plaque onto a lifting object
+would state two metaphors at once.
+
+**Chips and rows are separate physics.** A chip takes the button grammar at chip scale (a 2px edge that sinks —
+the whole depth a 26px pill can carry). A row takes an INSET: it is a surface, not an object, so it presses into
+the list, and an offset edge under a transparent row renders as a stray bar in the gap rather than a button.
+
+**The specificity trap, caught before it shipped this time.** `.herocard.big:hover` is (0,2,1); a plain
+`.herocard:active` is (0,1,1). Since you are always hovering when you click, the large hero cards — the ones on
+the actual hero-select screen — would silently never have pressed. Checked BEFORE writing, the `.big` case is
+restated at equal specificity, and the block sits at the end of the file. Verified from the CSSOM: the press
+rule resolves at index 2455 against the hover rule's 1108, so it wins. This is the seventh instance of this
+collision in `styles.css`, and the first found by looking for it rather than by a regression.
+
+**How it was verified.** typecheck (pkgs + web), lint, 3433 tests, build:web. All five `:active` rules confirmed
+live in the CSSOM with their `:hover:active` pairs, the rule-order proof above, and hero select re-checked for
+layout — Back still `absolute` at (30, 24), which is the regression this same work caused last time.
+
+
 ## 2026-07-30 — the frame budget is 4.17 ms, and the perf HUD was calibrated to a monitor nobody owns
 
 **The problem, in one line: a fixed millisecond threshold silently encodes an assumed refresh rate.**

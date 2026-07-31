@@ -6876,3 +6876,70 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbydmg-float { position: fixed; z-index: 2000; pointer-events: none; will-change: transform, opacity;
   font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: -0.02em; color: #ff5d5d;
   text-shadow: 0 0 10px rgba(255, 60, 60, 0.55), 0 2px 0 rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.9); }
+
+/* ============================================================================================================
+   THE COMMIT STATE — cards, chips and rows.
+   ============================================================================================================
+   Cards ALREADY lift: a hero card rises 8px on hover, turns its border accent and reveals the hero's power; a
+   mode card rises 6px and reveals its description. What was missing is the COMMIT — you hovered, it lifted, you
+   clicked, and nothing moved until the screen changed. The choice you had just made was the one moment with no
+   feedback at all.
+
+   Direction chosen by the owner from three mocked side by side: the card travels PAST its resting place and
+   shrinks slightly — pressed into the table — which is the same physics as `.pressable`, so a card and a button
+   answer a click the same way. (The alternatives were collapsing the lift, and holding the lift while the ring
+   snapped tight; both read as their own idea rather than as this game's.)
+
+   A card is NOT given `.pressable`. It has no hard edge to collapse and no sheen; its language is lift-and-
+   reveal, and bolting a plaque onto it would state two metaphors at once. What the two share is the press
+   VECTOR, not the treatment.
+
+   SPECIFICITY, deliberately: `.herocard.big:hover` is (0,2,1). A plain `.herocard:active` is (0,1,1) and would
+   lose to it — you are always hovering while you click, so the large hero cards would silently never press. The
+   `.big` case is therefore restated at equal specificity, and this whole block sits at the END of the file so a
+   tie resolves here. This trap has cost this file six defects. */
+.herocard:active, .herocard:hover:active {
+  transform: translateY(3px) scale(0.984);
+  filter: brightness(0.94);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 55%, transparent), 0 4px 10px -8px rgba(0, 0, 0, 0.85);
+  transition-duration: 0.07s;
+}
+/* The large hero card carries no border or shadow of its own, so it presses on transform alone — giving it a
+   ring here would invent a frame the design deliberately removed. */
+.herocard.big:active, .herocard.big:hover:active {
+  transform: translateY(3px) scale(0.984);
+  filter: brightness(0.94);
+  box-shadow: none;
+  transition-duration: 0.07s;
+}
+.modecard:active, .modecard:hover:active {
+  transform: translateY(3px) scale(0.984);
+  filter: brightness(0.94);
+  transition-duration: 0.07s;
+}
+
+/* CHIPS — the button grammar at chip scale. A keyword chip had colour-only feedback: it changed tint on hover
+   and did nothing on press. 2px is the whole depth a 26px-tall pill can carry without looking like a mistake. */
+.book-kwchip {
+  box-shadow: 0 2px 0 var(--acc-dk);
+  transition: background 0.1s, border-color 0.1s, color 0.1s, transform 0.12s ease, box-shadow 0.12s ease;
+}
+.book-kwchip:hover { transform: translateY(-1px); box-shadow: 0 3px 0 var(--acc-dk); }
+.book-kwchip:active, .book-kwchip:hover:active {
+  transform: translateY(2px); box-shadow: 0 0 0 var(--acc-dk); transition-duration: 0.06s;
+}
+
+/* ROWS — a row is a SURFACE, not an object: it presses INTO the list rather than out of it. An offset edge under
+   a transparent row renders as a stray bar sitting in the gap, not as a button. */
+.gloss-row:active, .gloss-row:hover:active,
+.carmatch-head:active, .carmatch-head:hover:active {
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  transition-duration: 0.06s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .herocard:active, .herocard:hover:active, .herocard.big:active, .herocard.big:hover:active,
+  .modecard:active, .modecard:hover:active,
+  .book-kwchip:hover, .book-kwchip:active { transform: none; }
+}

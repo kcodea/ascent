@@ -110,6 +110,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   and Bloodbinder's ruby lance. Cost: +34 KB gzipped of JS, 29 KB of it a primitives chunk fetched lazily
   on mount rather than at first paint (the main chunk grows under 5 KB gzipped). The
   *authoring tool* stays dev-only; a test now pins that split in both directions.
+- **Cards and chips answer when you choose them.** Hero and mode cards already lifted on hover but did nothing
+  on click; they now press into the table, chips sink, and list rows press inward.
 - **Every button off the title screen now presses like the title screen** — real thickness, and a face that
   loses exactly the thickness it travels, so it compresses rather than slides. One extracted primitive, applied
   across nine screens.

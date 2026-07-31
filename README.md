@@ -44,6 +44,14 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The game now has a real speed limit — and the speed-o-meter was reading the wrong dial.** The target is
+  **240 frames a second** (with 360 as the stretch), which leaves about **4 milliseconds** to draw each
+  frame. The in-game performance readout had been judging frames against a 60-per-second monitor, so on the
+  display we actually play on it only complained after *eight* frames had already been dropped — it reported
+  a clean session while the game stuttered. It now measures the display it is running on and sets its own
+  thresholds from that, resists being fooled by a busy first second or a throttled tab, and records which
+  display a log came from so old logs stay readable. The budget itself is written down, along with the rule
+  that the **worst** frame is what counts, not the average.
 - **The gild opens without the hitch.** Combining three copies into a gilded card had a small stutter right as
   the animation started. It was not the gold glow or the flourish drawing — it was that the effect built two
   full-screen drawing surfaces the instant it began and wiped them clean every frame, though nothing is

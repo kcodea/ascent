@@ -1,5 +1,75 @@
 # ASCENT — development log
 
+## 2026-07-30 — the frame budget is 4.17 ms, and the perf HUD was calibrated to a monitor nobody owns
+
+**The problem, in one line: a fixed millisecond threshold silently encodes an assumed refresh rate.**
+
+`perfMonitor` shipped with `LONG_FRAME_MS = 33` and `JANK_MS = 50`. Those read as neutral "slow frame"
+numbers and are nothing of the kind — they are *2 and 3 frames at 60 Hz*. The owner plays on a **360 Hz**
+display and wants the whole game, combat and shop, comfortable at **240 Hz**. At 360 Hz a frame drops at
+~2.8 ms, so `long` only started counting after roughly **eight** dropped frames and `jank` after twelve:
+**the HUD reported a clean session while the game dropped frames continuously.** `docs/performance.md`
+stated the right thing qualitatively ("`worst` is the number that finds hitches") and gave no number at all,
+which is how, earlier the same day, a real and correctly-measured optimisation (the `plateGild` canvas fix,
+mean frame −24%) was signed off with a **16.7 ms worst frame** — fine at 60 Hz, **4× over budget** on the
+hardware the game is actually played on.
+
+**Docs — the budget is now written down.** `docs/performance.md` gains a §0: target **240 Hz / 4.17 ms**,
+stretch 360 Hz / 2.78 ms, and the flat statement that **`worst`, not mean, is the metric** — a mean
+improvement that leaves the worst frame where it was has not fixed anything a player can feel. The
+`plateGild` entry in the anti-patterns list is annotated with exactly that: the fix was real, the window is
+not closed. A new anti-pattern forbids writing a fixed ms threshold for "a slow frame" anywhere.
+
+**Engine — the thresholds are derived, not constant** (new `packages/ui/src/refreshRate.ts`, pure and fully
+unit-tested; hardcoding 240 would have been the same mistake one notch along).
+
+- **Detection.** `screen.refreshRate` is non-standard and absent everywhere we ship, so the only signal is
+  the rAF cadence. The naive read — the mean or median interval over a warm-up second — is exactly wrong:
+  the first second of a session is the most loaded second there is (module eval, shader link, first paint),
+  so a loaded warm-up reads as a low refresh rate and then under-reports forever. The fix is the *direction*
+  of the error: **load can only make an interval longer, never shorter**, so the refresh is the fastest
+  sustained cadence and the robust estimator is the **low decile** of the observed intervals. A window that
+  is 90% jank still reports the truth. A decile rather than the bare minimum because rAF occasionally
+  double-fires with a near-zero delta, which the minimum would latch onto.
+- **VRR.** A G-Sync display never holds a clean cadence, so a raw estimate wanders (143.2, 146.9, 141.8 …)
+  and the thresholds would wobble with it. Estimates **snap to a ladder of real panel rates** when within
+  6%, parking the whole neighbourhood on 144.
+- **Throttling can't re-baseline it.** `nextRefreshState` is deliberately asymmetric: a *faster* reading is
+  adopted immediately (nothing can manufacture a short interval, and under-reporting is the failure that
+  started this), a *slower* one needs **three consecutive, mutually-consistent** windows. A transient
+  throttle — occluded window, power saving, a browser intervention unrelated to our load — expires; dragging
+  the window onto a 60 Hz panel genuinely re-calibrates a few seconds later. Backgrounded buckets, which
+  `perfMonitor` already flags `hidden`, are never fed to the estimator at all.
+- **Sanity.** Anything outside **24–1000 Hz** is rejected as *no evidence* rather than clamped — clamping
+  would launder a broken sample into a confident-looking reading. `null` holds the current estimate and
+  breaks any pending slow streak.
+- **Derivation.** `long` = 2 frame intervals, `jank` = 3. At 60 Hz that is 33.3 / 50.0 — the historic
+  constants, bit for bit, so every log recorded before today stays comparable. At 240 Hz it is 8.33 / 12.5.
+
+**A second 60 Hz assumption fixed in passing:** `MAX_FRAMES_PER_BUCKET` was 256, so a 1s bucket on a 360 Hz
+display truncated and `fps` topped out at 256 on hardware doing 360. Now 1024 (the whole plausible band),
+and the buffer is allocated in `start()` instead of as a field initializer — so the **disabled path now
+allocates nothing at all**, which is strictly cheaper than before rather than 4 kB worse.
+
+**Interpretability.** Every bucket records the `hz` in force when it closed (`long: 0` means "smooth" at one
+refresh and "we weren't looking" at another), and the export header carries `display` (refresh + whether it
+was measured or assumed), the full `thresholds`, and the project `budget`. The HUD gained a
+`display · budget` row showing `240 Hz · 4.17 ms` (or `60 Hz (assumed)` before the first window closes),
+prints its own derived thresholds in the `long / jank` label, and colours each sparkline column against the
+calibration in force *when that column was recorded* rather than recolouring history.
+
+**Verified.** `npm run typecheck && npm run lint && npm test && npm run build:web` all green — 3417 tests
+across 186 files (lint: 0 errors, 7 pre-existing unused-import warnings, none in the touched files).
+26 new tests in `refreshRate.test.ts` pin the adversarial cases specifically, because a mis-derived
+threshold fails *silently*: a loaded warm-up (90% janking frames still reads 240), rAF double-fires, a
+throttled window, an absurd 20000 Hz / 5 Hz sample, VRR jitter across four amplitudes, an intermittent slow
+window that must never accumulate, mutually-inconsistent slow readings that must never corroborate each
+other, and a sustained slow rate that must. `perfMonitor.test.ts` pins that the same second reads clean at
+60 Hz and 2-long/1-jank at 240.
+
+**Follow-up:** the HUD is now honest about the 240 Hz budget, which means the numbers it reports will get
+worse overnight without anything having regressed. The gild's 16.7 ms worst frame is the first known item.
+
 ## 2026-07-30 — the gild hitch is the FX canvases, allocated 300ms before anything draws on them
 
 **The report.** "A similar hitch when gilding a card and having the gilded animation start." Similar to the

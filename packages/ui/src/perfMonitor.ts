@@ -27,20 +27,40 @@
  * The signal to watch is **p95 / worst frame time and the jank counts**, which is why they're on the HUD
  * face rather than buried. Backgrounding the tab throttles rAF to near zero; those buckets are flagged
  * `hidden` and excluded from the summary so an alt-tab doesn't masquerade as a stall.
+ *
+ * **`long` / `jank` are DERIVED from the measured display refresh**, not fixed milliseconds. They used to be
+ * 33 ms and 50 ms, which are 60 Hz numbers in disguise: on the owner's 360 Hz display a frame drops at
+ * ~2.8 ms, so `long` only counted after ~8 dropped frames and the HUD read clean while the game dropped
+ * frames continuously. `refreshRate.ts` estimates the panel from the rAF cadence and
+ * `thresholdsFor()` turns it into 2-frames / 3-frames (at 60 Hz that is exactly the old 33/50, so historic
+ * logs stay comparable). Every bucket records the `hz` in force when it closed, because a `long` count is
+ * uninterpretable without it. The target budget is in `docs/performance.md`.
  */
 
-/** A frame slower than this dropped at least one 60fps frame — the "not smooth" threshold. */
-const LONG_FRAME_MS = 33;
-/** A frame slow enough to read as a visible hitch rather than a stutter. */
-const JANK_MS = 50;
+import {
+  DEFAULT_REFRESH_HZ, estimateRefreshHz, initialRefreshState, nextRefreshState, thresholdsFor,
+  type FrameThresholds, type RefreshState,
+} from './refreshRate';
+
 /** Bucket width. 1s keeps the log readable over a full run without losing spikes (worst is kept per bucket). */
 const BUCKET_MS = 1000;
 /** ~40 min of buckets. Ring-buffered, so a long session drops its oldest rather than growing forever. */
 const MAX_BUCKETS = 2400;
 /** How often counters are sampled for their per-bucket PEAK. See `sampleCounters` for why not per bucket. */
 const COUNTER_SAMPLE_MS = 50;
-/** Frame timestamps per bucket. 1s at 120fps = 120; the cap only matters if rAF misbehaves. */
-const MAX_FRAMES_PER_BUCKET = 256;
+/**
+ * Frame intervals kept per bucket. Was 256 — another 60 Hz assumption: on a 360 Hz display a 1s bucket has
+ * 360 frames, so the cap truncated the tail and `fps` topped out at 256 on hardware doing 360. 1024 covers
+ * the whole plausible band (`MAX_REFRESH_HZ`) and costs 4 kB, allocated once — in `start()`, so the
+ * disabled path pays nothing for it.
+ */
+const MAX_FRAMES_PER_BUCKET = 1024;
+
+/** The thresholds in force. Re-derived when the refresh estimate moves; read once per bucket close, never
+ *  per frame. Exposed through `perfThresholds()` so consumers (the HUD) can't cache a stale copy. */
+let thresholds: FrameThresholds = thresholdsFor(DEFAULT_REFRESH_HZ);
+/** The derived frame thresholds currently in force, and the refresh they came from. */
+export const perfThresholds = (): FrameThresholds => thresholds;
 
 export interface PerfBucket {
   /** ms since monitoring started, at the bucket's end. */
@@ -50,9 +70,12 @@ export interface PerfBucket {
   med: number;
   p95: number;
   worst: number;
-  /** Frames over LONG_FRAME_MS / JANK_MS in this bucket. */
+  /** Frames over the derived long / jank thresholds in this bucket — see `hz`. */
   long: number;
   jank: number;
+  /** The display refresh (Hz) detected when this bucket closed, and therefore the calibration its `long`
+   *  and `jank` counts were measured against. Without it those counts cannot be read back. */
+  hz: number;
   /** Longest main-thread task in the bucket (PerformanceObserver 'longtask'), ms. 0 if unsupported. */
   task: number;
   /** Game context when the bucket closed — what makes a spike triageable. */
@@ -80,8 +103,13 @@ type CounterFn = () => number;
 type ContextFn = () => { phase?: string; wave?: number };
 
 /** Frame-time stats for one bucket. Pure + exported so the maths is unit-testable — the sampler itself is
- *  rAF- and DOM-bound and can't be exercised headlessly. */
-export function aggregateFrames(frameTimes: readonly number[], elapsedMs: number): {
+ *  rAF- and DOM-bound and can't be exercised headlessly. `th` defaults to the 60 Hz calibration so the
+ *  function stays total for callers that have no display context (tests, replaying an old log). */
+export function aggregateFrames(
+  frameTimes: readonly number[],
+  elapsedMs: number,
+  th: FrameThresholds = thresholdsFor(DEFAULT_REFRESH_HZ),
+): {
   fps: number; med: number; p95: number; worst: number; long: number; jank: number;
 } {
   const n = frameTimes.length;
@@ -90,8 +118,8 @@ export function aggregateFrames(frameTimes: readonly number[], elapsedMs: number
   let long = 0;
   let jank = 0;
   for (const f of sorted) {
-    if (f > LONG_FRAME_MS) long++;
-    if (f > JANK_MS) jank++;
+    if (f > th.longFrameMs) long++;
+    if (f > th.jankMs) jank++;
   }
   return {
     fps: +((n / elapsedMs) * 1000).toFixed(1),
@@ -170,8 +198,10 @@ class PerfMonitor {
   private bucketStart = 0;
   private hiddenDuringBucket = false;
 
-  /** Pre-allocated so the per-frame path never grows an array. */
-  private readonly frames = new Float32Array(MAX_FRAMES_PER_BUCKET);
+  /** Pre-allocated on `start()` so the per-frame path never grows an array — and so the DISABLED path
+   *  allocates nothing at all. (It used to be a field initializer, so the buffer was built at module load
+   *  whether or not anyone opted in; at the new 1024 capacity that would be 4 kB for nothing.) */
+  private frames = new Float32Array(0);
   private nFrames = 0;
   private longestTask = 0;
 
@@ -187,6 +217,8 @@ class PerfMonitor {
   private readonly buckets: PerfBucket[] = [];
   private observer: PerformanceObserver | null = null;
   private readonly listeners = new Set<(b: PerfBucket) => void>();
+  /** Running display-refresh estimate. Fed one window per bucket close — never per frame. */
+  private refresh: RefreshState = initialRefreshState();
 
   /** Opted in via `?perf=1` (sticky — it writes the flag) or `localStorage.ascent.perf`. Checked once. */
   static enabledByFlag(): boolean {
@@ -275,6 +307,7 @@ class PerfMonitor {
 
   start(): void {
     if (this.running || typeof window === 'undefined') return;
+    if (this.frames.length !== MAX_FRAMES_PER_BUCKET) this.frames = new Float32Array(MAX_FRAMES_PER_BUCKET);
     this.running = true;
     this.t0 = performance.now();
     this.lastFrame = this.t0;
@@ -305,7 +338,7 @@ class PerfMonitor {
   /** Per-frame work: one clock read and one store, plus a counter sample at most every COUNTER_SAMPLE_MS. */
   private readonly tick = (now: number): void => {
     if (!this.running) return;
-    if (this.nFrames < MAX_FRAMES_PER_BUCKET) this.frames[this.nFrames++] = now - this.lastFrame;
+    if (this.nFrames < this.frames.length) this.frames[this.nFrames++] = now - this.lastFrame;
     this.lastFrame = now;
     if (now - this.lastCounterSample >= COUNTER_SAMPLE_MS) {
       this.lastCounterSample = now;
@@ -359,8 +392,17 @@ class PerfMonitor {
 
     if (n === 0) return; // no frames at all (fully throttled) — nothing meaningful to record
 
-    // Percentiles over n <= 256 samples, once per second: negligible, and off the frame path.
-    const stats = aggregateFrames(Array.from(this.frames.subarray(0, n)), elapsed);
+    const intervals = Array.from(this.frames.subarray(0, n));
+    // Re-estimate the display refresh from this second's own intervals — no extra per-frame work, the
+    // sampler already recorded them. A HIDDEN bucket is never fed in: a backgrounded tab throttles rAF to
+    // near zero, which is the one input that could drag the estimate to the floor faster than the
+    // "slower must be corroborated" rule can absorb it. `null` means "no evidence", and holds the estimate.
+    if (!hidden) {
+      this.refresh = nextRefreshState(this.refresh, estimateRefreshHz(intervals));
+      thresholds = thresholdsFor(this.refresh.hz);
+    }
+    // Percentiles over n samples, once per second: negligible, and off the frame path.
+    const stats = aggregateFrames(intervals, elapsed, thresholds);
     // PEAK across the bucket, not the value at close — see `sampleCounters`.
     this.sampleCounters(); // one final sample so a bucket is never empty
     const counts: Record<string, number> = {};
@@ -374,6 +416,7 @@ class PerfMonitor {
     const bucket: PerfBucket = {
       t: Math.round(now - this.t0),
       ...stats,
+      hz: thresholds.refreshHz,
       task: +longestTask.toFixed(1),
       ...(ctx.phase !== undefined ? { phase: ctx.phase } : {}),
       ...(ctx.wave !== undefined ? { wave: ctx.wave } : {}),
@@ -388,6 +431,11 @@ class PerfMonitor {
     this.buckets.push(bucket);
     if (this.buckets.length > MAX_BUCKETS) this.buckets.shift();
     for (const fn of this.listeners) fn(bucket);
+  }
+
+  /** The display refresh currently believed, and whether that is measured or still the assumed default. */
+  get display(): { refreshHz: number; detected: boolean } {
+    return { refreshHz: this.refresh.hz, detected: this.refresh.detected };
   }
 
   latest(): PerfBucket | null { return this.buckets[this.buckets.length - 1] ?? null; }
@@ -405,7 +453,13 @@ class PerfMonitor {
         userAgent: navigator.userAgent,
         dpr: window.devicePixelRatio,
         viewport: { w: window.innerWidth, h: window.innerHeight },
-        thresholds: { longFrameMs: LONG_FRAME_MS, jankMs: JANK_MS, bucketMs: BUCKET_MS },
+        // WITHOUT these a saved log is uninterpretable: `long: 0` means "smooth" at one refresh and
+        // "we weren't looking" at another. `display.detected` distinguishes a measured panel from the
+        // assumed 60 Hz default (a session too short to ever close a visible bucket).
+        display: { ...this.display, frameBudgetMs: thresholds.frameMs },
+        thresholds: { ...thresholds, bucketMs: BUCKET_MS },
+        // The project's stated target, so a log can be judged without going back to the docs.
+        budget: { targetHz: 240, targetMs: 4.17, stretchHz: 360, stretchMs: 2.78 },
         summary: this.summary(),
         buckets: this.buckets,
       }, null, 2)],
@@ -422,4 +476,4 @@ class PerfMonitor {
 
 export const perfMonitor = new PerfMonitor();
 export const perfEnabledByFlag = (): boolean => PerfMonitor.enabledByFlag();
-export { LONG_FRAME_MS, JANK_MS };
+export type { FrameThresholds } from './refreshRate';

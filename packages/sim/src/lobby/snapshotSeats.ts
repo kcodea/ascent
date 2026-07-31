@@ -1,3 +1,4 @@
+import type { SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import { OPPONENT_POOL } from '../opponents';
 import { botSeat, recordedSeat, type SeatPolicy } from './seats';
@@ -34,11 +35,21 @@ const MIN_WAVES = 4;
  * Synthetic boards are excluded: they are generated per-wave against a power curve and were never a single
  * player's run, so stringing them together would fake a build order that never existed.
  */
-export function playerRunsFrom(pool: readonly BoardSnapshot[] = OPPONENT_POOL, minWaves = MIN_WAVES): PlayerRun[] {
+export function playerRunsFrom(
+  pool: readonly BoardSnapshot[] = OPPONENT_POOL,
+  minWaves = MIN_WAVES,
+  /** The SET the asking run is pinned to. Boards from another set are excluded outright — their minions are
+   *  that set's cards, so seating one would field set-1 bodies against a set-2 board. Filtered HERE rather than
+   *  at registration for the same reason `nextOpponent` does it: the registry is shared across every run in the
+   *  session, and two runs on different sets must both find their own boards. Absent = no filter, which is what
+   *  the tools and tests that predate sets expect. */
+  setId?: SetId,
+): PlayerRun[] {
   const byRun = new Map<string, BoardSnapshot[]>();
   for (const s of pool) {
     if ((s.origin ?? 'house') === 'synthetic') continue;
     if (!s.minions?.length) continue;
+    if (setId && (s.setId ?? 'set1') !== setId) continue; // legacy boards predate sets → they are set 1
     const key = `${s.author ?? 'anon'}|${s.heroId}|${s.seed}`;
     const list = byRun.get(key);
     if (list) list.push(s);
@@ -59,8 +70,8 @@ export function playerRunsFrom(pool: readonly BoardSnapshot[] = OPPONENT_POOL, m
 }
 
 /** Look one up by key. Returns null when the pool of this session doesn't contain that run. */
-export const playerRunByKey = (key: string, pool: readonly BoardSnapshot[] = OPPONENT_POOL): PlayerRun | null =>
-  playerRunsFrom(pool).find((r) => r.key === key) ?? null;
+export const playerRunByKey = (key: string, pool: readonly BoardSnapshot[] = OPPONENT_POOL, setId?: SetId): PlayerRun | null =>
+  playerRunsFrom(pool, MIN_WAVES, setId).find((r) => r.key === key) ?? null;
 
 /**
  * A seat driven by a real player's run: their actual boards while the recording lasts, then a live bot.

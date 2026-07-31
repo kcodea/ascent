@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-07-31 — Lobbies now respect the card set (they did not)
+
+Found while answering the owner's question "if I turn set 1 off and set 2 on, will lobbies stop serving set-1
+boards, or do I need to wipe the DB?" — the answer was **no, and no**.
+
+Ascent matchmaking has filtered snapshots by set since the sets work landed (`nextOpponent`, deliberately at
+PICK time so two runs on different sets each find their own boards). The LOBBY path never did: `createRunLobby`
+called `playerRunsFrom()` with no set at all. Flipping the live set to 2 would have seated set-1 recordings —
+and it would have WORKED, fielding set-1 minions against a set-2 board. The only symptom is cards appearing
+that the run could never otherwise see, which is the kind of thing that reads as a balance mystery for weeks.
+
+`playerRunsFrom` / `playerRunByKey` take an optional `setId` and filter exactly as `nextOpponent` does (absent =
+no filter, which the tools and pre-sets tests rely on). `createLobbyRun` passes the run's pinned set, and the
+lobby STORES it: a seat only keeps a `runKey` (`author|hero|seed`), which says nothing about the set, so without
+it a restored lobby would fall back to the unfiltered pool. Threaded into `driverFor` for the same reason.
+
+**No DB wipe is needed, and it would have been the wrong fix twice over**: it does not prevent the bug (new
+set-1 boards reappear the moment anyone plays set 1) and it throws away recordings that are correct for set 1.
+
+Verified: 4 new tests (the filter both ways, a set-2 lobby seating only resolvable set-2 runs, the lobby
+recording its set for restores, and the unfiltered call still seeing everything), 3406 tests, typecheck (both),
+lint, build:web, harness determinism.
+
 ## 2026-07-31 — Runeforge timing: hero forges to 5 / 8 (the SYSTEM was already 6 / 9)
 
 Owner correction. The ask was about the runeforge SYSTEM — every player visits the basic forge on turn 6 and the

@@ -180,7 +180,18 @@ const SIZE_VARS = ['--cw', '--ch', '--ccw', '--scale', '--u', '--c', '--c2', '--
   '--card-scale', '--ui-scale', '--plate-scale', '--plate-top', '--arch-radius', '--sh', '--fill',
   '--dy', '--frameY', '--tier', '--artY', '--artZoom', '--frame-tone', '--fovl', '--fovl-a', '--fovl-blend'];
 
-function cloneCard(src: HTMLElement): HTMLElement {
+/** The zone-driven size vars a clone needs, resolved once off the source card. */
+function readSizeVars(src: HTMLElement): [string, string][] {
+  const cs = getComputedStyle(src);
+  const out: [string, string][] = [];
+  for (const v of SIZE_VARS) {
+    const val = cs.getPropertyValue(v);
+    if (val) out.push([v, val]);
+  }
+  return out;
+}
+
+function cloneCard(src: HTMLElement, sizeVars: [string, string][]): HTMLElement {
   const el = src.cloneNode(true) as HTMLElement;
   /* `cloneNode` copies EVERY attribute, and two of them make other machinery grab the clone as if it were a
      real card. `data-flip-id` is GSAP Flip's identity stamp: the moment the triple re-renders the hand,
@@ -209,11 +220,9 @@ function cloneCard(src: HTMLElement): HTMLElement {
   // element's own width — so a clone appended to <body> loses them, lays out at some unrelated size, and the
   // plate (positioned `left:50%` of the card box) slides out of register with the frame inside it. Copy the
   // resolved values across so the clone renders identically wherever it lives.
-  const cs = getComputedStyle(src);
-  for (const v of SIZE_VARS) {
-    const val = cs.getPropertyValue(v);
-    if (val) el.style.setProperty(v, val);
-  }
+  // Resolved ONCE for the whole run and passed in (`readSizeVars`): every clone is a clone of the SAME card,
+  // so reading its computed style per clone was three identical style resolutions instead of one.
+  for (const [v, val] of sizeVars) el.style.setProperty(v, val);
   const from = src.querySelectorAll('canvas');
   const to = el.querySelectorAll('canvas');
   for (let i = 0; i < to.length && i < from.length; i++) {
@@ -282,19 +291,44 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
   scrim.style.cssText = `position:fixed;inset:0;background:#05040a;opacity:0;pointer-events:none;z-index:300`;
   document.body.appendChild(scrim);
 
-  const fxCv = document.createElement('canvas');
-  fxCv.width = vw; fxCv.height = vh;
-  fxCv.style.cssText = `position:fixed;left:0;top:0;width:${vw}px;height:${vh}px;pointer-events:none;z-index:305`;
-  const flCv = document.createElement('canvas');
-  flCv.width = vw; flCv.height = vh;
-  flCv.style.cssText = `position:fixed;left:0;top:0;width:${vw}px;height:${vh}px;pointer-events:none;z-index:301`;
-  document.body.appendChild(flCv);   // flourish BEHIND the cards (owner call)
-  const ctx = fxCv.getContext('2d'), flx = flCv.getContext('2d');
+  /* THE TWO FX CANVASES ARE CREATED LAZILY — measured, 2026-07-30.
+     Each is a FULL-VIEWPORT compositing layer (2048×962 on the owner's window), and neither is drawn to until
+     well into the run: the motes start at `mergeStart` (~260ms) and the flourish at the crown (~330ms). Built
+     up front, they still cost the browser a layer allocation plus a full-screen `clearRect`/`fillRect` EVERY
+     frame from frame 1 — over nothing. That landed squarely in the 120ms window where the owner feels the
+     gild "hitch as it starts": with the flourish canvas alone deferred, the mean frame in that window fell
+     from 7.04ms to 6.29ms, and with both canvases' clears skipped, to 6.14ms (median of 6 real triples).
+     They are still full-viewport when they DO exist, so nothing about the drawing changed — only WHEN the
+     layer starts existing and being cleared. `z-index` (301 behind the cards, 305 in front) decides paint
+     order, not DOM order, so appending late is safe. */
+  let fxCv: HTMLCanvasElement | null = null, ctx: CanvasRenderingContext2D | null = null;
+  let flCv: HTMLCanvasElement | null = null, flCtx: CanvasRenderingContext2D | null = null;
+  const makeCanvas = (z: number): HTMLCanvasElement => {
+    const cv = document.createElement('canvas');
+    cv.width = vw; cv.height = vh;
+    cv.style.cssText = `position:fixed;left:0;top:0;width:${vw}px;height:${vh}px;pointer-events:none;z-index:${z}`;
+    document.body.appendChild(cv);
+    return cv;
+  };
+  /** The mote/burst canvas, in FRONT of the cards. Null until the first mote wants it. */
+  const needFx = (): CanvasRenderingContext2D | null => {
+    if (!fxCv) { fxCv = makeCanvas(305); ctx = fxCv.getContext('2d'); }
+    return ctx;
+  };
+  /** The flourish canvas, BEHIND the cards (owner call). Null until the flourish wants it. */
+  const needFl = (): CanvasRenderingContext2D | null => {
+    if (!flCv) { flCv = makeCanvas(301); flCtx = flCv.getContext('2d'); }
+    return flCtx;
+  };
 
-  // three flying clones, all plain — the survivor regains `.golden` at the crown so you watch it turn
+  // three flying clones, all plain — the survivor regains `.golden` at the crown so you watch it turn.
+  // They go in through ONE fragment: appending them one by one gave the browser three separate chances to
+  // recalculate style for a card-sized subtree in the frame the gild opens.
   const flyers: HTMLElement[] = [];
+  const sizeVars = readSizeVars(card);
+  const frag = document.createDocumentFragment();
   for (let i = 0; i < n; i++) {
-    const el = cloneCard(card);
+    const el = cloneCard(card, sizeVars);
     el.classList.remove('golden');
     // NO width/height: the clone sizes itself from the vars copied in `cloneCard`, exactly as it did in its
     // row. It is pinned at left/top 0, so it MUST be both transformed to centre and left transparent before
@@ -304,13 +338,13 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
       + `z-index:${i === n - 1 ? 304 : 303};transform-origin:50% 50%;`
       + `transform:translate(${CENTRE.x - W / 2}px, ${CENTRE.y - H / 2}px) scale(${c.centreScale * 0.88});`;
     el.style.setProperty('opacity', '0', 'important');
-    document.body.appendChild(el);
+    frag.appendChild(el);
     flyers.push(el);
   }
+  document.body.appendChild(frag);
   // the plate is what the rig's px quantities were dialed against; fall back to the card box if unplated
   const plateW = flyers[0].querySelector<HTMLElement>('.cardplate')?.getBoundingClientRect().width || W;
   const k = plateW / REF_W;
-  document.body.appendChild(fxCv);   // streams + burst in FRONT of the cards
   const heroEl = flyers[flyers.length - 1];
 
   // gold wireframe over the survivor
@@ -349,10 +383,19 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
     ctx.drawImage(spr, x - r, y - r, r * 2, r * 2);
   };
 
+  /* True once the flourish has painted, so the ONE clear it still needs (when it leaves the screen) happens
+     and no more. Before that there is nothing on the canvas — and no canvas — to clear. */
+  let flPainted = false;
   const drawFlourish = (p: number, cx: number, cy: number): void => {
+    if (c.flourishType === 'none') return;
+    if (p <= 0 || p >= 1) {
+      if (flPainted && flCtx) { flCtx.clearRect(0, 0, vw, vh); flPainted = false; }
+      return;
+    }
+    const flx = needFl();
     if (!flx) return;
     flx.clearRect(0, 0, vw, vh);
-    if (c.flourishType === 'none' || p <= 0 || p >= 1) return;
+    flPainted = true;
     const grow = 1 - Math.pow(1 - p, 2.2);
     const fade = p < 0.25 ? p / 0.25 : 1 - (p - 0.25) / 0.75;
     const R = plateW * c.flSize * grow;
@@ -404,11 +447,13 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
   };
 
   const t0 = performance.now();
+  const art = heroEl.querySelector<HTMLElement>('.art');
+  let lastFlash = '';
   let raf = 0, goldOn = false;
   const done = (): void => {
     cancelAnimationFrame(raf);
     for (const el of flyers) el.remove();
-    scrim.remove(); fxCv.remove(); flCv.remove();
+    scrim.remove(); fxCv?.remove(); flCv?.remove();   // the two canvases only exist if a beat asked for them
     // NOT `removeProperty('opacity')`: by here the hand-off below has already given the real card its own
     // `opacity: 1 !important`, which the buy slide clears when IT finishes. Clearing it here would drop the
     // card back to whatever `.popin` is mid-way through — a flicker right as it settles.
@@ -477,6 +522,12 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
     scrim.style.opacity = String(c.scrim * Math.min(1, ms / Math.max(1, c.inMs)) * (1 - oa));
 
     // ---- streams + burst ----
+    /* The motes don't exist until the merge, so neither does their canvas: before `mergeStart` there is
+       nothing to smear and nothing to smear it onto, and a full-viewport `fillRect` per frame over an empty
+       layer was pure cost in the window where the gild opens. Once the merge has started the canvas is made
+       and the per-frame trail-dim resumes exactly as before, including after the last mote dies (the smear
+       has to keep fading). */
+    if (ms >= T.mergeStart || (ms >= T.crown && bursts.length > 0)) needFx();
     if (ctx) {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = `rgba(0,0,0,${1 - c.trail})`;
@@ -516,11 +567,15 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
     const wOut = Math.max(0, Math.min(1, (ms - (T.crown + T.wireIn + T.wireHold)) / T.wireOut));
     imp.style.opacity = String(crownP * (1 - wOut) * c.wireInten);
     const flash = crownP * (1 - wOut) * c.cardFlash;
-    const art = heroEl.querySelector<HTMLElement>('.art');
+    /* `art` is resolved ONCE (it was a `querySelector` per frame), and the filter is only written when the
+       string actually changes. `filter` is a paint property: writing it invalidates the card art's paint even
+       when the value is identical, and for the whole first half of the run `flash` is 0, so this was
+       re-asserting `filter: ''` on every frame of the beat where the gild opens. */
     if (art) {
-      art.style.filter = flash > 0
+      const f = flash > 0
         ? `brightness(${1 + flash * 0.55}) saturate(${1 + flash * 0.5}) drop-shadow(0 0 ${18 * k * flash}px ${rgba(c.cMid, 0.9)})`
         : '';
+      if (f !== lastFlash) { art.style.filter = f; lastFlash = f; }
     }
     drawFlourish((ms - T.crown) / Math.max(1, T.flMs), hero.x, hero.y);
 

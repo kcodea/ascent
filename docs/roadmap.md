@@ -168,6 +168,15 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+### The gild's remaining setup tail (opened 2026-07-30)
+The gild's own opening cost is down 24% (see the devlog), but the **worst single frame** in the first 120ms of
+a triple is unchanged at ~16.7ms. What is left is not the effect: it is the triple's React commit plus the
+first paint of three cloned, 1.5×-scaled card subtrees landing on the same frames. Worth a pass only if the
+owner still feels it — the options are fewer or cheaper clones, or letting the commit land a frame before the
+effect opens. Measure with the setup/body `rAF`-interval harness described in the devlog entry, against a
+buy-that-does-not-triple control.
+
+
 ### Dev tuner migration — done bar two panels (updated 2026-07-30)
 The schema (`tunerSchema.ts`) and the shared `TunerPanel` now carry **46 of 48** panels, spanning 2 to 48
 controls. What is left, and what the migration left owing:

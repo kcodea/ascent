@@ -30,8 +30,8 @@ export type HeroPowerKind =
   | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
   | 'recurringGoldcrafter' // Gildmaster (passive): get a Goldcrafter (gild-a-minion spell) every 4 turns
-  | 'runeforge' // Runesmith (passive): on turn 7 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
-  | 'epicRuneforge' // Guardian (passive): the EPIC Runeforge opens on turn 10 (scheduled via `epicForgeWave` at run start)
+  | 'runeforge' // Runesmith (passive): on turn 5 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
+  | 'epicRuneforge' // Guardian (passive): the EPIC Runeforge opens on turn 8 (scheduled via `epicForgeWave` at run start)
   | 'pathfinder' // Coran (passive): a bonus late-bucket (Capstone) quest on turn 10, on top of the normal 5 & 11
   | 'dynamiteDig' // Jensen: Discover a minion of your tier — free first, +1 Gold each later use (active, untargeted)
   | 'dragonTamer' // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
@@ -357,8 +357,8 @@ export const HEROES: HeroDef[] = [
       name: 'Forgemaster',
       kind: 'runeforge',
       passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
-      oncePerGame: true, // the forge opens exactly once, on turn 7
-      text: 'On turn 7, visit the Runeforge.',
+      oncePerGame: true, // the forge opens exactly once, on turn 5
+      text: 'On turn 5, visit the Runeforge.',
     },
   },
   {
@@ -370,8 +370,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Runeguard',
       kind: 'epicRuneforge',
-      passive: true, // scheduled at run start (createRun sets `epicForgeWave = 10`); opens via advanceCombat sequencing
-      text: 'On turn 10, visit the Epic Runeforge.',
+      passive: true, // scheduled at run start (createRun sets `epicForgeWave = 8`); opens via advanceCombat sequencing
+      text: 'On turn 8, visit the Epic Runeforge.',
     },
   },
   {

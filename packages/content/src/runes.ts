@@ -2,8 +2,8 @@ import type { RuneDef } from '@game/core';
 import { RuneDefSchema } from './schema';
 
 /**
- * Runes — the Basic Runeforge stock (opened by the Runesmith hero on turn 7; the Epic Runeforge — via the
- * Runeguard hero on turn 12, or the Epic Commission quest — draws from EPIC_RUNES below). The forge offers a
+ * Runes — the Basic Runeforge stock (opened by the Runesmith hero on turn 5; the Epic Runeforge — via the
+ * Runeguard hero on turn 8, or the Epic Commission quest — draws from EPIC_RUNES below). The forge offers a
  * random few of these; the player buys ONE
  * for its Gold `cost` and its `reward` applies for the rest of the run (no objective — it just takes effect).
  * Each rune reuses the quest `QuestReward` application engine (see `applyQuestReward`), so a rune's effect is a

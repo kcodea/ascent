@@ -11,9 +11,9 @@ import { applyEndOfTurn, noteFodderConsumed, projectEndOfTurnSteps, questEndOfTu
 /** A 1/1 Beast board card (id 'alley') for board-setup tests. */
 const mkAlley = (uid: string): RunState['board'][number] => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
 
-/** A Runesmith run parked at wave-6 combat, ready for `resolveCombat` → the turn-7 Runeforge. */
+/** A Runesmith run parked at wave-4 combat, ready for `resolveCombat` → the turn-5 Runeforge. */
 const atForgeCombat = (over: Partial<RunState> = {}): RunState => ({
-  ...createRun(1, 'runesmith'), wave: 6, phase: 'combat', embers: 10,
+  ...createRun(1, 'runesmith'), wave: 4, phase: 'combat', embers: 10,
   lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
   ...over,
 });
@@ -35,9 +35,9 @@ describe('Runeforge — framework', () => {
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
-  it('opens on turn 7 for Runesmith with a random 4 distinct runes', () => {
+  it('opens on turn 5 for Runesmith with a random 4 distinct runes', () => {
     const s = reduce(atForgeCombat(), { type: 'resolveCombat' });
-    expect(s.wave).toBe(7);
+    expect(s.wave).toBe(5);
     expect(s.runeforgeOffer).toBeDefined();
     expect(s.runeforgeOffer!.length).toBe(4);
     expect(new Set(s.runeforgeOffer).size).toBe(4); // no duplicates
@@ -769,12 +769,12 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
   const buyEpic = (runeId: string): RunState =>
     reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
 
-  it('Guardian: Runeguard — 13 armor + schedules the Epic Runeforge for turn 10', () => {
+  it('Guardian: Runeguard — 13 armor + schedules the Epic Runeforge for turn 8', () => {
     const s = createRun(1, 'runeguard');
     expect(s.armor).toBe(13);
-    expect(s.epicForgeWave).toBe(10);
-    const next = reduce({ ...s, wave: 9, phase: 'combat', epicForgeWave: 10, lastCombat: win }, { type: 'resolveCombat' });
-    expect(next.wave).toBe(10);
+    expect(s.epicForgeWave).toBe(8);
+    const next = reduce({ ...s, wave: 7, phase: 'combat', epicForgeWave: 8, lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(8);
     expect(next.runeforgeEpic).toBe(true);
   });
 

@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-07-31 — Runeforge timing: hero forges to 5 / 8 (the SYSTEM was already 6 / 9)
+
+Owner correction. The ask was about the runeforge SYSTEM — every player visits the basic forge on turn 6 and the
+Epic on turn 9 — which `CONFIG.runeforgeEnabled` already did. I misread it as a request to unify every path and
+retimed the two hero powers to match, which was a design decision that was not mine to make.
+
+Corrected to what the owner actually wants: **Runesmith's forge is turn 5, Runeguard's Epic is turn 8** — one
+turn AHEAD of the system's 6 / 9, so a runeforge hero is early to the forge rather than redundant with a system
+that would have opened one anyway. (They were 7 and 10 before; the docs said 12, so the Guardian entry had been
+stale for a while and is now correct too.)
+
+The universal system is untouched at 6 / 9, and `CONFIG.runeforgeEnabled` stays **false** — turning it on is the
+owner's call, not a side effect of a timing change.
+
+Swept every stale reference rather than just the code: hero power text (player-facing), the `HeroPowerKind`
+comments, `runes.ts`'s header, `config.ts`, `GAME-RULES.md`, and 4 tests. `rifts.test.ts` was deliberately left
+alone — it exercises the RIFT path with a non-forge hero, so the hero timing does not apply to it.
+
+Verified: typecheck (both), lint (7 pre-existing), 3402 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Three renames — and Set 2 minion art is COMPLETE
 
 Lastlight Marshal → **Lastlight**, Tallymonger → **Void Curator**, Revolving Maw → **Hellrider**. Card IDs are

@@ -2504,9 +2504,11 @@ function advanceCombat(s: RunState): void {
   // turn 7, no turn-5 quest) are folded into `questOfferPlan`.
   const questPlan = questOfferPlan(s);
   const questOffer = questPlan ? generateQuestOffer(s, questPlan) : [];
-  // Runesmith: the Runeforge opens exactly once, on turn 7 — offer a random 3 of the runes for the player to buy
+  // Runesmith: the Runeforge opens exactly once, on turn 5 — offer a random 3 of the runes for the player to buy
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
-  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 7 && !s.heroPowerSpent;
+  // The HERO forge is turn 5 — deliberately EARLIER than the universal system's turn-6 basic forge, so a
+  // Runesmith is ahead of the curve rather than redundant with it (owner 2026-07-31).
+  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 5 && !s.heroPowerSpent;
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
@@ -2540,7 +2542,7 @@ function advanceCombat(s: RunState): void {
   // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
   if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
   // Runeforge system: EVERY hero visits the Epic Runeforge on turn 9 (free — openEpicRuneforge flags it
-  // no-charge). Independent of Runeguard's own epic forge on turn 12, which its power schedules separately.
+  // no-charge). Independent of Runeguard's own epic forge on turn 8, which its power schedules separately.
   if (CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
   // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
   s.pendingForgeDeferred = false;

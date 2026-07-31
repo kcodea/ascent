@@ -1,7 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
+import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
 import { QuestCard } from './QuestCard';
@@ -1466,6 +1468,9 @@ export function Recruit() {
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
   const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // Each hand card's LAYOUT x (offsetLeft) as of the previous commit — the make-room glide's "from". Layout,
+  // not a rect, so no transform (hover zoom, drag slide, live glide) can ever leak into it.
+  const handLeftsRef = useRef<Map<string, number>>(new Map());
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
   const commitRectsRef = useRef<Map<string, number> | null>(null);
@@ -3138,16 +3143,68 @@ export function Recruit() {
         onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
       });
     };
-    /* ONLY a drag-reorder glides here. A general "make room on any hand-count change" pass was added and
-       REVERTED (2026-07-27) — see the devlog: capturing `Flip.getState` outside a drag records the CSS
-       hover `scale(1.06)` in the card's bounds, and Flip (without `scale: true`) morphs width/height, so the
-       hover scale got baked into inline layout width and compounded on every interaction. The drop-time
-       capture below is safe precisely because `body.dragging` neutralises that hover rule (styles.css). */
+    /* A drag-REORDER is Flip's: it captures at drop time, while `body.dragging` neutralises the `:hover`
+       rule, so its measurement can't be polluted (styles.css). Everything else goes through the CSS
+       `--hand-glide` channel below — never Flip — because a capture taken outside a drag WOULD see that
+       hover `scale(1.06)`, and Flip morphs width/height from what it measures (see the 2026-07-28 devlog). */
     const st = handReorderFlipRef.current;
     if (!st) return;
     handReorderFlipRef.current = null;
     glide(st);
   }, [handOrderKey]);
+
+  /* ---- MAKE ROOM / CLOSE THE GAP when the hand's card count changes (owner ask 2026-07-27) -------------
+     A buy, a play, a cast — anything that adds or removes a hand card — re-centres the fan, and every other
+     card would blink to its new slot. Seed each survivor with the delta back to where it just sat, then
+     release it to 0 so the row's own `transition: transform` carries it home.
+
+     Measured with **`offsetLeft`, not a rect**: offsetLeft is the pure LAYOUT position and is immune to any
+     transform — the hover zoom, the drag's make-room slide, an in-flight glide. That is the whole reason
+     this replaced the Flip version, which measured rects and baked the hover scale into layout width. (The
+     warband's commit FLIP documents the same offsetLeft-vs-rect reasoning.)
+
+     Skipped mid-drag: the drag owns the row's motion through `handSlidePx`, and the pre-emptive slide has
+     already opened the gap. On the drop commit the drag is over, and because offsetLeft ignored the slide
+     transforms the delta we seed is exactly where the card visually sits — so it continues rather than
+     snapping back. Entering cards have no previous position and are skipped; `playBuySlide` owns those. */
+  useLayoutEffect(() => {
+    if (inCombat || dragRef.current?.active) return;
+    const prev = handLeftsRef.current;
+    const els = [...document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')];
+    const moved: HTMLElement[] = [];
+    for (const el of els) {
+      const old = prev.get(el.dataset.uid ?? '');
+      if (old === undefined) continue;                 // just arrived — not ours to move
+      const d = old - el.offsetLeft;
+      if (Math.abs(d) < 0.5) continue;                 // didn't move
+      el.style.setProperty('transition', 'none');      // seed instantly, or the seed itself animates
+      el.style.setProperty('--hand-glide', `${d}px`);
+      moved.push(el);
+    }
+    if (moved.length === 0) return;
+    void document.body.offsetWidth;                    // commit the seed before releasing it
+    for (const el of moved) {
+      el.style.removeProperty('transition');           // hand the motion back to the CSS transition
+      el.style.setProperty('--hand-glide', '0px');
+    }
+    // Deliberately NO cleanup timer: the var settles at `0px`, which is what the default already resolves
+    // to, so leaving it inline is inert. A timer here would be one more hold to leak (see the 2026-07-27
+    // stuck-cue audit).
+  }, [handOrderKey, inCombat]);
+
+  /* Every hand card's layout x, refreshed each commit for the glide above. Declared AFTER it so that within
+     one commit the glide reads the PREVIOUS frame's positions and this then overwrites them. One forced
+     layout over at most `CONFIG.handMax` cards — the same shape as the warband's `commitRectsRef`. */
+  useLayoutEffect(() => {
+    if (inCombat) { handLeftsRef.current.clear(); return; }
+    perfMonitor.measure('layout:handglide', () => {
+      const next = new Map<string, number>();
+      for (const el of document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')) {
+        next.set(el.dataset.uid ?? '', el.offsetLeft);
+      }
+      handLeftsRef.current = next;
+    });
+  });
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
   const fireSpark = (x: number, y: number): void => {
@@ -3794,7 +3851,6 @@ export function Recruit() {
                 u={u}
                 side="foe"
                 anim={replay.anims[u.uid]}
-                floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 statHold={replay.statHoldFor(u.uid)}
@@ -3847,7 +3903,6 @@ export function Recruit() {
                 u={u}
                 side="you"
                 anim={replay.anims[u.uid]}
-                floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 statHold={replay.statHoldFor(u.uid)}
@@ -3983,16 +4038,58 @@ export function Recruit() {
           />
         ))}
 
-      {/* Killing-blow damage numbers for units that died this beat — rendered here, not inside the unit
-          (which collapses + is removed), so the number reads + lingers at the spot the minion fell. */}
-      {fighting &&
-        replay.deathFloats.map((f) => (
-          <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
-            <span className={`float ${f.kind}`}>{f.text}</span>
-          </div>
-        ))}
+      {/* ── Combat damage numbers, PORTALLED TO <body> ────────────────────────────────────────────────
+          Damage numbers, keyword glyphs and the max-Gold pill used to render as children of their `<Unit>`,
+          where the Pixi FX canvas covered them (the owner's "death-dissolve plays over the damage number"
+          report). TWO nested stacking traps caused that, and the fix has to clear BOTH:
 
-      {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value). */}
+            1. `.unit` is its own stacking context in combat (`.attacking` z8, `.struck` z12, `.reborn` z14),
+               so an in-unit float's `z-index: 25` only ordered it against its own card — globally it painted
+               at 8/12/14, under `.pixifx` (z110). No canvas z-index can fix that from inside the unit: pick
+               20 and it covers the number on a struck unit; pick 7 and every effect drops under the unit.
+            2. `.app` is itself `position: relative; z-index: 1` and a SIBLING of `.pixifx` under `#root` —
+               so nothing rendered anywhere inside `.app` can beat the canvas either, at any z-index. (Browser-
+               verified: an anchor at z112 inside `.app` still lost the `elementFromPoint` test to `.pixifx`;
+               the same node appended to <body> won it.)
+
+          Hence the portal: these overlays mount beside `.pixifx` in the ROOT stacking context, where
+          `.floatanchor`/`.deathfloat` (z112) genuinely outrank it. Same house pattern as `Card`'s hover
+          reveal. They're `pointer-events: none`, so nothing about input changes.
+
+          Each `.floatanchor` reproduces the unit's card box (centre + footprint SNAPSHOT at spawn — see
+          `spawnFloats`), so every per-kind CSS rule and both keyframes still resolve against a card-sized box
+          exactly as they did inside the unit. */}
+      {fighting &&
+        createPortal(
+          <>
+            {replay.floats.map((f) => {
+              const sym = SYM_KINDS.has(f.kind);
+              return (
+                <div
+                  key={`float-${f.id}`}
+                  className={`floatanchor${sym ? ' symanchor' : ''}`}
+                  style={{ left: f.x, top: f.y, width: f.w, height: f.h } as CSSProperties}
+                  aria-hidden="true"
+                >
+                  <span className={`float ${f.kind}${sym ? ' sym' : ''}`}>{f.text}</span>
+                </div>
+              );
+            })}
+            {/* Killing-blow numbers for units that died this beat — never inside the unit (which collapses +
+                is removed), so the number reads + lingers at the spot the minion fell. */}
+            {replay.deathFloats.map((f) => (
+              <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties} aria-hidden="true">
+                <span className={`float ${f.kind}`}>{f.text}</span>
+              </div>
+            ))}
+          </>,
+          document.body,
+        )}
+
+      {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value).
+          Deliberately NOT portalled with the combat numbers above: this is the shop, where the only thing on
+          the FX canvas is the sell-coin sprinkle — which is meant to read as coins spilling AROUND the pill,
+          not as something burying a damage number. Moving it would be churn for a defect nobody has. */}
       {sellFloats.map((f) => (
         <div key={`sell-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
           {/* Above-base sells (Hoarder, Trail Forager, Rune of Bartering) float GREEN so the bonus reads. */}

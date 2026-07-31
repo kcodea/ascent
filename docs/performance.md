@@ -324,14 +324,30 @@ These are the rules the audits surfaced; the codebase already follows them — k
 - **Don't read layout (`getBoundingClientRect`, `elementFromPoint`) per frame**, especially after a style
   write — that forces a synchronous reflow (layout thrash). Cache rects once per drag in a ref (see
   `targetRectsRef` / `insertRectsRef` in `Recruit.tsx`).
+  The legitimate alternative for event-driven visuals is **one read at spawn, then never again**: FX anchors
+  (`fx/playDef.ts`) and combat floats (`choreo/channels/float.ts`) each take a single `layoutRectOf` reading
+  when they fire and hold it for their whole (sub-second) life. Measured cost of a burst's worth: 8 reads is
+  0.00 ms median / 0.10 ms p95. Something that must genuinely *track* a moving unit wants an attached
+  primitive, not a per-frame re-read.
 - **Memoize list items rendered every beat/frame.** `Unit` is `React.memo`'d with a *value* comparator (the
   combat frame rebuilds fresh objects each beat, so reference compare misses). Keep props referentially stable
-  (e.g. the shared `EMPTY_FLOATS`) so the memo can actually skip.
+  so the memo can actually skip. Better still, keep short-lived transient DOM *out* of the memoized item
+  entirely: combat floats used to be children of `Unit`, which forced a per-uid bucketing `Map` (rebuilt on
+  every spawn AND expiry) purely so the comparator had a stable array to compare. Moving them to a
+  board-level overlay deleted the Map and stopped units re-rendering for a number at all.
 - **Don't put high-frequency state (a ticking clock) in a component that renders a large tree.** The recruit
   timer's `seconds` used to live in `useState` inside `Recruit`, so it re-rendered all ~17 cards once per
   second. It now lives in an external store (`turnClock.ts`); only the tiny ring/rope subscribe to live seconds,
   while the big tree subscribes to the derived `timeUp` boolean (changes once per turn). Pattern: isolate a
   frequently-changing value into its own store/subscriber so only what *displays* it re-renders.
+- **Don't fight a stacking context with a bigger z-index — find out which context you are in.** Combat
+  damage numbers spent a long time buried under the Pixi FX canvas because of TWO nested traps: `.unit` is
+  its own stacking context in combat (`.attacking` z8 / `.struck` z12 / `.reborn` z14), so a child's z25 only
+  ordered it against its own card; and `.app` is `position: relative; z-index: 1`, a *sibling* of `.pixifx`
+  (z110) under `#root`, so nothing anywhere inside `.app` can outrank the canvas at any value. Anything that
+  must sit above the FX overlay has to be **portalled to `<body>`** (see the float overlay + `Card`'s hover
+  reveal). Verify it, don't reason about it: make both elements hit-testable and check
+  `document.elementFromPoint` at the pixel — the browser's own answer *is* paint order.
 - **Don't deep-clone large read-only state.** The reducer shares `lastCombat` (the whole event log) by
   reference instead of `structuredClone`-ing it every dispatch.
 - **We do NOT gate on `prefers-reduced-motion`.** ASCENT's animations carry essential gameplay info (damage

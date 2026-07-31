@@ -419,13 +419,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .rd-calib.rd-cur { opacity: 1; } /* the current round stays fully lit even during Setup */
 .rd-edge { margin-right: calc(8 * var(--u)); }
 .sp { flex: 1; }
-.chip { position: relative; display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(15 * var(--u)) calc(5 * var(--u)) calc(11 * var(--u)); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
-.chip .ic { width: calc(32 * var(--u)); height: calc(32 * var(--u)); border-radius: calc(9 * var(--u)); display: grid; place-items: center; }
-.chip .ic svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: #fff; }
-.chip.g .ic { background: var(--acc); } .chip.h .ic { background: var(--threat); }
-.chip.mana .ic { background: var(--mana); } /* Mana economy reads teal, not tangerine */
-.chip .v { font-family: var(--font-ui); font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1; }
-.chip .l { font-family: var(--font-ui); font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
 .hero { display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow); }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
    arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
@@ -436,37 +429,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .hero .nm { font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); }
 .hero .pw { font-size: calc(11 * var(--u)); font-weight: 600; color: var(--ink2); }
 
-/* result toast */
-.toast { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); padding: calc(8 * var(--u)) calc(16 * var(--u)); border-radius: calc(11 * var(--u)); font-weight: 700; font-size: calc(14 * var(--u)); color: #fff; }
-.toast.win { background: var(--acc); } .toast.lose { background: var(--threat); } .toast.draw { background: var(--ink3); }
-.toast .vd { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.06em; }
-
-/* OMEN */
-.omen { background: var(--threat); border-radius: 14px; padding: 7px 16px; display: flex; align-items: center; gap: 14px; flex: none; box-shadow: 0 4px 0 var(--threat-dk); }
-.osig { width: 44px; height: 44px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex: none; }
-.osig svg { width: 25px; height: 25px; color: var(--threat); }
+/* `.ob` outlived the removed OMEN banner it was written for: the odds bar reuses the class for its
+   win/draw/lose segments (`.oddsbar .ob.win` et al), so this base rule is still load-bearing. */
 .ob { flex: 1; min-width: 0; color: #fff; }
-.oey { font-family: var(--font-ui); font-weight: 700; font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.9; }
-.onm { font-family: var(--font-ui); font-weight: 900; font-size: 19px; line-height: 1.05; margin: 0; }
-.ode { font-size: 12px; font-weight: 600; opacity: 0.95; max-width: 600px; line-height: 1.25; }
-.oc { display: flex; align-items: center; gap: 7px; margin-top: 3px; flex-wrap: wrap; }
-.oc .k { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.85; }
-.cc { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: #fff; padding: 3px 11px; border-radius: 8px; text-transform: capitalize; }
-.prev { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex: none; }
-.prev .pl { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; opacity: 0.85; }
-.pr { display: flex; gap: 6px; }
-.eu { width: 38px; height: 46px; border-radius: 10px; background: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
-.eu canvas { width: 32px; height: 32px; }
-.eu .s { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); font-family: var(--font-ui); font-weight: 800; font-size: 11px; background: var(--ink); color: #fff; padding: 1px 7px; border-radius: 7px; }
-.eu .pz { position: absolute; top: -6px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--poison); display: grid; place-items: center; }
-.eu .pz svg { width: 11px; height: 11px; color: #fff; }
 
 /* ZONES */
 .zone { flex: none; display: flex; flex-direction: column; }
-.zh { display: flex; align-items: center; gap: calc(11 * var(--u)); margin-bottom: 4px; min-height: calc(28 * var(--u)); }
-.zt { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; }
-.zt b { color: var(--acc-dk); }
-.hint { font-size: calc(12 * var(--u)); font-weight: 700; color: var(--ink3); }
 .btn { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); padding: calc(7 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; gap: calc(6 * var(--u)); }
 .btn:hover:not(:disabled) { border-color: var(--acc); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -942,9 +910,6 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
 .heropowerbtn.passive .hpb-art { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
-.tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }
-.tavernbox svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--ink2); }
-.tavernbox b { color: var(--acc); font-size: calc(21 * var(--u)); }
 .btn.big svg { width: 23px; height: 23px; }
 /* Tavern-control costs + tier number: large, bold, colored inline numbers — no pill (matches the
    Pixel Arena mockup). Costs are teal Mana; the Tavern's next-tier number is tangerine. */
@@ -984,7 +949,15 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    the card itself up to reveal its full text. The fan STAYS fanned through a drag — the reorder measures the
    cards' rotated rects directly (the bbox stays centred on each card, so the slot midpoints match within a
    pixel or two), no flatten, no pickup jiggle. */
-.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * var(--z-hand-gap, -0.15)); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+/* `--hand-glide` is the MAKE-ROOM channel: when the hand's card count changes, the glide effect in Recruit
+   seeds each surviving card with the pixel delta back to where it just sat, then sets it to 0 so this rule's
+   `transition: transform` carries it home. It lives in a CSS var, and the var is composed INSIDE the
+   transform here, for one reason: the previous attempt drove this with GSAP Flip, whose `getState` measures
+   `getBoundingClientRect` and so folded the `:hover scale(1.06)` below into the card's recorded size — Flip
+   then morphed width/height and baked the hover zoom into the layout width, compounding 6% per interaction
+   (see the 2026-07-28 devlog). Nothing here can measure a transform, and React never writes this var, so the
+   two cannot fight. */
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * var(--z-hand-gap, -0.15)); transform-origin: center 42%; transform: translateX(var(--hand-glide, 0px)) translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted to reveal its
    full text. UNIFORM POP: the lift is `translateY(--ch · (--hand-floor − --hand-pop))` — both LIVE DEV LEVERS
@@ -994,7 +967,7 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    card is the same height anyway, and the panel hangs below at a fixed offset). A soft dark drop-shadow
    (follows the card's alpha, so it hugs the frame) reads as "lifted above the fan" — NOT the bright
    `.card:hover` box-shadow glow, which looks harsh blown up over the popped card. */
-.row.hand .card:hover { transform: translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.2)))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+.row.hand .card:hover { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.2)))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
@@ -1485,12 +1458,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .herotip b { color: var(--acc); }
 .heropanel:hover .herotip { opacity: 1; transition-delay: 0.35s; }
 /* embers projection — hover the Embers chip to see the next two waves' starting Embers */
-.emberproj { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); min-width: 158px; background: var(--ink); color: #fff; border-radius: 12px; padding: 9px 12px; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
-.emberproj .ept { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; text-align: center; }
-.emberproj .epr { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12px; font-weight: 600; padding: 2px 0; }
-.emberproj .epr b { display: flex; align-items: center; gap: 4px; color: var(--acc); font-family: var(--font-ui); font-weight: 800; font-size: 15px; }
-.emberproj .epr b svg { width: 14px; height: 14px; color: var(--mana); }
-.chip.g:hover .emberproj { opacity: 1; transition-delay: 0.25s; }
 .tiprow + .tiprow { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
 
 /* --- Compact card: the universal arched frame. The arch (art + corner attack/health badges + the
@@ -2575,10 +2542,8 @@ body.modalup .statusbar .questbadges {
 .hero .hpbox .hpval { font-family: var(--font-ui); font-weight: 800; font-size: calc(30 * var(--u)); line-height: 1; color: var(--threat-dk); }
 .hero .hpbox .armval { margin-left: calc(3 * var(--u)); font-size: calc(21 * var(--u)); color: #7c8996; }
 .statusbar .hero { pointer-events: auto; }
-/* the Embers chip captures hover too (for its projection popup) */
-.statusbar .chip.g { pointer-events: auto; }
-/* mid-drag, even the hero/Embers let the drop fall through to a hand that reaches the corner */
-body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-events: none; }
+/* mid-drag, even the hero lets the drop fall through to a hand that reaches the corner */
+body.dragging .statusbar .hero { pointer-events: none; }
 /* The hero-power READY/ARMED cue now lives entirely on the power button (.heropowerbtn) — the frame no longer
    gets a golden outline/pulse (it's not the click target anymore). */
 /* resolve took a hit */
@@ -2716,12 +2681,6 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .statcell.tier .sc-v { color: var(--acc); }
 .statcell.time.low { background: color-mix(in srgb, var(--threat) 22%, transparent); }
 .statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: #ff9db0; }
-/* Embers chip scaled to fill the (hero-tall) chip */
-.statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
-.statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }
-.statusbar .chip .ic svg { width: calc(36 * var(--u)); height: calc(36 * var(--u)); }
-.statusbar .chip .v { font-size: calc(34 * var(--u)); }
-.statusbar .chip .l { font-size: calc(12 * var(--u)); letter-spacing: 0.06em; }
 .statusbar .sellfx { font-size: calc(18 * var(--u)); top: -2px; right: 12px; }
 .sellfx { position: absolute; top: -8px; right: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 16px; color: #d99a2e; pointer-events: none; animation: sellrise 0.85s ease forwards; }
 @keyframes sellrise { 0% { opacity: 0; transform: translateY(6px); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
@@ -2733,9 +2692,6 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card[draggable='true'] { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; }
 .card[draggable='true']:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
 
-/* LEGEND */
-.legend { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.legend .lt { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; color: var(--ink3); text-transform: uppercase; }
 .li { font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: var(--ink2); display: flex; align-items: center; gap: 6px; background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 4px 10px; }
 .li b { color: var(--ink); }
 .li svg { width: 13px; height: 13px; color: var(--acc-dk); }
@@ -3348,21 +3304,39 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 .card:focus-visible, .btn:focus-visible, .hero:focus-visible, .over .btn:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
 /* Combat floats. Non-damage floats (poison/shield/buff/gold) pop over each card's own stat corner. The
    DAMAGE number is different: only the unit being ATTACKED shows one (the attacker's retaliation floats no
-   number — see useCombatReplay.ts), and it's centred ON the card face (`.unit .float.dmg` below) so it reads
+   number — see useCombatReplay.ts), and it's centred ON the card face (`.floatanchor .float.dmg` below) so it reads
    like a hit landing on the minion. A killing blow renders in the `.deathfloat` overlay, centred at the
    dying unit's last spot. */
 .float { position: absolute; bottom: 15%; right: 7px; font-family: var(--font-ui); font-weight: 900; font-size: var(--float-size, 34px); pointer-events: none; z-index: 25; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); animation: floatup var(--float-dur, 1.4s) cubic-bezier(0.2, 0.85, 0.3, 1) forwards; }
 /* Killing-blow damage number for a dying unit — anchored in a board overlay at the minion's last spot
    (the unit itself collapses), centred there; the inner .float rides the floatup rise from the anchor.
    It clears FASTER than a normal float (≈0.9s) so a lone number over a vanished unit doesn't hang. */
-.deathfloat { position: fixed; z-index: 26; pointer-events: none; transform: translate(-50%, -50%); }
+/* Anchor for a combat float — a card-sized, viewport-fixed stand-in for the `.unit` the number belongs to,
+   centred on the unit's slot (JS supplies left/top/width/height, captured once at spawn).
+
+   z112 only WORKS because Recruit portals these to <body>. Two stacking traps had the numbers buried under
+   the FX canvas: `.unit` is its own stacking context in combat (`.attacking` z8 / `.struck` z12 /
+   `.reborn` z14), and `.app` is `position: relative; z-index: 1` — a SIBLING of `.pixifx` (z110) under
+   `#root`. So no z-index written anywhere inside `.app` can beat the canvas. At <body> level, z112 does:
+   above every effect, below the dragged card (z115) / modals (z160+) / dev chrome, none of which coexist
+   with a live combat float. Because the anchor is card-sized, `.float`'s per-kind rules below (the
+   `bottom: 15%` corner, the centred `.float.dmg`, `.float.sym`'s `top: 38%`) resolve exactly as they did
+   inside the unit. */
+.floatanchor { position: fixed; z-index: 112; pointer-events: none; transform: translate(-50%, -50%); }
+/* Keyword glyphs bloom over the damage number (they used to win via `.float.sym`'s z28 inside the shared
+   unit; at board level each float is its own anchor, so the ordering moves up to the anchor). */
+.floatanchor.symanchor { z-index: 113; }
+/* Same overlay, same z112 — the COMBAT killing-blow copy is portalled to <body> alongside `.floatanchor`.
+   (Recruit's sell-gold pill reuses this class but stays inside `.app`, where z112 is scoped under `.app`'s
+   z1 and the coin sprinkle still reads over it — deliberate; see the comment at that render site.) */
+.deathfloat { position: fixed; z-index: 112; pointer-events: none; transform: translate(-50%, -50%); }
 .deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; animation-name: floatstickc; animation-duration: var(--death-float-dur, 0.9s); }
 .float.dmg { color: #fff; background: var(--threat); padding: 3px 13px; border-radius: 12px; font-size: var(--float-dmg-size, 42px); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38); }
-/* An in-unit damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit
-   landing on the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain
-   transform here would be overwritten by the animation). The `.deathfloat` overlay copy is untouched (it's
-   not inside `.unit`) — it's already centred by its container. */
-.unit .float.dmg { top: 50%; left: 50%; right: auto; bottom: auto; animation-name: floatupc; }
+/* A damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit landing on
+   the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain transform here
+   would be overwritten by the animation) — resolved against the `.floatanchor` box, which is the unit's card
+   box. The `.deathfloat` overlay copy is untouched — it's already centred by its container. */
+.floatanchor .float.dmg { top: 50%; left: 50%; right: auto; bottom: auto; animation-name: floatupc; }
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }
@@ -3997,6 +3971,117 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .menubtn:active .mbicon, .menubtn:hover:active .mbicon { transform: none; }
 /* Keyboard parity: the same gold the hover reaches for, as a ring the mouse path never shows. */
 .menubtn:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 3px; border-color: rgba(230, 200, 130, 0.95); }
+/* ============================================================================================================
+   PRESSABLE — the tactile grammar, extracted once.
+   ============================================================================================================
+   DESIGN.md: "Do give anything clickable or draggable a hard offset edge… every control has thickness, built to
+   be pressed." The title menu honours that; almost nothing else did. `Play Again` is the clearest case — it
+   carries a 7px hard edge, so it LOOKS like a thick object, and pressing it moved nothing at all.
+
+   This is the grammar `.menubtn` established, extracted so a screen opts in with a class instead of a copy.
+   Copying it per screen is how the tuners ended up with eight font sizes.
+
+   THE ONE RULE THAT MAKES IT FEEL PHYSICAL: a pressed control LOSES EXACTLY THE THICKNESS IT TRAVELS. The edge
+   collapses from `--pr-edge` to 1px while the face moves down by the same amount, so it reads as compressed
+   against the surface rather than sliding across it. Travel is therefore DERIVED, never hand-set — a button
+   with a 7px edge travels 6px, one with a 2px edge travels 1px, and neither can drift out of agreement.
+
+   Each button keeps its own face. The primitive owns motion, the edge, the sheen and the focus ring; the
+   surface supplies its colours through the vars below, so a tangerine CTA and a translucent Back button share
+   behaviour without forking it.
+
+   PERFORMANCE. Press animates `transform` + `filter`; the sheen animates `transform` + `opacity` on a
+   pseudo-element. Compositor-only, no looping paint (`docs/performance.md`). `box-shadow` changes only on the
+   press transition itself, which is a one-shot state change, not a loop. */
+.pressable {
+  --pr-edge: 4px;                                   /* resting thickness */
+  --pr-edge-c: var(--shadow);
+  --pr-inset: 0 0 #0000;                            /* the button's own lit top edge, if it has one */
+  --pr-amb: 0 0 #0000;                              /* its ambient drop shadow, if it has one */
+  --pr-travel: calc(var(--pr-edge) - 1px);          /* derived — never set this by hand */
+  --pr-hover-lift: 1px;
+  /* NO `position` HERE, deliberately. A primitive must never take part in layout: `.pressable` and `.hsback`
+     are both single-class selectors, so they TIE on specificity, and this rule sits later in the file — a
+     `position: relative` here silently beat `.hsback`'s `position: absolute`, dropped the Back button into the
+     normal flow, and pushed the entire hero-select screen down. Containment for the sheen is granted per
+     surface below, and only where the surface is statically positioned; an absolutely positioned button is
+     already a containing block and needs nothing. */
+  overflow: hidden;                                 /* clips the sheen to the button's own rim */
+  box-shadow: var(--pr-inset), 0 var(--pr-edge) 0 var(--pr-edge-c), var(--pr-amb);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease,
+              box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.14s ease;
+}
+/* Hover lifts the face a hair and warms it: the object turns toward the light before you commit. */
+.pressable:hover { transform: translateY(calc(var(--pr-hover-lift) * -1)); filter: brightness(1.07); }
+
+/* PRESS. `:hover:active` is NOT redundant — a bare `:active` ties `:hover` on specificity, and you are always
+   hovering when you click, so whichever sits later in the file wins. Stating both makes the press
+   unconditional, whatever a later edit does to the order. This exact trap has cost this file five defects. */
+.pressable:active,
+.pressable:hover:active {
+  transform: translateY(var(--pr-travel));
+  filter: brightness(0.94);
+  box-shadow: var(--pr-inset), 0 1px 0 var(--pr-edge-c), var(--pr-amb);
+  transition-duration: 0.06s;                       /* leaves faster than it arrives */
+}
+.pressable:disabled, .pressable.disabled { pointer-events: none; }
+.pressable:disabled:active, .pressable.disabled:active { transform: none; filter: none; }
+/* Keyboard parity: the ring the mouse path never shows. */
+.pressable:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+
+/* SHEEN — the band that crosses the title plaques, on the same keyframes so the surfaces speak one language. */
+.pressable::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 38%; z-index: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 244, 214, 0.16) 44%, rgba(255, 250, 232, 0.28) 52%,
+              rgba(255, 244, 214, 0.14) 60%, transparent);
+  transform: translateX(-140%) skewX(-18deg); opacity: 0;
+}
+.pressable:hover::after { animation: mbsheen 0.62s cubic-bezier(0.22, 0.6, 0.28, 1); }
+.pressable:active::after { animation: mbsheen 0.34s cubic-bezier(0.3, 0.7, 0.2, 1); }
+/* Anything the button paints itself must sit above the band. */
+.pressable > * { position: relative; z-index: 1; }
+
+/* QUIET — kept, but no longer the default for secondary controls. The first pass tiered Back and the pause-menu
+   rows down to a 2px edge with no sheen, on the argument that a navigational control should not flash like the
+   primary action. Judged side by side against `Play Again`, the owner chose the full plaque everywhere off the
+   title screen: the restraint read as those buttons being unfinished rather than deliberately quieter. It stays
+   defined for a surface that genuinely needs it. */
+.pressable.quiet { --pr-edge: 2px; --pr-hover-lift: 0px; }
+.pressable.quiet::after { display: none; }
+
+/* TEXT — a control with no face at all (the end-screen's board link). It cannot have thickness, so it presses
+   by settling one pixel and dimming; giving it a plaque would invent an object that is not there. */
+.pressable.text { --pr-edge: 0px; --pr-travel: 1px; --pr-hover-lift: 0px; box-shadow: none; overflow: visible; }
+.pressable.text::after { display: none; }
+.pressable.text:active, .pressable.text:hover:active { box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable { transition: filter 0.1s ease, border-color 0.1s ease; }
+  .pressable:hover, .pressable:active, .pressable:hover:active { transform: none; }
+  .pressable:hover::after, .pressable:active::after { animation: none; }
+}
+
+/* ---- the hot-path surfaces opt in ---------------------------------------------------------------------- */
+/* Play Again — the biggest CTA in the game, and the one that already looked thick without behaving like it. Its
+   own 7px edge and ambient shadow move into the primitive's vars so the press can collapse them. */
+.endplay { position: relative;                       /* static in flow, so the sheen needs a containing block */
+  --pr-edge: 7px; --pr-edge-c: var(--acc-dk);
+  --pr-inset: inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  --pr-amb: 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
+/* Resume — the pause menu's primary. It had no edge at all, so it gains one in its own accent. */
+.escclose { position: relative; --pr-edge: 4px; --pr-edge-c: var(--acc-dk); }
+/* Every other surface takes the SAME character — real thickness and the sheen — with the depth scaled to the
+   button. `Play Again` is the ceiling at 7px because it is the largest object on screen; a 40px icon button
+   carrying the same edge would read as a rendering bug rather than a heavy control. */
+.escbtn   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(90, 66, 30, 0.3); }
+.hsback   { --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }   /* absolute already — no containment needed */
+.lbback   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }
+/* A 132px gold disc: it can carry real depth, and the edge takes the coin's own dark gold. */
+.caravatar { position: relative; --pr-edge: 5px; --pr-edge-c: #a8780f; }
+/* 40px icon buttons — the floor. 3px still reads as an object without swamping the glyph. */
+.book-close       { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(90, 66, 30, 0.32); }
+.avatarpick-close { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(0, 0, 0, 0.45); }
+
 /* Active (Play) — the brighter blue call-to-action from the mockup. */
 .menubtn.active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150, 200, 245, 0.9); color: #fff;
   /* Thickness in its OWN darkened hue (the rule every primary control in the game follows), plus a neutral
@@ -4085,9 +4170,9 @@ svg { width: 18px; height: 18px; }
 
 /* darker board (warm taupe): lighten the text + labels that sit directly on the
    backdrop or on the dimmed game-over wash, so they stay legible. */
-.zt, .atop h1, .over h1 { color: #f6efe2; }
-.hint, .warband-hint, .clash .vs, .empty, .over .fcap { color: #ddd2c0; }
-.zt b, .side.you, .over .final { color: #ffb259; }
+.atop h1, .over h1 { color: #f6efe2; }
+.warband-hint, .clash .vs, .empty, .over .fcap { color: #ddd2c0; }
+.side.you, .over .final { color: #ffb259; }
 .side.foe { color: #ff6f95; }
 
 /* settings gear (bottom-right corner, opposite the status tray) — opens the Esc menu */
@@ -6560,6 +6645,20 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxlib-gap { font-size: 11px; color: #6f6688; font-style: italic; }
 /* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
 .fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }
+.fxlib-note { font-size: 11px; color: #6f6688; font-style: italic; padding: 6px 4px 0; line-height: 1.4; }
+
+/* WIRING BADGE — the three ways a def relates to the game, which one label used to flatten into "unbound".
+   The colours carry the distinction that matters: `bound` and `code` are both PLAYS (two greens, differing
+   only in how) and `unused` is the odd one out (grey, dashed, hollow) — so a glance down the column separates
+   "this fires" from "this is dead" before any word is read. `code` must never look like a warning: a def
+   played by a `playDef()` call is as live as a bound one, just wired somewhere a binding table can't show. */
+.fxlib-wire {
+  flex: none; font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap;
+}
+.fxlib-wire.bound { background: #1e3327; border-color: #2f6b48; color: #6fd79b; }
+.fxlib-wire.code { background: #1b2f33; border-color: #2f6b6b; color: #63d3d3; }
+.fxlib-wire.unused { background: none; border-color: #3d3752; border-style: dashed; color: #6f6688; }
 
 /* FX PRESET GALLERY — the on-ramp overlay: pick an archetype, then a variant. Same full-screen opaque
    treatment as `.fxlib` above (the workbench rail underneath is a competing wall of controls).
@@ -6769,3 +6868,70 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbydmg-float { position: fixed; z-index: 2000; pointer-events: none; will-change: transform, opacity;
   font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: -0.02em; color: #ff5d5d;
   text-shadow: 0 0 10px rgba(255, 60, 60, 0.55), 0 2px 0 rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.9); }
+
+/* ============================================================================================================
+   THE COMMIT STATE — cards, chips and rows.
+   ============================================================================================================
+   Cards ALREADY lift: a hero card rises 8px on hover, turns its border accent and reveals the hero's power; a
+   mode card rises 6px and reveals its description. What was missing is the COMMIT — you hovered, it lifted, you
+   clicked, and nothing moved until the screen changed. The choice you had just made was the one moment with no
+   feedback at all.
+
+   Direction chosen by the owner from three mocked side by side: the card travels PAST its resting place and
+   shrinks slightly — pressed into the table — which is the same physics as `.pressable`, so a card and a button
+   answer a click the same way. (The alternatives were collapsing the lift, and holding the lift while the ring
+   snapped tight; both read as their own idea rather than as this game's.)
+
+   A card is NOT given `.pressable`. It has no hard edge to collapse and no sheen; its language is lift-and-
+   reveal, and bolting a plaque onto it would state two metaphors at once. What the two share is the press
+   VECTOR, not the treatment.
+
+   SPECIFICITY, deliberately: `.herocard.big:hover` is (0,2,1). A plain `.herocard:active` is (0,1,1) and would
+   lose to it — you are always hovering while you click, so the large hero cards would silently never press. The
+   `.big` case is therefore restated at equal specificity, and this whole block sits at the END of the file so a
+   tie resolves here. This trap has cost this file six defects. */
+.herocard:active, .herocard:hover:active {
+  transform: translateY(3px) scale(0.984);
+  filter: brightness(0.94);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 55%, transparent), 0 4px 10px -8px rgba(0, 0, 0, 0.85);
+  transition-duration: 0.07s;
+}
+/* The large hero card carries no border or shadow of its own, so it presses on transform alone — giving it a
+   ring here would invent a frame the design deliberately removed. */
+.herocard.big:active, .herocard.big:hover:active {
+  transform: translateY(3px) scale(0.984);
+  filter: brightness(0.94);
+  box-shadow: none;
+  transition-duration: 0.07s;
+}
+.modecard:active, .modecard:hover:active {
+  transform: translateY(3px) scale(0.984);
+  filter: brightness(0.94);
+  transition-duration: 0.07s;
+}
+
+/* CHIPS — the button grammar at chip scale. A keyword chip had colour-only feedback: it changed tint on hover
+   and did nothing on press. 2px is the whole depth a 26px-tall pill can carry without looking like a mistake. */
+.book-kwchip {
+  box-shadow: 0 2px 0 var(--acc-dk);
+  transition: background 0.1s, border-color 0.1s, color 0.1s, transform 0.12s ease, box-shadow 0.12s ease;
+}
+.book-kwchip:hover { transform: translateY(-1px); box-shadow: 0 3px 0 var(--acc-dk); }
+.book-kwchip:active, .book-kwchip:hover:active {
+  transform: translateY(2px); box-shadow: 0 0 0 var(--acc-dk); transition-duration: 0.06s;
+}
+
+/* ROWS — a row is a SURFACE, not an object: it presses INTO the list rather than out of it. An offset edge under
+   a transparent row renders as a stray bar sitting in the gap, not as a button. */
+.gloss-row:active, .gloss-row:hover:active,
+.carmatch-head:active, .carmatch-head:hover:active {
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  transition-duration: 0.06s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .herocard:active, .herocard:hover:active, .herocard.big:active, .herocard.big:hover:active,
+  .modecard:active, .modecard:hover:active,
+  .book-kwchip:hover, .book-kwchip:active { transform: none; }
+}

@@ -33,7 +33,7 @@ export function Rankings() {
   return (
     <div className="lbpage rankpage">
       <div className="lbtopbar">
-        <button className="lbback" onClick={back}>← Back</button>
+        <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="crown" />
           <div>

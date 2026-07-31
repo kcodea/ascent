@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hueBucketOf, FX_HUES, deriveFacets, bindingsByDef, kindCoverage } from './catalog';
+import { hueBucketOf, FX_HUES, deriveFacets, bindingsByDef, kindCoverage, codeCoverage, codeScanCaveat, usageOf } from './catalog';
 import type { StoredFxDef } from '../defStore';
 import { getScore } from '../../choreo/score';
 
@@ -105,6 +105,70 @@ describe('bindingsByDef', () => {
   it('has no entry for a def nothing binds to', () => {
     expect(index.get('burst-thin-trail')).toBeUndefined();
   });
+
+  // The distinction the whole change turns on: `strike-impact` has no binding EITHER, and this map is right
+  // to omit it — it is not a bindings bug. It plays from code, and `usage` is what tells the two apart.
+  it('has no entry for a def that plays from code, because nothing BINDS it', () => {
+    expect(index.get('strike-impact')).toBeUndefined();
+  });
+});
+
+/**
+ * The three states, decided in one place.
+ *
+ * Before the pixiFx migration "no binding" was near enough "inert" and the library said so. Seven defs then
+ * started playing from direct `playDef()` calls with no binding at all, and the single label became a lie.
+ */
+describe('usageOf', () => {
+  const none = { kinds: [], cards: [] };
+
+  it('calls a def with a kind cue bound', () => {
+    expect(usageOf({ kinds: ['shieldGain'], cards: [] }, [])).toBe('bound');
+  });
+
+  it('calls a def with only a card override bound', () => {
+    expect(usageOf({ kinds: [], cards: [{ cardId: 'x', name: 'X', tribe: 'demon', missing: false }] }, [])).toBe('bound');
+  });
+
+  // THE fix. A def nothing binds but code fires must not share a label with a dead draft.
+  it('calls a def that only code fires "code", not unused', () => {
+    expect(usageOf(none, ['Recruit.tsx'])).toBe('code');
+  });
+
+  it('calls a def with neither unused', () => {
+    expect(usageOf(none, [])).toBe('unused');
+  });
+
+  // A binding is what an author can retarget from this browser, so it leads; the call sites ride along on the
+  // entry regardless, so nothing is hidden by the precedence.
+  it('prefers the binding when a def is both', () => {
+    expect(usageOf({ kinds: ['shieldGain'], cards: [] }, ['Recruit.tsx'])).toBe('bound');
+  });
+});
+
+describe('codeCoverage', () => {
+  const rows = codeCoverage();
+
+  it('lists the defs the game plays with no moment kind, each with the files that fire it', () => {
+    expect(rows.map((r) => r.defId)).toContain('strike-impact');
+    expect(rows.find((r) => r.defId === 'strike-impact')?.files).toEqual(['choreo/channels/impact.ts']);
+  });
+
+  it('never lists a def with no call site — the row would have nothing to say', () => {
+    expect(rows.every((r) => r.files.length > 0)).toBe(true);
+  });
+
+  // A def with a binding belongs in the kind list above; repeating it here would double-count the map.
+  it('does not repeat a bound def', () => {
+    expect(rows.some((r) => r.defId === 'ward-gained')).toBe(false);
+  });
+
+  // The blind spot is STATED. A view that silently under-reports is the failure being fixed, so the caveat
+  // has to name the unresolvable sites rather than imply the scan is total.
+  it('states what the scan cannot resolve', () => {
+    expect(codeScanCaveat()).toContain('choreo/score.ts');
+    expect(codeScanCaveat()).toContain('variable');
+  });
 });
 
 describe('kindCoverage', () => {
@@ -169,12 +233,35 @@ describe('buildCatalog', () => {
     const entry = buildCatalog().find((e) => e.def.id === 'ward-gained');
     expect(entry?.facets.shape).toBeTruthy();
     expect(entry?.bindings.kinds).toContain('shieldGain');
+    expect(entry?.usage).toBe('bound');
   });
 
-  it('gives an unbound def empty bindings rather than undefined', async () => {
+  /**
+   * `burst-thin-trail` is the fixture for GENUINELY inert: a committed draft with no binding and no call
+   * site. Keep that meaning if it ever gets wired — re-point the case at whatever def is still dead rather
+   * than deleting it. It is the control the `code` case is measured against.
+   */
+  it('gives an unbound def empty bindings rather than undefined, and calls it unused', async () => {
     await import('../primitives');
     const entry = buildCatalog().find((e) => e.def.id === 'burst-thin-trail');
     expect(entry?.bindings).toEqual({ kinds: [], cards: [] });
+    expect(entry?.callSites).toEqual([]);
+    expect(entry?.usage).toBe('unused');
+  });
+
+  /**
+   * THE regression. Every one of these plays constantly and none of them has a binding, so before this they
+   * all rendered in the "nothing bound" column of a coverage map an author was trying to read.
+   */
+  it('calls a def that only code fires "code", never "unused"', async () => {
+    await import('../primitives');
+    const catalog = buildCatalog();
+    for (const id of ['coins', 'click-puff', 'damage-burst', 'landing-dust', 'impact-dust', 'death-dissolve', 'strike-impact']) {
+      const entry = catalog.find((e) => e.def.id === id);
+      expect(entry, `${id} is missing from the catalog`).toBeDefined();
+      expect(entry?.usage, `${id} should read as played from code`).toBe('code');
+      expect(entry?.callSites.length, `${id} should name the files that fire it`).toBeGreaterThan(0);
+    }
   });
 
   it('sorts by id so the list is stable between renders', async () => {

@@ -419,13 +419,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .rd-calib.rd-cur { opacity: 1; } /* the current round stays fully lit even during Setup */
 .rd-edge { margin-right: calc(8 * var(--u)); }
 .sp { flex: 1; }
-.chip { position: relative; display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); padding: calc(5 * var(--u)) calc(15 * var(--u)) calc(5 * var(--u)) calc(11 * var(--u)); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
-.chip .ic { width: calc(32 * var(--u)); height: calc(32 * var(--u)); border-radius: calc(9 * var(--u)); display: grid; place-items: center; }
-.chip .ic svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: #fff; }
-.chip.g .ic { background: var(--acc); } .chip.h .ic { background: var(--threat); }
-.chip.mana .ic { background: var(--mana); } /* Mana economy reads teal, not tangerine */
-.chip .v { font-family: var(--font-ui); font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1; }
-.chip .l { font-family: var(--font-ui); font-weight: 700; font-size: calc(10 * var(--u)); letter-spacing: 0.06em; color: var(--ink3); text-transform: uppercase; }
 .hero { display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow); }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
    arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
@@ -436,37 +429,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .hero .nm { font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); }
 .hero .pw { font-size: calc(11 * var(--u)); font-weight: 600; color: var(--ink2); }
 
-/* result toast */
-.toast { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); padding: calc(8 * var(--u)) calc(16 * var(--u)); border-radius: calc(11 * var(--u)); font-weight: 700; font-size: calc(14 * var(--u)); color: #fff; }
-.toast.win { background: var(--acc); } .toast.lose { background: var(--threat); } .toast.draw { background: var(--ink3); }
-.toast .vd { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.06em; }
-
-/* OMEN */
-.omen { background: var(--threat); border-radius: 14px; padding: 7px 16px; display: flex; align-items: center; gap: 14px; flex: none; box-shadow: 0 4px 0 var(--threat-dk); }
-.osig { width: 44px; height: 44px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex: none; }
-.osig svg { width: 25px; height: 25px; color: var(--threat); }
+/* `.ob` outlived the removed OMEN banner it was written for: the odds bar reuses the class for its
+   win/draw/lose segments (`.oddsbar .ob.win` et al), so this base rule is still load-bearing. */
 .ob { flex: 1; min-width: 0; color: #fff; }
-.oey { font-family: var(--font-ui); font-weight: 700; font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.9; }
-.onm { font-family: var(--font-ui); font-weight: 900; font-size: 19px; line-height: 1.05; margin: 0; }
-.ode { font-size: 12px; font-weight: 600; opacity: 0.95; max-width: 600px; line-height: 1.25; }
-.oc { display: flex; align-items: center; gap: 7px; margin-top: 3px; flex-wrap: wrap; }
-.oc .k { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.85; }
-.cc { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: #fff; padding: 3px 11px; border-radius: 8px; text-transform: capitalize; }
-.prev { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex: none; }
-.prev .pl { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; opacity: 0.85; }
-.pr { display: flex; gap: 6px; }
-.eu { width: 38px; height: 46px; border-radius: 10px; background: #fff; position: relative; display: flex; align-items: center; justify-content: center; }
-.eu canvas { width: 32px; height: 32px; }
-.eu .s { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); font-family: var(--font-ui); font-weight: 800; font-size: 11px; background: var(--ink); color: #fff; padding: 1px 7px; border-radius: 7px; }
-.eu .pz { position: absolute; top: -6px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--poison); display: grid; place-items: center; }
-.eu .pz svg { width: 11px; height: 11px; color: #fff; }
 
 /* ZONES */
 .zone { flex: none; display: flex; flex-direction: column; }
-.zh { display: flex; align-items: center; gap: calc(11 * var(--u)); margin-bottom: 4px; min-height: calc(28 * var(--u)); }
-.zt { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; }
-.zt b { color: var(--acc-dk); }
-.hint { font-size: calc(12 * var(--u)); font-weight: 700; color: var(--ink3); }
 .btn { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); padding: calc(7 * var(--u)) calc(13 * var(--u)); border-radius: calc(11 * var(--u)); border: 2px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; gap: calc(6 * var(--u)); }
 .btn:hover:not(:disabled) { border-color: var(--acc); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -942,9 +910,6 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
 .heropowerbtn.passive .hpb-art { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
-.tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }
-.tavernbox svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: var(--ink2); }
-.tavernbox b { color: var(--acc); font-size: calc(21 * var(--u)); }
 .btn.big svg { width: 23px; height: 23px; }
 /* Tavern-control costs + tier number: large, bold, colored inline numbers — no pill (matches the
    Pixel Arena mockup). Costs are teal Mana; the Tavern's next-tier number is tangerine. */
@@ -1481,12 +1446,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .herotip b { color: var(--acc); }
 .heropanel:hover .herotip { opacity: 1; transition-delay: 0.35s; }
 /* embers projection — hover the Embers chip to see the next two waves' starting Embers */
-.emberproj { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); min-width: 158px; background: var(--ink); color: #fff; border-radius: 12px; padding: 9px 12px; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
-.emberproj .ept { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; text-align: center; }
-.emberproj .epr { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12px; font-weight: 600; padding: 2px 0; }
-.emberproj .epr b { display: flex; align-items: center; gap: 4px; color: var(--acc); font-family: var(--font-ui); font-weight: 800; font-size: 15px; }
-.emberproj .epr b svg { width: 14px; height: 14px; color: var(--mana); }
-.chip.g:hover .emberproj { opacity: 1; transition-delay: 0.25s; }
 .tiprow + .tiprow { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
 
 /* --- Compact card: the universal arched frame. The arch (art + corner attack/health badges + the
@@ -2571,10 +2530,8 @@ body.modalup .statusbar .questbadges {
 .hero .hpbox .hpval { font-family: var(--font-ui); font-weight: 800; font-size: calc(30 * var(--u)); line-height: 1; color: var(--threat-dk); }
 .hero .hpbox .armval { margin-left: calc(3 * var(--u)); font-size: calc(21 * var(--u)); color: #7c8996; }
 .statusbar .hero { pointer-events: auto; }
-/* the Embers chip captures hover too (for its projection popup) */
-.statusbar .chip.g { pointer-events: auto; }
-/* mid-drag, even the hero/Embers let the drop fall through to a hand that reaches the corner */
-body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-events: none; }
+/* mid-drag, even the hero lets the drop fall through to a hand that reaches the corner */
+body.dragging .statusbar .hero { pointer-events: none; }
 /* The hero-power READY/ARMED cue now lives entirely on the power button (.heropowerbtn) — the frame no longer
    gets a golden outline/pulse (it's not the click target anymore). */
 /* resolve took a hit */
@@ -2712,12 +2669,6 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .statcell.tier .sc-v { color: var(--acc); }
 .statcell.time.low { background: color-mix(in srgb, var(--threat) 22%, transparent); }
 .statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: #ff9db0; }
-/* Embers chip scaled to fill the (hero-tall) chip */
-.statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
-.statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }
-.statusbar .chip .ic svg { width: calc(36 * var(--u)); height: calc(36 * var(--u)); }
-.statusbar .chip .v { font-size: calc(34 * var(--u)); }
-.statusbar .chip .l { font-size: calc(12 * var(--u)); letter-spacing: 0.06em; }
 .statusbar .sellfx { font-size: calc(18 * var(--u)); top: -2px; right: 12px; }
 .sellfx { position: absolute; top: -8px; right: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 16px; color: #d99a2e; pointer-events: none; animation: sellrise 0.85s ease forwards; }
 @keyframes sellrise { 0% { opacity: 0; transform: translateY(6px); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
@@ -2729,9 +2680,6 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card[draggable='true'] { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; }
 .card[draggable='true']:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
 
-/* LEGEND */
-.legend { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.legend .lt { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; color: var(--ink3); text-transform: uppercase; }
 .li { font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: var(--ink2); display: flex; align-items: center; gap: 6px; background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 4px 10px; }
 .li b { color: var(--ink); }
 .li svg { width: 13px; height: 13px; color: var(--acc-dk); }
@@ -4192,9 +4140,9 @@ svg { width: 18px; height: 18px; }
 
 /* darker board (warm taupe): lighten the text + labels that sit directly on the
    backdrop or on the dimmed game-over wash, so they stay legible. */
-.zt, .atop h1, .over h1 { color: #f6efe2; }
-.hint, .warband-hint, .clash .vs, .empty, .over .fcap { color: #ddd2c0; }
-.zt b, .side.you, .over .final { color: #ffb259; }
+.atop h1, .over h1 { color: #f6efe2; }
+.warband-hint, .clash .vs, .empty, .over .fcap { color: #ddd2c0; }
+.side.you, .over .final { color: #ffb259; }
 .side.foe { color: #ff6f95; }
 
 /* settings gear (bottom-right corner, opposite the status tray) — opens the Esc menu */

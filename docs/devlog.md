@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-07-31 — Launch banner top-center + larger; Ascent leaves the mode picker
+
+The title banner moves from the right edge to TOP-CENTER, wider (min(560px, 60vw)) with 30px title / 17px
+body — the launch note reads like an announcement now, not a sidebar. The entrance animation's transform
+moved with the anchor (translateX now), still one-shot.
+
+The scored course ("Ascent") leaves the PLAY picker — the lobby IS the game as of the Set 2 launch. The mode
+and its machinery stay (replays, a future return); only the card is gone. The picker offers Lobby and
+Practice (+ Rift while one is live). Verified in the DOM: picker shows exactly [Lobby, Practice]; banner
+top-centered at 30px title size.
+
+## 2026-07-31 — Title banner: the Set 2 launch announcement
+
+The title-screen note swaps from the rift-window thank-you to the owner's launch copy: "Welcome to Set 2's
+Launch! Reset your career manually and hop into the game. Runes are active and occur on turns 6 + 9. GL HF."
+
 ## 2026-07-31 — Geode Guardian keeps Taunt; "two" not "2"
 
 Taunt restored (badge + text) and the Echo reads "summon **two** 1/1 Gemheart Golems" — the word, not the

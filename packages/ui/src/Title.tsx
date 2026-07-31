@@ -39,7 +39,6 @@ const IconTrash = () => (
 
 export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
-  const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
   const startRift = useGame((s) => s.startRift);
@@ -177,15 +176,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="mpeyebrow">Choose your climb</div>
             <h1 className="disp mptitle">MODE</h1>
             <div className="mprow">
-              <button className="modecard" onClick={() => { sfx.pulse(); startAscent(); }}>
-                <div className="mcframe" data-mode="ascent">
-                  <div className="mcname">Ascent</div>
-                  <span className="mcemblem"><Crest /></span>
-                  <div className="mctag">Scored</div>
-                </div>
-                <div className="mcdesc">The scored 17-round climb. Cover your Oath, then chase the summit.</div>
-              </button>
-
+              {/* The scored course ("Ascent") left the picker with the Set 2 launch (owner 2026-07-31) — the
+                  LOBBY is the game now. The mode + its machinery stay for replays and a future return. */}
               {rift && (
                 <button className="modecard" onClick={() => { sfx.pulse(); startRift(); }}>
                   <div className="mcframe" data-mode="rift">
@@ -219,11 +211,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       )}
 
-      {/* The little note on the right — currently a thank-you as the rift window closes. */}
+      {/* The little note on the right — the Set 2 launch announcement (owner copy 2026-07-31). */}
       <aside className="titlebanner" role="note">
         <div className="titlebanner-emoji" aria-hidden>✨</div>
-        <div className="titlebanner-title">Thanks for testing rifts!</div>
-        <div className="titlebanner-sub">We're cooking up some new and fun rifts to test out in the near future. Back to basics for now, though.</div>
+        <div className="titlebanner-title">Welcome to Set 2's Launch!</div>
+        <div className="titlebanner-sub">Reset your career manually and hop into the game. Runes are active and occur on turns 6 + 9. GL HF.</div>
         {activeRift() && <div className="titlebanner-sub">Enjoy a special rift patch to have some fun ✨</div>}
       </aside>
 

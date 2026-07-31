@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getEndTurnConfig, rgba } from './endTurnConfig';
 import { pixiFx } from './pixiFx';
+import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
@@ -65,7 +66,13 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      if (cfg.strikeDustCount > 0) pixiFx.impactDust(cx, cy, 1, { count: cfg.strikeDustCount, size: cfg.strikeDustSize, life: cfg.strikeDustLife });
+      // The authored `impact-dust` def, on all three per-call dials: count → `intensity`, puff size →
+      // `scale`, lifetime → `time`. `time` is the axis that keeps the billow hanging LONGER without slowing
+      // it down (`speed` would do that instead) — exactly what the hand-written `life` multiplier meant.
+      if (cfg.strikeDustCount > 0) {
+        playDef('impact-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } },
+          { intensity: cfg.strikeDustCount, scale: cfg.strikeDustSize, time: cfg.strikeDustLife });
+      }
       if (cfg.strikeRings > 0) pixiFx.impactPulse(cx, cy, 1, { radius: cfg.strikeRingRadius, life: cfg.strikeRingLife, rings: cfg.strikeRings });
     }
     burstRef.current = performance.now();

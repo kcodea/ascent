@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { getTavernUpConfig } from './tavernUpConfig';
 import { pixiFx } from './pixiFx';
+import { playDef } from './fx/playDef';
 import { Icon } from './Icon';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
@@ -52,7 +53,11 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      if (cfg.dustCount > 0) pixiFx.impactDust(cx, cy, 1, { count: cfg.dustCount, size: cfg.dustSize, life: cfg.dustLife });
+      // The authored `impact-dust` def — count → `intensity`, size → `scale`, lifetime → `time`.
+      if (cfg.dustCount > 0) {
+        playDef('impact-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } },
+          { intensity: cfg.dustCount, scale: cfg.dustSize, time: cfg.dustLife });
+      }
       if (cfg.rings > 0) pixiFx.impactPulse(cx, cy, 1, { radius: cfg.ringRadius, life: cfg.ringLife, rings: cfg.rings });
     }
     if (cfg.flashMs > 0) {

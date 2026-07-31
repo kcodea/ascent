@@ -28,7 +28,7 @@ import {
 } from '../defStore';
 import { getDef, listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
 import { applyVariant, presetTable } from '../presets';
-import { getImportedDataUrl } from '../shapeLibrary';
+import { getImportedDataUrl, registerSavedArt } from '../shapeLibrary';
 import { Inspector } from './Inspector';
 import { DefLibrary } from './DefLibrary';
 import { SeedBakeWarning } from './SeedBakeWarning';
@@ -107,14 +107,16 @@ const BACKDROP_SWATCHES: readonly { label: string; hex: number | null }[] = [
   { label: 'Light', hex: 0xc8c8c8 },
 ];
 
-// Registers every built-in primitive (see registry.ts's `registerPrimitive`). A DYNAMIC import,
-// deliberately — the primitives self-register via a top-level function CALL (a real side effect Rollup
-// can't prove away), so a plain `import '../primitives'` here would force the whole set — GLSL shader
-// source strings included — into the production bundle even though nothing ever renders this component
-// there (DevMenu, and everything under it, is only ever mounted behind `import.meta.env.DEV` in Game.tsx).
-// Gating this import the same way lets prod's dead-code elimination drop the primitives entirely,
-// matching how every other dev tuner already vanishes from the shipped bundle. `build()` below polls for
-// a primitive to appear before using it, since this resolves asynchronously.
+// Registers every built-in primitive (see registry.ts's `registerPrimitive`). A DYNAMIC import, deliberately —
+// the primitives self-register via a top-level function CALL (a real side effect Rollup can't prove away), so a
+// plain `import '../primitives'` would pull the whole set — GLSL shader source strings included — into
+// whichever chunk this module lands in, rather than letting it stay its own lazily-fetched chunk.
+//
+// Kept DEV-gated even though `playDef.ts`'s `ensureDefsReady()` now performs the same import UN-gated (defs
+// play for players): this file is mounted only from `DevMenu`, itself behind `import.meta.env.DEV` in Game.tsx,
+// so in a production build this statement is unreachable code that would only add a second reference to the
+// same chunk. Removing the gate here ships nothing new; it just muddies which import is the player-facing one.
+// `build()` below polls for a primitive to appear before using it, since this resolves asynchronously.
 if (import.meta.env.DEV) void import('../primitives');
 
 /**
@@ -1332,8 +1334,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       }
       const slug = artSlugOf(ref);
       const art = await saveArt(slug, dataUrl);
-      if (art.ok) artRefs.set(ref, `${ART_SHAPE_REF_PREFIX}${slug}`);
-      else failures.push(`${ref}: ${art.error}`);
+      if (art.ok) {
+        artRefs.set(ref, `${ART_SHAPE_REF_PREFIX}${slug}`);
+        // The `registerSavedDef` of art, and required for the same reason (see `shapeLibrary.registerSavedArt`):
+        // the PNG we just wrote is invisible to a build-time glob, so without this the `art:<slug>` we are
+        // rewriting the layer TO cannot resolve — in this session, or after the reload — and the shape the
+        // author just tuned silently reverts to a fallback circle.
+        registerSavedArt(slug, ref);
+      } else failures.push(`${ref}: ${art.error}`);
     }
     return { artRefs, failures };
   };

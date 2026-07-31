@@ -157,14 +157,10 @@ export const SBF_DESC: Record<keyof SpellBuffFxConfig, string> = {
   purpleColor: 'Sparks — hue slot 3 of 3, cycled across the motes.',
 };
 
-/** Keys grouped by control type for the tuner UI. */
-export const SBF_NUM_KEYS = [
-  'growScale', 'growMs', 'growEase', 'shrinkMs', 'shrinkEase',
-  'sparkCount', 'sparkSizeMin', 'sparkSizeMax',
-  'blastDistMin', 'blastDistMax', 'blastSpread', 'blastOriginY',
-  'sparkSpeed', 'sparkGravity', 'sparkAlpha', 'sparkGlow', 'sparkTail', 'sparkMs', 'sparkStagger',
-] as const;
 export const SBF_COLOR_KEYS = ['pinkColor', 'goldColor', 'purpleColor'] as const;
+
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as SBF_DEFAULTS };
 
 const KEY = 'ascent.spellbufffx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.

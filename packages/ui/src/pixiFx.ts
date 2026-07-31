@@ -1,7 +1,6 @@
 import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import { getSmokeConfig } from './smokeConfig';
 import { perfMonitor } from './perfMonitor';
-import { getStrikeFxConfig } from './strikeFxConfig';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
 import { getFlurrySwingConfig } from './flurrySwingConfig';
 import {
@@ -11,6 +10,7 @@ import {
 import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
+import { resetFxPools } from './fx/fxRuntime';
 
 /**
  * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
@@ -625,7 +625,6 @@ class FxController {
   private shardRectTex: Texture | null = null; // jagged spark: elongated rectangle
   private shardTriTex: Texture | null = null;   // jagged spark: triangle
   private shardHexTex: Texture | null = null;   // energy facet: hexagon (the Ward shield's shape, flung on break)
-  private coinTex: Texture | null = null;       // gold coin (sell sprinkle)
   private bubbleTex: Texture | null = null;     // soft translucent disc — shield body
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
   private pulseTex: Texture | null = null;      // thin bright ring — the combat impact energy pulse
@@ -830,7 +829,6 @@ class FxController {
     this.shardRectTex = this.makeShardRectTexture(app);
     this.shardTriTex = this.makeShardTriTexture(app);
     this.shardHexTex = this.makeShardHexTexture(app);
-    this.coinTex = this.makeCoinTexture(app);
     this.bubbleTex = this.makeBubbleTexture(app);
     this.rimTex = this.makeRimTexture(app);
     this.pulseTex = this.makePulseRingTexture(app);
@@ -884,6 +882,13 @@ class FxController {
     this.shields.clear();
     this.shieldGeo?.destroy();
     this.shieldGeo = null;
+    // Drop the def-runtime pools before the Application goes. They are MODULE-GLOBAL, so they outlive this
+    // `detach()` — and the stage teardown below (`{ children: true }`) destroys any container a live def
+    // effect still has mounted, so without this a later release could file a destroyed pair back into the
+    // pool, and the pairs already sitting in it would hold GPU buffers keyed to a renderer that no longer
+    // exists. A no-op in a session that never loaded the primitives (see `fxRuntime.ts` for why this is a
+    // registry call rather than a direct import — the GLSL must stay out of the entry chunk).
+    resetFxPools();
     this.app.ticker.remove(this.update);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     if (this.shieldApp) {
@@ -898,7 +903,6 @@ class FxController {
     this.shardRectTex = null;
     this.shardTriTex = null;
     this.shardHexTex = null;
-    this.coinTex = null;
     this.bubbleTex = null;
     this.rimTex = null;
     this.pulseTex = null;
@@ -910,144 +914,6 @@ class FxController {
     this.execCrescentKey = '';
     this.ready = false;
     this.initing = null;
-  }
-
-  /**
-   * A melee/projectile contact at viewport point (x, y): a white-hot flash plus a spray of
-   * sparks fired outward, biased along the blow direction (dx, dy = attacker→defender vector,
-   * any magnitude). No-op until the app has finished initialising.
-   *
-   * `power` scales the whole burst with the hit's weight (1 = the baseline look): flash size, spark
-   * count/speed, smoke density — and past ~1.15 a crisp expanding RING ripples out, so a heavy swing
-   * visibly lands harder than a 1-damage chip. Callers map damage → power (see `hitPower`).
-   */
-  impact(x: number, y: number, dx: number, dy: number, power = 1): void {
-    if (!this.ready) return;
-    const s = getStrikeFxConfig(); // live-tunable (DEV Lunge Strike Effects tuner)
-    // Blow direction (unit vector); fall back to "up" if attacker/defender coincide.
-    const len = Math.hypot(dx, dy) || 1;
-    const ux = dx / len;
-    const uy = dy / len;
-
-    // A burst of saturated colour, NORMAL blend, so the impact reads on the light "Sunward" cream
-    // board (additive would just brighten cream toward white — near-invisible). A bright additive
-    // core layers on top for the hot-glow pop.
-
-    // Hot core flash — additive, brief, for the white-hot glint at the moment of contact.
-    this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 220, fromScale: 0.5, toScale: s.flashSize * power, spin: 0,
-      tint: 0xffe6b0, blend: 'add',
-    });
-    // Coloured shockwave — normal blend, a saturated orange flash that actually paints over cream.
-    this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 300, fromScale: 0.3, toScale: s.shockwaveSize * power, spin: 0,
-      tint: 0xff6a1e, blend: 'normal',
-    });
-    // Heavy hits (power ≳ 1.15) ripple a crisp expanding RING out of the contact — the "that one hurt"
-    // punctuation a soft glow can't give. Ring size/opacity track the overage so it ramps, not toggles.
-    if (power >= 1.15 && s.ringScale > 0) {
-      const over = Math.min(1, (power - 1.15) / 0.85); // 0 at threshold → 1 at max power
-      this.spawn(this.rimTex!, {
-        x, y, vx: 0, vy: 0, drag: 1, life: 340 + over * 140,
-        fromScale: 0.25, toScale: (1.6 + over * 1.6) * s.ringScale, spin: 0,
-        tint: 0xffb054, blend: 'add', peakAlpha: 0.55 + over * 0.4,
-      });
-    }
-
-    // Sparks — jagged saturated shards (rectangles + triangles, not soft dots), fanning out within the
-    // configured cone of the blow direction and oriented ALONG their travel so they read as flung debris.
-    // Normal blend + hot colours so they contrast the bright background.
-    const VIS = s.sparkSize; // spark visibility (size)
-    const count = Math.round(s.sparkCount * (0.7 + 0.3 * power)); // more shrapnel on heavier hits
-    const cone = (s.sparkSpread * Math.PI) / 180;
-    for (let i = 0; i < count; i++) {
-      const spread = (Math.random() - 0.5) * cone;
-      const cos = Math.cos(spread);
-      const sin = Math.sin(spread);
-      const dirX = ux * cos - uy * sin;
-      const dirY = ux * sin + uy * cos;
-      const speed = (320 + Math.random() * 620) * (0.85 + 0.15 * power) * s.sparkSpeed; // px/sec — flung harder when heavy
-      const warm = Math.random();
-      const tint = warm < 0.45 ? 0xff5a14 : warm < 0.8 ? 0xff9d20 : 0xffd24a;
-      // alternate shard shapes; orient along velocity with a little jitter so the burst looks ragged
-      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
-      const angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 0.5;
-      this.spawn(tex, {
-        x, y,
-        vx: dirX * speed,
-        vy: dirY * speed,
-        drag: 0.1, // strong decel — sparks burst then settle
-        life: 360 + Math.random() * 340,
-        fromScale: (0.9 + Math.random() * 0.7) * VIS,
-        toScale: 0.05,
-        spin: (Math.random() - 0.5) * 8,
-        rotation: angle,
-        tint, blend: 'normal',
-      });
-    }
-
-    // Smoke — a few soft warm-grey puffs that rise, expand, and fade. Normal blend + low peak alpha
-    // so they tint the cream board like a wisp rather than blasting it; slow + long-lived so they
-    // linger after the sparks have burned out.
-    const sm = getSmokeConfig(); // live-tunable (DEV Smoke tuner); defaults reproduce the original look
-    const puffs = Math.round(sm.smokeCount * (0.75 + 0.25 * power)); // a touch thicker on heavy hits
-    for (let i = 0; i < puffs; i++) {
-      const driftX = (Math.random() - 0.5) * sm.smokeDrift; // gentle horizontal spread
-      const rise = -sm.smokeRise * (0.53 + Math.random() * 0.93); // drift upward, varied
-      const grey = Math.random() < 0.5 ? 0x9c9088 : 0x847a70; // warm smoke greys
-      this.spawn(this.glowTex!, {
-        x: x + (Math.random() - 0.5) * 22,
-        y: y + (Math.random() - 0.5) * 22,
-        vx: driftX,
-        vy: rise,
-        drag: 0.5,                 // slows as it billows
-        life: sm.smokeLife * (1 + Math.random() * 0.77),
-        fromScale: 0.4 + Math.random() * 0.3,
-        toScale: sm.smokeGrow * (0.81 + Math.random() * 0.38), // expands as it dissipates
-        spin: (Math.random() - 0.5) * 1.5,
-        tint: grey,
-        blend: 'normal',
-        peakAlpha: sm.smokeAlpha * (0.82 + Math.random() * 0.35), // wispy, semi-transparent
-      });
-    }
-  }
-
-  /**
-   * Combat impact DUST — a card-drop-style tan billow erupting radially from the corner clack point (x, y).
-   * Same warm dry-dirt look as `dust()`, but sourced at a point (not a card perimeter) and driven by its own
-   * `imp*` config so it can be tuned independently of the card-drop dust. `power` thickens it a touch on
-   * heavy hits. Fired from the melee `contact` position (see `impact.ts`).
-   */
-  impactDust(
-    x: number, y: number, power = 1,
-    /** Optional per-call multipliers on the `imp*` config — lets a non-combat caller (the End Turn diamond's
-     *  strike) thicken/size/slow ITS billow without touching the shared combat tuning. All default to 1. */
-    opts?: { count?: number; size?: number; life?: number },
-  ): void {
-    if (!this.ready) return;
-    const sm = getSmokeConfig();
-    const n = Math.round(sm.impDustCount * (0.8 + 0.2 * power) * (opts?.count ?? 1));
-    for (let i = 0; i < n; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      const speed = sm.impDustSpeed * (0.45 + Math.random() * 0.9);
-      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans (matches dust())
-      const scale = (sm.impDustSize / 40) * (0.7 + Math.random() * 0.6) * (opts?.size ?? 1); // glowTex natural radius ≈ 40px
-      this.spawn(this.glowTex!, {
-        x: x + (Math.random() - 0.5) * 8,
-        y: y + (Math.random() - 0.5) * 8,
-        vx: Math.cos(ang) * speed,
-        vy: Math.sin(ang) * speed * 0.7 - (4 + Math.random() * 12), // vertical damped + slight lift → stays flat
-        drag: 0.2,       // dust slows quickly
-        gravity: 130,    // gentle settle — no rising column
-        life: sm.impDustLife * (0.8 + Math.random() * 0.5) * (opts?.life ?? 1),
-        fromScale: scale * 0.35,
-        toScale: scale, // billow out as it fades
-        spin: (Math.random() - 0.5) * 1.2,
-        tint: tan,
-        blend: 'normal',
-        peakAlpha: 0.34 * (0.8 + Math.random() * 0.4),
-      });
-    }
   }
 
   /**
@@ -1572,111 +1438,6 @@ class FxController {
   }
 
   /**
-   * A sprinkle of gold coins bursting up out of point (x, y) and arcing back down under gravity —
-   * the income flourish when a minion is sold (fired from the Gold counter's screen position).
-   */
-  coins(x: number, y: number): void {
-    if (!this.ready) return;
-    const count = 9;
-    for (let i = 0; i < count; i++) {
-      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.15; // up, fanned ±33°
-      const speed = 380 + Math.random() * 320;                 // punchier upward launch
-      const fs = 0.7 + Math.random() * 0.45;
-      this.spawn(this.coinTex!, {
-        x: x + (Math.random() - 0.5) * 18,
-        y: y + (Math.random() - 0.5) * 8,
-        vx: Math.cos(ang) * speed,
-        vy: Math.sin(ang) * speed, // negative → pops upward
-        drag: 0.85,                // light air damping; gravity dominates the vertical
-        gravity: 1700,             // pull the higher launch back down within its life
-        life: 700 + Math.random() * 400,
-        fromScale: fs,
-        toScale: fs * 0.85,        // hold roughly its size (coins don't shrink to nothing)
-        spin: (Math.random() - 0.5) * 18,
-        tint: 0xffffff,            // the texture is already gold
-        blend: 'normal',
-      });
-    }
-  }
-
-  /**
-   * A puff of dry-dirt dust ringing a card's footprint (cx/cy = card center, w/h = its size) —
-   * like a flat stone dropped into dust. Fired when a minion is placed on / moved across the board.
-   * Puffs spawn around the card's perimeter and billow **outward** (away from the card), hugging the
-   * ground (vertical motion damped, gentle gravity) and fading fast — dusty tan on normal blend, low
-   * alpha so it stays subtle. The caller raises the landed card above the FX layer for the duration,
-   * so the dust reads as escaping out from *under* the card on every side. `scale` (default 1) inflates the
-   * whole plume — both the ring spread and the puff sizes — for a bigger billow (callers may pass >1).
-   * `density` (default 1) multiplies the puff COUNT for a thicker cloud without changing its size.
-   */
-  dust(cx: number, cy: number, w: number, h: number, scale = 1, density = 1): void {
-    if (!this.ready) return;
-    const sm = getSmokeConfig(); // live-tunable (DEV Smoke tuner); defaults reproduce the original look
-    const halfW = w * 0.5 * scale;
-    const halfH = h * 0.5 * scale;
-    const puffs = Math.max(1, Math.round(sm.dustCount * density));
-    for (let i = 0; i < puffs; i++) {
-      const ang = (i / puffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.4; // around the ring
-      const dx = Math.cos(ang);
-      const dy = Math.sin(ang);
-      // project the direction onto the card's rectangular edge so puffs start at the card's border
-      const edge = 1 / Math.max(Math.abs(dx) / halfW, Math.abs(dy) / halfH);
-      const ex = cx + dx * edge;
-      const ey = cy + dy * edge;
-      const speed = sm.dustSpeed * (0.42 + Math.random());
-      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans
-      this.spawn(this.glowTex!, {
-        x: ex + (Math.random() - 0.5) * 8,
-        y: ey + (Math.random() - 0.5) * 8,
-        vx: dx * speed,
-        vy: dy * speed * 0.45 - (4 + Math.random() * 14), // vertical damped + a slight lift → stays flat
-        drag: 0.2,                                         // dust slows quickly
-        gravity: 130,                                      // gentle settle — no rising column
-        life: sm.dustLife * (1 + Math.random() * 0.68),
-        fromScale: (0.3 + Math.random() * 0.2) * scale,
-        toScale: sm.dustGrow * (0.75 + Math.random() * 0.42) * scale, // billow as it dissipates
-        spin: (Math.random() - 0.5) * 1.2,
-        tint: tan,
-        blend: 'normal',
-        peakAlpha: sm.dustAlpha * (0.78 + Math.random() * 0.47),
-      });
-    }
-  }
-
-  /**
-   * A tiny dust puff at a single point (x, y) — the dry-dirt motes kicked up where the mouse taps the
-   * empty board. A much smaller sibling of `dust()`: a handful of tan puffs burst outward from the point,
-   * hug the ground (vertical motion damped, gentle gravity), and fade fast. Purely tactile feedback.
-   */
-  clickPuff(x: number, y: number): void {
-    if (!this.ready) return;
-    const SIZE = 1.2; // puff size (1.0 = base); +20% per owner request
-    const puffs = 7;
-    for (let i = 0; i < puffs; i++) {
-      const ang = (i / puffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const dx = Math.cos(ang);
-      const dy = Math.sin(ang);
-      const speed = 26 + Math.random() * 46; // gentle — a small kick, not a billow
-      const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans (match the card-landing dust)
-      this.spawn(this.glowTex!, {
-        x: x + (Math.random() - 0.5) * 4,
-        y: y + (Math.random() - 0.5) * 4,
-        vx: dx * speed,
-        vy: dy * speed * 0.5 - (3 + Math.random() * 7), // vertical damped + a slight lift → stays flat
-        drag: 0.18,                                      // settles quickly
-        gravity: 120,
-        life: 260 + Math.random() * 180,
-        fromScale: (0.14 + Math.random() * 0.1) * SIZE,
-        toScale: (0.5 + Math.random() * 0.28) * SIZE,    // billow a touch but stay small
-        spin: (Math.random() - 0.5) * 1.2,
-        tint: tan,
-        blend: 'normal',
-        peakAlpha: 0.16 + Math.random() * 0.1,           // subtle
-      });
-    }
-  }
-
-  /**
    * One step of a motion trail behind a moving card — a wind-whoosh wisp left at (x, y), oriented along
    * the movement vector (dx, dy). Callers distance-gate on `getTrailConfig().emitSpacing` (the drag rAF
    * handler + the combat lunge's onUpdate), so emission density tracks speed — no movement, no trail.
@@ -1745,7 +1506,7 @@ class FxController {
    * A blast bolt streaking from (fromX, fromY) to (toX, toY) — a comet of glow motes that all travel to
    * the target, tightening into a head, so it reads as a hurled projectile with a trail. Used for the
    * loss-damage blast (the assembled damage number hurled into the Resolve bar). The caller fires
-   * `damageBurst` at the target when the bolt arrives (travel ≈ `blastTravelMs` below).
+   * the authored `damage-burst` def at the target when the bolt arrives (travel ≈ `blastTravelMs` below).
    */
   blastBolt(fromX: number, fromY: number, toX: number, toY: number): void {
     if (!this.ready) return;
@@ -1782,40 +1543,8 @@ class FxController {
     }
   }
 
-  /** Travel time (ms) of a `blastBolt` — the caller schedules `damageBurst` + the impact for this delay. */
+  /** Travel time (ms) of a `blastBolt` — the caller schedules the `damage-burst` def + the impact for this delay. */
   readonly blastTravelMs = 340;
-
-  /**
-   * A crimson impact burst at (x, y) — the damage landing on the Resolve bar. A hot white core + a red
-   * shockwave + a spray of red/orange shards, additive so it punches over the UI. Pairs with `blastBolt`.
-   */
-  damageBurst(x: number, y: number): void {
-    if (!this.ready) return;
-    // white-hot core
-    this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 240, fromScale: 0.5, toScale: 3, spin: 0,
-      tint: 0xffd9c0, blend: 'add',
-    });
-    // crimson shockwave
-    this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 360, fromScale: 0.4, toScale: 3.4, spin: 0,
-      tint: 0xe23b2e, blend: 'add',
-    });
-    // shards flung in all directions
-    const shards = 22;
-    for (let i = 0; i < shards; i++) {
-      const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const speed = 380 + Math.random() * 620;
-      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.sparkTex!;
-      const warm = Math.random();
-      const tint = warm < 0.45 ? 0xff3b2e : warm < 0.8 ? 0xff8a3a : 0xffffff;
-      this.spawn(tex, {
-        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
-        life: 360 + Math.random() * 360, fromScale: 0.7 + Math.random() * 0.8, toScale: 0.05,
-        spin: (Math.random() - 0.5) * 12, rotation: a, tint, blend: 'add',
-      });
-    }
-  }
 
   /**
    * The REFRESH crystal's click blast — sprite shards flung outward from the button. Every knob is passed
@@ -3606,19 +3335,6 @@ class FxController {
     const r = 7, pts: number[] = [];
     for (let k = 0; k < 6; k++) { const a = ((60 * k + 30) * Math.PI) / 180; pts.push(Math.cos(a) * r, Math.sin(a) * r); }
     g.poly(pts).fill({ color: 0xffffff, alpha: 0.22 }).stroke({ color: 0xffffff, width: 1.6, alignment: 0.5 });
-    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
-    g.destroy();
-    return tex;
-  }
-
-  /** A gold coin — dark rim, bright face, a light inner ring + a shine. Drawn opaque (normal blend)
-   *  so it reads as a solid coin on the light board. */
-  private makeCoinTexture(app: Application): Texture {
-    const g = new Graphics();
-    g.circle(0, 0, 11).fill({ color: 0x9a6a12 });                          // dark rim
-    g.circle(0, 0, 9).fill({ color: 0xffc928 });                           // gold face
-    g.circle(0, 0, 9).stroke({ width: 1.5, color: 0xfff0a8, alpha: 0.9 }); // bright inner ring
-    g.ellipse(-3, -3.5, 3.2, 2).fill({ color: 0xfff6d0, alpha: 0.85 });    // shine highlight
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

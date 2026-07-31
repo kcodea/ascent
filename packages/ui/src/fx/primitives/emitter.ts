@@ -1,10 +1,9 @@
-import { Particle, ParticleContainer, Rectangle, Shader, type Texture } from 'pixi.js';
+import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
 import { sampleCurve, CURVE_PRESETS } from '../curve';
 import {
-  createParticleMaterial,
   updateParticleMaterial,
   updateParticleMaterialShaping,
   setParticleTime,
@@ -14,6 +13,7 @@ import {
   type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
+import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
@@ -37,11 +37,17 @@ import { registerPrimitive } from '../registry';
 
 const SPECS = {
   rate: {
-    kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 300, step: 5, default: 80, essential: true,
+    kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 1200, step: 5, default: 80, essential: true,
+    axis: 'intensity',
     help: 'Motes per second.',
   },
   life: {
-    kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 2000, step: 10, default: 700, essential: true,
+    kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 8000, step: 10, default: 700, essential: true,
+    // A duration, so it rides `time`. Note this param does DOUBLE duty in a one-shot: it is both the mote
+    // lifetime and the EMIT WINDOW (`withinEmitWindow(emitElapsedMs, life)` below), so stretching it emits
+    // proportionally more motes at the same `rate`. That is inherent to a continuous emitter running for
+    // longer, and is spelled out on `FxScaleAxes.time` along with why `rate` is not the answer to it.
+    axis: 'time',
     help: 'Mote lifetime in ms.',
   },
   spread: {
@@ -49,14 +55,17 @@ const SPECS = {
     help: '1 = emit in all directions, lower = upward cone.',
   },
 
-  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 60, essential: true, help: 'px/sec initial.' },
+  speed: {
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 3000, step: 5, default: 60, essential: true,
+    axis: 'scale', help: 'px/sec initial.',
+  },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
     enabledWhen: { param: 'speed', above: 0 },
     help: 'How much motes differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
   },
   gravity: {
-    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30,
+    kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: -30, axis: 'scale',
     help: 'px/sec² (negative = rise, like embers).',
   },
   orientToVelocity: {
@@ -65,7 +74,7 @@ const SPECS = {
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0,
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 2000, step: 5, default: 0, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
   },
   turbScale: {
@@ -78,7 +87,7 @@ const SPECS = {
     help: 'Where motes are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 0, axis: 'scale',
     // Only one half of the mutually-dead shape/radius pair may declare the dependency, or the two lock each
     // other out permanently at these defaults. Shape is the gateway; see burst.ts for the same note.
     enabledWhen: { param: 'emitShape', not: 'point' },
@@ -94,19 +103,19 @@ const SPECS = {
     help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 7, essential: true,
-    help: 'How big a mote is across, in px — 7 reads as sparks, 30 as fat glowing blobs. Size var jitters it per mote and the Size / life curve rescales it as the mote ages.',
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 7, essential: true, axis: 'scale',
+    help: 'How big a mote is across, in px — 7 reads as sparks, 30 as fat glowing blobs, and the top of the range is a single screen-filling bloom. Size var jitters it per mote and the Size / life curve rescales it as the mote ages.',
   },
   sizeVar: {
     kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4,
     help: 'How much mote sizes differ from each other, as a fraction of Size — 0 makes every mote identical, 0.4 (the default) spreads them between 0.6x and 1.4x size.',
   },
   stretchX: {
-    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
   },
   stretchY: {
-    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle height multiplier on top of Size.',
   },
   sizeCurve: {
@@ -150,7 +159,10 @@ const SPECS = {
   },
   fadeIn: {
     kind: 'slider', label: 'Fade in', group: 'Style', min: 0, max: 0.5, step: 0.01, default: 0.1,
-    help: 'Fraction of life spent fading in (and, symmetrically, fading out at the end).',
+    // This IS the emitter's built-in-fade control, and its 0 end is a genuine OFF (`moteAlpha` collapses to a
+    // square envelope there — pinned in emitter.test.ts). That is why the 2026-07-30 pass gave `burst` a new
+    // `fade` param and gave this primitive nothing: burst's `frac * frac` was unreachable, this never was.
+    help: 'Fraction of life spent fading in, and symmetrically fading out at the end. 0 turns the built-in fade OFF — motes pop in at full opacity and hold it until they die, which is when Alpha / life becomes the whole opacity envelope.',
   },
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style', essential: true,
@@ -355,24 +367,18 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     this.oneShot = ctx.oneShot === true;
     this.rand = makeRng(ctx.seed ?? randomSeed());
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
-    this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
-    this.particles = new ParticleContainer({
+    // Pooled, not constructed: building a fresh Shader here re-compiled and re-linked the GLSL on every
+    // fire — a ~68 ms main-thread block. See `particleLayerPool.ts`'s header.
+    const layer = acquireParticleLayer({
+      renderer: ctx.renderer,
+      parent: ctx.container,
       texture: this.texture,
-      shader: this.shader,
-      // Generous fixed bounds: motes drift, so a tight box would get them culled as they leave it. Matches
-      // the ribbon/burst house convention of a large static boundsArea rather than per-frame recomputation.
-      boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
-      // rotation ENABLED (it used to be `false` here — the emitter had no per-frame rotation at all). The
-      // `orientToVelocity` toggle rewrites each mote's `rotation` every frame, and a STATIC attribute is
-      // only re-uploaded when the pipe is told the children changed, so leaving it false would risk pinning
-      // every mote at its spawn rotation. Effectively free here: this instance calls `particles.update()`
-      // every frame, which sets `_childrenDirty`, which makes `ParticleContainerPipe` re-upload the static
-      // buffer every frame anyway — so `aRotation` (1 float × 4 verts per mote) just moves from the static
-      // buffer to the dynamic one rather than becoming a new per-frame cost.
-      dynamicProperties: { position: true, rotation: true, color: true, vertex: true },
+      blendMode: params.blendMode,
+      style: styleOf(params),
+      shaping: shapingOf(params),
     });
-    this.particles.blendMode = params.blendMode;
-    ctx.container.addChild(this.particles);
+    this.shader = layer.shader;
+    this.particles = layer.pc;
   }
 
   setHead(x: number, y: number): void {
@@ -500,17 +506,11 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   }
 
   destroy(): void {
-    // The shape texture is shared across every burst/emitter instance (see `shapeTextures.ts`'s
-    // `getShapeTexture`) — destroying it here would break every other live/future primitive. Only the
-    // container (and the Particle structs it alone owns) and our own shader belong to this instance.
-    //
-    // Order matters — see burst.ts's `destroy()` for the full explanation: `ParticleContainer.destroy()`
-    // also calls `this.shader?.destroy()` internally (destroyPrograms=false) since we handed it our shader
-    // in the constructor, and Shader's destroy is a one-shot (`_destroyed` guard). Destroying the shader
-    // ourselves first (with `true`, so the compiled GL program is actually freed) makes the container's
-    // later internal call a harmless no-op instead of the reverse, which would leak the GL program.
-    this.shader.destroy(true);
-    this.particles.destroy({ children: true });
+    // Back to the pool, NOT destroyed. `releaseParticleLayer` unparents the container first — the player
+    // destroys our owning container with `{ children: true }` immediately after this returns, which would
+    // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in
+    // `shapeTextures.ts`; nothing here touches them.
+    releaseParticleLayer({ shader: this.shader, pc: this.particles });
   }
 
   /**

@@ -263,6 +263,9 @@ export const CARD_PILLS_COLOR_KEYS = ['multBadge', 'multFont', 'glowColor'] as c
 export type CardPillsNumKey = (typeof CARD_PILLS_KEYS)[number];
 export type CardPillsColorKey = (typeof CARD_PILLS_COLOR_KEYS)[number];
 
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as PILLS_DEFAULTS };
+
 const KEY = 'ascent.cardPills';
 // Dev-only persistence: production always renders the shipped DEFAULTS.
 let cfg: CardPillsConfig = (() => {

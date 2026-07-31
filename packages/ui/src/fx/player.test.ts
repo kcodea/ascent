@@ -1010,3 +1010,65 @@ describe('a finished fire stays finished', () => {
     expect(p.isPlaying()).toBe(false); // …and it ends, exactly like the first
   });
 });
+
+/**
+ * `destroy()` is lifecycle teardown, and its one hard promise is that the player goes INERT. It used to be
+ * `killAllLive()` alone, which empties `live` but leaves `playing === true` — so the very next `update()`
+ * sent `reconcile()` looking for a layer that was due and no longer live, and it SPAWNED one.
+ *
+ * That is not a cosmetic leak now that primitives draw from a pool (`particleLayerPool.ts`): the respawn
+ * acquires a pooled pair into a container the caller has already orphaned, and nothing will ever release it.
+ * Repeat it and the pool starves. `playDef`'s `retired()` guard and the workbench's teardown ordering both
+ * happen to prevent it today; these pin it at the source instead.
+ */
+describe('destroy leaves the player inert', () => {
+  beforeEach(() => {
+    spawned.length = 0;
+    clearPrimitives();
+    registerPrimitive(stubPrimitive('a'));
+    registerPrimitive(stubPrimitive('b'));
+    registerPrimitive(stubPrimitive('c'));
+  });
+
+  it('a post-destroy update() spawns nothing and does not report playing', () => {
+    const p = createPlayer(SINGLE_DEF, CTX, { loop: false });
+    p.play();
+    p.update(16);
+    const spawnsBeforeDestroy = spawned.length;
+    expect(spawnsBeforeDestroy).toBeGreaterThan(0);
+
+    p.destroy();
+    expect(p.isPlaying()).toBe(false);
+
+    p.update(16);
+    p.update(16);
+    p.update(16);
+    expect(spawned.length).toBe(spawnsBeforeDestroy); // nothing came back
+    expect(p.isPlaying()).toBe(false);
+  });
+
+  it('holds for a FIRE too — the other path that leaves the transport running', () => {
+    const p = createPlayer(SINGLE_DEF, CTX, { loop: false });
+    p.fireOnce();
+    p.update(16);
+    const spawnsBeforeDestroy = spawned.length;
+
+    p.destroy();
+    p.update(16);
+    p.update(16);
+    expect(spawned.length).toBe(spawnsBeforeDestroy);
+    expect(p.isPlaying()).toBe(false);
+  });
+
+  it('destroys every live instance exactly once', () => {
+    const p = createPlayer(DEF, CTX, { loop: false });
+    p.play();
+    p.update(250); // both layers live by now
+    const live = spawned.map((s) => s.inst);
+    expect(live.length).toBeGreaterThanOrEqual(2);
+
+    p.destroy();
+    p.update(16);
+    for (const inst of live) expect(inst.destroy).toHaveBeenCalledTimes(1);
+  });
+});

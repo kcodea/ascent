@@ -75,14 +75,6 @@ const DEFAULTS: QuestTendrilConfig = {
   colorMote: '#ffcf5a',
 };
 
-export const QUESTTENDRIL_KEYS = [
-  'enabled', 'curve', 'staggerMs', 'travelMs', 'retractMs', 'wobbleAmp', 'wobbleFreq',
-  'baseWidth', 'tipWidth', 'coreAlpha', 'glowWidth', 'glowAlpha',
-  'flashSize', 'flashMs', 'moteCount', 'moteSpeed', 'moteLife',
-  'pulseSize', 'pulseAlpha', 'pulseMs',
-  'colorCore', 'colorGlow', 'colorFlash', 'colorMote',
-] as const satisfies readonly (keyof QuestTendrilConfig)[];
-
 export const QUESTTENDRIL_COLOR_KEYS: (keyof QuestTendrilConfig)[] = ['colorCore', 'colorGlow', 'colorFlash', 'colorMote'];
 
 export const QUESTTENDRIL_RANGES: Partial<Record<keyof QuestTendrilConfig, [number, number, number]>> = {
@@ -94,6 +86,9 @@ export const QUESTTENDRIL_RANGES: Partial<Record<keyof QuestTendrilConfig, [numb
   moteCount: [0, 40, 1], moteSpeed: [0, 500, 5], moteLife: [80, 1400, 20],
   pulseSize: [0, 120, 2], pulseAlpha: [0, 1, 0.02], pulseMs: [40, 1000, 10],
 };
+
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as QUESTTENDRIL_DEFAULTS };
 
 const KEY = 'ascent.questTendril';
 

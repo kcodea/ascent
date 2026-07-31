@@ -43,6 +43,8 @@ import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
+import { cardFxScale } from './fx/cardScale';
+import { playDef } from './fx/playDef';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -1288,7 +1290,7 @@ export function Recruit() {
       const ty = res ? res.top + res.height / 2 : window.innerHeight * 0.92;
       pixiFx.blastBolt(cx, cy, tx, ty);
       timers.push(window.setTimeout(() => {
-        pixiFx.damageBurst(tx, ty);
+        playDef('damage-burst', { source: { x: tx, y: ty }, target: { x: tx, y: ty } });
         setLossShake(true);
         window.setTimeout(() => setLossShake(false), 360);
         dispatch({ type: 'settleCombat' }); // Resolve drops here → the StatusBar's −X hit flash fires
@@ -3210,7 +3212,8 @@ export function Recruit() {
     if (heroArmed || drag) return;
     if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar')) return;
     sfx.clickThock();
-    pixiFx.clickPuff(e.clientX, e.clientY); // small Pixi dust at the cursor (sibling of the card-landing dust)
+    // Small dust at the cursor (sibling of the card-landing dust) — the authored `click-puff` def.
+    playDef('click-puff', { source: { x: e.clientX, y: e.clientY }, target: { x: e.clientX, y: e.clientY } });
   };
 
   // End Turn → face the Omen. End-of-Turn effects play out *one at a time* on the still-mounted
@@ -3492,7 +3495,10 @@ export function Recruit() {
         el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
         window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
       }
-      pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1, 1.5); // original size, +50% denser cloud
+      // The authored `landing-dust` def: sized to this card (`scale`) and, as the hand-written call did with
+      // its `density` argument, +50% denser here than the combat-summon poof (`intensity`).
+      const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      playDef('landing-dust', { source: c, target: c }, { scale: cardFxScale(r.width), intensity: 1.5 });
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 
@@ -3562,7 +3568,9 @@ export function Recruit() {
       const goldEl = document.querySelector('.statcell.gold');
       if (goldEl) {
         const gr = goldEl.getBoundingClientRect();
-        pixiFx.coins(gr.left + gr.width / 2, gr.top + gr.height * 0.4);
+        const gx = gr.left + gr.width / 2;
+        const gy = gr.top + gr.height * 0.4;
+        playDef('coins', { source: { x: gx, y: gy }, target: { x: gx, y: gy } });
       }
       dispatch({ type: 'sell', uid: d.uid });
       return true;

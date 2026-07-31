@@ -352,6 +352,7 @@ describe('defs-directory watcher', () => {
   async function setup(): Promise<{
     root: string;
     globOwner: string;
+    artGlobOwner: string;
     watched: string[];
     fire: (event: string, file: string) => void;
     invalidated: unknown[];
@@ -359,11 +360,18 @@ describe('defs-directory watcher', () => {
   }> {
     const root = await tmp;
     const globOwner = path.resolve(root, '..', 'fxDefs.ts');
+    // There are TWO transform-time globs over this directory tree, and they live in different modules:
+    // `fxDefs.ts` expands `./defs/*.json`, `shapeLibrary.ts` expands `./defs/art/*.png`. Each needs its own
+    // invalidation, so the stub graph has to be able to tell them apart.
+    const artGlobOwner = path.resolve(root, '..', 'shapeLibrary.ts');
     const watched: string[] = [];
     const watchers = new Map<string, WatchHandler[]>();
     const invalidated: unknown[] = [];
     const sent: unknown[] = [];
-    const module = { id: globOwner };
+    const modules = new Map<string, unknown>([
+      [globOwner, { id: globOwner }],
+      [artGlobOwner, { id: artGlobOwner }],
+    ]);
     const server = {
       middlewares: { use: (_r: string, _f: Handler) => {} },
       watcher: {
@@ -373,7 +381,7 @@ describe('defs-directory watcher', () => {
         },
       },
       moduleGraph: {
-        getModuleById: (id: string) => (id === globOwner ? module : undefined),
+        getModuleById: (id: string) => modules.get(id),
         invalidateModule: (mod: unknown) => invalidated.push(mod),
       },
       ws: { send: (msg: unknown) => sent.push(msg) },
@@ -383,7 +391,7 @@ describe('defs-directory watcher', () => {
     const fire = (event: string, file: string): void => {
       (watchers.get(event) ?? []).forEach((fn) => fn(file));
     };
-    return { root, globOwner, watched, fire, invalidated, sent };
+    return { root, globOwner, artGlobOwner, watched, fire, invalidated, sent };
   }
 
   it('watches the defs directory', async () => {
@@ -404,12 +412,48 @@ describe('defs-directory watcher', () => {
     expect(sent).toEqual([{ type: 'full-reload' }]);
   });
 
-  // Art PNGs live in a `defs/art/` SUBdirectory and are not part of the def glob; reloading on those would
-  // interrupt an import for nothing.
-  it('ignores files outside the defs directory itself', async () => {
+  it('ignores JSON outside the defs directory itself', async () => {
     const { root, fire, sent } = await setup();
-    fire('add', path.join(root, 'art', 'sigil.png'));
     fire('add', path.join(root, '..', 'elsewhere.json'));
+    expect(sent).toEqual([]);
+  });
+
+  /**
+   * Art PNGs land in the `defs/art/` SUBdirectory and are NOT part of the def glob — they have a glob of
+   * their own, in `shapeLibrary.ts`, with exactly the same transform-time staleness. This used to be the
+   * documented reason to ignore them ("reloading on those would interrupt an import for nothing"), and that
+   * reasoning was wrong in a way that cost the owner an afternoon: the workbench's Save uploads the PNG AND
+   * rewrites the layer to `art:<slug>`, so a reload with a stale art glob renders a fallback circle and the
+   * effect the author just tuned appears to have vanished. Only a dev-server restart fixed it.
+   */
+  it('invalidates the ART glob owner and reloads when a PNG appears in defs/art', async () => {
+    const { root, artGlobOwner, fire, invalidated, sent } = await setup();
+    fire('add', path.join(root, 'art', 'coin.png'));
+    expect(invalidated).toEqual([{ id: artGlobOwner }]);
+    expect(sent).toEqual([{ type: 'full-reload' }]);
+  });
+
+  it('does the same when committed art is DELETED', async () => {
+    const { root, artGlobOwner, fire, invalidated, sent } = await setup();
+    fire('unlink', path.join(root, 'art', 'coin.png'));
+    expect(invalidated).toEqual([{ id: artGlobOwner }]);
+    expect(sent).toEqual([{ type: 'full-reload' }]);
+  });
+
+  // The two watchers must stay disjoint: a def write must not invalidate the art module, and vice versa.
+  // Invalidating the wrong one is a silent no-op that looks exactly like the bug above.
+  it('routes each file kind to its OWN glob owner and no other', async () => {
+    const { root, globOwner, artGlobOwner, fire, invalidated } = await setup();
+    fire('add', path.join(root, 'new-effect.json'));
+    fire('add', path.join(root, 'art', 'coin.png'));
+    expect(invalidated).toEqual([{ id: globOwner }, { id: artGlobOwner }]);
+  });
+
+  it('ignores a non-PNG in the art directory, and a PNG anywhere else', async () => {
+    const { root, fire, sent } = await setup();
+    fire('add', path.join(root, 'art', 'notes.md'));
+    fire('add', path.join(root, 'stray.png'));
+    fire('add', path.join(root, 'art', 'nested', 'deep.png'));
     expect(sent).toEqual([]);
   });
 

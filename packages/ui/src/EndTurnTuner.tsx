@@ -1,127 +1,127 @@
-import { useEffect, useState } from 'react';
 import {
-  ETB_NUM_KEYS,
-  ETB_COLOR_KEYS,
-  ETB_RANGES,
-  ETB_DESC,
-  getEndTurnConfig,
-  resetEndTurnConfig,
-  setEndTurnValue,
-  type EndTurnConfig,
+  ETB_COLOR_KEYS, ETB_DEFAULTS, ETB_RANGES,
+  getEndTurnConfig, resetEndTurnConfig, setEndTurnValue, type EndTurnConfig,
 } from './endTurnConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only floating tuner for the standalone END TURN diamond (`endTurnConfig.ts` / `EndTurnButton.tsx`).
- * Dials position + scale, the diamond-silhouette glow (blur / opacity / stack / breathing / colour) and the
- * edge-lightning arcs (rate / length / jitter / width / life / opacity / colour). Values persist to
- * localStorage (dev-only) and apply LIVE — position/scale/glow via `--etb-*` vars, lightning read per-frame
- * by the canvas loop. "Preview pressed" flips the art to the dulled gem via a body class so the pressed look
- * can be checked without ending a turn. "Copy" grabs the JSON to paste back as the shipped defaults in
- * `endTurnConfig.ts` (mirror position/scale/glow into the styles.css `var(--etb-*, …)` fallbacks). Panel-only:
- * opened from the Dev Tuning Menu (DevMenu.tsx); dev-only, so it's stripped from production.
+ * DEV-only tuner for the standalone END TURN diamond — placement, the diamond-silhouette glow, the sheen, the
+ * edge-lightning arcs, and the strike burst when it is hit. Position / scale / glow apply live through
+ * `--etb-*` vars; the lightning values are read per-frame by the canvas loop. Shipping a look means pasting the
+ * JSON into DEFAULTS *and* mirroring position / scale / glow into the styles.css fallbacks.
+ *
+ * THIS PANEL HAD THREE CHECKBOXES THAT WERE NOT THE SAME KIND OF THING, all wearing identical row markup:
+ *   - "preview pressed" and "glow always on" are PREVIEW switches — panel-local, saving nothing, existing only
+ *     so a transient state can be held still while its sliders are dragged.
+ *   - "pressed art · cracked gem" is a REAL CONFIG VALUE. `pressedVariant` is stored as 2 or 3, picking which
+ *     pressed art is used, and the panel rendered it as `checked ? 3 : 2` inline.
+ * The schema now separates them: the first two are declared `toggles`, the third is a control of `kind:
+ * 'toggle'` that declares both of its values, so the 2/3 mapping lives in the spec rather than in JSX.
  */
-const LABELS: Record<keyof EndTurnConfig, string> = {
-  x: 'position · x',
-  y: 'position · y',
-  scale: 'scale',
-  glowBlur: 'glow · blur',
-  glowAlpha: 'glow · opacity',
-  glowStrength: 'glow · strength',
-  glowPulse: 'glow · pulse speed',
-  glowPulseDepth: 'glow · pulse depth',
-  sheenCycle: 'sheen · cycle',
-  sheenAlpha: 'sheen · strength',
-  glowX: 'glow · offset x',
-  glowY: 'glow · offset y',
-  glowW: 'glow · width fit',
-  glowH: 'glow · height fit',
-  glowColor: 'glow · colour',
-  boltRate: 'lightning · rate',
-  boltScale: 'lightning · length',
-  boltMag: 'lightning · magnitude',
-  boltWidth: 'lightning · width',
-  boltLife: 'lightning · life',
-  boltAlpha: 'lightning · opacity',
-  boltColor: 'lightning · colour',
-  strikeBolts: 'strike · bolts',
-  strikeFlash: 'strike · flash',
-  strikeDustCount: 'strike · dust amount',
-  strikeDustSize: 'strike · dust size',
-  strikeDustLife: 'strike · dust life',
-  strikeRings: 'strike · ripple rings',
-  strikeRingRadius: 'strike · ripple size',
-  strikeRingLife: 'strike · ripple life',
-  pressedVariant: 'pressed art · cracked gem',
+type ColorKey = (typeof ETB_COLOR_KEYS)[number];
+type NumKey = Exclude<keyof EndTurnConfig, ColorKey>;
+
+const COLOR_SET = new Set<string>(ETB_COLOR_KEYS);
+
+/** `[label, unit, hint, group]` per key. Units are declared, never typed into the label. */
+const SPECS: Record<keyof EndTurnConfig, [string, TunerUnit | undefined, string, string]> = {
+  x:                ['Horizontal offset', 'px', 'Offset from the stage-pinned base point. Scales with the board.', 'Placement'],
+  y:                ['Vertical offset', 'px', 'Offset from that base point. Positive moves the button down.', 'Placement'],
+  scale:            ['Button size', '×', 'Overall size of the diamond.', 'Placement'],
+
+  glowBlur:         ['Softness', 'px', 'Blur radius of each glow pass.', 'Glow'],
+  glowAlpha:        ['Opacity', 'opacity', 'Peak glow opacity. 0 turns the glow off.', 'Glow'],
+  glowStrength:     ['Intensity', undefined, 'How many times the shadow is stacked. Higher reads as a hotter rim.', 'Glow'],
+  glowPulse:        ['Breathing speed', 's', 'Seconds per full breathe cycle. 0 holds it steady.', 'Glow'],
+  glowPulseDepth:   ['Breathing depth', 'opacity', 'How far the glow dips each cycle. 0 is none, 1 fades fully out.', 'Glow'],
+  glowColor:        ['Colour', undefined, 'Colour of the glow.', 'Glow'],
+
+  glowX:            ['Horizontal alignment', 'px', 'Nudges the halo so it sits square on the diamond.', 'Glow fit'],
+  glowY:            ['Vertical alignment', 'px', 'Nudges the halo vertically.', 'Glow fit'],
+  glowW:            ['Width fit', '×', 'Halo width relative to the diamond. Small corrections only.', 'Glow fit'],
+  glowH:            ['Height fit', '×', 'Halo height relative to the diamond.', 'Glow fit'],
+
+  sheenCycle:       ['Sweep interval', 's', 'Seconds between one sheen sweep across the gem and the next.', 'Sheen'],
+  sheenAlpha:       ['Sweep strength', 'opacity', 'How bright the sheen reads as it passes.', 'Sheen'],
+
+  boltRate:         ['Arcs per second', undefined, 'How often lightning spawns along the edges. 0 disables lightning.', 'Edge lightning'],
+  boltScale:        ['Arc length', '×', 'Arc length as a fraction of one diamond edge.', 'Edge lightning'],
+  boltMag:          ['Jitter', 'px', 'How violently an arc deviates from the edge it follows.', 'Edge lightning'],
+  boltWidth:        ['Stroke width', 'px', 'Thickness of each arc.', 'Edge lightning'],
+  boltLife:         ['Arc lifetime', 'ms', 'How long one arc lasts before fading.', 'Edge lightning'],
+  boltAlpha:        ['Opacity', 'opacity', 'Arc opacity.', 'Edge lightning'],
+  boltColor:        ['Colour', undefined, 'Colour of the lightning arcs.', 'Edge lightning'],
+
+  strikeBolts:      ['Arc burst', undefined, 'How many arcs burst out the instant the button is hit.', 'Strike'],
+  strikeFlash:      ['Gem flash', 'ms', 'Duration of the white-hot gem flash. 0 disables it.', 'Strike'],
+  strikeDustCount:  ['Dust amount', '×', 'Size of the dirt and smoke billow, relative to the combat impact dust. 0 disables it.', 'Strike'],
+  strikeDustSize:   ['Dust size', '×', 'Size of each puff.', 'Strike'],
+  strikeDustLife:   ['Dust lifetime', '×', 'How long the billow hangs.', 'Strike'],
+  strikeRings:      ['Ripple rings', undefined, 'How many ripple rings the strike throws. 0 disables them.', 'Strike'],
+  strikeRingRadius: ['Ripple size', '×', 'How far a ripple expands.', 'Strike'],
+  strikeRingLife:   ['Ripple lifetime', '×', 'How long a ripple takes to expand and fade.', 'Strike'],
+
+  pressedVariant:   ['Cracked gem art', undefined, 'Which pressed art the button uses once the turn is ended — the cracked gem, or the plainer dulled one.', 'Pressed art'],
 };
 
-export function EndTurnTuner() {
-  const [cfg, setCfg] = useState<EndTurnConfig>(getEndTurnConfig());
-  const [copied, setCopied] = useState(false);
-  const [pressedPreview, setPressedPreview] = useState(false);
-  const [glowPreview, setGlowPreview] = useState(true);
-  // Flip the live button to its pressed (dim gem) art without ending the turn.
-  useEffect(() => {
-    document.body.classList.toggle('etb-pressed-preview', pressedPreview);
-    return () => document.body.classList.remove('etb-pressed-preview');
-  }, [pressedPreview]);
-  // Pin the hover-only glow on so its sliders can be dialed without holding hover.
-  useEffect(() => {
-    document.body.classList.toggle('etb-glow-preview', glowPreview);
-    return () => document.body.classList.remove('etb-glow-preview');
-  }, [glowPreview]);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('endturnbtn');
+/**
+ * Declaration order IS render order, and only ADJACENT controls sharing a group merge into one heading — so
+ * each colour is listed inside its own group's run rather than collected at the end, as the old panel did.
+ */
+const ORDER: (keyof EndTurnConfig)[] = [
+  'x', 'y', 'scale',
+  'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth', 'glowColor',
+  'glowX', 'glowY', 'glowW', 'glowH',
+  'sheenCycle', 'sheenAlpha',
+  'boltRate', 'boltScale', 'boltMag', 'boltWidth', 'boltLife', 'boltAlpha', 'boltColor',
+  'strikeBolts', 'strikeFlash', 'strikeDustCount', 'strikeDustSize', 'strikeDustLife',
+  'strikeRings', 'strikeRingRadius', 'strikeRingLife',
+  'pressedVariant',
+];
 
-  const set = (k: keyof EndTurnConfig, v: number | string): void => {
-    setEndTurnValue(k, v);
-    setCfg({ ...getEndTurnConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getEndTurnConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetEndTurnConfig(); setCfg({ ...getEndTurnConfig() }); };
+const controls: TunerControl<Extract<keyof EndTurnConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  if (COLOR_SET.has(key)) {
+    return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+  }
+  const [min, max, step] = ETB_RANGES[key as NumKey];
+  if (key === 'pressedVariant') {
+    // Stored as a number (2 or 3), not a boolean — the spec carries the mapping.
+    return { key, label, hint, group, kind: 'toggle' as const, min, max, step,
+      onValue: 3, offValue: 2, onOffLabels: ['cracked', 'dulled'] as [string, string] };
+  }
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>End Turn Button <span>dev · live · recruit phase</span></div>
-      <div className="sfxmix-row">
-        <span className="sfxmix-name" title="Show the pressed (dim gem) art without ending the turn.">preview pressed</span>
-        <input type="checkbox" checked={pressedPreview} onChange={(e) => setPressedPreview(e.target.checked)} />
-        <span className="sfxmix-val">{pressedPreview ? 'on' : 'off'}</span>
-      </div>
-      <div className="sfxmix-row">
-        <span className="sfxmix-name" title="Pin the hover-only glow on so its sliders can be tuned without holding hover.">glow always on</span>
-        <input type="checkbox" checked={glowPreview} onChange={(e) => setGlowPreview(e.target.checked)} />
-        <span className="sfxmix-val">{glowPreview ? 'on' : 'off'}</span>
-      </div>
-      <div className="sfxmix-row">
-        <span className="sfxmix-name" title={ETB_DESC.pressedVariant}>{LABELS.pressedVariant}</span>
-        <input type="checkbox" checked={cfg.pressedVariant >= 3} onChange={(e) => set('pressedVariant', e.target.checked ? 3 : 2)} />
-        <span className="sfxmix-val">{cfg.pressedVariant >= 3 ? 'pressed3' : 'pressed2'}</span>
-      </div>
-      {ETB_NUM_KEYS.map((k) => {
-        const [min, max, step] = ETB_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={ETB_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      {ETB_COLOR_KEYS.map((k) => (
-        <div className="sfxmix-row" key={k}>
-          <span className="sfxmix-name" title={ETB_DESC[k]}>{LABELS[k]}</span>
-          <input type="color" value={cfg[k]} onChange={(e) => set(k, e.target.value)} />
-          <span className="sfxmix-val">{cfg[k]}</span>
-        </div>
-      ))}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export const SPEC: TunerSpec<EndTurnConfig> = {
+  id: 'endturnbtn',                 // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'End Turn Button',
+  note: 'dev · live · recruit phase',
+  read: getEndTurnConfig,
+  write: (key, value) => setEndTurnValue(key, value),
+  writeColor: (key, value) => setEndTurnValue(key, value),
+  reset: resetEndTurnConfig,
+  defaults: ETB_DEFAULTS,
+  controls,
+  toggles: [
+    {
+      id: 'etbPressed',
+      label: 'Preview pressed',
+      hint: 'Shows the pressed art without ending the turn. Preview only; nothing is saved.',
+      bodyClass: 'etb-pressed-preview',
+      defaultOn: false,
+    },
+    {
+      id: 'etbGlow',
+      label: 'Glow always on',
+      hint: 'Pins the hover-only glow so its sliders can be dialled without holding hover. Preview only; nothing is saved.',
+      bodyClass: 'etb-glow-preview',
+      defaultOn: true,
+    },
+  ],
+};
+
+export function EndTurnTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

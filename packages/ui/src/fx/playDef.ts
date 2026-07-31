@@ -1,13 +1,15 @@
 /// <reference types="vite/client" />
-import { Container } from 'pixi.js';
+import { Container, type Renderer } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
 import { driveLayerHeads, type FxAnchors } from './anchors';
 import type { FxDef } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
+import { fxPoolSize } from './fxRuntime';
 import { createPlayer } from './player';
 import { hasPrimitives } from './registry';
+import { scaleDef, type FxScaleAxes } from './scaleDef';
 
 /**
  * Play a COMMITTED def once, in the real game, and clean itself up. The runtime half of the workbench →
@@ -40,21 +42,42 @@ import { hasPrimitives } from './registry';
  * attached one), not a per-frame anchor re-read here.
  *
  * ── production ───────────────────────────────────────────────────────────────────────────────────────
- * Inert in a production build, by design and unchanged by this module: the def registry (`fxDefs.ts`) is
- * DEV-gated at its `import.meta.glob`, and the primitives self-register only via the DEV-gated dynamic
- * import `ensureDefsReady()` performs. So in prod `getDef()` misses, `canPlayDefs()` is false, and
- * `playDef()` returns `null` without allocating anything. **Nothing here un-gates that.** Shipping defs to
- * players is a separate, explicit decision — it means shipping the primitives and their GLSL source into
- * the prod bundle, which is exactly what those two gates exist to prevent today.
+ * This PLAYS in production. It did not always: the def registry was DEV-gated at its `import.meta.glob` and
+ * the primitives loaded only behind a DEV-gated dynamic import, so `canPlayDefs()` was permanently false for
+ * players. The owner un-gated both (2026-07-29) — authored defs are now part of the shipped game, at a
+ * measured +151,602 B raw / +34,206 B gzipped of total JS — of which only +17,829 B raw / +4,868 B gzipped is
+ * in the main chunk; the primitives and their GLSL are the rest, in their own lazily-fetched chunk.
+ *
+ * Playback needs THREE things true, and all three now hold in prod: the registry is populated (`fxDefs.ts`),
+ * the primitives are registered, and something has actually CALLED `ensureDefsReady()` — `Game.tsx` does it on
+ * mount, un-gated. That third one is easy to lose: without the call the primitives never register,
+ * `canPlayDefs()` stays false, and every binding is silently inert even though the bytes shipped.
+ *
+ * What is still DEV-only is AUTHORING: saving a def (`defStore.ts`), the imported-art glob
+ * (`shapeLibrary.ts`), the `window.__fx` handle at the bottom of this file, and the workbench UI under
+ * `DevMenu`. Playback ships; the tool does not.
  *
  * Nothing in here throws. A miss (unknown id, no renderer, no playable layers) is `null`, which the caller
  * treats as "no FX for this moment" and moves on.
  */
 
-export interface PlayDefOptions {
+export interface PlayDefOptions extends FxScaleAxes {
   /** Playback rate multiplier (e.g. the combat-speed dial). Non-finite or ≤ 0 falls back to 1 — a paused
    *  fire-and-forget effect would never retire, so "0" is treated as caller error rather than honoured. */
   speed?: number;
+  /* `scale` / `intensity` / `time` come from `FxScaleAxes` — the per-call geometric, quantity and temporal
+   * multipliers. All default to 1, and 1 is an EXACT no-op (the def object is not even copied). Only params
+   * that declare an `axis` in their spec respond, and each is clamped to its own slider range, so scaling is
+   * NOT linear at the extremes. See `scaleDef.ts` and `FxParamMeta.axis`.
+   *
+   * `time` and `speed` are NOT the same dial and must not be confused: `speed` rescales this player's clock
+   * (everything, motion included, runs slower and covers the same ground), while `time` stretches the def's
+   * temporal frame with the velocities held, so particles travel further. `time` also moves `def.duration`,
+   * which is what `fireProgress` and every `travel` layer's arc are measured against — so a stretched def's
+   * arc still completes exactly at its (stretched) end. Note the interaction with the two safety caps: a
+   * large `time` on a long def can push a play past `player.ts`'s `FIRE_TIMEOUT_MS` (10s of SIMULATED time)
+   * or this module's `PLAY_TIMEOUT_MS` (15s of wall clock), which force-retire it. Nothing in the library is
+   * within an order of magnitude of that. */
   /** Called EXACTLY once when the effect retires — whether it played out naturally or was cancelled — and
    *  after teardown has finished, so the callback sees a fully cleaned-up world. */
   onDone?: () => void;
@@ -161,9 +184,10 @@ export function createRetire(t: FxPlayTeardown): FxRetire {
  * Whether a def can play AT ALL right now: the primitives are registered and the overlay has a live
  * renderer.
  *
- * Both halves are false in a production build (see the module header) and false headless, so this is the
- * one call a caller needs to decide "defs, or the hand-written FX path". It is deliberately NOT a promise —
- * a per-moment call site must not await anything.
+ * Both halves are true in a normal production session once `ensureDefsReady()` has resolved (see the module
+ * header); both are false headless, and false for the window before that promise settles. So this is the one
+ * call a caller needs to decide "defs, or the hand-written FX path". It is deliberately NOT a promise — a
+ * per-moment call site must not await anything.
  */
 export function canPlayDefs(): boolean {
   // `hasPrimitives()` (a Map `.size` read), NOT `listPrimitives().length` — the latter spreads and sorts the
@@ -176,28 +200,66 @@ export function canPlayDefs(): boolean {
 let readying: Promise<void> | null = null;
 
 /**
- * Await def-playing readiness — i.e. register the built-in primitives, in DEV.
+ * Await def-playing readiness — i.e. register the built-in primitives. Un-gated: this is what makes authored
+ * defs play for PLAYERS, so it must run in production too. `Game.tsx` calls it on mount.
  *
- * The import is DEV-gated exactly as `Workbench.tsx`'s is, and for exactly the same reason: the primitives
- * self-register via a top-level function CALL, a side effect Rollup cannot prove away, so a static import
- * would drag the whole set (GLSL shader source included) into the production bundle even though nothing
- * there can ever play a def. Written as a positive `import.meta.env.DEV && …` branch so prod's constant
- * folding turns the whole block into `if (false)` and dead-code-eliminates the `import()` with it.
+ * Still a DYNAMIC import, for a reason that survived the un-gate: the primitives self-register via a top-level
+ * function CALL, a side effect Rollup cannot prove away, so a static import would pull the whole set (GLSL
+ * shader source included) into the ENTRY chunk. Keeping it dynamic puts them in their own chunk, fetched
+ * alongside the game rather than ahead of first paint.
  *
- * Resolves (never rejects) in every case: already-ready, just-loaded, load-failed, and production — where it
- * resolves immediately and `canPlayDefs()` stays false. **This does not un-gate anything for players.**
+ * Resolves (never rejects) in every case: already-ready, just-loaded, and load-failed — where it warns and
+ * leaves `canPlayDefs()` false, so every call site falls back to the hand-written FX path.
  */
 export function ensureDefsReady(): Promise<void> {
-  if (import.meta.env.DEV && !hasPrimitives()) {
-    readying ??= import('./primitives').then(
-      () => undefined,
-      (e: unknown) => {
-        console.warn('[fx] could not load the def primitives — defs will not play:', e);
-      },
-    );
-    return readying;
-  }
-  return Promise.resolve();
+  // The pre-warm is scheduled off the SAME memoised import, but deliberately NOT inside the `!hasPrimitives()`
+  // branch below. In DEV the workbench can register the primitives before `Game.tsx` ever calls this, and then
+  // that branch is skipped entirely — which is precisely how the first version of this shipped a pre-warm that
+  // never ran. Hanging it off the (idempotent, module-cached) import instead means it happens exactly once per
+  // session on every path.
+  readying ??= import('./primitives').then(
+    (mod) => {
+      schedulePrewarm(mod.prewarmFxMaterials);
+    },
+    (e: unknown) => {
+      console.warn('[fx] could not load the def primitives — defs will not play:', e);
+    },
+  );
+  return hasPrimitives() ? Promise.resolve() : readying;
+}
+
+/** How long to keep waiting for the overlay's renderer before giving up on pre-warming, and how often to
+ *  look. A few seconds is far longer than `pixiFx.attach()` has ever taken; the cap is only there so a
+ *  session where the overlay never initialises (no WebGL) doesn't hold a timer forever. */
+const PREWARM_POLL_MS = 120;
+const PREWARM_GIVE_UP_MS = 8_000;
+
+/**
+ * Run the FX shader pre-warm as soon as the overlay has a renderer — polling for it rather than assuming.
+ *
+ * The ordering here is the whole point and it is NOT guaranteed: `Game.tsx` calls `ensureDefsReady()` on
+ * mount, and `pixiFx.attach()` → `init()` is an independent async chain that creates the `Application`. The
+ * primitives' dynamic import usually resolves FIRST, so `pixiFx.renderer` is still null at that moment and a
+ * straight-line `prewarmFxMaterials(pixiFx.renderer)` silently does nothing — leaving the ~68 ms-per-source
+ * GLSL link to land on the first combat collision, which is exactly the frame we are trying to protect.
+ *
+ * Deliberately NOT awaited by `ensureDefsReady`: nothing should wait on a pre-warm, and a caller that fires a
+ * def before the warm lands just pays the old first-fire cost once.
+ */
+function schedulePrewarm(prewarm: (renderer: Renderer | null) => void): void {
+  if (typeof window === 'undefined') return;
+  let waited = 0;
+  const tick = (): void => {
+    const renderer = pixiFx.renderer;
+    if (renderer) {
+      prewarm(renderer);
+      return;
+    }
+    waited += PREWARM_POLL_MS;
+    if (waited >= PREWARM_GIVE_UP_MS) return;
+    window.setTimeout(tick, PREWARM_POLL_MS);
+  };
+  tick();
 }
 
 // ─── the bridge ────────────────────────────────────────────────────────────────────────────────────────
@@ -217,7 +279,9 @@ export function ensureDefsReady(): Promise<void> {
 export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {}): (() => void) | null {
   const stored = getDef(id);
   if (!stored) {
-    // DEV-only: in prod the registry is empty by design, so this would fire for every call and say nothing.
+    // DEV-only because it is an AUTHORING mistake — a binding naming a def that isn't committed. The registry
+    // ships now, so this can fire in prod, but a player can't fix a dangling binding and the console noise
+    // would repeat for every moment that hit it. `bindings.test.ts` is what catches this before it ships.
     if (import.meta.env.DEV) console.warn(`[fx] playDef: no committed def '${id}' — nothing fired.`);
     return null;
   }
@@ -227,7 +291,10 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   const renderer = pixiFx.renderer;
   if (!renderer) return null;
 
-  const def = playableDef(stored);
+  // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
+  // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
+  // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
+  const def = scaleDef(playableDef(stored), opts);
   const layers = def.layers;
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.
@@ -298,15 +365,19 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
 //   await window.__fx.ready();
 //   window.__fx.play('ward-gained', window.__fx.anchors('<uid>', null));
 //
-// This is the only way to see a def in the actual game before its moment happens to occur (and some
+// This is the fastest way to see a def in the actual game without waiting for its moment to occur (and some
 // moments — `shieldUp` among them — collapse into result runs, so they don't fire on every combat). It
-// mirrors the `__pixiFx` handle the shipped overlay already exposes for the same reason. Written as a
-// positive `import.meta.env.DEV` branch so Rollup drops the whole block from a production build.
+// mirrors the `__pixiFx` handle the shipped overlay already exposes for the same reason.
+//
+// STAYS DEV-only, even though playback itself now ships: this is an authoring/debug affordance, and putting
+// arbitrary def-firing on `window` for players is a console surface with no upside. Written as a positive
+// `import.meta.env.DEV` branch so Rollup drops the whole block from a production build.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).__fx = {
     play: playDef,
     ready: ensureDefsReady,
     canPlay: canPlayDefs,
+    poolSize: fxPoolSize,
     anchors: anchorsForUnits,
     list: (): string[] => listDefs().map((d) => d.id),
   };

@@ -68,7 +68,7 @@ const controls: TunerControl<Extract<keyof HeroPowerBtnConfig, string>>[] = [
   ...AFTER_COLOUR.map(num),
 ];
 
-const SPEC: TunerSpec<HeroPowerBtnConfig> = {
+export const SPEC: TunerSpec<HeroPowerBtnConfig> = {
   id: 'heropowerbtn',               // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Hero Power Button',
   note: 'dev · live · recruit phase',

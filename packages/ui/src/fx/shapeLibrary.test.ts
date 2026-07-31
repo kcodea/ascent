@@ -2,17 +2,22 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   CUSTOM_SHAPE_PREFIX,
   FALLBACK_SHAPE,
+  MAX_ART_ALIASES,
   MAX_IMPORTED_SHAPES,
   OPAQUE_TRACE_THRESHOLD,
   customShapeId,
   fitRect,
   isBuiltinShapeId,
   labelFromFilename,
+  listCommittedArt,
   listImportedShapes,
   listShapeOptions,
   luminanceAlpha,
   opaqueRatio,
+  parseStoredArtAliases,
   parseStoredShapes,
+  pruneArtAliases,
+  registerSavedArt,
   removeImportedShape,
   resetShapeLibrary,
   resolveShapeSource,
@@ -59,6 +64,9 @@ function uninstallStorageStub(): void {
 }
 
 const STORAGE_KEY = 'ascent.fx.shapes.v1';
+/** The overlay's own key — asserted here rather than exported, so a rename has to be a deliberate key bump
+ *  (which is the documented migration story) and can't slip through as "the tests still pass". */
+const ART_ALIAS_KEY = 'ascent.fx.art.v1';
 const shape = (id: string, label = id): ImportedShape => ({ id, label, dataUrl: 'data:image/png;base64,AAAA' });
 
 describe('listShapeOptions', () => {
@@ -306,7 +314,9 @@ describe('persistence', () => {
     if (!stub) return;
     stub.setItem(STORAGE_KEY, '{not json');
     expect(() => listShapeOptions()).not.toThrow();
-    expect(listShapeOptions().map((o) => o.id)).toEqual([...SHAPE_NAMES]);
+    // Committed art is a separate category from imports, exactly as above — filter it out or the first PNG
+    // anyone commits fails a test about corrupted STORAGE.
+    expect(listShapeOptions().filter((o) => !o.id.startsWith('art:')).map((o) => o.id)).toEqual([...SHAPE_NAMES]);
   });
 
   it('removes an import and persists the removal', () => {
@@ -336,6 +346,148 @@ describe('persistence', () => {
   });
 });
 
+/**
+ * The committed-art OVERLAY — the fix for "imported a PNG, saved, reloaded, the effect vanished".
+ *
+ * The decode half needs a DOM and a WebGL context, so what is covered here is what actually decides whether
+ * the id resolves after a reload: the pointer survives storage, the picker offers it, and the list cannot
+ * grow without bound. `pruneArtAliases` is pure, so the two ways an alias dies are checked directly.
+ */
+describe('committed-art overlay', () => {
+  let stub: Storage | null = null;
+
+  beforeEach(() => {
+    stub = installStorageStub();
+    resetShapeLibrary();
+  });
+
+  afterEach(() => {
+    resetShapeLibrary();
+    uninstallStorageStub();
+    stub = null;
+  });
+
+  describe('parseStoredArtAliases', () => {
+    it('reads a well-formed overlay', () => {
+      expect(parseStoredArtAliases('[{"slug":"coin","sourceId":"custom:coin"}]')).toEqual([
+        { slug: 'coin', sourceId: 'custom:coin' },
+      ]);
+    });
+
+    it('returns [] for junk rather than throwing (a corrupted overlay costs the overlay, not the workbench)', () => {
+      expect(parseStoredArtAliases(null)).toEqual([]);
+      expect(parseStoredArtAliases('')).toEqual([]);
+      expect(parseStoredArtAliases('{not json')).toEqual([]);
+      expect(parseStoredArtAliases('{"slug":"coin"}')).toEqual([]); // not an array
+    });
+
+    it('drops entries that are not aliases, keeping the rest', () => {
+      const raw = JSON.stringify([
+        { slug: 'coin', sourceId: 'custom:coin' },
+        { slug: '', sourceId: 'custom:x' }, // no slug
+        { slug: 'y', sourceId: 'art:y' }, // a source must be a LOCAL import, never another committed id
+        { slug: 'z' }, // no source at all
+      ]);
+      expect(parseStoredArtAliases(raw).map((a) => a.slug)).toEqual(['coin']);
+    });
+
+    it('caps a hostile store at MAX_ART_ALIASES', () => {
+      const raw = JSON.stringify(
+        Array.from({ length: MAX_ART_ALIASES + 30 }, (_, i) => ({ slug: `s${i}`, sourceId: `custom:s${i}` })),
+      );
+      expect(parseStoredArtAliases(raw)).toHaveLength(MAX_ART_ALIASES);
+    });
+  });
+
+  describe('pruneArtAliases', () => {
+    const alias = { slug: 'coin', sourceId: 'custom:coin' };
+
+    it('keeps an alias whose art the glob still cannot see and whose import is still here', () => {
+      expect(pruneArtAliases([alias], new Set(), new Set(['custom:coin']))).toEqual([alias]);
+    });
+
+    it('drops it once the glob has caught up — the committed file is the authority', () => {
+      expect(pruneArtAliases([alias], new Set(['coin']), new Set(['custom:coin']))).toEqual([]);
+    });
+
+    it('drops it when the import it points at is gone (nothing left to serve)', () => {
+      expect(pruneArtAliases([alias], new Set(), new Set())).toEqual([]);
+    });
+
+    it('collapses a re-committed slug to the newest entry rather than accumulating', () => {
+      const older = { slug: 'coin', sourceId: 'custom:coin' };
+      const newer = { slug: 'coin', sourceId: 'custom:coin-2' };
+      expect(pruneArtAliases([older, newer], new Set(), new Set(['custom:coin', 'custom:coin-2']))).toEqual([newer]);
+    });
+
+    it('never returns more than MAX_ART_ALIASES', () => {
+      const many = Array.from({ length: MAX_ART_ALIASES + 10 }, (_, i) => ({ slug: `s${i}`, sourceId: `custom:s${i}` }));
+      const ids = new Set(many.map((a) => a.sourceId));
+      expect(pruneArtAliases(many, new Set(), ids)).toHaveLength(MAX_ART_ALIASES);
+    });
+  });
+
+  it('registerSavedArt persists a POINTER, not a second copy of the PNG', () => {
+    if (!stub) return;
+    stub.setItem(STORAGE_KEY, JSON.stringify([shape('custom:coin', 'coin')]));
+    registerSavedArt('coin', 'custom:coin');
+    const stored = stub.getItem(ART_ALIAS_KEY);
+    expect(parseStoredArtAliases(stored)).toEqual([{ slug: 'coin', sourceId: 'custom:coin' }]);
+    expect(stored).not.toContain('data:image'); // the bytes stay in ONE place
+  });
+
+  it('offers the committed slug in the picker straight away — the in-session half of the bug', () => {
+    if (!stub) return;
+    stub.setItem(STORAGE_KEY, JSON.stringify([shape('custom:coin', 'coin')]));
+    expect(listCommittedArt()).not.toContain('coin');
+    registerSavedArt('coin', 'custom:coin');
+    expect(listCommittedArt()).toContain('coin');
+    expect(listShapeOptions().map((o) => o.id)).toContain('art:coin');
+  });
+
+  // THE case: a fresh module (a reload) hydrates from storage alone, with a glob that still cannot see the
+  // PNG, and `art:coin` is still a slug the library knows about.
+  it('survives a reload — the overlay rehydrates without the dev server restarting', () => {
+    if (!stub) return;
+    stub.setItem(STORAGE_KEY, JSON.stringify([shape('custom:coin', 'coin')]));
+    stub.setItem(ART_ALIAS_KEY, JSON.stringify([{ slug: 'coin', sourceId: 'custom:coin' }]));
+    expect(listCommittedArt()).toContain('coin');
+  });
+
+  it('sweeps a dangling alias at hydration, and writes the sweep back', () => {
+    if (!stub) return;
+    // No import behind it — the source aged out of the 24-import cap, or was removed in a past session.
+    stub.setItem(ART_ALIAS_KEY, JSON.stringify([{ slug: 'coin', sourceId: 'custom:coin' }]));
+    expect(listCommittedArt()).not.toContain('coin');
+    expect(parseStoredArtAliases(stub.getItem(ART_ALIAS_KEY))).toEqual([]);
+  });
+
+  it('drops the alias when its import is removed', () => {
+    if (!stub) return;
+    stub.setItem(STORAGE_KEY, JSON.stringify([shape('custom:coin', 'coin')]));
+    registerSavedArt('coin', 'custom:coin');
+    removeImportedShape('custom:coin');
+    expect(parseStoredArtAliases(stub.getItem(ART_ALIAS_KEY))).toEqual([]);
+    expect(listCommittedArt()).not.toContain('coin');
+  });
+
+  it('ignores a registration it cannot honour rather than storing a dead pointer', () => {
+    if (!stub) return;
+    registerSavedArt('coin', 'custom:never-imported'); // no such import
+    registerSavedArt('', 'custom:coin'); // no slug
+    registerSavedArt('coin', 'art:coin'); // a source must be a local import
+    expect(parseStoredArtAliases(stub.getItem(ART_ALIAS_KEY))).toEqual([]);
+  });
+
+  it('resetShapeLibrary wipes the overlay too', () => {
+    if (!stub) return;
+    stub.setItem(STORAGE_KEY, JSON.stringify([shape('custom:coin', 'coin')]));
+    registerSavedArt('coin', 'custom:coin');
+    resetShapeLibrary();
+    expect(stub.getItem(ART_ALIAS_KEY)).toBeNull();
+  });
+});
+
 describe('no storage available', () => {
   beforeEach(() => {
     uninstallStorageStub();
@@ -345,7 +497,9 @@ describe('no storage available', () => {
   it('degrades to the built-ins instead of throwing when localStorage is absent', () => {
     if (typeof localStorage !== 'undefined') return; // a runtime with real web storage — nothing to prove
     expect(() => listShapeOptions()).not.toThrow();
-    expect(listShapeOptions().map((o) => o.id)).toEqual([...SHAPE_NAMES]);
+    // Same reason: committed art arrives from the repo's glob, not from storage, so it is still listed when
+    // storage is missing entirely.
+    expect(listShapeOptions().filter((o) => !o.id.startsWith('art:')).map((o) => o.id)).toEqual([...SHAPE_NAMES]);
     expect(() => removeImportedShape('custom:x')).not.toThrow();
     expect(() => resetShapeLibrary()).not.toThrow();
   });

@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "id": "damage-burst",
+  "label": "Damage burst",
+  "tags": ["damage", "impact", "crimson"],
+  "duration": 700,
+  "layers": [
+    {
+      "primitive": "burst",
+      "name": "hot core",
+      "anchor": "target",
+      "at": 0,
+      "life": 320,
+      "params": {
+        "count": 4,
+        "spread": 1,
+        "speed": 20,
+        "speedVar": 0,
+        "drag": 0.7,
+        "gravity": 0,
+        "life": 240,
+        "shape": "circle",
+        "size": 30,
+        "sizeVar": 0.1,
+        "sizeCurve": [[0, 0.5], [1, 2]],
+        "alphaCurve": [[0, 1], [0.5, 0.7], [1, 0]],
+        "coreBias": 1,
+        "bands": 2,
+        "plateau": 0.55,
+        "glow": 0.8,
+        "erode": 0,
+        "blendMode": "add",
+        "palette": [7019536, 16747066, 16767424, 16777215]
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "name": "crimson shockwave",
+      "anchor": "target",
+      "at": 0,
+      "life": 460,
+      "params": {
+        "rings": 1,
+        "speed": 1.8,
+        "thickness": 0.12,
+        "radius": 150,
+        "fade": 1.5,
+        "ease": 0.6,
+        "bands": 3,
+        "plateau": 0.32,
+        "alpha": 0.95,
+        "glow": 0.5,
+        "erode": 0.3,
+        "blendMode": "add",
+        "palette": [4852230, 14826286, 16747066, 16770768]
+      }
+    },
+    {
+      "primitive": "burst",
+      "name": "shards",
+      "anchor": "target",
+      "at": 0,
+      "life": 700,
+      "params": {
+        "count": 26,
+        "spread": 1,
+        "speed": 430,
+        "speedVar": 0.75,
+        "drag": 0.88,
+        "gravity": 0,
+        "life": 520,
+        "orientToVelocity": true,
+        "shape": "shard",
+        "size": 10,
+        "sizeVar": 0.7,
+        "stretchX": 1.6,
+        "sizeCurve": [[0, 1], [1, 0]],
+        "coreBias": 0.7,
+        "bands": 3,
+        "plateau": 0.32,
+        "glow": 0.45,
+        "erode": 0.3,
+        "blendMode": "add",
+        "palette": [4852230, 16726830, 16747066, 16777215]
+      }
+    }
+  ]
+}

@@ -48,7 +48,6 @@ export const FLOAT_RANGES: Record<keyof FloatConfig, [number, number, number]> =
   inScale: [0.1, 1, 0.02],
   inY: [0, 40, 1],
 };
-export const FLOAT_KEYS = Object.keys(DEFAULTS) as (keyof FloatConfig)[];
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FLOAT_DEFAULTS };
 

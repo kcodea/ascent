@@ -44,6 +44,70 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The combat collision stutter is gone.** Every time two cards clashed, the game froze for about a sixth of
+  a second — long enough to feel, short enough to be hard to catch. The cause turned out to have nothing to do
+  with how many particles were on screen: each effect was throwing away its compiled graphics program when it
+  finished and rebuilding it from scratch the next time, and rebuilding one blocks everything else for ~68 ms.
+  Effects now reuse their programs (and the buffers behind them) from a pool, and the one unavoidable build
+  happens quietly at load instead of mid-fight. Measured worst frame during a collision: **160 ms → under
+  2 ms**, with proof that a reused effect looks byte-for-byte identical to a fresh one.
+- **The effect workbench stops fighting the person using it.** Three ceilings came down at once. Art you
+  import as a particle shape now survives a page reload instead of quietly reverting to a plain circle — the
+  file was written to disk correctly, but the app couldn't see a file that appeared after it started, so a
+  tuned effect appeared to vanish. The physics sliders got roughly four times the range, because "as dramatic
+  as it goes" was landing short of what effects actually wanted (one had to trade launch speed for arc height
+  to fake a lob the ceiling wouldn't allow). And the fade every particle rides — previously baked in, so
+  particles faded whatever you drew on the opacity curve — is now a control that can be turned off entirely.
+  Nothing already made looks different; every existing effect is pinned to that by test.
+- **The melee smack is an authored effect now, and effects can aim along the blow.** An authored effect is a
+  fixed recipe, but a strike has to fan its sparks *at the defender* — a direction that only exists at the
+  moment of the hit. Rather than let callers bend a recipe with an angle (which would stop it being a recipe),
+  a burst can now point itself along the moment itself: from where the effect came from, toward what it hit.
+  The combat impact moves across on it and takes its whole dev tuner panel with it, since the workbench is
+  where it is tuned from here.
+- **Effects can be stretched in time at the moment they fire.** The last of the three per-call dials —
+  bigger, more, and now *longer*. Not the same as slowing an effect down: the dust thrown up by a strike
+  keeps its speed and simply hangs (and travels) further. The tricky part is that "life" means two different
+  things — how long a particle lives and how long its layer exists — so the dial moves an effect's whole
+  timeline together; stretching only half of it would have quietly cut particles off mid-flight in most of
+  the library. The strike-point dust moves across as the proof, and every button that kicks it up now dials
+  its own count, size and lifetime.
+- **Effects can be sized at the moment they fire.** An authored effect is a fixed recipe, which is most of
+  its value — but a lot of them need to know something only the caller knows: how big this card is, how hard
+  this hit landed. Two per-call dials now carry exactly that, and nothing else: bigger, and more. The dust
+  kicked up under a landed minion is the first effect to move across on them, and now sizes itself to the
+  card it lands under. Existing effects are untouched down to the exact random roll a locked seed replays.
+- **Bursts can be aimed.** A `burst`'s cone used to fan along the emitter's direction of travel — which is
+  *nothing* for an effect pinned to a fixed point, so a directional pop from a static anchor couldn't be
+  authored at all. Two new params fix that — point the cone at any angle you choose — and the gold coin
+  sprinkle gets its upward fan back instead of popping in every direction.
+  Every existing effect is untouched, down to the exact random roll a locked seed replays.
+- **The first hand-written FX become data.** Now that authored effects actually reach players (below), the
+  ~28 hand-tuned methods in `pixiFx.ts` can start moving to the workbench. Batch 1: the crimson damage burst,
+  the click dust puff and the gold coin sprinkle are authored defs, taking `pixiFx.ts` from 3757 to 3648
+  lines. The nine effects that take a per-call size or intensity are blocked until `playDef` can pass one.
+- **Authored FX reach players.** The whole def runtime was dev-only by design, so nothing authored in the FX
+  workbench had ever been seen outside a dev session. Three `import.meta.env.DEV` gates came out and the
+  effects ship: **15 already-live bindings turn on** — attack exchanges, buff waves, keyword gain/loss, quest
+  trigger/complete, rally, reveal, spell cast + progress, ward gain, venom spent, HP grants, cards to hand,
+  and Bloodbinder's ruby lance. Cost: +34 KB gzipped of JS, 29 KB of it a primitives chunk fetched lazily
+  on mount rather than at first paint (the main chunk grows under 5 KB gzipped). The
+  *authoring tool* stays dev-only; a test now pins that split in both directions.
+- **The dev tuners look like instruments now.** Dark machined panels over the board instead of pale dialogs on
+  it, with the slider track lit to its value, a flagged edge on anything moved off shipped, and the main menu's
+  sheen on button hover and press. Eight ad-hoc text sizes became a four-role scale.
+- **One button resets every dev tuner to the shipped values.** Per-panel Reset only ever cleared that panel, so
+  nothing put the whole toolset back at once.
+- **Tuning got a working surface.** Panel sections fold away and remember it, each panel has a find box, and a
+  hold-or-tap button A/Bs your edits against the shipped values — the question "is this actually better than what
+  we ship?" used to mean reverting every control by hand. All three landed in one shared component.
+- **The dev tuners are one component now — 46 of 48 panels.** Every panel renders from a declarative spec that
+  gives it real sections, a declared unit per control, a hover hint saying what you would see change, a number
+  box beside each slider, and a one-click revert to the shipped value. The last three had no config module at
+  all — they compose CSS — and now share one store that also owns tearing their override back down on close.
+  `SfxMixer` is parked by owner request; `ShieldTuner` is handled separately (it is dead code).
+- **Three dev tuner panels ignored their own close button** — their internal key disagreed with the menu's, so
+  ✕ did nothing and they could only be dismissed from the menu. Fixed.
 - **Set 2 content is complete: 26 quests and the full 96-rune roster.** The last stretch leaned on a handful of
   reusable primitives rather than bespoke code per item — a threshold dispatcher ("every N of X, do Y"), a
   gold-gain chokepoint, a shared free-rally helper — so most items became data plus a test. Two engine gaps
@@ -89,8 +153,6 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **Commit animation.** Pick a card and a moment in the workbench, tune the effect while watching it on the
   real card, then commit — writing the effect and its binding together, for that card only (forking it) or
   everywhere.
-- **Three new minions** — Moira (trigger adjacent Shouts), Mineral Master (Rally → Rubies on your Kobolds), and
-  **Paragon**, the all-type minion whose Rally buffs a minion of every type permanently.
 
 ## Layout
 

@@ -1,9 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { validateSpecs, type FxParamSpecs } from '../params';
+import { coerceParams, validateSpecs, type FxParamSpecs } from '../params';
 import { sampleCurve } from '../curve';
 import { makeRng } from '../rng';
-import { burstFireComplete, burstPrimitive, resolveParticleRotation, sampleBurstAngle } from './burst';
+import {
+  BURST_AIM_MODES,
+  burstFadeEnvelope,
+  burstFireComplete,
+  burstPrimitive,
+  resolveBurstAimAngle,
+  resolveParticleRotation,
+  sampleBurstAngle,
+} from './burst';
 
 describe('burst param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -55,7 +63,8 @@ describe('burst param specs', () => {
   });
 
   // Alpha-over-life curve: same flat-default no-op invariant as biasCurve above. The advance loop multiplies
-  // it into the built-in `frac * frac` fade, so a flat 1 leaves that fade byte-identical (x * 1 === x).
+  // it into the built-in fade envelope, so a flat 1 leaves that fade byte-identical (x * 1 === x) — a claim
+  // that has to keep holding for the RIGHT reason now that the envelope itself is authored (`fade`).
   it('exposes an alphaCurve curve param defaulting to the flat (no-op) [[0,1],[1,1]]', () => {
     const spec = burstPrimitive.params.alphaCurve;
     expect(spec).toBeDefined();
@@ -68,6 +77,39 @@ describe('burst param specs', () => {
   });
 
   // Orient-to-velocity must default OFF, so an existing def keeps its spin exactly as before.
+  // The aim pair. `aimMode` MUST default to 'travel' — that is the entire backwards-compatibility story for
+  // every def authored before aiming existed (an absent param takes its spec default in `coerceParams`).
+  it('exposes an aimMode enum defaulting to travel, and a fixed-only angle slider', () => {
+    const aim = burstPrimitive.params.aimMode;
+    expect(aim).toBeDefined();
+    expect(aim.kind).toBe('enum');
+    expect(aim.default).toBe('travel');
+    expect(aim.group).toBe('Emit');
+    expect(BURST_AIM_MODES).toEqual(['travel', 'fixed', 'sourceToTarget']);
+
+    const angle = burstPrimitive.params.angle;
+    expect(angle).toBeDefined();
+    expect(angle.kind).toBe('slider');
+    expect(angle.group).toBe('Emit');
+    // Degrees, screen convention: the range must reach a full turn either way so any direction is authorable.
+    if (angle.kind === 'slider') {
+      expect(angle.min).toBe(-180);
+      expect(angle.max).toBe(180);
+    }
+    // Only live under `fixed` — the other two modes ignore it entirely.
+    expect(angle.enabledWhen).toEqual({ param: 'aimMode', is: 'fixed' });
+    // The sign convention is the thing most likely to be got backwards, so the help must SAY which way is up.
+    expect(angle.help ?? '').toMatch(/-90 is straight UP/);
+  });
+
+  // The concrete form of "every existing def is unaffected": a def whose JSON never mentions aim coerces to
+  // `travel`, and `travel` returns the travel angle the primitive always used.
+  it('a def that never mentions aim coerces to travel and behaves exactly as before', () => {
+    const p = coerceParams(burstPrimitive.params, { count: 10, spread: 0.5 }) as Record<string, unknown>;
+    expect(p.aimMode).toBe('travel');
+    expect(resolveBurstAimAngle('travel', 1.4, p.angle as number, null)).toBe(1.4);
+  });
+
   it('exposes an orientToVelocity toggle defaulting to false (an exact no-op)', () => {
     const spec = burstPrimitive.params.orientToVelocity;
     expect(spec).toBeDefined();
@@ -135,6 +177,53 @@ describe('sampleBurstAngle', () => {
     expect(sampleBurstAngle(travel, spread, () => 0)).toBeCloseTo(travel - halfWidth);
     expect(sampleBurstAngle(travel, spread, () => 1)).toBeCloseTo(travel + halfWidth);
     expect(sampleBurstAngle(travel, spread, () => 0.5)).toBeCloseTo(travel);
+  });
+});
+
+describe('resolveBurstAimAngle', () => {
+  it('travel returns the travel angle verbatim, ignoring the authored angle', () => {
+    expect(resolveBurstAimAngle('travel', 1.23, 45, null)).toBe(1.23);
+    expect(resolveBurstAimAngle('travel', 0, 90, null)).toBe(0);
+    // The whole back-compat claim in one line: an unaimed burst's base is exactly what it always was.
+    expect(resolveBurstAimAngle('travel', -2.5, 170, null)).toBe(-2.5);
+    // …and a delivered source→target aim is equally inert under `travel`. A moment stages source/target for
+    // reasons of its own (every `travel`-anchored def does), so this must not leak into an unaimed burst.
+    expect(resolveBurstAimAngle('travel', -2.5, 170, 0.75)).toBe(-2.5);
+  });
+
+  it('fixed converts the authored degrees to radians, in SCREEN convention (up is negative)', () => {
+    expect(resolveBurstAimAngle('fixed', 9, 0, null)).toBeCloseTo(0); // right
+    expect(resolveBurstAimAngle('fixed', 9, -90, null)).toBeCloseTo(-Math.PI / 2); // UP
+    expect(resolveBurstAimAngle('fixed', 9, 90, null)).toBeCloseTo(Math.PI / 2); // down
+    expect(resolveBurstAimAngle('fixed', 9, 180, null)).toBeCloseTo(Math.PI); // left
+    // Sanity on the sign: a cone aimed at -90 launches with a NEGATIVE y velocity, i.e. up the screen.
+    expect(Math.sin(resolveBurstAimAngle('fixed', 0, -90, null))).toBeLessThan(0);
+    // The travel angle is dead under `fixed` — same authored angle, wildly different travel, same answer.
+    expect(resolveBurstAimAngle('fixed', 3, -90, null)).toBe(resolveBurstAimAngle('fixed', -3, -90, null));
+    // …as is the delivered aim.
+    expect(resolveBurstAimAngle('fixed', 3, -90, 2.2)).toBe(resolveBurstAimAngle('fixed', 3, -90, null));
+  });
+
+  it('sourceToTarget takes the delivered aim, ignoring both travel and the authored angle', () => {
+    expect(resolveBurstAimAngle('sourceToTarget', 9, -90, 1.75)).toBe(1.75);
+    expect(resolveBurstAimAngle('sourceToTarget', -9, 33, 0)).toBe(0);
+  });
+
+  it('sourceToTarget falls back to TRAVEL when no aim was delivered', () => {
+    // `null` covers both degenerate cases at once (never staged; staged coincident) — see the primitive's
+    // `setAim`. The fallback is `travel` because that is what a burst with no direction has always done, and
+    // it is emphatically NOT 0 rad, which would silently fan every such burst to the right.
+    expect(resolveBurstAimAngle('sourceToTarget', 1.23, -90, null)).toBe(1.23);
+    expect(resolveBurstAimAngle('sourceToTarget', -2.5, 170, null)).toBe(-2.5);
+    expect(resolveBurstAimAngle('sourceToTarget', 1.23, -90, null))
+      .toBe(resolveBurstAimAngle('travel', 1.23, -90, null));
+  });
+
+  it('draws no randomness at all — a rand passed anywhere near it would be a contract break', () => {
+    // `resolveBurstAimAngle` takes no `rand` parameter by design (see its header + the RNG suite below).
+    // Its arity is part of that contract: 4 positional args, none of them a function. `aimAngle` is
+    // deliberately REQUIRED rather than defaulted, so a new call site cannot forget the channel exists.
+    expect(resolveBurstAimAngle).toHaveLength(4);
   });
 });
 
@@ -221,6 +310,145 @@ describe('burst seeded randomness', () => {
     // BY REFERENCE into sampleBurstAngle (the angle draw) = the same 7 draws the Math.random version made.
     // If this count moves, every previously saved seed replays a different burst.
     expect(codeOf(BURST_SRC).match(/this\.rand\(\)/g)).toHaveLength(6);
-    expect(BURST_SRC).toContain('sampleBurstAngle(this.travelAngle, p.spread, this.rand)');
+    // The cone's base angle is now a variable (`aim`) rather than `this.travelAngle` directly — but it is
+    // computed OUTSIDE the loop by `resolveBurstAimAngle`, which draws nothing. Both halves are asserted:
+    // the call shape inside the loop, and that the aim is resolved once per wave rather than per particle.
+    expect(codeOf(BURST_SRC)).toContain('sampleBurstAngle(aim, p.spread, this.rand)');
+    // Exactly one CALL SITE (the `export function` declaration is the other textual match), and it is
+    // outside the `for` loop — one aim per wave, not one per particle.
+    expect(codeOf(BURST_SRC).match(/const aim = resolveBurstAimAngle\(/g)).toHaveLength(1);
+  });
+});
+
+/**
+ * THE regression guard for the aim feature: adding `aimMode`/`angle` must not add, remove or reorder a single
+ * `rand()` call, or every seed anyone has ever locked replays a different burst.
+ *
+ * `BurstInstance` can't be built headlessly (see the note above), so this reproduces `emit()`'s per-particle
+ * draw sequence exactly — the same seven draws in the same order, with the angle draw made BY REFERENCE
+ * through `sampleBurstAngle` — and runs it two ways off the same seed: once with the pre-change base angle
+ * (`this.travelAngle`, passed straight in) and once through `resolveBurstAimAngle`, which is what the
+ * primitive does now. Identical output means the change is provably invisible to a seeded def.
+ */
+const SPREAD = 0.6;
+const HALF_WIDTH = SPREAD * Math.PI;
+
+/** One particle's slice of `emit()`'s draw sequence: angle, speed, size, bias, the two emission-shape
+ *  offsets, then spin. Mirrors the primitive's literals so the arithmetic — not just the count — matches. */
+function drawParticle(base: number, rand: () => number): number[] {
+  const angle = sampleBurstAngle(base, SPREAD, rand); // 1 (drawn inside sampleBurstAngle, by reference)
+  const speed = 260 * (1 + (rand() * 2 - 1) * 0.5); // 2
+  const size = Math.max(0.5, 9 * (1 + (rand() * 2 - 1) * 0.5)); // 3
+  const bias0 = 0.5 * rand(); // 4
+  const ox = rand(); // 5 — emissionOffset's first arg
+  const oy = rand(); // 6 — emissionOffset's second arg
+  const spin = (rand() * 2 - 1) * 6; // 7
+  return [angle, speed, size, bias0, ox, oy, spin];
+}
+
+/** N particles' worth of that sequence off ONE seeded stream — i.e. a whole wave. */
+function drawWave(base: (travelAngle: number) => number, travelAngle: number, seed: number, n = 30): number[][] {
+  const rand = makeRng(seed);
+  return Array.from({ length: n }, () => drawParticle(base(travelAngle), rand));
+}
+
+describe('burst aim leaves the seeded draw sequence untouched', () => {
+  const TRAVEL = 0.85;
+
+  it("aimMode 'travel' reproduces the pre-aim stream byte-for-byte", () => {
+    const before = drawWave((t) => t, TRAVEL, 20260730);
+    const after = drawWave((t) => resolveBurstAimAngle('travel', t, -90, null), TRAVEL, 20260730);
+    expect(after).toEqual(before);
+    // …and it stays byte-for-byte with the source→target channel LIVE, which is the new half of the claim:
+    // `driveLayerHeads` now delivers an aim to every fire that stages both anchors, i.e. to defs that have
+    // nothing to do with this feature. It must be invisible to all of them.
+    expect(drawWave((t) => resolveBurstAimAngle('travel', t, -90, 2.75), TRAVEL, 20260730)).toEqual(before);
+  });
+
+  it("aimMode 'travel' matches whatever angle the def happens to carry alongside it", () => {
+    // A def may set `angle` and leave `aimMode` alone (or flip back to travel mid-tune). The authored angle
+    // must be completely inert there — an accidental leak would show up as a rotated cone.
+    const before = drawWave((t) => t, TRAVEL, 7);
+    const after = drawWave((t) => resolveBurstAimAngle('travel', t, 33, null), TRAVEL, 7);
+    expect(after).toEqual(before);
+  });
+
+  it('an AIMED burst consumes the identical stream — the cone rotates, the roll does not change', () => {
+    const before = drawWave((t) => t, TRAVEL, 99);
+    const aimed = drawWave((t) => resolveBurstAimAngle('fixed', t, -90, null), TRAVEL, 99);
+    const base = -Math.PI / 2;
+    for (let i = 0; i < before.length; i++) {
+      // Every non-angle draw is identical...
+      expect(aimed[i].slice(1)).toEqual(before[i].slice(1));
+      // ...and the angle differs by exactly the rotation of the cone's centre, never by a re-roll.
+      expect(aimed[i][0] - before[i][0]).toBeCloseTo(base - TRAVEL, 12);
+      // Still inside the authored cone around the NEW centre.
+      expect(Math.abs(aimed[i][0] - base)).toBeLessThanOrEqual(HALF_WIDTH + 1e-12);
+    }
+  });
+
+  it('a sourceToTarget burst consumes the identical stream too — only the cone turns', () => {
+    // The same proof for the new mode, and the reason it holds is structural: the aim is resolved once per
+    // WAVE by a function that draws nothing, so the seven draws land in the same order with the same values.
+    const AIM = -1.1; // radians, as `setAim` would have derived it from the staged pair
+    const before = drawWave((t) => t, TRAVEL, 5150);
+    const aimed = drawWave((t) => resolveBurstAimAngle('sourceToTarget', t, 0, AIM), TRAVEL, 5150);
+    for (let i = 0; i < before.length; i++) {
+      expect(aimed[i].slice(1)).toEqual(before[i].slice(1));
+      expect(aimed[i][0] - before[i][0]).toBeCloseTo(AIM - TRAVEL, 12);
+      expect(Math.abs(aimed[i][0] - AIM)).toBeLessThanOrEqual(HALF_WIDTH + 1e-12);
+    }
+    // And with no aim delivered it is byte-identical to the pre-aim stream, fallback and all.
+    expect(drawWave((t) => resolveBurstAimAngle('sourceToTarget', t, 0, null), TRAVEL, 5150)).toEqual(before);
+  });
+});
+
+describe('burstFadeEnvelope (the built-in fade, now authored)', () => {
+  // THE assertion of this whole change: the default must reproduce the bare `frac * frac` the update loop
+  // inlined for the life of the primitive, to the LAST BIT — every shipped def's look rests on it, and
+  // `Math.pow` is not required by the spec to agree with a multiply.
+  it('is byte-identical to `frac * frac` at its default of 2', () => {
+    const spec = burstPrimitive.params.fade;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('slider');
+    expect(spec.default).toBe(2);
+    for (let i = 0; i <= 1000; i++) {
+      const frac = i / 1000;
+      expect(burstFadeEnvelope(frac, 2)).toBe(frac * frac);
+    }
+  });
+
+  // The capability the owner could not reach before: no built-in fade at all, so the authored Alpha / life
+  // curve is the entire opacity envelope.
+  it('is OFF at 0 — full opacity for the whole life, including the instant of death', () => {
+    for (const frac of [1, 0.75, 0.5, 0.25, 0.01, 0]) {
+      expect(burstFadeEnvelope(frac, 0)).toBe(1);
+    }
+  });
+
+  it('is exactly linear at 1', () => {
+    for (const frac of [1, 0.9, 0.5, 0.3, 0]) expect(burstFadeEnvelope(frac, 1)).toBe(frac);
+  });
+
+  it('front-loads harder as the exponent rises, and never leaves [0, 1]', () => {
+    // Mid-life: a bigger exponent must leave strictly less alpha (0.5 > 0.25 > 0.0625).
+    const mid = [0, 1, 2, 4].map((n) => burstFadeEnvelope(0.5, n));
+    expect(mid).toEqual([...mid].sort((a, b) => b - a));
+    expect(new Set(mid).size).toBe(mid.length);
+    for (const n of [0, 0.5, 1, 2, 2.5, 4]) {
+      for (let i = 0; i <= 20; i++) {
+        const a = burstFadeEnvelope(i / 20, n);
+        expect(a).toBeGreaterThanOrEqual(0);
+        expect(a).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('holds the endpoints for every exponent the slider can reach', () => {
+    const spec = burstPrimitive.params.fade as { min: number; max: number; step: number };
+    for (let n = spec.min; n <= spec.max + 1e-9; n += spec.step) {
+      expect(burstFadeEnvelope(1, n)).toBe(1);                  // birth: nothing faded yet
+      expect(burstFadeEnvelope(0, n)).toBe(n <= 0 ? 1 : 0);     // death: gone, unless the fade is off
+    }
   });
 });

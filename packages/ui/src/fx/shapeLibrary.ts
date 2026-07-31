@@ -35,6 +35,12 @@ import { SHAPE_NAMES, SHAPE_UNIT, getShapeTexture, type ShapeName } from './shap
  *     `getImportedDataUrl` — via `defStore.saveArt`).
  * Both resolve through the same texture cache and the same "fall back to a built-in until ready" rule.
  *
+ * ── The trap in that second namespace, and the OVERLAY that closes it: the glob is a build-time expansion,
+ * so a PNG written by this session's own Save is invisible to it until the dev server restarts — and the Save
+ * has already rewritten the layer to `art:<slug>`, so a reload rendered the fallback circle and the effect
+ * "vanished". `registerSavedArt` records a pointer (never a copy) to the local import the art was promoted
+ * from, so the id keeps resolving across the reload; see that function and `pruneArtAliases`.
+ *
  * Nothing here touches the DOM or localStorage at module scope — every access is inside a function and
  * guarded — so the module stays importable in the headless (node) test environment.
  */
@@ -72,9 +78,20 @@ export const ART_SHAPE_PREFIX = 'art:';
  *  key bump (old imports simply stop loading) rather than a migration. */
 const STORAGE_KEY = 'ascent.fx.shapes.v1';
 
+/** localStorage key for the committed-art OVERLAY (see `ArtAlias` / `registerSavedArt`). Its own key rather
+ *  than a field on the imports array, so a schema change to either is an independent key bump. */
+const ART_ALIAS_KEY = 'ascent.fx.art.v1';
+
 /** Cap on stored imports. Each is a 128px PNG data URL (~10-40 KB), so 24 stays comfortably inside a
  *  typical 5 MB localStorage budget even alongside the rest of the game's saves. Oldest drops out first. */
 export const MAX_IMPORTED_SHAPES = 24;
+
+/** Cap on the committed-art overlay (`ArtAlias[]`). Each entry is two short strings — a few dozen bytes, not
+ *  a second copy of the PNG (see `ArtAlias`) — so the cap exists purely so the list cannot grow without
+ *  bound across sessions, not because the bytes are expensive. Oldest drops out first, exactly as the imports
+ *  array does. Entries are ALSO pruned on every hydration (see `readAliases`), so in practice the list holds
+ *  only art committed since the dev server last restarted. */
+export const MAX_ART_ALIASES = 24;
 
 /** Imports are rasterized into a square canvas of this size. `SHAPE_UNIT * 4` (=128) matches the built-ins'
  *  effective resolution (`getShapeTexture` bakes at `SHAPE_UNIT` with `resolution: 2`, and particles are
@@ -210,10 +227,78 @@ export function parseStoredShapes(raw: string | null): ImportedShape[] {
   }
 }
 
+/**
+ * One entry of the committed-art OVERLAY: "`defs/art/<slug>.png` exists on disk, and the bytes are the ones
+ * already stored under this machine's `<sourceId>` import."
+ *
+ * A POINTER, never a second copy of the PNG. Committing art is always a promotion of an import this browser
+ * already holds (`Workbench.uploadArtRefs` reads `getImportedDataUrl` and posts it), so the bytes are in
+ * `STORAGE_KEY` already; duplicating them would double the library's localStorage cost for nothing and put a
+ * quota failure between the author and their own art.
+ */
+export interface ArtAlias {
+  /** The committed slug — `coin` for `defs/art/coin.png`, resolved as the id `art:coin`. */
+  slug: string;
+  /** The `custom:<slug>` import whose `dataUrl` this alias borrows. */
+  sourceId: string;
+}
+
+function isArtAlias(v: unknown): v is ArtAlias {
+  if (v === null || typeof v !== 'object') return false;
+  const a = v as Partial<ArtAlias>;
+  return (
+    typeof a.slug === 'string' &&
+    a.slug !== '' &&
+    typeof a.sourceId === 'string' &&
+    a.sourceId.startsWith(CUSTOM_SHAPE_PREFIX)
+  );
+}
+
+/** Parse a raw localStorage payload into art aliases. Same total, never-throws contract as
+ *  `parseStoredShapes` — a corrupted overlay costs you the overlay, never the workbench. */
+export function parseStoredArtAliases(raw: string | null): ArtAlias[] {
+  if (raw === null || raw === '') return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isArtAlias).slice(0, MAX_ART_ALIASES);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Which aliases are still worth keeping, given what the glob can see and what is still imported here.
+ *
+ * PURE, and the whole "must not silently grow without bound" answer. Two independent reasons to drop one, and
+ * both are permanent — an alias never becomes useful again once either fires:
+ *   • **Redundant.** `committedSlugs` (the build-time glob) has caught up with the file, so `art:<slug>`
+ *     resolves from the bundle. This is the normal end of an alias's life: it survives exactly until the dev
+ *     server next restarts, and is then swept on the following hydration.
+ *   • **Dangling.** The import it points at is gone (removed, or aged out of the 24-import cap), so there are
+ *     no bytes to serve and the id falls back to a built-in either way.
+ * Later entries win a duplicate slug, so a re-commit of the same name replaces rather than accumulates.
+ */
+export function pruneArtAliases(
+  aliases: readonly ArtAlias[],
+  committedSlugs: ReadonlySet<string>,
+  importedIds: ReadonlySet<string>,
+): ArtAlias[] {
+  const bySlug = new Map<string, ArtAlias>();
+  for (const a of aliases) {
+    if (committedSlugs.has(a.slug)) continue;
+    if (!importedIds.has(a.sourceId)) continue;
+    bySlug.set(a.slug, a);
+  }
+  return [...bySlug.values()].slice(-MAX_ART_ALIASES);
+}
+
 // ─── module state ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Imports, in insertion order (oldest first) — mirrors what's in storage. */
 let imported: ImportedShape[] = [];
+/** The committed-art overlay, pruned at hydration — mirrors what's in storage. See `ArtAlias`. */
+let artAliases: ArtAlias[] = [];
 /** id → decoded Texture. Renderer-agnostic (built from an HTMLImageElement, unlike the built-ins'
  *  `renderer.generateTexture`), so ONE cache serves every renderer. These textures are SHARED by every live
  *  primitive that selected the shape — see `getShapeTextureById` — and are never destroyed here. */
@@ -247,6 +332,23 @@ function readStore(): ImportedShape[] {
 function writeStore(): void {
   try {
     storage()?.setItem(STORAGE_KEY, JSON.stringify(imported));
+  } catch {
+    /* ignore — persistence is best-effort */
+  }
+}
+
+function readAliasStore(): ArtAlias[] {
+  try {
+    return parseStoredArtAliases(storage()?.getItem(ART_ALIAS_KEY) ?? null);
+  } catch {
+    return [];
+  }
+}
+
+/** Same best-effort contract as `writeStore`. */
+function writeAliasStore(): void {
+  try {
+    storage()?.setItem(ART_ALIAS_KEY, JSON.stringify(artAliases));
   } catch {
     /* ignore — persistence is best-effort */
   }
@@ -291,8 +393,12 @@ function ensureTexture(shape: ImportedShape): Promise<Texture | null> {
 // ─── committed art (`fx/defs/art/*.png`, resolved by an `art:<slug>` id) ──────────────────────────────
 
 /**
- * slug → bundled URL for every committed PNG. DEV-gated at the glob so no art is pulled into a production
- * bundle (nothing in prod plays a def yet).
+ * slug → bundled URL for every committed PNG. DEV-gated at the glob, and it STAYS that way even though the
+ * defs themselves now ship: this folder is where the workbench's art IMPORT writes, so in a normal session it
+ * holds whatever the author happened to drop in, and an un-gated glob would pull all of it — PNGs, at PNG
+ * sizes — into the shipped bundle. Nothing is committed there today (just a `.gitkeep`), so for players a def
+ * referencing `art:<slug>` falls back to a procedural shape; see `docs/fx-workbench-guide.md`. Contrast
+ * `fxDefs.ts`, whose glob IS un-gated: those defs are small committed JSON that players are meant to see.
  *
  * `import.meta.glob` is a Vite TRANSFORM, not a runtime function — the call is replaced at transform time,
  * which is why its options must be an inline literal. That also holds under Vitest (it runs source through
@@ -325,22 +431,45 @@ function artIndex(): Map<string, string> {
   return out;
 }
 
-/** Kick off (once) the decode for a committed `art:<slug>` id. A slug with no committed file is a no-op —
- *  the render path keeps using the built-in fallback, which is exactly what a def referencing art that was
- *  never committed should do. */
+/**
+ * The bytes an `art:<slug>` id should decode from, or `null` if nothing here knows about it.
+ *
+ * TWO sources, glob first: the bundled URL when the build-time glob can see the file, otherwise the OVERLAY —
+ * an `ArtAlias` pointing at the local import the art was promoted from. The order matters and is the same
+ * precedence `pruneArtAliases` encodes: once the glob has caught up, the committed file is the authority and
+ * the alias is swept.
+ */
+function artSourceUrl(slug: string): string | null {
+  const bundled = artIndex().get(slug);
+  if (bundled !== undefined) return bundled;
+  const alias = artAliases.find((a) => a.slug === slug);
+  if (alias === undefined) return null;
+  return imported.find((s) => s.id === alias.sourceId)?.dataUrl ?? null;
+}
+
+/** Kick off (once) the decode for a committed `art:<slug>` id. A slug neither the glob nor the overlay knows
+ *  is a no-op — the render path keeps using the built-in fallback, which is exactly what a def referencing
+ *  art that was never committed should do. */
 function ensureArtTexture(id: string): void {
   if (textureCache.has(id) || decoding.has(id)) return;
   const slug = artSlugOf(id);
-  const url = artIndex().get(slug);
-  if (url === undefined) return;
+  const url = artSourceUrl(slug);
+  if (url === null) return;
   // Reuses the import decode path verbatim — an `<img>` doesn't care whether its src is a data URL or a
   // bundled file URL, so one cache and one fallback rule serve both namespaces.
   void ensureTexture({ id, label: slug, dataUrl: url });
 }
 
-/** Every committed art slug, sorted. */
+/** Every art slug that resolves right now, sorted: the ones the build-time glob can see, PLUS the ones only
+ *  the overlay knows about (committed since the dev server last started — see `registerSavedArt`). */
 export function listCommittedArt(): string[] {
-  return [...artIndex().keys()].sort((a, b) => a.localeCompare(b));
+  // Self-initializing like every other entry point (see `initShapeLibrary`) — the overlay half of the answer
+  // lives in hydrated state, so reading this before hydration would report only the globbed slugs. Re-entrant
+  // from `initShapeLibrary` itself, which is safe: `hydrated` is set before the call.
+  initShapeLibrary();
+  const slugs = new Set(artIndex().keys());
+  for (const a of artAliases) slugs.add(a.slug);
+  return [...slugs].sort((a, b) => a.localeCompare(b));
 }
 
 // ─── normalization + alpha bake (the key UX fix — see the module header) ──────────────────────────────
@@ -436,10 +565,50 @@ export function initShapeLibrary(): void {
   if (hydrated) return;
   hydrated = true; // set BEFORE the decodes so a re-entrant lookup can't loop
   imported = readStore();
+  // Prune the overlay against what this build's glob can now see and what is still imported (see
+  // `pruneArtAliases`), and write the pruned list straight back — that sweep is what keeps the stored list
+  // from growing across sessions. Deliberately BEFORE the decodes, so a dangling alias never starts one.
+  const before = readAliasStore();
+  artAliases = pruneArtAliases(before, new Set(artIndex().keys()), new Set(imported.map((s) => s.id)));
+  if (artAliases.length !== before.length) writeAliasStore();
   for (const shape of imported) void ensureTexture(shape);
   // Committed art is decoded up front too (there are only ever a handful of files, and they're already in
-  // the bundle) so a def that references `art:<slug>` doesn't render one frame of the fallback circle.
-  for (const slug of artIndex().keys()) ensureArtTexture(artShapeId(slug));
+  // the bundle) so a def that references `art:<slug>` doesn't render one frame of the fallback circle. The
+  // overlay's slugs are in `listCommittedArt()` alongside the globbed ones, so this covers both.
+  for (const slug of listCommittedArt()) ensureArtTexture(artShapeId(slug));
+}
+
+/**
+ * Record that `defs/art/<slug>.png` was just written from the import `sourceId`, so `art:<slug>` resolves
+ * NOW and STILL RESOLVES after a reload.
+ *
+ * This is `fxDefs.ts`'s `registerSavedDef` for art, and it exists for the same reason: `artModules()`'s
+ * `import.meta.glob` is a Vite TRANSFORM, expanded when this module was last transformed, so a PNG written
+ * seconds ago is invisible to it. That is the bug the owner hit — import a coin, tune, Save, reload, and the
+ * effect renders a fallback circle, because Save rewrites the layer's `custom:coin` to `art:coin` and nothing
+ * on the far side of the reload can resolve that id.
+ *
+ * Where it DIFFERS from `registerSavedDef`, and why it is not just an in-memory Map:
+ *   • A def only has to survive to the next reload — `fxDefsPlugin` invalidates the glob owner and reloads on
+ *     `add`, so the reloaded page's glob has the file. This module's glob is now invalidated the same way (see
+ *     the art watcher in `apps/web/fxDefsPlugin.ts`), which is what genuinely closes the loop; the overlay is
+ *     the belt to that braces, covering a write the watcher never saw and any ordering where the reload
+ *     outruns the invalidation.
+ *   • A PNG is BINARY and its decode is ASYNC, while the lookup on the render path is synchronous. So this
+ *     both starts the decode immediately (closing the in-session gap: previewing a def straight out of the
+ *     library after Save used to draw the fallback) and persists a POINTER for the next session to re-decode
+ *     from — never a second copy of the bytes. See `ArtAlias`.
+ *
+ * Total: an unusable slug/source is ignored rather than thrown on, and a storage failure costs the overlay,
+ * not the save.
+ */
+export function registerSavedArt(slug: string, sourceId: string): void {
+  initShapeLibrary();
+  if (slug === '' || !sourceId.startsWith(CUSTOM_SHAPE_PREFIX)) return;
+  if (!imported.some((s) => s.id === sourceId)) return;
+  artAliases = [...artAliases.filter((a) => a.slug !== slug), { slug, sourceId }].slice(-MAX_ART_ALIASES);
+  writeAliasStore();
+  ensureArtTexture(artShapeId(slug));
 }
 
 /** Every selectable shape right now: the built-ins, then this machine's imports (in import order), then the
@@ -534,17 +703,28 @@ export function removeImportedShape(id: string): void {
   textureCache.delete(id);
   decoding.delete(id);
   writeStore();
+  // Any overlay entry borrowing this import's bytes is now dangling (see `pruneArtAliases`) — drop it here
+  // too rather than leaving it for the next hydration to sweep, so the picker stops offering a row that can
+  // only ever draw the fallback. An already-decoded `art:` texture is deliberately left alone: it is live
+  // this frame, exactly as the import's own texture is.
+  const kept = artAliases.filter((a) => a.sourceId !== id);
+  if (kept.length !== artAliases.length) {
+    artAliases = kept;
+    writeAliasStore();
+  }
 }
 
 /** Test seam: drop all in-memory AND persisted state, so the next call rehydrates from scratch. */
 export function resetShapeLibrary(): void {
   imported = [];
+  artAliases = [];
   textureCache.clear();
   decoding.clear();
   artIndexCache = null;
   hydrated = false;
   try {
     storage()?.removeItem(STORAGE_KEY);
+    storage()?.removeItem(ART_ALIAS_KEY);
   } catch {
     /* ignore — best-effort */
   }

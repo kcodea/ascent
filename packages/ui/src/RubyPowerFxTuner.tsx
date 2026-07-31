@@ -1,100 +1,53 @@
-import { useState } from 'react';
 import {
-  RUBYPOWERFX_KEYS, RUBYPOWERFX_COLOR_KEYS, RUBYPOWERFX_RANGES,
-  getRubyPowerFxConfig, resetRubyPowerFxConfig, setRubyPowerFxValue, type RubyPowerFxConfig,
+  RUBYPOWERFX_COLOR_KEYS, RUBYPOWERFX_RANGES,
+  getRubyPowerFxConfig, getRubyPowerFxDefaults, resetRubyPowerFxConfig, setRubyPowerFxValue,
+  type RubyPowerFxConfig,
 } from './rubyPowerFxConfig';
-import { useDraggablePanel } from './useDraggablePanel';
 import { testRubyPowerFx } from './fxTestFire';
+import { FLOURISH_ORDER_WITH_NUMBER, FLOURISH_SPECS } from './flourishSpecs';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec } from './tunerSchema';
 
 /**
- * DEV-only "Ruby Power" tuner — the Ruby-strength flourish (`rubyPowerFxConfig` → `pixiFx.rubyPower` +
- * `floatRubyPowerNumber`): the rising arrow fan, the origin mote blast, and the floating power number.
- * Persists to localStorage; edits apply to the NEXT cast, so ▶ Test fires it over the shop row rather than
- * making you stage a spell. "Copy" grabs the JSON to bake back as the shipped defaults; "Reset" clears.
- * Dev-only — stripped from production.
+ * DEV-only tuner for the RUBY POWER flourish — the rising arrow fan, the origin mote blast, and the floating
+ * power number, fired when a Ruby's strength is shown. Applies to the NEXT cast, so Test fires it over the shop
+ * row rather than making you stage one.
+ *
+ * Its controls come from the SHARED flourish vocabulary in `flourishSpecs.ts`, which Spell Power and Step Proc
+ * also use: the three panels drive the same primitive with identical keys and are separate only so each can be
+ * sized on its own.
  */
-const SP_LABELS: Partial<Record<keyof RubyPowerFxConfig, string>> = {
-  arrowCount: 'arrows',
-  arrowRise: 'rise px',
-  arrowSpread: 'fan width',
-  arrowLen: 'shaft len',
-  arrowWidth: 'shaft width',
-  arrowHead: 'head size',
-  arrowMs: 'rise ms',
-  arrowStagger: 'stagger ms',
-  arrowDrift: 'side drift',
-  arrowFadeAt: 'fade starts',
-  blastCount: 'blast motes',
-  blastSpeed: 'blast speed',
-  blastSize: 'blast px',
-  blastLife: 'blast life',
-  blastGravity: 'blast gravity',
-  blastSpread: 'spread °',
-  blastAngle: 'cone aim °',
-  blastDrag: 'drag',
-  blastJitter: 'speed jitter',
-  blastRise: 'upward kick',
-  blastSpin: 'mote spin °/s',
-  blastStagger: 'mote stagger',
-  blastShrink: 'end scale',
-  numShow: 'number (0/1)',
-  numSize: 'number px',
-  numRise: 'number rise',
-  numDelay: 'number delay',
-  numHoldMs: 'number hold',
-  numFadeMs: 'number fade',
-  glowAlpha: 'glow α',
-  glowWidth: 'glow width',
-  colorA: 'pink',
-  colorB: 'purple',
-  colorC: 'gold',
-  colorText: 'number fill',
-  colorOutline: 'number outline',
+const COLOR_SET = new Set<string>(RUBYPOWERFX_COLOR_KEYS.map(String));
+
+const controls: TunerControl<Extract<keyof RubyPowerFxConfig, string>>[] =
+  FLOURISH_ORDER_WITH_NUMBER.map((key) => {
+    const [label, unit, hint, group] = FLOURISH_SPECS[key];
+    if (COLOR_SET.has(key)) return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+    const [min, max, step] = RUBYPOWERFX_RANGES[key as keyof typeof RUBYPOWERFX_RANGES]!;
+    // `numShow` is stored as 0/1 — a checkbox, not a two-stop slider.
+    if (key === 'numShow') {
+      return { key, label, hint, group, kind: 'toggle' as const, min, max, step, onValue: 1, offValue: 0 };
+    }
+    return { key, label, unit, hint, group, min, max, step };
+  });
+
+export const SPEC: TunerSpec<RubyPowerFxConfig> = {
+  id: 'rubypowerfx',                // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Ruby Power',
+  note: 'dev · next cast · drag',
+  read: getRubyPowerFxConfig,
+  write: (key, value) => setRubyPowerFxValue(key, value),
+  writeColor: (key, value) => setRubyPowerFxValue(key, value),
+  reset: resetRubyPowerFxConfig,
+  defaults: getRubyPowerFxDefaults(),
+  controls,
+  actions: [{
+    label: '▶ Test',
+    hint: 'Fires the flourish over the current shop row — no Ruby buff needed.',
+    run: () => testRubyPowerFx(),
+  }],
 };
 
-export function RubyPowerFxTuner() {
-  const [cfg, setCfg] = useState<RubyPowerFxConfig>(getRubyPowerFxConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('rubypowerfx');
-
-  const set = (k: keyof RubyPowerFxConfig, v: number | string): void => {
-    setRubyPowerFxValue(k, v);
-    setCfg({ ...getRubyPowerFxConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getRubyPowerFxConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetRubyPowerFxConfig(); setCfg({ ...getRubyPowerFxConfig() }); };
-
-  const sliderKeys = RUBYPOWERFX_KEYS.filter((k) => !RUBYPOWERFX_COLOR_KEYS.includes(k));
-
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Ruby Power <span>dev · next cast · drag</span></div>
-      {sliderKeys.map((k) => {
-        const [min, max, step] = RUBYPOWERFX_RANGES[k]!;
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name">{SP_LABELS[k] ?? k}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k] as number} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      {RUBYPOWERFX_COLOR_KEYS.map((k) => (
-        <div className="sfxmix-row" key={k}>
-          <span className="sfxmix-name">{SP_LABELS[k] ?? k}</span>
-          <input type="color" value={cfg[k] as string} onChange={(e) => set(k, e.target.value)} />
-          <span className="sfxmix-val">{cfg[k]}</span>
-        </div>
-      ))}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={testRubyPowerFx} title="Fire the ruby-power flourish over the current shop row — no Ruby buff needed">▶ Test FX</button>
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export function RubyPowerFxTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

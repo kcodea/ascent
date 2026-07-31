@@ -1,10 +1,9 @@
-import { Particle, ParticleContainer, Rectangle, Shader, type Texture } from 'pixi.js';
+import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS } from '../palettes';
 import { sampleCurve, CURVE_PRESETS } from '../curve';
 import {
-  createParticleMaterial,
   updateParticleMaterial,
   updateParticleMaterialShaping,
   setParticleTime,
@@ -14,6 +13,7 @@ import {
   type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
+import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
@@ -50,11 +50,16 @@ const DEG_TO_RAD = Math.PI / 180;
 
 const SPECS = {
   rate: {
-    kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 300, step: 5, default: 40, essential: true,
+    kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 1200, step: 5, default: 40, essential: true,
+    axis: 'intensity',
     help: 'Motes per second — smoke is sparse and lingering, so this runs low.',
   },
   life: {
-    kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 2000, step: 10, default: 1500, essential: true,
+    kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 8000, step: 10, default: 1500, essential: true,
+    // A duration, so it rides `time` — and, exactly as in `emitter.ts`, it is also the one-shot EMIT WINDOW
+    // (`smokeWithinEmitWindow`), so a stretched plume emits proportionally more puffs at the same `rate`.
+    // See `FxScaleAxes.time` for why `rate` deliberately stays off this axis.
+    axis: 'time',
     help: 'Mote lifetime in ms — long, so puffs linger and billow.',
   },
   spread: {
@@ -62,18 +67,21 @@ const SPECS = {
     help: '1 = emit in all directions, lower = a tighter upward cone.',
   },
 
-  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 400, step: 5, default: 30, help: 'px/sec initial — gentle drift.' },
+  speed: {
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 3000, step: 5, default: 30, axis: 'scale',
+    help: 'px/sec initial — gentle drift.' },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
     enabledWhen: { param: 'speed', above: 0 },
     help: 'How much puffs differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
   },
   gravity: {
-    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 400, step: 10, default: -30, essential: true,
+    kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: -30, essential: true,
+    axis: 'scale',
     help: 'px/sec² (negative = rise, like smoke/embers).',
   },
   spin: {
-    kind: 'slider', label: 'Spin', group: 'Motion', min: 0, max: 180, step: 1, default: 25,
+    kind: 'slider', label: 'Spin', group: 'Motion', min: 0, max: 1440, step: 1, default: 25,
     enabledWhen: { param: 'orientToVelocity', is: false },
     help: 'Degrees/sec each puff slowly rotates — 25 is a lazy tumble, 0 leaves every puff frozen at the angle it was born with. Ignored entirely while Orient to velocity is on.',
   },
@@ -91,7 +99,7 @@ const SPECS = {
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 40,
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 2000, step: 5, default: 40, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes the column billow and wander — 0 = straight lines.',
   },
   turbScale: {
@@ -104,7 +112,7 @@ const SPECS = {
     help: 'Where puffs are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc (the default — a soft-edged smoke source), or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 8,
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 8, axis: 'scale',
     // Only one half of the mutually-dead shape/radius pair may declare the dependency (see burst.ts) —
     // shape is the gateway, radius the thing it unlocks. Smoke ships with both live (disc + 8px).
     enabledWhen: { param: 'emitShape', not: 'point' },
@@ -120,7 +128,7 @@ const SPECS = {
     help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 14, essential: true,
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 14, essential: true, axis: 'scale',
     help: 'How big a puff is across, in px, at birth — 14 gives a chunky column, low values a thin wispy one. Size var jitters it per puff and the Size / life curve grows it as the puff rises.',
   },
   sizeVar: {
@@ -128,11 +136,11 @@ const SPECS = {
     help: 'How much puff sizes differ from each other, as a fraction of Size — 0 makes every puff identical (and the column read mechanical), 0.4 (the default) spreads them between 0.6x and 1.4x.',
   },
   stretchX: {
-    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
   },
   stretchY: {
-    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle height multiplier on top of Size.',
   },
   sizeCurve: {
@@ -178,7 +186,9 @@ const SPECS = {
   },
   fadeIn: {
     kind: 'slider', label: 'Fade in', group: 'Style', min: 0, max: 0.5, step: 0.01, default: 0.2,
-    help: 'Fraction of life spent fading in (and, symmetrically, fading out at the end) — soft on both ends.',
+    // Smoke's built-in-fade control, with the same genuine OFF at 0 as the emitter's — see that param, and
+    // `burstFadeEnvelope` for why burst needed a new knob and these two did not.
+    help: 'Fraction of life spent fading in, and symmetrically fading out at the end — soft on both ends. 0 turns the built-in fade OFF: puffs pop in at full opacity and hold it until they die, which is when Alpha / life becomes the whole opacity envelope.',
   },
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style', essential: true,
@@ -376,19 +386,18 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     this.oneShot = ctx.oneShot === true;
     this.rand = makeRng(ctx.seed ?? randomSeed());
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
-    this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
-    this.particles = new ParticleContainer({
+    // Pooled, not constructed: building a fresh Shader here re-compiled and re-linked the GLSL on every
+    // fire — a ~68 ms main-thread block. See `particleLayerPool.ts`'s header.
+    const layer = acquireParticleLayer({
+      renderer: ctx.renderer,
+      parent: ctx.container,
       texture: this.texture,
-      shader: this.shader,
-      // Generous fixed bounds: motes drift, so a tight box would get them culled as they leave it. Matches
-      // the ribbon/burst/emitter house convention of a large static boundsArea rather than per-frame recompute.
-      boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
-      // rotation ENABLED (the emitter leaves it false): each smoke mote slowly tumbles via `spin`, so its
-      // per-mote `rotation` must actually upload to the GPU each frame.
-      dynamicProperties: { position: true, rotation: true, color: true, vertex: true },
+      blendMode: params.blendMode,
+      style: styleOf(params),
+      shaping: shapingOf(params),
     });
-    this.particles.blendMode = params.blendMode;
-    ctx.container.addChild(this.particles);
+    this.shader = layer.shader;
+    this.particles = layer.pc;
   }
 
   setHead(x: number, y: number): void {
@@ -516,17 +525,11 @@ class SmokeInstance implements FxInstance<SmokeParams> {
   }
 
   destroy(): void {
-    // The shape texture is shared across every particle primitive (see `shapeTextures.ts`'s `getShapeTexture`)
-    // — destroying it here would break every other live/future primitive. Only the container (and the Particle
-    // structs it alone owns) and our own shader belong to this instance.
-    //
-    // Order matters — see emitter.ts's `destroy()` for the full explanation: `ParticleContainer.destroy()`
-    // also calls `this.shader?.destroy()` internally (destroyPrograms=false) since we handed it our shader in
-    // the constructor, and Shader's destroy is a one-shot (`_destroyed` guard). Destroying the shader ourselves
-    // first (with `true`, so the compiled GL program is actually freed) makes the container's later internal
-    // call a harmless no-op instead of the reverse, which would leak the GL program.
-    this.shader.destroy(true);
-    this.particles.destroy({ children: true });
+    // Back to the pool, NOT destroyed. `releaseParticleLayer` unparents the container first — the player
+    // destroys our owning container with `{ children: true }` immediately after this returns, which would
+    // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in
+    // `shapeTextures.ts`; nothing here touches them.
+    releaseParticleLayer({ shader: this.shader, pc: this.particles });
   }
 
   /**

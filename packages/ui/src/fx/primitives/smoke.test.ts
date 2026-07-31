@@ -217,6 +217,15 @@ describe('smokeMoteAlpha', () => {
     expect(() => smokeMoteAlpha(0.5, 0)).not.toThrow();
     expect(Number.isFinite(smokeMoteAlpha(0.5, 0))).toBe(true);
   });
+
+  // Smoke's half of the claim that let `burst` gain a `fade` param while these two got none: driving the
+  // authored fade WIDTH to its own minimum is a genuine OFF. See emitter.test.ts's copy for the reasoning.
+  it('collapses to a square envelope at fadeIn 0 — the built-in fade is genuinely OFF', () => {
+    for (const t of [0.0001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.9998]) {
+      expect(smokeMoteAlpha(t, 0)).toBe(1);
+    }
+    expect(smokeMoteAlpha(0.05, 0.2)).toBeLessThan(1);
+  });
 });
 
 describe('smokeWithinEmitWindow', () => {

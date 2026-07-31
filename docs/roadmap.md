@@ -182,23 +182,44 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
-### Dev tuner migration — 41 of 47 panels to go (2026-07-29)
-The schema (`tunerSchema.ts`) and the shared `TunerPanel` are in, proven on six panels spanning 2 to 48
-controls. The remaining work, in order:
-- **Migrate the other 41.** Mechanical per panel: export the config's `DEFAULTS`, write a `TunerSpec` with a
-  label / unit / hint / group per control. Persistence must keep running through each config's own accessors —
-  a spec that re-implemented storage would silently orphan values dialled by eye over months.
-- **Five structural outliers** have no label map and need individual thought: `ChargeGlyphTuner` (209 lines,
-  composes CSS vars from colour + numbers), `FrameTuner`, `BookTuner`, `LayoutTuner`, and `SfxMixer` — the
-  mixer may justifiably stay bespoke.
-- **Owner accuracy pass on the hints.** Every hint so far was drafted from config source and doc comments. No
-  code can confirm the *vocabulary* is right — whether "comet", "wisp" or "blob" is what we actually call these
-  things. This wants a read-through, not a rewrite.
-- **Sweep the dead exports** the migration leaves behind (`TRAIL_KEYS`, `FLOAT_KEYS`, `SC_KEYS`, `PLATE_KEYS`,
-  `FLIP_KEYS` so far). They do not trip lint because exports are exempt from no-unused-vars.
-- **Then Phase 2 (visualisation) and Phase 3 (workflow)** — collapsible sections, a real curve picker to
-  replace easing chosen by array index, in-panel search, before/after compare, and a Test button on every FX
-  panel (only 19 of 47 have one). All of these now land in ONE component, which was the point of the schema.
+### Dev tuner migration — done bar two panels (updated 2026-07-30)
+The schema (`tunerSchema.ts`) and the shared `TunerPanel` now carry **46 of 48** panels, spanning 2 to 48
+controls. What is left, and what the migration left owing:
+
+- **`SfxMixer`** — parked by owner request, to be thought about separately. It is a mixer, not a tuner: rows
+  are per-sound with a play button, and it may justifiably stay bespoke.
+- **`ShieldTuner`** — deliberately unmigrated because it is DEAD: nothing reads the value it tunes (no
+  `apply*Vars()`, `syncShields` is gone, its storage key has no listener). Handled as its own task.
+- **✅ Owner accuracy pass on the hints — DONE (2026-07-30).** All 1,020 labels and hints were reviewed against
+  a generated sheet (46 panels, every label / unit / range / hint / caveat / preview switch / action button).
+  Owner verdict: **no edits needed**. The vocabulary drafted from config source was right; nothing to change.
+- **Panel ids must match the DevMenu key.** `useDraggablePanel(key)` injects the ✕ and closes by that key.
+  Three panels had drifted and their close button silently did nothing; fixed 2026-07-30. Any new panel or
+  rename must keep the two in step — nothing enforces it, and the failure is invisible until someone tries to
+  close the panel. A dev-time assert would fix that permanently.
+- **`.github/skills/` is untracked but not ignored.** It contains a vendored minified bundle that produces 434
+  `no-unused-expressions` errors; committing it would break CI lint. Either ignore it or leave it untracked.
+
+**Phase 2 — ✅ the two the owner picked shipped 2026-07-30.** Foldable sections that remember what you closed,
+a find box inside each panel, and a hold-or-tap A/B against the shipped values. All three landed in ONE
+component, which was the point of the schema.
+
+A **Reset all tuners** action (♻️ in the dev menu) followed on the same day: per-panel Reset only ever cleared
+one panel's key, so nothing put the whole toolset back to shipped. It calls each panel's own `reset()` via the
+`tunerAll.ts` registry rather than sweeping storage keys — run and save state share the `ascent.` prefix.
+
+**The visual pass shipped 2026-07-30** — the panels are dark machined instruments over the board (the
+"workshop slate"), with a four-role type scale replacing eight ad-hoc sizes, and the main menu's sheen on
+button hover and press. DESIGN.md now documents that surface, so future tuner work has a system to follow
+instead of drifting. The owner's remaining note on the toolset was the visuals; that is now addressed.
+
+Still on the table from Phase 2, deliberately not built:
+- **A Test button on every FX panel** — 26 of 46 panels have no way to fire their effect, so you must stage a
+  real Execute kill or Rally proc just to see it once. Cost varies per panel: some already have a `pixiFx` test
+  hook to wire up, others need one written.
+- **A visual easing picker.** Easing is an ordered slider that now at least shows curve NAMES rather than an
+  index. A picker drawing each curve would be better, but it affects 3 controls on 1 panel.
+- **Phase 3 (workflow)** — still unscoped.
 
 ### A CSS specificity trap has bitten three times (2026-07-29)
 Three separate defects this week were the same shape: two rules tie on specificity, so whichever sits later in
@@ -244,9 +265,31 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
 
 - **FX — the bridge SHIPPED 2026-07-25** (`playDef` + `combatAnchors` + an `fxDef` Score channel, proven in a
   live browser with the committed `ward-gained` def bound to the new `shieldGain` moment). What's left on it:
-  - **The prod decision.** Defs are inert for players: the primitives ship only via a DEV-gated dynamic
-    import, so `canPlayDefs()` is false in a production build. Turning it on means shipping the primitives +
-    their GLSL — measure that before flipping. The bridge scaffolding itself already costs +3.24 kB gzip.
+  - **The prod decision — MADE, and SHIPPED 2026-07-29.** Defs now play for players. Three gates came out
+    (the `fxDefs.ts` glob, `playDef.ts`'s dynamic import, and the `ensureDefsReady()` call in `Game.tsx` —
+    the third is the one that makes the other two do anything), at a measured **+151,602 B raw / +34,206 B
+    gzipped** of total JS — +17,829 B / +4,868 B gzipped in the main chunk (the defs) and 133,773 B
+    (29,338 B gzipped) in a new lazily-fetched primitives chunk. An earlier estimate quoted only the
+    main-chunk figure and so understated this ~9×. Authoring stayed fenced: saving, art, `window.__fx`, `DevMenu`.
+    `fx/prodPlayback.test.ts` fails if the split drifts either way. **This turned on 15 already-live
+    bindings no player had seen** — so the next FX task is the owner watching a real fight at 1× and
+    reporting which of the 15 read wrong at card scale.
+  - **The per-fire shader recompile — FIXED 2026-07-30.** Un-gating defs shipped a ~160 ms freeze on every
+    combat collision: each layer built and then `destroy(true)`-ed its own `Shader`, which evicted Pixi's
+    program cache and forced a full GLSL compile+link (a blocking 68 ms) per fire, plus an unbounded GL
+    program leak. Now pooled (`particleLayerPool.ts` / `shaderPool.ts`) and pre-warmed at load; worst
+    collision frame 160 ms → under 2 ms. Write-up: `docs/performance.md` §3b. The legacy `pixiFx` shield
+    shader was checked and is clean (it uses the no-arg `destroy()`), so it never hit this; it does still
+    build a `Shader` per bubble, which is cheap now but would be the next thing to pool if shields ever
+    show up in a profile.
+  - **`clearParticles()` doesn't reach def-driven FX.** `pixiFx.clearParticles()` (the Skip fade, and the
+    recruit-phase transitions in `Recruit.tsx`) sweeps every hand-written transient — `live`, `skullPops`,
+    `tendrils`, `critFxs`, `descends` — but knows nothing about `playDef`'s effects, which own their own
+    containers and updaters. A def firing across a skip therefore keeps playing under the fade instead of
+    being cleared with everything else. Pre-existing (it predates pooling and is not a pool defect), and the
+    fix is a design question rather than a patch: either `playDef` registers each live play in a cancellable
+    set that `clearParticles` drains, or transitions fade the whole FX canvas and leave the plays alone
+    (which is what `setVisible` already does for the skip fade). Surfaced by the pooling review 2026-07-30.
   - **`shieldUp` is a result-type event** and collapses into contiguous result runs, so the demo cue doesn't
     fire on every combat (`[dmg, shieldUp]` compiles to a `damage` moment). A per-event fan-out in
     `compile.ts` is the fix if that moment needs to be reliable.
@@ -261,7 +304,9 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
 
 - **FX workbench — remaining authoring gaps.** (The three trust defects — Fire ignoring `at`/`life`, timing
   edits respawning mid-drag, no seed lock — were fixed 2026-07-25, along with duplicate-layer and per-layer
-  mute.) Still missing: **undo/redo** (no history stack at all; switching a layer's primitive irreversibly
+  mute. The three *headroom* defects the owner hit authoring a real effect — imported art not surviving a
+  reload, the physics sliders capping short of dramatic, and burst's unreachable built-in fade — were fixed
+  2026-07-30.) Still missing: **undo/redo** (no history stack at all; switching a layer's primitive irreversibly
   resets its params); **A/B compare** of two tunings (now genuinely meaningful, since a locked seed makes the
   randomness controlled); a **perf readout** beyond fps (the primitives already track live particle counts
   internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare,
@@ -301,6 +346,55 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   names it, but `useCombatReplay` plays it directly for every plain death (see `docs/fx-requests.md`).
   Likewise **`discoverBurst` is NOT dead `pixiFx`** — `Recruit.tsx` fires it on every Discover open, and it's
   the sole reason the second `discoverFx` Pixi app exists; it needs a real port, not a delete.
+  ✅ **Batch 1 landed 2026-07-30**: `damageBurst`, `clickPuff` and `coins` are authored defs (`pixiFx.ts`
+  3757 → 3648 lines). The pattern later batches copy is written up in the devlog entry of that date — the
+  short version: grep call sites by METHOD NAME (both controllers), copy param ranges from `ruby-lance` /
+  `ward-gained` rather than inventing them, validate with `fx/defs.test.ts` BEFORE deleting the method
+  (`playDef` fails silently by returning `null`), and call `playDef` directly for anything that isn't a
+  combat moment kind — `bindings.json` is keyed by moment kind, so shop/UI events never belong there.
+  ✅ **Batch 1's one fidelity loss is repaired (2026-07-30)**: `burst` now has an authored launch direction
+  (`aimMode` = `travel` | `fixed`, plus `angle` in degrees), and `coins` fires its ±33° upward fan again
+  instead of a full-circle pop. `travel` is the default, so no other def moved. This unblocks the
+  *directional* half of the remaining effects — but note `impact`/`critImpact` still need the per-call
+  parameter below as well, since their `dx/dy` arrives at fire time. (A third `awayFrom` mode was built and
+  cut for want of a caller; the reasoning, and what re-adding it would cost, is recorded next to
+  `BURST_AIM_MODES` in `burst.ts`.)
+  ✅ **The cut mode came back as `sourceToTarget` 2026-07-30**, because `impact` turned up as the caller. It
+  aims along the FIRE's own vector — source anchor → target anchor — and cost exactly what #764 said it would:
+  an optional `setAim` on `FxInstance` + `FxPlayer`, delivered by `driveLayerHeads` only when both anchors were
+  really staged, so `resolveAnchor`'s invented `(0, 0)` can never be mistaken for a real source. It aims
+  between the two ANCHORS rather than source → the layer's own head (the cut design), so the vector describes
+  the moment and every layer of a composition blows the same way. `travel` and `fixed` are byte-identical.
+- **`playDef` per-call `scale` / `intensity` — ✅ SHIPPED 2026-07-30.** Two multipliers on `PlayDefOptions`,
+  reaching only the params that opt in by declaring an `axis` in their spec (`scale` = geometry, `intensity` =
+  counts). `1` is an exact no-op and `scale` never touches a count, so seeded defs replay byte-for-byte.
+  `dust` is migrated as the proof (`fx/defs/landing-dust.json`; the card-drop `dust*` knobs are gone from the
+  Smoke tuner with it). What the remaining eight still owe:
+  - **Only `scale`/`intensity` short:** `deathrattle` (`size`), `shatterAt` + `rebornSummon` (the card's
+    `w/h` — note both want an *aspect*, and one scalar collapses it to the width).
+  - **Also need direction:** ✅ `impact` shipped 2026-07-30 as `fx/defs/strike-impact.json` — the proof for
+    `burst`'s new `sourceToTarget` aim, with `power` split across both magnitude axes (`scale` = the sizes,
+    which the old code multiplied by `power` directly; `intensity` = the counts, on the old spark ramp
+    `0.7 + 0.3 × power`). Its `strikeFxConfig.ts` + "Lunge Impact" tuner are deleted, and the six `smoke*`
+    knobs went with the smoke layer, leaving `smokeConfig` as the pulse-only "Strike pulse" panel.
+    ❌ **`critImpact` still owes three things**, and none is direction: (1) its `defRect` drives a rectangular
+    Graphics flash sized to the defender CARD, so it needs an **aspect-ratio** channel — one `scale` scalar
+    collapses `w`/`h` to a single number, the same gap `shatterAt`/`rebornSummon` have; (2) the "CRIT!" text
+    pop is a `Text`/typography element no primitive draws; (3) its whole look is a live `critFxConfig` object
+    with ~20 knobs, which is "author several defs", not one. Direction itself is now free to it.
+  - **Need more than magnitude:** `impactPulse` (`radius` → `scale` and `life` → `time` are both covered now;
+    what remains is that its `rings` argument REPLACES the ring count where `intensity` MULTIPLIES it — an
+    `intensity: rings / 2` at the three call sites closes it) and `refreshBlast` (a whole `cfg` object from
+    its tuner, which is really "author several defs, not one").
+- **`playDef` per-call `time` — ✅ SHIPPED 2026-07-30.** The third and last axis. `time` rescales the def's
+  whole temporal FRAME — every layer's `at`/`life`/`travelMs`, the def's `duration`, and every param declaring
+  `axis: 'time'` (a ms duration) or `axis: 'timeInverse'` (a per-second rate whose period is the thing being
+  stretched — shockwave `speed`, the only one). Rescaling the frame rather than just the params is the whole
+  design: 13 of 22 defs declare layer windows, and a params-only stretch would silently truncate their
+  particles. Distinct from `speed` (which rescales the clock and so slows the motion); `time` holds velocities
+  so particles travel further. `rate` deliberately stays on `intensity` — reasoning on `FxScaleAxes.time`.
+  `impactDust` is migrated as the proof (`fx/defs/impact-dust.json`, fired on all three dials from End Turn,
+  Tavern Up, Refresh and the three melee branches; the `impDust*` knobs are gone from both tuners).
 
 - **Shop→hand buy transition.** Buying a card deliberately does NOT get the arcane coalesce (a bought card
   was already visible in the tavern — acquired, not conjured). The owner wants a smooth transition of its own

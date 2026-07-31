@@ -1,88 +1,66 @@
-import { useEffect, useState } from 'react';
 import {
-  GLOW_NUM_KEYS,
-  GLOW_COLOR_KEYS,
-  GLOW_RANGES,
-  GLOW_DESC,
-  getGlowConfig,
-  resetGlowConfig,
-  setGlowValue,
-  type GlowConfig,
+  GLOW_COLOR_KEYS, GLOW_DEFAULTS, GLOW_RANGES,
+  getGlowConfig, resetGlowConfig, setGlowValue, type GlowConfig,
 } from './glowConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only floating tuner for the card HOVER / SELECT glow (`glowConfig.ts`). Dials the bright inner line
- * (blur / opacity / colour) and the soft outer bloom (blur / opacity / colour) that ring a card on hover.
- * Values persist to localStorage and apply LIVE via `--hg-*` CSS vars (the `.cglow` filter reads them). The
- * "always on" toggle pins the glow onto every RESTING card (`body.hglow-preview`) so it can be tuned without
- * holding hover (one pointer can't hover a card AND drag a slider). "Copy" grabs the JSON to paste back as the
- * shipped defaults in `glowConfig.ts` (and mirror into the CSS `var(--hg-*, …)` fallbacks). Panel-only: opened
- * from the Dev Tuning Menu (DevMenu.tsx); dev-only, so it's stripped from production.
+ * DEV-only tuner for the card HOVER / SELECT glow — the bright inner line and soft outer bloom that ring a card.
+ * Applies live via `--hg-*` vars, which the `.cglow` filter reads. Shipping a look means pasting the JSON into
+ * DEFAULTS *and* mirroring it into the CSS `var(--hg-*, …)` fallbacks.
+ *
+ * "Always on" is a declared preview switch: one pointer cannot hover a card and drag a slider at the same time.
  */
-const LABELS: Record<keyof GlowConfig, string> = {
-  width: 'shape · width',
-  height: 'shape · height',
-  lineBlur: 'line · blur',
-  lineAlpha: 'line · opacity',
-  lineColor: 'line · colour',
-  bloomBlur: 'bloom · blur',
-  bloomAlpha: 'bloom · opacity',
-  bloomStrength: 'bloom · strength',
-  bloomColor: 'bloom · colour',
+type ColorKey = (typeof GLOW_COLOR_KEYS)[number];
+const COLOR_SET = new Set<string>(GLOW_COLOR_KEYS);
+
+const SPECS: Record<keyof GlowConfig, [string, TunerUnit | undefined, string, string]> = {
+  width:         ['Width', '×', 'Glow shape width, relative to the frame. Above 1 pushes the rim out past the frame sides.', 'Shape'],
+  height:        ['Height', '×', 'Glow shape height, relative to the frame. Above 1 pushes the rim past the top and bottom.', 'Shape'],
+
+  lineBlur:      ['Softness', 'px', 'Softness of the bright inner line. Small values give a crisp rim hugging the card silhouette.', 'Inner line'],
+  lineAlpha:     ['Opacity', 'opacity', 'Opacity of the inner line. High reads as a bright, defined edge.', 'Inner line'],
+  lineColor:     ['Colour', undefined, 'Colour of the inner line.', 'Inner line'],
+
+  bloomBlur:     ['Radius', 'px', 'Radius of the soft outer bloom. Large gives a wide, gentle halo around the line.', 'Outer bloom'],
+  bloomAlpha:    ['Opacity', 'opacity', 'Bloom opacity. Lower is milder.', 'Outer bloom'],
+  bloomStrength: ['Intensity', undefined, 'How many times the bloom is stacked. 1 is soft; higher is a hotter, denser glow.', 'Outer bloom'],
+  bloomColor:    ['Colour', undefined, 'Colour of the outer bloom.', 'Outer bloom'],
 };
 
-export function GlowTuner() {
-  const [cfg, setCfg] = useState<GlowConfig>(getGlowConfig());
-  const [copied, setCopied] = useState(false);
-  const [preview, setPreview] = useState(true);
-  // Pin the glow onto every resting card so the sliders can be dialed without holding hover.
-  useEffect(() => {
-    document.body.classList.toggle('hglow-preview', preview);
-    return () => document.body.classList.remove('hglow-preview');
-  }, [preview]);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('glow');
+/** Declaration order IS render order; each colour sits inside its own group's run. */
+const ORDER: (keyof GlowConfig)[] = [
+  'width', 'height',
+  'lineBlur', 'lineAlpha', 'lineColor',
+  'bloomBlur', 'bloomAlpha', 'bloomStrength', 'bloomColor',
+];
 
-  const set = (k: keyof GlowConfig, v: number | string): void => {
-    setGlowValue(k, v);
-    setCfg({ ...getGlowConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getGlowConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetGlowConfig(); setCfg({ ...getGlowConfig() }); };
+const controls: TunerControl<Extract<keyof GlowConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  if (COLOR_SET.has(key)) return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+  const [min, max, step] = GLOW_RANGES[key as Exclude<keyof GlowConfig, ColorKey>];
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Hover Glow <span>dev · live · hover a card</span></div>
-      <div className="sfxmix-row">
-        <span className="sfxmix-name" title="Pin the glow onto every resting card so the sliders can be tuned without holding hover.">always on</span>
-        <input type="checkbox" checked={preview} onChange={(e) => setPreview(e.target.checked)} />
-        <span className="sfxmix-val">{preview ? 'on' : 'off'}</span>
-      </div>
-      {GLOW_NUM_KEYS.map((k) => {
-        const [min, max, step] = GLOW_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={GLOW_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      {GLOW_COLOR_KEYS.map((k) => (
-        <div className="sfxmix-row" key={k}>
-          <span className="sfxmix-name" title={GLOW_DESC[k]}>{LABELS[k]}</span>
-          <input type="color" value={cfg[k]} onChange={(e) => set(k, e.target.value)} />
-          <span className="sfxmix-val">{cfg[k]}</span>
-        </div>
-      ))}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export const SPEC: TunerSpec<GlowConfig> = {
+  id: 'glow',                       // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Hover Glow',
+  note: 'dev · live · cards',
+  read: getGlowConfig,
+  write: (key, value) => setGlowValue(key, value),
+  writeColor: (key, value) => setGlowValue(key, value),
+  reset: resetGlowConfig,
+  defaults: GLOW_DEFAULTS,
+  controls,
+  toggles: [{
+    id: 'hglow',
+    label: 'Always on',
+    hint: 'Pins the glow onto every resting card so it can be tuned without holding hover — one pointer cannot hover a card and drag a slider. Preview only; nothing is saved.',
+    bodyClass: 'hglow-preview',
+  }],
+};
+
+export function GlowTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

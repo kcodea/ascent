@@ -1,93 +1,98 @@
-import { useState } from 'react';
 import {
-  PD_NUM_KEYS,
-  PD_COLOR_KEYS,
-  PD_RANGES,
-  PD_DESC,
-  getPlateDissolveConfig,
-  resetPlateDissolveConfig,
-  setPlateDissolveValue,
-  playPlateDissolve,
+  PD_COLOR_KEYS, PD_DEFAULTS, PD_RANGES,
+  getPlateDissolveConfig, playPlateDissolve, resetPlateDissolveConfig, setPlateDissolveValue,
   type PlateDissolveConfig,
 } from './plateDissolve';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the ARCANE PLATE DISSOLVE (`plateDissolve.ts`) — the effect the hand-card backplate
- * plays when a minion is played. Dials the wireframe imprint (timing, brightness, glow, palette) and the
- * arcane dust (count, spread, life, trail).
+ * DEV-only tuner for the ARCANE PLATE DISSOLVE — what the hand-card backplate plays when a minion is played:
+ * a wireframe imprint of the plate, then arcane dust carrying it away.
  *
- * "Play here" fires the effect over the panel itself, so it can be dialed without dragging a card into the
- * board over and over. Note the WIREFRAME ITSELF is not tunable from here: its linework is baked into
- * `frames/cardplate-wire.webp` by `scripts/build-plate-wire.mjs`, because extracting it costs a blur, a
- * Sobel pass and a percentile sort that has no business running during a shop phase. To change the linework,
- * dial it in `fx/plate-dissolve-preview.html` and re-run `npm run wire:plate`.
+ * "Play here" fires the effect in the space beside the panel, so it can be dialled without dragging a card onto
+ * the board over and over.
  *
- * Unlike the CSS-var tuners in this folder there is no `var(--x, fallback)` half to keep in sync — this
- * module renders the effect itself, so its defaults ARE what ships.
+ * The WIREFRAME LINEWORK is not tunable here, and that is deliberate: it is baked into
+ * `frames/cardplate-wire.webp` by `scripts/build-plate-wire.mjs`, because extracting it costs a blur, a Sobel
+ * pass and a percentile sort that have no business running during a shop phase. To change the lines, dial them
+ * in `fx/plate-dissolve-preview.html` and re-run `npm run wire:plate`.
+ *
+ * Unlike the CSS-var tuners there is no `var(--x, fallback)` half to keep in sync — this module renders the
+ * effect itself, so its DEFAULTS are what ships.
  */
-const LABELS: Record<string, string> = {
-  total: 'total (ms)', inMs: 'imprint in', holdMs: 'hold', plateOut: 'plate out', fadeMs: 'wireframe fade',
-  puff: 'puff scale', inten: 'intensity', g1: 'glow near', g2: 'glow far', grad: 'gradient',
-  count: 'dust · count', onLines: 'dust · off lines', spd: 'dust · spread', spdVar: 'dust · spread var',
-  lift: 'dust · lift', size: 'dust · size', sizeVar: 'dust · size var', life: 'dust · life',
-  lifeVar: 'dust · life var', stag: 'dust · stagger', trail: 'dust · trail',
-  cDeep: 'colour · deep', cMid: 'colour · mid', cCore: 'colour · core',
+type ColorKey = (typeof PD_COLOR_KEYS)[number];
+const COLOR_SET = new Set<string>(PD_COLOR_KEYS);
+
+/** `[label, unit, hint, group]` per key. Units are declared, never typed into the label. */
+const SPECS: Record<keyof PlateDissolveConfig, [string, TunerUnit | undefined, string, string]> = {
+  total:    ['Whole effect', 'ms', 'Total length of the effect. Also governs how long the dust lives.', 'Timing'],
+  inMs:     ['Plate → wireframe', 'ms', 'Crossfade from the real plate art into the wireframe imprint.', 'Timing'],
+  holdMs:   ['Wireframe hold', 'ms', 'How long the wireframe sits at full brightness before it burns off.', 'Timing'],
+  plateOut: ['Plate vanish', 'ms', 'How fast the real plate art disappears underneath the imprint. 0 is instant.', 'Timing'],
+  fadeMs:   ['Wireframe burn-off', 'ms', 'How long the wireframe takes to burn away. Independent of the total, so the frame can snap away while dust still hangs.', 'Timing'],
+
+  puff:     ['Swell', '×', 'How far the wireframe swells as it goes. 1 is no swell at all.', 'Wireframe'],
+  inten:    ['Brightness', '×', 'Peak brightness of the wireframe.', 'Wireframe'],
+  g1:       ['Inner glow radius', 'px', 'Tight glow hugging the lines.', 'Wireframe'],
+  g2:       ['Outer bloom radius', 'px', 'Wide, soft bloom around the whole plate.', 'Wireframe'],
+  grad:     ['Gradient spread', 'opacity', '0 is a flat mid colour. 1 is the full deep → mid → core ramp across the plate.', 'Wireframe'],
+  cDeep:    ['Deep', undefined, 'Gradient end colour — the darkest of the three.', 'Wireframe'],
+  cMid:     ['Mid', undefined, 'Gradient middle colour.', 'Wireframe'],
+  cCore:    ['Core', undefined, 'Gradient core colour — the brightest.', 'Wireframe'],
+
+  count:    ['Mote count', undefined, 'How many motes the plate breaks into.', 'Arcane dust'],
+  onLines:  ['Confine to lines', 'opacity', '0 spawns dust off the whole plate. 1 spawns it only off the wireframe lines.', 'Arcane dust'],
+  spd:      ['Outward speed', 'px/s', 'How fast the motes drift away.', 'Arcane dust'],
+  spdVar:   ['Speed variance', 'opacity', 'Randomness in each mote’s speed.', 'Arcane dust'],
+  lift:     ['Vertical drift', 'px', 'Negative rises, positive sinks.', 'Arcane dust'],
+  size:     ['Mote size', 'px', 'Mote radius.', 'Arcane dust'],
+  sizeVar:  ['Size variance', 'opacity', 'Randomness in mote size.', 'Arcane dust'],
+  life:     ['Mote lifetime', '×', 'Mote lifetime, as a fraction of the whole effect.', 'Arcane dust'],
+  lifeVar:  ['Lifetime variance', 'opacity', 'Randomness in lifetime.', 'Arcane dust'],
+  stag:     ['Stagger', 'opacity', '0 births every mote at once, for one crisp burst. Higher gives a rolling burn.', 'Arcane dust'],
+  trail:    ['Trail smear', 'opacity', 'Per-frame smear. Higher leaves comet tails.', 'Arcane dust'],
 };
 
-export function PlateDissolveTuner() {
-  const [cfg, setCfg] = useState<PlateDissolveConfig>(getPlateDissolveConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, panelElRef, headerPointerDown, panelStyle } = useDraggablePanel('platedissolve');
+/**
+ * Declaration order IS render order, and only ADJACENT controls sharing a group merge into one heading — so the
+ * three palette colours sit inside the Wireframe run rather than being collected at the end.
+ */
+const ORDER: (keyof PlateDissolveConfig)[] = [
+  'total', 'inMs', 'holdMs', 'plateOut', 'fadeMs',
+  'puff', 'inten', 'g1', 'g2', 'grad', 'cDeep', 'cMid', 'cCore',
+  'count', 'onLines', 'spd', 'spdVar', 'lift', 'size', 'sizeVar', 'life', 'lifeVar', 'stag', 'trail',
+];
 
-  const set = (k: keyof PlateDissolveConfig, v: number | string): void => {
-    setPlateDissolveValue(k, v);
-    setCfg({ ...getPlateDissolveConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getPlateDissolveConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetPlateDissolveConfig(); setCfg({ ...getPlateDissolveConfig() }); };
-  // Fire it over the panel so the effect can be judged without playing a card each time.
-  const demo = (): void => {
-    const el = panelElRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const w = 240, h = w * 1.555;
-    playPlateDissolve({ left: r.left - w - 24, top: r.top + 40, width: w, height: h });
-  };
+const controls: TunerControl<Extract<keyof PlateDissolveConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  if (COLOR_SET.has(key)) return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+  const [min, max, step] = PD_RANGES[key as Exclude<keyof PlateDissolveConfig, ColorKey>];
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Plate Dissolve <span>dev · play a minion</span></div>
-      {PD_NUM_KEYS.map((k) => {
-        const [min, max, step] = PD_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={PD_DESC[k]}>{LABELS[k] ?? k}</span>
-            <input
-              type="range" min={min} max={max} step={step}
-              value={cfg[k as keyof PlateDissolveConfig] as number}
-              onChange={(e) => set(k as keyof PlateDissolveConfig, Number(e.target.value))}
-            />
-            <span className="sfxmix-val">{String(cfg[k as keyof PlateDissolveConfig])}</span>
-          </div>
-        );
-      })}
-      {PD_COLOR_KEYS.map((k) => (
-        <div className="sfxmix-row" key={k}>
-          <span className="sfxmix-name" title={PD_DESC[k]}>{LABELS[k]}</span>
-          <input type="color" value={cfg[k]} onChange={(e) => set(k, e.target.value)} />
-          <span className="sfxmix-val">{cfg[k]}</span>
-        </div>
-      ))}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={demo}>Play here</button>
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export const SPEC: TunerSpec<PlateDissolveConfig> = {
+  id: 'platedissolve',              // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Plate Dissolve',
+  note: 'dev · play a minion',
+  read: getPlateDissolveConfig,
+  write: (key, value) => setPlateDissolveValue(key, value),
+  writeColor: (key, value) => setPlateDissolveValue(key, value),
+  reset: resetPlateDissolveConfig,
+  defaults: PD_DEFAULTS,
+  controls,
+  actions: [{
+    label: 'Play here',
+    hint: 'Fires the effect in the space beside this panel, so it can be judged without playing a minion.',
+    run: (panelEl) => {
+      if (!panelEl) return;
+      const r = panelEl.getBoundingClientRect();
+      const w = 240, h = w * 1.555;                       // a card-shaped box, to the panel's left
+      playPlateDissolve({ left: r.left - w - 24, top: r.top + 40, width: w, height: h });
+    },
+  }],
+};
+
+export function PlateDissolveTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

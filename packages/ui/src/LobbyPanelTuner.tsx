@@ -1,70 +1,52 @@
-import { useState } from 'react';
 import {
-  LOBBY_PANEL_KEYS,
-  LOBBY_PANEL_RANGES,
-  LOBBY_PANEL_DESC,
-  getLobbyPanelConfig,
-  resetLobbyPanelConfig,
-  setLobbyPanelValue,
-  type LobbyPanelConfig,
-  type LobbyPanelKey,
+  LOBBY_PANEL_DEFAULTS, LOBBY_PANEL_RANGES,
+  getLobbyPanelConfig, resetLobbyPanelConfig, setLobbyPanelValue,
+  type LobbyPanelConfig, type LobbyPanelKey,
 } from './lobbyPanelConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only floating tuner for the LOBBY RAIL (`lobbyPanelConfig.ts`) — the 8-seat table down the right edge of
- * the stage. Panel scale, row scale and font size are separate dials (owner ask 2026-07-29), because they trade
- * off against each other: bigger text in the same box means fewer rows fit, and scaling the whole panel to fix
- * the text also moves it off the board edge.
+ * DEV-only tuner for the LOBBY RAIL — the 8-seat table down the right edge of the stage. Rail scale, row scale
+ * and font size are deliberately separate dials (owner ask 2026-07-29) because they trade off against each other:
+ * bigger text in the same box means fewer rows fit, and scaling the whole rail to fix the text also moves it off
+ * the board edge. Applies live through `--lby-*` vars on `:root` — no reload, no re-render.
  *
- * Applies LIVE through `--lby-*` vars on `:root` — no reload and no re-render, since the rail's rules read them
- * directly. "Copy" grabs the JSON to paste back as the shipped defaults. Stripped from production, where the
- * rail renders the baked defaults via each rule's CSS fallback.
+ * LANGUAGE. Every label was prefixed to fake grouping ("panel · scale", "rows · font size"); those are real
+ * sections now. `height` also needed its hint to carry the non-obvious part: it is a MAXIMUM, and the rail
+ * scrolls past it rather than clipping.
  */
-const LABELS: Record<LobbyPanelKey, string> = {
-  scale: 'panel · scale',
-  width: 'panel · width',
-  right: 'panel · right gap',
-  top: 'panel · top %',
-  height: 'panel · height %',
-  rowScale: 'rows · scale',
-  fontScale: 'rows · font size',
-  foeScale: 'next foe · scale',
+const SPECS: Record<LobbyPanelKey, [string, TunerUnit | undefined, string, string]> = {
+  scale:     ['Overall size', '×', 'Size of the whole rail — multiplies every other measurement here.', 'Rail'],
+  width:     ['Width', 'px', 'Rail width in design pixels.', 'Rail'],
+  right:     ['Gap from right edge', 'px', 'Distance from the stage’s right edge.', 'Rail'],
+  top:       ['Top edge', '%', 'Top of the rail, as a percentage of stage height.', 'Rail'],
+  height:    ['Maximum height', '%', 'A CAP, not a fixed height — the rail sizes itself to its rows and scrolls past this rather than clipping.', 'Rail'],
+  rowScale:  ['Row size', '×', 'Seat-row box: its padding and portrait size.', 'Seat rows'],
+  fontScale: ['Text size', '×', 'Seat-row text: name, health and damage.', 'Seat rows'],
+  foeScale:  ['Card size', '×', 'The Next Foe card — its portrait and text.', 'Next foe'],
 };
 
-export function LobbyPanelTuner() {
-  const [cfg, setCfg] = useState<LobbyPanelConfig>(getLobbyPanelConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('lobbypanel');
+/** Declaration order IS render order, and controls sharing a group render together under its heading. */
+const ORDER: LobbyPanelKey[] = ['scale', 'width', 'right', 'top', 'height', 'rowScale', 'fontScale', 'foeScale'];
 
-  const set = (k: LobbyPanelKey, v: number): void => {
-    setLobbyPanelValue(k, v);
-    setCfg({ ...getLobbyPanelConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getLobbyPanelConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetLobbyPanelConfig(); setCfg({ ...getLobbyPanelConfig() }); };
+const controls: TunerControl<Extract<keyof LobbyPanelConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  const [min, max, step] = LOBBY_PANEL_RANGES[key];
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Lobby Rail <span>dev · live · drag</span></div>
-      {LOBBY_PANEL_KEYS.map((k) => {
-        const [min, max, step] = LOBBY_PANEL_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={LOBBY_PANEL_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export const SPEC: TunerSpec<LobbyPanelConfig> = {
+  id: 'lobbypanel',                 // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Lobby Rail',
+  note: 'dev · live · drag',
+  read: getLobbyPanelConfig,
+  write: setLobbyPanelValue,
+  reset: resetLobbyPanelConfig,
+  defaults: LOBBY_PANEL_DEFAULTS,
+  controls,
+};
+
+export function LobbyPanelTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

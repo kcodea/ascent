@@ -53,6 +53,10 @@ export interface FxPlayer {
    *  This is the timing counterpart of `setLayerParams`: no respawn, no rebuild. */
   setLayerTiming(index: number, at: number, life: number | null): void;
   setHead(index: number, x: number, y: number): void;
+  /** Hand one layer the fire's source→target vector — see `FxInstance.setAim` for what it means and why the
+   *  caller (`driveLayerHeads`) only calls it when both anchors were really staged. A layer whose primitive
+   *  doesn't implement `setAim` silently ignores it, exactly as `setHead` does. */
+  setAim(index: number, sx: number, sy: number, tx: number, ty: number): void;
   timeMs(): number;
   isPlaying(): boolean;
   destroy(): void;
@@ -530,9 +534,24 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     setHead(index: number, x: number, y: number): void {
       live.get(index)?.inst.setHead?.(x, y);
     },
+    setAim(index: number, sx: number, sy: number, tx: number, ty: number): void {
+      live.get(index)?.inst.setAim?.(sx, sy, tx, ty);
+    },
     timeMs: () => clock,
     isPlaying: () => playing,
     destroy(): void {
+      // Clearing the transport flags is NOT decoration — without it a post-destroy `update()` respawns.
+      // `killAllLive()` empties `live`, but `update()` → `reconcile()` reads `playing`, sees a layer that is
+      // due and no longer live, and SPAWNS it: with pooling, that acquires a pooled pair into a container
+      // the caller has already orphaned, and nothing will ever release it. Repeat and the pool starves.
+      // `playDef`'s `retired()` check and the workbench's teardown ordering both happen to prevent that
+      // today; with lots of effects starting and stopping at arbitrary moments, "happens to" is not enough.
+      // Deliberately not a call to `stop()`: this is teardown, not a rewind — the clock is left where it
+      // died rather than reset, because destroy() promises no reuse.
+      playing = false;
+      firing = false;
+      firingRepeats = false;
+      inGap = false;
       killAllLive();
     },
   };

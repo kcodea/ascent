@@ -1,10 +1,9 @@
-import { Particle, ParticleContainer, Rectangle, Shader, type Texture } from 'pixi.js';
+import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
 import { sampleCurve, CURVE_PRESETS } from '../curve';
 import {
-  createParticleMaterial,
   updateParticleMaterial,
   updateParticleMaterialShaping,
   setParticleTime,
@@ -14,6 +13,7 @@ import {
   type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
+import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
@@ -56,6 +56,70 @@ export function sampleBurstAngle(travelAngle: number, spread: number, rand: () =
 }
 
 /**
+ * How a burst decides WHICH WAY its cone points (the `aimMode` param). See `resolveBurstAimAngle`.
+ * `travel` is first and is the default, so every def authored before this existed is untouched.
+ *
+ * ── the third mode, and the channel it cost ───────────────────────────────────────────────────────────
+ * `sourceToTarget` aims along the FIRE's own vector: source anchor → target anchor, i.e. "which way this
+ * moment went". A directional mode was built in #764 (as `awayFrom`, source → the layer's own head) and cut
+ * before merge for want of a caller; `impact` — a melee blow that fans its sparks along the attacker→defender
+ * vector — is that caller, and it arrived in #767. What was recorded then as the cost is what was paid:
+ * a layer only ever learns its OWN head, so the fire's geometry has to be plumbed down to the instance
+ * (`setAim` on `FxInstance` and `FxPlayer`, delivered by `driveLayerHeads` from the STAGED anchors, and only
+ * when they were really staged — so "none" can never arrive as `resolveAnchor`'s invented (0, 0) origin).
+ *
+ * It aims between the two ANCHORS rather than source → this layer's head, which is the one place it departs
+ * from the cut design. The vector then describes the MOMENT, not the layer: every layer of a composition
+ * blows the same way whichever anchor its author pinned it to. Under source→head a layer anchored at `source`
+ * would be degenerate and one anchored at `slot` would fan somewhere unrelated — the same def looking
+ * different for a reason invisible in the tuner. For `impact` itself the two are identical anyway: its layers
+ * are anchored at `target`, the strike point.
+ */
+export const BURST_AIM_MODES = ['travel', 'fixed', 'sourceToTarget'] as const;
+export type BurstAimMode = (typeof BURST_AIM_MODES)[number];
+
+/** Degrees → radians, for the `fixed` aim angle. */
+const DEG_TO_RAD = Math.PI / 180;
+
+/** Squared px below which a staged source and target count as the SAME point, i.e. no direction at all.
+ *  Matches `setHead`'s own travel-angle threshold — 0.1px of separation is not a blow direction. */
+const AIM_EPSILON_SQ = 0.01;
+
+/**
+ * The BASE angle `sampleBurstAngle` centres the cone on — i.e. the authored launch direction.
+ *
+ * `sampleBurstAngle` takes whatever base it is handed; choosing that base is this function's whole job, and
+ * it is kept separate for one load-bearing reason: **it draws no randomness.** `emit()`'s RNG contract is 7
+ * draws per particle in a fixed order (see there), so a seeded def must replay byte-for-byte across this
+ * change. A pure function of existing state cannot disturb that sequence — there is nothing here that could.
+ *
+ *  - `travel` (the default): the emitter's own direction of travel, which is 0 for a static point anchor.
+ *    Every def that predates aiming behaves exactly as it always did.
+ *  - `fixed`: the authored `angleDeg`, in SCREEN convention — 0 is +x (right), and because screen Y grows
+ *    DOWNWARD, -90 is straight up and +90 straight down.
+ *  - `sourceToTarget`: `aimAngle`, the fire's staged source→target direction, delivered by `setAim`.
+ *
+ * `aimAngle` is `null` in BOTH degenerate cases, and both fall back to `travel` — which is the honest
+ * fallback because it is what a burst with no direction has always done:
+ *   • NOT STAGED. The fire never supplied a source/target pair, so `setAim` was never called. This is
+ *     distinguishable only upstream, in `driveLayerHeads`, which is why the gate lives there: `resolveAnchor`
+ *     invents `(0, 0)` for an absent anchor, and a burst that aimed at that would fan away from the screen's
+ *     top-left corner on every def that happens not to stage one.
+ *   • COINCIDENT. Both staged, but at (near enough) the same point — a self-targeted moment. `atan2(0, 0)` is
+ *     0, which would SNAP the cone to +x; the same trap `resolveParticleRotation` guards below.
+ */
+export function resolveBurstAimAngle(
+  mode: BurstAimMode,
+  travelAngle: number,
+  angleDeg: number,
+  aimAngle: number | null,
+): number {
+  if (mode === 'fixed') return angleDeg * DEG_TO_RAD;
+  if (mode === 'sourceToTarget') return aimAngle ?? travelAngle;
+  return travelAngle;
+}
+
+/**
  * The rotation a particle should hold THIS frame. Two mutually exclusive modes, matching the
  * `orientToVelocity` param:
  *  - OFF (the default): advance the particle's own spin — `prevRot + spinRad * dtSec`, byte-for-byte the
@@ -86,6 +150,44 @@ export function resolveParticleRotation(
 }
 
 /**
+ * The BUILT-IN opacity envelope: how much of a shard is left at `frac` (1 at birth → 0 at death), before the
+ * authored `alphaCurve` multiplies it.
+ *
+ * ── why this is a function at all ──────────────────────────────────────────────────────────────────────
+ * This used to be a bare `frac * frac` in the update loop — a quadratic fade-out that multiplied the authored
+ * Alpha / life curve and that NO param could reach. Flatten the curve to 1 and every shard still faded on a
+ * fixed ramp; the owner spent real time trying to defeat it and could not. Exposing the EXPONENT (rather than
+ * a strength/blend, or a mode enum) is what makes the whole family reachable with one number that means
+ * something physical: it is the only degree of freedom `frac^n` has, it is monotone in "how long a shard
+ * stays bright", and its `0` end is a genuine OFF rather than a fourth special case.
+ *
+ *   0   no built-in fade at all — every shard holds full opacity until it dies, and `alphaCurve` is the whole
+ *       story (which is the point: an author who wants to draw the envelope themselves now can)
+ *   1   linear
+ *   2   THE DEFAULT and the historical behaviour — snappy, most of the life spent dim
+ *   4   very front-loaded: a hard flash that is gone almost at once
+ *
+ * ── byte-identity, and why the branches ────────────────────────────────────────────────────────────────
+ * `fade === 2` returns the LITERAL `frac * frac` expression this loop always used, not `Math.pow(frac, 2)`.
+ * `Math.pow` is implementation-defined in ECMAScript and is not required to agree with a multiply to the last
+ * bit, so routing the default through it would be a change of look with no diff to point at across every
+ * shipped def. `1` gets the same treatment for the same reason, and `<= 0` short-circuits to 1 rather than
+ * relying on `Math.pow(0, 0) === 1` at the moment of death.
+ *
+ * Deliberately NOT shared with emitter.ts/smoke.ts, which do not need it: their built-in envelope is
+ * `moteAlpha`/`smokeMoteAlpha`, a symmetric in/out ramp whose width IS an authored param (`fadeIn`) that
+ * already reaches 0, i.e. already reaches "no built-in fade". A single uniform control across all three would
+ * have meant bolting a second, redundant fade knob onto two primitives that had one. (And it would break this
+ * module's standing rule against importing across primitive modules — see `resolveParticleRotation`.)
+ */
+export function burstFadeEnvelope(frac: number, fade: number): number {
+  if (fade === 2) return frac * frac; // the historical expression, byte-for-byte
+  if (fade <= 0) return 1;
+  if (fade === 1) return frac;
+  return Math.pow(frac, fade);
+}
+
+/**
  * Pure completion predicate for a one-shot Fire: true once the burst has fired its single wave AND every
  * particle from it has died. Pulled out of `BurstInstance.isComplete()` so the state machine's core logic
  * is unit-testable without a WebGL-constructed instance (see `burst.test.ts`'s note on why the rest of the
@@ -98,19 +200,38 @@ export function burstFireComplete(oneShot: boolean, fired: boolean, liveCount: n
 
 const SPECS = {
   count: {
-    kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 120, step: 1, default: 28, essential: true,
-    help: 'Particles per burst.',
+    kind: 'slider', label: 'Count', group: 'Emit', min: 4, max: 400, step: 1, default: 28, essential: true,
+    axis: 'intensity',
+    help: 'Particles per burst. The whole wave is emitted at once, so this is the density of the spray — 28 is a handful of shrapnel, the top of the range a wall of it. A burst can never put more than 800 particles on screen at once however high this and Interval go.',
   },
   interval: {
-    kind: 'slider', label: 'Interval', group: 'Emit', min: 100, max: 2000, step: 10, default: 600,
+    kind: 'slider', label: 'Interval', group: 'Emit', min: 100, max: 6000, step: 10, default: 600,
+    // A duration, so it rides `time` for consistency — a stretched def's looping cadence stretches with it.
+    // Inert on the shipped path either way: `playDef` always fires one-shot, where `interval` is never
+    // consulted (see the `oneShot` branch in `update`), so this can never move a fired burst's particle count.
+    axis: 'time',
     help: 'Gap in ms between repeat bursts while the preview is looping. Fire throws exactly one burst, so this does nothing there — turn Loop on to see it.',
   },
   spread: {
     kind: 'slider', label: 'Spread', group: 'Emit', min: 0, max: 1, step: 0.01, default: 1,
-    help: '1 = full circle, lower narrows to a forward cone along the travel direction.',
+    help: '1 = full circle, lower narrows to a cone — 0.18 is a ±33° fan, 0 a single line. Aim decides which way that cone points.',
+  },
+  aimMode: {
+    kind: 'enum', label: 'Aim', group: 'Emit', options: BURST_AIM_MODES, default: 'travel',
+    help: 'Which way the cone points. travel (the default) follows the emitter\'s own direction of movement — which is nothing at all for a burst pinned to a static point, so it fans along +x there. fixed points it at the Angle you set. sourceToTarget points it along the moment itself — from the source anchor toward the target anchor, so an attacker\'s blow throws its sparks at the defender — and falls back to travel when the effect was fired without both anchors, or with the two on the same spot. Does nothing at Spread 1 — a full circle has no centre to aim.',
+  },
+  angle: {
+    kind: 'slider', label: 'Angle', group: 'Emit', min: -180, max: 180, step: 1, default: -90,
+    enabledWhen: { param: 'aimMode', is: 'fixed' },
+    // Screen space, so UP is NEGATIVE. Stated in the help rather than left to the reader because getting the
+    // sign backwards produces a burst that fires into the floor and looks like a tuning mistake, not a bug.
+    help: 'Where the cone points, in degrees, when Aim is fixed. Screen convention: 0 is right, and because the screen\'s Y axis grows DOWNWARD, -90 is straight UP, +90 straight DOWN, and ±180 is left. Does nothing while Aim is travel.',
   },
 
-  speed: { kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 800, step: 5, default: 260, essential: true, help: 'px/sec initial.' },
+  speed: {
+    kind: 'slider', label: 'Speed', group: 'Motion', min: 20, max: 3000, step: 5, default: 260, essential: true,
+    axis: 'scale', help: 'How fast a shard leaves the anchor, in px/sec. 260 is a normal spray; past ~1500 shards clear the card in a couple of frames, which is what sells a hit as violent (pair it with a short Life or they just leave).',
+  },
   speedVar: {
     kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.5,
     help: 'Randomises speed ± this fraction.',
@@ -120,17 +241,24 @@ const SPECS = {
     help: 'How quickly shards slow down — 1 keeps them flying flat out the whole way, 0.9 (the default) coasts them to a stop, 0.7 stalls them almost the moment they leave.',
   },
   gravity: {
-    kind: 'slider', label: 'Gravity', group: 'Motion', min: -400, max: 800, step: 10, default: 0,
-    help: 'px/sec² downward.',
+    kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: 0, axis: 'scale',
+    help: 'Downward acceleration in px/sec². 0 is weightless; positive pulls shards down into an arc (coins.json throws at ~1700 to get a real ballistic lob), negative floats them up. It is signed, so the full range covers both.',
   },
-  life: { kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, essential: true, help: 'Particle lifetime ms.' },
+  life: {
+    kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 6000, step: 10, default: 450, essential: true,
+    // The canonical `time` param: a duration in ms. A burst emits its whole wave at t=0, so stretching this
+    // makes each shard live (and therefore fly) longer WITHOUT changing how many shards there are — which is
+    // what keeps a seeded burst's 7-draws-per-particle stream byte-identical at any `time`.
+    axis: 'time',
+    help: 'How long each shard lives, in ms. Together with Speed and Drag this decides how far it gets — a long Life on a heavily-dragged shard leaves it hanging where it stopped, which is usually the moment to fade it with Alpha / life.',
+  },
   orientToVelocity: {
     kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
     help: 'Point each particle along its direction of travel (good for shards, arrows, and imported directional art). Overrides spin/rotation while on.',
   },
 
   turbulence: {
-    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0,
+    kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 2000, step: 5, default: 0, axis: 'scale',
     help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
   },
   turbScale: {
@@ -143,7 +271,7 @@ const SPECS = {
     help: 'Where shards are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 120, step: 1, default: 0,
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 0, axis: 'scale',
     // `emitShape` and `emitRadius` are mutually dead at these defaults (point + 0), so only ONE of the pair
     // may declare the dependency — disabling both would be a deadlock with no way back in. Shape is the
     // gateway you pick first; picking anything but `point` unlocks the radius.
@@ -160,19 +288,19 @@ const SPECS = {
     help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9, essential: true,
-    help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
+    kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 9, essential: true, axis: 'scale',
+    help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks, and the top of the range is debris the size of the card. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
   },
   sizeVar: {
     kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.5,
     help: 'How much shard sizes differ from each other, as a fraction of Size — 0 makes every shard identical, 0.5 (the default) spreads them between half and one-and-a-half size.',
   },
   stretchX: {
-    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
   },
   stretchY: {
-    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
     help: 'Per-particle height multiplier on top of Size.',
   },
   sizeCurve: {
@@ -196,7 +324,13 @@ const SPECS = {
   alphaCurve: {
     kind: 'curve', label: 'Alpha / life', group: 'Style',
     default: [[0, 1], [1, 1]], presets: CURVE_PRESETS,
-    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade.',
+    help: 'Opacity multiplier over life (0 = birth, 1 = death), on top of the built-in fade. Flat 1 = just the built-in fade — and with Fade at 0 there is no built-in fade left, so this curve becomes the whole opacity envelope.',
+  },
+  fade: {
+    kind: 'slider', label: 'Fade', group: 'Style', min: 0, max: 4, step: 0.1, default: 2,
+    // Default 2 is the exact expression this loop always used — see `burstFadeEnvelope` for why the branch on
+    // 2 exists rather than a bare Math.pow, and why the emitter/smoke pair deliberately have no such param.
+    help: 'The built-in fade-out every shard rides, as an exponent on its remaining life. 2 (the default) is the classic snappy fall-off; 1 is linear; 4 is a hard flash that is gone almost at once; 0 turns it OFF entirely, so shards hold full opacity until they die and Alpha / life is the whole story.',
   },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
@@ -326,6 +460,9 @@ class BurstInstance implements FxInstance<BurstParams> {
   // fresh seed per instance, i.e. exactly the previous `Math.random()` behaviour. See `fx/rng.ts`.
   private readonly rand: FxRandom;
   private travelAngle = 0; // radians; last known non-zero travel direction, aims the cone when spread < 1
+  // radians; the fire's staged source→target direction, or null for "no usable direction" (never delivered,
+  // or the two points coincide). Set by `setAim`; read ONCE PER WAVE by `emit`. See `resolveBurstAimAngle`.
+  private aimAngle: number | null = null;
   private timer = 0; // ms since last emit
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
 
@@ -335,15 +472,18 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.oneShot = ctx.oneShot === true;
     this.rand = makeRng(ctx.seed ?? randomSeed());
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
-    this.shader = createParticleMaterial(ctx.renderer, styleOf(params), shapingOf(params));
-    this.pc = new ParticleContainer({
+    // Pooled, not constructed: building a fresh Shader here re-compiled and re-linked the GLSL on every fire
+    // — a ~68 ms main-thread block per collision. See `particleLayerPool.ts`'s header.
+    const layer = acquireParticleLayer({
+      renderer: ctx.renderer,
+      parent: ctx.container,
       texture: this.texture,
-      shader: this.shader,
-      boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
-      dynamicProperties: { position: true, rotation: true, color: true, vertex: true },
+      blendMode: params.blendMode,
+      style: styleOf(params),
+      shaping: shapingOf(params),
     });
-    this.pc.blendMode = params.blendMode;
-    ctx.container.addChild(this.pc);
+    this.shader = layer.shader;
+    this.pc = layer.pc;
     // Deliberately no emit here. `headX/headY` default to (0, 0) until the first real `setHead()` call,
     // and the real caller (`FxPlayer.update` → this instance's `update()`, THEN `FxPlayer.setHead` →
     // this instance's `setHead()` — see Workbench.tsx's ticker, which calls `p.update(dtMs)` before
@@ -363,6 +503,19 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.headSet = true;
   }
 
+  /** The fire's source→target vector (see `FxInstance.setAim`). Reaching this method AT ALL already means the
+   *  caller staged both anchors — `driveLayerHeads` will not call it otherwise — so the only thing left to
+   *  reject here is the two points COINCIDING, which has no direction. `null` in that case, and
+   *  `resolveBurstAimAngle` falls back to `travel` rather than snapping the cone to `atan2(0, 0)` = +x.
+   *
+   *  Draws no randomness and touches no particle: called every frame by the head-driving loop, read once per
+   *  WAVE by `emit`, so it cannot disturb the seeded draw sequence documented there. */
+  setAim(sx: number, sy: number, tx: number, ty: number): void {
+    const dx = tx - sx;
+    const dy = ty - sy;
+    this.aimAngle = dx * dx + dy * dy > AIM_EPSILON_SQ ? Math.atan2(dy, dx) : null;
+  }
+
   /** Push `count` fresh particles into both `live` and the container's `particleChildren` at the current
    *  head position. Called only from `update()` (never the constructor — see there).
    *
@@ -370,14 +523,24 @@ class BurstInstance implements FxInstance<BurstParams> {
    *  distributions and the ORDER of the draws are byte-for-byte what they were — 7 per particle: angle,
    *  speed, size, bias, the two emission-shape offsets, then spin — so the statistical look is unchanged and
    *  only its reproducibility is new. Reordering or adding a draw here changes what every saved seed
-   *  replays, so treat the sequence as part of the contract. */
+   *  replays, so treat the sequence as part of the contract.
+   *
+   *  `aimMode`/`angle` — and the `sourceToTarget` aim delivered by `setAim` — deliberately do NOT
+   *  participate: the cone's base angle is chosen by
+   *  `resolveBurstAimAngle`, a pure function of state that draws nothing, once per WAVE rather than per
+   *  particle. So an aimed burst consumes the identical stream an unaimed one did — the angles come out
+   *  rotated, not re-rolled — and `aimMode: 'travel'` (the default) reproduces every saved seed exactly. */
   private emit(): void {
     const p = this.params;
     const room = MAX_LIVE - this.live.length;
     const n = Math.min(p.count, room);
     const children = this.pc.particleChildren;
+    // The cone's centre for this whole wave. Computed ONCE, outside the loop, and drawing NOTHING from
+    // `this.rand` — see `resolveBurstAimAngle`, which exists precisely so the base angle can be chosen
+    // without touching the draw sequence documented above.
+    const aim = resolveBurstAimAngle(p.aimMode, this.travelAngle, p.angle, this.aimAngle);
     for (let i = 0; i < n; i++) {
-      const angle = sampleBurstAngle(this.travelAngle, p.spread, this.rand);
+      const angle = sampleBurstAngle(aim, p.spread, this.rand);
       const speed = p.speed * (1 + (this.rand() * 2 - 1) * p.speedVar);
       const size = Math.max(0.5, p.size * (1 + (this.rand() * 2 - 1) * p.sizeVar));
       const { scaleX: scaleX0, scaleY: scaleY0 } = resolveParticleScale(size, p.stretchX, p.stretchY);
@@ -474,9 +637,11 @@ class BurstInstance implements FxInstance<BurstParams> {
 
       const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
       const lifeT = lp.age / lp.maxLife; // 0 -> 1 over life
-      // Built-in quadratic fade, times the explicit alpha-over-life curve (default flat 1 → sampleCurve
-      // returns exactly 1 and `x * 1 === x`, so the default is a byte-identical no-op).
-      particle.alpha = frac * frac * sampleCurve(p.alphaCurve, lifeT);
+      // Built-in fade (authored by `fade` — at its default of 2 `burstFadeEnvelope` returns the literal
+      // `frac * frac` this line used to inline, so the default is byte-identical), times the explicit
+      // alpha-over-life curve. That second factor's default is flat 1, where `sampleCurve` returns exactly 1
+      // and `x * 1 === x` — still a no-op, and still for that reason rather than by accident.
+      particle.alpha = burstFadeEnvelope(frac, p.fade) * sampleCurve(p.alphaCurve, lifeT);
       const s = sampleCurve(p.sizeCurve, lifeT);
       particle.scaleX = lp.scaleX0 * s;
       particle.scaleY = lp.scaleY0 * s;
@@ -545,23 +710,11 @@ class BurstInstance implements FxInstance<BurstParams> {
   }
 
   destroy(): void {
-    // The ParticleContainer and our own shader are ours to free. Shape textures are shared across every
-    // burst/emitter instance (cached per-renderer in `shapeTextures.ts`) and must outlive any single
-    // instance's destroy() — and it does: `ParticleContainer.destroy({ children: true })` only destroys
-    // the container/particle structs
-    // (`children: true` here means "also destroy the Particle instances", not the shared texture — see
-    // ParticleContainer.destroy()'s `destroyTexture` branch, which we never opt into), and `Shader.destroy`
-    // never touches its texture resources (only `resources`/`groups` refs and, with `true`, the compiled GL
-    // program) — verified by reading both destroy() implementations.
-    //
-    // Order matters: `ParticleContainer.destroy()` ALSO calls `this.shader?.destroy()` internally (with no
-    // args, i.e. destroyPrograms=false) since we handed it `shader: this.shader` in the constructor. Shader
-    // guards its own destroy with a `_destroyed` flag, so whichever destroy() call lands first "wins" — if
-    // `pc.destroy()` ran first, its no-arg call would set `_destroyed` and our own `destroy(true)` after it
-    // would silently no-op, leaking the compiled GL program. Destroying the shader ourselves FIRST (with
-    // `true`) makes the container's later internal call the no-op instead, which is the harmless direction.
-    this.shader.destroy(true);
-    this.pc.destroy({ children: true });
+    // Back to the pool, NOT destroyed. `releaseParticleLayer` unparents the container first — the player
+    // destroys our owning container with `{ children: true }` immediately after this returns, which would
+    // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in
+    // `shapeTextures.ts`; nothing here touches them.
+    releaseParticleLayer({ shader: this.shader, pc: this.pc });
   }
 }
 

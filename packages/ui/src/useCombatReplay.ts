@@ -27,6 +27,7 @@ import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
+import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
 
@@ -1165,7 +1166,7 @@ export function useCombatReplay(
           const el = findEl(uid);
           if (!el) continue;
           const { cx, cy } = layoutRectOf(el);
-          pixiFx.coins(cx, cy);
+          playDef('coins', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
         }
       },
       // A NON-melee hit (SC nuke / split damage / Blaster AoE) → a damage burst + impact ring at each target, so a
@@ -1178,7 +1179,9 @@ export function useCombatReplay(
           // SLOT, not the mid-flight rect — this cue also rides `death` moments, where a dying ATTACKER is
           // mid-pull-home. See layoutRectOf: this exact site was the phantom mid-board ring.
           const { cx, cy } = layoutRectOf(el);
-          pixiFx.damageBurst(cx, cy);
+          // The crimson hit burst is the authored `damage-burst` def (migrated out of `pixiFx`); the impact
+          // ring beside it is still hand-written — it takes a per-call size, which `playDef` cannot pass yet.
+          playDef('damage-burst', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
           pixiFx.impactPulse(cx, cy);
         }
       },
@@ -1190,7 +1193,9 @@ export function useCombatReplay(
           if (!el) continue;
           const { cx, cy, w, h } = layoutRectOf(el);
           if (w < 1 || h < 1) continue; // not laid out yet → no valid spawn rect
-          pixiFx.dust(cx, cy, w, h);
+          // The authored `landing-dust` def, sized to THIS card via `playDef`'s per-call `scale` (which is
+          // what the hand-written `pixiFx.dust(cx, cy, w, h)` used its w/h for).
+          playDef('landing-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { scale: cardFxScale(w) });
         }
       },
       // A transform (Tara→Taragosa, Spirit Pup→Worgen) → bloom a flash over the unit, masking the card swap

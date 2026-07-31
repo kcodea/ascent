@@ -1,74 +1,59 @@
-import { useState } from 'react';
 import {
-  BFD_NUM_KEYS,
-  BFD_RANGES,
-  BFD_DESC,
-  getBuffDrawerConfig,
-  resetBuffDrawerConfig,
-  setBuffDrawerValue,
-  type BuffDrawerConfig,
+  BFD_DEFAULTS, BFD_RANGES,
+  getBuffDrawerConfig, resetBuffDrawerConfig, setBuffDrawerValue, type BuffDrawerConfig,
 } from './buffDrawerConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the run-buffs drawer (`buffDrawerConfig.ts` / `BuffsFrame.tsx`) — the panel that
- * extends right out of the hero portrait behind a tab eclipsing its edge.
+ * DEV-only tuner for the run-buffs drawer — the panel that extends right out of the hero portrait behind a tab
+ * eclipsing its edge. Applies live via `--bfd-*` vars; shipping a look means pasting the JSON into DEFAULTS
+ * *and* mirroring it into the styles.css fallbacks.
  *
- * The tab is VERTICAL so it covers as little of the portrait as possible; `tab · x (eclipse)` is the dial
- * that decides how much it overlaps, which is the judgement call this tuner exists for. Type sizes are here
- * too, since the drawer sits over board art and legibility depends on the background behind it.
- *
- * Values persist to localStorage (dev only); "Copy values" grabs the JSON to bake into DEFAULTS + the
- * styles.css fallbacks. Opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
+ * The tab is VERTICAL so it covers as little of the portrait as possible, and its horizontal nudge is the
+ * judgement call this tuner exists for — that is why its hint spells out which direction increases the eclipse.
+ * Type sizes live here too, because the drawer sits over board art and legibility depends on what is behind it.
  */
-const LABELS: Record<keyof BuffDrawerConfig, string> = {
-  tabX: 'tab · x (eclipse)',
-  tabY: 'tab · y',
-  tabS: 'tab · scale',
-  tabH: 'tab · height',
-  tabW: 'tab · width',
-  bodyX: 'drawer · x',
-  bodyY: 'drawer · y',
-  bodyS: 'drawer · scale',
-  minW: 'drawer · min width',
-  textS: 'text · rows',
-  titleS: 'text · title',
+const SPECS: Record<keyof BuffDrawerConfig, [string, TunerUnit | undefined, string, string]> = {
+  tabX:    ['Horizontal nudge', 'px', 'MORE NEGATIVE pulls the tab further onto the portrait, eclipsing more of it. This is the dial the panel exists for.', 'Tab'],
+  tabY:    ['Vertical nudge', 'px', 'Offset from the portrait’s mid-line.', 'Tab'],
+  tabS:    ['Size', '×', 'Overall tab size.', 'Tab'],
+  tabH:    ['Height', 'px', 'The vertical tab’s long axis.', 'Tab'],
+  tabW:    ['Width', 'px', 'Keep this narrow — width is the part that covers the portrait.', 'Tab'],
+
+  bodyX:   ['Horizontal offset', 'px', 'How far right of the tab the drawer panel sits.', 'Drawer'],
+  bodyY:   ['Vertical offset', 'px', 'Vertical nudge of the drawer panel.', 'Drawer'],
+  bodyS:   ['Size', '×', 'Overall drawer size.', 'Drawer'],
+  minW:    ['Minimum width', 'px', 'Floor on the drawer width, so short values cannot collapse it narrow.', 'Drawer'],
+
+  textS:   ['Row text', 'px', 'Size of the buff row text.', 'Type'],
+  titleS:  ['Title text', 'px', 'Size of the "BUFFS" title.', 'Type'],
 };
 
-export function BuffDrawerTuner() {
-  const [cfg, setCfg] = useState<BuffDrawerConfig>(getBuffDrawerConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('buffdrawer');
+/** Declaration order IS render order, and controls sharing a group render together under its heading. */
+const ORDER: (keyof BuffDrawerConfig)[] = [
+  'tabX', 'tabY', 'tabS', 'tabH', 'tabW',
+  'bodyX', 'bodyY', 'bodyS', 'minW',
+  'textS', 'titleS',
+];
 
-  const set = (k: keyof BuffDrawerConfig, v: number): void => {
-    setBuffDrawerValue(k, v);
-    setCfg({ ...getBuffDrawerConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getBuffDrawerConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetBuffDrawerConfig(); setCfg({ ...getBuffDrawerConfig() }); };
+const controls: TunerControl<Extract<keyof BuffDrawerConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  const [min, max, step] = BFD_RANGES[key];
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Buffs Drawer <span>dev · live · open it</span></div>
-      <div className="sfxmix-sub">Open the drawer to see changes</div>
-      {BFD_NUM_KEYS.map((k) => {
-        const [min, max, step] = BFD_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={BFD_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k]} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export const SPEC: TunerSpec<BuffDrawerConfig> = {
+  id: 'buffdrawer',                 // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Buffs Drawer',
+  note: 'dev · live · drag',
+  read: getBuffDrawerConfig,
+  write: setBuffDrawerValue,
+  reset: resetBuffDrawerConfig,
+  defaults: BFD_DEFAULTS,
+  controls,
+};
+
+export function BuffDrawerTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

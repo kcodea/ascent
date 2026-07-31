@@ -1,84 +1,70 @@
-import { useState } from 'react';
 import {
-  HEROBUFFFX_KEYS, HEROBUFFFX_COLOR_KEYS, HEROBUFFFX_RANGES,
+  HEROBUFFFX_COLOR_KEYS, HEROBUFFFX_DEFAULTS, HEROBUFFFX_RANGES,
   getHeroBuffFxConfig, resetHeroBuffFxConfig, setHeroBuffFxValue, type HeroBuffFxConfig,
 } from './heroBuffFxConfig';
-import { useDraggablePanel } from './useDraggablePanel';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only "Hero Buff Flash" tuner — the shard/blast pop with an eased ripple over the hero portrait when any
- * run buff grows (`heroBuffFxConfig` → the `.herobuff-blast` CSS). Persists to localStorage; edits reflect to
- * the `--hbf-*` vars immediately, so ▶ Test replays the flash on the live portrait. "Copy" grabs the JSON to
- * bake as the shipped defaults; "Reset" clears.
+ * DEV-only tuner for the HERO BUFF FLASH — the shard blast and eased ripple over the hero portrait when any run
+ * buff grows. Unlike the Pixi FX tuners this drives a pure-CSS one-shot: values reflect to `--hbf-*` vars
+ * immediately, which is why ▶ Test can replay the flash on the live portrait.
  */
-const HBF_LABELS: Partial<Record<keyof HeroBuffFxConfig, string>> = {
-  rippleScale: 'ripple size ×',
-  rippleMs: 'ripple ms',
-  rippleWidth: 'ripple width',
-  shardScale: 'shard size ×',
-  shardMs: 'shard ms',
-  shardRotate: 'shard spin °',
-  shardSpokes: 'shard spokes',
-  peakAlpha: 'shard α',
-  colorCore: 'colour',
-};
+const COLOR_SET = new Set<string>(HEROBUFFFX_COLOR_KEYS.map(String));
 
-/** Replay the flash on the live portrait by remounting `.herobuff-blast` via a one-off clone. Simplest
- *  reliable trigger without threading state into StatusBar: toggle a data attr the component watches. */
+/**
+ * Replay the flash on the live portrait by remounting `.herobuff-blast` via a one-off clone — the simplest
+ * reliable trigger without threading state into StatusBar.
+ */
 function fireTest(): void {
   const f = document.querySelector('.statusbar .hero .f');
   if (!f) return;
-  const old = f.querySelector('.herobuff-blast');
-  if (old) old.remove();
+  f.querySelector('.herobuff-blast')?.remove();
   const el = document.createElement('span');
   el.className = 'herobuff-blast';
   el.setAttribute('aria-hidden', 'true');
   f.insertBefore(el, f.firstChild);
 }
 
-export function HeroBuffFxTuner() {
-  const [cfg, setCfg] = useState<HeroBuffFxConfig>(getHeroBuffFxConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('herobufffx');
+const SPECS: Record<keyof HeroBuffFxConfig, [string, TunerUnit | undefined, string, string]> = {
+  rippleScale: ['Size', '×', 'How far the ripple expands past the portrait.', 'Ripple'],
+  rippleMs:    ['Duration', 'ms', 'How long the ripple takes to expand and fade.', 'Ripple'],
+  rippleWidth: ['Ring thickness', 'px', 'Thickness of the ripple ring.', 'Ripple'],
 
-  const set = (k: keyof HeroBuffFxConfig, v: number | string): void => {
-    setHeroBuffFxValue(k, v);
-    setCfg({ ...getHeroBuffFxConfig() });
-  };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getHeroBuffFxConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetHeroBuffFxConfig(); setCfg({ ...getHeroBuffFxConfig() }); };
+  shardScale:  ['Size', '×', 'How far the shards travel from the portrait centre.', 'Shards'],
+  shardMs:     ['Duration', 'ms', 'How long the shard blast lasts.', 'Shards'],
+  shardRotate: ['Rotation', '°', 'Rotates the whole spoke arrangement, so repeat flashes do not read identically.', 'Shards'],
+  shardSpokes: ['Spoke count', undefined, 'How many shards radiate out.', 'Shards'],
+  peakAlpha:   ['Opacity', 'opacity', 'Peak opacity of the shards.', 'Shards'],
+  colorCore:   ['Colour', undefined, 'Colour of the flash.', 'Shards'],
+};
 
-  const sliderKeys = HEROBUFFFX_KEYS.filter((k) => !HEROBUFFFX_COLOR_KEYS.includes(k));
+/** Declaration order IS render order; the colour sits inside the Shards run. */
+const ORDER: (keyof HeroBuffFxConfig)[] = [
+  'rippleScale', 'rippleMs', 'rippleWidth',
+  'shardScale', 'shardMs', 'shardRotate', 'shardSpokes', 'peakAlpha', 'colorCore',
+];
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Hero Buff Flash <span>dev · live · drag</span></div>
-      {sliderKeys.map((k) => {
-        const [min, max, step] = HEROBUFFFX_RANGES[k]!;
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name">{HBF_LABELS[k] ?? k}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k] as number} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      {HEROBUFFFX_COLOR_KEYS.map((k) => (
-        <div className="sfxmix-row" key={k}>
-          <span className="sfxmix-name">{HBF_LABELS[k] ?? k}</span>
-          <input type="color" value={cfg[k] as string} onChange={(e) => set(k, e.target.value)} />
-          <span className="sfxmix-val">{cfg[k]}</span>
-        </div>
-      ))}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={fireTest} title="Replay the flash on the hero portrait">▶ Test FX</button>
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+const controls: TunerControl<Extract<keyof HeroBuffFxConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  if (COLOR_SET.has(key)) return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+  const [min, max, step] = HEROBUFFFX_RANGES[key]!;
+  return { key, label, unit, hint, group, min, max, step };
+});
+
+export const SPEC: TunerSpec<HeroBuffFxConfig> = {
+  id: 'herobufffx',                 // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Hero Buff Flash',
+  note: 'dev · live · drag',
+  read: getHeroBuffFxConfig,
+  write: (key, value) => setHeroBuffFxValue(key, value),
+  writeColor: (key, value) => setHeroBuffFxValue(key, value),
+  reset: resetHeroBuffFxConfig,
+  defaults: HEROBUFFFX_DEFAULTS,
+  controls,
+  actions: [{ label: '▶ Test', hint: 'Replays the flash on the live hero portrait.', run: () => fireTest() }],
+};
+
+export function HeroBuffFxTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

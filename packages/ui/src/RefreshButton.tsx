@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { pixiFx } from './pixiFx';
+import { playDef } from './fx/playDef';
 import { getRefreshConfig } from './refreshConfig';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
@@ -46,7 +47,11 @@ export function RefreshButton({
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      if (cfg.dustCount > 0) pixiFx.impactDust(cx, cy, 1, { count: cfg.dustCount, size: cfg.dustSize, life: cfg.dustLife });
+      // The authored `impact-dust` def — count → `intensity`, size → `scale`, lifetime → `time`.
+      if (cfg.dustCount > 0) {
+        playDef('impact-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } },
+          { intensity: cfg.dustCount, scale: cfg.dustSize, time: cfg.dustLife });
+      }
       // Sprite blast — every shard's angle/speed/life/size/spin is jittered inside `refreshBlast`, so no
       // two presses look alike (owner request). Fired from the button's centre, like the dust.
       if (cfg.blastCount > 0) {

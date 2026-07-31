@@ -34,7 +34,7 @@ const controls: TunerControl<Extract<keyof FloatConfig, string>>[] = ORDER.map((
   return { key, label, unit, hint, group, min, max, step };
 });
 
-const SPEC: TunerSpec<FloatConfig> = {
+export const SPEC: TunerSpec<FloatConfig> = {
   id: 'float',                      // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Damage Float',
   note: 'dev · next float · drag',

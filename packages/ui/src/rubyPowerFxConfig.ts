@@ -108,16 +108,6 @@ const DEFAULTS: RubyPowerFxConfig = {
   glowWidth: 3.5,
 };
 
-export const RUBYPOWERFX_KEYS = [
-  'arrowCount', 'arrowRise', 'arrowSpread', 'arrowLen', 'arrowWidth', 'arrowHead', 'arrowMs', 'arrowStagger',
-  'arrowDrift', 'arrowFadeAt',
-  'blastCount', 'blastSpeed', 'blastSize', 'blastLife', 'blastGravity',
-  'blastSpread', 'blastAngle', 'blastDrag', 'blastJitter', 'blastRise', 'blastSpin', 'blastStagger', 'blastShrink',
-  'numShow', 'numSize', 'numRise', 'numDelay', 'numHoldMs', 'numFadeMs',
-  'glowAlpha', 'glowWidth',
-  'colorA', 'colorB', 'colorC', 'colorText', 'colorOutline',
-] as const satisfies readonly (keyof RubyPowerFxConfig)[];
-
 export const RUBYPOWERFX_COLOR_KEYS: (keyof RubyPowerFxConfig)[] = ['colorA', 'colorB', 'colorC', 'colorText', 'colorOutline'];
 
 export const RUBYPOWERFX_RANGES: Partial<Record<keyof RubyPowerFxConfig, [number, number, number]>> = {

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "landing-dust",
+  "label": "Landing dust",
+  "tags": ["dust", "board", "tactile"],
+  "duration": 1000,
+  "layers": [
+    {
+      "primitive": "burst",
+      "name": "footprint billow",
+      "anchor": "target",
+      "at": 0,
+      "life": 1000,
+      "params": {
+        "count": 22,
+        "spread": 1,
+        "speed": 110,
+        "speedVar": 0.55,
+        "drag": 0.78,
+        "gravity": 130,
+        "life": 820,
+        "emitShape": "ring",
+        "emitRadius": 78,
+        "shape": "circle",
+        "size": 18,
+        "sizeVar": 0.5,
+        "sizeCurve": [[0, 0.35], [1, 1.6]],
+        "alphaCurve": [[0, 0.34], [1, 0.2]],
+        "coreBias": 0.35,
+        "bands": 3,
+        "plateau": 0.3,
+        "glow": 0,
+        "erode": 0.3,
+        "blendMode": "normal",
+        "palette": [4866100, 9075294, 13218959, 14931643]
+      }
+    }
+  ]
+}

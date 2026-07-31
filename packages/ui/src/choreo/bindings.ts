@@ -66,10 +66,11 @@ export const DRAFT_DEF_ID = 'fx-draft';
  *  the same class of confusion is not worth reasoning about per-call-site. */
 const UNSAFE_KEYS: readonly string[] = ['__proto__', 'constructor', 'prototype'];
 
-/** DEV-only: bindings.json is a static import, so unlike fxDefs.ts's DEV-gated glob, this module ships in the
- *  production bundle. A malformed entry that slipped past CI would otherwise log to every player's console on
- *  load — and there is nothing a production consumer could do about it anyway, since `canPlayDefs()` is false
- *  in production and authored defs never play there. Matches the gating pattern in `fxDefs.ts`. */
+/** DEV-only: this module ships (bindings.json is a static import, and since the un-gate the defs it names ship
+ *  too), so a malformed entry that slipped past CI would log to every player's console on load — and a player
+ *  can do nothing about a bad binding. A dropped entry costs one missing effect, never a broken combat, so
+ *  failing quietly for players and loudly for the author is the right split. `bindings.test.ts` is the real
+ *  guard: it asserts every bound def id resolves in the registry. */
 function devError(msg: string): void {
   if (import.meta.env.DEV) console.error(msg);
 }

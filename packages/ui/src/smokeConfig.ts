@@ -1,41 +1,18 @@
 /**
- * Tunable parameters for the board's soft particle smoke/dust — the warm-grey puffs that rise off a combat
- * impact (`pixiFx.impact`) and the tan dust ring kicked up under a placed card (`pixiFx.dust`). Same pattern
- * as `lungeConfig.ts`/`trailConfig.ts`: one mutable, localStorage-persisted config dialed by eye via the DEV
- * Smoke tuner (`SmokeTuner.tsx`); `getSmokeConfig()` is read at spawn time, so changes apply to the next
- * impact/drop. The DEFAULTS reproduce the previously-hardcoded look exactly (nothing changes until you tune).
+ * Tunable parameters for the strike-point ENERGY PULSE — the thin bright rings that expand out of a combat
+ * clack point (`pixiFx.impactPulse`). Same pattern as `lungeConfig.ts`/`trailConfig.ts`: one mutable,
+ * localStorage-persisted config dialed by eye via the DEV Smoke tuner (`SmokeTuner.tsx`);
+ * `getSmokeConfig()` is read at spawn time, so changes apply to the next impact.
+ *
+ * NOTE: this module has been shrinking as the effects it fed became authored defs, tuned in the FX workbench
+ * rather than by these sliders. The card-drop footprint billow went first (`fx/defs/landing-dust.json`),
+ * taking its `dust*` knobs; the combat impact SMOKE followed (`fx/defs/strike-impact.json`'s "warm smoke"
+ * layer, migrated with `pixiFx.impact`), taking the six `smoke*` knobs. The pulse is what is left, and it
+ * stays here until `impactPulse` itself migrates — which it can't yet, because its `rings` argument REPLACES
+ * the ring count where `playDef`'s `intensity` would multiply it (see `docs/roadmap.md`). The name is kept
+ * (`SmokeConfig`, storage key `ascent.smoke`) so tuned values already in players' localStorage still load.
  */
 export interface SmokeConfig {
-  /** Combat impact: number of smoke puffs per hit. */
-  smokeCount: number;
-  /** Combat impact: upward drift speed (px/s). */
-  smokeRise: number;
-  /** Combat impact: horizontal spread (px/s). */
-  smokeDrift: number;
-  /** Combat impact: base puff lifetime (ms). */
-  smokeLife: number;
-  /** Combat impact: final expansion scale as the puff billows + fades. */
-  smokeGrow: number;
-  /** Combat impact: peak opacity (kept low so it wisps over the cream board). */
-  smokeAlpha: number;
-  /** Card drop: number of dust puffs around the ring (× the per-call density). */
-  dustCount: number;
-  /** Card drop: outward billow speed (px/s). */
-  dustSpeed: number;
-  /** Card drop: base puff lifetime (ms). */
-  dustLife: number;
-  /** Card drop: final expansion scale (× the per-call scale). */
-  dustGrow: number;
-  /** Card drop: peak opacity. */
-  dustAlpha: number;
-  /** Combat impact — card-drop-style dust erupting from the corner clack point: puff count. */
-  impDustCount: number;
-  /** Combat impact dust: outward billow speed (px/s). */
-  impDustSpeed: number;
-  /** Combat impact dust: base puff lifetime (ms). */
-  impDustLife: number;
-  /** Combat impact dust: puff radius (px). */
-  impDustSize: number;
   /** Combat impact — energy pulse ring(s) expanding out of the clack point: ring radius (px). */
   impPulseRadius: number;
   /** Combat impact energy pulse: ring lifetime (ms). */
@@ -45,24 +22,8 @@ export interface SmokeConfig {
 }
 
 const DEFAULTS: SmokeConfig = {
-  // Combat impact smoke — owner-tuned in the Lunge Strike Effects tuner (2026-07-10).
-  smokeCount: 3,
-  smokeRise: 0,
-  smokeDrift: 170,
-  smokeLife: 400,
-  smokeGrow: 6,
-  smokeAlpha: 0.15,
-  // Card-drop dust (a placed minion's footprint billow) — unchanged.
-  dustCount: 22,
-  dustSpeed: 195,
-  dustLife: 1180,
-  dustGrow: 1.2,
-  dustAlpha: 0.32,
-  // Combat impact dust + energy pulse (fired from the strike point) — owner-tuned (2026-07-10).
-  impDustCount: 22,
-  impDustSpeed: 450,
-  impDustLife: 720,
-  impDustSize: 30,
+  // Combat impact energy pulse (fired from the strike point) — owner-tuned (2026-07-10). The dust and smoke
+  // beside it are authored defs now (`fx/defs/impact-dust.json`, `fx/defs/strike-impact.json`).
   impPulseRadius: 150,
   impPulseDur: 480,
   impPulseRings: 2,
@@ -70,21 +31,6 @@ const DEFAULTS: SmokeConfig = {
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const SMOKE_RANGES: Record<keyof SmokeConfig, [number, number, number]> = {
-  smokeCount: [0, 24, 1],
-  smokeRise: [0, 220, 5],
-  smokeDrift: [0, 220, 5],
-  smokeLife: [100, 2200, 20],
-  smokeGrow: [0.5, 6, 0.1],
-  smokeAlpha: [0, 1, 0.01],
-  dustCount: [0, 40, 1],
-  dustSpeed: [0, 320, 5],
-  dustLife: [100, 1600, 20],
-  dustGrow: [0.5, 4, 0.1],
-  dustAlpha: [0, 1, 0.01],
-  impDustCount: [0, 30, 1],
-  impDustSpeed: [0, 600, 10],
-  impDustLife: [100, 1200, 20],
-  impDustSize: [4, 60, 1],
   impPulseRadius: [20, 320, 5],
   impPulseDur: [100, 700, 10],
   impPulseRings: [0, 2, 1],

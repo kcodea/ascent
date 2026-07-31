@@ -1,77 +1,72 @@
-import { useState } from 'react';
 import {
-  FSW_NUM_KEYS, FSW_COLOR_KEYS, FSW_RANGES, FSW_DESC,
+  FSW_COLOR_KEYS, FSW_DEFAULTS, FSW_RANGES,
   getFlurrySwingConfig, resetFlurrySwingConfig, setFlurrySwingValue, type FlurrySwingConfig,
 } from './flurrySwingConfig';
-import { useDraggablePanel } from './useDraggablePanel';
 import { pixiFx } from './pixiFx';
+import { TunerPanel } from './TunerPanel';
+import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only "Flurry Swing FX" tuner — the one-shot wind-slash sparkle a Flurry (W) minion fires on its extra
- * swing (`flurrySwingConfig` → `pixiFx.windSlash`): crescent wind-blades, a sparkle cone, and a soft glow.
- * Slider dials + colour pickers persist to localStorage and apply to the NEXT swing. **Test** fires it at
- * screen centre so it can be dialed without a real Flurry fight. "Copy" grabs the JSON to bake as the shipped
- * defaults; "Reset" clears. Dev-only — stripped from production.
+ * DEV-only tuner for the FLURRY SWING — the one-shot wind-slash sparkle a Flurry minion fires on its extra
+ * swing. Three layers: crescent wind-blades, a spark cone, and a soft contact glow. Applies to the NEXT swing;
+ * Test fires it at screen centre so it can be dialled without arranging a real Flurry fight.
+ *
+ * "Power" is a master dial that scales every count, size AND speed at once, which is why it sits alone at the
+ * top rather than inside a layer group — it is the one to reach for first.
  */
-const LABELS: Record<keyof FlurrySwingConfig, string> = {
-  power: 'power',
-  slashCount: 'blade count',
-  slashSize: 'blade size',
-  slashLife: 'blade life ms',
-  slashSpeed: 'blade speed',
-  slashSpread: 'blade spread°',
-  slashColor: 'blade colour',
-  sparkCount: 'spark count',
-  sparkSpeed: 'spark speed',
-  sparkLife: 'spark life ms',
-  sparkSize: 'spark size',
-  sparkSpread: 'spark spread°',
-  sparkColor: 'spark colour',
-  glowSize: 'glow size',
-  glowAlpha: 'glow α',
-  glowColor: 'glow colour',
+type ColorKey = (typeof FSW_COLOR_KEYS)[number];
+const COLOR_SET = new Set<string>(FSW_COLOR_KEYS);
+
+const SPECS: Record<keyof FlurrySwingConfig, [string, TunerUnit | undefined, string, string]> = {
+  power:       ['Power', '×', 'Master intensity — scales every count, size and speed below at once.', 'Overall'],
+
+  slashCount:  ['Blade count', undefined, 'How many crescent slashes appear at the hit. 0 removes them.', 'Wind blades'],
+  slashSize:   ['Blade size', 'px', 'Drawn size of each slash.', 'Wind blades'],
+  slashLife:   ['Blade lifetime', 'ms', 'How long each slash lasts.', 'Wind blades'],
+  slashSpeed:  ['Blade speed', 'px/s', 'How fast each slash is flung outward.', 'Wind blades'],
+  slashSpread: ['Blade scatter', '°', 'Angular scatter around the direction of the blow.', 'Wind blades'],
+  slashColor:  ['Colour', undefined, 'Colour of the wind blades.', 'Wind blades'],
+
+  sparkCount:  ['Spark count', undefined, 'How many bright motes burst out. 0 removes them.', 'Sparks'],
+  sparkSpeed:  ['Speed', 'px/s', 'Initial spark speed.', 'Sparks'],
+  sparkLife:   ['Lifetime', 'ms', 'How long one spark lasts.', 'Sparks'],
+  sparkSize:   ['Size', 'px', 'Drawn spark size.', 'Sparks'],
+  sparkSpread: ['Cone width', '°', 'Cone around the blow direction. 360 throws them all around.', 'Sparks'],
+  sparkColor:  ['Colour', undefined, 'Colour of the sparks.', 'Sparks'],
+
+  glowSize:    ['Size', 'px', 'Diameter of the soft contact flash. 0 removes the glow.', 'Contact glow'],
+  glowAlpha:   ['Opacity', 'opacity', 'Peak glow opacity.', 'Contact glow'],
+  glowColor:   ['Colour', undefined, 'Colour of the contact glow.', 'Contact glow'],
 };
 
-export function FlurrySwingTuner() {
-  const [cfg, setCfg] = useState<FlurrySwingConfig>(getFlurrySwingConfig());
-  const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('flurryswing');
+/** Declaration order IS render order; each colour sits inside its own layer's run. */
+const ORDER: (keyof FlurrySwingConfig)[] = [
+  'power',
+  'slashCount', 'slashSize', 'slashLife', 'slashSpeed', 'slashSpread', 'slashColor',
+  'sparkCount', 'sparkSpeed', 'sparkLife', 'sparkSize', 'sparkSpread', 'sparkColor',
+  'glowSize', 'glowAlpha', 'glowColor',
+];
 
-  const set = (k: keyof FlurrySwingConfig, v: number | string): void => { setFlurrySwingValue(k, v); setCfg({ ...getFlurrySwingConfig() }); };
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(JSON.stringify(getFlurrySwingConfig(), null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => { resetFlurrySwingConfig(); setCfg({ ...getFlurrySwingConfig() }); };
+const controls: TunerControl<Extract<keyof FlurrySwingConfig, string>>[] = ORDER.map((key) => {
+  const [label, unit, hint, group] = SPECS[key];
+  if (COLOR_SET.has(key)) return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+  const [min, max, step] = FSW_RANGES[key as Exclude<keyof FlurrySwingConfig, ColorKey>];
+  return { key, label, unit, hint, group, min, max, step };
+});
 
-  return (
-    <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Flurry Swing FX <span>dev · next swing · drag</span></div>
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={() => pixiFx.testFlurry()}>🌬️ Test</button>
-      </div>
-      {FSW_NUM_KEYS.map((k) => {
-        const [min, max, step] = FSW_RANGES[k];
-        return (
-          <div className="sfxmix-row" key={k}>
-            <span className="sfxmix-name" title={FSW_DESC[k]}>{LABELS[k]}</span>
-            <input type="range" min={min} max={max} step={step} value={cfg[k] as number} onChange={(e) => set(k, Number(e.target.value))} />
-            <span className="sfxmix-val">{cfg[k]}</span>
-          </div>
-        );
-      })}
-      {FSW_COLOR_KEYS.map((k) => (
-        <div className="sfxmix-row" key={k}>
-          <span className="sfxmix-name" title={FSW_DESC[k]}>{LABELS[k]}</span>
-          <input type="color" value={cfg[k] as string} onChange={(e) => set(k, e.target.value)} />
-          <span className="sfxmix-val">{cfg[k]}</span>
-        </div>
-      ))}
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
-        <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      </div>
-    </div>
-  );
+export const SPEC: TunerSpec<FlurrySwingConfig> = {
+  id: 'flurryswing',                // FROZEN — indexes this panel's dragged position in localStorage
+  title: 'Flurry Swing',
+  note: 'dev · next swing · drag',
+  read: getFlurrySwingConfig,
+  write: (key, value) => setFlurrySwingValue(key, value),
+  writeColor: (key, value) => setFlurrySwingValue(key, value),
+  reset: resetFlurrySwingConfig,
+  defaults: FSW_DEFAULTS,
+  controls,
+  actions: [{ label: '🌬️ Test', hint: 'Fires the swing at screen centre, without needing a real Flurry fight.', run: () => pixiFx.testFlurry() }],
+};
+
+export function FlurrySwingTuner(): JSX.Element {
+  return <TunerPanel spec={SPEC} />;
 }

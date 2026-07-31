@@ -1,6 +1,7 @@
 import type { FxDef } from '../def';
+import { transformParams } from '../paramTransform';
 import { getPrimitive } from '../registry';
-import { UNSAFE_KEYS, type VariantAxis, type VariantOverride } from './presetTable';
+import type { VariantAxis, VariantOverride } from './presetTable';
 
 export interface VariantResult {
   def: FxDef;
@@ -14,33 +15,12 @@ export interface VariantResult {
 }
 
 /**
- * Clamp to the spec's range, then snap to its step, then round away the float dust the multiply left.
- *
- * The snap can land back OUTSIDE the range whenever `max - min` isn't a whole number of steps (min 0,
- * max 25, step 10: a clamped 25 snaps up to 30), so the range clamp is applied a second time AFTER the
- * snap. The result is then in-range but off-grid, which is the right trade: the range is what
- * `coerceParams` enforces on the way back IN (`params.ts` — it clamps sliders to `[min,max]` and never to
- * `step`), so an out-of-range value would be silently rewritten at load. `saveDef` itself validates
- * nothing but the id slug, so it is that load path, not Save, that this protects against.
- *
- * Returns a non-finite number for a non-finite input rather than inventing one — the caller treats that
- * as a miss.
- */
-function settle(value: number, min: number, max: number, step: number): number {
-  const clamped = Math.min(max, Math.max(min, value));
-  if (step <= 0) return clamped;
-  const snapped = min + Math.round((clamped - min) / step) * step;
-  return Math.min(max, Math.max(min, Number(snapped.toFixed(6))));
-}
-
-/**
  * Produce a variant of `base`.
  *
- * Sliders only: every other param kind (`toggle`, `enum`, `color`, `palette`, `curve`, `shape`) has no
- * numeric range, so "multiply it" is undefined. Such a key is reported in `missed` and the param is left
- * exactly as authored — never partially applied. Same for arithmetic that doesn't land on a finite number:
- * writing `NaN` into a param while reporting it in `applied` would be this function claiming success as it
- * poisons the def, which is the exact failure it exists to make loud.
+ * The per-layer arithmetic — sliders only, clamp, snap, clear the float dust, refuse a non-finite result —
+ * lives in `paramTransform.ts`, shared verbatim with the runtime `scale`/`intensity` path (`scaleDef.ts`).
+ * What stays here is the part that is specific to a VARIANT: walking every layer, and turning "nothing this
+ * key could be applied to, on any layer" into the `missed` diagnostic an author reads.
  *
  * Generic over the def type so a richer def (`StoredFxDef`, carrying `version`/`seed`/`label`/`tags`) keeps
  * its type through the call. Those fields DO ride along at runtime via the spread, so erasing the return to
@@ -59,41 +39,13 @@ export function applyVariant<T extends FxDef>(
 
   const layers = base.layers.map((layer, i) => {
     const specs = getPrimitive(layer.primitive)?.params;
-    const params: Record<string, unknown> = { ...layer.params };
-
-    const write = (key: string, next: number): void => {
-      params[key] = next;
+    // Overrides are absolute pins applied AFTER the multipliers, so a base can override a rule that reads
+    // badly on it — `transformParams` owns that ordering.
+    const { params, writes } = transformParams(specs, layer.params, axis.transform, override);
+    for (const key of writes) {
       applied.push(`${i}.${key}`);
       touched.add(key);
-    };
-
-    for (const [key, mult] of Object.entries(axis.transform)) {
-      if (UNSAFE_KEYS.includes(key)) continue;
-      const spec = specs?.[key];
-      if (spec?.kind !== 'slider') continue;
-      const current = params[key];
-      // `typeof` for the COMPILER (`current` is `unknown`, and `Number.isFinite` is not a type predicate,
-      // so without this the multiply won't narrow — TS18046), `Number.isFinite` for the VALUE. The value
-      // check alone already rejects every non-number: unlike the global `isFinite`, `Number.isFinite`
-      // does not coerce, so `Number.isFinite(true)` is false and a boolean never reaches `true * 2`.
-      // Both needed, for different reasons.
-      if (typeof current !== 'number' || !Number.isFinite(current)) continue;
-      const next = settle(current * mult, spec.min, spec.max, spec.step);
-      if (!Number.isFinite(next)) continue; // a NaN multiplier, or 0 × Infinity → falls into `missed`
-      write(key, next);
     }
-
-    // Absolute pins, applied AFTER the multipliers so a base can override a rule that reads badly on it.
-    for (const [key, value] of Object.entries(override ?? {})) {
-      if (UNSAFE_KEYS.includes(key)) continue;
-      const spec = specs?.[key];
-      if (spec?.kind !== 'slider') continue;
-      if (typeof value !== 'number' || !Number.isFinite(value)) continue;
-      const next = settle(value, spec.min, spec.max, spec.step);
-      if (!Number.isFinite(next)) continue;
-      write(key, next);
-    }
-
     return { ...layer, params };
   });
 

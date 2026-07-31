@@ -85,13 +85,8 @@ export const HPN_DESC: Record<keyof HeroPanelConfig, string> = {
   resolveScale: 'Resolve box — size (×).',
 };
 
-export const HPN_KEYS = [
-  'panelX', 'panelY', 'panelScale', 'panelW', 'panelH',
-  'portraitX', 'portraitY', 'portraitScale',
-  'playerNameX', 'playerNameY', 'playerNameScale',
-  'heroNameX', 'heroNameY', 'heroNameScale',
-  'resolveX', 'resolveY', 'resolveScale',
-] as const;
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as HEROPANEL_DEFAULTS };
 
 const KEY = 'ascent.heropanel';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).

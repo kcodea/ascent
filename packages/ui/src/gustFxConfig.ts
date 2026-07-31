@@ -89,16 +89,6 @@ const DEFAULTS: GustFxConfig = {
   colorGlow: '#8b4dd5',
 };
 
-export const GUSTFX_KEYS = [
-  'sweepMs', 'staggerMs', 'arcMs', 'holdMs', 'fadeMs',
-  'streaks', 'streakLen', 'streakTravel', 'streakWidth', 'streakCurve', 'spreadY',
-  'arcHeight', 'arcBulge', 'arcWidth', 'arcTravel', 'edgeOut',
-  'washAlpha', 'washPad', 'impactSize', 'impactMs', 'impactAlpha', 'sparkCount', 'sparkSize', 'sparkLife', 'sparkRise',
-  'liftPx', 'liftDeg', 'liftMs', 'liftStagger',
-  'coreAlpha', 'glowWidth', 'glowAlpha', 'taper',
-  'colorCore', 'colorGlow',
-] as const satisfies readonly (keyof GustFxConfig)[];
-
 export const GUSTFX_COLOR_KEYS: (keyof GustFxConfig)[] = ['colorCore', 'colorGlow'];
 
 /** Slider bounds for the DEV tuner — [min, max, step] per numeric key (mirrors the rig's ranges). */
@@ -111,6 +101,9 @@ export const GUSTFX_RANGES: Partial<Record<keyof GustFxConfig, [number, number, 
   liftPx: [0, 20, 0.5], liftDeg: [0, 10, 0.5], liftMs: [100, 1200, 10], liftStagger: [0, 150, 5],
   coreAlpha: [0, 1, 0.05], glowWidth: [0, 48, 1], glowAlpha: [0, 1, 0.05], taper: [0, 1, 1],
 };
+
+/** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
+export { DEFAULTS as GUSTFX_DEFAULTS };
 
 const KEY = 'ascent.gustfx';
 // Dev-only persistence: production always renders the shipped DEFAULTS.

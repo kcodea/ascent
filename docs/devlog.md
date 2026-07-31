@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-07-31 — Rune of the High King shipped twice; the validator now forbids the whole class
+
+Owner report with screenshot: the Compendium showed Rune of the High King five times. The data had it TWICE —
+two byte-identical entries in `EPIC_RUNES` (the second landed in the 96-rune batch, #762) — and nothing could
+notice: `RUNE_INDEX` silently collapses duplicate ids, and the Compendium's gallery keys by `rune.id`, so the
+duplicate React keys smeared stale card nodes across the grid as the search re-rendered (2 in the data, 5 on
+screen). The Runeforge could also legitimately stock the rune twice, since its offer draws from the raw array.
+
+Removed the duplicate, and made `validateRunes` reject the class rather than the instance: duplicate ids
+throw, and duplicate NAMES throw *within a set scope*. Not globally — the first draft did that and instantly
+tripped over Rune of the Menagerie, which deliberately exists twice under one name (a set-1 and a set-2 twin
+with disjoint `sets`, so no run can be offered both). The validator now encodes exactly that rule, and the
+test pins both directions: a same-set name dupe throws, the Menagerie twins pass.
+
+Verified: typecheck (both), lint (7 pre-existing), 3434 tests, build:web.
+
 ## 2026-07-30 — the frame budget is 4.17 ms, and the perf HUD was calibrated to a monitor nobody owns
 
 **The problem, in one line: a fixed millisecond threshold silently encodes an assumed refresh rate.**

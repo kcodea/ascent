@@ -757,6 +757,10 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
+    // Distinct from Rune of Mykel (which grants High King Mykel) — this one is the Brill grant. This rune was
+    // DUPLICATED for a while (a second identical entry landed further down in the 96-rune batch, #762): the
+    // Runeforge could stock it twice and the Compendium's duplicate React keys smeared it across the gallery.
+    // `validateRunes` now rejects duplicate ids/names so a repeat cannot land silently.
     id: 'rune_high_king',
     name: 'Rune of the High King',
     cost: 4,
@@ -828,16 +832,6 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Your **Shouts** trigger an **additional time**. Get a **Shout** minion.',
     reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'grant', randomFilter: 'shout' }] },
-  },
-  {
-    // Distinct from Rune of Mykel (which grants High King Mykel) — this one is the Brill grant.
-    id: 'rune_high_king',
-    name: 'Rune of the High King',
-    cost: 4,
-    epic: true,
-    text: 'Get a **Dwarf King, Brill**.',
-    reward: { kind: 'grant', cards: ['dw_brill'] },
-    sets: ['set2'],
   },
   {
     id: 'rune_long_shift',
@@ -1052,7 +1046,28 @@ export const RUNE_INDEX: Record<string, RuneDef> = Object.fromEntries(
   [...RUNES, ...EPIC_RUNES].map((r) => [r.id, r]),
 );
 
-/** Zod-validate every rune in BOTH sets (shape + reward palette). Throws on a malformed rune. */
+/** Zod-validate every rune in BOTH sets (shape + reward palette), and reject DUPLICATE ids or names.
+ *  Throws on a malformed rune. The duplicate check exists because a second identical Rune of the High King
+ *  actually shipped (2026-07-31): `RUNE_INDEX` silently collapses duplicate ids, the Runeforge stocked the
+ *  rune twice, and the Compendium's duplicate React keys smeared extra copies across the gallery. */
 export function validateRunes(runes: RuneDef[] = [...RUNES, ...EPIC_RUNES]): void {
-  for (const r of runes) RuneDefSchema.parse(r);
+  const ids = new Set<string>();
+  // Names are unique PER SET, not globally: the Menagerie deliberately exists twice under one name — a set-1
+  // and a set-2 twin with disjoint `sets`, so no single run can ever be offered both. A rune with no `sets`
+  // is available everywhere and therefore collides with every scope.
+  const names = new Map<string, Set<string>>();
+  for (const r of runes) {
+    RuneDefSchema.parse(r);
+    if (ids.has(r.id)) throw new Error(`duplicate rune id: ${r.id}`);
+    ids.add(r.id);
+    const scopes = r.sets ?? ['*'];
+    const seen = names.get(r.name) ?? new Set<string>();
+    for (const sc of scopes) {
+      if (seen.has(sc) || seen.has('*') || (sc === '*' && seen.size > 0)) {
+        throw new Error(`duplicate rune name in one set: ${r.name} (${sc})`);
+      }
+      seen.add(sc);
+    }
+    names.set(r.name, seen);
+  }
 }

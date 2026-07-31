@@ -35,6 +35,16 @@ describe('Runeforge — framework', () => {
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
+  it('rejects a DUPLICATE rune id or name (a second Rune of the High King actually shipped, 2026-07-31)', () => {
+    // RUNE_INDEX silently collapses duplicate ids, so nothing downstream ever noticed — the Runeforge stocked
+    // the rune twice and the Compendium smeared extra copies across its gallery off the duplicate React keys.
+    const king = EPIC_RUNES.find((r) => r.id === 'rune_high_king')!;
+    expect(() => validateRunes([...RUNES, ...EPIC_RUNES, { ...king }])).toThrow(/duplicate rune id/);
+    expect(() => validateRunes([...RUNES, ...EPIC_RUNES, { ...king, id: 'rune_other_king' }])).toThrow(/duplicate rune name/);
+    // …but the Menagerie twin pattern stays legal: one name across DISJOINT set scopes is deliberate.
+    expect(() => validateRunes()).not.toThrow();
+  });
+
   it('opens on turn 5 for Runesmith with a random 4 distinct runes', () => {
     const s = reduce(atForgeCombat(), { type: 'resolveCombat' });
     expect(s.wave).toBe(5);

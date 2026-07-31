@@ -231,6 +231,33 @@ describe('set 2 — Elderhorn multiplies BEAST triggers only', () => {
   });
 });
 
+describe("Elderhorn's Hunt is RALLIES only (owner 2026-07-31)", () => {
+  /**
+   * The branch was narrowed from "Rallies and Slaughters" to "Rallies" in the card TEXT, but `beastHuntExtra`
+   * was still read at the kill site too — so the card promised less than it did, which is the worse direction
+   * for a card to be wrong in. Nothing covered the Slaughter half, so narrowing it broke no test; these are
+   * the tests that should have caught it.
+   */
+  // NOTE: the RALLY half is not asserted here. An attack-path Rally emits no `sc` beat — only a FREE rally
+  // (Rune of Rallying / the Hunting Bell) narrates — so there is no event to count, and a first cut of this test
+  // "passed" by comparing 0 to 0. The install is covered by the Choose-One test above; what needed pinning was
+  // the Slaughter half, which is what silently kept firing.
+  it('does NOT double Beast SLAUGHTERS any more', () => {
+    const slaughter = Object.values(CARD_INDEX).find((c) => c.tribe === 'beast' && !c.spell && !c.token
+      && c.keywords.includes('SL') && c.effects.some((e) => e.on === 'onKill'));
+    if (!slaughter) return;
+    const count = (mods: Record<string, number>): number => {
+      const p: BoardMinion[] = [{ cardId: slaughter.id, attack: 6, health: 40 }];
+      const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }];
+      const r = simulate(p, e, makeRng(5), CARD_INDEX,
+        combatSide({ tier: 6, tribes: ['beast'], ...mods } as never), combatSide());
+      // Slaughter re-fires show as extra `sc` beats from the killer; count them all and compare.
+      return r.events.filter((x) => x.type === 'sc').length;
+    };
+    expect(count({ beastHuntExtra: 1 }), 'Hunt is still doubling Slaughters').toBe(count({}));
+  });
+});
+
 describe('set 2 — Moonhowl fires from BOTH spell-buy paths', () => {
   // Owner report 2026-07-24: "moonhowl isnt proccing when i buy spirit fire". There are two ways to buy a
   // spell — the right-hand spell SLOT and a spell offer sitting in the minion ROW (Spell Cart / set 2) — and

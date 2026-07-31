@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-07-31 — Elderhorn's Hunt is Rallies only (the card was promising less than it did)
+
+Follow-through on the text change earlier today. The branch was narrowed to "your Beast **Rallies** trigger an
+additional time", but `beastHuntExtra` was still read at BOTH the attack site and the kill site in `simulate`,
+so Slaughters kept doubling. A card doing MORE than it says is the worse direction to be wrong in — you cannot
+plan around a payoff you were never told about.
+
+The kill site no longer reads it. `extraTriggerFires` still covers Uron and the tribe-scoped quest flags there,
+which are the effects that genuinely mean "your Slaughters trigger again"; `beastHuntExtra` is Elderhorn's alone
+(one grant site, one card), so narrowing it touches nothing else.
+
+**Nothing failed when I made the change** — the Slaughter half had no coverage at all, which is why it survived
+the text edit in the first place. Added the test that should have caught it.
+
+**A test-writing note.** The first cut also asserted the RALLY half and "passed" by comparing 0 to 0: an
+attack-path Rally emits no `sc` beat — only a FREE rally (Rune of Rallying, the Hunting Bell) narrates — so
+there was no event to count. Removed rather than left in as false comfort, with a comment saying why. The
+install is covered by the existing Choose-One test.
+
+Verified: typecheck (both), lint (7 pre-existing), 3434 tests, build:web, harness determinism.
+
 ## 2026-07-30 — the frame budget is 4.17 ms, and the perf HUD was calibrated to a monitor nobody owns
 
 **The problem, in one line: a fixed millisecond threshold silently encodes an assumed refresh rate.**

@@ -1646,7 +1646,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Set 2 — Elderhorn "Hunt": your BEAST Rallies and Slaughters trigger `extra` more times, permanently.
-   *  Run-level (survives combats) and passed into the fight via `CombatSideState.beastHuntExtra`. Golden
+   *  Run-level (survives combats) and passed into the fight via `CombatSideState.beastHuntExtra`. Rallies only. Golden
    *  grants 2 instead of 1, per the owner's Gilded text ("trigger 2 additional times"). */
   battlecryGrantBeastHunt: (ctx, self, params) => {
     ctx.state.beastHuntExtra = (ctx.state.beastHuntExtra ?? 0) + num(params.extra, 1) * gold(self);

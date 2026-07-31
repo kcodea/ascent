@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-07-31 — The ladder is the game: MMR, the Hall, and the balance report go lobby-only
+
+**Rating comes from the LOBBY only now.** `resolveLobbyRating(profile, placement)` pays by finish
+([+60, +40, +25, +10, −10, −25, −40, −60] for 1st→8th — tunable constants), floored at 0, clamped on a
+malformed placement. The Line (course par) still tracks the rating through the same promotion/demotion bands,
+so course runs inherit their Oath from your ladder standing; `resolveRunRating` no longer feeds the live
+profile (kept for the course verdict math + era-pinned tests). The LOBBY end screen shows the new rating BIG
+(64px) with the ± delta beside it, green/gold up, red down; the course end screen's rating block self-hides
+(its `lastRating` is null now).
+
+**Hall of Champions = winning lobby boards.** `uploadVictory` fires only for a placement-#1 lobby finish, and
+tags the row (`board.mode` inside the existing jsonb — no schema migration needed); the Hall filters to
+tagged rows, so pre-rework victories age out rather than mixing in.
+
+**The balance report reads the ladder.** Telemetry uploads only from lobby runs, tagged the same
+migration-free way (a `mode:lobby` sentinel in the `hero_offer` jsonb, stripped back out by the reader), and
+the report filters to lobby rows.
+
+Live-verified in the DOM (staged 4th-of-8 finish → "130 +10 Rating" rendered at 64px, green delta).
+
+Verified: typecheck (both), lint (7 pre-existing), 3506 tests, build:web.
+
 ## 2026-07-31 — Seven fixes off the first live set-2 session
 
 Rune of Spending re-tuned to **+1/+2 per Gold** (from the sheet's +3/+3). Brunni gains **Taunt**. Lieutenant

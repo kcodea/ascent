@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
 import type { BoardMinion, Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -587,31 +587,43 @@ export const useGame = create<GameStore>((set, get) => ({
           // `wonFinal` = won the last round (round 17) — a victory means the last history entry is the round-17
           // result; winning it earns the big final-win bonus on top of the summit bonus. Winning the two rounds
           // before it (15 & 16) earns the escalating end-game ramp (+8 / +12). `history` is 0-indexed by round.
-          const wonRound = (round: number): boolean => next.history[round - 1] === 'win';
-          const wonFinal = won && next.history[next.history.length - 1] === 'win';
-          const change = resolveRunRating(s.profile, {
-            scoredWins: runRecord(next).wins, line: next.line, completed: won,
-            wonFinal, wonRound15: wonRound(15), wonRound16: wonRound(16),
-          });
-          saveProfile(change.profile);
-          set({ profile: change.profile, lastRating: change });
-          const history = saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));
+          // MMR comes from the LOBBY only (owner rework 2026-07-31): a lobby finish resolves a placement-based
+          // rating change; a course/rift finish no longer touches the profile (its end screen shows the Oath
+          // verdict with no rating movement — `lastRating` stays null and the block self-hides).
+          const lobbySeat = next.lobby?.seats.find((seat) => seat.id === 's0');
+          const lobbyPlacement = next.lobby
+            ? lobbySeat?.placement ?? (won ? 1 : next.lobby.seats.filter((seat) => seat.alive).length + 1)
+            : null;
+          const change = lobbyPlacement != null ? resolveLobbyRating(s.profile, lobbyPlacement) : null;
+          if (change) {
+            saveProfile(change.profile);
+            set({ profile: change.profile, lastRating: change });
+          } else {
+            set({ lastRating: null });
+          }
+          const history = saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined }));
           // Player Leaderboard: upsert this named player's slot — rating (the "MMR") + total games + favorite
           // hero, both derived from the just-updated local history (games = runs, favorite = most-played hero).
           // Best-effort + skipped for anonymous players (see uploadPlayerProfile).
           const career = careerStats(history);
           void uploadPlayerProfile({
-            author, rating: change.profile.rating, gamesPlayed: career.runs,
+            author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
             favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
           });
           // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
           // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
-          try {
-            const telemetry = reconstructRunTelemetry(replay, heroOffer);
-            void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
-          } catch { /* best-effort — telemetry must never disrupt the end screen */ }
-          if (won) {
+          // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the
+          // real ladder, and course/rift rows would dilute it.
+          if (next.mode === 'lobby') {
+            try {
+              const telemetry = { ...reconstructRunTelemetry(replay, heroOffer), mode: 'lobby' };
+              void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
+            } catch { /* best-effort — telemetry must never disrupt the end screen */ }
+          }
+          // Hall of Champions: WINNING LOBBY BOARDS only (owner rework 2026-07-31) — placement #1 finishes.
+          if (won && next.mode === 'lobby' && lobbyPlacement === 1) {
             void uploadVictory({
+              mode: 'lobby',
               heroId: next.heroId, author, wave: next.wave,
               wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
               board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,

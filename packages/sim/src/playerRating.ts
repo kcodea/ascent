@@ -136,8 +136,41 @@ export interface RatingChange {
   profile: PlayerProfile;
 }
 
+/** Rating deltas by LOBBY placement (1st → 8th). The ladder's only rating source since 2026-07-31 —
+ *  course/rift runs no longer move the profile. Symmetric-ish and tunable; top-half gains, bottom-half pays. */
+export const LOBBY_PLACEMENT_DELTAS: readonly number[] = [60, 40, 25, 10, -10, -25, -40, -60];
+
+/** Apply a finished LOBBY's placement to the profile — the ONLY rating source (owner rework 2026-07-31).
+ *  Returns the same `RatingChange` shape the end screen + history consume; the Line fields still resolve
+ *  (course par tracks the lobby MMR through the same promotion/demotion bands), with the course-only
+ *  components (line delta, bonuses) zeroed. */
+export function resolveLobbyRating(profile: PlayerProfile, placement: number): RatingChange {
+  const ratingBefore = profile.rating;
+  const idx = Math.min(Math.max(1, Math.round(placement)), LOBBY_PLACEMENT_DELTAS.length) - 1;
+  const ratingDelta = LOBBY_PLACEMENT_DELTAS[idx]!;
+  const ratingAfter = Math.max(0, ratingBefore + ratingDelta);
+  const lineBefore = profile.currentLine;
+  const lineAfter = resolveLine(lineBefore, ratingAfter);
+  return {
+    ratingBefore, ratingAfter, ratingDelta,
+    lineDelta: 0, lineComponent: 0, completionBonus: 0, finalWinBonus: 0, endgameBonus: 0,
+    lineBefore, lineAfter,
+    promoted: lineAfter > lineBefore,
+    demoted: lineAfter < lineBefore,
+    profile: {
+      ...profile,
+      rating: ratingAfter,
+      currentLine: lineAfter,
+      highestRating: Math.max(profile.highestRating, ratingAfter),
+      highestLine: Math.max(profile.highestLine, lineAfter),
+    },
+  };
+}
+
 /** Apply a finished run's outcome to a profile: compute the rating delta and the (possibly changed) Line.
- *  Pure — returns the new profile plus a breakdown; the caller persists it. Rating is floored at 0. */
+ *  Pure — returns the new profile plus a breakdown; the caller persists it. Since the 2026-07-31 rework this
+ *  no longer feeds the live profile (the lobby is the only rating source) — kept for the course-mode verdict
+ *  math and set-1-era tests. */
 export function resolveRunRating(profile: PlayerProfile, outcome: RunOutcome): RatingChange {
   const ratingBefore = profile.rating;
   const lineDelta = outcome.scoredWins - outcome.line;

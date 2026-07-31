@@ -18,6 +18,8 @@ import type { Replay } from './snapshot';
 
 /** One finished run's offers + picks + outcome — the row uploaded per run + aggregated for the player report. */
 export interface RunTelemetry {
+  /** The run's mode — the balance report only shows LOBBY rows since 2026-07-31. Absent on old rows. */
+  mode?: string;
   heroId: string;
   /** The 3 heroes offered in the pre-run picker (UI-supplied; empty if unknown). */
   heroOffer: string[];

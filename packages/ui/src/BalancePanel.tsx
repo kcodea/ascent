@@ -147,7 +147,9 @@ export function BalancePanel() {
   const load = (): void => {
     setLoading(true);
     setReport(null);
-    void fetchRunTelemetry(1000).then((rows) => {
+    // The report reads the LADDER only (owner rework 2026-07-31): lobby rows; pre-rework rows carry no mode.
+    void fetchRunTelemetry(1000).then((rowsAll) => {
+      const rows = rowsAll.filter((t) => t.mode === 'lobby');
       setRawRows(rows);
       setReport(aggregatePlayerReport(rows));
       setLoading(false);

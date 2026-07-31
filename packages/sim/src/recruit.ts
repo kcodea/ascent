@@ -596,9 +596,13 @@ export function spellCasts(state: RunState, def: CardDef): number {
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
-  // Orivax (Spellweave): the turn's first spell casts N times. Gated on `spellsThisTurn === 0` — the same
-  // read-only "is this the first" check the Grimoire uses — so the UI can preview a count without consuming it.
-  if (state.spellFirstMultEachTurn && state.spellFirstMultEachTurn > 1 && state.spellsThisTurn === 0) {
+  // Orivax (Spellweave): the first spell AFTER IT IS PLAYED casts N times — not the turn's first (owner ruling
+  // 2026-07-31). Gating on `spellsThisTurn === 0` meant playing Orivax after already casting a spell gave you
+  // nothing until next turn, so the card silently did less the later in a turn you played it. `spellMultMark`
+  // is the spell count at the moment it installed; the multiplier applies while the count is still there.
+  // Read-only, like the Grimoire check beside it, so the UI can preview without consuming.
+  if (state.spellFirstMultEachTurn && state.spellFirstMultEachTurn > 1
+      && state.spellsThisTurn === (state.spellMultMark ?? 0)) {
     mult *= state.spellFirstMultEachTurn;
   }
   // Living Grimoire: the first spell cast while it's on board multiplies (see `grimoireMultActive`).
@@ -3120,6 +3124,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (max with any existing, so two Orivaxes don't multiply into absurdity — the higher wins). */
   battlecryGrantFirstSpellMult: (ctx, self, params) => {
     ctx.state.spellFirstMultEachTurn = Math.max(ctx.state.spellFirstMultEachTurn ?? 1, num(params.mult, 3));
+    // Start the count HERE rather than at the turn boundary, so a mid-turn Orivax still multiplies the next
+    // spell you cast. Reset to 0 each turn with the other per-turn tallies.
+    ctx.state.spellMultMark = ctx.state.spellsThisTurn;
   },
 
 

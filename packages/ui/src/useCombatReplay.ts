@@ -1045,6 +1045,23 @@ export function useCombatReplay(
       // bus is callable from here precisely because it no longer lives in Recruit's state.
       fireSpellBuffOnHandRubies(useGame.getState().run.hand);
     }
+    // SHOP BUFF earned mid-combat (Demon Horse and friends). Unlike the Imp buff — which already blooms the
+    // board aura-wash off its `tribeAura` event — this one accumulated with NO cue at all and only showed up in
+    // the next shop, so the moment it was earned looked like nothing happened (owner report 2026-07-31). Rides
+    // the same `sc` narration shape spell power and Ruby power use, with the identical player-side gate.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'sc' || !e.source || !e.text) continue;
+      const m = /^\+(-?\d+)\/\+(-?\d+) Shop$/.exec(e.text);
+      if (!m) continue;
+      const gA = Number(m[1]), gH = Number(m[2]);
+      if (gA <= 0 && gH <= 0) continue;
+      if (!playerUids.has(e.source)) continue;
+      const el = findEl(e.source);
+      if (!el) continue;
+      const { cx, cy, h } = layoutRectOf(el);
+      floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
+    }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
     // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a
     // "your board got stronger" read, and the recruit version is player-only too. Deduped per (tribe) so a

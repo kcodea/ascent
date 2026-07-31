@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-07-31 — Gilding keeps the accrual, Orivax counts from play, the Shop buff telegraphs
+
+**Gilding no longer resets to base** (owner report: a Soul Defiler granting +4/+4 gilded into +2/+2).
+`checkTriples` preserved a grown magnitude through three per-card branches, each keyed to its own whitelist —
+and any accruing effect on NONE of those lists fell through to `undefined`, so the golden started from base. Six
+effects were affected, and because the lists are opt-in, every NEW accruing effect inherited the bug.
+
+Added a final branch covering the rest, combining the two highest copies — the Karthus / Crypt Drake rule,
+which was the owner's instruction: follow the lead already set rather than invent a fourth. `ACCRUES_SUMMON_BONUS`
+now sits beside the merge so the two are read together.
+
+Two effects are DELIBERATELY excluded: `overflowBuffRandom` (Flowing Monk) and `spellCastImproveSelf` (Runescale
+Drake) also write `summonBonus`, but each already has its own merge — `overflowBonus` and `spellProgress`. Listing
+them double-counted and broke Flowing Monk's "countdown starts fresh" rule; its existing test caught that.
+
+**Orivax counts from when it is PLAYED**, not the turn's first spell. It gated on `spellsThisTurn === 0`, so
+playing it after casting a spell gave nothing until next turn — the card did less the later in a turn you
+played it, the opposite of how a tempo card should read. `spellMultMark` records the count at install.
+
+**The Shop buff earned in combat now telegraphs.** `gainTavernBuy` accumulated with no cue at all and only
+surfaced in the next shop. It takes a `sourceUid` and emits the same `sc` narration spell power and Ruby power
+use, with a matching replay hook.
+
+**And a correction to my own first pass:** I had also added a telegraph to `grantImpBuff` — but that path
+already emits `tribeAura`, which the replay blooms as the board aura-wash. It was never silent, and a second cue
+would have double-announced one gain. Reverted, including the parameter, rather than left as an unused arg.
+
+Verified: typecheck (both), lint (7 pre-existing), 3439 tests, build:web, harness determinism.
+
 ## 2026-07-30 — the frame budget is 4.17 ms, and the perf HUD was calibrated to a monitor nobody owns
 
 **The problem, in one line: a fixed millisecond threshold silently encodes an assumed refresh rate.**

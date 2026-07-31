@@ -1867,7 +1867,9 @@ export interface CombatContext {
    *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Permanently buff every future Shop minion (Demon Horse's Rally) — carried back via `playerTavernBuyGain`. */
-  gainTavernBuy(attack: number, health: number, side: Side): void;
+  /** `sourceUid` is what lets the gain be TELEGRAPHED mid-combat. Without it the buff applies silently at
+   *  settle and the player sees nothing happen (owner report 2026-07-31). */
+  gainTavernBuy(attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Set 2 — Mushy: queue `count` next-turn first-spell copies (player-only; carried back). */
   queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
@@ -1921,6 +1923,8 @@ export interface CombatContext {
   grantUndeadAura(attack: number, health: number, side: Side): void;
   /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
    *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
+  /** No `sourceUid`: unlike `gainTavernBuy`, this already emits a `tribeAura` event, which the replay blooms
+   *  as the board aura-wash — so the gain is cued without needing a second channel. */
   grantImpBuff(attack: number, health: number, side: Side): void;
   /** Chorus Engine — raise the run's ATTACHMENT (Magnetic) enchant from combat. The recruit twin is Scrap
    *  Herald's `battlecryBuffMagnetics`: buff every Magnetic on board + in hand, and stack the aura so future

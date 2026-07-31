@@ -598,10 +598,12 @@ export function simulate(
       if (side !== 'player' || count <= 0) return;
       nextTurnSpellCopies.n += count;
     },
-    gainTavernBuy: (attack, health, side) => {
+    gainTavernBuy: (attack, health, side, sourceUid) => {
       if (side !== 'player') return; // enemies have no shop
       tavernBuyGain.attack += attack;
       tavernBuyGain.health += health;
+      // Same telegraph as the Imp buff above — it otherwise applies to the NEXT shop with nothing shown here.
+      if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
     },
     gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
@@ -711,6 +713,8 @@ export function simulate(
         // in combat because this granted the buff silently).
         if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'imp' });
       }
+      // NO `sc` telegraph here on purpose: the `tribeAura` emit above ALREADY drives the board aura-wash in the
+      // replay, so adding one would double-cue the same gain. The Imp path was never silent — only the Shop one.
     },
     grantMagneticBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state to carry an Attachment aura back into

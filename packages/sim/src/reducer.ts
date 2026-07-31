@@ -1915,6 +1915,20 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // bonuses combined, so the granted magnitude (base + summonBonus) is the SUM of the
   // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
   // a fresh triple just doubles the base (the golden doubling falls out of the combine).
+  // Every factory that accrues into `self.summonBonus`. Kept here beside the merge because the merge's job is
+  // to preserve exactly these — if an effect writes `summonBonus` and is absent from this list, gilding resets
+  // it to base, silently, and only on the cards a player invested in growing.
+  const ACCRUES_SUMMON_BONUS = [
+    'buffOnSummon', 'scBeastAura', 'summonBuffTribeImprove', 'countTribeSummon', 'onGainAttackBuffImproving',
+    'onKillBuffUndeadAttack', 'onAllyAttackBuffAll',
+    // ...and the ones that had no branch at all until 2026-07-31:
+    'buffShopPermanent', 'summonBuffTribeAsym', 'onSpellCastImproveSummon', 'onGainAttackBuffAll',
+    'battlecryBuffTribeImproving', 'onBattlecryImproveSelf',
+    // DELIBERATELY ABSENT: `overflowBuffRandom` (Flowing Monk) and `spellCastImproveSelf` (Runescale Drake)
+    // also accrue into `summonBonus`, but each already has its OWN merge below — `overflowBonus` and
+    // `spellProgress` respectively. Listing them here made the fallback set `summonBonus` as well, which
+    // double-counted the accrual and broke Flowing Monk's "countdown starts fresh" rule.
+  ];
   const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
   const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon' || e.do === 'onGainAttackBuffImproving');
   let summonBonus: number | undefined;
@@ -1932,6 +1946,20 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     // Karthus / Crypt Drake (owner ruling 2026-07-16): the golden COMBINES the two highest copies'
     // accrued improvements. The doubled base grant + doubled improve step come from mul(self) in the
     // factory, so the triple only merges where the accruals already are.
+    const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
+    const sum = (sbs[0] ?? 0) + (sbs[1] ?? 0);
+    summonBonus = sum > 0 ? sum : undefined;
+  } else if (ACCRUES_SUMMON_BONUS.some((id) => def.effects.some((e) => e.do === id))) {
+    // EVERYTHING ELSE THAT ACCRUES (owner ruling 2026-07-31: "it's just not supposed to reset back to base").
+    //
+    // The three branches above are per-card rulings, each keyed to its own whitelist. Any card that accrued
+    // into `summonBonus` but appeared on NONE of those lists fell through to `undefined` — so gilding it threw
+    // the accrual away and the golden started from base. That is how a Soul Defiler grown to +4/+4 gilded into
+    // +2/+2. It hit six effects, and because the lists are opt-in, every NEW accruing effect inherited the bug.
+    //
+    // Combines the two highest copies, matching the Karthus / Crypt Drake branch directly above — the closest
+    // existing precedent, and the owner's instruction was to follow the lead already set rather than invent a
+    // fourth rule. The golden's own doubling comes from `gold(self)` inside each factory, as it does there.
     const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
     const sum = (sbs[0] ?? 0) + (sbs[1] ?? 0);
     summonBonus = sum > 0 ? sum : undefined;
@@ -2446,6 +2474,7 @@ function advanceCombat(s: RunState): void {
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave
   s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
+  s.spellMultMark = 0; // Orivax: a new turn re-arms at the turn's first spell
   for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
   if (s.runeOpenMarket) s.runeOpenMarket.usedThisTurn = false; // the Open Market re-arms each turn
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave

@@ -901,6 +901,9 @@ export interface RunState {
    *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than
    *  clobber, and read gated on `spellsThisTurn === 0` so it stays side-effect-free in the UI's cast preview. */
   spellFirstMultEachTurn?: number;
+  /** Orivax (Spellweave): the spells-this-turn count when it was PLAYED. Its multiplier applies while the
+   *  count is still at this mark, so playing it mid-turn still multiplies your next spell. Reset each turn. */
+  spellMultMark?: number;
   spellFirstUsedThisTurn?: boolean;
   /** Set 2 — Living Grimoire: the multiplier its charge applies to the FIRST spell of a turn (2 base, 3 golden).
    *  Absent/0 = discharged. Run-level rather than per-instance because `spellCasts` — which the UI also calls to

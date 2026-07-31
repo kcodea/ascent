@@ -474,6 +474,28 @@ screen ships `.quiet` — tiering Back and the pause rows down was tried and rea
 deliberately restrained. `.text` is used where there is no face to press: rows and bare links, where an edge
 under a transparent element would render as a stray bar.
 
+### Cards, chips and rows commit differently
+
+A card is **not** given `.pressable`. Cards already speak a different language: a hero card rises 8px on hover,
+turns its border accent and reveals the hero's power; a mode card rises 6px and reveals its description. What
+they lacked was the COMMIT — hover lifted, the click did nothing, and the screen changed. The one moment that
+mattered had no feedback.
+
+Cards now travel **past** their resting place and shrink slightly on press (`translateY(3px) scale(0.984)`) —
+pressed into the table. That is the same press VECTOR as `.pressable`, so a card and a button answer a click the
+same way, but a card gets no edge and no sheen: it has no hard edge to collapse, and bolting a plaque onto a
+lifting object states two metaphors at once.
+
+- **Chips** take the button grammar at chip scale — a 2px edge that sinks. 2px is the whole depth a 26px pill can
+  carry without reading as a mistake.
+- **Rows** press **into** the list with an inset, never an offset edge. A row is a surface, not an object, and an
+  edge under a transparent row renders as a stray bar sitting in the gap.
+
+**A large-variant hover can silently eat the press.** `.herocard.big:hover` is (0,2,1) and a plain
+`.herocard:active` is (0,1,1) — you are always hovering when you click, so the big cards would never have
+pressed. The `.big` case is restated at equal specificity, and the block sits at the end of `styles.css` so a tie
+resolves in the press's favour.
+
 ## The dev tooling surface
 
 The 46 DEV tuner panels are the one surface that does **not** wear the vellum-and-gold world, and that is a

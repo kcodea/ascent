@@ -191,9 +191,9 @@ The career surface exists; deepen what a finished run *remembers*.
 ### Tactile pass — buttons done, cards and chips next (2026-07-30)
 `.pressable` carries the title menu's grammar across every UI screen; see DESIGN.md → Pressable. Still open:
 
-- **Selection cards and chips want their own treatment** (owner request). Deliberately NOT folded into the
-  button press: a card lifts toward you, a plaque presses away, and merging the two reads as one idea fighting
-  itself. Covers `herocard`, `modecard`, `book-kwchip`, glossary rows.
+- **DONE (2026-07-31).** Selection cards and chips: cards press past their rest position and shrink, chips take
+  a 2px edge that sinks, rows take an inset. Cards deliberately do NOT use `.pressable` — they share its press
+  vector, not its plaque. See DESIGN.md, "Cards, chips and rows commit differently".
 - **In-board shop controls are excluded on purpose** — Refresh, Freeze, End Turn, Tavern Up and Hero Power have
   hand-tuned pressed ART and their own tuner panels, which a CSS press would fight. Unify only if the art is
   retired.

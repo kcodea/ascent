@@ -390,7 +390,7 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
  * a mismatch is silent, so neither showed up as a failing test.
  */
 describe('set 2 — regressions from the effect-param audit', () => {
-  it('Bug Huggies grants a REAL card id (it passed `spellId`; the factory reads `cardId`)', () => {
+  it('Big Huggies grants a REAL card id (it passed `spellId`; the factory reads `cardId`)', () => {
     const eff = CARD_INDEX['dm_velvet']!.effects.find((e) => e.do === 'deathrattleGrantSpell')!;
     const granted = eff.params?.cardId as string;
     // The wrong key meant `str(params.cardId)` → '' → a hand-grant of the empty id, which crashed the

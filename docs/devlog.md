@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-07-31 — Big Huggies, rune art (111), and Chimerus
+
+**Name correction.** The card is **Big** Huggies, not Bug — I mis-transcribed the owner's rename and then aliased
+the (correct) `BigHuggies.png` onto the wrong name to compensate. Card renamed across 5 files; the alias is gone,
+since the filename now matches exactly.
+
+**Rune art: 111 files, 0 unmatched.** Plus 21 quest-reward minions, which quietly closed **6 of the 7** minions
+that had no art — only Lastlight Marshal is left.
+
+`art:wire` now runs THREE jobs through one pipeline (minions, quest-reward minions, runes) rather than gaining a
+second script. The shared parts are exactly the ones that would drift: the 512px resize, the webp regeneration,
+alias-loses-to-exact precedence, and the reporting — three of which were bugs found the hard way on the minion
+pass.
+
+**Two matching problems, deliberately solved differently:**
+- The art folder disagrees with the rune list about "Rune of X" vs "Rune of **the** X", in BOTH directions,
+  across 7 files. That is one systematic authoring variance, not seven typos, so it is absorbed in
+  normalization (`noThe`, camelCase-aware) rather than as seven alias entries.
+- Three files are genuine one-offs — `RuneOfScale` (the owner's ruling that Scale IS Bulk Order),
+  `RuneoftheMotherload` (misspelled), `SpellOfPillaging` (authored as a "Spell") — so those got explicit aliases.
+
+**A bug worth recording.** `noThe` silently matched nothing for two rounds because a `` written through a bash
+heredoc had become a literal BACKSPACE (0x08) in the source: the regex was matching backspace-the-backspace.
+It survived a Read (invisible) and defeated two Edit attempts (the string never matched). Found by dumping the
+line with `repr`. Swept the rest of the tree for stray 0x08 — none.
+
+Verified live: the dev server's own `runeArt`/`artFor` resolve every wired id to a `.webp`, and the two that
+return NONE are exactly the two the tool reports as having no source. Server RESTARTED, not reused — the glob is
+eager and 192 files are new. Gates: typecheck (both), lint (7 pre-existing), 3387 tests, harness determinism.
+
+**Still unwired:** Lastlight Marshal, and 8 runes — Investment, Hunger, the Menagerie (set-2 twin `rune_menagerie_set2`;
+the art matched the set-1 rune), Mykel, Double Fisting, the Brokerage, Attacking Gems, the White Wolf.
+
 ## 2026-07-30 — the collision stutter was a GLSL recompile, 68 ms at a time
 
 **The report.** A quick but noticeable stutter, consistently, just as cards collide in combat.

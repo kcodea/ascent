@@ -160,7 +160,7 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     id: 'dm_velvet',
-    name: 'Bug Huggies',
+    name: 'Big Huggies',
     tribe: 'demon',
     tier: 5,
     attack: 5,

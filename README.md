@@ -61,6 +61,10 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **Fixed hand cards growing and overlapping** - the hand "make room" glide was baking the hover
   zoom into card width; it is reverted until it can be done transform-safely.
+
+- **The hand glides open and closed** when you buy or play a card, instead of cards blinking to new
+  spots. (The first version of this was inflating cards; it is rebuilt on a measurement no transform
+  can pollute.)
 - **The game now has a real speed limit — and the speed-o-meter was reading the wrong dial.** The target is
   **240 frames a second** (with 360 as the stretch), which leaves about **4 milliseconds** to draw each
   frame. The in-game performance readout had been judging frames against a 60-per-second monitor, so on the

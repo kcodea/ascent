@@ -1,6 +1,24 @@
 # ASCENT — development log
 
-## 2026-07-31 — cards, chips and rows get a commit state
+## 2026-07-31 — cards, chips and rows get a commit state, and the press gets its sound
+
+**The click cue moved from one screen to all of them.** The title column had its own delegated `pointerdown`
+playing the "thock" on the way down; every other menu control, hero card, mode card, chip and row was silent
+under the finger. Now that they all COMPRESS (see the commit state below and `.pressable`), the sound belongs
+with the compression rather than with one screen — so the listener is one app-wide delegated handler in `Game`,
+and the title's local copy is deleted. Two listeners would have fired it twice on exactly those plaques.
+
+**Hover and click now share one policy.** `MENU_SFX_SEL` / `MENU_SFX_SKIP` are hoisted constants both delegated
+listeners read. A control that ticks on hover and then goes silent under the finger reads as a bug in the sound,
+not as a deliberate distinction — and the two lists had no mechanism keeping them in step. The skip list is
+unchanged and still excludes the in-game shop and combat HUD controls, which are gameplay actions with their own
+dedicated sounds, plus dev panels; minion cards are `div`s and never matched in the first place.
+
+**Verified** by resolving the policy against live DOM: a hero card and a Back button both resolve to THOCK, a
+bare container resolves to no cue. The sound itself needs a real user gesture to unlock the audio context, so
+that part is confirmed by ear rather than by the automated pass.
+
+### The commit state itself
 
 **What changed.** Selection cards, keyword chips and list rows now respond to being chosen. Player-facing; no
 markup changes — these are existing classes gaining a state.

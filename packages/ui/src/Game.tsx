@@ -30,6 +30,21 @@ import { useGame } from './store';
  *  phase — combat plays out *in place* (the shop closes, the enemies arrive, the
  *  warband / hero / HUD never move). The StatusBar (Embers · Hero · Resolve) and the
  *  game-over overlay layer on top. The Esc menu drives the display-resolution scaler. */
+/**
+ * What counts as a MENU control for the two delegated sound cues — the hover tick and the click "thock".
+ *
+ * Hoisted so the two cannot drift: a control that ticks on hover and then goes silent under the finger (or the
+ * reverse) reads as a bug in the sound, not as a deliberate distinction. Both listeners live in `Game`, mounted
+ * once, rather than as props on every button — a new menu item cannot forget a cue it never had to opt into.
+ *
+ * Deliberately EXCLUDED via SKIP: the in-game shop and combat HUD controls, which are gameplay actions with
+ * their own dedicated sounds rather than menu navigation, plus dev panels. Minion cards (`.card` divs) are not
+ * buttons, so they never match SEL in the first place.
+ */
+const MENU_SFX_SEL = 'button, [role="button"], .disc-slot';
+const MENU_SFX_SKIP = '[data-nohoversfx], .devmenu, .desk, .heropowerbtn, .frzwrap, .tvbwrap, .rfbwrap, '
+  + '.riftbtn, .etbwrap, .combatsummary, .combathud-skip, .combatspeed, .forge-reroll';
+
 export function Game() {
   const phase = useGame((s) => s.run.phase);
   const sandbox = useGame((s) => s.run.sandbox);
@@ -78,10 +93,8 @@ export function Game() {
   // dev panels, and disabled controls. Per-target enter dedupe (skips moves within the same element); no time
   // throttle, so a fast sweep ticks every element it passes.
   useEffect(() => {
-    const SEL = 'button, [role="button"], .disc-slot';
-    // In-game HUD controls to keep silent (their button wrapper classes) + generic opt-outs.
-    const SKIP = '[data-nohoversfx], .devmenu, .desk, .heropowerbtn, .frzwrap, .tvbwrap, .rfbwrap, '
-      + '.riftbtn, .etbwrap, .combatsummary, .combathud-skip, .combatspeed, .forge-reroll';
+    const SEL = MENU_SFX_SEL;
+    const SKIP = MENU_SFX_SKIP;
     let last: Element | null = null;
     const onOver = (e: PointerEvent): void => {
       if (e.pointerType === 'touch') return;                 // hover is a mouse/pen affordance only
@@ -93,6 +106,23 @@ export function Game() {
     };
     window.addEventListener('pointerover', onOver, { passive: true });
     return () => window.removeEventListener('pointerover', onOver);
+  }, []);
+
+  // UI-CLICK SFX: the same set of controls, on the way DOWN. Hover ticks and activation plays its own cue, but
+  // the press — the tactile moment itself — was silent everywhere except the title column, which had its own
+  // copy of this listener. Now that every menu button, hero card, mode card, chip and row COMPRESSES under the
+  // pointer (see `.pressable` and the card commit state), the sound belongs with the compression rather than
+  // after the release, and it belongs to all of them rather than one screen.
+  useEffect(() => {
+    const onDown = (e: PointerEvent): void => {
+      if (e.pointerType === 'touch') return;                 // the cue belongs to a click, not a tap
+      const el = (e.target as Element | null)?.closest?.(MENU_SFX_SEL) ?? null;
+      if (!el || el.closest(MENU_SFX_SKIP)) return;
+      if ((el as HTMLButtonElement).disabled || el.classList.contains('disabled')) return;
+      sfx.clickThock();
+    };
+    window.addEventListener('pointerdown', onDown, { passive: true });
+    return () => window.removeEventListener('pointerdown', onDown);
   }, []);
   // Console handles: toggle the HUD from anywhere (dev menu, devtools) without threading state through the
   // tree, and reach the monitor itself for triage — `__perf.summary()` / `__perf.exportLog()` are the two

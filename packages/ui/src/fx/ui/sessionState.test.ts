@@ -146,8 +146,23 @@ describe('normalizeSession', () => {
       durationMs: 1500,
       seed: 4242,
       seedLocked: true,
+      // The canvas slot round-trips with everything else. Spelled out here rather than left to the default
+      // so this stays an exact-equality round-trip.
+      slot: 'over' as const,
     };
     expect(normalizeSession(JSON.parse(JSON.stringify(saved)), BOUNDS)).toEqual(saved);
+  });
+
+  // A snapshot from before the slot toggle existed must restore to the DEFAULT canvas, and only the literal
+  // 'under' may select the other one — the same "explicit value or the historical behaviour" rule `seedLocked`
+  // follows, and what keeps every composition already in storage playing exactly where it did.
+  it('defaults the canvas slot, and takes only the literal "under"', () => {
+    const base = { layers: [layer('ribbon')], selected: 0, durationMs: 1000 };
+    expect(normalizeSession({ ...base }, BOUNDS)?.slot).toBe('over');
+    expect(normalizeSession({ ...base, slot: 'over' }, BOUNDS)?.slot).toBe('over');
+    expect(normalizeSession({ ...base, slot: 'under' }, BOUNDS)?.slot).toBe('under');
+    expect(normalizeSession({ ...base, slot: 'UNDER' }, BOUNDS)?.slot).toBe('over');
+    expect(normalizeSession({ ...base, slot: true }, BOUNDS)?.slot).toBe('over');
   });
 
   // The seed + lock must survive a reload for the same reason the layers do: reopening the workbench on a

@@ -1,4 +1,4 @@
-import type { FxAnchorId, FxLayer } from '../def';
+import type { FxAnchorId, FxLayer, FxSlot } from '../def';
 // TYPE-ONLY (erased at build time): this module stays free of `defStore`'s storage/fetch machinery, it just
 // borrows the stored-layer shape so "what a save writes" has exactly one definition.
 import type { StoredFxLayer } from '../defStore';
@@ -35,6 +35,10 @@ export interface WorkbenchSession {
    *  substitutes a fresh `randomSeed()`, which is why this module never rolls one itself and stays pure. */
   seed: number | null;
   seedLocked: boolean;
+  /** Which canvas the composition plays on — see `FxSlot`. Restored on the same "explicit value or the
+   *  default" terms as `seedLocked`: a snapshot from before the toggle existed comes back `'over'`, which is
+   *  where every composition has always played. */
+  slot: FxSlot;
 }
 
 /** Duration clamp bounds, injected so this module never has to know the workbench's slider constants. */
@@ -159,6 +163,9 @@ export function normalizeSession(raw: unknown, bounds: DurationBounds): Workbenc
     // Locked only on an explicit `true`: a snapshot that predates the seed control (or a mangled one) must
     // restore UNLOCKED, i.e. today's fresh-roll-per-spawn behaviour.
     seedLocked: s.seedLocked === true,
+    // Same discipline: only the literal 'under' selects the under-card canvas, so an older snapshot (or a
+    // mangled one) restores to the default slot rather than to a surprise.
+    slot: s.slot === 'under' ? 'under' : 'over',
   };
 }
 

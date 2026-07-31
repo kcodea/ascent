@@ -6,7 +6,7 @@ import { getPrimitive, hasPrimitives, listPrimitives } from '../registry';
 import { BOW_LIMIT, driveLayerHeads, TRAVEL_BOW, type FxAnchors, type FxPoint } from '../anchors';
 import { playDef } from '../playDef';
 import { invalidateBoardAnchors } from '../boardAnchors';
-import type { FxAnchorId } from '../def';
+import type { FxAnchorId, FxSlot } from '../def';
 import { randomSeed } from '../rng';
 import { SCENARIOS, type FxHeadContext } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
@@ -442,6 +442,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [seed, setSeed] = useState(() => restoredSession?.seed ?? randomSeed());
   const [seedLocked, setSeedLocked] = useState(restoredSession?.seedLocked ?? false);
 
+  // Which CANVAS the composition plays on — over the cards (the default, and where every effect has
+  // always played) or under them. Def-level, not per-layer: one effect is one mount on one stage.
+  // Deliberately NOT in the undo snapshot, for the same reason `loop`/`speed`/the backdrop colour aren't:
+  // it is a single-click toggle whose inverse is the same single click, and folding it in would make every
+  // slot flip cost an undo step the author has to walk back past.
+  const [slot, setSlot] = useState<FxSlot>(restoredSession?.slot ?? 'over');
+
   // ── undo / redo (see `EditorSnapshot`) ──────────────────────────────────────────────────────────────
   // Only the BUTTONS' enabled-ness lives in state; the stack itself is a ref, because undo/redo has to read
   // and write it synchronously inside an event handler (a state updater can't both compute the next stack
@@ -579,7 +586,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
     const build = (): void => {
       if (disposed) return;
-      const renderer = pixiFx.renderer;
+      // The slot decides WHICH renderer builds the layers — the under-card canvas is a second GL context,
+      // and a layer built against one renderer and drawn by the other is undefined behaviour. Asking for it
+      // also brings that canvas up (it is created lazily, on first use), and the existing retry loop below
+      // covers its async init for free.
+      if (slot === 'under') void pixiFx.ensureUnderSlot();
+      const renderer = pixiFx.rendererFor(slot);
       if (!renderer) {
         // attach()/init() is async and may not have resolved yet (e.g. the workbench mounts before the
         // overlay canvas finishes initialising) — poll rather than building a player against a null
@@ -615,9 +627,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       const layersForDef = layersRef.current;
 
       container = new Container();
-      unmountLayer = pixiFx.mountLayer(container);
+      unmountLayer = pixiFx.mountLayer(container, slot);
+      // The preview backdrop lives on the OVER canvas, so while authoring an under-card effect it would
+      // sit between the effect and the eye. Hide it: the point of the under slot is how the effect reads
+      // against the real board, which is exactly what's behind it.
+      if (backdropRef.current) backdropRef.current.container.visible = slot === 'over';
 
-      const def = toDef(`workbench-${layersForDef[0]?.primitive ?? 'fx'}`, durationMs, layersForDef);
+      const def = toDef(`workbench-${layersForDef[0]?.primitive ?? 'fx'}`, durationMs, layersForDef, slot);
       // The loop flag SURVIVES a rebuild, the same way `loopGapMs`/`speed`/`seed` do (see `loopOnRef`): a
       // primitive/scenario switch or duration change must not silently stop a loop the author is tuning
       // against, and must not start one they turned off. Whichever mode is live, playback starts immediately
@@ -714,7 +730,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       container?.destroy({ children: true });
       playerRef.current = null;
     };
-  }, [structKey, scenarioId, durationMs]);
+  }, [structKey, scenarioId, durationMs, slot]);
 
   // Commit a new layers array to both the state and the ref mirror the build/updater closures read.
   // Arms the autosave: every caller (add/delete/reorder/primitive-swap/timing/load/prune) is real work.
@@ -971,11 +987,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   useEffect(() => {
     if (!autosaveArmedRef.current) return;
     const timer = setTimeout(
-      () => saveSession({ layers, selected, durationMs, seed, seedLocked }),
+      () => saveSession({ layers, selected, durationMs, seed, seedLocked, slot }),
       AUTOSAVE_DEBOUNCE_MS,
     );
     return () => clearTimeout(timer);
-  }, [layers, selected, durationMs, seed, seedLocked]);
+  }, [layers, selected, durationMs, seed, seedLocked, slot]);
 
   // The transient "Saved" confirmation's timer, cleared on unmount.
   useEffect(() => () => {
@@ -1296,7 +1312,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Copy the whole composed DEF as JSON — with multiple layers, the def is the useful artifact, not one
   // layer's params.
   const copyDef = (): void => {
-    void navigator.clipboard.writeText(JSON.stringify(toDef('workbench', durationMs, layers), null, 2)).then(() => {
+    void navigator.clipboard.writeText(JSON.stringify(toDef('workbench', durationMs, layers, slot), null, 2)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });
@@ -1380,6 +1396,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         durationMs,
         toStoredLayers(layers, artRefs),
         seedLocked ? seed : undefined,
+        slot,
       );
       const result = await saveDef(stored);
       if (!result.ok) {
@@ -1454,9 +1471,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   useEffect(() => {
     if (!railMode || harnessCard === '' || harnessKind === null) return;
     registerSavedDef(
-      toStoredDef(DRAFT_DEF_ID, durationMs, toStoredLayers(layers, NO_ART_REFS), seedLocked ? seed : undefined),
+      toStoredDef(DRAFT_DEF_ID, durationMs, toStoredLayers(layers, NO_ART_REFS), seedLocked ? seed : undefined, slot),
     );
-  }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked]);
+  }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked, slot]);
 
   // Point the selected (card, moment) at the draft, and take it back down again on the way out.
   //
@@ -1532,6 +1549,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         durationMs,
         toStoredLayers(layers, artRefs),
         seedLocked ? seed : undefined,
+        slot,
       );
       const defResult = await saveDef(stored);
       if (!defResult.ok) {
@@ -1640,6 +1658,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // without one deliberately means "roll fresh", so loading it unlocks. Applied BEFORE `commitLayers` so
     // the mirrors are already right if this load triggers a rebuild.
     applySeed(def.seed ?? seed, def.seed !== undefined);
+    // The slot is part of what the def IS — an under-card slam loaded into the over slot is a different
+    // effect. A def without one means the default, which is what every def written before the toggle meant.
+    setSlot(def.slot ?? 'over');
     commitLayers(next);
     applySelected(0);
     applyDuration(nextDuration);
@@ -1674,6 +1695,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // A fresh default composition is an UNLOCKED one (the default feel): the restored work's frozen roll
     // goes with the work it belonged to. The number itself is kept so locking again is one click.
     applySeed(seed, false);
+    setSlot('over'); // a fresh default composition plays where every composition always has
     setRestoredNotice(false);
     // Discard replaces the composition WITHOUT going through `loadDef`, so it has to clear the variant warning
     // itself — otherwise "part of the Crackling variant did nothing" outlives the Crackling composition and
@@ -2248,6 +2270,35 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             onChange={(e) => changeLoopGap(Number(e.target.value))}
           />
           <span className="fxwb-speedval">{loopGapMs} ms</span>
+        </div>
+
+        {/* Canvas slot: which of the two full-viewport canvases this effect draws on. Over = the z110
+            overlay above every card (where every effect has always played); Under = a second canvas parked
+            inside the board, above the board art and beneath every card. Flipping it rebuilds the player, so
+            the change is visible immediately. */}
+        <div
+          className="fxwb-slotgroup"
+          title={
+            'Which canvas this effect draws on. UNDER puts it beneath EVERY card on the board (not just the ' +
+            'one it is anchored to) — the cards are DOM and this is one canvas, so per-card layering is not ' +
+            'possible.'
+          }
+        >
+          <span className="fxwb-speedlabel">Canvas</span>
+          <button
+            className={`fxwb-slotbtn${slot === 'over' ? ' on' : ''}`}
+            onClick={() => setSlot('over')}
+            title="Draw OVER the cards (default)"
+          >
+            Over
+          </button>
+          <button
+            className={`fxwb-slotbtn${slot === 'under' ? ' on' : ''}`}
+            onClick={() => setSlot('under')}
+            title="Draw UNDER every card, above the board art"
+          >
+            Under
+          </button>
         </div>
 
         {/* Seed: unlocked = every spawn rolls its own randomness (the historical feel); locked = the shown

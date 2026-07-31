@@ -311,6 +311,25 @@ console.log({ n, ms }); gl.getProgramParameter = orig;
 
 ---
 
+## 3c. A full-viewport canvas is a compositing layer — create it lazily
+
+The FX overlay is now up to THREE full-viewport WebGL canvases: `.pixifx` (over the cards), `.pixifx-under`
+(the dormant shield-bubble canvas) and `.pixifx-below` (the `slot: 'under'` canvas, inside `.app`). Each one
+is a GL context, a compositing layer the browser has to blend every frame, and a per-frame clear-and-present
+even when it draws nothing.
+
+Two rules came out of adding the third:
+
+- **Create it lazily, and only if something will use it.** `.pixifx-below` is built on the first
+  `slot: 'under'` mount, and the pre-warm brings it up early *only* when a committed def actually declares
+  that slot. A page whose defs are all `over` never pays for a second context at all. (The same reasoning
+  already had `shieldApp`'s ticker stopped: an idle canvas that clears and presents an empty stage at native
+  fullscreen resolution, forever, is not free.)
+- **Drive extra canvases off the MAIN ticker, not their own.** `.pixifx-below` renders from a listener on
+  the main app's ticker and skips the render entirely while nothing is mounted on it. One clock means the
+  over and under halves of the same effect can never tear apart by a frame, and an idle under canvas costs
+  one array-length read per frame rather than a full clear + present.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Fixed hand cards growing and overlapping** - the hand "make room" glide was baking the hover
+  zoom into card width; it is reverted until it can be done transform-safely.
 - **The game now has a real speed limit — and the speed-o-meter was reading the wrong dial.** The target is
   **240 frames a second** (with 360 as the stretch), which leaves about **4 milliseconds** to draw each
   frame. The in-game performance readout had been judging frames against a 60-per-second monitor, so on the

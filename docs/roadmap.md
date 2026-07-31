@@ -374,6 +374,12 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   2026-07-29 (five workbench drafts deleted: `blue-glow-trail`, `blue-trail-detonate`, `ember-lance`,
   `self-buff-bloom`, `test-red-blast`). **`death-dissolve` stays** — it looks orphaned because no binding
   names it, but `useCombatReplay` plays it directly for every plain death (see `docs/fx-requests.md`).
+  ✅ **The library no longer calls a directly-played def inert (2026-07-30)** — every migrated batch used to
+  land in the coverage map's "nothing bound" column while playing constantly. Defs now read `bound` /
+  `from code` / `unused`, derived by scanning `packages/ui/src` for `playDef('<literal>')` into
+  `fx/directCalls.ts` with a test that fails if the snapshot drifts. **Later batches get this for free** —
+  add the call, run `npm test`, paste the printed object. Only a call whose id is a *variable* needs
+  thought (the test will name it).
   Likewise **`discoverBurst` is NOT dead `pixiFx`** — `Recruit.tsx` fires it on every Discover open, and it's
   the sole reason the second `discoverFx` Pixi app exists; it needs a real port, not a delete.
   ✅ **Batch 1 landed 2026-07-30**: `damageBurst`, `clickPuff` and `coins` are authored defs (`pixiFx.ts`

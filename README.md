@@ -44,6 +44,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The effects library stopped calling live effects dead.** Seven visual effects — the coin shower, the
+  click puff, the melee smack and others — had been moved out of hand-written code into the authoring tool's
+  own format, and the tool's coverage map, which only knew about one way of wiring an effect up, listed every
+  one of them as playing nothing at all. It now tells the three cases apart: wired to a game moment, played
+  directly by the code, or genuinely unused. The "played by code" list is worked out from the source itself
+  and re-checked by a test on every build, so the next batch of migrated effects can't quietly go missing
+  from it again.
 - **Removed the dead "Shield Place" tuner.** The DEV panel had outlived its consumer: `syncShields` is gone and
   Ward/Reborn are CSS dome stacks, so dragging its slider only wrote a localStorage value nothing read. Its one
   knob — the dome's vertical offset — is already live in the 🔵 Ward Dome tuner as `domeY`. Also ESLint-ignores

@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -45,18 +45,41 @@ function spendGold(s: RunState, amount: number): void {
       conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), 1);
     }
   }
-  // Rune of Scale (Epic): each Gold-spend gives `count` random board minions +atk/+hp. Once per spend transaction
-  // (a buy / roll / tier-up / hero power), not per Gold. Seeded off the run's RNG cursor.
+  // The Golden Ledger: every `per` GOLD spent, your tribe gains stats. Threshold-based, unlike Rune of Bulk
+  // Order below which pays per transaction — so a run can hold both and they don't collide. The remainder banks
+  // in `tick`, so two small buys pay out exactly as one big one does.
+  if (s.questGoldTribeBuff && amount > 0) {
+    const g = s.questGoldTribeBuff;
+    g.tick += amount;
+    while (g.tick >= g.per) {
+      g.tick -= g.per;
+      for (const c of s.board) if (isTribe(c, g.tribe)) addBuff(c, 'The Golden Ledger', g.attack, g.health);
+    }
+  }
+  // Rune of Bulk Order: gives `count` random board minions +atk/+hp when you spend Gold. With `per` set (owner
+  // sheet 2026-07-30: "Every 5 Gold spent") it pays once per `per` Gold and BANKS the remainder across
+  // transactions, so two 3-Gold buys pay once — the same threshold contract the Golden Ledger uses. Without
+  // `per` it falls back to once per spend transaction. Seeded off the run's RNG cursor.
   if (s.runeScale && amount > 0 && s.board.length > 0) {
     const { count, attack, health } = s.runeScale;
+    let payouts = 1;
+    if (s.runeScale.per) {
+      s.runeScale.tick = (s.runeScale.tick ?? 0) + amount;
+      payouts = 0;
+      while (s.runeScale.tick >= s.runeScale.per) { s.runeScale.tick -= s.runeScale.per; payouts += 1; }
+      if (payouts === 0) return;
+    }
     const rng = makeRng(s.rngCursor);
     const pool = [...s.board];
     // Wrapped for FX so each picked ally gets a descend (sourceless — the rune has no board anchor) rather than
     // a silent stat jump. RNG is unchanged: the picks still run inside, s.rngCursor advances exactly as before.
     captureBuffFx(s, undefined, 'spell', () => {
-      for (let i = 0; i < count && pool.length > 0; i++) {
-        const pick = pool.splice(rng.int(pool.length), 1)[0]!;
-        addBuff(pick, 'Rune of Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
+      for (let p = 0; p < payouts; p++) {
+        const picks = [...pool];
+        for (let i = 0; i < count && picks.length > 0; i++) {
+          const pick = picks.splice(rng.int(picks.length), 1)[0]!;
+          addBuff(pick, 'Rune of Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
+        }
       }
     });
     s.rngCursor = rng.state();
@@ -313,6 +336,22 @@ export function reduce(state: RunState, action: Action): RunState {
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
+    // Kobold quests: "Cast N Rubies" runs on its OWN meter. Deliberately not folded into `castSpell` — the
+    // two objectives must stay unfillable by each other's cards (see `castRuby` in types.ts).
+    const rubyCastDelta = (next.rubyCasts ?? 0) - (state.rubyCasts ?? 0);
+    if (rubyCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castRuby', rubyCastDelta);
+    // "Grant N total stats to Shop minions": buffs landed on the offers actually sitting in the tavern, PLUS
+    // any rise in the run-wide buy bonus (which every future offer inherits). Both are real stats given to the
+    // shop; counting only the visible offers would make a run-wide buff read as zero progress.
+    const offerBefore = new Map(state.shop.map((o) => [o.uid, { a: o.atk ?? 0, h: o.hp ?? 0 }]));
+    let shopStatGain = 0;
+    for (const o of next.shop) {
+      const prev = offerBefore.get(o.uid);
+      if (!prev) continue;
+      shopStatGain += Math.max(0, (o.atk ?? 0) - prev.a) + Math.max(0, (o.hp ?? 0) - prev.h);
+    }
+    shopStatGain += Math.max(0, next.tavernBuyBonus.atk - state.tavernBuyBonus.atk) + Math.max(0, next.tavernBuyBonus.hp - state.tavernBuyBonus.hp);
+    if (shopStatGain > 0) advanceQuestsBy(next, (o) => o.event === 'shopStats', shopStatGain);
     // Spell Power FX: one bump per action in which SPELL POWER WENT UP, by any source and any amount — not
     // per spell CAST (owner correction 2026-07-21: Cinderwing Matron's Shout buffs spell power and must fire
     // this, while casting a spell in a run with no spell-power sources must not). Both stats are watched:
@@ -394,6 +433,11 @@ export function reduce(state: RunState, action: Action): RunState {
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
     // objective. `lastShoutFires` was recorded during the play / target resolution (0 if no Shout fired).
     for (let i = 0; i < (next.lastShoutFires ?? 0); i++) advanceQuests(next, (o) => o.event === 'shout');
+    // Bane's Presence rides the SAME count the Shout objective does, so a doubled Shout advances the quest
+    // and pays the reward identically rather than the two disagreeing about what "a Shout" is.
+    applyShoutsForShopBuff(next, next.lastShoutFires ?? 0);
+    applyShoutsForEndlessVerse(next, next.lastShoutFires ?? 0);
+    advanceRuneThresholds(next, 'shout', next.lastShoutFires ?? 0); // Rune of the Chorus / Merchant's Chorus
     if ((next.lastShoutFires ?? 0) > 0) bumpAuthorsHand(next, 'shout', next.lastShoutFires!); // Author's Hand Shout half
     // An Echo (Deathrattle) is a TRIGGER too: a recruit-phase Echo (Grave Robber's destroy, Gravetwin/Crypt Broker,
     // Sylus re-fires) counts toward the `deathrattle` objective + Author's Hand's Echo half, just like a combat one.
@@ -439,6 +483,10 @@ export function reduce(state: RunState, action: Action): RunState {
     const fcBefore = state.runFodderConsumed ?? { count: 0, stats: 0 };
     const fcAfter = next.runFodderConsumed ?? { count: 0, stats: 0 };
     if (fcAfter.count > fcBefore.count) advanceQuestsBy(next, (o) => o.event === 'consumeFodder', fcAfter.count - fcBefore.count);
+    // Bottomless Banquet: SHOP minions eaten, on its own meter — a set-2 Demon eats the tavern row where a
+    // set-1 Demon eats Fodder, and neither quest should be fillable by the other's mechanic.
+    const eatenDelta = (next.shopMinionsEaten ?? 0) - (state.shopMinionsEaten ?? 0);
+    if (eatenDelta > 0) advanceQuestsBy(next, (o) => o.event === 'consumeShopMinion', eatenDelta);
     if (fcAfter.stats > fcBefore.stats) advanceQuestsBy(next, (o) => o.event === 'consumeStats', fcAfter.stats - fcBefore.stats);
   }
   // Bump the FX sequence once per action that actually buffed OTHERS (including the Hunter reaction wrapped
@@ -759,6 +807,16 @@ function reduceCore(state: RunState, action: Action): RunState {
             // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
             fireOnRubyPlayed(s, boardTarget, card.attack, card.health);
           }
+          // Rune of Redirection: a Ruby landing on your LEFT-most minion also casts on your right-most. Fires
+          // the target's own on-Ruby watchers too, so the second landing is a real Ruby cast rather than a
+          // silent stat copy. Guarded against a one-minion board, where left-most IS right-most.
+          const tail = s.board[s.board.length - 1];
+          if (s.runeRedirection && boardTarget === s.board[0] && tail && tail !== boardTarget) {
+            for (let n = 0; n < casts; n++) {
+              addBuff(tail, 'Ruby', card.attack, card.health);
+              fireOnRubyPlayed(s, tail, card.attack, card.health);
+            }
+          }
           // Warding Ruby: grant its keyword (Ward = DS) to the target — permanent in the shop phase (baked here).
           const kw = def.rubyGrantKeyword;
           if (kw && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
@@ -772,7 +830,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         const umbrellaBefore = s.spellsCast + rubyCastsBefore;
         s.rubyCasts = rubyCastsBefore + casts;
         s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
+        advanceRuneThresholds(s, 'castRuby', casts); // Rune of the Cindergem
         consumeGrimoireCharge(s); // a Ruby spends the Grimoire charge, same as a Shop Spell
+        // Rune of the Spellstone: the Ruby ALSO counts as a Shop-spell cast. Deliberately after the Grimoire
+        // spend and before the umbrella fire below, and via a narrow counter rather than `noteSpellCast` —
+        // that would re-fire the umbrella this path already fires.
+        if (s.runeSpellstone && def) countRubyAsShopSpell(s, def, casts);
         fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
@@ -1017,7 +1080,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         const offer = co.targetUid && !target ? s.shop.find((o) => o.uid === co.targetUid && !CARD_INDEX[o.cardId]?.spell) : undefined;
         if (co.targetUid && !target && !offer) { s.hand.splice(hi, 1); s.chooseOne = undefined; return s; }
         const casts = spellCasts(s, def);
-        const synthetic = { ...def, effects: option.effects };
+        // Rune of Facetwright: "they give both effects" — resolve EVERY branch instead of the picked one. The
+        // pick still happens (the player chooses which is highlighted), it just stops being exclusive. Scoped to
+        // the Facetwright's Choice spell by id, since the rune names that card rather than Choose One generally.
+        const bothBranches = s.runeFacetwright && def.id === 'facetwright';
+        const synthetic = { ...def, effects: bothBranches ? (def.chooseOne ?? []).flatMap((o) => o.effects) : option.effects };
         for (let n = 0; n < casts; n++) {
           if (offer) castSpellOnOffer(s, synthetic, offer);
           else castSpell(s, synthetic, target);
@@ -1130,7 +1197,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (sold) {
         // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
         // floated can't drift (they did: the bonus used to be added inline here only).
-        s.embers += sellValueWithBonus(sold, s);
+        gainGold(s, sellValueWithBonus(sold, s));
+        // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
+        if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
         if (s.nextSellBonus) s.nextSellBonus = 0;
       }
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
@@ -1236,6 +1305,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       spendGold(s, rune.cost);
       // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
       applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+      // Rune of Duplication: "after you forge your Epic Rune, this transforms into a copy of it" — the Epic's
+      // reward applies a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
+      // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it.
+      if (s.runeDuplication && s.runeforgeEpic) {
+        s.runeDuplication = undefined;
+        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+        (s.ownedRunes ??= []).push(rune.id); // shows as a second badge — the copy is a real rune you hold
+      }
       (s.ownedRunes ??= []).push(rune.id);
       // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
       // hero-power charge alone for it.
@@ -1362,7 +1439,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
-        s.embers += (1 + s.wave) * reps;
+        gainGold(s, (1 + s.wave) * reps);
       } else if (power.kind === 'dynamiteDig') {
         // Jensen: Discover a minion of your CURRENT tier — the FIRST dig is free, then the cost climbs 1
         // each use (0, 1, 2, …). Untargeted; cost + use count handled here (not the shared block).
@@ -2151,6 +2228,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // Imp King / Brood Matron Avenge: their in-combat Imp buffs are permanent — accrue them into the run-wide
   // Imp buff so future Imps (next fights) inherit them.
+  // Rune of Overflow: fold the combat's permanent board buff onto every minion the run still holds. Applied to
+  // hand as well as board — a body you were about to play earned it too.
+  if (result.playerBoardBuffGain) {
+    const g = result.playerBoardBuffGain;
+    for (const c of [...s.board, ...s.hand]) addBuff(c, 'Rune of Overflow', g.attack, g.health);
+  }
   if (result.playerImpBuffGain) {
     s.impBuff ??= { attack: 0, health: 0 };
     s.impBuff.attack += result.playerImpBuffGain.attack;
@@ -2345,6 +2428,9 @@ function advanceCombat(s: RunState): void {
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave
+  s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
+  for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
+  if (s.runeOpenMarket) s.runeOpenMarket.usedThisTurn = false; // the Open Market re-arms each turn
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
   // Funeral on Loan: a borrowed card that wasn't played STAYS IN HAND (owner 2026-07-29). It used to be
@@ -2717,7 +2803,7 @@ function openScheduledBasicRuneforge(s: RunState, gold = 0): void {
   s.runeforgeNoCharge = true;
   s.runeforgeRerolled = undefined;
   s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3)));
-  if (gold > 0) s.embers += gold;
+  if (gold > 0) gainGold(s, gold);
 }
 
 /** The distinct minion ids that GREATER-tier quests grant as rewards (grant/recurringGrant/multi cards) — the pool
@@ -2779,6 +2865,10 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // Set 2 — N random Dwarven ALES specifically (owner 2026-07-29). Drawn from the run's pool like every other
       // grant, so a set without the Ales grants nothing instead of injecting cards the run can't otherwise have.
       if ((r.randomAle ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id)), r.randomAle!, true);
+      // Rubies are MINTED, never conjured: a Ruby's stats are base 1/1 plus the run's live `rubyBonus`, so
+      // handing over a raw pool copy would give a late-run Kobold deck 1/1 Rubies while every other source
+      // pays full strength.
+      if ((r.randomRuby ?? 0) > 0) mintRubies(s, r.randomRuby!);
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
       for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
@@ -2827,7 +2917,99 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'sharedCircuit') s.sharedCircuitWard = r.amount ?? 0; // amount = Mechs warded at SoC
       else if (r.flag === 'pitWithoutEnd') s.pitWithoutEndImps = r.amount ?? 0; // amount = Imps on board wipe
       else if (r.flag === 'assemblyLine') s.questFlags.assemblyLine = r.amount ?? 4; // Avenge N → a Money Bot to hand
+      // The Burning Legion carries a USE COUNT rather than a boolean — an unbounded "Imps copy themselves"
+      // fills the board on the first swing.
+      else if (r.flag === 'burningLegion') s.questFlags.burningLegion = r.amount ?? 3;
+      else if (r.flag === 'runeFinality') s.questFlags.runeFinality = r.amount ?? 7; // amount = Warded Imps summoned
+      else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = r.amount ?? 6; // amount = the Imp improve
+      else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = r.amount ?? 2; // amount = Rubies per Kobold
+      else if (r.flag === 'runeBloodAndCoin') s.questFlags.runeBloodAndCoin = r.amount ?? 4; // amount = Gold banked
+      else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = r.amount ?? 3;        // amount = Health per Beast attack
+      else if (r.flag === 'runeRemains') s.questFlags.runeRemains = r.amount ?? 3;           // amount = Shop buff per 5 summons
+      else if (r.flag === 'runeReinvestment') s.questFlags.runeReinvestment = r.amount ?? 1; // amount = Shop buff per summon
+      else if (r.flag === 'runeBrood') s.questFlags.runeBrood = r.amount ?? 3;               // amount = Imps per combat
+      else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = r.amount ?? 3; // amount = Heralds per combat
+      else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = r.amount ?? 1; // amount = Rubies per attack
+      else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = r.amount ?? 4;           // amount = the permanent board buff
       else s.questFlags[r.flag] = true;
+      break;
+    case 'questGoldTribeBuff':
+      s.questGoldTribeBuff = { tribe: r.tribe, per: r.per, attack: r.attack, health: r.health, tick: 0 };
+      break;
+    case 'rubyStatGain': {
+      // Raises Ruby STRENGTH rather than buffing anything on the board: Rubies in hand grow with it (see
+      // `rubyStatGain` in recruit.ts), and every future Ruby is minted at the new value.
+      const rb = s.rubyBonus ?? { attack: 0, health: 0 };
+      s.rubyBonus = { attack: rb.attack + r.attack, health: rb.health + r.health };
+      for (const c of s.hand) if (CARD_INDEX[c.cardId]?.ruby) { c.attack += r.attack; c.health += r.health; }
+      break;
+    }
+    case 'rubyExtraCasts':
+      if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
+      else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
+      break;
+    case 'runeFacetwright':
+      s.runeFacetwright = true;
+      break;
+    case 'runeDuplication':
+      s.runeDuplication = true;
+      break;
+    case 'runeSpellstone':
+      s.runeSpellstone = true;
+      break;
+    case 'runeWhiteWolf':
+      s.runeWhiteWolf = true;
+      break;
+    case 'runeProfitSharing':
+      s.runeProfitSharing = { tribe: r.tribe, attack: r.attack, health: r.health };
+      break;
+    case 'runeSharedTable':
+      s.runeSharedTable = { attack: r.attack, health: r.health };
+      break;
+    case 'runeRedirection':
+      s.runeRedirection = true;
+      break;
+    case 'runeBrokerage':
+      s.runeBrokerage = true;
+      break;
+    case 'runeSellRubies':
+      s.runeSellRubies = (s.runeSellRubies ?? 0) + r.count;
+      break;
+    case 'runeOpenMarket':
+      s.runeOpenMarket = { attack: r.attack, health: r.health, usedThisTurn: false };
+      break;
+    case 'runeThreshold':
+      // An ARRAY: several threshold runes can be held at once, each banking its own remainder.
+      (s.runeThresholds ??= []).push({ meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, oncePerTurn: r.oncePerTurn });
+      break;
+    case 'motherlode':
+      s.motherlode = { count: r.count, tribe: r.tribe };
+      break;
+    case 'consumeDoubleFirstEachTurn':
+      s.consumeDoubleFirstEachTurn = true;
+      break;
+    case 'spellCost':
+      s.spellCostMod += r.cost;
+      break;
+    case 'endlessVerse':
+      s.spellFirstDoubleEachTurn = true;
+      s.endlessVerse = { per: r.per, tick: 0 };
+      break;
+    case 'shopBuff':
+      applyRunShopBuff(s, r.attack, r.health, 'Quest reward');
+      break;
+    case 'shopBuffPerShouts':
+      s.shopBuffPerShouts = { per: r.per, attack: r.attack, health: r.health, tick: 0 };
+      break;
+    case 'shopBuffOnRefresh':
+      s.shopBuffOnRefresh = { attack: r.attack, health: r.health, step: r.step, per: r.per, grown: 0, tick: 0 };
+      break;
+    case 'aleExtraCasts':
+      s.aleExtraCasts = (s.aleExtraCasts ?? 0) + (r.amount ?? 1);
+      break;
+    case 'tribeRallySlaughterExtra':
+      // War Council: arm the tribe-scoped extra trigger. One field, any tribe — see the note on the flag.
+      s.questTribeRallySlaughter = r.tribe;
       break;
     case 'shoutRepeat':
       // Hoardwake / The Hoard Wakes (always) → +1 permanent Battlecry trigger (stacks); Warm Embers
@@ -2847,7 +3029,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // `immediate` → spend it THIS shop (Rune of Small Fortune: "Get N Gold immediately"). Otherwise bank it
       // into your NEXT shop (Bone Ledger — the standard "Get N Gold" channel, surviving the per-turn embers
       // reset like Hoarder / Bounty Bot's bonus Gold). A Runeforge opens during a shop turn, so += is immediate.
-      if (r.immediate) s.embers += r.amount;
+      if (r.immediate) gainGold(s, r.amount);
       else s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + r.amount;
       break;
     case 'echoRepeat':
@@ -2873,7 +3055,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'gainMaxGold':
       s.maxGoldBonus = (s.maxGoldBonus ?? 0) + r.amount; // Shop License: permanent +max Gold, above the cap
-      s.embers += r.amount; // reflect the raised max in THIS turn's spendable Gold too
+      gainGold(s, r.amount); // reflect the raised max in THIS turn's spendable Gold too
       break;
     case 'discover': {
       // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward
@@ -2971,7 +3153,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeDenMother = true; // Rune of the Den Mother: Den Mother buffs herself too
       break;
     case 'runeScale':
-      s.runeScale = { count: r.count, attack: r.attack, health: r.health }; // each Gold-spend buffs random allies
+      s.runeScale = { count: r.count, attack: r.attack, health: r.health, per: r.per, tick: 0 }; // Gold-spend buffs random allies
       break;
     case 'runeCopies':
       // Rune of Copies: arm the per-turn copy — at the start of each shop, copy a random board minion to hand.
@@ -3165,6 +3347,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,
+    tribeRallySlaughterExtra: s.questTribeRallySlaughter, // War Council: the tribe-scoped twin
     oldHuntStep: f?.oldHunt,
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,
@@ -3187,6 +3370,30 @@ export function questCombatMods(s: RunState): QuestCombatMods {
 
     runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
     runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
+    candlelightToll: f?.candlelightToll, // Candlelight Toll: a dying Kobold grants a Ruby
+    gemheartCharge: f?.gemheartCharge,   // Heart of the Mountain: Gemheart Golems attack on summon
+    burningLegionUses: f?.burningLegion, // The Burning Legion: bounded Imp self-copies
+    runeVanguard: f?.runeVanguard,         // Rune of the Vanguard: SoC Crit + Ward on your 3 left-most
+    runeFinality: f?.runeFinality,         // Rune of Finality: your last death summons Warded Imps
+    runeHatchery: f?.runeHatchery ? { attack: 3, health: 3 } : undefined, // Echo summons enter +3/+3 with Taunt
+    runeLastCall: f?.runeLastCall,           // Avenge (3): a random Dwarven Ale to hand
+    runeCinderLedger: f?.runeCinderLedger,   // Avenge (3): improve your Imps run-wide
+    runeProcession: f?.runeProcession,       // Avenge (4): double your right-most minion
+    runeGemstorm: f?.runeGemstorm,           // Avenge (2): Rubies onto every friendly Kobold
+    runeBloodAndCoin: f?.runeBloodAndCoin,   // every 4 friendly deaths banks Gold for next turn
+    runeWildHunt: f?.runeWildHunt,           // a Beast attacking pumps a board-wide Health aura
+    runeLivingTreasure: f?.runeLivingTreasure, // Gemheart Golems enter with Rise
+    runeRemains: f?.runeRemains,             // every 5 combat summons buffs the Shop
+    runeReinvestment: f?.runeReinvestment,   // after combat, the Shop gains per friendly summon
+    runeHuntingBell: f?.runeHuntingBell,     // Avenge (3): fire your left-most Rally, free
+    runeBrood: f?.runeBrood,                 // fill a free slot with a Warded, Taunting Imp (bounded)
+    runeLivingEchoes: f?.runeLivingEchoes,   // fill a free slot with a Sunmane Herald that strikes now
+    runeWarChorus: f?.runeWarChorus,         // your first Rally each combat fires your left-most Shout
+    runeFoodChain: f?.runeFoodChain,         // your first summon inherits your left-most Demon's stats
+    runeAttackingGems: f?.runeAttackingGems, // every friendly attack plays a Ruby on your whole board
+    runeOverflow: f?.runeOverflow,           // an overflowed summon permanently buffs your warband
+    runeCounterpoint: f?.runeCounterpoint,   // a friendly death frees your left-most for a swing
+    avengeFirstDouble: f?.avengeFirstDouble, // The Sealed Vault: the FIRST Avenge each combat triggers twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise
     runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 6 → 2 Taunt Imps

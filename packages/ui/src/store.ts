@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
 import type { BoardMinion, Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -15,7 +15,7 @@ export interface CombatQuestDelta {
 }
 import { sfx } from './sfx';
 import { liveBoardView } from './instView';
-import { loadStoredBoards, saveRunBoards } from './boardLibrary';
+import { loadStoredBoards, saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
 import { fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, saveRunHistoryEntry } from './runHistory';
@@ -175,6 +175,11 @@ interface GameStore {
   /** The current run's action log (only state-changing actions), reset on a fresh run. With the run
    *  seed it forms a deterministic replay — the basis for board capture + async-PvP snapshots. */
   replayActions: Action[];
+  /** LOBBY runs only: the per-wave boards captured AS THEY WERE PLAYED, rather than re-derived from the action
+   *  log when the run ends. Replaying a lobby run re-simulates all seven opponent seats (~20 s of blocked main
+   *  thread, measured), and the boards come out identical either way — so a lobby keeps them as it goes.
+   *  Persisted with the save so a quit-and-resume doesn't lose the boards played before the reload. */
+  capturedBoards: BoardSnapshot[];
   /** Export the current run as a tiny deterministic replay `{ seed, heroId, actions }` (DEV: grab it
    *  via `useGame.getState().exportReplay()`; feed it to `replayRun` / the replay harness). */
   exportReplay: () => Replay;
@@ -292,12 +297,12 @@ function loadCombatSpeed(): number {
 // the save is cleared when the run ends. The run's action log rides along so board capture still works on a
 // resumed run's finish. All best-effort — localStorage may be unavailable; failures never break play.
 const SAVE_KEY = 'ascent.save';
-interface SavedGame { run: RunState; actions: Action[]; }
+interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; }
 function loadSave(): SavedGame | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
-    const o = JSON.parse(raw) as { run: string; actions?: Action[] };
+    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[] };
     const run = deserialize(o.run); // heals older-schema saves
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
@@ -313,20 +318,55 @@ function loadSave(): SavedGame | null {
       clearSave();
       return null;
     }
-    return { run, actions: o.actions ?? [] };
+    return { run, actions: o.actions ?? [], boards: o.boards ?? [] };
   } catch { return null; }
 }
-function writeSave(run: RunState, actions: Action[]): void {
+function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = []): void {
   // NEVER persist a Scene Builder run. It's a disposable dev rig with 999 Gold and hand-placed boards; letting
   // it reach the autosave overwrites the player's real in-progress run and offers the sandbox as "Continue"
   // (owner hit this on 2026-07-22 — a sandbox session clobbered a live save). The run is already flagged for us.
   if (run.sandbox) return;
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions })); } catch { /* ignore */ }
+  // `boards` rides along for the same reason `actions` does: it's what board capture reads when the run ends.
+  // A lobby run captures its boards live instead of replaying for them (see `capturedBoards`), so without this
+  // a quit-and-resume would finish the run having lost every board played before the reload.
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}) }));
+  } catch { /* ignore */ }
 }
 function clearSave(): void {
   try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
 }
 const BOOT_SAVE = loadSave();
+
+/**
+ * Build the lobby's opponent drivers during the OPENING SHOP PHASE, one seat per idle slice.
+ *
+ * A generated seat's board comes from an autoplayed run (~100ms each, seven of them). Built eagerly they froze
+ * the hero-select → game transition; built lazily they all land at once inside round 1's combat. Neither is a
+ * moment the player is willing to lose. The opening shop phase is: the run is on screen and interactive, the
+ * work has ~30s of slack, and `warmLobbySeat` is idempotent — so a seat the player reaches first simply finds
+ * its driver already built.
+ *
+ * Best-effort by design. Every seat this misses is built on demand exactly as before.
+ */
+function warmLobbyDrivers(run: RunState): void {
+  const lobby = run.lobby;
+  if (!lobby) return;
+  const queue = lobby.seats.map((_, i) => i).filter((i) => i > 0); // seat 0 is the player — no driver
+  const idle = (cb: () => void): void => {
+    // `requestIdleCallback` yields to anything the player is doing; the timeout stops a busy shop phase from
+    // starving it into round 1. Safari <16.4 has no rIC — a macrotask is a fine substitute here.
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(() => cb(), { timeout: 2000 });
+    else setTimeout(cb, 0);
+  };
+  const step = (): void => {
+    const i = queue.shift();
+    if (i === undefined) return;
+    try { warmLobbySeat(lobby, i); } catch { /* a seat that won't build is built on demand later, or skipped */ }
+    idle(step);
+  };
+  idle(step);
+}
 
 /** Build the run's END-STATE board for the leaderboard / Career: a snapshot of the post-combat `run.board`
  *  (combat carry-backs already baked in), with each minion enriched by the same live view the end screen shows
@@ -392,17 +432,24 @@ export const useGame = create<GameStore>((set, get) => ({
   // Resuming a run starts the turn with the clock ALREADY expired (you can End Turn / reorder, but not shop),
   // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
   // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
-  continueRun: () => { turnClock.set(0); set({ showTitle: false, heroChoices: null, avatarPickerOpen: false }); },
+  continueRun: () => {
+    turnClock.set(0);
+    // A resumed lobby run has an EMPTY driver cache (drivers are closures, rebuilt from seed rather than saved),
+    // so every seat has to be rebuilt and re-advanced to the round the lobby is on. Do it while the player is
+    // looking at the shop, not when the round resolves.
+    warmLobbyDrivers(get().run);
+    set({ showTitle: false, heroChoices: null, avatarPickerOpen: false });
+  },
   // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
-  clearRun: () => { clearSave(); set({ savedRun: null, run: createRun(randomSeed()) }); },
+  clearRun: () => { clearSave(); set({ savedRun: null, run: createRun(randomSeed()), replayActions: [], capturedBoards: [] }); },
   // Mid-turn durability for the turn-boundary autosave. Guarded on `showTitle` because the `run` held while
   // the title is up is a dormant throwaway (see clearRun) — persisting it would resurrect a phantom Continue.
   flushSave: () => {
     const s = get();
     if (s.showTitle || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
     if (s.run.sandbox) return; // a Scene Builder run is disposable — it must never become the offered Continue
-    writeSave(s.run, s.replayActions);
+    writeSave(s.run, s.replayActions, s.capturedBoards);
     set({ savedRun: s.run });
   },
   heroArmed: false,
@@ -450,6 +497,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ combatSpeed });
   },
   replayActions: BOOT_SAVE?.actions ?? [],
+  capturedBoards: BOOT_SAVE?.boards ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) =>
     set((s) => {
@@ -476,6 +524,12 @@ export const useGame = create<GameStore>((set, get) => ({
           void recordFightResult({ boardId: served.id, round: s.run.wave, outcome, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
         }
       }
+      // LOBBY: capture this wave's board NOW, at the same point `replayRun` would have (`faceOmen` landed and
+      // the combat resolved), so the run never has to be replayed for its boards when it ends. Costs one
+      // `snapshotBoard` per round; replaying for the same result costs ~20 s of re-simulated opponent seats.
+      const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
+        ? [...s.capturedBoards, snapshotBoard(next)]
+        : s.capturedBoards;
       // A run just ended → capture its boards into the library (loaded into the opponent pool next
       // startup, so you face boards you actually built). Deferred so it never hitches the end screen.
       // PRACTICE runs are read-only against the snapshot DB: they fight real captured boards but never
@@ -489,6 +543,10 @@ export const useGame = create<GameStore>((set, get) => ({
         // `mode` is load-bearing: a lobby run replayed as an Ascent run diverges immediately, so its captured
         // boards were wrong. See `saveRunBoards`.
         const replay = { seed: next.seed, heroId: next.heroId, mode: next.mode, actions: [...s.replayActions, action] };
+        // A LOBBY run already holds its boards (captured live above) and must NOT be replayed for them —
+        // replaying re-simulates seven opponent seats and froze the end screen for ~20 s.
+        const lobbyBoards = next.mode === 'lobby' ? capturedBoards : null;
+        const setId = next.setId;
         const author = s.playerName || undefined;
         const heroOffer = s.lastHeroOffer;
         const won = next.phase === 'victory';
@@ -496,7 +554,7 @@ export const useGame = create<GameStore>((set, get) => ({
         // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
         // the end screen; all best-effort and never throw.
         setTimeout(() => {
-          const fresh = saveRunBoards(replay, author);
+          const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author);
           set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
           void uploadBoards(fresh);
           // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
@@ -585,7 +643,7 @@ export const useGame = create<GameStore>((set, get) => ({
         // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
         // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
         else if (next.phase !== s.run.phase && !next.sandbox) {
-          perfMonitor.measure('autosave', () => writeSave(next, replayActions));
+          perfMonitor.measure('autosave', () => writeSave(next, replayActions, capturedBoards));
           savedRun = next;
         }
       }
@@ -597,6 +655,7 @@ export const useGame = create<GameStore>((set, get) => ({
         sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
         // Record only state-changing actions — together with the seed they replay the run deterministically.
         replayActions,
+        capturedBoards,
       };
     }),
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
@@ -617,14 +676,16 @@ export const useGame = create<GameStore>((set, get) => ({
       const run = s.pendingMode === 'lobby'
         ? createLobbyRun(seed, heroId)
         : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
+      // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
+      if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
     }),
   newRun: (seed, heroId) =>
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
     }),
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   // Practice shows EVERY hero — but "every" still means every PICKABLE one. It was reading the raw registry, so
@@ -643,7 +704,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // `setId` lets the rig play an UNRELEASED set (set 2 in development) without flipping the global switch
       // and moving real players onto it — the run pins it like any other, so nothing leaks into set 1.
       const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
-      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
+      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
     }),
   // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
   // otherwise the turn in progress would roll back to the last phase boundary on Continue.

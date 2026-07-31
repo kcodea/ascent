@@ -135,12 +135,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: ['RL'],
-    effects: [
-      { on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 1 } },
-      { on: 'onAttack', do: 'rallyPlayRubiesTargets', params: { tribe: 'kobold', targets: 2, rubies: 1 } },
-    ],
-    text: '**Rally:** Give your Rubies **+1/+1** and play a Ruby on **2 friendly Kobolds**.',
-    goldenText: '**Rally:** Give your Rubies **+2/+2** and play a Ruby on **4 friendly minions**.',
+    // Owner ruling 2026-07-29 (found by `npm run text:audit`): the Ruby-play half is CUT. The card is the stat
+    // gain only — the extra clause was strictly more than the roster says, so the game was ahead of the sheet
+    // rather than behind it, which is the rarer and easier-to-miss direction of drift.
+    effects: [{ on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 1 } }],
+    text: '**Rally:** give your Rubies **+1/+1**.',
+    goldenText: '**Rally:** give your Rubies **+2/+2**.',
   },
   {
     // Passive: a Ruby played from hand casts an extra time while this is on board (see the reducer play-Ruby

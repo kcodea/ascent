@@ -31,7 +31,7 @@ export const SET2_DWARVES: CardDef[] = [
   },
   {
     id: 'dw_ironlung',
-    name: 'Ironlung Captain',
+    name: 'Warhorn Captain',
     tribe: 'dwarf',
     tier: 3,
     attack: 4,

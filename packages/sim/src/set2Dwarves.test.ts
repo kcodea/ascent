@@ -97,7 +97,7 @@ describe('Gold and throughput', () => {
     expect(b.attack, 'a non-Dwarf was buffed').toBe(beast.attack);
   });
 
-  it('Ironlung Captain buffs its OTHER Dwarves, never itself', () => {
+  it('Warhorn Captain buffs its OTHER Dwarves, never itself', () => {
     let s = set2();
     const other = body('dw_brunni', 'o');
     s = { ...s, board: [other], hand: [body('dw_ironlung', 'cap')] };
@@ -254,7 +254,7 @@ describe('tranche C — the five that needed machinery', () => {
     let s = set2();
     const mate = body('dw_brunni', 'mate');
     // Broad-Axe Brakka is the newcomer on purpose: it is a Dwarf with NO effects of its own. My first attempt
-    // used Ironlung Captain, which ALSO buffs your Dwarves +3 Attack — the +6 that produced was two effects
+    // used Warhorn Captain, which ALSO buffs your Dwarves +3 Attack — the +6 that produced was two effects
     // stacking, not the Chef double-firing.
     s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [body('dw_brakka', 'newcomer')] };
     const before = s.board.find((x) => x.uid === 'mate')!.attack;
@@ -362,7 +362,7 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     ['Rune of Lazarus', 'lazarus'],
     ['Rune of the High King', 'dw_brill'],
     ['Rune of Exgalloper', 'dw_exgalloper'],
-    ['Rune of High King Mykel', 'dw_brisbane'],
+    ['Rune of Mykel', 'dw_brisbane'], // renamed to match the owner's sheet (2026-07-30)
   ])('%s grants %s', (name, cardId) => {
     const rune = all.find((r) => r.name === name);
     expect(rune, `${name} is missing`).toBeDefined();
@@ -531,10 +531,15 @@ describe('Dwarf quests (owner roster 2026-07-29)', () => {
     expect(r.grantKeywords).toEqual(['W', 'DS']);
   });
 
-  it('War Council is deliberately absent — its reward has no tribe-scoped flag', () => {
-    // `lawOfTeeth` is the Beast version and is gated on `isBeast(attacker)` in the sim, so reusing it would have
-    // silently granted BEAST triggers on a Dwarf quest. Shipping nothing beats shipping the wrong effect.
-    expect(q('q_war_council'), 'War Council shipped with a borrowed Beast flag').toBeUndefined();
+  it('War Council uses a TRIBE-scoped reward, never the Beast flag', () => {
+    // It was held back until the tribe-parameterised reward existed: `lawOfTeeth` is gated on `isBeast(attacker)`,
+    // so borrowing it would have granted BEAST triggers on a Dwarf quest — passing tests, wrong effect.
+    const def = q('q_war_council');
+    expect(def, 'War Council is missing').toBeDefined();
+    const r = def!.reward as { kind: string; tribe?: string };
+    expect(r.kind).toBe('tribeRallySlaughterExtra');
+    expect(r.tribe, 'the reward is not scoped to Dwarves').toBe('dwarf');
+    expect(JSON.stringify(def!.reward), 'still borrowing lawOfTeeth').not.toContain('lawOfTeeth');
   });
 });
 
@@ -560,5 +565,100 @@ describe('bug fixes 2026-07-29 (owner report)', () => {
     const growth = def.effects.find((e) => e.on === 'onAttack');
     expect(growth?.do, 'Fatecarver still has its own Growth copy').toBe('onAllyAttackCastGrowth');
     expect((growth?.params as { option?: number })?.option, 'the branch gate is missing').toBe(1);
+  });
+});
+
+describe('Open Tab (Dwarf quest)', () => {
+  it('pours 2 Ales at End of Turn once its reward is active', () => {
+    let s = set2();
+    s = { ...s, questRecurringEndOfTurn: ['grantAles'], board: [], hand: [] };
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'no Ales poured').toBe(2);
+  });
+
+  it('is a set-2 Dwarf quest on the Gold-spent objective', () => {
+    const q = QUEST_DEFS.find((x) => x.id === 'q_open_tab')!;
+    expect(q.sets).toEqual(['set2']);
+    expect(q.tribe).toBe('dwarf');
+    expect(q.objective.event).toBe('spendGold');
+  });
+});
+
+describe('the run-wide Ale multiplier (Bottomless Cellar / Rune of the Bottomless Cask)', () => {
+  const goldFromAle = (mut: (s: RunState) => RunState): number => {
+    let s = mut(set2());
+    s = { ...s, hand: [{ uid: 'a', cardId: 'wo_mine', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    const before = s.embers;
+    return reduce(s, { type: 'play', uid: 'a' }).embers - before;
+  };
+
+  it('one extra cast doubles a Golden Ale’s payout', () => {
+    const plain = goldFromAle((s) => s);
+    expect(goldFromAle((s) => ({ ...s, aleExtraCasts: 1 })), 'the run flag did nothing').toBe(plain * 2);
+  });
+
+  it('stacks ADDITIVELY with Edward Keg-hands, not multiplicatively', () => {
+    // Both read "trigger an additional time", so Edward (×2) plus one run-wide extra is ×3, not ×4.
+    const plain = goldFromAle((s) => s);
+    const both = goldFromAle((s) => ({ ...s, aleExtraCasts: 1, board: [body('dw_edward', 'e')] }));
+    expect(both).toBe(plain * 3);
+  });
+
+  it('does not touch NON-Ale spells', () => {
+    let s = set2();
+    s = { ...s, aleExtraCasts: 3, board: [body('dw_brunni', 'b')], hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    const before = s.board[0]!.attack;
+    s = reduce(s, { type: 'play', uid: 'g' });
+    expect(s.board[0]!.attack - before, 'Growth was multiplied by the ALE flag').toBe(1);
+  });
+
+  it('both the quest and the rune ride the same primitive', () => {
+    const q = QUEST_DEFS.find((x) => x.id === 'q_bottomless_cellar')!;
+    const r = [...RUNES, ...EPIC_RUNES].find((x) => x.id === 'rune_bottomless_cask')!;
+    expect((q.reward as { kind: string }).kind).toBe('aleExtraCasts');
+    expect((r.reward as { kind: string }).kind).toBe('aleExtraCasts');
+    expect(r.sets).toEqual(['set2']);
+  });
+});
+
+describe('The Golden Ledger (Dwarf quest)', () => {
+  /**
+   * `spendGold` is private to the reducer, so these drive REAL purchases — which is the honest test anyway: the
+   * payout must survive the actual shop path, not a hand-rolled call.
+   */
+  const armed = (): RunState => ({
+    ...set2(),
+    embers: 20,
+    board: [body('dw_brunni', 'd'), { ...body('dw_brakka', 'b'), cardId: 'pack', tribe: 'beast' as const, uid: 'b' }],
+    questGoldTribeBuff: { tribe: 'dwarf', per: 5, attack: 3, health: 3, tick: 0 },
+  } as RunState);
+  const atk = (s: RunState, uid: string): number => s.board.find((x) => x.uid === uid)!.attack;
+
+  it('banks the remainder, then pays out once the threshold is crossed', () => {
+    // A per-transaction rule would pay on every buy; a non-banking one would never pay for small buys. Two buys
+    // of 3 Gold must pay exactly once at 5.
+    let s = armed();
+    const base = atk(s, 'd');
+    s = reduce(s, { type: 'roll' });                       // 1 Gold
+    expect(atk(s, 'd'), 'paid out below the threshold').toBe(base);
+    for (let i = 0; i < 5; i++) s = reduce(s, { type: 'roll' }); // 6 Gold total → one payout
+    expect(atk(s, 'd'), 'never paid out after crossing 5 Gold').toBe(base + 3);
+  });
+
+  it('buffs Dwarves only — a Beast on the same board is untouched', () => {
+    let s = armed();
+    const beastBefore = atk(s, 'b');
+    for (let i = 0; i < 6; i++) s = reduce(s, { type: 'roll' });
+    expect(atk(s, 'd')).toBeGreaterThan(CARD_INDEX['dw_brunni']!.attack);
+    expect(atk(s, 'b'), 'a Beast was buffed by a Dwarf reward').toBe(beastBefore);
+  });
+
+  it('is a set-2 Dwarf quest with a 5-Gold threshold', () => {
+    const q = QUEST_DEFS.find((x) => x.id === 'q_golden_ledger')!;
+    expect(q.sets).toEqual(['set2']);
+    const r = q.reward as { kind: string; per?: number; tribe?: string };
+    expect(r.kind).toBe('questGoldTribeBuff');
+    expect(r.per).toBe(5);
+    expect(r.tribe).toBe('dwarf');
   });
 });

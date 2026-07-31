@@ -52,6 +52,12 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Win ${o.count} ${o.count === 1 ? 'round' : 'rounds'}`;
     case 'castSpell':
       return `Cast ${o.count} Shop spells`;
+    case 'castRuby':
+      return `Cast ${o.count} ${o.count === 1 ? 'Ruby' : 'Rubies'}`;
+    case 'shopStats':
+      return `Grant ${o.count} total stats to Shop minions`;
+    case 'consumeShopMinion':
+      return `Consume ${o.count} Shop minions`;
     case 'authorsHand':
       return `Trigger Shout, Echo, and Rally ${o.count} times each`;
     case 'sell':
@@ -117,6 +123,31 @@ function keywordPhrase(kws: Keyword[]): string {
  * value instead of the authored one: Warm Embers' remaining Shout-doubles, and Trail Rations' live repeat
  * countdown / whether the repeat has already fired.
  */
+/**
+ * Every recurring End-of-Turn effect's display line. A RECORD, not an if-chain: the previous chain ended in a
+ * bare `: 'End of Turn: get a random Shout minion'`, so six effects that had no branch — including Open Tab's
+ * `grantAles` — printed a sentence describing a completely different reward. Typing this as a total Record over
+ * the union means a new effect fails to compile until its text is written.
+ */
+const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' }>['effect'], string> = {
+  triggerLeftmostShout: 'End of Turn: trigger your leftmost Shout',
+  grantRandomShout: 'End of Turn: get a random Shout minion',
+  grantRandomAttachments: 'End of Turn: get 2 random Attachments',
+  buffMechsPerAttachment: 'End of Turn: give your Mechs +2/+2 for every Attachment they have',
+  runeSpending: 'End of Turn: gain +1 max Gold, and give your leftmost minion +N/+N for the Gold you spent this turn',
+  runeAction: 'End of Turn: give your leftmost minion +1/+1 for every card you played this turn',
+  triggerLeftmostEcho: "End of Turn: trigger your leftmost minion's Echo",
+  weldMoneyBotsEdgeMechs: 'End of Turn: weld a Money Bot onto your leftmost and rightmost Mech',
+  undeadPlayedAtk: 'End of Turn: your Undead gain +3 Attack for each card you played this turn',
+  attachClingDrones: 'End of Turn: weld a Cling Drone onto up to 3 of your Mechs',
+  recastFirstSpell: 'End of Turn: cast the first spell you cast this turn again',
+  grantAles: 'End of Turn: get 2 Dwarven Ales',
+  copyFirstSpell: 'End of Turn: get a copy of the first spell you cast this turn',
+  grantRuby: 'End of Turn: get a Ruby',
+  grantFacetwright: "Start of every turn: get a Facetwright's Choice",
+  demonEatsRightmostShop: 'End of Turn: your left-most Demon Consumes the right-most Shop minion',
+};
+
 export function questRewardText(r: QuestReward, live?: { completed?: boolean; shoutCharges?: number; repeatTurns?: number }): string {
   switch (r.kind) {
     case 'buffBoard':
@@ -126,6 +157,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if (r.randomTribe && (r.randomCount ?? 0) > 0) parts.push(randomMinionPhrase(r.randomTribe, r.randomCount!));
       if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random Shop spell' : `${r.randomSpell} random Shop spells`);
       if (r.randomFilter) parts.push(`a random ${FILTER_NAME[r.randomFilter]} minion${r.randomFilterExactTier ? ' of your tier' : ''}`);
+      if ((r.randomAle ?? 0) > 0) parts.push(r.randomAle === 1 ? 'a random Dwarven Ale' : `${r.randomAle} random Dwarven Ales`);
+      if ((r.randomRuby ?? 0) > 0) parts.push(r.randomRuby === 1 ? 'a Ruby' : `${r.randomRuby} Rubies`);
       // Gilded grants (Leader of the Pack → a Golden Pack Leader). Rendered before the plain cards.
       const goldenCounts = new Map<string, number>();
       for (const id of r.grantGolden ?? []) goldenCounts.set(id, (goldenCounts.get(id) ?? 0) + 1);
@@ -173,6 +206,54 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
+        case 'runeCounterpoint':
+          return 'When a friendly minion dies, your left-most minion attacks immediately';
+        case 'runeOverflow':
+          return `Whenever you summon a minion that does not fit, give your minions +${r.amount ?? 4}/+${r.amount ?? 4} permanently`;
+        case 'runeFoodChain':
+          return "Start of Combat: the first minion you summon gains your left-most Demon's stats this combat";
+        case 'runeAttackingGems':
+          return 'Play a Ruby on all of your minions every friendly attack in combat';
+        case 'runeBrood':
+          return `When you have space in combat, summon an Imp with Ward and Taunt (${r.amount ?? 3} times per combat)`;
+        case 'runeLivingEchoes':
+          return `When you have space, summon a Sunmane Herald that attacks immediately (${r.amount ?? 3} times per combat)`;
+        case 'runeWarChorus':
+          return 'Your first Rally each combat triggers your left-most Shout';
+        case 'runeHuntingBell':
+          return 'Avenge (3): trigger your left-most Rally';
+        case 'runeRemains':
+          return `When you summon 5 minions in combat, give minions in the Shop +${r.amount ?? 3}/+${r.amount ?? 3}`;
+        case 'runeReinvestment':
+          return `After combat, give the next Shop +${r.amount ?? 1}/+${r.amount ?? 1} for every friendly minion you summoned`;
+        case 'runeBloodAndCoin':
+          return `Every 4 friendly deaths in combat, gain ${r.amount ?? 4} Gold next turn`;
+        case 'runeWildHunt':
+          return `When a Beast attacks, give your minions +${r.amount ?? 3} Health and improve this by ${r.amount ?? 3} permanently`;
+        case 'runeLivingTreasure':
+          return 'Your Gemheart Golems gain Rise';
+        case 'runeGemstorm':
+          return `Avenge (2): play ${r.amount ?? 2} Rubies on each friendly Kobold`;
+        case 'runeLastCall':
+          return 'Avenge (3): get a random Dwarven Ale';
+        case 'runeCinderLedger':
+          return `Avenge (3): improve your Imps by +${r.amount ?? 6}/+${r.amount ?? 6} wherever they are`;
+        case 'runeProcession':
+          return "Avenge (4): double your right-most minion's stats";
+        case 'runeVanguard':
+          return 'Start of Combat: give your three left-most minions Critical Strike and Ward';
+        case 'runeFinality':
+          return `When your last minion dies, summon ${r.amount ?? 7} Imps with Ward`;
+        case 'runeHatchery':
+          return 'Minions summoned by an Echo have +3/+3 and Taunt';
+        case 'avengeFirstDouble':
+          return 'Your first Avenge each combat triggers twice';
+        case 'candlelightToll':
+          return 'Give your Kobolds "Echo: get a Ruby"';
+        case 'gemheartCharge':
+          return 'Your Gemheart Golems attack immediately when summoned';
+        case 'burningLegion':
+          return `When an Imp attacks, summon a copy of it if you have room (${r.amount ?? 3} times)`;
         case 'bloodTrail':
           return 'Start of Combat: your leftmost minion gains "Slaughter: get a random Beast" this combat';
         case 'echoingCoop':
@@ -210,12 +291,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'endOfTurnRepeat':
       return 'Your End-of-Turn effects trigger an extra time';
     case 'recurringEndOfTurn':
-      return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout'
-        : r.effect === 'grantRandomAttachments' ? 'End of Turn: get 2 random Attachments'
-        : r.effect === 'buffMechsPerAttachment' ? 'End of Turn: give your Mechs +2/+2 for every Attachment they have'
-        : r.effect === 'undeadPlayedAtk' ? 'End of Turn: your Undead gain +3 Attack for each card you played this turn'
-        : r.effect === 'attachClingDrones' ? 'End of Turn: weld a Cling Drone onto up to 3 of your Mechs'
-        : 'End of Turn: get a random Shout minion';
+      return EOT_EFFECT_TEXT[r.effect];
     case 'gainGold':
       return `Get ${r.amount} Gold`;
     case 'echoRepeat':
@@ -260,6 +336,70 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return r.onWave
         ? `Visit the ${r.forge === 'epic' ? 'Epic ' : ''}Runeforge on turn ${r.onWave}`
         : `Start of next turn, visit the ${r.forge === 'epic' ? 'Epic ' : ''}Runeforge${r.gold ? ` and gain ${r.gold} Gold that turn` : ''}`;
+    // Set 2 quest rewards. These five were shipping with NO text at all — `default: return ''` meant the
+    // quest card showed a name and an objective above an empty reward line.
+    case 'tribeRallySlaughterExtra':
+      return `Your ${TRIBE_PLURAL[r.tribe]} Rallies and Slaughters trigger an additional time`;
+    case 'aleExtraCasts':
+      return (r.amount ?? 1) === 1
+        ? 'Your Dwarven Ales trigger an additional time'
+        : `Your Dwarven Ales trigger ${r.amount} additional times`;
+    case 'questGoldTribeBuff':
+      return `Every ${r.per} Gold spent gives your ${TRIBE_PLURAL[r.tribe]} +${r.attack}/+${r.health}`;
+    case 'rubyStatGain':
+      return `Your Rubies gain +${r.attack}/+${r.health} permanently`;
+    case 'rubyExtraCasts': {
+      const times = r.amount === 1 ? 'an additional time' : `${r.amount} additional times`;
+      return r.scope === 'firstEachTurn'
+        ? `Your first Ruby each turn casts ${times}`
+        : `Your Rubies cast ${times}`;
+    }
+    case 'runeThreshold': {
+      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', shout: 'Shouts you trigger' };
+      const parts: string[] = [];
+      if (r.grantSpell) parts.push(r.grantSpell === 1 ? 'get a random Shop spell' : `get ${r.grantSpell} random Shop spells`);
+      if (r.grantAle) parts.push(r.grantAle === 1 ? 'get a random Dwarven Ale' : `get ${r.grantAle} random Dwarven Ales`);
+      if (r.grantRuby) parts.push(r.grantRuby === 1 ? 'get a Ruby' : `get ${r.grantRuby} Rubies`);
+      if (r.buff) {
+        const who = r.buff.target === 'imps' ? 'your Imps' : r.buff.target === 'shop' ? 'minions in the Shop' : 'the right-most minion in the Shop';
+        parts.push(`give ${who} ${statPhrase(r.buff.attack, r.buff.health)}`);
+      }
+      return `Every ${r.per} ${METER[r.meter]}, ${parts.join(' and ')}${r.oncePerTurn ? ' (once per turn)' : ''}`;
+    }
+    case 'runeFacetwright':
+      return "Your Facetwright's Choice casts give both effects";
+    case 'runeSpellstone':
+      return 'Rubies you cast count as Shop spells';
+    case 'runeWhiteWolf':
+      return 'Once per turn, when you buy a Shop spell, teach it to a Mage-Pup';
+    case 'runeProfitSharing':
+      return `Whenever you gain Gold, give your ${TRIBE_PLURAL[r.tribe]} +${r.attack}/+${r.health}`;
+    case 'runeDuplication':
+      return 'After you forge your Epic Rune, this transforms into a copy of it';
+    case 'runeSharedTable':
+      return `Your Dwarven Ale casts each give one friendly minion of each type +${r.attack}/+${r.health}`;
+    case 'runeRedirection':
+      return 'Rubies played on your left-most minion also cast on your right-most minion';
+    case 'runeBrokerage':
+      return 'Your Ruby Brokers can be triggered endlessly';
+    case 'runeSellRubies':
+      return `Get ${r.count === 1 ? 'a Ruby' : `${r.count} Rubies`} when you sell a minion`;
+    case 'runeOpenMarket':
+      return `The first time you Consume a Shop minion each turn, give your Shop +${r.attack}/+${r.health} permanently`;
+    case 'motherlode':
+      return `Whenever you get a Ruby, play a copy on ${r.count} random friendly ${r.tribe ? TRIBE_PLURAL[r.tribe] : 'minions'}`;
+    case 'consumeDoubleFirstEachTurn':
+      return 'The first time your Demons Consume a Shop minion each turn, they Consume another';
+    case 'spellCost':
+      return `Your Shop spells cost ${r.cost} less`;
+    case 'endlessVerse':
+      return `The first spell you cast each turn casts twice. Trigger ${r.per} Shouts to reset this`;
+    case 'shopBuff':
+      return `Give Shop minions +${r.attack}/+${r.health}`;
+    case 'shopBuffPerShouts':
+      return `Every ${r.per} Shouts you trigger, give Shop minions +${r.attack}/+${r.health}`;
+    case 'shopBuffOnRefresh':
+      return `After you refresh, give Shop minions +${r.attack}/+${r.health}, improving by +${r.step}/+${r.step} every ${r.per} refreshes`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:
@@ -286,6 +426,9 @@ export interface QuestRewardLive {
   /** Den Marker (`beastPlayBuff`): Beasts played/summoned so far (`run.denMarker.count`) — drives the current
    *  per-play grant (base + step × steps done) and the countdown to the next improve. */
   denMarkerCount?: number;
+  /** Endless Inventory (`shopBuffOnRefresh`): the accrued improvement and progress toward the next step —
+   *  drives "Now: … +N/+N per refresh · +1/+1 in 2 more". */
+  shopRefresh?: { grown: number; tick: number };
 }
 
 /** The reward's LIVE ongoing magnitude for the badge tooltip — the CURRENT value a scaling/stat reward is
@@ -297,6 +440,16 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
     return a && (a.attack > 0 || a.health > 0) ? `Now: Beasts ${statPhrase(a.attack, a.health)}` : null;
   };
   switch (r.kind) {
+    case 'shopBuffOnRefresh': {
+      // The magnitude compounds, so the badge must show what the NEXT refresh actually gives — printing the
+      // base rate alone goes stale the moment the first step lands (card-text live-accuracy rule).
+      const g = live.shopRefresh;
+      if (!g) return null;
+      const a = r.attack + g.grown, h = r.health + g.grown;
+      const toNext = r.per > 0 ? r.per - (g.tick % r.per) : 0;
+      const next = r.step > 0 && toNext > 0 ? ` · +${r.step}/+${r.step} in ${toNext} more refresh${toNext === 1 ? '' : 'es'}` : '';
+      return `Now: Shop minions ${statPhrase(a, h)} per refresh${next}`;
+    }
     case 'tribeAura':
       return r.tribe === 'beast' ? beast() : null;
     case 'scalingTribeAura': {

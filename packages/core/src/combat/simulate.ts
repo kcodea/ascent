@@ -16,7 +16,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { extraTriggerFires } from '../types';
+import { ALE_IDS, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES } from '../effects/factories';
@@ -104,6 +104,7 @@ export function simulate(
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
   const rubyBonusGain = { attack: 0, health: 0 };
+  const boardBuffGain = { attack: 0, health: 0 }; // Rune of Overflow — permanent, carried back to the warband
   const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
@@ -277,6 +278,12 @@ export function simulate(
   // Imps the player summoned this combat — the `summonImp` objective.
   let playerImpsSummoned = 0;
   const pitDone: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of Finality's own once-per-fight latch — separate from `pitDone` so holding both runes pays both. */
+  const finalityDone: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of the Wild Hunt's escalating per-attack Health grant, per side. */
+  const wildHuntGrown: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Friendly minions summoned this combat — the Remains' threshold and Reinvestment's settle-time multiplier. */
+  let playerSummonCount = 0;
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
@@ -780,6 +787,32 @@ export function simulate(
     // immediate-attack queue so it lands + strikes as one beat (the Whelp path). Rune of Aftershocks no
     // longer touches the summon — as of 2026-07-21 it buffs your whole board when an Echo TRIGGERS (see asEcho).
     if (echoDepth > 0 && modsFor(side).runeUndertow) attackNow = true;
+    // Rune of the Hatchery: bodies summoned BY an Echo come in +3/+3 with Taunt. Applied at the summon site so
+    // it lands before the summon snapshot — the replay shows the real body, not the base card.
+    const hatch = echoDepth > 0 ? modsFor(side).runeHatchery : undefined;
+    if (hatch) {
+      minion.attack += hatch.attack;
+      minion.health += hatch.health;
+      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+      if (!minion.keywords.includes('T')) minion.keywords.push('T');
+    }
+    // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
+    // the Whelp and Rune of the Undertow use — so the summon and its strike land as one beat.
+    if (modsFor(side).gemheartCharge && card.id === 'gemheart-shard') attackNow = true;
+    // Rune of Living Treasure: your Gemheart Golems enter with Rise — the keyword IS "summon an exact copy of
+    // this without Echo", so this reuses Rise rather than stamping a bespoke Deathrattle onto the token.
+    // Rune of the Food Chain: the FIRST body summoned this combat inherits the captured Demon stats.
+    const fc = foodChainStats[side];
+    if (fc) {
+      foodChainStats[side] = undefined; // spent — first summon only
+      minion.attack += fc.attack;
+      minion.health += fc.health;
+      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+    }
+    if (modsFor(side).runeLivingTreasure && card.id === 'gemheart-shard') {
+      minion.rebornAvailable = true;
+      if (!minion.keywords.includes('R')) minion.keywords.push('R');
+    }
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
     // the next flushImmediateAttacks — i.e. AFTER the current clash's death cascade fully resolves. So the
@@ -805,6 +838,15 @@ export function simulate(
     // on the wasted body (the combat half of its recruit overflow buff).
     if (living(side).length >= 7) {
       bus.emit('summonOverflow', { side });
+      // Rune of Overflow: a summon that does not fit buffs your whole board PERMANENTLY. Buffed live here so it
+      // matters this fight, and banked for the carry-back so it survives the settle — the word "permanently" is
+      // the whole card, and a combat-only buff would silently drop it.
+      const ov = modsFor(side).runeOverflow ?? 0;
+      if (ov > 0) {
+        nextStep(); fireTrigger('runeOverflow', side);
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ov, ov, 'Rune of Overflow');
+        if (side === 'player') { boardBuffGain.attack += ov; boardBuffGain.health += ov; }
+      }
       return minion;
     }
     const arr = boards[side];
@@ -828,6 +870,16 @@ export function simulate(
     emit({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
     if (side === 'player') {
       bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
+      // Rune of the Remains / Rune of Reinvestment both key off friendly summons. Counted here, at the single
+      // placement chokepoint, so a token, a Rise and a resummon all count exactly once each.
+      if (minion.side === 'player') {
+        playerSummonCount += 1;
+        const remains = modsFor('player').runeRemains ?? 0;
+        if (remains > 0 && playerSummonCount % 5 === 0) {
+          fireTrigger('runeRemains', 'player');
+          ctx.gainTavernBuy(remains, remains, 'player');
+        }
+      }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
     bus.emit('onSummon', { minion, side });
@@ -864,6 +916,80 @@ export function simulate(
     } finally { echoDepth--; }
   };
 
+  /** The Burning Legion's per-side use counter. */
+  const burningLegionSpent: Record<string, number> = {};
+  /** Can this body take a FREE rally — a card Rally, a welded Mech rally, or a welded spell rally? */
+  const canRally = (m: Minion): boolean => {
+    if (m.dead || m.health <= 0) return false;
+    return (m.keywords.includes('RL') && m.effects.some((e) => e.on === 'onAttack'))
+      || (m.rallyMechAtk ?? 0) > 0 || (m.rallySpellWeld ?? 0) > 0;
+  };
+
+  /**
+   * Fire one minion's Rally WITHOUT an attack. Extracted from Rune of Rallying (2026-07-30) so the Hunting
+   * Bell's Avenge-paced rally is the same thing rather than a near-copy — the tally bump below was already
+   * missed once in the original (audit 2026-07-21), and a second hand-rolled copy would drift the same way.
+   * Callers own the `nextStep()` and the badge pulse; this owns what a rally IS.
+   */
+  const fireFreeRally = (minion: Minion, side: Side): void => {
+    emit({ type: 'sc', source: minion.uid, text: 'Rally' });
+    // A free rally is still a Rally TRIGGER — it counts toward the Rally quests and the Author's Hand rally
+    // half exactly like an attack-path rally. Player-only, like every tally.
+    if (side === 'player') bumpRally(1);
+    if (minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack')) {
+      for (const effect of minion.effects) {
+        if (effect.on !== 'onAttack') continue;
+        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+      }
+    }
+    if ((minion.rallyMechAtk ?? 0) > 0) {
+      for (const m of boards[side]) {
+        if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
+      }
+    }
+    if ((minion.rallySpellWeld ?? 0) > 0) { // player-only: grantToHand is a no-op for a served enemy
+      const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token);
+      if (pool.length > 0) for (let i = 0; i < minion.rallySpellWeld!; i++) ctx.grantToHand(ctx.rng.pick(pool).id, minion.side, minion.uid);
+    }
+  };
+
+  /** Per-side use counts for the two "while you have room" runes — both are bounded per combat. */
+  const broodSpent: Record<Side, number> = { player: 0, enemy: 0 };
+  const echoesSpent: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Rune of the War Chorus' once-per-combat latch, per side. */
+  const warChorusSpent: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of the Food Chain: the left-most Demon's stats, captured at Start of Combat and spent on the first
+   *  summon. Captured rather than read live, so a Demon that dies before the summon still pays out — the rune
+   *  reads as a Start-of-Combat promise, not a lookup at an arbitrary later moment. */
+  const foodChainStats: Record<Side, { attack: number; health: number } | undefined> = { player: undefined, enemy: undefined };
+  /**
+   * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
+   *
+   * Called after each attack's death cascade settles (beside `flushResummons`) — the moment a slot actually
+   * frees up. BOUNDED per combat: an unbounded version refills every slot the instant it empties, so a board
+   * can never shrink and the fight stops resolving.
+   */
+  function fillFreeSlots(): void {
+    for (const side of ['player', 'enemy'] as Side[]) {
+      const brood = modsFor(side).runeBrood ?? 0;
+      const imp = cards['impscrap'];
+      while (brood > 0 && broodSpent[side] < brood && countLiving(side) < 7 && imp) {
+        broodSpent[side] += 1;
+        nextStep(); fireTrigger('runeBrood', side);
+        summonMinion(side, imp, undefined, ['DS', 'T']);
+      }
+      const echoes = modsFor(side).runeLivingEchoes ?? 0;
+      const herald = cards['b2_sunmane'];
+      while (echoes > 0 && echoesSpent[side] < echoes && countLiving(side) < 7 && herald) {
+        echoesSpent[side] += 1;
+        nextStep(); fireTrigger('runeLivingEchoes', side);
+        summonMinion(side, herald, undefined, undefined, false, true); // attacks immediately
+      }
+    }
+  }
+
+  /** The Sealed Vault's once-per-combat latch, per side. */
+  const avengeDoubleSpent: Record<string, boolean> = {};
   function registerEffect(minion: Minion, effect: EffectDef): void {
     const fn = FACTORIES[effect.do];
     if (!fn) return; // recruit-phase effects without a combat factory are inert here
@@ -898,6 +1024,22 @@ export function simulate(
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {
         fn(ctx, minion, effect.params ?? {}, payload);
+      }
+      // The Sealed Vault: the FIRST Avenge each combat triggers twice — tracked per side, so a served enemy
+      // holding the same quest gets its own re-fire rather than sharing the player's.
+      //
+      // The `avenge` bus event fires on EVERY friendly death, and each avenge factory decides for itself
+      // whether this death meets its threshold (`count % params.count !== 0 → return`). So the latch has to be
+      // spent on a death that actually PAYS OUT, not on the first death that merely broadcasts: latching on the
+      // broadcast burned the doubler on a no-op and the reward did nothing at any board size. Every avenge
+      // effect in content declares `params.count`, so the threshold is readable here.
+      else if (modsFor(minion.side).avengeFirstDouble && effect.on === 'avenge' && !avengeDoubleSpent[minion.side]) {
+        const threshold = Math.max(1, Number((effect.params as { count?: number } | undefined)?.count ?? 0) || 1);
+        const deaths = Number((payload as { count?: number }).count ?? 0);
+        if (deaths > 0 && deaths % threshold === 0) {
+          avengeDoubleSpent[minion.side] = true;
+          fn(ctx, minion, effect.params ?? {}, payload);
+        }
       }
     });
   }
@@ -996,6 +1138,9 @@ export function simulate(
     const mods = modsFor(attacker.side); // per-side: a served enemy's Law of Teeth / Infinite Assembly / Spark Permit apply too
     let extra = 0;
     if (mods.lawOfTeeth && isBeast(attacker)) extra += 1;
+    // The tribe-parameterised twin (War Council and friends). Kept beside `lawOfTeeth` rather than replacing it:
+    // the Beast flag is load-bearing for existing runs and saved boards.
+    if (mods.tribeRallySlaughterExtra && isTribeOf(attacker, mods.tribeRallySlaughterExtra, cards)) extra += 1;
     if (attacker.side === 'player' && playerRallyDouble) extra += 1; // Rallying Offensive is a player-only one-fight override
     extra += mods.rallyExtraAlways ?? 0;
     const first = mods.rallyFirstEachCombat ?? 0;
@@ -1116,6 +1261,12 @@ export function simulate(
     minion.dead = true;
     minion.health = 0;
     emit({ type: 'death', target: minion.uid, side: minion.side });
+    // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
+    // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
+    // carry-back channel every hand grant uses.
+    if (modsFor(minion.side).candlelightToll && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
+      ctx.grantToHand('ruby', minion.side, minion.uid);
+    }
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
     if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
@@ -1159,6 +1310,21 @@ export function simulate(
       pitDone[side] = true;
       const imp = cards['impscrap'];
       if (imp) { nextStep(); for (let i = 0; i < pitImps; i++) summonMinion(side, imp, undefined); }
+    }
+    // Rune of Blood and Coin: every N friendly deaths banks Gold for next turn. Player-only — a served enemy
+    // has no run to carry Gold back into.
+    const bacStep = modsFor(side).runeBloodAndCoin ?? 0;
+    if (bacStep > 0 && side === 'player' && deaths[side] % 4 === 0) {
+      fireTrigger('runeBloodAndCoin', side);
+      bonusGoldGain += bacStep;
+    }
+    // Rune of Finality: the Warded sibling of Pit Without End — same "your last minion died" trigger, but the
+    // Imps arrive with Ward. Its own latch, so holding both runes pays both once rather than one eating the other.
+    const finalImps = modsFor(side).runeFinality ?? 0;
+    if (finalImps > 0 && !finalityDone[side] && countLiving(side) === 0) {
+      finalityDone[side] = true;
+      const imp = cards['impscrap'];
+      if (imp) { nextStep(); for (let i = 0; i < finalImps; i++) summonMinion(side, imp, undefined, ['DS']); }
     }
   }
 
@@ -1297,6 +1463,42 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // Rune of Attacking Gems: every friendly attack plays a Ruby on your whole board. A Ruby is 1/1 plus the
+      // side's Ruby strength — the same body the shop mints — so a late-run board scales with its Rubies.
+      const gems = modsFor(attacker.side).runeAttackingGems ?? 0;
+      if (gems > 0) {
+        const rb = ctx.rubyBonusFor(attacker.side) ?? { attack: 0, health: 0 };
+        nextStep(); fireTrigger('runeAttackingGems', attacker.side);
+        for (const m of boards[attacker.side]) {
+          if (m.dead || m.health <= 0) continue;
+          for (let i = 0; i < gems; i++) ctx.buff(m, 1 + rb.attack, 1 + rb.health, 'Rune of Attacking Gems');
+        }
+      }
+      // Rune of the War Chorus: your FIRST Rally each combat also triggers your left-most Shout. Gated on the
+      // attacker actually having a Rally, so a plain swing does not spend it.
+      if (modsFor(attacker.side).runeWarChorus && !warChorusSpent[attacker.side] && canRally(attacker)) {
+        const lead = boards[attacker.side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay'));
+        if (lead) {
+          warChorusSpent[attacker.side] = true;
+          nextStep(); fireTrigger('runeWarChorus', attacker.side);
+          emit({ type: 'sc', source: lead.uid, text: 'Shout' });
+          for (const effect of lead.effects) {
+            if (effect.on !== 'onPlay') continue;
+            FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side });
+          }
+        }
+      }
+      // The Burning Legion: an attacking Imp summons a copy of itself, while uses remain AND there is room.
+      // Bounded by `burningLegionUses` — an unbounded version fills the board on the first swing and turns
+      // every fight into a 7-Imp wall regardless of what else you built.
+      const legion = modsFor(attacker.side).burningLegionUses ?? 0;
+      if (legion > 0 && cards[attacker.cardId]?.imp && !attacker.dead) {
+        const def = cards[attacker.cardId];
+        if (def && countLiving(attacker.side) < 7) {
+          burningLegionSpent[attacker.side] = (burningLegionSpent[attacker.side] ?? 0) + 1;
+          if (burningLegionSpent[attacker.side]! <= legion) summonMinion(attacker.side, def, attacker.uid);
+        }
+      }
       // Uron: your RALLIES trigger extra times. Deliberately NOT a second bus.emit — that would also
       // re-tick Rally quests and re-notify broadcast ally-attack watchers (Crypt Drake). Only the
       // attacker's own on-attack effects repeat.
@@ -1326,6 +1528,15 @@ export function simulate(
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
+      // Rune of the Wild Hunt: a Beast attacking gives your WHOLE board +N Health and improves N permanently.
+      // Distinct from The Old Hunt, which pumps the Beast-only aura symmetrically — this one is Health-only,
+      // board-wide, and its step GROWS, so it is tracked per side rather than read from a static mod.
+      const wildStep = modsFor(attacker.side).runeWildHunt ?? 0;
+      if (wildStep > 0 && isBeast(attacker)) {
+        wildHuntGrown[attacker.side] += wildStep;
+        const n = wildHuntGrown[attacker.side];
+        for (const m of boards[attacker.side]) if (!m.dead && m.health > 0) ctx.buff(m, 0, n, 'Rune of the Wild Hunt');
+      }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
         // Reworked 2026-07-21: the grant is now SYMMETRIC (+N/+N, was Attack-only), so it pumps both aura
@@ -1507,7 +1718,7 @@ export function simulate(
             }
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
-            if (kmods.lawOfTeeth && killerAlive && isBeast(killer)) {
+            if (killerAlive && ((kmods.lawOfTeeth && isBeast(killer)) || (kmods.tribeRallySlaughterExtra && isTribeOf(killer, kmods.tribeRallySlaughterExtra, cards)))) {
               let refired = false;
               for (const effect of killer.effects) {
                 if (effect.on !== 'onKill') continue;
@@ -1796,6 +2007,30 @@ export function simulate(
     // Rune of Warding: give the RIGHT-most living minion a Ward and DOUBLE its Health (owner ruling 2026-07-29;
     // was the left-most, Ward only). Right-most so it protects the tail your opponent reaches last, and the
     // doubling is why it wants a big body rather than a spare one.
+    // Rune of the Vanguard: give your three LEFT-most living minions Critical Strike and Ward. Left-most (not
+    // right) because these are the bodies that swing first — the Crit wants to land early.
+    // Rune of the Food Chain arms here: capture the left-most living Demon's CURRENT stats.
+    if (rmods.runeFoodChain) {
+      const demon = boards[rside].find((m) => !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon'));
+      if (demon) {
+        foodChainStats[rside] = { attack: demon.attack, health: demon.health };
+        nextStep(); fireTrigger('runeFoodChain', rside);
+      }
+    }
+    if (rmods.runeVanguard) {
+      const front = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, 3);
+      if (front.length > 0) {
+        nextStep(); fireTrigger('runeVanguard', rside);
+        for (const m of front) {
+          if (!m.keywords.includes('CR')) m.keywords.push('CR');
+          if (!m.divineShield) {
+            m.divineShield = true;
+            if (!m.keywords.includes('DS')) m.keywords.push('DS');
+            emit({ type: 'shieldUp', target: m.uid });
+          }
+        }
+      }
+    }
     if (rmods.runeWarding) {
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const lead = living[living.length - 1];
@@ -1806,8 +2041,9 @@ export function simulate(
           if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
           emit({ type: 'shieldUp', target: lead.uid });
         }
-        // Double the CURRENT Health, and lift maxHealth with it so healing/Rise can't clip it back down.
-        const gain = lead.health;
+        // TRIPLE the current Health (owner sheet 2026-07-30; was double), lifting maxHealth with it so
+        // healing/Rise can't clip it back down. `gain` is 2x because it is ADDED to the existing body.
+        const gain = lead.health * 2;
         lead.health += gain;
         lead.maxHealth = Math.max(lead.maxHealth ?? lead.health, lead.health);
         emit({ type: 'buff', target: lead.uid, attack: 0, health: gain, source: lead.uid });
@@ -1830,34 +2066,10 @@ export function simulate(
     if (rmods.runeRallying) {
       let rallyFired = false;
       for (const minion of [...boards[rside]]) {
-        if (minion.dead || minion.health <= 0) continue;
-        const cardRally = minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack');
-        const mechRally = (minion.rallyMechAtk ?? 0) > 0;
-        const spellRally = (minion.rallySpellWeld ?? 0) > 0;
-        if (!cardRally && !mechRally && !spellRally) continue;
+        if (!canRally(minion)) continue;
         nextStep();
         if (!rallyFired) { fireTrigger('runeRallying', rside); rallyFired = true; }
-        emit({ type: 'sc', source: minion.uid, text: 'Rally' });
-        // A free rally is still a Rally trigger — count it toward Rally quests (Spark Permit, Machine Chorus,
-        // Overclocked Core, Infinite Assembly) and the Author's Hand rally half, exactly like an attack-path
-        // rally does. The Echo sibling above already bumps its tally (`bumpDeathrattles`); this block was the
-        // odd one out (audit 2026-07-21, same class as the Uron rally fix #594). Player-only, like every tally.
-        if (rside === 'player') bumpRally(1);
-        if (cardRally) {
-          for (const effect of minion.effects) {
-            if (effect.on !== 'onAttack') continue;
-            FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
-          }
-        }
-        if (mechRally) {
-          for (const m of boards[rside]) {
-            if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
-          }
-        }
-        if (spellRally) { // Perfect Core → spell to hand: player-only (grantToHand is a no-op for the enemy)
-          const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token);
-          if (pool.length > 0) for (let i = 0; i < minion.rallySpellWeld!; i++) ctx.grantToHand(ctx.rng.pick(pool).id, minion.side, minion.uid);
-        }
+        fireFreeRally(minion, rside);
       }
     }
     // Empty Graves (reworked 2026-07-21): give your LEFT-MOST minion "Rally: trigger your left-most Echo".
@@ -1929,6 +2141,54 @@ export function simulate(
   });
   // Economy avenge runes — PLAYER-ONLY (grant to the run's spell power / max Gold; no enemy meaning).
   runeAvenge(4, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
+  // Batch 5 (owner sheet 2026-07-30). All three go through `runeAvenge`, which already owns the modulo, the
+  // per-side mask and the Rune of Fury re-fire — so these are registrations, not new machinery.
+  runeAvenge(3, 'runeLastCall', (m, side) => side === 'player' && !!m.runeLastCall, (side) => {
+    // Player-only: `grantToHand` has no meaning for a served enemy. A set without the Ales grants nothing
+    // rather than injecting cards the run could never otherwise see.
+    const ales = ctx.poolCards(side).filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length > 0) ctx.grantToHand(ctx.rng.pick(ales).id, side, undefined);
+  });
+  runeAvenge(3, 'runeCinderLedger', (m, side) => side === 'player' && !!m.runeCinderLedger, (side) => {
+    const n = modsFor(side).runeCinderLedger ?? 6;
+    ctx.grantImpBuff(n, n, side); // run-wide + carried back, the same channel Imp King uses
+  });
+  // Rune of Counterpoint — Avenge (1), i.e. EVERY friendly death, sends your left-most in for a free swing.
+  //
+  // Routed through `runeAvenge` + `ctx.attackNow` deliberately. An earlier cut queued the strike straight from
+  // the death handler and it never resolved into an attack: measured identical to baseline across two board
+  // shapes, through three different queueing attempts. Solaris Fang has done exactly this from an Avenge for
+  // ages, so the working path was the avenge dispatch, not the raw death site — this uses that.
+  runeAvenge(1, 'runeCounterpoint', (m) => !!m.runeCounterpoint, (side) => {
+    const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.attack > 0);
+    if (lead) ctx.attackNow?.(lead, false);
+  });
+  runeAvenge(3, 'runeHuntingBell', (m) => !!m.runeHuntingBell, (side) => {
+    // Left-MOST rally-capable body, so which minion answers the bell is a seating decision rather than RNG.
+    const lead = boards[side].find(canRally);
+    if (!lead) return;
+    nextStep();
+    fireFreeRally(lead, side);
+  });
+  runeAvenge(2, 'runeGemstorm', (m) => !!m.runeGemstorm, (side) => {
+    // A Ruby is 1/1 plus the side's Ruby strength — `rubyBonusFor` is the same value the shop mints at, so a
+    // late-run Gemstorm pays full value rather than 1/1s.
+    const n = modsFor(side).runeGemstorm ?? 2;
+    const bonus = ctx.rubyBonusFor(side) ?? { attack: 0, health: 0 };
+    const rb = { attack: 1 + bonus.attack, health: 1 + bonus.health };
+    const kobolds = boards[side].filter((m) => !m.dead && m.health > 0 && (m.tribe === 'kobold' || m.tribe2 === 'kobold'));
+    if (kobolds.length === 0) return;
+    nextStep();
+    for (const k of kobolds) for (let i = 0; i < n; i++) ctx.buff(k, rb.attack, rb.health, 'Rune of Gemstorm');
+  });
+  runeAvenge(4, 'runeProcession', (m) => !!m.runeProcession, (side) => {
+    // Right-most LIVING body: doubling a corpse would read as the rune doing nothing.
+    const living = boards[side].filter((m) => !m.dead && m.health > 0);
+    const tail = living[living.length - 1];
+    if (!tail) return;
+    nextStep();
+    ctx.buff(tail, tail.attack, tail.health, 'Rune of the Procession');
+  });
   runeAvenge(4, 'runeSoulTaxes', (m, side) => side === 'player' && !!m.runeSoulTaxes, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
   // Deep Hunger (Demon capstone, reworked 2026-07-21): Avenge (3) → add 2 Fodder to your next shop. Was "the
   // leftmost Demon gains Slaughter: add 3 Fodder". Player-only — a served enemy has no shop to stock.
@@ -2067,6 +2327,7 @@ export function simulate(
     // This attack's death cascade has fully settled — if it freed a player slot, a Reclaimer
     // resummon waiting in the wings reclaims it now (never interleaved mid-summon).
     flushResummons();
+    fillFreeSlots(); // Rune of the Brood / Living Echoes: a slot freed by this cascade gets filled
     flushAscensions(); // a Tara/Spirit Pup that crossed its threshold this attack transforms now (between actions)
     turn = defenderSide;
   }
@@ -2146,6 +2407,13 @@ export function simulate(
       return out;
     });
 
+  // Rune of Reinvestment: pays ONCE when the fight settles, scaled by how many bodies you put on the board.
+  // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip.
+  const reinvest = modsFor('player').runeReinvestment ?? 0;
+  if (reinvest > 0 && playerSummonCount > 0) {
+    tavernBuyGain.attack += reinvest * playerSummonCount;
+    tavernBuyGain.health += reinvest * playerSummonCount;
+  }
   return {
     events,
     result,
@@ -2190,6 +2458,7 @@ export function simulate(
     playerSlaughterCopy: slaughterCopyId,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
+    playerBoardBuffGain: boardBuffGain.attack > 0 || boardBuffGain.health > 0 ? { ...boardBuffGain } : undefined,
     playerMagneticBuffGain: magneticBuffGain.attack > 0 || magneticBuffGain.health > 0 ? magneticBuffGain : undefined,
     playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the

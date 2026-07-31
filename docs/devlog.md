@@ -994,6 +994,595 @@ minified prod code reads `P.useEffect(()=>{r0e()},[])` where `r0e` is `ensureDef
 call, which a surviving DEV guard would have folded to `if(false)` and removed along with it. `score.ts`'s
 channel is there too as `if(o.ch==="fxDef"){if(!oP())continue;`, gated only on `canPlayDefs`. Full gate green:
 typecheck (pkgs + web), lint 0 errors (6 pre-existing warnings), 3087 tests / 161 files, build:web.
+## 2026-07-30 — The last four runes + Chimerus: the Set 2 rune roster is COMPLETE
+
+**Final audit vs the owner's 96-row sheet: 0 cost mismatches, 0 basic/epic mismatches, 0 genuinely missing.**
+(The one name the differ reports, "Rune of Scale", is Rune of Bulk Order — owner ruling.)
+
+- **Rune of the White Wolf** (epic 4) — buying a Shop spell teaches it to a Mage-Pup. Required extracting
+  `teachMagePup` out of `grantMagePupTaught`: the per-turn CAP counts Mentors ON BOARD, so a rune with no body
+  would have computed a ceiling of 0 and silently never taught. The rune now contributes to that same ceiling,
+  so a Mentor plus the rune teaches twice — there is a test for exactly that, since a separate ceiling was the
+  tempting shortcut.
+- **Rune of Overflow** (epic 5) — needed a NEW carry-back channel. Every existing one is tribe-scoped (Imps,
+  Beasts, Fodder, Rubies, spell power, Gold), so an untyped "your minions" buff had nowhere to land and would
+  have vanished at settle, leaving a rune whose headline word — "permanently" — did nothing. Added
+  `CombatResult.playerBoardBuffGain`, folded onto board AND hand at settle.
+- **Rune of the Spellstone** (epic 6) — a Ruby cast counts as a Shop-spell cast, via a narrow
+  `countRubyAsShopSpell` rather than `noteSpellCast`. That function also fires the Ruby+Spell umbrella and
+  spends the Grimoire charge, both of which the Ruby path already does; reusing it would have double-fired every
+  "every N casts" card. A test pins `rubyCasts === 1` after a single Ruby.
+- **Rune of Counterpoint** (epic 7) — **it was working all along.** The earlier session recorded it as a dead
+  no-op after three attempts. The bug was in the MEASUREMENT: total attack events. A grinding fight runs to the
+  same length either way, so an extra out-of-turn swing does not change that total — Solaris Fang, which has
+  queued a strike this exact way for ages, shows no change by that metric either. Counting the LEADER's own
+  swings shows it plainly: 17 without, 20 with. Routed through `runeAvenge(1)` (a friendly death IS Avenge 1)
+  to match the proven Solaris path.
+- **Rune of Chimerus** (epic 3, owner request) — pure data; epic like every other named-minion grant rune.
+
+Verified: typecheck (both), lint (6 pre-existing), 3256 tests, build:web, harness determinism.
+
+**Set 2 content is now complete: 26 quests and the full 96-rune roster**, plus the 12 set-1-scoped runes.
+
+## 2026-07-30 — The gold-gain chokepoint + Rune of Profit Sharing
+
+**`gainGold(state, amount)` is now the single credit path for Gold.** Twelve sites across the reducer and the
+recruit factories each did `state.embers += n` directly — sells, the Bone Throne, hero powers, quest rewards,
+max-Gold grants, the loss consolation, the combat carry-back. Rune of Profit Sharing ("whenever you gain Gold,
+give your Dwarves +3/+3") had nowhere to hang, and wiring eleven of twelve would have shipped a rune that
+silently misses whichever income the twelfth provides — invisible except as "this rune feels inconsistent".
+
+All twelve now route through the chokepoint; the only surviving `embers +=` in the codebase is inside it.
+**All 3237 tests passed unchanged after the reroute**, which is the signal that mattered: the refactor is
+behaviour-preserving, not just compiling.
+
+**Rune of Profit Sharing** (epic 4) rides it. Per-EVENT, not per-Gold — a 10-Gold payout is one +3/+3, where
+per-coin would make it a +30/+30 swing; there is a test for exactly that. Buffs the tribe in hand as well as on
+board, like every other run-wide tribe effect, and a test drives a REAL sell rather than calling `gainGold`
+directly, so the chokepoint is proven to be reached from actual play.
+
+Verified: typecheck (both), lint (6 pre-existing), 3244 tests, build:web, harness determinism.
+
+**Rune queue: 4 remain.** 43 of 47 done — Counterpoint, Overflow, the Spellstone, and the Trophy family are
+the last engine-shaped items.
+
+## 2026-07-30 — perf(lobby): the two hitches — 750 ms to start a lobby, ~20 s to die in one
+
+Owner bug report: "loading into lobby has some slight lag at hero select → game, and then when the player dies
+there's some delay." Both reproduce, and the second was far worse than it read. One root cause: **lobby opponent
+seats were simulated synchronously on the main thread, at the moments the player is waiting on a transition.**
+
+**Measured first, before touching anything** (headless, `packages/tools` throwaway):
+
+```
+createRunLobby (7 hybrid seats)          752 ms
+first playerOpponent after creation       91 ms   ← the SAME work, done a second time
+replayRun(lobby replay) on death      19 527 ms
+live play, round 10                    4 812 ms   ← not reported, but coming
+```
+
+**1. Starting a lobby (750 ms → 21 ms, measured in the app).** Every `hybridSeat` ran a full `autoplayRun` — a
+complete headless run, ~100 ms — to build its recording, seven of them, before the first frame. Worse, they were
+built only to be *probed* ("can this hero be driven?") and then thrown away by `resetLobbyDrivers`, so the whole
+750 ms was immediately paid a second time on first use. Three changes:
+
+- `recordRun` is now **lazy**: the autoplay doesn't run until a board is actually asked for.
+- New optional `SeatDriver.canFieldBoard()` — a cheap probe. `hybridSeat` answers it from its LIVE half (~5 ms
+  vs ~100 ms), which is also the more truthful answer: a hero whose recording comes back empty still fields
+  boards, because `prepare` falls through to live.
+- Recordings are **memoized** by `(seed, heroId)`, so the deliberate driver eviction stays free. Capped at 128.
+
+Also fixed alongside: the probe cached drivers for candidate heroes it then *rejected*, and `resetLobbyDrivers`
+only iterated the seats that made it — leaving live drivers, already advanced to round 1, cached for the session.
+
+**2. Round 1 (950 ms → 4 ms).** Lazy alone just moves the hitch: all seven recordings then land inside the first
+combat. New `warmLobbySeat(lobby, index)` builds one seat's driver + current-round board, and the store drives it
+one seat per `requestIdleCallback` slice during the opening shop phase. Idempotent, so a seat the round reaches
+first simply finds its driver built. Also runs on **resume** — a restored lobby has an empty driver cache (drivers
+are closures rebuilt from seed, never saved), so its seats must be rebuilt AND re-advanced to the current round.
+
+**3. Dying in a lobby (~20 s block → 83 ms longest task).** On the gameover transition the store called
+`saveRunBoards`, which for a lobby run did `replayRun(replay, createLobbyRun(...))` — **re-running the entire
+lobby**, all seven opponent seats, every round. It sits in a `setTimeout(0)`, so the end screen painted and then
+froze. The replay exists because a run is `(seed, action-log)` and re-deriving boards beats storing them; that
+trade inverts completely here. Lobby runs now capture `snapshotBoard` **live**, at exactly the point `replayRun`
+would have (`faceOmen` landed, combat resolved), into a new `capturedBoards` store field, and `saveCapturedBoards`
+persists them with the same stamping. Identical boards, no replay. `capturedBoards` rides along in the autosave so
+a quit-and-resume doesn't lose the boards played before the reload, and `saveRunBoards` now **refuses** a lobby
+replay outright rather than silently capturing boards that were never played.
+
+**What this did NOT fix, deliberately (owner call).** Per-round bot cost. A live `hard` seat's `prepare()` costs
+200–900 ms and grows with board size; six of them advance per round. Difficulty is not the dial — all four tiers
+share an identical search config and differ only in blunder rate. It bites much later than the headless numbers
+suggested, though: with a populated pool three seats are real player runs (17-wave recordings) and the generated
+recordings cover ~9–13, so a live lobby measured **11–35 ms per round through round 13**. Past that, every seat
+is a live bot. Options when it's picked up: advance seats in shop-phase idle time (the mechanism now exists),
+a worker, or a reduced search budget for lobby seats.
+
+Verified: typecheck (both), lint (0 errors, 6 pre-existing warnings), 3237 tests, build:web. Live in the app on a
+throwaway lobby run — `pickHero` 21 ms, round 1 `faceOmen` 3.7 ms + settle 0.8 ms, per-round 11–35 ms to round 13,
+death → end screen rendered ("8th of 8") with 8 boards captured and written to the library, longest task after
+death 83 ms, no console errors.
+
+## 2026-07-30 — Rune tranche 12: Facetwright + Duplication (owner rulings unblocked both)
+
+Both were blocked on questions the owner answered today.
+
+**Rune of Facetwright** (basic 4). "Facetwright's Choice" turned out to be an EXISTING set-2 spell — Choose One:
+your Rubies gain +1 Attack, or +1 Health. So the rune is two halves: a `grantFacetwright` recurring grant, and
+a flag that makes the cast resolve BOTH branches instead of the picked one. The pick still happens; it just
+stops being exclusive. Scoped by card id, since the rune names that card rather than Choose One in general —
+a test contrasts against another Choose One spell to prove the scoping holds.
+
+**Rune of Duplication** (basic 4). Owner ruling: it is only offered when the rune system is on, in which case an
+Epic forge is guaranteed — so it is never a dead pick — and "in the case where a rune gives a minion, the player
+would get 2". Implemented as: the next EPIC rune bought applies its reward a second time, spent on use, and the
+copy is pushed to `ownedRunes` so it shows as a real second badge. Gated on `runeforgeEpic`, so the basic forge
+that sold you Duplication cannot consume its own charge — that has its own test, since it is the obvious way to
+get this wrong.
+
+Verified: typecheck (both), lint (6 pre-existing), 3237 tests, build:web, harness determinism.
+
+**Rune queue: 5 remain.** 42 of 47 done — and only ONE is content work: the Spellstone. The other four
+(Counterpoint, Overflow, Profit Sharing, and Spellstone's Grimoire interaction) all want engine changes:
+an out-of-turn attack queue that accepts a strike from a death cascade, a generic permanent-buff carry-back,
+a single gold-gain chokepoint, and a cast path that can count a Ruby as a spell without double-spending the
+Grimoire charge.
+
+## 2026-07-30 — Rune tranche 11: the Food Chain, Attacking Gems
+
+- **Rune of the Food Chain** (epic 5) — the first minion you summon each combat gains your left-most Demon's
+  stats. The Demon is **captured at Start of Combat**, not read when the summon lands: a Demon that dies in the
+  opening exchange still pays out, so the rune reads as a promise made at the bell rather than a lookup at an
+  arbitrary later moment. Tests pin that only the FIRST summon is fed (a second body comes in at base) and that
+  a Demon-less board changes nothing.
+- **Rune of Attacking Gems** (epic 4) — every friendly attack plays a Ruby on your whole board, minted at
+  `rubyBonusFor(side)` like every other Ruby. The test asserts a plain run buffs +1 and a +4 `rubyBonus` run
+  buffs +5 — a flat 1/1 would pass a shape check and quietly ignore the Kobold engine, the same trap Gemstorm
+  had.
+
+Verified: typecheck (both), lint (6 pre-existing), 3229 tests, build:web, harness determinism.
+
+**Rune queue: 7 remain.** 40 of 47 done. What is left: the Spellstone (buildable, needs care around the
+Grimoire charge), and six blocked items — Counterpoint, Overflow and Profit Sharing on engine work
+(a chokepoint or carry-back channel that does not exist yet), Duplication and Facetwright on owner rulings.
+
+## 2026-07-30 — Rune tranche 10: the Brood, Living Echoes, the War Chorus
+
+Two of these share a shape the engine did not have yet — "while you have room on the board, fill it":
+
+- **Rune of the Brood** (basic 3) — a free slot summons an Imp with Ward and Taunt, **3 times per combat**.
+- **Rune of Living Echoes** (epic 5) — the same shape with a Sunmane Herald that strikes on arrival.
+
+Both run in `fillFreeSlots`, called right after each attack's death cascade settles (beside `flushResummons`) —
+the moment a slot actually frees. **The bound is load-bearing, not flavour**: unbounded, a slot refills the
+instant it empties, the board can never shrink, and the fight stops resolving. Each is capped per side per
+combat, and the tests assert the cap (including a non-default cap, so it is not hard-coded to 3) rather than
+merely that something got summoned.
+
+- **Rune of the War Chorus** (basic 3) — your FIRST Rally each combat also fires your left-most Shout. Gated on
+  the attacker actually having a Rally, so a plain swing cannot spend it — a test pins that a Rally-less board
+  never burns the charge.
+
+**Test note.** The first cut read the summoned card id off the `summon` EVENT; it lives on the event's `minion`
+snapshot. Every Brood/Echoes assertion returned 0 and looked exactly like a dead rune — the War Chorus tests
+passing was the tell that the flag plumbing was fine and the filter was wrong.
+
+Verified: typecheck (both), lint (6 pre-existing), 3222 tests, build:web, harness determinism.
+
+**Rune queue: 9 remain.** 38 of 47 done.
+
+## 2026-07-30 — Rune tranche 9: the Hunting Bell (+ a rally-logic extraction)
+
+**Rune of the Hunting Bell** (basic 4) — Avenge (3): trigger your LEFT-most Rally, free. Left-most rather than
+random, so which minion answers the bell is a seating decision.
+
+The interesting part is what it shares. Rune of Rallying's "fire a Rally without an attack" was ~25 lines inline,
+and that block had ALREADY been caught once missing its Rally-tally bump (audit 2026-07-21, same class as the
+Uron rally fix). A hand-rolled second copy would have drifted the same way, so the logic is now `fireFreeRally`
++ `canRally`, shared by both runes: callers own the step and the badge pulse, the helper owns what a rally IS.
+
+Tests pin the tally as well as the effect, since the tally is the half that silently goes missing — plus a
+regression test that Rune of Rallying still fires and still counts after the extraction.
+
+Verified: typecheck (both), lint (6 pre-existing), 3212 tests, build:web, harness determinism.
+
+**Rune queue: 12 remain.** 35 of 47 done.
+
+## 2026-07-30 — Set 2 art re-wired (149 cards) + two real payload bugs
+
+Owner redid the whole Set 2 art pass. Re-ran `npm run art:wire` (the script is now registered in package.json;
+it had only ever been run directly). **149 matched, 24 unmatched, 7 set-2 minions still have no art.**
+
+Four new aliases for attributed files whose name no longer matches the card: `BigHuggies.png` -> `dm_velvet`
+(the card is **Bug** Huggies — one letter apart, flagged to the owner), `GemShard.png` -> `gemheart-shard`,
+`GroveweaverAlt2.png` -> the `b2_groveweaver2` slot, and `CinderChancellor` -> `dm_chancellor` (pre-rename name,
+now filling the `2` variant while `RougeRogue.png` takes the base).
+
+Three defects found while doing it — the wiring "worked" in all three cases and would have shipped wrong:
+
+1. **The webp shadow.** `indexArt` resolves `.webp` over `.png` for the same id. Dropping fresh PNGs beside
+   stale WEBPs changed nothing on screen — the old art kept winning and the tool reported 149 happy matches.
+   The tool now regenerates each webp sibling from the new source via sharp. First run after the fix: 109 files
+   actually changed, where the naive copy had moved 6.
+2. **Resolution drift.** Every art file already in the repo is 512x512; the new masters are ~1254. Shipping
+   them raw took each webp from ~78KB to ~350KB across 150 assets. Both outputs are now resized to 512.
+3. **Dead-weight PNGs.** Vite's glob emits every matched file, so the PNGs ship in the bundle even though the
+   loader never selects one when a webp exists — 145 raw masters were **322MB** against 20MB of webp. The PNG
+   is now written resized rather than copied. **Bundle: 360MB -> 130MB.**
+
+Also made the tool's precedence deterministic. Two files can target one card (its current name and its
+pre-rename name both in the folder) and whichever copied last used to win by directory-listing luck. Alias
+matches now copy first so an exact current-name match always lands on top, and a new CONTESTED section reports
+every such collision instead of leaving it to be inferred. All 4 collisions resolve to the current-name file.
+
+Verified: the running dev server's own `artFor` resolves every re-wired id (including the two brand-new ones)
+to a `.webp`; each generated file decodes at 512x512. Server RESTARTED, not reloaded — the glob is eager, so
+44 new files would not otherwise appear. Gates: typecheck (both), lint, 3207 tests, build:web, harness.
+
+**Still unwired, for the owner:** 7 minions have no art at all (Storm Chaser, Mineral Master, Runekeg, Moira,
+Oathbound Avenger, Bellringer Voss, Lastlight Marshal). Of the 24 unmatched files, 5 are art for cards that do
+not exist (Cinderwall Captain, Hellrider, Pit Drillmaster, Blu, Mushroom Dragon, Denkeeper Oona), 4 are stale
+pre-rename duplicates now superseded, and the rest are un-attributed (`content3.png`, UUID exports).
+
+## 2026-07-30 — Rune tranche 8: the two Shop carry-backs
+
+- **Rune of the Remains** (basic 3) — every 5 friendly minions summoned in combat buffs the Shop +3/+3.
+- **Rune of Reinvestment** (basic 5) — after combat, the Shop gains +1/+1 per friendly minion summoned. Paid
+  ONCE at settle rather than per summon, so the Shop sees one combined buff instead of a drip.
+
+Both count summons at the single placement chokepoint (`bumpQuestTally('summonCombat', …)`), so a token, a Rise
+and a resummon each count exactly once — counting at the call sites instead would have missed or doubled some.
+Both write `tavernBuyGain` ADDITIVELY; a test holds both runes and asserts the total is the sum, since writing
+rather than adding would have let one silently replace the other.
+
+Tests derive their expectations from the summons the fight actually produced, not from an assumed count — the
+same discipline the Last Call test needed.
+
+**DEFERRED — Rune of Overflow** ("whenever you summon a minion that does not fit, give your minions +4/+4
+permanently"). There is no permanent board-buff carry-back channel in `CombatResult`: combat buffs vanish at
+settle, and the existing carry-backs are all typed (Imps, Beasts, Fodder, tavern, Ruby, spell power, Gold).
+Making "your minions" persist needs a new generic channel, which is engine work rather than content, and doing
+it wrong ships a rune whose headline word — "permanently" — silently does nothing.
+
+Verified: typecheck (both), lint (6 pre-existing), 3207 tests, build:web, harness determinism.
+
+**Rune queue: 13 remain.** 34 of 47 done.
+
+## 2026-07-30 — Rune tranche 7: Blood and Coin, the Wild Hunt, Living Treasure
+
+- **Rune of Blood and Coin** (basic 3) — every 4 friendly deaths banks 4 Gold for next turn, through
+  `bonusGoldGain` (the Bounty Bot carry-back channel). Player-only: a served enemy has no run to carry Gold into.
+- **Rune of the Wild Hunt** (epic 3) — a Beast attacking gives your WHOLE board +3 Health, and the step GROWS.
+  Deliberately distinct from The Old Hunt, which pumps the Beast-only aura symmetrically at a fixed rate: this
+  one is Health-only, board-wide, and escalating, so it tracks its own per-side accumulator rather than reading
+  a static mod. The test pins that the first grant is 3 and a later one is strictly larger — a flat
+  implementation passes every shape check and quietly drops the "improve permanently" half.
+- **Rune of Living Treasure** (epic 4) — your Gemheart Golems gain **Rise**. The sheet's wording, "Echo: Summon
+  an exact copy of this without Echo", IS Rise, so this reuses the keyword rather than stamping a bespoke
+  Deathrattle onto the token.
+
+Verified: typecheck (both), lint (6 pre-existing), 3201 tests, build:web, harness determinism.
+
+**Rune queue: 15 remain.** 32 of 47 done. What is left is the hard tail — mostly one-offs with no existing
+machinery to lean on, plus the three blocked items (Counterpoint, Duplication, Facetwright) and Profit Sharing,
+which needs a gold-gain chokepoint the reducer does not currently have.
+
+## 2026-07-30 — Rune audit (clean) + tranche 6 (4 runes)
+
+**Audit vs the owner's 96-row sheet: 0 cost mismatches, 0 basic/epic mismatches.** Of the 12 runes in the game
+but not on the sheet, 11 carry `sets: ['set1']` as the owner ruled; the twelfth is Rune of Bulk Order, which IS
+the sheet's "Rune of Scale" row and so correctly stays in both sets. 22 runes genuinely missing.
+
+**Shipped (4):**
+- **Rune of Hunger** (basic 2) — an EoT effect reusing `rightmostShopMinion` + `consumeShopMinion`, so the
+  eater gains exactly what a card-driven Consume gives.
+- **Rune of the Shared Table** (epic 3) — every Ale cast buffs ONE friendly minion of each type, using the same
+  one-per-tribe spread Fatecarver uses (a dual-tribe body fills both slots rather than being counted twice).
+- **Rune of Redirection** (epic 4) — a Ruby on your left-most also casts on your right-most, firing the second
+  target's own on-Ruby watchers so it is a real cast rather than a silent stat copy. Guarded against a
+  one-minion board, where left-most IS right-most and the body would otherwise take the Ruby twice.
+- **Rune of Gemstorm** (epic 2) — another `runeAvenge` registration. Rubies are minted at `rubyBonusFor(side)`,
+  the same strength the shop mints at; the test asserts a high-`rubyBonus` run produces strictly bigger buffs,
+  which a flat 1/1 implementation would fail.
+
+**Test note.** The Shared Table test first failed because I built a "Demon" by overriding the instance `tribe`
+on a Beast card. The rune reads the CARD DEF's tribes (matching Fatecarver), so the override was invisible —
+the test now uses a real Demon card. Worth remembering: instance `tribe` and def tribe are not interchangeable
+in tests.
+
+Verified: typecheck (both), lint (6 pre-existing), 3194 tests, build:web, harness determinism.
+
+**Rune queue: 18 remain.** 29 of 47 done.
+
+## 2026-07-30 — Rune tranche 5: the Avenge batch (3 runes, zero new machinery)
+
+`runeAvenge` already existed (Broodpit / Spearline / Appraisal / Soul Taxes) and owns the modulo, the per-side
+mask and the Rune of Fury re-fire — so these three are REGISTRATIONS, not new engine work:
+
+- **Rune of Last Call** (basic 1) — Avenge (3): a random Dwarven Ale to hand. Player-only (`grantToHand` has no
+  meaning for a served enemy), and a set without the Ales grants nothing rather than injecting unreachable cards.
+- **Rune of the Cinder Ledger** (epic 3) — Avenge (3): improve your Imps +6/+6 run-wide, through `grantImpBuff`
+  — the same carry-back channel Imp King uses. A combat-only buff would vanish at settle and the rune would read
+  as "improve your Imps" while improving nothing that lasts; the test asserts `playerImpBuffGain`.
+- **Rune of the Procession** (epic 3) — Avenge (4): double your right-most LIVING minion. Living, because
+  doubling a corpse reads as the rune doing nothing.
+
+**A test-authoring note worth keeping.** The first Last Call test asserted "2 fodder = no payout" and failed:
+the back-line body I assumed would survive did not, so the fight produced 3 deaths and the rune correctly paid.
+The test now derives the expectation from the deaths the fight ACTUALLY produced (`floor(deaths / 3)`) rather
+than from the board size. Assuming a death count silently tests the wrong threshold.
+
+Verified: typecheck (both), lint (6 pre-existing), 3184 tests, build:web, harness determinism.
+
+**Rune queue: 22 remain.** 25 of 47 done.
+
+## 2026-07-30 — Rune tranche 4: the recruit-phase batch (5 runes)
+
+Deliberately chosen as a group: every one hangs off a SINGLE existing chokepoint, so none carried the
+out-of-turn-queue risk that stopped Counterpoint.
+
+- **Rune of Resonance** (basic 1) — two existing primitives: `rubyExtraCasts`/`firstEachTurn` plus a new
+  `grantRuby` End-of-Turn effect. The EoT Ruby is MINTED (base 1/1 + live `rubyBonus`), not conjured, like every
+  other Ruby source.
+- **Rune of Investment** (basic 1) — the sell path mints Rubies, also at live strength.
+- **Rune of the Open Market** (epic 2) — rides the Consume chokepoint with its OWN per-turn latch. It shares the
+  trigger with Bottomless Banquet but not the effect; one shared latch would let the quest silently suppress the
+  rune. A test holds both and asserts the Shop buff AND the doubled Consume.
+- **Rune of Runic Exchange** (epic 2) — a new `spellCastNonAle` meter. The payout IS an Ale, so counting Ales
+  would let the rune feed itself; the test casts five Ales and asserts zero progress.
+- **Rune of the Brokerage** (epic 2) — lifts the Ruby Broker per-turn cap. The tick still counts (the inspect
+  panel reads it), it just stops gating.
+
+**The exhaustive `Record`s paid off twice this commit.** Adding the `grantRuby` EoT effect and the
+`spellCastNonAle` meter both failed to compile until their display text was written — which is exactly what
+those types were introduced for after the Open Tab blank-text defect.
+
+Verified: typecheck (both), lint (6 pre-existing), 3177 tests, build:web, harness determinism.
+
+**Rune queue: 25 remain.** 22 of 47 done.
+
+## 2026-07-30 — Rune tranche 3: four combat flags + a Warding correction
+
+**Shipped (4):**
+- **Rune of the Stampede** (basic 4) — pure data; `rallyRepeat`/`firstEachCombat` already existed.
+- **Rune of the Hatchery** (basic 4) — Echo summons enter +3/+3 with Taunt. Applied at the summon site, BEFORE
+  the summon snapshot, so the replay shows the real body rather than the base card.
+- **Rune of the Vanguard** (epic 1) — Start of Combat, your three left-most gain Critical Strike + Ward.
+  Left-most (not right, like Warding) because these are the bodies that swing first — the Crit wants to land early.
+- **Rune of Finality** (epic 6) — the Warded sibling of Pit Without End, with its OWN once-per-fight latch.
+  Sharing `pitDone` would let whichever ran first silently eat the other, and the loss would be invisible except
+  as "this rune feels weak". A test holds both runes and asserts 14 Imps.
+
+**Rune of Warding corrected**: the sheet says TRIPLE its Health; the game doubled. Fixed, with a test asserting
+a 20-Health body gains +40.
+
+**HELD BACK — Rune of Counterpoint.** "When a friendly minion dies, your left-most minion attacks immediately."
+The flag fires (the `questTrigger` event is emitted, verified), but the queued strike never resolves into an
+`attack` event: measured 14 attacks with and without, across two board shapes. Tried three routes — pushing
+`pendingAttackOnSummon` directly, `ctx.attackNow`, and `ctx.attackNow` followed by an explicit
+`flushImmediateAttacks()` — all three no-ops. The out-of-turn attack queue evidently does not accept a strike
+queued from inside a death cascade the way it does from Start of Combat (First Claws) or an Avenge (Solaris
+Fang), and finding out why is a combat-core investigation, not a content change.
+
+Pulled the rune, the flag, and the sim block rather than ship a rune that reads correctly and does nothing —
+the same failure mode as the first cut of The Sealed Vault. Worth picking up with fresh context.
+
+Verified: typecheck (both), lint (6 pre-existing), 3167 tests, build:web, harness determinism.
+
+**Rune queue: 30 remain.** 17 of 47 done.
+
+## 2026-07-30 — Fatecarver's spell branch: verified, not rewired
+
+Owner ask: "Fatecarver should trigger from things like Runefire's end of turn effect." Investigated before
+changing anything — and the wiring was already correct. Every spell-cast path in the game funnels through
+`castSpell` → `noteSpellCast`, or calls `noteSpellCast` directly (the two Discover paths), and Fatecarver's
+branch is a `spellCast` watcher fired by that one chokepoint. Runefire's `endOfTurnRecastFirstSpell` recasts via
+`castSpell`, so it always counted.
+
+So this commit adds no behaviour — it adds the tests that were missing, because "already works" is only worth
+anything if something holds it in place. Covered: Runefire's EoT recast, a direct `castSpell`, a spell played
+from hand, and a MULTI-cast spell (Ancient Runes doubling) firing Fatecarver once per cast rather than once per
+play. Plus the negative: branch B (attack) staying silent on spell casts, since a leaking `option` gate would
+grant both halves.
+
+**A note on how the tests are written.** The first cut asserted absolute Attack totals and failed — not because
+Fatecarver was broken, but because Growth buffs the target itself, so the number measured both effects at once
+and would have passed with either one broken. Every assertion now compares against the SAME board without
+Fatecarver, so it measures only Fatecarver's contribution. That is the honest shape for any "does X also
+trigger" test.
+
+Verified: typecheck (both), lint (6 pre-existing), 3160 tests, build:web, harness determinism.
+
+## 2026-07-30 — Rune tranche 2: the threshold group (7 runes, one primitive)
+
+`runeThreshold` — "every `per` of `meter`, do one thing". ONE reward kind rather than a family of
+near-identical ones, because these runes differ only in which meter they watch and what they pay. A hook per
+rune would drift on the parts that must NOT differ, and each drift would look correct in isolation:
+- the remainder BANKS across transactions (9 Gold then 6 Gold pays a 15-Gold rune once);
+- a single large transaction pays EVERY threshold it crosses (32 Gold against a 15-Gold rune owes two payouts,
+  not one — a naive `if (tick >= per)` swallows the rest);
+- `oncePerTurn` caps payouts per TURN, not per run (the Merchant's Chorus).
+
+Armed as an ARRAY, so several threshold runes can be held at once and each keeps its own bank — a shared
+counter would give the wrong total when a per-5 and a per-15 rune are both held.
+
+Meters wired to the real play paths: `gold` (applyGoldSpent), `cardsBought` (applyCardsBought), `spellCast`
+(noteSpellCast — every cast path routes through it), `castRuby` (the reducer's Ruby cast site), `shout`
+(`lastShoutFires`, the same field the Shout quest objective reads).
+
+Shipped: the Chorus, Overtime, Infernal Ink, the Cindergem, the Showcase, the Merchant's Chorus (basic), the
+Long Shift (epic). Two details worth keeping: `shopRightmost` buffs the OFFER rather than `tavernBuyBonus`, so
+the Showcase can't leak onto every future shop; and a `grantSpell` payout excludes Ales, since Ales are Shop
+spells in set 2 and an unfiltered grant would hand them to runes that never mention them.
+
+Verified: typecheck (both), lint (6 pre-existing), 3155 tests, build:web, harness determinism.
+
+**Rune queue: 34 remain.** Groups left: Shop-row manipulation (Hunger, Open Market, Reinvestment), combat flags
+(Vanguard, Counterpoint, Finality, Food Chain, Overflow, Procession, Wild Hunt, Living Echoes, Stampede, Brood,
+Hatchery, War Chorus, Hunting Bell, Last Call, Gemstorm, Cinder Ledger, Attacking Gems, Living Treasure),
+combat-to-shop carry-backs (Blood and Coin, the Remains, Trophy-likes), and genuine one-offs (Duplication,
+Facetwright, Spellstone, Brokerage, Resonance, Redirection, Investment, Profit Sharing, Shared Table, White
+Wolf, Runic Exchange — the last needs an Ale-excluding spell meter).
+
+## 2026-07-30 — First rune tranche: the six that needed no new machinery
+
+Six runes, all reusing primitives built for the quests — which is what the parameterised approach was for:
+- **Rune of Recollection** (basic 3) — `copyFirstSpell`, shared with Runic Refrain.
+- **Rune of the First Round** (basic 4) — `grantAles`, shared with Open Tab.
+- **Rune of the Motherlode** (epic 5) — the Motherlode quest's primitive with `tribe` made OPTIONAL: the rune
+  hits any friendly minion, the quest only Kobolds. One primitive, two scopes.
+- **Rune of Adventuring** (epic 6) — `rallyRepeat` / `always`.
+- **Rune of the Choir** (epic 4) — `shoutRepeat` / `always` + a random Shout minion.
+- **Rune of the High King** (epic 4) — grants Dwarf King, Brill.
+
+`rune_brisbane` renamed **Rune of High King Mykel → Rune of Mykel** (cost 5 → 4) to match the sheet. The sheet
+lists TWO Dwarf-king runes and the game had one; Mykel grants `dw_brisbane`, the High King grants `dw_brill`.
+A test pins that they differ, since confusing them would silently make one rune a duplicate of the other.
+
+Also loosened `RUNES.length` from a bare hardcoded number to a commented tripwire — it exists to force a
+deliberate look when runes are added, not to specify a total.
+
+Verified: typecheck (both), lint (6 pre-existing), 3144 tests, build:web, harness determinism.
+
+**Rune queue: 41 remain** (21 basic, 20 epic). The rest need new machinery — mostly threshold triggers
+(every-N-Rubies / spells / buys / deaths), Shop-row manipulation, and a handful of new combat flags.
+
+## 2026-07-30 — Three renames, set-1 rune scoping, Bulk Order retuned
+
+**Renames** (owner 2026-07-30): Display Curator → **Soul Defiler**, Velvet Rope Fiend → **Bug Huggies**, Cinder
+Chancellor → **Rouge Rogue**. Card *ids* are unchanged (`dm_curator`, `dm_velvet`, `dm_chancellor`), so the art
+files — keyed by id, not name — survive untouched. Historical devlog entries were deliberately NOT rewritten:
+they are a record of what was true when written.
+
+**Set-1 rune scoping.** Owner ruling: every rune absent from the set-2 sheet is set-1 specific. Ten runes gained
+`sets: ['set1']` (Frontline Glory, Mastery, Pillaging, Reconfiguration, Soul Taxes, Den Mother, Feast, Spearline,
+Warden, Rising Graves); eleven already carried it from the earlier scoping pass.
+
+**Rune of Bulk Order** keeps its name (owner ruling — the sheet's "Rune of Scale" row IS this rune), so it is NOT
+set-1 scoped. But the sheet retunes its effect: "Whenever you spend Gold, 3 random allies +2/+2" →
+**"Every 5 Gold spent, 3 random allies +3/+3"**. `runeScale` gained an optional `per` threshold that BANKS the
+remainder across transactions — two 3-Gold buys pay once, and a 10-Gold buy pays twice. Absent `per`, it still
+falls back to once-per-transaction, so no other rune using the kind changed behaviour.
+
+**rune_brisbane** confirmed as High King Mykel (owner) — no change needed. **Martial Training** is dropped from
+the quest roster (owner: "master at arms quest is removed"), so Set 2's quests are COMPLETE at 26.
+
+Verified: typecheck (both), lint (6 pre-existing), 3140 tests, build:web, harness determinism.
+
+## 2026-07-30 — Bane's Presence correction + the rune-roster audit
+
+**Bane's Presence** — owner correction: "the effect is repeatable, not the quest." Dropped `repeatable: true`.
+The reward arms a standing rule that pays every 3 Shouts forever; the quest completes once. Marking the QUEST
+repeatable would re-award the rule and stack it, paying several times per 3 Shouts.
+
+**Rune audit** against the owner's 96-row sheet (2026-07-30). Game has 70 runes; 48 matched by name.
+- **26 cost corrections applied** — pure data, sheet authoritative. Verified: 0 remaining mismatches.
+- **48 runes on the sheet do not exist in the game** (23 basic, 25 epic) — the build queue.
+- **22 runes exist in the game but are not on the sheet** — mostly set-1 Mech/Undead/Fodder runes (Structure,
+  Tempering, Salvage, Spare Parts, Banking, Replication, Rising Graves, Spearline, Soul Taxes, Armory, …). These
+  are probably still wanted for set 1 rather than deletions, but that is an owner call — NOT actioned.
+- **0 basic/epic tier mismatches.**
+
+Two naming collisions needing an owner ruling, deliberately left alone:
+1. The sheet lists **Rune of Scale** ("Every 5 Gold spent, give 3 friendly minions +3/+3"), which is exactly
+   `rune_scale` — renamed to **Rune of Bulk Order** on owner instruction 2026-07-29. Revert, or two runes?
+2. The sheet lists both **Rune of the High King** (→ Dwarf King, Brill) and **Rune of Mykel** (→ High King
+   Mykel). The game has one rune, `rune_brisbane`, named "Rune of High King Mykel". Two runes are wanted; which
+   id keeps which grant is unclear.
+
+Verified: typecheck (both), lint (6 pre-existing), 3138 tests, build:web, harness determinism.
+
+## 2026-07-30 — Set 2 quests COMPLETE (26 of 27; one blocked)
+
+The last five: Candlelight Toll, Motherlode, Heart of the Mountain (Kobold), The Burning Legion, Bottomless
+Banquet (Demon). All are run-wide RULES rather than effects stamped onto individual bodies, so a Kobold summoned
+mid-combat or a Ruby minted later inherits them — the property a per-body implementation silently loses.
+
+- `candlelightToll` / `gemheartCharge` / `burningLegion` — combat flags. Burning Legion carries a USE COUNT, not
+  a boolean: unbounded, the first swing turns any board into a 7-Imp wall regardless of what else you built.
+  Gemheart Golems ride the existing `attackNow` queue (the Whelp / Undertow path), so summon and strike land as
+  one beat.
+- `motherlode` — a run-level `onGetRuby` rule minting at base 1/1 + the run's live `rubyBonus`, like every other
+  Ruby source.
+- `consumeDoubleFirstEachTurn` + a new `shopMinionsEaten` meter and `consumeShopMinion` objective. Deliberately
+  separate from the Fodder tally: a set-2 Demon eats the tavern row where a set-1 Demon eats Fodder, and neither
+  quest should be fillable by the other's mechanic. The per-turn latch is set BEFORE the recursive call so the
+  bonus Consume can't re-trigger itself.
+
+**The blank-reward test earned its keep immediately** — it failed this commit on my own three new combat flags,
+plus `avengeFirstDouble` from the previous one, which would otherwise have shipped with empty reward lines.
+
+Verified: typecheck (both), lint (6 pre-existing warnings), 3138 tests, build:web, harness determinism.
+
+**BLOCKED — Martial Training** ("Attack 10 times → get a Master-at-Arms"). That minion does not exist in the
+game; it needs a tribe, tier, stats and text before the quest can be written. Owner call.
+
+## 2026-07-30 — Set 2 quests: the Demon shop line + the Dragon spell line (21 of 27)
+
+**7 more quests.** Demon: Stock the Shelves, Bane's Presence, Endless Inventory. Dragon: Runic Refrain, The
+Endless Verse, The Sealed Vault. Dwarf: The Company Store.
+
+New primitives, all parameterised so the remaining items are data:
+- `shopStats` objective — counts stats granted to shop offers PLUS any rise in the run-wide buy bonus. Counting
+  only visible offers would make a run-wide buff read as zero progress.
+- `shopBuff` / `shopBuffPerShouts` / `shopBuffOnRefresh` — all pay into `tavernBuyBonus`, the channel the Staff
+  of Guel and Contract Butcher already use, so "a quest buffs the shop" and "a card buffs the shop" stay one
+  mechanic. Bane's Presence rides `lastShoutFires`, the same field the Shout objective reads, so a doubled Shout
+  advances quest and reward identically.
+- `endlessVerse` — re-arms Spell Thesis's doubler by clearing `spellFirstUsedThisTurn`, so the two stack rather
+  than being separate doublers.
+- `spellCost` — feeds `spellCostMod`, which Lazarus also writes to.
+- `copyFirstSpell` — an EoT effect that puts a COPY in hand, where Rune of Recurrence's `recastFirstSpell` casts
+  it immediately. Deliberately different rewards.
+- `avengeFirstDouble` combat flag — see below.
+
+**The Sealed Vault took three cuts.** The `avenge` bus event fires on EVERY friendly death; each avenge factory
+then checks its own threshold (`count % params.count !== 0 → return`). Latching the doubler on the first
+BROADCAST burned it on a death that pays nothing, and the reward measured **identical to baseline at every board
+size** while looking correct in review. The latch now spends on the first death that actually pays. Measured:
+Weaver(Avenge 2) with 6 fodder — baseline 3 payouts, Vault 4, Fury 6.
+
+**Second text defect fixed.** `questRewardText`'s `recurringEndOfTurn` branch was an if-chain ending in a bare
+`: 'End of Turn: get a random Shout minion'`, so six effects with no branch — including **Open Tab**'s
+`grantAles` — printed a sentence describing a completely different reward. Replaced with a total `Record` over
+the union, so a new effect fails to compile until its text is written.
+
+Verified: typecheck (both), lint (6 pre-existing warnings), 3129 tests, build:web, harness determinism.
+
+Remaining: 6 quests — Kobold (Candlelight Toll, Motherlode, Heart of the Mountain), Demon (The Burning Legion,
+Bottomless Banquet), Neutral (Martial Training — BLOCKED on Master-at-Arms, which does not exist).
+
+## 2026-07-30 — Set 2 quests: the Kobold line, two grant quests, and a blank-reward defect
+
+**7 quests** (running total 14 of 27). Three small primitives carry the Kobold line, all pushing dials the tribe
+already lives on rather than inventing a third Kobold resource:
+
+- `castRuby` — a quest objective event on its OWN meter, deliberately not folded into `castSpell`. The two must
+  stay unfillable by each other's cards: "Cast 8 Rubies" can't be finished by Shop Spells, and a Dwarf spell
+  quest can't be finished by a Kobold board. Advances by the multiplied cast count off the `rubyCasts` delta.
+- `rubyStatGain` — raises the run's Ruby STRENGTH (`rubyBonus`) and grows Rubies already in hand. Both halves
+  matter: bumping `rubyBonus` alone would leave a held Ruby weaker than one drawn a second later.
+- `rubyExtraCasts` — run-level extra casts, additive with Prismcaster (same channel, so neither shadows the
+  other). `scope: 'firstEachTurn'` is gated on `rubyCastsThisTurn === 0`, which keeps the read side-effect free
+  so the UI's ×N badge can preview it without spending the freebie — the Spell Thesis pattern.
+
+Quests: First Strike, Open the Vein, Gem Circuit, Unstable Riches, Faultline Coronation (Kobold), plus First
+Blood and Market Feast, which are pure data — both minions already ship in set 2.
+
+**Defect found and fixed:** `questRewardText` ends in `default: return ''`, so the three reward kinds shipped in
+the last three commits — `tribeRallySlaughterExtra`, `aleExtraCasts`, `questGoldTribeBuff` — rendered a quest
+card with a name, an objective, and a **blank reward line**. `randomAle` had never been rendered either. All are
+filled in, and a test now walks the real `QUEST_DEFS` asserting no quest renders empty text, so the next reward
+kind added without a text case fails instead of shipping silent.
+
+Verified: typecheck (both projects), lint, 3111 tests, build:web, harness determinism. Kobold quest tests drive
+the REAL objective path — a real buy, a real Ruby cast — rather than reaching past the module-private
+`applyQuestReward`, which would let a reward pass while being unreachable in a game.
+
+Still to go: 13 quests — Dragon (Runic Refrain, The Endless Verse, The Sealed Vault), Demon (Bane's Presence,
+Stock the Shelves, The Burning Legion, Endless Inventory, Bottomless Banquet), Kobold (Candlelight Toll,
+Motherlode, Heart of the Mountain), Dwarf (The Company Store), Neutral (Martial Training — BLOCKED, see below).
 
 ## 2026-07-29 — The Dwarf roster is complete (tranche C)
 

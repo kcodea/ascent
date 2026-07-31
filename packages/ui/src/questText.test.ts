@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { QuestObjective, QuestReward } from '@game/core';
+import { QUEST_DEFS } from '@game/content';
 import { questObjectiveLines, questObjectiveText, questRewardText, questRewardLiveText } from './questText';
 import { stewardText } from './cardText';
 
@@ -119,5 +120,35 @@ describe('questText — live reward magnitude (badge tooltip)', () => {
   });
   it('returns null for a reward with no live-varying magnitude', () => {
     expect(questRewardLiveText({ kind: 'gainGold', amount: 10 }, {})).toBeNull();
+  });
+});
+
+describe('every quest reward renders text', () => {
+  /**
+   * `questRewardText` ends in `default: return ''`, so a reward kind added without a case here ships a quest card
+   * with a name, an objective, and a BLANK reward line — and nothing fails. Three Set-2 kinds shipped that way
+   * before this test existed. Walking the real quest list is the only check that stays true as content grows.
+   */
+  it('no quest in the game has an empty reward line', () => {
+    const blank = QUEST_DEFS.filter((q) => !questRewardText(q.reward).trim()).map((q) => `${q.name} (${q.reward.kind})`);
+    expect(blank, 'these quests render no reward text').toEqual([]);
+  });
+
+  it('the Set-2 reward kinds read as their card text', () => {
+    expect(questRewardText({ kind: 'rubyStatGain', attack: 2, health: 2 })).toBe('Your Rubies gain +2/+2 permanently');
+    expect(questRewardText({ kind: 'rubyExtraCasts', amount: 1, scope: 'always' })).toBe('Your Rubies cast an additional time');
+    expect(questRewardText({ kind: 'rubyExtraCasts', amount: 2, scope: 'firstEachTurn' })).toBe('Your first Ruby each turn casts 2 additional times');
+    expect(questRewardText({ kind: 'questGoldTribeBuff', tribe: 'dwarf', per: 5, attack: 3, health: 3 })).toBe('Every 5 Gold spent gives your Dwarves +3/+3');
+    expect(questRewardText({ kind: 'tribeRallySlaughterExtra', tribe: 'dwarf' })).toBe('Your Dwarves Rallies and Slaughters trigger an additional time');
+  });
+
+  it('Rubies and Ales are named in grant rewards', () => {
+    expect(questRewardText({ kind: 'grant', randomTribe: 'kobold', randomCount: 1, randomRuby: 3 })).toContain('3 Rubies');
+    expect(questRewardText({ kind: 'grant', randomTribe: 'dwarf', randomCount: 1, randomAle: 1 })).toContain('a random Dwarven Ale');
+  });
+
+  it('"Cast N Rubies" is distinct from "Cast N Shop spells"', () => {
+    expect(questObjectiveText({ event: 'castRuby', count: 8 })).toBe('Cast 8 Rubies');
+    expect(questObjectiveText({ event: 'castSpell', count: 8 })).toBe('Cast 8 Shop spells');
   });
 });

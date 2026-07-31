@@ -127,9 +127,39 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_company_recruitment', name: 'Company Recruitment', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 4, tribe: 'dwarf' }, reward: { kind: 'grant', randomTribe: 'dwarf', randomCount: 1, randomAle: 1 }, repeatable: true, sets: ['set2'] },
   { id: 'q_barroom_bounty', name: 'Barroom Bounty', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dwarf' }, reward: { kind: 'grant', cards: ['dw_korr'], grantKeywords: ['W', 'DS'] }, sets: ['set2'] },
   { id: 'q_runic_apprenticeship', name: 'Runic Apprenticeship', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'castSpell', count: 8 }, reward: { kind: 'spellRepeat', scope: 'firstEachTurn' }, sets: ['set2'] },
-  // War Council is NOT shipped: its reward ("your Dwarf Rallies and Slaughters trigger an additional time")
-  // has no reward kind. `lawOfTeeth` is the Beast version and is gated on `isBeast(attacker)` in the sim, so
-  // reusing it would silently grant BEAST triggers on a Dwarf quest. Needs a tribe-parameterised flag.
+  { id: 'q_war_council', name: 'War Council', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'attack', count: 18, tribe: 'dwarf' }, reward: { kind: 'tribeRallySlaughterExtra', tribe: 'dwarf' }, sets: ['set2'] },
+  { id: 'q_open_tab', name: 'Open Tab', tribe: 'dwarf', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 14 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' }, sets: ['set2'] },
+  { id: 'q_bottomless_cellar', name: 'Bottomless Cellar', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'castSpell', count: 15 }, reward: { kind: 'aleExtraCasts', amount: 1 }, sets: ['set2'] },
+  // ── SET 2 — the last Kobold + Demon quests. All five hang off run-wide RULES rather than stamping effects
+  //    onto individual bodies, so minions summoned mid-combat inherit them too.
+  { id: 'q_candlelight_toll', name: 'Candlelight Toll', tribe: 'kobold', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 10 }, reward: { kind: 'combatFlag', flag: 'candlelightToll' }, sets: ['set2'] },
+  { id: 'q_motherlode', name: 'Motherlode', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'spendGold', count: 26 }, reward: { kind: 'motherlode', count: 2, tribe: 'kobold' }, sets: ['set2'] },
+  { id: 'q_heart_of_the_mountain', name: 'Heart of the Mountain', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'shopStats', count: 150 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', grantGolden: ['k_gemheart'] }, { kind: 'combatFlag', flag: 'gemheartCharge' }] }, sets: ['set2'] },
+  { id: 'q_burning_legion', name: 'The Burning Legion', tribe: 'demon', tier: 'greater', wave: 11, objective: { event: 'summonImp', count: 25 }, reward: { kind: 'combatFlag', flag: 'burningLegion', amount: 3 }, sets: ['set2'] },
+  { id: 'q_bottomless_banquet', name: 'Bottomless Banquet', tribe: 'demon', tier: 'greater', wave: 11, objective: { event: 'consumeShopMinion', count: 12 }, reward: { kind: 'consumeDoubleFirstEachTurn' }, sets: ['set2'] },
+  // ── SET 2 — DRAGON (spell half) + the Dwarf capstone. All four hang off spell machinery that already exists:
+  //    `firstSpellThisTurnId`, Spell Thesis's per-turn doubler, `spellCostMod`, and the Avenge re-fire.
+  { id: 'q_runic_refrain', name: 'Runic Refrain', tribe: 'dragon', tier: 'lesser', wave: 5, objective: { event: 'castSpell', count: 12 }, reward: { kind: 'recurringEndOfTurn', effect: 'copyFirstSpell' }, sets: ['set2'] },
+  { id: 'q_endless_verse', name: 'The Endless Verse', tribe: 'dragon', tier: 'greater', wave: 11, objective: { event: 'castSpell', count: 22 }, reward: { kind: 'endlessVerse', per: 3 }, sets: ['set2'] },
+  { id: 'q_sealed_vault', name: 'The Sealed Vault', tribe: 'dragon', tier: 'greater', wave: 11, objective: { event: 'slaughter', count: 14, tribe: 'dragon' }, reward: { kind: 'multi', rewards: [{ kind: 'grant', grantGolden: ['d2_curator'] }, { kind: 'combatFlag', flag: 'avengeFirstDouble' }] }, sets: ['set2'] },
+  { id: 'q_company_store', name: 'The Company Store', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'buy', count: 16 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', grantGolden: ['dw_dorrin'] }, { kind: 'spellCost', cost: 1 }] }, sets: ['set2'] },
+  // ── SET 2 — DEMON (shop half). The Set-2 Demon is a SHOP manipulator rather than a Fodder eater, so its
+  //    quests all pay into `tavernBuyBonus` — the same channel the Staff of Guel and Contract Butcher use.
+  { id: 'q_stock_the_shelves', name: 'Stock the Shelves', tribe: 'demon', tier: 'lesser', wave: 5, objective: { event: 'spendGold', count: 18 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomTribe: 'demon', randomCount: 1 }, { kind: 'shopBuff', attack: 4, health: 4 }] }, sets: ['set2'] },
+  { id: 'q_banes_presence', name: "Bane's Presence", tribe: 'demon', tier: 'lesser', wave: 5, objective: { event: 'winRound', count: 3 }, reward: { kind: 'shopBuffPerShouts', per: 3, attack: 1, health: 1 }, sets: ['set2'] },
+  { id: 'q_endless_inventory', name: 'Endless Inventory', tribe: 'demon', tier: 'greater', wave: 11, objective: { event: 'shopStats', count: 180 }, reward: { kind: 'shopBuffOnRefresh', attack: 5, health: 5, step: 1, per: 5 }, sets: ['set2'] },
+  // ── SET 2 — KOBOLD (owner roster 2026-07-29). The Ruby engine's quest line: every objective runs on the
+  //    `castRuby` meter or on buys, and the rewards all push the same two dials the tribe already lives on —
+  //    Ruby STRENGTH (`rubyBonus`) and Ruby CAST COUNT — rather than inventing a third Kobold resource.
+  { id: 'q_first_strike', name: 'First Strike', tribe: 'kobold', tier: 'lesser', wave: 5, objective: { event: 'castRuby', count: 8 }, reward: { kind: 'grant', randomTribe: 'kobold', randomCount: 1, randomRuby: 3 }, sets: ['set2'] },
+  { id: 'q_open_the_vein', name: 'Open the Vein', tribe: 'kobold', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 5, tribe: 'kobold' }, reward: { kind: 'rubyStatGain', attack: 2, health: 2 }, sets: ['set2'] },
+  { id: 'q_gem_circuit', name: 'Gem Circuit', tribe: 'kobold', tier: 'lesser', wave: 5, objective: { event: 'castRuby', count: 12 }, reward: { kind: 'rubyExtraCasts', amount: 2, scope: 'firstEachTurn' }, sets: ['set2'] },
+  { id: 'q_unstable_riches', name: 'Unstable Riches', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'castRuby', count: 18 }, reward: { kind: 'rubyExtraCasts', amount: 1, scope: 'always' }, sets: ['set2'] },
+  { id: 'q_faultline_coronation', name: 'Faultline Coronation', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'buy', count: 12 }, reward: { kind: 'rubyStatGain', attack: 4, health: 4 }, sets: ['set2'] },
+  // ── SET 2 — the two straight "get this minion" quests. Pure data: both minions already ship in set 2.
+  { id: 'q_first_blood', name: 'First Blood', tribe: 'dragon', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['d2_skald'], grantKeywords: ['DS'] }, sets: ['set2'] },
+  { id: 'q_market_feast', name: 'Market Feast', tribe: 'demon', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 7 }, reward: { kind: 'grant', cards: ['dm_tormentor'] }, sets: ['set2'] },
+  { id: 'q_golden_ledger', name: 'The Golden Ledger', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'slaughter', count: 16, tribe: 'dwarf' }, reward: { kind: 'questGoldTribeBuff', tribe: 'dwarf', per: 5, attack: 3, health: 3 }, sets: ['set2'] },
 ];
 
 export const QUEST_INDEX: Record<string, QuestDef> = Object.fromEntries(

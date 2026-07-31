@@ -526,15 +526,6 @@ SoC badge beats shipped (#541). Remaining, in impact order:
   initial board; Fleeting Vigor is baked pre-sim with one un-stepped `sc` narration. Fine if intended —
   listed for completeness.
 
-### Re-attempt the hand "make room" glide, safely (reverted 2026-07-28)
-The hand should glide open/closed when its card count changes instead of blinking - the owner liked it, but
-the Flip-based implementation inflated cards (see the devlog: hover `scale(1.06)` folded into `Flip.getState`
-bounds, then morphed into inline width). Any retry must capture a **transform-immune** measure. Preferred:
-drive it through the existing `handSlidePx` channel (transient per-uid offset + the CSS transition), which is
-what the drag "make room" already does and keeps React owning the whole transform string. Alternative:
-`offsetLeft` deltas like the warband commit path. Only capture Flip state while `body.dragging` neutralises
-the hover rule.
-
 ### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
 The Aura Wash + EoT beat replay closed the big ones — plus the triggered rune buffs (Rune of Kindling /
 Scales / Scale) now descend onto their targets. Still open:

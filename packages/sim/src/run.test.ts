@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { makeRng, type CombatResult, type Keyword } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, SPELL_CARDS } from '@game/content';
 import {
@@ -53,6 +53,11 @@ import { replayBattlecry } from './recruit'; // not re-exported from the package
 import type { BoardMinion } from '@game/core';
 import { applyCardsBought, applyEndOfTurn, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
+import { pinSet1Era } from './testPin';
+
+// This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
+// still-shipped mechanics. Pin the era rather than rewrite the fixtures. See `testPin.ts`.
+pinSet1Era();
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
 function playToEnd(seed: number): RunState {
@@ -5140,11 +5145,18 @@ describe('wave-relative board strength rating (@game/sim)', () => {
   const vanilla = (n: number, atk: number, hp: number, kw?: BoardMinion['keywords']): BoardMinion[] =>
     Array.from({ length: n }, () => (kw ? { cardId: 'alley', attack: atk, health: hp, keywords: kw } : { cardId: 'alley', attack: atk, health: hp }));
   // Build the per-wave ladders ONCE (running the bot is the slow part). A small seed/fidelity set still
-  // spans weak→strong at each wave for these assertions.
-  const ladders = buildWaveLadders([1, 42], [0.3, 0.7, 1.0]);
-  const waves = [...ladders.keys()].sort((a, b) => a - b);
-  const lowWave = waves[0]!;
-  const highWave = waves[waves.length - 1]!;
+  // spans weak→strong at each wave for these assertions. LAZY (not module-scope): the ladders run the bot
+  // against the ACTIVE set, and module evaluation happens before `pinSet1Era`'s beforeAll — built eagerly they
+  // ran on set 2's pool and saturated every rating at 1.
+  let ladders!: ReturnType<typeof buildWaveLadders>;
+  let lowWave!: number;
+  let highWave!: number;
+  beforeAll(() => {
+    ladders = buildWaveLadders([1, 42], [0.3, 0.7, 1.0]);
+    const waves = [...ladders.keys()].sort((a, b) => a - b);
+    lowWave = waves[0]!;
+    highWave = waves[waves.length - 1]!;
+  });
   const avgPower = (w: number): number => {
     const L = ladders.get(w)!;
     return L.reduce((s, b) => s + b.reduce((p, m) => p + m.attack + m.health, 0), 0) / L.length;

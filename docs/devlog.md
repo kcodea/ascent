@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-07-31 — SET 2 GOES LIVE: quests off, Runeforge on — plus Cupcakes
+
+The three switches flipped: `SETS.set1.enabled = false` / `set2 = true` (first-enabled-wins), and in CONFIG
+`questsEnabled = false` + `runeforgeEnabled = true` (basic forge turn 6, epic turn 9, every hero, free). The
+owner's double-check is pinned as a go-live test suite running against the SHIPPED defaults: a new run pins
+set 2; turns 5/11 open no quest; **Fi still gets her turn-4 Lesser quest and Coran his turn-10 quest** (both
+via `questOfferPlan`'s above-the-gate hero clauses, verified through the real turn advance); the forge opens
+on 6 and 9.
+
+**Cupcakes** (set 2, T4, 4 Gold): target a Demon — it Consumes 4 RANDOM Shop minions, one roll per bite, with
+the target as the eater so every consume payoff sees a genuine Demon eat. This is the card the mystery
+`Cupcakes.png` art file was for; it wired the moment the card existed.
+
+Fallout: eleven legacy suites (run.test, runes.test, matchmaking, lobby, tier7, setSeparation, runTelemetry,
+rifts) pinned to the set-1 era via a new `pinSet1Era()` helper — they test still-shipped set-1 content and the
+quest-era loop, so they pin the era they were written for instead of rewriting fixtures. One subtle case: the
+board-rating ladders in run.test were built at MODULE scope, before any beforeAll could pin the set, and
+saturated every rating at 1 — they build lazily now. The systemToggles suite arms its own flags explicitly in
+both directions instead of assuming the defaults.
+
+Verified: typecheck (both), lint (7 pre-existing), 3504 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Full spell-art re-wire; the wire script gains a SPELLS job
 
 The owner reworked a batch of spell art, so `art:wire` grew its fourth job: every spell + Ruby by name from

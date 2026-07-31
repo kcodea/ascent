@@ -5,6 +5,44 @@ import { CONFIG, createRun, reduce, questOfferPlan, type RunState } from './inde
 // OFF, still leaves the heroes NATIVE to that system able to access it. Rifts are covered in rifts.test.ts;
 // these cover the quest master switch preserving quest-native heroes, and the runeforge system toggle.
 
+/**
+ * THE LIVE DEFAULTS (set 2 go-live, 2026-07-31): set 2 active, quests OFF, the Runeforge ON. These tests run
+ * against the shipped config untouched — they are the owner's go-live checklist, not toggle exercises.
+ */
+describe('set 2 go-live defaults', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+
+  it('a new run pins SET 2', () => {
+    expect(createRun(1).setId).toBe('set2');
+  });
+
+  it('quests are OFF: no universal offer on turns 5 or 11', () => {
+    expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toBeNull();
+    expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toBeNull();
+  });
+
+  it('Fi still gets her turn-4 Lesser quest, and Coran his turn-10 quest (owner double-check 2026-07-31)', () => {
+    expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 4 })).toEqual({ bucket: 5, lesserOnly: true });
+    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toEqual({ bucket: 11 });
+    // …and through the real turn advance, the offers actually open.
+    const fiT4 = reduce({ ...createRun(1, 'fi'), wave: 3, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
+    expect(fiT4.wave).toBe(4);
+    expect(fiT4.questOffer?.length ?? 0).toBeGreaterThan(0);
+    const coranT10 = reduce({ ...createRun(1, 'coran'), wave: 9, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
+    expect(coranT10.wave).toBe(10);
+    expect(coranT10.questOffer?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('the Runeforge is ON: basic on turn 6, epic on turn 9, for a non-native hero', () => {
+    const t6 = reduce({ ...createRun(1, 'warden'), wave: 5, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
+    expect(t6.runeforgeOffer?.length ?? 0).toBeGreaterThan(0);
+    expect(t6.runeforgeEpic).toBeFalsy();
+    const t9 = reduce({ ...createRun(1, 'warden'), wave: 8, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
+    expect(t9.runeforgeOffer?.length ?? 0).toBeGreaterThan(0);
+    expect(t9.runeforgeEpic).toBe(true);
+  });
+});
+
 describe('quest system master switch preserves quest-native heroes', () => {
   it('questsEnabled = false: Fi keeps turn-4, Coran keeps turn-10, universal 5/11 go dark', () => {
     const prev = CONFIG.questsEnabled;
@@ -26,12 +64,19 @@ describe('quest system master switch preserves quest-native heroes', () => {
   });
 
   it('questsEnabled = true: the universal turns are back for everyone (incl. Coran) + Coran keeps turn-10', () => {
+    // Set explicitly — since 2026-07-31 the DEFAULT is false (set 2 runs quests off), so this test arms it.
+    const prev = CONFIG.questsEnabled;
+    CONFIG.questsEnabled = true;
+    try {
     expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toEqual({ bucket: 5 });
     expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toEqual({ bucket: 11 });
     // Coran runs the universal 5 & 11 AND his bonus turn-10.
     expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 5 })).toEqual({ bucket: 5 });
     expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toEqual({ bucket: 11 });
     expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 11 })).toEqual({ bucket: 11 });
+    } finally {
+      CONFIG.questsEnabled = prev;
+    }
   });
 });
 
@@ -60,9 +105,15 @@ describe('runeforge system (CONFIG.runeforgeEnabled)', () => {
     }
   });
 
-  it('OFF (default): a non-native hero gets no forge on turn 6 or 9', () => {
+  it('OFF: a non-native hero gets no forge on turn 6 or 9 (the default is ON since set 2 went live)', () => {
+    const prev = CONFIG.runeforgeEnabled;
+    CONFIG.runeforgeEnabled = false;
+    try {
     expect(advanceTo('warden', 5).runeforgeOffer).toBeFalsy();
     expect(advanceTo('warden', 8).runeforgeOffer).toBeFalsy();
+    } finally {
+      CONFIG.runeforgeEnabled = prev;
+    }
   });
 
   it('native heroes keep their own forge with the system OFF (Runesmith turn 5, Runeguard turn 8)', () => {

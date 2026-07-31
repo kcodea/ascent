@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { RIFTS, RIFT_BONUS_ARMOR, activeRift, maxTierFor, CONFIG, createRun, reduce, type RunState } from './index';
+import { pinSet1Era } from './testPin';
+
+// This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
+// still-shipped mechanics. Pin the era rather than rewrite the fixtures. See `testPin.ts`.
+pinSet1Era();
 
 // The "Freedom" rift: the FIRST minion bought each turn is free (0 Gold). The active rift is pinned onto
 // each run at creation (RunState.rift); the reducer reads that pin. These tests set the pin directly so they

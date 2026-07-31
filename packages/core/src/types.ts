@@ -230,6 +230,7 @@ export type EffectFactoryId =
   | 'spellGainSpellPower' // Quick Study (spell): permanently raise the run's spell power
   | 'spellDecoyNextCombat' // Decoy Sigil: bank a next-combat Training Dummy slot-filler
   | 'spellStealShop' // Deep Delve Writ / Ironclad Requisition: take Shop offers into hand for free
+  | 'spellTargetConsumesShop' // Cupcakes: the targeted Demon Consumes N random Shop minions
   | 'spellWeakenNextCombat' // Weaken: bank a next-combat "set a random enemy to 1 Health" // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand

@@ -116,13 +116,15 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   it('an eaten minion RETURNS to the shared pool', () => {
     // It's destroyed, not owned — same as an unbought offer on a reroll. Without this, eight eating Demons drain
     // the run's pool permanently.
+    // `dm_wrangler` (a set-2 BUYABLE) rather than the set-1 sandbag: with set 2 live, `returnToPool` only
+    // credits cards the run's pinned pool actually contains — and tokens (stray) are never pooled.
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
-      board: [], hand: [minion('cc', 'dm_clerk', 1, 1)], shop: shop('sandbag'),
+      board: [], hand: [minion('cc', 'dm_clerk', 1, 1)], shop: shop('dm_wrangler'),
     };
-    const before = s.pool['sandbag'] ?? 0;
+    const before = s.pool['dm_wrangler'] ?? 0;
     s = reduce(s, { type: 'play', uid: 'cc' });
-    expect(s.pool['sandbag'] ?? 0).toBe(before + 1);
+    expect(s.pool['dm_wrangler'] ?? 0).toBe(before + 1);
   });
 
   it('does NOT feed the FODDER tallies — a Shop minion is not Fodder', () => {
@@ -518,6 +520,24 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     const def = CARD_INDEX[eaten!.cardId]!;
     expect(eaten!.attack - def.attack!, 'the eaten body was not buffed before the consume').toBe(4);
     expect(eaten!.health - def.health!, 'the eaten body was not buffed before the consume').toBe(2);
+  });
+});
+
+describe('Cupcakes (set 2 spell)', () => {
+  it('the targeted Demon Consumes 4 random Shop minions — and gets their stats', () => {
+    let s: RunState = {
+      ...createRun(11), phase: 'recruit', embers: 20,
+      board: [minion('D', 'dm_clerk', 2, 2)],
+      hand: [{ uid: 'cake', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      shop: shop('dm_wrangler', 'dm_errand', 'k_chipwick', 'k_deepvein', 'dm_fiend'),
+    };
+    const before = s.board[0]!;
+    const stats = before.attack + before.health;
+    s = reduce(s, { type: 'play', uid: 'cake', targetUid: 'D' });
+    expect(s.shop.length, 'four Shop minions eaten').toBe(1);
+    const after = s.board.find((c) => c.uid === 'D')!;
+    expect(after.attack + after.health, 'the eater grew by what it ate').toBeGreaterThan(stats);
+    expect(s.shopMinionsEaten, 'the consume meter counted all four').toBe(4);
   });
 });
 

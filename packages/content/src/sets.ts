@@ -141,7 +141,7 @@ export const SETS: Record<SetId, SetDef> = {
     id: 'set1',
     name: 'Set 1',
     blurb: 'The founding collection.',
-    enabled: true,
+    enabled: false, // set 2 went live 2026-07-31 — first-enabled-wins, so this must flip off
     tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], // the five founding playable tribes
     // Declaration order is preserved EXACTLY as the pre-sets flat pool was assembled (neutral, beasts,
     // dragons, undead, mechs, demons, spells), so every existing seed replays identically.
@@ -153,7 +153,7 @@ export const SETS: Record<SetId, SetDef> = {
     id: 'set2',
     name: 'Set 2',
     blurb: 'In development.',
-    enabled: false,
+    enabled: true, // LIVE 2026-07-31
     tribes: ['kobold', 'dragon', 'beast', 'demon', 'dwarf'], // Kobolds (Ruby) + Dragons (spell recursion) + Beasts + Demons + Dwarves (Gold/Ale)
     // Starts EMPTY and opts cards IN (owner call 2026-07-19) — set 2 is being authored externally and
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead

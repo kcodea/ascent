@@ -146,6 +146,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellGainSpellPower',
   'spellDecoyNextCombat',
   'spellStealShop',
+  'spellTargetConsumesShop',
   'spellWeakenNextCombat',
   'rallyBuffSelfPerTribe',
   'avengeCopyLeftmostHandSpell',

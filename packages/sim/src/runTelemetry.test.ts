@@ -3,6 +3,11 @@ import { aggregatePlayerReport, buildCardCsv, reconstructRunTelemetry, type RunT
 import { createRun, type Action } from './state';
 import { reduce } from './reducer';
 import { CONFIG } from './config';
+import { pinSet1Era } from './testPin';
+
+// This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
+// still-shipped mechanics. Pin the era rather than rewrite the fixtures. See `testPin.ts`.
+pinSet1Era();
 
 const blank = (over: Partial<RunTelemetry>): RunTelemetry => ({
   heroId: 'warden', heroOffer: [], won: false, wins: 0,

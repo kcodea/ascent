@@ -3511,6 +3511,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Cupcakes — cast on a friendly DEMON: it Consumes `times` RANDOM Shop minions, one roll per bite (so the
+   *  spread is real, not one minion eaten four times). The eater is the TARGET (`self` on a targeted cast), so
+   *  every consume payoff fires for a genuine Demon eat. */
+  spellTargetConsumesShop: (ctx, self, params) => {
+    for (let n = 0; n < num(params.times, 4); n++) {
+      const edible = ctx.state.shop
+        .map((_, i) => i)
+        .filter((i) => { const d = CARD_INDEX[ctx.state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (edible.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      const pick = edible[rng.int(edible.length)]!;
+      ctx.state.rngCursor = rng.state();
+      consumeShopMinion(ctx.state, self, pick, 1);
+    }
+  },
+
   /** Deep Delve Writ / Ironclad Requisition — cast: STEAL Shop offers into hand for free. `tribe` narrows the
    *  pick to that tribe's minions (the Writ's Dwarf); `perTribe` steals one RANDOM card (minions and spells
    *  alike) per friendly minion of that tribe (the Requisition). Stolen minions arrive shaped like a buy —

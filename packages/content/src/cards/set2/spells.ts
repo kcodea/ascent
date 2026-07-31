@@ -201,4 +201,22 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'Steal a random card from the Shop for each **Dwarf** you control.',
   },
 
+  {
+    // The bait: point a Demon at the buffet. Four RANDOM shop consumes with the target as the eater, so every
+    // consume payoff (Broodlord, Transfusion, Open Market, the eater's own on-consume) sees a real Demon eat.
+    id: 'cupcakes',
+    name: 'Cupcakes',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 4,
+    target: 'friendly',
+    targetTribe: 'demon',
+    effects: [{ on: 'cast', do: 'spellTargetConsumesShop', params: { times: 4 } }],
+    text: 'Target a **Demon**. It **Consumes 4** minions in the Shop.',
+  },
+
 ];

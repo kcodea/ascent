@@ -975,6 +975,8 @@ export interface RunState {
    *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
    *  — `recurringEndOfTurn` fires every turn and could not express it. */
   runeSummit?: boolean;
+  /** The run's ONE free Runeforge re-roll is spent (owner 2026-07-31: rerolls are free, once per game). */
+  runeforgeRerollUsed?: boolean;
   /** Rune of the Matriarch: Runebloom Matriarch's per-spell trigger fires twice. */
   runeMatriarch?: boolean;
   /** Rune of Slaying: kills banked toward the next every-6th dominant-type minion payout. */

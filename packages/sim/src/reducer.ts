@@ -1338,13 +1338,14 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'rerollRuneforge': {
-      // Re-roll the offered runes ONCE, for 2 Gold — a fresh set drawn (preferring runes NOT currently shown) from
-      // whichever runeset this forge is (normal or Epic). Seeded off a salted stream so it's deterministic.
-      if (!s.runeforgeOffer || s.runeforgeRerolled || s.embers < 2) return state;
-      spendGold(s, 2);
+      // Re-roll the offered runes — FREE, but once per GAME (owner rules change 2026-07-31: spending it on the
+      // basic forge forfeits the epic forge's re-roll). A fresh set is drawn (preferring runes NOT currently
+      // shown) from whichever runeset this forge is; seeded off a salted stream so it's deterministic.
+      if (!s.runeforgeOffer || s.runeforgeRerolled || s.runeforgeRerollUsed) return state;
       const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 1));
       s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, rng, new Set(s.runeforgeOffer));
       s.runeforgeRerolled = true;
+      s.runeforgeRerollUsed = true;
       return s;
     }
 

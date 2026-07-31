@@ -4350,14 +4350,13 @@ export function Recruit() {
               })}
             </div>
             <div className="forge-actions">
-              {!run.runeforgeRerolled && (
+              {!run.runeforgeRerolled && !run.runeforgeRerollUsed && (
                 <button
                   className="forge-reroll"
-                  disabled={run.embers < 2}
                   onClick={() => dispatch({ type: 'rerollRuneforge' })}
-                  title={run.embers < 2 ? 'Need 2 Gold to re-roll' : 'Re-roll all three Runes (once)'}
+                  title="Re-roll the offered Runes — free, once per game (spending it here forfeits the other forge's re-roll)"
                 >
-                  <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">2 Gold</b>
+                  <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
                 </button>
               )}
               <button className="forge-skip" onClick={() => dispatch({ type: 'skipRuneforge' })}>Leave without a Rune</button>

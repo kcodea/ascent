@@ -32,7 +32,7 @@ describe('set 2 — its own neutral minions are wired into the set', () => {
     expect(spec('n2_tamer')).toBe('T1 1/1');
     expect(spec('n2_spellsword')).toBe('T2 3/4');
     expect(spec('n2_bellringer')).toBe('T4 4/6');
-    expect(spec('n2_lastlight')).toBe('T5 5/7');
+    expect(spec('n2_lastlight')).toBe('T3 3/2'); // owner 2026-07-31
   });
 });
 

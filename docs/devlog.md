@@ -1,5 +1,20 @@
 # ASCENT — development log
 
+## 2026-07-31 — Eight stat moves, Runekeg's self-exclusion, and the free once-per-game re-roll
+
+Stats/tiers (owner batch): Runefire T6 6/9, Demon Horse T3 3/3, Broodwright T3 2/5, Warhorn Captain T2 3/2,
+Brunni T2 2/1, Runekeg T3, Frenzied Excavator T4 4/3, Lastlight T3 3/2.
+
+Runekeg reads "**other** Dwarves" now and can no longer buff itself — an `excludeSelf` param on the shared
+`onSpellCastBuffRandomTribe` factory (Runebloom Matriarch keeps self-inclusion). Pinned both ways: alone the
+keg gets nothing; with an ally, the ally gets the +2/+2 and the keg still doesn't.
+
+**Runeforge re-rolls are FREE, once per GAME** (was: 2 Gold, once per visit): re-rolling the basic forge
+forfeits the epic forge's re-roll. A run-level `runeforgeRerollUsed` beside the per-visit flag; the UI button
+says "Free", hides once spent, and its tooltip states the trade-off.
+
+Verified: typecheck (both), lint (7 pre-existing), 3459 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Minion art re-wire (owner batch)
 
 Full re-run of `art:wire --apply` over the Set 2 Minions source after the owner's changes. Four minions

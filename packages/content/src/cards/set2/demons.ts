@@ -77,9 +77,9 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_hungerling',
     name: 'Demon Horse',
     tribe: 'demon',
-    tier: 4,
-    attack: 4,
-    health: 5,
+    tier: 3,
+    attack: 3,
+    health: 3,
     keywords: [],
     // Owner fix 2026-07-29: the TEXT described a different card entirely — "End of Turn: Consume the right-most
     // Shop minion" — while the effect has always been a Rally shop-buff. The effect was right; the text is now
@@ -137,9 +137,9 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_broodwright',
     name: 'Broodwright',
     tribe: 'demon',
-    tier: 4,
-    attack: 3,
-    health: 6,
+    tier: 3,
+    attack: 2,
+    health: 5,
     keywords: [],
     effects: [
       { on: 'onSummon', do: 'onSummonImpBuff', params: { attack: 2, health: 2 } },

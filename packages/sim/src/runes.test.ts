@@ -54,11 +54,11 @@ describe('Runeforge — framework', () => {
     for (const id of s.runeforgeOffer!) expect(RUNE_INDEX[id]).toBeDefined();
   });
 
-  it('rerollRuneforge spends 2 Gold once and swaps in a fresh, non-overlapping set of 4', () => {
+  it('rerollRuneforge is FREE and swaps in a fresh, non-overlapping set of 4 (owner 2026-07-31)', () => {
     const s = reduce(atForgeCombat(), { type: 'resolveCombat' });
     const before = s.runeforgeOffer!;
     const r = reduce(s, { type: 'rerollRuneforge' });
-    expect(r.embers).toBe(s.embers - 2);
+    expect(r.embers).toBe(s.embers); // free now
     expect(r.runeforgeRerolled).toBe(true);
     expect(r.runeforgeOffer!.length).toBe(4);
     expect(new Set(r.runeforgeOffer).size).toBe(4);
@@ -68,9 +68,10 @@ describe('Runeforge — framework', () => {
     expect(reduce(r, { type: 'rerollRuneforge' })).toBe(r);
   });
 
-  it("rerollRuneforge you can't afford is a no-op", () => {
-    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 1, runeforgeOffer: ['rune_warding', 'rune_fury', 'rune_slaying'] };
-    expect(reduce(s, { type: 'rerollRuneforge' })).toBe(s);
+  it('rerollRuneforge works at 0 Gold — the cost is gone (owner 2026-07-31)', () => {
+    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 0, runeforgeOffer: ['rune_warding', 'rune_fury', 'rune_slaying'] };
+    const r = reduce(s, { type: 'rerollRuneforge' });
+    expect(r.runeforgeRerolled).toBe(true); // no Gold gate any more
   });
 
   it('does NOT open for a non-Runesmith hero', () => {
@@ -421,11 +422,11 @@ describe('Epic Runeforge', () => {
     expect(s.heroPowerSpent).toBeFalsy(); // the Epic forge is quest-opened, not the hero power
   });
 
-  it('re-rolling the Epic forge spends 2 Gold once and redraws from the Epic set', () => {
+  it('re-rolling the Epic forge is FREE and redraws from the Epic set (owner 2026-07-31)', () => {
     const s: RunState = { ...createRun(1, 'baggerben'), wave: 6, phase: 'recruit', embers: 10 };
     openEpicRuneforge(s);
     const r = reduce(s, { type: 'rerollRuneforge' });
-    expect(r.embers).toBe(8);
+    expect(r.embers).toBe(10); // free
     expect(r.runeforgeRerolled).toBe(true);
     expect(r.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
     for (const id of r.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
@@ -1196,6 +1197,19 @@ describe('Rune of the Summit (every 2nd shop → a Tier 7 Discover)', () => {
       questOffer: undefined, runeforgeOffer: undefined },
     { type: 'resolveCombat' },
   );
+
+  it("re-rolling is FREE but once per GAME — the basic forge spends the epic forge's re-roll (owner 2026-07-31)", () => {
+    let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 0,
+      runeforgeOffer: ['rune_fury', 'rune_warding'] };
+    const before = s.runeforgeOffer!;
+    s = reduce(s, { type: 'rerollRuneforge' }); // at 0 Gold — free now
+    expect(s.runeforgeOffer).not.toEqual(before);
+    expect(s.runeforgeRerollUsed).toBe(true);
+    // A later EPIC forge: the game-wide re-roll is spent, so the action is a no-op.
+    const epic: RunState = { ...s, wave: 9, runeforgeOffer: ['rune_broodpit', 'rune_appraisal'], runeforgeEpic: true, runeforgeRerolled: undefined };
+    const after = reduce(epic, { type: 'rerollRuneforge' });
+    expect(after.runeforgeOffer).toEqual(['rune_broodpit', 'rune_appraisal']);
+  });
 
   it('arms on purchase with a zeroed tick', () => {
     const s = buyRune('rune_summit');

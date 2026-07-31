@@ -231,9 +231,9 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_runefire',
     name: 'Runefire',
     tribe: 'dragon',
-    tier: 5,
-    attack: 5,
-    health: 8,
+    tier: 6,
+    attack: 6,
+    health: 9,
     keywords: [],
     // Owner rework 2026-07-27 — reuses the same End-of-Turn recast Runic Archivist had (which now reads
     // `lastSpellCastId`), so the two cards share one primitive rather than two near-identical ones.

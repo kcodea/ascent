@@ -3178,7 +3178,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   onSpellCastBuffRandomTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const pool = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
+    // `excludeSelf` (Runekeg): "other Dwarves" — the caster never buffs itself.
+    const pool = ctx.state.board.filter((c) => (!tribe || isTribe(c, tribe as never)) && !(params.excludeSelf && c === self));
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     const targets = [...pool];

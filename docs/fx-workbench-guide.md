@@ -118,12 +118,39 @@ The second route: an existing def that already reads well. **Browse all** opens 
 lenses:
 
 - **by look** — shape, colour, motion, all derived from the defs themselves
-- **by event** — every moment kind with its bound def, or *nothing bound*. This is the coverage map
+- **by event** — the coverage map, in two sections: every **moment kind** with its bound def or *nothing
+  bound*, then **played from code (no moment kind)** — the defs a `playDef()` call fires directly, listed
+  against the files that fire them
 - **by card** — grouped by tribe, showing which cards have bespoke effects
 
 Hovering a row **previews** it on the stage without touching your work. **⧉** duplicates it as a fresh
 template. Prefer this over the gallery when something close to what you want already plays in the game — you
 inherit a look that has survived a real fight, not just a starting position.
+
+#### The wiring badge — three states, because "unbound" was hiding two
+
+Every row in **by look** carries a badge, and the **Wiring** facet filters on it:
+
+| Badge | Means | Example |
+|---|---|---|
+| **bound** | A moment-kind cue or a per-card override in `choreo/bindings.json` names it. | `ward-gained` |
+| **from code** | No binding at all — `packages/ui/src` calls `playDef('<id>', …)` at the site where the thing happens. It plays just as much as a bound def. | `coins`, `strike-impact` |
+| **unused** | Nothing binds it and nothing calls it. This one genuinely does not play. | `burst-thin-trail` |
+
+This split exists because the migration out of hand-written `pixiFx` methods left seven constantly-playing
+effects (`coins`, `click-puff`, `damage-burst`, `landing-dust`, `impact-dust`, `death-dissolve`,
+`strike-impact`) with no binding, and the old single "unbound" label filed them next to dead drafts. If you
+are looking for something safe to delete, filter to **unused** — that is the only column that means it.
+
+**Where "from code" comes from, and why it can't rot.** It is not a hand-kept list. `packages/ui/src` is
+scanned for `playDef('<literal>')`, the result is committed to `packages/ui/src/fx/directCalls.ts`, and
+`directCalls.test.ts` re-runs the scan on every `npm test` and fails if the two disagree — naming the def and
+the file. Add a direct call and forget the file and CI stops you; there is no path back to the library quietly
+lying. The scan reads whole files, not lines, precisely so a call whose id sits on its own line (`strike-impact`
+in `choreo/channels/impact.ts`) is still seen. Its one blind spot — a call whose id is a *variable* — is
+printed under the section rather than hidden; today all three such sites are `choreo/score.ts` playing
+`binding.def`, i.e. the binding path already listed above, and the test fails if a new one appears anywhere
+else.
 
 ---
 

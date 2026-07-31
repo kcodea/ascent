@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StoredFxDef } from '../defStore';
-import { buildCatalog, buildCardRows, kindCoverage, FX_HUES, type FxHue } from './catalog';
-import { EMPTY_FILTER, applyFilter, groupByLook, groupByCard, type FxFilter } from './catalogView';
+import {
+  buildCatalog, buildCardRows, kindCoverage, codeCoverage, codeScanCaveat, FX_HUES,
+  type FxHue, type FxUsage,
+} from './catalog';
+import { EMPTY_FILTER, applyFilter, groupByLook, groupByCard, type FxFilter, type FxUsageFilter } from './catalogView';
 
 export interface LibraryBrowserProps {
   onLoad: (def: StoredFxDef) => void;
@@ -16,6 +19,27 @@ type Lens = 'look' | 'event' | 'card';
 /** Hover settle before a preview fires. Without it, dragging down a 20-row list starts 20 effects. */
 const PREVIEW_DELAY_MS = 120;
 
+/**
+ * The three wiring states, in words an author can act on.
+ *
+ * "unbound" used to be the only non-bound label and it was read — correctly, until the pixiFx migration —
+ * as "inert". Seven defs then started playing constantly with no binding, so the words matter: `code` says
+ * PLAYS, `unused` says DOESN'T. Nothing here says "unbound", because that describes the wiring rather than
+ * the thing the author is trying to find out.
+ */
+const USAGE_LABEL: Record<FxUsage, string> = {
+  bound: 'bound',
+  code: 'from code',
+  unused: 'unused',
+};
+
+const USAGE_HELP: Record<FxUsageFilter, string> = {
+  all: 'Every def in the library',
+  bound: 'Plays because a moment kind or a card override names it (choreo/bindings.json)',
+  code: 'Plays because packages/ui/src calls playDef() with this id — no binding involved',
+  unused: 'Nothing binds it and nothing calls it: this one really does not play',
+};
+
 export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: LibraryBrowserProps): React.ReactElement {
   const [lens, setLens] = useState<Lens>('look');
   const [filter, setFilter] = useState<FxFilter>(EMPTY_FILTER);
@@ -23,6 +47,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
   // overlay is up, and rebuilding per keystroke would re-derive every facet for every def on every filter edit.
   const catalog = useMemo(() => buildCatalog(), []);
   const coverage = useMemo(() => kindCoverage(), []);
+  const codeRows = useMemo(() => codeCoverage(), []);
   const cardRows = useMemo(() => buildCardRows(), []);
   const shown = useMemo(() => applyFilter(catalog, filter), [catalog, filter]);
   const knownIds = useMemo(() => new Set(catalog.map((e) => e.def.id)), [catalog]);
@@ -92,9 +117,14 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
             </button>
           ))}
           <div className="fxlib-facet-title">Wiring</div>
-          {(['all', 'bound', 'unbound'] as const).map((b) => (
-            <button key={b} className={`fxwb-btn${filter.bound === b ? ' on' : ''}`} onClick={() => set('bound', b)}>
-              {b}
+          {(['all', 'bound', 'code', 'unused'] as const).map((u) => (
+            <button
+              key={u}
+              className={`fxwb-btn${filter.usage === u ? ' on' : ''}`}
+              title={USAGE_HELP[u]}
+              onClick={() => set('usage', u)}
+            >
+              {u === 'all' ? 'all' : USAGE_LABEL[u]}
             </button>
           ))}
         </div>
@@ -115,9 +145,16 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                     <span className="fxlib-row-name">{e.def.label ?? e.def.id}</span>
                     <span className="fxlib-row-meta">
                       {e.facets.shape} · {e.facets.motion} · {e.def.layers.length} layers · {e.def.duration}ms
-                      {e.bindings.kinds.length + e.bindings.cards.length === 0 ? ' · unbound' : ''}
                     </span>
                   </button>
+                  {/* Always rendered, all three states. A badge that appears only on the bad case teaches the
+                      reader that no badge = fine, which is exactly how "unbound" came to mean "inert". */}
+                  <span
+                    className={`fxlib-wire ${e.usage}`}
+                    title={e.usage === 'code' ? `Played from ${e.callSites.join(', ')}` : USAGE_HELP[e.usage]}
+                  >
+                    {USAGE_LABEL[e.usage]}
+                  </span>
                   <button title="Duplicate as a fresh template" onClick={() => onDuplicate(e.def)}>⧉</button>
                 </div>
               ))}
@@ -125,7 +162,9 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
           ))}
 
           {lens === 'event' && (
+            <>
             <div className="fxlib-group">
+              <div className="fxlib-group-title">By moment kind</div>
               {coverage.map((c) => (
                 <div className="fxlib-row" key={c.kind} onPointerEnter={() => hover(c.def)} onPointerLeave={() => hover(null)}>
                   <span className="fxlib-row-name">{c.kind}</span>
@@ -141,6 +180,25 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                 </div>
               ))}
             </div>
+
+            {/* The half of "what plays, when" that has no moment kind. Omitting it is what made seven live
+                effects look inert: this lens reads as the complete map, so anything missing from it reads as
+                something that never fires. */}
+            <div className="fxlib-group">
+              <div className="fxlib-group-title">Played from code (no moment kind)</div>
+              {codeRows.map((r) => (
+                <div className="fxlib-row" key={r.defId} onPointerEnter={() => hover(r.defId)} onPointerLeave={() => hover(null)}>
+                  <span className="fxlib-row-name">{r.defId}</span>
+                  {knownIds.has(r.defId) ? (
+                    <span className="fxlib-row-meta">{r.files.join(' · ')}</span>
+                  ) : (
+                    <span className="fxlib-missing">{r.files.join(' · ')} — def missing</span>
+                  )}
+                </div>
+              ))}
+              <div className="fxlib-note">{codeScanCaveat()}</div>
+            </div>
+            </>
           )}
 
           {lens === 'card' && groupByCard(cardRows).map((g) => (

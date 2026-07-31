@@ -5,6 +5,7 @@ import { bindingFor, effectiveTables } from '../../choreo/bindings';
 import { getScore } from '../../choreo/score';
 import type { MomentKind } from '../../choreo/kinds';
 import { listDefs } from '../fxDefs';
+import { directCallDefIds, directCallSites, DYNAMIC_CALL_SITES } from '../directCalls';
 import type { FxCardRow } from './catalogView';
 
 /** The colour buckets a def can be filed under. `neutral` is not a failure — it is the honest answer for a
@@ -174,13 +175,77 @@ export function kindCoverage(): FxKindCoverage[] {
   }));
 }
 
+/**
+ * How a def reaches the screen — the answer the library used to get wrong.
+ *
+ * Before the pixiFx migration "unbound" was near enough a synonym for "inert", so one label covered it. It no
+ * longer is: seven defs play constantly with no binding at all, fired straight from code. Three states, so
+ * "nothing binds this" can stop meaning "nothing plays this".
+ *
+ * - `bound` — a moment-kind cue or a per-card override names it (`choreo/bindings.json`).
+ * - `code`  — no binding, but `packages/ui/src` calls `playDef('<id>', …)` directly. See `directCalls.ts`.
+ * - `unused` — neither. THE genuinely inert state: a draft, or an effect whose wiring was removed.
+ *
+ * `bound` wins when a def is both, because the binding is the thing an author can retarget from the library;
+ * the call sites stay on the entry either way.
+ */
+export type FxUsage = 'bound' | 'code' | 'unused';
+
+export interface FxCodeCoverage {
+  defId: string;
+  /** The `packages/ui/src`-relative files that fire it. Always at least one, or the row would not exist. */
+  files: readonly string[];
+}
+
+/**
+ * The other half of the by-event lens: the defs the game plays with no moment kind at all.
+ *
+ * A direct call has no `MomentKind`, so it can never appear in `kindCoverage()` — there is no row to put it
+ * in. The tempting conclusion is that it therefore has no place in the lens. That is wrong, and it is the
+ * reading that produced the defect: the lens is understood as "the map of what plays and when", so an effect
+ * that plays and is absent from it reads as an effect that does not play. It gets its own section, keyed by
+ * the file that fires it rather than by a kind — trigger by call site instead of trigger by moment, which is
+ * exactly what a direct call is.
+ */
+export function codeCoverage(): FxCodeCoverage[] {
+  return directCallDefIds().map((defId) => ({ defId, files: directCallSites(defId) }));
+}
+
+/**
+ * What the code scan CANNOT see, in the lens's own words.
+ *
+ * Printed under the section above rather than left implicit, because the alternative to admitting a blind
+ * spot is a view that silently under-reports — the failure this whole change exists to end. Derived from
+ * `DYNAMIC_CALL_SITES`, so if a dynamic call ever appears outside the binding resolver the sentence updates
+ * itself instead of becoming a stale reassurance.
+ */
+export function codeScanCaveat(): string {
+  const files = Object.keys(DYNAMIC_CALL_SITES);
+  const n = Object.values(DYNAMIC_CALL_SITES).reduce((a, b) => a + b, 0);
+  const only = files.length === 1 && files[0] === 'choreo/score.ts';
+  return (
+    `Found by scanning packages/ui/src for playDef('…') with a literal id. ` +
+    `${n} call site${n === 1 ? '' : 's'} pass the id as a variable (${files.join(', ')})` +
+    (only ? ' — that is the binding resolver, already listed above.' : ' and cannot be resolved without running the game.')
+  );
+}
+
 export interface FxCatalogEntry {
   def: StoredFxDef;
   facets: FxFacets;
   bindings: FxBindings;
+  /** `packages/ui/src`-relative files that fire this def by literal id. Empty for most defs. */
+  callSites: readonly string[];
+  usage: FxUsage;
 }
 
 const NO_BINDINGS: FxBindings = { kinds: [], cards: [] };
+
+/** The one place the three states are decided, so no lens can disagree with another about a def. */
+export function usageOf(bindings: FxBindings, callSites: readonly string[]): FxUsage {
+  if (bindings.kinds.length > 0 || bindings.cards.length > 0) return 'bound';
+  return callSites.length > 0 ? 'code' : 'unused';
+}
 
 /**
  * Ids under this prefix are archetype BASES for the preset gallery. They are deliberately bound to nothing,
@@ -203,7 +268,11 @@ export function buildCatalog(): FxCatalogEntry[] {
   const bindings = bindingsByDef();
   return listDefs()
     .filter((def) => !def.id.startsWith(PRESET_ID_PREFIX))
-    .map((def) => ({ def, facets: deriveFacets(def), bindings: bindings.get(def.id) ?? { ...NO_BINDINGS } }))
+    .map((def) => {
+      const b = bindings.get(def.id) ?? { ...NO_BINDINGS };
+      const callSites = directCallSites(def.id);
+      return { def, facets: deriveFacets(def), bindings: b, callSites, usage: usageOf(b, callSites) };
+    })
     .sort((a, b) => a.def.id.localeCompare(b.def.id));
 }
 

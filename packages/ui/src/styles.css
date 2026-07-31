@@ -6667,6 +6667,20 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxlib-gap { font-size: 11px; color: #6f6688; font-style: italic; }
 /* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
 .fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }
+.fxlib-note { font-size: 11px; color: #6f6688; font-style: italic; padding: 6px 4px 0; line-height: 1.4; }
+
+/* WIRING BADGE — the three ways a def relates to the game, which one label used to flatten into "unbound".
+   The colours carry the distinction that matters: `bound` and `code` are both PLAYS (two greens, differing
+   only in how) and `unused` is the odd one out (grey, dashed, hollow) — so a glance down the column separates
+   "this fires" from "this is dead" before any word is read. `code` must never look like a warning: a def
+   played by a `playDef()` call is as live as a bound one, just wired somewhere a binding table can't show. */
+.fxlib-wire {
+  flex: none; font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap;
+}
+.fxlib-wire.bound { background: #1e3327; border-color: #2f6b48; color: #6fd79b; }
+.fxlib-wire.code { background: #1b2f33; border-color: #2f6b6b; color: #63d3d3; }
+.fxlib-wire.unused { background: none; border-color: #3d3752; border-style: dashed; color: #6f6688; }
 
 /* FX PRESET GALLERY — the on-ramp overlay: pick an archetype, then a variant. Same full-screen opaque
    treatment as `.fxlib` above (the workbench rail underneath is a competing wall of controls).

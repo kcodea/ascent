@@ -42,13 +42,13 @@ const ALIASES: Record<string, string> = {
   jenkinsandfi: 'jensenfi',               // renamed Jenkins -> Jensen
   malphas: 'dm_malphas',
   orivax: 'd2_orivax',
-  // art still under a card's PRE-RENAME name (all renamed 2026-07-29)
+  // art still under a card's PRE-RENAME name (all renamed 2026-07-29).
+  // (Mushy / Scalefeather dropped 2026-07-31: the owner supplied correctly-named files, so they match exactly
+  //  and an alias for the old name would only compete with the current art.)
   grandgourmand: 'dm_gourmand',           // -> Bob Blart
   hungerling: 'dm_hungerling',            // -> Demon Horse
   selectiveglutton: 'dm_glutton',          // -> Chipper
   roaringmatriarch: 'd2_matriarch',        // -> Bathing Matriarch
-  scalefeatherdrake: 'd2_scalefeather',    // -> Mushy
-  drachronicler: 'd2_chronicler',          // -> Scalefeather
   // 2026-07-30 art redo — attributed files whose filename does not match the current card name.
   // (`bighuggies` needed an alias while the card was mis-named "Bug Huggies"; the owner corrected the NAME to
   //  Big Huggies on 2026-07-31, so the filename matches exactly now and the alias is gone.)

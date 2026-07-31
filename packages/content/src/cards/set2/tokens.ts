@@ -106,10 +106,13 @@ export const SET2_TOKENS: CardDef[] = [
     attack: 3,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffOtherTribe', params: { tribe: 'dragon', attack: 5, health: 0 } }],
+    // TARGETED (owner 2026-07-31): you pick who gets the Attack instead of the card picking a Dragon for you,
+    // which is the whole decision on a 1-tier token.
+    target: 'friendly',
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 5, health: 0 } }],
     token: true,
-    text: '**Shout:** give a friendly Dragon **+5 Attack**.',
-    goldenText: '**Shout:** give a friendly Dragon **+10 Attack**.',
+    text: '**Shout:** give a friendly minion **+5 Attack**.',
+    goldenText: '**Shout:** give a friendly minion **+10 Attack**.',
   },
   {
     id: 'n2_whelp',

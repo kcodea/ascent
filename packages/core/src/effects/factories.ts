@@ -2701,21 +2701,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.summon(self.side, ctx.rng.pick(pool), self.uid);
   },
 
-  /** Set 2 — Oathbound Avenger — Avenge (X): every X friendly deaths, give a RANDOM living friendly +atk/+hp
-   *  and Ward. Golden doubles the stats (its Gilded text reads "+2/+6 and Ward" — the Ward itself doesn't
-   *  double, a keyword either is or isn't). Prefers a friend that doesn't already have Ward so the grant isn't
-   *  wasted, falling back to any friendly when they all do. */
-  avengeBuffRandomFriendlyShield: (ctx, self, params, payload) => {
-    const { side, count } = payload as { side: Side; count: number };
-    if (self.dead || side !== self.side) return;
-    void count;
-    const friends = ctx.living(self.side);
-    if (friends.length === 0) return;
-    const unshielded = friends.filter((m) => !m.divineShield);
-    const target = ctx.rng.pick(unshielded.length ? unshielded : friends);
-    ctx.buff(target, num(params.attack, 1) * mul(self), num(params.health, 3) * mul(self), self.uid);
-    grantShield(ctx, target);
-  },
 
 
   /** Set 2 — Demon Horse (Rally): permanently buff every minion in the SHOP.

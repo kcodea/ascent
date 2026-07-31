@@ -192,19 +192,6 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**Shout: Gild** a target friendly minion.',
   },
   {
-    // Slaughter = on-kill, a COMBAT trigger, so the Ale rides the carry-back and lands in hand after the fight.
-    id: 'dw_korr',
-    name: 'Kegbreaker Korr',
-    tribe: 'dwarf',
-    tier: 2,
-    attack: 3,
-    health: 2,
-    keywords: ['SL'],
-    effects: [{ on: 'onKill', do: 'combatGrantAle', params: { guard: 'attacker', count: 1 } }],
-    text: '**Slaughter:** get a **Dwarven Ale**.',
-    goldenText: '**Slaughter:** get **2 Dwarven Ales**.',
-  },
-  {
     id: 'dw_bladethrower',
     name: 'Blade Thrower',
     tribe: 'dwarf',

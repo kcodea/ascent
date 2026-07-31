@@ -205,7 +205,6 @@ export type EffectFactoryId =
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
-  | 'avengeBuffRandomFriendlyShield' // Set 2 — Oathbound Avenger: Avenge — a random friendly gets +X/+Y and Ward
   | 'onBattlecryBuffTribeAlternating' // Set 2 — Bathing Matriarch: alternates Attack/Health each turn
   | 'endOfTurnAlternateMode' // …and the tick that flips it
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead

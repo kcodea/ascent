@@ -48,19 +48,6 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Choose One:** give your Shop spells **+2 Attack** or **+2 Health**.',
   },
   {
-    // Avenge that pays in survivability rather than damage — the Ward is the point, the stats are the sweetener.
-    id: 'n2_oathbound',
-    name: 'Oathbound Avenger',
-    tribe: 'neutral',
-    tier: 3,
-    attack: 2,
-    health: 5,
-    keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeBuffRandomFriendlyShield', params: { count: 3, attack: 1, health: 3 } }],
-    text: '**Avenge (3):** give a random friendly minion **+1/+3** and **Ward**.',
-    goldenText: '**Avenge (3):** give a random friendly minion **+2/+6** and **Ward**.',
-  },
-  {
     // A cadence engine that rewards board ARRANGEMENT: what it copies is whatever you seat to its left.
     id: 'n2_bellringer',
     name: 'Bellringer Voss',

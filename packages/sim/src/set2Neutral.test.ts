@@ -9,8 +9,8 @@ import { applyEndOfTurn } from './recruit';
  * and Fatecarver were cut on 2026-07-26) that didn't already exist in set 1.
  * Each needed a brand-new effect primitive, so each gets real coverage rather than a shape assertion.
  */
-// Five, not seven: Aeon Acolyte and Fatecarver were removed from the game (owner 2026-07-26).
-const NEW_IDS = ['n2_tamer', 'n2_spellsword', 'n2_oathbound', 'n2_bellringer', 'n2_lastlight'];
+// Four now: Aeon Acolyte and Fatecarver went 2026-07-26, Oathbound Avenger 2026-07-31 (owner).
+const NEW_IDS = ['n2_tamer', 'n2_spellsword', 'n2_bellringer', 'n2_lastlight'];
 
 const bm = (cardId: string, uid: string, attack = 1, health = 1, keywords: string[] = []): BoardMinion =>
   ({ cardId, attack, health, sourceUid: uid, keywords: keywords as BoardMinion['keywords'] });
@@ -31,7 +31,6 @@ describe('set 2 — its own neutral minions are wired into the set', () => {
     const spec = (id: string): string => { const c = CARD_INDEX[id]!; return `T${c.tier} ${c.attack}/${c.health}`; };
     expect(spec('n2_tamer')).toBe('T1 1/1');
     expect(spec('n2_spellsword')).toBe('T2 3/4');
-    expect(spec('n2_oathbound')).toBe('T3 2/5');
     expect(spec('n2_bellringer')).toBe('T4 4/6');
     expect(spec('n2_lastlight')).toBe('T5 5/7');
   });
@@ -52,23 +51,6 @@ describe('set 2 — Tamer', () => {
   });
 });
 
-
-describe('set 2 — Oathbound Avenger', () => {
-  it('Avenge (3) gives a random friendly +1/+3 AND Ward', () => {
-    // Three friendly deaths are needed, so pad the board with fodder the enemy can chew through.
-    const r = simulate([
-      bm('n2_oathbound', 'OA', 2, 40),
-      bm('stray', 'F1', 1, 1), bm('pup', 'F2', 1, 1), bm('babycub', 'F3', 1, 1),
-    ], [{ cardId: 'sandbag', attack: 20, health: 400 }], makeRng(5), CARD_INDEX,
-      combatSide({ tier: 3 }), combatSide({ tier: 1 }));
-    const buffs = r.events.filter((e) => {
-      const b = e as { type: string; attack?: number; health?: number };
-      return b.type === 'buff' && b.attack === 1 && b.health === 3;
-    });
-    expect(buffs.length).toBeGreaterThan(0);          // the Avenge paid
-    expect(r.events.some((e) => e.type === 'shieldUp')).toBe(true); // …and granted Ward
-  });
-});
 
 describe('set 2 — Lastlight', () => {
   // Swept across seeds on purpose: with THREE eligible bodies and two grants, a non-distinct pick only

@@ -36,6 +36,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_slaying',
+    sets: ['set1'], // removed from set 2 (owner 2026-07-31)
     name: 'Rune of Slaying',
     cost: 3,
     text: 'Whenever you trigger **Slaughter**, gain **+1 max Gold**.',

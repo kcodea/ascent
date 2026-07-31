@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-07-31 — Card batch: removals, reworks, and the Set 2 art re-wire
+
+**Removed.** Oathbound Avenger (and its now-orphaned `avengeBuffRandomFriendlyShield` factory — nothing else
+used it, so it went with the card rather than lingering as dead machinery). Kegbreaker Korr. Rune of Slaying is
+now `sets: ['set1']`.
+
+**Reworked.**
+- **Badgington** — Slaughter → **Rally**: it pays for attacking rather than for landing a kill, so it no longer
+  needs a favourable trade to do anything. Reuses `rallyGrantSpell` (Perfect Core's), which already owns the
+  golden multiplier and the carry-back to hand.
+- **Elderhorn** — the first Choose One branch is **Rallies only**; Slaughters dropped out of the text.
+  ⚠️ TEXT-ONLY so far: the branch still runs `battlecryGrantBeastHunt`, whose `beastHuntExtra` flag is read at
+  BOTH the attack and the kill site in `simulate`, so Slaughters are still doubled in play. Splitting that flag
+  is engine work — flagged rather than half-done.
+- **Brood Whelp** — now TARGETED (`target: 'friendly'` + `battlecryBuffTarget`): you pick who gets the +5 Attack
+  instead of the card picking a Dragon for you, which is the whole decision on a tier-1 token.
+- **Barroom Bounty** — granted Korr, so it now grants a **Brunni with Ward** (owner call after the removal).
+
+**Art re-wired from the adjusted masters.** 145 minions + 21 quest-reward + 111 runes. Mushy and Scalefeather
+are fixed: the owner supplied correctly-named `Mushy.png` / `Scalefeather.png`, which now match by name, so the
+two stale pre-rename aliases were deleted rather than left to compete with the current art. The file sizes show
+the swap landing — `d2_chronicler` now carries what `d2_scalefeather` used to, which is what the rename implied.
+
+Verified: typecheck (both), lint (7 pre-existing), 3403 tests, build:web, harness determinism.
+
 ## 2026-07-31 — Lobbies now respect the card set (they did not)
 
 Found while answering the owner's question "if I turn set 1 off and set 2 on, will lobbies stop serving set-1

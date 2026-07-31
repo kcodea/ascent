@@ -39,7 +39,6 @@ const IconTrash = () => (
 
 export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
-  const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
   const startRift = useGame((s) => s.startRift);
@@ -177,15 +176,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="mpeyebrow">Choose your climb</div>
             <h1 className="disp mptitle">MODE</h1>
             <div className="mprow">
-              <button className="modecard" onClick={() => { sfx.pulse(); startAscent(); }}>
-                <div className="mcframe" data-mode="ascent">
-                  <div className="mcname">Ascent</div>
-                  <span className="mcemblem"><Crest /></span>
-                  <div className="mctag">Scored</div>
-                </div>
-                <div className="mcdesc">The scored 17-round climb. Cover your Oath, then chase the summit.</div>
-              </button>
-
+              {/* The scored course ("Ascent") left the picker with the Set 2 launch (owner 2026-07-31) — the
+                  LOBBY is the game now. The mode + its machinery stay for replays and a future return. */}
               {rift && (
                 <button className="modecard" onClick={() => { sfx.pulse(); startRift(); }}>
                   <div className="mcframe" data-mode="rift">

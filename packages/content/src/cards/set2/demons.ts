@@ -237,7 +237,12 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 12,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffImps', params: { attack: 1, health: 1 } }],
+    // AUDIT FIND 2026-07-31: the printed rule and the wired effect had come apart — the text has said "Imp
+    // attacks / improves" since the rename, but the card still carried `spellCastBuffImps` (a recruit-phase
+    // per-spell buff, +1/+1). The matching combat factory `onImpAttackBuffImps` existed, schema-registered,
+    // with NO card referencing it. Its escalation is per-combat (rides `summonBonus`, which `simulate` now
+    // excludes from the carry-back for this card so "this combat" stays true).
+    effects: [{ on: 'onAttack', do: 'onImpAttackBuffImps', params: { attack: 3, health: 3, improve: 1, improveEvery: 3 } }],
     text: 'Whenever an **Imp** attacks, give your Imps **+3/+3** this combat. Improves by **+1/+1** every **3** Imp attacks.',
     goldenText: 'Whenever an **Imp** attacks, give your Imps **+6/+6** this combat. Improves by **+2/+2** every **3** Imp attacks.',
   },

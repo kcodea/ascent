@@ -83,6 +83,10 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
         playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff,
         goldSpent: foe ? 0 : run.goldSpentThisTurn,
         lastSpellName: foe ? undefined : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),
+        // The Dragon copiers' targets are frozen with the rest of the run for the fight — player-side only,
+        // same as lastSpellName (an enemy carries no run, so it falls back to its printed text).
+        firstSpellThisTurnName: foe ? undefined : (run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined),
+        lastSpellThisTurnName: foe ? undefined : (run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined),
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

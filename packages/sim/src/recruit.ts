@@ -3269,7 +3269,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  them rather than adding new bookkeeping. No spell cast yet this turn → a clean no-op.
    *  The copy is a fresh card from the index, so it carries no state from the original cast. */
   battlecryCopyCastSpell: (ctx, self, params) => {
-    const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellCastId;
+    // 'last' means last THIS TURN (the printed rule) — not the run-lifetime `lastSpellCastId` (audit 2026-07-31).
+    const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellThisTurnId;
     const def = id ? CARD_INDEX[id] : undefined;
     if (!def) return;
     conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
@@ -3277,7 +3278,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Set 2 — Spellvault Drake (End of Turn): the same copy, on the EoT beat instead of a Shout. */
   endOfTurnCopyCastSpell: (ctx, self, params) => {
-    const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellCastId;
+    const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellThisTurnId;
     const def = id ? CARD_INDEX[id] : undefined;
     if (!def) return;
     conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
@@ -4439,7 +4440,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[]; tier?: number }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
@@ -4448,6 +4449,17 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (def.ruby) {
     const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
     return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
+  }
+  // Ruby Shipment: "your most common type" resolves against the CURRENT board, so it names the type it would
+  // actually hand over right now (audit 2026-07-31 — a grant whose target shifts with cards played must say
+  // what it is giving). Absent a board (or an all-neutral one) the printed text stands: there is no answer yet.
+  // Reinforcing Ale (set 2) and Tribe Portal (set 1) both resolve "your most common type" against the current
+  // board at play time — so both name the type they would give right now. (First landed on the wrong id:
+  // a stale grep pinned this to Ruby Shipment; the live DOM check caught it printing on no card at all.)
+  if ((def.id === 'wo_reinforcement' || def.id === 'tribeportal') && extra?.topTribe) {
+    const label = extra.topTribe.charAt(0).toUpperCase() + extra.topTribe.slice(1);
+    // Asterisks fully optional: set 2 bolds the phrase, set 1's Tribe Portal doesn't.
+    return def.text.replace(/(?:\*\*)?most common (?:board )?type(?:\*\*)?/, (m0) => `${m0} ({{${label}}})`);
   }
   // Veinstorm: "equal to your Rubies" = base 1/1 + the run's rubyBonus — green the printed +1/+1 once it grows.
   if (def.id === 'veinstorm') {
@@ -5430,6 +5442,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   consumeGrimoireCharge(state);
   fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
+  state.lastSpellThisTurnId = spellDef.id; // Recaller copies the last Shop spell cast THIS TURN
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
   // "improve your Imps" applies twice under Rune of Mastery).
   if (state.runeSummoning) {

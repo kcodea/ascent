@@ -571,6 +571,70 @@ export function trailForagerText(cardId: string, golden: boolean, sellBonus: num
 /** Steward of Spells — name the ACTUAL spell it will copy at End of Turn (the run's most recent spell cast,
  *  `lastSpellCastId` → its name), so mousing over it shows exactly what you'll get. Null until a spell has been
  *  cast this run (then the printed "…the most recent spell cast" is the honest fallback). */
+/**
+ * King Oona / Broodwright — a summon-buff whose base magnitude IMPROVES on Avenge. Same contract as
+ * `summonBuffText` (which covers the other summon-buff shapes): null until the bonus has actually climbed, so
+ * the printed base stays authoritative; then the CURRENT grant, green, in place of the first printed "+N/+N".
+ * Found by the 2026-07-31 audit — both cards' Avenge had been silently outgrowing their printed number.
+ */
+export function improvingSummonText(cardId: string, summonBonus: number, golden = false): string | null {
+  if (summonBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffThenDouble' || e.do === 'onSummonImpBuff');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; health?: number };
+  const a = (Number(p?.attack ?? 1) + summonBonus) * (golden ? 2 : 1);
+  const h = (Number(p?.health ?? 1) + summonBonus) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
+}
+
+/**
+ * Rouge Rogue — its per-Imp-attack grant escalates DURING a fight (per-combat `summonBonus`; the improvement
+ * deliberately does not persist — see the carry-back exclusion in `simulate`). Combat-only in practice: in the
+ * shop the bonus is always 0 and the printed base stands.
+ */
+export function rougeRogueText(cardId: string, golden: boolean, summonBonus: number): string | null {
+  if (summonBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onImpAttackBuffImps');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 3);
+  const m = (base + summonBonus) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${m}}}`);
+}
+
+/**
+ * The Dragon spell-copiers name the ACTUAL spell they will hand over (owner ask 2026-07-31: a card whose grant
+ * shifts with cards played must say what it is giving). Three cards, three sources: Recaller reads the last
+ * Shop spell cast this turn, Spellvault Drake the first this turn, Spell Warden its own since-placed record.
+ * Null (printed text) until the spell exists — before any cast there is nothing to name.
+ */
+export function copyCastSpellText(cardId: string, golden: boolean, names: {
+  firstThisTurn?: string; lastThisTurn?: string; keeperFirst?: string;
+}): string | null {
+  if (cardId === 'd2_recaller' && names.lastThisTurn) {
+    const n = `{{${names.lastThisTurn}}}`;
+    return golden
+      ? `**Shout:** get **2** copies of ${n} — the last **Shop spell** you cast this turn.`
+      : `**Shout:** get a copy of ${n} — the last **Shop spell** you cast this turn.`;
+  }
+  if (cardId === 'd2_spellvault' && names.firstThisTurn) {
+    const n = `{{${names.firstThisTurn}}}`;
+    return golden
+      ? `**End of Turn:** get **2** copies of ${n} — the first **Shop spell** you cast this turn.`
+      : `**End of Turn:** get a copy of ${n} — the first **Shop spell** you cast this turn.`;
+  }
+  if (cardId === 'd2_spellkeeper' && names.keeperFirst) {
+    const n = `{{${names.keeperFirst}}}`;
+    return golden
+      ? `After you cast your **second Shop spell** each turn, get **2** copies of the first (${n}).`
+      : `After you cast your **second Shop spell** each turn, get a copy of the first (${n}).`;
+  }
+  return null;
+}
+
 export function stewardText(cardId: string, golden: boolean, lastSpellName: string | undefined): string | null {
   if (cardId !== 'stewardofspells' || !lastSpellName) return null;
   const name = `{{${lastSpellName}}}`;

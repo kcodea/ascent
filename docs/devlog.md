@@ -1,5 +1,43 @@
 # ASCENT — development log
 
+## 2026-07-31 — Set 2 wiring audit: a dead card effect, a wrong-turn copy, and six stale texts
+
+A systematic pass over every Set-2 effect: is it registered where its trigger fires, does its combat form emit
+events the replay animates, does every carry-back channel get applied at settle, and does every
+state-dependent text print its live value. Methodology: inventoried all ~130 (trigger, effect) pairs from the
+card data, cross-checked each against the combat/recruit factory tables, scanned every combat factory body for
+silent stat mutations (none — all go through `ctx.buff`), and diffed every `CombatResult.player*` field
+against its settle application (all applied; `playerQuestEvents` is UI-consumed by the replay's quest ticker).
+
+**Rouge Rogue was wired to the wrong effect entirely.** Its printed rule — "whenever an Imp attacks, +3/+3
+this combat, improving every 3 Imp attacks" — had a fully-built, schema-registered combat factory
+(`onImpAttackBuffImps`) that NO card referenced. The card carried `spellCastBuffImps` instead: a recruit-phase
+per-spell +1/+1. Re-wired; and because the escalation rides `summonBonus` (the same field the PERMANENT
+improvers use), `simulate`'s carry-back now excludes it so "this combat" stays true. Fixture note: proving the
+escalation took three tries — Target Dummy gains +1 Attack per hit and snowballed the Imps dead, and Legion
+Shepherd's Imps are an Echo that never fires against a harmless wall. The test now uses Imp Wranglers
+(Start-of-Combat summons) against an inert Drummer.
+
+**Recaller copied the wrong turn's spell.** Its rule says "the last Shop spell you cast this turn", but the
+factory read `lastSpellCastId` — run-lifetime state (Steward of Spells needs that one) — so on a turn with no
+casts it quietly copied a previous turn's spell. A per-turn `lastSpellThisTurnId` now backs it, reset beside
+its first-spell sibling.
+
+**Six texts now print what they actually do** (the live-text hard rule): King Oona and Broodwright fold their
+Avenge-improved summon grant; Rouge Rogue folds its per-combat escalation; the three Dragon copiers (Recaller,
+Spellvault Drake, Spell Warden) name the ACTUAL spell they will hand over; Reinforcing Ale and Tribe Portal
+(set 1, same resolver) name the most-common type they would give right now. Verified live in the DOM with a
+staged throwaway run — which caught two things the tests couldn't: the `live` useMemo in Recruit was missing
+deps for the new fields (and for `topTribe`'s board dependency), and my first pass keyed the type-namer to the
+wrong spell id (a stale grep said Ruby Shipment; the DOM said Reinforcing Ale).
+
+Also confirmed as CORRECT, no change: all 40 Set-2 combat factories emit through animating channels; every
+carry-back passes a `sourceUid` telegraph except `grantBonusGold` and Mushy's next-turn copy queue, which are
+silent in Set 1 too (parity, noted for a future cue pass); the Imp buff cues via `tribeAura`; shop-offer
+spells now get the same live-text extras the hand path had.
+
+Verified: typecheck (both), lint (7 pre-existing), 3446 tests, build:web, harness determinism, live DOM.
+
 ## 2026-07-31 — Market Tormentor, third shape: a permanent right-most SLOT buff
 
 My per-refresh restore earlier today was still wrong — the owner's full spec: a SHOUT that buffs the

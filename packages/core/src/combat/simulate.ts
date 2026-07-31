@@ -2368,8 +2368,12 @@ export function simulate(
 
   // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge
   // improved its summon buff this combat keeps the higher bonus for the run.
+  // Rouge Rogue's escalation is "this combat" BY RULE — it rides `summonBonus` like the permanent improvers
+  // (Kennelmaster, Oona, Broodwright) but must NOT persist, or three fights of Imp attacks would compound into
+  // a permanent aura the card never printed. Excluded here, at the single point deciding what persists.
+  const COMBAT_ONLY_SUMMON_BONUS = new Set(['dm_chancellor']);
   const playerSummonBonus = boards.player
-    .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0)
+    .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0 && !COMBAT_ONLY_SUMMON_BONUS.has(m.cardId))
     .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
   // Sergeant: the Deathrattle HP-grant accrual (seeded from the run board + any improvements from Attack
   // gained this combat) carries back so the improvement is permanent — keyed to the originating board card.

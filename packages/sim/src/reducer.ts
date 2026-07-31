@@ -2490,6 +2490,7 @@ function advanceCombat(s: RunState): void {
   s.firstShoutUid = undefined;
   s.consumesThisTurn = 0; // Endless Appetite's "first Consume each turn" gate resets each wave
   s.firstSpellThisTurnId = undefined; // Rune of Recurrence's first-spell record resets each wave
+  s.lastSpellThisTurnId = undefined; // Recaller's last-spell-this-turn record resets each wave
   // Set 2 — Living Grimoire RE-ARMS at the start of each turn, which is what makes its printed rule ("the
   // first spell you cast EACH TURN casts twice") true. It used to arm only on play and via the 3-Shout reset,
   // so on any later turn where you hadn't triggered 3 Shouts the card silently did nothing — the owner read

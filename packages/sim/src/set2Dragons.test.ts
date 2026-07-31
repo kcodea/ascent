@@ -55,6 +55,19 @@ describe('set 2 — Dragon effects', () => {
     expect(s.hand.filter((c) => c.cardId === 'growth').length).toBe(1);
   });
 
+  it("Recaller: \"this turn\" means THIS turn — last turn's spell is not a target (audit 2026-07-31)", () => {
+    // The factory read `lastSpellCastId`, which is run-LIFETIME (Steward of Spells needs that one) — so on a
+    // turn with no casts, the Shout quietly copied a spell from a previous turn. The printed rule says "this
+    // turn"; a per-turn record (`lastSpellThisTurnId`) now backs it, reset with its first-spell sibling.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20, board: [],
+      lastSpellCastId: 'growth', // a PREVIOUS turn's cast — run-lifetime state, present at turn start
+      hand: [minion('r1', 'd2_recaller', 'dragon', 5, 4)],
+    };
+    s = reduce(s, { type: 'play', uid: 'r1' });
+    expect(s.hand.filter((c) => c.cardId === 'growth').length, "it copied last turn's spell").toBe(0);
+  });
+
   it('Spellvault Drake: End of Turn copies the FIRST spell cast that turn', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,

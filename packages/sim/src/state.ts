@@ -476,6 +476,10 @@ export interface RunState {
   /** Steward of Spells: the id of the most recent spell cast this run (persists across turns until the next
    *  cast). Absent until a spell is cast. */
   lastSpellCastId?: string;
+  /** The last Shop spell cast THIS TURN (reset each wave) — Recaller's copy target. Distinct from
+   *  `lastSpellCastId`, which is run-lifetime (Steward of Spells): Recaller's printed rule says "this turn",
+   *  and reading the run-lifetime field made it copy LAST turn's spell on a turn where none was cast. */
+  lastSpellThisTurnId?: string;
   /** Player-side Deathrattles triggered across the whole run — Grim's buff scales with this. */
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */

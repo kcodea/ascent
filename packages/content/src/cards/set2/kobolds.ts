@@ -67,7 +67,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_gemline',
     name: 'Gemline Martyr',
     tribe: 'kobold',
-    tier: 3,
+    tier: 4,
     attack: 2,
     health: 5,
     keywords: [],

@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-07-31 — Gemline T4, the Compendium learns which set is live, art re-wire
+
+Gemline Martyr to T4. The title-screen Compendium was frozen in set 1: a hardcoded five-tribe list (Mechs,
+Undead — no Kobolds or Dwarves) and a `run.setId ?? 'set1'` pool read off whatever stale run object the title
+held. It now reads the ACTIVE set from the title (tribe chips + pool + count — live-verified: Kobolds/Dwarves
+in, Mechs/Undead out, 133 minions), while a mid-run book keeps showing the run's own pinned set. Minion +
+spell art re-wired (4 changed: Sovereign, Spell Warden, Hellrider, Void Curator).
+
+Verified: typecheck (both), lint (7 pre-existing), 3509 tests, build:web, live DOM.
+
 ## 2026-07-31 — MMR tuned; practice becomes a lobby
 
 **Placement deltas** are the owner's: 1st→8th = +100 / +71 / +42 / +13 / −12 / −36 / −62 / −92.

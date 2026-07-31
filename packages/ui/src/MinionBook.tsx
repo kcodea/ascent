@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, poolFor } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, activeSet, poolFor } from '@game/content';
 import { HEROES } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
@@ -120,7 +120,8 @@ const NON_TRIBE_CATS = new Set<Category>(['spells', 'rewards', 'quests', 'runes'
 
 const TIERS = [1, 2, 3, 4, 5, 6, 7] as const;
 /** Every non-neutral tribe — the left-rail set when browsing the full game (from the title, pre-run). */
-const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'mech', 'undead', 'demon'];
+// (Was a hardcoded set-1 five — with set 2 live the title-screen book showed Mechs/Undead and no
+// Kobolds/Dwarves. The ACTIVE set's tribe list is the truth; a mid-run book uses the run's own tribes.)
 
 /** One glossary entry. `match` (when present) makes the row a live filter: clicking it scopes the gallery
  *  to the cards it matches. Terms with no sensible card filter (Gilded) omit it and render inert. */
@@ -256,7 +257,10 @@ function toView(c: CardDef, gilded = false): CardView {
  */
 export function MinionBook() {
   const run = useGame((s) => s.run);
-  const setId = run.setId ?? 'set1'; // the Compendium shows the pool of the set this run is playing
+  const showTitleEarly = useGame((s) => s.showTitle);
+  // From the TITLE the book shows the ACTIVE set (what a new run would play); mid-run it shows the run's own
+  // pinned set — which can differ after a set flip, and the book must describe the game being played.
+  const setId = showTitleEarly ? activeSet().id : (run.setId ?? 'set1');
   const pool = poolFor(setId);
   const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS } = poolIds(setId);
   const showTitle = useGame((s) => s.showTitle);
@@ -271,7 +275,7 @@ export function MinionBook() {
 
   // Opened from the title (no committed run) → browse the WHOLE card set; in a run → scope to its active
   // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
-  const tribes: Tribe[] = showTitle ? ALL_TRIBES : run.tribes;
+  const tribes: Tribe[] = showTitle ? [...activeSet().tribes] : run.tribes;
 
   // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells, Quest Rewards,
   // and Quests (the quest definitions themselves).

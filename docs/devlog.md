@@ -340,6 +340,48 @@ eager and 192 files are new. Gates: typecheck (both), lint (7 pre-existing), 338
 
 **Still unwired:** Lastlight Marshal, and 8 runes — Investment, Hunger, the Menagerie (set-2 twin `rune_menagerie_set2`;
 the art matched the set-1 rune), Mykel, Double Fisting, the Brokerage, Attacking Gems, the White Wolf.
+## 2026-07-30 — every button off the title screen presses like the title screen
+
+**What changed.** The tactile grammar from the main menu now applies across the game's UI screens, through one
+extracted primitive rather than nine copies. Player-facing.
+
+**Extracted, not copied.** `.menubtn` was the only thing in the game with thickness, hover, press, sheen and a
+focus ring — and it is used in exactly one file. `.pressable` now holds that grammar once; each surface opts in
+with a class and supplies its own colours through custom properties. Copying it per screen is how the tuner
+panels ended up with eight font sizes.
+
+**Travel is derived, never set.** A pressed control loses exactly the thickness it travels
+(`--pr-travel: calc(var(--pr-edge) - 1px)`), so it compresses into the surface instead of sliding across it, and
+a 7px button and a 3px button cannot fall out of agreement. Depth scales to the object: 7px on the end-screen
+CTA, 5px on the career avatar disc, 4px on ordinary buttons, 3px on 40px icon buttons.
+
+**The best find was a button that looked tactile and wasn't.** `Play Again` already carried a 7px hard edge and
+had no press state at all — the most solid-looking object in the game did not move when pushed.
+
+**A tier was tried and rejected by the owner.** The first pass gave Back, Close and the pause-menu rows a 2px
+edge with no sheen, arguing that navigation should not flash like a primary action. Judged against `Play Again`
+it read as unfinished rather than restrained, so the full plaque now ships everywhere off the title screen.
+`.quiet` stays defined for a surface that genuinely needs it. Rows and bare links keep `.text` — they have no
+face, and an edge under a transparent element renders as a stray bar rather than a button.
+
+**A primitive must never participate in layout — learned the hard way.** `.pressable` initially declared
+`position: relative`. It ties `.hsback` on specificity and sits later in the file, so it silently beat that
+button's `position: absolute`, dropped it into the normal flow and pushed the entire hero-select screen down.
+Every computed check passed — `--pr-edge`, travel and box-shadow all resolved correctly — because none of them
+can see a button in the wrong place. The owner caught it in one glance at a screenshot. The primitive now
+declares no `position`, and containment for the sheen is granted per surface after checking that surface is
+static. **This is the sixth equal-specificity collision in `styles.css` this session and the first to change
+layout rather than appearance.**
+
+**Coverage.** HeroSelect, EndScreen, EscMenu (7), Career, Rankings, Leaderboard, MinionBook, AvatarPicker, and
+the Balance panel's Back — the last caught because it shares `.lbback` and would otherwise have looked broken
+beside its siblings. Deliberately excluded: the title screen (owner's call), selection cards and chips (a card
+lifts toward you, a plaque presses away — they get their own treatment separately), and the in-board shop
+controls, which have hand-tuned pressed ART and dedicated tuner panels that a CSS press would fight.
+
+**How it was verified.** typecheck (pkgs + web), lint, 3221 tests, build:web. Computed values confirmed per
+tier; the owner confirmed the feel on the real screens, which is also how the layout regression was caught.
+
 
 ## 2026-07-30 — the collision stutter was a GLSL recompile, 68 ms at a time
 

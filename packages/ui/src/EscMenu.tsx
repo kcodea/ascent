@@ -75,7 +75,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="evv">{muted ? 'Off' : `${Math.round(vol * 100)}`}</span>
         </div>
         <button
-          className={`escbtn${muted ? ' on' : ''}`}
+          className={`escbtn pressable${muted ? ' on' : ''}`}
           onPointerDown={() => setMuted(toggleMute())}
         >
           <span className="ebl">{muted ? 'Muted' : 'Sound on'}</span>
@@ -83,7 +83,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         </button>
         <div className="escsec">Saved Boards</div>
         <div className="escboards">
-          <button className={`escbtn${confirmClear ? ' danger' : ''}`} onPointerDown={clearBoards}>
+          <button className={`escbtn pressable${confirmClear ? ' danger' : ''}`} onPointerDown={clearBoards}>
             <span className="ebl">{confirmClear ? 'Tap again to clear' : 'Clear my boards'}</span>
             <span className="ebs">{confirmClear ? `Wipes all ${boardCount} captures` : `${boardCount} saved · wipe stale captures`}</span>
           </button>
@@ -91,7 +91,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         </div>
         <div className="escsec">Career</div>
         <div className="escboards">
-          <button className={`escbtn${confirmCareer ? ' danger' : ''}`} onPointerDown={doResetCareer}>
+          <button className={`escbtn pressable${confirmCareer ? ' danger' : ''}`} onPointerDown={doResetCareer}>
             <span className="ebl">{confirmCareer ? 'Tap again to reset' : 'Reset my career'}</span>
             <span className="ebs">{confirmCareer ? 'Wipes renown + past games + all stats' : `Renown ${profile.rating} · ${runCount} run${runCount === 1 ? '' : 's'} · wipes history + stats`}</span>
           </button>
@@ -100,7 +100,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         <div className="escsec">Run</div>
         {/* Back to the main menu — the run stays saved (Continue resumes it); it does NOT abandon the run. */}
         <button
-          className="escbtn"
+          className="escbtn pressable"
           onPointerDown={() => { openTitle(); onClose(); }}
         >
           <span className="ebl">Quit back to main menu</span>
@@ -112,14 +112,14 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <>
             <div className="escsec">Game</div>
             <button
-              className="escbtn"
+              className="escbtn pressable"
               onPointerDown={() => { toggleFullscreen(); }}
             >
               <span className="ebl">Toggle fullscreen</span>
               <span className="ebs">Borderless fullscreen by default — F11 does the same</span>
             </button>
             <button
-              className={`escbtn${confirmQuit ? ' danger' : ''}`}
+              className={`escbtn pressable${confirmQuit ? ' danger' : ''}`}
               onPointerDown={() => { if (!confirmQuit) { setConfirmQuit(true); return; } quitGame(); }}
             >
               <span className="ebl">{confirmQuit ? 'Tap again to quit' : 'Quit game'}</span>
@@ -127,7 +127,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             </button>
           </>
         )}
-        <button className="escclose" onPointerDown={onClose}>Resume</button>
+        <button className="escclose pressable" onPointerDown={onClose}>Resume</button>
       </div>
     </div>
   );

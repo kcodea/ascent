@@ -34,7 +34,7 @@ export function HeroSelect() {
 
   return (
     <div className="heroselect">
-      <button className="hsback" onClick={() => { sfx.pulse(); openTitle(); }}>← Back</button>
+      <button className="hsback pressable" onClick={() => { sfx.pulse(); openTitle(); }}>← Back</button>
       <div className="hsbox">
         <div className="eyebrow">Choose your champion</div>
         <h1 className="disp hstitle">THE ASCENT</h1>

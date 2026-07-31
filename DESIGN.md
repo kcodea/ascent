@@ -441,6 +441,39 @@ derived from each frame asset's real pixel aspect and centre-anchored, so it tra
 with no measuring. `border-radius: 50%` is load-bearing — the halo is a `box-shadow`, and a `clip-path`
 would cut it away entirely.
 
+### Pressable
+
+Every button outside the title screen presses through one primitive, `.pressable`. The title menu's `.menubtn`
+established the grammar and still carries its own copy (it composes a horizontal hover slide the primitive does
+not model); everything else opts in with a class.
+
+**The rule that makes it feel physical:** a pressed control **loses exactly the thickness it travels**. The edge
+collapses from `--pr-edge` to 1px while the face moves down by the same amount, so it reads as compressed into
+the surface rather than sliding across it. Travel is therefore DERIVED — `--pr-travel: calc(var(--pr-edge) - 1px)`
+— and must never be hand-set, or a button's motion and its thickness drift out of agreement.
+
+**Depth is proportional to the object.** Same character everywhere, scaled so it stays believable:
+
+| Surface | `--pr-edge` |
+|---|---|
+| The primary end-screen CTA (largest object on screen) | 7px |
+| A large disc (the career avatar) | 5px |
+| Ordinary buttons — Resume, Back, pause rows, leaderboard | 4px |
+| 40px icon buttons (close ✕) | 3px |
+
+Each surface keeps its own face and supplies only its colours: `--pr-edge-c`, plus `--pr-inset` and `--pr-amb`
+for a button that already carried a lit top edge or an ambient shadow.
+
+**A primitive must never participate in layout.** `.pressable` deliberately declares no `position`. It did
+briefly, and because it ties `.hsback` on specificity while sitting later in the file, it silently beat that
+button's `position: absolute`, dropped it into the normal flow and pushed the whole hero-select screen down.
+Containment for the sheen is granted per surface, and only where that surface is statically positioned.
+
+**Tiers.** `.quiet` (2px, no sheen) and `.text` (no face, settles 1px and dims) exist. Nothing off the title
+screen ships `.quiet` — tiering Back and the pause rows down was tried and read as unfinished rather than
+deliberately restrained. `.text` is used where there is no face to press: rows and bare links, where an edge
+under a transparent element would render as a stray bar.
+
 ## The dev tooling surface
 
 The 46 DEV tuner panels are the one surface that does **not** wear the vellum-and-gold world, and that is a

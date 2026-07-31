@@ -2296,26 +2296,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (step > 0) self.summonBonus = (self.summonBonus ?? 0) + step;
   },
 
-  /** Set 2 — Market Tormentor: while it's on board, the RIGHT-most minion of every FRESH Shop roll comes in
-   *  buffed (owner spec 2026-07-25).
-   *
-   *  Three things the earlier one-shot Shout got wrong, all of them owner-visible:
-   *   - it fired ONCE on play, not on every roll;
-   *   - it used `buffCardTypeRunWide`, which buffs EVERY copy of that card id for the rest of the run rather
-   *     than the single offer sitting on the right;
-   *   - nothing re-ran it, so a fresh shop was never touched.
-   *
-   *  `addOfferBuff` is the right channel: it bumps that OFFER, and `offerBuyStats` folds offer buffs into the
-   *  bought card — so "permanently" means the minion keeps it once you buy it, while an unbought offer rolls
-   *  away with the shop. The buff is decided AT REFRESH, against the row as it was just dealt, so re-ordering
-   *  the shop afterwards doesn't move it — it's attached to the card, not to the position.
-   *
-   *  Ordering matters and is enforced by `applyShopRefreshed`: this runs before consuming watchers, so a
-   *  Hellrider that eats the right-most eats the BUFFED body. */
-  shopRefreshedBuffRightmost: (ctx, self, params) => {
-    const i = rightmostShopMinion(ctx.state);
-    if (i < 0) return;
-    addOfferBuff(ctx.state.shop[i]!, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
+  /** Set 2 — Market Tormentor (Shout, owner spec 2026-07-31): the right-most Shop SLOT gets +4/+4 for the rest
+   *  of the run. Grows `rightmostSlotBuff` and lands the INCREMENT on the current row — earlier stacks already
+   *  landed there, at Shout time or at the roll, so re-applying the total would double them. Every subsequent
+   *  fresh roll gets the full total in `applyShopRefreshed`. The Tormentor itself is disposable: the slot
+   *  remembers, not the minion. */
+  buffRightmostSlotPermanent: (ctx, self, params) => {
+    const st = ctx.state;
+    const a = num(params.attack, 4) * gold(self);
+    const h = num(params.health, 4) * gold(self);
+    st.rightmostSlotBuff = {
+      attack: (st.rightmostSlotBuff?.attack ?? 0) + a,
+      health: (st.rightmostSlotBuff?.health ?? 0) + h,
+    };
+    const i = rightmostShopMinion(st);
+    if (i >= 0) addOfferBuff(st.shop[i]!, nameOf(self), a, h);
   },
 
   /** Set 2 — Bob Blart (End of Turn): gain the RIGHT-most Shop minion's stats `times` over WITHOUT eating
@@ -5072,21 +5067,23 @@ export function applySpellBought(state: RunState, spellId: string): void {
  * was never present for. A dedicated loop rather than the generic `fire`, whose payload is minion-shaped.
  */
 export function applyShopRefreshed(state: RunState): void {
-  applyShopRefreshQuestBuff(state); // before the board watchers, so a Market Tormentor's row is already buffed
-  // TWO PASSES, and the order is load-bearing (owner ruling 2026-07-25): watchers that STAT-BUFF the new row
-  // resolve before watchers that CONSUME from it, so anything eating the right-most minion eats the buffed
-  // body. Board order can't be trusted for this — a Hellrider sitting left of a Market Tormentor would
-  // otherwise eat the offer a moment before it got buffed.
-  const BUFF_FIRST = new Set(['shopRefreshedBuffRightmost']);
-  for (const pass of [true, false]) {
-    for (const card of [...state.board]) {
-      const def = CARD_INDEX[card.cardId];
-      if (!def?.effects.some((e) => e.on === 'shopRefreshed')) continue;
-      const ctx = makeContext(state);
-      for (const eff of def.effects) {
-        if (eff.on !== 'shopRefreshed' || BUFF_FIRST.has(eff.do) !== pass) continue;
-        RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
-      }
+  applyShopRefreshQuestBuff(state);
+  // Market Tormentor's SLOT buff lands on the fresh row's right-most minion, BEFORE the watchers below — the
+  // ordering is load-bearing (owner ruling 2026-07-25): a Hellrider that eats the right-most must eat the
+  // BUFFED body. It used to be enforced with a two-pass BUFF_FIRST loop over board watchers; now that the buff
+  // is run-level state rather than a board effect, applying it up here IS the ordering.
+  const slot = state.rightmostSlotBuff;
+  if (slot) {
+    const i = rightmostShopMinion(state);
+    if (i >= 0) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
+  }
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def?.effects.some((e) => e.on === 'shopRefreshed')) continue;
+    const ctx = makeContext(state);
+    for (const eff of def.effects) {
+      if (eff.on !== 'shopRefreshed') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
     }
   }
 }

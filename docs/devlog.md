@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-07-31 — Market Tormentor, third shape: a permanent right-most SLOT buff
+
+My per-refresh restore earlier today was still wrong — the owner's full spec: a SHOUT that buffs the
+right-most Shop SLOT +4/+4 for the rest of the run. It lands on the current shop when played, re-lands on
+every fresh roll's right-most, STACKS (two normals + a gilded = +16/+16), and does NOT need the Tormentor on
+board — the slot remembers, not the minion.
+
+So the state moved from the board to the run: `rightmostSlotBuff` accumulates per Shout, the Shout applies its
+INCREMENT to the current row (earlier stacks already landed there), and `applyShopRefreshed` applies the full
+total to each fresh roll. The factory id is renamed `buffRightmostSlotPermanent` — the old name described a
+trigger the effect no longer has. The two-pass BUFF_FIRST loop in `applyShopRefreshed` is gone: it existed
+solely to run this effect's board watcher before consuming watchers, and now that the buff is run-level state
+applied at the top of the function, the position IS the ordering. Hellrider still eats the buffed body — that
+rule (owner 2026-07-25) has a test pinning it via `shopEaten`, which records stats as-eaten.
+
+Tests now quote the owner's spec verbatim, including his worked +16/+16 example — the previous two rewrites
+each pinned the then-current implementation, which is how a regression passed CI for two days.
+
+Verified: typecheck (both), 3442 tests.
+
 ## 2026-07-31 — Market Tormentor fires on every refresh again
 
 The owner reported the buff "not working properly". It had been changed from a per-refresh trigger to a

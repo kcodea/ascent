@@ -98,14 +98,14 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    // BACK TO PER-REFRESH (owner report 2026-07-31: "right-most minion of every refresh gets the buff
-    // permanently"). It was briefly a one-shot Shout (2026-07-29); as a Shout the card bought itself one buffed
-    // offer and then did nothing for the rest of the run, which is not a tier-4 body. Every consumer of the
-    // per-refresh path — `applyShopRefreshed`'s two-pass buff-before-consume ordering, and the turn-start deal
-    // — was still wired for this effect the whole time it was unreachable.
-    effects: [{ on: 'shopRefreshed', do: 'shopRefreshedBuffRightmost', params: { attack: 4, health: 4 } }],
-    text: 'After each Shop refresh, give the **right-most** minion **+4/+4** permanently.',
-    goldenText: 'After each Shop refresh, give the **right-most** minion **+8/+8** permanently.',
+    // THIRD SHAPE, and this one is the owner's full spec (2026-07-31): a SHOUT that buffs the right-most Shop
+    // SLOT for the rest of the run. The buff lands on the current shop when played, RE-lands on every fresh
+    // roll's right-most, STACKS across plays (two normals + a gilded = +16/+16), and does NOT need the
+    // Tormentor to stay on board — the slot remembers, not the minion. The first shape (per-refresh watcher)
+    // died with the body; the second (one-shot Shout) buffed exactly one offer ever. Both were wrong.
+    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 4, health: 4 } }],
+    text: '**Shout:** the **right-most Shop slot** gets **+4/+4** for the rest of the run. Stacks.',
+    goldenText: '**Shout:** the **right-most Shop slot** gets **+8/+8** for the rest of the run. Stacks.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.

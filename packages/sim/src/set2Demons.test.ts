@@ -444,58 +444,80 @@ describe('set 2 — regressions from the effect-param audit', () => {
 });
 
 /**
- * Market Tormentor: while it's on board, the RIGHT-most minion of every FRESH Shop roll comes in buffed, and
- * the buff is PERMANENT — it rides the offer into the minion you buy.
+ * Market Tormentor — the owner's full spec, in his words (2026-07-31): "it's a shout: buff the right most shop
+ * slot +4/+4. this stacks, so if i play 2 normals and then gild it and play that, the right most slot should
+ * now have +16/+16. i do not need market tormentor on board. this effect takes place in the current shop when
+ * played, and that buff carries over across refreshes as well."
  *
- * This is the second time these tests have moved. They were written for the per-refresh trigger (2026-07-25),
- * rewritten to pin a one-shot Shout (2026-07-29), and are now back — the owner reported the Shout as a bug on
- * 2026-07-31. Worth naming: the Shout rewrite is what let the regression through silently. `does NOT fire on a
- * refresh any more` PASSED for two days while the card was doing almost nothing, because the test had been
- * changed to expect the broken behaviour. So these assert the OWNER'S SPEC in his words, not the code's shape.
+ * This is the card's THIRD shape, and these tests assert that quote rather than the code — the previous two
+ * rewrites each pinned the then-current implementation, which is how a regression passed CI for two days.
  */
-describe('set 2 — Market Tormentor (per-refresh)', () => {
+describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
   const rightmostBuff = (s: RunState): number => {
     const i = [...s.shop].reverse().findIndex((o) => !CARD_INDEX[o.cardId]?.spell);
     const offer = s.shop[s.shop.length - 1 - i]!;
     return (offer.atk ?? 0) + (offer.hp ?? 0);
   };
-  const onBoard = (): RunState => ({
+  const base = (): RunState => ({
     ...createRun(11), phase: 'recruit', embers: 99, freeRolls: 99,
-    board: [minion('T', 'dm_tormentor', 4, 4)], hand: [],
+    board: [], hand: [minion('T', 'dm_tormentor', 4, 4)],
     shop: shop('sandbag', 'alley', 'stray'),
   });
 
-  it('buffs the right-most minion of EVERY refresh, not once', () => {
-    let s = onBoard();
-    for (const roll of [1, 2, 3]) {
+  it('the Shout buffs the CURRENT shop immediately', () => {
+    let s = base();
+    s = reduce(s, { type: 'play', uid: 'T' });
+    expect(rightmostBuff(s)).toBe(8); // +4/+4
+  });
+
+  it('the buff CARRIES ACROSS refreshes — no Tormentor on board required', () => {
+    let s = base();
+    s = reduce(s, { type: 'play', uid: 'T' });
+    s = { ...s, board: [] }; // sell it; the SLOT remembers, not the minion (owner: "i do not need it on board")
+    for (const roll of [1, 2]) {
       s = reduce(s, { type: 'roll' });
-      expect(rightmostBuff(s), `refresh ${roll} did not buff the right-most offer`).toBe(8); // +4/+4
+      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(8);
     }
   });
 
-  it('the buff is PERMANENT — it follows the minion you buy', () => {
-    let s = onBoard();
+  it("STACKS to the owner's worked example: two normals + a gilded = +16/+16", () => {
+    let s: RunState = { ...base(), hand: [
+      minion('T1', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4),
+      { ...minion('T3', 'dm_tormentor', 8, 8), golden: true },
+    ] };
+    for (const uid of ['T1', 'T2', 'T3']) s = reduce(s, { type: 'play', uid });
+    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(32); // +16/+16
+    s = reduce(s, { type: 'roll' });
+    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(32);
+  });
+
+  it('the buff rides the offer into the minion you BUY', () => {
+    let s = base();
+    s = reduce(s, { type: 'play', uid: 'T' });
     s = reduce(s, { type: 'roll' });
     const i = s.shop.length - 1 - [...s.shop].reverse().findIndex((o) => !CARD_INDEX[o.cardId]?.spell);
     const offer = s.shop[i]!;
-    const base = CARD_INDEX[offer.cardId]!;
+    const def = CARD_INDEX[offer.cardId]!;
     const bought = offerBuyStats(s, offer);
-    expect(bought.attack - base.attack!, 'the offer buff was dropped on purchase').toBe(4);
-    expect(bought.health - base.health!, 'the offer buff was dropped on purchase').toBe(4);
+    expect(bought.attack - def.attack!).toBe(4);
+    expect(bought.health - def.health!).toBe(4);
   });
 
-  it('STACKS — two Tormentors both buff the same offer', () => {
-    // The owner asked for stacking explicitly. `addOfferBuff` accumulates per source, so this is really a test
-    // that BOTH bodies get their watcher run rather than the row being buffed once per refresh.
-    let s: RunState = { ...onBoard(), board: [minion('T', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4)] };
-    s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s), 'the second copy did nothing').toBe(16); // +8/+8
-  });
-
-  it('a GOLDEN copy doubles it', () => {
-    let s: RunState = { ...onBoard(), board: [{ ...minion('T', 'dm_tormentor', 8, 8), golden: true }] };
-    s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s)).toBe(16); // +8/+8
+  it('a Hellrider consuming the right-most eats the BUFFED body (buff-before-consume ordering)', () => {
+    // The ordering rule predates this shape (owner ruling 2026-07-25) and must survive it: the slot buff now
+    // applies at the top of `applyShopRefreshed`, before any consuming watcher runs. `shopEaten` records the
+    // eaten body's stats AS EATEN, so the +4/+4 is visible there or nowhere.
+    let s: RunState = {
+      ...base(), hand: [minion('T', 'dm_tormentor', 4, 4)],
+      board: [{ ...minion('H', 'dm_maw', 4, 6), eotTick: 3 }], // one refresh from firing
+    };
+    s = reduce(s, { type: 'play', uid: 'T' });
+    s = reduce(s, { type: 'roll' }); // Hellrider fires — it must eat a body already carrying the slot buff
+    const eaten = s.shopEaten?.at(-1);
+    expect(eaten, 'Hellrider did not fire on this refresh').toBeTruthy();
+    const def = CARD_INDEX[eaten!.cardId]!;
+    expect(eaten!.attack - def.attack!, 'the eaten body was not buffed before the consume').toBe(4);
+    expect(eaten!.health - def.health!, 'the eaten body was not buffed before the consume').toBe(4);
   });
 });
 

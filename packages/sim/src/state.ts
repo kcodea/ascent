@@ -462,6 +462,11 @@ export interface RunState {
   /** Lifetime count of SHOP minions your Demons have Consumed — the `consumeShopMinion` objective's meter.
    *  Separate from the Fodder tally: the two consume mechanics must not fill each other's quests. */
   shopMinionsEaten?: number;
+  /** Market Tormentor: the accumulated right-most-SLOT buff. Run-level on purpose — the owner's spec is that
+   *  the buff outlives the Tormentor (a Shout, not an aura), stacks across plays, and re-lands on the
+   *  right-most minion of every fresh roll. Applied incrementally to the CURRENT shop at Shout time and in
+   *  full to each new roll (`applyShopRefreshed`). */
+  rightmostSlotBuff?: { attack: number; health: number };
   /** Endless Inventory: after each shop refresh, buff the shop — and improve the magnitude by `step` every
    *  `per` refreshes. `grown` is the accrued improvement, `tick` the progress toward the next step. */
   shopBuffOnRefresh?: { attack: number; health: number; step: number; per: number; grown: number; tick: number };

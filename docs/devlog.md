@@ -1,5 +1,84 @@
 # ASCENT — development log
 
+## 2026-07-29 — chore(ui): delete the dead "Shield Place" tuner
+
+**A DEV panel that looked functional and did nothing.** `ShieldTuner` was the last survivor of the Pixi
+aura-bubble system: it tuned `shieldConfig.recruitDy`, a vertical nudge for the divine-shield / reborn bubble on
+recruit cards, read by `syncShields` on each reconcile. `syncShields` was deleted when Ward and Reborn became CSS
+dome stacks in `Card.tsx` — and the tuner was never removed with it. What was left:
+
+- `shieldConfig.ts` exported `SHIELD_RANGES` / `SHIELD_DESC` / `SHIELD_KEYS` / `getShieldConfig` /
+  `setShieldValue` / `resetShieldConfig` and, tellingly, **no `apply*Vars()`** — every other CSS-driven tuner
+  config (`freezeConfig`, `stepCounterConfig`, `floatConfig`) has one that writes custom properties onto
+  `:root`. `shieldConfig` wrote nothing anywhere. `getShieldConfig` had no caller outside its own tuner.
+- `ShieldTuner.tsx` dispatched `window.dispatchEvent(new Event('ascent:shieldcfg'))` after every set and reset
+  to force the (deleted) re-sync. **Nothing listened.** The dispatch, the config, and the panel formed a closed
+  loop: dragging the slider persisted a number to `localStorage` that no code on any path ever read.
+- Its doc comment still described `syncShields` reading the config each reconcile — documentation for a
+  function that no longer exists.
+
+**Deleted rather than rewired**, because the rewire target already ships. `wardConfig.ts` + `WardTuner.tsx`
+(🔵 Ward Dome) are the live CSS-var replacement — `applyWardVars()` writes the properties the dome CSS consumes,
+and its **"Bubble box"** group exposes `domeW` / `domeH` / `domeX` / `domeY`. `domeY` *is* the dome's vertical
+offset, i.e. the exact knob `recruitDy` claimed to provide, except it works. Adding an `applyShieldVars()` would
+have built a second, competing control for one property.
+
+**Changed:** removed `packages/ui/src/ShieldTuner.tsx` and `packages/ui/src/shieldConfig.ts`; dropped the
+`{ key: 'shield', label: '🛡 Shield Place' }` entry and its import from `DevMenu.tsx`'s `TUNERS`. No CSS to
+remove — the panel borrowed the shared `sfxmix lunge flip` classes. The roadmap's dead-code-purge entry loses
+the `shieldConfig`/`ShieldTuner` clause; the orphaned `pixiFx.setShield` / `clearShield` / `setShieldsVisible` /
+`shieldLayer` / `hasAura` half of that item still stands.
+
+**Stale localStorage left behind** (harmless, never read again, listed so a future keyspace sweep can find it):
+`ascent.shield` (the config itself) and `ascent.devpanel.shield` (the panel's saved position/size from
+`useDraggablePanel('shield')`).
+
+**Context:** found during the dev-tuner schema migration (#751), where ShieldTuner was deliberately *skipped*
+rather than ported — porting a panel that does nothing would only make dead code look maintained. The rest of
+that batch (Motion Trail, Damage Float, Step Counter, Card Plate, Execute Aura, Reposition Slide) is verified
+live.
+
+**Also: `.claude/**` is now ESLint-ignored.** Flushing this out surfaced that a bare `npm run lint` was red on a
+clean tree — 78 errors, every one from `.claude/skills/impeccable/**`, a locally-installed agent plugin. That
+directory is per-machine tooling (plugins, skills, worktrees) and is gitignored, so CI never lints it: the errors
+existed only in our shells, no PR could fix them, and they buried the real findings. Added `.claude/**` to the
+`ignores` list in `eslint.config.mjs` alongside `node_modules` / `dist` / `apps/desktop/release`. `npm run lint`
+goes 78 errors → **0**, leaving the 6 pre-existing unused-import warnings.
+
+**Also: audited the roadmap's whole "Dead-code purge" item, and cleared the CSS half.** The bullet turned out to
+be wrong in four places — two of them traps that would have caused visible regressions:
+
+- **`battlecryGrantKeyword` is live.** `cards/set1/beasts.ts` uses it twice. Struck from the purge.
+- **The Reborn-tears DOM is already gone.** Nothing to remove; the only "tear" hits left are `teardown` prose.
+- **`.disc-gem` is live** — rendered by `Recruit.tsx`, and its rule is a deliberate `display: none`. Deleting it
+  would have made the gems *reappear*.
+- **`.ob` is live** — the OMEN-era base rule now also feeds the odds bar's `.oddsbar .ob.win/.draw/.lose`
+  segments, so removing it would have changed live rendering.
+
+**Deleted (CSS, verified unused):** the OMEN block, `.chip` (incl. its `.statusbar` overrides), `.toast`,
+`.legend`, `.tavernbox`, `.zt`/`.zh`/`.hint` and their entries in three combined selectors — plus a bonus find,
+the `.emberproj` projection popup, whose only entry point was `.chip.g:hover`, so it died with `.chip`. Every
+one confirmed by `className` search: the surviving hits are distinct hyphenated classes (`questbadge-chip`,
+`balchart-legend`, `fxwb-*-hint`), and the removed descendant rules (`.chip .ic`, `.oc .k`, `.eu .s`, …) are
+scoped under parents that no longer exist.
+
+**The effect-id count was badly stale: 69, not "~17".** New `docs/dead-effect-ids.md` carries the verified
+inventory — every id with no `do: '<id>'` usage in any content data, listed with the files to sweep. Two
+methodology traps are documented there because both nearly produced a wrong answer: a word-boundary regex built
+through a shell heredoc collapsed `\b` to a literal backspace and reported *every* id as unreferenced; and stale
+test prose reads like usage (`hoardbreaker`'s comment names `onKillCastSpell`, but the card only carries
+`rallyCastSpell`).
+
+**Left open, with reasons on the roadmap:** the Pixi aura-bubble removal is bigger than the bullet implied — the
+dead bubbles own an entire second WebGL `Application` (`shieldApp`) plus the `underParent` mount contract,
+already ticker-stopped as dormant. Dropping a full-viewport GL context deserves its own PR and a render profile.
+The 69 ids and the `reAttackOnKill` chain are engine-owned; `reAttackOnKill` in particular is *working*
+machinery in `minion.ts`/`simulate.ts` that simply no card uses, so removing it is an owner call, not a cleanup.
+
+**Verified:** `npm run typecheck` + `npm run typecheck:web` + `npm run lint` + `npm test` + `npm run build:web`
+all green, and a repo-wide grep for `ShieldTuner` / `shieldConfig` / `ascent:shieldcfg` returns no hits outside
+the devlog.
+
 ## 2026-07-31 — cards, chips and rows get a commit state, and the press gets its sound
 
 **The click cue moved from one screen to all of them.** The title column had its own delegated `pointerdown`
@@ -2019,6 +2098,7 @@ the REAL objective path — a real buy, a real Ruby cast — rather than reachin
 Still to go: 13 quests — Dragon (Runic Refrain, The Endless Verse, The Sealed Vault), Demon (Bane's Presence,
 Stock the Shelves, The Burning Legion, Endless Inventory, Bottomless Banquet), Kobold (Candlelight Toll,
 Motherlode, Heart of the Mountain), Dwarf (The Company Store), Neutral (Martial Training — BLOCKED, see below).
+
 
 ## 2026-07-29 — The Dwarf roster is complete (tranche C)
 

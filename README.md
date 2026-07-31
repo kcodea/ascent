@@ -44,6 +44,14 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Removed the dead "Shield Place" tuner.** The DEV panel had outlived its consumer: `syncShields` is gone and
+  Ward/Reborn are CSS dome stacks, so dragging its slider only wrote a localStorage value nothing read. Its one
+  knob — the dome's vertical offset — is already live in the 🔵 Ward Dome tuner as `domeY`. Also ESLint-ignores
+  `.claude/**`, so locally-installed agent plugins stop making `npm run lint` red on a clean tree (78 → 0).
+- **Audited the dead-code purge, and cleared the CSS half.** The roadmap's list was wrong in four places — two
+  of them traps (`.disc-gem` and `.ob` are live; deleting them would have caused visible regressions) — and the
+  dead effect-id count was 69, not "~17". Verified inventory now in `docs/dead-effect-ids.md`.
+
 - **Fixed hand cards growing and overlapping** - the hand "make room" glide was baking the hover
   zoom into card width; it is reverted until it can be done transform-safely.
 - **The game now has a real speed limit — and the speed-o-meter was reading the wrong dial.** The target is
@@ -140,6 +148,7 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   in shop-phase idle time: 750 ms → 21 ms to start, 950 ms → 4 ms for round 1. And dying in a lobby replayed the
   *entire* lobby to recapture its boards — ~20 s of frozen end screen; lobby runs now capture their boards as
   they play, so the longest task after death is 83 ms.
+
 - **The dev tuning menu is searchable, and tuners are becoming data.** 53 flat entries became nine categories
   with filter-as-you-type and a description on every one; six of the 47 tuner panels now render from a shared
   schema that declares units, real sections, per-control hints, and a one-click revert to the shipped value.

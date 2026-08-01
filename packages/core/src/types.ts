@@ -212,7 +212,6 @@ export type EffectFactoryId =
   | 'onSummonTribeBuffImproveSelf' // Set 2 — Menagerie Mammoth: a summoned Beast gets +N Attack; the grant improves permanently
   | 'deathrattleImpsOverflowGrant' // Set 2 — Legion Shepherd: Echo summon Imps; each overflow buffs your Imps everywhere
   | 'scGrantRightmostEcho'         // Set 2 — Endless Overseer: graft an Imp-summoning Echo onto your right-most minion
-  | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Bob Blart: eat the fattest Shop minion
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
   | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
@@ -1552,6 +1551,10 @@ export interface CombatSideState {
    *  Empty/undefined = UNRESTRICTED, which keeps `EMPTY_SIDE` (the harness, the procedural threat, tests that
    *  only care about minions) behaving exactly as before. */
   poolIds?: readonly string[];
+  /** Rune of the Wild Hunt's accrued escalation, carried run-wide. The rune's text says "improve this by 3
+   *  PERMANENTLY" but the counter used to start at 0 every combat (owner report 2026-08-01) — this seeds the
+   *  fight with what earlier combats grew, and `playerWildHuntGrown` on the result carries it back out. */
+  wildHuntGrown?: number;
   /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
   spellsThisTurn: number;
   /** Lifetime spells cast this run (Umbral Energy scales Dragons +N per spell; seeds the combat spell tally). */
@@ -1739,6 +1742,9 @@ export interface CombatResult {
    *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
    *  channel, per the owner's rule that "give minions in the Shop" means permanent, not just this shop. */
   playerTavernBuyGain?: { attack: number; health: number };
+  /** Rune of the Wild Hunt: the escalation the player's side ended the fight with — written back to the run
+   *  so the next combat's first Beast attack continues from it instead of restarting at the base step. */
+  playerWildHuntGrown?: number;
   /** Set 2 — Mushy Echoes that fired this combat: how many next-turn first-spell copies to queue. */
   playerNextTurnSpellCopies?: number;
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is

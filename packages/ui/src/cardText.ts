@@ -392,7 +392,10 @@ export function spellThresholdText(cardId: string, golden: boolean, spellProgres
   const toNext = every - (spellProgress % every);
   const base = (golden && def.goldenText) || def.text;
   // Replace the printed threshold with the countdown; the rest of the sentence still explains what happens.
-  return base.replace(new RegExp(`\*\*${every} Shop spells\*\*`), `**{{${toNext} more Shop spell${toNext === 1 ? '' : 's'}}}**`);
+  // PLAIN-string replace, deliberately: this used to be `new RegExp(`\*\*${every}...`)`, and in a template
+  // literal `\*` is just `*` — the pattern began with `**` and threw "Nothing to repeat", crashing the whole
+  // shop the moment a Mykel rendered (Mike's crash report 2026-08-01). Nothing here needs a regex.
+  return base.replace(`**${every} Shop spells**`, `**{{${toNext} more Shop spell${toNext === 1 ? '' : 's'}}}**`);
 }
 
 export function guelProgressText(cardId: string, golden: boolean, spellProgress: number): string | null {

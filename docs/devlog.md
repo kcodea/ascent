@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-01 — Shop crash (Mykel's regex), Blart copies, Skald "another", Vhal "Demons", Wild Hunt persists
+
+**The crash (Mike's screenshot).** `spellThresholdText` built `new RegExp` from the printed threshold — and in
+a template literal `\*` is just `*`, so the pattern was `**8 Shop spells**`, which throws "Nothing to repeat"
+and took down the whole shop the moment a Mykel rendered. Plain-string replace now (nothing there needed a
+regex); a regression test renders both plain and golden.
+
+**Bob Blart copies, never Consumes (owner).** The def's own comment said "takes the stats WITHOUT eating" —
+but the wired factory (`endOfTurnConsumeHighestHealthShop`) ate the fattest Shop minion. And the correct
+factory (`endOfTurnGainRightmostShopStats`) already existed, fully implemented, wired to nothing — the
+Rouge-Rogue defect class again. Blart now uses it (right-most offer's stats land on Blart, Shop untouched, no
+consume payoffs); the orphaned consuming factory is DELETED, id and all. Test rewritten to the new spec.
+
+**Traveling Skald (owner ruling).** "When **another** friendly Dragon attacks" — its own swing no longer buffs
+itself (`minion === self` guard), texts updated, pinned in the existing combat test.
+
+**Feastmaster Vhal (text only).** The effect always filtered neighbours to Demons; the text said "adjacent
+minions". Now says "adjacent **Demons**".
+
+**Rune of the Wild Hunt persists (owner).** The text says "improve this by 3 PERMANENTLY", but the escalation
+counter started at 0 every combat. Now `CombatSideState.wildHuntGrown` seeds the fight from the run's accrual
+(`RunState.runeWildHuntGrown`), and `playerWildHuntGrown` on the result carries the final value back at settle
+— the next combat's first Beast attack continues from where the last fight left off. Test proves combat 2's
+first grant equals combat 1's carry-out + the step.
+
+Verified: full gates + harness determinism green (3571 tests).
+
 ## 2026-08-01 — Every FX Save silently deleted the def's `label` and `tags`
 
 Owner report, and a real loss: re-authoring `strike-impact` in the FX workbench (the effect that plays on

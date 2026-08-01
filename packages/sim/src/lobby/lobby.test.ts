@@ -236,19 +236,23 @@ describe('option 3 — a live bot takes the seat when the recording runs dry', (
     expect(power(late), 'the late board is no stronger than the early one').toBeGreaterThan(power(early));
   });
 
-  it('a hybrid seat uses the RECORDING early and the live bot late', () => {
+  it('a hybrid seat serves the RECORDING and nothing else (owner call 2026-07-31)', () => {
+    // This test used to pin the opposite — the recording early, a live bot past it (option 3, 2026-07-29).
+    // The live half was the lobby perf regression (see `hybridSeat`'s comment), and the owner's call is pure
+    // snapshots: past the recording the seat returns null and the lobby's ExhaustionPolicy takes over.
     const seat = hybridSeat(31, 'drakko', 'hybrid');
     const recorded = recordRun(31, 'drakko');
     // Inside the recording's range the hybrid must serve the recorded board verbatim — that authenticity is the
     // reason to use a snapshot at all.
     expect(seat.prepare(4)).toEqual(recorded.prepare(4));
-    // Past it the recording is dry, but the seat keeps fighting.
+    // Past it the recording is dry — and so is the seat. No live bot may pick it up.
     expect(recorded.prepare(seat.lastRecordedWave + 3)).toBeNull();
-    expect(seat.prepare(seat.lastRecordedWave + 3), 'the hybrid stopped when its recording did').toBeTruthy();
+    expect(seat.prepare(seat.lastRecordedWave + 3), 'a live bot took over a dry seat').toBeNull();
   });
 
-  it('a hybrid lobby resolves without hitting the round cap', () => {
-    // The measured failure it exists to fix: recorded seats on `repeatFinal` ground on to `maxRounds`.
+  it('a hybrid lobby still resolves without hitting the round cap', () => {
+    // With recordings that actually span their runs (the same 2026-07-31 fix), repeatFinal boards stay
+    // threatening long enough for the lobby to finish — the reason option 3 existed was recordings dying early.
     const seats = Array.from({ length: 8 }, (_, i) => hybridSeat(500 + i, undefined, `h${i}`));
     const s = runLobby(createLobby(3, seats));
     expect(s.finished).toBe(true);

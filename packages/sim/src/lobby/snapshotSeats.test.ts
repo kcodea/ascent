@@ -66,13 +66,16 @@ describe('a snapshot seat replays that player’s actual boards', () => {
     expect(seat.prepare(10)!.minions[0]!.attack).toBe(11);
   });
 
-  it('hands over to a live bot once the recording runs dry', () => {
-    // A recording is finite and a lobby has no fixed length. Past the last recorded wave the seat must still
-    // field something — freezing or vacating both distort the game.
+  it('is recording-ONLY: a dried-out seat yields to the exhaustion policy, never a live bot (owner 2026-07-31)', () => {
+    // This used to pin the opposite — a live bot inheriting the seat past the recording. The live half was the
+    // same perf hazard the generated hybrid seat had (a beam-search bot advanced on the main thread every End
+    // Combat), and the pure-snapshot direction retires it: past the recording the seat returns null and the
+    // lobby's `repeatFinal` exhaustion policy decides what that means.
     const run = playerRunByKey(playerRunsFrom().find((r) => r.author === 'Ada')!.key)!;
     const seat = snapshotSeat(run);
     expect(seat.lastRecordedWave).toBe(10);
-    expect(seat.prepare(12), 'the seat vanished when the recording ended').not.toBeNull();
+    expect(seat.prepare(12), 'a live bot took over a dry snapshot seat').toBeNull();
+    expect(seat.finalBoard?.(), 'repeatFinal needs the final recorded board').not.toBeNull();
   });
 });
 
@@ -85,11 +88,18 @@ describe('seating real runs into a lobby', () => {
     expect(lobby.seats).toHaveLength(8); // the rest are still generated — the table stays full
   });
 
-  it('keeps recordings a MINORITY of the table', () => {
-    // Recordings cannot react to the lobby, so a table made mostly of them stops being a game between
-    // opponents. The cap is a design rule, not an accident of how many runs happen to be in the pool.
+  it('player runs fill EVERY seat they can cover — bots only take the remainder (owner 2026-07-31)', () => {
+    // The 2026-07-29 "minority on purpose" cap of 3 is retired: the table is now MEANT to be other players'
+    // runs. With 2 eligible runs in the pool, both are seated and bots fill the other 5 non-player seats.
     const lobby = createRunLobby(7, 'drakko');
-    expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBeLessThanOrEqual(3);
+    const snaps = lobby.seats.filter((s) => s.kind === 'snapshot').length;
+    expect(snaps, 'an eligible player run was left unseated').toBe(playerRunsFrom().length);
+    expect(lobby.seats).toHaveLength(8); // bots still complete the table
+  });
+
+  it('an explicit rules.snapshotSeats still pins a smaller mix', () => {
+    const lobby = createRunLobby(7, 'drakko', { snapshotSeats: 1 });
+    expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBe(1);
   });
 
   it('seats the same runs for the same seed', () => {
@@ -145,30 +155,23 @@ describe('a lobby run replays faithfully — so it can save its snapshots', () =
   }, 60_000);
 });
 
-describe('one active snapshot per player (owner rule 2026-07-29)', () => {
-  it('never seats the same author twice, even across DIFFERENT runs of theirs', () => {
-    // The reported bug: dedupe was on `runKey` (`author|hero|seed`), so two different runs by one person are two
-    // different keys and both took seats — a lobby showed "someone crazytown okay" at the table twice.
-    // Two runs, same author, different heroes and seeds.
+describe('a player may hold several seats through DIFFERENT runs (owner call 2026-07-31)', () => {
+  it('seats both of an author\'s runs, under distinct numbered labels', () => {
+    // The 2026-07-29 one-seat-per-author rule is removed (for now) so two people can fill whole lobbies with
+    // each other's runs while the set-2 pool is young. The surviving rules: the exact same RUN never sits
+    // twice, and duplicate names are numbered so two seats never render identically.
     registerOpponents([
       ...Array.from({ length: 8 }, (_, i) => board('Dup', 'drakko', 4444, i + 1, 3 + i)),
       ...Array.from({ length: 8 }, (_, i) => board('Dup', 'soren', 5555, i + 1, 4 + i)),
     ]);
     expect(playerRunsFrom().filter((r) => r.author === 'Dup').length, 'both runs should exist in the pool').toBe(2);
-    for (const seed of [1, 3, 7, 11, 15, 19]) {
-      const labels = createRunLobby(seed, 'drakko').seats
-        .filter((s) => s.kind === 'snapshot')
-        .map((s) => s.label.toLowerCase());
-      expect(labels.length, `seed ${seed}: a player holds two seats`).toBe(new Set(labels).size);
+    for (const seed of [1, 3, 7]) {
+      const snaps = createRunLobby(seed, 'drakko').seats.filter((s) => s.kind === 'snapshot');
+      const dupSeats = snaps.filter((s) => s.runKey?.startsWith('dup|') || s.label.toLowerCase().startsWith('dup'));
+      expect(dupSeats.length, `seed ${seed}: both of Dup's runs should hold seats`).toBe(2);
+      expect(new Set(snaps.map((s) => s.runKey)).size, `seed ${seed}: a RUN held two seats`).toBe(snaps.length);
+      expect(new Set(snaps.map((s) => s.label)).size, `seed ${seed}: two seats share a label`).toBe(snaps.length);
     }
-  });
-
-  it('still fills the cap when a duplicate is skipped', () => {
-    // Skipping a run must not cost the table a seat — the loop scans the whole list rather than taking the
-    // first N candidates.
-    const lobby = createRunLobby(3, 'drakko');
-    expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBe(3);
-    expect(lobby.seats).toHaveLength(8);
   });
 });
 

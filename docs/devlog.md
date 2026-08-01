@@ -1,5 +1,121 @@
 # ASCENT — development log
 
+## 2026-07-31 — Two stale card texts: gilded Bellringer lost "adjacent", Kennelmaster said +1 but gave +2
+
+Owner reports, both the same defect class (a live-text helper or a rebalance erasing the printed truth):
+
+- **Bellringer Voss (gilded)**: `cadenceProgressText` — the generic "every N turns" countdown that Voss,
+  Frontdrake and Money Maker all match — always injected the countdown into `def.text`, never `goldenText`. A
+  gilded Voss therefore printed the PLAIN "copy of the minion to the left" line; the golden card copies
+  **adjacent** minions. The helper now takes `golden` and starts from the golden template (instView passes it).
+- **Kennelmaster**: the 2026-07-25 rebalance moved the aura params to base +2 / step +2 but left the printed
+  text at "+1 Attack" (golden "+2"). At zero Avenge progress the live helper rightly returns null — so the
+  stale base showed on every surface. Text now reads +2 (golden +4). And `summonBuffText` had the SAME
+  golden-unaware injection as the cadence helper (it always replaced into `def.text`, dropping the golden
+  line's "twice as much" tail) — fixed the same way.
+
+Tests: cardText suite gains a golden-Bellringer regression (gilded says "adjacent", plain says "left");
+full gates green (3559 tests).
+
+## 2026-07-31 - Lobby fill: player runs first, ALWAYS, up to every seat; author cap removed
+
+Owner call, superseding two 2026-07-29 rules while the set-2 pool is young and Kevin + Mike want to fill whole
+tables with each other's runs:
+
+- **No snapshot cap.** Player runs from the pool fill EVERY non-player seat they can cover (was: capped at 3,
+  "a minority on purpose"); bots only take the remainder. An explicit `rules.snapshotSeats` still pins a
+  smaller mix for tests. The empty-pool degradation is unchanged: zero snapshots, all bots.
+- **One-seat-per-author removed (for now).** A player may hold several seats through DIFFERENT runs; the same
+  RUN still never sits twice, and duplicate author labels are numbered ("Mike", "Mike (2)") so two seats never
+  render identically.
+- **`snapshotSeat` is recording-only.** It still carried the 2026-07-29 live-bot inheritance for dried-out
+  recordings - the same main-thread beam-search hazard the generated hybrid seat had - which would matter a lot
+  more with all 7 seats snapshot-backed. Owner (mid-build): a run that died on turn 8-9 should just re-play its
+  final board in future rounds; "it'll almost definitely just die off the next fight anyways." That is exactly
+  the existing `repeatFinal` path: both the settle loop and `playerOpponent` already do
+  `prepare(round) ?? finalBoard()`, so a dried seat re-fields its last recorded board with no live bot involved.
+
+Tests: `snapshotSeats.test.ts` rewritten to the new contract - uncapped fill (every eligible run seated, bots
+complete the table), explicit-cap override, both-runs-of-one-author seated under distinct labels, same-run-twice
+still banned, and recording-only exhaustion (null past the last wave + a final board for repeatFinal). Full
+gates green.
+## 2026-07-31 — Back-to-back rematch at a 3-alive table: the bye was chosen before the pairing
+
+Owner report (Mike's game): three players alive, and he fought the same seat two rounds in a row — which the
+no-repeat rule (you never face the same seat within 3 rounds unless there's no alternative) says is impossible,
+since the third seat or the ghost is always an alternative at 3 alive.
+
+The hole: `pairRunLobby` decided the bye FIRST — fewest byes, id tiebreak — and only then ran the exhaustive
+no-repeat search on the remaining (even) field. At 3 alive the bye fully determines the pairing, and the bye
+choice never consulted the no-repeat cost. The failure shape needs skewed bye counts, which a shrinking table
+produces naturally: seats that lived through an earlier odd-table stretch carry byes the freshest seat doesn't,
+so the freshest seat byes twice running and the other two are forced into an immediate rematch the 1e6 penalty
+never got to veto.
+
+Fix: at an odd table, every candidate bye is tried, its remaining field searched, and the combined score
+decides — pairing cost + a mid-weight bye-fairness term (10k per prior bye: heavier than the meeting-count and
+recency preferences, far lighter than the 1e6 no-repeat penalty, so rotation is preserved but can never force
+a rematch). Candidates iterate in fairness order with strict `<`, so exact ties still fall to the fairest seat.
+Cost: at 7 alive this is 7 searches of a 6-seat field (~15 pairings each) — trivial.
+
+Tests: new `lobby/pairingRepeat.test.ts` — the engineered skewed-count fixture and a skewed-start sweep both
+FAIL on the old code (verified by stashing the fix) and pass on the new; plus a fresh-table sweep and the
+final-2 yield case. Full gates green.
+
+## 2026-07-31 — Yazzus moves to Tier 7
+
+Owner call: Yazzus T6 → T7 (the tier half of the set-2 sheet's recorded "T7 9/9" delta — stats stay 5/7 unless
+the owner asks for the rest). At T7 it leaves normal shop rotation (T7 is Summit-rift-only) and arrives through
+the runes that name it by id — Rune of Yazzus (set 2) and Rune of Frontline Glory (set 1) — which grant from
+`CARD_INDEX` and are unaffected by tier. `sets.test.ts`'s no-re-spec pin updated to record the deliberate move.
+
+Verified: sets + runes suites green; full gates on the branch.
+
+## 2026-07-31 — Lobby perf regression: dead recordings turned every seat into a live bot; Funeral's loan expires
+
+Owner report: "very poor performance in lobby mode" after the Set 2 patch, with a hunch it was bots playing
+live instead of snapshots. The hunch was right, but the interesting part is *why they were live*: every seat is
+a `hybridSeat` (recording first, live bot fallback), and Set 2's rules had silently killed the recordings.
+Measured headlessly: recordings lasted to wave **0** (two of three seats) or wave **5**, so every seat fell
+through to its beam-search bot from round 1, and each End Combat replayed seven bot advances on the main
+thread — per-round cost climbing 100→800ms by round 7.
+
+Two independent breaks in `autoplayRun` (the greedy recorder in `snapshot.ts`), both from this patch's rules:
+
+1. **It didn't know the Runeforge.** The forge is universal on turns 6/9 since Set 2 went live; with the modal
+   open every non-forge action no-ops, so the loop's no-progress bail fired and the recording ended at wave 5.
+2. **No progress guards.** The play branch blindly replayed `hand[0]`; an unplayable card (a targeted set-2
+   spell with no legal target, a Ruby on an empty board) spun the loop to its 5000-step guard and returned an
+   **empty** recording — the wave-0 seats.
+
+Fixes, plus the owner's directive ("revert to pure snapshots for bots — we don't need them playing live"):
+
+- `autoplayRun` routes every branch through a `step()` helper that reports whether the action moved the state:
+  the Runeforge is skipped (like the production bot), a blocked branch falls through to the next instead of
+  spinning, and the hand is scanned for the first *playable* card. Recordings now span their runs (waves 8–10,
+  where the greedy bot's run genuinely ends).
+- `hybridSeat.prepare` is **recording-only**. Past the recording the seat returns null and the lobby's
+  existing `ExhaustionPolicy` (`repeatFinal`) takes over — no live fallback. The live bot survives in exactly
+  one place, the cheap `canFieldBoard` probe (~5ms vs ~100ms to force a candidate's recording), built lazily so
+  a seated driver never pays for it. The seat `kind` strings are unchanged, so saved lobbies restore cleanly.
+- Re-measured the same headless profile: rounds went **972/8/13/104/201/268/792 ms → 496/2/2/3/9/4/4 ms** —
+  and the remaining round-1 cost is the one-time recording build, which `warmLobbyDrivers` already performs in
+  idle time during the opening shop in the real app.
+
+Tests: new `lobby/recordingCoverage.test.ts` pins both failure shapes under the *current* active set (a
+recording is never empty; it clears the first Runeforge wave), so a future turn-blocking modal fails a test
+instead of quietly turning the lobby to mush. The option-3 tests in `lobby.test.ts` were rewritten to pin the
+new contract (a dry seat stays dry; a hybrid lobby still resolves without hitting the round cap — true now that
+recordings live long enough for repeatFinal to stay threatening).
+
+Also in this change, **Funeral on Loan** (owner ruling): the loan lasts one turn. A borrowed Echo minion still
+dies-on-play the turn you Discover it, but at the next turn the `borrowed` flag clears and it plays as a
+perfectly normal minion. New-turn setup clears the flag in hand; card text now reads "If you play it **this
+turn**… Next turn it is yours to keep." Test rewritten to the new semantics (flag gone next turn, plays to
+board, Echo does NOT fire).
+
+Verified: full gates green (typecheck, lint 0 errors, 3554 tests, build:web, harness determinism).
+
 ## 2026-07-31 — The Hall of Champions could never populate (my bug, from the lobby-only rework)
 
 Owner report: no winning lobby boards were showing. The upload was gated on

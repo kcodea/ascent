@@ -52,8 +52,10 @@ export const BEASTS: CardDef[] = [
     // summoned later inherit it (the "wherever they are" aura). N = 2 + its Avenge-grown summonBonus (carried
     // across combats), Attack only: `stepHealth: 0` keeps the accrual off Health. The live value + Avenge
     // countdown surface via cardText's summonBuffText helper on every surface.
-    text: '**Start of Combat:** give your Beasts **+1 Attack** wherever they are. **Avenge (3):** Improve this.',
-    goldenText: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (3):** Improve this (twice as much).',
+    // Printed base follows the params (owner report 2026-07-31: it GAVE +2 but SAID +1 — the 2026-07-25
+    // rebalance moved the params and left the text behind).
+    text: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (3):** Improve this.',
+    goldenText: '**Start of Combat:** give your Beasts **+4 Attack** wherever they are. **Avenge (3):** Improve this (twice as much).',
   },
   {
     id: 'gnash',

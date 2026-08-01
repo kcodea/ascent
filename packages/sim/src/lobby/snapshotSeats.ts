@@ -1,7 +1,7 @@
 import type { SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import { OPPONENT_POOL } from '../opponents';
-import { botSeat, recordedSeat, type SeatPolicy } from './seats';
+import { recordedSeat, type SeatPolicy } from './seats';
 import type { PreparedBoard, SeatDriver } from './types';
 
 /**
@@ -81,25 +81,21 @@ export const playerRunByKey = (key: string, pool: readonly BoardSnapshot[] = OPP
  * distort the game. The bot picks up seeded from the run's own identity so the continuation has the shape of
  * the run it follows rather than dropping an unrelated board into the seat mid-lobby.
  */
-export function snapshotSeat(run: PlayerRun, policy: SeatPolicy = 'hard'): SeatDriver & { readonly lastRecordedWave: number } {
+export function snapshotSeat(run: PlayerRun, _policy: SeatPolicy = 'hard'): SeatDriver & { readonly lastRecordedWave: number } {
   const label = run.author && run.author !== 'anon' ? run.author : `run ${run.key.slice(-4)}`;
   const recorded = recordedSeat(label, run.snaps);
-  // Seed the continuation from the run key so it is stable across sessions without depending on the snapshot's
-  // own seed (which belongs to a different run's RNG stream).
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < run.key.length; i++) { h ^= run.key.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
-  const live = botSeat(h % 100_000, run.heroId, label, policy);
   const lastRecordedWave = recorded.lastWave;
   return {
     kind: 'recorded',
     label,
     heroId: run.heroId,
     lastRecordedWave,
-    prepare: (round) => (round <= lastRecordedWave ? recorded.prepare(round) : live.prepare(round)),
-    finalBoard: (): PreparedBoard | null => live.finalBoard?.() ?? recorded.finalBoard?.() ?? null,
-    settle: (o) => {
-      // The recording can't react, but the bot that inherits the seat must — so the health sync always runs.
-      live.settle(o);
-    },
+    // Recording-ONLY (owner call 2026-07-31, same as the generated hybrid seat in the same day's perf fix): a
+    // dried-out seat returns null and the lobby's ExhaustionPolicy (repeatFinal) decides, instead of a live
+    // beam-search bot inheriting the seat and stalling End Combat. The continuation-bot seeding this replaces
+    // lived here from 2026-07-29; the pure-snapshot direction retires it.
+    prepare: (round) => recorded.prepare(round),
+    finalBoard: (): PreparedBoard | null => recorded.finalBoard?.() ?? null,
+    settle: (o) => recorded.settle(o),
   };
 }

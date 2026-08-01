@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-07-31 - Lobby fill: player runs first, ALWAYS, up to every seat; author cap removed
+
+Owner call, superseding two 2026-07-29 rules while the set-2 pool is young and Kevin + Mike want to fill whole
+tables with each other's runs:
+
+- **No snapshot cap.** Player runs from the pool fill EVERY non-player seat they can cover (was: capped at 3,
+  "a minority on purpose"); bots only take the remainder. An explicit `rules.snapshotSeats` still pins a
+  smaller mix for tests. The empty-pool degradation is unchanged: zero snapshots, all bots.
+- **One-seat-per-author removed (for now).** A player may hold several seats through DIFFERENT runs; the same
+  RUN still never sits twice, and duplicate author labels are numbered ("Mike", "Mike (2)") so two seats never
+  render identically.
+- **`snapshotSeat` is recording-only.** It still carried the 2026-07-29 live-bot inheritance for dried-out
+  recordings - the same main-thread beam-search hazard the generated hybrid seat had - which would matter a lot
+  more with all 7 seats snapshot-backed. Owner (mid-build): a run that died on turn 8-9 should just re-play its
+  final board in future rounds; "it'll almost definitely just die off the next fight anyways." That is exactly
+  the existing `repeatFinal` path: both the settle loop and `playerOpponent` already do
+  `prepare(round) ?? finalBoard()`, so a dried seat re-fields its last recorded board with no live bot involved.
+
+Tests: `snapshotSeats.test.ts` rewritten to the new contract - uncapped fill (every eligible run seated, bots
+complete the table), explicit-cap override, both-runs-of-one-author seated under distinct labels, same-run-twice
+still banned, and recording-only exhaustion (null past the last wave + a final board for repeatFinal). Full
+gates green.
 ## 2026-07-31 — Back-to-back rematch at a 3-alive table: the bye was chosen before the pairing
 
 Owner report (Mike's game): three players alive, and he fought the same seat two rounds in a row — which the

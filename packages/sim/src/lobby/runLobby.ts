@@ -170,33 +170,27 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     return !!(d?.prepare(1) ?? d?.finalBoard?.());
   };
 
-  // REAL PLAYER RUNS FIRST (owner call 2026-07-29). Every seat used to be generated; now any run in the
-  // registered pool with enough material can hold one, replaying that player's actual boards in their actual
-  // order before a bot inherits the seat. Capped so the table never becomes entirely other people's ghosts —
-  // the mix is what makes a lobby feel populated rather than pre-recorded.
+  // REAL PLAYER RUNS FIRST, ALWAYS, UP TO EVERY NON-PLAYER SEAT (owner call 2026-07-31, superseding both the
+  // 2026-07-29 minority cap and the one-seat-per-author rule). The pool is small while set 2 is young — two
+  // people playing together should be able to fill a whole table with each other's real runs, so a player may
+  // hold several seats through DIFFERENT runs; only the exact same run never sits twice. When the pool can't
+  // cover the table, bots take what's left. An explicit `rules.snapshotSeats` still pins a smaller mix (tests).
   //
   // Seeded rotation over a deterministically-ordered list: the same lobby seed always seats the same runs, so
   // a restored or replayed lobby is identical.
   const available = playerRunsFrom(undefined, undefined, setId);
-  // ONE ACTIVE SNAPSHOT PER PLAYER (owner rule 2026-07-29). Deduping on `runKey` alone was not enough: a key is
-  // `author|hero|seed`, so two DIFFERENT runs by the same person are two different keys and both took seats —
-  // the reported lobby with "someone crazytown okay" sitting at the table twice. Your OWN runs are not excluded
-  // (you may face yourself for now), they just also cap at one seat.
-  //
-  // Author-less runs can't be deduped by name — nothing identifies who played them — so they stay distinct and
-  // are only deduped by run key. That is a known limitation of unnamed uploads, not a rule.
-  const seatedAuthors = new Set<string>();
-  const maxSnapshotSeats = Math.min(r.snapshotSeats ?? Math.floor((r.seatCount - 1) / 2), available.length);
+  const maxSnapshotSeats = Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
   for (let i = 0; i < available.length && picked < r.seatCount - 1 && seats.filter((x) => x.kind === 'snapshot').length < maxSnapshotSeats; i++) {
     const run = available[(seed + i * 7) % available.length]!;
     if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
-    const who = run.author && run.author !== 'anon' ? run.author.toLowerCase() : null;
-    if (who && seatedAuthors.has(who)) continue; // this player already holds a seat
+    // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
+    // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author
+    // holding SEVERAL seats gets numbered ("Mike", "Mike (2)") — two identical labels read as a rendering bug.
+    let label = run.author && run.author !== 'anon' ? run.author : uniqueHandleFor(handleKeyOf(run.key), taken);
+    for (let n = 2; taken.has(label.toLowerCase()); n++) label = `${run.author} (${n})`;
     const seat: LobbySeatState = {
       id: `s${picked + 1}`,
-      // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
-      // carry no author, and labelling those "run 1534" leaked the seed and read as debug output.
-      label: run.author && run.author !== 'anon' ? run.author : uniqueHandleFor(handleKeyOf(run.key), taken),
+      label,
       heroId: run.heroId,
       kind: 'snapshot',
       runKey: run.key,
@@ -207,7 +201,6 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     };
     if (!canPlay(seat)) continue; // no round-1 board — skip rather than seat a ghost
     taken.add(seat.label.toLowerCase());
-    if (who) seatedAuthors.add(who);
     seats.push(seat);
     picked++;
   }

@@ -37,14 +37,19 @@ import { PresetGallery } from './PresetGallery';
 import { ProcHarness } from '../harness/ProcHarness';
 import { CommitPanel } from '../harness/CommitPanel';
 import { planCommit } from '../harness/commitPlan';
+import { planUnbind } from '../harness/unbindPlan';
 import {
+  bindingAt,
   bindingBeneathDraft,
   bindingsJson,
+  bindingWithout,
   clearBinding,
   DRAFT_DEF_ID,
   effectiveTables,
   setBinding,
+  unbindJson,
   type FxBinding,
+  type UnbindOp,
 } from '../../choreo/bindings';
 import type { MomentKind } from '../../choreo/kinds';
 import { useGame } from '../../store';
@@ -389,6 +394,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [commitScope, setCommitScope] = useState<'card' | 'global'>('card');
   const [commitFanOut, setCommitFanOut] = useState<FxBinding['fanOut']>('primary');
   const [committing, setCommitting] = useState(false);
+  // Bumped whenever this component changes the binding tables outside of React (an unbind). The tables are
+  // module state, so nothing else would tell the memo below that the row it is rendering no longer exists.
+  const [bindingsRev, setBindingsRev] = useState(0);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [commitNote, setCommitNote] = useState<string | null>(null);
   // The commit confirmation as it survives THE RELOAD ITS OWN WRITE CAUSES. Committing writes
@@ -1510,6 +1518,30 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     });
   }, [harnessCard, harnessKind, defName, commitScope, commitFanOut, defs]);
 
+  /**
+   * What is bound at the row the scope radio is pointing at, and what removing it would do.
+   *
+   * The SAME scope control the commit plan uses, deliberately: "this card only" / "everywhere" already means
+   * "which row am I addressing", and a second scope selector for unbinding would let the two disagree about
+   * which binding is under discussion.
+   *
+   * `bindingsRev` is in the deps because the binding tables are module state, not React state: after an
+   * unbind returns ok this component has no other way to know the row it was rendering is gone. In practice
+   * the write forces a reload seconds later, but the panel must not spend those seconds offering to remove
+   * something twice.
+   */
+  const unbindPlan = useMemo(() => {
+    if (harnessKind === null || (commitScope === 'card' && harnessCard === '')) return null;
+    const cardId = commitScope === 'card' ? harnessCard : null;
+    return planUnbind({
+      cardId,
+      kind: harnessKind,
+      entry: bindingAt(cardId, harnessKind),
+      fallback: bindingWithout(cardId, harnessKind),
+    });
+    // `bindingsRev` is a manual invalidation token, not a value this memo reads.
+  }, [harnessCard, harnessKind, commitScope, bindingsRev]);
+
   const commitMissing =
     harnessCard === '' ? 'Pick a card in the harness first.'
     : harnessKind === null ? 'Click a moment row to choose what this effect plays on.'
@@ -1623,6 +1655,60 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           'warn',
         );
       }
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  /**
+   * Remove the binding at the selected row — the other half of the commit path, and the one that used to be
+   * "hand-edit `bindings.json`".
+   *
+   * TEXT FIRST, TABLES AFTER. `unbindJson` computes the file as it would read, without touching the live
+   * tables, and the session patch is only updated once the write has come back ok. The mutate-then-serialise
+   * order that commit uses is wrong here: expressing a `clear` in the patch requires a TOMBSTONE (only a
+   * tombstone deletes the merged row), and this write reloads the page — a reload landing inside the `await`
+   * would leave that tombstone in `localStorage` with the file saying "fall back to the default", so the card
+   * would go silent for a reason nothing on screen explains and that survives every future session.
+   *
+   * The note is parked BEFORE the await for the same reason `commit` parks its own there: `bindings.json` is
+   * a static import, so the write reloads the page and this component dies with its state. Parked as a
+   * warning that does not assert completion, then overwritten with the truth on either exit.
+   */
+  const unbind = async (op: UnbindOp): Promise<void> => {
+    const plan = unbindPlan;
+    if (plan === null || committing) return;
+    const { cardId, kind } = plan.target;
+    const where = cardId === null ? `every ${kind}` : `${cardId} · ${kind}`;
+    const outcome = plan.options.find((o) => o.op === op)?.consequence ?? '';
+    setCommitting(true);
+    setCommitError(null);
+    setCommitNote(null);
+    clearCommitNote();
+    try {
+      const json = unbindJson(cardId, kind, op);
+      saveCommitNote(`Unbind STARTED → ${where} · not confirmed`, Date.now(), 'warn');
+      const res = await saveBindings(json);
+      if (!res.ok) {
+        // Nothing was written and nothing was changed in memory either, so this one really is a clean
+        // failure — say so rather than leaving the amber "not confirmed" to imply a half-done write.
+        setCommitError(`Not unbound — nothing changed. ${res.error}`);
+        saveCommitNote(`Unbind FAILED → ${where} · nothing changed: ${res.error}`, Date.now(), 'warn');
+        return;
+      }
+      // Now that the file agrees, bring the session in line so the seconds before the reload aren't showing
+      // the old binding. `tombstone` mirrors the null that was just written; `clear` drops the override (and
+      // with it the live draft) so resolution falls through exactly as the file now says it should.
+      if (op === 'tombstone') setBinding(cardId, kind, null);
+      else clearBinding(cardId, kind);
+      setBindingsRev((n) => n + 1);
+      const note = `Unbound → ${where} · ${outcome} · ${res.path}`;
+      setCommitNote(note);
+      saveCommitNote(note, Date.now(), 'ok');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unbind failed.';
+      setCommitError(msg);
+      saveCommitNote(`Unbind FAILED → ${where} · ${msg}`, Date.now(), 'warn');
     } finally {
       setCommitting(false);
     }
@@ -2380,6 +2466,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             seedLocked={seedLocked}
             seed={seed}
             onUnlockSeed={toggleSeedLock}
+            unbind={unbindPlan}
+            onUnbind={(op) => void unbind(op)}
           />
         </div>
       )}

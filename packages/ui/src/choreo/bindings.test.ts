@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  bindingAt,
   bindingBeneathDraft,
   bindingFor,
   bindingsJson,
+  bindingWithout,
   clearBinding,
   DRAFT_DEF_ID,
   effectiveTables,
   parseTable,
   resetBindings,
   setBinding,
+  unbindJson,
 } from './bindings';
 import { CARD_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
@@ -355,13 +358,16 @@ describe('clearBinding', () => {
 describe('bindingsJson', () => {
   beforeEach(() => resetBindings());
 
-  // What commit writes must be what the session was playing, or the button lies.
-  it('round-trips: the committed text re-parses to the same resolution', () => {
+  // What commit writes must be what the session was playing, or the button lies. A tombstone is part of
+  // that: it survives as an explicit `null`, because a card that plays nothing is a decision the file has
+  // to be able to hold — dropping the key would re-read as "no opinion" and restore the kind default on
+  // the next reload.
+  it('round-trips: the committed text re-parses to the same resolution, tombstones included', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
     setBinding('bloodbinder', 'scCast', null);
     const parsed = parseTable(JSON.parse(bindingsJson()));
     expect(parsed.kinds.scCast).toEqual({ def: 'test-red-blast' });
-    expect(parsed.cards.bloodbinder).toBeUndefined();
+    expect(parsed.cards.bloodbinder?.scCast).toBeNull();
     expect(parsed.kinds.rally).toEqual({ def: 'rally-link' });
   });
 
@@ -474,5 +480,152 @@ describe('bindingBeneathDraft', () => {
   it('is identical to bindingFor when no draft is in play', () => {
     setBinding('bloodbinder', 'scCast', { def: 'test-red-blast', fanOut: 'selfBuffed' });
     expect(bindingBeneathDraft('bloodbinder', 'scCast')).toEqual(bindingFor('bloodbinder', 'scCast'));
+  });
+});
+
+/**
+ * The two questions the unbind panel has to answer before it can offer a button: "is there a row HERE" and
+ * "what is left if it goes away". Neither is answerable with `bindingFor`/`bindingBeneathDraft`, which
+ * resolve THROUGH the layers — their answer may have come from the layer beneath the one being removed.
+ */
+describe('bindingAt', () => {
+  beforeEach(() => resetBindings());
+
+  it('reports the committed row at the layer asked for', () => {
+    expect(bindingAt('bloodbinder', 'scCast')).toEqual({
+      binding: { def: 'ruby-lance', fanOut: 'damaged' },
+      source: 'file',
+    });
+    expect(bindingAt(null, 'scCast')).toEqual({ binding: { def: 'spell-cast' }, source: 'file' });
+  });
+
+  // The distinction the resolver cannot make: this card has no scCast row of its own, it INHERITS one.
+  // Offering to "unbind" it would delete a row that isn't there and change nothing.
+  it('is undefined for a card that only inherits the kind default', () => {
+    expect(bindingFor('gnasher', 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingAt('gnasher', 'scCast')).toBeUndefined();
+  });
+
+  it('prefers an uncommitted session override and says where it came from', () => {
+    setBinding('bloodbinder', 'scCast', { def: 'ember-lance' });
+    expect(bindingAt('bloodbinder', 'scCast')).toEqual({ binding: { def: 'ember-lance' }, source: 'session' });
+  });
+
+  it('reports a tombstone as a row that plays nothing, not as an absent row', () => {
+    setBinding('bloodbinder', 'scCast', null);
+    expect(bindingAt('bloodbinder', 'scCast')).toEqual({ binding: null, source: 'session' });
+  });
+
+  // The live preview must not be offered up as the thing to unbind: while rail mode previews, the draft IS
+  // the row, and removing it would remove the preview rather than the author's real binding.
+  it('sees through the live draft to the committed row beneath it', () => {
+    setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
+    expect(bindingAt('bloodbinder', 'scCast')).toEqual({
+      binding: { def: 'ruby-lance', fanOut: 'damaged' },
+      source: 'file',
+    });
+  });
+
+  it('is undefined when a draft sits over a row that did not exist', () => {
+    setBinding('gnasher', 'scCast', { def: DRAFT_DEF_ID });
+    expect(bindingAt('gnasher', 'scCast')).toBeUndefined();
+  });
+});
+
+describe('bindingWithout', () => {
+  beforeEach(() => resetBindings());
+
+  it('is the kind default for a card row — the clear consequence, computed not assumed', () => {
+    expect(bindingWithout('bloodbinder', 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  it('is null for a kind row, which is why clear and tombstone collapse there', () => {
+    expect(bindingWithout(null, 'scCast')).toBeNull();
+  });
+
+  it('is null for a card row whose kind nobody bound', () => {
+    expect(bindingWithout('bloodbinder', 'damage')).toBeNull();
+  });
+
+  it('follows a live kind-level override rather than the file', () => {
+    setBinding(null, 'scCast', { def: 'test-red-blast' });
+    expect(bindingWithout('bloodbinder', 'scCast')).toEqual({ def: 'test-red-blast' });
+  });
+
+  it('ignores the card row being removed, tombstone included', () => {
+    setBinding('bloodbinder', 'scCast', null);
+    expect(bindingFor('bloodbinder', 'scCast')).toBeNull();
+    expect(bindingWithout('bloodbinder', 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+
+  it('sees through a kind-level draft', () => {
+    setBinding(null, 'scCast', { def: DRAFT_DEF_ID });
+    expect(bindingWithout('bloodbinder', 'scCast')).toEqual({ def: 'spell-cast' });
+  });
+});
+
+/**
+ * The text an unbind writes. Computed from the tables rather than by mutating them, so a page reload
+ * landing inside the write cannot leave the session and the file disagreeing about what a card plays.
+ */
+describe('unbindJson', () => {
+  beforeEach(() => resetBindings());
+
+  it('clearing a card row drops the card entirely, so the kind default applies again', () => {
+    const parsed = parseTable(JSON.parse(unbindJson('bloodbinder', 'scCast', 'clear')));
+    expect(parsed.cards.bloodbinder).toBeUndefined();
+    expect(parsed.kinds.scCast).toEqual({ def: 'spell-cast' });
+  });
+
+  it('tombstoning a card row writes an explicit null, so nothing plays there', () => {
+    const parsed = parseTable(JSON.parse(unbindJson('bloodbinder', 'scCast', 'tombstone')));
+    expect(parsed.cards.bloodbinder?.scCast).toBeNull();
+    expect(parsed.kinds.scCast).toEqual({ def: 'spell-cast' });
+  });
+
+  it('clearing a kind row removes it and leaves every other kind alone', () => {
+    const parsed = parseTable(JSON.parse(unbindJson(null, 'scCast', 'clear')));
+    expect(parsed.kinds.scCast).toBeUndefined();
+    expect(parsed.kinds.rally).toEqual({ def: 'rally-link' });
+    // The card override is NOT collateral: it still names its own def.
+    expect(parsed.cards.bloodbinder?.scCast).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+  });
+
+  it('does not touch the live tables — the write is what changes anything', () => {
+    unbindJson('bloodbinder', 'scCast', 'clear');
+    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(bindingsJson()).not.toEqual(unbindJson('bloodbinder', 'scCast', 'clear'));
+  });
+
+  // Same invariant `bindingsJson` carries: the memory-only preview def can never reach disk, and an unbind
+  // is a second route to the file that would otherwise have to remember it.
+  it('never serialises the live draft', () => {
+    setBinding('gnasher', 'scCast', { def: DRAFT_DEF_ID });
+    expect(unbindJson('bloodbinder', 'scCast', 'clear')).not.toContain(DRAFT_DEF_ID);
+  });
+
+  it('keeps a card that still has another binding after one is cleared', () => {
+    setBinding('bloodbinder', 'rally', { def: 'test-red-blast' });
+    const parsed = parseTable(JSON.parse(unbindJson('bloodbinder', 'scCast', 'clear')));
+    expect(parsed.cards.bloodbinder).toEqual({ rally: { def: 'test-red-blast' } });
+  });
+
+  it('emits the same shape a commit does — version 1, sorted keys, trailing newline', () => {
+    const text = unbindJson('bloodbinder', 'scCast', 'tombstone');
+    expect(JSON.parse(text).version).toBe(1);
+    expect(text.endsWith('\n')).toBe(true);
+    const kinds = Object.keys(JSON.parse(text).kinds);
+    expect(kinds).toEqual([...kinds].sort());
+  });
+});
+
+/** A committed tombstone stops resolution exactly like a session one — otherwise "play nothing" would last
+ *  only until the next reload. */
+describe('a tombstone in the file', () => {
+  it('parses as a row that plays nothing rather than being dropped as malformed', () => {
+    const t = parseTable({ kinds: { scCast: null }, cards: { bloodbinder: { rally: null } } });
+    expect(t.kinds.scCast).toBeNull();
+    expect(t.cards.bloodbinder?.rally).toBeNull();
+    expect('scCast' in t.kinds).toBe(true);
   });
 });

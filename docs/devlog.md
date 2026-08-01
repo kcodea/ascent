@@ -65,6 +65,65 @@ The start-of-round End Turn inert window drops 5s → 2s (the double-click guard
 Rune of Reinvestment: TEXT-only fix — the buff always landed on `tavernBuyBonus`, the PERMANENT run-wide shop
 channel, so "give the next Shop" under-sold the rune. It now says "permanently give the Shop".
 
+## 2026-07-30 — the workbench can take a binding back, and says which kind of "back"
+
+The commit panel could create a binding and never remove one. "How do I unbind an effect?" had exactly one
+answer — hand-edit `bindings.json` — even though `clearBinding` had existed (and been tested) since phase ③,
+with no caller but the draft teardown. It was scoped out then as "needs its own confirmation design", because
+removing a binding is not one operation.
+
+**The two removals.** On a card row they do opposite things. `clear` deletes the row, so resolution falls
+through and `bloodbinder`/`scCast` goes back to the `spell-cast` default. A tombstone (`null`) stops
+resolution, so the card plays nothing at all. A single "Remove" button silently picks one of those — the same
+one-label-covers-two-truths failure that made the word "unbound" meaningless in the library. So the panel
+offers both, each with the outcome printed **beside the button**, in the standard the blast-radius line
+already set.
+
+**The consequence is computed, not phrased.** Two new readers in `bindings.ts` answer the questions the
+resolver cannot: `bindingAt(cardId, kind)` is the entry at EXACTLY that layer (`undefined` when the row does
+not exist — a card that merely inherits has nothing to unbind), and `bindingWithout(cardId, kind)` is what
+resolves once that row is gone. Both see through the live `fx-draft` preview, or the panel would offer to
+delete the preview instead of the author's binding. `planUnbind` (pure, in `fx/harness/`, mirroring
+`planCommit` because this repo has no jsdom) turns the pair into the rendered options, and the collapse rule
+is derived rather than special-cased per scope: offer two only when removing the row leaves something
+behind. A kind row has no layer beneath it, and neither does a card row at a kind nobody bound — one button
+in both cases.
+
+**`bindings.json` can now hold a tombstone.** It could not, which would have made "play nothing" a lie: the
+serialiser dropped tombstones and the write endpoint rejected `null`, so the silence survived exactly until
+the next reload. `parseTable` now preserves an explicit `null`, `badBinding` accepts one, and the file/patch
+layers get their own type (`LayerTable`, nullable leaves) separate from the "what plays" view
+(`BindingTable`, never null) — so `effectiveTables()`'s consumers stay free of a null check for a case that
+view cannot produce, and only the two merge sites had to change.
+
+**The write cannot half-land.** `unbindJson(cardId, kind, op)` computes the file text from the merged tables
+without touching the live ones; the session is only brought into line after the POST returns ok. The
+mutate-first order commit uses is wrong here: expressing a `clear` in the patch requires a tombstone, and the
+write reloads the page, so a reload landing inside the `await` would leave `localStorage` saying "play
+nothing" against a file saying "fall back to the default" — a permanently silent card with nothing on screen
+to explain it. The confirmation is parked in the same `localStorage` note channel commit uses, before the
+await, amber until the write is known to have landed.
+
+**Also — a code-played def now tells you where.** The library labelled seven defs `code` and hid the files
+behind a tooltip. The by-event lens now prints them as full `packages/ui/src/...` paths, each a click-to-copy
+button. Deliberately no line numbers: `directCalls.test.ts` compares the committed snapshot whole, so a line
+in it would be a line pinned by CI, red on every unrelated edit above a `playDef` call — which trains people
+to regenerate the guard without reading it, the exact habit the snapshot exists to prevent.
+
+**Verified.** `npm run typecheck && npm run lint && npm test && npm run build:web` all green (195 files,
+3547 tests). In a foregrounded Chrome tab on this branch's own dev server (port 5174, probed for a
+branch-only string before trusting it): a card row with no binding of its own renders no section at all; the
+kind row `attackExchange → self-buff-gold · selfBuffed` offered one button reading "nothing plays at
+attackExchange — for any card without its own binding", and pressing it removed exactly that key from
+`bindings.json` and nothing else; a temporary `drummer`/`attackExchange` row offered both buttons with
+"attackExchange falls back to self-buff-gold" computed correctly from the kind default, and "Play nothing"
+wrote `"drummer": { "attackExchange": null }`, after which the panel re-rendered as a silenced row offering
+to restore it. The file was restored afterwards.
+
+**Follow-up.** The commit endpoint re-serialises with `JSON.stringify(…, 2)`, so any write — commit or unbind
+— expands `bindings.json`'s hand-compacted one-line entries. Pre-existing, cosmetic, and noisy in a diff;
+worth a compact serialiser one day.
+
 ## 2026-07-30 — FX defs choose their canvas: over the cards, or under them
 
 Every authored effect mounted on one Pixi layer, so every effect drew above everything. A ground slam and a

@@ -476,6 +476,36 @@ Hand-editing `bindings.json` still works and is sometimes faster for a small twe
 
 It's a static import, so saving the file hot-reloads — no restart.
 
+### Unbinding — and the two different things that means
+
+The commit panel grows a **Currently bound** block, under the commit plan and above the Commit button,
+**only when the selected row actually has a binding**. (Selected row = the moment you clicked, at the scope
+the radio is on: "This card only" addresses the card's row, "Everywhere" the kind's. A card that merely
+inherits the kind default has no row of its own, so nothing is offered — there would be nothing to remove.)
+
+Removing a binding is **two operations with opposite outcomes**, and on a card row you get both:
+
+| button | writes | what the card plays afterwards |
+|---|---|---|
+| **Unbind** | deletes the row | whatever the kind default is — e.g. `bloodbinder`/`scCast` goes back to `spell-cast` |
+| **Play nothing** | `"scCast": null` — a **tombstone** | nothing; resolution *stops* at the row instead of falling through |
+
+The sentence beside each button is computed from the live tables (`bindingAt` + `bindingWithout`), not
+phrased in general terms — it names the def you will actually fall back to. On a **kind** row there is no
+layer beneath, so the two collapse into one silence and you are offered a single **Unbind**; the same is
+true of a card row at a kind nobody bound. Where the outcome is already an explicit silence, the only option
+is to take it out again, and it says what comes back.
+
+A tombstone in `bindings.json` is a real, committed decision — `"attackExchange": null` is not a malformed
+entry and is not dropped on load. That is the only way the file can say "this card deliberately plays
+nothing here" rather than "nobody got round to binding it".
+
+Like a commit, an unbind writes `bindings.json` and therefore **reloads the page**, and it parks its
+confirmation the same way (`Unbound → …`, or an amber `Unbind FAILED → …` when the write is refused). Unlike
+a commit it computes the file text *first* and only updates the session tables once the write has come back
+ok — a `clear` has to be expressed in the session as a tombstone, and a reload landing mid-write would
+otherwise leave `localStorage` saying "play nothing" while the file says "fall back to the default".
+
 ---
 
 ## 8. Verify in a real fight
@@ -554,7 +584,8 @@ time you open the workbench — see §7 for exactly how and for the timing cavea
 - **~30 legacy `pixiFx` effects** predate defs and aren't authorable here.
 - **Committing still costs you a page reload** (`bindings.json` is a static import Vite can't hot-reload), and
   the reload closes the workbench. The confirmation now survives it (§7) but waits until you reopen the tool.
-- **No editing a def's `label`/`tags` from the panel**, and no unbind affordance — both still hand-edit only.
+- **No editing a def's `label`/`tags` from the panel** — still hand-edit only. (Unbinding no longer is: see
+  §7.)
 - **Only two preset archetypes so far** (Bolt, Blast), and both are unreviewed first passes. Eight more are
   queued — wave, chain, cloud, swell, drip, vortex, slam, beam — landing one at a time so each gets judged at
   real card scale rather than eight at once.

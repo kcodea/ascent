@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StoredFxDef } from '../defStore';
 import {
-  buildCatalog, buildCardRows, kindCoverage, codeCoverage, codeScanCaveat, FX_HUES,
-  type FxHue, type FxUsage,
+  buildCatalog, buildCardRows, kindCoverage, codeCoverage, codeScanCaveat, callSitePath, callSitesLabel,
+  FX_HUES, type FxHue, type FxUsage,
 } from './catalog';
 import { EMPTY_FILTER, applyFilter, groupByLook, groupByCard, type FxFilter, type FxUsageFilter } from './catalogView';
 
@@ -39,6 +39,34 @@ const USAGE_HELP: Record<FxUsageFilter, string> = {
   code: 'Plays because packages/ui/src calls playDef() with this id — no binding involved',
   unused: 'Nothing binds it and nothing calls it: this one really does not play',
 };
+
+/**
+ * One call site, as a path you can act on: click to copy it, then paste it into an editor.
+ *
+ * The library used to say only THAT a def was played from code, with the files in a tooltip — enough to know
+ * the def is not inert, not enough to go and look. The path is the whole answer to "where does this fire",
+ * so it is on the row rather than behind a hover, and copyable because the next thing anyone does with it is
+ * open it somewhere else. Clipboard writes can be refused (permissions, insecure context); the label just
+ * stays put rather than claiming a copy that did not happen — the path is still readable either way.
+ */
+function CallSite({ file }: { file: string }): React.ReactElement {
+  const [copied, setCopied] = useState(false);
+  const path = callSitePath(file);
+  return (
+    <button
+      className="fxlib-callsite"
+      title={`Copy ${path}`}
+      onClick={() => {
+        void navigator.clipboard?.writeText(path).then(
+          () => setCopied(true),
+          () => {},
+        );
+      }}
+    >
+      {copied ? `${path} ✓` : path}
+    </button>
+  );
+}
 
 export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: LibraryBrowserProps): React.ReactElement {
   const [lens, setLens] = useState<Lens>('look');
@@ -151,7 +179,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                       reader that no badge = fine, which is exactly how "unbound" came to mean "inert". */}
                   <span
                     className={`fxlib-wire ${e.usage}`}
-                    title={e.usage === 'code' ? `Played from ${e.callSites.join(', ')}` : USAGE_HELP[e.usage]}
+                    title={e.usage === 'code' ? `Played from ${callSitesLabel(e.callSites)}` : USAGE_HELP[e.usage]}
                   >
                     {USAGE_LABEL[e.usage]}
                   </span>
@@ -189,11 +217,12 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
               {codeRows.map((r) => (
                 <div className="fxlib-row" key={r.defId} onPointerEnter={() => hover(r.defId)} onPointerLeave={() => hover(null)}>
                   <span className="fxlib-row-name">{r.defId}</span>
-                  {knownIds.has(r.defId) ? (
-                    <span className="fxlib-row-meta">{r.files.join(' · ')}</span>
-                  ) : (
-                    <span className="fxlib-missing">{r.files.join(' · ')} — def missing</span>
-                  )}
+                  {/* The call sites, as copyable repo paths rather than bare file names: this row answers
+                      "what fires this", and the next question is always "where". */}
+                  <span className="fxlib-row-meta">
+                    {r.files.map((f) => <CallSite key={f} file={f} />)}
+                  </span>
+                  {!knownIds.has(r.defId) && <span className="fxlib-missing">def missing</span>}
                 </div>
               ))}
               <div className="fxlib-note">{codeScanCaveat()}</div>

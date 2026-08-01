@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The effects tool can now take an effect back off a card.** It could attach an effect to a moment but
+  never remove one — that meant editing a data file by hand. There are two ways to remove one and they do
+  opposite things (go back to the default effect for that moment, or play nothing at all), so both are
+  offered, each spelling out what the card will do afterwards before you press it.
 - **Effects can now play *behind* the cards.** Every visual effect used to draw in front of everything, so a
   ground slam sat on top of the minions it was supposed to be shaking. An effect can now choose its layer —
   over the cards, as before, or under them on the board itself — with a toggle in the authoring tool. (It's

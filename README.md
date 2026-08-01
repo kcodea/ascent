@@ -50,6 +50,9 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   lines of unused GLSL and the `.pixifx-under` layer. The break burst (`shatterAt` / `rebornSummon`) is
   untouched. Total emitted JS 2,631,425 → 2,617,973 bytes.
 
+- **Dwarves and Kobolds are fully dressed** - both now have their own cardplate, Dwarf gets its oval and
+  Taunt frames, and both tribes finally have a colour so their emblem fills in.
+
 - **The effects tool can now take an effect back off a card.** It could attach an effect to a moment but
   never remove one — that meant editing a data file by hand. There are two ways to remove one and they do
   opposite things (go back to the default effect for that moment, or play nothing at all), so both are

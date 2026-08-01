@@ -338,9 +338,10 @@ mechanisms don't):
 - **The main FX app's ticker presents an empty full-viewport WebGL frame ~240×/s through the whole shop.**
   A/B over identical 8 s windows: ticker running → worst frame 8.5 ms, 3 frames over the 8.33 ms long
   threshold; ticker stopped → worst 4.3 ms, ZERO over. That was the entire residual idle-shop jank on the
-  measuring machine. The fix is the `autoIdle` mechanism `discoverFx` already uses (stop when
-  `hasLiveWork()` is false, wake on any spawn), extended to the main controller — the work is auditing every
-  effect entry point so a burst always wakes the ticker (tracked as an open task).
+  measuring machine. **SHIPPED same day** (`pixiFx.enableAutoIdle()` + a central `wake()`, respecting the
+  Skip-combat freeze, called from all 14 audited work-adding sites incl. under-slot mounts). Verified live:
+  idle shop self-stops (worst 4.3 ms, zero dropped, unassisted); every channel wakes on fire; the def system
+  idles again when a burst ends.
 - **The End Turn click no longer runs the 200-sim odds probe** (owner call, same day): `faceOmen` stashes
   `CombatResult.oddsInput` and the UI computes `computeCombatOdds` in idle time after the combat mounts (also
   self-healing a mid-combat resume — the input serializes with the save). ~10 ms off the click; the headless

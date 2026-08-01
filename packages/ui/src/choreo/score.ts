@@ -178,8 +178,10 @@ export interface CueContext {
   combatSpeed: number;
   /** Called when a moment contains a real (non-Rise) death — the caller triggers the board shake. */
   onShake: () => void;
-  /** Resolve a unit's live DOM node — used to position a killing-blow float in the board overlay. */
-  findEl: (uid: string) => Element | null;
+  /** A unit's LAYOUT-frame centre + footprint (the caller's `layoutRectOf` reading — the SLOT, not a
+   *  mid-lunge position), or null when it isn't measurable. Every float is positioned in the board-level
+   *  overlay from ONE reading taken here at spawn — see `spawnFloats`. */
+  slotRectOf: (uid: string) => { cx: number; cy: number; w: number; h: number } | null;
   /** The attacker whose OWN retaliation damage number is suppressed this moment (or null). */
   attackerUid: string | null;
   onFloats: (floats: Float[]) => void;
@@ -258,7 +260,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     if (cue.enabled === false) continue;
     if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events, ctx.cardIds); if (shake) ctx.onShake(); });
     else if (cue.ch === 'float') at(cue, () => {
-      const { floats, deathFloats } = spawnFloats(moment, ctx.events, ctx.findEl, ctx.attackerUid);
+      const { floats, deathFloats } = spawnFloats(moment, ctx.events, ctx.slotRectOf, ctx.attackerUid);
       if (floats.length) ctx.onFloats(floats);
       if (deathFloats.length) ctx.onDeathFloats(deathFloats);
     });

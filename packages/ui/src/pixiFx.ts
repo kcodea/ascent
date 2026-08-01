@@ -11,6 +11,7 @@ import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 import { resetFxPools } from './fx/fxRuntime';
+import type { FxSlot } from './fx/def';
 
 /**
  * Vertex shader for the shield Mesh (WebGL2 / GLSL ES 3.0). Pixi's GlMeshAdaptor binds the global-uniform
@@ -690,13 +691,111 @@ class FxController {
   /** Containers passed to `mountLayer` before `init()` has created `this.layer`; flushed once it exists. */
   private pendingMounts: Container[] = [];
 
+  // ─── the UNDER slot ────────────────────────────────────────────────────────────────────────────────────
+  //
+  // A THIRD canvas, for effects a def marks `slot: 'under'` — the ground slams, scorch marks and pools of
+  // light that should read as happening ON the board rather than in front of it.
+  //
+  // Why a separate `Application` and not another `Container` on the main stage: the cards are DOM and the
+  // overlay is one WebGL canvas, so "beneath the cards" is a DOM z-index question, not a Pixi draw-order
+  // one. There is no way to interleave a Pixi container with DOM siblings; it takes a second canvas parked
+  // at a lower z. (`shieldApp` below is the same trick, and predates this.)
+  //
+  // It is created LAZILY — on the first `mountLayer(_, 'under')` — and never at all in a session that fires
+  // no under-slot effect. A full-viewport compositing layer + GL context is not free (see docs/performance.md
+  // on the gild), so the cost is paid only by a page that actually uses one.
+  //
+  // Its ticker is STOPPED; the main app's ticker renders it (see `renderUnder`). That is deliberate: one
+  // clock drives both canvases, so the over and under halves of the same moment can never tear apart by a
+  // frame — and a session with nothing mounted under presents nothing at all rather than clearing an empty
+  // stage 240 times a second.
+  private underApp: Application | null = null;
+  private underLayer: Container | null = null;
+  private underHost: HTMLElement | null = null;
+  private underIniting: Promise<void> | null = null;
+  private pendingUnderMounts: Container[] = [];
+
+  /**
+   * Register (or clear) the DOM element the under-card canvas mounts into — `.pixifx-below`, a child of
+   * `.app` (see `FxUnderSlot`). Idempotent, and safe in any order relative to `ensureUnderSlot()`: whichever
+   * arrives second does the append. `.app` remounts on a new run, so this is also the re-home path.
+   */
+  setUnderHost(el: HTMLElement | null): void {
+    this.underHost = el;
+    if (el && this.underApp) el.appendChild(this.underApp.canvas);
+  }
+
+  /**
+   * Bring the under-card canvas up, if it isn't already. Fire-and-forget: the `Application` init is async, so
+   * the FIRST under-slot effect of a session may find no renderer and decline (see `playDef`) — which is why
+   * `ensureDefsReady`'s pre-warm calls this ahead of time when any committed def wants the slot.
+   */
+  ensureUnderSlot(): Promise<void> {
+    if (typeof window === 'undefined') return Promise.resolve(); // SSR guard
+    if (this.underApp) return Promise.resolve();
+    this.underIniting ??= this.initUnder().catch((e) => {
+      console.error('[pixiFx] under-card canvas init failed — under-slot effects disabled:', e);
+    });
+    return this.underIniting;
+  }
+
+  private async initUnder(): Promise<void> {
+    const res = Math.min(window.devicePixelRatio || 1, 2); // same DPR cap as the main overlay
+    const app = new Application();
+    await app.init({
+      resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
+      resolution: res, preference: 'webgl', powerPreference: 'high-performance',
+    });
+    const c = app.canvas;
+    c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0';
+    c.style.pointerEvents = 'none'; c.style.display = 'block';
+    // Inherit whatever opacity a Skip-fade left on the main canvas, so a canvas created MID-fade doesn't
+    // flash in at full strength (see `setVisible`).
+    if (this.app) c.style.opacity = this.app.canvas.style.opacity || '1';
+    const layer = new Container();
+    app.stage.addChild(layer);
+    app.ticker.stop(); // the main ticker renders this — see `renderUnder`
+    this.underApp = app;
+    this.underLayer = layer;
+    if (this.underHost) this.underHost.appendChild(c);
+    for (const pending of this.pendingUnderMounts) layer.addChild(pending);
+    this.pendingUnderMounts.length = 0;
+  }
+
+  /** Render the under-card stage, driven by the MAIN app's ticker. Skips entirely while nothing is mounted
+   *  there, so an idle under canvas costs one array-length read per frame. */
+  private renderUnder = (): void => {
+    const app = this.underApp;
+    if (!app || (this.underLayer?.children.length ?? 0) === 0) return;
+    app.renderer.render(app.stage);
+  };
+
+  /** The renderer an effect in `slot` must build its GPU resources against. Pixi v8 resources are portable
+   *  descriptors, but each renderer uploads its own, so a layer rendered by the under canvas must be built
+   *  with the under canvas's renderer or its uniforms land in the wrong context. */
+  rendererFor(slot: FxSlot): Renderer | null {
+    return slot === 'under' ? this.underApp?.renderer ?? null : this.app?.renderer ?? null;
+  }
+
   /** Mount a container on the overlay stage. Returns a disposer. Safe to call before `attach()` resolves —
    *  the container queues and is added once the canvas initialises. The disposer removes the container from
    *  the stage (or the pending queue) but does NOT destroy it — destruction is the caller's responsibility,
    *  since the caller owns the container's lifecycle. If `init()` fails outright (see the "effects disabled"
    *  catch in `attach()`), a queued container never mounts; the disposer still cleans up correctly (no leak
    *  for a caller that disposes on unmount), but a container whose disposer is never called stays referenced. */
-  mountLayer(c: Container): () => void {
+  mountLayer(c: Container, slot: FxSlot = 'over'): () => void {
+    // The default argument is what makes this a true no-op for every existing caller: 'over' is the single
+    // stage `mountLayer` has always used, and the branch below is byte-for-byte the old body.
+    if (slot === 'under') {
+      void this.ensureUnderSlot(); // async; the container queues until the canvas exists
+      if (this.underLayer) this.underLayer.addChild(c);
+      else this.pendingUnderMounts.push(c);
+      return () => {
+        this.underLayer?.removeChild(c);
+        const i = this.pendingUnderMounts.indexOf(c);
+        if (i >= 0) this.pendingUnderMounts.splice(i, 1);
+      };
+    }
     if (this.layer) {
       this.layer.addChild(c);
     } else {
@@ -837,6 +936,7 @@ class FxController {
     this.crescentTex = this.makeCrescentTexture(app);
     this.buildSkullTex(); // the Echo skull: ☠ rendered purple with its glow baked into the texture
     app.ticker.add(this.update);
+    app.ticker.add(this.renderUnder); // one clock for both canvases — see the UNDER slot notes above
     if (this.autoIdle) app.ticker.stop(); // idle controller (discoverFx): don't render an empty stage until a burst
     // Expose the live FX counts to the perf HUD. Read once per 1s bucket, never per frame — these are the
     // numbers that explain a spike ("400 particles alive" / "7 rings converging"), so a hitch in the log
@@ -890,7 +990,19 @@ class FxController {
     // registry call rather than a direct import — the GLSL must stay out of the entry chunk).
     resetFxPools();
     this.app.ticker.remove(this.update);
+    this.app.ticker.remove(this.renderUnder);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
+    if (this.underApp) {
+      // `releaseGlobalResources` is FALSE here, unlike the two apps around it: the under canvas shares Pixi's
+      // module-global caches (programCache, the FX shader/particle pools) with the main overlay, and this
+      // detach happens with the main app already gone — releasing them a second time would free descriptors
+      // the pools still reference. `resetFxPools()` above is what clears the FX side.
+      this.underApp.destroy({ removeView: true }, { children: true });
+      this.underApp = null;
+      this.underLayer = null;
+      this.underIniting = null;
+      this.pendingUnderMounts.length = 0;
+    }
     if (this.shieldApp) {
       this.shieldApp.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
       this.shieldApp = null;
@@ -1734,7 +1846,7 @@ class FxController {
    *  but holds under `transition:none`). So we step the opacity ourselves each frame via rAF (which keeps running
    *  even while the Pixi/GSAP tickers are paused for the freeze). `ms = 0` = an instant set. */
   setVisible(visible: boolean, ms = 260): void {
-    const canvases = [this.app?.canvas, this.shieldApp?.canvas].filter(Boolean) as HTMLCanvasElement[];
+    const canvases = [this.app?.canvas, this.shieldApp?.canvas, this.underApp?.canvas].filter(Boolean) as HTMLCanvasElement[];
     if (!canvases.length) return;
     for (const c of canvases) c.style.transition = 'none'; // the fade is rAF-driven, not CSS
     cancelAnimationFrame(this.fadeRaf);

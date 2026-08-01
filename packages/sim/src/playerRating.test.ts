@@ -5,7 +5,9 @@ import {
   initialProfile,
   lineForRating,
   lineRatingDelta,
+  LOBBY_PLACEMENT_DELTAS,
   resolveLine,
+  resolveLobbyRating,
   resolveRunRating,
   ROUND_15_WIN_BONUS,
   ROUND_16_WIN_BONUS,
@@ -176,5 +178,30 @@ describe('player rating — promotion/demotion hysteresis', () => {
   it('clamps the Line to 7–12', () => {
     expect(resolveLine(7, 0)).toBe(7);
     expect(resolveLine(12, 99999)).toBe(12);
+  });
+});
+
+describe("resolveLobbyRating — the ladder's only rating source (owner rework 2026-07-31)", () => {
+  it('pays by placement: top half gains, bottom half loses, floored at 0', () => {
+    const p: PlayerProfile = { rating: 100, currentLine: 7, highestRating: 100, highestLine: 7 };
+    expect(resolveLobbyRating(p, 1).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[0]);
+    expect(resolveLobbyRating(p, 4).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[3]);
+    expect(resolveLobbyRating(p, 8).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[7]);
+    // Floor: an 8th at 10 rating cannot go negative.
+    const low: PlayerProfile = { rating: 10, currentLine: 7, highestRating: 10, highestLine: 7 };
+    expect(resolveLobbyRating(low, 8).ratingAfter).toBe(0);
+    // An out-of-range placement clamps rather than throwing (a malformed lobby must not crash the end screen).
+    expect(resolveLobbyRating(p, 99).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[7]);
+  });
+
+  it('the Line (course par) tracks lobby MMR through the same promotion bands', () => {
+    // 780 + a 1st (+100) crosses the Line-8 promotion at 800.
+    const p: PlayerProfile = { rating: 780, currentLine: 7, highestRating: 780, highestLine: 7 };
+    const c = resolveLobbyRating(p, 1);
+    expect(c.ratingAfter).toBe(880);
+    expect(c.promoted).toBe(true);
+    expect(c.profile.currentLine).toBe(8);
+    // …and the course-only components stay zero: a lobby has no Oath verdict.
+    expect(c.lineComponent + c.completionBonus + c.finalWinBonus + c.endgameBonus).toBe(0);
   });
 });

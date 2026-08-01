@@ -2,6 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, poolOf, type RunState } from './index';
 import { weldMagnetic } from './recruit';
+import { pinSet1Era } from './testPin';
+
+// This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
+// still-shipped mechanics. Pin the era rather than rewrite the fixtures. See `testPin.ts`.
+pinSet1Era();
 
 /**
  * Tier 7 (Summit) minions. The gating contract matters as much as the effects: these must be UNREACHABLE

@@ -39,7 +39,6 @@ const IconTrash = () => (
 
 export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
-  const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
   const startRift = useGame((s) => s.startRift);
@@ -104,20 +103,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <h1 className="disp titleword">ASCENT</h1>
         </div>
 
-        {/* DOWN-STROKE CUE. Hover already ticks (the delegated `pointerover` listener in Game.tsx) and
-            activation plays `pulse`, but the PRESS itself — the actual tactile moment — was silent. One
-            delegated pointerdown gives every plaque in the column its "thock" on the way down, so the sound
-            lands with the compression rather than after the release. Delegated rather than six identical
-            props so a new menu item can't forget it. */}
-        <nav
-          className="titlenav"
-          onPointerDown={(e) => {
-            if (e.pointerType === 'touch') return;                          // the cue belongs to the click, not a tap
-            const btn = (e.target as Element | null)?.closest?.('.menubtn, .clearrun') as HTMLButtonElement | null;
-            if (!btn || btn.disabled || btn.classList.contains('disabled')) return;
-            sfx.clickThock();
-          }}
-        >
+        {/* The down-stroke "thock" that used to live here is now one app-wide delegated listener in Game.tsx,
+            covering every menu button, hero card, mode card, chip and row rather than this column alone. Two
+            listeners would have fired it twice on exactly these plaques. */}
+        <nav className="titlenav">
           {savedRun && (
             <div className="continuerow">
               <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} title="Resume your run in progress">
@@ -187,15 +176,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="mpeyebrow">Choose your climb</div>
             <h1 className="disp mptitle">MODE</h1>
             <div className="mprow">
-              <button className="modecard" onClick={() => { sfx.pulse(); startAscent(); }}>
-                <div className="mcframe" data-mode="ascent">
-                  <div className="mcname">Ascent</div>
-                  <span className="mcemblem"><Crest /></span>
-                  <div className="mctag">Scored</div>
-                </div>
-                <div className="mcdesc">The scored 17-round climb. Cover your Oath, then chase the summit.</div>
-              </button>
-
+              {/* The scored course ("Ascent") left the picker with the Set 2 launch (owner 2026-07-31) — the
+                  LOBBY is the game now. The mode + its machinery stay for replays and a future return. */}
               {rift && (
                 <button className="modecard" onClick={() => { sfx.pulse(); startRift(); }}>
                   <div className="mcframe" data-mode="rift">
@@ -229,11 +211,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       )}
 
-      {/* The little note on the right — currently a thank-you as the rift window closes. */}
+      {/* The little note on the right — the Set 2 launch announcement (owner copy 2026-07-31). */}
       <aside className="titlebanner" role="note">
         <div className="titlebanner-emoji" aria-hidden>✨</div>
-        <div className="titlebanner-title">Thanks for testing rifts!</div>
-        <div className="titlebanner-sub">We're cooking up some new and fun rifts to test out in the near future. Back to basics for now, though.</div>
+        <div className="titlebanner-title">Welcome to Set 2's Launch!</div>
+        <div className="titlebanner-sub">Reset your career manually and hop into the game. Runes are active and occur on turns 6 + 9. GL HF.</div>
         {activeRift() && <div className="titlebanner-sub">Enjoy a special rift patch to have some fun ✨</div>}
       </aside>
 

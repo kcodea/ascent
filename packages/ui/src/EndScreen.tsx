@@ -52,20 +52,31 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   const seat = playerLobbySeat(lobby);
   const place = seat.placement ?? lobby.seats.filter((x) => x.alive).length;
   const won = place === 1;
+  // The placement's rating change (the ladder's ONLY rating source since 2026-07-31) — lands a tick after the
+  // phase flips, so this renders reactively: nothing, then the number counts in.
+  const lastRating = useGame((s) => s.lastRating);
   return (
     <div className={`heroselect endscreen lobbyend${won ? ' won' : ''}`}>
       <div className="hsbox endbox">
         <div className="endplace" aria-label={`Finished ${ordinal(place)} of ${lobby.seats.length}`}>
           <span className="endplace-num">{ordinal(place)}</span>
           <span className="endplace-of">of {lobby.seats.length}</span>
+          {run.mode === 'practice' && <span className="endplace-practice">Practice — unrated</span>}
         </div>
+        {run.mode === 'lobby' && lastRating && (
+          <div className={`endmmr${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Rating change">
+            <span className="endmmr-now">{lastRating.ratingAfter}</span>
+            <span className="endmmr-delta">{lastRating.ratingDelta >= 0 ? '+' : ''}{lastRating.ratingDelta}</span>
+            <span className="endmmr-label">Rating</span>
+          </div>
+        )}
         <div className="endboardlabel">Final warband</div>
         <div className="endboard">
           {run.board.length === 0
             ? <span className="endempty">— empty —</span>
             : run.board.map((m) => <Card key={m.uid} card={boardView(m, run)} suppressPop />)}
         </div>
-        <button className="endplay" onClick={onPlayAgain}>Play Again</button>
+        <button className="endplay pressable" onClick={onPlayAgain}>Play Again</button>
       </div>
     </div>
   );
@@ -223,7 +234,7 @@ export function EndScreen({ won }: { won: boolean }) {
             click it again — or the label — to return). */}
         <div className="endboardlabel">
           {viewWave !== null ? (
-            <button type="button" className="endboard-back" onClick={() => setViewWave(null)}>
+            <button type="button" className="endboard-back pressable text" onClick={() => setViewWave(null)}>
               Round {viewWave} · {run.history[viewWave - 1] === 'win' ? 'Won' : run.history[viewWave - 1] === 'lose' ? 'Lost' : 'Draw'}
               <span className="endboard-backhint"> ↩ Final warband</span>
             </button>
@@ -241,7 +252,7 @@ export function EndScreen({ won }: { won: boolean }) {
           )}
         </div>
 
-        <button className="endplay" onClick={() => openTitle()}>Play Again</button>
+        <button className="endplay pressable" onClick={() => openTitle()}>Play Again</button>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ export const DEATHRATTLE_BUFF_FACTORIES: ReadonlySet<string> = new Set([
   //     same buff-cast path when it lands with stats).
   // Both were missing since Set 2 shipped, so their buffs landed with NO cue at all: the source is dead by
   // strike time, and a living-source cast whose element can't be found is DROPPED rather than downgraded.
-  'deathrattlePlayRubiesAdjacent', 'deathrattleGrantWardRandom',
+  'deathrattlePlayRubiesAdjacent', 'deathrattleSummonGolemsWithRuby', 'deathrattleGrantWardRandom',
   // NOT included: 'deathrattleBuffCardTypeRunWide' (Spear Warden / 'knit') — the owner wants that card
   // reframed as an "echo-aura" (its own effect concept), kept separate from Deathrattle descend. Excluded
   // deliberately until that design lands; do not add it here.

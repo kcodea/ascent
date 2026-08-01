@@ -77,9 +77,9 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_hungerling',
     name: 'Demon Horse',
     tribe: 'demon',
-    tier: 4,
-    attack: 4,
-    health: 5,
+    tier: 3,
+    attack: 3,
+    health: 3,
     keywords: [],
     // Owner fix 2026-07-29: the TEXT described a different card entirely — "End of Turn: Consume the right-most
     // Shop minion" — while the effect has always been a Rally shop-buff. The effect was right; the text is now
@@ -89,8 +89,8 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Rally:** give minions in the Shop **+4/+4**.',
   },
   {
-    // PERMANENT, so it goes through the run-wide per-card channel rather than the per-offer one — the buff
-    // follows that card for the rest of the run instead of dying on the next refresh.
+    // PERMANENT means the buff rides the OFFER into the bought minion (via `offerBuyStats`) rather than
+    // expiring with the shop — not that it is run-wide on every copy of that card id.
     id: 'dm_tormentor',
     name: 'Market Tormentor',
     tribe: 'demon',
@@ -98,20 +98,23 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    // Owner change 2026-07-29: a SHOUT, not a per-refresh trigger. The factory is trigger-agnostic (it just
-    // buffs the right-most Shop minion), so only the event moves.
-    effects: [{ on: 'onPlay', do: 'shopRefreshedBuffRightmost', params: { attack: 4, health: 4 } }],
-    text: '**Shout:** give the **right-most** minion in the Shop **+4/+4** permanently.',
-    goldenText: '**Shout:** give the **right-most** minion in the Shop **+8/+8** permanently.',
+    // THIRD SHAPE, and this one is the owner's full spec (2026-07-31): a SHOUT that buffs the right-most Shop
+    // SLOT for the rest of the run. The buff lands on the current shop when played, RE-lands on every fresh
+    // roll's right-most, STACKS across plays (two normals + a gilded = +16/+16), and does NOT need the
+    // Tormentor to stay on board — the slot remembers, not the minion. The first shape (per-refresh watcher)
+    // died with the body; the second (one-shot Shout) buffed exactly one offer ever. Both were wrong.
+    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 4, health: 2 } }],
+    text: '**Shout:** the **right-most Shop slot** gets **+4/+2** for the rest of the run. Stacks.',
+    goldenText: '**Shout:** the **right-most Shop slot** gets **+8/+4** for the rest of the run. Stacks.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
     id: 'dm_curator',
     name: 'Soul Defiler',
     tribe: 'demon',
-    tier: 4,
-    attack: 5,
-    health: 3,
+    tier: 5,
+    attack: 6,
+    health: 6,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'buffShopPermanent', params: { attack: 1, health: 1, improve: 1 } }],
     text: '**End of Turn:** give minions in the Shop **+1/+1**. Improves by **+1/+1** each time this triggers.',
@@ -134,9 +137,9 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_broodwright',
     name: 'Broodwright',
     tribe: 'demon',
-    tier: 4,
-    attack: 3,
-    health: 6,
+    tier: 3,
+    attack: 2,
+    health: 5,
     keywords: [],
     effects: [
       { on: 'onSummon', do: 'onSummonImpBuff', params: { attack: 2, health: 2 } },
@@ -162,16 +165,16 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_velvet',
     name: 'Big Huggies',
     tribe: 'demon',
-    tier: 5,
+    tier: 4,
     attack: 5,
     health: 2,
-    keywords: [],
+    keywords: ['T'],
     // `cardId`, NOT `spellId` — the factory reads `params.cardId`, so the wrong key granted the EMPTY string and
     // the hand-grant preview then crashed on `CARD_INDEX['']` (owner report 2026-07-25). `count` is likewise not
     // a param here: the factory grants `mul(self)` copies, which is already the golden "2 Staves".
     effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'staffofguel' } }],
-    text: '**Echo:** get a **Staff of Guel**.',
-    goldenText: '**Echo:** get **2 Staves of Guel**.',
+    text: '**Taunt.** **Echo:** get a **Staff of Guel**.',
+    goldenText: '**Taunt.** **Echo:** get **2 Staves of Guel**.',
   },
   {
     // The pay-off scales with the room you LEFT — a lone Shepherd fills six slots and buffs six times.
@@ -234,7 +237,12 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 12,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffImps', params: { attack: 1, health: 1 } }],
+    // AUDIT FIND 2026-07-31: the printed rule and the wired effect had come apart — the text has said "Imp
+    // attacks / improves" since the rename, but the card still carried `spellCastBuffImps` (a recruit-phase
+    // per-spell buff, +1/+1). The matching combat factory `onImpAttackBuffImps` existed, schema-registered,
+    // with NO card referencing it. Its escalation is per-combat (rides `summonBonus`, which `simulate` now
+    // excludes from the carry-back for this card so "this combat" stays true).
+    effects: [{ on: 'onAttack', do: 'onImpAttackBuffImps', params: { attack: 3, health: 3, improve: 1, improveEvery: 3 } }],
     text: 'Whenever an **Imp** attacks, give your Imps **+3/+3** this combat. Improves by **+1/+1** every **3** Imp attacks.',
     goldenText: 'Whenever an **Imp** attacks, give your Imps **+6/+6** this combat. Improves by **+2/+2** every **3** Imp attacks.',
   },

@@ -134,7 +134,8 @@ export const SET2_BEASTS: CardDef[] = [
       { on: 'avenge', do: 'avengeBuffTribeLasting', params: { count: 3, tribe: 'beast', attack: 2, health: 2 } },
     ],
     text: '**Avenge (3):** give your Beasts **+2/+2** wherever they are.',
-    goldenText: '**Avenge (3):** get **2** random Shop spells and give your Beasts **+4 Attack** wherever they are.',
+    // The golden text was a leftover from the old spell-granting shape.
+    goldenText: '**Avenge (3):** give your Beasts **+4/+4** wherever they are.',
   },
   {
     // Echo summon on the Void Panther pattern: `fixed` keeps the count at 1 and `goldenTokens` upgrades the
@@ -154,10 +155,10 @@ export const SET2_BEASTS: CardDef[] = [
     // Rally: re-fire your left-most friendly Echo without killing it — the Deathsayer mechanic, board-order
     // (deterministic) rather than "first that has one".
     id: 'b2_echohorn',
-    name: 'Echohorn Stag',
+    name: 'Echohorn', // renamed from Echohorn Stag (owner 2026-07-31); id unchanged
     tribe: 'beast',
-    tier: 4,
-    attack: 4,
+    tier: 3,
+    attack: 3,
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyProcLeftmostEcho' }],
@@ -228,7 +229,7 @@ export const SET2_BEASTS: CardDef[] = [
     tribe: 'beast',
     tier: 1,
     attack: 2,
-    health: 3,
+    health: 2,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyBuffSelfPerTribe', params: { tribe: 'beast', attack: 1, health: 1 } }],
     text: '**Rally:** gain **+1/+1** for every Beast you control.',

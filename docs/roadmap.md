@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
+  example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and
+  anything that should read as happening *on* the board rather than in front of it — each is a one-field
+  change on an existing def plus an eyeball pass. Worth measuring the third canvas's cost in a real combat
+  before migrating more than one.
+
 - **Re-measure the known hitches against the 240 Hz budget (4.17 ms).** The budget and the derived HUD
   thresholds shipped 2026-07-30 ([`performance.md`](performance.md) §0), which means the numbers will look
   worse without anything having regressed — the instrument was under-reporting, not the game improving.
@@ -28,6 +34,15 @@ The five buckets below are ordered by when we intend to act, not by size:
   cut its mean by 24%. Then a full-run capture with `?perf=1` on the real display, read on `worst` and the
   `long`/`jank` counts rather than the mean, to find what else the 60 Hz calibration was hiding — phase
   transitions and the shop open are the standing suspects.
+
+- **Eyeball the new float overlay on a real fight.** Combat damage numbers now render in a `<body>`-portalled
+  overlay above the FX canvas (shipped 2026-07-30). The layering is browser-proven and the spawn path is
+  unit-tested, but the live replay itself could not be driven end-to-end in this session (no foregrounded
+  browser available — a hidden tab never ticks rAF, so the GSAP beat clock never advances). Watch one fight
+  and confirm the numbers land where they used to, including a killing blow and a keyword glyph.
+- **The shop's gold/sell pill is still under the coin sprinkle.** Same class of stacking issue as the combat
+  floats, deliberately left alone because the sprinkle reading *around* the pill is arguably correct. Decide
+  whether it should be portalled too, or leave it.
 
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
   Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
@@ -187,6 +202,19 @@ The career surface exists; deepen what a finished run *remembers*.
   `var(--z-…, <fallback>)` in `styles.css`; a bake that updates only the def ships the OLD number to
   production while looking right in dev. Three had silently drifted (`shopUiY`, `shopY`, `wbY`) before an
   audit caught them on 2026-07-21. A test that parses both and asserts they match would make it impossible.
+
+### Tactile pass — buttons done, cards and chips next (2026-07-30)
+`.pressable` carries the title menu's grammar across every UI screen; see DESIGN.md → Pressable. Still open:
+
+- **DONE (2026-07-31).** Selection cards and chips: cards press past their rest position and shrink, chips take
+  a 2px edge that sinks, rows take an inset. Cards deliberately do NOT use `.pressable` — they share its press
+  vector, not its plaque. See DESIGN.md, "Cards, chips and rows commit differently".
+- **In-board shop controls are excluded on purpose** — Refresh, Freeze, End Turn, Tavern Up and Hero Power have
+  hand-tuned pressed ART and their own tuner panels, which a CSS press would fight. Unify only if the art is
+  retired.
+- **`.menubtn` still holds its own copy of the grammar.** It composes a horizontal hover slide the primitive
+  does not model, and regressing the one screen the owner already likes for a refactor was not worth it.
+  Fold it in when the primitive grows a slide axis.
 
 ## Next
 
@@ -361,6 +389,12 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   2026-07-29 (five workbench drafts deleted: `blue-glow-trail`, `blue-trail-detonate`, `ember-lance`,
   `self-buff-bloom`, `test-red-blast`). **`death-dissolve` stays** — it looks orphaned because no binding
   names it, but `useCombatReplay` plays it directly for every plain death (see `docs/fx-requests.md`).
+  ✅ **The library no longer calls a directly-played def inert (2026-07-30)** — every migrated batch used to
+  land in the coverage map's "nothing bound" column while playing constantly. Defs now read `bound` /
+  `from code` / `unused`, derived by scanning `packages/ui/src` for `playDef('<literal>')` into
+  `fx/directCalls.ts` with a test that fails if the snapshot drifts. **Later batches get this for free** —
+  add the call, run `npm test`, paste the printed object. Only a call whose id is a *variable* needs
+  thought (the test will name it).
   Likewise **`discoverBurst` is NOT dead `pixiFx`** — `Recruit.tsx` fires it on every Discover open, and it's
   the sole reason the second `discoverFx` Pixi app exists; it needs a real port, not a delete.
   ✅ **Batch 1 landed 2026-07-30**: `damageBurst`, `clickPuff` and `coins` are authored defs (`pixiFx.ts`
@@ -503,15 +537,6 @@ SoC badge beats shipped (#541). Remaining, in impact order:
 - **Step-0 fold** — run-wide auras (Undead/Imp/Beast/Magnetic/card enchants) bake silently into the
   initial board; Fleeting Vigor is baked pre-sim with one un-stepped `sc` narration. Fine if intended —
   listed for completeness.
-
-### Re-attempt the hand "make room" glide, safely (reverted 2026-07-28)
-The hand should glide open/closed when its card count changes instead of blinking - the owner liked it, but
-the Flip-based implementation inflated cards (see the devlog: hover `scale(1.06)` folded into `Flip.getState`
-bounds, then morphed into inline width). Any retry must capture a **transform-immune** measure. Preferred:
-drive it through the existing `handSlidePx` channel (transient per-uid offset + the CSS transition), which is
-what the drag "make room" already does and keeps React owning the whole transform string. Alternative:
-`offsetLeft` deltas like the warband commit path. Only capture Flip state while `body.dragging` neutralises
-the hover rule.
 
 ### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
 The Aura Wash + EoT beat replay closed the big ones — plus the triggered rune buffs (Rune of Kindling /
@@ -682,14 +707,30 @@ effects (the `.dr` collapse hold can trail them) — tune live against the skull
 ### Tech-debt watch (fold into whichever PR touches it)
 Split `Recruit.tsx` (~2.5k — proposed seams: `recruitViews` / `useCardDrag` / `useLossSequence` / overlays)
 and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
-`recruit.ts` (2k); consider sub-reducers in `reducer.ts` as actions grow. **Dead-code purge:** ~17 dead
-effect-factory ids (`factories.ts` + `types.ts` union + `schema.ts` enum, 3-place sweep each) +
-`battlecryGrantKeyword` chain + `reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache`; Card renders removed
-Reborn-tears DOM; **the orphaned Pixi aura-bubble system** (`shieldConfig.ts` + `ShieldTuner.tsx` tune a
-`recruitDy` nothing reads; `pixiFx.setShield`/`clearShield`/`setShieldsVisible`/`shieldLayer`/`hasAura` have no
-callers now the tracker is gone, and `breakShield` is down to its own shape-editor demo — but keep
-`shatterAt`/`rebornSummon`, still fired by the death-burst/reborn path); a confirmed dead-CSS list (OMEN
-block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).
+`recruit.ts` (2k); consider sub-reducers in `reducer.ts` as actions grow.
+
+**Dead-code purge** (audited 2026-07-29 — the old estimates were wrong in four places; see
+[`docs/dead-effect-ids.md`](dead-effect-ids.md) for the method and the evidence):
+- ✅ **Dead CSS — done.** The OMEN block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt`/`.zh`/`.hint` and
+  the `.emberproj` popup (reachable only via `.chip.g:hover`, so dead with it) are gone. **`.disc-gem` and
+  `.ob` were NOT dead** and stay: `.disc-gem` is rendered by `Recruit.tsx` and its rule is a deliberate
+  `display: none` (deleting it makes the gems reappear), and `.ob`'s base rule still feeds the odds bar's
+  `.oddsbar .ob.win/.draw/.lose` segments.
+- 🔵 **The orphaned Pixi aura-bubble system — PR open (#756).** `setShield`/`clearShield`/`setShieldsVisible`/
+  `hasAura`/`auraRect`/`breakShield`/`shieldPop` + the `shields` map, `ShieldBubble`, `shieldLayer` and
+  `shieldGeo` had no production callers, and the bubbles owned a **third** full-viewport WebGL `Application`
+  (`shieldApp`, after the main canvas and `discoverFx`) plus the `underParent` mount contract — already
+  ticker-stopped as "dormant" rather than removed. `shatterAt`/`rebornSummon` are kept, still fired by the
+  death-burst/reborn path via `choreo/channels/aura.ts`. Bundle −21,515 bytes, measured. **Wants an eyeball on
+  a real ward break + reborn before merge** — it deletes a renderer path, which no gate covers.
+- ⬜ **69 dead effect-factory ids** (not ~17): the verified inventory is in
+  [`docs/dead-effect-ids.md`](dead-effect-ids.md), each with the files to sweep. Engine-owned; re-run the
+  sweep first, since an id goes live the moment one card adopts it.
+- ⬜ **`reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache`.** No card uses the id, but the machinery in
+  `minion.ts` + `simulate.ts` is live code — deleting it removes a working mechanic, so it's an owner call
+  rather than a pure cleanup.
+- ❌ **`battlecryGrantKeyword` is NOT dead** — `cards/set1/beasts.ts` uses it twice. Struck from the purge.
+- ❌ **The Reborn-tears DOM is already gone** — nothing left to remove.
 
 ---
 

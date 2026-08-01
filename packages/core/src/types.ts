@@ -200,7 +200,7 @@ export type EffectFactoryId =
   | 'consumeShopRightmost' // Set 2 — Demon Horse / Hellrider: consume the right-most Shop minion
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
-  | 'shopRefreshedBuffRightmost' // Set 2 — Market Tormentor: each fresh Shop's right-most minion comes in buffed
+  | 'buffRightmostSlotPermanent' // Set 2 — Market Tormentor (Shout): the right-most Shop SLOT is buffed for the run
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
@@ -224,7 +224,15 @@ export type EffectFactoryId =
   | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
-  | 'onConsumeSelfGrantSpell' // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
+  | 'onConsumeSelfGrantSpell'
+  | 'spellPlayRubiesAll' // Ruby Excavation: play N Rubies on every friendly minion
+  | 'spellGainSpellPower' // Quick Study (spell): permanently raise the run's spell power
+  | 'spellDecoyNextCombat' // Decoy Sigil: bank a next-combat Training Dummy slot-filler
+  | 'spellStealShop' // Deep Delve Writ / Ironclad Requisition: take Shop offers into hand for free
+  | 'spellTargetConsumesShop' // Cupcakes: the targeted Demon Consumes N random Shop minions
+  | 'deathrattleSummonGolemsWithRuby' // Geode Guardian: summon N Gemheart Golems with Taunt + play Rubies on them
+  | 'rallyCastShopBuffSpell' // Ashen Broodlord: Rally casts a Staff of Guel (permanent tavern-buy buff)
+  | 'spellWeakenNextCombat' // Weaken: bank a next-combat "set a random enemy to 1 Health" // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
   | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
@@ -834,7 +842,7 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -872,6 +880,13 @@ export type QuestReward =
   | { kind: 'runeEndlessAppetite' }
   // Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects.
   | { kind: 'runeConductor' }
+  | { kind: 'runeMatriarch' } // Runebloom Matriarchs trigger twice
+  | { kind: 'runeContraband' } // first Ruby/turn → an Ale; first Ale/turn → a Ruby
+  | { kind: 'runeCadence' } // buy-a-minion ↔ cast-a-spell alternating 1-Gold discounts
+  | { kind: 'runeGemscript' } // first spell/turn → Ruby power +1/+1; first Ruby/turn → spell power +1/+1
+  | { kind: 'mintRubies'; count: number; attack: number; health: number } // Gemcutting: Rubies at a FIXED stat line
+  | { kind: 'runeSecondPath' } // Discover 2 Tier 6 minions, stats set to 20/20
+  | { kind: 'runeChampion' } // Discover a T4, T5 and T6 minion of the board's dominant tribe
   /** Rune of the Summit: every 2nd shop opens a Tier 7 Discover (a counter, not a per-turn flag — the
    *  every-other-turn cadence is not expressible with `recurringEndOfTurn`, which fires every turn). */
   | { kind: 'runeSummit' }
@@ -1127,6 +1142,17 @@ export interface QuestCombatMods {
   burningLegionUses?: number;
   /** Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once. */
   runeRallying?: boolean;
+  /** Rune of Forthcoming (2026-07-31 rework): Start of Combat — the left-most minion gains Ward and attacks
+   *  immediately. (Was a turn-priority flag read by the reducer, not a combat mod.) */
+  runeForthcoming?: boolean;
+  /** Rune of the Spellstone, combat half (owner ask 2026-07-31): a Ruby played IN combat also counts as a
+   *  spell cast — it fires the `spellCast` trigger, so per-spell improvers (Groveweaver) advance. */
+  runeSpellstone?: boolean;
+  /** Decoy Sigil (next-combat spell): summon this many 1/1 Training Dummies (Taunt + Ward), one at a time,
+   *  far right, whenever the board first has room — the Rune-of-the-Brood slot-filler machinery. */
+  decoySigils?: number;
+  /** Weaken (next-combat spell): at Start of Combat, set this many random living enemies to 1 Health. */
+  weakenTargets?: number;
   /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */
   runeRisingGraves?: boolean;
   /** Rune of the Broodpit: every 6 friendly deaths, summon 2 Imps with Taunt. */
@@ -1867,7 +1893,9 @@ export interface CombatContext {
    *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Permanently buff every future Shop minion (Demon Horse's Rally) — carried back via `playerTavernBuyGain`. */
-  gainTavernBuy(attack: number, health: number, side: Side): void;
+  /** `sourceUid` is what lets the gain be TELEGRAPHED mid-combat. Without it the buff applies silently at
+   *  settle and the player sees nothing happen (owner report 2026-07-31). */
+  gainTavernBuy(attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Set 2 — Mushy: queue `count` next-turn first-spell copies (player-only; carried back). */
   queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
@@ -1908,6 +1936,8 @@ export interface CombatContext {
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
    *  (the buff/damage) is applied by the caller — this just fires the `spellCast` trigger + counts it. */
   castSpell(side: Side): void;
+  /** Rune of the Spellstone (combat half): is the mod armed for `side`? Read by the Ruby-play primitive. */
+  spellstoneFor?(side: Side): boolean;
   /** Abhorrent Horror: total Fodder stats consumed this turn for a given side (attack + health) — the player's
    *  live run state, or a served enemy's captured tally. `scGainFodderStats` reads its OWN side at Start of
    *  Combat (so an enemy Horror gains the ENEMY's consumed stats, not the player's). {0,0} if none. */
@@ -1921,6 +1951,8 @@ export interface CombatContext {
   grantUndeadAura(attack: number, health: number, side: Side): void;
   /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
    *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
+  /** No `sourceUid`: unlike `gainTavernBuy`, this already emits a `tribeAura` event, which the replay blooms
+   *  as the board aura-wash — so the gain is cued without needing a second channel. */
   grantImpBuff(attack: number, health: number, side: Side): void;
   /** Chorus Engine — raise the run's ATTACHMENT (Magnetic) enchant from combat. The recruit twin is Scrap
    *  Herald's `battlecryBuffMagnetics`: buff every Magnetic on board + in hand, and stack the aura so future

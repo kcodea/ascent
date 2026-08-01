@@ -52,6 +52,42 @@ describe('lobby run — setup', () => {
   });
 });
 
+describe("practice IS a lobby now (owner rework 2026-07-31)", () => {
+  it("createLobbyRun('practice') builds the same 8-seat lobby under mode practice", () => {
+    const s = createLobbyRun(4, 'drakko', {}, 'practice');
+    expect(s.mode).toBe('practice');
+    expect(s.lobby!.seats).toHaveLength(8);
+    expect(s.lobby!.seats[0]!.kind).toBe('player');
+  });
+
+  it('the player is INVULNERABLE: a lost round costs no health and never eliminates', () => {
+    let s = createLobbyRun(4, 'drakko', {}, 'practice');
+    const hp = { r: s.resolve, a: s.armor };
+    // Fight round 1 with an empty board (a guaranteed loss), then settle it.
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.resolve).toBe(hp.r);
+    expect(s.armor).toBe(hp.a);
+    expect(s.lobby!.seats[0]!.alive).toBe(true);
+    expect(s.phase).not.toBe('gameover');
+  });
+
+  it('the curtain falls after round 15 if the lobby has not been won', () => {
+    let s = createLobbyRun(4, 'drakko', {}, 'practice');
+    for (let round = 1; round <= 24 && s.phase !== 'gameover'; round++) {
+      // The live defaults open the Runeforge on turns 6/9 (+ queued Discovers) — close whatever blocks the turn.
+      for (let guard = 0; guard < 6 && (s.runeforgeOffer || s.discover); guard++) {
+        if (s.runeforgeOffer) s = reduce(s, { type: 'skipRuneforge' });
+        if (s.discover) s = reduce(s, { type: 'discover', index: 0 });
+      }
+      s = reduce(s, { type: 'faceOmen' });
+      s = reduce(s, { type: 'resolveCombat' });
+    }
+    expect(s.phase).toBe('gameover');
+    expect(s.wave).toBeLessThanOrEqual(16); // ended at the round-15 curtain (or the lobby finished first)
+  });
+});
+
 describe('lobby run — playing it', () => {
   it('one round of play settles the WHOLE table, not just the player’s fight', () => {
     let s = createLobbyRun(4, 'drakko');

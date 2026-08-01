@@ -253,6 +253,10 @@ function schedulePrewarm(prewarm: (renderer: Renderer | null) => void): void {
     const renderer = pixiFx.renderer;
     if (renderer) {
       prewarm(renderer);
+      // Bring the under-card canvas up ONLY if something committed actually wants it. A page whose defs are
+      // all `over` never creates a second GL context — the lazy half of "lazy on first use" — while a page
+      // that will need one has it long before the first combat, so no fire is ever dropped waiting on init.
+      if (listDefs().some((d) => d.slot === 'under')) void pixiFx.ensureUnderSlot();
       return;
     }
     waited += PREWARM_POLL_MS;
@@ -288,8 +292,19 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   // `createPlayer` and every primitive's `spawn` require a real renderer; the overlay's `attach()`/`init()`
   // is async, so "not yet" is a normal state, not an error. Unlike the workbench (which polls until one
   // exists) a combat moment is gone by the time a poll would resolve, so this simply declines.
-  const renderer = pixiFx.renderer;
-  if (!renderer) return null;
+  // The def picks its CANVAS: 'over' (the default, the z110 overlay above every card) or 'under' (a second
+  // canvas parked inside `.app` beneath the cards). Both the renderer the layers are built against and the
+  // stage they mount on must come from the SAME app, or the effect builds its GPU resources in one GL
+  // context and is drawn by another.
+  const slot = stored.slot ?? 'over';
+  const renderer = pixiFx.rendererFor(slot);
+  if (!renderer) {
+    // The under canvas is created lazily, so "not yet" is a normal first-fire state rather than an error —
+    // kick the init so the NEXT fire has one. (`ensureDefsReady`'s pre-warm normally gets there first; this
+    // is the backstop for a def bound after the pre-warm ran, e.g. a workbench commit mid-session.)
+    if (slot === 'under') void pixiFx.ensureUnderSlot();
+    return null;
+  }
 
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
@@ -301,7 +316,7 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   if (layers.length === 0) return null;
 
   const container = new Container();
-  const unmountLayer = pixiFx.mountLayer(container);
+  const unmountLayer = pixiFx.mountLayer(container, slot);
   const player = createPlayer(def, { container, renderer }, { loop: false });
   // A def that saved a LOCKED seed means "this exact roll" — honour it, or the composition the author
   // committed is not the one that plays. No seed (unlocked) hands over `null`: fresh roll per fire, which

@@ -5,6 +5,8 @@ const entry = (id: string, over: Partial<FxCatalogEntry> = {}): FxCatalogEntry =
   def: { version: 1, id, duration: 900, layers: [] },
   facets: { shape: 'Burst', hue: 'red', motion: 'in place' },
   bindings: { kinds: [], cards: [] },
+  callSites: [],
+  usage: 'unused',
   ...over,
 });
 
@@ -12,11 +14,12 @@ describe('applyFilter', () => {
   const all = [
     entry('red-burst'),
     entry('blue-trail', { facets: { shape: 'Trail', hue: 'blue', motion: 'travels' } }),
-    entry('bound-one', { bindings: { kinds: ['shieldGain'], cards: [] } }),
+    entry('bound-one', { bindings: { kinds: ['shieldGain'], cards: [] }, usage: 'bound' }),
+    entry('code-one', { callSites: ['Recruit.tsx'], usage: 'code' }),
   ];
 
   it('returns everything for the empty filter', () => {
-    expect(applyFilter(all, EMPTY_FILTER)).toHaveLength(3);
+    expect(applyFilter(all, EMPTY_FILTER)).toHaveLength(4);
   });
 
   it('filters by hue', () => {
@@ -27,9 +30,16 @@ describe('applyFilter', () => {
     expect(applyFilter(all, { ...EMPTY_FILTER, motion: 'travels' }).map((e) => e.def.id)).toEqual(['blue-trail']);
   });
 
-  it('filters by bound / unbound', () => {
-    expect(applyFilter(all, { ...EMPTY_FILTER, bound: 'bound' }).map((e) => e.def.id)).toEqual(['bound-one']);
-    expect(applyFilter(all, { ...EMPTY_FILTER, bound: 'unbound' })).toHaveLength(2);
+  /**
+   * The three wiring states select separately. The old two-value facet put `code-one` — a def that plays on
+   * every shop click — in the same bucket as a dead draft, which is the whole defect. `unused` must now mean
+   * only the genuinely inert ones.
+   */
+  it('filters each wiring state apart from the others', () => {
+    expect(applyFilter(all, { ...EMPTY_FILTER, usage: 'bound' }).map((e) => e.def.id)).toEqual(['bound-one']);
+    expect(applyFilter(all, { ...EMPTY_FILTER, usage: 'code' }).map((e) => e.def.id)).toEqual(['code-one']);
+    expect(applyFilter(all, { ...EMPTY_FILTER, usage: 'unused' }).map((e) => e.def.id))
+      .toEqual(['red-burst', 'blue-trail']);
   });
 
   it('searches id, label, tags and card name', () => {
@@ -41,6 +51,11 @@ describe('applyFilter', () => {
     expect(applyFilter(rich, { ...EMPTY_FILTER, search: 'ember' }).map((e) => e.def.id)).toEqual(['x']);
     expect(applyFilter(rich, { ...EMPTY_FILTER, search: 'impact' }).map((e) => e.def.id)).toEqual(['y']);
     expect(applyFilter(rich, { ...EMPTY_FILTER, search: 'blood' }).map((e) => e.def.id)).toEqual(['z']);
+  });
+
+  // "Which effects does the recruit screen play?" should be a search, not a code hunt.
+  it('searches the files that fire a def from code', () => {
+    expect(applyFilter(all, { ...EMPTY_FILTER, search: 'recruit' }).map((e) => e.def.id)).toEqual(['code-one']);
   });
 
   it('search is case-insensitive and ignores surrounding whitespace', () => {

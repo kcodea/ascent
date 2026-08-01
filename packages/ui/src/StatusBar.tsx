@@ -97,7 +97,7 @@ export function StatusBar() {
       case 'recurringGoldcrafter': return run.wave % 4 === 0 ? 'now' : `${4 - (run.wave % 4)}t`; // Gildmaster — cadence
       case 'scalingGold': return run.heroPowerSpent ? null : `${1 + run.wave}g`; // Bagger Ben — current value
       case 'lesserQuest': return run.wave < 4 ? `${4 - run.wave}t` : null; // Fi — turns to the errand
-      case 'runeforge': return run.wave < 7 && !run.heroPowerSpent ? `${7 - run.wave}t` : null; // Runesmith
+      case 'runeforge': return run.wave < 5 && !run.heroPowerSpent ? `${5 - run.wave}t` : null; // Runesmith — forge opens turn 5 (was 7; the countdown lagged the retime, owner report 2026-07-31)
       case 'epicRuneforge': return run.epicForgeWave != null && run.wave < run.epicForgeWave ? `${run.epicForgeWave - run.wave}t` : null; // Runeguard
       case 'pathfinder': return run.wave < 10 ? `${10 - run.wave}t` : null; // Coran — turns to the capstone
       case 'dynamiteDig': return `Tier ${run.tier}`; // Jenkins — what the dig would discover

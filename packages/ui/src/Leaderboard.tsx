@@ -65,7 +65,10 @@ export function Leaderboard() {
     setRows(null); // reset to the loading state each time it opens
     setStats(new Map());
     let alive = true;
-    void fetchVictories(20).then(async (r) => {
+    // WINNING LOBBY BOARDS only (owner rework 2026-07-31): rows logged before the rework carry no mode and
+    // are filtered out — the Hall restarts with the ladder.
+    void fetchVictories(60).then(async (rAll) => {
+      const r = rAll.filter((v) => v.mode === 'lobby').slice(0, 20);
       if (!alive) return;
       setRows(r);
       // Then pull each slot's round-17 win record from the fight ledger (best-effort; leaves the record empty on failure).
@@ -90,7 +93,7 @@ export function Leaderboard() {
   return (
     <div className="lbpage">
       <div className="lbtopbar">
-        <button className="lbback" onClick={back}>← Back</button>
+        <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="crown" />
           <div>

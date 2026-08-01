@@ -15,7 +15,7 @@ describe('isDeathrattleBufferCard', () => {
     // These buff OTHERS as they die, so by strike time their source element is gone. A living-source cast whose
     // element can't be found is DROPPED, not downgraded — so being absent from the descend list meant no
     // animation whatsoever, which is exactly what the owner saw.
-    expect(isDeathrattleBufferCard('k_geode')).toBe(true);       // onDeath deathrattlePlayRubiesAdjacent
+    expect(isDeathrattleBufferCard('k_geode')).toBe(true);       // onDeath deathrattleSummonGolemsWithRuby (2026-07-31 rework)
     expect(isDeathrattleBufferCard('n2_lastlight')).toBe(true);  // onDeath deathrattleGrantWardRandom
   });
 

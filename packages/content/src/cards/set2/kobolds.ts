@@ -34,18 +34,18 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
   },
   {
-    // Start of Combat scaler: plays Rubies on your Kobolds based on the run's per-turn cards-bought count
-    // (threaded into combat). Permanent carry-back.
+    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
+    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
     id: 'k_frenzied',
     name: 'Frenzied Excavator',
     tribe: 'kobold',
-    tier: 5,
-    attack: 6,
+    tier: 4,
+    attack: 4,
     health: 3,
-    keywords: ['SC'],
+    keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
     text: '**Shout:** play a Ruby on all of your minions.',
-    goldenText: '**Start of Combat:** Play **2 Rubies** on your Kobolds for every **4 cards** bought this turn.',
+    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
   },
   {
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
@@ -67,7 +67,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_gemline',
     name: 'Gemline Martyr',
     tribe: 'kobold',
-    tier: 3,
+    tier: 4,
     attack: 2,
     health: 5,
     keywords: [],
@@ -148,7 +148,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_prismcaster',
     name: 'Prismcaster',
     tribe: 'kobold',
-    tier: 4,
+    tier: 5,
     attack: 4,
     health: 4,
     keywords: [],
@@ -164,8 +164,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Faultline Scrapper',
     tribe: 'kobold',
     tier: 3,
-    attack: 1,
-    health: 4,
+    attack: 4,
+    health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 0 } }],
     text: '**Echo:** your Rubies gain **+1 Attack**.',
@@ -234,12 +234,14 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Geode Guardian',
     tribe: 'kobold',
     tier: 2,
-    attack: 2,
-    health: 4,
+    attack: 1,
+    health: 2,
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }],
-    text: 'Taunt. **Echo:** Play a Ruby on adjacent minions.',
-    goldenText: 'Taunt. **Echo:** Play **2 Rubies** on adjacent minions.',
+    // Owner rework 2026-07-31 (from "play a Ruby on adjacent"). The COUNT is fixed — a Gilded copy still
+    // summons 2 (the owner was explicit); gilding doubles the Rubies played on them instead.
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonGolemsWithRuby', params: { count: 2, rubies: 1 } }],
+    text: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and play a **Ruby** on them.',
+    goldenText: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and play **2 Rubies** on them.',
   },
   {
     // Three triggers: Shout (onPlay) + Echo (combat death) both buff your Rubies; End of Turn plays a Ruby on
@@ -312,21 +314,6 @@ export const SET2_KOBOLDS: CardDef[] = [
     effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedGold', params: { gold: 2, cap: 3 } }],
     text: 'Rubies played on this minion give you **2 Gold** (three times per turn).',
     goldenText: 'Rubies played on this minion give you **3 Gold** (three times per turn).',
-  },
-  {
-    // Recruit-phase economy: the `cardsBought` cadence (`every: 3`) mints a Ruby every 3 cards you buy.
-    id: 'k_hoardmaster',
-    name: 'Hoardmaster Krik',
-    tribe: 'kobold',
-    tier: 6,
-    attack: 5,
-    health: 9,
-    keywords: [],
-    // `goldSpent` carries the same continuous per-instance meter `cardsBought` does (see `applyGoldSpent`), so
-    // the cadence needs no new plumbing — only the event and the threshold change.
-    effects: [{ on: 'goldSpent', do: 'cardsBoughtGetRubies', params: { every: 5, count: 1 } }],
-    text: 'When you spend **5 Gold**, get a Ruby.',
-    goldenText: 'When you spend **5 Gold**, get **2 Rubies**.',
   },
   {
     // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally

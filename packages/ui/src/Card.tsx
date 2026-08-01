@@ -147,6 +147,8 @@ const TRIBE_ICON: Record<Tribe, string> = {
 export const mdBold = (s: string): string => renameTerms(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 /** A {{…}} marker → a green "modified" span (e.g. Kennelmaster's Avenge-boosted buff). */
 const descUp = (s: string): string => s.replace(/\{\{(.+?)\}\}/g, '<span class="descup">$1</span>');
+/** A ((…)) marker → a gold "temporary" span, parentheses kept visible (next-combat spell grants). */
+const descTemp = (s: string): string => s.replace(/\(\((.+?)\)\)/g, '<span class="desctemp">($1)</span>');
 /**
  * Golden (tripled) cards show their numbers doubled to match the doubled effect:
  * "+1/+1" → "+2/+2", "deal 3" / "deal **3**" → "deal 6", "3 to every" → "6 to
@@ -871,7 +873,7 @@ export const Card = memo(function Card({
         <div className="cn">{card.name}</div>
         {card.text && (
           <div className="desc">
-            <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
+            <span dangerouslySetInnerHTML={{ __html: descTemp(descUp(mdBold(shownText))) }} />
           </div>
         )}
         {!spellLike && !tribePlated && (

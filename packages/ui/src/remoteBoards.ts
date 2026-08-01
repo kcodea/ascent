@@ -108,6 +108,8 @@ export async function fetchAndRegisterPool(patchPrefix?: string): Promise<number
 
 /** One leaderboard entry (a victory run), shaped for the UI. */
 export interface VictoryRow {
+  /** 'lobby' for rows logged since the 2026-07-31 rework (read from board.mode); undefined = pre-rework. */
+  mode?: string;
   heroId: string;
   author?: string;
   wave: number;
@@ -154,19 +156,43 @@ function tallyStats(rows: Array<{ board_id: string; outcome: string }>): Map<str
 export async function uploadVictory(v: {
   heroId: string; author?: string; wave: number; wins: number; seed: number;
   board: BoardSnapshot | null; patch: string; capturedAt: string; history?: string;
+  /** 'lobby' — the only mode that logs a victory since 2026-07-31. Carried INSIDE the board jsonb (as
+   *  `board.mode`) so no schema migration is needed; the reader filters on it. */
+  mode?: string;
 }): Promise<void> {
   const c = client();
   if (!c) return;
   try {
+    const board = v.board ? { ...v.board, mode: v.mode } : v.board;
     await c.from('runs').insert([{
       patch: v.patch, hero_id: v.heroId, author: v.author ?? null, wave: v.wave,
-      wins: v.wins, result: 'victory', seed: v.seed, board: v.board, captured_at: v.capturedAt,
+      wins: v.wins, result: 'victory', seed: v.seed, board, captured_at: v.capturedAt,
       history: v.history ?? null,
       // The leaderboard slot's fight-ledger id lives inside board.id (the jsonb) — no separate column, so this
       // insert stays compatible with a pre-migration `runs` table (only the new board_results table is required).
     }]);
   } catch {
     /* best-effort — leaderboard logging must never disrupt the end screen */
+  }
+}
+
+/** Fetch THIS player's server-side rating from `profiles` (by author name) — null when absent/offline. The
+ *  server value is authoritative (owner control 2026-07-31): the store adopts it over the local profile at
+ *  launch, so editing the row in Supabase overrides any client. */
+export async function fetchPlayerRating(author: string): Promise<number | null> {
+  const c = client();
+  if (!c || !author) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(c.from('profiles').select('rating').eq('author', author).limit(1)),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data?.length) return null;
+    const rating = (result.data[0] as { rating?: unknown }).rating;
+    return typeof rating === 'number' && Number.isFinite(rating) ? rating : null;
+  } catch {
+    return null;
   }
 }
 
@@ -185,8 +211,9 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Array<{ hero_id: string; author: string | null; wave: number; board: BoardSnapshot | null; history?: string | null; captured_at: string | null; created_at: string | null }>)
+    return (result.data as Array<{ hero_id: string; author: string | null; wave: number; board: (BoardSnapshot & { mode?: string }) | null; history?: string | null; captured_at: string | null; created_at: string | null }>)
       .map((r) => ({
+        mode: r.board?.mode ?? undefined, // 'lobby' since the 2026-07-31 rework; pre-rework rows have none
         heroId: r.hero_id,
         author: r.author ?? undefined,
         wave: r.wave,
@@ -213,7 +240,9 @@ export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: strin
   if (!c) return;
   const base = {
     patch: meta.patch, author: meta.author ?? null,
-    hero_id: t.heroId, hero_offer: t.heroOffer, won: t.won, wins: t.wins,
+    // `mode` rides INSIDE hero_offer's jsonb (as a tagged first entry) — no schema migration needed. The
+    // reader strips it back out. Cleaner than a new column given the pre-migration fallback dance below.
+    hero_id: t.heroId, hero_offer: t.mode ? [`mode:${t.mode}`, ...t.heroOffer] : t.heroOffer, won: t.won, wins: t.wins,
     offered_quests: t.offeredQuests, picked_quests: t.pickedQuests, quest_turns: t.questTurns,
     offered_runes: t.offeredRunes, picked_runes: t.pickedRunes,
     offered_cards: t.offeredCards, bought_cards: t.boughtCards,
@@ -255,8 +284,9 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
     // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
     // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
     return (result.data as unknown as Array<Record<string, unknown>>).map((r) => ({
+      mode: (((r.hero_offer as string[]) ?? []).find((h) => h.startsWith('mode:')) ?? '').slice(5) || undefined,
       heroId: (r.hero_id as string) ?? '',
-      heroOffer: (r.hero_offer as string[]) ?? [],
+      heroOffer: ((r.hero_offer as string[]) ?? []).filter((h) => !h.startsWith('mode:')),
       won: !!r.won,
       wins: (r.wins as number) ?? 0,
       offeredQuests: (r.offered_quests as string[]) ?? [],

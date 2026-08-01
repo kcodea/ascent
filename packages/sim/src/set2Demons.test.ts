@@ -116,13 +116,15 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   it('an eaten minion RETURNS to the shared pool', () => {
     // It's destroyed, not owned — same as an unbought offer on a reroll. Without this, eight eating Demons drain
     // the run's pool permanently.
+    // `dm_wrangler` (a set-2 BUYABLE) rather than the set-1 sandbag: with set 2 live, `returnToPool` only
+    // credits cards the run's pinned pool actually contains — and tokens (stray) are never pooled.
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
-      board: [], hand: [minion('cc', 'dm_clerk', 1, 1)], shop: shop('sandbag'),
+      board: [], hand: [minion('cc', 'dm_clerk', 1, 1)], shop: shop('dm_wrangler'),
     };
-    const before = s.pool['sandbag'] ?? 0;
+    const before = s.pool['dm_wrangler'] ?? 0;
     s = reduce(s, { type: 'play', uid: 'cc' });
-    expect(s.pool['sandbag'] ?? 0).toBe(before + 1);
+    expect(s.pool['dm_wrangler'] ?? 0).toBe(before + 1);
   });
 
   it('does NOT feed the FODDER tallies — a Shop minion is not Fodder', () => {
@@ -444,41 +446,98 @@ describe('set 2 — regressions from the effect-param audit', () => {
 });
 
 /**
- * Market Tormentor, rebuilt to the owner's spec (2026-07-25): while it's on board, the RIGHT-most minion of
- * every FRESH Shop roll comes in buffed. The old version was a one-shot Shout that ran `buffCardTypeRunWide`
- * — so it fired once and buffed every copy of that card id for the rest of the run.
+ * Market Tormentor — the owner's full spec, in his words (2026-07-31): "it's a shout: buff the right most shop
+ * slot +4/+4. this stacks, so if i play 2 normals and then gild it and play that, the right most slot should
+ * now have +16/+16. i do not need market tormentor on board. this effect takes place in the current shop when
+ * played, and that buff carries over across refreshes as well."
+ *
+ * This is the card's THIRD shape, and these tests assert that quote rather than the code — the previous two
+ * rewrites each pinned the then-current implementation, which is how a regression passed CI for two days.
  */
-describe('set 2 — Market Tormentor (SHOUT since 2026-07-29)', () => {
-  /**
-   * It was "after each Shop refresh"; the owner changed it to a Shout. These tests moved with it — the four they
-   * replace asserted a per-refresh trigger that no longer exists, and would have kept passing only if the change
-   * had not been made.
-   */
+describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
   const rightmostBuff = (s: RunState): number => {
     const i = [...s.shop].reverse().findIndex((o) => !CARD_INDEX[o.cardId]?.spell);
     const offer = s.shop[s.shop.length - 1 - i]!;
     return (offer.atk ?? 0) + (offer.hp ?? 0);
   };
-
-  it('buffs the right-most Shop minion when PLAYED', () => {
-    let s: RunState = {
-      ...createRun(11), phase: 'recruit', embers: 99,
-      board: [], hand: [minion('T', 'dm_tormentor', 4, 4)],
-      shop: shop('sandbag', 'alley', 'stray'),
-    };
-    const before = rightmostBuff(s);
-    s = reduce(s, { type: 'play', uid: 'T' });
-    expect(rightmostBuff(s) - before, 'the Shout did not buff the right-most offer').toBe(8); // +4/+4
+  const base = (): RunState => ({
+    ...createRun(11), phase: 'recruit', embers: 99, freeRolls: 99,
+    board: [], hand: [minion('T', 'dm_tormentor', 4, 4)],
+    shop: shop('sandbag', 'alley', 'stray'),
   });
 
-  it('does NOT fire on a refresh any more', () => {
-    let s: RunState = {
-      ...createRun(11), phase: 'recruit', embers: 99, freeRolls: 99,
-      board: [minion('T', 'dm_tormentor', 4, 4)], hand: [],
-      shop: shop('sandbag', 'alley', 'stray'),
-    };
+  it('the Shout buffs the CURRENT shop immediately', () => {
+    let s = base();
+    s = reduce(s, { type: 'play', uid: 'T' });
+    expect(rightmostBuff(s)).toBe(6); // +4/+2 (owner value change 2026-07-31: attack-forward, not symmetric)
+  });
+
+  it('the buff CARRIES ACROSS refreshes — no Tormentor on board required', () => {
+    let s = base();
+    s = reduce(s, { type: 'play', uid: 'T' });
+    s = { ...s, board: [] }; // sell it; the SLOT remembers, not the minion (owner: "i do not need it on board")
+    for (const roll of [1, 2]) {
+      s = reduce(s, { type: 'roll' });
+      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(6); // +4/+2
+    }
+  });
+
+  it("STACKS to the owner's worked example shape: two normals + a gilded = +16/+8", () => {
+    let s: RunState = { ...base(), hand: [
+      minion('T1', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4),
+      { ...minion('T3', 'dm_tormentor', 8, 8), golden: true },
+    ] };
+    for (const uid of ['T1', 'T2', 'T3']) s = reduce(s, { type: 'play', uid });
+    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(24); // +16/+8: 4+4+8 attack, 2+2+4 health
     s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s), 'refreshing still triggered it').toBe(0);
+    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(24);
+  });
+
+  it('the buff rides the offer into the minion you BUY', () => {
+    let s = base();
+    s = reduce(s, { type: 'play', uid: 'T' });
+    s = reduce(s, { type: 'roll' });
+    const i = s.shop.length - 1 - [...s.shop].reverse().findIndex((o) => !CARD_INDEX[o.cardId]?.spell);
+    const offer = s.shop[i]!;
+    const def = CARD_INDEX[offer.cardId]!;
+    const bought = offerBuyStats(s, offer);
+    expect(bought.attack - def.attack!).toBe(4);
+    expect(bought.health - def.health!).toBe(2);
+  });
+
+  it('a Hellrider consuming the right-most eats the BUFFED body (buff-before-consume ordering)', () => {
+    // The ordering rule predates this shape (owner ruling 2026-07-25) and must survive it: the slot buff now
+    // applies at the top of `applyShopRefreshed`, before any consuming watcher runs. `shopEaten` records the
+    // eaten body's stats AS EATEN, so the +4/+4 is visible there or nowhere.
+    let s: RunState = {
+      ...base(), hand: [minion('T', 'dm_tormentor', 4, 4)],
+      board: [{ ...minion('H', 'dm_maw', 4, 6), eotTick: 3 }], // one refresh from firing
+    };
+    s = reduce(s, { type: 'play', uid: 'T' });
+    s = reduce(s, { type: 'roll' }); // Hellrider fires — it must eat a body already carrying the slot buff
+    const eaten = s.shopEaten?.at(-1);
+    expect(eaten, 'Hellrider did not fire on this refresh').toBeTruthy();
+    const def = CARD_INDEX[eaten!.cardId]!;
+    expect(eaten!.attack - def.attack!, 'the eaten body was not buffed before the consume').toBe(4);
+    expect(eaten!.health - def.health!, 'the eaten body was not buffed before the consume').toBe(2);
+  });
+});
+
+describe('Cupcakes (set 2 spell)', () => {
+  it('the targeted Demon Consumes 4 random Shop minions — and gets their stats', () => {
+    let s: RunState = {
+      ...createRun(11), phase: 'recruit', embers: 20,
+      board: [minion('D', 'dm_clerk', 2, 2)],
+      hand: [{ uid: 'cake', cardId: 'cupcakes', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      shop: shop('dm_wrangler', 'dm_errand', 'k_chipwick', 'k_deepvein', 'dm_fiend'),
+    };
+    const before = s.board[0]!;
+    const stats = before.attack + before.health;
+    s = reduce(s, { type: 'play', uid: 'cake', targetUid: 'D' });
+    expect(s.shop.length, 'four Shop minions eaten').toBe(1);
+    const after = s.board.find((c) => c.uid === 'D')!;
+    expect(after.attack + after.health, 'the eater grew by what it ate').toBeGreaterThan(stats);
+    expect(s.shopMinionsEaten, 'the consume meter counted all four').toBe(4);
   });
 });
 

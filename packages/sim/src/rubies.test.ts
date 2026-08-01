@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { type CardDef, combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { mintRubies, applyGoldSpent, applyEndOfTurn, RUBY_ID } from './recruit';
@@ -32,6 +32,9 @@ describe('Ruby engine (set 2)', () => {
     expect(target.buffs?.find((b) => b.source === 'Ruby')).toMatchObject({ attack: 1, health: 1 });
     expect(s.hand.find((c) => c.uid === ruby.uid)).toBeUndefined(); // consumed
     expect(s.rubyCasts).toBe(1);
+    // A Ruby is a CARD PLAYED (owner ruling 2026-07-31: everything you literally play or cast counts) —
+    // Closing-Time Foreman and Rune of Action read this list, and the Ruby branch used to skip it.
+    expect(s.playedThisTurn).toContain(RUBY_ID);
     expect(s.spellsCast).toBe(spellsBefore); // NOT a Shop Spell — the spell-cast counter is untouched
   });
 
@@ -83,10 +86,16 @@ describe('Ruby engine (set 2)', () => {
     expect(s.cardsBoughtThisTurn).toBe(1);
   });
 
-  it('Hoardmaster Krik mints a Ruby every 5 GOLD spent (owner rework 2026-07-27)', () => {
-    // Re-pointed from `cardsBought` to `goldSpent`. Both events carry the same continuous per-instance meter,
-    // so the cadence — including a single big spend crossing the threshold twice — comes free.
-    const s: RunState = { ...createRun(1), board: [{ uid: 'k', cardId: 'k_hoardmaster', tribe: 'kobold', attack: 5, health: 9, keywords: [], golden: false }], hand: [] };
+  it("the goldSpent Ruby cadence mints every 5 Gold (Hoardmaster Krik's primitive)", () => {
+    // Krik was PULLED from the roster 2026-07-31 ("for now" — the owner expects him back), and he was the only
+    // card using `cardsBoughtGetRubies`. The primitive stays, and this test keeps it honest via a synthetic
+    // card rather than deleting the coverage — so whenever Krik (or a successor) returns, the cadence is
+    // already proven. Both `cardsBought` and `goldSpent` ride the same continuous per-instance meter, so a
+    // single big spend crossing the threshold twice comes free.
+    const krik: CardDef = { id: 'dbg_krik', name: 'Krik', tribe: 'kobold', tier: 5, attack: 4, health: 7, keywords: [],
+      effects: [{ on: 'goldSpent', do: 'cardsBoughtGetRubies', params: { every: 5, count: 1 } }], text: '' };
+    CARD_INDEX[krik.id] = krik;
+    const s: RunState = { ...createRun(1), board: [{ uid: 'k', cardId: krik.id, tribe: 'kobold', attack: 4, health: 7, keywords: [], golden: false }], hand: [] };
     applyGoldSpent(s, 4); // 4 Gold → not yet
     expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(0);
     applyGoldSpent(s, 1); // crosses 5 → mint
@@ -214,13 +223,20 @@ describe('set 2 — a Ruby played in COMBAT fires the target’s onRubyPlayed', 
   const rubyBuffs = (r: { events: readonly { type: string }[] }): BuffEvent[] =>
     (r.events as readonly BuffEvent[]).filter((e) => e.type === 'buff' && e.health > 0);
 
-  it('Geode Guardian’s Echo bounces off an adjacent Resonance Idol', () => {
-    // Board order matters: [outer, Idol, Geode]. Geode dies, plays a Ruby on its neighbour (the Idol), and the
-    // Idol bounces those stats onward to ITS other neighbour (`outer`, m0). Before the fix the Ruby landed on
-    // the Idol and stopped there — the Idol's bounce was a recruit-only factory.
+  // Geode Guardian no longer plays Rubies on its neighbours (2026-07-31 rework: it summons Golems instead),
+  // so these Idol-bounce tests drive the ADJACENT-play factory through a synthetic card — the machinery under
+  // test (a combat Ruby firing the target's onRubyPlayed) outlived the card that first exposed it.
+  const adjRattler: CardDef = { id: 'adj_rattler', name: 'AdjRattler', tribe: 'kobold', tier: 2, attack: 1, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };
+  const CARDS_ADJ = { ...CARD_INDEX, adj_rattler: adjRattler };
+
+  it("a dying adjacent-Ruby rattler's Ruby bounces off an adjacent Resonance Idol", () => {
+    // Board order matters: [outer, Idol, rattler]. The rattler dies, plays a Ruby on its neighbour (the Idol),
+    // and the Idol bounces those stats onward to ITS other neighbour (`outer`, m0). Before the fix the Ruby
+    // landed on the Idol and stopped there — the Idol's bounce was a recruit-only factory.
     const r = simulate(
-      [bm('sandbag', 'OUT', 1, 40), bm('k_resonance', 'IDOL', 2, 40), bm('k_geode', 'GEO', 1, 1)],
-      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARD_INDEX,
+      [bm('sandbag', 'OUT', 1, 40), bm('k_resonance', 'IDOL', 2, 40), bm('adj_rattler', 'GEO', 1, 1)],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARDS_ADJ,
       combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }),
     );
     const buffs = rubyBuffs(r);
@@ -234,8 +250,8 @@ describe('set 2 — a Ruby played in COMBAT fires the target’s onRubyPlayed', 
     // The recursion guard: a bounced Ruby must not itself count as "a Ruby played on" the neighbour. Without it
     // this pair ping-pongs until the stack blows, so terminating at all IS the assertion.
     const r = simulate(
-      [bm('k_resonance', 'I1', 2, 40), bm('k_resonance', 'I2', 2, 40), bm('k_geode', 'GEO', 1, 1)],
-      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARD_INDEX,
+      [bm('k_resonance', 'I1', 2, 40), bm('k_resonance', 'I2', 2, 40), bm('adj_rattler', 'GEO', 1, 1)],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(5), CARDS_ADJ,
       combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }),
     );
     expect(r.result).toBeTruthy();

@@ -118,12 +118,39 @@ The second route: an existing def that already reads well. **Browse all** opens 
 lenses:
 
 - **by look** — shape, colour, motion, all derived from the defs themselves
-- **by event** — every moment kind with its bound def, or *nothing bound*. This is the coverage map
+- **by event** — the coverage map, in two sections: every **moment kind** with its bound def or *nothing
+  bound*, then **played from code (no moment kind)** — the defs a `playDef()` call fires directly, listed
+  against the files that fire them
 - **by card** — grouped by tribe, showing which cards have bespoke effects
 
 Hovering a row **previews** it on the stage without touching your work. **⧉** duplicates it as a fresh
 template. Prefer this over the gallery when something close to what you want already plays in the game — you
 inherit a look that has survived a real fight, not just a starting position.
+
+#### The wiring badge — three states, because "unbound" was hiding two
+
+Every row in **by look** carries a badge, and the **Wiring** facet filters on it:
+
+| Badge | Means | Example |
+|---|---|---|
+| **bound** | A moment-kind cue or a per-card override in `choreo/bindings.json` names it. | `ward-gained` |
+| **from code** | No binding at all — `packages/ui/src` calls `playDef('<id>', …)` at the site where the thing happens. It plays just as much as a bound def. | `coins`, `strike-impact` |
+| **unused** | Nothing binds it and nothing calls it. This one genuinely does not play. | `burst-thin-trail` |
+
+This split exists because the migration out of hand-written `pixiFx` methods left seven constantly-playing
+effects (`coins`, `click-puff`, `damage-burst`, `landing-dust`, `impact-dust`, `death-dissolve`,
+`strike-impact`) with no binding, and the old single "unbound" label filed them next to dead drafts. If you
+are looking for something safe to delete, filter to **unused** — that is the only column that means it.
+
+**Where "from code" comes from, and why it can't rot.** It is not a hand-kept list. `packages/ui/src` is
+scanned for `playDef('<literal>')`, the result is committed to `packages/ui/src/fx/directCalls.ts`, and
+`directCalls.test.ts` re-runs the scan on every `npm test` and fails if the two disagree — naming the def and
+the file. Add a direct call and forget the file and CI stops you; there is no path back to the library quietly
+lying. The scan reads whole files, not lines, precisely so a call whose id sits on its own line (`strike-impact`
+in `choreo/channels/impact.ts`) is still seen. Its one blind spot — a call whose id is a *variable* — is
+printed under the section rather than hidden; today all three such sites are `choreo/score.ts` playing
+`binding.def`, i.e. the binding path already listed above, and the test fails if a new one appears anywhere
+else.
 
 ---
 
@@ -139,6 +166,31 @@ effect tuned pinned to the cursor routinely falls apart when it has to cross rea
 | **Stationary (in place)** | self-buffs, auras, anything that happens *on* a unit |
 | **Pinned to cursor** | judging a shape up close |
 | **Real board** | the final check — actual card positions, actual scale |
+
+---
+
+## 3b. Which canvas: **Over** or **Under** the cards
+
+The transport bar carries a **Canvas** toggle. It is a property of the whole effect, not of a layer.
+
+| | draws on | use it for |
+|---|---|---|
+| **Over** (default) | the full-viewport overlay above every card, badge and piece of board chrome | impacts, strikes, casts, keyword pops — anything that reads as happening *in front of* the board |
+| **Under** | a second canvas parked inside the board: above the board art, below every card | ground slams, scorch marks, pools of light, spreading rot — anything that reads as happening *on* the board |
+
+Three things worth knowing before you reach for **Under**:
+
+- **It is beneath EVERY card, not beneath its own card.** The cards are DOM elements and the effect is one
+  WebGL canvas, so "behind this minion but in front of the one next to it" is not something the two systems
+  can express. Per-card layering is out of scope, not merely unimplemented.
+- **The preview backdrop hides itself** while the slot is Under — the whole point is how the effect reads
+  against the real board, so the flat colour behind it would only be in the way. Use the **Real board**
+  scenario for the honest check.
+- **The under canvas is created on first use** and never exists in a session that fires no under-slot effect.
+  The first flip of the toggle may therefore take a frame or two to show anything.
+
+Saved defs carry `"slot": "under"`; **Over writes no field at all**, so an effect that never touches the
+toggle keeps saving exactly the JSON it always did.
 
 ---
 

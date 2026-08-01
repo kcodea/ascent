@@ -1,4 +1,4 @@
-import type { FxDef, FxLayer } from '../def';
+import type { FxDef, FxLayer, FxSlot } from '../def';
 import { coerceParams, type FxParamSpecs } from '../params';
 
 /**
@@ -311,10 +311,13 @@ export function fitDurationToLayers(
 
 /** Build the `FxDef` the player consumes from the editor layers. `life = null` maps to `FxLayer.life`
  *  omitted (undefined); params pass through by reference (the player treats the def as read-only). */
-export function toDef(id: string, durationMs: number, layers: EditorLayer[]): FxDef {
+export function toDef(id: string, durationMs: number, layers: EditorLayer[], slot?: FxSlot): FxDef {
   return {
     id,
     duration: durationMs,
+    // Omitted for the default slot, so a composition that never touched the toggle serialises exactly as it
+    // did before the field existed (matches `toStoredDef`).
+    ...(slot === 'under' ? { slot } : {}),
     layers: layers.map((l) => ({
       primitive: l.primitive,
       anchor: l.anchor,

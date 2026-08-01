@@ -22,7 +22,6 @@ import { InfuseFxTuner } from './InfuseFxTuner';
 import { AimFxTuner } from './AimFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
-import { ShieldTuner } from './ShieldTuner';
 import { WardTuner } from './WardTuner';
 import { ExecuteTuner } from './ExecuteTuner';
 import { ExecuteFxTuner } from './ExecuteFxTuner';
@@ -123,7 +122,6 @@ const GROUPS: Group[] = [
       { key: 'drag', icon: '🎴', label: 'Drag Feel', C: DragTuner, hint: 'Weight, tilt and lag while dragging a card' },
       { key: 'flip', icon: '🔀', label: 'Reposition', C: FlipTuner, hint: 'The slide when cards make room or close a gap', alt: 'flip slide reorder' },
       { key: 'glow', icon: '🔆', label: 'Hover Glow', C: GlowTuner, hint: 'The bright rim when you hover or select a card' },
-      { key: 'shield', icon: '🛡', label: 'Shield Place', C: ShieldTuner, hint: 'Where the Ward / Rise bubble sits on recruit cards' },
     ],
   },
   {

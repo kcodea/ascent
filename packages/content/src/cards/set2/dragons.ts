@@ -28,7 +28,8 @@ export const SET2_DRAGONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 1, health: 1 } }],
     text: 'After you trigger a **Shout**, gain **+1/+1**.',
-    goldenText: '**Shout:** give another friendly Dragon **+4/+2**.',
+    // The golden text was a leftover from the card's old buff-another-Dragon Shout shape.
+    goldenText: 'After you trigger a **Shout**, gain **+2/+2**.',
   },
   {
     // The tribe's Tier-1 spell payoff: a body that grows every turn you cast, so casting early has a floor
@@ -125,7 +126,8 @@ export const SET2_DRAGONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 4 } }],
     text: '**Avenge (4):** get a random Shop spell.',
-    goldenText: '**Avenge (4):** get **2** copies of the left-most spell in your hand.',
+    // The golden text was a leftover from the old Vault-Curator copy shape.
+    goldenText: '**Avenge (4):** get **2** random Shop spells.',
   },
   {
     // Dragon/BEAST: a delayed spell-copier. Its Echo (dying in combat is the usual path) queues a copy of
@@ -149,11 +151,9 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout and Echo:** get **2 Growths**.',
   },
   {
-    // Dragon/DEMON, Rise: pays off the Demon half of its typing — eating from the Shop turns into spell fuel.
-    // The `onConsume` factory self-guards on the payload, so it's "when THIS consumes", not any consume on the
-    // board. Broodlord has no consume of its own: it eats via the shared Demon sources (a Fodder sell's
-    // left-most Demon, Feastmaster Vhal's neighbours). Rise REMOVED at the owner's call (2026-07-25) — the
-    // consume payoff is the whole card now.
+    // Dragon/DEMON. Owner rework 2026-07-31 (second pass): from the capped friendly-Demon consume payoff to a
+    // RALLY that casts a Staff of Guel — permanent (the tavern-buy enchant carries out of combat), scaled by
+    // the run's spell power, and a real spell cast that feeds Guel / Groveweaver / Runebloom.
     id: 'd2_broodlord',
     name: 'Ashen Broodlord',
     tribe: 'dragon',
@@ -161,10 +161,10 @@ export const SET2_DRAGONS: CardDef[] = [
     tier: 5,
     attack: 6,
     health: 8,
-    keywords: [],
-    effects: [{ on: 'onConsume', do: 'onConsumeSelfGrantSpell', params: { count: 1 } }],
-    text: 'When this **Consumes** a minion, get a **Shop spell**.',
-    goldenText: 'When this **Consumes** a minion, get **2 Shop spells**.',
+    keywords: ['RL'], // Rally — the badge has to match the trigger
+    effects: [{ on: 'onAttack', do: 'rallyCastShopBuffSpell', params: { attack: 2, health: 2 } }],
+    text: '**Rally:** cast a **Staff of Guel**.',
+    goldenText: '**Rally:** cast **2 Staves of Guel**.',
   },
   {
     // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the
@@ -184,9 +184,9 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_archivist',
     name: 'Runic Archivist',
     tribe: 'dragon',
-    tier: 6,
-    attack: 4,
-    health: 7,
+    tier: 5,
+    attack: 5,
+    health: 5,
     keywords: [],
     // Owner rework 2026-07-27 — the recast moved to Water Dragon; the Archivist now pays for SELLING. The
     // tally rides on the card (`soldProgress`) and carries round to round.
@@ -227,9 +227,9 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_runefire',
     name: 'Runefire',
     tribe: 'dragon',
-    tier: 5,
-    attack: 5,
-    health: 8,
+    tier: 6,
+    attack: 6,
+    health: 9,
     keywords: [],
     // Owner rework 2026-07-27 — reuses the same End-of-Turn recast Runic Archivist had (which now reads
     // `lastSpellCastId`), so the two cards share one primitive rather than two near-identical ones.
@@ -260,8 +260,8 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Traveling Skald',
     tribe: 'dragon',
     tier: 2,
-    attack: 4,
-    health: 5,
+    attack: 2,
+    health: 4,
     keywords: [],
     effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 2, health: 1 } }],
     text: 'When a friendly **Dragon** attacks, give it **+2/+1**.',

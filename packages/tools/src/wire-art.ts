@@ -31,7 +31,8 @@ const ART_PX = 512;
  */
 const ALIASES: Record<string, string> = {
   // misspelled in the source
-  chiurgeon: 'dw_chirurgeon',            // missing the second 'r'
+  // (`chiurgeon` alias retired 2026-07-31: the card is Ayves now, so Ayves.png matches by NAME and the old
+  //  misspelled file would only compete for the same slot.)
   oatshieldorin: 'dw_orin',              // missing the 'h'
   salvatoremckluskey: 'salvatore',        // extra 'e'
   candlelightbulwark: 'k_candleback',     // card is Candleback Bulwark
@@ -65,7 +66,19 @@ const ALIASES: Record<string, string> = {
 
 /** Rune-art aliases — same doctrine as ALIASES: only for files that ARE attributed but whose name does not
  *  match a rune exactly. */
+/** Spell-art aliases — same doctrine: only files that ARE attributed but whose name doesn't match. */
+const SPELL_ALIASES: Record<string, string> = {
+  ironcladrequisition: 'ironcladreq', // id shortened; the art carries the full name
+  preemptiveattack: 'preemptive',     // card is Pre-emptive ASSAULT; the art file says Attack
+  rivalsreflections: 'rivalsreflection', // extra plural s
+  triplereward: 'discoverspell',      // the Triple Reward token's id (a Discover token, not flagged `spell`)
+  // (Cupcakes.png stays UNMATCHED on purpose: no card by that name exists — reported to the owner 2026-07-31.)
+};
+
 const RUNE_ALIASES: Record<string, string> = {
+  // FULL-STEM alias, checked before the `2`-variant convention strips the suffix: `RuneOTheMenagerie2.png` is
+  // the SET-2 TWIN's art (a different rune, `rune_menagerie_set2`), not a second-art variant of the set-1 rune.
+  runeothemenagerie2: 'rune_menagerie_set2',
   runeothemenagerie: 'rune_menagerie',   // the source abbreviates "of the" to "O"
   runeofscale: 'rune_scale',             // owner ruling: the sheet's "Rune of Scale" IS Rune of Bulk Order
   runeofthemotherload: 'rune_motherlode', // misspelled in the source ("Motherload")
@@ -84,6 +97,10 @@ const noThe = (s: string): string => norm(s.replace(/([a-z0-9])([A-Z])/g, '$1 $2
 const cardsByName = new Map<string, string>();
 for (const c of poolFor('set2').all) cardsByName.set(norm(c.name), c.id);
 for (const c of Object.values(CARD_INDEX)) if (c) cardsByName.set(norm(c.name), c.id);
+
+// Every SPELL (and Ruby) by normalized name, across all sets — the fourth job's index.
+const spellsByName = new Map<string, string>();
+for (const c of Object.values(CARD_INDEX)) if (c && (c.spell || c.ruby)) spellsByName.set(norm(c.name), c.id);
 
 const runesByName = new Map<string, string>();
 for (const r of [...RUNES, ...EPIC_RUNES]) {
@@ -111,6 +128,10 @@ const JOBS: Job[] = [
     label: 'runes', src: 'C:/Game Assets/Ascent Art/Runes',
     dirs: ['.'], dest: 'packages/ui/src/art/runes', index: runesByName, aliases: RUNE_ALIASES,
   },
+  {
+    label: 'spells', src: 'C:/Game Assets/Ascent Art/Spells',
+    dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: SPELL_ALIASES,
+  },
 ];
 
 const webpJobs: Promise<unknown>[] = [];
@@ -123,6 +144,10 @@ for (const job of JOBS) {
     if (!existsSync(full)) { console.log(`missing source dir: ${job.label}/${dir}`); continue; }
     for (const file of readdirSync(full).filter((f) => /\.(png|webp|jpe?g)$/i.test(f))) {
       const stem = file.replace(/\.(png|webp|jpe?g)$/i, '');
+      // A FULL-STEM alias wins before the variant convention: some trailing digits are part of a distinct
+      // id's name (RuneOTheMenagerie2 = the set-2 twin), not "second art for the same id".
+      const fullAlias = job.aliases[norm(stem)];
+      if (fullAlias) { matches.push({ src: join(full, file), label: dir === '.' ? file : `${dir}/${file}`, id: fullAlias, exact: false }); continue; }
       // `Alt` and a trailing `2` both mean "the second art for this id" — the loader keys variants as `<id>2`.
       const isVariant = /(2|Alt)$/i.test(stem);
       const base = stem.replace(/(2|Alt)$/i, '');
@@ -171,7 +196,10 @@ const missingMinions = poolFor('set2').all.filter((c) => !c.spell && !c.ruby && 
 console.log(`\nSET-2 MINIONS WITH NO ART ${missingMinions.length}:`);
 for (const m of missingMinions) console.log(`  ${m}`);
 
-const haveRuneArt = new Set(readdirSync('packages/ui/src/art/runes').map((f) => f.replace(/\.(png|webp)$/, '').replace(/2$/, '')));
+// No `2$` strip here: a rune id can END in 2 (`rune_menagerie_set2`), and stripping it made the report
+// claim that rune had no art forever, even after it wired.
+const runeFiles = new Set(readdirSync('packages/ui/src/art/runes').map((f) => f.replace(/\.(png|webp)$/, '')));
+const haveRuneArt = new Set([...runeFiles].map((f) => (runeFiles.has(f) ? f : f)).flatMap((f) => [f, f.replace(/2$/, '')]));
 const missingRunes = [...RUNES, ...EPIC_RUNES].filter((r) => !haveRuneArt.has(r.id)).map((r) => `${r.name} (${r.id})`);
 console.log(`\nRUNES WITH NO ART ${missingRunes.length}:`);
 for (const m of missingRunes) console.log(`  ${m}`);

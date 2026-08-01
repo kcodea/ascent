@@ -38,9 +38,9 @@ export const BEASTS: CardDef[] = [
     id: 'kennel',
     name: 'Kennelmaster',
     tribe: 'beast',
-    tier: 3,
+    tier: 2,
     attack: 1,
-    health: 4,
+    health: 3,
     keywords: ['SC'],
     effects: [
       // Owner rebalance 2026-07-25: base +2 Attack, and each Avenge improves it by the SAME +2 ("improves by

@@ -1,7 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
+import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
 import { QuestCard } from './QuestCard';
@@ -20,6 +22,7 @@ import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
+import { FxUnderSlot } from './PixiFxLayer';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
@@ -73,7 +76,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 /** How long the End Turn button stays inert at the start of a recruit round (owner ask 2026-07-27) — long
  *  enough that a double-click meant for the previous round can't skip the new one, short enough that a player
  *  who genuinely wants to end instantly barely notices. */
-const END_TURN_LOCK_MS = 5000;
+const END_TURN_LOCK_MS = 2000; // 5000 → 2000 (owner re-tune 2026-07-31: the long lock outstayed its welcome)
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
@@ -386,6 +389,11 @@ interface ShopViewOpts {
   squirlScoutBuff?: number;
   /** Name of the most recent spell cast this run — Steward of Spells shows what it copies. */
   lastSpellName?: string;
+  firstSpellThisTurnName?: string;
+  lastSpellThisTurnName?: string;
+  topTribe?: string | null;
+  /** Live minion price (Rune of Cadence's armed discount folded in); falls back to the config default. */
+  minionCost?: number;
   /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line it grants the shop. */
   rubyBonus?: { attack: number; health: number };
   /** Whether this run can actually reach Tier 7 — Beyond the Summit only promises it when true. */
@@ -401,7 +409,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
     undeadBuyAtk: o.undeadBuyAtk ?? 0, soulsmanGold: o.soulsmanGold ?? 0, cardBuffs: o.cardBuffs, impAura: o.impAura,
     goldSpent: o.goldSpent ?? 0, goldPouchValue: o.goldPouchValue ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff,
-    lastSpellName: o.lastSpellName, rubyBonus: o.rubyBonus, tier7Access: o.tier7Access,
+    lastSpellName: o.lastSpellName, firstSpellThisTurnName: o.firstSpellThisTurnName, lastSpellThisTurnName: o.lastSpellThisTurnName, topTribe: o.topTribe, rubyBonus: o.rubyBonus, tier7Access: o.tier7Access,
   };
 }
 function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
@@ -417,7 +425,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     const cost = Math.max(0, base - (opts.spellCostMod ?? 0));
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0),
+      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never }),
       cost, costChanged: cost < base, spell: true,
       target: c.target, tier: c.tier, castMult: opts.castMult,
     };
@@ -430,7 +438,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: h.attack, health: h.health, keywords: h.keywords,
-      text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: h.golden,
+      text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: opts.minionCost ?? CONFIG.minionCost, tier: c.tier, golden: h.golden,
       baseAttack: c.attack, baseHealth: c.health,
     };
   }
@@ -483,7 +491,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
     // Moe's guaranteed Attachment carries a discounted price (`card.cost`) — show it on a green coin.
     // Freedom rift: a minion offer reads FREE (0 Gold, green) until the turn's free buy is spent.
-    cost: opts.freeFirstBuy ? 0 : (card.cost ?? CONFIG.minionCost), costChanged: opts.freeFirstBuy || card.cost !== undefined,
+    cost: opts.freeFirstBuy ? 0 : (card.cost ?? opts.minionCost ?? CONFIG.minionCost), costChanged: opts.freeFirstBuy || card.cost !== undefined || (opts.minionCost !== undefined && opts.minionCost < CONFIG.minionCost),
     tier: c.tier, golden: card.golden,
     baseAttack: c.attack * goldMul, baseHealth: c.health * goldMul,
   };
@@ -1461,6 +1469,9 @@ export function Recruit() {
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
   const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // Each hand card's LAYOUT x (offsetLeft) as of the previous commit — the make-room glide's "from". Layout,
+  // not a rect, so no transform (hover zoom, drag slide, live glide) can ever leak into it.
+  const handLeftsRef = useRef<Map<string, number>>(new Map());
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
   const commitRectsRef = useRef<Map<string, number> | null>(null);
@@ -1737,7 +1748,7 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
@@ -1785,8 +1796,10 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1 }),
-    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult],
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1 }),
+    // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
+    // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
+    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -3131,16 +3144,68 @@ export function Recruit() {
         onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
       });
     };
-    /* ONLY a drag-reorder glides here. A general "make room on any hand-count change" pass was added and
-       REVERTED (2026-07-27) — see the devlog: capturing `Flip.getState` outside a drag records the CSS
-       hover `scale(1.06)` in the card's bounds, and Flip (without `scale: true`) morphs width/height, so the
-       hover scale got baked into inline layout width and compounded on every interaction. The drop-time
-       capture below is safe precisely because `body.dragging` neutralises that hover rule (styles.css). */
+    /* A drag-REORDER is Flip's: it captures at drop time, while `body.dragging` neutralises the `:hover`
+       rule, so its measurement can't be polluted (styles.css). Everything else goes through the CSS
+       `--hand-glide` channel below — never Flip — because a capture taken outside a drag WOULD see that
+       hover `scale(1.06)`, and Flip morphs width/height from what it measures (see the 2026-07-28 devlog). */
     const st = handReorderFlipRef.current;
     if (!st) return;
     handReorderFlipRef.current = null;
     glide(st);
   }, [handOrderKey]);
+
+  /* ---- MAKE ROOM / CLOSE THE GAP when the hand's card count changes (owner ask 2026-07-27) -------------
+     A buy, a play, a cast — anything that adds or removes a hand card — re-centres the fan, and every other
+     card would blink to its new slot. Seed each survivor with the delta back to where it just sat, then
+     release it to 0 so the row's own `transition: transform` carries it home.
+
+     Measured with **`offsetLeft`, not a rect**: offsetLeft is the pure LAYOUT position and is immune to any
+     transform — the hover zoom, the drag's make-room slide, an in-flight glide. That is the whole reason
+     this replaced the Flip version, which measured rects and baked the hover scale into layout width. (The
+     warband's commit FLIP documents the same offsetLeft-vs-rect reasoning.)
+
+     Skipped mid-drag: the drag owns the row's motion through `handSlidePx`, and the pre-emptive slide has
+     already opened the gap. On the drop commit the drag is over, and because offsetLeft ignored the slide
+     transforms the delta we seed is exactly where the card visually sits — so it continues rather than
+     snapping back. Entering cards have no previous position and are skipped; `playBuySlide` owns those. */
+  useLayoutEffect(() => {
+    if (inCombat || dragRef.current?.active) return;
+    const prev = handLeftsRef.current;
+    const els = [...document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')];
+    const moved: HTMLElement[] = [];
+    for (const el of els) {
+      const old = prev.get(el.dataset.uid ?? '');
+      if (old === undefined) continue;                 // just arrived — not ours to move
+      const d = old - el.offsetLeft;
+      if (Math.abs(d) < 0.5) continue;                 // didn't move
+      el.style.setProperty('transition', 'none');      // seed instantly, or the seed itself animates
+      el.style.setProperty('--hand-glide', `${d}px`);
+      moved.push(el);
+    }
+    if (moved.length === 0) return;
+    void document.body.offsetWidth;                    // commit the seed before releasing it
+    for (const el of moved) {
+      el.style.removeProperty('transition');           // hand the motion back to the CSS transition
+      el.style.setProperty('--hand-glide', '0px');
+    }
+    // Deliberately NO cleanup timer: the var settles at `0px`, which is what the default already resolves
+    // to, so leaving it inline is inert. A timer here would be one more hold to leak (see the 2026-07-27
+    // stuck-cue audit).
+  }, [handOrderKey, inCombat]);
+
+  /* Every hand card's layout x, refreshed each commit for the glide above. Declared AFTER it so that within
+     one commit the glide reads the PREVIOUS frame's positions and this then overwrites them. One forced
+     layout over at most `CONFIG.handMax` cards — the same shape as the warband's `commitRectsRef`. */
+  useLayoutEffect(() => {
+    if (inCombat) { handLeftsRef.current.clear(); return; }
+    perfMonitor.measure('layout:handglide', () => {
+      const next = new Map<string, number>();
+      for (const el of document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')) {
+        next.set(el.dataset.uid ?? '', el.offsetLeft);
+      }
+      handLeftsRef.current = next;
+    });
+  });
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
   const fireSpark = (x: number, y: number): void => {
@@ -3625,6 +3690,10 @@ export function Recruit() {
         paused={!!(run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen)}
         covered={!!(heroSelecting || overlayOpen)}
       />
+      {/* UNDER-CARD FX canvas — the host for `slot: 'under'` effect defs. Position in this child list is
+          load-bearing (above `.boardbg`, below every zone); see `FxUnderSlot` for why it can't live beside
+          `.pixifx` outside `.app`. */}
+      <FxUnderSlot />
       <HudBar />
       {/* LOBBY RAIL — the 8-seat table down the right edge of the stage. A direct child of `.app` (not the HUD
           bar) so it can be anchored to the STAGE height and run tall beside the board, instead of hanging off
@@ -3787,7 +3856,6 @@ export function Recruit() {
                 u={u}
                 side="foe"
                 anim={replay.anims[u.uid]}
-                floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 statHold={replay.statHoldFor(u.uid)}
@@ -3840,7 +3908,6 @@ export function Recruit() {
                 u={u}
                 side="you"
                 anim={replay.anims[u.uid]}
-                floats={replay.floatsFor(u.uid)}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 statHold={replay.statHoldFor(u.uid)}
@@ -3976,16 +4043,58 @@ export function Recruit() {
           />
         ))}
 
-      {/* Killing-blow damage numbers for units that died this beat — rendered here, not inside the unit
-          (which collapses + is removed), so the number reads + lingers at the spot the minion fell. */}
-      {fighting &&
-        replay.deathFloats.map((f) => (
-          <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
-            <span className={`float ${f.kind}`}>{f.text}</span>
-          </div>
-        ))}
+      {/* ── Combat damage numbers, PORTALLED TO <body> ────────────────────────────────────────────────
+          Damage numbers, keyword glyphs and the max-Gold pill used to render as children of their `<Unit>`,
+          where the Pixi FX canvas covered them (the owner's "death-dissolve plays over the damage number"
+          report). TWO nested stacking traps caused that, and the fix has to clear BOTH:
 
-      {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value). */}
+            1. `.unit` is its own stacking context in combat (`.attacking` z8, `.struck` z12, `.reborn` z14),
+               so an in-unit float's `z-index: 25` only ordered it against its own card — globally it painted
+               at 8/12/14, under `.pixifx` (z110). No canvas z-index can fix that from inside the unit: pick
+               20 and it covers the number on a struck unit; pick 7 and every effect drops under the unit.
+            2. `.app` is itself `position: relative; z-index: 1` and a SIBLING of `.pixifx` under `#root` —
+               so nothing rendered anywhere inside `.app` can beat the canvas either, at any z-index. (Browser-
+               verified: an anchor at z112 inside `.app` still lost the `elementFromPoint` test to `.pixifx`;
+               the same node appended to <body> won it.)
+
+          Hence the portal: these overlays mount beside `.pixifx` in the ROOT stacking context, where
+          `.floatanchor`/`.deathfloat` (z112) genuinely outrank it. Same house pattern as `Card`'s hover
+          reveal. They're `pointer-events: none`, so nothing about input changes.
+
+          Each `.floatanchor` reproduces the unit's card box (centre + footprint SNAPSHOT at spawn — see
+          `spawnFloats`), so every per-kind CSS rule and both keyframes still resolve against a card-sized box
+          exactly as they did inside the unit. */}
+      {fighting &&
+        createPortal(
+          <>
+            {replay.floats.map((f) => {
+              const sym = SYM_KINDS.has(f.kind);
+              return (
+                <div
+                  key={`float-${f.id}`}
+                  className={`floatanchor${sym ? ' symanchor' : ''}`}
+                  style={{ left: f.x, top: f.y, width: f.w, height: f.h } as CSSProperties}
+                  aria-hidden="true"
+                >
+                  <span className={`float ${f.kind}${sym ? ' sym' : ''}`}>{f.text}</span>
+                </div>
+              );
+            })}
+            {/* Killing-blow numbers for units that died this beat — never inside the unit (which collapses +
+                is removed), so the number reads + lingers at the spot the minion fell. */}
+            {replay.deathFloats.map((f) => (
+              <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties} aria-hidden="true">
+                <span className={`float ${f.kind}`}>{f.text}</span>
+              </div>
+            ))}
+          </>,
+          document.body,
+        )}
+
+      {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value).
+          Deliberately NOT portalled with the combat numbers above: this is the shop, where the only thing on
+          the FX canvas is the sell-coin sprinkle — which is meant to read as coins spilling AROUND the pill,
+          not as something burying a damage number. Moving it would be churn for a defect nobody has. */}
       {sellFloats.map((f) => (
         <div key={`sell-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
           {/* Above-base sells (Hoarder, Trail Forager, Rune of Bartering) float GREEN so the bonus reads. */}
@@ -4339,20 +4448,23 @@ export function Recruit() {
             <div className="disc-cards forge-cards">
               {run.runeforgeOffer.map((id, i) => {
                 const rune = RUNE_INDEX[id];
-                return rune ? (
-                  <RuneCard key={id} rune={rune} affordable={run.embers >= rune.cost} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
-                ) : null;
+                if (!rune) return null;
+                // The pivot discount (aligned array, seeded at draw): a rune that doesn't follow the board can
+                // arrive cheaper — the buy path charges the same number.
+                const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
+                return (
+                  <RuneCard key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
+                );
               })}
             </div>
             <div className="forge-actions">
-              {!run.runeforgeRerolled && (
+              {!run.runeforgeRerolled && !run.runeforgeRerollUsed && (
                 <button
                   className="forge-reroll"
-                  disabled={run.embers < 2}
                   onClick={() => dispatch({ type: 'rerollRuneforge' })}
-                  title={run.embers < 2 ? 'Need 2 Gold to re-roll' : 'Re-roll all three Runes (once)'}
+                  title="Re-roll the offered Runes — free, once per game (spending it here forfeits the other forge's re-roll)"
                 >
-                  <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">2 Gold</b>
+                  <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
                 </button>
               )}
               <button className="forge-skip" onClick={() => dispatch({ type: 'skipRuneforge' })}>Leave without a Rune</button>

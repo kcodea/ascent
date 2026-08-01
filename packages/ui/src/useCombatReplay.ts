@@ -92,9 +92,6 @@ export interface UnitFrame {
   rallySpreadAtk?: number;
 }
 
-/** Shared empty array for float-less units, so their `floats` prop keeps a stable reference across
- *  beats and the memoized Unit can skip re-rendering them (a fresh `[]` each render would defeat it). */
-const EMPTY_FLOATS: Float[] = [];
 // Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
 const EMPTY_GRANTS: string[] = [];
 
@@ -472,7 +469,10 @@ export interface CombatReplay {
   anims: Record<string, string>;
   lungeUid: string | null;
   projectiles: { id: number; x: number; y: number; dx: number; dy: number; kind?: string }[];
-  floatsFor: (uid: string) => Float[];
+  /** ALL live combat floats, each carrying the anchor box captured at spawn. Rendered in a board-level
+   *  overlay (`.floatanchor`) rather than inside the `.unit`, so their z-index is globally comparable and the
+   *  numbers sit ABOVE the Pixi FX canvas in every unit state — see `choreo/channels/float.ts`. */
+  floats: Float[];
   /** Damage floats for units that died this beat — rendered in a board-level overlay (their unit collapses
    *  + is removed), positioned at the captured screen coords so the killing-blow number reads + lingers. */
   deathFloats: DeathFloat[];
@@ -1045,6 +1045,23 @@ export function useCombatReplay(
       // bus is callable from here precisely because it no longer lives in Recruit's state.
       fireSpellBuffOnHandRubies(useGame.getState().run.hand);
     }
+    // SHOP BUFF earned mid-combat (Demon Horse and friends). Unlike the Imp buff — which already blooms the
+    // board aura-wash off its `tribeAura` event — this one accumulated with NO cue at all and only showed up in
+    // the next shop, so the moment it was earned looked like nothing happened (owner report 2026-07-31). Rides
+    // the same `sc` narration shape spell power and Ruby power use, with the identical player-side gate.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'sc' || !e.source || !e.text) continue;
+      const m = /^\+(-?\d+)\/\+(-?\d+) Shop$/.exec(e.text);
+      if (!m) continue;
+      const gA = Number(m[1]), gH = Number(m[2]);
+      if (gA <= 0 && gH <= 0) continue;
+      if (!playerUids.has(e.source)) continue;
+      const el = findEl(e.source);
+      if (!el) continue;
+      const { cx, cy, h } = layoutRectOf(el);
+      floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
+    }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
     // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a
     // "your board got stronger" read, and the recruit version is player-only too. Deduped per (tribe) so a
@@ -1118,7 +1135,9 @@ export function useCombatReplay(
       cardIds, // lets the sfx channel play a dying unit's own death voiceline (cards/<id>.death.mp3)
       combatSpeed: combatSpeedRef.current,
       onShake: () => setShake((n) => n + 1),
-      findEl,
+      // Every float (including the killing-blow one) is anchored from this SLOT reading, taken once at
+      // spawn — see spawnFloats' "the position snapshot" note.
+      slotRectOf: rectOf,
       attackerUid: attackerOfImpact(beats, beatIdx - 1),
       meleePair: meleePairOfImpact(beats, beatIdx - 1),
       onFloats: (spawned) => {
@@ -1608,19 +1627,11 @@ export function useCombatReplay(
     const line = narrate(events[i]!, names);
     if (line) { log = line; break; }
   }
-  // Bucket the current floats by uid ONCE (memoized on `floats`), handing each unit a stable array
-  // reference — float-less units share EMPTY_FLOATS — so the memoized Unit only re-renders the units
-  // whose floats actually changed this beat, instead of all ~14 on every render.
-  const floatsByUid = useMemo(() => {
-    const m = new Map<string, Float[]>();
-    for (const f of floats) {
-      const arr = m.get(f.uid);
-      if (arr) arr.push(f);
-      else m.set(f.uid, [f]);
-    }
-    return m;
-  }, [floats]);
-  const floatsFor = (uid: string): Float[] => floatsByUid.get(uid) ?? EMPTY_FLOATS;
+  // Floats are handed back as ONE flat list for the board-level overlay to render. There used to be a
+  // per-uid bucketing memo here, because each float was a child of its own `<Unit>` and the memoized Unit
+  // needed a stable array reference per uid to avoid re-rendering the whole board every beat. Now that a
+  // float is board-level DOM, the unit never re-renders for a float at all — the bucketing Map (rebuilt on
+  // every float spawn AND every expiry) went with it, and only the small overlay list reconciles.
   const fullLog = useMemo(
     () => events.map((e) => narrateLog(e, names)).filter((l): l is { text: string; kind: string } => l !== null),
     [events, names],
@@ -1641,7 +1652,7 @@ export function useCombatReplay(
   );
 
   return {
-    frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
+    frame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
     statHoldFor: (uid: string) => statHold.get(uid),

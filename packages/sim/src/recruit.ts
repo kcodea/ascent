@@ -2219,24 +2219,28 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     consumeShopMinion(ctx.state, self, i, num(params.times, 1) * gold(self));
   },
 
-  /** Set 2 — Chipper: whenever you PLAY a `tribe` minion, a friendly of that tribe Consumes a Shop
-   *  minion. Hooked on `onSummon` (the recruit-phase "a minion entered play" event), guarded to the tribe.
+  /** Set 2 — Chipper: whenever you PLAY a `tribe` minion, THIS minion Consumes a Shop minion (owner fix
+   *  2026-08-01: golden was feeding a random friendly Demon; both texts now say "this Consumes"). Hooked on
+   *  `onSummon` (the recruit-phase "a minion entered play" event), guarded to the tribe.
    *
-   *  The EATER is a random friendly of the tribe, not necessarily the Glutton or the minion just played — the
-   *  card says "a friendly Demon", so the stats can land anywhere in the tribe. Deterministic off the run cursor.
-   *  Guarded against the Glutton's own arrival so playing it doesn't immediately feed itself. */
+   *  `params.self` existed for exactly this and was never honored — with it set the eater is the card itself;
+   *  without it the old any-friendly behaviour survives for a future card that wants it (random off the run
+   *  cursor). Guarded against Chipper's own arrival so playing it doesn't immediately feed itself. */
   onTribePlayedConsumeShop: (ctx, self, params, payload) => {
     const played = payload.minion;
     const tribe = str(params.tribe) || 'demon';
     if (!played || played.uid === self.uid || !isTribe(played, tribe as never)) return;
-    const eaters = ctx.state.board.filter((c) => isTribe(c, tribe as never));
-    if (eaters.length === 0) return;
     const edible = ctx.state.shop
       .map((_, i) => i)
       .filter((i) => { const d = CARD_INDEX[ctx.state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
     if (edible.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
-    const eater = eaters[rng.int(eaters.length)]!;
+    let eater = self;
+    if (params.self !== true) {
+      const eaters = ctx.state.board.filter((c) => isTribe(c, tribe as never));
+      if (eaters.length === 0) return;
+      eater = eaters[rng.int(eaters.length)]!;
+    }
     const pick = edible[rng.int(edible.length)]!;
     ctx.state.rngCursor = rng.state();
     consumeShopMinion(ctx.state, eater, pick, num(params.times, 1) * gold(self));

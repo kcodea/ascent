@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "ASCENT — single-player roguelike auto-battler. Deterministic engine + DOM UI.",
+  "description": "ASCENT \u00e2\u20ac\u201d single-player roguelike auto-battler. Deterministic engine + DOM UI.",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -27,6 +27,7 @@
     "audit": "tsx packages/tools/src/card-audit.ts",
     "perf": "tsx packages/tools/src/perf.ts",
     "pool": "tsx packages/tools/src/build-pool.ts",
+    "fx:publish": "tsx packages/tools/src/fx-publish.ts",
     "lobby": "tsx packages/tools/src/lobby-sim.ts",
     "board:train": "tsx packages/tools/src/board-train.ts",
     "art:wire": "tsx packages/tools/src/wire-art.ts",

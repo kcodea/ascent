@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-07-31 — Yazzus moves to Tier 7
+
+Owner call: Yazzus T6 → T7 (the tier half of the set-2 sheet's recorded "T7 9/9" delta — stats stay 5/7 unless
+the owner asks for the rest). At T7 it leaves normal shop rotation (T7 is Summit-rift-only) and arrives through
+the runes that name it by id — Rune of Yazzus (set 2) and Rune of Frontline Glory (set 1) — which grant from
+`CARD_INDEX` and are unaffected by tier. `sets.test.ts`'s no-re-spec pin updated to record the deliberate move.
+
+Verified: sets + runes suites green; full gates on the branch.
+
 ## 2026-07-31 — Lobby perf regression: dead recordings turned every seat into a live bot; Funeral's loan expires
 
 Owner report: "very poor performance in lobby mode" after the Set 2 patch, with a hunch it was bots playing

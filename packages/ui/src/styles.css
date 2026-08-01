@@ -8,6 +8,10 @@
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
   --t-beast: #4ea83b; --t-dragon: #ffffff; --t-mech: #27a9dd; --t-undead: #22b8a8; --t-demon: #b15cf0; --t-neutral: #9a8d79;
+  /* Kobold and Dwarf had NO colour at all: `--c` is set from `var(--t-<tribe>)`, so an unlisted tribe
+     resolved to nothing and its medallion glyph rendered unfilled (owner report 2026-07-31). Dwarf is
+     the forge yellow the owner asked for; kobold takes a warm ember so the two stay distinct. */
+  --t-dwarf: #f0c33c; --t-kobold: #e8763a;
   --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;
@@ -3256,7 +3260,7 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    claw rake on the TARGET (pixiFx.cleaveSlash), so the white glare bar across the attacker was a second,
    competing cue on the same swing. */
 
-/* shield break is now the Pixi bubble's crack + explosion (pixiFx.breakShield) — the old CSS shard ring
+/* shield break is now a Pixi burst (`pixiFx.shatterAt`, via the choreo aura channel) — the old CSS shard ring
    was removed. (The `shatter` anim class is still tagged by the replay but no longer has any CSS.) */
 
 /* Execute spent — when the minion spends its Execute (its first proc), a quick RED ring puffs out + a brief
@@ -3385,27 +3389,18 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    in FRONT of a held/hovered card; still below the modal overlays (end-run z400, inspect z500, dev panels
    z200). The card-landing dust still tucks behind its own card by raising that card above this (see puffOnBoard). */
 .pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 110; }
-/* Persistent shield/reborn bubbles render here — over the card art but BELOW the badges/tier/effect chrome
-   (which sit at z4–9 in the root stacking context). The break burst stays on .pixifx (z110), over the chrome. */
-/* …that comment is STALE and was never re-verified: `.app` is `position: relative; z-index: 1`, i.e. its own
-   stacking context, so z3 on a SIBLING beats everything inside it — badges and tier chrome included. The
-   bubbles have been CSS since the aura rework, so this canvas draws nothing and the error stayed invisible.
-   Kept as-is (the shieldApp still mounts here and `setShield` would revive it); an effect that must draw
-   BELOW the cards uses `.pixifx-below` instead. */
-.pixifx-under { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
 /* UNDER-CARD FX canvas — where `slot: 'under'` def effects draw (ground slams, scorch marks, pools of light).
-   A CHILD of `.app`, unlike the two canvases above, and that is the only placement that works: `.app`'s
+   A CHILD of `.app`, unlike `.pixifx` above, and that is the only placement that works: `.app`'s
    z-index:1 stacking context means a fixed SIBLING is either wholly above the board (any z ≥ 2) or below
    `.boardbg` and therefore invisible behind the board art. Inside `.app`, z-index 0 lands it above `.boardbg`
    (also z0, but an earlier child) and tree order puts it below every zone — the same slot `.chargeglyph`
    occupies, for the same reason. It is beneath EVERY card, never beneath one particular card: the cards are
    DOM and this is one canvas, so per-card interleaving isn't expressible. */
 .pixifx-below { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
-/* While the DEV 🎬 Choreography panel (`.sfxmix.choreo` z200) is open, lift both FX layers ABOVE it so the
-   ▶ Preview bursts + persistent aura bubbles render ON TOP of the widget (they're pointer-events:none, so this
+/* While the DEV 🎬 Choreography panel (`.sfxmix.choreo` z200) is open, lift the FX layer ABOVE it so the
+   ▶ Preview bursts render ON TOP of the widget (it's pointer-events:none, so this
    never steals the panel's clicks). Dev-only; restored when the panel closes. */
 body.choreo-open .pixifx { z-index: 205; }
-body.choreo-open .pixifx-under { z-index: 204; }
 /* While a targeter is live (armed hero power / pending targeted Battlecry / a targeted spell drag), the
    Pixi aim line IS the pointer — hide the OS cursor everywhere. Toggled by Recruit's aim-line effect;
    removed the moment the aim ends (fired, cancelled, or released). */
@@ -3503,12 +3498,10 @@ body.aiming, body.aiming * { cursor: none !important; }
 /* The rows + FX canvases + the control bar aren't animated, so a plain opacity transition fades them cleanly. */
 .app.combatout .zone .row,
 .app.combatout .pixifx,
-.app.combatout .pixifx-under,
 .app.combatout .combathud,
 .app.combatout .combatctl { opacity: 0; transition: opacity 0.2s ease; }
 .app.combatin .zone .row,
 .app.combatin .pixifx,
-.app.combatin .pixifx-under,
 .app.combatin .combatctl { animation: boardfadein 0.26s ease both; }
 @keyframes boardfadein { from { opacity: 0; } to { opacity: 1; } }
 /* Skip-combat freeze: while the replay is frozen (GSAP + both Pixi tickers are paused in JS), also stop every

@@ -96,6 +96,20 @@ it to a moment kind in `score.ts`. Blocking-ish for a serious run: `fxScale` isn
 primitives (a def is the same pixel size on every screen), `playDef` takes no per-call params, and anchors
 are points rather than rectangles.
 
+### Two aura FX don't fire — rebuild them in the workbench (owner ruling 2026-07-31)
+Found while verifying the Pixi aura-bubble removal in game. **The Ward-break shatter and the Rise re-form on
+respawn never play.** Not caused by that removal: calling the survivors directly spawns particles normally
+(`shatterAt('shield')` 38, `rebornSummon` 17, `shatterAt('reborn')` 31), so the renderer and both entry points
+are healthy. The failures are the *cue-scheduled, rect-fed* dispatches — `onShieldBreak` / `onReborn` in
+`useCombatReplay.ts` via the `auraBreak` / `auraReform` cues in `score.ts` — which no-op silently when the rect
+is null. The path that still works (`burstDeathAuras`) fires directly on death instead. Corroborating symptom:
+no shield-break sound either, and `breakShieldAura` plays its sfx *unconditionally*, so it is very likely never
+called at all rather than called with a bad rect.
+
+**Owner ruling: don't repair the cue path — author both as defs in the FX workbench** and bind them from there.
+That retires the dead cues rather than resurrecting them. Brief them via
+[`docs/fx-requests.md`](fx-requests.md).
+
 ### Drag feel is not scale-invariant (owner report 2026-07-22 — decision needed)
 The drag maths works on raw pixel deltas (`tiltPerPx * hLean * gx`) without dividing by `--scale`, so the same
 hand movement produces the same tilt in degrees over a card that may be 50% larger. A fullscreen exe (`--scale`
@@ -716,13 +730,12 @@ and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
   `.ob` were NOT dead** and stay: `.disc-gem` is rendered by `Recruit.tsx` and its rule is a deliberate
   `display: none` (deleting it makes the gems reappear), and `.ob`'s base rule still feeds the odds bar's
   `.oddsbar .ob.win/.draw/.lose` segments.
-- 🔵 **The orphaned Pixi aura-bubble system — PR open (#756).** `setShield`/`clearShield`/`setShieldsVisible`/
-  `hasAura`/`auraRect`/`breakShield`/`shieldPop` + the `shields` map, `ShieldBubble`, `shieldLayer` and
-  `shieldGeo` had no production callers, and the bubbles owned a **third** full-viewport WebGL `Application`
-  (`shieldApp`, after the main canvas and `discoverFx`) plus the `underParent` mount contract — already
-  ticker-stopped as "dormant" rather than removed. `shatterAt`/`rebornSummon` are kept, still fired by the
-  death-burst/reborn path via `choreo/channels/aura.ts`. Bundle −21,515 bytes, measured. **Wants an eyeball on
-  a real ward break + reborn before merge** — it deletes a renderer path, which no gate covers.
+- ✅ **The orphaned Pixi aura-bubble system — DONE.** The whole persistent-bubble subsystem is gone:
+  `setShield`/`clearShield`/`setShieldsVisible`/`hasAura`/`auraRect`/`breakShield`/`shieldPop`, the `shields`
+  map, `ShieldBubble`, `shieldLayer`/`shieldGeo`, ~210 lines of GLSL, and the **third** full-viewport WebGL
+  `Application` (`shieldApp`, after the main canvas and `discoverFx`) with its `underParent` mount contract —
+  which a previous pass had only ticker-stopped as "dormant". `shatterAt`/`rebornSummon` are kept, still fired
+  by the death-burst/reborn path via `choreo/channels/aura.ts`. Total emitted JS −13,452 bytes, measured.
 - ⬜ **69 dead effect-factory ids** (not ~17): the verified inventory is in
   [`docs/dead-effect-ids.md`](dead-effect-ids.md), each with the files to sweep. Engine-owned; re-run the
   sweep first, since an id goes live the moment one card adopts it.

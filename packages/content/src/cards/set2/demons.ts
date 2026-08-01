@@ -131,7 +131,7 @@ export const SET2_DEMONS: CardDef[] = [
     keywords: ['T'], // Taunt
     effects: [{ on: 'onSummon', do: 'onTribePlayedConsumeShop', params: { tribe: 'demon', times: 1, self: true } }],
     text: '**Taunt.** Whenever you play a **Demon**, this Consumes a minion in the Shop.',
-    goldenText: 'Whenever you play a **Demon**, a friendly Demon Consumes a minion in the Shop and gains **double** its stats.',
+    goldenText: '**Taunt.** Whenever you play a **Demon**, this Consumes a minion in the Shop and gains **double** its stats.',
   },
   {
     id: 'dm_broodwright',

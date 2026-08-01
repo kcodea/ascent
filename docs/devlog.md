@@ -1,5 +1,80 @@
 # ASCENT — development log
 
+## 2026-07-29 — refactor(ui): delete the orphaned Pixi aura-bubble system (−1 WebGL context)
+
+**Ward and Reborn stopped being Pixi a while ago; the machinery that drew them didn't leave.** The persistent
+aura bubbles are CSS dome stacks in `Card.tsx` now — Pixi's only surviving job is the one-shot break burst. But
+the whole bubble subsystem was still compiled, still allocated, and still mounted, drawing nothing.
+
+**What it was still costing.** The dead code owned **a third full-viewport WebGL context**: `attach()` took an
+optional `underParent`, and when given one it spun up a *second* `Application` (`shieldApp`) on its own canvas
+at z3, purely so bubbles could sit under the card chrome. A previous pass had noticed it drew nothing and
+`ticker.stop()`ped it as "dormant" rather than removing it — so the context, its canvas, and its GL resources
+were still created on every boot. (Not to be confused with `discoverFx`, a genuinely separate controller that
+draws the Discover burst and is pinned do-not-delete — that one stays.)
+
+**Removed:** `setShield` / `clearShield` / `hasAura` / `auraRect` / `setShieldsVisible` / `breakShield` /
+`shieldPop`, the `shields` registry, the `ShieldBubble` record, `shieldLayer` / `shieldGeo` / `shieldApp` /
+`underParent`, `auraKey` / `auraMargin`, the per-frame bubble update block in `update()`, the `shields` perf
+counter, the bubble branches in `hasLiveWork()` / `detach()` / `setVisible()`, and **~210 lines of GLSL** —
+`SHIELD_VERT`, `SHIELD_FRAG` and `REBORN_FRAG`, which nothing else compiled. `PixiFxLayer` loses its
+`.pixifx-under` div and `attach()` its second argument; the matching CSS (`.pixifx-under`, its `choreo-open`
+lift, and its entries in the combat in/out fades) goes with it.
+
+**Kept, deliberately:** `shatterAt` and `rebornSummon` — still fired on every ward break / reborn via
+`choreo/channels/aura.ts`. They need `AuraKind` and the per-kind `margin`, so `AURA` survives trimmed down to
+`{ margin }` (both kinds land on 1.16 today; kept per-kind so they can diverge again), as does `BUBBLE_TEX_R`,
+now just the shatter ring's scale reference.
+
+**The DEV `window.__shieldDemo` was repointed, not deleted.** It used to raise a persistent bubble, hold it,
+then break it. The bubble half no longer exists, but the burst it was built to eyeball does — so it now fires
+`shatterAt` directly, and takes a `kind` so the reborn variant is reachable too.
+
+**Rebased across #792, and two of its hunks were load-bearing.** #792 (*defs choose their canvas*) landed while
+this was open and added a THIRD canvas, `.pixifx-below`, for `slot: 'under'` defs — independent of `shieldApp`,
+which it explicitly called out as "the same trick, and predates this". Resolving the overlap needed care in two
+places, because taking this branch's side wholesale would have reverted part of #792: `setVisible` gained
+`underApp.canvas` (dropping it would stop the new under-card canvas fading with the board on Skip), and
+`detach()` gained an `underApp` teardown with `releaseGlobalResources: false`. Both kept; only the `shieldApp`
+halves removed. Canvas count goes **three → two**.
+
+**#792 also corroborated the premise, harder than this PR had.** It verified with `document.elementFromPoint`
+that `.pixifx-under` never drew below the cards at all: `.app` is a stacking context (`z-index: 1`), so z3 on a
+SIBLING outranks everything inside it. The comment claiming otherwise had been false since `.app` took a
+z-index, and went unnoticed precisely because the canvas had been drawing nothing. #792 left it in place with a
+corrected comment; this removes it.
+
+**Verified in game (owner, 2026-07-31)** — and it surfaced two aura FX that do not fire, **both pre-existing and
+neither caused by this change**: the Ward-break shatter, and the Rise re-form on respawn. Proof they are not
+this deletion: calling the survivors directly on this branch spawns particles normally — `shatterAt(…'shield')`
+38, `rebornSummon` 17, `shatterAt(…'reborn')` 31. The renderer and both entry points are healthy. The two that
+fail are the *cue-scheduled, rect-fed* dispatches (`onShieldBreak` / `onReborn` in `useCombatReplay`, via the
+`auraBreak` / `auraReform` cues), which no-op silently on a null rect; the one that works (`burstDeathAuras`)
+fires directly on death. That whole path — `useCombatReplay.ts`, `choreo/score.ts`, `choreo/channels/aura.ts` —
+is untouched by this branch (`aura.ts` is byte-identical to `main`). **Owner ruling: do not resurface them
+here** — they will be rebuilt as authored defs in the FX workbench instead, so the dead cue path is not worth
+repairing.
+
+**Verified:** `npm run typecheck` (pkgs + web) + `npm test` (3517 passed / 194 files) + `npm run build:web` +
+`npm run lint` all green. Bundle measured against `main` rather than asserted: total emitted JS
+**2,631,425 → 2,617,973 bytes (−13,452)**. Worth stating in full rather than quoting the flattering half: the
+*entry* chunk drops ~21.5 kB, but a secondary chunk gains ~7.6 kB because removing the GLSL shifts Rollup's
+chunk boundaries. The saving is real but smaller than the entry-chunk number alone suggests.
+`pixiFx.aura.test.ts` loses its `hasAura`/`auraRect` cases (those queries are gone) and gains coverage that
+`shatterAt` handles both kinds and `rebornSummon` no-ops safely before the renderer is ready.
+
+## 2026-08-01 — Chipper consumes with ITSELF, not a random friendly Demon
+
+Owner report: golden Chipper fed a random friendly Demon. The factory (`onTribePlayedConsumeShop`) always
+rolled a random eater from the tribe — even though the card def passed `self: true` (never honored) and the
+PLAIN text already said "this Consumes". Fixed: with `params.self` the eater is Chipper itself (plain and
+golden — golden keeps its ×2 stat multiplier); the random-friendly branch survives for a future card that
+wants it. Golden text rewritten to match ("this Consumes … gains double its stats") and it regains the
+"**Taunt.**" prefix the plain text always had.
+
+Tests: three new pins in `set2Demons.test.ts` — plain eats onto itself with the bystander untouched, golden
+doubles onto itself, and Chipper's own arrival never feeds it. Full gates green (3561 tests).
+
 ## 2026-07-31 — Two stale card texts: gilded Bellringer lost "adjacent", Kennelmaster said +1 but gave +2
 
 Owner reports, both the same defect class (a live-text helper or a rebalance erasing the printed truth):
@@ -116,6 +191,43 @@ board, Echo does NOT fire).
 
 Verified: full gates green (typecheck, lint 0 errors, 3554 tests, build:web, harness determinism).
 
+## 2026-07-31 (dwarves and kobolds get their plates, frames and colour)
+
+### feat(ui): dwarf + kobold cardplates, the dwarf frames, and the two missing tribe colours
+
+**Owner report:** dwarves had no cardplate, their tribe glyph rendered unfilled, and their title "floated in
+the middle of the card" instead of sitting where every other card's does.
+
+All three were the same gap plus one missing variable, and **kobold had the identical defects** - it shipped
+with frames but was never given a plate or a colour either. The owner supplied both plates, so both tribes are
+finished here.
+
+**The title and the plate were one bug.** `tribePlated` is only true when the tribe has an entry in
+`TRIBE_PLATES`. Dwarf and kobold had none, so `plateSrcFor` fell through to the neutral stone plate *and*
+`isTribePlated` stayed false - which keeps the tribe row rendering **inside the drawer** instead of on the
+plate's bottom gem. That extra row is what pushed the title down. Giving each tribe a plate entry fixes the
+title, moves the tribe name to the gem, and themes the plate, all at once.
+
+**The unfilled glyph** was simply that `--t-dwarf` and `--t-kobold` did not exist. `Card.tsx` sets
+`--c: var(--t-<tribe>)`, so an unlisted tribe resolved to nothing. Dwarf is the forge yellow the owner asked
+for (`#f0c33c`); kobold takes a warm ember (`#e8763a`) so the two stay distinct - **worth a look, since only
+dwarf's colour was specified.**
+
+**Dwarf frames** (oval + gilded, Taunt + gilded) were authored back on 2026-07-26 and had been queued ever
+since, blocked on `dwarf` entering the `Tribe` union. It is in now, so they are converted and wired alongside
+kobold's, which already shipped.
+
+**Art pipeline notes.** Six files converted at webp q92 / alphaQuality 100. The four dwarf frames matched
+their shipped siblings' dimensions exactly (1059x1427 oval, 1086x1448 Taunt), so they seat without retuning.
+The two new plates arrived at **945x1469** rather than the 800x1244 every other plate shares - the same aspect
+ratio to within 0.03%, just a larger export - so they were resized to 800x1244. Every plate placement var in
+`styles.css` is expressed against those dims and `Card.tsx` documents the invariant, so matching it keeps the
+new art seating identically rather than depending on the browser to scale a different box. All ten
+dwarf/kobold assets confirmed present in `apps/web/dist/frames` after a production build.
+
+**Verified:** `typecheck` clean (pkgs + web), `lint` 0 errors, **3552 tests** / 197 files green, `build:web`
+green with the assets emitted. Look needs an eyeball - the checks prove the art loads, not that it reads well.
+
 ## 2026-07-31 — The Hall of Champions could never populate (my bug, from the lobby-only rework)
 
 Owner report: no winning lobby boards were showing. The upload was gated on
@@ -173,6 +285,7 @@ there is no random pool for a Ruby to leak into), and its two consume-cap suites
 as shells that pass against a mechanic the card no longer has.
 
 Verified: typecheck (both), lint (7 pre-existing), 3513 tests, build:web, harness determinism.
+
 
 ## 2026-07-31 — End Turn lock to 2s; Reinvestment's text tells the truth
 
@@ -752,6 +865,7 @@ rather than argued.
 the fallback preview pane runs hidden, where rAF never ticks and the GSAP-driven beat clock never advances.
 The layering claim (which is the defect) is browser-proven; the spawn wiring is covered by the unit tests and
 the typecheck. Worth an eyeball on a real fight.
+
 ## 2026-07-29 — chore(ui): delete the dead "Shield Place" tuner
 
 **A DEV panel that looked functional and did nothing.** `ShieldTuner` was the last survivor of the Pixi

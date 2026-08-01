@@ -44,10 +44,20 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Deleted the orphaned Pixi aura-bubble system (−1 WebGL context).** Ward and Reborn became CSS domes a while
+  back, but the Pixi machinery that used to draw them stayed — including a whole third full-viewport WebGL
+  context that a previous pass had merely ticker-stopped as "dormant" instead of removing. Gone with it: ~210
+  lines of unused GLSL and the `.pixifx-under` layer. The break burst (`shatterAt` / `rebornSummon`) is
+  untouched. Total emitted JS 2,631,425 → 2,617,973 bytes.
+
+- **Dwarves and Kobolds are fully dressed** - both now have their own cardplate, Dwarf gets its oval and
+  Taunt frames, and both tribes finally have a colour so their emblem fills in.
+
 - **The effects tool can now take an effect back off a card.** It could attach an effect to a moment but
   never remove one — that meant editing a data file by hand. There are two ways to remove one and they do
   opposite things (go back to the default effect for that moment, or play nothing at all), so both are
   offered, each spelling out what the card will do afterwards before you press it.
+
 - **Effects can now play *behind* the cards.** Every visual effect used to draw in front of everything, so a
   ground slam sat on top of the minions it was supposed to be shaking. An effect can now choose its layer —
   over the cards, as before, or under them on the board itself — with a toggle in the authoring tool. (It's
@@ -62,6 +72,7 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   directly by the code, or genuinely unused. The "played by code" list is worked out from the source itself
   and re-checked by a test on every build, so the next batch of migrated effects can't quietly go missing
   from it again.
+
 - **Removed the dead "Shield Place" tuner.** The DEV panel had outlived its consumer: `syncShields` is gone and
   Ward/Reborn are CSS dome stacks, so dragging its slider only wrote a localStorage value nothing read. Its one
   knob — the dome's vertical offset — is already live in the 🔵 Ward Dome tuner as `domeY`. Also ESLint-ignores
@@ -69,6 +80,7 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **Audited the dead-code purge, and cleared the CSS half.** The roadmap's list was wrong in four places — two
   of them traps (`.disc-gem` and `.ob` are live; deleting them would have caused visible regressions) — and the
   dead effect-id count was 69, not "~17". Verified inventory now in `docs/dead-effect-ids.md`.
+
 
 - **Fixed hand cards growing and overlapping** - the hand "make room" glide was baking the hover
   zoom into card width; it is reverted until it can be done transform-safely.

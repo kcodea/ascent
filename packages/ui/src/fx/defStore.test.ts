@@ -227,7 +227,7 @@ describe('coerceDef / toStoredDef', () => {
   });
 
   it('toStoredDef stamps the current schema version', () => {
-    const def = toStoredDef('x', 500, []);
+    const def = toStoredDef('x', 500, [], undefined, undefined, undefined);
     expect(def).toEqual({ version: FX_DEF_VERSION, id: 'x', duration: 500, layers: [] });
   });
 
@@ -236,9 +236,9 @@ describe('coerceDef / toStoredDef', () => {
   // exactly what an unlocked composition means in the workbench.
 
   it('toStoredDef writes a seed only when one is supplied', () => {
-    expect(toStoredDef('x', 500, [], 4242).seed).toBe(4242);
-    expect('seed' in toStoredDef('x', 500, [])).toBe(false);
-    expect('seed' in toStoredDef('x', 500, [], Number.NaN)).toBe(false);
+    expect(toStoredDef('x', 500, [], 4242, undefined, undefined).seed).toBe(4242);
+    expect('seed' in toStoredDef('x', 500, [], undefined, undefined, undefined)).toBe(false);
+    expect('seed' in toStoredDef('x', 500, [], Number.NaN, undefined, undefined)).toBe(false);
   });
 
   // The canvas slot is the third field (after seed, and label/tags) to follow the omit-unless-set rule, and
@@ -246,9 +246,98 @@ describe('coerceDef / toStoredDef', () => {
   // would still PLAY correctly, but every existing def file on disk would show a diff. The default must be an
   // omission, not a written value.
   it('toStoredDef writes the slot only for the non-default canvas', () => {
-    expect(toStoredDef('x', 500, [], undefined, 'under').slot).toBe('under');
-    expect('slot' in toStoredDef('x', 500, [])).toBe(false);
-    expect('slot' in toStoredDef('x', 500, [], undefined, 'over')).toBe(false);
+    expect(toStoredDef('x', 500, [], undefined, 'under', undefined).slot).toBe('under');
+    expect('slot' in toStoredDef('x', 500, [], undefined, undefined, undefined)).toBe(false);
+    expect('slot' in toStoredDef('x', 500, [], undefined, 'over', undefined)).toBe(false);
+  });
+
+  // ── `label`/`tags` survive a re-save ────────────────────────────────────────────────────────────────
+  //
+  // THE regression these exist for: `toStoredDef` used to build a def from editor state alone, so every Save
+  // over an existing def deleted its `label`/`tags` — the workbench has no editor for them, so the file was
+  // their only copy and the deletion was silent. It cost `strike-impact` (which plays on every melee hit) its
+  // "Strike impact" label and its `impact/combat/orange` tags; that was caught by eye in review, and nothing
+  // in the suite would have caught it. Remove the `carriedMeta` call in `toStoredDef` and these go red.
+
+  it('a re-save under the SAME id carries the committed label and tags forward', () => {
+    const prior: StoredFxDef = {
+      version: 1,
+      id: 'strike-impact',
+      label: 'Strike impact',
+      tags: ['impact', 'combat', 'orange'],
+      duration: 700,
+      layers: [],
+    };
+    const saved = toStoredDef('strike-impact', 900, [], undefined, undefined, prior);
+    expect(saved.label).toBe('Strike impact');
+    expect(saved.tags).toEqual(['impact', 'combat', 'orange']);
+    // The def's DATA is the editor's, not the prior file's — only the filing is inherited.
+    expect(saved.duration).toBe(900);
+  });
+
+  // The key order matters more than it looks: every metadata-carrying def on disk reads
+  // `version, id, label, tags, duration, layers`, so a re-save that appended them instead would turn a
+  // one-line tuning change into a whole-file reshuffle in review.
+  it('carried metadata keeps the on-disk key order', () => {
+    const prior: StoredFxDef = { version: 1, id: 'd', label: 'L', tags: ['t'], duration: 1, layers: [] };
+    expect(Object.keys(toStoredDef('d', 1, [], undefined, undefined, prior)))
+      .toEqual(['version', 'id', 'label', 'tags', 'duration', 'layers']);
+  });
+
+  // The fork rule. Saving under a NEW name is a copy, and inheriting the source's filing would index it in
+  // the library browser under words its author never wrote — the same call `materialiseVariant` makes.
+  it('saving under a NEW id inherits nothing (a fork starts unlabelled)', () => {
+    const prior: StoredFxDef = { version: 1, id: 'strike-impact', label: 'Strike impact', tags: ['impact'], duration: 700, layers: [] };
+    const forked = toStoredDef('strike-impact-heavy', 700, [], undefined, undefined, prior);
+    expect('label' in forked).toBe(false);
+    expect('tags' in forked).toBe(false);
+  });
+
+  it('a brand-new def (no prior) is unlabelled and untagged', () => {
+    const fresh = toStoredDef('brand-new', 500, [], undefined, undefined, undefined);
+    expect('label' in fresh).toBe(false);
+    expect('tags' in fresh).toBe(false);
+  });
+
+  // Omit-unless-usable, same as `coerceDef`: an empty label/tag list means "not set" and must not resurrect
+  // as an empty field, or an untouched def stops round-tripping byte-identically.
+  it('blank metadata on the prior def stays an omission', () => {
+    const prior: StoredFxDef = { version: 1, id: 'd', label: '   ', tags: [], duration: 1, layers: [] };
+    const saved = toStoredDef('d', 1, [], undefined, undefined, prior);
+    expect('label' in saved).toBe(false);
+    expect('tags' in saved).toBe(false);
+  });
+
+  it('carries a COPY of the tags, never the prior def\'s array', () => {
+    const prior: StoredFxDef = { version: 1, id: 'd', tags: ['a'], duration: 1, layers: [] };
+    const saved = toStoredDef('d', 1, [], undefined, undefined, prior);
+    expect(saved.tags).not.toBe(prior.tags);
+    saved.tags?.push('b');
+    expect(prior.tags).toEqual(['a']); // the live registry entry is untouched
+  });
+
+  /**
+   * The BROADER guard: every field of `StoredFxDef` survives a re-save.
+   *
+   * `Required<StoredFxDef>` is the load-bearing part — it is a COMPILE-TIME exhaustiveness check. Add an
+   * optional field to the type and this object stops compiling until it is listed here, which forces whoever
+   * adds it to answer the question that was never asked about `label`/`tags`: does a Save keep it? A field
+   * that silently vanishes on save is this same bug wearing a different name.
+   */
+  it('a re-save over the same def drops NO field of StoredFxDef', () => {
+    const prior: Required<StoredFxDef> = {
+      version: 1,
+      id: 'everything',
+      duration: 700,
+      seed: 4242,
+      label: 'Everything',
+      tags: ['a', 'b'],
+      slot: 'under',
+      layers: [{ primitive: 'test-prim', anchor: 'target', at: 0, params: { size: 3 } }],
+    };
+    // Exactly what the workbench does on Save, with an editor that reproduces the prior def's state.
+    const saved = toStoredDef(prior.id, prior.duration, prior.layers, prior.seed, prior.slot, prior);
+    expect(saved).toEqual(prior);
   });
 
   it('coerceDef takes only the literal "under" slot, and omits it otherwise', () => {

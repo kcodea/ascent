@@ -361,6 +361,16 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   - **Anchors are a fire-time snapshot**, so an effect doesn't follow a moving unit. Deliberate (per-frame
     layout reads are banned here); revisit if a follow-the-unit effect is ever wanted.
 
+- **Edit a def's `label`/`tags` from the workbench panel.** A Save no longer *deletes* them (fixed
+  2026-08-01 — it used to, silently, and it cost `strike-impact` its filing), so a hand-written label is now
+  durable. But the only way to *write or change* one is still hand-editing the JSON, which means most defs
+  stay unlabelled and the library browser's search and grouping run on data almost nobody supplies. Two text
+  fields beside the def name, feeding the same `prior`-carrying save path. Deliberately not folded into the
+  preservation fix: it is a feature, not the bug, and with no jsdom / `@testing-library/react` in this repo a
+  UI addition is unverifiable by test, so it deserves its own browser-verified PR. Decide at the same time
+  what a **fork** should offer — today it correctly starts unlabelled, but with an editor present the useful
+  behaviour may be to pre-fill the source's label for the author to edit rather than leave it blank.
+
 - **FX workbench — remaining authoring gaps.** (The three trust defects — Fire ignoring `at`/`life`, timing
   edits respawning mid-drag, no seed lock — were fixed 2026-07-25, along with duplicate-layer and per-layer
   mute. The three *headroom* defects the owner hit authoring a real effect — imported art not surviving a

@@ -234,17 +234,62 @@ export function parseDef(json: string): StoredFxDef | null {
   return coerceDef(raw);
 }
 
-/** Build a `StoredFxDef` from the workbench's live editor state. `seed` is written only when a finite one is
- *  supplied — the workbench passes it ONLY while the seed is LOCKED, so an unlocked composition deliberately
- *  saves no seed and therefore keeps meaning "roll fresh every time". */
+/**
+ * The `label`/`tags` a save under `id` should CARRY FORWARD from `prior` — `{}` when there is nothing to
+ * carry, or when `prior` is a different def.
+ *
+ * The id check is the fork rule, and it lives here rather than at the call sites so there is exactly one
+ * place it can be got wrong: metadata is inherited only when you are *overwriting the same def*. Saving the
+ * composition under a NEW name is a fork, and a fork that inherited its source's filing would be indexed in
+ * the library browser under words its author never wrote, can't see and can't change — the same reasoning
+ * (and the same conclusion) as `materialiseVariant` in `Workbench.tsx`, which strips both fields for
+ * precisely this reason.
+ *
+ * Same omit-unless-usable discipline as `coerceDef`: a blank label and an empty tag list mean "not set", so
+ * they must not resurrect as empty fields. `tags` is COPIED, never aliased — `prior` is normally the live
+ * registry entry, and handing the new def the same array would let a later mutation of one edit the other.
+ */
+function carriedMeta(id: string, prior: StoredFxDef | undefined): Pick<StoredFxDef, 'label' | 'tags'> {
+  if (prior === undefined || prior.id !== id) return {};
+  const meta: Pick<StoredFxDef, 'label' | 'tags'> = {};
+  if (typeof prior.label === 'string' && prior.label.trim() !== '') meta.label = prior.label;
+  if (Array.isArray(prior.tags) && prior.tags.length > 0) meta.tags = [...prior.tags];
+  return meta;
+}
+
+/**
+ * Build a `StoredFxDef` from the workbench's live editor state. `seed` is written only when a finite one is
+ * supplied — the workbench passes it ONLY while the seed is LOCKED, so an unlocked composition deliberately
+ * saves no seed and therefore keeps meaning "roll fresh every time".
+ *
+ * ── `prior` is REQUIRED, and that is the point ──
+ * `label`/`tags` exist only on disk: the workbench has no editor for them, so the ONLY copy of a def's filing
+ * is the file itself. Until 2026-08-01 this function built the def from editor state alone, which meant every
+ * Save over an existing def silently deleted them — it cost the owner `strike-impact`'s label and tags, caught
+ * by eye in review and restored by hand. Nothing else would have caught it.
+ *
+ * The fix is to carry them forward from whatever is already committed under this id, and the parameter is
+ * REQUIRED rather than optional so the failure cannot come back: a new save path physically cannot compile
+ * without deciding what the prior def is. Pass `getDef(id)`; pass `undefined` only where there is genuinely no
+ * file behind the id (the in-memory draft). It stays a pure function — it takes the RESOLVED def, never the
+ * registry — so it is testable in the headless environment like the rest of this module.
+ */
 export function toStoredDef(
   id: string,
   duration: number,
   layers: StoredFxLayer[],
-  seed?: number,
-  slot?: FxSlot,
+  seed: number | undefined,
+  slot: FxSlot | undefined,
+  prior: StoredFxDef | undefined,
 ): StoredFxDef {
-  const def: StoredFxDef = { version: FX_DEF_VERSION, id, duration, layers };
+  const meta = carriedMeta(id, prior);
+  // Two literals rather than a post-hoc assignment purely for KEY ORDER: `version, id, label, tags, duration,
+  // layers` is the order every metadata-carrying def already has on disk, so a re-save of one is a no-op diff
+  // instead of a whole-file reshuffle that buries the real change.
+  const def: StoredFxDef =
+    meta.label === undefined && meta.tags === undefined
+      ? { version: FX_DEF_VERSION, id, duration, layers }
+      : { version: FX_DEF_VERSION, id, ...meta, duration, layers };
   if (typeof seed === 'number' && Number.isFinite(seed)) def.seed = seed;
   // Written ONLY for the non-default slot, so an author who never touches the toggle keeps saving the exact
   // JSON they saved before this field existed.

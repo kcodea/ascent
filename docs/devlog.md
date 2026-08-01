@@ -1,5 +1,54 @@
 # ASCENT — development log
 
+## 2026-08-01 — Every FX Save silently deleted the def's `label` and `tags`
+
+Owner report, and a real loss: re-authoring `strike-impact` in the FX workbench (the effect that plays on
+**every melee hit**) and pressing Save stripped its `label: "Strike impact"` and its
+`tags: ["impact","combat","orange"]` from the committed JSON. Caught by eye during review and restored by
+hand. Nothing would have caught it otherwise — no test, no warning, and the panel has no editor for those two
+fields, so the file was their only copy.
+
+Cause: `toStoredDef` built the def purely from live editor state (`version/id/duration/layers`, plus
+`seed`/`slot` when set). `label`/`tags` exist only on disk, so they were never in the state it read from and
+every Save dropped them.
+
+**Fix — carry them forward from whatever is committed under that id**, in `toStoredDef` itself, from a new
+`prior: StoredFxDef | undefined` parameter that the two disk-writing call sites fill with `getDef(<id being
+written>)`. Three deliberate calls:
+
+- **The parameter is REQUIRED, not optional.** That is the anti-regression measure that isn't a test: a new
+  save path physically cannot compile without deciding what the prior def is. `toStoredDef` stays *pure* — it
+  takes the resolved def, never the registry — so it remains testable headlessly like the rest of the module.
+- **Inherit only when the id MATCHES** (re-checked inside `toStoredDef`, so a caller passing the wrong def
+  can't mislabel one). Saving under a new name is a fork, and a fork inheriting its source's filing would be
+  indexed in the library browser under words its author never wrote, can't see and can't change — the exact
+  reasoning `materialiseVariant` already applies when it strips both fields off a preset variant. In the
+  Commit panel this falls out correctly for free: **Everywhere** overwrites in place and keeps the filing,
+  **This card** forks to `<name>-<card>` and starts clean.
+- **The in-memory draft passes `undefined`.** `DRAFT_DEF_ID` has no file behind it and `listDefs` excludes it,
+  so it is never browsed, searched or grouped; carrying metadata there would only mean inheriting the
+  *previous* draft's.
+
+Also: carried metadata is written in the on-disk key order (`version, id, label, tags, duration, layers`), so
+re-saving a labelled def isn't a whole-file key reshuffle burying the real change; the tags array is copied,
+never aliased to the live registry entry.
+
+**Field audit** (asked explicitly): `label` and `tags` were the ONLY fields a Save dropped. Every other member
+of `StoredFxDef` — `version`, `id`, `duration`, `seed`, `slot`, `layers` — was already emitted.
+
+Verified: 8 new pins in `defStore.test.ts` — carry-forward, on-disk key order, fork-starts-unlabelled,
+no-prior, blank-metadata-stays-omitted, tags-copied-not-aliased, and a `Required<StoredFxDef>` round trip that
+is a **compile-time** exhaustiveness guard (adding an optional field to the type breaks the test file until
+someone answers "does a Save keep it?"). Proof the pins bite: stubbing out the `carriedMeta` call turns 3 of
+them red, restoring it turns them green. Then the real thing in a foregrounded Chrome tab on a dev server
+served from this worktree (branch-only symbol `carriedMeta` confirmed in the served module): loaded
+`strike-impact`, pressed Save, and the written file still carries its label and tags — and saving the same
+composition under a new name produced a file with neither. Full gates green (3569 tests).
+
+Follow-up: **editing** `label`/`tags` from the panel is still not possible — deliberately left out of this PR
+(it is a feature, and with no jsdom/RTL in this repo a UI addition is unverifiable by test). Queued on the
+roadmap.
+
 ## 2026-07-29 — refactor(ui): delete the orphaned Pixi aura-bubble system (−1 WebGL context)
 
 **Ward and Reborn stopped being Pixi a while ago; the machinery that drew them didn't leave.** The persistent
@@ -62,7 +111,6 @@ repairing.
 chunk boundaries. The saving is real but smaller than the entry-chunk number alone suggests.
 `pixiFx.aura.test.ts` loses its `hasAura`/`auraRect` cases (those queries are gone) and gains coverage that
 `shatterAt` handles both kinds and `rebornSummon` no-ops safely before the renderer is ready.
-
 ## 2026-08-01 — Chipper consumes with ITSELF, not a random friendly Demon
 
 Owner report: golden Chipper fed a random friendly Demon. The factory (`onTribePlayedConsumeShop`) always

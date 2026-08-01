@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-01 — Rune hover audit: every named card previews; Triple Rewards can't triple, and aren't spells
+
+**Triple Reward is not a Shop spell (owner rule, second half).** Playing one routed through the shared
+`discoverOnPlay` path, which records a full spell cast via `noteSpellCast` — so a Triple Reward became the
+"first spell" Rune of Recurrence recasts at End of Turn, the "last spell" Steward of Spells / Recaller copy,
+a Mushy copy target, a spell-tally/threshold advance, and a spellCast-watcher trigger; Nimbus could even
+double its Discover (and get its charge eaten by a token). The token branch now opens its Discover and does
+NOTHING else — no multiplier, no memory, no tallies. It still counts as a CARD played. The gate is `def.token`
+on the discoverOnPlay path, and Triple Reward is the only token with that shape (audited). Tests pin: no
+spell state moves, the Discover still opens, and a Nimbus charge survives untouched for a real spell.
+
+**Rune hovers (owner ask: "if a rune references a card, show it on hover").** The forge's hover preview only
+read the reward's `grant`/`recurringGrant` card lists — so 21 runes whose TEXT names a card showed nothing
+(Banking's Money Bot, Living Echoes' Sunmane Herald, Matriarch's Runebloom, the Spearline Warden, every
+get-a-Ruby rune, the Imp-summon runes, …), and `grantGolden` (Frontline Glory's Gilded Yazzus) never previewed
+at all. Now:
+
+- `RuneDef.previewCards` (new optional field, schema-validated): card ids the hover shows in addition to the
+  reward's own grants. Filled on all 21 flagged runes.
+- `RuneCard` merges reward grants + `previewCards`, and `grantGolden` entries render as the GILDED card
+  (doubled stats + golden text).
+- A permanent audit test (`content/runePreview.test.ts`) cross-checks every rune's text against the whole card
+  index with word-boundary, plural-tolerant matching (excluding keyword-named cards like "Consume") — a future
+  rune that names a card without wiring its preview fails CI instead of shipping hover-less.
+
+**Triple Reward can't triple (owner rule).** The `discoverspell` token was a plain minion-shaped card, so
+three banked rewards silently combined into ONE golden token — eating two Discovers. It now carries
+`noTriple` (the Mage-Pup treatment: excluded from the triple COUNT, not just the combine). Test pins three
+banked rewards staying three cards.
 ## 2026-08-01 — The bought-rune badge was invisible at quest-badge size
 
 Owner report (Mike's game): Rune of Reinvestment worked but "the rune icon is not showing above the hero."

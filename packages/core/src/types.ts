@@ -1232,6 +1232,11 @@ export interface RuneDef {
   /** Only offer this rune to heroes whose power gets value from a double trigger (the sim's DOUBLEABLE_POWERS
    *  set). Rune of Empowerment uses this so it never appears for a targeted/passive-power hero. */
   requiresDoublePower?: boolean;
+  /** Card ids the forge's hover preview shows IN ADDITION to the reward's own grants — for a rune whose TEXT
+   *  names a card its reward doesn't grant (Rune of Banking names Money Bot; Living Echoes names Sunmane
+   *  Herald). Owner rule 2026-08-01: any rune that references a card shows that card on hover. Pinned by the
+   *  runePreview audit test, which cross-checks every rune's text against the card index. */
+  previewCards?: string[];
   /**
    * Which card SETS may offer this rune. Absent = every set (a rune built only from general mechanics).
    *

@@ -49,6 +49,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Contraband',
     cost: 2,
     text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeContraband' },
     sets: ['set2'], // Rubies + Ales are set-2 currencies
   },
@@ -73,6 +74,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Pillaging',
     cost: 6,
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
+    previewCards: ['emberpouch'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['pillager'] }, { kind: 'goldPouchValue', value: 2 }] },
   },
   {
@@ -87,6 +89,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Summoning',
     cost: 5,
     text: 'Whenever you cast a Shop spell, improve your **Imps** by **+1/+1** wherever they are.',
+    previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'runeSummoning' },
   },
   {
@@ -159,6 +162,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of the Cindergem',
     cost: 4,
     text: 'Every **3 Rubies** you cast, improve your **Imps by +2/+2**.',
+    previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 2, health: 2 } },
     sets: ['set2'], // Rubies
   },
@@ -198,6 +202,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Resonance',
     cost: 1,
     text: 'Your **first Ruby** played from hand each turn casts an **extra time**. Get a **Ruby** every turn.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn' }, { kind: 'recurringEndOfTurn', effect: 'grantRuby' }] },
     sets: ['set2'], // Rubies
   },
@@ -262,6 +267,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of the Brood',
     cost: 3,
     text: 'When you have **space** in combat, summon an **Imp** with **Ward** and **Taunt**. **3 times** per combat.',
+    previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeBrood', amount: 3 },
   },
   {
@@ -276,6 +282,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Facetwright',
     cost: 4,
     text: "Get a **Facetwright's Choice**. Repeat at the **start of every turn**. They give **both** effects.",
+    previewCards: ['facetwright'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
     sets: ['set2'], // Facetwright's Choice is a set-2 spell
   },
@@ -376,6 +383,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Quick Study',
     cost: 5,
     text: '**End of Turn:** get a **Gold Font** and **2 random Shop spells**.',
+    previewCards: ['manafont'], // text names it — the forge hover shows the card
     reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy' },
   },
   {
@@ -517,6 +525,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 3,
     epic: true,
     text: '**Avenge (3):** summon **2 Imps with Taunt**.',
+    previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeBroodpit' },
   },
   {
@@ -526,6 +535,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 7,
     epic: true,
     text: '**Avenge (4):** summon a **Spear Warden**. It attacks immediately.',
+    previewCards: ['knit'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeSpearline' },
   },
   {
@@ -562,6 +572,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 4,
     epic: true,
     text: 'The first **Shop spell** you cast each turn gives your **Rubies +1/+1**. The first **Ruby** you cast gives your **Shop spells +1/+1**.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeGemscript' },
     sets: ['set2'], // Rubies
   },
@@ -572,6 +583,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 5,
     epic: true,
     text: 'Your **Runebloom Matriarchs** trigger **twice**.',
+    previewCards: ['b2_runebloom'], // text names it — the forge hover shows the card
     reward: { kind: 'runeMatriarch' },
     sets: ['set2'], // Runebloom Matriarch is a set-2 Beast
   },
@@ -634,6 +646,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 7,
     epic: true,
     text: '**End of Turn:** attach **Money Bots** to your left-most and right-most Mechs.',
+    previewCards: ['moneybot'], // text names it — the forge hover shows the card
     reward: { kind: 'recurringEndOfTurn', effect: 'weldMoneyBotsEdgeMechs' },
     sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
@@ -867,6 +880,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 5,
     epic: true,
     text: 'Whenever you get a **Ruby**, play a copy on **2 random friendly minions**.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'motherlode', count: 2 },
     sets: ['set2'], // Rubies
   },
@@ -909,6 +923,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 6,
     epic: true,
     text: 'When your **last minion dies**, summon **7 Imps** with **Ward**.',
+    previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeFinality', amount: 7 },
   },
   {
@@ -936,6 +951,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 2,
     epic: true,
     text: 'Your **Ruby Brokers** can be triggered **endlessly**.',
+    previewCards: ['k_rubybroker'], // text names it — the forge hover shows the card
     reward: { kind: 'runeBrokerage' },
     sets: ['set2'], // Rubies
   },
@@ -945,6 +961,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 3,
     epic: true,
     text: '**Avenge (3):** improve your **Imps by +6/+6** wherever they are.',
+    previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeCinderLedger', amount: 6 },
   },
   {
@@ -999,6 +1016,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 4,
     epic: true,
     text: 'Your **Gemheart Golems** gain **Echo:** summon an exact copy of this without Echo.',
+    previewCards: ['gemheart-shard'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeLivingTreasure' },
     sets: ['set2'], // Gemheart Golems are a set-2 Kobold token
   },
@@ -1009,6 +1027,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 5,
     epic: true,
     text: 'When you have **space** on your board, summon a **Sunmane Herald** that **attacks immediately**.',
+    previewCards: ['b2_sunmane'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeLivingEchoes', amount: 3 },
     sets: ['set2'], // Sunmane Herald is a set-2 Beast
   },
@@ -1028,6 +1047,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 4,
     epic: true,
     text: 'Play a **Ruby** on all of your minions every friendly **attack** in combat.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeAttackingGems', amount: 1 },
     sets: ['set2'], // Rubies
   },
@@ -1050,6 +1070,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 4,
     epic: true,
     text: 'Once per turn, when you **buy a Shop spell**, teach it to a **Mage-Pup**.',
+    previewCards: ['b2_magepup'], // text names it — the forge hover shows the card
     reward: { kind: 'runeWhiteWolf' },
     sets: ['set2'], // Mage-Pup is a set-2 Beast token
   },

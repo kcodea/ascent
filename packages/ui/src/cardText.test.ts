@@ -176,6 +176,15 @@ describe('cardText helpers', () => {
     expect(cadenceProgressText('sandbag', 1)).toBeNull(); // not a cadence card
   });
 
+  it("cadenceProgressText is golden-aware: a gilded Bellringer copies ADJACENT minions", () => {
+    // Owner report 2026-07-31: the gilded card printed the PLAIN "minion to the left" line — the helper always
+    // read `def.text`, erasing the golden difference on every recruit surface.
+    expect(cadenceProgressText('n2_bellringer', 0, true)).toContain('adjacent');
+    expect(cadenceProgressText('n2_bellringer', 0, true)).toContain('{{Next in 2 turns.}}');
+    expect(cadenceProgressText('n2_bellringer', 0)).toContain('left'); // the plain card keeps its own line
+    expect(cadenceProgressText('n2_bellringer', 0)).not.toContain('adjacent');
+  });
+
   it('cadenceProgressText also covers Money Maker’s every-2-turns cadence', () => {
     expect(cadenceProgressText('moneymaker', 0)).toContain('{{Next in 2 turns.}}');
     expect(cadenceProgressText('moneymaker', 1)).toContain('{{End of this turn.}}'); // one shy (1 % 2 === 1)

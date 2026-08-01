@@ -11,6 +11,22 @@ wants it. Golden text rewritten to match ("this Consumes … gains double its st
 
 Tests: three new pins in `set2Demons.test.ts` — plain eats onto itself with the bystander untouched, golden
 doubles onto itself, and Chipper's own arrival never feeds it. Full gates green (3561 tests).
+## 2026-07-31 — Two stale card texts: gilded Bellringer lost "adjacent", Kennelmaster said +1 but gave +2
+
+Owner reports, both the same defect class (a live-text helper or a rebalance erasing the printed truth):
+
+- **Bellringer Voss (gilded)**: `cadenceProgressText` — the generic "every N turns" countdown that Voss,
+  Frontdrake and Money Maker all match — always injected the countdown into `def.text`, never `goldenText`. A
+  gilded Voss therefore printed the PLAIN "copy of the minion to the left" line; the golden card copies
+  **adjacent** minions. The helper now takes `golden` and starts from the golden template (instView passes it).
+- **Kennelmaster**: the 2026-07-25 rebalance moved the aura params to base +2 / step +2 but left the printed
+  text at "+1 Attack" (golden "+2"). At zero Avenge progress the live helper rightly returns null — so the
+  stale base showed on every surface. Text now reads +2 (golden +4). And `summonBuffText` had the SAME
+  golden-unaware injection as the cadence helper (it always replaced into `def.text`, dropping the golden
+  line's "twice as much" tail) — fixed the same way.
+
+Tests: cardText suite gains a golden-Bellringer regression (gilded says "adjacent", plain says "left");
+full gates green (3559 tests).
 
 ## 2026-07-31 - Lobby fill: player runs first, ALWAYS, up to every seat; author cap removed
 

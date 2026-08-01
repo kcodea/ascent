@@ -132,7 +132,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
             alternatingBuffText(c.id, p.eotTick ?? 0, p.golden) ?? // Matriarch: name the stat it is giving THIS turn
-            cadenceProgressText(c.id, p.eotTick ?? 0) ??
+            cadenceProgressText(c.id, p.eotTick ?? 0, p.golden) ??
             escalatingCastText(c.id, p.golden, p.eotTick ?? 0, p.spellBonus, p.spellBonusH) ??
             c.text;
   const metric =

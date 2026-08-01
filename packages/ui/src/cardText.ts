@@ -33,13 +33,16 @@ export function summonBuffText(cardId: string, summonBonus: number, golden = fal
   const base = Number(p?.attack ?? 1);
   // The accrual applies per stat (`scBeastAura`'s stepAttack/stepHealth, default 1 = the symmetric shape).
   const m = (base + summonBonus * Number(p?.stepAttack ?? 1)) * (golden ? 2 : 1);
+  // Golden-aware template (same fix as cadenceProgressText, 2026-07-31): a golden card's tail text can differ
+  // ("twice as much"), so the injection must start from the golden line, not the plain one.
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
   // Attack-only cards (Kennelmaster since 2026-07-21) print "**+N Attack**", not "**+N/+N**" — inject into
   // whichever shape the card actually uses, or the live value silently goes stale.
   if (Number(p?.stepHealth ?? 1) === 0 || Number(p?.health ?? 1) === 0) {
-    return def.text.replace(/\*\*\+\d+ Attack\*\*/, `{{+${m} Attack}}`);
+    return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${m} Attack}}`);
   }
   const h = (Number(p?.health ?? base) + summonBonus * Number(p?.stepHealth ?? 1)) * (golden ? 2 : 1);
-  return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${h}}}`);
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${h}}}`);
 }
 
 /**
@@ -221,15 +224,19 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
   return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
 }
 
-export function cadenceProgressText(cardId: string, eotTick: number): string | null {
+export function cadenceProgressText(cardId: string, eotTick: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
-  // Any "every N turns" End-of-Turn effect: Frontdrake's Dragon conjure or Money Maker's card grant.
+  // Any "every N turns" End-of-Turn effect: Frontdrake's Dragon conjure, Money Maker's card grant, or
+  // Bellringer Voss's neighbour copy.
   const eff = def?.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (!def || !eff) return null;
   const every = Math.max(1, Number((eff.params as { every?: number })?.every ?? 3));
   const toNext = every - (eotTick % every);
   const note = toNext === 1 ? 'End of this turn.' : `Next in ${toNext} turns.`;
-  return `${def.text} {{${note}}}`;
+  // Golden-aware: a gilded Bellringer copies ADJACENT minions, not just the left one — reading `def.text`
+  // here erased that difference on every surface (owner report 2026-07-31).
+  const base = golden ? (def.goldenText ?? def.text) : def.text;
+  return `${base} {{${note}}}`;
 }
 
 /**

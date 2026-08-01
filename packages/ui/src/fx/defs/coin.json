@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "id": "coins",
+  "id": "coin",
   "duration": 1200,
   "layers": [
     {
@@ -10,11 +10,11 @@
       "at": 0,
       "life": 1200,
       "params": {
-        "count": 22,
+        "count": 74,
         "interval": 600,
         "spread": 0.31,
         "aimMode": "fixed",
-        "angle": 64,
+        "angle": 65,
         "speed": 640,
         "speedVar": 1,
         "drag": 0.98,

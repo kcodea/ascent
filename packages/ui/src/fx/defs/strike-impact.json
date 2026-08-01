@@ -1,64 +1,74 @@
 {
   "version": 1,
   "id": "strike-impact",
-  "label": "Strike impact",
-  "tags": ["impact", "combat", "orange"],
   "duration": 700,
   "layers": [
     {
-      "primitive": "burst",
-      "name": "hot core flash",
+      "primitive": "shockwave",
+      "name": "heavy ring",
       "anchor": "target",
       "at": 0,
-      "life": 260,
+      "life": 460,
       "params": {
-        "count": 4,
-        "spread": 1,
-        "speed": 20,
-        "speedVar": 0,
-        "drag": 0.7,
-        "gravity": 0,
-        "life": 220,
-        "shape": "circle",
-        "size": 34,
-        "sizeVar": 0.1,
-        "sizeCurve": [[0, 0.5], [1, 2]],
-        "alphaCurve": [[0, 1], [0.5, 0.6], [1, 0]],
-        "coreBias": 1,
-        "bands": 2,
-        "plateau": 0.6,
-        "glow": 0.8,
-        "erode": 0,
+        "rings": 1,
+        "speed": 0.75,
+        "thickness": 0.08,
+        "fade": 6.65,
+        "radius": 425,
+        "squash": 1,
+        "ringDelay": 0,
+        "ease": 0.3,
+        "bands": 3,
+        "palette": [
+          9058824,
+          13722906,
+          16756820,
+          16769184
+        ],
+        "alpha": 0.06,
         "blendMode": "add",
-        "palette": [9062928, 16752690, 16770736, 16777215]
+        "glow": 0.87,
+        "plateau": 0.3,
+        "noiseAlong": 3,
+        "noiseAcross": 7,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.25,
+        "gain": 1.5
       }
     },
     {
-      "primitive": "burst",
-      "name": "orange shockwave",
+      "primitive": "shockwave",
+      "name": "heavy ring",
       "anchor": "target",
-      "at": 0,
-      "life": 340,
+      "at": 110,
+      "life": 460,
       "params": {
-        "count": 4,
-        "spread": 1,
-        "speed": 20,
-        "speedVar": 0,
-        "drag": 0.7,
-        "gravity": 0,
-        "life": 300,
-        "shape": "circle",
-        "size": 32,
-        "sizeVar": 0.1,
-        "sizeCurve": [[0, 0.35], [1, 2]],
-        "alphaCurve": [[0, 1], [0.6, 0.5], [1, 0]],
-        "coreBias": 0.8,
+        "rings": 1,
+        "speed": 0.75,
+        "thickness": 0.08,
+        "fade": 6.65,
+        "radius": 630,
+        "squash": 1,
+        "ringDelay": 0,
+        "ease": 0.3,
         "bands": 3,
-        "plateau": 0.4,
-        "glow": 0,
-        "erode": 0,
-        "blendMode": "normal",
-        "palette": [8006150, 12861452, 16738846, 16757850]
+        "palette": [
+          9058824,
+          13722906,
+          16756820,
+          16769184
+        ],
+        "alpha": 0.06,
+        "blendMode": "add",
+        "glow": 0.87,
+        "plateau": 0.3,
+        "noiseAlong": 3,
+        "noiseAcross": 7,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.25,
+        "gain": 1.5
       }
     },
     {
@@ -69,18 +79,30 @@
       "life": 460,
       "params": {
         "rings": 1,
-        "speed": 1.6,
+        "speed": 1.2,
         "thickness": 0.08,
-        "radius": 130,
-        "fade": 1.4,
-        "ease": 0.6,
+        "fade": 7.65,
+        "radius": 225,
+        "squash": 1,
+        "ringDelay": 0,
+        "ease": 0.3,
         "bands": 3,
-        "plateau": 0.3,
-        "alpha": 0.6,
-        "glow": 0.4,
-        "erode": 0.25,
+        "palette": [
+          16690812,
+          16703176,
+          16710390,
+          16771000
+        ],
+        "alpha": 0.77,
         "blendMode": "add",
-        "palette": [9058824, 13722906, 16756820, 16769184]
+        "glow": 0.87,
+        "plateau": 0.3,
+        "noiseAlong": 3,
+        "noiseAcross": 7,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.25,
+        "gain": 1.5
       }
     },
     {
@@ -88,59 +110,155 @@
       "name": "sparks",
       "anchor": "target",
       "at": 0,
-      "life": 700,
       "params": {
-        "count": 40,
-        "spread": 0.64,
+        "count": 155,
+        "interval": 100,
+        "spread": 0.47,
         "aimMode": "sourceToTarget",
-        "speed": 800,
+        "angle": -90,
+        "speed": 1895,
         "speedVar": 0.5,
-        "drag": 0.78,
+        "drag": 0.825,
         "gravity": 0,
-        "life": 530,
+        "life": 1550,
         "orientToVelocity": true,
+        "turbulence": 0,
+        "turbScale": 0.02,
+        "emitShape": "point",
+        "emitRadius": 0,
+        "inheritVel": 0,
         "shape": "shard",
-        "size": 12,
-        "sizeVar": 0.4,
+        "size": 7,
+        "sizeVar": 1,
         "stretchX": 1.8,
-        "sizeCurve": [[0, 1], [1, 0.05]],
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1.0841559359188397
+          ],
+          [
+            1,
+            0.05
+          ]
+        ],
         "coreBias": 0.85,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fade": 2,
         "bands": 3,
         "plateau": 0.35,
-        "glow": 0.2,
-        "erode": 0.25,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          9055237,
+          16734740,
+          16751904,
+          16765514
+        ],
         "blendMode": "normal",
-        "palette": [9055237, 16734740, 16751904, 16765514]
+        "glow": 0.2,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.25,
+        "gain": 1.4
       }
     },
     {
       "primitive": "burst",
-      "name": "warm smoke",
+      "name": "sparks",
       "anchor": "target",
       "at": 0,
-      "life": 700,
       "params": {
-        "count": 4,
+        "count": 71,
+        "interval": 100,
         "spread": 1,
-        "emitShape": "box",
-        "emitRadius": 11,
-        "speed": 170,
+        "aimMode": "sourceToTarget",
+        "angle": -90,
+        "speed": 305,
         "speedVar": 0.5,
-        "drag": 0.8,
-        "gravity": 0,
-        "life": 620,
+        "drag": 0.98,
+        "gravity": 660,
+        "life": 680,
+        "orientToVelocity": true,
+        "turbulence": 955,
+        "turbScale": 0.1,
+        "emitShape": "point",
+        "emitRadius": 0,
+        "inheritVel": 0,
         "shape": "circle",
-        "size": 30,
-        "sizeVar": 0.3,
-        "sizeCurve": [[0, 0.35], [1, 2]],
-        "alphaCurve": [[0, 0.2], [1, 0.14]],
-        "coreBias": 0.4,
+        "size": 7,
+        "sizeVar": 1,
+        "stretchX": 1.8,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1.0841559359188397
+          ],
+          [
+            1,
+            0.05
+          ]
+        ],
+        "coreBias": 0.85,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fade": 2,
         "bands": 3,
-        "plateau": 0.3,
-        "glow": 0,
+        "plateau": 0.35,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          16774384,
+          16706273,
+          16770242,
+          16775653
+        ],
+        "blendMode": "add",
+        "glow": 0.2,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
         "erode": 0.25,
-        "blendMode": "normal",
-        "palette": [7037530, 8682096, 10260616, 11839644]
+        "gain": 1.4
       }
     }
   ]

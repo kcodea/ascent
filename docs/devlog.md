@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-01 — The bought-rune badge was invisible at quest-badge size
+
+Owner report (Mike's game): Rune of Reinvestment worked but "the rune icon is not showing above the hero."
+DOM-audited in the live app: the badge WAS rendering — `ownedRunes` was recorded, the art loaded, the strip sat
+where it always has (just above the hero panel) — but at the quest-badge size (53u, further scaled by the
+owner's #410 Layout-Lab strip transform) a single stone-toned rune read as an unlabeled ~51px dark dot against
+the board frame. The strip was tuned for ROWS of colorful quest badges; with quests off in set 2 it holds 1–3
+runes, and one small dark disc simply disappears.
+
+Fix (CSS only): `.questbadge.runebadge` gets real presence — ~1.85× the quest-badge size (98u), a brighter rim,
+and a STATIC soft glow (a box-shadow, not a looping paint animation — perf rule). The opponent-frame override
+(`.oppbadges .questbadge`, 34u) sits later in the file and still wins there, so enemy-rune chips stay small.
+Verified in the browser at shipped CSS: badge measures 95px and reads clearly above the hero.
 ## 2026-08-01 — Every FX Save silently deleted the def's `label` and `tags`
 
 Owner report, and a real loss: re-authoring `strike-impact` in the FX workbench (the effect that plays on

@@ -281,7 +281,9 @@ export function simulate(
   /** Rune of Finality's own once-per-fight latch — separate from `pitDone` so holding both runes pays both. */
   const finalityDone: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of the Wild Hunt's escalating per-attack Health grant, per side. */
-  const wildHuntGrown: Record<Side, number> = { player: 0, enemy: 0 };
+  // Seeded from each side's run context — the Wild Hunt's growth is PERMANENT across combats (owner fix
+  // 2026-08-01), so the fight opens where the last one left off.
+  const wildHuntGrown: Record<Side, number> = { player: playerState.wildHuntGrown ?? 0, enemy: enemyState.wildHuntGrown ?? 0 };
   /** Friendly minions summoned this combat — the Remains' threshold and Reinvestment's settle-time multiplier. */
   let playerSummonCount = 0;
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
@@ -2511,6 +2513,7 @@ export function simulate(
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.attack > 0 || rubyBonusGain.health > 0) ? { ...rubyBonusGain } : undefined,
     playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
+    playerWildHuntGrown: wildHuntGrown.player > 0 ? wildHuntGrown.player : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,

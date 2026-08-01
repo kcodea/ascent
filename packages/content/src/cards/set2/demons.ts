@@ -150,6 +150,8 @@ export const SET2_DEMONS: CardDef[] = [
   },
   {
     // Takes the stats WITHOUT eating — the offer stays buyable, which is the difference from Demon Horse.
+    // (Owner fix 2026-08-01: the old factory Consumed the fattest Shop minion — the comment was the spec,
+    // the code wasn't. It now copies the right-most offer's stats, exactly as printed.)
     id: 'dm_gourmand',
     name: 'Bob Blart',
     tribe: 'demon',
@@ -157,7 +159,7 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnConsumeHighestHealthShop', params: { times: 1 } }],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnGainRightmostShopStats', params: { times: 1 } }],
     text: "**End of Turn:** gain the **right-most** Shop minion's stats.",
     goldenText: "**End of Turn:** gain the **right-most** Shop minion's stats **twice**.",
   },
@@ -226,8 +228,10 @@ export const SET2_DEMONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnSelfAndNeighboursConsume', params: { count: 1 } }],
     // The effect has always included SELF (see `endOfTurnSelfAndNeighboursConsume`); the text omitted it.
-    text: '**End of Turn:** this minion and adjacent minions each Consume a random Shop minion.',
-    goldenText: '**End of Turn:** this minion and adjacent minions each Consume **2** random Shop minions.',
+    // "Adjacent DEMONS" — the effect has always filtered neighbours to Demons; the text said "minions"
+    // (owner report 2026-08-01).
+    text: '**End of Turn:** this minion and adjacent **Demons** each Consume a random Shop minion.',
+    goldenText: '**End of Turn:** this minion and adjacent **Demons** each Consume **2** random Shop minions.',
   },
   {
     id: 'dm_chancellor',

@@ -128,7 +128,6 @@ export const EffectFactoryIdSchema = z.enum([
   'onSummonTribeBuffImproveSelf',
   'deathrattleImpsOverflowGrant',
   'scGrantRightmostEcho',
-  'endOfTurnConsumeHighestHealthShop',
   'endOfTurnSelfAndNeighboursConsume',
   'rallyBuffShopPermanent',
   'spellCastBuffImps',

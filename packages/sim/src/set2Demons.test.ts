@@ -583,18 +583,20 @@ describe('Cupcakes (set 2 spell)', () => {
 });
 
 describe('set 2 — the reworked Demon consumers (owner batch 2026-07-27)', () => {
-  it('Bob Blart eats the HIGHEST-HEALTH shop minion, not the right-most', () => {
+  it("Bob Blart COPIES the right-most offer's stats — nothing is eaten (owner fix 2026-08-01)", () => {
+    // It used to Consume the highest-health Shop minion; the card's own comment ("takes the stats WITHOUT
+    // eating") was the spec and the code wasn't. Now: the right-most offer's stats land on Blart, the Shop is
+    // untouched, and no consume payoff fires.
     const s: RunState = {
       ...createRun(3), phase: 'recruit',
       board: [minion('g', 'dm_gourmand', 5, 5)], hand: [],
-      // The fat body sits FIRST, so "right-most" and "highest health" disagree — the old rule would take alley.
       shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'alley' }],
     };
-    const fatHp = offerBuyStats(s, s.shop[0]!).health;
-    const thinHp = offerBuyStats(s, s.shop[1]!).health;
-    expect(fatHp, 'fixture: the first offer really is the fatter one').toBeGreaterThan(thinHp);
+    const { attack: ra, health: rh } = offerBuyStats(s, s.shop[1]!); // right-most = alley
     applyEndOfTurn(s);
-    expect(s.shop.map((o) => o.uid), 'it ate the fat one').toEqual(['s1']);
+    const blart = s.board.find((c) => c.uid === 'g')!;
+    expect(s.shop.map((o) => o.uid), 'the Shop must be untouched').toEqual(['s0', 's1']);
+    expect([blart.attack, blart.health], "it gains the right-most offer's stats").toEqual([5 + ra, 5 + rh]);
   });
 
   it('Feastmaster Vhal eats too, not just its neighbours', () => {

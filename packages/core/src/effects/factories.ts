@@ -2777,13 +2777,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Set 2 — Traveling Skald: whenever a FRIENDLY minion of `tribe` attacks, give IT +atk/+hp. Watches every
-   *  friend's attack, not just its own — so the payload's attacker is the target, and the Skald buffs itself
-   *  only when it is the one swinging (it's a Dragon). Golden doubles. */
+  /** Set 2 — Traveling Skald: whenever ANOTHER friendly minion of `tribe` attacks, give IT +atk/+hp. The
+   *  payload's attacker is the target; the Skald's OWN swing never buffs itself (owner ruling 2026-08-01 —
+   *  the printed text says "another"). Golden doubles. */
   onTribeAttackBuffAttacker: (ctx, self, params, payload) => {
     if (self.dead) return;
     const { minion } = payload as MinionPayload;
-    if (!minion || minion.dead || minion.side !== self.side) return;
+    if (!minion || minion.dead || minion.side !== self.side || minion === self) return;
     const tribe = str(params.tribe) as Tribe;
     if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
     ctx.buff(minion, num(params.attack, 2) * mul(self), num(params.health, 1) * mul(self), self.uid);

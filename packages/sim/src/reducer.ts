@@ -1761,6 +1761,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         spellsCast: s.spellsCast,
         deathrattles: s.deathrattlesTriggered,
         spellPowerAtk: spellAttackBonus(s),
+        wildHuntGrown: s.runeWildHuntGrown ?? 0, // Wild Hunt's permanent escalation resumes where it left off
         spellPowerHp: spellHealthBonus(s),
         undeadAtk: s.undeadAttackBonus,
         undeadHp: s.undeadHealthBonus,
@@ -2261,6 +2262,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // Demon Horse's Rally: the Shop buff it earned in combat lands on the run-wide tavern channel, so it applies
   // to every future offer rather than evaporating with the fight.
+  if (result.playerWildHuntGrown != null && result.playerWildHuntGrown > (s.runeWildHuntGrown ?? 0)) {
+    s.runeWildHuntGrown = result.playerWildHuntGrown; // Wild Hunt: this fight's growth is permanent
+  }
   if (result.playerTavernBuyGain) {
     s.tavernBuyBonus.atk += result.playerTavernBuyGain.attack;
     s.tavernBuyBonus.hp += result.playerTavernBuyGain.health;

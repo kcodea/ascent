@@ -264,8 +264,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 2, health: 1 } }],
-    text: 'When a friendly **Dragon** attacks, give it **+2/+1**.',
-    goldenText: 'When a friendly **Dragon** attacks, give it **+4/+2**.',
+    text: 'When **another** friendly **Dragon** attacks, give it **+2/+1**.',
+    goldenText: 'When **another** friendly **Dragon** attacks, give it **+4/+2**.',
   },
   {
     // Recursion, on tempo: replay whatever you just cast. Reads `lastSpellCastId` (already tracked for the

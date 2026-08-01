@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_CARDS } from '@game/content';
-import { abhorrentHorrorText, alternatingBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText } from './cardText';
+import { ALL_CARDS, CARD_INDEX } from '@game/content';
+import { abhorrentHorrorText, alternatingBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
@@ -183,6 +183,18 @@ describe('cardText helpers', () => {
     expect(cadenceProgressText('n2_bellringer', 0, true)).toContain('{{Next in 2 turns.}}');
     expect(cadenceProgressText('n2_bellringer', 0)).toContain('left'); // the plain card keeps its own line
     expect(cadenceProgressText('n2_bellringer', 0)).not.toContain('adjacent');
+  });
+
+  it('spellThresholdText never throws on markdown thresholds (the "Nothing to repeat" crash)', () => {
+    // 2026-08-01 (Mike's crash report): this helper built `new RegExp` from the printed "**8 Shop spells**" —
+    // in a template literal `\*` is just `*`, so the pattern began with `**` and threw SyntaxError, taking the
+    // whole shop down whenever a Mykel rendered. Plain-string replace now; this pins both halves.
+    const mykel = Object.values(CARD_INDEX).find((c) => c.effects.some((e) => e.do === 'spellCastTriggerAdjacentShouts'));
+    if (!mykel) return; // card retired — nothing to pin
+    for (const golden of [false, true]) {
+      const out = spellThresholdText(mykel.id, golden, 3);
+      expect(out, 'the countdown should inject').toContain('more Shop spell');
+    }
   });
 
   it('cadenceProgressText also covers Money Maker’s every-2-turns cadence', () => {

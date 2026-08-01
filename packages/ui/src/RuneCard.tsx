@@ -7,24 +7,38 @@ import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
 import { runeArt } from './art';
 
-/** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. */
-function rewardCardIds(r: QuestReward): string[] {
+/** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. GILDED grants
+ *  (Frontline Glory's Gilded Yazzus) are included and marked, so the preview shows the golden card. */
+function rewardCardIds(r: QuestReward): { id: string; golden?: boolean }[] {
   switch (r.kind) {
-    case 'grant': return r.cards ?? [];
-    case 'recurringGrant': return r.cards;
+    case 'grant': return [
+      ...(r.cards ?? []).map((id) => ({ id })),
+      ...(('grantGolden' in r ? r.grantGolden : undefined) ?? []).map((id) => ({ id, golden: true })),
+    ];
+    case 'recurringGrant': return r.cards.map((id) => ({ id }));
     case 'multi': return r.rewards.flatMap(rewardCardIds);
     default: return [];
   }
 }
 
-function cardViewOf(id: string): CardView | null {
+/** Reward grants first, then `previewCards` — text-referenced cards the reward doesn't grant (owner rule
+ *  2026-08-01: a rune that references a card shows it on hover). Deduped by id, grant wins (it may be gilded). */
+function previewIdsOf(rune: RuneDef): { id: string; golden?: boolean }[] {
+  const out = rewardCardIds(rune.reward);
+  for (const id of rune.previewCards ?? []) if (!out.some((x) => x.id === id)) out.push({ id });
+  return out;
+}
+
+function cardViewOf(id: string, golden = false): CardView | null {
   const def = CARD_INDEX[id];
   if (!def) return null;
+  const g = golden ? 2 : 1;
   return {
     name: def.name, cardId: def.id, tribe: def.tribe, tribe2: def.tribe2,
-    attack: def.attack, health: def.health, keywords: [...def.keywords], text: def.text,
-    goldenText: def.goldenText, tier: def.tier, spell: def.spell, cost: def.cost,
-    baseAttack: def.attack, baseHealth: def.health,
+    attack: def.attack * g, health: def.health * g, keywords: [...def.keywords],
+    text: golden ? (def.goldenText ?? def.text) : def.text,
+    goldenText: def.goldenText, tier: def.tier, spell: def.spell, cost: def.cost, golden,
+    baseAttack: def.attack * g, baseHealth: def.health * g,
   };
 }
 
@@ -42,7 +56,7 @@ export function RuneCard({ rune, affordable, onBuy, cost }: {
 }) {
   const shownCost = cost ?? rune.cost;
   const discounted = shownCost < rune.cost;
-  const rewardCards = rewardCardIds(rune.reward).map(cardViewOf).filter((v): v is CardView => v !== null);
+  const rewardCards = previewIdsOf(rune).map((x) => cardViewOf(x.id, x.golden)).filter((v): v is CardView => v !== null);
   const hasPreview = rewardCards.length > 0;
   const [tip, setTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const timer = useRef<number | null>(null);

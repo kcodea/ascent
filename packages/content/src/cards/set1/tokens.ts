@@ -67,6 +67,9 @@ export const TOKENS: CardDef[] = [
     text: '**Discover** a minion from one Tier up.',
     // Peek one tier above the tavern tier, biased to the top of the range — the golden reward's peek-up.
     discoverOnPlay: { tierOffset: 1, topTierFirst: true },
+    // A triple's REWARD must never itself count toward a triple (owner rule 2026-08-01) — three banked
+    // rewards silently combining into one golden token ate two Discovers.
+    noTriple: true,
     token: true,
   },
   {

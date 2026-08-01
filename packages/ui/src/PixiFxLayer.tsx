@@ -7,32 +7,23 @@ import { pixiFx } from './pixiFx';
  *  of where this lives in the tree. */
 export function PixiFxLayer(): React.ReactElement {
   const ref = useRef<HTMLDivElement>(null);
-  const underRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
-    const under = underRef.current;
-    if (!el || !under) return;
-    // `.pixifx` (z110) hosts the particle/burst layer. `.pixifx-under` (z3) hosts the second canvas the
-    // persistent shield/reborn bubbles were designed for.
+    if (!el) return;
+    // `.pixifx` (z110) hosts the particle/burst layer, over the cards.
     //
-    // NOTE, because the old comment here claimed otherwise: `.pixifx-under` does NOT draw below the cards.
-    // Both divs are siblings of `.app`, and `.app` is `position: relative; z-index: 1` — a stacking context —
-    // so z3 outranks EVERYTHING inside it, chrome included. The "below the badge/tier chrome" behaviour it
-    // documented has not been true since `.app` took a z-index; it went unnoticed because the bubbles became
-    // CSS (see Recruit's aura tracker) and that canvas has drawn nothing since. Verified with
-    // `document.elementFromPoint`, not by reading the CSS.
+    // The `.pixifx-under` (z3) canvas that used to mount here is GONE. It existed for the persistent
+    // shield/reborn bubbles, which are CSS domes now, so it had drawn nothing for a long time — and its
+    // premise was wrong anyway: it never drew below the cards. Both divs were siblings of `.app`, and `.app`
+    // is `position: relative; z-index: 1` — a stacking context — so z3 outranked EVERYTHING inside it, chrome
+    // included (#792 verified that with `document.elementFromPoint` rather than by reading the CSS).
     //
-    // A def that wants to draw genuinely BENEATH the cards uses `slot: 'under'`, which mounts on a third
-    // canvas inside `.app` — see `FxUnderSlot` below.
-    pixiFx.attach(el, under);
+    // A def that wants to draw genuinely BENEATH the cards uses `slot: 'under'`, which mounts on its own
+    // canvas INSIDE `.app` — see `FxUnderSlot` below. That one is unrelated to this deletion.
+    pixiFx.attach(el);
     return () => pixiFx.detach();
   }, []);
-  return (
-    <>
-      <div ref={underRef} className="pixifx-under" aria-hidden="true" />
-      <div ref={ref} className="pixifx" aria-hidden="true" />
-    </>
-  );
+  return <div ref={ref} className="pixifx" aria-hidden="true" />;
 }
 
 /**

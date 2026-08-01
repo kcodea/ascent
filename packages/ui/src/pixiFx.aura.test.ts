@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { pixiFx } from './pixiFx';
 
-// pixiFx's WebGL app never initializes in the node test env (`this.ready` stays false), so setShield is a
-// no-op and no bubble is registered. These queries must therefore SAFELY report "no aura" without throwing —
-// which is exactly the contract the aura channel relies on (it no-ops when a unit carries no bubble).
-describe('pixiFx aura registry queries', () => {
-  it('hasAura reports false for an unknown uid/kind and never throws', () => {
-    expect(pixiFx.hasAura('nobody', 'shield')).toBe(false);
-    expect(pixiFx.hasAura('nobody', 'reborn')).toBe(false);
-  });
-  it('auraRect returns null for an unknown uid/kind and never throws', () => {
-    expect(pixiFx.auraRect('nobody', 'shield')).toBeNull();
-  });
+// pixiFx's WebGL app never initializes in the node test env (`this.ready` stays false). The aura channel calls
+// these unconditionally on every death/break, so they must SAFELY no-op rather than throw when there is no
+// renderer — that "no-op before ready" contract is what this file pins.
+//
+// The registry queries that used to live here (hasAura / auraRect) went with the persistent Pixi bubbles: the
+// Ward/Reborn auras are CSS dome stacks now, so Pixi owns only the one-shot break/summon bursts.
+describe('pixiFx aura bursts', () => {
   it('shatterAt is a safe no-op before the WebGL app is ready (headless test env)', () => {
     expect(() => pixiFx.shatterAt(100, 100, 80, 100, 'shield')).not.toThrow();
+  });
+  it('shatterAt routes the reborn kind without throwing', () => {
+    expect(() => pixiFx.shatterAt(100, 100, 80, 100, 'reborn')).not.toThrow();
+  });
+  it('rebornSummon is a safe no-op before the WebGL app is ready', () => {
+    expect(() => pixiFx.rebornSummon(100, 100, 80, 100)).not.toThrow();
   });
 });

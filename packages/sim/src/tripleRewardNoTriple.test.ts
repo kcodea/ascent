@@ -26,3 +26,27 @@ describe('Triple Reward cannot triple', () => {
     expect(CARD_INDEX['discoverspell']!.noTriple).toBe(true);
   });
 });
+
+describe('Triple Reward is NOT a Shop spell (owner rule 2026-08-01)', () => {
+  const reward = (uid: string): BoardCard =>
+    ({ uid, cardId: 'discoverspell', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
+
+  it('playing it records no spell cast — no copy effect or End-of-Turn recast can ever see it', () => {
+    let s: RunState = { ...createRun(1), phase: 'recruit', board: [], hand: [reward('r')] };
+    s = reduce(s, { type: 'play', uid: 'r' });
+    expect(s.discover, 'its Discover must still open').toBeTruthy();
+    expect(s.spellsCast, 'it must not count as a spell cast').toBe(0);
+    expect(s.spellsThisTurn).toBe(0);
+    expect(s.firstSpellThisTurnId, "it must not become Recurrence's remembered first spell").toBeUndefined();
+    expect(s.lastSpellCastId, 'it must not become the copyable last spell (Steward/Recaller)').toBeUndefined();
+    expect(s.playedThisTurn, 'it still counts as a CARD played').toContain('discoverspell');
+  });
+
+  it('spell multipliers never touch it — a Nimbus charge is neither used nor consumed', () => {
+    let s: RunState = { ...createRun(1), phase: 'recruit', board: [], hand: [reward('r')], nextSpellExtraCasts: 1 };
+    s = reduce(s, { type: 'play', uid: 'r' });
+    expect(s.discover, 'exactly one Discover opens').toBeTruthy();
+    expect(s.discoverQueue ?? [], 'no doubled Discover behind it').toEqual([]);
+    expect(s.nextSpellExtraCasts, 'the Nimbus charge must survive for a REAL spell').toBe(1);
+  });
+});

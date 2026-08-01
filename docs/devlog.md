@@ -1,6 +1,15 @@
 # ASCENT — development log
 
-## 2026-08-01 — Rune hover audit: every named card previews; Triple Rewards can't triple
+## 2026-08-01 — Rune hover audit: every named card previews; Triple Rewards can't triple, and aren't spells
+
+**Triple Reward is not a Shop spell (owner rule, second half).** Playing one routed through the shared
+`discoverOnPlay` path, which records a full spell cast via `noteSpellCast` — so a Triple Reward became the
+"first spell" Rune of Recurrence recasts at End of Turn, the "last spell" Steward of Spells / Recaller copy,
+a Mushy copy target, a spell-tally/threshold advance, and a spellCast-watcher trigger; Nimbus could even
+double its Discover (and get its charge eaten by a token). The token branch now opens its Discover and does
+NOTHING else — no multiplier, no memory, no tallies. It still counts as a CARD played. The gate is `def.token`
+on the discoverOnPlay path, and Triple Reward is the only token with that shape (audited). Tests pin: no
+spell state moves, the Discover still opens, and a Nimbus charge survives untouched for a real spell.
 
 **Rune hovers (owner ask: "if a rune references a card, show it on hover").** The forge's hover preview only
 read the reward's `grant`/`recurringGrant` card lists — so 21 runes whose TEXT names a card showed nothing

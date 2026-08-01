@@ -1,5 +1,16 @@
 # ASCENT — development log
 
+## 2026-08-01 — Chipper consumes with ITSELF, not a random friendly Demon
+
+Owner report: golden Chipper fed a random friendly Demon. The factory (`onTribePlayedConsumeShop`) always
+rolled a random eater from the tribe — even though the card def passed `self: true` (never honored) and the
+PLAIN text already said "this Consumes". Fixed: with `params.self` the eater is Chipper itself (plain and
+golden — golden keeps its ×2 stat multiplier); the random-friendly branch survives for a future card that
+wants it. Golden text rewritten to match ("this Consumes … gains double its stats") and it regains the
+"**Taunt.**" prefix the plain text always had.
+
+Tests: three new pins in `set2Demons.test.ts` — plain eats onto itself with the bystander untouched, golden
+doubles onto itself, and Chipper's own arrival never feeds it. Full gates green (3561 tests).
 ## 2026-07-31 — Two stale card texts: gilded Bellringer lost "adjacent", Kennelmaster said +1 but gave +2
 
 Owner reports, both the same defect class (a live-text helper or a rebalance erasing the printed truth):

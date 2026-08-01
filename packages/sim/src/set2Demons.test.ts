@@ -86,6 +86,47 @@ describe('set 2 — Consume from the Shop (the shared primitive)', () => {
   });
 });
 
+describe('set 2 — Chipper eats with ITSELF (owner fix 2026-08-01)', () => {
+  // Golden Chipper was feeding a random friendly Demon; both plain and golden say "this Consumes" now, and the
+  // factory honors the `self: true` param that existed for exactly this.
+  it('plain: playing a Demon makes CHIPPER consume — the other Demon never gains', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [minion('ch', 'dm_glutton', 4, 4), minion('imp', 'impoverseer', 3, 3)],
+      hand: [minion('d1', 'dm_clerk', 1, 1)],
+      shop: shop('sandbag'), // Target Dummy, 0/4
+    };
+    s = reduce(s, { type: 'play', uid: 'd1' });
+    const chipper = s.board.find((c) => c.uid === 'ch')!;
+    const imp = s.board.find((c) => c.uid === 'imp')!;
+    expect([chipper.attack, chipper.health], 'Chipper itself must gain the eaten stats').toEqual([4, 8]);
+    expect([imp.attack, imp.health], 'the bystander Demon must be untouched').toEqual([3, 3]);
+  });
+
+  it('golden: still Chipper itself, at double stats', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [{ ...minion('ch', 'dm_glutton', 8, 8), golden: true }, minion('imp', 'impoverseer', 3, 3)],
+      hand: [minion('d1', 'dm_clerk', 1, 1)],
+      shop: shop('sandbag'),
+    };
+    s = reduce(s, { type: 'play', uid: 'd1' });
+    const chipper = s.board.find((c) => c.uid === 'ch')!;
+    expect([chipper.attack, chipper.health], 'golden Chipper gains double, on itself').toEqual([8, 16]);
+    expect(s.board.find((c) => c.uid === 'imp')!.health, 'the bystander stays untouched').toBe(3);
+  });
+
+  it('playing Chipper itself does not trigger its own eat', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [], hand: [minion('ch', 'dm_glutton', 4, 4)],
+      shop: shop('sandbag'),
+    };
+    s = reduce(s, { type: 'play', uid: 'ch' });
+    expect(s.shop.length, 'its own arrival must not feed it').toBe(1);
+  });
+});
+
 describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   it('the SHOP-consume swirl payload does NOT accumulate across actions', () => {
     // The bug: the payload was appended to but cleared only by a few call sites, so each new consume replayed

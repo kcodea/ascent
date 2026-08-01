@@ -40,6 +40,7 @@ const TRIBE_TAUNTS: Partial<Record<Tribe, { base: string; gold: string }>> = {
   demon: { base: 'taunt-demon.webp', gold: 'taunt-demon-gilded.webp' },
   neutral: { base: 'taunt-neutral.webp', gold: 'taunt-neutral-gilded.webp' },
   kobold: { base: 'taunt-kobold.webp', gold: 'taunt-kobold-gilded.webp' },
+  dwarf: { base: 'taunt-dwarf.webp', gold: 'taunt-dwarf-gilded.webp' },
 };
 /** The heater a Taunt card should wear: its tribe's shield (gilded variant when golden), else the shared gold. */
 function tauntFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
@@ -73,6 +74,7 @@ const TRIBE_OVALS: Partial<Record<Tribe, { base: string; gold: string }>> = {
   demon: { base: 'oval-demon.webp', gold: 'oval-demon-gilded.webp' },
   neutral: { base: 'oval-neutral.webp', gold: 'oval-neutral-gilded.webp' },
   kobold: { base: 'oval-kobold.webp', gold: 'oval-kobold-gilded.webp' },
+  dwarf: { base: 'oval-dwarf.webp', gold: 'oval-dwarf-gilded.webp' },
 };
 /** The oval a card should wear: its tribe's frame (gilded variant when golden), else the shared silver oval. */
 function stdFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
@@ -109,7 +111,7 @@ const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 // Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
 // dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
 // shows the neutral plate, only a Beast-PRIMARY card gets the beast one. Add a tribe here + drop its webp in
-// `frames/` to give it a plate (dragon / mech pending art). A tribe-plated card also relocates its tribe
+// `frames/` to give it a plate (all eight tribes have one as of 2026-07-31). A tribe-plated card also relocates its tribe
 // LABEL to the plate's bottom gem (no icon) — see `TRIBE_PLATE_SET` / `.plate-tribe`.
 const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
   beast: `${import.meta.env.BASE_URL}frames/cardplate-beast.webp`,
@@ -118,6 +120,8 @@ const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
   demon: `${import.meta.env.BASE_URL}frames/cardplate-demon.webp`,
   undead: `${import.meta.env.BASE_URL}frames/cardplate-undead.webp`,
   neutral: `${import.meta.env.BASE_URL}frames/cardplate-neutral.webp`,
+  kobold: `${import.meta.env.BASE_URL}frames/cardplate-kobold.webp`,
+  dwarf: `${import.meta.env.BASE_URL}frames/cardplate-dwarf.webp`,
 };
 const plateSrcFor = (tribe: Tribe | undefined): string =>
   (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;

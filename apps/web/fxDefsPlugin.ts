@@ -129,8 +129,17 @@ const BINDING_FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed']
  *  never play, and the only signal would be one dev-console line. */
 const UNSAFE_KEYS: readonly string[] = ['__proto__', 'constructor', 'prototype'];
 
-/** One binding entry: `{ def, fanOut? }`. Returns an error string, or null when it is fine. */
+/**
+ * One binding entry: `{ def, fanOut? }`, or an explicit `null`. Returns an error string, or null when it is
+ * fine.
+ *
+ * `null` is a TOMBSTONE — "this row plays nothing, stop resolving" — and is the only way the file can say
+ * that a card deliberately plays nothing at a moment rather than inheriting the kind default. It is written
+ * by the workbench's "play nothing" unbind and read back by `parseTable` in `bindings.ts`; rejecting it here
+ * would make that button write a 400 instead of a file.
+ */
 function badBinding(v: unknown, where: string): string | null {
+  if (v === null) return null;
   if (!isRecord(v)) return `${where} is not an object.`;
   // The def id becomes a filename stem on disk, so it gets exactly the grammar the def endpoint enforces.
   if (typeof v.def !== 'string' || !SLUG_RE.test(v.def)) {

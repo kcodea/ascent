@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-07-31 — Broodlord's Staff Rally, Ayves, Krik pulled, four stat moves
+
+**Ashen Broodlord** — third shape, and the interesting one: **Rally: cast a Staff of Guel** (gilded casts
+two). Built on the Taragosa precedent, which the file's own comment warns about — a near-copy there once
+missed both the spell-power scaling and `ctx.castSpell`. So this one folds in `spellPowerFor(side)` (an enemy
+Broodlord scales with the OPPONENT's spell power), fires `castSpell` so Guel / Groveweaver / Runebloom all
+see a real cast, and pays through `gainTavernBuy` — the PERMANENT run-wide tavern enchant that carries out of
+combat, telegraphed mid-fight as "+N/+N Shop". Gilding casts twice rather than doubling one cast, which is
+what "casts 2" has to mean: two casts fire two `spellCast` triggers. Keywords gained `RL` so the badge matches.
+
+Its previous consume-payoff factory (`onDemonShopConsumeGrantSpell`, added this morning) is **deleted rather
+than left registered** — an unreferenced-but-registered factory is exactly how the Rouge Rogue bug hid for two
+days. The `shop` flag on the consume payload stays: it correctly describes the event and a future card will
+want it.
+
+**Chirurgeon → Ayves** (art wired; the stale `chiurgeon` alias retired so the old file stops competing for the
+slot). **Hoardmaster Krik pulled** "for now" — he was the only user of `cardsBoughtGetRubies`, so rather than
+delete the test with him, it now drives the primitive through a synthetic card: the cadence stays proven for
+whenever he returns. **Kennelmaster** T2 1/3. **Echohorn Stag → Echohorn**, T3 3/3. **Buddy Buddy** T2.
+
+Test fallout, all of it correct: the Broodlord left the Ruby-exclusion list (it casts a NAMED spell now, so
+there is no random pool for a Ruby to leak into), and its two consume-cap suites were removed rather than left
+as shells that pass against a mechanic the card no longer has.
+
+Verified: typecheck (both), lint (7 pre-existing), 3513 tests, build:web, harness determinism.
+
 ## 2026-07-31 — End Turn lock to 2s; Reinvestment's text tells the truth
 
 The start-of-round End Turn inert window drops 5s → 2s (the double-click guard outstayed its welcome).

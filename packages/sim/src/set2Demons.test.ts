@@ -541,28 +541,6 @@ describe('Cupcakes (set 2 spell)', () => {
   });
 });
 
-describe('set 2 — Ashen Broodlord (owner rework 2026-07-31)', () => {
-  // Vhal's End of Turn makes itself + neighbours each Consume a random Shop minion — three friendly-Demon
-  // SHOP consumes in one action, which is exactly the shape the Broodlord's "first 2 each turn" cap exists for.
-  const base = (): RunState => ({
-    ...createRun(11), phase: 'recruit', embers: 99,
-    board: [
-      minion('B', 'd2_broodlord', 6, 8),
-      minion('V', 'dm_vhal', 5, 8),
-      minion('D', 'dm_wrangler', 2, 4),
-    ],
-    hand: [],
-    shop: shop('sandbag', 'alley', 'stray'),
-  });
-
-  it('pays a Shop spell per friendly-Demon SHOP consume, capped at 2 per turn', () => {
-    const s = base();
-    applyEndOfTurn(s); // Vhal fires here — same direct call the Bob Blart test above uses
-    const spells = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell && !CARD_INDEX[c.cardId]?.ruby);
-    expect(spells.length, 'three consumes should pay the CAP (2), not 3').toBe(2);
-  });
-});
-
 describe('set 2 — the reworked Demon consumers (owner batch 2026-07-27)', () => {
   it('Bob Blart eats the HIGHEST-HEALTH shop minion, not the right-most', () => {
     const s: RunState = {

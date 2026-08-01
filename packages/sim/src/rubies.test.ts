@@ -86,10 +86,16 @@ describe('Ruby engine (set 2)', () => {
     expect(s.cardsBoughtThisTurn).toBe(1);
   });
 
-  it('Hoardmaster Krik mints a Ruby every 5 GOLD spent (owner rework 2026-07-27)', () => {
-    // Re-pointed from `cardsBought` to `goldSpent`. Both events carry the same continuous per-instance meter,
-    // so the cadence — including a single big spend crossing the threshold twice — comes free.
-    const s: RunState = { ...createRun(1), board: [{ uid: 'k', cardId: 'k_hoardmaster', tribe: 'kobold', attack: 5, health: 9, keywords: [], golden: false }], hand: [] };
+  it("the goldSpent Ruby cadence mints every 5 Gold (Hoardmaster Krik's primitive)", () => {
+    // Krik was PULLED from the roster 2026-07-31 ("for now" — the owner expects him back), and he was the only
+    // card using `cardsBoughtGetRubies`. The primitive stays, and this test keeps it honest via a synthetic
+    // card rather than deleting the coverage — so whenever Krik (or a successor) returns, the cadence is
+    // already proven. Both `cardsBought` and `goldSpent` ride the same continuous per-instance meter, so a
+    // single big spend crossing the threshold twice comes free.
+    const krik: CardDef = { id: 'dbg_krik', name: 'Krik', tribe: 'kobold', tier: 5, attack: 4, health: 7, keywords: [],
+      effects: [{ on: 'goldSpent', do: 'cardsBoughtGetRubies', params: { every: 5, count: 1 } }], text: '' };
+    CARD_INDEX[krik.id] = krik;
+    const s: RunState = { ...createRun(1), board: [{ uid: 'k', cardId: krik.id, tribe: 'kobold', attack: 4, health: 7, keywords: [], golden: false }], hand: [] };
     applyGoldSpent(s, 4); // 4 Gold → not yet
     expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(0);
     applyGoldSpent(s, 1); // crosses 5 → mint

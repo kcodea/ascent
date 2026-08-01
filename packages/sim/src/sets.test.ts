@@ -115,7 +115,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
     // The seven the owner's table listed differently must be untouched — the guard on the "opt in at current
     // stats" decision, since a later edit here would silently rebalance set 1.
     const spec = (id: string): string => { const c = CARD_INDEX[id]!; return `T${c.tier} ${c.attack}/${c.health}`; };
-    expect(spec('buddy')).toBe('T3 2/2');
+    expect(spec('buddy')).toBe('T2 2/2'); // owner move 2026-07-31
     expect(spec('nimbus')).toBe('T5 4/3');
     expect(spec('ropewrangler')).toBe('T4 5/4');
     expect(spec('yazzus')).toBe('T6 5/7');

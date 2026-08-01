@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { createRun, poolOf, reduce, type BoardCard, type RunState } from './index';
-import { consumeShopMinion } from './recruit';
 
 /**
  * Set 2's Dragon tribe — the SPELL-RECURSION line.
@@ -559,53 +558,16 @@ describe('set 2 — the cast meter is the umbrella of Rubies + Shop Spells', () 
   });
 });
 
-describe('set 2 — Ashen Broodlord (owner rework 2026-07-31: any friendly DEMON shop consume, first 2/turn)', () => {
-  /** Board + a shop row of DISTINCT real minions to eat. */
-  const setup = (broodlordGolden = false): RunState => {
-    const s: RunState = { ...createRun(4), phase: 'recruit' };
-    const bl = minion('BL', 'd2_broodlord', 'dragon', 6, 8);
-    bl.golden = broodlordGolden;
-    s.board = [bl, minion('OTHER', 'dm_clerk', 'demon', 2, 2)];
-    s.shop = [{ uid: 's0', cardId: 'dm_hungerling' }, { uid: 's1', cardId: 'stray' }];
-    s.hand = [];
-    s.tier = 6;
-    return s;
-  };
-
-  it('consuming a Shop minion puts a Shop spell in hand', () => {
-    const s = setup();
-    consumeShopMinion(s, s.board[0]!, 0);
-    expect(s.hand.length).toBe(1);
-    const got = CARD_INDEX[s.hand[0]!.cardId]!;
-    expect(got.spell, `${got.name} is a spell`).toBe(true);
-    expect(got.token, 'and a Shop spell, not a Ruby — the card says "Shop spell"').toBeFalsy();
-  });
-
-  it('a DEMON board-mate eating now pays too — and the per-turn cap holds at 2', () => {
-    // The 2026-07-25 shape was "when THIS Consumes"; the 2026-07-31 rework is "the first 2 times a friendly
-    // DEMON Consumes a Shop minion each turn". The Broodlord (a Demon itself) plus the clerk = three eats,
-    // but only the first two pay.
-    const s = setup();
-    s.shop.push({ uid: 's2', cardId: 'alley' });
-    consumeShopMinion(s, s.board[1]!, 0); // the OTHER demon eats — pays now
-    expect(s.hand.length, 'a friendly Demon consuming must pay under the rework').toBe(1);
-    consumeShopMinion(s, s.board[0]!, 0);
-    consumeShopMinion(s, s.board[1]!, 0);
-    expect(s.hand.length, 'the third consume must hit the per-turn cap').toBe(2);
-  });
-
-  it('golden grants two', () => {
-    const s = setup(true);
-    consumeShopMinion(s, s.board[0]!, 0);
-    expect(s.hand.length).toBe(2);
+describe('set 2 — Ashen Broodlord (owner rework 2026-07-31, second pass: Rally casts a Staff of Guel)', () => {
+  // The card's THIRD shape. The consume-payoff tests it replaces are gone with the mechanic; what matters now
+  // is that the Rally is a real spell cast whose PERMANENT tavern buff carries out of combat.
+  it('the card is a Rally that casts a Staff of Guel', () => {
+    const c = CARD_INDEX['d2_broodlord']!;
+    expect(c.keywords).toContain('RL');
+    expect(c.effects[0]).toMatchObject({ on: 'onAttack', do: 'rallyCastShopBuffSpell' });
+    expect(c.text).toMatch(/Staff of Guel/);
   });
 });
-
-/**
- * Chorus Drake. Had NO coverage before this — the owner's text change (2026-07-25, dropping "other") is what
- * surfaced that. Assertions read the `sc` log line, which names the minion whose Shout was re-fired, so they
- * work for any Shout rather than only ones with a combat-visible effect.
- */
 
 describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
   const bm2 = (cardId: string, uid: string, attack = 2, health = 20): BoardMinion =>

@@ -299,18 +299,33 @@ export function pairRunLobby(lobby: RunLobby): { pairs: [LobbySeatState, LobbySe
       acc.pop();
     }
   };
-  // The bye (odd count) is decided first, so the search only ever sees an even table. Prefer to bye whoever has
-  // had the FEWEST byes, so the ghost round rotates instead of landing on the same seat.
+  // The bye (odd count) is chosen WITH the pairing, not before it. It used to be decided first, purely by
+  // fewest-byes with an id tiebreak, "so the search only ever sees an even table" — but at 3 alive the bye IS
+  // the pairing: once bye counts even out, the id tiebreak can bye the same seat twice running, forcing the
+  // other two into a back-to-back rematch the 1e6 no-repeat penalty never got to veto (owner report
+  // 2026-07-31 — Mike fought the same seat two rounds straight at a 3-alive table). So every candidate bye is
+  // tried, its remaining field searched, and the combined score decides. Bye fairness stays in as a mid-weight
+  // term: heavier than the meeting-count/recency preferences (100 / ≤99) so the ghost round still rotates when
+  // pairings are equally fresh, far lighter than the no-repeat penalty (1e6) so it can never force a rematch.
   const byeCount = new Map<string, number>();
   for (const e of lobby.encounters) if (e.bye) byeCount.set(e.bye, (byeCount.get(e.bye) ?? 0) + 1);
-  let bye: LobbySeatState | null = null;
-  let field = pool;
   if (pool.length % 2 === 1) {
-    bye = [...pool].sort((a, b) => (byeCount.get(a.id) ?? 0) - (byeCount.get(b.id) ?? 0) || a.id.localeCompare(b.id))[0]!;
-    field = pool.filter((x) => x.id !== bye!.id);
+    let bestTotal = Infinity;
+    let byePairs: [LobbySeatState, LobbySeatState][] = [];
+    let bye: LobbySeatState | null = null;
+    // Candidates in fairness order + strict `<` below ⇒ exact ties still fall to the fairest candidate.
+    const candidates = [...pool].sort((a, b) => (byeCount.get(a.id) ?? 0) - (byeCount.get(b.id) ?? 0) || a.id.localeCompare(b.id));
+    for (const cand of candidates) {
+      bestPairs = [];
+      bestCost = Infinity;
+      search(pool.filter((x) => x.id !== cand.id), [], 0);
+      const total = bestCost + (byeCount.get(cand.id) ?? 0) * 10_000;
+      if (total < bestTotal) { bestTotal = total; byePairs = bestPairs; bye = cand; }
+    }
+    return { pairs: byePairs, bye };
   }
-  search(field, [], 0);
-  return { pairs: bestPairs, bye };
+  search(pool, [], 0);
+  return { pairs: bestPairs, bye: null };
 }
 
 /**

@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-07-31 — Back-to-back rematch at a 3-alive table: the bye was chosen before the pairing
+
+Owner report (Mike's game): three players alive, and he fought the same seat two rounds in a row — which the
+no-repeat rule (you never face the same seat within 3 rounds unless there's no alternative) says is impossible,
+since the third seat or the ghost is always an alternative at 3 alive.
+
+The hole: `pairRunLobby` decided the bye FIRST — fewest byes, id tiebreak — and only then ran the exhaustive
+no-repeat search on the remaining (even) field. At 3 alive the bye fully determines the pairing, and the bye
+choice never consulted the no-repeat cost. The failure shape needs skewed bye counts, which a shrinking table
+produces naturally: seats that lived through an earlier odd-table stretch carry byes the freshest seat doesn't,
+so the freshest seat byes twice running and the other two are forced into an immediate rematch the 1e6 penalty
+never got to veto.
+
+Fix: at an odd table, every candidate bye is tried, its remaining field searched, and the combined score
+decides — pairing cost + a mid-weight bye-fairness term (10k per prior bye: heavier than the meeting-count and
+recency preferences, far lighter than the 1e6 no-repeat penalty, so rotation is preserved but can never force
+a rematch). Candidates iterate in fairness order with strict `<`, so exact ties still fall to the fairest seat.
+Cost: at 7 alive this is 7 searches of a 6-seat field (~15 pairings each) — trivial.
+
+Tests: new `lobby/pairingRepeat.test.ts` — the engineered skewed-count fixture and a skewed-start sweep both
+FAIL on the old code (verified by stashing the fix) and pass on the new; plus a fresh-table sweep and the
+final-2 yield case. Full gates green.
+
 ## 2026-07-31 — Yazzus moves to Tier 7
 
 Owner call: Yazzus T6 → T7 (the tier half of the set-2 sheet's recorded "T7 9/9" delta — stats stay 5/7 unless

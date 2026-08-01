@@ -8,6 +8,10 @@
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
   --t-beast: #4ea83b; --t-dragon: #ffffff; --t-mech: #27a9dd; --t-undead: #22b8a8; --t-demon: #b15cf0; --t-neutral: #9a8d79;
+  /* Kobold and Dwarf had NO colour at all: `--c` is set from `var(--t-<tribe>)`, so an unlisted tribe
+     resolved to nothing and its medallion glyph rendered unfilled (owner report 2026-07-31). Dwarf is
+     the forge yellow the owner asked for; kobold takes a warm ember so the two stay distinct. */
+  --t-dwarf: #f0c33c; --t-kobold: #e8763a;
   --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;

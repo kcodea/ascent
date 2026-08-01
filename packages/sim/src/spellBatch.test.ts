@@ -520,21 +520,22 @@ describe('run-wide card-type auras survive stat-setting spells (owner ruling 202
   });
 });
 
-describe('Funeral on Loan keeps an unplayed borrowed card (owner 2026-07-29)', () => {
-  it('a borrowed card survives end of turn and is still playable later', () => {
-    // It used to be filtered out of hand at turn end, so Discovering an Echo minion you could not use that
-    // turn simply destroyed it. The loan has no deadline now — only playing it consumes it.
+describe('Funeral on Loan — the loan lasts one turn (owner 2026-07-31)', () => {
+  it('an unplayed borrowed card survives to the next turn as a NORMAL minion', () => {
+    // 2026-07-29 fixed the card being discarded at turn end; 2026-07-31 goes further — the die-on-play deal
+    // only applies the turn you Discovered it. Next turn the flag clears and the card boards normally.
     const borrowed: BoardCard = { uid: 'b', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false, borrowed: true };
     let s: RunState = { ...createRun(1), board: [], hand: [borrowed] };
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'settleCombat' });
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.hand.some((c) => c.uid === 'b'), 'the borrowed card was discarded at turn end').toBe(true);
-    expect(s.hand.find((c) => c.uid === 'b')!.borrowed, 'it should still be a loan').toBe(true);
-    // …and playing it on this later turn still triggers the Echo and consumes it.
+    const kept = s.hand.find((c) => c.uid === 'b');
+    expect(kept, 'the borrowed card was discarded at turn end').toBeDefined();
+    expect(kept!.borrowed, 'the loan should have expired at the new turn').toBeFalsy();
+    // Playing it now boards the minion — no Echo trigger, no destruction.
     s = reduce(s, { type: 'play', uid: 'b', targetUid: undefined });
-    expect(s.hand.some((c) => c.uid === 'b')).toBe(false);
-    expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2);
+    expect(s.board.some((c) => c.uid === 'b'), 'it should play as a normal minion').toBe(true);
+    expect(s.board.filter((c) => c.cardId === 'pup').length, 'its Echo must NOT fire on a normal play').toBe(0);
   });
 });
 

@@ -4,6 +4,7 @@ import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, SPELL_CARDS } from '@game/conte
 import {
   CONFIG,
   POOL_QUANTITIES,
+  computeCombatOdds,
   createRun,
   reduce,
   serialize,
@@ -3680,7 +3681,10 @@ describe('run loop (@game/sim)', () => {
     expect(s.shop.length).toBe(0); // nothing left → no offers conjured from an empty pool
   });
 
-  it('faceOmen computes deterministic outcome odds (win/draw/lose sum to 1)', () => {
+  it('faceOmen stashes the odds INPUT; the deferred probe is deterministic (win/draw/lose sum to 1)', () => {
+    // Perf audit 2026-08-01 (owner call): the 200-sim probe no longer runs on the End Turn click — faceOmen
+    // stashes `lastCombat.oddsInput` and the UI computes in idle time via `computeCombatOdds`. Everything the
+    // old inline test asserted must hold of the deferred path, off the same TAG.ODDS stream.
     const setup = (): RunState => ({
       ...createRun(42),
       phase: 'recruit',
@@ -3691,13 +3695,17 @@ describe('run loop (@game/sim)', () => {
         { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 2, health: 4, keywords: ['C'], golden: false },
       ],
     });
-    const odds = reduce(setup(), { type: 'faceOmen' }).lastCombat!.odds!;
-    expect(odds).toBeDefined();
+    const after = reduce(setup(), { type: 'faceOmen' });
+    expect(after.lastCombat!.odds, 'faceOmen must NOT compute odds inline any more').toBeUndefined();
+    const input = after.lastCombat!.oddsInput!;
+    expect(input, 'faceOmen must stash the sim inputs for the deferred probe').toBeDefined();
+    const odds = computeCombatOdds(input, setup().seed, 1);
     expect(odds.win + odds.draw + odds.lose).toBeCloseTo(1, 6);
     expect(odds.win).toBeGreaterThanOrEqual(0);
     expect(odds.lose).toBeGreaterThanOrEqual(0);
-    // Deterministic: the same seed + wave re-derives identical odds (own RNG stream).
-    expect(reduce(setup(), { type: 'faceOmen' }).lastCombat!.odds).toEqual(odds);
+    // Deterministic: the same seed + wave re-derives identical odds (own RNG stream) — including through a
+    // save/load round-trip of the stashed input, which is what a mid-combat resume does.
+    expect(computeCombatOdds(JSON.parse(JSON.stringify(input)), setup().seed, 1)).toEqual(odds);
     // Average loss damage: 0 when nothing lost, otherwise a positive, round-capped mean.
     expect(odds.avgLossDamage).toBeGreaterThanOrEqual(0);
     if (odds.lose > 0) expect(odds.avgLossDamage).toBeLessThanOrEqual(lossDamageCap(1));
@@ -4736,7 +4744,7 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
       const enemy = next.lastCombat!.initial.enemy;
       expect(enemy.length).toBeGreaterThan(0);
       expect(enemy.every((m) => m.cardId !== 'lifebinder')).toBe(true); // fell back to a fightable board
-      expect(next.lastCombat!.odds).toBeDefined(); // odds computed on the fallback board too
+      expect(next.lastCombat!.oddsInput).toBeDefined(); // the deferred odds probe gets the FALLBACK board too
     } finally {
       OPPONENT_POOL.length = 0;
     }

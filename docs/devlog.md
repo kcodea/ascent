@@ -1,5 +1,113 @@
 # ASCENT — development log
 
+## 2026-08-01 — The main FX ticker idles when nothing is live (the shop-audit headline fix, shipped)
+
+The A/B from today's shop-phase audit: an idle shop presented an empty full-viewport WebGL frame ~240×/s —
+worst frame 8.5 ms with dropped frames; stopped, 4.3 ms and zero. Shipped the fix:
+
+- `pixiFx.enableAutoIdle()` — the same idle-when-empty contract `discoverFx` has shipped with since 07-30.
+- A central `wake()` called from EVERY work-adding site (the audited list: spawn's particles, skull pops,
+  tendrils ×2, gusts, weld rings, spell arrows, waves, slashes, crit FX, pulses, descends, the aim line,
+  external updaters, and under-slot mounts — which must wake the MAIN ticker, since it drives `renderUnder`).
+- `wake()` respects the Skip-combat freeze: `setPaused(true)` sets a flag that wake never overrides, so an
+  effect spawned mid-freeze can't thaw the board — it renders when the fade does.
+
+Verified live in the browser: idle shop self-stops the ticker (unassisted sampler: med 4.2 / worst 4.3 ms,
+ZERO frames over the 240 Hz long threshold — identical to the manually-stopped A/B); `__fx.play` wakes it the
+frame it fires and it idles again when the burst dies; every legacy channel (critImpact, weldPulse, pulse,
+descend, impactPulse) wakes from cold. The §3d audit write-up (PR #809) gets its "shipped" note once both
+merge. Full gates green (3577 tests).
+## 2026-08-01 — Shop-phase perf audit: the idle FX ticker is the jank; the odds probe leaves the End Turn click
+
+Owner ask: a shop-phase performance audit. Findings (full write-up in `docs/performance.md` §3d):
+
+- **A/B-measured**: the main FX canvas presents an empty full-viewport WebGL frame ~240×/s all shop long.
+  Ticker on → worst frame 8.5 ms + dropped frames at idle; ticker off → worst 4.3 ms, zero dropped. That is
+  the residual idle-shop jank. Fix = extend `discoverFx`'s `autoIdle` to the main controller (open task —
+  needs the every-entry-point wake audit; purely a lift when idle, no effect-visual change when wired fully).
+- **SHIPPED in this change (owner call): the End Turn click no longer runs the 200 Monte Carlo odds sims.**
+  `faceOmen` stashes `CombatResult.oddsInput` (plain serializable sim inputs, post-Marked-Target so the probe
+  sees the fought board); `computeCombatOdds` (new `sim/odds.ts`) runs in a `requestIdleCallback` after the
+  combat mounts, via a small Recruit hook that also self-heals a mid-combat resume (the input rides the save).
+  Same `TAG.ODDS` streams → numerically identical odds; legacy saves with baked odds still display. ~10 ms off
+  the End Turn click; headless full-run benchmark 164 → 136 ms/op.
+- Also noted: median idle frame sits AT the 4.17 ms budget (no headroom); the charge glyph's two rAF loops run
+  the final 20 s of each turn (all of turn 1) — measured harmless on a good GPU, re-check on weak hardware.
+
+Tests: run.test's odds test rewritten to the deferred contract (faceOmen stashes, never computes; the probe is
+deterministic incl. through a JSON round-trip of the stashed input); the stale-board fallback test asserts
+`oddsInput` on the fallback board. Verified live: the Combat Summary's odds bar populates from the deferred
+compute. Full gates + harness green (3577 tests).
+
+## 2026-08-01 — Shop crash (Mykel's regex), Blart copies, Skald "another", Vhal "Demons", Wild Hunt persists
+
+**The crash (Mike's screenshot).** `spellThresholdText` built `new RegExp` from the printed threshold — and in
+a template literal `\*` is just `*`, so the pattern was `**8 Shop spells**`, which throws "Nothing to repeat"
+and took down the whole shop the moment a Mykel rendered. Plain-string replace now (nothing there needed a
+regex); a regression test renders both plain and golden.
+
+**Bob Blart copies, never Consumes (owner).** The def's own comment said "takes the stats WITHOUT eating" —
+but the wired factory (`endOfTurnConsumeHighestHealthShop`) ate the fattest Shop minion. And the correct
+factory (`endOfTurnGainRightmostShopStats`) already existed, fully implemented, wired to nothing — the
+Rouge-Rogue defect class again. Blart now uses it (right-most offer's stats land on Blart, Shop untouched, no
+consume payoffs); the orphaned consuming factory is DELETED, id and all. Test rewritten to the new spec.
+
+**Traveling Skald (owner ruling).** "When **another** friendly Dragon attacks" — its own swing no longer buffs
+itself (`minion === self` guard), texts updated, pinned in the existing combat test.
+
+**Feastmaster Vhal (text only).** The effect always filtered neighbours to Demons; the text said "adjacent
+minions". Now says "adjacent **Demons**".
+
+**Rune of the Wild Hunt persists (owner).** The text says "improve this by 3 PERMANENTLY", but the escalation
+counter started at 0 every combat. Now `CombatSideState.wildHuntGrown` seeds the fight from the run's accrual
+(`RunState.runeWildHuntGrown`), and `playerWildHuntGrown` on the result carries the final value back at settle
+— the next combat's first Beast attack continues from where the last fight left off. Test proves combat 2's
+first grant equals combat 1's carry-out + the step.
+
+Verified: full gates + harness determinism green (3571 tests).
+
+## 2026-08-01 — Rune hover audit: every named card previews; Triple Rewards can't triple, and aren't spells
+
+**Triple Reward is not a Shop spell (owner rule, second half).** Playing one routed through the shared
+`discoverOnPlay` path, which records a full spell cast via `noteSpellCast` — so a Triple Reward became the
+"first spell" Rune of Recurrence recasts at End of Turn, the "last spell" Steward of Spells / Recaller copy,
+a Mushy copy target, a spell-tally/threshold advance, and a spellCast-watcher trigger; Nimbus could even
+double its Discover (and get its charge eaten by a token). The token branch now opens its Discover and does
+NOTHING else — no multiplier, no memory, no tallies. It still counts as a CARD played. The gate is `def.token`
+on the discoverOnPlay path, and Triple Reward is the only token with that shape (audited). Tests pin: no
+spell state moves, the Discover still opens, and a Nimbus charge survives untouched for a real spell.
+
+**Rune hovers (owner ask: "if a rune references a card, show it on hover").** The forge's hover preview only
+read the reward's `grant`/`recurringGrant` card lists — so 21 runes whose TEXT names a card showed nothing
+(Banking's Money Bot, Living Echoes' Sunmane Herald, Matriarch's Runebloom, the Spearline Warden, every
+get-a-Ruby rune, the Imp-summon runes, …), and `grantGolden` (Frontline Glory's Gilded Yazzus) never previewed
+at all. Now:
+
+- `RuneDef.previewCards` (new optional field, schema-validated): card ids the hover shows in addition to the
+  reward's own grants. Filled on all 21 flagged runes.
+- `RuneCard` merges reward grants + `previewCards`, and `grantGolden` entries render as the GILDED card
+  (doubled stats + golden text).
+- A permanent audit test (`content/runePreview.test.ts`) cross-checks every rune's text against the whole card
+  index with word-boundary, plural-tolerant matching (excluding keyword-named cards like "Consume") — a future
+  rune that names a card without wiring its preview fails CI instead of shipping hover-less.
+
+**Triple Reward can't triple (owner rule).** The `discoverspell` token was a plain minion-shaped card, so
+three banked rewards silently combined into ONE golden token — eating two Discovers. It now carries
+`noTriple` (the Mage-Pup treatment: excluded from the triple COUNT, not just the combine). Test pins three
+banked rewards staying three cards.
+## 2026-08-01 — The bought-rune badge was invisible at quest-badge size
+
+Owner report (Mike's game): Rune of Reinvestment worked but "the rune icon is not showing above the hero."
+DOM-audited in the live app: the badge WAS rendering — `ownedRunes` was recorded, the art loaded, the strip sat
+where it always has (just above the hero panel) — but at the quest-badge size (53u, further scaled by the
+owner's #410 Layout-Lab strip transform) a single stone-toned rune read as an unlabeled ~51px dark dot against
+the board frame. The strip was tuned for ROWS of colorful quest badges; with quests off in set 2 it holds 1–3
+runes, and one small dark disc simply disappears.
+
+Fix (CSS only): `.questbadge.runebadge` gets real presence — ~1.85× the quest-badge size (98u), a brighter rim,
+and a STATIC soft glow (a box-shadow, not a looping paint animation — perf rule). The opponent-frame override
+(`.oppbadges .questbadge`, 34u) sits later in the file and still wins there, so enemy-rune chips stay small.
+Verified in the browser at shipped CSS: badge measures 95px and reads clearly above the hero.
 ## 2026-08-01 — Every FX Save silently deleted the def's `label` and `tags`
 
 Owner report, and a real loss: re-authoring `strike-impact` in the FX workbench (the effect that plays on

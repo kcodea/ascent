@@ -212,7 +212,6 @@ export type EffectFactoryId =
   | 'onSummonTribeBuffImproveSelf' // Set 2 — Menagerie Mammoth: a summoned Beast gets +N Attack; the grant improves permanently
   | 'deathrattleImpsOverflowGrant' // Set 2 — Legion Shepherd: Echo summon Imps; each overflow buffs your Imps everywhere
   | 'scGrantRightmostEcho'         // Set 2 — Endless Overseer: graft an Imp-summoning Echo onto your right-most minion
-  | 'endOfTurnConsumeHighestHealthShop' // Set 2 — Bob Blart: eat the fattest Shop minion
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
   | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
@@ -1232,6 +1231,11 @@ export interface RuneDef {
   /** Only offer this rune to heroes whose power gets value from a double trigger (the sim's DOUBLEABLE_POWERS
    *  set). Rune of Empowerment uses this so it never appears for a targeted/passive-power hero. */
   requiresDoublePower?: boolean;
+  /** Card ids the forge's hover preview shows IN ADDITION to the reward's own grants — for a rune whose TEXT
+   *  names a card its reward doesn't grant (Rune of Banking names Money Bot; Living Echoes names Sunmane
+   *  Herald). Owner rule 2026-08-01: any rune that references a card shows that card on hover. Pinned by the
+   *  runePreview audit test, which cross-checks every rune's text against the card index. */
+  previewCards?: string[];
   /**
    * Which card SETS may offer this rune. Absent = every set (a rune built only from general mechanics).
    *
@@ -1552,6 +1556,10 @@ export interface CombatSideState {
    *  Empty/undefined = UNRESTRICTED, which keeps `EMPTY_SIDE` (the harness, the procedural threat, tests that
    *  only care about minions) behaving exactly as before. */
   poolIds?: readonly string[];
+  /** Rune of the Wild Hunt's accrued escalation, carried run-wide. The rune's text says "improve this by 3
+   *  PERMANENTLY" but the counter used to start at 0 every combat (owner report 2026-08-01) — this seeds the
+   *  fight with what earlier combats grew, and `playerWildHuntGrown` on the result carries it back out. */
+  wildHuntGrown?: number;
   /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
   spellsThisTurn: number;
   /** Lifetime spells cast this run (Umbral Energy scales Dragons +N per spell; seeds the combat spell tally). */
@@ -1706,6 +1714,19 @@ export interface CombatResult {
   playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[];
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
+  /** Everything the DEFERRED odds probe needs to re-run this matchup (perf audit 2026-08-01: the 200 Monte
+   *  Carlo sims used to run synchronously inside `faceOmen` — ~10 ms on the End Turn click, 2-3 dropped
+   *  frames at 240 Hz, feeding nothing but a display bar). The reducer now stashes the sim inputs here —
+   *  plain serializable data, so a mid-combat save/resume can still compute — and the UI runs the probe in
+   *  idle time after the combat transition (see `computeCombatOdds` in @game/sim). Same seeds → identical
+   *  numbers to the old inline path. */
+  oddsInput?: {
+    player: BoardMinion[];
+    enemy: BoardMinion[];
+    playerState: CombatSideState;
+    enemyState: CombatSideState;
+    config: CombatConfig;
+  };
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */
   playerSummonBonus?: { sourceUid: string; bonus: number }[];
@@ -1739,6 +1760,9 @@ export interface CombatResult {
    *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
    *  channel, per the owner's rule that "give minions in the Shop" means permanent, not just this shop. */
   playerTavernBuyGain?: { attack: number; health: number };
+  /** Rune of the Wild Hunt: the escalation the player's side ended the fight with — written back to the run
+   *  so the next combat's first Beast attack continues from it instead of restarting at the base step. */
+  playerWildHuntGrown?: number;
   /** Set 2 — Mushy Echoes that fired this combat: how many next-turn first-spell copies to queue. */
   playerNextTurnSpellCopies?: number;
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is

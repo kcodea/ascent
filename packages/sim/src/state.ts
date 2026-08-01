@@ -549,6 +549,9 @@ export interface RunState {
   /** Staff of Guel — a run-wide buff baked onto every minion BOUGHT from the tavern (not Discovered or
    *  conjured). Persists for the rest of the run; stacks (and picks up spell power) if cast again. */
   tavernBuyBonus: { atk: number; hp: number };
+  /** Rune of the Wild Hunt's accrued escalation — PERMANENT across combats (owner fix 2026-08-01). Seeds each
+   *  fight's counter and is written back from `playerWildHuntGrown` at settle. Absent until the rune fires. */
+  runeWildHuntGrown?: number;
   /** Apples (Choose One) — a one-shot buff folded into the offers of the NEXT tavern roll (refresh or turn
    *  advance), then cleared. Stacks if cast more than once before the next roll. */
   nextShopBuff?: { attack: number; health: number };

@@ -47,6 +47,22 @@ describe("Rune of the Wild Hunt — the Health grant escalates", () => {
   it("grants Health only, never Attack", () => {
     for (const e of hunts({ runeWildHunt: 3 })) expect(e.attack).toBe(0);
   });
+
+  it("the escalation is PERMANENT: the next combat resumes where the last left off (owner fix 2026-08-01)", () => {
+    // Combat 1 grows the counter from 0; its final value rides out on `playerWildHuntGrown`.
+    const first = sim(beasts, enemy, { runeWildHunt: 3 });
+    const grown = first.playerWildHuntGrown ?? 0;
+    expect(grown, 'combat 1 should have grown the counter').toBeGreaterThan(0);
+    // Combat 2 seeds from it: the FIRST grant is already above the base step, and the carry-out keeps growing.
+    const second = simulate(beasts, enemy, makeRng(9), CARD_INDEX,
+      combatSide({ tier: 3, tribes: ['beast'], questMods: { runeWildHunt: 3 }, wildHuntGrown: grown }),
+      combatSide({ tier: 1 }));
+    const grants = second.events
+      .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of the Wild Hunt');
+    expect(grants.length).toBeGreaterThan(0);
+    expect(grants[0]!.health, 'the first grant must continue from the carried escalation').toBe(grown + 3);
+    expect(second.playerWildHuntGrown ?? 0, 'the carry-out keeps accumulating').toBeGreaterThan(grown);
+  });
 });
 
 describe("Rune of Living Treasure — Gemheart Golems gain Rise", () => {

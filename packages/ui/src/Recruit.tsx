@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
 import { SYM_KINDS } from './choreo/channels/float';
@@ -1052,6 +1052,32 @@ export function Recruit() {
   // final board back in. A replacement one-shot will play in its place later (owner).
   const [skipFade, setSkipFade] = useState<null | 'out' | 'in'>(null);
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
+  // DEFERRED odds (perf audit 2026-08-01, owner call): faceOmen no longer runs the 200-sim probe on the End
+  // Turn click — it stashes `lastCombat.oddsInput` and this effect runs the probe in idle time once the
+  // combat is mounted. Keyed on the lastCombat OBJECT (a new fight is a new object), and it also covers a
+  // resumed mid-combat run (oddsInput is serialized with the save). Legacy saves with baked odds short-cut.
+  const [combatOdds, setCombatOdds] = useState<CombatOdds | null>(null);
+  useEffect(() => {
+    const lc = run.lastCombat;
+    setCombatOdds(lc?.odds ?? null); // legacy pre-deferral saves carry odds inline
+    if (!lc?.oddsInput || lc.odds) return;
+    const input = lc.oddsInput;
+    let cancelled = false;
+    const compute = (): void => {
+      if (cancelled) return;
+      const odds = perfMonitor.measure('odds:deferred', () => computeCombatOdds(input, run.seed, run.wave));
+      if (!cancelled) setCombatOdds(odds);
+    };
+    // rIC waits for a quiet frame during the combat intro; the timeout stops a busy replay starving it.
+    let idleId = 0; let timerId = 0;
+    if (typeof requestIdleCallback === 'function') idleId = requestIdleCallback(compute, { timeout: 1500 });
+    else timerId = window.setTimeout(compute, 250);
+    return () => {
+      cancelled = true;
+      if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);
+      if (timerId) window.clearTimeout(timerId);
+    };
+  }, [run.lastCombat, run.seed, run.wave]);
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
   const [forgeMin, setForgeMin] = useState(false); // the Runeforge overlay is minimized (inspect the board behind it)
@@ -4198,25 +4224,25 @@ export function Recruit() {
             <div className="logtitle">
               Combat Summary <span className={`logverdict ${replay.result ?? ''}`}>{replay.result === 'win' ? 'Victory' : replay.result === 'lose' ? 'Defeat' : 'Draw'}</span>
             </div>
-            {run.lastCombat?.odds && (
+            {combatOdds && (
               <div
                 className="logodds"
-                title="Estimated from 1000 simulations of this matchup — the actual result was one roll of these odds."
+                title="Estimated from repeated simulations of this matchup — the actual result was one roll of these odds."
               >
                 <div className="oddscap">Outcome odds</div>
                 <div className="oddsbar">
-                  <span className="ob win" style={{ width: `${run.lastCombat.odds.win * 100}%` }} />
-                  <span className="ob draw" style={{ width: `${run.lastCombat.odds.draw * 100}%` }} />
-                  <span className="ob lose" style={{ width: `${run.lastCombat.odds.lose * 100}%` }} />
+                  <span className="ob win" style={{ width: `${combatOdds.win * 100}%` }} />
+                  <span className="ob draw" style={{ width: `${combatOdds.draw * 100}%` }} />
+                  <span className="ob lose" style={{ width: `${combatOdds.lose * 100}%` }} />
                 </div>
                 <div className="oddslabels">
-                  <span className="ol win">{Math.round(run.lastCombat.odds.win * 100)}% win</span>
-                  <span className="ol draw">{Math.round(run.lastCombat.odds.draw * 100)}% draw</span>
-                  <span className="ol lose">{Math.round(run.lastCombat.odds.lose * 100)}% loss</span>
+                  <span className="ol win">{Math.round(combatOdds.win * 100)}% win</span>
+                  <span className="ol draw">{Math.round(combatOdds.draw * 100)}% draw</span>
+                  <span className="ol lose">{Math.round(combatOdds.lose * 100)}% loss</span>
                 </div>
-                {run.lastCombat.odds.lose > 0 && (
+                {combatOdds.lose > 0 && (
                   <div className="oddsavg" title="Average Resolve lost across the losing simulations (round-capped) — what a typical loss of this matchup costs.">
-                    Avg damage on loss: <b>{Math.round(run.lastCombat.odds.avgLossDamage * 10) / 10}</b>
+                    Avg damage on loss: <b>{Math.round(combatOdds.avgLossDamage * 10) / 10}</b>
                   </div>
                 )}
               </div>

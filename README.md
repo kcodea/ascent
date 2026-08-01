@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Saving an effect no longer wipes its name and tags.** Effects carry a display name and a few tags used to
+  search and group them in the effects library, and every Save was silently deleting them — the melee hit
+  effect lost its own name that way, and it was only spotted by eye. Saving over an effect now keeps them.
+  Saving under a *new* name still starts clean, because that's a copy, not the same effect.
 - **Deleted the orphaned Pixi aura-bubble system (−1 WebGL context).** Ward and Reborn became CSS domes a while
   back, but the Pixi machinery that used to draw them stayed — including a whole third full-viewport WebGL
   context that a previous pass had merely ticker-stopped as "dormant" instead of removing. Gone with it: ~210

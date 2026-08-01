@@ -222,7 +222,8 @@ function isTextEntry(target: EventTarget | null): boolean {
  * its base — including `label`, `tags` and `seed`. All three are dropped here, deliberately:
  *
  *  • `label`/`tags` are the LIBRARY BROWSER's search + grouping index, and the workbench has no editor for
- *    them (`toStoredDef` doesn't even carry them). Inheriting would mean every effect an author started
+ *    them. (`toStoredDef` carries them, but only across a re-save of the SAME id — the same fork-vs-overwrite
+ *    distinction this function is making.) Inheriting would mean every effect an author started
  *    from Bolt was filed in the browser under the *base's* words — metadata they never wrote, can't see and
  *    can't change. A derived label ("Bolt (heavy)") is the same defect with a friendlier spelling: it's
  *    still a name the author didn't choose, and the name they DO choose is the slug they type into Save.
@@ -1399,12 +1400,17 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       const { artRefs, failures: artFailures } = await uploadArtRefs();
       // The seed travels with the def ONLY while locked — an unlocked composition means "roll fresh", and
       // writing a seed anyway would silently freeze a look the author deliberately left free.
+      // `getDef(id)` is the def ALREADY committed under this exact name, and it is what keeps a re-save from
+      // deleting that def's `label`/`tags` — the workbench cannot edit those, so the file is their only copy.
+      // Resolved for the id being WRITTEN, not the one that was loaded: saving under a new name is a fork and
+      // must start unlabelled (`toStoredDef` re-checks the id, so passing the wrong def can't mislabel one).
       const stored = toStoredDef(
         id,
         durationMs,
         toStoredLayers(layers, artRefs),
         seedLocked ? seed : undefined,
         slot,
+        getDef(id),
       );
       const result = await saveDef(stored);
       if (!result.ok) {
@@ -1478,8 +1484,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // is exactly the kind of hitch this repo treats as a defect.
   useEffect(() => {
     if (!railMode || harnessCard === '' || harnessKind === null) return;
+    // No prior def, deliberately: the draft is the one id with NO file behind it (`bindings.ts` strips it out
+    // of every write), and `listDefs` excludes it, so it is never browsed, searched or grouped — `label`/`tags`
+    // would be metadata on something that cannot be filed. Carrying them would also mean inheriting from the
+    // PREVIOUS draft, which belongs to whatever composition was open before this one.
     registerSavedDef(
-      toStoredDef(DRAFT_DEF_ID, durationMs, toStoredLayers(layers, NO_ART_REFS), seedLocked ? seed : undefined, slot),
+      toStoredDef(
+        DRAFT_DEF_ID,
+        durationMs,
+        toStoredLayers(layers, NO_ART_REFS),
+        seedLocked ? seed : undefined,
+        slot,
+        undefined,
+      ),
     );
   }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked, slot]);
 
@@ -1576,12 +1593,16 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     let parkedOptimistic = false;
     try {
       const { artRefs, failures } = await uploadArtRefs();
+      // Same carry-forward as Save, on the same terms — this writes a real file too. `plan.defId`, so an
+      // "Everywhere" commit (which overwrites the def in place) keeps its filing, while a "This card" commit
+      // (which forks to `<name>-<card>`) starts unlabelled unless that fork already exists.
       const stored = toStoredDef(
         plan.defId,
         durationMs,
         toStoredLayers(layers, artRefs),
         seedLocked ? seed : undefined,
         slot,
+        getDef(plan.defId),
       );
       const defResult = await saveDef(stored);
       if (!defResult.ok) {

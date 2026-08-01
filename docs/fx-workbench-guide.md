@@ -391,6 +391,19 @@ survives a reload, it can be shared by pushing a branch, and it shows up in the 
 watcher invalidates the module glob, which an eager `import.meta.glob` would otherwise miss until a full
 restart). Autosave runs alongside it, so a hot-reload can't eat a tuning session.
 
+**A re-save keeps the def's `label` and `tags`.** The panel has no editor for those two fields — the file is
+their only copy — so a Save under an existing name carries forward whatever is already committed under that
+id. This was a real data-loss bug until 2026-08-01: every Save rebuilt the def from editor state alone and
+silently deleted them (it cost `strike-impact`, which plays on every melee hit, its label and its
+`impact/combat/orange` tags). Two things follow from *how* it's fixed:
+
+- **Only an overwrite inherits.** Saving under a **new** name is a fork, and a fork starts unlabelled and
+  untagged — inheriting would file your copy in the library browser under words you never wrote and can't
+  edit. Same rule, same reason, as a preset variant (§4). "Commit animation" follows suit: **Everywhere**
+  overwrites the def in place and keeps its filing; **This card** forks to `<name>-<card>` and starts clean.
+- **Editing them is still hand-edit only.** Preservation means a hand-written label now *survives*; it does
+  not yet mean you can type one in the panel.
+
 **Imported art is saved with it.** A PNG/SVG you imported into the `shape` picker lives only in *this*
 browser (`custom:<slug>`), so Save uploads it to `packages/ui/src/fx/defs/art/<slug>.png` and rewrites the
 layer to `art:<slug>` — that is what makes the def render the same on the other developer's machine. Both the
@@ -584,8 +597,9 @@ time you open the workbench — see §7 for exactly how and for the timing cavea
 - **~30 legacy `pixiFx` effects** predate defs and aren't authorable here.
 - **Committing still costs you a page reload** (`bindings.json` is a static import Vite can't hot-reload), and
   the reload closes the workbench. The confirmation now survives it (§7) but waits until you reopen the tool.
-- **No editing a def's `label`/`tags` from the panel** — still hand-edit only. (Unbinding no longer is: see
-  §7.)
+- **No editing a def's `label`/`tags` from the panel** — still hand-edit only. A Save no longer *deletes*
+  them (fixed 2026-08-01, §6), so a hand-written label is now durable; typing one in the panel is the
+  outstanding half. (Unbinding no longer is hand-edit only either: see §7.)
 - **Only two preset archetypes so far** (Bolt, Blast), and both are unreviewed first passes. Eight more are
   queued — wave, chain, cloud, swell, drip, vortex, slam, beam — landing one at a time so each gets judged at
   real card scale rather than eight at once.

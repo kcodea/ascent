@@ -1,5 +1,50 @@
 # ASCENT — development log
 
+## 2026-07-31 — Lobby perf regression: dead recordings turned every seat into a live bot; Funeral's loan expires
+
+Owner report: "very poor performance in lobby mode" after the Set 2 patch, with a hunch it was bots playing
+live instead of snapshots. The hunch was right, but the interesting part is *why they were live*: every seat is
+a `hybridSeat` (recording first, live bot fallback), and Set 2's rules had silently killed the recordings.
+Measured headlessly: recordings lasted to wave **0** (two of three seats) or wave **5**, so every seat fell
+through to its beam-search bot from round 1, and each End Combat replayed seven bot advances on the main
+thread — per-round cost climbing 100→800ms by round 7.
+
+Two independent breaks in `autoplayRun` (the greedy recorder in `snapshot.ts`), both from this patch's rules:
+
+1. **It didn't know the Runeforge.** The forge is universal on turns 6/9 since Set 2 went live; with the modal
+   open every non-forge action no-ops, so the loop's no-progress bail fired and the recording ended at wave 5.
+2. **No progress guards.** The play branch blindly replayed `hand[0]`; an unplayable card (a targeted set-2
+   spell with no legal target, a Ruby on an empty board) spun the loop to its 5000-step guard and returned an
+   **empty** recording — the wave-0 seats.
+
+Fixes, plus the owner's directive ("revert to pure snapshots for bots — we don't need them playing live"):
+
+- `autoplayRun` routes every branch through a `step()` helper that reports whether the action moved the state:
+  the Runeforge is skipped (like the production bot), a blocked branch falls through to the next instead of
+  spinning, and the hand is scanned for the first *playable* card. Recordings now span their runs (waves 8–10,
+  where the greedy bot's run genuinely ends).
+- `hybridSeat.prepare` is **recording-only**. Past the recording the seat returns null and the lobby's
+  existing `ExhaustionPolicy` (`repeatFinal`) takes over — no live fallback. The live bot survives in exactly
+  one place, the cheap `canFieldBoard` probe (~5ms vs ~100ms to force a candidate's recording), built lazily so
+  a seated driver never pays for it. The seat `kind` strings are unchanged, so saved lobbies restore cleanly.
+- Re-measured the same headless profile: rounds went **972/8/13/104/201/268/792 ms → 496/2/2/3/9/4/4 ms** —
+  and the remaining round-1 cost is the one-time recording build, which `warmLobbyDrivers` already performs in
+  idle time during the opening shop in the real app.
+
+Tests: new `lobby/recordingCoverage.test.ts` pins both failure shapes under the *current* active set (a
+recording is never empty; it clears the first Runeforge wave), so a future turn-blocking modal fails a test
+instead of quietly turning the lobby to mush. The option-3 tests in `lobby.test.ts` were rewritten to pin the
+new contract (a dry seat stays dry; a hybrid lobby still resolves without hitting the round cap — true now that
+recordings live long enough for repeatFinal to stay threatening).
+
+Also in this change, **Funeral on Loan** (owner ruling): the loan lasts one turn. A borrowed Echo minion still
+dies-on-play the turn you Discover it, but at the next turn the `borrowed` flag clears and it plays as a
+perfectly normal minion. New-turn setup clears the flag in hand; card text now reads "If you play it **this
+turn**… Next turn it is yours to keep." Test rewritten to the new semantics (flag gone next turn, plays to
+board, Echo does NOT fire).
+
+Verified: full gates green (typecheck, lint 0 errors, 3554 tests, build:web, harness determinism).
+
 ## 2026-07-31 — The Hall of Champions could never populate (my bug, from the lobby-only rework)
 
 Owner report: no winning lobby boards were showing. The upload was gated on

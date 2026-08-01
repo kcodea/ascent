@@ -1002,8 +1002,9 @@ export const SPELLS: CardDef[] = [
     text: '**Discover** a minion from your tier. You **cannot play it until next turn**.',
   },
   {
-    // Discover an Echo (Deathrattle) minion, BORROWED — playing it triggers its Echo and destroys it (never
-    // boards). An unplayed borrowed card KEEPS until you play it (owner 2026-07-29) — no turn deadline.
+    // Discover an Echo (Deathrattle) minion, BORROWED — playing it THIS TURN triggers its Echo and destroys
+    // it (never boards). The loan expires at the next turn (owner 2026-07-31): the flag clears and the card
+    // plays as a normal minion from then on.
     id: 'funeralonloan',
     name: 'Funeral on Loan',
     tribe: 'neutral',
@@ -1015,7 +1016,7 @@ export const SPELLS: CardDef[] = [
     cost: 2,
     effects: [],
     discoverOnPlay: { filter: 'deathrattle', borrowed: true },
-    text: '**Discover** an **Echo** minion. If you play it, **destroy it and trigger its effect**.',
+    text: '**Discover** an **Echo** minion. If you play it **this turn**, destroy it and **trigger its effect**. Next turn it is yours to keep.',
   },
   {
     // Discover a plain copy of a minion from your LAST opponent's warband.

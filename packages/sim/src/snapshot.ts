@@ -349,8 +349,22 @@ export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions): B
   const botRng: Rng | null = opts?.preferTribe || opts?.cardWeight ? makeRng(seed ^ 0xb07b07) : null;
   const snaps: BoardSnapshot[] = [];
   let steps = 0;
+  // Every branch below goes through `step`, which reports whether the action actually moved the state. That
+  // report is load-bearing: a blocked action used to `continue` regardless, and a hand card that could never be
+  // played (a targeted set-2 spell with no legal target, a Ruby on an empty board) spun the loop until the
+  // 5000-step guard and returned an EMPTY recording — which silently turned every lobby seat into a live bot
+  // (the 2026-07-31 lobby perf regression). Blocked now means "try the next branch", never "spin".
+  const step = (action: Parameters<typeof reduce>[1]): boolean => {
+    const next = reduce(s, action);
+    if (next === s) return false;
+    s = next;
+    return true;
+  };
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 5000) {
-    if (s.questOffer) { s = reduce(s, { type: 'buyQuest', index: 0 }); continue; } // quest shop (waves 4/8/12) → buy to open the turn
+    if (s.questOffer) { if (step({ type: 'buyQuest', index: 0 })) continue; break; } // quest shop → buy to open the turn
+    // The Runeforge (universal on turns 6/9 since Set 2 went live) blocks every non-forge action while open —
+    // before this branch existed, recordings silently ended at wave 5. Skip it, like the production bot does.
+    if (s.runeforgeOffer) { if (step({ type: 'skipRuneforge' })) continue; break; }
     if (s.discover) {
       let idx = 0;
       if (opts?.preferTribe) {
@@ -360,22 +374,24 @@ export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions): B
           if (def?.tribe === opts.preferTribe || def?.tribe2 === opts.preferTribe) { idx = i; break; }
         }
       }
-      s = reduce(s, { type: 'discover', index: idx });
-      continue;
+      if (step({ type: 'discover', index: idx })) continue;
+      break;
     }
-    if (s.chooseOne) { s = reduce(s, { type: 'chooseOne', index: 0 }); continue; }
-    if (s.pendingTarget) { s = reduce(s, { type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }); continue; }
-    if (s.phase === 'combat') { s = reduce(s, { type: 'resolveCombat' }); continue; }
-    if (s.hand.length > 0 && s.board.length < 7) { s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); continue; }
+    if (s.chooseOne) { if (step({ type: 'chooseOne', index: 0 })) continue; break; }
+    if (s.pendingTarget) { if (step({ type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid })) continue; break; }
+    if (s.phase === 'combat') { if (step({ type: 'resolveCombat' })) continue; break; }
+    if (s.hand.length > 0 && s.board.length < 7) {
+      // First PLAYABLE card, not blindly hand[0] — an unplayable card in slot 0 must not wedge the whole hand.
+      let played = false;
+      for (const c of s.hand) { if (step({ type: 'play', uid: c.uid })) { played = true; break; } }
+      if (played) continue; // otherwise fall through: nothing in hand can be played right now
+    }
     if (s.embers >= 3 && s.board.length + s.hand.length < 7 && s.shop.length > 0) {
       const uid = opts && botRng ? pickBuyTarget(s.shop, s.wave, opts, botRng) : s.shop[0]!.uid;
-      s = reduce(s, { type: 'buy', uid });
-      continue;
+      if (step({ type: 'buy', uid })) continue; // blocked buy (can't afford this one) → fall through
     }
-    if (s.tier < 6 && s.embers >= s.upgradeCost) { s = reduce(s, { type: 'upgrade' }); continue; }
-    const before = s;
-    s = reduce(s, { type: 'faceOmen' });
-    if (s === before) break; // no progress — bail rather than spin
+    if (s.tier < 6 && s.embers >= s.upgradeCost && step({ type: 'upgrade' })) continue;
+    if (!step({ type: 'faceOmen' })) break; // no progress anywhere — bail rather than spin
     if (s.lastCombat) snaps.push(snapshotBoard(s));
   }
   return snaps;

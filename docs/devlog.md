@@ -1884,6 +1884,24 @@ the option list equals the six built-ins exactly, and an **untracked** `defs/art
 workbench session, along with a modified `coins.json`) makes it seven. Any art shape imported through the
 documented promote flow breaks those two tests locally — the assertion probably wants to be "contains the
 built-ins" rather than "equals".
+## 2026-07-30 — per-panel Test buttons dropped, and a headline number corrected
+
+**What changed.** Docs only. The Phase 2 item "a Test button on every FX panel" is struck from the roadmap:
+Pixi animation is consolidating into the FX workbench (owner call), so per-panel fire buttons would have had a
+short shelf life.
+
+**The number in that item was wrong, and the correction is the useful part.** It claimed 26 of 46 panels have
+"no way to fire their effect". 26 panels do lack a Test button, but that is not the same claim — roughly **19 of
+them need none**. They tune things that render continuously (Layout Lab, Card Pills, Card Plate, Card Text, Hero
+Panel, Lobby Rail, Buffs Drawer, Compendium, Card Frames, Step Counter, Smoke & Dust), already carry a preview
+toggle (Drag Feel, End Turn, Hover Glow, Hero Power, Refresh, Tavern Up), or have a better harness of their own
+(the Charge Glyph's scrub). Only **5** genuinely fire and vanish: Lunge Impact, Motion Trail, Damage Float,
+Reposition Slide and Lunge — and Reposition Slide and Lunge both need staged cards on the board, which is
+precisely why Lunge got a measuring readout instead of a button. Ward Dome and Execute Aura are
+persistent-while-a-condition-holds, so they want a preview toggle rather than a fire-once.
+
+The count came from "panels with no `actions` entry", which is a proxy for the wrong thing — it measures what a
+panel HAS, not what it NEEDS. Worth remembering the next time a roadmap item is sized off a grep.
 
 
 ## 2026-07-30 — `burst` learns to aim along a moment, and the melee strike becomes a def

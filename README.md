@@ -44,11 +44,18 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Saving an effect no longer wipes its name and tags.** Effects carry a display name and a few tags used to
+  search and group them in the effects library, and every Save was silently deleting them — the melee hit
+  effect lost its own name that way, and it was only spotted by eye. Saving over an effect now keeps them.
+  Saving under a *new* name still starts clean, because that's a copy, not the same effect.
 - **Deleted the orphaned Pixi aura-bubble system (−1 WebGL context).** Ward and Reborn became CSS domes a while
   back, but the Pixi machinery that used to draw them stayed — including a whole third full-viewport WebGL
   context that a previous pass had merely ticker-stopped as "dormant" instead of removing. Gone with it: ~210
   lines of unused GLSL and the `.pixifx-under` layer. The break burst (`shatterAt` / `rebornSummon`) is
   untouched. Total emitted JS 2,631,425 → 2,617,973 bytes.
+
+- **Dwarves and Kobolds are fully dressed** - both now have their own cardplate, Dwarf gets its oval and
+  Taunt frames, and both tribes finally have a colour so their emblem fills in.
 
 - **The effects tool can now take an effect back off a card.** It could attach an effect to a moment but
   never remove one — that meant editing a data file by hand. There are two ways to remove one and they do

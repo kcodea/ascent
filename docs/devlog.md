@@ -29,6 +29,67 @@ at all. Now:
 three banked rewards silently combined into ONE golden token — eating two Discovers. It now carries
 `noTriple` (the Mage-Pup treatment: excluded from the triple COUNT, not just the combine). Test pins three
 banked rewards staying three cards.
+## 2026-08-01 — The bought-rune badge was invisible at quest-badge size
+
+Owner report (Mike's game): Rune of Reinvestment worked but "the rune icon is not showing above the hero."
+DOM-audited in the live app: the badge WAS rendering — `ownedRunes` was recorded, the art loaded, the strip sat
+where it always has (just above the hero panel) — but at the quest-badge size (53u, further scaled by the
+owner's #410 Layout-Lab strip transform) a single stone-toned rune read as an unlabeled ~51px dark dot against
+the board frame. The strip was tuned for ROWS of colorful quest badges; with quests off in set 2 it holds 1–3
+runes, and one small dark disc simply disappears.
+
+Fix (CSS only): `.questbadge.runebadge` gets real presence — ~1.85× the quest-badge size (98u), a brighter rim,
+and a STATIC soft glow (a box-shadow, not a looping paint animation — perf rule). The opponent-frame override
+(`.oppbadges .questbadge`, 34u) sits later in the file and still wins there, so enemy-rune chips stay small.
+Verified in the browser at shipped CSS: badge measures 95px and reads clearly above the hero.
+## 2026-08-01 — Every FX Save silently deleted the def's `label` and `tags`
+
+Owner report, and a real loss: re-authoring `strike-impact` in the FX workbench (the effect that plays on
+**every melee hit**) and pressing Save stripped its `label: "Strike impact"` and its
+`tags: ["impact","combat","orange"]` from the committed JSON. Caught by eye during review and restored by
+hand. Nothing would have caught it otherwise — no test, no warning, and the panel has no editor for those two
+fields, so the file was their only copy.
+
+Cause: `toStoredDef` built the def purely from live editor state (`version/id/duration/layers`, plus
+`seed`/`slot` when set). `label`/`tags` exist only on disk, so they were never in the state it read from and
+every Save dropped them.
+
+**Fix — carry them forward from whatever is committed under that id**, in `toStoredDef` itself, from a new
+`prior: StoredFxDef | undefined` parameter that the two disk-writing call sites fill with `getDef(<id being
+written>)`. Three deliberate calls:
+
+- **The parameter is REQUIRED, not optional.** That is the anti-regression measure that isn't a test: a new
+  save path physically cannot compile without deciding what the prior def is. `toStoredDef` stays *pure* — it
+  takes the resolved def, never the registry — so it remains testable headlessly like the rest of the module.
+- **Inherit only when the id MATCHES** (re-checked inside `toStoredDef`, so a caller passing the wrong def
+  can't mislabel one). Saving under a new name is a fork, and a fork inheriting its source's filing would be
+  indexed in the library browser under words its author never wrote, can't see and can't change — the exact
+  reasoning `materialiseVariant` already applies when it strips both fields off a preset variant. In the
+  Commit panel this falls out correctly for free: **Everywhere** overwrites in place and keeps the filing,
+  **This card** forks to `<name>-<card>` and starts clean.
+- **The in-memory draft passes `undefined`.** `DRAFT_DEF_ID` has no file behind it and `listDefs` excludes it,
+  so it is never browsed, searched or grouped; carrying metadata there would only mean inheriting the
+  *previous* draft's.
+
+Also: carried metadata is written in the on-disk key order (`version, id, label, tags, duration, layers`), so
+re-saving a labelled def isn't a whole-file key reshuffle burying the real change; the tags array is copied,
+never aliased to the live registry entry.
+
+**Field audit** (asked explicitly): `label` and `tags` were the ONLY fields a Save dropped. Every other member
+of `StoredFxDef` — `version`, `id`, `duration`, `seed`, `slot`, `layers` — was already emitted.
+
+Verified: 8 new pins in `defStore.test.ts` — carry-forward, on-disk key order, fork-starts-unlabelled,
+no-prior, blank-metadata-stays-omitted, tags-copied-not-aliased, and a `Required<StoredFxDef>` round trip that
+is a **compile-time** exhaustiveness guard (adding an optional field to the type breaks the test file until
+someone answers "does a Save keep it?"). Proof the pins bite: stubbing out the `carriedMeta` call turns 3 of
+them red, restoring it turns them green. Then the real thing in a foregrounded Chrome tab on a dev server
+served from this worktree (branch-only symbol `carriedMeta` confirmed in the served module): loaded
+`strike-impact`, pressed Save, and the written file still carries its label and tags — and saving the same
+composition under a new name produced a file with neither. Full gates green (3569 tests).
+
+Follow-up: **editing** `label`/`tags` from the panel is still not possible — deliberately left out of this PR
+(it is a feature, and with no jsdom/RTL in this repo a UI addition is unverifiable by test). Queued on the
+roadmap.
 
 ## 2026-07-29 — refactor(ui): delete the orphaned Pixi aura-bubble system (−1 WebGL context)
 
@@ -92,7 +153,6 @@ repairing.
 chunk boundaries. The saving is real but smaller than the entry-chunk number alone suggests.
 `pixiFx.aura.test.ts` loses its `hasAura`/`auraRect` cases (those queries are gone) and gains coverage that
 `shatterAt` handles both kinds and `rebornSummon` no-ops safely before the renderer is ready.
-
 ## 2026-08-01 — Chipper consumes with ITSELF, not a random friendly Demon
 
 Owner report: golden Chipper fed a random friendly Demon. The factory (`onTribePlayedConsumeShop`) always
@@ -220,6 +280,43 @@ turn**… Next turn it is yours to keep." Test rewritten to the new semantics (f
 board, Echo does NOT fire).
 
 Verified: full gates green (typecheck, lint 0 errors, 3554 tests, build:web, harness determinism).
+
+## 2026-07-31 (dwarves and kobolds get their plates, frames and colour)
+
+### feat(ui): dwarf + kobold cardplates, the dwarf frames, and the two missing tribe colours
+
+**Owner report:** dwarves had no cardplate, their tribe glyph rendered unfilled, and their title "floated in
+the middle of the card" instead of sitting where every other card's does.
+
+All three were the same gap plus one missing variable, and **kobold had the identical defects** - it shipped
+with frames but was never given a plate or a colour either. The owner supplied both plates, so both tribes are
+finished here.
+
+**The title and the plate were one bug.** `tribePlated` is only true when the tribe has an entry in
+`TRIBE_PLATES`. Dwarf and kobold had none, so `plateSrcFor` fell through to the neutral stone plate *and*
+`isTribePlated` stayed false - which keeps the tribe row rendering **inside the drawer** instead of on the
+plate's bottom gem. That extra row is what pushed the title down. Giving each tribe a plate entry fixes the
+title, moves the tribe name to the gem, and themes the plate, all at once.
+
+**The unfilled glyph** was simply that `--t-dwarf` and `--t-kobold` did not exist. `Card.tsx` sets
+`--c: var(--t-<tribe>)`, so an unlisted tribe resolved to nothing. Dwarf is the forge yellow the owner asked
+for (`#f0c33c`); kobold takes a warm ember (`#e8763a`) so the two stay distinct - **worth a look, since only
+dwarf's colour was specified.**
+
+**Dwarf frames** (oval + gilded, Taunt + gilded) were authored back on 2026-07-26 and had been queued ever
+since, blocked on `dwarf` entering the `Tribe` union. It is in now, so they are converted and wired alongside
+kobold's, which already shipped.
+
+**Art pipeline notes.** Six files converted at webp q92 / alphaQuality 100. The four dwarf frames matched
+their shipped siblings' dimensions exactly (1059x1427 oval, 1086x1448 Taunt), so they seat without retuning.
+The two new plates arrived at **945x1469** rather than the 800x1244 every other plate shares - the same aspect
+ratio to within 0.03%, just a larger export - so they were resized to 800x1244. Every plate placement var in
+`styles.css` is expressed against those dims and `Card.tsx` documents the invariant, so matching it keeps the
+new art seating identically rather than depending on the browser to scale a different box. All ten
+dwarf/kobold assets confirmed present in `apps/web/dist/frames` after a production build.
+
+**Verified:** `typecheck` clean (pkgs + web), `lint` 0 errors, **3552 tests** / 197 files green, `build:web`
+green with the assets emitted. Look needs an eyeball - the checks prove the art loads, not that it reads well.
 
 ## 2026-07-31 — The Hall of Champions could never populate (my bug, from the lobby-only rework)
 
@@ -1829,6 +1926,24 @@ the option list equals the six built-ins exactly, and an **untracked** `defs/art
 workbench session, along with a modified `coins.json`) makes it seven. Any art shape imported through the
 documented promote flow breaks those two tests locally — the assertion probably wants to be "contains the
 built-ins" rather than "equals".
+## 2026-07-30 — per-panel Test buttons dropped, and a headline number corrected
+
+**What changed.** Docs only. The Phase 2 item "a Test button on every FX panel" is struck from the roadmap:
+Pixi animation is consolidating into the FX workbench (owner call), so per-panel fire buttons would have had a
+short shelf life.
+
+**The number in that item was wrong, and the correction is the useful part.** It claimed 26 of 46 panels have
+"no way to fire their effect". 26 panels do lack a Test button, but that is not the same claim — roughly **19 of
+them need none**. They tune things that render continuously (Layout Lab, Card Pills, Card Plate, Card Text, Hero
+Panel, Lobby Rail, Buffs Drawer, Compendium, Card Frames, Step Counter, Smoke & Dust), already carry a preview
+toggle (Drag Feel, End Turn, Hover Glow, Hero Power, Refresh, Tavern Up), or have a better harness of their own
+(the Charge Glyph's scrub). Only **5** genuinely fire and vanish: Lunge Impact, Motion Trail, Damage Float,
+Reposition Slide and Lunge — and Reposition Slide and Lunge both need staged cards on the board, which is
+precisely why Lunge got a measuring readout instead of a button. Ward Dome and Execute Aura are
+persistent-while-a-condition-holds, so they want a preview toggle rather than a fire-once.
+
+The count came from "panels with no `actions` entry", which is a proxy for the wrong thing — it measures what a
+panel HAS, not what it NEEDS. Worth remembering the next time a roadmap item is sized off a grep.
 
 
 ## 2026-07-30 — `burst` learns to aim along a moment, and the melee strike becomes a def

@@ -8,6 +8,10 @@
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
   --t-beast: #4ea83b; --t-dragon: #ffffff; --t-mech: #27a9dd; --t-undead: #22b8a8; --t-demon: #b15cf0; --t-neutral: #9a8d79;
+  /* Kobold and Dwarf had NO colour at all: `--c` is set from `var(--t-<tribe>)`, so an unlisted tribe
+     resolved to nothing and its medallion glyph rendered unfilled (owner report 2026-07-31). Dwarf is
+     the forge yellow the owner asked for; kobold takes a warm ember so the two stay distinct. */
+  --t-dwarf: #f0c33c; --t-kobold: #e8763a;
   --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;
@@ -2025,7 +2029,13 @@ body.modalup .statusbar .questbadges {
 .forge-ov.forge-epic .forge-banner svg { color: #cda6f2; }
 
 /* Rune run-buff badge (in the quest-badge row above the hero) — a stone-toned circle. */
-.questbadge.runebadge { border-color: #6a707c; background: linear-gradient(180deg, #3a3e46, #2a2d33); }
+/* Owner report 2026-08-01: a bought rune "wasn't showing" above the hero — it WAS rendering, but at the
+   quest-badge size (53u) a single stone-toned rune read as an unlabeled dark dot against the board frame.
+   The strip was tuned (#410) for ROWS of colorful quest badges; with quests off it holds 1–3 runes, so a
+   rune badge gets real presence: ~1.85× the quest size + a brighter rim and a STATIC soft glow (a shadow,
+   not a looping paint animation — perf rule). The opponent-frame override below (.oppbadges .questbadge,
+   34u) is later in the file and still wins there, so enemy-rune chips stay small. */
+.questbadge.runebadge { width: calc(98 * var(--u)); height: calc(98 * var(--u)); border-color: #9fb4c8; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.runebadge .questbadge-emblem { color: #cfe4ea; }
 .questbadge-tip-reward b { color: var(--acc); }
 /* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline).

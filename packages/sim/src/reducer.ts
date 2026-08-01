@@ -773,6 +773,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         // spell offers exactly the same thing.
         const spec = discoverSpecFor(s, def, card.grantedTier);
         if (!spec) return s;
+        // A TOKEN here (the Triple Reward) is NOT a Shop spell (owner rule 2026-08-01): it opens its Discover
+        // and nothing else. No spell multiplier (Nimbus/Ancient Runes never double it), and no `noteSpellCast`
+        // — so it is never the first/last spell the copy effects remember (Recurrence's End-of-Turn recast,
+        // Steward of Spells, Recaller, Mushy), never advances a spell tally or threshold, and never fires a
+        // spellCast watcher. It still counts as a CARD played (`playedThisTurn`, stamped above).
+        if (def.token) {
+          queueDiscover(s, { ...spec });
+          return s;
+        }
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
         // queued behind the first. `spellCasts` folds in Nimbus (nextSpellExtraCasts), Ancient Runes (spellDoubleAlways)
         // and Spell Thesis (first-spell-each-turn); Yazzus is aimed-only so it's auto-excluded (a Discover spell is

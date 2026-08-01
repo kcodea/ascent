@@ -27,6 +27,48 @@ first grant equals combat 1's carry-out + the step.
 
 Verified: full gates + harness determinism green (3571 tests).
 
+## 2026-08-01 — Rune hover audit: every named card previews; Triple Rewards can't triple, and aren't spells
+
+**Triple Reward is not a Shop spell (owner rule, second half).** Playing one routed through the shared
+`discoverOnPlay` path, which records a full spell cast via `noteSpellCast` — so a Triple Reward became the
+"first spell" Rune of Recurrence recasts at End of Turn, the "last spell" Steward of Spells / Recaller copy,
+a Mushy copy target, a spell-tally/threshold advance, and a spellCast-watcher trigger; Nimbus could even
+double its Discover (and get its charge eaten by a token). The token branch now opens its Discover and does
+NOTHING else — no multiplier, no memory, no tallies. It still counts as a CARD played. The gate is `def.token`
+on the discoverOnPlay path, and Triple Reward is the only token with that shape (audited). Tests pin: no
+spell state moves, the Discover still opens, and a Nimbus charge survives untouched for a real spell.
+
+**Rune hovers (owner ask: "if a rune references a card, show it on hover").** The forge's hover preview only
+read the reward's `grant`/`recurringGrant` card lists — so 21 runes whose TEXT names a card showed nothing
+(Banking's Money Bot, Living Echoes' Sunmane Herald, Matriarch's Runebloom, the Spearline Warden, every
+get-a-Ruby rune, the Imp-summon runes, …), and `grantGolden` (Frontline Glory's Gilded Yazzus) never previewed
+at all. Now:
+
+- `RuneDef.previewCards` (new optional field, schema-validated): card ids the hover shows in addition to the
+  reward's own grants. Filled on all 21 flagged runes.
+- `RuneCard` merges reward grants + `previewCards`, and `grantGolden` entries render as the GILDED card
+  (doubled stats + golden text).
+- A permanent audit test (`content/runePreview.test.ts`) cross-checks every rune's text against the whole card
+  index with word-boundary, plural-tolerant matching (excluding keyword-named cards like "Consume") — a future
+  rune that names a card without wiring its preview fails CI instead of shipping hover-less.
+
+**Triple Reward can't triple (owner rule).** The `discoverspell` token was a plain minion-shaped card, so
+three banked rewards silently combined into ONE golden token — eating two Discovers. It now carries
+`noTriple` (the Mage-Pup treatment: excluded from the triple COUNT, not just the combine). Test pins three
+banked rewards staying three cards.
+## 2026-08-01 — The bought-rune badge was invisible at quest-badge size
+
+Owner report (Mike's game): Rune of Reinvestment worked but "the rune icon is not showing above the hero."
+DOM-audited in the live app: the badge WAS rendering — `ownedRunes` was recorded, the art loaded, the strip sat
+where it always has (just above the hero panel) — but at the quest-badge size (53u, further scaled by the
+owner's #410 Layout-Lab strip transform) a single stone-toned rune read as an unlabeled ~51px dark dot against
+the board frame. The strip was tuned for ROWS of colorful quest badges; with quests off in set 2 it holds 1–3
+runes, and one small dark disc simply disappears.
+
+Fix (CSS only): `.questbadge.runebadge` gets real presence — ~1.85× the quest-badge size (98u), a brighter rim,
+and a STATIC soft glow (a box-shadow, not a looping paint animation — perf rule). The opponent-frame override
+(`.oppbadges .questbadge`, 34u) sits later in the file and still wins there, so enemy-rune chips stay small.
+Verified in the browser at shipped CSS: badge measures 95px and reads clearly above the hero.
 ## 2026-08-01 — Every FX Save silently deleted the def's `label` and `tags`
 
 Owner report, and a real loss: re-authoring `strike-impact` in the FX workbench (the effect that plays on

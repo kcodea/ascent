@@ -216,34 +216,36 @@ export function botSeat(seed: number, heroId?: string, label?: string, policy: S
 }
 
 /**
- * OPTION 3 (owner call 2026-07-29): play the recording while it lasts, then hand the seat to a live bot.
+ * A recording-backed bot seat (owner call 2026-07-31: "revert to pure snapshots for bots").
  *
- * The recorded run is the authentic part — a real player's actual boards, in their actual order — and it is also
- * the finite part. When it runs dry the seat doesn't freeze on a stale board or vanish from the lobby; a live
- * bot picks it up and keeps scaling. The alternatives measured worse: repeating the final board grinds the lobby
- * to its hard stop, and eliminating the seat makes lobby length depend on how long a stranger's run survived
- * rather than on play.
+ * This USED to be option 3 from 2026-07-29 — play the recording while it lasts, then hand the seat to a live
+ * bot. The live half turned out to be the lobby's perf regression: when Set 2 went live the recordings silently
+ * died (`autoplayRun` didn't know the Runeforge and could wedge on unplayable set-2 hand cards), every seat fell
+ * through to its beam-search bot from round 1, and each End Combat replayed seven bot advances on the main
+ * thread — a hitch that grew with wave depth. The recordings are fixed, and the owner's call is that snapshots
+ * are the destination anyway, so `prepare` is now recording-ONLY; a seat that outlives its recording is handled
+ * by the lobby's `ExhaustionPolicy` (repeatFinal), not by live play.
  *
- * The handover is deliberately seeded from the SAME seed and hero as the recording, so the bot continues a run
- * of the same shape rather than dropping an unrelated board into the seat mid-lobby.
+ * The live bot survives in exactly one place: `canFieldBoard`. Seat selection asks "can a bot play this hero at
+ * all", and the live bot answers in ~5ms where forcing a candidate's recording costs ~100ms — and rejected
+ * candidates would pay that cost for a recording nobody ever uses.
  */
 export function hybridSeat(seed: number, heroId?: string, label?: string, policy: SeatPolicy = 'hard'): SeatDriver & { readonly lastRecordedWave: number } {
   const recorded = recordRun(seed, heroId, label);
-  const live = botSeat(seed, heroId, label, policy);
+  // Lazy: the probe run is only built if seat selection actually asks. A seated driver never pays for it.
+  let probe: SeatDriver | null = null;
+  const live = (): SeatDriver => (probe ??= botSeat(seed, heroId, label, policy));
   return {
-    kind: 'recorded', // it presents as a recording — that is what the player sees for most of the lobby
+    kind: 'recorded',
     label: recorded.label,
-    // The LIVE half's hero, not the recording's: both derive it from the same `(seed, heroId)` so they agree,
-    // but the live one is already built and reading the recording's would autoplay a run just to name a hero.
-    heroId: live.heroId,
+    // The argument when there is one (free), else the probe's — NOT the recording's, which would autoplay a
+    // whole run just to name a hero.
+    get heroId(): string { return heroId ?? live().heroId; },
     get lastRecordedWave(): number { return recorded.lastWave; },
-    prepare: (round) => recorded.prepare(round) ?? live.prepare(round),
-    finalBoard: () => live.finalBoard?.() ?? recorded.finalBoard?.() ?? null,
-    // Probe the LIVE half only. The question seat selection is asking is "can a bot play this hero at all", and
-    // the live bot answers it in ~5ms where the recording costs ~100ms. It also answers it more truthfully: a
-    // hero whose recording comes back empty still fields boards here, because `prepare` falls through to live.
-    canFieldBoard: () => !!(live.prepare(1) ?? live.finalBoard?.()),
-    settle: (o) => { recorded.settle(o); live.settle(o); },
+    prepare: (round) => recorded.prepare(round),
+    finalBoard: () => recorded.finalBoard?.() ?? null,
+    canFieldBoard: () => !!(live().prepare(1) ?? live().finalBoard?.()),
+    settle: (o) => recorded.settle(o),
   };
 }
 

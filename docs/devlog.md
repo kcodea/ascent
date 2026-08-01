@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-01 — The main FX ticker idles when nothing is live (the shop-audit headline fix, shipped)
+
+The A/B from today's shop-phase audit: an idle shop presented an empty full-viewport WebGL frame ~240×/s —
+worst frame 8.5 ms with dropped frames; stopped, 4.3 ms and zero. Shipped the fix:
+
+- `pixiFx.enableAutoIdle()` — the same idle-when-empty contract `discoverFx` has shipped with since 07-30.
+- A central `wake()` called from EVERY work-adding site (the audited list: spawn's particles, skull pops,
+  tendrils ×2, gusts, weld rings, spell arrows, waves, slashes, crit FX, pulses, descends, the aim line,
+  external updaters, and under-slot mounts — which must wake the MAIN ticker, since it drives `renderUnder`).
+- `wake()` respects the Skip-combat freeze: `setPaused(true)` sets a flag that wake never overrides, so an
+  effect spawned mid-freeze can't thaw the board — it renders when the fade does.
+
+Verified live in the browser: idle shop self-stops the ticker (unassisted sampler: med 4.2 / worst 4.3 ms,
+ZERO frames over the 240 Hz long threshold — identical to the manually-stopped A/B); `__fx.play` wakes it the
+frame it fires and it idles again when the burst dies; every legacy channel (critImpact, weldPulse, pulse,
+descend, impactPulse) wakes from cold. The §3d audit write-up (PR #809) gets its "shipped" note once both
+merge. Full gates green (3577 tests).
+
 ## 2026-08-01 — Shop crash (Mykel's regex), Blart copies, Skald "another", Vhal "Demons", Wild Hunt persists
 
 **The crash (Mike's screenshot).** `spellThresholdText` built `new RegExp` from the printed threshold — and in

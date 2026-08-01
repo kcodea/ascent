@@ -12,9 +12,10 @@ export const DEFAULT_LOBBY_RULES: LobbyRules = {
   exhaustion: 'repeatFinal',
   pressureAfterQuietRounds: 4,
   maxRounds: 60,
-  // Up to 3 of the 7 non-player seats replay real player runs when the pool has them. A minority on purpose:
-  // recordings don't react to the lobby, so a table made mostly of them stops being a game between opponents.
-  snapshotSeats: 3,
+  // No snapshotSeats cap (owner call 2026-07-31): player runs fill EVERY non-player seat the pool can cover,
+  // bots only take what's left. The old "minority on purpose" cap of 3 predates the pure-snapshot direction --
+  // the table is now MEANT to be other players' runs, and it still degrades on its own: an empty pool seats
+  // zero snapshots and every seat is generated, exactly as before.
 };
 
 export function createLobby(seed: number, drivers: readonly SeatDriver[], rules: Partial<LobbyRules> = {}): LobbyState {

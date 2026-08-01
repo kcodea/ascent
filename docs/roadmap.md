@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
+  example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and
+  anything that should read as happening *on* the board rather than in front of it — each is a one-field
+  change on an existing def plus an eyeball pass. Worth measuring the third canvas's cost in a real combat
+  before migrating more than one.
+
 - **Re-measure the known hitches against the 240 Hz budget (4.17 ms).** The budget and the derived HUD
   thresholds shipped 2026-07-30 ([`performance.md`](performance.md) §0), which means the numbers will look
   worse without anything having regressed — the instrument was under-reporting, not the game improving.

@@ -33,6 +33,62 @@ The start-of-round End Turn inert window drops 5s → 2s (the double-click guard
 Rune of Reinvestment: TEXT-only fix — the buff always landed on `tavernBuyBonus`, the PERMANENT run-wide shop
 channel, so "give the next Shop" under-sold the rune. It now says "permanently give the Shop".
 
+## 2026-07-30 — FX defs choose their canvas: over the cards, or under them
+
+Every authored effect mounted on one Pixi layer, so every effect drew above everything. A ground slam and a
+sword strike had the same relationship to the board. Defs can now pick a **canvas slot**.
+
+**The finding that came first.** `.pixifx-under` (z3) carried a comment claiming it drew "over the card art
+but BELOW the badge/tier/effect chrome". It cannot: `.app` is `position: relative; z-index: 1` — its own
+stacking context — so a *sibling* at z3 outranks everything inside it, chrome included. The claim has been
+false since `.app` took a z-index, and went unnoticed only because the shield/reborn bubbles became CSS and
+that canvas has drawn nothing since. Proved with `document.elementFromPoint` (temporarily opting the canvas
+into hit-testing), not by reading CSS: over a card, `.pixifx-under`'s canvas comes back **on top**. It is
+left exactly as it is — `shieldApp` still mounts there and `setShield` would revive it — with the comment
+corrected.
+
+**Where a real `under` canvas can live.** Nowhere outside `.app`: a fixed sibling is either wholly above the
+board (any z ≥ 2) or below `.boardbg` and therefore invisible behind the board art. It has to be a CHILD of
+`.app`, early in the child list, at `z-index: 0` — the slot `.chargeglyph` already occupies, above the board
+backdrop and below every zone. `FxUnderSlot` (rendered by `Recruit`, owned by the `pixiFx` singleton so it
+survives the `.app` remount a new run causes) hosts `.pixifx-below`.
+
+**The API.** `FxDef.slot?: 'over' | 'under'`, omitted for the default — the same omit-unless-set discipline
+as `seed`/`label`/`tags`, so every def already on disk is byte-identical and `FX_DEF_VERSION` is unchanged.
+`pixiFx.mountLayer(container, slot)` (defaulting to `'over'`, so every existing caller is untouched) and
+`pixiFx.rendererFor(slot)`; `playDef` reads the def's slot and takes both the stage and the renderer from the
+same app, because a layer built against one GL context and drawn by another is undefined behaviour.
+
+**Cost control.** The under canvas is created LAZILY — on first under-slot mount — and the pre-warm brings it
+up early only when a committed def actually declares the slot, so a session with no under effects never
+creates a second context. Its ticker is stopped; the MAIN app's ticker renders it, and skips the render
+entirely while nothing is mounted, so the over and under halves of one moment can't tear apart and an idle
+under canvas costs an array-length read per frame.
+
+**Authoring.** A **Canvas / Over / Under** toggle in the workbench transport bar, round-tripping through the
+session autosave, Save, Commit and clipboard copy; loading a def adopts its slot. The preview backdrop hides
+itself in the Under slot (it lives on the over canvas and would sit between the effect and the eye). The UI
+copy states the limit plainly: **under is beneath EVERY card, not beneath its own card** — DOM z-index and
+Pixi draw order are different systems, and per-card interleaving is not expressible.
+
+One def ships in the new slot: **`ground-slam`** (floor shockwave + kicked dust), unbound, as the worked
+example.
+
+Verified in a real headless Chrome at 1582×804 (CDP, not the preview pane), in a live run:
+- `elementFromPoint` over a card — `.pixifx-below` canvas on top: **false**; `.pixifx` (control): **true**;
+  `.pixifx-under` (control): **true**.
+- `elementFromPoint` over bare board — `.pixifx-below` on top: **true** (so it is above `.boardbg`, not
+  hidden behind it).
+- Framebuffer: firing `ground-slam` at a card leaves an 8×8 patch of that card's art **byte-identical** to
+  baseline, while the same patch **changes** for the over-slot `impact-dust` at the same anchor — and a patch
+  of bare board beside the card **does** change under `ground-slam`, so the effect is genuinely drawing.
+
+Tests: def-store slot coercion (only the literal `'under'`; default omitted on write), session round-trip,
+and a committed-defs integrity pair (no file may spell out the default slot; every file survives coercion
+with the slot it declared).
+
+Verified: typecheck (pkgs + web), lint (7 pre-existing warnings), 3517 tests, build:web.
+
 ## 2026-07-31 — Runeforge offers follow the board; pivots arrive discounted
 
 Runes had NO baked-in associations — every forge draw was uniform. Now:

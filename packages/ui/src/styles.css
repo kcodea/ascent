@@ -3387,7 +3387,20 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 .pixifx { position: fixed; inset: 0; pointer-events: none; z-index: 110; }
 /* Persistent shield/reborn bubbles render here — over the card art but BELOW the badges/tier/effect chrome
    (which sit at z4–9 in the root stacking context). The break burst stays on .pixifx (z110), over the chrome. */
+/* …that comment is STALE and was never re-verified: `.app` is `position: relative; z-index: 1`, i.e. its own
+   stacking context, so z3 on a SIBLING beats everything inside it — badges and tier chrome included. The
+   bubbles have been CSS since the aura rework, so this canvas draws nothing and the error stayed invisible.
+   Kept as-is (the shieldApp still mounts here and `setShield` would revive it); an effect that must draw
+   BELOW the cards uses `.pixifx-below` instead. */
 .pixifx-under { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+/* UNDER-CARD FX canvas — where `slot: 'under'` def effects draw (ground slams, scorch marks, pools of light).
+   A CHILD of `.app`, unlike the two canvases above, and that is the only placement that works: `.app`'s
+   z-index:1 stacking context means a fixed SIBLING is either wholly above the board (any z ≥ 2) or below
+   `.boardbg` and therefore invisible behind the board art. Inside `.app`, z-index 0 lands it above `.boardbg`
+   (also z0, but an earlier child) and tree order puts it below every zone — the same slot `.chargeglyph`
+   occupies, for the same reason. It is beneath EVERY card, never beneath one particular card: the cards are
+   DOM and this is one canvas, so per-card interleaving isn't expressible. */
+.pixifx-below { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
 /* While the DEV 🎬 Choreography panel (`.sfxmix.choreo` z200) is open, lift both FX layers ABOVE it so the
    ▶ Preview bursts + persistent aura bubbles render ON TOP of the widget (they're pointer-events:none, so this
    never steals the panel's clicks). Dev-only; restored when the panel closes. */
@@ -6458,6 +6471,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-seed-lock:hover, .fxwb-seed-reroll:hover { background: #3d3752; }
 /* Locked is the state worth spotting from across the room: it means the look you're looking at is frozen. */
 .fxwb-seed-lock.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; }
+/* FX Workbench — the CANVAS SLOT toggle (Over / Under). Same bordered-cluster treatment as the seed group,
+   so the transport bar keeps reading as a row of labelled clusters. A segmented pair rather than a checkbox:
+   there are exactly two canvases and naming both is clearer than "☐ under". */
+.fxwb-slotgroup {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 9px;
+  background: #2b2739; border: 1px solid #3d3752;
+}
+.fxwb-slotbtn {
+  flex: none; padding: 4px 10px; border-radius: 7px; border: 1px solid #3d3752; background: transparent;
+  color: #b9b1cf; font-family: var(--font-ui); font-size: 12px; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.fxwb-slotbtn:hover { background: #3d3752; }
+.fxwb-slotbtn.on { background: color-mix(in srgb, #c936ef 22%, #2b2739); border-color: #c936ef; color: #f0e6ff; }
 /* A muted layer must be unmistakable in the list — otherwise "why is nothing rendering?" is a real trap. */
 .fxwb-layer-row.muted { opacity: 0.55; border-style: dashed; }
 .fxwb-layer-row.muted .fxwb-layer-name { text-decoration: line-through; }

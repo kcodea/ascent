@@ -275,3 +275,39 @@ describe('committed fx defs', () => {
     expect(problems).toEqual([]);
   });
 });
+
+/**
+ * The CANVAS SLOT field (`slot: 'over' | 'under'`).
+ *
+ * Two things are worth locking down, and only one of them is about correctness:
+ *
+ *  1. an unreadable slot silently falls back to `'over'` in `coerceDef`, exactly like a bad anchor falls back
+ *     to `target` — so `"slot": "Under"` or `"slot": "below"` loads clean and draws in the wrong place;
+ *  2. `'over'` is the DEFAULT and must be written as an OMISSION. A def that spells it out plays identically,
+ *     which is precisely why it would never be noticed — and it is how the field starts creeping into every
+ *     file on disk. The omit-unless-set rule is enforced here or nowhere.
+ */
+describe('committed defs — canvas slot', () => {
+  it('declares no slot at all, or exactly "under"', () => {
+    const problems: string[] = [];
+    for (const { stem, raw } of ENTRIES) {
+      if (!isRecord(raw) || !('slot' in raw)) continue;
+      if (raw.slot === 'over') {
+        problems.push(`${stem}: writes the DEFAULT slot explicitly — omit the field instead`);
+      } else if (raw.slot !== 'under') {
+        problems.push(`${stem}: slot ${JSON.stringify(raw.slot)} is not 'under' and will silently draw OVER the cards`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('survives coercion with the slot it declared', () => {
+    const problems: string[] = [];
+    for (const { stem, raw } of ENTRIES) {
+      const declared = isRecord(raw) && raw.slot === 'under' ? 'under' : undefined;
+      const coerced = coerceDef(raw)?.slot;
+      if (coerced !== declared) problems.push(`${stem}: declared ${String(declared)}, coerced to ${String(coerced)}`);
+    }
+    expect(problems).toEqual([]);
+  });
+});

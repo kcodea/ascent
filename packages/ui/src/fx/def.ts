@@ -4,6 +4,21 @@
  */
 export type FxAnchorId = 'source' | 'target' | 'travel' | 'cursor' | 'slot' | 'camera';
 
+/**
+ * Which CANVAS an effect draws on — the one over the cards, or the one beneath them.
+ *
+ * `'over'` is the historical (and default) behaviour: the full-viewport `.pixifx` canvas at z110, which sits
+ * above every card, badge and piece of board chrome. `'under'` mounts the effect on a second canvas that is
+ * a child of `.app` at z-index 0 — above the board backdrop (`.boardbg`), below every card. A ground slam,
+ * a scorch mark, a pool of light: things that should read as happening ON the board rather than in front of it.
+ *
+ * **It is a GLOBAL layer, not a per-card one.** `under` puts the effect beneath *every* card on the board,
+ * not beneath the one it is anchored to. DOM z-index and Pixi draw order are separate systems — the cards
+ * are DOM, the effect is a single WebGL canvas — so "behind this card but in front of that one" is not
+ * expressible and is deliberately out of scope.
+ */
+export type FxSlot = 'over' | 'under';
+
 export interface FxLayer {
   primitive: string;
   anchor: FxAnchorId;
@@ -38,6 +53,11 @@ export interface FxLayer {
 export interface FxDef {
   id: string;
   duration: number;
+  /**
+   * Which canvas the whole effect draws on (see `FxSlot`). OPTIONAL, and omitted means `'over'` — so every
+   * def written before this existed is byte-identical and plays exactly where it always did.
+   */
+  slot?: FxSlot;
   layers: FxLayer[];
 }
 

@@ -169,6 +169,31 @@ effect tuned pinned to the cursor routinely falls apart when it has to cross rea
 
 ---
 
+## 3b. Which canvas: **Over** or **Under** the cards
+
+The transport bar carries a **Canvas** toggle. It is a property of the whole effect, not of a layer.
+
+| | draws on | use it for |
+|---|---|---|
+| **Over** (default) | the full-viewport overlay above every card, badge and piece of board chrome | impacts, strikes, casts, keyword pops — anything that reads as happening *in front of* the board |
+| **Under** | a second canvas parked inside the board: above the board art, below every card | ground slams, scorch marks, pools of light, spreading rot — anything that reads as happening *on* the board |
+
+Three things worth knowing before you reach for **Under**:
+
+- **It is beneath EVERY card, not beneath its own card.** The cards are DOM elements and the effect is one
+  WebGL canvas, so "behind this minion but in front of the one next to it" is not something the two systems
+  can express. Per-card layering is out of scope, not merely unimplemented.
+- **The preview backdrop hides itself** while the slot is Under — the whole point is how the effect reads
+  against the real board, so the flat colour behind it would only be in the way. Use the **Real board**
+  scenario for the honest check.
+- **The under canvas is created on first use** and never exists in a session that fires no under-slot effect.
+  The first flip of the toggle may therefore take a frame or two to show anything.
+
+Saved defs carry `"slot": "under"`; **Over writes no field at all**, so an effect that never touches the
+toggle keeps saving exactly the JSON it always did.
+
+---
+
 ## 4. Build the composition
 
 **Add layer** per primitive (trail, burst, shockwave, emitter, smoke). Each layer carries:

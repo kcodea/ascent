@@ -22,6 +22,7 @@ import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
+import { FxUnderSlot } from './PixiFxLayer';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
@@ -3689,6 +3690,10 @@ export function Recruit() {
         paused={!!(run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen)}
         covered={!!(heroSelecting || overlayOpen)}
       />
+      {/* UNDER-CARD FX canvas — the host for `slot: 'under'` effect defs. Position in this child list is
+          load-bearing (above `.boardbg`, below every zone); see `FxUnderSlot` for why it can't live beside
+          `.pixifx` outside `.app`. */}
+      <FxUnderSlot />
       <HudBar />
       {/* LOBBY RAIL — the 8-seat table down the right edge of the stage. A direct child of `.app` (not the HUD
           bar) so it can be anchored to the STAGE height and run tall beside the board, instead of hanging off

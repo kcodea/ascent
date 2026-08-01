@@ -7,7 +7,7 @@
  *                    magnetics": Divine Shield + Windfury both sides → the longest, busiest fights).
  *   2. reduce()    — per-dispatch cost in the recruit phase WITH a populated `lastCombat` (the state the
  *                    structuredClone-the-whole-event-log regression lived in).
- *   3. full run    — a greedy bot plays complete runs end to end (combat + economy + faceOmen odds sims),
+ *   3. full run    — a greedy bot plays complete runs end to end (combat + economy; the odds probe is UI-deferred),
  *                    the closest headless proxy for "is a whole session snappy".
  *
  * What it CANNOT measure: render/paint/animation cost (CSS box-shadow repaints, React reconcile, GSAP).
@@ -93,7 +93,7 @@ const reduceBench = bench('reduce · dispatch w/ populated lastCombat (freeze)',
   reduce(reduceState, { type: 'freeze' });
 }, { budgetMs: 0.5, note: `lastCombat: ${reduceState.lastCombat?.events.length ?? 0} events (shared by ref, not cloned)` });
 
-// ── 3. full greedy bot runs (combat + economy + faceOmen odds sims, end to end) ───────────────────
+// ── 3. full greedy bot runs (combat + economy, end to end; odds probe UI-deferred since 2026-08-01) ──
 // A trimmed copy of the player-curve greedy bot — enough to drive a complete run deterministically.
 const stat = (c: { attack: number; health: number }): number => c.attack + c.health;
 const offerValue = (o: ShopCard): number => {
@@ -144,14 +144,14 @@ function playRun(seed: number, heroId: string): { waves: number; dispatches: num
   return { waves: s.wave, dispatches };
 }
 const heroes = HEROES.map((h) => h.id);
-const RUN_ITERS = 24; // each wave fires faceOmen (1000 odds sims), so a run is thousands of simulate() calls
+const RUN_ITERS = 24; // each wave fires faceOmen (the odds sims are DEFERRED to UI idle time since 2026-08-01), so a run is thousands of simulate() calls
 const runBench = bench('full run · greedy bot, end to end', RUN_ITERS, (i) => {
   playRun(2000 + i, heroes[i % heroes.length]!);
 }, { budgetMs: 600 });
 // Note computed AFTER the bench (one extra representative run), so the counts reflect real play.
 {
   const sample = playRun(9999, heroes[0]!);
-  runBench.note = `~${sample.waves} waves, ${sample.dispatches} dispatches/run (each wave's faceOmen runs 1000 odds sims)`;
+  runBench.note = `~${sample.waves} waves, ${sample.dispatches} dispatches/run (odds probe deferred to UI idle — not in this number)`;
 }
 
 // ── Report ────────────────────────────────────────────────────────────────────────────────────────

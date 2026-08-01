@@ -330,6 +330,29 @@ Two rules came out of adding the third:
   over and under halves of the same effect can never tear apart by a frame, and an idle under canvas costs
   one array-length read per frame rather than a full clear + present.
 
+## 3d. Shop-phase audit, 2026-08-01 (A/B-measured)
+
+An idle-shop audit against the 240 Hz budget, in a live lobby shop (dev build — magnitudes shift in prod, the
+mechanisms don't):
+
+- **The main FX app's ticker presents an empty full-viewport WebGL frame ~240×/s through the whole shop.**
+  A/B over identical 8 s windows: ticker running → worst frame 8.5 ms, 3 frames over the 8.33 ms long
+  threshold; ticker stopped → worst 4.3 ms, ZERO over. That was the entire residual idle-shop jank on the
+  measuring machine. The fix is the `autoIdle` mechanism `discoverFx` already uses (stop when
+  `hasLiveWork()` is false, wake on any spawn), extended to the main controller — the work is auditing every
+  effect entry point so a burst always wakes the ticker (tracked as an open task).
+- **The End Turn click no longer runs the 200-sim odds probe** (owner call, same day): `faceOmen` stashes
+  `CombatResult.oddsInput` and the UI computes `computeCombatOdds` in idle time after the combat mounts (also
+  self-healing a mid-combat resume — the input serializes with the save). ~10 ms off the click; the headless
+  full-run benchmark dropped 164 → 136 ms/op. Same `TAG.ODDS` streams → identical numbers.
+- The median idle frame sits AT the 4.17 ms budget (4.2 ms) — there is no headroom; anything added per-frame
+  drops frames immediately.
+- The charge glyph runs two rAF loops (incl. a 980×980 2D motes canvas) for the final `CHARGE_SECONDS` (20 s)
+  of every turn — round 1's timer is 21 s, so effectively the whole first turn. Measured harmless on a good
+  GPU (the clean ticker-off window had it running); re-check on weak hardware after the ticker fix.
+- Healthy and holding: engine 0.03 ms/dispatch; view-building memoized; autosave phase-boundary-only; the
+  turn clock externalized; ~450 DOM nodes in shop.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

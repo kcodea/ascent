@@ -1714,6 +1714,19 @@ export interface CombatResult {
   playerQuestEvents?: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[];
   /** Starting rosters, for the UI to render before replaying the log. */
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] };
+  /** Everything the DEFERRED odds probe needs to re-run this matchup (perf audit 2026-08-01: the 200 Monte
+   *  Carlo sims used to run synchronously inside `faceOmen` — ~10 ms on the End Turn click, 2-3 dropped
+   *  frames at 240 Hz, feeding nothing but a display bar). The reducer now stashes the sim inputs here —
+   *  plain serializable data, so a mid-combat save/resume can still compute — and the UI runs the probe in
+   *  idle time after the combat transition (see `computeCombatOdds` in @game/sim). Same seeds → identical
+   *  numbers to the old inline path. */
+  oddsInput?: {
+    player: BoardMinion[];
+    enemy: BoardMinion[];
+    playerState: CombatSideState;
+    enemyState: CombatSideState;
+    config: CombatConfig;
+  };
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */
   playerSummonBonus?: { sourceUid: string; bonus: number }[];

@@ -2367,23 +2367,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, spells, num(params.count, 1) * gold(self));
   },
 
-  /** Set 2 — Ashen Broodlord (owner rework 2026-07-31): the first `cap` times ANY friendly Demon Consumes a
-   *  SHOP minion each turn, get a random Shop spell (golden: 2 per proc — `count` × gold; the cap stays).
-   *
-   *  Keyed on the payload's `shop` flag, which only `consumeShopMinion` sets — a Fodder eat fires the same
-   *  `onConsume` event and must not count ("Consumes a Shop minion" is the printed rule). The per-turn cap
-   *  rides `rubyRecvTick`, the per-instance counter the per-turn consume latches already use — it resets each
-   *  wave with the rest of the per-turn state, and the Broodlord has no other use for it. */
-  onDemonShopConsumeGrantSpell: (ctx, self, params, payload) => {
-    const p = payload as { minion?: BoardCard; shop?: boolean } | undefined;
-    if (!p?.shop || !p.minion || !isTribe(p.minion, 'demon')) return;
-    const cap = num(params.cap, 2);
-    if ((self.rubyRecvTick ?? 0) >= cap) return;
-    self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
-    const spells = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
-    conjureToHand(ctx.state, spells, num(params.count, 1) * gold(self));
-  },
-
   /** Karwind (recruit half, owner rework 2026-07-25): a Shout trigger buffs your `tribe`, except Karwind's two
    *  board NEIGHBOURS, who get the bigger `adj` grant INSTEAD of the base one. A neighbour outside the tribe
    *  gets nothing — the owner chose "instead", not "any tribe".

@@ -31,7 +31,8 @@ const ART_PX = 512;
  */
 const ALIASES: Record<string, string> = {
   // misspelled in the source
-  chiurgeon: 'dw_chirurgeon',            // missing the second 'r'
+  // (`chiurgeon` alias retired 2026-07-31: the card is Ayves now, so Ayves.png matches by NAME and the old
+  //  misspelled file would only compete for the same slot.)
   oatshieldorin: 'dw_orin',              // missing the 'h'
   salvatoremckluskey: 'salvatore',        // extra 'e'
   candlelightbulwark: 'k_candleback',     // card is Candleback Bulwark

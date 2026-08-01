@@ -151,11 +151,9 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout and Echo:** get **2 Growths**.',
   },
   {
-    // Dragon/DEMON, Rise: pays off the Demon half of its typing — eating from the Shop turns into spell fuel.
-    // The `onConsume` factory self-guards on the payload, so it's "when THIS consumes", not any consume on the
-    // board. Broodlord has no consume of its own: it eats via the shared Demon sources (a Fodder sell's
-    // left-most Demon, Feastmaster Vhal's neighbours). Rise REMOVED at the owner's call (2026-07-25) — the
-    // consume payoff is the whole card now.
+    // Dragon/DEMON. Owner rework 2026-07-31 (second pass): from the capped friendly-Demon consume payoff to a
+    // RALLY that casts a Staff of Guel — permanent (the tavern-buy enchant carries out of combat), scaled by
+    // the run's spell power, and a real spell cast that feeds Guel / Groveweaver / Runebloom.
     id: 'd2_broodlord',
     name: 'Ashen Broodlord',
     tribe: 'dragon',
@@ -163,12 +161,10 @@ export const SET2_DRAGONS: CardDef[] = [
     tier: 5,
     attack: 6,
     health: 8,
-    keywords: [],
-    // Owner rework 2026-07-31: from "when THIS consumes" (which required outside help to ever fire — the
-    // Broodlord has no consume of its own) to a capped payoff on the tribe's whole consume engine.
-    effects: [{ on: 'onConsume', do: 'onDemonShopConsumeGrantSpell', params: { cap: 2, count: 1 } }],
-    text: 'The first **2** times a friendly Demon **Consumes** a Shop minion each turn, get a random **Shop spell**.',
-    goldenText: 'The first **2** times a friendly Demon **Consumes** a Shop minion each turn, get **2** random **Shop spells**.',
+    keywords: ['RL'], // Rally — the badge has to match the trigger
+    effects: [{ on: 'onAttack', do: 'rallyCastShopBuffSpell', params: { attack: 2, health: 2 } }],
+    text: '**Rally:** cast a **Staff of Guel**.',
+    goldenText: '**Rally:** cast **2 Staves of Guel**.',
   },
   {
     // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the

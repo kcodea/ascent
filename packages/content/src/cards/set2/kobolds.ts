@@ -316,21 +316,6 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: 'Rubies played on this minion give you **3 Gold** (three times per turn).',
   },
   {
-    // Recruit-phase economy: the `cardsBought` cadence (`every: 3`) mints a Ruby every 3 cards you buy.
-    id: 'k_hoardmaster',
-    name: 'Hoardmaster Krik',
-    tribe: 'kobold',
-    tier: 5,
-    attack: 4,
-    health: 7,
-    keywords: [],
-    // `goldSpent` carries the same continuous per-instance meter `cardsBought` does (see `applyGoldSpent`), so
-    // the cadence needs no new plumbing — only the event and the threshold change.
-    effects: [{ on: 'goldSpent', do: 'cardsBoughtGetRubies', params: { every: 5, count: 1 } }],
-    text: 'When you spend **5 Gold**, get a Ruby.',
-    goldenText: 'When you spend **5 Gold**, get **2 Rubies**.',
-  },
-  {
     // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally
     // showers the tribe in Rubies, so it turns a single Rally body into a board-wide permanent buff that scales
     // with the run's Ruby strength.

@@ -155,10 +155,10 @@ export const SET2_BEASTS: CardDef[] = [
     // Rally: re-fire your left-most friendly Echo without killing it — the Deathsayer mechanic, board-order
     // (deterministic) rather than "first that has one".
     id: 'b2_echohorn',
-    name: 'Echohorn Stag',
+    name: 'Echohorn', // renamed from Echohorn Stag (owner 2026-07-31); id unchanged
     tribe: 'beast',
-    tier: 4,
-    attack: 4,
+    tier: 3,
+    attack: 3,
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyProcLeftmostEcho' }],

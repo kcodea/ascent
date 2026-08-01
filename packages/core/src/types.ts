@@ -225,13 +225,13 @@ export type EffectFactoryId =
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell'
-  | 'onDemonShopConsumeGrantSpell' // Ashen Broodlord: first N friendly-Demon SHOP consumes each turn → a Shop spell
   | 'spellPlayRubiesAll' // Ruby Excavation: play N Rubies on every friendly minion
   | 'spellGainSpellPower' // Quick Study (spell): permanently raise the run's spell power
   | 'spellDecoyNextCombat' // Decoy Sigil: bank a next-combat Training Dummy slot-filler
   | 'spellStealShop' // Deep Delve Writ / Ironclad Requisition: take Shop offers into hand for free
   | 'spellTargetConsumesShop' // Cupcakes: the targeted Demon Consumes N random Shop minions
   | 'deathrattleSummonGolemsWithRuby' // Geode Guardian: summon N Gemheart Golems with Taunt + play Rubies on them
+  | 'rallyCastShopBuffSpell' // Ashen Broodlord: Rally casts a Staff of Guel (permanent tavern-buy buff)
   | 'spellWeakenNextCombat' // Weaken: bank a next-combat "set a random enemy to 1 Health" // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand

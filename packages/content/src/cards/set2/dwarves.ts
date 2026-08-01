@@ -139,7 +139,7 @@ export const SET2_DWARVES: CardDef[] = [
     // The buy tally lives on the CARD (`buyTick`), like every other cards-bought effect, which is what makes
     // "carries over through combat" true without extra wiring.
     id: 'dw_chirurgeon',
-    name: 'Chirurgeon',
+    name: 'Ayves', // renamed from Chirurgeon (owner 2026-07-31); the id stays — saved runs store ids
     tribe: 'dwarf',
     tier: 5,
     attack: 5,

@@ -2756,6 +2756,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
   },
 
+  /** Ashen Broodlord (owner rework 2026-07-31) — Rally: CAST A STAFF OF GUEL. A real spell cast, so it
+   *  follows the Taragosa pattern exactly: the run's spell power folds into the grant (`spellPowerFor`, so an
+   *  enemy Broodlord scales with the OPPONENT's), and `ctx.castSpell` fires the cast so per-spell payoffs
+   *  (Guel, Groveweaver, Runebloom) all see it. Golden casts it TWICE rather than doubling one cast — that is
+   *  what "Gilded casts 2" means, and it matters: two casts fire two spellCast triggers.
+   *
+   *  The buff itself is the Staff's: a PERMANENT run-wide tavern-buy enchant, carried out of combat through
+   *  `gainTavernBuy` (→ `playerTavernBuyGain` → `tavernBuyBonus`). `sourceUid` telegraphs it mid-fight as the
+   *  "+N/+N Shop" narration. */
+  rallyCastShopBuffSpell: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // Rally = THIS minion swung
+    const sp = ctx.spellPowerFor(self.side);
+    const a = num(params.attack, 2) + sp.attack;
+    const h = num(params.health, 2) + sp.health;
+    for (let r = 0; r < mul(self); r++) {
+      ctx.castSpell(self.side); // a REAL cast — fires Guel / Groveweaver / the spellsCast carry-back
+      ctx.gainTavernBuy(a, h, self.side, self.uid);
+    }
+  },
+
   /** Set 2 — Traveling Skald: whenever a FRIENDLY minion of `tribe` attacks, give IT +atk/+hp. Watches every
    *  friend's attack, not just its own — so the payload's attacker is the target, and the Skald buffs itself
    *  only when it is the one swinging (it's a Dragon). Golden doubles. */

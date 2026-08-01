@@ -26,7 +26,9 @@ describe('set 2 — Ruby exclusion matches the printed text', () => {
     // Mushy dropped OFF this list in the 2026-07-25 rework — its Echo no longer touches spells
     // at all. Scalechanter joined it: its new text promises "Shop spell", so it owes the same exclusion.
     'd2_ashscribe', 'd2_mirrorwing', 'd2_spellkeeper', 'd2_scalechanter',
-    'd2_recaller', 'd2_spellvault', 'd2_broodlord', 'd2_archivist', 'd2_runefire',
+    // Broodlord left the list 2026-07-31: its Rally casts a NAMED spell (Staff of Guel), so there is no
+    // random spell pool for a Ruby to leak into — the exclusion is simply not its concern any more.
+    'd2_recaller', 'd2_spellvault', 'd2_archivist', 'd2_runefire',
   ];
 
   it('every excluding card SAYS "Shop spell", in its text and its golden text', () => {

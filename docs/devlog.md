@@ -17,6 +17,27 @@ ZERO frames over the 240 Hz long threshold — identical to the manually-stopped
 frame it fires and it idles again when the burst dies; every legacy channel (critImpact, weldPulse, pulse,
 descend, impactPulse) wakes from cold. The §3d audit write-up (PR #809) gets its "shipped" note once both
 merge. Full gates green (3577 tests).
+## 2026-08-01 — Shop-phase perf audit: the idle FX ticker is the jank; the odds probe leaves the End Turn click
+
+Owner ask: a shop-phase performance audit. Findings (full write-up in `docs/performance.md` §3d):
+
+- **A/B-measured**: the main FX canvas presents an empty full-viewport WebGL frame ~240×/s all shop long.
+  Ticker on → worst frame 8.5 ms + dropped frames at idle; ticker off → worst 4.3 ms, zero dropped. That is
+  the residual idle-shop jank. Fix = extend `discoverFx`'s `autoIdle` to the main controller (open task —
+  needs the every-entry-point wake audit; purely a lift when idle, no effect-visual change when wired fully).
+- **SHIPPED in this change (owner call): the End Turn click no longer runs the 200 Monte Carlo odds sims.**
+  `faceOmen` stashes `CombatResult.oddsInput` (plain serializable sim inputs, post-Marked-Target so the probe
+  sees the fought board); `computeCombatOdds` (new `sim/odds.ts`) runs in a `requestIdleCallback` after the
+  combat mounts, via a small Recruit hook that also self-heals a mid-combat resume (the input rides the save).
+  Same `TAG.ODDS` streams → numerically identical odds; legacy saves with baked odds still display. ~10 ms off
+  the End Turn click; headless full-run benchmark 164 → 136 ms/op.
+- Also noted: median idle frame sits AT the 4.17 ms budget (no headroom); the charge glyph's two rAF loops run
+  the final 20 s of each turn (all of turn 1) — measured harmless on a good GPU, re-check on weak hardware.
+
+Tests: run.test's odds test rewritten to the deferred contract (faceOmen stashes, never computes; the probe is
+deterministic incl. through a JSON round-trip of the stashed input); the stale-board fallback test asserts
+`oddsInput` on the fallback board. Verified live: the Combat Summary's odds bar populates from the deferred
+compute. Full gates + harness green (3577 tests).
 
 ## 2026-08-01 — Shop crash (Mykel's regex), Blart copies, Skald "another", Vhal "Demons", Wild Hunt persists
 

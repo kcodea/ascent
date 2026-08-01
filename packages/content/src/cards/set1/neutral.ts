@@ -156,7 +156,9 @@ export const NEUTRAL: CardDef[] = [
     id: 'yazzus',
     name: 'Yazzus',
     tribe: 'neutral',
-    tier: 6,
+    // T6 → T7 (owner 2026-07-31) — the capstone tier, so outside the Summit rift it no longer shows up in
+    // shops and arrives through explicit grants instead (Rune of Yazzus / Frontline Glory name it by id).
+    tier: 7,
     attack: 5,
     health: 7,
     keywords: [],

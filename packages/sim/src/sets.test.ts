@@ -118,7 +118,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
     expect(spec('buddy')).toBe('T2 2/2'); // owner move 2026-07-31
     expect(spec('nimbus')).toBe('T5 4/3');
     expect(spec('ropewrangler')).toBe('T4 5/4');
-    expect(spec('yazzus')).toBe('T6 5/7');
+    expect(spec('yazzus')).toBe('T7 5/7'); // owner move 2026-07-31 — the tier half of the sheet's "T7 9/9"
     expect(spec('lazarus')).toBe('T4 5/4');
     expect(spec('zyff')).toBe('T7 6/6');
     // And Nimbus keeps the "additional time" wording from the 2026-07-24 ruling (stacks with Drakko), not the

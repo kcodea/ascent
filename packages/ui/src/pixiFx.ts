@@ -536,6 +536,7 @@ class FxController {
       void this.ensureUnderSlot(); // async; the container queues until the canvas exists
       if (this.underLayer) this.underLayer.addChild(c);
       else this.pendingUnderMounts.push(c);
+      this.wake(); // renderUnder runs on the MAIN ticker — a mount while idle must present at least once
       return () => {
         this.underLayer?.removeChild(c);
         const i = this.pendingUnderMounts.indexOf(c);
@@ -559,7 +560,7 @@ class FxController {
    *  frame, the disposed one still runs that frame — it drops out starting next frame, not immediately. */
   addUpdater(fn: (dtMs: number) => void): () => void {
     this.extraUpdaters.push(fn);
-    this.app?.ticker.start(); // an idled controller must wake while an external updater is live
+    this.wake(); // an idled controller must wake while an external updater is live
     return () => {
       const i = this.extraUpdaters.indexOf(fn);
       if (i >= 0) this.extraUpdaters.splice(i, 1);
@@ -573,6 +574,18 @@ class FxController {
   }
 
   /** True while anything still needs the per-frame tick: live particles or any redrawn effect / aura / aim. */
+  /** True while `setPaused(true)` holds the ticker (the Skip-combat freeze). `wake()` respects it, so an
+   *  effect spawned mid-freeze cannot un-freeze the board — it renders when the fade thaws. */
+  private manuallyPaused = false;
+
+  /** Start the ticker because WORK JUST ARRIVED. Every site that adds per-frame work (a particle, a tendril,
+   *  a weld ring, an aim line, an updater, an under-slot mount) calls this — it is what makes `autoIdle` on
+   *  the MAIN controller safe: the ticker stops the instant `hasLiveWork()` is false (see `update`'s tail)
+   *  and this is the single, audited way back. A no-op when already running; never overrides a Skip freeze. */
+  private wake(): void {
+    if (!this.manuallyPaused) this.app?.ticker.start();
+  }
+
   private hasLiveWork(): boolean {
     return (
       this.extraUpdaters.length > 0 ||
@@ -847,6 +860,7 @@ class FxController {
     let flash: Graphics | null = null;
     if (defRect) { flash = new Graphics(); this.layer.addChild(flash); }
     this.critFxs.push({ x, y, cfg: c, age: 0, ring, text, flash, flashRect: defRect ?? null });
+    this.wake();
   }
 
   /**
@@ -1064,6 +1078,7 @@ class FxController {
     // The ease curve is fixed for this ring's whole flight — solve it into a LUT now, once, instead of per
     // frame. A batch of welds all share the same cfg object, so this is one small table per weld.
     this.weldRings.push({ g, x, y, cfg, age: 0, ease: easeLut(cfg.easeStart, 1 - cfg.easeFinish) });
+    this.wake();
   }
 
   /** Redraw one converging weld ring; emits its flash + rising sparks on arrival. False once complete. */
@@ -1186,6 +1201,7 @@ class FxController {
 
     // Register the blast so `update` emits the staggered rings (ring 0 fires next frame at age ~0).
     this.pulses.push({ x, y, cfg, age: 0, ringsSpawned: 0 });
+    this.wake();
   }
 
   /**
@@ -1246,6 +1262,7 @@ class FxController {
     g.blendMode = cfg.blend;
     this.layer.addChild(g);
     this.descends.push({ g, from, to, ctl, perp, cfg: ribbon, age: 0, struck: false, pulse: cfg.pulse });
+    this.wake();
   }
 
   /**
@@ -1434,6 +1451,7 @@ class FxController {
    *  last frame in place. Used by the Skip-combat fade so nothing keeps moving while the board pauses + fades
    *  out (the canvas opacity is faded separately via CSS, which doesn't need the ticker running). */
   setPaused(paused: boolean): void {
+    this.manuallyPaused = paused; // recorded even pre-attach, so a wake() during the freeze can't thaw it
     if (!this.app) return;
     if (paused) this.app.ticker.stop();
     else this.app.ticker.start();
@@ -1761,6 +1779,7 @@ class FxController {
     this.layer.addChild(glow); // behind…
     this.layer.addChild(sprite); // …the skull
     this.skullPops.push({ sprite, glow, x, y, scale, age: 0 });
+    this.wake();
   }
 
   /** Fire the poof at the end of a skull's pop: the skull dissolves (scale-up + fade), a purple flash pulses,
@@ -1855,6 +1874,7 @@ class FxController {
     const g = new Graphics();
     g.blendMode = cfg.blend;
     this.layer.addChild(g);
+    this.wake();
     this.tendrils.push({
       g, from: { x: from.x, y: from.y }, to: { x: to.x, y: to.y }, ctl, perp, cfg, age: 0, struck: false,
     });
@@ -1902,6 +1922,7 @@ class FxController {
       g.blendMode = 'add';
       this.layer!.addChild(g);
       this.tendrils.push({ g, from: { ...from }, to: { ...to }, ctl, perp, cfg: t, age: 0, struck: false, arrowSize: cfg.arrowSize });
+    this.wake();
     };
     mk(shop, board, cfg.colorInCore, cfg.colorInGlow);   // the arrival — warm, tavern → board
     mk(board, shop, cfg.colorOutCore, cfg.colorOutGlow); // the departure — cool, board → tavern
@@ -1939,6 +1960,7 @@ class FxController {
     g.blendMode = 'add';
     this.layer.addChild(g);
     this.gusts.push({ g, box: { ...box }, cfg, age: 0 });
+    this.wake();
   }
 
   /** Stroke a gust path twice (soft glow underlay, bright core), tapering tail→head when cfg.taper. */
@@ -2095,6 +2117,7 @@ class FxController {
       off: (Math.random() * 2 - 1) * (w / 2), spawned: false,
     }));
     this.waves.push({ g, region: sized, cfg, age: 0, lastWake: -1, motes });
+    this.wake();
   }
 
 
@@ -2141,6 +2164,7 @@ class FxController {
       dripped: false,
     }));
     this.slashes.push({ g, cfg, age: 0, x0: cx - half, x1: cx + half, cy, k, streaks });
+    this.wake();
     // The hot flash at the contact point — the "connection" read.
     if (cfg.flashSize > 0 && cfg.flashAlpha > 0 && this.glowTex) {
       this.spawn(this.glowTex, {
@@ -2392,6 +2416,7 @@ class FxController {
       const side = Math.random() < 0.5 ? -1 : 1;
       const amp = 1 + (Math.random() - 0.5) * 2 * cfg.curveVar;
       this.aim = { g, from: { ...from }, to: { ...to }, onTarget, cfg, side, amp, seed: Math.random() * 1000 };
+      this.wake();
     } else {
       this.aim.from = { ...from };
       this.aim.to = { ...to };
@@ -2500,6 +2525,7 @@ class FxController {
       // Fan the launch points across the spread, and alternate the drift side so the fan opens outward.
       const frac = cfg.arrowCount > 1 ? i / (cfg.arrowCount - 1) - 0.5 : 0;
       const side = i % 2 === 0 ? 1 : -1;
+      this.wake();
       this.spellArrows.push({
         g,
         x: x + frac * cfg.arrowSpread,
@@ -2666,7 +2692,7 @@ class FxController {
   ): void {
     const layer = this.layer;
     if (!layer) return;
-    if (this.autoIdle) this.app?.ticker.start(); // wake the idled ticker for this burst (no-op if already running)
+    this.wake(); // work just arrived — wake the idled ticker (no-op if already running)
     const peakAlpha = cfg.peakAlpha ?? 1;
     // Scale SIZE + MOTION (not position — x/y are absolute screen coords) by the stage scale so a burst on a
     // phone's small card is a small burst. fromScale/toScale/vx/vy/gravity all track it; positions do not.
@@ -3058,6 +3084,11 @@ class FxController {
 /** The singleton effects layer. The React `PixiFxLayer` drives its mount; the combat replay
  *  calls `pixiFx.impact(...)` at contact points. */
 export const pixiFx = new FxController();
+// Idle-when-empty (perf audit 2026-08-01, A/B-measured in docs/performance.md §3d): with the ticker running,
+// an IDLE shop presented an empty full-viewport WebGL frame ~240×/s — worst frame 8.5 ms with dropped frames;
+// stopped, worst 4.3 ms and zero dropped. Every work-adding site calls `wake()`, so the first frame of any
+// effect renders the frame it fires — same contract discoverFx has shipped with since 2026-07-30.
+pixiFx.enableAutoIdle();
 
 /** A second, independent FX layer mounted INSIDE the Discover overlay (behind the cards, above the dark
  *  backdrop) — so the discover burst reads white-hot over the dim without covering the UI. Its own app +

@@ -239,6 +239,43 @@ board, Echo does NOT fire).
 
 Verified: full gates green (typecheck, lint 0 errors, 3554 tests, build:web, harness determinism).
 
+## 2026-07-31 (dwarves and kobolds get their plates, frames and colour)
+
+### feat(ui): dwarf + kobold cardplates, the dwarf frames, and the two missing tribe colours
+
+**Owner report:** dwarves had no cardplate, their tribe glyph rendered unfilled, and their title "floated in
+the middle of the card" instead of sitting where every other card's does.
+
+All three were the same gap plus one missing variable, and **kobold had the identical defects** - it shipped
+with frames but was never given a plate or a colour either. The owner supplied both plates, so both tribes are
+finished here.
+
+**The title and the plate were one bug.** `tribePlated` is only true when the tribe has an entry in
+`TRIBE_PLATES`. Dwarf and kobold had none, so `plateSrcFor` fell through to the neutral stone plate *and*
+`isTribePlated` stayed false - which keeps the tribe row rendering **inside the drawer** instead of on the
+plate's bottom gem. That extra row is what pushed the title down. Giving each tribe a plate entry fixes the
+title, moves the tribe name to the gem, and themes the plate, all at once.
+
+**The unfilled glyph** was simply that `--t-dwarf` and `--t-kobold` did not exist. `Card.tsx` sets
+`--c: var(--t-<tribe>)`, so an unlisted tribe resolved to nothing. Dwarf is the forge yellow the owner asked
+for (`#f0c33c`); kobold takes a warm ember (`#e8763a`) so the two stay distinct - **worth a look, since only
+dwarf's colour was specified.**
+
+**Dwarf frames** (oval + gilded, Taunt + gilded) were authored back on 2026-07-26 and had been queued ever
+since, blocked on `dwarf` entering the `Tribe` union. It is in now, so they are converted and wired alongside
+kobold's, which already shipped.
+
+**Art pipeline notes.** Six files converted at webp q92 / alphaQuality 100. The four dwarf frames matched
+their shipped siblings' dimensions exactly (1059x1427 oval, 1086x1448 Taunt), so they seat without retuning.
+The two new plates arrived at **945x1469** rather than the 800x1244 every other plate shares - the same aspect
+ratio to within 0.03%, just a larger export - so they were resized to 800x1244. Every plate placement var in
+`styles.css` is expressed against those dims and `Card.tsx` documents the invariant, so matching it keeps the
+new art seating identically rather than depending on the browser to scale a different box. All ten
+dwarf/kobold assets confirmed present in `apps/web/dist/frames` after a production build.
+
+**Verified:** `typecheck` clean (pkgs + web), `lint` 0 errors, **3552 tests** / 197 files green, `build:web`
+green with the assets emitted. Look needs an eyeball - the checks prove the art loads, not that it reads well.
+
 ## 2026-07-31 — The Hall of Champions could never populate (my bug, from the lobby-only rework)
 
 Owner report: no winning lobby boards were showing. The upload was gated on

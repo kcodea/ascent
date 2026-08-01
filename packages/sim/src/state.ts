@@ -839,7 +839,7 @@ export interface RunState {
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
   shoutExtraAlways?: number;
   /** Set 2 — Elderhorn (Choose One). Extra fires its chosen mode grants to BEAST triggers:
-   *  `beastHuntExtra` covers Rallies + Slaughters (Hunt), `beastRitualExtra` covers Echoes (Ritual). Golden
+   *  `beastHuntExtra` covers RALLIES only (narrowed 2026-07-31), `beastRitualExtra` covers Echoes. Golden
    *  grants 2 instead of 1 per mode. Run-level so they survive combats, passed into the fight via
    *  `CombatSideState` (the same route `handSpellIds` takes). Absent = 0. */
   beastHuntExtra?: number;

@@ -1715,10 +1715,11 @@ export function simulate(
           bus.emit('onKill', { attacker: killer, victim: m });
           // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only. The KILL
           // count (`slaughter`) still counts one, but each re-trigger bumps the "Trigger N Slaughters" tally.
-          const huntKill = isTribeOf(killer, 'beast', cards)
-            ? (killer.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
-            : 0; // Elderhorn (Hunt): Beast Slaughters fire extra
-          const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]) + huntKill;
+          // NOT `beastHuntExtra` — Elderhorn's first branch is RALLIES ONLY as of 2026-07-31 (owner). It used to
+          // read here as well, so after the text was narrowed the card was still doubling Slaughters: it promised
+          // less than it did. `extraTriggerFires` still covers Uron and the tribe-scoped quest flags, which are
+          // the effects that genuinely mean "your Slaughters trigger again".
+          const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]);
           const killerHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
           for (let i = 0; i < killExtra; i++) {
             for (const effect of killer.effects) {

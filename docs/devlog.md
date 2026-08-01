@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-07-31 — The Hall of Champions could never populate (my bug, from the lobby-only rework)
+
+Owner report: no winning lobby boards were showing. The upload was gated on
+
+```ts
+if (won && next.mode === 'lobby' && lobbyPlacement === 1)
+```
+
+…where `won = next.phase === 'victory'`. **A lobby never reaches that phase.** `advanceCombat`'s victory
+branch reads `s.mode !== 'practice' && s.mode !== 'lobby' && s.wave >= courseRounds` — a lobby has no course
+clock to complete, so it ends at `gameover` whether you won or lost, and the win is expressed as
+**placement 1**. `won` was therefore always false and the condition could never fire. I wrote the gate this
+morning assuming a lobby win looked like a course win; it doesn't.
+
+Gated on placement now. Two things worth recording:
+
+- **MMR was NOT affected.** The rating path already read `lobbyPlacement`, and `settleRunLobbyRound` stamps
+  `placement = 1` on whoever is still standing when the lobby finishes — so winners were being paid +100
+  correctly the whole time. Only the Hall upload was dead.
+- The placement fallback also referenced `won` (`?? (won ? 1 : alive + 1)`), which would have guessed a
+  winner's placement as *second* had the primary path ever been missing. Rewritten to not depend on a flag
+  that is meaningless in lobby mode.
+
+`won` is now unused entirely — the lobby-only rework had already removed its last real consumer — so it and a
+stale comment about round-17 bonuses are gone.
+
+New `lobbyWinShape.test.ts` pins the invariant the UI depends on: a played-out lobby ends at `gameover` and
+never `victory`; the player's seat always carries a placement; a survivor of a finished lobby is placement 1.
+The next person to read `phase` for a lobby outcome gets a failing test instead of an empty leaderboard.
+
+Verified: typecheck (both), lint (7 pre-existing), 3522 tests, build:web.
+
 ## 2026-07-31 — Broodlord's Staff Rally, Ayves, Krik pulled, four stat moves
 
 **Ashen Broodlord** — third shape, and the interesting one: **Rally: cast a Staff of Guel** (gilded casts

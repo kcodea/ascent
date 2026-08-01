@@ -550,7 +550,6 @@ export const useGame = create<GameStore>((set, get) => ({
         const setId = next.setId;
         const author = s.playerName || undefined;
         const heroOffer = s.lastHeroOffer;
-        const won = next.phase === 'victory';
         // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
         // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
         // the end screen; all best-effort and never throw.
@@ -585,16 +584,20 @@ export const useGame = create<GameStore>((set, get) => ({
           const cardsPlayed = actions.filter((a) => a.type === 'play').length;
           // Rating (career): grade this scored run against its Line and update the persisted profile. Pure
           // math in @game/sim; the change is surfaced on the end screen (lastRating) + stamped into history.
-          // `wonFinal` = won the last round (round 17) — a victory means the last history entry is the round-17
-          // result; winning it earns the big final-win bonus on top of the summit bonus. Winning the two rounds
-          // before it (15 & 16) earns the escalating end-game ramp (+8 / +12). `history` is 0-indexed by round.
           // MMR comes from the LOBBY only (owner rework 2026-07-31): a lobby finish resolves a placement-based
           // rating change; a course/rift finish no longer touches the profile (its end screen shows the Oath
           // verdict with no rating movement — `lastRating` stays null and the block self-hides).
+          // A LOBBY NEVER REACHES phase 'victory' — `advanceCombat` ends every lobby at 'gameover' whether you
+          // won or lost (its victory branch explicitly excludes lobby mode, because a lobby has no course
+          // clock to complete). So `won` is ALWAYS false here, and a lobby win is placement #1 instead.
           const lobbySeat = next.lobby?.seats.find((seat) => seat.id === 's0');
           const lobbyPlacement = next.lobby
-            ? lobbySeat?.placement ?? (won ? 1 : next.lobby.seats.filter((seat) => seat.alive).length + 1)
+            // `settleRunLobbyRound` stamps a placement on every seat — on elimination, and `1` on whoever is
+            // still standing when the lobby finishes — so the fallback is for a lobby that ended without
+            // finishing (practice's round-15 curtain, which neither rates nor uploads).
+            ? lobbySeat?.placement ?? next.lobby.seats.filter((seat) => seat.alive).length + 1
             : null;
+          const lobbyWon = lobbyPlacement === 1;
           const change = lobbyPlacement != null ? resolveLobbyRating(s.profile, lobbyPlacement) : null;
           if (change) {
             saveProfile(change.profile);
@@ -622,7 +625,9 @@ export const useGame = create<GameStore>((set, get) => ({
             } catch { /* best-effort — telemetry must never disrupt the end screen */ }
           }
           // Hall of Champions: WINNING LOBBY BOARDS only (owner rework 2026-07-31) — placement #1 finishes.
-          if (won && next.mode === 'lobby' && lobbyPlacement === 1) {
+          // Gated on `lobbyWon`, NOT `won`: a lobby never sets phase 'victory' (see above), so the original
+          // `won &&` here meant the Hall could never populate at all (owner report 2026-07-31).
+          if (lobbyWon && next.mode === 'lobby') {
             void uploadVictory({
               mode: 'lobby',
               heroId: next.heroId, author, wave: next.wave,

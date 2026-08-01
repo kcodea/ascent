@@ -197,6 +197,31 @@ export interface FxCodeCoverage {
   files: readonly string[];
 }
 
+/** The scan's root. Its output is relative to this, which is only unambiguous if you already know it. */
+export const UI_SRC_ROOT = 'packages/ui/src/';
+
+/**
+ * A call site as a path you can paste into an editor, rather than one you have to know where to look for.
+ *
+ * `Recruit.tsx` and `choreo/channels/impact.ts` are the scan's own relative form; from a repo root they are
+ * a guess. Prefixing costs one label's width and turns "somewhere in the UI" into a location.
+ *
+ * NO LINE NUMBER, deliberately. The scan can produce one (it already does for the dynamic sites), but the
+ * committed snapshot in `directCalls.ts` is compared whole by `directCalls.test.ts`, so a line in the
+ * snapshot is a line PINNED by CI: every unrelated edit above a `playDef` call turns the build red and
+ * teaches whoever fixes it to re-generate the guard without reading it. That is the same "update it without
+ * looking" habit the snapshot exists to prevent, and a def is fired from one or two files — a file name gets
+ * you there, and your editor finds `playDef` in a keystroke.
+ */
+export function callSitePath(file: string): string {
+  return `${UI_SRC_ROOT}${file}`;
+}
+
+/** Every call site of a def as one pasteable line. Empty string when it has none. */
+export function callSitesLabel(files: readonly string[]): string {
+  return files.map(callSitePath).join(' · ');
+}
+
 /**
  * The other half of the by-event lens: the defs the game plays with no moment kind at all.
  *

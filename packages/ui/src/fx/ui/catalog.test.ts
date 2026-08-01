@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { hueBucketOf, FX_HUES, deriveFacets, bindingsByDef, kindCoverage, codeCoverage, codeScanCaveat, usageOf } from './catalog';
+import {
+  hueBucketOf, FX_HUES, deriveFacets, bindingsByDef, kindCoverage, codeCoverage, codeScanCaveat, usageOf,
+  callSitePath, callSitesLabel,
+} from './catalog';
 import type { StoredFxDef } from '../defStore';
 import { getScore } from '../../choreo/score';
 
@@ -294,5 +297,34 @@ describe('buildCardRows', () => {
 
   it('carries the tribe through for grouping', () => {
     expect(rows.find((r) => r.cardId === 'bloodbinder')?.tribe).toBe('demon');
+  });
+});
+
+/**
+ * A call site the author can act on. The scan reports `packages/ui/src`-relative paths, which are only
+ * unambiguous if you already know the root — so the library prints the whole thing.
+ */
+describe('call-site paths', () => {
+  it('prefixes the scan root so the path can be pasted somewhere', () => {
+    expect(callSitePath('Recruit.tsx')).toBe('packages/ui/src/Recruit.tsx');
+    expect(callSitePath('choreo/channels/impact.ts')).toBe('packages/ui/src/choreo/channels/impact.ts');
+  });
+
+  it('joins every site of a def into one line', () => {
+    expect(callSitesLabel(['Recruit.tsx', 'useCombatReplay.ts'])).toBe(
+      'packages/ui/src/Recruit.tsx · packages/ui/src/useCombatReplay.ts',
+    );
+    expect(callSitesLabel([])).toBe('');
+  });
+
+  // A real snapshot row, so this fails if the scan ever starts reporting something the prefix does not fit
+  // (an absolute path, say, or a `../` escape).
+  it('produces a path that resolves for every def the scan found', () => {
+    for (const row of codeCoverage()) {
+      for (const file of row.files) {
+        expect(callSitePath(file).startsWith('packages/ui/src/')).toBe(true);
+        expect(callSitePath(file)).not.toContain('..');
+      }
+    }
   });
 });

@@ -6066,6 +6066,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxcommit-note { opacity: 0.75; }
 .fxcommit-error { color: #e06a6a; }
 .fxcommit-missing { opacity: 0.7; font-size: 0.9em; }
+/* "Currently bound" — a REMOVE block sitting a few pixels above a WRITE button, so it gets its own rule and
+   its own separator rather than reading as more of the commit form above it. */
+.fxcommit-unbind { display: flex; flex-direction: column; gap: 6px;
+  padding-top: 10px; border-top: 1px solid #2c2740; }
+/* Label beside button, not under it: each removal's outcome has to be readable in the same glance as the
+   thing that performs it, or the two buttons look like a choice with no stated difference. */
+.fxcommit-unbind-row { display: flex; align-items: center; gap: 8px; font-size: 0.9em; line-height: 1.3; }
+.fxcommit-unbind-row .fxwb-btn { flex: none; }
 /* ONE source for the rail's width. It was hardcoded twice — on `.fxwb-side` and again as the transport
    bar's `right` offset — which have to agree exactly or the transport slides under the rail (or leaves a
    gap). Widened from 288px: at that width the param rows had ~150px of slider left after the label and
@@ -6675,6 +6683,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxlib-row-name { font-size: 12px; font-weight: 700; }
 .fxlib-row-meta { font-size: 11px; color: #8a7fa8; }
 .fxlib-gap { font-size: 11px; color: #6f6688; font-style: italic; }
+/* A call site reads as text and behaves as a button: the path IS the information, the copy is the action.
+   Monospace because it is a path, and dotted-underlined so it doesn't get mistaken for the row's own label. */
+.fxlib-callsite {
+  font-family: ui-monospace, monospace; font-size: 11px; color: #8a7fa8;
+  background: none; border: none; padding: 0 6px 0 0; cursor: pointer;
+  text-decoration: underline dotted #4a4260;
+}
+.fxlib-callsite:hover { color: #cfc6e8; }
 /* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
 .fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }
 .fxlib-note { font-size: 11px; color: #6f6688; font-style: italic; padding: 6px 4px 0; line-height: 1.4; }

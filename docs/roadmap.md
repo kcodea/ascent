@@ -368,8 +368,8 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   `fx/harness/`; the `.fxrail` / `.fxharness` chrome is declared in two places; `commitPlan`'s memo reads the
   session patch without depending on it, so the blast-radius number can be computed from a table predating
   the draft's own write (low impact — the draft row is the excluded target); editing a def's `label`/`tags`
-  from the panel and an unbind affordance are both still unbuilt; and phase ②'s auto-pause after a seeked
-  moment remains unbuilt. Also open from ②: `SceneBuilder.setEnemies` still duplicates `sandbagBoard`'s
+  from the panel is still unbuilt (the unbind affordance shipped 2026-07-30); and phase ②'s auto-pause after
+  a seeked moment remains unbuilt. Also open from ②: `SceneBuilder.setEnemies` still duplicates `sandbagBoard`'s
   board-building and the two could drift; rail mode costs 640px of width, tight below ~1400px; and the
   harness stages sandbags only, so a final look-check against a real pooled opponent stays manual.
 

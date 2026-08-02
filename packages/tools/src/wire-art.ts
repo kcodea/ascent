@@ -123,7 +123,7 @@ for (const r of [...RUNES, ...EPIC_RUNES]) {
   if (theless !== norm(r.name) && !runesByName.has(theless)) runesByName.set(theless, r.id);
 }
 
-interface Job { label: string; src: string; dirs: string[]; dest: string; index: Map<string, string>; aliases: Record<string, string> }
+interface Job { label: string; src: string; dirs: string[]; dest: string; index: Map<string, string>; aliases: Record<string, string>; skip?: Set<string> }
 // Heroes wire by NAME and by ID both: several source files still carry a hero's PRE-RENAME name
 // (BaggerBen.png → the hero now displayed as Rascal), and the filename happens to be the ID exactly.
 const heroesByName = new Map<string, string>();
@@ -139,6 +139,9 @@ const JOBS: Job[] = [
     // Quest-reward minions are authored in their own folder but are still MINION art — same destination.
     label: 'quest-reward minions', src: 'C:/Game Assets/Ascent Art/Quests/Quest Reward Related Things',
     dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+    // This folder's Lazarus.png is the OLD portrait; the CURRENT one lives in Set 2 Minions/Neutral and this
+    // job runs later, so without the skip the stale file silently wins the slot (owner re-wire 2026-08-02).
+    skip: new Set(['lazarus']),
   },
   {
     // Subfolders ("Hero Powers", "Old Artstyle") are deliberately NOT listed — powers have their own dest
@@ -167,6 +170,7 @@ for (const job of JOBS) {
     for (const file of readdirSync(full).filter((f) => /\.(png|webp|jpe?g)$/i.test(f))) {
       const stem = file.replace(/\.(png|webp|jpe?g)$/i, '');
       if (RETIRED.has(norm(stem))) continue; // attributed to a removed card — never re-owned by name-accident
+      if (job.skip?.has(norm(stem))) continue; // per-job skip: a stale duplicate in THIS folder loses to the current source
       // A FULL-STEM alias wins before the variant convention: some trailing digits are part of a distinct
       // id's name (RuneOTheMenagerie2 = the set-2 twin), not "second art for the same id".
       const fullAlias = job.aliases[norm(stem)];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, CONFIG, type BoardCard, type RunState } from './index';
 
 /**
@@ -59,6 +59,17 @@ describe('Copycat — the exact-copy gift', () => {
     s = reduce(s, { type: 'play', uid: 'g', targetUid: 'T' });
     expect(s.hand.some((c) => c.cardId === 'copycat')).toBe(false); // the gift is spent
     expect(s.hand.filter((c) => c.cardId === 'kennel').length, 'hand was full pre-copy').toBe(0);
+  });
+
+  it('is UNFINDABLE in play — rune-granted only (owner rule 2026-08-02)', () => {
+    // Every drawable surface: the shop's minion + spell pools (which also feed the spell Discover, the
+    // "random Shop spell" grants, Quick Study, the Codex — all route through poolOf().spells, filtered
+    // `!token`). If a future pool builder forgets the token filter, this fails before a Copycat leaks.
+    for (const setId of ['set1', 'set2'] as const) {
+      const pool = poolFor(setId);
+      expect(pool.buyable.some((c) => c.id === 'copycat'), `${setId}: buyable`).toBe(false);
+      expect(pool.spells.some((c) => c.id === 'copycat'), `${setId}: spell pool (Discovers + random-spell grants)`).toBe(false);
+    }
   });
 
   it('the rune grants it, and the def is a token spell (never a Shop spell by any reading)', () => {

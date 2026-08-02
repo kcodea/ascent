@@ -7,7 +7,7 @@
       "primitive": "burst",
       "name": "detonation",
       "anchor": "source",
-      "at": 70,
+      "at": 150,
       "params": {
         "count": 110,
         "interval": 100,
@@ -89,7 +89,7 @@
       "primitive": "burst",
       "name": "detonation farther",
       "anchor": "source",
-      "at": 70,
+      "at": 160,
       "params": {
         "count": 110,
         "interval": 100,
@@ -148,9 +148,9 @@
           ]
         ],
         "fade": 2,
-        "bands": 3,
+        "bands": 4,
         "plateau": 0.34,
-        "fieldMix": 0,
+        "fieldMix": 1,
         "tintMode": "palette",
         "palette": [
           12018274,
@@ -162,7 +162,7 @@
         "glow": 0.8,
         "noiseScale": 17.6,
         "warp": 0.94,
-        "scroll": 0,
+        "scroll": 0.4,
         "erode": 1.2,
         "gain": 2
       }
@@ -174,7 +174,7 @@
       "at": 0,
       "params": {
         "rings": 1,
-        "speed": 3.7,
+        "speed": 6.7,
         "thickness": 0.18,
         "fade": 6.95,
         "radius": 160,
@@ -204,11 +204,11 @@
       "primitive": "shockwave",
       "name": "ring",
       "anchor": "source",
-      "at": 0,
+      "at": 100,
       "params": {
         "rings": 1,
         "speed": 1.45,
-        "thickness": 0.18,
+        "thickness": 0.275,
         "fade": 4.15,
         "radius": 150,
         "squash": 1,

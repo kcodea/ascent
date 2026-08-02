@@ -397,6 +397,10 @@ export function reduce(state: RunState, action: Action): RunState {
       if (rubyLanded.length > 0) {
         next.rubyLandedFxSeq = (next.rubyLandedFxSeq ?? 0) + 1;
         next.rubyLandedFxUids = rubyLanded;
+        // The acting card, when the action names one — same convention as the two power cues above. A card
+        // that is ALSO a recipient (Frenzied Excavator takes its own Ruby) is left in both, and the UI drops
+        // the degenerate self-pair rather than the engine second-guessing what a def wants to do with it.
+        next.rubyLandedFxSourceUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
       }
     }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver

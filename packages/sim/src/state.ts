@@ -836,6 +836,12 @@ export interface RunState {
    *  the combat-settle actions: the carry-back re-labels mid-fight Ruby gains as 'Ruby' buffs, and the replay
    *  already played this cue for those. */
   rubyLandedFxUids?: string[];
+  /** The card that PLAYED those Rubies, when the action names one — so the cue has a source→target vector and
+   *  an authored def can draw something travelling (a tendril from the Excavator into each minion) before it
+   *  detonates. Absent for a sourceless landing (an End-of-Turn mint, a quest tick) and for a Ruby dragged
+   *  from hand, whose card is consumed by the time the UI measures: both fall back to firing on the target
+   *  alone, which is what a def with no travelling layer wants anyway. */
+  rubyLandedFxSourceUid?: string;
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too

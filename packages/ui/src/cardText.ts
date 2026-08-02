@@ -100,15 +100,27 @@ export function summitTierText(cardId: string, tier7Access: boolean): string | n
  * pays out, permanently. Same contract as `summonImproveText`, but the printed magnitude is "**+N Attack**"
  * rather than a "+N/+N" pair, so it needs its own replace.
  */
-export function attackGrantImproveText(cardId: string, summonBonus: number, golden: boolean): string | null {
-  if (summonBonus <= 0) return null;
+export function attackGrantImproveText(cardId: string, summonBonus: number, golden: boolean, mammothHealth = false): string | null {
+  // With the Rune of the Mammoth the text must go live even at ZERO procs — the printed "+3 Attack" is
+  // under-selling a grant that is actually +3/+3 (the hard live-text rule).
+  if (summonBonus <= 0 && !mammothHealth) return null;
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffImproveSelf');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 3);
-  const m = (base + summonBonus) * (golden ? 2 : 1);
+  // Attack-only since the 2026-08-02 third pass; `summonBonus` counts PROCS. The Rune of the Mammoth makes
+  // the grant 1:1 symmetric, so BOTH printed magnitudes (the grant and the improve step) switch shape.
+  const p = eff.params as { attack?: number; stepAttack?: number };
+  const g = golden ? 2 : 1;
+  const a = (Number(p?.attack ?? 3) + summonBonus * Number(p?.stepAttack ?? 3)) * g;
+  const step = Number(p?.stepAttack ?? 3) * g;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${m} Attack}}`);
+  if (mammothHealth) {
+    // "+N Attack" → "+N/+N", grant first then the improve step.
+    return src
+      .replace(/\*\*\+\d+ Attack\*\*/, `{{+${a}/+${a}}}`)
+      .replace(/\*\*\+\d+ Attack\*\*/, `{{+${step}/+${step}}}`);
+  }
+  return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${a} Attack}}`);
 }
 
 /**
@@ -222,6 +234,22 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
   const h = (Number(p?.health ?? 4) + summonBonus) * g;
   const base = golden ? (def.goldenText ?? def.text) : def.text;
   return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
+}
+
+/**
+ * Cards whose BEHAVIOUR a rune changes must say so on the card (owner rule 2026-08-02, following the Rune of
+ * the Mammoth pattern): the printed rule is inaccurate the moment the rune is owned. Applied as a POST-pass
+ * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
+ * like every live value.
+ */
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean }
+export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
+  if (!flags) return null;
+  if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
+  if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Rune of Brokerage).}}';
+  if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Echo: summon an exact copy of this without Echo (Rune of Living Treasure).}}';
+  if (flags.facetwright && cardId === 'facetwright') return '{{Gives BOTH effects (Rune of Facetwright).}}';
+  return null;
 }
 
 export function cadenceProgressText(cardId: string, eotTick: number, golden = false): string | null {
@@ -592,9 +620,10 @@ export function improvingSummonText(cardId: string, summonBonus: number, golden 
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffThenDouble' || e.do === 'onSummonImpBuff');
   if (!def || !eff) return null;
-  const p = eff.params as { attack?: number; health?: number };
-  const a = (Number(p?.attack ?? 1) + summonBonus) * (golden ? 2 : 1);
-  const h = (Number(p?.health ?? 1) + summonBonus) * (golden ? 2 : 1);
+  // Per-stat steps (Oona improves +1/+2 per Avenge since 2026-08-02; defaults keep Broodwright's +1/+1).
+  const p = eff.params as { attack?: number; health?: number; stepAttack?: number; stepHealth?: number };
+  const a = (Number(p?.attack ?? 1) + summonBonus * Number(p?.stepAttack ?? 1)) * (golden ? 2 : 1);
+  const h = (Number(p?.health ?? 1) + summonBonus * Number(p?.stepHealth ?? 1)) * (golden ? 2 : 1);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
 }

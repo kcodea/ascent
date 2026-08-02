@@ -90,7 +90,7 @@ describe('set 2 — Beast summon + aura cards', () => {
     expect([second.attack - 1, second.health - 1]).toEqual([4, 4]); // improved by +2 on each stat
   });
 
-  it('Denkeeper Oona / Lancel / Solaris / T-Rex are wired with the expected stats + effects', () => {
+  it('Denkeeper Oona / Solaris / T-Rex are wired with the expected stats + effects (Lancel removed 2026-08-02)', () => {
     // These reuse combat primitives already covered elsewhere (avengeShieldAttack, addTribeAura, the
     // fixed+goldenTokens summon shape), so the new surface is the card wiring.
     // Oona reworked 2026-07-25 (owner): an onSummon watcher that grants +1/+1 and THEN doubles, with an
@@ -99,9 +99,6 @@ describe('set 2 — Beast summon + aura cards', () => {
     expect([oona.tier, oona.attack, oona.health]).toEqual([5, 4, 6]);
     expect(oona.effects.map((e) => e.do)).toEqual(['onSummonTribeBuffThenDouble', 'avengeImproveSummon']);
     expect(oona.keywords).not.toContain('SC');
-
-    const lancel = CARD_INDEX['b2_lancel']!;
-    expect([lancel.tier, lancel.attack, lancel.health]).toEqual([3, 3, 4]);
 
     const solaris = CARD_INDEX['b2_solaris']!;
     expect(solaris.effects[0]!.do).toBe('avengeShieldAttack'); // Solaris Fang's factory, verbatim
@@ -474,8 +471,8 @@ describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
 });
 
 describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
-  it('a summoned Beast gets +1/+1 and THEN doubles — order matters', () => {
-    // Mama Pup's 1/1 Pups: +1/+1 → 2/2, then doubled → 4/4. If the doubling ran FIRST the Pup would be 3/3,
+  it('a summoned Beast gets +1/+2 and THEN doubles — order matters (owner rebalance 2026-08-02)', () => {
+    // Mama Pup's 1/1 Pups: +1/+2 → 2/3, then doubled → 4/6. If the doubling ran FIRST the numbers differ,
     // so this pins the printed order rather than merely "it got bigger".
     const r = simulate(
       [{ cardId: 'b2_oona', attack: 4, health: 40, sourceUid: 'O', keywords: [] },
@@ -489,7 +486,7 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
     const gained = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
       .filter((b) => b.target === uid);
     expect(gained.map((b) => [b.attack, b.health]), 'flat grant first, then a double of the NEW stats')
-      .toEqual([[1, 1], [2, 2]]);
+      .toEqual([[1, 2], [2, 3]]);
   });
 
   it('does not touch a non-Beast summon', () => {
@@ -498,9 +495,9 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
   });
 
   it('GILDED triples instead of doubling (owner 2026-07-27)', () => {
-    // Golden already doubles the flat grant (+2/+2). The rework is the second half: one extra copy of the
-    // minion's own stats per `mul`, so a golden Oona turns a 2/2 Pup into 3× rather than 2×. Read off the
-    // buff events: the flat grant is +2/+2, then the multiply must be +6/+6 (2× the post-grant 3/3), not +3/+3.
+    // Golden already doubles the flat grant (+2/+4 since the 2026-08-02 rebalance). The rework is the second
+    // half: one extra copy of the minion's own stats per `mul`, so a golden Oona turns a 1/1 Pup into 3× the
+    // post-grant 3/5 — the multiply reads +6/+10, not +3/+5.
     const r = simulate(
       [{ cardId: 'b2_oona', attack: 4, health: 40, sourceUid: 'O', keywords: [], golden: true },
        { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
@@ -512,15 +509,42 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
     const uid = summoned[0]!.minion.uid;
     const gained = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
       .filter((b) => b.target === uid);
-    expect(gained.map((b) => [b.attack, b.health]), 'gilded should TRIPLE: +2/+2 then 2× the new 3/3')
-      .toEqual([[2, 2], [6, 6]]);
+    expect(gained.map((b) => [b.attack, b.health]), 'gilded should TRIPLE: +2/+4 then 2× the new 3/5')
+      .toEqual([[2, 4], [6, 10]]);
   });
 });
 
-describe('set 2 — Menagerie Mammoth (owner rework 2026-07-27)', () => {
-  it('gives each summoned Beast +3 Attack, and the grant grows permanently', () => {
-    // Mama Pup dies and leaves Pups behind: the first gets +3, the next +4 — the escalation is the whole card,
-    // so asserting a single +3 would pass against a version that never improved.
+describe('set 2 — Moonlit Scavenger (owner rework 2026-08-02: Avenge summons a Ninja Pal)', () => {
+  it('every 4 friendly deaths summons a 4/1 Ninja Pal that attacks immediately', () => {
+    // Four 1-health bodies die to the sandbag's swings; the 4th death is the Avenge proc. The Pal must both
+    // SPAWN (4/1) and STRIKE out of turn order — `avengeSummonAttack`'s immediate-attack queue.
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag' as const, attack: 0, health: 1, sourceUid: `f${i}`, keywords: ['T'] as never }));
+    const r = simulate(
+      [{ cardId: 'b2_scavenger', attack: 4, health: 60, sourceUid: 'S', keywords: [] }, ...fodder],
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 4, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const pals = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string; attack: number; health: number } }[])
+      .filter((e) => e.minion.cardId === 'b2_ninjapal');
+    expect(pals.length, 'the Avenge never summoned a Pal').toBeGreaterThanOrEqual(1);
+    expect([pals[0]!.minion.attack, pals[0]!.minion.health]).toEqual([4, 1]);
+    const palIdx = r.events.findIndex((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'b2_ninjapal');
+    const palUid = pals[0]!.minion.uid;
+    expect(r.events.slice(palIdx).some((e) => e.type === 'attack' && (e as { attacker: string }).attacker === palUid),
+      'the Pal must strike immediately after spawning').toBe(true);
+  });
+
+  it('wiring: T4 4/5, and GOLDEN summons a GILDED Pal (the factory rule), not two', () => {
+    const scav = CARD_INDEX['b2_scavenger']!;
+    expect([scav.tier, scav.attack, scav.health]).toEqual([4, 4, 5]);
+    expect(scav.effects[0]!).toMatchObject({ on: 'avenge', do: 'avengeSummonAttack', params: { count: 4, cardId: 'b2_ninjapal' } });
+    expect(CARD_INDEX['b2_ninjapal']!.token).toBe(true);
+  });
+});
+
+describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02, third pass: +3 Attack improving +3)', () => {
+  it('gives each summoned Beast +3 Attack, improving by +3 per summon — no Health without the rune', () => {
+    // Mama Pup dies and leaves Pups behind: the first gets +3/+0, the next +6/+0 — the escalation is the whole
+    // card, so asserting a single grant would pass against a version that never improved.
     const r = simulate(
       [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
        { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
@@ -529,8 +553,18 @@ describe('set 2 — Menagerie Mammoth (owner rework 2026-07-27)', () => {
     const grants = (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
       .filter((b) => b.source === 'm0');
     expect(grants.length, 'the Mammoth granted nothing').toBeGreaterThan(1);
-    expect(grants.every((g) => g.health === 0), 'the grant is Attack-only').toBe(true);
-    expect(grants.map((g) => g.attack).slice(0, 2)).toEqual([3, 4]);
+    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), 'Attack-only, climbing per summon').toEqual([[3, 0], [6, 0]]);
+  });
+
+  it('Rune of the Mammoth makes the grant 1:1 symmetric — +3/+3, +6/+6', () => {
+    const r = simulate(
+      [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 9999 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'], questMods: { runeMammoth: true } }), combatSide({ tier: 1 }));
+    const grants = (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
+      .filter((b) => b.source === 'm0');
+    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), '1:1 with the rune').toEqual([[3, 3], [6, 6]]);
   });
 
   it('…and the improved grant rides home on the summon-bonus carry-back', () => {

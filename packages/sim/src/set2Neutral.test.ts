@@ -10,7 +10,7 @@ import { applyEndOfTurn } from './recruit';
  * Each needed a brand-new effect primitive, so each gets real coverage rather than a shape assertion.
  */
 // Four now: Aeon Acolyte and Fatecarver went 2026-07-26, Oathbound Avenger 2026-07-31 (owner).
-const NEW_IDS = ['n2_tamer', 'n2_spellsword', 'n2_bellringer', 'n2_lastlight'];
+const NEW_IDS = ['n2_spellsword', 'n2_bellringer', 'n2_lastlight']; // Tamer removed (owner 2026-08-02)
 
 const bm = (cardId: string, uid: string, attack = 1, health = 1, keywords: string[] = []): BoardMinion =>
   ({ cardId, attack, health, sourceUid: uid, keywords: keywords as BoardMinion['keywords'] });
@@ -18,7 +18,7 @@ const card = (uid: string, cardId: string, attack = 1, health = 1): BoardCard =>
   ({ uid, cardId, tribe: CARD_INDEX[cardId]?.tribe ?? 'neutral', attack, health, keywords: [], golden: false });
 
 describe('set 2 — its own neutral minions are wired into the set', () => {
-  it('all five are in set 2 and NOT in set 1', () => {
+  it('all are in set 2 and NOT in set 1', () => {
     const s2 = new Set(poolFor('set2').all.map((c) => c.id));
     const s1 = new Set(poolFor('set1').all.map((c) => c.id));
     for (const id of NEW_IDS) {
@@ -29,27 +29,12 @@ describe('set 2 — its own neutral minions are wired into the set', () => {
 
   it('match the roster tier/stats', () => {
     const spec = (id: string): string => { const c = CARD_INDEX[id]!; return `T${c.tier} ${c.attack}/${c.health}`; };
-    expect(spec('n2_tamer')).toBe('T1 1/1');
     expect(spec('n2_spellsword')).toBe('T2 3/4');
     expect(spec('n2_bellringer')).toBe('T4 4/6');
     expect(spec('n2_lastlight')).toBe('T3 3/2'); // owner 2026-07-31
   });
 });
 
-describe('set 2 — Tamer', () => {
-  it('Echo summons a 3/3 Whelp that attacks immediately', () => {
-    const r = simulate([bm('n2_tamer', 'T', 1, 1)], [{ cardId: 'sandbag', attack: 5, health: 400 }],
-      makeRng(3), CARD_INDEX, combatSide({ tier: 1 }), combatSide({ tier: 1 }));
-    const summons = r.events.filter((e) => e.type === 'summon') as { minion: { cardId: string; attack: number; health: number } }[];
-    expect(summons.length).toBe(1);
-    expect(summons[0]!.minion.cardId).toBe('n2_whelp');
-    expect([summons[0]!.minion.attack, summons[0]!.minion.health]).toEqual([3, 3]);
-    // `attackOnSummon` on the token means it swings out of turn order: the Tamer was the only body and it just
-    // died, so any attack AFTER the summon can only be the Whelp's.
-    const summonIdx = r.events.findIndex((e) => e.type === 'summon');
-    expect(r.events.slice(summonIdx).some((e) => e.type === 'attack')).toBe(true);
-  });
-});
 
 
 describe('set 2 — Lastlight', () => {

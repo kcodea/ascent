@@ -1,5 +1,150 @@
 # ASCENT — development log
 
+## 2026-08-02 — Copycat spell art wired
+
+`Spells/Copycat.png` → the Copycat gift spell, strict name match. (The rune TABLETS for Rune of Copycat and
+Rune of the Mammoth still use the fallback emblem — no art files yet; next art pass.)
+
+## 2026-08-02 — Two audits: rune-modified card text goes live everywhere; combat accruals tick in real time
+
+**Audit A — runes that modify a card's RULE (owner ask, generalizing the Rune of the Mammoth pattern).**
+Swept all 96+ runes for ones that change how a SPECIFIC card behaves. Found four whose card kept printing the
+un-modified rule; each now carries a green live note on every surface (a `runeModifiedNote` post-pass over the
+shared text chain, so it composes with every value-injecting helper and reaches shop, board, hand AND combat):
+
+- **Runebloom Matriarch** + Rune of the Matriarch → "Triggers twice."
+- **Ruby Broker** + Rune of Brokerage → "No per-turn limit" (the printed "(three times per turn)" was wrong).
+- **Gemheart Golem** + Rune of Living Treasure → the granted Echo is now printed on the token.
+- **Facetwright's Choice** + Rune of Facetwright → "Gives BOTH effects."
+
+Already-live and verified in passing: Rune of the Mammoth (yesterday's pattern), Rune of Pillaging (Gold
+Pouch value), Rune of Mastery's accrual doubling (folds through the accrued values). Quests: none currently
+modify a specific card's printed rule (they grant cards or arm combat flags) — nothing to do there.
+
+**Audit B — combat accruals must tick the card text in real time (owner report: Mammoth frozen mid-fight).**
+The replay folds `improve` events into the unit's live `summonBonus`; a factory that mutates the accrual
+WITHOUT logging freezes its printed value. Enumerated every accrual-writing combat factory against its logs:
+
+- **Silent accruers, FIXED** (now log `improve`; the event gains an optional `display` for cards whose
+  narrated step differs from the folded delta — Mammoth logs amount 1 proc / display +3):
+  **Menagerie Mammoth** (the report), **Broodwright**, **Rouge Rogue**, **Thundeer**, **Hunter**.
+- **Mammoth also now honours Rune of Mastery** (its Improve doubles like Kennelmaster's — it silently didn't).
+- **Already correct**: Kennelmaster/Oona/Sovereign/Karthus/Crypt Drake/Trophy Stalker/Monk (improve),
+  Guel/Runescale/Tara (spellProgress), Sergeant (hpGrant), Thundering Abomination (EG permaGain fold).
+- **Two more ORPHANED factories deleted** (schema-registered, zero cards — the Rouge-Rogue hazard class):
+  `rallyImproveSummonAura`, `deathrattleBuffImpsImproving`.
+- Replay narration now reads "X's effect improves (+N)" off `display` and stays quiet on 0-display ticks.
+
+Tests: `improveEvents.test.ts` (Mammoth proc+display, Thundeer, Hunter through real fights),
+`runeNotes.test.ts` (all four notes + no-leak). Full gates + harness green (3606).
+
+## 2026-08-02 — Mammoth back to +3 Attack; Rune of Copycat (the first GIFT spell); Rune of the Mammoth
+
+- **Menagerie Mammoth** (owner, third pass today): back to ATTACK-only — +3 Attack, improving by +3 per
+  summon (gilded +6 / +6). The factory keeps the procs shape; the live-text helper returns to the
+  "+N Attack" form.
+- **Rune of Copycat** (epic, 5): "Get a **Copycat**" — the first GIFT spell. A targeted token that copies a
+  friendly minion EXACTLY (stats, buffs, keywords, gilding, every per-instance accrual — a `structuredClone`
+  with a fresh uid). Deliberately NOT a Shop spell: a new reducer gift branch resolves it once — no
+  Yazzus/Nimbus/Ancient-Runes multipliers, no cast bookkeeping, no spellCast watchers, no
+  Gemscript/Cadence/Contraband riders — and it still counts as a card played. **Design note:** the gate is a
+  new `CardDef.gift` flag, NOT `token` — the first draft gated on `token` and silenced Implosion's Nimbus
+  doubling (Implosion is a token that IS a real Shop spell; the existing test caught it).
+- **Rune of the Mammoth** (epic, 4): Menagerie Mammoths also give Health, 1:1 — +3/+3 improving +3/+3
+  (gilded +6/+6). A `runeMammoth` combat flag threaded like the Matriarch's (`mammothHealthFor` ctx accessor),
+  and the Mammoth's live text goes symmetric on every surface the moment the rune is owned — including at
+  zero procs, where the printed "+3 Attack" would under-sell the real +3/+3.
+
+Both runes marked epic (they live in the Epic forge roster) — flag if either should be basic. Tests: Mammoth
+Attack-only + the rune's 1:1 in combat; a 5-test Copycat suite (exact copy incl. gilding + accruals, the
+not-a-Shop-spell contract with a surviving Nimbus charge, fizzle, full-hand, def shape). Full gates + harness
+green (3602).
+
+## 2026-08-02 — Mid-combat casts feed every spell-cast watcher (the Fatecarver audit)
+
+Owner report + audit ask: Fatecarver's Growth casts should proc Runebloom Matriarch, stack Thunderous
+Sovereign, etc. The audit enumerated every `on: 'spellCast'` effect and checked which had a COMBAT half:
+
+- **Already worked** (combat halves existed): Guel, Scalechanter's combat half, Spirit Worgen/Runescale's own
+  channels, Undead spell-attack, `spellCastBuffAll`, and — notably — **Thunderous Sovereign's accrual**
+  (`onSpellCastImproveSummon` has a core half + the per-uid carry-back); now pinned by test.
+- **Missing combat halves, FIXED**: **Runebloom Matriarch / Runekeg** (`onSpellCastBuffRandomTribe` — the
+  owner's board; combat casts now buff N random living tribe members, Rune of the Matriarch doubling threaded
+  into combat via a new `runeMatriarch` mod + `matriarchRepsFor` ctx accessor) and **Fatecarver's own branch
+  A** (`onSpellCastBuffOnePerTribe` — one living minion of each type per cast, board-order deterministic).
+- **Deliberately recruit-only** (shop-bound semantics, reported to the owner rather than forced): Ashscribe
+  ("first Shop spell each TURN" — turn bookkeeping), Spell Warden ("second spell RECASTS the first" — replaying
+  a shop spell mid-fight has no meaning for most shop spells), High King Mykel (threshold triggers adjacent
+  SHOUTS — a recruit mechanic; a combat half could ride the War Chorus machinery if ever wanted).
+
+Tests (`core/combat/spellCastWatchers.test.ts`): Runebloom procs per cast, Sovereign accrues + carries back,
+branch A procs off another caster's spell — the two new halves fail without the fix (stash-verified). Full
+gates + harness green (3596). Also this session: PR #791 (accounts spec) closed per owner — multiplayer scope
+shifting, to be re-evaluated.
+
+## 2026-08-02 — Facetwright grants immediately, Gemcutting 1 Gold, all 27 hero portraits re-wired
+
+- **Rune of Facetwright** (owner fix): the first Facetwright's Choice lands the moment the rune is bought — it
+  used to arrive only at the first recurring payout. Text corrected too: the recurring grant fires at **end**
+  of turn (`recurringEndOfTurn`), not "start of every turn" as printed. New text: "Get a Facetwright's
+  Choice. Repeats at end of turn. They give both effects."
+- **Rune of Gemcutting** 4 → **1 Gold**.
+- **Hero portraits**: `wire-art` gains a HEROES job (indexed by hero name AND id, so pre-rename files —
+  BaggerBen.png → Rascal, Tradesman.png → hermithank, Yirin.png → rohan — land without aliases; the "Hero
+  Powers" / "Old Artstyle" subfolders are deliberately unlisted). All 27 portraits matched, 0 unmatched,
+  re-wired at the standard 512² png+webp pair.
+
+## 2026-08-02 — Gilding never resets an accrual again: the registry becomes a universal rule
+
+Owner report: Menagerie Mammoth's buff reset when tripled — "I thought we put a global rule fixing this."
+We did, on 2026-07-31 — but it was an OPT-IN registry (`ACCRUES_SUMMON_BONUS`), so every accruing effect
+added after it silently inherited the reset bug. The requested parse of the card base found **four leakers**:
+
+- **Menagerie Mammoth** (`onSummonTribeBuffImproveSelf`) — the report,
+- **King Oona** (`onSummonTribeBuffThenDouble` + `avengeImproveSummon`),
+- **Broodwright** (`onSummonImpBuff` + `avengeImproveSummonBuff`),
+- **Trophy Stalker** (`rallyTribeAuraGrowing`).
+
+The registry is deleted. The merge's fallback is now UNIVERSAL: any copy carrying a nonzero `summonBonus`
+keeps it through gilding (top-two combined, the Karthus / Crypt Drake precedent), with exactly two exclusions
+— Flowing Monk and Runescale Drake, whose accruals merge through their own fields (`overflowBonus` /
+`spellProgress`; the 07-31 double-count bug is why). A future accruing card is covered the day it ships.
+`tripleAccrual.test.ts` pins all four leakers (each FAILS on the old registry, stash-verified) + the
+no-accrual-stays-unset case.
+
+Also: **Rune of Taurus** (epic, 3 Gold — get the set-1 Taurus, same named-minion shape as Rune of Yazzus;
+grants from `CARD_INDEX` so it works in a set-2 run, and the forge hover shows the card via the existing
+preview audit). And **Lastlight's new art** wired (`Neutral/Lastlight.png`, strict name match).
+
+## 2026-08-02 — Beast/Kobold balance batch: Mammoth, Oona, Scavenger rework, two removals
+
+**Follow-ups (same day):** Mammoth reduced again to **+1/+1 improving +1/+1** (gilded +2/+2). Ninja Pal's art
+wired (`NinjaPal.png` → `b2_ninjapal`, strict name match). And a wiring hazard found + closed: with set-2's
+Whelp deleted, its attributed `Whelp.png` exact-matched set-1's token (ALSO named "Whelp") and overwrote that
+token's existing art on the next `art:wire --apply`. Reverted, and `wire-art` gained a RETIRED set — source
+files attributed to a removed card are skipped outright rather than re-owned by name-accident.
+
+Owner batch:
+
+- **Menagerie Mammoth** — asymmetric now: +2/+1, improving by **+2/+1 per summon** (gilded +4/+2 both ways).
+  The factory (`onSummonTribeBuffImproveSelf`) moves to the procs-and-per-stat-steps shape Oona already used;
+  `summonBonus` counts procs (still carried back per body). The live-text helper follows.
+- **King Oona** — the flat grant is **+1/+2** and each Avenge improves by **+1/+2** (per-stat steps in the
+  existing factory; data-only). `improvingSummonText` reads the steps (Broodwright's defaults unchanged).
+- **Moonlit Scavenger** — reworked from the Avenge tribe-buff to **T4 4/5, Avenge (4): summon a 4/1 Ninja Pal
+  that attacks immediately** (reuses Steadfast Champion's `avengeSummonAttack` verbatim; GOLDEN summons a
+  gilded Pal). New `b2_ninjapal` token. The old `avengeBuffTribeLasting` factory became orphaned → deleted
+  (id, schema entry and all — the Rouge-Rogue rule).
+- **Tamer removed** (and its now-orphaned `n2_whelp` token with it). **Lancel removed** (and its orphaned
+  `scShieldAttackLeftmostTribe` factory).
+- **Storm Chaser** T2 → T3.
+- **Kennelmaster** — back to base **+1 Attack improving +1** per Avenge (gilded reads +2 improving +2 via the
+  doubling); the 07-25 "+2 improving +2" plain values were too much.
+
+16 stale test pins updated across six files; a new Scavenger/Ninja-Pal test pins the summon + the immediate
+strike. Process note for the log's honesty: a broad-regex factory deletion briefly gutted `factories.ts`
+(caught by the 252-test failure wall, restored from git, re-applied with exact anchors — the diff ends at the
+intended −42 lines). Full gates + harness green (3588 tests).
 ## 2026-08-02 — Ruby strength is read LIVE mid-combat (Crownvein → Gemstorm/Mineral Master)
 
 Owner report, from a test board: Crownvein Vanguard's Rally buffs your Rubies, but the Rubies played later in

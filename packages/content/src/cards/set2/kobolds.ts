@@ -267,7 +267,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_stormchaser',
     name: 'Storm Chaser',
     tribe: 'kobold',
-    tier: 2,
+    tier: 3, // T2 -> T3 (owner 2026-08-02)
     attack: 2,
     health: 2,
     keywords: [],

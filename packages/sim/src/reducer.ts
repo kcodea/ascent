@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -902,6 +902,20 @@ function reduceCore(state: RunState, action: Action): RunState {
             return s;
           }
           s.chooseOne = { uid: card.uid, cardId: def.id, spell: true };
+          return s;
+        }
+        // A GIFT (Copycat — owner spec 2026-08-02): NOT a Shop spell. It resolves its effect exactly ONCE —
+        // no Yazzus/Nimbus/Ancient-Runes multipliers, and none of the cast bookkeeping
+        // (`castSpell`/`noteSpellCast`): no tallies, no first/last-spell memory the copy effects read, no
+        // spellCast watchers, no Gemscript/Cadence/Contraband riders. It still counts as a card played.
+        // Gated on `gift`, NOT `token` — Implosion is a token that IS a real Shop spell (test-caught).
+        if (def.gift) {
+          const giftTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
+          if (def.target && !giftTarget) return state; // aimed gift with no valid friendly target → fizzle, kept
+          applyCastEffects(makeContext(s), def, giftTarget);
+          s.hand.splice(i, 1);
+          s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
+          checkTriples(s); // the copy can complete a triple
           return s;
         }
         // Yazzus: while it's on the board, an *aimed* spell's effect resolves N times (2, or 3 if golden)
@@ -1987,20 +2001,10 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // bonuses combined, so the granted magnitude (base + summonBonus) is the SUM of the
   // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
   // a fresh triple just doubles the base (the golden doubling falls out of the combine).
-  // Every factory that accrues into `self.summonBonus`. Kept here beside the merge because the merge's job is
-  // to preserve exactly these — if an effect writes `summonBonus` and is absent from this list, gilding resets
-  // it to base, silently, and only on the cards a player invested in growing.
-  const ACCRUES_SUMMON_BONUS = [
-    'buffOnSummon', 'scBeastAura', 'summonBuffTribeImprove', 'countTribeSummon', 'onGainAttackBuffImproving',
-    'onKillBuffUndeadAttack', 'onAllyAttackBuffAll',
-    // ...and the ones that had no branch at all until 2026-07-31:
-    'buffShopPermanent', 'summonBuffTribeAsym', 'onSpellCastImproveSummon', 'onGainAttackBuffAll',
-    'battlecryBuffTribeImproving', 'onBattlecryImproveSelf',
-    // DELIBERATELY ABSENT: `overflowBuffRandom` (Flowing Monk) and `spellCastImproveSelf` (Runescale Drake)
-    // also accrue into `summonBonus`, but each already has its OWN merge below — `overflowBonus` and
-    // `spellProgress` respectively. Listing them here made the fallback set `summonBonus` as well, which
-    // double-counted the accrual and broke Flowing Monk's "countdown starts fresh" rule.
-  ];
+  // Effects whose accrual has its OWN merge below — the universal fallback must not ALSO write `summonBonus`
+  // for them, or the accrual double-counts (measured 2026-07-31: it broke Flowing Monk's "countdown starts
+  // fresh" rule). Runescale merges via `spellProgress`, the Monk via `overflowBonus`.
+  const OWN_MERGE = ['overflowBuffRandom', 'spellCastImproveSelf'];
   const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
   const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon' || e.do === 'onGainAttackBuffImproving');
   let summonBonus: number | undefined;
@@ -2021,17 +2025,16 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
     const sum = (sbs[0] ?? 0) + (sbs[1] ?? 0);
     summonBonus = sum > 0 ? sum : undefined;
-  } else if (ACCRUES_SUMMON_BONUS.some((id) => def.effects.some((e) => e.do === id))) {
-    // EVERYTHING ELSE THAT ACCRUES (owner ruling 2026-07-31: "it's just not supposed to reset back to base").
+  } else if (!def.effects.some((e) => OWN_MERGE.includes(e.do))) {
+    // THE UNIVERSAL RULE (owner, restated 2026-08-02: "the buff is not supposed to reset when tripled" — ever).
     //
-    // The three branches above are per-card rulings, each keyed to its own whitelist. Any card that accrued
-    // into `summonBonus` but appeared on NONE of those lists fell through to `undefined` — so gilding it threw
-    // the accrual away and the golden started from base. That is how a Soul Defiler grown to +4/+4 gilded into
-    // +2/+2. It hit six effects, and because the lists are opt-in, every NEW accruing effect inherited the bug.
-    //
-    // Combines the two highest copies, matching the Karthus / Crypt Drake branch directly above — the closest
-    // existing precedent, and the owner's instruction was to follow the lead already set rather than invent a
-    // fourth rule. The golden's own doubling comes from `gold(self)` inside each factory, as it does there.
+    // The 2026-07-31 fix was an opt-in registry (`ACCRUES_SUMMON_BONUS`), and every accruing effect added
+    // AFTER it silently inherited the reset bug — Menagerie Mammoth (the owner's report), King Oona,
+    // Broodwright and Trophy Stalker had all fallen through it. There is no registry now: ANY copy carrying a
+    // nonzero `summonBonus` keeps it through gilding, combining the two highest copies (the Karthus / Crypt
+    // Drake precedent — the golden's own doubling comes from `gold(self)`/`mul(self)` inside each factory).
+    // A card with no accrual sums to 0 and stays `undefined`, exactly as before. The only exclusions are the
+    // OWN_MERGE effects above, whose accruals are merged through their own fields below.
     const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
     const sum = (sbs[0] ?? 0) + (sbs[1] ?? 0);
     summonBonus = sum > 0 ? sum : undefined;
@@ -3596,6 +3599,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     lawOfTeeth: f?.lawOfTeeth,
     tribeRallySlaughterExtra: s.questTribeRallySlaughter, // War Council: the tribe-scoped twin
     oldHuntStep: f?.oldHunt,
+    runeMatriarch: s.runeMatriarch || undefined, // the combat half of Runebloom's proc doubles too
+    runeMammoth: s.questFlags?.runeMammoth || undefined, // Mammoths give Health 1:1
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,
     boneThroneStep: s.boneThroneStep || undefined,

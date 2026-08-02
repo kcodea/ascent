@@ -16,6 +16,7 @@ import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { CARD_INDEX, EPIC_RUNES, RUNES, poolFor } from '@game/content';
+import { HEROES } from '@game/sim';
 
 const APPLY = process.argv.includes('--apply');
 /** Every art file already in the repo is 512x512 — the card frame never shows more. */
@@ -29,6 +30,16 @@ const ART_PX = 512;
  * which stays unwired on purpose. Every entry here is a case with exactly one plausible card, listed so it can
  * be reviewed rather than buried in matching logic.
  */
+/** RETIRED source files — attributed to a card that no longer exists, whose name now collides with a
+ *  DIFFERENT card. Skipped outright: re-owning attributed art by name-accident is exactly the guessing the
+ *  strict matcher exists to prevent. */
+const RETIRED = new Set<string>([
+  // Whelp.png was drawn for set 2's Whelp (Tamer's token, removed with Tamer 2026-08-02). Set 1's `whelpling`
+  // token is ALSO named "Whelp", so the file exact-matches a card it was never made for — and overwrote its
+  // existing art on the first run after the removal. The owner can re-attribute it deliberately if wanted.
+  'whelp',
+]);
+
 const ALIASES: Record<string, string> = {
   // misspelled in the source
   // (`chiurgeon` alias retired 2026-07-31: the card is Ayves now, so Ayves.png matches by NAME and the old
@@ -113,6 +124,11 @@ for (const r of [...RUNES, ...EPIC_RUNES]) {
 }
 
 interface Job { label: string; src: string; dirs: string[]; dest: string; index: Map<string, string>; aliases: Record<string, string> }
+// Heroes wire by NAME and by ID both: several source files still carry a hero's PRE-RENAME name
+// (BaggerBen.png → the hero now displayed as Rascal), and the filename happens to be the ID exactly.
+const heroesByName = new Map<string, string>();
+for (const h of HEROES) { heroesByName.set(norm(h.name), h.id); heroesByName.set(norm(h.id), h.id); }
+
 const JOBS: Job[] = [
   {
     label: 'minions', src: 'C:/Game Assets/Ascent Art/Set 2 Minions',
@@ -123,6 +139,12 @@ const JOBS: Job[] = [
     // Quest-reward minions are authored in their own folder but are still MINION art — same destination.
     label: 'quest-reward minions', src: 'C:/Game Assets/Ascent Art/Quests/Quest Reward Related Things',
     dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
+  {
+    // Subfolders ("Hero Powers", "Old Artstyle") are deliberately NOT listed — powers have their own dest
+    // and the old style must never overwrite the current portraits.
+    label: 'heroes', src: 'C:/Game Assets/Ascent Art/Heroes',
+    dirs: ['.'], dest: 'packages/ui/src/art/heroes', index: heroesByName, aliases: {},
   },
   {
     label: 'runes', src: 'C:/Game Assets/Ascent Art/Runes',
@@ -144,6 +166,7 @@ for (const job of JOBS) {
     if (!existsSync(full)) { console.log(`missing source dir: ${job.label}/${dir}`); continue; }
     for (const file of readdirSync(full).filter((f) => /\.(png|webp|jpe?g)$/i.test(f))) {
       const stem = file.replace(/\.(png|webp|jpe?g)$/i, '');
+      if (RETIRED.has(norm(stem))) continue; // attributed to a removed card — never re-owned by name-accident
       // A FULL-STEM alias wins before the variant convention: some trailing digits are part of a distinct
       // id's name (RuneOTheMenagerie2 = the set-2 twin), not "second art for the same id".
       const fullAlias = job.aliases[norm(stem)];

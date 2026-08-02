@@ -770,6 +770,8 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
+    matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
+    mammothHealthFor: (side) => !!modsFor(side).runeMammoth,
   };
 
   /**

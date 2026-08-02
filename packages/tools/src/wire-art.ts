@@ -16,6 +16,7 @@ import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { CARD_INDEX, EPIC_RUNES, RUNES, poolFor } from '@game/content';
+import { HEROES } from '@game/sim';
 
 const APPLY = process.argv.includes('--apply');
 /** Every art file already in the repo is 512x512 — the card frame never shows more. */
@@ -123,6 +124,11 @@ for (const r of [...RUNES, ...EPIC_RUNES]) {
 }
 
 interface Job { label: string; src: string; dirs: string[]; dest: string; index: Map<string, string>; aliases: Record<string, string> }
+// Heroes wire by NAME and by ID both: several source files still carry a hero's PRE-RENAME name
+// (BaggerBen.png → the hero now displayed as Rascal), and the filename happens to be the ID exactly.
+const heroesByName = new Map<string, string>();
+for (const h of HEROES) { heroesByName.set(norm(h.name), h.id); heroesByName.set(norm(h.id), h.id); }
+
 const JOBS: Job[] = [
   {
     label: 'minions', src: 'C:/Game Assets/Ascent Art/Set 2 Minions',
@@ -133,6 +139,12 @@ const JOBS: Job[] = [
     // Quest-reward minions are authored in their own folder but are still MINION art — same destination.
     label: 'quest-reward minions', src: 'C:/Game Assets/Ascent Art/Quests/Quest Reward Related Things',
     dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
+  {
+    // Subfolders ("Hero Powers", "Old Artstyle") are deliberately NOT listed — powers have their own dest
+    // and the old style must never overwrite the current portraits.
+    label: 'heroes', src: 'C:/Game Assets/Ascent Art/Heroes',
+    dirs: ['.'], dest: 'packages/ui/src/art/heroes', index: heroesByName, aliases: {},
   },
   {
     label: 'runes', src: 'C:/Game Assets/Ascent Art/Runes',

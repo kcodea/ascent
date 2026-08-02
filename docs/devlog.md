@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-08-02 — Facetwright grants immediately, Gemcutting 1 Gold, all 27 hero portraits re-wired
+
+- **Rune of Facetwright** (owner fix): the first Facetwright's Choice lands the moment the rune is bought — it
+  used to arrive only at the first recurring payout. Text corrected too: the recurring grant fires at **end**
+  of turn (`recurringEndOfTurn`), not "start of every turn" as printed. New text: "Get a Facetwright's
+  Choice. Repeats at end of turn. They give both effects."
+- **Rune of Gemcutting** 4 → **1 Gold**.
+- **Hero portraits**: `wire-art` gains a HEROES job (indexed by hero name AND id, so pre-rename files —
+  BaggerBen.png → Rascal, Tradesman.png → hermithank, Yirin.png → rohan — land without aliases; the "Hero
+  Powers" / "Old Artstyle" subfolders are deliberately unlisted). All 27 portraits matched, 0 unmatched,
+  re-wired at the standard 512² png+webp pair.
+
 ## 2026-08-02 — Gilding never resets an accrual again: the registry becomes a universal rule
 
 Owner report: Menagerie Mammoth's buff reset when tripled — "I thought we put a global rule fixing this."

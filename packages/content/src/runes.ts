@@ -281,9 +281,12 @@ export const RUNES: RuneDef[] = [
     id: 'rune_facetwright',
     name: 'Rune of Facetwright',
     cost: 4,
-    text: "Get a **Facetwright's Choice**. Repeat at the **start of every turn**. They give **both** effects.",
+    // Owner fix 2026-08-02: the FIRST copy lands the moment the rune is bought (the plain `grant` up front) —
+    // it used to arrive only at the first recurring payout. And the recurring grant fires at END of turn
+    // (`recurringEndOfTurn`), which the old text mis-stated as "start of every turn".
+    text: "Get a **Facetwright's Choice**. Repeats at **end of turn**. They give **both** effects.",
     previewCards: ['facetwright'], // text names it — the forge hover shows the card
-    reward: { kind: 'multi', rewards: [{ kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['facetwright'] }, { kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
     sets: ['set2'], // Facetwright's Choice is a set-2 spell
   },
   {
@@ -362,7 +365,7 @@ export const RUNES: RuneDef[] = [
     // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
     id: 'rune_gemcutting',
     name: 'Rune of Gemcutting',
-    cost: 4,
+    cost: 1, // 4 → 1 (owner 2026-08-02)
     // Owner sheet 2026-07-31: SEVEN Rubies minted at a fixed 3/3, not the run's 1/1+bonus line.
     text: 'Get **7 Rubies** that give **+3/+3**.',
     reward: { kind: 'mintRubies', count: 7, attack: 3, health: 3 },

@@ -110,3 +110,35 @@ weighing when the relevant part of the tool is next opened.
 - **Every pro tool — a cost readout.** The workbench can count particles and layers; showing an estimated
   worst-frame cost *while authoring* would catch a 220-particle × 7-target composition before it reaches a
   board, rather than after.
+
+---
+
+## Requested features — reverse, and easing (owner, 2026-08-02)
+
+Three asks that turn out to share one root cause. Logged together for that reason.
+
+- **Play an effect in reverse** (per LAYER, so rings can contract while shards fly out). Detonation becomes
+  gather; summon becomes dissipate. Every authored def becomes two effects.
+- **Whole-effect ease in/out** — a curve on the def's clock, i.e. the curve version of the per-call `time`
+  scalar `playDef` already accepts.
+- **Per-layer speed ease** — a `speedCurve`, alongside the existing `sizeCurve` / `alphaCurve` / `biasCurve`.
+
+**The shared root cause.** Particle motion is INTEGRATED per frame (`lp.age += dtMs`, drag applied as a
+per-frame multiplier) rather than being a closed-form function of age. Three consequences:
+  1. There is no history to rewind, so a true time-reverse is impossible without a rewrite.
+  2. The sim is dt-DEPENDENT — a per-frame drag multiplier means the same effect at 30fps and 240fps does not
+     travel the same distance, and any time-warp (a def-level ease) changes the motion rather than purely
+     retiming it.
+  3. So "ease the whole effect" and "reverse a layer" both land on the same fix.
+
+**Order that gets the most for the least, if these are taken up:**
+  1. `speedCurve` — pure addition, reuses the existing curve widget and the existing per-life curve plumbing.
+     Cheapest of the three and immediately useful; it also partly subsumes `drag`, which is just an
+     exponential speed curve.
+  2. **dt-normalise drag and turbulence** — unglamorous, and it is what actually unblocks the other two. Also
+     fixes a latent correctness bug: effects currently look subtly different at different frame rates.
+  3. **Per-layer `reverse`** as a VISUAL reverse (spawn at the rim aiming inward, curves mirrored, shockwave
+     radius contracting) — not a frame-exact time reversal. Spec it with that name so nobody later expects
+     rewind semantics and finds drag behaving asymmetrically.
+  4. **Def-level ease** — a curve remapping def progress, bending the layers' `at`/`life` schedule with it.
+     Last, because it is the one that most needs (2) to be true first.

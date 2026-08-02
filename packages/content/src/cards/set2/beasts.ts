@@ -90,20 +90,6 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: 'When you summon a Beast, give it **+4/+4**. Improve this by **+4/+4** when you cast a Shop spell.',
   },
   {
-    // Your front Beast enters shielded. The free opening swing was removed at the owner's call (2026-07-25) —
-    // it's Ward only now. Left-most = board order (deterministic, no RNG).
-    id: 'b2_lancel',
-    name: 'Lancel',
-    tribe: 'beast',
-    tier: 3,
-    attack: 3,
-    health: 4,
-    keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scShieldAttackLeftmostTribe', params: { tribe: 'beast', count: 1, attackNow: false } }],
-    text: '**Start of Combat:** give your left-most Beast **Ward**.',
-    goldenText: '**Start of Combat:** give your **2** left-most Beasts **Ward**.',
-  },
-  {
     // A summon payoff: everything you summon mid-fight lands bigger. Reworked 2026-07-25 (owner) from a flat
     // +5/+5 aura to "+1/+1 then DOUBLE", so it scales with whatever the token was already worth. `SC` dropped
     // from keywords — it's an onSummon watcher now, not a Start of Combat.
@@ -115,27 +101,29 @@ export const SET2_BEASTS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [
-      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 1, health: 1, stepAttack: 1, stepHealth: 1 } },
+      // Owner rebalance 2026-08-02: +1/+2, and each Avenge improves by +1/+2 (the per-stat steps).
+      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 1, health: 2, stepAttack: 1, stepHealth: 2 } },
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
     ],
-    text: 'When you summon a Beast in combat, give it **+1/+1**, then **double** its stats. **Avenge (4):** improve this.',
-    goldenText: 'When you summon a Beast in combat, give it **+2/+2**, then **triple** its stats. **Avenge (4):** improve this.',
+    text: 'When you summon a Beast in combat, give it **+1/+2**, then **double** its stats. **Avenge (4):** improve this.',
+    goldenText: 'When you summon a Beast in combat, give it **+2/+4**, then **triple** its stats. **Avenge (4):** improve this.',
   },
   {
-    // Avenge that pays twice: a spell for the hand AND a lasting Beast Attack aura (later summons inherit it).
+    // Owner rework 2026-08-02 (from the Avenge tribe-buff): a token engine — every 4 friendly deaths summons
+    // a Ninja Pal that strikes out of turn order. Reuses Steadfast Champion's `avengeSummonAttack` verbatim;
+    // GOLDEN summons a GILDED Pal (the factory's golden rule), not two.
     id: 'b2_scavenger',
     name: 'Moonlit Scavenger',
     tribe: 'beast',
-    tier: 5,
-    attack: 5,
-    health: 7,
+    tier: 4,
+    attack: 4,
+    health: 5,
     keywords: [],
     effects: [
-      { on: 'avenge', do: 'avengeBuffTribeLasting', params: { count: 3, tribe: 'beast', attack: 2, health: 2 } },
+      { on: 'avenge', do: 'avengeSummonAttack', params: { count: 4, cardId: 'b2_ninjapal' } },
     ],
-    text: '**Avenge (3):** give your Beasts **+2/+2** wherever they are.',
-    // The golden text was a leftover from the old spell-granting shape.
-    goldenText: '**Avenge (3):** give your Beasts **+4/+4** wherever they are.',
+    text: '**Avenge (4):** summon a **4/1 Ninja Pal** that attacks immediately.',
+    goldenText: '**Avenge (4):** summon a **Gilded 4/1 Ninja Pal** that attacks immediately.',
   },
   {
     // Echo summon on the Void Panther pattern: `fixed` keeps the count at 1 and `goldenTokens` upgrades the
@@ -174,9 +162,10 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 6,
     health: 8,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffImproveSelf', params: { tribe: 'beast', attack: 3, step: 1 } }],
-    text: 'When you summon a Beast in combat, give it **+3 Attack** and improve this **permanently**.',
-    goldenText: 'When you summon a Beast in combat, give it **+6 Attack** and improve this **permanently**.',
+    // Owner rebalance 2026-08-02: +2/+1 improving +2/+1 per summon (gilded +4/+2 both ways).
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffImproveSelf', params: { tribe: 'beast', attack: 2, health: 1, stepAttack: 2, stepHealth: 1 } }],
+    text: 'When you summon a Beast in combat, give it **+2/+1**, improving by **+2/+1** permanently.',
+    goldenText: 'When you summon a Beast in combat, give it **+4/+2**, improving by **+4/+2** permanently.',
   },
   {
     // Reuses Solaris Fang's `avengeShieldAttack` verbatim — Ward + an immediate out-of-turn strike every 4

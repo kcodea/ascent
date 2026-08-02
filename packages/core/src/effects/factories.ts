@@ -2487,24 +2487,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Set 2 — Lancel (Start of Combat): give your LEFT-MOST `count` friendly `tribe` minions Ward, and each
-   *  attacks immediately (out of turn order, via the immediate-attack queue). Golden covers two instead of one.
-   *  Left-most is board order, so the pick is deterministic and consumes no RNG. */
-  scShieldAttackLeftmostTribe: (ctx, self, params) => {
-    const tribe = (str(params.tribe) || 'beast') as Tribe;
-    const want = num(params.count, 1) * mul(self);
-    const friends = ctx.living(self.side).filter(
-      (m) => m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe,
-    ).slice(0, want);
-    if (friends.length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} sounds the charge` });
-    for (const m of friends) {
-      grantShield(ctx, m);
-      // `attackNow: false` (Lancel, owner change 2026-07-25) — Ward only, no free opening swing.
-      if (params.attackNow !== false) ctx.attackNow?.(m, false); // already shielded above — don't re-grant per strike
-    }
-  },
-
   /** Set 2 — Denkeeper Oona (Start of Combat, passive-reading): register a SUMMON-ONLY `tribe` aura — minions
    *  you summon later in the fight enter with +atk/+hp. Unlike `scBeastAura` it deliberately does NOT buff the
    *  minions already on board: the card reads "Beasts you SUMMON in combat have +5/+5", i.e. it pays the token
@@ -2516,27 +2498,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: `${self.name} watches the den` });
     ctx.addTribeAura(self.side, tribe, a, h, self.uid); // future summons only — no pass over `ctx.living`
-  },
-
-  /** Set 2 — Moonlit Scavenger (Avenge half): every X friendly deaths, buff your `tribe` for the rest of the
-   *  fight AND carry it back to the run ("wherever they are"). Registers the rest-of-combat aura so later
-   *  summons inherit it, buffs the living ones now, and grants the permanent buy-time slice. */
-  avengeBuffTribeLasting: (ctx, self, params, payload) => {
-    const { side, count } = payload as { side: Side; count: number };
-    if (self.dead || side !== self.side) return;
-    const every = Math.max(1, num(params.count, 3));
-    if (count % every !== 0) return;
-    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
-    const a = num(params.attack, 2) * mul(self);
-    const h = num(params.health, 0) * mul(self);
-    if (a <= 0 && h <= 0) return;
-    ctx.addTribeAura(self.side, tribe, a, h, self.uid);
-    for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-    }
-    // NOTE: combat-scoped. "Wherever they are" is satisfied within the fight — the `addTribeAura` above means
-    // minions summoned later inherit it, not just the ones standing now. A run-wide carry-back would need a new
-    // ctx accessor over `beastBuyAtkGain` (a simulate.ts local today); deliberately not invented here.
   },
 
   /** Set 2 — Echohorn Stag (Rally): on its own attack, trigger your LEFT-MOST friendly Echo (Deathrattle) —
@@ -2852,13 +2813,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  Attack-only by design: the Beast go-wide line already has plenty of health-stacking, and an escalating
    *  Attack grant is what makes a wide board actually close a fight. */
   onSummonTribeBuffImproveSelf: (ctx, self, params, payload) => {
+    // Owner rebalance 2026-08-02: asymmetric now — base +attack/+health, improving by +stepAttack/+stepHealth
+    // per summon (golden doubles both, so the improve reads +4/+2 gilded). `summonBonus` counts PROCS (the
+    // same shape Oona's `onSummonTribeBuffThenDouble` uses), still carried back keyed to this body's sourceUid.
     const { minion } = payload as MinionPayload;
     if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
     const tribe = (str(params.tribe) || 'beast') as Tribe;
     if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
-    const bonus = self.summonBonus ?? 0;
-    ctx.buff(minion, (num(params.attack, 3) + bonus) * mul(self), 0, self.uid);
-    self.summonBonus = bonus + num(params.step, 1); // permanent — carried back keyed to this body's sourceUid
+    const procs = self.summonBonus ?? 0;
+    const a = (num(params.attack, 2) + procs * num(params.stepAttack, 2)) * mul(self);
+    const h = (num(params.health, 1) + procs * num(params.stepHealth, 1)) * mul(self);
+    ctx.buff(minion, a, h, self.uid);
+    self.summonBonus = procs + 1; // permanent — carried back keyed to this body's sourceUid
   },
 
   /** Set 2 — Groveweaver (combat half): a `tribe` minion summoned DURING the fight gets the same asymmetric

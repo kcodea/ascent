@@ -89,7 +89,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
   });
 
-  it('Kennelmaster Start of Combat: buffs your Beasts +2 Attack, and a Beast summoned later inherits the aura', () => {
+  it('Kennelmaster Start of Combat: buffs your Beasts +1 Attack, and a Beast summoned later inherits the aura', () => {
     // The SoC aura buffs the living Beasts now (Kennelmaster + Mama Pup), then Mama Pup dies and its Pups —
     // summoned AFTER the aura registered — pick it up too ("wherever they are, incl. combat summons").
     const p: BoardMinion[] = [
@@ -102,7 +102,7 @@ describe('simulate (handoff A.3)', () => {
     expect(summonEvents.length).toBeGreaterThanOrEqual(1); // Mama Pup's Pups spawned
     const summonedUids = new Set(summonEvents.flatMap((ev) => (ev.type === 'summon' ? [ev.minion.uid] : [])));
     // A Beast summoned after Kennelmaster's SoC still receives the +1/+0 aura.
-    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 0 && summonedUids.has(ev.target));
+    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 0 && summonedUids.has(ev.target));
     expect(summonAura).toBe(true);
   });
 
@@ -118,8 +118,8 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 1);
     const beastUid = r.initial.player[1]!.uid;
     const dragonUid = r.initial.player[2]!.uid;
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === beastUid && ev.attack === 2 && ev.health === 0)).toBe(true);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 2 && ev.health === 0)).toBe(false);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === beastUid && ev.attack === 1 && ev.health === 0)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 1 && ev.health === 0)).toBe(false);
     // No Kennelmaster buff ever grants Health (stepHealth 0 keeps the Avenge accrual off Health too).
     const kennelUid = r.initial.player[0]!.uid;
     expect(r.events.some((ev) => ev.type === 'buff' && ev.source === kennelUid && ev.health !== 0)).toBe(false);
@@ -134,7 +134,7 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 1);
     const pupUids = r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : []));
     expect(pupUids.length).toBe(2); // both Pups summoned
-    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 2 && ev.health === 0));
+    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 1 && ev.health === 0));
     expect(buffed.length).toBe(2); // BOTH inherit the +1/+0 aura, not only the first
   });
 
@@ -665,7 +665,7 @@ describe('simulate (handoff A.3)', () => {
     const gUid = (r.events[rebornIdx] as { target: string }).target;
     // A +1/+0 aura buff lands on the Gryphon (a Beast) AFTER it Rises (the bug: reborn bodies were skipped).
     const auraAfterRise = r.events.slice(rebornIdx + 1).some(
-      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 2 && ev.health === 0,
+      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 1 && ev.health === 0,
     );
     expect(auraAfterRise).toBe(true);
   });

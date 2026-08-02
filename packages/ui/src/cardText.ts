@@ -105,10 +105,14 @@ export function attackGrantImproveText(cardId: string, summonBonus: number, gold
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffImproveSelf');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 3);
-  const m = (base + summonBonus) * (golden ? 2 : 1);
+  // Asymmetric since the 2026-08-02 rebalance: `summonBonus` counts PROCS; each stat climbs by its own step.
+  const p = eff.params as { attack?: number; health?: number; stepAttack?: number; stepHealth?: number };
+  const g = golden ? 2 : 1;
+  const a = (Number(p?.attack ?? 2) + summonBonus * Number(p?.stepAttack ?? 2)) * g;
+  const h = (Number(p?.health ?? 1) + summonBonus * Number(p?.stepHealth ?? 1)) * g;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${m} Attack}}`);
+  // Replace only the FIRST "+A/+H" — the second is the printed improve step, which does not change.
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
 }
 
 /**
@@ -592,9 +596,10 @@ export function improvingSummonText(cardId: string, summonBonus: number, golden 
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffThenDouble' || e.do === 'onSummonImpBuff');
   if (!def || !eff) return null;
-  const p = eff.params as { attack?: number; health?: number };
-  const a = (Number(p?.attack ?? 1) + summonBonus) * (golden ? 2 : 1);
-  const h = (Number(p?.health ?? 1) + summonBonus) * (golden ? 2 : 1);
+  // Per-stat steps (Oona improves +1/+2 per Avenge since 2026-08-02; defaults keep Broodwright's +1/+1).
+  const p = eff.params as { attack?: number; health?: number; stepAttack?: number; stepHealth?: number };
+  const a = (Number(p?.attack ?? 1) + summonBonus * Number(p?.stepAttack ?? 1)) * (golden ? 2 : 1);
+  const h = (Number(p?.health ?? 1) + summonBonus * Number(p?.stepHealth ?? 1)) * (golden ? 2 : 1);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
 }

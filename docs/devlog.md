@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-02 — Beast/Kobold balance batch: Mammoth, Oona, Scavenger rework, two removals
+
+Owner batch:
+
+- **Menagerie Mammoth** — asymmetric now: +2/+1, improving by **+2/+1 per summon** (gilded +4/+2 both ways).
+  The factory (`onSummonTribeBuffImproveSelf`) moves to the procs-and-per-stat-steps shape Oona already used;
+  `summonBonus` counts procs (still carried back per body). The live-text helper follows.
+- **King Oona** — the flat grant is **+1/+2** and each Avenge improves by **+1/+2** (per-stat steps in the
+  existing factory; data-only). `improvingSummonText` reads the steps (Broodwright's defaults unchanged).
+- **Moonlit Scavenger** — reworked from the Avenge tribe-buff to **T4 4/5, Avenge (4): summon a 4/1 Ninja Pal
+  that attacks immediately** (reuses Steadfast Champion's `avengeSummonAttack` verbatim; GOLDEN summons a
+  gilded Pal). New `b2_ninjapal` token. The old `avengeBuffTribeLasting` factory became orphaned → deleted
+  (id, schema entry and all — the Rouge-Rogue rule).
+- **Tamer removed** (and its now-orphaned `n2_whelp` token with it). **Lancel removed** (and its orphaned
+  `scShieldAttackLeftmostTribe` factory).
+- **Storm Chaser** T2 → T3.
+- **Kennelmaster** — back to base **+1 Attack improving +1** per Avenge (gilded reads +2 improving +2 via the
+  doubling); the 07-25 "+2 improving +2" plain values were too much.
+
+16 stale test pins updated across six files; a new Scavenger/Ninja-Pal test pins the summon + the immediate
+strike. Process note for the log's honesty: a broad-regex factory deletion briefly gutted `factories.ts`
+(caught by the 252-test failure wall, restored from git, re-applied with exact anchors — the diff ends at the
+intended −42 lines). Full gates + harness green (3588 tests).
+
 ## 2026-08-01 — Rubies detonate on the minion they land on (`ruby-gem-apply`, wired shop + combat)
 
 The owner's own workbench authoring, wired to the moment it was made for. `ruby-gem-apply` is two gemshard

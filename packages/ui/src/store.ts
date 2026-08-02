@@ -71,7 +71,13 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
       // A minion landing on the board vs a spell being cast get different sounds (spells get per-spell
       // sounds later). Look up the played card in the pre-dispatch hand.
       const card = prev.hand.find((c) => c.uid === action.uid);
-      if (card && CARD_INDEX[card.cardId]?.spell) sfx.castSpell();
+      const def = card ? CARD_INDEX[card.cardId] : undefined;
+      // THREE kinds of played card, not two. A Ruby is spell-LIKE but not a spell, so it fell to the else and
+      // played the minion-landing thump — a card that never lands on the board, thumping. It now makes NO cast
+      // sound: `sfx.gemApply` fires when the gem lands on its target, and for a hand-played Ruby the cast IS
+      // the land (owner ruling 2026-08-02). One event, one sound.
+      if (def?.ruby) { /* silent here — the gem's own land carries it */ }
+      else if (def?.spell) sfx.castSpell();
       else sfx.play();
       // Layer the card's own unique voiceline/SFX (if it has one) over the general landing/cast sound.
       if (card) {

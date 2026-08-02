@@ -14,6 +14,12 @@ for; the shop half was already handled there by uid correlation, since the shop 
 
 Verified: typecheck (pkgs + web) clean, lint 0 errors, **3591 tests**, `build:web` OK.
 
+**Same day — the gem gets a voice.** Owner-recorded clip added as `audio/gemapply.mp3`, wired through the
+usual `playSample` + synth-fallback pattern and fired from BOTH Ruby cues, **once per gem** rather than once
+per moment: a gilded Excavator is a cascade of 2-stacks, so the ear has to carry the same count the eye does.
+Throttled at 20ms rather than the 60ms `shieldBreak` uses — 60 would swallow the second hit of a stack, the
+stack `beat` being 60 itself, so the floor only collapses gems landing in the same frame.
+
 **Not done, and visible:** a GILDED Excavator still plays a cascade of singles. The sweep offset is
 `recipientIndex × gap`, and a stack needs `+ repeatIndex × beat` — so the board currently under-reports 2
 Rubies as 1. That is the first task of the clarity phase, and the fourth place "walk an effect across N

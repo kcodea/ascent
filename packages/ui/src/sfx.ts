@@ -88,6 +88,7 @@ let lastTriggerPulse = 0;
 /** Timestamp (ms) of the last trigger-glow sound — dedupes simultaneous glows (see triggerGlow). */
 let lastTriggerGlow = 0;
 /** Timestamp (ms) of the last shield-break sound — dedupes shields breaking on the same beat. */
+let lastGemApply = 0;
 let lastShieldBreak = 0;
 /** Timestamps (ms) of the last reborn shatter / summon sounds — dedupe simultaneous reborns on a beat. */
 let lastRebornShatter = 0;
@@ -486,6 +487,21 @@ export const sfx = {
     if (playSample('divineshieldbreak', 'divineshieldbreak')) return;
     tone({ freq: 900, dur: 0.18, type: 'square', vol: 0.12, slideTo: 200, category: 'divineshieldbreak' });
   },
+  /**
+   * A RUBY lands on a minion — one play per gem, so the ear carries the same count the eye does. A gilded
+   * Frenzied Excavator is a cascade of 2-stacks (see docs/fx-vocabulary.md) and must SOUND like two per unit.
+   *
+   * Throttled at 20ms, not the 60ms `shieldBreak` uses: 60 would swallow the second hit of a stack, since the
+   * stack `beat` is itself 60. This floor only collapses gems that land in the SAME frame, which is never a
+   * count the player could have heard anyway.
+   */
+  gemApply: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastGemApply < 20) return;
+    lastGemApply = now;
+    if (playSample('gemapply', 'gemapply')) return;
+    tone({ freq: 1180, dur: 0.1, type: 'triangle', vol: 0.09, slideTo: 1560, category: 'gemapply' });
+  },
   // A Reborn aura SHATTERS in combat (the unit dies + its spirit releases). Deduped like shieldBreak.
   rebornShatter: () => {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
@@ -630,7 +646,7 @@ export function setSampleVolume(key: string, v: number): void {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, maxgold: sfx.maxGold, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, gemapply: sfx.gemApply, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   uihover: sfx.uiHover,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

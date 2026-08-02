@@ -7,6 +7,7 @@ import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedUidsIn, RUBY_STAGGER_MS } from './channels/rubyLanded';
 import { canPlayDefs, playDef } from '../fx/playDef';
+import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingFor } from './bindings';
@@ -351,6 +352,8 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           const fire = (): void => {
             const rubyAnchors = anchorsForUnits(uid, uid);
             if (rubyAnchors) playDef('ruby-gem-apply', rubyAnchors); // literal, not the constant — see RUBY_LANDED_DEF
+            // One play per GEM, not per moment — the ear carries the same count the eye does.
+            sfx.gemApply();
           };
           if (i === 0) fire();
           else timers.push(setTimeout(fire, (RUBY_STAGGER_MS * i) / speed));

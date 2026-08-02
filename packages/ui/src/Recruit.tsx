@@ -851,6 +851,7 @@ export function Recruit() {
           if (!p) return;
           // Both anchors are the minion itself: the Ruby lands ON it, with nothing to travel between.
           playDef('ruby-gem-apply', { source: p, target: p }); // literal — see RUBY_LANDED_DEF
+          sfx.gemApply(); // one play per gem, matching the cascade the eye sees
         };
         if (i === 0) fire();
         else timers.push(setTimeout(fire, RUBY_STAGGER_MS * i));

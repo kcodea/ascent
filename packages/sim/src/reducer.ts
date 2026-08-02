@@ -376,6 +376,16 @@ export function reduce(state: RunState, action: Action): RunState {
     // the before-map and so counts from 0, which is correct: those are Rubies that just landed.
     const rubiesBefore = new Map(state.board.map((c) => [c.uid, c.rubiesOnThisTurn ?? 0]));
     const rubyLanded = next.board.filter((c) => (c.rubiesOnThisTurn ?? 0) > (rubiesBefore.get(c.uid) ?? 0)).map((c) => c.uid);
+    // A Ruby targets `any`, so it can also land on a TAVERN OFFER (buffing a minion before you buy it), and that
+    // path deliberately never calls `fireOnRubyPlayed` — firing an offer's on-Ruby watchers would pay out a Ruby
+    // Broker sitting in the shop. So the board counter above cannot see it, and the offer is measured on its own
+    // terms: `addOfferBuff` keeps a per-source `count`, and the 'Ruby'-sourced one rising IS a Ruby landing.
+    const rubyCountOf = (o: { buffs?: { source: string; count: number }[] }): number =>
+      o.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
+    const offersBefore = new Map(state.shop.map((o) => [o.uid, rubyCountOf(o)]));
+    for (const o of next.shop) {
+      if (rubyCountOf(o) > (offersBefore.get(o.uid) ?? 0)) rubyLanded.push(o.uid);
+    }
     if (rubyLanded.length > 0) {
       next.rubyLandedFxSeq = (next.rubyLandedFxSeq ?? 0) + 1;
       next.rubyLandedFxUids = rubyLanded;

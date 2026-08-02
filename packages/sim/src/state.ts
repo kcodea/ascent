@@ -824,9 +824,14 @@ export interface RunState {
    *  your drag from hand, Crownvein's board-wide play, End of Turn mints, all of it — so one delta covers
    *  every source without touching a single play site. */
   rubyLandedFxSeq?: number;
-  /** Every minion a Ruby landed on this action, in board order. A LIST, not a single uid, because one card can
-   *  play Rubies across the whole board (Frenzied Excavator, Ruby Excavation); the UI staggers the cue down
-   *  this list so a seven-minion play reads as a sweep instead of one indistinct flash. */
+  /** Every card a Ruby landed on this action — board minions first, then TAVERN OFFERS (a Ruby targets `any`,
+   *  so it can buff a minion before you buy it). A LIST, not a single uid, because one card can play Rubies
+   *  across the whole board (Frenzied Excavator, Ruby Excavation); the UI staggers the cue down this list so a
+   *  seven-minion play reads as a sweep instead of one indistinct flash.
+   *
+   *  The two halves are measured differently on purpose: a board minion is counted by `rubiesOnThisTurn`, an
+   *  offer by the `count` on its 'Ruby' buff entry — because the offer path deliberately never fires
+   *  `fireOnRubyPlayed` (that would pay out a Ruby Broker sitting in the shop) and so never bumps the counter. */
   rubyLandedFxUids?: string[];
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).

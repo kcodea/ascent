@@ -35,6 +35,17 @@ re-renders) mid-sweep is skipped rather than detonating over an empty slot.
 Distinct from the existing **Ruby Power** cue, which fires when your Rubies get *stronger* and explicitly
 never per cast — a card doing both (Crownvein) now correctly shows both reads.
 
+**Follow-up, same day —** a Ruby targets `any`, so it can also land on a TAVERN OFFER, and that path
+deliberately never calls `fireOnRubyPlayed` (firing an offer's on-Ruby watchers would pay out a Ruby Broker
+sitting in the shop). The first cut of the signal read board minions only, so every shop drop was silently
+dark. Offers are now measured on their own terms — the `count` on the offer's 'Ruby' buff entry, which
+`addOfferBuff` already maintains — so no engine field and no rules change was needed. Pinned by
+`rubyLandedFx.test.ts` (board target, offer target, non-target, no-Ruby action). Also added
+`docs/fx-workbench-friction.md`, a running log of workbench workarounds (owner ask: surface them all, however
+small), seeded with the one-binding-per-moment-kind limit this feature hit and the absent shop binding
+surface. 3587 tests.
+
+
 Two call sites, both string literals rather than a shared constant, because `directCalls.ts` builds the FX
 library's "played from code" map by scanning for a quoted id: a constant is invisible to that scan and the def
 would render as inert while playing constantly. (That scan reads comments too — a doc comment that *showed*

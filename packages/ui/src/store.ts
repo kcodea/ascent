@@ -620,7 +620,7 @@ export const useGame = create<GameStore>((set, get) => ({
           // real ladder, and course/rift rows would dilute it.
           if (next.mode === 'lobby') {
             try {
-              const telemetry = { ...reconstructRunTelemetry(replay, heroOffer), mode: 'lobby' };
+              const telemetry = { ...reconstructRunTelemetry(replay, heroOffer), mode: 'lobby', placement: lobbyPlacement ?? undefined };
               void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
             } catch { /* best-effort — telemetry must never disrupt the end screen */ }
           }

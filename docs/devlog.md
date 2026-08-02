@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-02 — Compendium: in-game plates + zoom; Balance Report: placement capture, hero slice, placement views
+
+**Compendium (owner asks).** Every card now renders with the same carved PLATE it wears in hand (`plated` —
+the Compendium was the one surface passing the un-plated frame), and a **zoom control** (60%–160%, persisted
+to localStorage) scales the grid: `--book-zoom` multiplies the single `--ch` metric the CSS derives card
+width + drawer geometry from, so `auto-fill` re-flows the columns for free. Verified live: 60% fits 6 cards
+per row against 4 at 100%, plates intact.
+
+**Balance Report.** Answering the owner's data questions, in order:
+
+- **Placement was never captured** — the row carried `won`/`wins` (course-era) but not the lobby finish, even
+  though MMR already reads it. Added: `RunTelemetry.placement`, the `placement` column (idempotent ALTER in
+  `schema.sql`), and the store passes the placement it already computes. **Forward-only** — every existing
+  Supabase row lacks it, which the aggregate handles explicitly (see below).
+- **Placement analytics**: per-entry `avgPlace` / `1st %` / `8th %` / `placed n`, credited on the PICKED side
+  only and accumulated ONLY over rows carrying a placement — a legacy row contributes nothing rather than
+  being coerced to some finish. Shown as columns on every table (avg place heats INVERTED: low is good).
+- **Avg shop curve by placement**: `ShopCurve.byPlacement` — one mean tier-by-wave series per finish, with a
+  legend toggle on the chart (hidden entirely until placed rows exist, rather than a toggle revealing nothing).
+- **Hero slice**: a hero dropdown that RE-AGGREGATES from the raw rows rather than filtering finished tables —
+  a hero's card stats are only meaningful when the denominators (offer counts, run totals, the curve) are that
+  hero's too. Needs no new capture; works on existing data today.
+
+Tests: `placementReport.test.ts` — per-card averages + 1st/8th rates, legacy rows contributing nothing (the
+drift guard), null-not-zero with no sample, hero credit on the pick only, and the per-placement curve series.
+Full gates green (3621).
+
 ## 2026-08-02 — Runefire names its recast; Lazarus + Copycat art; Copycat pinned unfindable
 
 - **Runefire** now names the spell it will recast at End of Turn ("cast **{{Spirit Fire}}** — the last Shop

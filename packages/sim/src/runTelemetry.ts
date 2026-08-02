@@ -52,6 +52,11 @@ export interface RunTelemetry {
    *  minions mostly bought on"). One entry per shop buy / Discover pick — the wave-tagged superset of
    *  `boughtCards` + `discoverBoughtCards`. Absent on pre-migration historical rows. */
   buyEvents?: { id: string; wave: number; src: 'shop' | 'discover' }[];
+  /** FINAL LOBBY PLACEMENT, 1–8 (owner ask 2026-08-02: "boards that buy X place 8th most often"). Supplied by
+   *  the UI at upload — the reconstruction can't know it (a replay reproduces the run, not the table it sat
+   *  at). Absent on every row written before this patch, so placement views are FORWARD-ONLY: they must
+   *  filter to rows that carry it rather than treating a missing value as any particular finish. */
+  placement?: number;
 }
 
 /**
@@ -252,6 +257,13 @@ export interface PlayerReportRow {
   shopPicked: number;
   discoverOffered: number;
   discoverPicked: number;
+  /** Placement analytics — null when NO row carrying this entry had a placement (pre-2026-08-02 data, or a
+   *  non-lobby run). `avgPlace` is the mean finish among placed runs that TOOK it; `firstRate`/`lastRate` are
+   *  whole percents of those runs; `placedGames` is the sample size behind all three. */
+  avgPlace: number | null;
+  firstRate: number;
+  lastRate: number;
+  placedGames: number;
 }
 
 /** The shop-leveling curve: average tavern tier reached by each wave, split by outcome. `won`/`lost` are indexed
@@ -265,6 +277,11 @@ export interface ShopCurve {
   /** Average wave at which a run first REACHES each tavern tier, indexed by tier (1..6; index 0 unused). T1 is
    *  always wave 1 (a given). A null slot = no run reached that tier. Shown beside the Y-axis tier labels. */
   avgWaveToTier: (number | null)[];
+  /** The same mean-tier-by-wave curve, one series PER PLACEMENT (index 1..8; index 0 unused) — owner ask
+   *  2026-08-02 ("avg shop curve by placement"). Built only from rows carrying a placement, so it is empty on
+   *  pre-2026-08-02 data; `placedRuns[p]` is the sample size behind series `p`. */
+  byPlacement: ((number | null)[] | null)[];
+  placedRuns: number[];
 }
 
 /** The finished player report: five ranked tables + the shop-leveling curve + the run count behind them. */
@@ -282,6 +299,10 @@ export interface PlayerReport {
 function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
   const sum = { won: [] as number[], lost: [] as number[] };
   const cnt = { won: [] as number[], lost: [] as number[] };
+  // Per-placement curves (1..8), same shape as the won/lost pair above.
+  const pSum: number[][] = Array.from({ length: 9 }, () => []);
+  const pCnt: number[][] = Array.from({ length: 9 }, () => []);
+  const placedRuns = Array.from({ length: 9 }, () => 0);
   let maxWave = 0;
   for (const r of rows) {
     const bucket = r.won ? 'won' : 'lost';
@@ -291,8 +312,14 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
       if (tier == null) continue;
       sum[bucket][w] = (sum[bucket][w] ?? 0) + tier;
       cnt[bucket][w] = (cnt[bucket][w] ?? 0) + 1;
+      const p = r.placement;
+      if (p != null && p >= 1 && p <= 8) {
+        pSum[p]![w] = (pSum[p]![w] ?? 0) + tier;
+        pCnt[p]![w] = (pCnt[p]![w] ?? 0) + 1;
+      }
       if (w > maxWave) maxWave = w;
     }
+    if (r.placement != null && r.placement >= 1 && r.placement <= 8) placedRuns[r.placement]!++;
   }
   const mean = (b: 'won' | 'lost'): (number | null)[] => {
     const out: (number | null)[] = [];
@@ -317,7 +344,19 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
   for (let tier = 1; tier <= 6; tier++) {
     avgWaveToTier[tier] = tier === 1 ? 1 : (tierCnt[tier] ? Math.round((tierSum[tier]! / tierCnt[tier]!) * 10) / 10 : null);
   }
+  // One mean series per placement; null for a placement no run finished at (so the chart can skip it).
+  const byPlacement: ((number | null)[] | null)[] = [];
+  for (let place = 1; place <= 8; place++) {
+    if (!placedRuns[place]) { byPlacement[place] = null; continue; }
+    const series: (number | null)[] = [];
+    for (let w = 1; w <= maxWave; w++) {
+      series[w] = pCnt[place]![w] ? Math.round((pSum[place]![w]! / pCnt[place]![w]!) * 100) / 100 : null;
+    }
+    byPlacement[place] = series;
+  }
   return {
+    byPlacement,
+    placedRuns,
     maxWave,
     wonRuns: rows.filter((r) => r.won).length,
     lostRuns: rows.filter((r) => !r.won).length,
@@ -328,6 +367,13 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
 }
 
 interface Acc {
+  /** Placement analytics (owner ask 2026-08-02) — accumulated ONLY over rows that carry a placement (lobby
+   *  runs since the 2026-08-02 capture). `placedGames` is the denominator, NOT `games`: mixing in pre-capture
+   *  rows would silently drag every average toward whatever the missing values are assumed to be. */
+  placeSum: number;
+  placedGames: number;
+  firsts: number; // placement 1
+  lasts: number; // placement 8 (or the table's last seat)
   offered: number; // runs this was offered in
   picked: number; // runs this was picked in
   games: number; // runs picked (= games played with it)
@@ -340,7 +386,7 @@ interface Acc {
   discOffered: number;
   discPicked: number;
 }
-const blankAcc = (): Acc => ({ offered: 0, picked: 0, games: 0, won: 0, winsSum: 0, turnsSum: 0, turnsCount: 0, shopOffered: 0, shopPicked: 0, discOffered: 0, discPicked: 0 });
+const blankAcc = (): Acc => ({ placeSum: 0, placedGames: 0, firsts: 0, lasts: 0, offered: 0, picked: 0, games: 0, won: 0, winsSum: 0, turnsSum: 0, turnsCount: 0, shopOffered: 0, shopPicked: 0, discOffered: 0, discPicked: 0 });
 const pct = (n: number, d: number): number => (d === 0 ? -1 : Math.round((100 * n) / d));
 const avg1 = (sum: number, n: number): number | null => (n === 0 ? null : Math.round((10 * sum) / n) / 10);
 
@@ -360,6 +406,10 @@ function toRows(
     avgTurns: opts.turns ? avg1(a.turnsSum, a.turnsCount) : null,
     shopOffered: a.shopOffered, shopPicked: a.shopPicked,
     discoverOffered: a.discOffered, discoverPicked: a.discPicked,
+    avgPlace: avg1(a.placeSum, a.placedGames),
+    firstRate: pct(a.firsts, a.placedGames),
+    lastRate: pct(a.lasts, a.placedGames),
+    placedGames: a.placedGames,
   }));
   // Rank by win rate (games as tiebreak); minions (no win) fall back to pick volume.
   rows.sort((x, y) => (y.winRate - x.winRate) || (y.games - x.games) || (y.picked - x.picked));
@@ -375,6 +425,16 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
   const spells = new Map<string, Acc>();
   const bump = (m: Map<string, Acc>, id: string): Acc => { let a = m.get(id); if (!a) { a = blankAcc(); m.set(id, a); } return a; };
 
+  // Placement is credited on the PICKED side only, and only from rows that carry one (see `Acc`). `lastSeat`
+  // defaults to 8 — the standard table — so "last place" means the bottom seat of a full lobby.
+  const LAST_SEAT = 8;
+  const creditPlace = (a: Acc, place: number | undefined): void => {
+    if (place == null) return;
+    a.placeSum += place; a.placedGames++;
+    if (place === 1) a.firsts++;
+    if (place >= LAST_SEAT) a.lasts++;
+  };
+
   for (const r of rows) {
     // Heroes: offered = the trio; picked = the chosen hero; games/win/avgWins credited to the pick.
     for (const id of r.heroOffer) bump(heroes, id).offered++;
@@ -382,6 +442,7 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     if (!r.heroOffer.includes(r.heroId)) bump(heroes, r.heroId).offered++;
     const hp = bump(heroes, r.heroId);
     hp.picked++; hp.games++; hp.winsSum += r.wins; if (r.won) hp.won++;
+    creditPlace(hp, r.placement);
 
     const creditPicked = (m: Map<string, Acc>, offered: string[], picked: string[], turns?: Record<string, number>): void => {
       for (const id of offered) bump(m, id).offered++;
@@ -389,6 +450,7 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
         const a = bump(m, id);
         if (!offered.includes(id)) a.offered++; // ensure pick rate ≤ 100%
         a.picked++; a.games++; if (r.won) a.won++;
+        creditPlace(a, r.placement);
         const t = turns?.[id];
         if (t !== undefined) { a.turnsSum += t; a.turnsCount++; }
       }
@@ -399,9 +461,9 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     // Cards: offer = seen, pick = acquired. No win credit (per spec). Split minion vs spell AND shop vs Discover —
     // `offered`/`picked` accumulate the combined total (for ranking); the shop*/disc* fields track each source.
     for (const id of r.offeredCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.offered++; a.shopOffered++; } }
-    for (const id of r.boughtCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.shopPicked++; } }
+    for (const id of r.boughtCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.shopPicked++; creditPlace(a, r.placement); } }
     for (const id of r.discoverOfferedCards ?? []) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.offered++; a.discOffered++; } }
-    for (const id of r.discoverBoughtCards ?? []) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.discPicked++; } }
+    for (const id of r.discoverBoughtCards ?? []) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.discPicked++; creditPlace(a, r.placement); } }
   }
 
   const total = rows.length;

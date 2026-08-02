@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { aggregatePlayerReport, type PlayerReport, type PlayerReportRow, type ShopCurve } from '@game/sim';
+import { aggregatePlayerReport, getHero, type PlayerReport, type PlayerReportRow, type ShopCurve } from '@game/sim';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { fetchRunTelemetry, remoteEnabled } from './remoteBoards';
@@ -18,20 +18,25 @@ import { buildCardCsv, type RunTelemetry } from '@game/sim';
 // offer/pick/win are per-run RATES (%); seen/bought are raw COUNTS (a card is seen many times per run); buypct =
 // bought/seen. avgTurns shows DNF when a quest was taken but never completed.
 type Col = 'offer' | 'pick' | 'win' | 'avgWins' | 'avgTurns' | 'n' | 'seen' | 'bought' | 'buypct'
-  | 'shopSeen' | 'shopBought' | 'discSeen' | 'discBought' | 'discpct';
+  | 'shopSeen' | 'shopBought' | 'discSeen' | 'discBought' | 'discpct'
+  // Placement analytics (owner ask 2026-08-02) — only populated from rows carrying a placement, i.e. lobby
+  // runs finished since the 2026-08-02 capture. `pn` is that sample size, shown so a 1-run average is visible
+  // AS a 1-run average rather than read as a trend.
+  | 'avgPlace' | 'firstPct' | 'lastPct' | 'pn';
 const COL_LABEL: Record<Col, string> = {
   offer: 'Offer', pick: 'Pick', win: 'Win', avgWins: 'Avg Wins', avgTurns: 'Avg Turns', n: 'n', seen: 'Seen', bought: 'Bought', buypct: 'Buy %',
   shopSeen: 'Shop Seen', shopBought: 'Shop Buy', discSeen: 'Disc Seen', discBought: 'Disc Buy', discpct: 'Disc %',
+  avgPlace: 'Avg Place', firstPct: '1st %', lastPct: '8th %', pn: 'placed n',
 };
 
 /** The report sections, in dropdown order — each names the rows it reads off the aggregate + the columns it shows. */
 type Section = { key: keyof PlayerReport & ('heroes' | 'quests' | 'runes' | 'minions' | 'spells'); label: string; cols: Col[] };
 const SECTIONS: Section[] = [
-  { key: 'minions', label: 'Minions', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'discpct', 'buypct'] },
-  { key: 'spells', label: 'Spells', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'discpct', 'buypct'] },
-  { key: 'heroes', label: 'Heroes', cols: ['offer', 'pick', 'win', 'avgWins', 'n'] },
-  { key: 'quests', label: 'Quests', cols: ['offer', 'pick', 'win', 'avgTurns', 'n'] },
-  { key: 'runes', label: 'Runes', cols: ['offer', 'pick', 'win', 'n'] },
+  { key: 'minions', label: 'Minions', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'discpct', 'buypct', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
+  { key: 'spells', label: 'Spells', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'discpct', 'buypct', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
+  { key: 'heroes', label: 'Heroes', cols: ['offer', 'pick', 'win', 'avgWins', 'n', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
+  { key: 'quests', label: 'Quests', cols: ['offer', 'pick', 'win', 'avgTurns', 'n', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
+  { key: 'runes', label: 'Runes', cols: ['offer', 'pick', 'win', 'n', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
 ];
 /** The chart section is not a table — it renders the shop-leveling curve instead of rows. */
 const SHOP_CURVE = 'shopcurve' as const;
@@ -65,7 +70,24 @@ function cellFor(r: PlayerReportRow, c: Col): { text: string; cls: string } {
     case 'discSeen': return { text: String(r.discoverOffered), cls: 'balnum' };
     case 'discBought': return { text: String(r.discoverPicked), cls: 'balnum' };
     case 'n': return { text: String(r.games || r.picked), cls: 'balnum baldim' };
+    // Placement columns read '–' with no placed sample, so an empty cell means "no data yet" rather than a
+    // finish of zero. Avg place heats INVERTED (1st is good, 8th is bad).
+    case 'avgPlace': return { text: fmtNum(r.avgPlace), cls: `balnum${r.avgPlace === null ? '' : ` balwin${placeHeat(r.avgPlace)}`}` };
+    case 'firstPct': return { text: r.placedGames > 0 ? fmtPct(r.firstRate) : '–', cls: 'balnum' };
+    case 'lastPct': return { text: r.placedGames > 0 ? fmtPct(r.lastRate) : '–', cls: 'balnum' };
+    case 'pn': return { text: String(r.placedGames), cls: 'balnum baldim' };
   }
+}
+
+/** One hue per placement: 1st green → 8th red, evenly around the good→bad arc. */
+const placeHue = (place: number): string => `hsl(${Math.round(140 - ((place - 1) / 7) * 140)} 70% 58%)`;
+const ordinal = (n: number): string => `${n}${['th', 'st', 'nd', 'rd'][n % 10 > 3 || (n % 100 >= 11 && n % 100 <= 13) ? 0 : n % 10] ?? 'th'}`;
+
+/** Avg-placement heat, INVERTED against win rate: a LOW number is a good finish. */
+function placeHeat(avg: number): string {
+  if (avg <= 3) return ' hot';
+  if (avg >= 5.5) return ' cold';
+  return '';
 }
 
 /** The comparable value for a column — a number (missing → null, always sorted to the bottom). `name` sorts
@@ -85,6 +107,12 @@ function sortValue(r: PlayerReportRow, c: Col): number | null {
     case 'discBought': return r.discoverPicked;
     case 'discpct': return r.discoverOffered > 0 ? Math.round((100 * r.discoverPicked) / r.discoverOffered) : null;
     case 'n': return r.games || r.picked;
+    // Avg place sorts ASCENDING-good; the table's default is descending, so the raw value is right (a click
+    // flips it) — null when no placed sample, which sinks to the bottom like every other missing value.
+    case 'avgPlace': return r.avgPlace;
+    case 'firstPct': return r.placedGames > 0 ? r.firstRate : null;
+    case 'lastPct': return r.placedGames > 0 ? r.lastRate : null;
+    case 'pn': return r.placedGames;
   }
 }
 
@@ -143,6 +171,10 @@ export function BalancePanel() {
   const [rawRows, setRawRows] = useState<RunTelemetry[]>([]); // kept for the CSV export (per-card analytics)
   const [loading, setLoading] = useState(false);
   const [sectionKey, setSectionKey] = useState<SectionKey>('minions');
+  // HERO FILTER (owner ask 2026-08-02: "what minions does Robin buy vs Guardian"). Re-AGGREGATES from the raw
+  // rows rather than filtering the finished tables — a hero's card/rune/quest stats are only meaningful when
+  // the denominators (offer counts, run totals, the curve) are that hero's too.
+  const [heroFilter, setHeroFilter] = useState<string>('');
 
   const load = (): void => {
     setLoading(true);
@@ -172,13 +204,23 @@ export function BalancePanel() {
 
   useEffect(() => { if (show) load(); }, [show]);
 
+  // Re-aggregate whenever the hero filter moves. Cheap (client-side over ≤1000 rows) and keeps ONE aggregation
+  // path, so a filtered view can never drift from the unfiltered one.
+  const shown = useMemo(() => {
+    if (!heroFilter) return report;
+    const rows = rawRows.filter((r) => r.heroId === heroFilter);
+    return rows.length > 0 ? aggregatePlayerReport(rows) : null;
+  }, [report, rawRows, heroFilter]);
+  // Every hero that actually appears in the data, so the dropdown never offers an empty slice.
+  const heroIds = useMemo(() => [...new Set(rawRows.map((r) => r.heroId))].sort(), [rawRows]);
+
   if (!show) return null;
 
   const back = (): void => { sfx.pulse(); close(); };
   const refresh = (): void => { sfx.pulse(); load(); };
   const isCurve = sectionKey === SHOP_CURVE;
   const section = SECTIONS.find((s) => s.key === sectionKey) ?? SECTIONS[0]!;
-  const rows = report && !isCurve ? report[section.key] : [];
+  const rows = shown && !isCurve ? shown[section.key] : [];
 
   return (
     <div className="balpage">
@@ -194,9 +236,22 @@ export function BalancePanel() {
               aria-label="Choose report"
             >
               {SECTIONS.map((s) => (
-                <option key={s.key} value={s.key}>{s.label}{report ? ` (${report[s.key].length})` : ''}</option>
+                <option key={s.key} value={s.key}>{s.label}{shown ? ` (${shown[s.key].length})` : ''}</option>
               ))}
               <option value={SHOP_CURVE}>Shop Curve</option>
+            </select>
+            {/* HERO SLICE: re-aggregates the whole report for one hero (owner ask 2026-08-02). */}
+            <select
+              className="balpick"
+              value={heroFilter}
+              onChange={(e) => { sfx.pulse(); setHeroFilter(e.target.value); }}
+              aria-label="Filter by hero"
+              disabled={heroIds.length === 0}
+            >
+              <option value="">All heroes</option>
+              {heroIds.map((h) => (
+                <option key={h} value={h}>{getHero(h).name}</option>
+              ))}
             </select>
             <button className="balrun" disabled={loading} onClick={refresh}>{loading ? 'Loading…' : 'Refresh'}</button>
             <button className="balrun" disabled={loading || rawRows.length === 0} onClick={exportCsv}
@@ -204,7 +259,10 @@ export function BalancePanel() {
               Export CSV
             </button>
           </div>
-          <div className="balsub">Real player data{report ? ` · ${report.totalRuns} runs` : ''}</div>
+          <div className="balsub">
+            Real player data{shown ? ` · ${shown.totalRuns} runs` : ''}
+            {heroFilter ? ` · ${getHero(heroFilter).name} only` : ''}
+          </div>
         </div>
       </div>
 
@@ -213,8 +271,10 @@ export function BalancePanel() {
           <div className="balempty">Balance report unavailable — no backend configured.</div>
         ) : loading ? (
           <div className="balempty">Loading player data…</div>
-        ) : report && report.totalRuns > 0 ? (
-          isCurve ? <ShopCurveChart curve={report.shopCurve} /> : <SortableTable key={section.key} section={section} rows={rows} />
+        ) : shown && shown.totalRuns > 0 ? (
+          isCurve ? <ShopCurveChart curve={shown.shopCurve} /> : <SortableTable key={`${section.key}:${heroFilter}`} section={section} rows={rows} />
+        ) : heroFilter && report ? (
+          <div className="balempty">No runs yet for {getHero(heroFilter).name}.</div>
         ) : (
           <div className="balempty">
             No player data yet. Finished runs upload their offers/picks/outcomes to <code>run_telemetry</code>; this report
@@ -229,7 +289,12 @@ export function BalancePanel() {
 /** Shop-leveling curve — average tavern tier reached by each wave, won runs (green) vs lost runs (red). A pure
  *  SVG line chart (bounded engine: 6 tiers). Null slots (no runs reached that wave) break the line. */
 function ShopCurveChart({ curve }: { curve: ShopCurve }) {
-  const { maxWave, won, lost, wonRuns, lostRuns, avgWaveToTier } = curve;
+  const { maxWave, won, lost, wonRuns, lostRuns, avgWaveToTier, byPlacement, placedRuns } = curve;
+  // BY PLACEMENT (owner ask 2026-08-02) — one line per finish, off rows carrying a placement. Off by default:
+  // the won/lost pair is the readable view, and eight lines is a different question. Hidden entirely when no
+  // placed rows exist yet (pre-2026-08-02 data), rather than offering a toggle that reveals nothing.
+  const [byPlace, setByPlace] = useState(false);
+  const placedTotal = (placedRuns ?? []).reduce((n, v) => n + v, 0);
   if (maxWave < 1) return <div className="balempty">No shop-leveling data yet.</div>;
   const MAX_TIER = 7;
   const W = 760, H = 420, padL = 82, padR = 22, padT = 22, padB = 46;
@@ -268,11 +333,19 @@ function ShopCurveChart({ curve }: { curve: ShopCurve }) {
           <text key={`x${w}`} x={x(w)} y={H - padB + 22} className="balchart-axl" textAnchor="middle">{w}</text>
         ))}
         <text x={padL + plotW / 2} y={H - 6} className="balchart-axt" textAnchor="middle">Wave</text>
-        <path d={path(lost)} className="balchart-line lost" fill="none" />
-        <path d={path(won)} className="balchart-line won" fill="none" />
+        {byPlace
+          ? (byPlacement ?? []).map((series, place) => (series && place >= 1 ? (
+              <path key={`pl${place}`} d={path(series)} className="balchart-line place" style={{ stroke: placeHue(place) }} fill="none" />
+            ) : null))
+          : (
+            <>
+              <path d={path(lost)} className="balchart-line lost" fill="none" />
+              <path d={path(won)} className="balchart-line won" fill="none" />
+            </>
+          )}
         {/* Per-wave data points + the average tavern tier reached on each — a dot at every wave with its value
             (won labelled above the point, lost below, so the two don't collide). */}
-        {([['won', won, -9] as const, ['lost', lost, 17] as const]).map(([cls, series, dy]) =>
+        {(byPlace ? [] : [['won', won, -9] as const, ['lost', lost, 17] as const]).map(([cls, series, dy]) =>
           Array.from({ length: maxWave }, (_, i) => i + 1).map((w) => {
             const v = series[w];
             if (v == null) return null;
@@ -287,9 +360,22 @@ function ShopCurveChart({ curve }: { curve: ShopCurve }) {
         )}
       </svg>
       <div className="balchart-legend">
-        <span className="balchart-key won">Won runs ({wonRuns})</span>
-        <span className="balchart-key lost">Lost runs ({lostRuns})</span>
+        {byPlace ? (
+          (placedRuns ?? []).map((n, place) => (place >= 1 && n > 0 ? (
+            <span className="balchart-key" key={`k${place}`} style={{ color: placeHue(place) }}>{ordinal(place)} ({n})</span>
+          ) : null))
+        ) : (
+          <>
+            <span className="balchart-key won">Won runs ({wonRuns})</span>
+            <span className="balchart-key lost">Lost runs ({lostRuns})</span>
+          </>
+        )}
         <span className="balchart-key tieravg">◷ avg wave reaching tier</span>
+        {placedTotal > 0 && (
+          <button className="balrun balchart-toggle" onClick={() => { sfx.tick(); setByPlace((v) => !v); }}>
+            {byPlace ? 'Won / lost' : `By placement (${placedTotal})`}
+          </button>
+        )}
       </div>
     </div>
   );

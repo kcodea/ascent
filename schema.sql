@@ -137,6 +137,12 @@ create index if not exists run_telemetry_created on public.run_telemetry (create
 -- falls back gracefully while this hasn't run yet.
 alter table public.run_telemetry add column if not exists buy_events jsonb;
 
+-- 2026-08-02: FINAL LOBBY PLACEMENT (1-8) — powers the Balance Report's placement views ("what do 1st-place
+-- boards buy", avg shop curve by placement). Null on every row written before this column existed and on any
+-- non-lobby row, so the report FILTERS to non-null rather than guessing. Idempotent; the client sends null
+-- until this runs and Postgres ignores the unknown column only if it exists, so run it before expecting data.
+alter table public.run_telemetry add column if not exists placement int;
+
 alter table public.run_telemetry enable row level security;
 drop policy if exists "anon read run_telemetry"   on public.run_telemetry;
 drop policy if exists "anon insert run_telemetry"  on public.run_telemetry;

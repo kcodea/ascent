@@ -145,6 +145,25 @@ Owner batch:
 strike. Process note for the log's honesty: a broad-regex factory deletion briefly gutted `factories.ts`
 (caught by the 252-test failure wall, restored from git, re-applied with exact anchors — the diff ends at the
 intended −42 lines). Full gates + harness green (3588 tests).
+## 2026-08-02 — Ruby strength is read LIVE mid-combat (Crownvein → Gemstorm/Mineral Master)
+
+Owner report, from a test board: Crownvein Vanguard's Rally buffs your Rubies, but the Rubies played later in
+the SAME combat (Gemstorm Instigator's Avenge, Mineral Master's Rally, Rune of Attacking Gems) minted at the
+pre-combat snapshot. The disconnect: `gainRubyBonus` accumulated into a settle-time carry-back only, while
+`rubyBonusFor` — the value every in-combat Ruby mints at — read the static side state.
+
+Fix (`simulate.ts`): the gain accumulates PER SIDE and `rubyBonusFor` folds it in on every read — base (the
+run's Ruby strength at combat start) + everything gained so far this fight. Consequences, all deliberate:
+
+- A Rally that buffs Rubies raises the very next in-combat Ruby play — including the Ruby played on the SAME
+  swing (Rally fires on onAttack before the ruby-play blocks read the value).
+- An ENEMY Crownvein now grows the enemy's own later Rubies too (its gains used to be dropped entirely at the
+  player-only early return); only the player half carries back via `playerRubyBonusGain`, as before.
+- The Ruby Power telegraph now also shows on enemy gains.
+
+Tests: new `core/combat/liveRubyPower.test.ts` — same-swing mint at the just-buffed value, climbing per swing,
+base+live folding, enemy-side growth with no player carry-back. All three FAIL on the old code (stash-verified).
+Full gates + harness green (3591 tests).
 
 ## 2026-08-01 — Rubies detonate on the minion they land on (`ruby-gem-apply`, wired shop + combat)
 

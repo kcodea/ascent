@@ -3930,7 +3930,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffLeftmost: (ctx, _self, params) => {
     const target = ctx.state.board[0];
     if (!target) return; // empty board → fizzles (the spell is still spent, like every untargeted cast)
-    addBuff(target, 'Ale', num(params.attack, 0), num(params.health, 0));
+    // Spell power folds in, same rule as `spellBuffTarget` (spell-power audit 2026-08-02).
+    let attack = num(params.attack, 0);
+    let health = num(params.health, 0);
+    if (attack > 0 || health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    addBuff(target, 'Ale', attack, health);
   },
 
   /** Set 2 — Defensive / Bloody Ale. Buff `count` DISTINCT random friendly minions by +atk/+hp.
@@ -3945,7 +3952,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const picks: BoardCard[] = [];
     for (let i = 0; i < want && pool.length > 0; i++) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
     ctx.state.rngCursor = rng.state();
-    for (const t of picks) addBuff(t, 'Ale', num(params.attack, 0), num(params.health, 0));
+    // Spell power folds in, same rule as `spellBuffTarget` (owner report 2026-08-02: a +1/+1-power Defensive
+    // Ale landed its printed +0/+4 — this factory never read the bonus at all).
+    let attack = num(params.attack, 0);
+    let health = num(params.health, 0);
+    if (attack > 0 || health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    for (const t of picks) addBuff(t, 'Ale', attack, health);
   },
 
   /** Set 2 — Reinforcing Ale. Get a minion of your most common tribe, into hand. Reuses the same
@@ -4629,6 +4644,20 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     return `${stepText} {{Now +${baseA + bonusA + (a + bonusA) * ticks}/+${baseH + bonusH + (h + bonusH) * ticks}.}}`;
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
+  // Champion's / Defensive / Bloody Ale (spell-power audit 2026-08-02): their factories fold spell power, so
+  // the printed magnitude goes live too. Champion's is a symmetric "+A/+H"; the other two print a single-stat
+  // token ("+4 Health" / "+4 Attack") that becomes the full live "+A/+H" pair, like Lantern of Souls below.
+  const aleLeft = def.effects.find((e) => e.do === 'spellBuffLeftmost');
+  const aleRand = def.effects.find((e) => e.do === 'spellBuffRandomFriendlies');
+  const ale = aleLeft ?? aleRand;
+  if (ale) {
+    const pa = Number((ale.params as { attack?: number } | undefined)?.attack ?? 0);
+    const ph = Number((ale.params as { health?: number } | undefined)?.health ?? 0);
+    if (pa > 0 && ph > 0) return def.text.replace(`+${pa}/+${ph}`, `{{+${pa + bonusA}/+${ph + bonusH}}}`);
+    if (pa > 0) return def.text.replace(`+${pa} Attack`, `{{+${pa + bonusA}/+${bonusH}}}`);
+    if (ph > 0) return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
+    return def.text;
+  }
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
   if (tribeBuff) {

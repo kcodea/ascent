@@ -1,4 +1,4 @@
-import type { BindingEntry, FxBinding, UnbindOp } from '../../choreo/bindings';
+import type { BindingEntry, FxBinding, FxRow, UnbindOp } from '../../choreo/bindings';
 import type { MomentKind } from '../../choreo/kinds';
 import type { CommitRef } from './commitPlan';
 
@@ -37,7 +37,7 @@ export interface UnbindPlan {
   current: FxBinding | null;
   /** Which layer it came from: the committed file, or an uncommitted session override. */
   source: BindingEntry['source'];
-  /** What would play if the row were cleared — null when nothing would. */
+  /** What would play if the row were cleared — null when nothing would. The panel names ONE. */
   fallback: FxBinding | null;
   /** One or two ways to remove it, most conservative first. Never empty. */
   options: UnbindOption[];
@@ -48,8 +48,8 @@ export interface UnbindInput {
   kind: MomentKind;
   /** `bindingAt(cardId, kind)` — the row itself, `undefined` when there is no row to remove. */
   entry: BindingEntry | undefined;
-  /** `bindingWithout(cardId, kind)` — what resolves once the row is gone. */
-  fallback: FxBinding | null;
+  /** `bindingsWithout(cardId, kind)` — the row that resolves once this one is gone. */
+  fallback: FxRow;
 }
 
 /** "nothing plays here" in the words that fit the row being removed. */
@@ -71,16 +71,19 @@ export function planUnbind(input: UnbindInput): UnbindPlan | null {
   if (entry === undefined) return null;
 
   const target: CommitRef = { cardId, kind };
-  const fallsBackTo = fallback === null ? null : fallback.def;
+  const fallsBackTo = fallback[0]?.def ?? null;
+  // The panel unbinds ONE def at a time; a row with several is addressed by its first entry, which is the one
+  // the workbench is showing. Removing an entry leaves its neighbours alone (`clearBindingEntry`).
+  const current = entry.bindings === null ? null : (entry.bindings[0] ?? null);
 
   // Already silenced. There is only one thing left to do — take the row out — and its outcome is whatever
   // lies beneath, which is exactly the `clear` consequence.
-  if (entry.binding === null) {
+  if (current === null) {
     return {
       target,
       current: null,
       source: entry.source,
-      fallback,
+      fallback: fallback[0] ?? null,
       options: [
         {
           op: 'clear',
@@ -96,18 +99,18 @@ export function planUnbind(input: UnbindInput): UnbindPlan | null {
   if (fallsBackTo === null) {
     return {
       target,
-      current: entry.binding,
+      current,
       source: entry.source,
-      fallback,
+      fallback: fallback[0] ?? null,
       options: [{ op: 'clear', label: 'Unbind', consequence: silence(cardId, kind) }],
     };
   }
 
   return {
     target,
-    current: entry.binding,
+    current,
     source: entry.source,
-    fallback,
+    fallback: fallback[0] ?? null,
     options: [
       { op: 'clear', label: 'Unbind', consequence: `${kind} falls back to ${fallsBackTo}` },
       { op: 'tombstone', label: 'Play nothing', consequence: silence(cardId, kind) },

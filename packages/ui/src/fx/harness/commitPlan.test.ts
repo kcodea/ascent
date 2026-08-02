@@ -5,12 +5,12 @@ import { forkId, MAX_SLUG, planCommit, referencesTo } from './commitPlan';
 
 const tables: BindingTable = {
   kinds: {
-    buffWave: { def: 'self-buff-gold', fanOut: 'selfBuffed' },
-    attackExchange: { def: 'self-buff-gold', fanOut: 'selfBuffed' },
-    scCast: { def: 'spell-cast' },
+    buffWave: [{ def: 'self-buff-gold', fanOut: 'selfBuffed' }],
+    attackExchange: [{ def: 'self-buff-gold', fanOut: 'selfBuffed' }],
+    scCast: [{ def: 'spell-cast' }],
   },
   cards: {
-    bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
+    bloodbinder: { scCast: [{ def: 'ruby-lance', fanOut: 'damaged' }] },
   },
 };
 
@@ -55,8 +55,8 @@ describe('referencesTo', () => {
   // referenced from both tiers.
   it('returns kind rows before card rows', () => {
     const both: BindingTable = {
-      kinds: { scCast: { def: 'shared' } },
-      cards: { bloodbinder: { buffWave: { def: 'shared' } } },
+      kinds: { scCast: [{ def: 'shared' }] },
+      cards: { bloodbinder: { buffWave: [{ def: 'shared' }] } },
     };
     expect(referencesTo(both, 'shared')).toEqual([
       { cardId: null, kind: 'scCast' },

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bindingAt,
-  bindingBeneathDraft,
-  bindingFor,
+  bindingsBeneathDraft,
+  bindingsFor,
   bindingsJson,
-  bindingWithout,
+  bindingsWithout,
   clearBinding,
   DRAFT_DEF_ID,
   effectiveTables,
@@ -28,8 +28,8 @@ describe('parseTable', () => {
       kinds: { scCast: { def: 'spell-cast' } },
       cards: { bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } } },
     });
-    expect(t.kinds.scCast).toEqual({ def: 'spell-cast' });
-    expect(t.cards.bloodbinder?.scCast).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(t.kinds.scCast).toEqual([{ def: 'spell-cast' }]);
+    expect(t.cards.bloodbinder?.scCast).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
   });
 
   // Per-entry, not all-or-nothing: losing one binding must not cost the others.
@@ -40,8 +40,8 @@ describe('parseTable', () => {
       kinds: { scCast: { def: 'spell-cast' }, buffWave: { def: 42 }, rally: { def: 'rally-link' } },
       cards: {},
     });
-    expect(t.kinds.scCast).toEqual({ def: 'spell-cast' });
-    expect(t.kinds.rally).toEqual({ def: 'rally-link' });
+    expect(t.kinds.scCast).toEqual([{ def: 'spell-cast' }]);
+    expect(t.kinds.rally).toEqual([{ def: 'rally-link' }]);
     expect(t.kinds.buffWave).toBeUndefined();
     expect(err).toHaveBeenCalledTimes(1);
     expect(String(err.mock.calls[0]?.[0])).toContain('kinds.buffWave');
@@ -71,7 +71,7 @@ describe('parseTable', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     const raw = JSON.parse('{"version":1,"kinds":{"__proto__":{"def":"evil"},"rally":{"def":"rally-link"}},"cards":{"__proto__":{"scCast":{"def":"evil"}}}}');
     const t = parseTable(raw);
-    expect(t.kinds.rally).toEqual({ def: 'rally-link' });
+    expect(t.kinds.rally).toEqual([{ def: 'rally-link' }]);
     expect((t.kinds as Record<string, unknown>).__proto__).toBe(Object.prototype);
     expect(Object.getPrototypeOf(t.kinds)).toBe(Object.prototype);
     expect(Object.getPrototypeOf(t.cards)).toBe(Object.prototype);
@@ -98,35 +98,35 @@ describe('parseTable', () => {
 
 describe('bindingFor', () => {
   it('resolves a kind-level binding', () => {
-    expect(bindingFor(null, 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsFor(null, 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('lets a card-level binding beat the kind default', () => {
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
   });
 
   it('falls back to the kind for a card with no entry at that kind', () => {
-    expect(bindingFor('bloodbinder', 'shieldGain')).toEqual({ def: 'ward-gained' });
-    expect(bindingFor('somethingelse', 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsFor('bloodbinder', 'shieldGain')).toEqual([{ def: 'ward-gained' }]);
+    expect(bindingsFor('somethingelse', 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('returns null for a kind nothing is bound to', () => {
-    expect(bindingFor(null, 'damage')).toBeNull();
-    expect(bindingFor('bloodbinder', 'damage')).toBeNull();
+    expect(bindingsFor(null, 'damage')).toEqual([]);
+    expect(bindingsFor('bloodbinder', 'damage')).toEqual([]);
   });
 });
 
 describe('effectiveTables', () => {
   it('exposes the file contents', () => {
     const t = effectiveTables();
-    expect(t.kinds.scCast).toEqual({ def: 'spell-cast' });
+    expect(t.kinds.scCast).toEqual([{ def: 'spell-cast' }]);
     expect(Object.keys(t.cards)).toContain('bloodbinder');
   });
 
   it('hands out a copy — mutating the result cannot corrupt the module', () => {
     const t = effectiveTables();
     delete t.kinds.scCast;
-    expect(effectiveTables().kinds.scCast).toEqual({ def: 'spell-cast' });
+    expect(effectiveTables().kinds.scCast).toEqual([{ def: 'spell-cast' }]);
   });
 
   // The top-level delete above only proves the outer maps are copied. A leaf FxBinding is a plain object too
@@ -134,8 +134,8 @@ describe('effectiveTables', () => {
   // leaves are copies as well, not shared references into the module's own table.
   it('hands out copies of the leaf bindings too — editing a field cannot corrupt the module', () => {
     const t = effectiveTables();
-    t.kinds.scCast!.def = 'clobbered';
-    expect(effectiveTables().kinds.scCast).toEqual({ def: 'spell-cast' });
+    t.kinds.scCast![0]!.def = 'clobbered';
+    expect(effectiveTables().kinds.scCast).toEqual([{ def: 'spell-cast' }]);
   });
 });
 
@@ -176,7 +176,7 @@ describe('the bound kinds', () => {
   it('leaves every previously-effected kind unbound', () => {
     for (const kind of ['damage', 'death', 'riseDeath', 'shieldPop', 'poisonTick',
       'scNarrate', 'summon', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura'] as const) {
-      expect(bindingFor(null, kind), kind).toBeNull();
+      expect(bindingsFor(null, kind), kind).toEqual([]);
     }
   });
 });
@@ -193,10 +193,13 @@ describe('binding integrity', () => {
     const known = new Set(listDefs().map((d) => d.id));
     const t = effectiveTables();
     const missing: string[] = [];
-    for (const [kind, b] of Object.entries(t.kinds)) if (!known.has(b.def)) missing.push(`${kind}:${b.def}`);
+    // Every entry of every row: a def bound alongside another is just as real a reference.
+    for (const [kind, row] of Object.entries(t.kinds)) {
+      for (const b of row) if (!known.has(b.def)) missing.push(`${kind}:${b.def}`);
+    }
     for (const [cardId, byKind] of Object.entries(t.cards)) {
-      for (const [kind, b] of Object.entries(byKind)) {
-        if (b && !known.has(b.def)) missing.push(`${cardId}.${kind}:${b.def}`);
+      for (const [kind, row] of Object.entries(byKind)) {
+        for (const b of row ?? []) if (!known.has(b.def)) missing.push(`${cardId}.${kind}:${b.def}`);
       }
     }
     expect(missing, `bindings naming defs that do not exist: ${missing.join(', ')}`).toEqual([]);
@@ -245,27 +248,27 @@ describe('session overrides', () => {
 
   it('a kind-level override wins over the file', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
-    expect(bindingFor(null, 'scCast')).toEqual({ def: 'test-red-blast' });
+    expect(bindingsFor(null, 'scCast')).toEqual([{ def: 'test-red-blast' }]);
   });
 
   it('a card-level override wins over both the file and a kind override', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
     setBinding('bloodbinder', 'scCast', { def: 'ember-lance', fanOut: 'damaged' });
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ember-lance', fanOut: 'damaged' });
-    expect(bindingFor('somethingelse', 'scCast')).toEqual({ def: 'test-red-blast' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([{ def: 'ember-lance', fanOut: 'damaged' }]);
+    expect(bindingsFor('somethingelse', 'scCast')).toEqual([{ def: 'test-red-blast' }]);
   });
 
   // A tombstone, not an absent key. Against a file baseline "absent" means INHERIT, so without an explicit
   // null there is no way to say "this card should play nothing here" as a live change.
   it('binding to null unbinds, and does NOT fall through to the kind', () => {
     setBinding('bloodbinder', 'scCast', null);
-    expect(bindingFor('bloodbinder', 'scCast')).toBeNull();
-    expect(bindingFor('somethingelse', 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([]);
+    expect(bindingsFor('somethingelse', 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('a kind-level tombstone unbinds the kind', () => {
     setBinding(null, 'scCast', null);
-    expect(bindingFor(null, 'scCast')).toBeNull();
+    expect(bindingsFor(null, 'scCast')).toEqual([]);
   });
 
   // The tombstone must beat a LIVE kind override, not just the committed file's default. Today's early
@@ -274,23 +277,23 @@ describe('session overrides', () => {
   it('a card tombstone beats a live kind-level override, not just the file default', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
     setBinding('bloodbinder', 'scCast', null);
-    expect(bindingFor('bloodbinder', 'scCast')).toBeNull();
-    expect(bindingFor('somethingelse', 'scCast')).toEqual({ def: 'test-red-blast' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([]);
+    expect(bindingsFor('somethingelse', 'scCast')).toEqual([{ def: 'test-red-blast' }]);
   });
 
   it('resetBindings returns everything to the file baseline', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
     setBinding('bloodbinder', 'scCast', null);
     resetBindings();
-    expect(bindingFor(null, 'scCast')).toEqual({ def: 'spell-cast' });
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(bindingsFor(null, 'scCast')).toEqual([{ def: 'spell-cast' }]);
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
   });
 
   it('effectiveTables reflects overrides and drops tombstoned entries', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
     setBinding('bloodbinder', 'scCast', null);
     const t = effectiveTables();
-    expect(t.kinds.scCast).toEqual({ def: 'test-red-blast' });
+    expect(t.kinds.scCast).toEqual([{ def: 'test-red-blast' }]);
     expect(t.cards.bloodbinder).toBeUndefined();
   });
 
@@ -312,24 +315,24 @@ describe('clearBinding', () => {
   // draft needs the second — the first would leave the card silent instead of restored.
   it('removes an override, restoring the file binding — unlike a tombstone', () => {
     setBinding('bloodbinder', 'scCast', { def: 'test-red-blast' });
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'test-red-blast' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([{ def: 'test-red-blast' }]);
 
     clearBinding('bloodbinder', 'scCast');
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
 
     setBinding('bloodbinder', 'scCast', null); // tombstone, for contrast
-    expect(bindingFor('bloodbinder', 'scCast')).toBeNull();
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([]);
   });
 
   it('clears a kind-level override', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
     clearBinding(null, 'scCast');
-    expect(bindingFor(null, 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsFor(null, 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('is a no-op when nothing was overridden', () => {
     clearBinding('bloodbinder', 'scCast');
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
   });
 
   // The `> 0` branch: clearing one of a card's overrides must leave its siblings alone. An implementation
@@ -342,8 +345,8 @@ describe('clearBinding', () => {
 
     clearBinding('bloodbinder', 'scCast');
 
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' }); // back to file
-    expect(bindingFor('bloodbinder', 'buffWave')).toEqual({ def: 'self-buff-bloom' });             // untouched
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]); // back to file
+    expect(bindingsFor('bloodbinder', 'buffWave')).toEqual([{ def: 'self-buff-bloom' }]);             // untouched
   });
 
   it('persists the removal, so a reload does not resurrect the override', () => {
@@ -366,9 +369,9 @@ describe('bindingsJson', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
     setBinding('bloodbinder', 'scCast', null);
     const parsed = parseTable(JSON.parse(bindingsJson()));
-    expect(parsed.kinds.scCast).toEqual({ def: 'test-red-blast' });
-    expect(parsed.cards.bloodbinder?.scCast).toBeNull();
-    expect(parsed.kinds.rally).toEqual({ def: 'rally-link' });
+    expect(parsed.kinds.scCast).toEqual([{ def: 'test-red-blast' }]);
+    expect(parsed.cards.bloodbinder?.scCast).toEqual([]);
+    expect(parsed.kinds.rally).toEqual([{ def: 'rally-link' }]);
   });
 
   it('emits version 1, sorted keys, and a trailing newline', () => {
@@ -406,7 +409,7 @@ describe('the live-preview draft never reaches disk', () => {
       setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
       setBinding(null, 'rally', { def: 'test-red-blast' });
       const stored = JSON.parse(localStorage.getItem('ascent.fxBindings') ?? '{}');
-      expect(stored.kinds.rally).toEqual({ def: 'test-red-blast' });
+      expect(stored.kinds.rally).toEqual([{ def: 'test-red-blast' }]);
       expect(stored.cards).toEqual({});
     });
   });
@@ -417,7 +420,7 @@ describe('the live-preview draft never reaches disk', () => {
     setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
     const text = bindingsJson();
     expect(text).not.toContain(DRAFT_DEF_ID);
-    expect(JSON.parse(text).kinds.scCast).toEqual({ def: 'committed-thing' });
+    expect(JSON.parse(text).kinds.scCast).toEqual([{ def: 'committed-thing' }]);
   });
 
   // A draft over a card row must not take the committed row down with it. Stripping post-merge deleted the
@@ -427,8 +430,8 @@ describe('the live-preview draft never reaches disk', () => {
     setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
     setBinding(null, 'scCast', { def: 'my-new-thing' });
     const parsed = JSON.parse(bindingsJson());
-    expect(parsed.cards.bloodbinder?.scCast).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
-    expect(parsed.kinds.scCast).toEqual({ def: 'my-new-thing' });
+    expect(parsed.cards.bloodbinder?.scCast).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
+    expect(parsed.kinds.scCast).toEqual([{ def: 'my-new-thing' }]);
     expect(bindingsJson()).not.toContain(DRAFT_DEF_ID);
   });
 
@@ -441,7 +444,7 @@ describe('the live-preview draft never reaches disk', () => {
 
   it('still resolves a draft binding in memory, which is what makes the preview work', () => {
     setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID });
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID });
   });
 });
 
@@ -454,32 +457,32 @@ describe('bindingBeneathDraft', () => {
 
   it('sees through a card-level draft to the committed card binding', () => {
     setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'selfBuffed' });
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID, fanOut: 'selfBuffed' });
-    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual({ def: DRAFT_DEF_ID, fanOut: 'selfBuffed' });
+    expect(bindingsBeneathDraft('bloodbinder', 'scCast')).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
   });
 
   // A GLOBAL commit asks the kind layer, so a card override — draft or not — must not colour the answer.
   // This is the case that wrote Bloodbinder's `damaged` onto every card's scCast.
   it('ignores the card layer entirely when asked for the kind', () => {
     setBinding('bloodbinder', 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
-    expect(bindingBeneathDraft(null, 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsBeneathDraft(null, 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('sees through a kind-level draft too', () => {
     setBinding(null, 'scCast', { def: DRAFT_DEF_ID, fanOut: 'damaged' });
-    expect(bindingBeneathDraft(null, 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsBeneathDraft(null, 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 
   // Only the DRAFT is see-through. A tombstone still means "plays nothing here" and must stop resolution,
   // exactly as it does in `bindingFor` — otherwise the prefill would inherit from a row the author silenced.
   it('still stops at a tombstone', () => {
     setBinding('bloodbinder', 'scCast', null);
-    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toBeNull();
+    expect(bindingsBeneathDraft('bloodbinder', 'scCast')).toEqual([]);
   });
 
   it('is identical to bindingFor when no draft is in play', () => {
     setBinding('bloodbinder', 'scCast', { def: 'test-red-blast', fanOut: 'selfBuffed' });
-    expect(bindingBeneathDraft('bloodbinder', 'scCast')).toEqual(bindingFor('bloodbinder', 'scCast'));
+    expect(bindingsBeneathDraft('bloodbinder', 'scCast')).toEqual(bindingsFor('bloodbinder', 'scCast'));
   });
 });
 
@@ -502,7 +505,7 @@ describe('bindingAt', () => {
   // The distinction the resolver cannot make: this card has no scCast row of its own, it INHERITS one.
   // Offering to "unbind" it would delete a row that isn't there and change nothing.
   it('is undefined for a card that only inherits the kind default', () => {
-    expect(bindingFor('gnasher', 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsFor('gnasher', 'scCast')).toEqual([{ def: 'spell-cast' }]);
     expect(bindingAt('gnasher', 'scCast')).toBeUndefined();
   });
 
@@ -536,31 +539,31 @@ describe('bindingWithout', () => {
   beforeEach(() => resetBindings());
 
   it('is the kind default for a card row — the clear consequence, computed not assumed', () => {
-    expect(bindingWithout('bloodbinder', 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsWithout('bloodbinder', 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('is null for a kind row, which is why clear and tombstone collapse there', () => {
-    expect(bindingWithout(null, 'scCast')).toBeNull();
+    expect(bindingsWithout(null, 'scCast')).toEqual([]);
   });
 
   it('is null for a card row whose kind nobody bound', () => {
-    expect(bindingWithout('bloodbinder', 'damage')).toBeNull();
+    expect(bindingsWithout('bloodbinder', 'damage')).toEqual([]);
   });
 
   it('follows a live kind-level override rather than the file', () => {
     setBinding(null, 'scCast', { def: 'test-red-blast' });
-    expect(bindingWithout('bloodbinder', 'scCast')).toEqual({ def: 'test-red-blast' });
+    expect(bindingsWithout('bloodbinder', 'scCast')).toEqual([{ def: 'test-red-blast' }]);
   });
 
   it('ignores the card row being removed, tombstone included', () => {
     setBinding('bloodbinder', 'scCast', null);
-    expect(bindingFor('bloodbinder', 'scCast')).toBeNull();
-    expect(bindingWithout('bloodbinder', 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([]);
+    expect(bindingsWithout('bloodbinder', 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('sees through a kind-level draft', () => {
     setBinding(null, 'scCast', { def: DRAFT_DEF_ID });
-    expect(bindingWithout('bloodbinder', 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsWithout('bloodbinder', 'scCast')).toEqual([{ def: 'spell-cast' }]);
   });
 });
 
@@ -574,26 +577,26 @@ describe('unbindJson', () => {
   it('clearing a card row drops the card entirely, so the kind default applies again', () => {
     const parsed = parseTable(JSON.parse(unbindJson('bloodbinder', 'scCast', 'clear')));
     expect(parsed.cards.bloodbinder).toBeUndefined();
-    expect(parsed.kinds.scCast).toEqual({ def: 'spell-cast' });
+    expect(parsed.kinds.scCast).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('tombstoning a card row writes an explicit null, so nothing plays there', () => {
     const parsed = parseTable(JSON.parse(unbindJson('bloodbinder', 'scCast', 'tombstone')));
-    expect(parsed.cards.bloodbinder?.scCast).toBeNull();
-    expect(parsed.kinds.scCast).toEqual({ def: 'spell-cast' });
+    expect(parsed.cards.bloodbinder?.scCast).toEqual([]);
+    expect(parsed.kinds.scCast).toEqual([{ def: 'spell-cast' }]);
   });
 
   it('clearing a kind row removes it and leaves every other kind alone', () => {
     const parsed = parseTable(JSON.parse(unbindJson(null, 'scCast', 'clear')));
     expect(parsed.kinds.scCast).toBeUndefined();
-    expect(parsed.kinds.rally).toEqual({ def: 'rally-link' });
+    expect(parsed.kinds.rally).toEqual([{ def: 'rally-link' }]);
     // The card override is NOT collateral: it still names its own def.
-    expect(parsed.cards.bloodbinder?.scCast).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(parsed.cards.bloodbinder?.scCast).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
   });
 
   it('does not touch the live tables — the write is what changes anything', () => {
     unbindJson('bloodbinder', 'scCast', 'clear');
-    expect(bindingFor('bloodbinder', 'scCast')).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
+    expect(bindingsFor('bloodbinder', 'scCast')).toEqual([{ def: 'ruby-lance', fanOut: 'damaged' }]);
     expect(bindingsJson()).not.toEqual(unbindJson('bloodbinder', 'scCast', 'clear'));
   });
 
@@ -624,8 +627,8 @@ describe('unbindJson', () => {
 describe('a tombstone in the file', () => {
   it('parses as a row that plays nothing rather than being dropped as malformed', () => {
     const t = parseTable({ kinds: { scCast: null }, cards: { bloodbinder: { rally: null } } });
-    expect(t.kinds.scCast).toBeNull();
-    expect(t.cards.bloodbinder?.rally).toBeNull();
+    expect(t.kinds.scCast).toEqual([]);
+    expect(t.cards.bloodbinder?.rally).toEqual([]);
     expect('scCast' in t.kinds).toBe(true);
   });
 });

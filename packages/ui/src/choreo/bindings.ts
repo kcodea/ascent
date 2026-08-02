@@ -32,11 +32,17 @@ export interface FxBinding {
    *   travelling effect bound to it would have nowhere to go and would collapse onto the source.
    * - `selfBuffed`: once per unit that buffed ITSELF in this moment. A self-buff has no pair to travel
    *   between and a moment can carry several at once.
+   * - `rubied`: once per unit a RUBY landed on in this moment, staggered down the list. Rubies reach the log
+   *   as ordinary `buff` events carrying the `ruby` flag, and one card routinely plays them across the whole
+   *   board, so this both filters to Rubies and spreads them in time.
    */
-  fanOut?: 'primary' | 'damaged' | 'selfBuffed';
+  fanOut?: 'primary' | 'damaged' | 'selfBuffed' | 'rubied';
+  /** Milliseconds between successive fires for a fan-out that plays on several units. Ignored by `primary`.
+   *  Scaled by `combatSpeed` at play time like every other offset in the score. Defaults per fan-out. */
+  stagger?: number;
 }
 
-const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed'];
+const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed', 'rubied'];
 
 /**
  * A reserved def id for LIVE PREVIEWS. A binding to it applies in memory — that is what makes the authoring
@@ -79,9 +85,21 @@ function devError(msg: string): void {
  * kind → binding, and card → kind → binding. Both sparse. The "what plays" view: every leaf is a real
  * binding, because a row that plays nothing is expressed by ABSENCE here.
  */
+/**
+ * A ROW — every binding at one `(cardId | null, kind)` address, in play order.
+ *
+ * A list rather than a single binding because a moment kind is a shared address: `buffWave` is where the
+ * self-buff cue lives AND where a Ruby landing surfaces, and with one slot the first arrival claimed it and
+ * the second had to be hand-written as code (see `docs/fx-workbench-friction.md`).
+ *
+ * Order is file order, and a new entry appends. Within a row an entry is identified by its `def`: the same
+ * def twice at one moment is meaningless, so `parseTable` de-duplicates.
+ */
+export type FxRow = FxBinding[];
+
 export interface BindingTable {
-  kinds: Partial<Record<MomentKind, FxBinding>>;
-  cards: Record<string, Partial<Record<MomentKind, FxBinding>>>;
+  kinds: Partial<Record<MomentKind, FxRow>>;
+  cards: Record<string, Partial<Record<MomentKind, FxRow>>>;
 }
 
 /**
@@ -94,8 +112,8 @@ export interface BindingTable {
  * that view can never produce.
  */
 export interface LayerTable {
-  kinds: Partial<Record<MomentKind, FxBinding | null>>;
-  cards: Record<string, Partial<Record<MomentKind, FxBinding | null>>>;
+  kinds: Partial<Record<MomentKind, FxRow | null>>;
+  cards: Record<string, Partial<Record<MomentKind, FxRow | null>>>;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -116,7 +134,43 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.fanOut must be one of ${FAN_OUTS.join(', ')} — dropped.`);
     return null;
   }
-  return v.fanOut === undefined ? { def: v.def } : { def: v.def, fanOut: v.fanOut as FxBinding['fanOut'] };
+  if (v.stagger !== undefined && (typeof v.stagger !== 'number' || !Number.isFinite(v.stagger) || v.stagger < 0)) {
+    devError(`[fx] bindings.json: ${where}.stagger must be a non-negative number — dropped.`);
+    return null;
+  }
+  const out: FxBinding = { def: v.def };
+  if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
+  if (v.stagger !== undefined) out.stagger = v.stagger;
+  return out;
+}
+
+/**
+ * One ROW from raw JSON: a bare object (the legacy single-binding shape), an array, or `null` (a tombstone).
+ *
+ * Returns `undefined` for "drop this row entirely" — which is also what an EMPTY array becomes. That is
+ * deliberate and load-bearing: absence means "no opinion, keep resolving" and `null` means "plays nothing,
+ * stop". `[]` is neither, so admitting it would be a third state with no defined resolution behaviour.
+ *
+ * Bad entries inside a row are dropped INDIVIDUALLY, matching `parseTable`'s loud-per-entry rule: one
+ * malformed binding must not cost the others in the same row.
+ */
+function coerceRow(v: unknown, where: string): FxRow | null | undefined {
+  if (v === null) return null;
+  const raw = Array.isArray(v) ? v : [v];
+  const out: FxRow = [];
+  raw.forEach((entry, i) => {
+    // Name the index only for a real array, so a legacy single-object row's error reads as it always did.
+    const b = coerceBinding(entry, Array.isArray(v) ? `${where}[${String(i)}]` : where);
+    if (!b) return;
+    const dup = out.findIndex((e) => e.def === b.def);
+    if (dup >= 0) {
+      devError(`[fx] bindings.json: ${where} binds '${b.def}' twice — the later one wins.`);
+      out[dup] = b;
+      return;
+    }
+    out.push(b);
+  });
+  return out.length > 0 ? out : undefined;
 }
 
 /**
@@ -143,12 +197,8 @@ export function parseTable(raw: unknown): LayerTable {
       // only way the file can express a deliberate silence rather than an omission. Preserved rather than
       // dropped, or the workbench's "play nothing" unbind would write a file that re-read as "no opinion"
       // and the silence would last exactly until the next reload.
-      if (v === null) {
-        out.kinds[kind as MomentKind] = null;
-        continue;
-      }
-      const b = coerceBinding(v, `kinds.${kind}`);
-      if (b) out.kinds[kind as MomentKind] = b;
+      const row = coerceRow(v, `kinds.${kind}`);
+      if (row !== undefined) out.kinds[kind as MomentKind] = row;
     }
   } else {
     devError('[fx] bindings.json: `kinds` is missing or not an object.');
@@ -163,18 +213,14 @@ export function parseTable(raw: unknown): LayerTable {
         devError(`[fx] bindings.json: cards.${cardId} is not an object — dropped.`);
         continue;
       }
-      const table: Partial<Record<MomentKind, FxBinding | null>> = {};
+      const table: Partial<Record<MomentKind, FxRow | null>> = {};
       for (const [kind, v] of Object.entries(byKind)) {
         if (UNSAFE_KEYS.includes(kind)) {
           devError(`[fx] bindings.json: cards.${cardId}.${kind} is an unsafe key — dropped.`);
           continue;
         }
-        if (v === null) {
-          table[kind as MomentKind] = null;
-          continue;
-        }
-        const b = coerceBinding(v, `cards.${cardId}.${kind}`);
-        if (b) table[kind as MomentKind] = b;
+        const row = coerceRow(v, `cards.${cardId}.${kind}`);
+        if (row !== undefined) table[kind as MomentKind] = row;
       }
       if (Object.keys(table).length > 0) out.cards[cardId] = table;
     }
@@ -218,22 +264,18 @@ function parsePatchTable(raw: unknown): PatchTable {
         out.kinds[kind as MomentKind] = null;
         continue;
       }
-      const b = coerceBinding(v, `session patch: kinds.${kind}`);
-      if (b) out.kinds[kind as MomentKind] = b;
+      const row = coerceRow(v, `session patch: kinds.${kind}`);
+      if (row !== undefined) out.kinds[kind as MomentKind] = row;
     }
   }
   if (isRecord(raw.cards)) {
     for (const [cardId, byKind] of Object.entries(raw.cards)) {
       if (UNSAFE_KEYS.includes(cardId) || !isRecord(byKind)) continue;
-      const table: Partial<Record<MomentKind, FxBinding | null>> = {};
+      const table: Partial<Record<MomentKind, FxRow | null>> = {};
       for (const [kind, v] of Object.entries(byKind)) {
         if (UNSAFE_KEYS.includes(kind)) continue;
-        if (v === null) {
-          table[kind as MomentKind] = null;
-          continue;
-        }
-        const b = coerceBinding(v, `session patch: cards.${cardId}.${kind}`);
-        if (b) table[kind as MomentKind] = b;
+        const row = coerceRow(v, `session patch: cards.${cardId}.${kind}`);
+        if (row !== undefined) table[kind as MomentKind] = row;
       }
       if (Object.keys(table).length > 0) out.cards[cardId] = table;
     }
@@ -257,14 +299,29 @@ let patch: PatchTable = (() => {
  * card objects). The in-memory `patch` is untouched: the preview has to keep working.
  */
 function persistablePatch(): PatchTable {
+  // A draft is now an ENTRY inside a row, not a row of its own, so this strips entries and only then decides
+  // whether the row survives. Dropping the whole row because it CONTAINS a draft would discard the author's
+  // real bindings alongside the preview — the same data-loss shape as post-filtering a merge.
+  //
+  // A row left empty by the strip is OMITTED rather than written as `[]`: an empty override must read as
+  // "no opinion here" so resolution falls through to the file, exactly as it did when the draft was the row.
+  const strip = (row: FxRow | null): FxRow | null | undefined => {
+    if (row === null) return null; // a tombstone is the author's, not the preview's
+    const kept = row.filter((b) => b.def !== DRAFT_DEF_ID);
+    return kept.length > 0 ? kept : undefined;
+  };
   const out: PatchTable = { kinds: {}, cards: {} };
-  for (const [kind, b] of Object.entries(patch.kinds)) {
-    if (b?.def !== DRAFT_DEF_ID) out.kinds[kind as MomentKind] = b;
+  for (const [kind, row] of Object.entries(patch.kinds)) {
+    if (row === undefined) continue;
+    const kept = strip(row);
+    if (kept !== undefined) out.kinds[kind as MomentKind] = kept;
   }
   for (const [cardId, byKind] of Object.entries(patch.cards)) {
-    const table: Partial<Record<MomentKind, FxBinding | null>> = {};
-    for (const [kind, b] of Object.entries(byKind)) {
-      if (b?.def !== DRAFT_DEF_ID) table[kind as MomentKind] = b;
+    const table: Partial<Record<MomentKind, FxRow | null>> = {};
+    for (const [kind, row] of Object.entries(byKind)) {
+      if (row === undefined) continue;
+      const kept = strip(row);
+      if (kept !== undefined) table[kind as MomentKind] = kept;
     }
     if (Object.keys(table).length > 0) out.cards[cardId] = table;
   }
@@ -289,9 +346,51 @@ function savePatch(): void {
  * what a scope is: `cardId === null` addresses the kind layer, a string addresses that card's layer.
  */
 export function setBinding(cardId: string | null, kind: MomentKind, binding: FxBinding | null): void {
-  if (cardId === null) patch = { ...patch, kinds: { ...patch.kinds, [kind]: binding } };
-  else patch = { ...patch, cards: { ...patch.cards, [cardId]: { ...patch.cards[cardId], [kind]: binding } } };
+  // A row is a LIST, so a non-null write ADDS to whatever is already at this address rather than replacing it
+  // — that is the whole point of the change. Replacing by `def` (rather than always appending) keeps a
+  // re-commit of the same def idempotent, and keeps a live preview from stacking a new draft every keystroke.
+  const row = binding === null ? null : upsert(rowAt(cardId, kind) ?? [], binding);
+  writeRow(cardId, kind, row);
+}
+
+/** A row with `binding` replacing the entry that shares its `def`, or appended when there is none. */
+function upsert(row: FxRow, binding: FxBinding): FxRow {
+  const i = row.findIndex((b) => b.def === binding.def);
+  if (i < 0) return [...row, binding];
+  const next = [...row];
+  next[i] = binding;
+  return next;
+}
+
+/** The row stored AT this address — patch first, then the file. No fall-through between layers. */
+function rowAt(cardId: string | null, kind: MomentKind): FxRow | null | undefined {
+  const fromPatch = cardId === null ? patch.kinds[kind] : patch.cards[cardId]?.[kind];
+  if (fromPatch !== undefined) return fromPatch;
+  return cardId === null ? COMMITTED.kinds[kind] : COMMITTED.cards[cardId]?.[kind];
+}
+
+/** Put a row (or a tombstone) into the session patch at this address. */
+function writeRow(cardId: string | null, kind: MomentKind, row: FxRow | null): void {
+  if (cardId === null) patch = { ...patch, kinds: { ...patch.kinds, [kind]: row } };
+  else patch = { ...patch, cards: { ...patch.cards, [cardId]: { ...patch.cards[cardId], [kind]: row } } };
   savePatch();
+}
+
+/**
+ * Remove ONE def from a row, leaving its neighbours alone.
+ *
+ * This is what tearing down a live preview needs now that a draft is an entry rather than a row: dropping the
+ * whole row would take the author's real bindings with it, and the card would go silent instead of going back
+ * to what it played before. A row emptied by the removal is written as an empty patch row, which resolves as
+ * "nothing at this layer" — NOT a tombstone, which would stop the fall-through.
+ */
+export function clearBindingEntry(cardId: string | null, kind: MomentKind, defId: string): void {
+  const row = rowAt(cardId, kind);
+  if (row == null) return; // absent or a tombstone: no entry to take out
+  const next = row.filter((b) => b.def !== defId);
+  if (next.length === row.length) return; // it wasn't here — leave the patch untouched
+  if (next.length > 0) writeRow(cardId, kind, next);
+  else clearBinding(cardId, kind);
 }
 
 /**
@@ -334,15 +433,16 @@ export function resetBindings(): void {
  *  module's own tables — every leaf `FxBinding` is spread too, not just the outer kind/card maps, so a caller
  *  that edits a returned binding's `def` in place (an editor UI does exactly this) cannot corrupt `COMMITTED`. */
 function cloneTable(t: LayerTable): LayerTable {
+  const cloneRow = (r: FxRow | null): FxRow | null => (r === null ? null : r.map((b) => ({ ...b })));
   const kinds: LayerTable['kinds'] = {};
-  for (const [kind, b] of Object.entries(t.kinds)) {
-    if (b !== undefined) kinds[kind as MomentKind] = b === null ? null : { ...b };
+  for (const [kind, r] of Object.entries(t.kinds)) {
+    if (r !== undefined) kinds[kind as MomentKind] = cloneRow(r);
   }
   const cards: LayerTable['cards'] = {};
   for (const [id, byKind] of Object.entries(t.cards)) {
-    const table: Partial<Record<MomentKind, FxBinding | null>> = {};
-    for (const [kind, b] of Object.entries(byKind)) {
-      if (b !== undefined) table[kind as MomentKind] = b === null ? null : { ...b };
+    const table: Partial<Record<MomentKind, FxRow | null>> = {};
+    for (const [kind, r] of Object.entries(byKind)) {
+      if (r !== undefined) table[kind as MomentKind] = cloneRow(r);
     }
     cards[id] = table;
   }
@@ -356,18 +456,20 @@ function cloneTable(t: LayerTable): LayerTable {
  * so a card with its own look needs the narrower key. A `cardId` of null (no unit on screen, or the moment's
  * source is unknown) skips straight to the kind layer.
  */
-export function bindingFor(cardId: string | null, kind: MomentKind): FxBinding | null {
+export function bindingsFor(cardId: string | null, kind: MomentKind): FxRow {
   if (cardId !== null) {
     // `undefined` means "no opinion, keep looking"; an explicit `null` is a tombstone that STOPS here —
-    // falling through to the kind layer would make "play nothing" impossible to express.
+    // falling through to the kind layer would make "play nothing" impossible to express. A row resolves
+    // WHOLE: the card layer replaces the kind layer's list rather than adding to it, which is what keeps
+    // "this card looks different here" expressible.
     const overridden = patch.cards[cardId]?.[kind];
-    if (overridden !== undefined) return overridden;
+    if (overridden !== undefined) return overridden ?? [];
     const fromFile = COMMITTED.cards[cardId]?.[kind];
-    if (fromFile !== undefined) return fromFile;
+    if (fromFile !== undefined) return fromFile ?? [];
   }
   const overriddenKind = patch.kinds[kind];
-  if (overriddenKind !== undefined) return overriddenKind;
-  return COMMITTED.kinds[kind] ?? null;
+  if (overriddenKind !== undefined) return overriddenKind ?? [];
+  return COMMITTED.kinds[kind] ?? [];
 }
 
 /**
@@ -382,18 +484,24 @@ export function bindingFor(cardId: string | null, kind: MomentKind): FxBinding |
  * the value self-perpetuating: switching scope card → global → card would return the global-derived value
  * instead of restoring the card's own.
  */
-export function bindingBeneathDraft(cardId: string | null, kind: MomentKind): FxBinding | null {
-  const notDraft = (b: FxBinding | null | undefined): boolean => b === undefined || b?.def !== DRAFT_DEF_ID;
+export function bindingsBeneathDraft(cardId: string | null, kind: MomentKind): FxRow {
+  // The draft is filtered ENTRY-wise, not row-wise: a row of `[real, draft]` must answer `[real]`, because
+  // the real binding IS what is playing underneath the preview. A row that was ONLY the draft has nothing of
+  // the author's in it, so it reads as no opinion and resolution falls through, as it always did.
+  const seen = (row: FxRow | null | undefined): FxRow | null | undefined => {
+    if (row === undefined || row === null) return row; // absent stays absent; a tombstone still STOPS here
+    const kept = row.filter((b) => b.def !== DRAFT_DEF_ID);
+    return kept.length > 0 ? kept : undefined;
+  };
   if (cardId !== null) {
-    // A tombstone (`null`) still STOPS here, exactly as in `bindingFor` — only the draft is see-through.
-    const overridden = patch.cards[cardId]?.[kind];
-    if (overridden !== undefined && notDraft(overridden)) return overridden;
+    const overridden = seen(patch.cards[cardId]?.[kind]);
+    if (overridden !== undefined) return overridden ?? [];
     const fromFile = COMMITTED.cards[cardId]?.[kind];
-    if (fromFile !== undefined) return fromFile;
+    if (fromFile !== undefined) return fromFile ?? [];
   }
-  const overriddenKind = patch.kinds[kind];
-  if (overriddenKind !== undefined && notDraft(overriddenKind)) return overriddenKind;
-  return COMMITTED.kinds[kind] ?? null;
+  const overriddenKind = seen(patch.kinds[kind]);
+  if (overriddenKind !== undefined) return overriddenKind ?? [];
+  return COMMITTED.kinds[kind] ?? [];
 }
 
 /**
@@ -428,11 +536,11 @@ function mergedTable(overlay: PatchTable): LayerTable {
 /** A layer table as the "what plays" view: every tombstone dropped, and any card left with nothing pruned. */
 function withoutTombstones(t: LayerTable): BindingTable {
   const kinds: BindingTable['kinds'] = {};
-  for (const [kind, b] of Object.entries(t.kinds)) if (b) kinds[kind as MomentKind] = b;
+  for (const [kind, r] of Object.entries(t.kinds)) if (r && r.length > 0) kinds[kind as MomentKind] = r;
   const cards: BindingTable['cards'] = {};
   for (const [cardId, byKind] of Object.entries(t.cards)) {
-    const table: Partial<Record<MomentKind, FxBinding>> = {};
-    for (const [kind, b] of Object.entries(byKind)) if (b) table[kind as MomentKind] = b;
+    const table: Partial<Record<MomentKind, FxRow>> = {};
+    for (const [kind, r] of Object.entries(byKind)) if (r && r.length > 0) table[kind as MomentKind] = r;
     if (Object.keys(table).length > 0) cards[cardId] = table;
   }
   return { kinds, cards };
@@ -475,13 +583,19 @@ export function bindingsJson(): string {
 
 /** A layer table as `bindings.json` text: sorted keys, tombstones written as an explicit `null`. */
 function serialise(t: LayerTable): string {
-  const kinds: Record<string, FxBinding | null> = {};
-  for (const kind of Object.keys(t.kinds).sort()) kinds[kind] = t.kinds[kind as MomentKind] ?? null;
-  const cards: Record<string, Record<string, FxBinding | null>> = {};
+  // A ONE-ENTRY row is written as a bare object, not a 1-element array. Purely so the committed file
+  // round-trips byte-identically through this change: fourteen untouched rows would otherwise all churn into
+  // arrays in the first diff that touched any binding. `coerceRow` reads both, so the two shapes are the same
+  // data — this only decides which one is written.
+  const flat = (r: FxRow | null | undefined): FxBinding | FxRow | null =>
+    r == null ? null : r.length === 1 ? r[0]! : r;
+  const kinds: Record<string, FxBinding | FxRow | null> = {};
+  for (const kind of Object.keys(t.kinds).sort()) kinds[kind] = flat(t.kinds[kind as MomentKind]);
+  const cards: Record<string, Record<string, FxBinding | FxRow | null>> = {};
   for (const cardId of Object.keys(t.cards).sort()) {
     const byKind = t.cards[cardId] ?? {};
-    const inner: Record<string, FxBinding | null> = {};
-    for (const kind of Object.keys(byKind).sort()) inner[kind] = byKind[kind as MomentKind] ?? null;
+    const inner: Record<string, FxBinding | FxRow | null> = {};
+    for (const kind of Object.keys(byKind).sort()) inner[kind] = flat(byKind[kind as MomentKind]);
     cards[cardId] = inner;
   }
   return `${JSON.stringify({ version: 1, kinds, cards }, null, 2)}\n`;
@@ -504,7 +618,8 @@ export type UnbindOp = 'clear' | 'tombstone';
 
 /** An entry AT one layer: `binding: null` is a tombstone, and `source` says which layer it came from. */
 export interface BindingEntry {
-  binding: FxBinding | null;
+  /** The whole row at this layer, or `null` for a tombstone. */
+  bindings: FxRow | null;
   source: 'session' | 'file';
 }
 
@@ -520,9 +635,14 @@ export interface BindingEntry {
  */
 export function bindingAt(cardId: string | null, kind: MomentKind): BindingEntry | undefined {
   const fromPatch = cardId === null ? patch.kinds[kind] : patch.cards[cardId]?.[kind];
-  if (fromPatch !== undefined && fromPatch?.def !== DRAFT_DEF_ID) return { binding: fromPatch, source: 'session' };
+  if (fromPatch !== undefined) {
+    // Draft entries are see-through, but the REST of the row is the author's and still counts as a session
+    // row. Only a row that is nothing but draft falls through to the file.
+    const real = fromPatch === null ? null : fromPatch.filter((b) => b.def !== DRAFT_DEF_ID);
+    if (real === null || real.length > 0) return { bindings: real, source: 'session' };
+  }
   const fromFile = cardId === null ? COMMITTED.kinds[kind] : COMMITTED.cards[cardId]?.[kind];
-  return fromFile === undefined ? undefined : { binding: fromFile, source: 'file' };
+  return fromFile === undefined ? undefined : { bindings: fromFile, source: 'file' };
 }
 
 /**
@@ -533,11 +653,14 @@ export function bindingAt(cardId: string | null, kind: MomentKind): BindingEntry
  * is the row being removed). For a kind row it is always null — there is no layer beneath the kind, which
  * is exactly why `clear` and `tombstone` collapse there.
  */
-export function bindingWithout(cardId: string | null, kind: MomentKind): FxBinding | null {
-  if (cardId === null) return null;
+export function bindingsWithout(cardId: string | null, kind: MomentKind): FxRow {
+  if (cardId === null) return [];
   const overriddenKind = patch.kinds[kind];
-  if (overriddenKind !== undefined && overriddenKind?.def !== DRAFT_DEF_ID) return overriddenKind;
-  return COMMITTED.kinds[kind] ?? null;
+  if (overriddenKind !== undefined) {
+    const real = overriddenKind === null ? null : overriddenKind.filter((b) => b.def !== DRAFT_DEF_ID);
+    if (real === null || real.length > 0) return real ?? [];
+  }
+  return COMMITTED.kinds[kind] ?? [];
 }
 
 /**
@@ -550,14 +673,26 @@ export function bindingWithout(cardId: string | null, kind: MomentKind): FxBindi
  * the session says "play nothing", and the card is silent for reasons nothing on screen explains. Here the
  * live tables are only updated once the write has come back ok.
  */
-export function unbindJson(cardId: string | null, kind: MomentKind, op: UnbindOp): string {
+export function unbindJson(cardId: string | null, kind: MomentKind, op: UnbindOp, defId?: string): string {
   const t = mergedTable(persistablePatch());
+  // With a `defId` this removes ONE entry and leaves the rest of the row in place — the row is shared now, so
+  // unbinding your effect must not silence whatever else is bound at the same moment. The row-level ops below
+  // still apply when the row is emptied by the removal, or when no def is named.
+  const drop = (row: FxRow | null | undefined): FxRow | undefined => {
+    if (defId === undefined || row == null) return undefined;
+    const kept = row.filter((b) => b.def !== defId);
+    return kept.length > 0 ? kept : undefined;
+  };
   if (cardId === null) {
-    if (op === 'tombstone') t.kinds[kind] = null;
+    const kept = drop(t.kinds[kind]);
+    if (kept) t.kinds[kind] = kept;
+    else if (op === 'tombstone') t.kinds[kind] = null;
     else delete t.kinds[kind];
   } else {
     const byKind = { ...t.cards[cardId] };
-    if (op === 'tombstone') byKind[kind] = null;
+    const kept = drop(byKind[kind]);
+    if (kept) byKind[kind] = kept;
+    else if (op === 'tombstone') byKind[kind] = null;
     else delete byKind[kind];
     // A card with nothing left is dropped rather than written as an empty object — same tidy-up the merge
     // does, so an unbind cannot leave `"bloodbinder": {}` behind in the committed file.

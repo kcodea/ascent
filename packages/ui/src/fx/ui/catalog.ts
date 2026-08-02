@@ -1,7 +1,7 @@
 import { CARD_INDEX } from '@game/content';
 import type { StoredFxDef } from '../defStore';
 import { primitiveLabel } from './copy';
-import { bindingFor, effectiveTables } from '../../choreo/bindings';
+import { bindingsFor, effectiveTables } from '../../choreo/bindings';
 import { getScore } from '../../choreo/score';
 import type { MomentKind } from '../../choreo/kinds';
 import { listDefs } from '../fxDefs';
@@ -135,11 +135,12 @@ export function bindingsByDef(): Map<string, FxBindings> {
   };
 
   const tables = effectiveTables();
-  for (const [kind, binding] of Object.entries(tables.kinds)) entry(binding.def).kinds.push(kind as MomentKind);
+  // Every entry in the row, not just the first — a def sharing a moment with another must not read as unbound.
+  for (const [kind, row] of Object.entries(tables.kinds)) for (const b of row) entry(b.def).kinds.push(kind as MomentKind);
   for (const [cardId, byKind] of Object.entries(tables.cards)) {
     const card = CARD_INDEX[cardId];
-    for (const binding of Object.values(byKind)) {
-      if (!binding) continue;
+    // Flattened across rows: one card row can bind several defs, and each is a real reference.
+    for (const binding of Object.values(byKind).flatMap((row) => row ?? [])) {
       entry(binding.def).cards.push({
         cardId,
         name: card?.name ?? cardId,
@@ -171,7 +172,7 @@ export interface FxKindCoverage {
 export function kindCoverage(): FxKindCoverage[] {
   return (Object.keys(getScore()) as MomentKind[]).map((kind) => ({
     kind,
-    def: bindingFor(null, kind)?.def ?? null,
+    def: bindingsFor(null, kind)[0]?.def ?? null,
   }));
 }
 
@@ -315,7 +316,7 @@ export function buildCardRows(): FxCardRow[] {
   const cards = effectiveTables().cards;
   return Object.values(CARD_INDEX).map((card) => {
     const byKind = cards[card.id];
-    const first = byKind ? Object.values(byKind).find((b) => b !== undefined) : undefined;
+    const first = byKind ? Object.values(byKind).flatMap((row) => row ?? [])[0] : undefined;
     return { cardId: card.id, name: card.name, tribe: card.tribe, defId: first?.def ?? null };
   });
 }

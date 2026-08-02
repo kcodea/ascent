@@ -1,5 +1,5 @@
 import type { CombatEvent, CombatResult } from '@game/core';
-import { bindingFor } from '../../choreo/bindings';
+import { bindingsFor } from '../../choreo/bindings';
 import type { MomentKind } from '../../choreo/kinds';
 import { replayBeats } from '../../choreo/replayOrder';
 
@@ -25,7 +25,8 @@ export interface ProcMoment {
   kind: MomentKind;
   /** The acting unit — for the row label, and to disambiguate two copies of the same card. */
   sourceUid: string;
-  /** What `bindingFor` says would play here, or null when nothing is bound. */
+  /** The FIRST def bound here, or null when nothing is. A row can hold several since bindings became a
+   *  list; the harness headline names one, and the library is where the full row is shown. */
   boundDef: string | null;
 }
 
@@ -80,7 +81,7 @@ export function scanProcs(combat: CombatResult, cardId: string): ProcMoment[] {
       index: i,
       kind: m.kind,
       sourceUid: actor,
-      boundDef: bindingFor(cardId, m.kind)?.def ?? null,
+      boundDef: bindingsFor(cardId, m.kind)[0]?.def ?? null,
     });
   }
   return out;

@@ -7,7 +7,7 @@ import { momentKind, type MomentKind } from './kinds';
 import { holdMsForKind } from './choreoConfig';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { anchorsForUnits } from '../fx/combatAnchors';
-import { bindingFor } from './bindings';
+import { bindingsFor } from './bindings';
 
 // The `fxDef` channel's collaborators are mocked at the CONTRACT (`playDef`/`canPlayDefs`/`anchorsForUnits`),
 // so these tests prove the SCORE's dispatch/guard/timing wiring without depending on how the fx layer renders.
@@ -381,8 +381,8 @@ describe('fxDef channel', () => {
   it('scNarrate keeps exactly the cues scCast has, and stays unbound', () => {
     expect(SCORE_DEFAULTS.scNarrate.map((c) => c.ch)).toEqual(SCORE_DEFAULTS.scCast.map((c) => c.ch));
     expect(holdMsForKind('scNarrate')).toBe(holdMsForKind('scCast'));
-    expect(bindingFor(null, 'scNarrate')).toBeNull();
-    expect(bindingFor(null, 'scCast')).toEqual({ def: 'spell-cast' });
+    expect(bindingsFor(null, 'scNarrate')).toBeNull();
+    expect(bindingsFor(null, 'scCast')).toEqual({ def: 'spell-cast' });
   });
 
   it('dispatches the channel: plays the cue def with the resolved anchors', () => {

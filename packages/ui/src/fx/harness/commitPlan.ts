@@ -80,12 +80,12 @@ export function forkId(baseId: string, cardId: string): string {
 /** Every binding row pointing at `defId`, kind rows first then card rows. */
 export function referencesTo(tables: BindingTable, defId: string): CommitRef[] {
   const out: CommitRef[] = [];
-  for (const [kind, b] of Object.entries(tables.kinds)) {
-    if (b?.def === defId) out.push({ cardId: null, kind: kind as MomentKind });
+  for (const [kind, row] of Object.entries(tables.kinds)) {
+    if (row.some((b) => b.def === defId)) out.push({ cardId: null, kind: kind as MomentKind });
   }
   for (const [cardId, byKind] of Object.entries(tables.cards)) {
-    for (const [kind, b] of Object.entries(byKind)) {
-      if (b?.def === defId) out.push({ cardId, kind: kind as MomentKind });
+    for (const [kind, row] of Object.entries(byKind)) {
+      if (row.some((b) => b.def === defId)) out.push({ cardId, kind: kind as MomentKind });
     }
   }
   return out;

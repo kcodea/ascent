@@ -73,8 +73,8 @@ describe('the def registry ships (gate 1 of 3: the fxDefs glob)', () => {
     const { getDef } = await import('./fxDefs');
     const tables = effectiveTables();
     const bound = [
-      ...Object.values(tables.kinds).map((b) => b?.def),
-      ...Object.values(tables.cards).flatMap((k) => Object.values(k).map((b) => b?.def)),
+      ...Object.values(tables.kinds).flatMap((row) => (row ?? []).map((b) => b.def)),
+      ...Object.values(tables.cards).flatMap((k) => Object.values(k).flatMap((row) => (row ?? []).map((b) => b.def))),
     ].filter((d): d is string => typeof d === 'string');
 
     // `bindings.test.ts` already asserts this holds in DEV. The point here is that it holds with DEV false —

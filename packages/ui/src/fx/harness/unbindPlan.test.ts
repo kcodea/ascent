@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { planUnbind } from './unbindPlan';
 import type { BindingEntry } from '../../choreo/bindings';
 
-const file = (def: string): BindingEntry => ({ binding: { def }, source: 'file' });
+const file = (def: string): BindingEntry => ({ bindings: [{ def }], source: 'file' });
 
 describe('planUnbind', () => {
   it('renders nothing when there is no binding at this row', () => {
-    expect(planUnbind({ cardId: 'bloodbinder', kind: 'scCast', entry: undefined, fallback: { def: 'spell-cast' } }))
+    expect(planUnbind({ cardId: 'bloodbinder', kind: 'scCast', entry: undefined, fallback: [{ def: 'spell-cast' }] }))
       .toBeNull();
   });
 
@@ -16,8 +16,8 @@ describe('planUnbind', () => {
     const plan = planUnbind({
       cardId: 'bloodbinder',
       kind: 'scCast',
-      entry: { binding: { def: 'ruby-lance', fanOut: 'damaged' }, source: 'file' },
-      fallback: { def: 'spell-cast' },
+      entry: { bindings: [{ def: 'ruby-lance', fanOut: 'damaged' }], source: 'file' },
+      fallback: [{ def: 'spell-cast' }],
     });
     expect(plan?.current).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
     expect(plan?.source).toBe('file');
@@ -29,7 +29,7 @@ describe('planUnbind', () => {
   // A kind row has no layer beneath it, so `clear` and `tombstone` are the same silence. Two buttons here
   // would be a choice between identical outcomes.
   it('offers one removal on a kind row, because nothing can fall through', () => {
-    const plan = planUnbind({ cardId: null, kind: 'scCast', entry: file('spell-cast'), fallback: null });
+    const plan = planUnbind({ cardId: null, kind: 'scCast', entry: file('spell-cast'), fallback: [] });
     expect(plan?.options.map((o) => o.op)).toEqual(['clear']);
     expect(plan?.options[0].consequence).toBe('nothing plays at scCast — for any card without its own binding');
     expect(plan?.target).toEqual({ cardId: null, kind: 'scCast' });
@@ -38,7 +38,7 @@ describe('planUnbind', () => {
   // The collapse is driven by the FALLBACK, not by the scope — a card row at a kind nobody bound has
   // nothing to fall back to either, and must not be offered a choice that does not exist.
   it('collapses on a card row too when its kind has no default', () => {
-    const plan = planUnbind({ cardId: 'bloodbinder', kind: 'rally', entry: file('ruby-lance'), fallback: null });
+    const plan = planUnbind({ cardId: 'bloodbinder', kind: 'rally', entry: file('ruby-lance'), fallback: [] });
     expect(plan?.options.map((o) => o.op)).toEqual(['clear']);
     expect(plan?.options[0].consequence).toBe('nothing plays at rally for this card');
   });
@@ -47,8 +47,8 @@ describe('planUnbind', () => {
     const plan = planUnbind({
       cardId: 'bloodbinder',
       kind: 'scCast',
-      entry: { binding: { def: 'ember-lance' }, source: 'session' },
-      fallback: { def: 'spell-cast' },
+      entry: { bindings: [{ def: 'ember-lance' }], source: 'session' },
+      fallback: [{ def: 'spell-cast' }],
     });
     expect(plan?.source).toBe('session');
   });
@@ -58,8 +58,8 @@ describe('planUnbind', () => {
       const plan = planUnbind({
         cardId: 'bloodbinder',
         kind: 'scCast',
-        entry: { binding: null, source: 'file' },
-        fallback: { def: 'spell-cast' },
+        entry: { bindings: null, source: 'file' },
+        fallback: [{ def: 'spell-cast' }],
       });
       expect(plan?.current).toBeNull();
       expect(plan?.options.map((o) => o.op)).toEqual(['clear']);
@@ -67,7 +67,7 @@ describe('planUnbind', () => {
     });
 
     it('says so honestly when removing it changes nothing visible', () => {
-      const plan = planUnbind({ cardId: null, kind: 'scCast', entry: { binding: null, source: 'file' }, fallback: null });
+      const plan = planUnbind({ cardId: null, kind: 'scCast', entry: { bindings: null, source: 'file' }, fallback: [] });
       expect(plan?.options[0].consequence).toBe('nothing plays at scCast — for any card without its own binding');
     });
   });

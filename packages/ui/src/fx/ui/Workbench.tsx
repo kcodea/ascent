@@ -40,10 +40,11 @@ import { planCommit } from '../harness/commitPlan';
 import { planUnbind } from '../harness/unbindPlan';
 import {
   bindingAt,
-  bindingBeneathDraft,
+  bindingsBeneathDraft,
   bindingsJson,
-  bindingWithout,
+  bindingsWithout,
   clearBinding,
+  clearBindingEntry,
   DRAFT_DEF_ID,
   effectiveTables,
   setBinding,
@@ -1468,7 +1469,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   useEffect(() => {
     if (harnessCard === '' || harnessKind === null) return;
     const scopeKey = commitScope === 'card' ? harnessCard : null;
-    setCommitFanOut(bindingBeneathDraft(scopeKey, harnessKind)?.fanOut ?? 'primary');
+    setCommitFanOut(bindingsBeneathDraft(scopeKey, harnessKind)[0]?.fanOut ?? 'primary');
   }, [harnessCard, harnessKind, commitScope]);
 
   // While rail mode has a card AND a moment selected, the editor's current composition IS what that card
@@ -1517,7 +1518,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setBinding(card, kind, commitFanOut === undefined || commitFanOut === 'primary'
       ? { def: DRAFT_DEF_ID }
       : { def: DRAFT_DEF_ID, fanOut: commitFanOut });
-    return () => clearBinding(card, kind);
+    return () => clearBindingEntry(card, kind, DRAFT_DEF_ID);
   }, [railMode, harnessCard, harnessKind, commitFanOut]);
 
   const commitPlan = useMemo(() => {
@@ -1554,7 +1555,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       cardId,
       kind: harnessKind,
       entry: bindingAt(cardId, harnessKind),
-      fallback: bindingWithout(cardId, harnessKind),
+      fallback: bindingsWithout(cardId, harnessKind),
     });
     // `bindingsRev` is a manual invalidation token, not a value this memo reads.
   }, [harnessCard, harnessKind, commitScope, bindingsRev]);

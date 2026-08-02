@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-02 — A Ruby is told by the gem, not also by the generic buff cues
+
+The one-channel rule from [`fx-vocabulary.md`](fx-vocabulary.md), applied in combat. `applyRubyStats` routes
+through `ctx.buff`, so a Ruby is a buff like any other to the two generic channels: `groupSelfBuffs` fired
+`self-buff-gold` on it and `groupBuffCasts` drew a tendril for it — on top of the gem detonation that already
+says the same thing. A gilded Frenzied Excavator buffing itself was the visible case (owner report): one
+event, two tellings, looking like two different things happened.
+
+Both channels now skip a `ruby`-flagged buff event. Suppressed for the generic cues, never dropped —
+`rubiedUidsIn` still claims it, which the third test pins. This is what the `ruby` flag added in #812 was
+for; the shop half was already handled there by uid correlation, since the shop has no event log to flag.
+
+Verified: typecheck (pkgs + web) clean, lint 0 errors, **3591 tests**, `build:web` OK.
+
+**Not done, and visible:** a GILDED Excavator still plays a cascade of singles. The sweep offset is
+`recipientIndex × gap`, and a stack needs `+ repeatIndex × beat` — so the board currently under-reports 2
+Rubies as 1. That is the first task of the clarity phase, and the fourth place "walk an effect across N
+things with an offset" has been hand-rolled.
+
+
 ## 2026-08-01 — Rubies detonate on the minion they land on (`ruby-gem-apply`, wired shop + combat)
 
 The owner's own workbench authoring, wired to the moment it was made for. `ruby-gem-apply` is two gemshard

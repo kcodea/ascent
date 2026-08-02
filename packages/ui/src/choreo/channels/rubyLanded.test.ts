@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 import { rubiedUidsIn } from './rubyLanded';
+import { groupSelfBuffs } from './buffSelf';
+import { groupBuffCasts } from './buffCast';
 
 const buff = (target: string, ruby?: true): CombatEvent =>
   ({ type: 'buff', target, attack: 1, health: 1, source: 's', ...(ruby ? { ruby } : {}) } as CombatEvent);
@@ -41,5 +43,34 @@ describe('rubiedUidsIn', () => {
   /** `end` may run past the array when a moment is the last one compiled; a hole must not throw. */
   it('tolerates an end index past the event array', () => {
     expect(rubiedUidsIn(span(0, 99), [buff('a', true)])).toEqual(['a']);
+  });
+});
+
+/**
+ * The one-channel rule, in code. A Ruby landing is told by the gem detonation, so the two GENERIC buff
+ * channels stand down for it — otherwise a gilded Frenzied Excavator buffing itself says the same thing
+ * twice and looks like two different things happened (owner ruling 2026-08-02).
+ */
+describe('a Ruby buff is claimed by the gem, not the generic buff cues', () => {
+  const moment = span(0, 4);
+
+  it('groupSelfBuffs ignores a ruby-flagged self-buff but keeps an ordinary one', () => {
+    const self = (target: string, ruby?: true): CombatEvent =>
+      ({ type: 'buff', target, attack: 1, health: 1, source: target, ...(ruby ? { ruby } : {}) } as CombatEvent);
+    const out = groupSelfBuffs(moment, [self('rubied', true), self('plain')]);
+    expect(out.map((s) => s.uid)).toEqual(['plain']);
+  });
+
+  it('groupBuffCasts ignores a ruby-flagged buff-other but keeps an ordinary one', () => {
+    const cast = (target: string, ruby?: true): CombatEvent =>
+      ({ type: 'buff', target, attack: 1, health: 1, source: 'src', ...(ruby ? { ruby } : {}) } as CombatEvent);
+    const out = groupBuffCasts(moment, [cast('rubied', true), cast('plain')]);
+    expect(out.map((c) => c.target)).toEqual(['plain']);
+  });
+
+  /** The gem still claims it — the event is suppressed for the generic cues, never dropped outright. */
+  it('the same ruby buff is still picked up by rubiedUidsIn', () => {
+    const e = { type: 'buff', target: 'rubied', attack: 1, health: 1, source: 'src', ruby: true } as CombatEvent;
+    expect(rubiedUidsIn(moment, [e])).toEqual(['rubied']);
   });
 });

@@ -15,6 +15,12 @@ export function groupSelfBuffs(moment: Moment, events: CombatEvent[]): SelfBuff[
     const e = events[i];
     if (!e || e.type !== 'buff') continue;
     if (e.source !== e.target) continue; // buff-OTHER: handled by the tendril channel
+    // A RUBY landing is told by the gem detonation (`ruby-gem-apply`), so the generic buff cue stands down for
+    // it. One piece of information, one channel: a gilded Frenzied Excavator buffs itself, and firing both the
+    // self-buff cue and the gem on that card says the same thing twice while looking like two different things
+    // happened. The `ruby` flag on the buff event exists precisely so the two can be told apart here.
+    // (Owner ruling 2026-08-02; see docs/fx-vocabulary.md, "information channels".)
+    if (e.ruby) continue;
     const cur = byUid.get(e.target);
     if (cur) { cur.attack += e.attack; cur.health += e.health; }
     else { const s = { uid: e.target, attack: e.attack, health: e.health }; byUid.set(e.target, s); order.push(e.target); }

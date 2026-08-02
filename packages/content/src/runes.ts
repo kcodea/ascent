@@ -804,6 +804,16 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Set 2 rune batch (owner roster 2026-07-29) — "get a named minion" runes. Each names a card that now
   // exists, so they are pure grants; the rest of the roster needs new reward kinds and is not shipped yet.
   {
+    // Owner add 2026-08-02: the set-1 Taurus (T6, Engraves its neighbors), rune-granted — same named-minion
+    // shape as Rune of Yazzus. Grants from CARD_INDEX, so it works regardless of the run's pinned set.
+    id: 'rune_taurus',
+    name: 'Rune of Taurus',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Taurus**.',
+    reward: { kind: 'grant', cards: ['taurus'] },
+  },
+  {
     id: 'rune_yazzus',
     name: 'Rune of Yazzus',
     cost: 6,

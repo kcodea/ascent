@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-02 — Gilding never resets an accrual again: the registry becomes a universal rule
+
+Owner report: Menagerie Mammoth's buff reset when tripled — "I thought we put a global rule fixing this."
+We did, on 2026-07-31 — but it was an OPT-IN registry (`ACCRUES_SUMMON_BONUS`), so every accruing effect
+added after it silently inherited the reset bug. The requested parse of the card base found **four leakers**:
+
+- **Menagerie Mammoth** (`onSummonTribeBuffImproveSelf`) — the report,
+- **King Oona** (`onSummonTribeBuffThenDouble` + `avengeImproveSummon`),
+- **Broodwright** (`onSummonImpBuff` + `avengeImproveSummonBuff`),
+- **Trophy Stalker** (`rallyTribeAuraGrowing`).
+
+The registry is deleted. The merge's fallback is now UNIVERSAL: any copy carrying a nonzero `summonBonus`
+keeps it through gilding (top-two combined, the Karthus / Crypt Drake precedent), with exactly two exclusions
+— Flowing Monk and Runescale Drake, whose accruals merge through their own fields (`overflowBonus` /
+`spellProgress`; the 07-31 double-count bug is why). A future accruing card is covered the day it ships.
+`tripleAccrual.test.ts` pins all four leakers (each FAILS on the old registry, stash-verified) + the
+no-accrual-stays-unset case.
+
+Also: **Rune of Taurus** (epic, 3 Gold — get the set-1 Taurus, same named-minion shape as Rune of Yazzus;
+grants from `CARD_INDEX` so it works in a set-2 run, and the forge hover shows the card via the existing
+preview audit). And **Lastlight's new art** wired (`Neutral/Lastlight.png`, strict name match).
+
 ## 2026-08-02 — Beast/Kobold balance batch: Mammoth, Oona, Scavenger rework, two removals
 
 **Follow-ups (same day):** Mammoth reduced again to **+1/+1 improving +1/+1** (gilded +2/+2). Ninja Pal's art

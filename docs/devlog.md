@@ -57,6 +57,17 @@ minion the instant the shop reopened. Pinned with a Frenzied Excavator case (whi
 three copies of one minion triple on play and collapse the board, quietly making such a test prove nothing).
 3588 tests.
 
+**Third follow-up (owner report: the effect plays where the units WERE, not where they end up) —** playing a
+minion shifts the board, and the cards animate to their new slots via the manual GSAP FLIP in `Recruit.tsx`.
+`getBoundingClientRect()` includes the element's own transform, so measuring during that tween returns the
+slot the card is sliding OUT of. Added `restingCenterOf()`, which uses transform-immune `offsetLeft`/
+`offsetTop` — the same property the FLIP baseline capture a few hundred lines below already relies on for
+exactly this reason — so the cue fires immediately AND lands on the destination, with no waiting on the
+slide. The plain rect is kept for the (common) case where nothing is animating. Every shop cue that anchors
+to a rect during a layout change has this latent; logged in the friction doc, since the real gap is that the
+shop has no shared "anchor to a card" helper the way combat has `anchorsForUnits`.
+
+
 **Left for the owner's call — a real engine bug, not FX:** `battlecryPlayRubiesAll` applying Rubies with a
 bare `addBuff` means a Frenzied Excavator play does not fire the targets' `onRubyPlayed` effects at all — Ruby
 Broker pays no Gold, a Resonance Idol does not bounce. The two sibling factories both call `fireOnRubyPlayed`.

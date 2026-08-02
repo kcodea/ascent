@@ -70,6 +70,18 @@ carry-back. **Lesson for the log:** when a cue is derived from engine state, pic
 must touch, not the one the first producer happened to touch. A cue that depends on an optional call is a
 cue that will be silently dead for whichever card forgets it.
 
+### An effect fired at where the card WAS, not where it lands
+**Hit:** 2026-08-02, owner report — playing Frenzied Excavator shifts every minion along, and the Ruby
+detonations all played at the pre-shift positions.
+`getBoundingClientRect()` includes the element's own transform, and a card mid-FLIP carries a transform
+pinning it at its OLD slot while it tweens to the new one. Every shop cue that anchors to a rect during a
+layout change has this bug latent.
+**Fix:** a local `restingCenterOf()` using transform-immune `offsetLeft`/`offsetTop` — the same property the
+manual FLIP in `Recruit.tsx` already relies on for its baseline capture.
+**Gap it points at:** "anchor to a card" is re-implemented at every shop call site, and each one gets to
+rediscover this. Combat has `anchorsForUnits`; the shop has nothing, so there is no single place to fix it
+once. Folds into the recruit-moment work above.
+
 ### The direct-call scanner reads comments
 **Hit:** 2026-08-01. A doc comment that *showed* the `playDef('<id>'` pattern registered a phantom def and
 failed CI. Deliberate (the scanner doesn't strip comments, so a commented-out call is still visible) and

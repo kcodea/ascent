@@ -70,6 +70,37 @@ const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="wa
 // signified by a static grey card border, not an aura — see `.card.taunt` in styles.css — so it's not here.)
 const AURA_MARKERS = ['dscard', 'reborncard'] as const;
 
+/**
+ * A card's RESTING centre in viewport coordinates — where it will BE once the layout settles, not where it
+ * happens to be drawn right now.
+ *
+ * `getBoundingClientRect()` includes the element's own transform, and a card mid-FLIP carries a transform
+ * pinning it at its OLD slot while it tweens to the new one. Anchoring an effect to that rect puts the effect
+ * where the card just was: owner report 2026-08-02 — playing Frenzied Excavator shifts every minion along, and
+ * the Ruby detonations all fired at the pre-shift positions.
+ *
+ * `offsetLeft`/`offsetTop` are LAYOUT positions and transform-immune — the same property the manual FLIP in
+ * this file already relies on for its baseline capture ("transform-immune, so a capture taken while a prior
+ * tween is still mid-flight records the true resting spot"). So the effect can fire IMMEDIATELY and still land
+ * on the destination, rather than having to wait out the slide.
+ *
+ * When nothing is animating the plain rect is exact and cheaper to reason about, so that path is kept for the
+ * common case; the layout arithmetic only runs when a transform is actually in play.
+ *
+ * Returns null for an element that isn't laid out (no offset parent — `display:none`, or detached).
+ */
+function restingCenterOf(el: HTMLElement): { x: number; y: number } | null {
+  const transform = getComputedStyle(el).transform;
+  if (transform === 'none' || transform === '') {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  const parent = el.offsetParent as HTMLElement | null;
+  if (!parent) return null;
+  const p = parent.getBoundingClientRect();
+  return { x: p.left + el.offsetLeft + el.offsetWidth / 2, y: p.top + el.offsetTop + el.offsetHeight / 2 };
+}
+
 type DragSource = 'shop' | 'hand' | 'board';
 
 type Zone = 'tavern' | 'warband' | 'hand';
@@ -814,13 +845,12 @@ export function Recruit() {
         // Measured inside the timer so a stagger that outlives a re-render (a triple collapsing three bodies
         // into one) misses cleanly instead of firing at a stale rect.
         const fire = (): void => {
-          const el = document.querySelector(`[data-uid="${uid}"]`);
+          const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
           if (!el) return;
-          const r = el.getBoundingClientRect();
-          const x = r.left + r.width / 2;
-          const y = r.top + r.height / 2;
+          const p = restingCenterOf(el);
+          if (!p) return;
           // Both anchors are the minion itself: the Ruby lands ON it, with nothing to travel between.
-          playDef('ruby-gem-apply', { source: { x, y }, target: { x, y } }); // literal — see RUBY_LANDED_DEF
+          playDef('ruby-gem-apply', { source: p, target: p }); // literal — see RUBY_LANDED_DEF
         };
         if (i === 0) fire();
         else timers.push(setTimeout(fire, RUBY_STAGGER_MS * i));

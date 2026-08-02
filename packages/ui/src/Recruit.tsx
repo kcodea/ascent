@@ -837,7 +837,6 @@ export function Recruit() {
     prevRubyLandedSeq.current = seq;
     const uids = run.rubyLandedFxUids ?? [];
     if (uids.length === 0) return;
-    const sourceUid = run.rubyLandedFxSourceUid;
     const timers: ReturnType<typeof setTimeout>[] = [];
     // One rAF first, for the same reason the cues above take one: the buffed cards re-render this commit, and
     // measuring before the browser has laid them out reads the PREVIOUS geometry.
@@ -848,26 +847,17 @@ export function Recruit() {
         const fire = (): void => {
           const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
           if (!el) return;
-          const target = restingCenterOf(el);
-          if (!target) return;
-          // `target` is where the Ruby lands; `source` is the card that played it, so a def CAN carry a
-          // travelling layer (a tendril out of the Excavator into each minion) ahead of its detonation.
-          // Resolved per fire, and three ways it legitimately isn't there — a sourceless landing, a Ruby
-          // dragged from hand (its card is gone by now), or a card that played onto ITSELF. All three
-          // collapse to source === target, where a travelling layer simply stays put and a static one is
-          // unaffected. That is the same degenerate-pair convention `strike-impact` already relies on.
-          const srcEl = sourceUid && sourceUid !== uid
-            ? document.querySelector<HTMLElement>(`[data-uid="${sourceUid}"]`)
-            : null;
-          const source = (srcEl && restingCenterOf(srcEl)) || target;
-          playDef('ruby-gem-apply', { source, target }); // literal — see RUBY_LANDED_DEF
+          const p = restingCenterOf(el);
+          if (!p) return;
+          // Both anchors are the minion itself: the Ruby lands ON it, with nothing to travel between.
+          playDef('ruby-gem-apply', { source: p, target: p }); // literal — see RUBY_LANDED_DEF
         };
         if (i === 0) fire();
         else timers.push(setTimeout(fire, RUBY_STAGGER_MS * i));
       });
     });
     return () => { cancelAnimationFrame(raf); for (const t of timers) clearTimeout(t); };
-  }, [run.rubyLandedFxSeq, run.rubyLandedFxUids, run.rubyLandedFxSourceUid]);
+  }, [run.rubyLandedFxSeq, run.rubyLandedFxUids]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the

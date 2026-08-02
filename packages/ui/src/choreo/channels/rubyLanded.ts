@@ -34,14 +34,15 @@ export function rubiedUidsIn(moment: Moment, events: CombatEvent[]): string[] {
  * Milliseconds between successive detonations in a board-wide play. Owner ruling 2026-08-01: mass Ruby plays
  * read as a sweep, not a single flash.
  *
- * Was 60ms, raised to 130 on the owner's report that the sweep did not read at all (2026-08-02). 60ms is
- * enough to spread the COST across frames — the reason the stagger exists at first — but not enough to be
- * SEEN: against a 900ms effect whose first 250ms is its brightest, consecutive fires 60ms apart overlap so
- * heavily that seven of them look like one wide flash. Two different jobs, and the perceptual one needs the
- * larger number: 130ms puts daylight between each detonation's peak while seven still finish in 780ms, inside
- * the def's own duration.
+ * Briefly raised to 130ms when the sweep didn't read, then returned to 60 on the owner's call (2026-08-02)
+ * once the def's own layer timings moved — the separation the eye wants depends on how front-loaded the
+ * effect is, so this number belongs to the composition, not to the code. If it ever needs to differ per
+ * effect it should become a `stagger` field on the binding rather than a constant edited here.
+ *
+ * 60ms still does the job the stagger exists for at minimum: it keeps a seven-minion play from landing seven
+ * 220-particle bursts inside one frame.
  */
-export const RUBY_STAGGER_MS = 130;
+export const RUBY_STAGGER_MS = 60;
 
 /**
  * The def both call sites play — deliberately duplicated as a STRING LITERAL at each one rather than imported

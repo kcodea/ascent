@@ -1524,7 +1524,12 @@ export type CombatEvent = (
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string }
   | { type: 'ascend'; target: string; into: string } // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
-  | { type: 'buff'; target: string; attack: number; health: number; source: string }
+  // `ruby`: this stat gain came from a RUBY landing on `target` (set 2 Kobolds), not from an ordinary buff.
+  // Pure presentation metadata in the same spirit as `avenge` below — never read by the sim, never affects
+  // outcomes. It exists because `applyRubyStats` routes through the same `ctx.buff` as every other stat gain,
+  // leaving a Ruby indistinguishable in the log; the UI needs to tell them apart to play the Ruby cue on the
+  // minion that received it (`ruby-gem-apply`) without firing on all 40-odd other buff sources.
+  | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true }
   | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
@@ -1877,7 +1882,9 @@ export interface CombatContext {
    *  this rather than `allCards()`, or it can hand a Set-1 run a Set-2 card. Falls back to `allCards()` when a
    *  side carries no pool (the harness / procedural threats). */
   poolCards(side: Side): CardDef[];
-  buff(target: Minion, attack: number, health: number, source: string): void;
+  /** `ruby`: tag the emitted `buff` event as a Ruby landing (presentation only — see the `buff` event's own
+   *  note). Only `applyRubyStats` passes it; every other caller leaves it off and behaves exactly as before. */
+  buff(target: Minion, attack: number, health: number, source: string, ruby?: true): void;
   /** Register a tribe buff that persists for the rest of combat: a friend of `tribe` on `side`
    *  summoned *after* this also gains +atk/+hp (Grim's Deathrattle). Current friends are buffed by the caller. */
   addTribeAura(side: Side, tribe: Tribe | 'any', attack: number, health: number, source: string): void;

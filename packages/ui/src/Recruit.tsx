@@ -48,6 +48,7 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
+import { RUBY_STAGGER_MS } from './choreo/channels/rubyLanded';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -68,6 +69,37 @@ const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="wa
 // Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts, fired off the event log). (Taunt is
 // signified by a static grey card border, not an aura — see `.card.taunt` in styles.css — so it's not here.)
 const AURA_MARKERS = ['dscard', 'reborncard'] as const;
+
+/**
+ * A card's RESTING centre in viewport coordinates — where it will BE once the layout settles, not where it
+ * happens to be drawn right now.
+ *
+ * `getBoundingClientRect()` includes the element's own transform, and a card mid-FLIP carries a transform
+ * pinning it at its OLD slot while it tweens to the new one. Anchoring an effect to that rect puts the effect
+ * where the card just was: owner report 2026-08-02 — playing Frenzied Excavator shifts every minion along, and
+ * the Ruby detonations all fired at the pre-shift positions.
+ *
+ * `offsetLeft`/`offsetTop` are LAYOUT positions and transform-immune — the same property the manual FLIP in
+ * this file already relies on for its baseline capture ("transform-immune, so a capture taken while a prior
+ * tween is still mid-flight records the true resting spot"). So the effect can fire IMMEDIATELY and still land
+ * on the destination, rather than having to wait out the slide.
+ *
+ * When nothing is animating the plain rect is exact and cheaper to reason about, so that path is kept for the
+ * common case; the layout arithmetic only runs when a transform is actually in play.
+ *
+ * Returns null for an element that isn't laid out (no offset parent — `display:none`, or detached).
+ */
+function restingCenterOf(el: HTMLElement): { x: number; y: number } | null {
+  const transform = getComputedStyle(el).transform;
+  if (transform === 'none' || transform === '') {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  const parent = el.offsetParent as HTMLElement | null;
+  if (!parent) return null;
+  const p = parent.getBoundingClientRect();
+  return { x: p.left + el.offsetLeft + el.offsetWidth / 2, y: p.top + el.offsetTop + el.offsetHeight / 2 };
+}
 
 type DragSource = 'shop' | 'hand' | 'board';
 
@@ -790,6 +822,42 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.rubyPowerFxSeq, run.rubyPowerFxAtk, run.rubyPowerFxHp, run.rubyPowerFxUid]);
+  // RUBY LANDED FX (owner ask 2026-08-01) — the shop half of the Ruby-landed cue: a detonation on each minion a
+  // Ruby was just played on. Distinct from the Ruby POWER cue above, which fires when your Rubies get stronger
+  // and deliberately never fires per cast; this one is per cast and says nothing about strength, so a card that
+  // does both (Crownvein) correctly shows both reads.
+  //
+  // Covers every recruit source at once — your drag from hand, a board-wide Shout, an End-of-Turn mint — because
+  // `rubyLandedFxUids` is derived in the reducer from a `rubiesOnThisTurn` delta rather than stamped per play
+  // site. The combat half is the `rubyFx` cue channel, off the `ruby` flag on the buff event.
+  const prevRubyLandedSeq = useRef(run.rubyLandedFxSeq);
+  useEffect(() => {
+    const seq = run.rubyLandedFxSeq;
+    if (seq === undefined || seq === prevRubyLandedSeq.current) return;
+    prevRubyLandedSeq.current = seq;
+    const uids = run.rubyLandedFxUids ?? [];
+    if (uids.length === 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    // One rAF first, for the same reason the cues above take one: the buffed cards re-render this commit, and
+    // measuring before the browser has laid them out reads the PREVIOUS geometry.
+    const raf = requestAnimationFrame(() => {
+      uids.forEach((uid, i) => {
+        // Measured inside the timer so a stagger that outlives a re-render (a triple collapsing three bodies
+        // into one) misses cleanly instead of firing at a stale rect.
+        const fire = (): void => {
+          const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+          if (!el) return;
+          const p = restingCenterOf(el);
+          if (!p) return;
+          // Both anchors are the minion itself: the Ruby lands ON it, with nothing to travel between.
+          playDef('ruby-gem-apply', { source: p, target: p }); // literal — see RUBY_LANDED_DEF
+        };
+        if (i === 0) fire();
+        else timers.push(setTimeout(fire, RUBY_STAGGER_MS * i));
+      });
+    });
+    return () => { cancelAnimationFrame(raf); for (const t of timers) clearTimeout(t); };
+  }, [run.rubyLandedFxSeq, run.rubyLandedFxUids]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -2650,7 +2718,17 @@ export function Recruit() {
     if (run.recruitFxSeq === prevFxSeq.current) return;
     prevFxSeq.current = run.recruitFxSeq;
     if (run.recruitBuffFx.length === 0) return;
-    replayBuffFxEvents(run.recruitBuffFx);
+    // A Ruby landing owns its own cue (`ruby-gem-apply`), so the generic buff tendril is suppressed for the
+    // cards it hit THIS action — otherwise a Frenzied Excavator draws seven tendrils under seven detonations
+    // and neither read survives (owner ask 2026-08-02). Correlated by uid rather than by tagging the buff
+    // event, because "was this stat gain a Ruby" is already answered by the Ruby signal the same action
+    // computes; a second source of that truth could disagree with the first.
+    const rubyOwned = new Set(run.rubyLandedFxUids ?? []);
+    const events = rubyOwned.size > 0
+      ? run.recruitBuffFx.filter((e) => !rubyOwned.has(e.targetUid))
+      : run.recruitBuffFx;
+    if (events.length === 0) return;
+    replayBuffFxEvents(events);
   }, [run.recruitFxSeq]);
 
   // AURA WAVE: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom a tribe-colored wave

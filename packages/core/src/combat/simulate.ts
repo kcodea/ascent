@@ -480,14 +480,16 @@ export function simulate(
       const allow = new Set(ids);
       return Object.values(cards).filter((c) => allow.has(c.id));
     },
-    buff: (target, attack, health, source) => {
+    buff: (target, attack, health, source, ruby) => {
       // Golden Taurus doubles every combat stat-gain its engraved neighbors receive (`gainMult`).
       const gm = target.gainMult ?? 1;
       if (gm !== 1) { attack *= gm; health *= gm; }
       target.attack = Math.max(0, target.attack + attack); // Attack never drops below 0
       target.health += health;
       if (health > 0) target.maxHealth += health;
-      emit({ type: 'buff', target: target.uid, attack, health, source });
+      // Spread the flag in only when set, so a non-Ruby buff event keeps its EXACT previous shape — an explicit
+      // `ruby: undefined` key would show up in the golden logs and in any deep-equality assertion over events.
+      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}) });
       // "Give <tribe> N total stats" (Skybound Pact / Taragosa's Inheritance): every positive combat stat gain on
       // a PLAYER minion counts toward its tribe(s), so combat buffs advance the `tribeStats` quest like recruit
       // ones (owner: Skybound Pact stats in combat should count). Uses the post-gainMult value actually applied.

@@ -369,6 +369,36 @@ export function reduce(state: RunState, action: Action): RunState {
       next.rubyPowerFxHp = Math.max(0, rpDeltaH);
       next.rubyPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
     }
+    // RUBY LANDED FX: which minions had a Ruby played ON them this action, for the per-cast cue. Read as a delta
+    // of `rubiesOnThisTurn` (bumped by `fireOnRubyPlayed` on every recruit Ruby, whatever played it) so no play
+    // site has to remember to stamp anything, and so React batching can't swallow it — the same reasoning as the
+    // two power cues above. A minion SUMMONED with Rubies already on it (Geode Guardian's golems) is absent from
+    // the before-map and so counts from 0, which is correct: those are Rubies that just landed.
+    // Measured off the 'Ruby' BUFF COUNT, on board minions and tavern offers alike (a Ruby targets `any`, so it
+    // lands on both). `addBuff`/`addOfferBuff` keep a per-source `count`, and every path that applies a Ruby goes
+    // through one of them — which is precisely why the count is the right probe and `rubiesOnThisTurn` was not:
+    // that counter only moves via `fireOnRubyPlayed`, and two live paths skip it. The offer path skips it
+    // deliberately (firing an offer's on-Ruby watchers would pay out a Ruby Broker sitting in the shop);
+    // `battlecryPlayRubiesAll` (Frenzied Excavator) skips it apparently by oversight — see the note on
+    // `cardsPlayedPlayRubies`, which describes mirroring it and does make the call. Keying off the buff means the
+    // cue is right either way, and stays right if that engine question is settled in either direction.
+    const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number =>
+      c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
+    // `settleCombat` carries mid-fight Ruby gains back onto the board as 'Ruby' buffs. That is BOOKKEEPING for
+    // something the combat replay already played this cue for, not a landing — counting it would detonate every
+    // carried-back minion the instant the shop reopens. Same double-play the Ruby POWER cue guards against.
+    if (action.type !== 'settleCombat' && action.type !== 'resolveCombat') {
+      const before = new Map<string, number>();
+      for (const c of state.board) before.set(c.uid, rubyCountOf(c));
+      for (const o of state.shop) before.set(o.uid, rubyCountOf(o));
+      const rubyLanded: string[] = [];
+      for (const c of next.board) if (rubyCountOf(c) > (before.get(c.uid) ?? 0)) rubyLanded.push(c.uid);
+      for (const o of next.shop) if (rubyCountOf(o) > (before.get(o.uid) ?? 0)) rubyLanded.push(o.uid);
+      if (rubyLanded.length > 0) {
+        next.rubyLandedFxSeq = (next.rubyLandedFxSeq ?? 0) + 1;
+        next.rubyLandedFxUids = rubyLanded;
+      }
+    }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
     // identical to the minion instead of a separate Lantern-style aura.

@@ -1,5 +1,91 @@
 # ASCENT — development log
 
+## 2026-08-01 — Rubies detonate on the minion they land on (`ruby-gem-apply`, wired shop + combat)
+
+The owner's own workbench authoring, wired to the moment it was made for. `ruby-gem-apply` is two gemshard
+bursts (a near one, and a farther additive one) over a two-ring shockwave, 900 ms, drawn with the imported
+`art/gemshard.png`. It now fires on the target whenever a Ruby is played on a minion — **every** application,
+from any source, in both phases (owner ruling 2026-08-01).
+
+Neither phase had a signal to hang it on, and the two gaps were different:
+
+- **Combat.** `applyRubyStats` routes through the same `ctx.buff` as every other stat gain — the code comment
+  already said a Ruby was "indistinguishable from any other combat buff". Added `ruby?: true` to the `buff`
+  event and an optional 5th `ctx.buff` parameter that only `applyRubyStats` passes. It is presentation
+  metadata in the exact idiom of the existing `avenge?: true` — never read by the sim, never affects outcomes.
+  The flag is spread in only when set, so a non-Ruby buff event keeps byte-identical shape and the golden logs
+  don't move.
+- **Shop.** New `rubyLandedFxSeq` / `rubyLandedFxUids` on `RunState`, derived in the reducer from a
+  before/after delta of each board card's `rubiesOnThisTurn` — not stamped at the play sites. That follows the
+  spell-power / ruby-power precedent (a scratch field set mid-action gets swallowed by React batching) and,
+  because `fireOnRubyPlayed` already bumps that counter for every recruit Ruby, one delta covers a hand drag,
+  a board-wide Shout and an End-of-Turn mint without touching a single play site.
+
+Presentation is a new `rubyFx` cue channel rather than a `bindings.json` entry: `kinds` holds one binding per
+moment kind and both kinds a Ruby can surface in already spend theirs on the self-buff cue. It sits on
+`buffWave` **and** `attackExchange` — `absorbIntoWindup` folds a Ruby played mid-swing (Crownvein's Rally)
+into the exchange, where a `buffWave`-only cue would never have seen it.
+
+Mass plays (Frenzied Excavator, Ruby Excavation — up to seven minions at once) are **staggered 60 ms** apart,
+scaled by `combatSpeed` like every other offset in the score. Seven simultaneous 220-particle bursts would
+both blow the frame budget and read as one indistinct flash; staggered they read as a sweep and finish in
+360 ms, inside the def's own 900 ms. Anchors resolve inside each timer, so a unit that dies (or a card that
+re-renders) mid-sweep is skipped rather than detonating over an empty slot.
+
+Distinct from the existing **Ruby Power** cue, which fires when your Rubies get *stronger* and explicitly
+never per cast — a card doing both (Crownvein) now correctly shows both reads.
+
+**Follow-up, same day —** a Ruby targets `any`, so it can also land on a TAVERN OFFER, and that path
+deliberately never calls `fireOnRubyPlayed` (firing an offer's on-Ruby watchers would pay out a Ruby Broker
+sitting in the shop). The first cut of the signal read board minions only, so every shop drop was silently
+dark. Offers are now measured on their own terms — the `count` on the offer's 'Ruby' buff entry, which
+`addOfferBuff` already maintains — so no engine field and no rules change was needed. Pinned by
+`rubyLandedFx.test.ts` (board target, offer target, non-target, no-Ruby action). Also added
+`docs/fx-workbench-friction.md`, a running log of workbench workarounds (owner ask: surface them all, however
+small), seeded with the one-binding-per-moment-kind limit this feature hit and the absent shop binding
+surface. 3587 tests.
+
+**Second follow-up (owner report: Frenzied Excavator played no cue, only the old buff tendril) —** the probe
+was wrong, not the wiring. `rubiesOnThisTurn` only moves via `fireOnRubyPlayed`, and TWO live paths skip that
+call: the tavern-offer path (deliberately) and `battlecryPlayRubiesAll` (apparently by oversight — see the
+doc on `cardsPlayedPlayRubies`, which describes mirroring it and does make the call, and `spellPlayRubiesAll`,
+which also does). Board minions and offers are now both measured off the `'Ruby'` BUFF COUNT, which every
+Ruby path goes through via `addBuff`/`addOfferBuff` — so the cue is right regardless of how that engine
+question is settled. The combat-settle actions are excluded: the carry-back re-labels mid-fight Ruby gains as
+'Ruby' buffs and the replay already played this cue for them, so counting it would detonate every carried-back
+minion the instant the shop reopened. Pinned with a Frenzied Excavator case (which needs DISTINCT cardIds —
+three copies of one minion triple on play and collapse the board, quietly making such a test prove nothing).
+3588 tests.
+
+**Third follow-up (owner report: the effect plays where the units WERE, not where they end up) —** playing a
+minion shifts the board, and the cards animate to their new slots via the manual GSAP FLIP in `Recruit.tsx`.
+`getBoundingClientRect()` includes the element's own transform, so measuring during that tween returns the
+slot the card is sliding OUT of. Added `restingCenterOf()`, which uses transform-immune `offsetLeft`/
+`offsetTop` — the same property the FLIP baseline capture a few hundred lines below already relies on for
+exactly this reason — so the cue fires immediately AND lands on the destination, with no waiting on the
+slide. The plain rect is kept for the (common) case where nothing is animating. Every shop cue that anchors
+to a rect during a layout change has this latent; logged in the friction doc, since the real gap is that the
+shop has no shared "anchor to a card" helper the way combat has `anchorsForUnits`.
+
+
+**Left for the owner's call — a real engine bug, not FX:** `battlecryPlayRubiesAll` applying Rubies with a
+bare `addBuff` means a Frenzied Excavator play does not fire the targets' `onRubyPlayed` effects at all — Ruby
+Broker pays no Gold, a Resonance Idol does not bounce. The two sibling factories both call `fireOnRubyPlayed`.
+Fixing it changes game behaviour in `packages/sim`, so it is flagged rather than folded into an FX PR.
+
+
+
+Two call sites, both string literals rather than a shared constant, because `directCalls.ts` builds the FX
+library's "played from code" map by scanning for a quoted id: a constant is invisible to that scan and the def
+would render as inert while playing constantly. (That scan reads comments too — a doc comment that *showed*
+the pattern registered a phantom `<literal>` def and failed CI, which is the guard working.)
+
+Verified: `npm run typecheck` (pkgs + web) clean, `npm run lint` 0 errors, **3583 tests pass**,
+`npm run build:web` ✓. New `rubiedUidsIn` unit tests cover the ruby-only filter, event order, per-moment
+de-duplication (a Resonance Idol bounce), window bounds and a past-the-end index. Not yet watched in a live
+fight — the def's own look was authored and judged in the workbench by the owner.
+
+
 ## 2026-08-01 — The main FX ticker idles when nothing is live (the shop-audit headline fix, shipped)
 
 The A/B from today's shop-phase audit: an idle shop presented an empty full-viewport WebGL frame ~240×/s —

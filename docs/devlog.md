@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-02 — Runefire names its recast; Lazarus + Copycat art; Copycat pinned unfindable
+
+- **Runefire** now names the spell it will recast at End of Turn ("cast **{{Spirit Fire}}** — the last Shop
+  spell you cast this turn — again"), joining the Recaller/Spellvault helper family (`copyCastSpellText`,
+  reading the already-threaded `lastSpellThisTurnName`). Printed text stands until a spell exists to name.
+- **Lazarus re-wired to the NEW portrait** (Set 2 Minions/Neutral). Hazard closed on the way: the quest-reward
+  folder still holds the OLD `Lazarus.png`, and that job runs later — so the stale file silently won the slot.
+  `wire-art` jobs gain a per-job `skip` set; the quest-reward job skips `lazarus`.
+- **Copycat art re-wired** (updated `Spells/Copycat.png`).
+- **Copycat is rune-granted ONLY** (owner rule): verified every drawable path — shop pools, the spell
+  Discover, every "random Shop spell" grant, Quick Study, the Codex — all route through `poolOf().spells`,
+  which filters `!token`. Pinned by test on both sets' `buyable` + `spells` pools, so a future pool builder
+  that forgets the token filter fails before a Copycat leaks.
+
+Full gates green (3610).
+
 ## 2026-08-02 — Copycat spell art wired
 
 `Spells/Copycat.png` → the Copycat gift spell, strict name match. (The rune TABLETS for Rune of Copycat and

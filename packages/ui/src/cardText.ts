@@ -659,6 +659,12 @@ export function copyCastSpellText(cardId: string, golden: boolean, names: {
       ? `**Shout:** get **2** copies of ${n} — the last **Shop spell** you cast this turn.`
       : `**Shout:** get a copy of ${n} — the last **Shop spell** you cast this turn.`;
   }
+  if (cardId === 'd2_runefire' && names.lastThisTurn) {
+    const n = `{{${names.lastThisTurn}}}`;
+    return golden
+      ? `**End of Turn:** cast ${n} — the last **Shop spell** you cast this turn — **2 additional** times.`
+      : `**End of Turn:** cast ${n} — the last **Shop spell** you cast this turn — again.`;
+  }
   if (cardId === 'd2_spellvault' && names.firstThisTurn) {
     const n = `{{${names.firstThisTurn}}}`;
     return golden

@@ -1,5 +1,10 @@
 # ASCENT — development log
 
+## 2026-08-02 — Copycat spell art wired
+
+`Spells/Copycat.png` → the Copycat gift spell, strict name match. (The rune TABLETS for Rune of Copycat and
+Rune of the Mammoth still use the fallback emblem — no art files yet; next art pass.)
+
 ## 2026-08-02 — Two audits: rune-modified card text goes live everywhere; combat accruals tick in real time
 
 **Audit A — runes that modify a card's RULE (owner ask, generalizing the Rune of the Mammoth pattern).**

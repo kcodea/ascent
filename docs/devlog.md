@@ -45,6 +45,24 @@ dark. Offers are now measured on their own terms — the `count` on the offer's 
 small), seeded with the one-binding-per-moment-kind limit this feature hit and the absent shop binding
 surface. 3587 tests.
 
+**Second follow-up (owner report: Frenzied Excavator played no cue, only the old buff tendril) —** the probe
+was wrong, not the wiring. `rubiesOnThisTurn` only moves via `fireOnRubyPlayed`, and TWO live paths skip that
+call: the tavern-offer path (deliberately) and `battlecryPlayRubiesAll` (apparently by oversight — see the
+doc on `cardsPlayedPlayRubies`, which describes mirroring it and does make the call, and `spellPlayRubiesAll`,
+which also does). Board minions and offers are now both measured off the `'Ruby'` BUFF COUNT, which every
+Ruby path goes through via `addBuff`/`addOfferBuff` — so the cue is right regardless of how that engine
+question is settled. The combat-settle actions are excluded: the carry-back re-labels mid-fight Ruby gains as
+'Ruby' buffs and the replay already played this cue for them, so counting it would detonate every carried-back
+minion the instant the shop reopened. Pinned with a Frenzied Excavator case (which needs DISTINCT cardIds —
+three copies of one minion triple on play and collapse the board, quietly making such a test prove nothing).
+3588 tests.
+
+**Left for the owner's call — a real engine bug, not FX:** `battlecryPlayRubiesAll` applying Rubies with a
+bare `addBuff` means a Frenzied Excavator play does not fire the targets' `onRubyPlayed` effects at all — Ruby
+Broker pays no Gold, a Resonance Idol does not bounce. The two sibling factories both call `fireOnRubyPlayed`.
+Fixing it changes game behaviour in `packages/sim`, so it is flagged rather than folded into an FX PR.
+
+
 
 Two call sites, both string literals rather than a shared constant, because `directCalls.ts` builds the FX
 library's "played from code" map by scanning for a quoted id: a constant is invisible to that scan and the def

@@ -59,6 +59,17 @@ fired near a scene transition can outlive it.
 `⧉` loads a def as `<id>-copy`, which is the right default, but there is no rename of an existing def —
 renaming means duplicate, retype, save, delete the original, and re-point any binding by hand.
 
+### A signal keyed to the wrong probe looked correct in tests
+**Hit:** 2026-08-02, owner report — Frenzied Excavator played no Ruby cue, only the old buff tendril.
+The shop signal watched `rubiesOnThisTurn`, which only moves via `fireOnRubyPlayed`. Two live paths never
+call it: the tavern-offer path (deliberately) and `battlecryPlayRubiesAll` (apparently by oversight — the
+card that plays a Ruby on EVERY minion, i.e. the most visible case there is). Both gaps passed a green gate,
+because the tests were written against the same wrong assumption as the code.
+**Fix:** probe the `'Ruby'` buff COUNT instead, which every path goes through, and exclude the combat-settle
+carry-back. **Lesson for the log:** when a cue is derived from engine state, pick the probe every producer
+must touch, not the one the first producer happened to touch. A cue that depends on an optional call is a
+cue that will be silently dead for whichever card forgets it.
+
 ### The direct-call scanner reads comments
 **Hit:** 2026-08-01. A doc comment that *showed* the `playDef('<id>'` pattern registered a phantom def and
 failed CI. Deliberate (the scanner doesn't strip comments, so a commented-out call is still visible) and

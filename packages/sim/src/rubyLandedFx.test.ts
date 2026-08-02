@@ -46,6 +46,27 @@ describe('rubyLandedFx stamp (which cards a Ruby landed on)', () => {
     expect(next.rubyLandedFxUids).not.toContain('b1');
   });
 
+  /**
+   * Frenzied Excavator — owner report 2026-08-02: "the ruby effect didn't play, I saw the old tendril".
+   *
+   * `battlecryPlayRubiesAll` applies its Rubies with a bare `addBuff` and never calls `fireOnRubyPlayed`,
+   * unlike the two other board-wide Ruby factories. The first cut of this signal watched `rubiesOnThisTurn`,
+   * which only that call moves, so the single most Ruby-ish card in the set played nothing. Keying off the
+   * BUFF COUNT instead sees every path — and keeps seeing them whichever way the engine question is settled.
+   */
+  it('Frenzied Excavator names EVERY board minion, despite its bare addBuff path', () => {
+    // DISTINCT cardIds on purpose: three copies of one minion TRIPLE the moment anything is played into them,
+    // which collapses the board to a single golden body and quietly makes this test prove nothing.
+    const s = withRubyInHand({
+      hand: [card('f1', 'k_frenzied')],
+      board: [card('b1', 'stray'), card('b2', 'spore')],
+    });
+    const next = reduce(s, { type: 'play', uid: 'f1' });
+    // The Excavator joins the board as part of being played and is a friendly minion, so it takes one too.
+    expect(next.rubyLandedFxUids).toEqual(expect.arrayContaining(['b1', 'b2', 'f1']));
+    expect(next.rubyLandedFxSeq).toBe(1);
+  });
+
   /** An action with no Ruby in it must leave the signal alone, or the cue fires on unrelated turns. */
   it('does NOT stamp on an action with no Ruby played', () => {
     const s: RunState = { ...createRun(1), phase: 'recruit', embers: 20, board: [card('b1', 'stray')] };

@@ -829,9 +829,12 @@ export interface RunState {
    *  across the whole board (Frenzied Excavator, Ruby Excavation); the UI staggers the cue down this list so a
    *  seven-minion play reads as a sweep instead of one indistinct flash.
    *
-   *  The two halves are measured differently on purpose: a board minion is counted by `rubiesOnThisTurn`, an
-   *  offer by the `count` on its 'Ruby' buff entry — because the offer path deliberately never fires
-   *  `fireOnRubyPlayed` (that would pay out a Ruby Broker sitting in the shop) and so never bumps the counter. */
+   *  Measured off the 'Ruby' BUFF COUNT rather than `rubiesOnThisTurn`, because that counter only moves via
+   *  `fireOnRubyPlayed` and two live paths skip it — the offer path deliberately, Frenzied Excavator's
+   *  `battlecryPlayRubiesAll` apparently by oversight. Every path that applies a Ruby goes through
+   *  `addBuff`/`addOfferBuff`, so their per-source count is the one probe that sees all of them. Not stamped on
+   *  the combat-settle actions: the carry-back re-labels mid-fight Ruby gains as 'Ruby' buffs, and the replay
+   *  already played this cue for those. */
   rubyLandedFxUids?: string[];
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).

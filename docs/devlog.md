@@ -2,6 +2,12 @@
 
 ## 2026-08-02 — Beast/Kobold balance batch: Mammoth, Oona, Scavenger rework, two removals
 
+**Follow-ups (same day):** Mammoth reduced again to **+1/+1 improving +1/+1** (gilded +2/+2). Ninja Pal's art
+wired (`NinjaPal.png` → `b2_ninjapal`, strict name match). And a wiring hazard found + closed: with set-2's
+Whelp deleted, its attributed `Whelp.png` exact-matched set-1's token (ALSO named "Whelp") and overwrote that
+token's existing art on the next `art:wire --apply`. Reverted, and `wire-art` gained a RETIRED set — source
+files attributed to a removed card are skipped outright rather than re-owned by name-accident.
+
 Owner batch:
 
 - **Menagerie Mammoth** — asymmetric now: +2/+1, improving by **+2/+1 per summon** (gilded +4/+2 both ways).

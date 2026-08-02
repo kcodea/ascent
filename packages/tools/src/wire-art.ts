@@ -29,6 +29,16 @@ const ART_PX = 512;
  * which stays unwired on purpose. Every entry here is a case with exactly one plausible card, listed so it can
  * be reviewed rather than buried in matching logic.
  */
+/** RETIRED source files — attributed to a card that no longer exists, whose name now collides with a
+ *  DIFFERENT card. Skipped outright: re-owning attributed art by name-accident is exactly the guessing the
+ *  strict matcher exists to prevent. */
+const RETIRED = new Set<string>([
+  // Whelp.png was drawn for set 2's Whelp (Tamer's token, removed with Tamer 2026-08-02). Set 1's `whelpling`
+  // token is ALSO named "Whelp", so the file exact-matches a card it was never made for — and overwrote its
+  // existing art on the first run after the removal. The owner can re-attribute it deliberately if wanted.
+  'whelp',
+]);
+
 const ALIASES: Record<string, string> = {
   // misspelled in the source
   // (`chiurgeon` alias retired 2026-07-31: the card is Ayves now, so Ayves.png matches by NAME and the old
@@ -144,6 +154,7 @@ for (const job of JOBS) {
     if (!existsSync(full)) { console.log(`missing source dir: ${job.label}/${dir}`); continue; }
     for (const file of readdirSync(full).filter((f) => /\.(png|webp|jpe?g)$/i.test(f))) {
       const stem = file.replace(/\.(png|webp|jpe?g)$/i, '');
+      if (RETIRED.has(norm(stem))) continue; // attributed to a removed card — never re-owned by name-accident
       // A FULL-STEM alias wins before the variant convention: some trailing digits are part of a distinct
       // id's name (RuneOTheMenagerie2 = the set-2 twin), not "second art for the same id".
       const fullAlias = job.aliases[norm(stem)];

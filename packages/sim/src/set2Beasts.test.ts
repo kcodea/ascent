@@ -541,9 +541,9 @@ describe('set 2 — Moonlit Scavenger (owner rework 2026-08-02: Avenge summons a
   });
 });
 
-describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02: +2/+1 improving +2/+1)', () => {
-  it('gives each summoned Beast +2/+1, improving by +2/+1 per summon', () => {
-    // Mama Pup dies and leaves Pups behind: the first gets +2/+1, the next +4/+2 — the escalation is the whole
+describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02: +1/+1 improving +1/+1)', () => {
+  it('gives each summoned Beast +1/+1, improving by +1/+1 per summon', () => {
+    // Mama Pup dies and leaves Pups behind: the first gets +1/+1, the next +2/+2 — the escalation is the whole
     // card, so asserting a single grant would pass against a version that never improved.
     const r = simulate(
       [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
@@ -553,7 +553,7 @@ describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02: +2/+1 improvi
     const grants = (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
       .filter((b) => b.source === 'm0');
     expect(grants.length, 'the Mammoth granted nothing').toBeGreaterThan(1);
-    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), 'asymmetric + climbing').toEqual([[2, 1], [4, 2]]);
+    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), 'climbing per summon').toEqual([[1, 1], [2, 2]]);
   });
 
   it('…and the improved grant rides home on the summon-bonus carry-back', () => {

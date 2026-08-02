@@ -369,6 +369,17 @@ export function reduce(state: RunState, action: Action): RunState {
       next.rubyPowerFxHp = Math.max(0, rpDeltaH);
       next.rubyPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
     }
+    // RUBY LANDED FX: which minions had a Ruby played ON them this action, for the per-cast cue. Read as a delta
+    // of `rubiesOnThisTurn` (bumped by `fireOnRubyPlayed` on every recruit Ruby, whatever played it) so no play
+    // site has to remember to stamp anything, and so React batching can't swallow it — the same reasoning as the
+    // two power cues above. A minion SUMMONED with Rubies already on it (Geode Guardian's golems) is absent from
+    // the before-map and so counts from 0, which is correct: those are Rubies that just landed.
+    const rubiesBefore = new Map(state.board.map((c) => [c.uid, c.rubiesOnThisTurn ?? 0]));
+    const rubyLanded = next.board.filter((c) => (c.rubiesOnThisTurn ?? 0) > (rubiesBefore.get(c.uid) ?? 0)).map((c) => c.uid);
+    if (rubyLanded.length > 0) {
+      next.rubyLandedFxSeq = (next.rubyLandedFxSeq ?? 0) + 1;
+      next.rubyLandedFxUids = rubyLanded;
+    }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
     // identical to the minion instead of a separate Lantern-style aura.

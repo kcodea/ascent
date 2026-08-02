@@ -48,6 +48,7 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
+import { RUBY_STAGGER_MS } from './choreo/channels/rubyLanded';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -790,6 +791,43 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.rubyPowerFxSeq, run.rubyPowerFxAtk, run.rubyPowerFxHp, run.rubyPowerFxUid]);
+  // RUBY LANDED FX (owner ask 2026-08-01) — the shop half of the Ruby-landed cue: a detonation on each minion a
+  // Ruby was just played on. Distinct from the Ruby POWER cue above, which fires when your Rubies get stronger
+  // and deliberately never fires per cast; this one is per cast and says nothing about strength, so a card that
+  // does both (Crownvein) correctly shows both reads.
+  //
+  // Covers every recruit source at once — your drag from hand, a board-wide Shout, an End-of-Turn mint — because
+  // `rubyLandedFxUids` is derived in the reducer from a `rubiesOnThisTurn` delta rather than stamped per play
+  // site. The combat half is the `rubyFx` cue channel, off the `ruby` flag on the buff event.
+  const prevRubyLandedSeq = useRef(run.rubyLandedFxSeq);
+  useEffect(() => {
+    const seq = run.rubyLandedFxSeq;
+    if (seq === undefined || seq === prevRubyLandedSeq.current) return;
+    prevRubyLandedSeq.current = seq;
+    const uids = run.rubyLandedFxUids ?? [];
+    if (uids.length === 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    // One rAF first, for the same reason the cues above take one: the buffed cards re-render this commit, and
+    // measuring before the browser has laid them out reads the PREVIOUS geometry.
+    const raf = requestAnimationFrame(() => {
+      uids.forEach((uid, i) => {
+        // Measured inside the timer so a stagger that outlives a re-render (a triple collapsing three bodies
+        // into one) misses cleanly instead of firing at a stale rect.
+        const fire = (): void => {
+          const el = document.querySelector(`[data-uid="${uid}"]`);
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const x = r.left + r.width / 2;
+          const y = r.top + r.height / 2;
+          // Both anchors are the minion itself: the Ruby lands ON it, with nothing to travel between.
+          playDef('ruby-gem-apply', { source: { x, y }, target: { x, y } }); // literal — see RUBY_LANDED_DEF
+        };
+        if (i === 0) fire();
+        else timers.push(setTimeout(fire, RUBY_STAGGER_MS * i));
+      });
+    });
+    return () => { cancelAnimationFrame(raf); for (const t of timers) clearTimeout(t); };
+  }, [run.rubyLandedFxSeq, run.rubyLandedFxUids]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the

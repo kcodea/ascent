@@ -102,7 +102,7 @@ function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
 }
 
 function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number): void {
-  ctx.buff(target, a, h, self.uid);
+  ctx.buff(target, a, h, self.uid, true); // `true` = tag the log event as a Ruby, for the UI's Ruby-landed cue
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
   // and a plain `ctx.buff` is indistinguishable from any other combat buff. Combat-local (see `rubyGain`);
   // the recruit-phase equivalent is the `Ruby` entry in `buffs`.

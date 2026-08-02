@@ -813,6 +813,21 @@ export interface RunState {
    *  quest/rune tick, or the combat carry-back, whose source unit is gone by settle) — the UI falls back to the
    *  hand's Rubies for those, which is what actually got stronger. */
   rubyPowerFxUid?: string;
+  /** Bumped once per action in which one or more RUBIES LANDED on board minions — the recruit-phase half of the
+   *  Ruby-landed cue (the combat half rides the `ruby` flag on the `buff` combat event). Distinct from
+   *  `rubyPowerFxSeq` above, which fires when your Rubies get STRONGER and explicitly never per cast: this one
+   *  is per cast and says nothing about strength.
+   *
+   *  Derived from the before/after delta of each board card's `rubiesOnThisTurn` rather than stamped by the
+   *  play path, for the same reason the two power cues are: a scratch field set mid-action can be swallowed by
+   *  React batching, and `rubiesOnThisTurn` is already bumped by `fireOnRubyPlayed` for EVERY recruit Ruby —
+   *  your drag from hand, Crownvein's board-wide play, End of Turn mints, all of it — so one delta covers
+   *  every source without touching a single play site. */
+  rubyLandedFxSeq?: number;
+  /** Every minion a Ruby landed on this action, in board order. A LIST, not a single uid, because one card can
+   *  play Rubies across the whole board (Frenzied Excavator, Ruby Excavation); the UI staggers the cue down
+   *  this list so a seven-minion play reads as a sweep instead of one indistinct flash. */
+  rubyLandedFxUids?: string[];
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too

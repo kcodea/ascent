@@ -1438,6 +1438,53 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Runebloom Matriarch / Runekeg (combat half — owner audit 2026-08-02): a spell cast MID-FIGHT
+   *  (Fatecarver's Growth, Taragosa, Ashen Broodlord's Staff) buffs `count` random living `tribe` members,
+   *  exactly like the shop half. This half was missing entirely, so combat casts silently skipped her.
+   *  `excludeSelf` (Runekeg): "other Dwarves". Rune of the Matriarch doubles via `matriarchRepsFor`,
+   *  mirroring the recruit engine's wrapper. Golden doubles the magnitude. */
+  onSpellCastBuffRandomTribe: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe | '';
+    const a = num(params.attack, 3) * mul(self);
+    const h = num(params.health, 3) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    const reps = self.cardId === 'b2_runebloom' ? ctx.matriarchRepsFor(self.side) : 1;
+    for (let r = 0; r < reps; r++) {
+      const pool = ctx.living(self.side).filter(
+        (m) => (!tribe || m.tribe === tribe || m.tribe2 === tribe || !!m.universalTribe) && !(params.excludeSelf && m === self),
+      );
+      if (pool.length === 0) return;
+      const want = Math.min(num(params.count, 3), pool.length);
+      for (let i = 0; i < want; i++) {
+        const idx = ctx.rng.int(pool.length);
+        ctx.buff(pool.splice(idx, 1)[0]!, a, h, self.uid);
+      }
+    }
+  },
+
+  /** Fatecarver, branch A (combat half — owner audit 2026-08-02): each spell cast mid-fight buffs one living
+   *  minion of each type, deterministically in board order — the same walk as the recruit half, so seating
+   *  steers who benefits in combat too. Gated on the Choose One pick like the Growth branch. */
+  onSpellCastBuffOnePerTribe: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    const seen = new Set<string>();
+    for (const m of ctx.living(self.side)) {
+      if (m.universalTribe) { ctx.buff(m, a, h, self.uid); continue; } // its own slot, not every tribe's
+      const tribes = [m.tribe, m.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+      if (tribes.length === 0) continue;
+      if (tribes.every((t) => seen.has(t))) continue;
+      for (const t of tribes) seen.add(t);
+      ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   /** Archmagus Guel (combat half) — when a friendly spell is cast mid-fight (Taragosa's Growth), give
    *  `count` other random friendly minions +atk/+hp, scaling +1/+1 per 4 spells cast so far (the running
    *  per-side tally rides in the `spellCast` payload; the triggering cast is already counted, matching the

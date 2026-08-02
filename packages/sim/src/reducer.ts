@@ -3585,6 +3585,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     lawOfTeeth: f?.lawOfTeeth,
     tribeRallySlaughterExtra: s.questTribeRallySlaughter, // War Council: the tribe-scoped twin
     oldHuntStep: f?.oldHunt,
+    runeMatriarch: s.runeMatriarch || undefined, // the combat half of Runebloom's proc doubles too
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,
     boneThroneStep: s.boneThroneStep || undefined,

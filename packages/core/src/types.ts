@@ -1127,6 +1127,9 @@ export interface QuestCombatMods {
   runeFoodChain?: boolean;
   /** Rune of Attacking Gems: how many Rubies land on your whole board per friendly attack. */
   runeAttackingGems?: number;
+  /** Rune of the Matriarch: Runebloom Matriarchs trigger twice — threaded so the COMBAT half of her
+   *  per-spell proc doubles exactly like the shop half (owner audit 2026-08-02). */
+  runeMatriarch?: boolean;
   /** Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit. */
   runeOverflow?: number;
   /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
@@ -1863,6 +1866,9 @@ export interface CombatContext {
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat
    *  factory whose card text says **Improve** multiplies its improvement increment by this. */
   improveRepsFor(side: Side): number;
+  /** Rune of the Matriarch reps for this side (2 with the rune, else 1) — the combat mirror of the
+   *  recruit engine's `state.runeMatriarch` wrapper. */
+  matriarchRepsFor(side: Side): number;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
   beastsPlayedFor(side: Side): number;
   /** Per-side cards bought this recruit turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */

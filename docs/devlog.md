@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-02 — Mid-combat casts feed every spell-cast watcher (the Fatecarver audit)
+
+Owner report + audit ask: Fatecarver's Growth casts should proc Runebloom Matriarch, stack Thunderous
+Sovereign, etc. The audit enumerated every `on: 'spellCast'` effect and checked which had a COMBAT half:
+
+- **Already worked** (combat halves existed): Guel, Scalechanter's combat half, Spirit Worgen/Runescale's own
+  channels, Undead spell-attack, `spellCastBuffAll`, and — notably — **Thunderous Sovereign's accrual**
+  (`onSpellCastImproveSummon` has a core half + the per-uid carry-back); now pinned by test.
+- **Missing combat halves, FIXED**: **Runebloom Matriarch / Runekeg** (`onSpellCastBuffRandomTribe` — the
+  owner's board; combat casts now buff N random living tribe members, Rune of the Matriarch doubling threaded
+  into combat via a new `runeMatriarch` mod + `matriarchRepsFor` ctx accessor) and **Fatecarver's own branch
+  A** (`onSpellCastBuffOnePerTribe` — one living minion of each type per cast, board-order deterministic).
+- **Deliberately recruit-only** (shop-bound semantics, reported to the owner rather than forced): Ashscribe
+  ("first Shop spell each TURN" — turn bookkeeping), Spell Warden ("second spell RECASTS the first" — replaying
+  a shop spell mid-fight has no meaning for most shop spells), High King Mykel (threshold triggers adjacent
+  SHOUTS — a recruit mechanic; a combat half could ride the War Chorus machinery if ever wanted).
+
+Tests (`core/combat/spellCastWatchers.test.ts`): Runebloom procs per cast, Sovereign accrues + carries back,
+branch A procs off another caster's spell — the two new halves fail without the fix (stash-verified). Full
+gates + harness green (3596). Also this session: PR #791 (accounts spec) closed per owner — multiplayer scope
+shifting, to be re-evaluated.
+
 ## 2026-08-02 — Facetwright grants immediately, Gemcutting 1 Gold, all 27 hero portraits re-wired
 
 - **Rune of Facetwright** (owner fix): the first Facetwright's Choice lands the moment the rune is bought — it

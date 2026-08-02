@@ -289,7 +289,6 @@ export type EffectFactoryId =
   | 'deathrattleBuffFodder' // Burial Imp: Deathrattle permanently buffs your Fodder +atk/+hp, carried back (Demon)
   | 'avengeAddFodder' // Pit Supplier: Avenge (N) queues a Fodder into your next shop, carried back (Demon)
   | 'avengeGrantSpellPower' // Spell Appraiser: Avenge (N) permanently raises run-wide spell power, carried back
-  | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
   | 'scConsumeWeakestBuffDemons' // (retired from Speed Demon) Start of Combat — consume your weakest minion, Demons gain % of its stats
@@ -456,7 +455,6 @@ export type EffectFactoryId =
   | 'deathrattleCastTribeAttack' // Anubis: Echo casts Lantern of Souls
   | 'onSellDiscover' // Salvatore McKlusky: selling this opens Discovers
   | 'deathrattleGainRandomMinion' // Lab Experiment: Echo conjures a random minion of a tier
-  | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc;
   | 'getRubies' // Set 2 — Shout/Rally: mint N Rubies into hand
   | 'endOfTurnGetRubies' // Set 2 — Wardstone Jeweler: End of Turn, mint Rubies (Warding Ruby)
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
@@ -1540,7 +1538,7 @@ export type CombatEvent = (
   // leaving a Ruby indistinguishable in the log; the UI needs to tell them apart to play the Ruby cue on the
   // minion that received it (`ruby-gem-apply`) without firing on all 40-odd other buff sources.
   | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true }
-  | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
+  | { type: 'improve'; target: string; amount: number; display?: number } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)

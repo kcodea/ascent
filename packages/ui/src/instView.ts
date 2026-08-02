@@ -5,7 +5,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, alternatingBuffText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  attackGrantImproveText, copyCastSpellText, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -16,6 +16,8 @@ export interface LiveTextParams {
   golden: boolean;
   /** Rune of the Mammoth owned — the Mammoth's live text goes 1:1 symmetric. */
   runeMammoth?: boolean;
+  /** Runes that change a specific card's printed RULE — surfaced as a green note on that card. */
+  runeFlags?: RuneTextFlags;
   spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
   /** Rune of Mastery: how many times an Improve step applies (2 with the rune, else 1). Spirit Worgen's
@@ -145,7 +147,12 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   // Golden card whose live text resolved (differs from the printed fallback) → that IS the golden-aware live
   // value; feed it as the golden text. Otherwise fall back to the printed goldenText.
   const goldenBase = p.golden && text !== c.text ? text : c.goldenText;
-  return { text: text + metric, goldenText: goldenBase !== undefined ? goldenBase + metric : undefined };
+  // RUNE-NOTE post-pass (owner rule 2026-08-02): a rune that changes this card's printed RULE says so on the
+  // card, composing with whatever live values the chain injected above. Both variants carry it.
+  const runeNote = runeModifiedNote(c.id, p.runeFlags);
+  const noted = runeNote ? `${text} ${runeNote}` : text;
+  const notedGolden = goldenBase !== undefined && runeNote ? `${goldenBase} ${runeNote}` : goldenBase;
+  return { text: noted + metric, goldenText: notedGolden !== undefined ? notedGolden + metric : undefined };
 }
 
 /**
@@ -171,7 +178,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -194,6 +201,7 @@ export function instView(
     keeperFirstSpellName: inst.boardFirstSpellId ? CARD_INDEX[inst.boardFirstSpellId]?.name : undefined,
     topTribe: live?.topTribe,
     runeMammoth: live?.runeMammoth,
+    runeFlags: live?.runeFlags,
     rubyBonus: live?.rubyBonus,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
     taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught

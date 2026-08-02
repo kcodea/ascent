@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-02 — Two audits: rune-modified card text goes live everywhere; combat accruals tick in real time
+
+**Audit A — runes that modify a card's RULE (owner ask, generalizing the Rune of the Mammoth pattern).**
+Swept all 96+ runes for ones that change how a SPECIFIC card behaves. Found four whose card kept printing the
+un-modified rule; each now carries a green live note on every surface (a `runeModifiedNote` post-pass over the
+shared text chain, so it composes with every value-injecting helper and reaches shop, board, hand AND combat):
+
+- **Runebloom Matriarch** + Rune of the Matriarch → "Triggers twice."
+- **Ruby Broker** + Rune of Brokerage → "No per-turn limit" (the printed "(three times per turn)" was wrong).
+- **Gemheart Golem** + Rune of Living Treasure → the granted Echo is now printed on the token.
+- **Facetwright's Choice** + Rune of Facetwright → "Gives BOTH effects."
+
+Already-live and verified in passing: Rune of the Mammoth (yesterday's pattern), Rune of Pillaging (Gold
+Pouch value), Rune of Mastery's accrual doubling (folds through the accrued values). Quests: none currently
+modify a specific card's printed rule (they grant cards or arm combat flags) — nothing to do there.
+
+**Audit B — combat accruals must tick the card text in real time (owner report: Mammoth frozen mid-fight).**
+The replay folds `improve` events into the unit's live `summonBonus`; a factory that mutates the accrual
+WITHOUT logging freezes its printed value. Enumerated every accrual-writing combat factory against its logs:
+
+- **Silent accruers, FIXED** (now log `improve`; the event gains an optional `display` for cards whose
+  narrated step differs from the folded delta — Mammoth logs amount 1 proc / display +3):
+  **Menagerie Mammoth** (the report), **Broodwright**, **Rouge Rogue**, **Thundeer**, **Hunter**.
+- **Mammoth also now honours Rune of Mastery** (its Improve doubles like Kennelmaster's — it silently didn't).
+- **Already correct**: Kennelmaster/Oona/Sovereign/Karthus/Crypt Drake/Trophy Stalker/Monk (improve),
+  Guel/Runescale/Tara (spellProgress), Sergeant (hpGrant), Thundering Abomination (EG permaGain fold).
+- **Two more ORPHANED factories deleted** (schema-registered, zero cards — the Rouge-Rogue hazard class):
+  `rallyImproveSummonAura`, `deathrattleBuffImpsImproving`.
+- Replay narration now reads "X's effect improves (+N)" off `display` and stays quiet on 0-display ticks.
+
+Tests: `improveEvents.test.ts` (Mammoth proc+display, Thundeer, Hunter through real fights),
+`runeNotes.test.ts` (all four notes + no-leak). Full gates + harness green (3606).
+
 ## 2026-08-02 — Mammoth back to +3 Attack; Rune of Copycat (the first GIFT spell); Rune of the Mammoth
 
 - **Menagerie Mammoth** (owner, third pass today): back to ATTACK-only — +3 Attack, improving by +3 per

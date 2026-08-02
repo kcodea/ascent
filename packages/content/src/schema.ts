@@ -320,7 +320,6 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyTribeAuraGrowing',
   'rallyGiveDemonAttack',
   'rallyDamageRandomEnemy',
-  'rallyImproveSummonAura',
   'avengeShieldAttack',
   'endOfTurnGrantSpellChoice',
   'spellRallyDoubleNext',
@@ -364,7 +363,6 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleCastTribeAttack',
   'onSellDiscover',
   'deathrattleGainRandomMinion',
-  'deathrattleBuffImpsImproving',
   // Set 2 — Kobolds / Rubies
   'getRubies',        // Shout/Rally: mint N Rubies into hand (base 1/1 + rubyBonus)
   'endOfTurnGetRubies', // Wardstone Jeweler: End of Turn, mint Rubies (Warding Ruby)

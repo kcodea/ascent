@@ -236,6 +236,22 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
   return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
 }
 
+/**
+ * Cards whose BEHAVIOUR a rune changes must say so on the card (owner rule 2026-08-02, following the Rune of
+ * the Mammoth pattern): the printed rule is inaccurate the moment the rune is owned. Applied as a POST-pass
+ * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
+ * like every live value.
+ */
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean }
+export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
+  if (!flags) return null;
+  if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
+  if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Rune of Brokerage).}}';
+  if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Echo: summon an exact copy of this without Echo (Rune of Living Treasure).}}';
+  if (flags.facetwright && cardId === 'facetwright') return '{{Gives BOTH effects (Rune of Facetwright).}}';
+  return null;
+}
+
 export function cadenceProgressText(cardId: string, eotTick: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
   // Any "every N turns" End-of-Turn effect: Frontdrake's Dragon conjure, Money Maker's card grant, or

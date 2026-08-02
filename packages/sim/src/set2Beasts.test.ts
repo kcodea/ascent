@@ -541,9 +541,9 @@ describe('set 2 — Moonlit Scavenger (owner rework 2026-08-02: Avenge summons a
   });
 });
 
-describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02: +1/+1 improving +1/+1)', () => {
-  it('gives each summoned Beast +1/+1, improving by +1/+1 per summon', () => {
-    // Mama Pup dies and leaves Pups behind: the first gets +1/+1, the next +2/+2 — the escalation is the whole
+describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02, third pass: +3 Attack improving +3)', () => {
+  it('gives each summoned Beast +3 Attack, improving by +3 per summon — no Health without the rune', () => {
+    // Mama Pup dies and leaves Pups behind: the first gets +3/+0, the next +6/+0 — the escalation is the whole
     // card, so asserting a single grant would pass against a version that never improved.
     const r = simulate(
       [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
@@ -553,7 +553,18 @@ describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02: +1/+1 improvi
     const grants = (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
       .filter((b) => b.source === 'm0');
     expect(grants.length, 'the Mammoth granted nothing').toBeGreaterThan(1);
-    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), 'climbing per summon').toEqual([[1, 1], [2, 2]]);
+    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), 'Attack-only, climbing per summon').toEqual([[3, 0], [6, 0]]);
+  });
+
+  it('Rune of the Mammoth makes the grant 1:1 symmetric — +3/+3, +6/+6', () => {
+    const r = simulate(
+      [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
+       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 9, health: 9999 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'], questMods: { runeMammoth: true } }), combatSide({ tier: 1 }));
+    const grants = (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
+      .filter((b) => b.source === 'm0');
+    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), '1:1 with the rune').toEqual([[3, 3], [6, 6]]);
   });
 
   it('…and the improved grant rides home on the summon-bonus carry-back', () => {

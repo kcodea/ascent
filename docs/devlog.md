@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-02 — Mammoth back to +3 Attack; Rune of Copycat (the first GIFT spell); Rune of the Mammoth
+
+- **Menagerie Mammoth** (owner, third pass today): back to ATTACK-only — +3 Attack, improving by +3 per
+  summon (gilded +6 / +6). The factory keeps the procs shape; the live-text helper returns to the
+  "+N Attack" form.
+- **Rune of Copycat** (epic, 5): "Get a **Copycat**" — the first GIFT spell. A targeted token that copies a
+  friendly minion EXACTLY (stats, buffs, keywords, gilding, every per-instance accrual — a `structuredClone`
+  with a fresh uid). Deliberately NOT a Shop spell: a new reducer gift branch resolves it once — no
+  Yazzus/Nimbus/Ancient-Runes multipliers, no cast bookkeeping, no spellCast watchers, no
+  Gemscript/Cadence/Contraband riders — and it still counts as a card played. **Design note:** the gate is a
+  new `CardDef.gift` flag, NOT `token` — the first draft gated on `token` and silenced Implosion's Nimbus
+  doubling (Implosion is a token that IS a real Shop spell; the existing test caught it).
+- **Rune of the Mammoth** (epic, 4): Menagerie Mammoths also give Health, 1:1 — +3/+3 improving +3/+3
+  (gilded +6/+6). A `runeMammoth` combat flag threaded like the Matriarch's (`mammothHealthFor` ctx accessor),
+  and the Mammoth's live text goes symmetric on every surface the moment the rune is owned — including at
+  zero procs, where the printed "+3 Attack" would under-sell the real +3/+3.
+
+Both runes marked epic (they live in the Epic forge roster) — flag if either should be basic. Tests: Mammoth
+Attack-only + the rune's 1:1 in combat; a 5-test Copycat suite (exact copy incl. gilding + accruals, the
+not-a-Shop-spell contract with a surviving Nimbus charge, fizzle, full-hand, def shape). Full gates + harness
+green (3602).
+
 ## 2026-08-02 — Mid-combat casts feed every spell-cast watcher (the Fatecarver audit)
 
 Owner report + audit ask: Fatecarver's Growth casts should proc Runebloom Matriarch, stack Thunderous

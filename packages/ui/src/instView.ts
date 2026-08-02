@@ -14,6 +14,8 @@ import {
 export interface LiveTextParams {
   tier: number;
   golden: boolean;
+  /** Rune of the Mammoth owned — the Mammoth's live text goes 1:1 symmetric. */
+  runeMammoth?: boolean;
   spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
   /** Rune of Mastery: how many times an Improve step applies (2 with the rune, else 1). Spirit Worgen's
@@ -112,7 +114,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summitTierText(c.id, p.tier7Access ?? false) ?? // Beyond the Summit: only promise Tier 7 when reachable
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
-            attackGrantImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Menagerie Mammoth: escalating Attack grant
+            attackGrantImproveText(c.id, p.summonBonus ?? 0, p.golden, p.runeMammoth) ?? // Menagerie Mammoth: escalating grant (+Health with the rune)
             soldProgressText(c.id, p.soldProgress ?? 0) ?? // Runic Archivist: sales still owed
             hunterText(c.id, p.summonBonus ?? 0, p.golden) ??
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
@@ -169,7 +171,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -191,6 +193,7 @@ export function instView(
     firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,
     keeperFirstSpellName: inst.boardFirstSpellId ? CARD_INDEX[inst.boardFirstSpellId]?.name : undefined,
     topTribe: live?.topTribe,
+    runeMammoth: live?.runeMammoth,
     rubyBonus: live?.rubyBonus,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
     taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught

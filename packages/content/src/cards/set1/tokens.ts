@@ -54,6 +54,25 @@ export const TOKENS: CardDef[] = [
     imp: true, // the target of imp-buff effects (Fodder Feeder / Imp King / Brood / Ritualist / Bane)
   },
   {
+    // Rune of Copycat's GIFT (owner spec 2026-08-02). Like the Triple Reward, it is NOT a Shop spell: the
+    // reducer's token-gift branch resolves it exactly once — no cast tallies, no spell multipliers, no
+    // spellCast watchers, no first/last-spell memory — and it still counts as a card played.
+    id: 'copycat',
+    name: 'Copycat',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 0,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellCopyTargetExact' }],
+    token: true,
+    gift: true,
+    text: 'Copy a friendly minion **exactly** — stats, buffs and improvements included.',
+  },
+  {
     id: 'discoverspell',
     name: 'Triple Reward',
     tribe: 'neutral',

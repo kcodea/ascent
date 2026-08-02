@@ -162,10 +162,11 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 6,
     health: 8,
     keywords: [],
-    // Owner rebalance 2026-08-02 (second pass, from +2/+1): +1/+1 improving +1/+1 (gilded +2/+2 both ways).
-    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffImproveSelf', params: { tribe: 'beast', attack: 1, health: 1, stepAttack: 1, stepHealth: 1 } }],
-    text: 'When you summon a Beast in combat, give it **+1/+1**, improving by **+1/+1** permanently.',
-    goldenText: 'When you summon a Beast in combat, give it **+2/+2**, improving by **+2/+2** permanently.',
+    // Owner rebalance 2026-08-02 (third pass): back to ATTACK-only +3 improving +3 (gilded +6 / +6). The
+    // Rune of the Mammoth turns the grant symmetric (1:1 Health) — see `mammothHealthFor` in the factory.
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffImproveSelf', params: { tribe: 'beast', attack: 3, health: 0, stepAttack: 3, stepHealth: 0 } }],
+    text: 'When you summon a Beast in combat, give it **+3 Attack**, improving by **+3 Attack** permanently.',
+    goldenText: 'When you summon a Beast in combat, give it **+6 Attack**, improving by **+6 Attack** permanently.',
   },
   {
     // Reuses Solaris Fang's `avengeShieldAttack` verbatim — Ward + an immediate out-of-turn strike every 4

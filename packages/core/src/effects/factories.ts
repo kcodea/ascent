@@ -2868,8 +2868,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const tribe = (str(params.tribe) || 'beast') as Tribe;
     if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
     const procs = self.summonBonus ?? 0;
-    const a = (num(params.attack, 2) + procs * num(params.stepAttack, 2)) * mul(self);
-    const h = (num(params.health, 1) + procs * num(params.stepHealth, 1)) * mul(self);
+    const a = (num(params.attack, 3) + procs * num(params.stepAttack, 3)) * mul(self);
+    // Rune of the Mammoth (owner 2026-08-02): the Attack-only grant becomes 1:1 symmetric — +3/+3, +6/+6, …
+    const h = ctx.mammothHealthFor(self.side)
+      ? a
+      : (num(params.health, 0) + procs * num(params.stepHealth, 0)) * mul(self);
     ctx.buff(minion, a, h, self.uid);
     self.summonBonus = procs + 1; // permanent — carried back keyed to this body's sourceUid
   },

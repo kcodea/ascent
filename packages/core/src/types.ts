@@ -200,6 +200,7 @@ export type EffectFactoryId =
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
   | 'buffRightmostSlotPermanent' // Set 2 — Market Tormentor (Shout): the right-most Shop SLOT is buffed for the run
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
+  | 'spellCopyTargetExact' // Copycat (rune gift): an EXACT copy of the target friendly minion, to hand
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
@@ -539,6 +540,10 @@ export interface CardDef {
    *  of them are three different cards wearing one id, and a triple would have to silently pick one spell and
    *  bin the other two (owner ruling 2026-07-24: Mage-Pups cannot be tripled in any circumstance). */
   noTriple?: boolean;
+  /** A GIFT spell (Copycat): a token that is NOT a Shop spell — the reducer resolves it once, with no cast
+   *  bookkeeping and no multipliers. Narrower than `token` on purpose: Implosion is a token AND a real
+   *  Shop spell, so gating on `token` alone silenced its Nimbus doubling (caught by test 2026-08-02). */
+  gift?: boolean;
   /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
    *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
   ascendAt?: number;
@@ -1001,6 +1006,8 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // with a Sunmane Herald that strikes on arrival; warChorus = your first Rally each combat fires your
   // left-most Shout.
   | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus'
+  // Rune of the Mammoth: Menagerie Mammoths give Health too (1:1 with the Attack grant).
+  | 'runeMammoth'
   // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
   // plays a Ruby on your whole board.
   | 'runeFoodChain' | 'runeAttackingGems'
@@ -1130,6 +1137,8 @@ export interface QuestCombatMods {
   /** Rune of the Matriarch: Runebloom Matriarchs trigger twice — threaded so the COMBAT half of her
    *  per-spell proc doubles exactly like the shop half (owner audit 2026-08-02). */
   runeMatriarch?: boolean;
+  /** Rune of the Mammoth: Menagerie Mammoths' grant is 1:1 symmetric (+3/+3 instead of +3 Attack). */
+  runeMammoth?: boolean;
   /** Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit. */
   runeOverflow?: number;
   /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
@@ -1869,6 +1878,8 @@ export interface CombatContext {
   /** Rune of the Matriarch reps for this side (2 with the rune, else 1) — the combat mirror of the
    *  recruit engine's `state.runeMatriarch` wrapper. */
   matriarchRepsFor(side: Side): number;
+  /** Rune of the Mammoth for this side — the Mammoth grant gives Health 1:1 with its Attack. */
+  mammothHealthFor(side: Side): boolean;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
   beastsPlayedFor(side: Side): number;
   /** Per-side cards bought this recruit turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */

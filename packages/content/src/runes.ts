@@ -807,6 +807,27 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Set 2 rune batch (owner roster 2026-07-29) — "get a named minion" runes. Each names a card that now
   // exists, so they are pure grants; the rest of the roster needs new reward kinds and is not shipped yet.
   {
+    // Owner add 2026-08-02: a GIFT spell (not a Shop spell — see the token-gift branch in the reducer) that
+    // copies a friendly minion EXACTLY: stats, buffs, keywords, gilding, per-instance improvements.
+    id: 'rune_copycat',
+    name: 'Rune of Copycat',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Copycat**.',
+    reward: { kind: 'grant', cards: ['copycat'] },
+  },
+  {
+    // Owner add 2026-08-02: the Mammoth's Attack-only grant becomes 1:1 symmetric (+3/+3, +6/+6, …).
+    id: 'rune_mammoth',
+    name: 'Rune of the Mammoth',
+    cost: 4,
+    epic: true,
+    text: 'Your **Menagerie Mammoths** also give **Health**, 1:1 with their Attack.',
+    previewCards: ['b2_mammoth'], // text names it — the forge hover shows the card
+    reward: { kind: 'combatFlag', flag: 'runeMammoth' },
+    sets: ['set2'], // the Mammoth is a set-2 Beast
+  },
+  {
     // Owner add 2026-08-02: the set-1 Taurus (T6, Engraves its neighbors), rune-granted — same named-minion
     // shape as Rune of Yazzus. Grants from CARD_INDEX, so it works regardless of the run's pinned set.
     id: 'rune_taurus',

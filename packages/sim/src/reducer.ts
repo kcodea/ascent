@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -902,6 +902,20 @@ function reduceCore(state: RunState, action: Action): RunState {
             return s;
           }
           s.chooseOne = { uid: card.uid, cardId: def.id, spell: true };
+          return s;
+        }
+        // A GIFT (Copycat — owner spec 2026-08-02): NOT a Shop spell. It resolves its effect exactly ONCE —
+        // no Yazzus/Nimbus/Ancient-Runes multipliers, and none of the cast bookkeeping
+        // (`castSpell`/`noteSpellCast`): no tallies, no first/last-spell memory the copy effects read, no
+        // spellCast watchers, no Gemscript/Cadence/Contraband riders. It still counts as a card played.
+        // Gated on `gift`, NOT `token` — Implosion is a token that IS a real Shop spell (test-caught).
+        if (def.gift) {
+          const giftTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
+          if (def.target && !giftTarget) return state; // aimed gift with no valid friendly target → fizzle, kept
+          applyCastEffects(makeContext(s), def, giftTarget);
+          s.hand.splice(i, 1);
+          s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
+          checkTriples(s); // the copy can complete a triple
           return s;
         }
         // Yazzus: while it's on the board, an *aimed* spell's effect resolves N times (2, or 3 if golden)
@@ -3586,6 +3600,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     tribeRallySlaughterExtra: s.questTribeRallySlaughter, // War Council: the tribe-scoped twin
     oldHuntStep: f?.oldHunt,
     runeMatriarch: s.runeMatriarch || undefined, // the combat half of Runebloom's proc doubles too
+    runeMammoth: s.questFlags?.runeMammoth || undefined, // Mammoths give Health 1:1
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,
     boneThroneStep: s.boneThroneStep || undefined,

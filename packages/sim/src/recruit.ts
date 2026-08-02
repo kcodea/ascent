@@ -3148,6 +3148,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Copycat (rune gift — owner spec 2026-08-02): an EXACT copy of the target friendly minion into hand.
+   *  A spread of the live BoardCard — stats, keywords, gilding, enchants and every per-instance accrual
+   *  (summonBonus, spellProgress, eotTick, …) — with only the uid re-minted. Deliberately NOT `conjuredStats`
+   *  or a fresh-from-def conjure: "exactly" is the whole card. Hand-cap guarded like every conjure. */
+  spellCopyTargetExact: (ctx, self, params, { minion }) => {
+    // Spell factories receive the target as `minion` (see applyCastEffects) — `self` is the same object here.
+    const target = minion;
+    if (!target) return;
+    if (ctx.state.hand.length >= CONFIG.handMax) return; // full hand — the gift fizzles into nothing, like a full-hand conjure
+    const clone = structuredClone(target);
+    clone.uid = `b${ctx.state.uidSeq++}`;
+    ctx.state.hand.push(clone);
+  },
+
   onSpellCastBuffRandomTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
     // `excludeSelf` (Runekeg): "other Dwarves" — the caster never buffs itself.
@@ -4653,7 +4667,7 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
 
 /** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`
  *  so target buffs (Spirit Fire) record it for the inspect breakdown. */
-function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard): void {
+export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard): void {
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
@@ -4788,6 +4802,7 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
   }
 }
 
+export
 function makeContext(state: RunState): RecruitContext {
   const ctx: RecruitContext = {
     state,

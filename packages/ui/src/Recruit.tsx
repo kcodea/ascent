@@ -2718,7 +2718,17 @@ export function Recruit() {
     if (run.recruitFxSeq === prevFxSeq.current) return;
     prevFxSeq.current = run.recruitFxSeq;
     if (run.recruitBuffFx.length === 0) return;
-    replayBuffFxEvents(run.recruitBuffFx);
+    // A Ruby landing owns its own cue (`ruby-gem-apply`), so the generic buff tendril is suppressed for the
+    // cards it hit THIS action — otherwise a Frenzied Excavator draws seven tendrils under seven detonations
+    // and neither read survives (owner ask 2026-08-02). Correlated by uid rather than by tagging the buff
+    // event, because "was this stat gain a Ruby" is already answered by the Ruby signal the same action
+    // computes; a second source of that truth could disagree with the first.
+    const rubyOwned = new Set(run.rubyLandedFxUids ?? []);
+    const events = rubyOwned.size > 0
+      ? run.recruitBuffFx.filter((e) => !rubyOwned.has(e.targetUid))
+      : run.recruitBuffFx;
+    if (events.length === 0) return;
+    replayBuffFxEvents(events);
   }, [run.recruitFxSeq]);
 
   // AURA WAVE: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom a tribe-colored wave

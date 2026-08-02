@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-02 — Ales ignored spell power (owner board report) — the last two stat-spell factories fold it now
+
+Owner report with screenshots: at +1/+1 spell power, a Defensive Ale landed its printed +0/+4. Not
+retroactivity — `spellBuffRandomFriendlies` (Defensive / Bloody Ale) simply never read the run's spell bonus.
+The audit swept every stat-granting spell factory: exactly TWO skipped the fold — that one and
+`spellBuffLeftmost` (Champion's Ale). Both now fold spell power under `spellBuffTarget`'s rule (either
+component > 0 → both halves fold), and `spellDisplayText` gains their display branches so the printed number
+goes live too (Defensive Ale at +1/+1 power reads "{{+1/+5}}"; Bloody "{{+5/+1}}"; Champion's "{{+7/+7}}").
+`spellBuffTavern` (an Apples Choose-One branch) stays flat deliberately — the Crest of the Climb precedent
+(Choose-One option text isn't greened). Everything else already folded: Growth, Spirit Fire, Shatter, Patch
+Job, Front to Back, Hoardflame, Lantern Light/of Souls, Staff of Guel, Fleeting Vigor, Implosion.
+
+Tests: cast-side (+1/+5 landing on the owner's exact shape, +7/+7 leftmost) + display-side (all three live
+pairs, un-greened at zero power). A fixture lesson pinned in a comment: three identical board minions TRIPLE
+after the cast and eat the uids. Full gates + harness green (3615).
+
 ## 2026-08-02 — Copycat spell art wired
 
 `Spells/Copycat.png` → the Copycat gift spell, strict name match. (The rune TABLETS for Rune of Copycat and

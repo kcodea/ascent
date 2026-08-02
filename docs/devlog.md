@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-08-02 — Compendium: +15% breathing room between cards and rows
+
+Owner ask. Row gap 42 → 48.3px, column gap 22 → 25.3px. The auto-fill column MINIMUM grows by the same 15%
+(`--cw + 16px` → `+ 18.4px`) — without it the grid simply packs one more column per row and the added column
+gap is immediately eaten, which is the opposite of the ask. Live-verified: gaps read 48.3/25.3 and the column
+count holds (6 at 60% zoom, unchanged).
+
 ## 2026-08-02 — Compendium: in-game plates + zoom; Balance Report: placement capture, hero slice, placement views
 
 **Compendium (owner asks).** Every card now renders with the same carved PLATE it wears in hand (`plated` —

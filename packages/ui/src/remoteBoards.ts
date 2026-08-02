@@ -247,6 +247,7 @@ export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: strin
     offered_runes: t.offeredRunes, picked_runes: t.pickedRunes,
     offered_cards: t.offeredCards, bought_cards: t.boughtCards,
     tier_by_wave: t.tierByWave,
+    placement: t.placement ?? null, // lobby finish 1-8; null on any non-lobby row
   };
   try {
     // Prefer the full row; on a pre-migration DB (columns absent) fall back column-set by column-set so

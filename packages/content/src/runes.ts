@@ -389,14 +389,14 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'gainGold', amount: 7, immediate: true },
   },
   {
-    // Owner clarification 2026-07-31: ALL of it recurs — a Gold Font (the set-1 max-Gold spell, id
-    // `manafont`) plus 2 random Shop spells, every turn.
+    // Owner rebalance 2026-08-02: BOUNDED to 2 turns (it recurred for the whole run). `turns` on the reward
+    // is the general mechanism — see `questRecurringLimited`.
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
     cost: 5,
-    text: '**End of Turn:** get a **Gold Font** and **2 random Shop spells**.',
+    text: 'Get a **Gold Font** and **2 random spells** at End of Turn, for the **next 2 turns**.',
     previewCards: ['manafont'], // text names it — the forge hover shows the card
-    reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy' },
+    reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy', turns: 2 },
   },
   {
     // The BASIC route to Tier 7 (Summit is parked, so no rift grants it). Every 2nd shop, Discover a Tier 7

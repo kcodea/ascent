@@ -626,11 +626,12 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 
-  it('Rune of Quick Study: arms the recurring per-turn payout, nothing immediate', () => {
-    // Owner clarification 2026-07-31: the whole payout recurs (Gold Font + 2 Shop spells, every turn) —
-    // the immediate 3-spell grant was the pre-clarification shape. The payout itself is pinned below.
+  it('Rune of Quick Study: arms a 2-TURN payout, nothing immediate', () => {
+    // Owner rebalance 2026-08-02: the payout is BOUNDED to 2 turns, so it arms the limited list rather than
+    // the run-long one (the full lifecycle is pinned in quickStudyTurns.test.ts).
     const s = buyRune('rune_quick_study', 10, { tier: 3, hand: [] });
-    expect(s.questRecurringEndOfTurn).toContain('quickStudy');
+    expect(s.questRecurringLimited?.[0]).toMatchObject({ effect: 'quickStudy', turnsLeft: 2 });
+    expect(s.questRecurringEndOfTurn ?? []).not.toContain('quickStudy');
     expect(s.hand).toHaveLength(0);
   });
 

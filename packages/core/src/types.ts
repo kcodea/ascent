@@ -848,7 +848,9 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
+  /** `turns` (optional) BOUNDS the recurrence: it fires that many End-of-Turns and then stops, instead of
+   *  lasting the run. Absent = forever, which is what every effect but Quick Study wants. */
+  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }

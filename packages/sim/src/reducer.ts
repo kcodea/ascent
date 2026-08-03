@@ -3269,7 +3269,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'recurringEndOfTurn':
       // Echoing Roar / The Hoard Wakes: a recurring End-of-Turn effect fired every turn for the rest of the run.
-      (s.questRecurringEndOfTurn ??= []).push(r.effect);
+      // `turns` bounds the recurrence (Quick Study); without it the effect lasts the run, as before.
+      if (r.turns) (s.questRecurringLimited ??= []).push({ effect: r.effect, turnsLeft: r.turns });
+      else (s.questRecurringEndOfTurn ??= []).push(r.effect);
       break;
     case 'gainGold':
       // `immediate` → spend it THIS shop (Rune of Small Fortune: "Get N Gold immediately"). Otherwise bank it

@@ -5653,6 +5653,16 @@ export function applyEndOfTurn(state: RunState): void {
   for (const eff of state.questRecurringEndOfTurn ?? []) {
     for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
   }
+  // TURN-LIMITED recurrences (Rune of Quick Study: 2 turns). Fired the same way, then ticked down ONCE for
+  // the turn — not once per Chronos repeat, or a doubled End of Turn would burn the limit twice as fast.
+  const limited = state.questRecurringLimited;
+  if (limited?.length) {
+    for (const entry of limited) {
+      for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, entry.effect); fires++; }
+      entry.turnsLeft -= 1;
+    }
+    state.questRecurringLimited = limited.filter((e) => e.turnsLeft > 0);
+  }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).
   state.lastEotFires = (state.lastEotFires ?? 0) + fires;

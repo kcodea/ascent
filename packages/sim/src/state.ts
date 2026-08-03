@@ -988,6 +988,10 @@ export interface RunState {
   questGoldTribeBuff?: { tribe: Tribe; per: number; attack: number; health: number; tick: number };
   /** War Council: the tribe whose Rallies and Slaughters trigger an extra time. */
   questTribeRallySlaughter?: Tribe;
+  /** Recurrences with a TURN LIMIT (Rune of Quick Study: 2 turns). Kept beside the unlimited list rather
+   *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
+   *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
+  questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
   questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */

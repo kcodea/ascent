@@ -1,0 +1,137 @@
+# FX vocabulary — the shared words for how an effect plays
+
+The canonical terms for describing combat and shop visuals. Owner-approved 2026-08-02.
+
+**Why this exists.** ASCENT runs a lot of interacting math at once, and the next phase of visual work is
+aimed at **visual clarity and information-telling animation**: an effect should tell the player enough to
+understand what actually happened. That is impossible to specify without shared words — "play it twice" and
+"play it on each twice" are different animations carrying different truths, and English alone does not
+separate them.
+
+**These words are binding.** Use them in requests, in code, in commit messages, in param names. If a needed
+idea has no word here, add one rather than describing it ad hoc — an undefined term is how two people ship
+two different animations from one sentence.
+
+---
+
+## The shape: traversal × repetition
+
+The load-bearing insight, and the thing a flat "stagger" cannot express. Two independent levels:
+
+```
+cascade( stack(2) )
+  └ OUTER: recipient → recipient        └ INNER: N hits on THIS recipient
+```
+
+- **Non-gilded Frenzied Excavator** — *a cascade of singles.*
+- **Gilded Frenzied Excavator** — *a cascade of 2-stacks.* NOT "two cascades".
+
+Two cascades says *"something happened to everyone, twice"*. A cascade of 2-stacks says *"each unit got
+two"* — which is what the card does. Same events, different claim.
+
+---
+
+## Who
+
+| term | meaning |
+|---|---|
+| **subject** | the unit the moment is *about* — the card that acted (the Excavator) |
+| **recipient** | a unit the effect plays on |
+| **scope** | which units are recipients: `self` · `neighbours` · `allies` · `board` |
+
+A unit can be BOTH. See "the subject is an ordinary recipient" below.
+
+## Order — how recipients are traversed
+
+| term | meaning |
+|---|---|
+| **cascade** | left → right in quick succession, **overlapping**. The default sweep. |
+| **ripple** | outward from the subject in both directions, ordered by distance |
+| **volley** | every recipient at once, no offset |
+| **chain** | sequential, each hit **completing** before the next — slow and deliberate, for rare or decisive events |
+
+`cascade` and `chain` are both sequential; the difference is overlap. Cascade says "this swept the board";
+chain says "watch this happen, one at a time". Reach for chain sparingly — it costs real time.
+
+## Count — how many times on ONE recipient
+
+| term | meaning |
+|---|---|
+| **stack** | N applications on the same recipient, played as N rapid repeats before the traversal moves on |
+| **replay** | the entire traversal run again — almost never what a multiplier means |
+
+## Timing
+
+| term | meaning |
+|---|---|
+| **tell** | the subject's own "I am doing this" beat, before the payload leaves it |
+| **lead** | delay before the first recipient |
+| **gap** | between recipients in a cascade |
+| **beat** | between hits within a stack |
+| **tail** | after the last hit, before the effect is done |
+
+**Rule: `beat` must be clearly shorter than `gap`.** If they are close, a cascade of 2-stacks reads as one
+long cascade of eight unrelated hits and the count is lost. That ratio IS the information — it is what makes
+the eye group hits into per-unit bundles.
+
+---
+
+## Information channels
+
+Each kind of information owns ONE channel, used consistently everywhere. This is what makes a visual
+language rather than a collection of effects: if magnitude ever leaks into the count channel, or count into
+scale, the player can decode neither.
+
+| the player needs to know | channel |
+|---|---|
+| how many | **stack** count |
+| how much | **scale / intensity** |
+| where it came from | **travel** — a moving layer from the subject |
+| who received it | **anchor** |
+| what kind of thing it was | **palette / shape** |
+| who caused it | the subject's **tell** |
+
+### The subitizing ceiling
+
+People count about **four** at a glance. Past that, repetitions stop being countable and become texture, so
+a stack of 7 communicates "a lot", not "seven". Ruby counts will exceed four.
+
+**Rule: above 4, stop stacking and change channel** — one larger hit, or a printed number. Decided up front
+so it is not discovered at seven.
+
+---
+
+## The subject is an ordinary recipient
+
+When the subject also receives the effect (a gilded Excavator plays 2 Rubies on itself), it **stacks like
+everyone else, in its own board position.** Owner ruling 2026-08-02.
+
+- **It is true.** The Excavator really does get 2. A single hit there while the rest show 2 makes the board
+  lie about the one unit the player is watching.
+- **Exceptions kill the language.** "Every recipient shows its true count" survives the next fifty cards.
+  "…except the one that caused it" does not.
+- **Do not reorder the sweep around it.** If the subject is third from the left, the cascade reaches it
+  third. Starting or ending on the subject implies a relationship that is not there.
+
+The subject's two ROLES are separated in time, not by suppressing either: the **tell** fires first, then the
+cascade runs, and the subject takes its stack when the sweep arrives.
+
+```
+tell        the Excavator reacts               (lead)
+cascade     board order, left → right          (gap)
+  stack       2 hits on each recipient         (beat)
+```
+
+Reads as: *card acts → wave crosses the board → everyone got two.*
+
+---
+
+## Implementation note
+
+The sweep offset is `recipientIndex × gap + repeatIndex × beat`. **Shipped for the Ruby cue** (#816, with
+#828 supplying the count the engine had been discarding): gap 100, beat 50, in both the shop cue and the
+combat channel.
+
+Still owed: "walk an effect across N things with an offset" has been hand-rolled three times — the shop Ruby
+cue, the combat `rubied` fan-out, and stacks — and the CSS card layer would be a fourth. It should be one
+parameterised primitive. See [`fx-workbench-friction.md`](fx-workbench-friction.md).

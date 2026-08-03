@@ -44,6 +44,13 @@ describe("Rune of the Wild Hunt — the Health grant escalates", () => {
     expect(Math.max(...healths), 'the grant never escalated').toBeGreaterThan(3);
   });
 
+  it("the DEF ships at 1 Health per attack (owner rebalance 2026-08-02)", () => {
+    // The engine tests above pass an explicit mod value, so they can't catch a def drift — this pins the
+    // shipped number. `amount` is both the grant and the escalation step.
+    const r = byName('Rune of the Wild Hunt')!.reward as { amount?: number };
+    expect(r.amount).toBe(1);
+  });
+
   it("grants Health only, never Attack", () => {
     for (const e of hunts({ runeWildHunt: 3 })) expect(e.attack).toBe(0);
   });

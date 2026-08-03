@@ -145,6 +145,11 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   return {
     heroId: replay.heroId,
     heroOffer,
+    // COURSE-shaped only: a LOBBY never reaches phase 'victory' (`advanceCombat`'s victory branch excludes
+    // it), so a replay can never tell you a lobby was won — every lobby row read as a loss, which is why the
+    // Balance Report's shop curve showed 100% "lost runs" (owner report 2026-08-02; same root cause as the
+    // Hall of Champions bug on 2026-07-31). The lobby answer is placement 1, which only the caller knows, so
+    // the store overrides this at upload. Left as the course default rather than guessed here.
     won: s.phase === 'victory',
     wins: rec.wins,
     offeredQuests: [...offeredQuests],
@@ -197,15 +202,15 @@ export function buildCardCsv(rows: RunTelemetry[]): string {
     for (const id of seen) {
       const a = get(id);
       a.runsSeen++;
-      if (bought.has(id)) { a.runsBought++; if (r.won) a.winsWhenBought++; }
-      else { a.seenNotBought++; if (r.won) a.winsSeenNotBought++; }
+      if (bought.has(id)) { a.runsBought++; if (runWon(r)) a.winsWhenBought++; }
+      else { a.seenNotBought++; if (runWon(r)) a.winsSeenNotBought++; }
     }
     // Bought without a recorded sighting (granted/conjured paths) still counts as a bought run.
     for (const id of bought) {
       if (seen.has(id)) continue;
       const a = get(id);
       a.runsBought++;
-      if (r.won) a.winsWhenBought++;
+      if (runWon(r)) a.winsWhenBought++;
     }
   }
   const pct = (n: number, d: number): string => (d > 0 ? (Math.round((n / d) * 1000) / 10).toString() : '');
@@ -295,6 +300,11 @@ export interface PlayerReport {
   shopCurve: ShopCurve;
 }
 
+/** Did this run WIN? Placement is authoritative when present (1 = the lobby win), because rows uploaded
+ *  before the 2026-08-02 fix carry `won: false` on every lobby run — the replay could not know. Falls back to
+ *  the stored flag for course-era rows, which have no placement. */
+export const runWon = (r: RunTelemetry): boolean => (r.placement != null ? r.placement === 1 : r.won);
+
 /** Average the per-run `tierByWave` arrays into two mean curves (won runs vs lost runs), indexed by wave. */
 function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
   const sum = { won: [] as number[], lost: [] as number[] };
@@ -305,7 +315,7 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
   const placedRuns = Array.from({ length: 9 }, () => 0);
   let maxWave = 0;
   for (const r of rows) {
-    const bucket = r.won ? 'won' : 'lost';
+    const bucket = runWon(r) ? 'won' : 'lost';
     const t = r.tierByWave ?? [];
     for (let w = 1; w < t.length; w++) {
       const tier = t[w];
@@ -358,8 +368,8 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
     byPlacement,
     placedRuns,
     maxWave,
-    wonRuns: rows.filter((r) => r.won).length,
-    lostRuns: rows.filter((r) => !r.won).length,
+    wonRuns: rows.filter(runWon).length,
+    lostRuns: rows.filter((r) => !runWon(r)).length,
     won: mean('won'),
     lost: mean('lost'),
     avgWaveToTier,
@@ -441,7 +451,7 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     // A run with no captured hero-offer still credits its pick as offered+picked (so pick rate stays ≤100%).
     if (!r.heroOffer.includes(r.heroId)) bump(heroes, r.heroId).offered++;
     const hp = bump(heroes, r.heroId);
-    hp.picked++; hp.games++; hp.winsSum += r.wins; if (r.won) hp.won++;
+    hp.picked++; hp.games++; hp.winsSum += r.wins; if (runWon(r)) hp.won++;
     creditPlace(hp, r.placement);
 
     const creditPicked = (m: Map<string, Acc>, offered: string[], picked: string[], turns?: Record<string, number>): void => {
@@ -449,7 +459,7 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
       for (const id of picked) {
         const a = bump(m, id);
         if (!offered.includes(id)) a.offered++; // ensure pick rate ≤ 100%
-        a.picked++; a.games++; if (r.won) a.won++;
+        a.picked++; a.games++; if (runWon(r)) a.won++;
         creditPlace(a, r.placement);
         const t = turns?.[id];
         if (t !== undefined) { a.turnsSum += t; a.turnsCount++; }

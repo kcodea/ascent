@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-02 — Quest art wired (the folder was never mined for the quests themselves)
+
+Owner ask. `wire-art` only ever read the Quests folder's "Quest Reward Related Things" SUB-folder, so the
+quest cards' own art had never been wired — 80 files sat in `art/quests` from earlier hand-drops while 126
+authored files waited in the source. Added a `quests` job (indexed by quest NAME, `dirs: ['.']` so it does
+not recurse into the reward sub-folder, which is its own job with a different destination).
+
+Two normalisations, both principled rather than guesses:
+- **Generator index stripped** (`Motherlode_00001_.png`): an export artifact of the art tool, not part of the
+  name — the remaining stem still has to match a name EXACTLY. Took the match from 74 to 103.
+- **One alias**: `TrohpyDen.png` → `q_trophy_den` (transposed letters). 104 matched.
+
+**Result: 102 of 103 quests now have art.** Deliberately still unwired: 5 UUID-named files (unattributed — the
+matcher never guesses) and 13 named files for quests that no longer exist in the roster (retired set-1
+designs). **The one quest still without art is `q_banes_presence` ("Bane's Presence", set 2)** — the folder
+holds BanesExistence.png, which is a different quest and correctly went to it.
+
+Full gates green (3634).
+
 ## 2026-08-02 — The shop curve called every lobby run a LOSS (the 'victory' phase trap, third time)
 
 Owner report: the Balance Report's curve showed only losing runs. Same root cause as the Hall of Champions

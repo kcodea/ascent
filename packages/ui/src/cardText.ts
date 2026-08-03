@@ -747,7 +747,7 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
 }
 
 /**
- * Quartermaster Dorrin — "+N Health per Gold spent this turn" folded into the ACTUAL Health it will grant now.
+ * Baby Gastrid (ex-Quartermaster Dorrin) — "+N Health per Gold spent this turn" folded into the ACTUAL Health it will grant now.
  *
  * The hard rule (CLAUDE.md): a card whose magnitude depends on live run state prints the number it will really
  * produce, not the rate. At 0 Gold spent the rate is all there is to say, so the printed text stands; once you
@@ -755,7 +755,7 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
  * itself.
  */
 /**
- * Closing-Time Foreman — "+N Attack per card played this turn" folded into the Attack it will really give.
+ * Kringle (ex-Closing-Time Foreman) — "+N Attack per card played this turn" folded into the Attack it will really give.
  *
  * Same rule as `perGoldSpentText`: a live magnitude prints the number it produces, not the rate. Nothing played
  * yet means the rate IS the answer, so the printed text stands.

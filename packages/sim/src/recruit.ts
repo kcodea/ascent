@@ -1470,7 +1470,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Quartermaster Dorrin (Shout, targeted): +Health per Gold spent THIS TURN — a tempo reward for shopping
+  /** Baby Gastrid (Shout, targeted; ex-Quartermaster Dorrin): +Health per Gold spent THIS TURN — a tempo reward for shopping
    *  before you play it, and it reads its live value on the card via `cardText`. */
   battlecryBuffTargetPerGoldSpent: (ctx, self, params, payload) => {
     const target = (payload as { target?: BoardCard } | undefined)?.target;
@@ -1480,7 +1480,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (h > 0) addBuff(target, nameOf(self), 0, h);
   },
 
-  /** Closing-Time Foreman (End of Turn): your LEFT-most minion of `tribe` gains +attack per card played this
+  /** Kringle (End of Turn; ex-Closing-Time Foreman): your LEFT-most minion of `tribe` gains +attack per card played this
    *  turn. Left-most rather than targeted, so you choose the recipient by arranging your line. */
   endOfTurnBuffLeftmostTribePerCard: (ctx, self, params) => {
     const tribe = str(params.tribe);

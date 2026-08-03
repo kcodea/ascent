@@ -111,7 +111,7 @@ export const SET2_DWARVES: CardDef[] = [
     // Targeted Shout: the target arrives on the payload via `applyBattlecryTarget`. Its magnitude is live, so
     // shopping BEFORE playing it is the play — and the printed number has to fold that in (see `cardText`).
     id: 'dw_dorrin',
-    name: 'Quartermaster Dorrin',
+    name: 'Baby Gastrid', // renamed from Quartermaster Dorrin (owner 2026-08-02); the id stays — saved runs store ids
     tribe: 'dwarf',
     tier: 4,
     attack: 2,
@@ -125,7 +125,7 @@ export const SET2_DWARVES: CardDef[] = [
   {
     // Left-most rather than targeted, so you pick the recipient by ARRANGING your line — deterministic, no RNG.
     id: 'dw_foreman',
-    name: 'Closing-Time Foreman',
+    name: 'Kringle', // renamed from Closing-Time Foreman (owner 2026-08-02); the id stays
     tribe: 'dwarf',
     tier: 5,
     attack: 3,

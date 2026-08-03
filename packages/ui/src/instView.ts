@@ -128,7 +128,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             improvingSummonText(c.id, p.summonBonus ?? 0, p.golden) ?? // Oona / Broodwright: the Avenge-improved grant
             rougeRogueText(c.id, p.golden, p.summonBonus ?? 0) ?? // Rouge Rogue: its per-combat escalating Imp grant
             tallyBuffText(c.id, p.deathrattlesTriggered, p.golden) ??
-            perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Dorrin: the Health it grants RIGHT NOW
+            perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Baby Gastrid: the Health it grants RIGHT NOW
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
             shopBuffImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Soul Defiler: its climbing Shop buff
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ??

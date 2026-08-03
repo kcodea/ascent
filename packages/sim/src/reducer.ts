@@ -856,7 +856,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.hand.splice(i, 1);
         // A Ruby is a card played (owner ruling 2026-07-31: EVERYTHING you literally play or cast counts —
         // minions, Shop spells, Rubies, tokens). This was the one hand-consuming branch that never pushed,
-        // so Closing-Time Foreman and Rune of Action undercounted on every Ruby.
+        // so Kringle (the ex-Closing-Time Foreman) and Rune of Action undercounted on every Ruby.
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
         // Rune of Contraband: the FIRST Ruby cast each turn smuggles back a random Dwarven Ale.
         if (s.runeContraband && !s.contrabandRubyUsed) {

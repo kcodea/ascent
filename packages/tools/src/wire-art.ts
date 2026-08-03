@@ -52,6 +52,8 @@ const ALIASES: Record<string, string> = {
   babyrex: 'trexbaby',                    // token is T-Rex Baby
   zyffbetrayer: 'zyff',
   jenkinsandfi: 'jensenfi',               // renamed Jenkins -> Jensen
+  jensenandfi: 'jensenfi',                // the CURRENT filename; the card is 'Jensen & Fi' (the & normalises away)
+  sylus: 'sylus',                         // card is 'Sylus the Reaper'; the file carries the short name
   malphas: 'dm_malphas',
   orivax: 'd2_orivax',
   // art still under a card's PRE-RENAME name (all renamed 2026-07-29).

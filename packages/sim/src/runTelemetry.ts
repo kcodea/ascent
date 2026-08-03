@@ -11,7 +11,7 @@
  * offered trio in via `heroOffer`.
  */
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import { createRun, runRecord, type RunState } from './state';
+import { createRun, runRecord, type RunState, type Action } from './state';
 import { HEROES } from './heroes';
 import { reduce } from './reducer';
 import type { Replay } from './snapshot';
@@ -486,5 +486,80 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     minions: toRows(minions, total, (id) => CARD_INDEX[id]?.name ?? id),
     spells: toRows(spells, total, (id) => CARD_INDEX[id]?.name ?? id),
     shopCurve: aggregateShopCurve(rows),
+  };
+}
+
+// ── LIVE capture ────────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * The acquisition streams, recorded AS THE RUN IS PLAYED rather than re-derived from its action log.
+ *
+ * Why this exists: `reconstructRunTelemetry` replays `(seed, actions)` from scratch, and a replay only yields
+ * the right answer if it reproduces the run exactly. For a LOBBY run that is not guaranteed — the same reason
+ * `saveRunBoards` REFUSES to replay one (its seats aren't attached, so it diverges from the first combat) and
+ * the lobby captures its boards live instead. Telemetry was still replaying, and a divergence is silent and
+ * ASYMMETRIC: sightings are recorded before `reduce`, so they survive, while a buy is only recorded if the
+ * replay's `reduce` accepts it — producing exactly "every card seen, nothing ever bought" (owner report
+ * 2026-08-03: "I literally just played a game where I bought Sunmanes").
+ *
+ * Recording live removes the class of bug rather than the instance. Mutated in place and returned by identity:
+ * this runs on every dispatched action, so it must not allocate per action.
+ */
+export interface TelemetryLog {
+  offeredCards: string[];
+  boughtCards: string[];
+  discoverOfferedCards: string[];
+  discoverBoughtCards: string[];
+  buyEvents: { id: string; wave: number; src: 'shop' | 'discover' }[];
+  /** Shop-offer uids already counted as seen — an offer lingering across turns counts once, a refresh mints
+   *  new uids. Serialized as an array so the log survives a quit-and-resume in the save file. */
+  seenShopUids: string[];
+}
+
+export const emptyTelemetryLog = (): TelemetryLog => ({
+  offeredCards: [], boughtCards: [], discoverOfferedCards: [], discoverBoughtCards: [], buyEvents: [], seenShopUids: [],
+});
+
+/**
+ * Fold one dispatched action into the live log. `before`/`after` are the run state either side of `reduce`,
+ * so an action the reducer REJECTED (`after === before`) records nothing but its sightings — matching what the
+ * player actually saw. Mirrors the per-action branches in `reconstructRunTelemetry` exactly; the two must stay
+ * in step, which is why they live in the same file.
+ */
+export function recordTelemetryAction(log: TelemetryLog, before: RunState, action: Action, after: RunState): TelemetryLog {
+  const seen = log.seenShopUids;
+  // Shop sightings: each fresh offer instance (by uid) counts once, however many turns it lingers. The
+  // right-hand SPELL slot is an offer too.
+  for (const c of before.shop ?? []) {
+    if (c.uid && c.cardId && !seen.includes(c.uid)) { seen.push(c.uid); log.offeredCards.push(c.cardId); }
+  }
+  const slot = before.spell;
+  if (slot?.uid && slot.cardId && !seen.includes(slot.uid)) { seen.push(slot.uid); log.offeredCards.push(slot.cardId); }
+
+  if (after === before) return log; // rejected action — nothing was acquired
+  if (action.type === 'buy') {
+    // A buy resolves from the shop row OR the right-hand spell slot.
+    const card = before.shop?.find((c) => c.uid === action.uid) ?? (before.spell?.uid === action.uid ? before.spell : undefined);
+    if (card?.cardId) {
+      log.boughtCards.push(card.cardId);
+      log.buyEvents.push({ id: card.cardId, wave: before.wave, src: 'shop' });
+    }
+  } else if (action.type === 'discover' && before.discover) {
+    for (const id of before.discover) log.discoverOfferedCards.push(id);
+    const picked = before.discover[action.index];
+    if (picked) { log.discoverBoughtCards.push(picked); log.buyEvents.push({ id: picked, wave: before.wave, src: 'discover' }); }
+  }
+  return log;
+}
+
+/** Overlay a live-captured log onto a reconstructed row, replacing the replay-derived acquisition streams with
+ *  what actually happened. Everything the replay gets right regardless (quests, runes, tier curve) is kept. */
+export function withLiveTelemetry(t: RunTelemetry, log: TelemetryLog): RunTelemetry {
+  return {
+    ...t,
+    offeredCards: log.offeredCards.filter((id) => CARD_INDEX[id]),
+    boughtCards: log.boughtCards.filter((id) => CARD_INDEX[id]),
+    discoverOfferedCards: log.discoverOfferedCards.filter((id) => CARD_INDEX[id]),
+    discoverBoughtCards: log.discoverBoughtCards.filter((id) => CARD_INDEX[id]),
+    buyEvents: log.buyEvents.filter((e) => CARD_INDEX[e.id]),
   };
 }

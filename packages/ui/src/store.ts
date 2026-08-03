@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
 import type { BoardMinion, Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -175,6 +175,8 @@ interface GameStore {
   /** The current run's action log (only state-changing actions), reset on a fresh run. With the run
    *  seed it forms a deterministic replay — the basis for board capture + async-PvP snapshots. */
   replayActions: Action[];
+  /** Live-captured acquisition streams for the Balance Report — see `TelemetryLog`. */
+  telemetryLog: TelemetryLog;
   /** LOBBY runs only: the per-wave boards captured AS THEY WERE PLAYED, rather than re-derived from the action
    *  log when the run ends. Replaying a lobby run re-simulates all seven opponent seats (~20 s of blocked main
    *  thread, measured), and the boards come out identical either way — so a lobby keeps them as it goes.
@@ -297,12 +299,12 @@ function loadCombatSpeed(): number {
 // the save is cleared when the run ends. The run's action log rides along so board capture still works on a
 // resumed run's finish. All best-effort — localStorage may be unavailable; failures never break play.
 const SAVE_KEY = 'ascent.save';
-interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; }
+interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; }
 function loadSave(): SavedGame | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
-    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[] };
+    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog };
     const run = deserialize(o.run); // heals older-schema saves
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
@@ -318,10 +320,10 @@ function loadSave(): SavedGame | null {
       clearSave();
       return null;
     }
-    return { run, actions: o.actions ?? [], boards: o.boards ?? [] };
+    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry };
   } catch { return null; }
 }
-function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = []): void {
+function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [], telemetry?: TelemetryLog): void {
   // NEVER persist a Scene Builder run. It's a disposable dev rig with 999 Gold and hand-placed boards; letting
   // it reach the autosave overwrites the player's real in-progress run and offers the sandbox as "Continue"
   // (owner hit this on 2026-07-22 — a sandbox session clobbered a live save). The run is already flagged for us.
@@ -330,7 +332,9 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
   // A lobby run captures its boards live instead of replaying for them (see `capturedBoards`), so without this
   // a quit-and-resume would finish the run having lost every board played before the reload.
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}) }));
+    // `telemetry` rides along for the same reason `boards` does: it is captured live, so a quit-and-resume
+    // would otherwise finish the run having lost every buy made before the reload.
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}) }));
   } catch { /* ignore */ }
 }
 function clearSave(): void {
@@ -442,14 +446,14 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
-  clearRun: () => { clearSave(); set({ savedRun: null, run: createRun(randomSeed()), replayActions: [], capturedBoards: [] }); },
+  clearRun: () => { clearSave(); set({ savedRun: null, run: createRun(randomSeed()), replayActions: [], capturedBoards: [], telemetryLog: emptyTelemetryLog() }); },
   // Mid-turn durability for the turn-boundary autosave. Guarded on `showTitle` because the `run` held while
   // the title is up is a dormant throwaway (see clearRun) — persisting it would resurrect a phantom Continue.
   flushSave: () => {
     const s = get();
     if (s.showTitle || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
     if (s.run.sandbox) return; // a Scene Builder run is disposable — it must never become the offered Continue
-    writeSave(s.run, s.replayActions, s.capturedBoards);
+    writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog);
     set({ savedRun: s.run });
   },
   heroArmed: false,
@@ -498,6 +502,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ combatSpeed });
   },
   replayActions: BOOT_SAVE?.actions ?? [],
+  telemetryLog: BOOT_SAVE?.telemetry ?? emptyTelemetryLog(),
   capturedBoards: BOOT_SAVE?.boards ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) =>
@@ -528,6 +533,10 @@ export const useGame = create<GameStore>((set, get) => ({
       // LOBBY: capture this wave's board NOW, at the same point `replayRun` would have (`faceOmen` landed and
       // the combat resolved), so the run never has to be replayed for its boards when it ends. Costs one
       // `snapshotBoard` per round; replaying for the same result costs ~20 s of re-simulated opponent seats.
+      // Fold this action into the live acquisition log. Mutates in place and returns the same object — this
+      // runs on EVERY dispatched action, so it must not allocate (nothing subscribes to it either). Computed
+      // HERE, above the run-end block, so the deferred upload closure below can capture it.
+      const telemetryLog = recordTelemetryAction(s.telemetryLog, s.run, action, next);
       const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
         ? [...s.capturedBoards, snapshotBoard(next)]
         : s.capturedBoards;
@@ -623,7 +632,11 @@ export const useGame = create<GameStore>((set, get) => ({
               // `won` MUST be overridden here: the reconstruction reads phase 'victory', which a lobby never
               // reaches, so every lobby row uploaded as a loss (owner report 2026-08-02 — the shop curve was
               // all "lost runs"). A lobby win is placement 1, exactly as the Hall of Champions gate reads it.
-              const telemetry = { ...reconstructRunTelemetry(replay, heroOffer), mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined };
+              // The acquisition streams come from the LIVE log, not the replay: a lobby replay is not
+              // guaranteed faithful (the same reason `saveRunBoards` refuses to replay one), and a divergence
+              // silently keeps every sighting while dropping every buy. See `withLiveTelemetry`.
+              const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
+              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined };
               void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
             } catch { /* best-effort — telemetry must never disrupt the end screen */ }
           }
@@ -664,7 +677,7 @@ export const useGame = create<GameStore>((set, get) => ({
         // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
         // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
         else if (next.phase !== s.run.phase && !next.sandbox) {
-          perfMonitor.measure('autosave', () => writeSave(next, replayActions, capturedBoards));
+          perfMonitor.measure('autosave', () => writeSave(next, replayActions, capturedBoards, telemetryLog));
           savedRun = next;
         }
       }
@@ -677,6 +690,7 @@ export const useGame = create<GameStore>((set, get) => ({
         // Record only state-changing actions — together with the seed they replay the run deterministically.
         replayActions,
         capturedBoards,
+        telemetryLog,
       };
     }),
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),

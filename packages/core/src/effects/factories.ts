@@ -2371,12 +2371,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
     const a = num(params.attack, 1) * mul(self);
     const h = num(params.health, 1) * mul(self);
+    // `fodder` is OPT-IN, mirroring the recruit half (owner 2026-08-03: Bane is Imps-only now).
+    const fodder = !!params.fodder;
     for (const m of ctx.living(self.side)) {
       const def = ctx.getCard(m.cardId);
-      if (def?.keywords.includes('FD') || def?.imp) ctx.buff(m, a, h, self.uid);
+      if (def?.imp || (fodder && def?.keywords.includes('FD'))) ctx.buff(m, a, h, self.uid);
     }
     ctx.grantImpBuff(a, h, self.side); // Imps permanent — carried back to RunState.impBuff
-    ctx.grantFodderBuff(a, h, self.side); // Fodder enchant permanent — carried back, mirrors recruit buffFodderRunWide
+    if (fodder) ctx.grantFodderBuff(a, h, self.side); // Fodder enchant permanent — mirrors recruit buffFodderRunWide
   },
 
   // ─── 2026-07-06 content batch: Beast "wherever they are" combat auras ──────────

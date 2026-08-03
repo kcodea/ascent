@@ -22,8 +22,9 @@ describe('a Ruby played by a card notifies its target', () => {
     const hit = s.board.find((c) => c.uid === 'b')!;
     // Brisbane picks a random Kobold — when it picks the Broker, the Broker must pay out.
     if ((hit.rubiesOnThisTurn ?? 0) > 0) expect(s.embers).toBeGreaterThan(gold);
+    // Brisbane hits EVERY friendly Kobold (owner ruling 2026-08-03), so both bodies must hear about it.
     const total = s.board.reduce((n, c) => n + (c.rubiesOnThisTurn ?? 0), 0);
-    expect(total, 'the played Ruby was invisible to every target').toBe(1);
+    expect(total, 'the played Ruby was invisible to a target').toBe(s.board.length);
   });
 
   it('Frenzied Excavator (Shout: a Ruby on every friendly)', () => {

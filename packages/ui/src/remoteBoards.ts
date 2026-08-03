@@ -259,7 +259,17 @@ export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: strin
     const res = await c.from('run_telemetry').insert([{ ...withSplit, buy_events: t.buyEvents ?? [] }]);
     if (res?.error) {
       const res2 = await c.from('run_telemetry').insert([withSplit]);
-      if (res2?.error) await c.from('run_telemetry').insert([base]);
+      // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so
+      // before this a DB without that column failed ALL THREE inserts identically and the row was lost —
+      // the fallback ladder existed but could never reach the ground (owner report 2026-08-03).
+      if (res2?.error) {
+        const res3 = await c.from('run_telemetry').insert([base]);
+        if (res3?.error) {
+          const noPlacement: Record<string, unknown> = { ...base };
+          delete noPlacement.placement;
+          await c.from('run_telemetry').insert([noPlacement]);
+        }
+      }
     }
   } catch {
     /* best-effort — telemetry must never disrupt the end screen */
@@ -272,15 +282,19 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
   const c = client();
   if (!c) return [];
   try {
-    const cols = 'hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, discover_offered_cards, discover_bought_cards, tier_by_wave, buy_events';
+    // `placement` is load-bearing for the whole placement half of the report AND for `runWon` (placement 1 is
+    // what a lobby win IS — a lobby never reaches phase 'victory'). It was written by the insert but never
+    // selected here, so every placement column read empty (owner report 2026-08-03).
+    const cols = 'hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, discover_offered_cards, discover_bought_cards, tier_by_wave, buy_events, placement';
     const query = (select: string) => Promise.resolve(
       c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     let result = await Promise.race([query(cols), timeout]);
     // Pre-migration DB (missing newer columns) errors the select — retry progressively so the report still loads.
-    if (result && result.error) result = await Promise.race([query(cols.replace(', buy_events', '')), timeout]);
-    if (result && result.error) result = await Promise.race([query(cols.replace(', discover_offered_cards, discover_bought_cards', '').replace(', buy_events', '')), timeout]);
+    if (result && result.error) result = await Promise.race([query(cols.replace(', placement', '')), timeout]);
+    if (result && result.error) result = await Promise.race([query(cols.replace(', buy_events', '').replace(', placement', '')), timeout]);
+    if (result && result.error) result = await Promise.race([query(cols.replace(', discover_offered_cards, discover_bought_cards', '').replace(', buy_events', '').replace(', placement', '')), timeout]);
     if (!result || result.error || !result.data) return [];
     // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
     // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
@@ -301,6 +315,7 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
       discoverBoughtCards: (r.discover_bought_cards as string[]) ?? [],
       tierByWave: (r.tier_by_wave as number[]) ?? [],
       buyEvents: (r.buy_events as { id: string; wave: number; src: 'shop' | 'discover' }[]) ?? undefined,
+      placement: (r.placement as number | null) ?? undefined,
     }));
   } catch {
     return [];

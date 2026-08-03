@@ -1358,26 +1358,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on a
-   *  random friendly `tribe` minion (× golden). Deterministic (run rngCursor). */
+  /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on
+   *  EVERY friendly `tribe` minion (× golden). Owner ruling 2026-08-03: it hits ALL your Kobolds — it used to
+   *  pick ONE at random, which is why it read as "not working" on a wide board (a single silent +2/+2
+   *  somewhere in a line of seven). No RNG at all now, so it also stops consuming the run cursor. */
   endOfTurnPlayRuby: (ctx, self, params) => {
     const state = ctx.state;
     const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
     const ra = 1 + bonus.attack;
     const rh = 1 + bonus.health;
     const tribe = str(params.tribe);
+    const targets = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
     for (let c = 0; c < num(params.count, 1) * gold(self); c++) {
-      const pool = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
-      if (pool.length === 0) return;
-      const rng = makeRng(state.rngCursor);
-      const target = pool[rng.int(pool.length)]!;
-      state.rngCursor = rng.state();
-      addBuff(target, 'Ruby', ra, rh);
+      for (const target of targets) {
+        addBuff(target, 'Ruby', ra, rh);
     // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
     // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
     // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
     // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
-      fireOnRubyPlayed(state, target, ra, rh);
+        fireOnRubyPlayed(state, target, ra, rh);
+      }
     }
   },
 
@@ -2727,8 +2727,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onBattlecryBuffFodder: (ctx, self, params) => {
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 1) * gold(self);
-    buffFodderRunWide(ctx.state, a, h, nameOf(self));
-    buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Bane now buffs Imps too
+    // `fodder` is OPT-IN (owner 2026-08-03: Bane buffs Imps only now). Left as a param rather than deleted
+    // so the Fodder half stays available to anything that wants both.
+    if (params.fodder) buffFodderRunWide(ctx.state, a, h, nameOf(self));
+    buffImpsRunWide(ctx.state, a, h, nameOf(self));
     // Bane's Existence (quest): the widen — also buff every Demon you have (board + hand) by the flag amount.
     const dem = ctx.state.baneBuffsDemons;
     if (dem && (dem.attack !== 0 || dem.health !== 0)) {

@@ -6,6 +6,7 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
+import { scheduleLands } from '../fx/land';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
@@ -342,13 +343,15 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'rubyFx') {
       if (!canPlayDefs()) continue;
       at(cue, () => {
-        // The stagger divides by `combatSpeed` like every other scheduled offset here, so a 4× replay sweeps
-        // 4× faster and the run still lands inside its beat instead of trailing past the next one.
-        const speed = ctx.combatSpeed > 0 ? ctx.combatSpeed : 1;
         // A CASCADE of N-STACKS: `gap` walks between recipients, `beat` repeats within one. Nested, not
         // flattened — two Rubies on a minion play as two hits on THAT minion before the sweep moves on, which
-        // is what says "each unit got two" rather than "everyone got hit twice".
-        rubiedLandsIn(moment, ctx.events).forEach((land, i) => {
+        // is what says "each unit got two" rather than "everyone got hit twice". Offsets divide by
+        // `combatSpeed` inside `scheduleLands`, so a 4× replay sweeps 4× faster and still lands inside its beat.
+        // The traversal arithmetic lives in `scheduleLands`, not here — see `fx/land.ts`. This site only says
+        // WHAT a land does; the schedule says WHEN.
+        for (const land of scheduleLands(rubiedLandsIn(moment, ctx.events), {
+          gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS, speed: ctx.combatSpeed,
+        })) {
           // Both ends are the same unit: a Ruby lands ON a minion, there is no pair to travel between.
           // Anchors resolve INSIDE the timer rather than up front, so a unit that dies mid-sweep is skipped
           // instead of detonating over an empty slot.
@@ -358,12 +361,9 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             // One play per GEM, not per moment — the ear carries the same count the eye does.
             sfx.gemApply();
           };
-          for (let r = 0; r < land.count; r++) {
-            const at = (RUBY_GAP_MS * i + RUBY_BEAT_MS * r) / speed;
-            if (at <= 0) fire();
-            else timers.push(setTimeout(fire, at));
-          }
-        });
+          if (land.at <= 0) fire();
+          else timers.push(setTimeout(fire, land.at));
+        }
       });
     }
     else if (cue.ch === 'summonFx') at(cue, () => {

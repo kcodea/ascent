@@ -49,6 +49,7 @@ import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
 import { RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
+import { scheduleLands } from './fx/land';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -841,7 +842,7 @@ export function Recruit() {
     // One rAF first, for the same reason the cues above take one: the buffed cards re-render this commit, and
     // measuring before the browser has laid them out reads the PREVIOUS geometry.
     const raf = requestAnimationFrame(() => {
-      lands.forEach((land, i) => {
+      for (const land of scheduleLands(lands, { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS })) {
         // Measured inside the timer so a stagger that outlives a re-render (a triple collapsing three bodies
         // into one) misses cleanly instead of firing at a stale rect.
         const fire = (): void => {
@@ -853,15 +854,11 @@ export function Recruit() {
           playDef('ruby-gem-apply', { source: p, target: p }); // literal — see RUBY_LANDED_DEF
           sfx.gemApply(); // one play per gem, matching the cascade the eye sees
         };
-        // A CASCADE of N-STACKS: `gap` between recipients, `beat` within one. Nested rather than flattened —
-        // two Rubies on a minion play as two hits on THAT minion before the sweep moves on, which is what
-        // says "each unit got two" instead of "everyone got hit twice".
-        for (let r = 0; r < land.count; r++) {
-          const at = RUBY_GAP_MS * i + RUBY_BEAT_MS * r;
-          if (at <= 0) fire();
-          else timers.push(setTimeout(fire, at));
-        }
-      });
+        // The traversal arithmetic lives in `scheduleLands` (see `fx/land.ts`); this site only says what a
+        // land DOES. A cascade of N-stacks: `gap` between recipients, `beat` within one.
+        if (land.at <= 0) fire();
+        else timers.push(setTimeout(fire, land.at));
+      }
     });
     return () => { cancelAnimationFrame(raf); for (const t of timers) clearTimeout(t); };
   }, [run.rubyLandedFxSeq, run.rubyLandedFx]);

@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-08-02 — `scheduleLands`: the traversal arithmetic lives once
+
+"Walk an effect across N recipients with an offset" had been hand-written five times — the shop Ruby cue, the
+combat `rubied` fan-out, stacks inside each, and queued: the CSS card layer and the withheld-number release.
+Every copy re-derived the same expression, and they had already drifted: one flattened stacks away entirely,
+which is why a gilded Frenzied Excavator under-reported two Rubies as one.
+
+`packages/ui/src/fx/land.ts` — pure, no timers, no DOM, no Pixi:
+
+    at = (lead + recipientIndex × gap + repeatIndex × beat) ÷ speed
+
+`scheduleLands(recipients, { gap, beat, lead, speed })` returns every land in fire order, carrying `index`
+and `repeat` so a caller can vary a hit by its position. Callers still own their own timers, because who
+cancels differs per phase (the combat runner on moment change, the shop cue on unmount) — and keeping timers
+out is what makes the arithmetic testable at all in a repo with no jsdom.
+
+Both existing sweeps now call it and no longer do their own maths. Behaviour is unchanged: gap 100, beat 50.
+
+Two details worth keeping: a non-positive `speed` is treated as 1 rather than dividing (a paused replay
+reporting 0 would otherwise schedule everything at `Infinity`, i.e. never), and a skipped recipient KEEPS its
+slot in the walk so the ones after it don't slide earlier and lose the rhythm. `beatExceedsGap` reports the
+legibility rule rather than enforcing it — a `volley` is a legitimate gap of 0.
+
+Verified: 15 new unit tests (cascade of singles, cascade of 2-stacks nesting, index/repeat, volley, lead,
+speed, non-positive speed, zero/negative counts, the kept slot, empty). Full gate: typecheck clean, lint 0
+errors, **3670 tests**, `build:web` OK.
+
+Next on this thread: the withheld-number release subscribes to the same schedule, which is what puts the stat
+numbers and floats on the same clock as the effect (see `land` in `fx-vocabulary.md`).
+
+
 ## 2026-08-02 — A Ruby is told by the gem, not also by the generic buff cues
 
 The one-channel rule from [`fx-vocabulary.md`](fx-vocabulary.md), applied in combat. `applyRubyStats` routes

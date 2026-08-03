@@ -1275,6 +1275,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self));
   },
 
+  /** Set 2 — Lastlight (Echo, RECRUIT half): give `count` friendly minions Ward (× golden). The combat half
+   *  has always existed; this one was MISSING, so a Funeral-on-Loan Lastlight destroyed in the shop fired an
+   *  Echo that did nothing (owner report 2026-08-03). Mirrors the combat factory's shape: distinct picks,
+   *  preferring bodies that don't already have Ward. Deterministic (run rngCursor). */
+  deathrattleGrantWardRandom: (ctx, self, params) => {
+    const state = ctx.state;
+    const unshielded = state.board.filter((c) => c.uid !== self.uid && !c.keywords.includes('DS'));
+    let n = num(params.count, 2) * gold(self);
+    const rng = makeRng(state.rngCursor);
+    while (n > 0 && unshielded.length > 0) {
+      const target = unshielded.splice(rng.int(unshielded.length), 1)[0]!;
+      target.keywords = [...target.keywords, 'DS'];
+      n--;
+    }
+    state.rngCursor = rng.state();
+  },
+
   onBattlecryBuffSelf: (ctx, self, params) => {
     addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
   },

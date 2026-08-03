@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { renameTerms } from './terms';
 import { mdBold } from './Card';
 import { dragonTamerCostOf, getHero, spellAmplifyBonus } from '@game/sim';
+import { henchmanOffer } from '@game/sim';
+import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
@@ -58,6 +60,11 @@ export function StatusBar() {
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   const hero = getHero(run.heroId);
   const power = hero.power;
+  // HENCHMAN offer (owner spec 2026-08-03): the hero's bound recruit at its decayed price — null for the many
+  // heroes with none authored yet, and after the once-per-run buy. PLACEHOLDER SURFACE: a plain chip under the
+  // power pill so the mechanic is playable end-to-end; the real presentation is Mike's to design.
+  const henchman = run.phase === 'recruit' ? henchmanOffer(run) : null;
+  const henchmanDef = henchman ? CARD_INDEX[henchman.cardId] : undefined;
   // Some powers unlock on a later turn (Myra's Encore — turn 3); locked (and unusable) before then.
   const unlockWave = power.unlockWave ?? 1;
   const unlocked = run.wave >= unlockWave;
@@ -308,6 +315,17 @@ export function StatusBar() {
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's
               Reclaim); the "Passive"/status detail moves to the hover tip below. */}
           <div className="hplabel">{power.name}</div>
+          {/* HENCHMAN recruit chip — placeholder presentation (see the `henchman` derivation above). */}
+          {henchman && henchmanDef && (
+            <button
+              className="hmn-btn"
+              disabled={run.embers < henchman.cost || eotAnimating}
+              onClick={() => dispatch({ type: 'buyHenchman' })}
+              title={`Recruit ${henchmanDef.name} — your hero's henchman. Costs ${henchman.cost} Gold (gets cheaper every round: win −3, loss −2).`}
+            >
+              {henchmanDef.name} · {henchman.cost === 0 ? 'FREE' : `${henchman.cost}g`}
+            </button>
+          )}
           <div className="herotip" role="tooltip">
             <b>{power.name}</b>{isPassive ? ' · passive' : ''}
             {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}

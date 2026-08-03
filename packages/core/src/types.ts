@@ -533,6 +533,10 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** HENCHMAN — a hero-bound recruit (owner spec 2026-08-03). A minion like any other, but never offered
+   *  in shops: it is reachable only through the hero that names it (`HeroDef.henchman` in @game/sim), at a
+   *  Gold cost that falls each round (win −3 / loss −2). Global-registry doctrine, same as tokens. */
+  henchman?: boolean;
   /** This card NEVER combines into a golden, however many copies you hold. For cards whose identity lives on
    *  the INSTANCE rather than the def: a Mage-Pup carries the spell it was taught (`taughtSpellId`), so three
    *  of them are three different cards wearing one id, and a triple would have to silently pick one spell and

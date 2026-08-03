@@ -76,6 +76,39 @@ Owner ask: "set up set 3 in the scene builder — leave it empty for now, just w
   land on it; doesn't perturb set 1/set 2's pools). Gates: typecheck ✓, lint ✓ (7 pre-existing warnings),
   3649 tests ✓, `build:web` ✓, harness determinism ✓. `docs/card-sets.md` updated — it used `set3` as its
   hypothetical worked example, which would now mislead.
+## 2026-08-03 — Henchmen mechanic wired (engine + placeholder; roster to come)
+
+Owner spec: every hero has a HENCHMAN specific to them — a minion like any other (Shouts, Echoes, whatever
+its design calls for), never offered in shops, recruitable at a Gold cost that FALLS every round: win −3,
+loss −2. Likely the set-3 mechanic, but the system is deliberately cross-set (like Fi's errand / the
+Runesmith's forge) so henchman-interacting heroes can appear anywhere.
+
+- **Content** — new GLOBAL registry `cards/henchmen.ts` (token doctrine: reachable only through the hero that
+  names it, never part of any `SETS.*.own` pool, so it can't leak into a shop). `CardDef.henchman` flag added
+  (core + zod schema). One PLACEHOLDER card (`hm_test_squire`, vanilla 3/3) wired to the **Warden** — a `wip`
+  hero withheld from the picker — so the loop is playable in the Scene Builder without touching a live hero.
+- **Sim** — `HeroDef.henchman?: { cardId, cost }` (the per-hero link + starting price);
+  `RunState.henchmanDiscount` accrues at combat settle (+3 win / +2 otherwise, once per combat via the
+  `combatSettled` guard); `henchmanOffer(state)` resolves the live offer (cost floored at 0, null when no
+  henchman or already recruited); new `buyHenchman` action — recruit-phase only, pays the decayed cost,
+  grants to HAND via `grantMinionToHandOrBoard`, once per run. Deliberately NOT a tavern purchase: no shop
+  slot, no `applyCardsBought`, so buy-watchers don't fire on it.
+- **Judgment calls, flagged**: a DRAW decays −2 (the spec keys win/loss; "every round" reads as the price
+  always moving, and a draw is a non-win). The discount accrues even for heroes with no henchman yet, so a
+  hero gaining one mid-development prices retroactively correctly. Recruiting is gated to the recruit phase.
+- **UI (placeholder surface)** — a small chip under the hero-power label (`.hmn-btn`): name + live cost
+  (FREE at 0), greyed when unaffordable, retired after the buy. Static colors, compositor-safe. **The real
+  presentation is Mike's to design** — this exists so the mechanic is playable end-to-end, and renders for
+  no live hero today (only the WIP Warden carries one).
+- **Bots**: `buyHenchman` is registered in the action catalog (`generation: 'recruit'`), but the legal-action
+  generator doesn't emit it yet — bots simply don't recruit henchmen. Queued with the bot work.
+- **Verified live** (dev server → Scene Builder → Warden): chip renders "Test Squire · 10g", clicking recruits
+  the Squire to hand and retires the chip; console clean on a fresh load. Compendium/Scene-Builder card lists
+  scan set pools, so the placeholder leaks nowhere.
+- **Verified** — new `henchmen.test.ts` (7 tests): decay through the REAL `resolveCombat` path (win 3 / loss
+  2 / floor 0), no-henchman heroes no-op, recruit pays + grants + retires (once per run), can't-afford no-op,
+  a fully-decayed FREE recruit, and two registry-doctrine pins (flag + global resolution + hero links).
+  Gates: typecheck ✓, lint ✓ (7 pre-existing), 3653 tests ✓, `build:web` ✓, harness determinism ✓.
 
 ## 2026-08-03 — Brisbane hits every Kobold; Bane is Imps-only; Balance Report buys captured live
 

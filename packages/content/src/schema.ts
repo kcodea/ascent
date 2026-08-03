@@ -433,6 +433,7 @@ export const CardDefSchema = z.object({
   }).strict().optional(),
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
+  henchman: z.boolean().optional(), // hero-bound recruit — never shop-offered (see cards/henchmen.ts)
   noTriple: z.boolean().optional(),
   gift: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),

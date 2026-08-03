@@ -1,5 +1,48 @@
 # ASCENT — development log
 
+## 2026-08-03 — Brisbane hits every Kobold; Bane is Imps-only; Balance Report buys captured live
+
+- **Alchemist Brisbane — End of Turn now plays a Ruby on EVERY friendly Kobold** (owner ruling). It used to
+  pick ONE at random, which is why it read as "not working": on a wide board the whole effect was a single
+  silent +2/+2 somewhere in a line of seven. The factory drops its RNG entirely, so it also stops consuming
+  the run cursor. Text updated on both faces ("on **each** of your Kobolds").
+- **Bane reworked** (owner): +3/+3 to your **Imps** on each triggered Shout, and it no longer touches Fodder
+  (was +2/+2 to Fodder *and* Imps). Implemented by making the Fodder half an **opt-in `fodder` param** on
+  `onBattlecryBuffFodder` in BOTH halves (recruit + combat) rather than deleting it, so the primitive stays
+  available; Bane simply stops asking for it. The combat carry-back follows — `playerFodderBuffGain` is now
+  absent for Bane, `playerImpBuffGain` carries the +3/+3.
+- **Set-1 Demon art wired.** `wire-art` had **no job for `Set 1 Minions` at all** — those portraits had only
+  ever been hand-dropped. Added one scoped to `Demons` (the owner's ask), placed FIRST in the job list so a
+  set-2 file always wins a name collision; the other set-1 dirs stay unwired until audited, because wiring
+  them blind is exactly the silent-overwrite failure `RETIRED` exists to prevent. 20 of 21 files matched by
+  strict name; 18 portraits changed. `Fodder.png` is unmatched and reported, never guessed.
+- **Balance Report — two confirmed defects + one removed failure class** (owner: "I literally just played a
+  game where I bought Sunmanes"):
+  1. **`fetchRunTelemetry` never selected `placement`.** It was written by the insert but not read back, so
+     every placement column (Avg Place, 1st %, 8th %, placed n) was empty no matter how many lobby runs were
+     recorded — and `runWon` lost its authoritative signal. Added to the select, with the pre-migration
+     fallback ladder extended to strip it.
+  2. **The insert fallback ladder could never reach the ground.** `placement` was added to `base`, which
+     every fallback spreads — so on a DB without that column all three attempts failed identically and the
+     row was silently lost entirely. The final rung now drops it.
+  3. **Acquisitions are now captured LIVE** (`TelemetryLog` / `recordTelemetryAction` / `withLiveTelemetry`)
+     instead of re-derived by replaying the run. This is the same doctrine `saveCapturedBoards` already
+     applies to boards: `saveRunBoards` REFUSES to replay a lobby run because it diverges from the first
+     combat, yet telemetry was replaying one anyway. A divergence there is silent and **asymmetric** —
+     sightings are recorded before `reduce`, so they survive, while a buy is only recorded if the replay's
+     `reduce` accepts it — which produces exactly "every card seen, nothing ever bought". The log mutates in
+     place (zero allocation per action, and nothing subscribes to it) and rides in the save file beside
+     `boards`, so a quit-and-resume doesn't lose the buys made before the reload.
+
+  Honest scope note: I could NOT reproduce the empty-buys condition — `reconstructRunTelemetry` matched a real
+  lobby run's buys exactly in every probe I ran (6 waves, natural gold, seeds 777/12345). Defects 1 and 2 are
+  proven by reading; defect 3 removes the class rather than a confirmed instance, and is the right design here
+  regardless.
+- **Verified** — new `liveTelemetry.test.ts` (6 tests: live buy capture, a rejected buy recording the sighting
+  but not the purchase, lingering-offer dedupe, and the live log overriding a reconstruction that lost the
+  buys) plus Brisbane's all-Kobolds pin. Four existing pins updated to the new rulings (3 Bane, 1 Brisbane).
+  Gates: typecheck ✓, lint ✓ (7 pre-existing warnings), 3646 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-02 — The Compendium's "card shadows" were the plates; the grid gets a dark surface
 
 Owner question: grey rectangles behind every Compendium card. Diagnosed, not guessed — the plate `<img>`s

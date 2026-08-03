@@ -144,6 +144,15 @@ for (const q of QUEST_DEFS) { questsByName.set(norm(q.name), q.id); questsByName
 
 const JOBS: Job[] = [
   {
+    // SET-1 minions (owner ask 2026-08-03: "I refreshed some set 1 demons"). This folder had never been a
+    // job, so set-1 portraits were only ever hand-dropped. Deliberately FIRST so that if a name exists in
+    // both folders the SET-2 job below wins the slot — set 2 is the live set, and a set-1 file must never
+    // silently take a set-2 card's art. Scoped to Demons for now: the other set-1 dirs are unaudited against
+    // the current roster, and wiring them blind is exactly the silent-overwrite failure `RETIRED` exists for.
+    label: 'set-1 minions', src: 'C:/Game Assets/Ascent Art/Set 1 Minions',
+    dirs: ['Demons'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
+  {
     label: 'minions', src: 'C:/Game Assets/Ascent Art/Set 2 Minions',
     dirs: ['Beasts', 'Demons', 'Dragons', 'Dwarves', 'Kobolds', 'Neutral'],
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,

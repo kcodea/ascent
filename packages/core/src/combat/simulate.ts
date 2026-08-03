@@ -1000,6 +1000,9 @@ export function simulate(
   const echoesSpent: Record<Side, number> = { player: 0, enemy: 0 };
   /** Rune of the War Chorus' once-per-combat latch, per side. */
   const warChorusSpent: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of the Warpath re-entrancy latch: the chained attack must not chain again (the right-most could
+   *  BE the left-most on a one-minion board, and a chain-of-chains is an infinite loop). */
+  const warpathChaining: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of the Food Chain: the left-most Demon's stats, captured at Start of Combat and spent on the first
    *  summon. Captured rather than read live, so a Demon that dies before the summon still pays out — the rune
    *  reads as a Start-of-Combat promise, not a lookup at an arbitrary later moment. */
@@ -1525,6 +1528,20 @@ export function simulate(
         for (const m of boards[attacker.side]) {
           if (m.dead || m.health <= 0) continue;
           for (let i = 0; i < gems; i++) ctx.buff(m, 1 + rb.attack, 1 + rb.health, 'Rune of Attacking Gems');
+        }
+      }
+      // Rune of the Warpath: after your LEFT-most minion attacks, your RIGHT-most attacks too — out of turn
+      // order, via the same immediate-attack queue the Whelp/Spear Warden use. Guards, each load-bearing: the
+      // attacker must BE the left-most living body; the right-most must be a DIFFERENT minion (else a
+      // one-minion board chains into itself); and `warpathChaining` stops the chained attack chaining again.
+      if (modsFor(attacker.side).runeWarpath && !warpathChaining[attacker.side]) {
+        const living = boards[attacker.side].filter((m) => !m.dead && m.health > 0);
+        const tail = living[living.length - 1];
+        if (living[0] === attacker && tail && tail !== attacker) {
+          warpathChaining[attacker.side] = true;
+          nextStep(); fireTrigger('runeWarpath', attacker.side);
+          ctx.attackNow?.(tail, false);
+          warpathChaining[attacker.side] = false;
         }
       }
       // Rune of the War Chorus: your FIRST Rally each combat also triggers your left-most Shout. Gated on the

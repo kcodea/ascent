@@ -7076,7 +7076,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   position: absolute;
   bottom: calc(var(--ah-width, 12px) * -0.5); /* rides the zone's bottom-padding band, half-proud of it */
   left: 50%;
-  transform: translateX(-50%);
+  /* x/y nudge rides the TRANSFORM (compositor-only) — repositioning can never re-enter layout, so the
+     tuner's position dials keep the "never moves the warband" guarantee the absolute anchoring bought. */
+  transform: translate(calc(-50% + var(--ah-x, 0px)), var(--ah-y, 0px));
   width: var(--ah-length, 100%);
   height: calc(var(--ah-width, 12px) + 10px);
   opacity: var(--ah-opacity, 1);

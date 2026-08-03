@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-08-03 — Alignment HUD tuner gains X/Y position dials
+
+Owner ask. Two new dials at the top of the Alignment HUD tuner's Strip group — `X position` (−300…300px,
+positive = right) and `Y position` (−120…120px, positive = down) — persisted with the rest of the panel and
+reflected as `--ah-x` / `--ah-y`.
+
+The nudge rides the strip's TRANSFORM (`translate(calc(-50% + var(--ah-x)), var(--ah-y))`), compositor-only,
+so repositioning can never re-enter layout — the tuner's position dials keep the "never moves the warband"
+guarantee the absolute anchoring bought in the previous fix. Verified live by measurement: dialling
+x=80/y=30 moved the strip exactly (80, 30)px while the warband row moved (0, 0). Gates: typecheck ✓, lint ✓
+(7 pre-existing), 3683 tests ✓, `build:web` ✓.
+
 ## 2026-08-03 — Alignment strip taken out of layout flow (it was nudging the warband)
 
 Owner report: "the eclipse bar is moving minions around in shop phase." The strip was a normal-flow child of

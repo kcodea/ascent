@@ -15,6 +15,8 @@ type ColorKey = (typeof ALIGNHUD_COLOR_KEYS)[number];
 const COLOR_SET = new Set<string>(ALIGNHUD_COLOR_KEYS);
 
 const SPECS: Record<keyof AlignHudConfig, [string, TunerUnit | undefined, string, string]> = {
+  x:          ['X position', 'px', 'Nudge the whole strip left/right (transform-only — never moves the cards).', 'Strip'],
+  y:          ['Y position', 'px', 'Nudge the whole strip up/down. Positive is down.', 'Strip'],
   length:     ['Length', '%', 'How much of the warband row the horizon spans.', 'Strip'],
   width:      ['Width', 'px', 'Thickness of the gradient band itself (labels excluded).', 'Strip'],
   opacity:    ['Opacity', 'opacity', 'Whole-strip opacity.', 'Strip'],
@@ -30,7 +32,7 @@ const SPECS: Record<keyof AlignHudConfig, [string, TunerUnit | undefined, string
 };
 
 const ORDER: (keyof AlignHudConfig)[] = [
-  'length', 'width', 'opacity',
+  'x', 'y', 'length', 'width', 'opacity',
   'dawnColor', 'duskColor', 'vibrance',
   'seamColor', 'glowBlur', 'glowAlpha',
   'sparkOn', 'sparkMs', 'sparkAlpha',

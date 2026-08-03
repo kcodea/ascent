@@ -8,6 +8,10 @@
  * "Copy values", then update both.
  */
 export interface AlignHudConfig {
+  /** Horizontal nudge (px) — positive moves the whole strip right. */
+  x: number;
+  /** Vertical nudge (px) — positive moves the whole strip DOWN. */
+  y: number;
   /** Strip LENGTH — how much of the warband row the horizon spans (% of the row width). */
   length: number;
   /** Sky bar THICKNESS (px) — the gradient band itself, labels excluded. */
@@ -36,6 +40,8 @@ export interface AlignHudConfig {
 }
 
 const DEFAULTS: AlignHudConfig = {
+  x: 0,
+  y: 0,
   length: 100,
   width: 12,
   opacity: 1,
@@ -51,9 +57,11 @@ const DEFAULTS: AlignHudConfig = {
 };
 
 export const ALIGNHUD_RANGES: Record<
-  'length' | 'width' | 'opacity' | 'vibrance' | 'glowBlur' | 'glowAlpha' | 'sparkMs' | 'sparkAlpha',
+  'x' | 'y' | 'length' | 'width' | 'opacity' | 'vibrance' | 'glowBlur' | 'glowAlpha' | 'sparkMs' | 'sparkAlpha',
   [number, number, number]
 > = {
+  x: [-300, 300, 1],
+  y: [-120, 120, 1],
   length: [40, 100, 1],
   width: [4, 32, 1],
   opacity: [0, 1, 0.01],
@@ -102,6 +110,9 @@ export function getAlignHudConfig(): AlignHudConfig {
 export function applyAlignHudVars(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement.style;
+  // Position rides on TRANSFORM (compositor-only — no layout, so nudging can never move the warband row).
+  root.setProperty('--ah-x', `${cfg.x}px`);
+  root.setProperty('--ah-y', `${cfg.y}px`);
   root.setProperty('--ah-length', `${cfg.length}%`);
   root.setProperty('--ah-width', `${cfg.width}px`);
   root.setProperty('--ah-opacity', String(cfg.opacity));

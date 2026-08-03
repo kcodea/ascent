@@ -214,11 +214,10 @@ describe('cardText helpers', () => {
   });
 
   it('summonBuffText shows Kennelmaster’s live Start-of-Combat Attack aura (base + Avenge bonus)', () => {
-    // Kennelmaster's aura is +(2 + summonBonus×2) ATTACK ONLY (owner rebalance 2026-07-25); the printed
-    // "+2 Attack" becomes live. The stepAttack of 2 is what makes this 6 rather than 4 — if the helper ever
-    // stops reading `stepAttack`, the card would print a number it isn't giving.
-    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +2 Attack
-    expect(summonBuffText('kennel', 2)).toContain('{{+6 Attack}}'); // base 2 + summonBonus 2 × step 2
+    // Kennelmaster's aura is +(1 + summonBonus×1) ATTACK ONLY (owner rebalance 2026-08-02); the printed
+    // "+1 Attack" becomes live via the effect's own base + stepAttack params.
+    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +1 Attack
+    expect(summonBuffText('kennel', 2)).toContain('{{+3 Attack}}'); // base 1 + summonBonus 2 × step 1
     expect(summonBuffText('sandbag', 3)).toBeNull(); // not a summon-buff / aura card
     // Trophy Stalker's growing Rally (base 5): golden doubles the live grant so the printed number matches the
     // real +10/+10 effect (owner-caught: it was under-showing +5/+5). Non-golden stays base+bonus.

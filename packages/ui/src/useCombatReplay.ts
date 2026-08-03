@@ -374,7 +374,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'death': return { text: `${n(e.target)} is destroyed.`, kind: 'death' };
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
-    case 'improve': return { text: `${n(e.target)}'s summon aura strengthens by +${e.amount}/+${e.amount}.`, kind: 'buff' };
+    case 'improve': { const d = e.display ?? e.amount; return d > 0 ? { text: `${n(e.target)}'s effect improves by ${d}.`, kind: 'buff' } : null; }
     case 'keyword': return { text: `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` from ${n(e.source)}` : ''}.`, kind: 'buff' };
     case 'keywordLost': return { text: `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` to ${n(e.source)}` : ''}.`, kind: 'dmg' };
     case 'maxGold': return { text: `${n(e.target)}'s Avenge raises your max Gold by ${e.amount}.`, kind: 'buff' };
@@ -396,7 +396,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'death': return `${n(e.target)} falls.`;
     case 'summon': return `${e.minion.name} joins the fray.`;
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
-    case 'improve': return `${n(e.target)}'s aura strengthens (+${e.amount}/+${e.amount}).`;
+    case 'improve': { const d = e.display ?? e.amount; return d > 0 ? `${n(e.target)}'s effect improves (+${d}).` : null; }
     case 'keyword': return `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
     case 'keywordLost': return `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
     case 'maxGold': return `${n(e.target)} raises your max Gold by ${e.amount}!`;

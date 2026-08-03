@@ -92,7 +92,7 @@ describe('Runeforge — framework', () => {
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
     // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
     // deliberate look. Bump it with the count. +10 (2026-07-30): Recollection, the First Round, six threshold runes, the Stampede, the Hatchery, Resonance, Investment, Last Call, Hunger, Blood and Coin, the Remains, Reinvestment the Hunting Bell, the Brood + the War Chorus. (Epics are counted separately.)
-    expect(RUNES.length).toBe(56); // +1 Contraband (2026-07-31)
+    expect(RUNES.length).toBe(57); // +1 Contraband (2026-07-31), +1 Distillation (2026-08-02)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -626,11 +626,12 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 
-  it('Rune of Quick Study: arms the recurring per-turn payout, nothing immediate', () => {
-    // Owner clarification 2026-07-31: the whole payout recurs (Gold Font + 2 Shop spells, every turn) —
-    // the immediate 3-spell grant was the pre-clarification shape. The payout itself is pinned below.
+  it('Rune of Quick Study: arms a 2-TURN payout, nothing immediate', () => {
+    // Owner rebalance 2026-08-02: the payout is BOUNDED to 2 turns, so it arms the limited list rather than
+    // the run-long one (the full lifecycle is pinned in quickStudyTurns.test.ts).
     const s = buyRune('rune_quick_study', 10, { tier: 3, hand: [] });
-    expect(s.questRecurringEndOfTurn).toContain('quickStudy');
+    expect(s.questRecurringLimited?.[0]).toMatchObject({ effect: 'quickStudy', turnsLeft: 2 });
+    expect(s.questRecurringEndOfTurn ?? []).not.toContain('quickStudy');
     expect(s.hand).toHaveLength(0);
   });
 

@@ -77,11 +77,12 @@ export const DRAGONS: CardDef[] = [
     goldenText: 'Whenever a **Shout** triggers, give your Dragons **+4/+4**. Adjacent Dragons gain **+8/+8** instead.',
   },
   {
-    // Dual-type Dragon/Demon payoff. Every Battlecry *fire* on your board permanently enchants the Fodder
-    // card type +1/+1 run-wide (Ritualist's mechanism, on a battlecry trigger instead of End of Turn). Fires
-    // per fire, so Drakko's doubling procs it twice; multiple Banes stack. Bridges Demon Fodder with a
-    // Battlecry-heavy build. In combat it also reacts to Ryme's battlecry replays via onBattlecryBuffFodder
-    // (buffs living FD/imp bodies this combat + grants the permanent Imp carry-back).
+    // Dual-type Dragon/Demon payoff. Every Shout *fire* on your board permanently enchants your IMPS +3/+3
+    // run-wide (Ritualist's mechanism, on a battlecry trigger instead of End of Turn). Fires per fire, so
+    // Drakko's doubling procs it twice; multiple Banes stack. In combat it also reacts to Ryme's battlecry
+    // replays via onBattlecryBuffFodder (buffs living Imp bodies this combat + the permanent Imp carry-back).
+    // Owner rework 2026-08-03: +2/+2 → +3/+3, and it no longer touches Fodder — the factory's `fodder` half
+    // is now opt-in and Bane simply doesn't ask for it.
     id: 'bane',
     name: 'Bane',
     tribe: 'dragon',
@@ -90,9 +91,9 @@ export const DRAGONS: CardDef[] = [
     attack: 7,
     health: 9,
     keywords: [],
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffFodder', params: { attack: 2, health: 2 } }],
-    text: 'After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.',
-    goldenText: 'After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run.',
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffFodder', params: { attack: 3, health: 3 } }],
+    text: 'After you trigger a **Shout**, give your Imps **+3/+3** this run.',
+    goldenText: 'After you trigger a **Shout**, give your Imps **+6/+6** this run.',
   },
 
   // --- New dragons (2026-06-24 content batch). Frontdrake's cadence grant, Supporter's tribe Rally, and

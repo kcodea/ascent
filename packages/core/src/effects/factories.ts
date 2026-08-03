@@ -1438,6 +1438,53 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Runebloom Matriarch / Runekeg (combat half — owner audit 2026-08-02): a spell cast MID-FIGHT
+   *  (Fatecarver's Growth, Taragosa, Ashen Broodlord's Staff) buffs `count` random living `tribe` members,
+   *  exactly like the shop half. This half was missing entirely, so combat casts silently skipped her.
+   *  `excludeSelf` (Runekeg): "other Dwarves". Rune of the Matriarch doubles via `matriarchRepsFor`,
+   *  mirroring the recruit engine's wrapper. Golden doubles the magnitude. */
+  onSpellCastBuffRandomTribe: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    const tribe = str(params.tribe) as Tribe | '';
+    const a = num(params.attack, 3) * mul(self);
+    const h = num(params.health, 3) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    const reps = self.cardId === 'b2_runebloom' ? ctx.matriarchRepsFor(self.side) : 1;
+    for (let r = 0; r < reps; r++) {
+      const pool = ctx.living(self.side).filter(
+        (m) => (!tribe || m.tribe === tribe || m.tribe2 === tribe || !!m.universalTribe) && !(params.excludeSelf && m === self),
+      );
+      if (pool.length === 0) return;
+      const want = Math.min(num(params.count, 3), pool.length);
+      for (let i = 0; i < want; i++) {
+        const idx = ctx.rng.int(pool.length);
+        ctx.buff(pool.splice(idx, 1)[0]!, a, h, self.uid);
+      }
+    }
+  },
+
+  /** Fatecarver, branch A (combat half — owner audit 2026-08-02): each spell cast mid-fight buffs one living
+   *  minion of each type, deterministically in board order — the same walk as the recruit half, so seating
+   *  steers who benefits in combat too. Gated on the Choose One pick like the Growth branch. */
+  onSpellCastBuffOnePerTribe: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    const seen = new Set<string>();
+    for (const m of ctx.living(self.side)) {
+      if (m.universalTribe) { ctx.buff(m, a, h, self.uid); continue; } // its own slot, not every tribe's
+      const tribes = [m.tribe, m.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+      if (tribes.length === 0) continue;
+      if (tribes.every((t) => seen.has(t))) continue;
+      for (const t of tribes) seen.add(t);
+      ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   /** Archmagus Guel (combat half) — when a friendly spell is cast mid-fight (Taragosa's Growth), give
    *  `count` other random friendly minions +atk/+hp, scaling +1/+1 per 4 spells cast so far (the running
    *  per-side tally rides in the `spellCast` payload; the triggering cast is already counted, matching the
@@ -1529,7 +1576,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       const fires = self.summonBonus ?? 0; // ?? 0 — recruit BoardCards may not have it seeded; counts FIRES, carried back
       const m = base * (1 + Math.floor(fires / every)) * mul(self);
       if (m > 0) for (const t of ctx.living(self.side)) if (t !== self) ctx.buff(t, m, m, self.uid);
-      self.summonBonus = fires + ctx.improveRepsFor(self.side); // count this fire (×2 under Mastery), carried back
+      const inc = ctx.improveRepsFor(self.side);
+      self.summonBonus = fires + inc; // count this fire (×2 under Mastery), carried back
+      // Live combat text: the grant magnitude only moves every `every` fires — display the STEP when it does.
+      if (Math.floor((fires + inc) / every) > Math.floor(fires / every)) {
+        ctx.log({ type: 'improve', target: self.uid, amount: inc, display: num(params.attack, 1) * mul(self) });
+      } else {
+        ctx.log({ type: 'improve', target: self.uid, amount: inc, display: 0 });
+      }
     } finally {
       huntGuard.delete(self);
     }
@@ -2145,6 +2199,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const mag = base + (self.summonBonus ?? 0);
     ctx.buff(self, mag, mag, self.uid);
     self.summonBonus = (self.summonBonus ?? 0) + step; // Improve this
+    ctx.log({ type: 'improve', target: self.uid, amount: step }); // live combat text (owner audit 2026-08-02)
   },
 
   /** Anubis (Tier 7) — Deathrattle: grant Rise to EVERY other living friendly minion that doesn't already
@@ -2207,19 +2262,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
   },
 
-  /** Amun Rab (Tier 7) — the improving Imp buff: like `deathrattleBuffImps`, but the magnitude IMPROVES by
-   *  `step` after each proc (rides `summonBonus`, the standard per-instance improve channel). Golden doubles
-   *  both the grant and the step. The buff is permanent — it raises the run-wide Imp buff, so Imps summoned
-   *  later inherit it. */
-  deathrattleBuffImpsImproving: (ctx, self, params, payload) => {
-    if ((payload as MinionPayload).minion !== self) return;
-    const base = num(params.attack, 10) * mul(self);
-    const step = num(params.step, base) * mul(self);
-    const mag = base + (self.summonBonus ?? 0);
-    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, mag, mag, self.uid);
-    ctx.grantImpBuff(mag, mag, self.side); // permanent — carried back to RunState.impBuff
-    self.summonBonus = (self.summonBonus ?? 0) + step; // Improve this
-  },
 
   /** Brood Matron — Avenge (X): every X friendly deaths, buff your Imps +atk/+hp (permanent, carried back).
    *  Golden doubles the stat gain (the summon cap stays at 3). */
@@ -2329,12 +2371,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
     const a = num(params.attack, 1) * mul(self);
     const h = num(params.health, 1) * mul(self);
+    // `fodder` is OPT-IN, mirroring the recruit half (owner 2026-08-03: Bane is Imps-only now).
+    const fodder = !!params.fodder;
     for (const m of ctx.living(self.side)) {
       const def = ctx.getCard(m.cardId);
-      if (def?.keywords.includes('FD') || def?.imp) ctx.buff(m, a, h, self.uid);
+      if (def?.imp || (fodder && def?.keywords.includes('FD'))) ctx.buff(m, a, h, self.uid);
     }
     ctx.grantImpBuff(a, h, self.side); // Imps permanent — carried back to RunState.impBuff
-    ctx.grantFodderBuff(a, h, self.side); // Fodder enchant permanent — carried back, mirrors recruit buffFodderRunWide
+    if (fodder) ctx.grantFodderBuff(a, h, self.side); // Fodder enchant permanent — mirrors recruit buffFodderRunWide
   },
 
   // ─── 2026-07-06 content batch: Beast "wherever they are" combat auras ──────────
@@ -2419,22 +2463,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.damage(ctx.rng.pick(targets), self.attack + bonus);
   },
 
-  /** Baby Cub — Rally: each time THIS attacks, permanently improve your Den Mother aura by +step. Bumps every
-   *  friendly Den Mother's accrued `summonBonus` (its per-summon buff magnitude), which rides the summonBonus
-   *  carry-back so the bigger aura persists next combat AND in the shop. Golden doubles the step. Stored
-   *  pre-Den-Mother-golden like all summonBonus, so a golden Den Mother doubles the improvement in turn. No
-   *  `improve` log: that event re-applies the TARGET's golden in the UI, which would mis-count an external
-   *  bump on a golden Den Mother — the value stays correct via the carry-back + shop/board re-render instead. */
-  rallyImproveSummonAura: (ctx, self, params, payload) => {
-    const { minion } = payload as MinionPayload;
-    if (self.dead || minion !== self) return; // only on this minion's own attack
-    const step = num(params.amount, 5) * mul(self);
-    const targetId = str(params.cardId) || 'mamabear';
-    for (const m of ctx.living(self.side)) {
-      if (m === self || m.cardId !== targetId) continue;
-      m.summonBonus += step;
-    }
-  },
 
   /** Set 2 — Sunmane Herald (Rally): on its own attack, give your OTHER `tribe` minions +Attack and graft this
    *  rally onto them, so every Beast it touches becomes another Herald.
@@ -2487,24 +2515,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Set 2 — Lancel (Start of Combat): give your LEFT-MOST `count` friendly `tribe` minions Ward, and each
-   *  attacks immediately (out of turn order, via the immediate-attack queue). Golden covers two instead of one.
-   *  Left-most is board order, so the pick is deterministic and consumes no RNG. */
-  scShieldAttackLeftmostTribe: (ctx, self, params) => {
-    const tribe = (str(params.tribe) || 'beast') as Tribe;
-    const want = num(params.count, 1) * mul(self);
-    const friends = ctx.living(self.side).filter(
-      (m) => m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe,
-    ).slice(0, want);
-    if (friends.length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} sounds the charge` });
-    for (const m of friends) {
-      grantShield(ctx, m);
-      // `attackNow: false` (Lancel, owner change 2026-07-25) — Ward only, no free opening swing.
-      if (params.attackNow !== false) ctx.attackNow?.(m, false); // already shielded above — don't re-grant per strike
-    }
-  },
-
   /** Set 2 — Denkeeper Oona (Start of Combat, passive-reading): register a SUMMON-ONLY `tribe` aura — minions
    *  you summon later in the fight enter with +atk/+hp. Unlike `scBeastAura` it deliberately does NOT buff the
    *  minions already on board: the card reads "Beasts you SUMMON in combat have +5/+5", i.e. it pays the token
@@ -2516,27 +2526,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: `${self.name} watches the den` });
     ctx.addTribeAura(self.side, tribe, a, h, self.uid); // future summons only — no pass over `ctx.living`
-  },
-
-  /** Set 2 — Moonlit Scavenger (Avenge half): every X friendly deaths, buff your `tribe` for the rest of the
-   *  fight AND carry it back to the run ("wherever they are"). Registers the rest-of-combat aura so later
-   *  summons inherit it, buffs the living ones now, and grants the permanent buy-time slice. */
-  avengeBuffTribeLasting: (ctx, self, params, payload) => {
-    const { side, count } = payload as { side: Side; count: number };
-    if (self.dead || side !== self.side) return;
-    const every = Math.max(1, num(params.count, 3));
-    if (count % every !== 0) return;
-    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
-    const a = num(params.attack, 2) * mul(self);
-    const h = num(params.health, 0) * mul(self);
-    if (a <= 0 && h <= 0) return;
-    ctx.addTribeAura(self.side, tribe, a, h, self.uid);
-    for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-    }
-    // NOTE: combat-scoped. "Wherever they are" is satisfied within the fight — the `addTribeAura` above means
-    // minions summoned later inherit it, not just the ones standing now. A run-wide carry-back would need a new
-    // ctx accessor over `beastBuyAtkGain` (a simulate.ts local today); deliberately not invented here.
   },
 
   /** Set 2 — Echohorn Stag (Rally): on its own attack, trigger your LEFT-MOST friendly Echo (Deathrattle) —
@@ -2691,6 +2680,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * mul(self);
+    ctx.log({ type: 'improve', target: self.uid, amount: num(params.step, 1) * mul(self) }); // live combat text (owner audit 2026-08-02)
   },
 
   /** Set 2 — Legion Shepherd (Start of Combat): fill your warband with Imps, then give your Imps +atk/+hp for
@@ -2725,7 +2715,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const every = Math.max(1, num(params.improveEvery, 3));
     const a = (num(params.attack, 3) + (self.summonBonus ?? 0)) * mul(self);
     for (const m of ctx.living(self.side)) if (m.cardId === 'impscrap') ctx.buff(m, a, a, self.uid);
-    if (self.attackSeen % every === 0) self.summonBonus = (self.summonBonus ?? 0) + num(params.improve, 1);
+    if (self.attackSeen % every === 0) {
+      self.summonBonus = (self.summonBonus ?? 0) + num(params.improve, 1);
+      ctx.log({ type: 'improve', target: self.uid, amount: num(params.improve, 1) }); // live combat text (owner audit 2026-08-02)
+    }
   },
 
   /** Set 2 — Gravelight Acolyte (Echo): on death, summon `count` random minions of an exact `tier` (golden
@@ -2852,13 +2845,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  Attack-only by design: the Beast go-wide line already has plenty of health-stacking, and an escalating
    *  Attack grant is what makes a wide board actually close a fight. */
   onSummonTribeBuffImproveSelf: (ctx, self, params, payload) => {
+    // Owner rebalance 2026-08-02: asymmetric now — base +attack/+health, improving by +stepAttack/+stepHealth
+    // per summon (golden doubles both, so the improve reads +4/+2 gilded). `summonBonus` counts PROCS (the
+    // same shape Oona's `onSummonTribeBuffThenDouble` uses), still carried back keyed to this body's sourceUid.
     const { minion } = payload as MinionPayload;
     if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
     const tribe = (str(params.tribe) || 'beast') as Tribe;
     if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
-    const bonus = self.summonBonus ?? 0;
-    ctx.buff(minion, (num(params.attack, 3) + bonus) * mul(self), 0, self.uid);
-    self.summonBonus = bonus + num(params.step, 1); // permanent — carried back keyed to this body's sourceUid
+    const procs = self.summonBonus ?? 0;
+    const a = (num(params.attack, 3) + procs * num(params.stepAttack, 3)) * mul(self);
+    // Rune of the Mammoth (owner 2026-08-02): the Attack-only grant becomes 1:1 symmetric — +3/+3, +6/+6, …
+    const h = ctx.mammothHealthFor(self.side)
+      ? a
+      : (num(params.health, 0) + procs * num(params.stepHealth, 0)) * mul(self);
+    ctx.buff(minion, a, h, self.uid);
+    // Rune of Mastery: an Improve improves an additional time — same rule Kennelmaster's Avenge follows.
+    const inc = ctx.improveRepsFor(self.side);
+    self.summonBonus = procs + inc; // permanent — carried back keyed to this body's sourceUid
+    // Live combat text (owner audit 2026-08-02): without this log the replay never folded the climb and the
+    // printed grant froze mid-fight. `amount` = procs (what the replay adds); `display` = the step it reads as.
+    ctx.log({ type: 'improve', target: self.uid, amount: inc, display: num(params.stepAttack, 3) * mul(self) * inc });
   },
 
   /** Set 2 — Groveweaver (combat half): a `tribe` minion summoned DURING the fight gets the same asymmetric

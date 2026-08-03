@@ -43,9 +43,9 @@ export const BEASTS: CardDef[] = [
     health: 3,
     keywords: ['SC'],
     effects: [
-      // Owner rebalance 2026-07-25: base +2 Attack, and each Avenge improves it by the SAME +2 ("improves by
-      // the amount of their buff") rather than the old flat +1 step.
-      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 2, health: 0, stepAttack: 2, stepHealth: 0 } },
+      // Owner rebalance 2026-08-02: back to base +1 Attack improving +1 per Avenge (golden doubles both,
+      // reading +2 improving +2 — the 07-25 "+2 improving +2" plain values were too much).
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
     ],
     // Start of Combat: a board-wide (`tribe: 'any'`) Attack aura that lasts the fight — current minions + any
@@ -54,8 +54,8 @@ export const BEASTS: CardDef[] = [
     // countdown surface via cardText's summonBuffText helper on every surface.
     // Printed base follows the params (owner report 2026-07-31: it GAVE +2 but SAID +1 — the 2026-07-25
     // rebalance moved the params and left the text behind).
-    text: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (3):** Improve this.',
-    goldenText: '**Start of Combat:** give your Beasts **+4 Attack** wherever they are. **Avenge (3):** Improve this (twice as much).',
+    text: '**Start of Combat:** give your Beasts **+1 Attack** wherever they are. **Avenge (3):** Improve this.',
+    goldenText: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (3):** Improve this (twice as much).',
   },
   {
     id: 'gnash',

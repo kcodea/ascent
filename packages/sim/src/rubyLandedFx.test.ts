@@ -74,18 +74,16 @@ describe('rubyLandedFx stamp (which cards a Ruby landed on)', () => {
    *
    * A gilded Frenzied Excavator reads "play 2 Rubies", and the board has to say two.
    *
-   * SKIPPED, and NOT because the cue is wrong — the engine never applies two. `battlecryPlayRubiesAll` plays
+   * WAS SKIPPED until the engine applied two (#828, now on main). `battlecryPlayRubiesAll` plays
    * ONE Ruby of doubled magnitude (`per = rubies × gold(self)` folded into the amount, a single `addBuff`),
    * where its sibling `spellPlayRubiesAll` loops `per` times and applies N genuine Rubies, firing the target's
    * watchers each time. Same concept, opposite implementations — and the Excavator's disagrees with its own
    * printed text.
    *
-   * So gilded is indistinguishable from ungilded at the SOURCE: no count exists to carry, and no presentation
-   * change can invent one. Un-skip when `battlecryPlayRubiesAll` loops like its sibling. That is a gameplay
-   * change (Ruby Broker would pay twice, a Resonance Idol would bounce twice, the castRuby meter would tick
-   * twice) in `packages/sim`, so it is the owner's call, not a presentation fix.
+   * `battlecryPlayRubiesAll` now loops like its sibling, so the count exists at the source. This is the
+   * end-to-end guard for the gilded case: engine applies two, signal carries two, UI stacks two.
    */
-  it.skip('a GILDED Frenzied Excavator reports a count of 2 on every minion — BLOCKED, see below', () => {
+  it('a GILDED Frenzied Excavator reports a count of 2 on every minion', () => {
     const s = withRubyInHand({
       hand: [{ ...card('f1', 'k_frenzied'), golden: true }],
       board: [card('b1', 'stray'), card('b2', 'spore')],

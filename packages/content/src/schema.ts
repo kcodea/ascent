@@ -93,9 +93,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryGrantBeastHunt',
   'battlecryGrantBeastRitual',
   'rallySpreadTribeBuff',
-  'scShieldAttackLeftmostTribe',
   'scSummonOnlyTribeAura',
-  'avengeBuffTribeLasting',
   'rallyProcLeftmostEcho',
   'deathrattleSummonRandomTribe',
   'battlecryGrantSpellPowerRun',
@@ -118,6 +116,7 @@ export const EffectFactoryIdSchema = z.enum([
   'buffShopPermanent',
   'buffRightmostSlotPermanent',
   'endOfTurnGainRightmostShopStats',
+  'spellCopyTargetExact',
   'endOfTurnBuffSpellsAndImps',
   'onConsumeGoldFlat',
   'endOfTurnNeighboursConsumeShop',
@@ -321,7 +320,6 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyTribeAuraGrowing',
   'rallyGiveDemonAttack',
   'rallyDamageRandomEnemy',
-  'rallyImproveSummonAura',
   'avengeShieldAttack',
   'endOfTurnGrantSpellChoice',
   'spellRallyDoubleNext',
@@ -365,7 +363,6 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleCastTribeAttack',
   'onSellDiscover',
   'deathrattleGainRandomMinion',
-  'deathrattleBuffImpsImproving',
   // Set 2 — Kobolds / Rubies
   'getRubies',        // Shout/Rally: mint N Rubies into hand (base 1/1 + rubyBonus)
   'endOfTurnGetRubies', // Wardstone Jeweler: End of Turn, mint Rubies (Warding Ruby)
@@ -437,6 +434,7 @@ export const CardDefSchema = z.object({
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
   noTriple: z.boolean().optional(),
+  gift: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
   attackImmuneTurns: z.number().int().positive().optional(),
   ascendInto: z.string().optional(),
@@ -496,7 +494,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'consumeShopMinion',
   'compound',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -546,10 +544,13 @@ z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).
 z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'spellCastNonAle', 'castRuby', 'cardsBought', 'shout']), per: z.number().int().positive(),
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),
   buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost']), attack: z.number().int(), health: z.number().int() }).strict().optional(),
+  rubyAll: z.boolean().optional(),
   oncePerTurn: z.boolean().optional() }).strict(),
 z.object({ kind: z.literal('runeBrokerage') }).strict(),
 z.object({ kind: z.literal('runeSharedTable'), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('runeRedirection') }).strict(),
+z.object({ kind: z.literal('runeDistillation') }).strict(),
+z.object({ kind: z.literal('runeLiquidation') }).strict(),
 z.object({ kind: z.literal('runeFacetwright') }).strict(),
 z.object({ kind: z.literal('runeDuplication') }).strict(),
 z.object({ kind: z.literal('runeProfitSharing'), tribe: TribeSchema, attack: z.number().int(), health: z.number().int() }).strict(),
@@ -561,7 +562,7 @@ z.object({ kind: z.literal('motherlode'), count: z.number().int().positive(), tr
 z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'demonEatsRightmostShop', 'grantFacetwright']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'demonEatsRightmostShop', 'grantFacetwright']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive(), immediate: z.boolean().optional() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),

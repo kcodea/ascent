@@ -11,7 +11,7 @@
  * offered trio in via `heroOffer`.
  */
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import { createRun, runRecord, type RunState } from './state';
+import { createRun, runRecord, type RunState, type Action } from './state';
 import { HEROES } from './heroes';
 import { reduce } from './reducer';
 import type { Replay } from './snapshot';
@@ -52,6 +52,11 @@ export interface RunTelemetry {
    *  minions mostly bought on"). One entry per shop buy / Discover pick — the wave-tagged superset of
    *  `boughtCards` + `discoverBoughtCards`. Absent on pre-migration historical rows. */
   buyEvents?: { id: string; wave: number; src: 'shop' | 'discover' }[];
+  /** FINAL LOBBY PLACEMENT, 1–8 (owner ask 2026-08-02: "boards that buy X place 8th most often"). Supplied by
+   *  the UI at upload — the reconstruction can't know it (a replay reproduces the run, not the table it sat
+   *  at). Absent on every row written before this patch, so placement views are FORWARD-ONLY: they must
+   *  filter to rows that carry it rather than treating a missing value as any particular finish. */
+  placement?: number;
 }
 
 /**
@@ -140,6 +145,11 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   return {
     heroId: replay.heroId,
     heroOffer,
+    // COURSE-shaped only: a LOBBY never reaches phase 'victory' (`advanceCombat`'s victory branch excludes
+    // it), so a replay can never tell you a lobby was won — every lobby row read as a loss, which is why the
+    // Balance Report's shop curve showed 100% "lost runs" (owner report 2026-08-02; same root cause as the
+    // Hall of Champions bug on 2026-07-31). The lobby answer is placement 1, which only the caller knows, so
+    // the store overrides this at upload. Left as the course default rather than guessed here.
     won: s.phase === 'victory',
     wins: rec.wins,
     offeredQuests: [...offeredQuests],
@@ -192,15 +202,15 @@ export function buildCardCsv(rows: RunTelemetry[]): string {
     for (const id of seen) {
       const a = get(id);
       a.runsSeen++;
-      if (bought.has(id)) { a.runsBought++; if (r.won) a.winsWhenBought++; }
-      else { a.seenNotBought++; if (r.won) a.winsSeenNotBought++; }
+      if (bought.has(id)) { a.runsBought++; if (runWon(r)) a.winsWhenBought++; }
+      else { a.seenNotBought++; if (runWon(r)) a.winsSeenNotBought++; }
     }
     // Bought without a recorded sighting (granted/conjured paths) still counts as a bought run.
     for (const id of bought) {
       if (seen.has(id)) continue;
       const a = get(id);
       a.runsBought++;
-      if (r.won) a.winsWhenBought++;
+      if (runWon(r)) a.winsWhenBought++;
     }
   }
   const pct = (n: number, d: number): string => (d > 0 ? (Math.round((n / d) * 1000) / 10).toString() : '');
@@ -252,6 +262,13 @@ export interface PlayerReportRow {
   shopPicked: number;
   discoverOffered: number;
   discoverPicked: number;
+  /** Placement analytics — null when NO row carrying this entry had a placement (pre-2026-08-02 data, or a
+   *  non-lobby run). `avgPlace` is the mean finish among placed runs that TOOK it; `firstRate`/`lastRate` are
+   *  whole percents of those runs; `placedGames` is the sample size behind all three. */
+  avgPlace: number | null;
+  firstRate: number;
+  lastRate: number;
+  placedGames: number;
 }
 
 /** The shop-leveling curve: average tavern tier reached by each wave, split by outcome. `won`/`lost` are indexed
@@ -265,6 +282,11 @@ export interface ShopCurve {
   /** Average wave at which a run first REACHES each tavern tier, indexed by tier (1..6; index 0 unused). T1 is
    *  always wave 1 (a given). A null slot = no run reached that tier. Shown beside the Y-axis tier labels. */
   avgWaveToTier: (number | null)[];
+  /** The same mean-tier-by-wave curve, one series PER PLACEMENT (index 1..8; index 0 unused) — owner ask
+   *  2026-08-02 ("avg shop curve by placement"). Built only from rows carrying a placement, so it is empty on
+   *  pre-2026-08-02 data; `placedRuns[p]` is the sample size behind series `p`. */
+  byPlacement: ((number | null)[] | null)[];
+  placedRuns: number[];
 }
 
 /** The finished player report: five ranked tables + the shop-leveling curve + the run count behind them. */
@@ -278,21 +300,36 @@ export interface PlayerReport {
   shopCurve: ShopCurve;
 }
 
+/** Did this run WIN? Placement is authoritative when present (1 = the lobby win), because rows uploaded
+ *  before the 2026-08-02 fix carry `won: false` on every lobby run — the replay could not know. Falls back to
+ *  the stored flag for course-era rows, which have no placement. */
+export const runWon = (r: RunTelemetry): boolean => (r.placement != null ? r.placement === 1 : r.won);
+
 /** Average the per-run `tierByWave` arrays into two mean curves (won runs vs lost runs), indexed by wave. */
 function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
   const sum = { won: [] as number[], lost: [] as number[] };
   const cnt = { won: [] as number[], lost: [] as number[] };
+  // Per-placement curves (1..8), same shape as the won/lost pair above.
+  const pSum: number[][] = Array.from({ length: 9 }, () => []);
+  const pCnt: number[][] = Array.from({ length: 9 }, () => []);
+  const placedRuns = Array.from({ length: 9 }, () => 0);
   let maxWave = 0;
   for (const r of rows) {
-    const bucket = r.won ? 'won' : 'lost';
+    const bucket = runWon(r) ? 'won' : 'lost';
     const t = r.tierByWave ?? [];
     for (let w = 1; w < t.length; w++) {
       const tier = t[w];
       if (tier == null) continue;
       sum[bucket][w] = (sum[bucket][w] ?? 0) + tier;
       cnt[bucket][w] = (cnt[bucket][w] ?? 0) + 1;
+      const p = r.placement;
+      if (p != null && p >= 1 && p <= 8) {
+        pSum[p]![w] = (pSum[p]![w] ?? 0) + tier;
+        pCnt[p]![w] = (pCnt[p]![w] ?? 0) + 1;
+      }
       if (w > maxWave) maxWave = w;
     }
+    if (r.placement != null && r.placement >= 1 && r.placement <= 8) placedRuns[r.placement]!++;
   }
   const mean = (b: 'won' | 'lost'): (number | null)[] => {
     const out: (number | null)[] = [];
@@ -317,10 +354,22 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
   for (let tier = 1; tier <= 6; tier++) {
     avgWaveToTier[tier] = tier === 1 ? 1 : (tierCnt[tier] ? Math.round((tierSum[tier]! / tierCnt[tier]!) * 10) / 10 : null);
   }
+  // One mean series per placement; null for a placement no run finished at (so the chart can skip it).
+  const byPlacement: ((number | null)[] | null)[] = [];
+  for (let place = 1; place <= 8; place++) {
+    if (!placedRuns[place]) { byPlacement[place] = null; continue; }
+    const series: (number | null)[] = [];
+    for (let w = 1; w <= maxWave; w++) {
+      series[w] = pCnt[place]![w] ? Math.round((pSum[place]![w]! / pCnt[place]![w]!) * 100) / 100 : null;
+    }
+    byPlacement[place] = series;
+  }
   return {
+    byPlacement,
+    placedRuns,
     maxWave,
-    wonRuns: rows.filter((r) => r.won).length,
-    lostRuns: rows.filter((r) => !r.won).length,
+    wonRuns: rows.filter(runWon).length,
+    lostRuns: rows.filter((r) => !runWon(r)).length,
     won: mean('won'),
     lost: mean('lost'),
     avgWaveToTier,
@@ -328,6 +377,13 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
 }
 
 interface Acc {
+  /** Placement analytics (owner ask 2026-08-02) — accumulated ONLY over rows that carry a placement (lobby
+   *  runs since the 2026-08-02 capture). `placedGames` is the denominator, NOT `games`: mixing in pre-capture
+   *  rows would silently drag every average toward whatever the missing values are assumed to be. */
+  placeSum: number;
+  placedGames: number;
+  firsts: number; // placement 1
+  lasts: number; // placement 8 (or the table's last seat)
   offered: number; // runs this was offered in
   picked: number; // runs this was picked in
   games: number; // runs picked (= games played with it)
@@ -340,7 +396,7 @@ interface Acc {
   discOffered: number;
   discPicked: number;
 }
-const blankAcc = (): Acc => ({ offered: 0, picked: 0, games: 0, won: 0, winsSum: 0, turnsSum: 0, turnsCount: 0, shopOffered: 0, shopPicked: 0, discOffered: 0, discPicked: 0 });
+const blankAcc = (): Acc => ({ placeSum: 0, placedGames: 0, firsts: 0, lasts: 0, offered: 0, picked: 0, games: 0, won: 0, winsSum: 0, turnsSum: 0, turnsCount: 0, shopOffered: 0, shopPicked: 0, discOffered: 0, discPicked: 0 });
 const pct = (n: number, d: number): number => (d === 0 ? -1 : Math.round((100 * n) / d));
 const avg1 = (sum: number, n: number): number | null => (n === 0 ? null : Math.round((10 * sum) / n) / 10);
 
@@ -360,6 +416,10 @@ function toRows(
     avgTurns: opts.turns ? avg1(a.turnsSum, a.turnsCount) : null,
     shopOffered: a.shopOffered, shopPicked: a.shopPicked,
     discoverOffered: a.discOffered, discoverPicked: a.discPicked,
+    avgPlace: avg1(a.placeSum, a.placedGames),
+    firstRate: pct(a.firsts, a.placedGames),
+    lastRate: pct(a.lasts, a.placedGames),
+    placedGames: a.placedGames,
   }));
   // Rank by win rate (games as tiebreak); minions (no win) fall back to pick volume.
   rows.sort((x, y) => (y.winRate - x.winRate) || (y.games - x.games) || (y.picked - x.picked));
@@ -375,20 +435,32 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
   const spells = new Map<string, Acc>();
   const bump = (m: Map<string, Acc>, id: string): Acc => { let a = m.get(id); if (!a) { a = blankAcc(); m.set(id, a); } return a; };
 
+  // Placement is credited on the PICKED side only, and only from rows that carry one (see `Acc`). `lastSeat`
+  // defaults to 8 — the standard table — so "last place" means the bottom seat of a full lobby.
+  const LAST_SEAT = 8;
+  const creditPlace = (a: Acc, place: number | undefined): void => {
+    if (place == null) return;
+    a.placeSum += place; a.placedGames++;
+    if (place === 1) a.firsts++;
+    if (place >= LAST_SEAT) a.lasts++;
+  };
+
   for (const r of rows) {
     // Heroes: offered = the trio; picked = the chosen hero; games/win/avgWins credited to the pick.
     for (const id of r.heroOffer) bump(heroes, id).offered++;
     // A run with no captured hero-offer still credits its pick as offered+picked (so pick rate stays ≤100%).
     if (!r.heroOffer.includes(r.heroId)) bump(heroes, r.heroId).offered++;
     const hp = bump(heroes, r.heroId);
-    hp.picked++; hp.games++; hp.winsSum += r.wins; if (r.won) hp.won++;
+    hp.picked++; hp.games++; hp.winsSum += r.wins; if (runWon(r)) hp.won++;
+    creditPlace(hp, r.placement);
 
     const creditPicked = (m: Map<string, Acc>, offered: string[], picked: string[], turns?: Record<string, number>): void => {
       for (const id of offered) bump(m, id).offered++;
       for (const id of picked) {
         const a = bump(m, id);
         if (!offered.includes(id)) a.offered++; // ensure pick rate ≤ 100%
-        a.picked++; a.games++; if (r.won) a.won++;
+        a.picked++; a.games++; if (runWon(r)) a.won++;
+        creditPlace(a, r.placement);
         const t = turns?.[id];
         if (t !== undefined) { a.turnsSum += t; a.turnsCount++; }
       }
@@ -399,9 +471,9 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     // Cards: offer = seen, pick = acquired. No win credit (per spec). Split minion vs spell AND shop vs Discover —
     // `offered`/`picked` accumulate the combined total (for ranking); the shop*/disc* fields track each source.
     for (const id of r.offeredCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.offered++; a.shopOffered++; } }
-    for (const id of r.boughtCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.shopPicked++; } }
+    for (const id of r.boughtCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.shopPicked++; creditPlace(a, r.placement); } }
     for (const id of r.discoverOfferedCards ?? []) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.offered++; a.discOffered++; } }
-    for (const id of r.discoverBoughtCards ?? []) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.discPicked++; } }
+    for (const id of r.discoverBoughtCards ?? []) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.discPicked++; creditPlace(a, r.placement); } }
   }
 
   const total = rows.length;
@@ -414,5 +486,80 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     minions: toRows(minions, total, (id) => CARD_INDEX[id]?.name ?? id),
     spells: toRows(spells, total, (id) => CARD_INDEX[id]?.name ?? id),
     shopCurve: aggregateShopCurve(rows),
+  };
+}
+
+// ── LIVE capture ────────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * The acquisition streams, recorded AS THE RUN IS PLAYED rather than re-derived from its action log.
+ *
+ * Why this exists: `reconstructRunTelemetry` replays `(seed, actions)` from scratch, and a replay only yields
+ * the right answer if it reproduces the run exactly. For a LOBBY run that is not guaranteed — the same reason
+ * `saveRunBoards` REFUSES to replay one (its seats aren't attached, so it diverges from the first combat) and
+ * the lobby captures its boards live instead. Telemetry was still replaying, and a divergence is silent and
+ * ASYMMETRIC: sightings are recorded before `reduce`, so they survive, while a buy is only recorded if the
+ * replay's `reduce` accepts it — producing exactly "every card seen, nothing ever bought" (owner report
+ * 2026-08-03: "I literally just played a game where I bought Sunmanes").
+ *
+ * Recording live removes the class of bug rather than the instance. Mutated in place and returned by identity:
+ * this runs on every dispatched action, so it must not allocate per action.
+ */
+export interface TelemetryLog {
+  offeredCards: string[];
+  boughtCards: string[];
+  discoverOfferedCards: string[];
+  discoverBoughtCards: string[];
+  buyEvents: { id: string; wave: number; src: 'shop' | 'discover' }[];
+  /** Shop-offer uids already counted as seen — an offer lingering across turns counts once, a refresh mints
+   *  new uids. Serialized as an array so the log survives a quit-and-resume in the save file. */
+  seenShopUids: string[];
+}
+
+export const emptyTelemetryLog = (): TelemetryLog => ({
+  offeredCards: [], boughtCards: [], discoverOfferedCards: [], discoverBoughtCards: [], buyEvents: [], seenShopUids: [],
+});
+
+/**
+ * Fold one dispatched action into the live log. `before`/`after` are the run state either side of `reduce`,
+ * so an action the reducer REJECTED (`after === before`) records nothing but its sightings — matching what the
+ * player actually saw. Mirrors the per-action branches in `reconstructRunTelemetry` exactly; the two must stay
+ * in step, which is why they live in the same file.
+ */
+export function recordTelemetryAction(log: TelemetryLog, before: RunState, action: Action, after: RunState): TelemetryLog {
+  const seen = log.seenShopUids;
+  // Shop sightings: each fresh offer instance (by uid) counts once, however many turns it lingers. The
+  // right-hand SPELL slot is an offer too.
+  for (const c of before.shop ?? []) {
+    if (c.uid && c.cardId && !seen.includes(c.uid)) { seen.push(c.uid); log.offeredCards.push(c.cardId); }
+  }
+  const slot = before.spell;
+  if (slot?.uid && slot.cardId && !seen.includes(slot.uid)) { seen.push(slot.uid); log.offeredCards.push(slot.cardId); }
+
+  if (after === before) return log; // rejected action — nothing was acquired
+  if (action.type === 'buy') {
+    // A buy resolves from the shop row OR the right-hand spell slot.
+    const card = before.shop?.find((c) => c.uid === action.uid) ?? (before.spell?.uid === action.uid ? before.spell : undefined);
+    if (card?.cardId) {
+      log.boughtCards.push(card.cardId);
+      log.buyEvents.push({ id: card.cardId, wave: before.wave, src: 'shop' });
+    }
+  } else if (action.type === 'discover' && before.discover) {
+    for (const id of before.discover) log.discoverOfferedCards.push(id);
+    const picked = before.discover[action.index];
+    if (picked) { log.discoverBoughtCards.push(picked); log.buyEvents.push({ id: picked, wave: before.wave, src: 'discover' }); }
+  }
+  return log;
+}
+
+/** Overlay a live-captured log onto a reconstructed row, replacing the replay-derived acquisition streams with
+ *  what actually happened. Everything the replay gets right regardless (quests, runes, tier curve) is kept. */
+export function withLiveTelemetry(t: RunTelemetry, log: TelemetryLog): RunTelemetry {
+  return {
+    ...t,
+    offeredCards: log.offeredCards.filter((id) => CARD_INDEX[id]),
+    boughtCards: log.boughtCards.filter((id) => CARD_INDEX[id]),
+    discoverOfferedCards: log.discoverOfferedCards.filter((id) => CARD_INDEX[id]),
+    discoverBoughtCards: log.discoverBoughtCards.filter((id) => CARD_INDEX[id]),
+    buyEvents: log.buyEvents.filter((e) => CARD_INDEX[e.id]),
   };
 }

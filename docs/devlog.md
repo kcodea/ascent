@@ -1,5 +1,11 @@
 # ASCENT — development log
 
+## 2026-08-02 — Bane's Presence art wired — quest coverage is now 103/103
+
+The owner supplied `BanesPresence.png`, the one quest the previous pass reported as missing (the folder had
+only BanesExistence.png, a different quest). Wired by strict name match. **Every quest in the roster now has
+art.**
+
 ## 2026-08-02 — Quest art wired (the folder was never mined for the quests themselves)
 
 Owner ask. `wire-art` only ever read the Quests folder's "Quest Reward Related Things" SUB-folder, so the

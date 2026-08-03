@@ -49,6 +49,38 @@ schedule is better off not knowing what a `targetUid` is.
 
 Next on this thread: the withheld-number release subscribes to the same schedule, which is what puts the stat
 numbers and floats on the same clock as the effect (see `land` in `fx-vocabulary.md`).
+## 2026-08-03 — Lobby seat rotation collapsed whenever the run pool hit a multiple of 7
+
+Owner report: "why did I get a lobby without player snapshots? I just played 3 or 4 games straight with
+multiple player snapshots — this lobby randomly doesn't have any."
+
+**Root cause: arithmetic, not the pool.** The seat filler walked the available runs as
+`available[(seed + i * 7) % available.length]`. A stride only enumerates the whole list when it is COPRIME
+with the list length, and 7 shares a factor with every multiple of 7 — so the walk folded:
+
+```
+pool  7 -> 1 reachable run     pool 21 -> 3      pool 49 -> 7
+pool 14 -> 2 reachable runs    pool 28 -> 4      pool 70 -> 10
+```
+
+Every other pool size enumerated fine, which is exactly why it read as random. The pool grows by one run per
+finished upload, so a table that had been seating plenty of real players would suddenly seat one — or none,
+when that single reachable run also failed the `canFieldBoard` probe — the moment the pool size crossed a
+multiple of 7. Fixed by falling back to a stride of 1 when 7 divides the pool size; every other size keeps
+the decorrelated stride, so seat selection is otherwise byte-identical.
+
+**My first diagnosis was wrong and the owner caught it.** I had traced the committed offline pool (160 boards,
+all `origin: synthetic` + `setId: set1`, so structurally zero seatable runs for a set-2 lobby) and concluded
+the pool must be empty after the recent set-2 wipe. That is all true, but it is not what happened here — the
+owner's own play history disproved it, and pushing back is what sent me to the real cause. Recording it as a
+reminder that "the data source is empty" is a much weaker explanation than one that predicts the WORD
+"randomly".
+
+- **Verified** — new `lobby/seatRotation.test.ts` (3 tests) registers exactly SEVEN seatable runs and asserts
+  the table fills with distinct player runs across seven different seeds, plus a full-table case. Confirmed as
+  a reproduction FIRST: before the fix it seated 1 run instead of 7. Gates: typecheck ✓, lint ✓ (7
+  pre-existing), 3696 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-03 — Farseer's Report scouted the wrong board in lobby runs; rail hover shows quests/runes; Broodpit → Avenge (4)
 
 - **Farseer's Report showed the wrong minions** (owner report). Root cause: `spellScoutNextOpponent` read

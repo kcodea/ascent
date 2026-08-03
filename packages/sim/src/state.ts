@@ -747,6 +747,16 @@ export interface RunState {
   runeDenMother?: boolean;
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
+  /** HENCHMAN decay (owner spec 2026-08-03): Gold knocked off the hero's henchman cost so far — +3 per round
+   *  WON, +2 per round lost, accrued at combat settle. Effective price = `henchmanCostOf` (floored at 0).
+   *  Absent = 0. Lives on the run, not the card, so the printed def stays pure data. */
+  henchmanDiscount?: number;
+  /** The henchman is once per run — set by `buyHenchman`, read by the UI to retire the recruit button. */
+  henchmanBought?: boolean;
+  /** CELESTIAL HUD sparks (transient UI-fx channel, same pattern as `karwindFlash`): bumped when a play
+   *  lands on a side or an aligned effect fires, so the alignment strip can flash that side. `sides` is
+   *  which halves spark this beat (eclipse = both). Presentation-only — never read by rules. */
+  alignSpark?: { seq: number; sides: ('dawn' | 'dusk')[] };
   /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the
    *  sub-`per` Gold remainder. Absent = not owned. */
   spellDripPer?: number;
@@ -1085,6 +1095,8 @@ export interface RunState {
 
 export type Action =
   | { type: 'buy'; uid: string }
+  /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
+  | { type: 'buyHenchman' }
   | { type: 'play'; uid: string; toIndex?: number; targetUid?: string }
   | { type: 'sell'; uid: string }
   | { type: 'roll' }
@@ -1120,6 +1132,14 @@ export const isPlayerAction = (a: Action): boolean => !COMBAT_FLOW_ACTIONS.has(a
 /** A run's W–L record over the SCORED rounds only (A1). The first `CONFIG.calibrationRounds` rounds are
  *  calibration and don't count; draws are excluded from both wins and losses. `history[i]` is round i+1's
  *  result, so scored results = `history.slice(calibrationRounds)`. */
+/** The hero's henchman offer for this run, priced with the accrued win/loss decay — or null when the hero has
+ *  no henchman authored yet (most heroes today) or it was already recruited (once per run). */
+export function henchmanOffer(state: RunState): { cardId: string; cost: number } | null {
+  const h = getHero(state.heroId).henchman;
+  if (!h || state.henchmanBought) return null;
+  return { cardId: h.cardId, cost: Math.max(0, h.cost - (state.henchmanDiscount ?? 0)) };
+}
+
 export function runRecord(state: RunState): { wins: number; losses: number; draws: number } {
   let wins = 0, losses = 0, draws = 0;
   for (const r of state.history.slice(CONFIG.calibrationRounds)) {

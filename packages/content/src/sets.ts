@@ -14,6 +14,33 @@ import { SET2_NEUTRAL } from './cards/set2/neutral';
 import { SET2_DRAGONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
+import { SET3_CARDS } from './cards/set3';
+
+/**
+ * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
+ * toolkit both prior sets draw on, resolved BY ID against the set-1 + set-2 spell lists so a rename there
+ * breaks loudly here (the manifest names what it takes, as always). Reward/gift-only spells on the owner's
+ * sheet (Copycat, Bloodlust, Implosion, Goldcrafter) are deliberately NOT opted in: they are `token`/`gift`
+ * cards, never drawable, and already resolve globally through whatever grants them — set membership would be
+ * meaningless for them (the drawable views filter tokens out anyway).
+ */
+const SET3_SHARED_SPELL_IDS: readonly string[] = [
+  'apples', 'bulwark', 'crestclimb', 'emberpouch', 'lanternlight', 'quicksale', 'depositbox', 'sprout',
+  'summonstone', 'fieldmaneuvers', 'manafont', 'growth', 'hourglassreserve', 'laststand', 'mend',
+  'refreshtexts', 'spiritfire', 'tribeschoice', 'commonground', 'executionersedge', 'fleetingvigor',
+  'funeralonloan', 'lasso', 'layaway', 'patchjob', 'rallyoffensive', 'riftsunkcodex', 'shatter',
+  'staffofguel', 'tribeportal', 'turnabout', 'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch',
+  'helpwanted', 'hoardflame', 'insurancepolicy', 'preemptive', 'quickstudy', 'seconddraft', 'devour',
+  'chronostaff', 'corpseboard', 'displacement', 'farseersreport', 'invitationabove', 'markedtarget',
+  'resonance', 'rivalsreflection', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken',
+  'elevationritual', 'aresmar', 'perfectvision', 'sparkplug',
+];
+const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
+const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) => {
+  const def = SET3_SPELL_SOURCES.find((c) => c.id === id);
+  if (!def) throw new Error(`SET3_SHARED_SPELL_IDS names '${id}', which no spell list provides`);
+  return def;
+});
 
 /**
  * Set 2 reuses Set 1's whole neutral spell toolkit — the same drawable spells (Discover, buffs, economy,
@@ -113,7 +140,7 @@ const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token &&
  * Quests, runes and heroes are NOT set-scoped yet — they have their own toggles. `SetDef` has room to grow
  * those fields when a set needs its own.
  */
-export type SetId = 'set1' | 'set2';
+export type SetId = 'set1' | 'set2' | 'set3';
 
 export interface SetDef {
   id: SetId;
@@ -160,6 +187,24 @@ export const SETS: Record<SetId, SetDef> = {
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
     own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS], // → packages/content/src/cards/set2/*.ts (WIP)
+  },
+  set3: {
+    id: 'set3',
+    name: 'Set 3',
+    blurb: 'Scaffold — no cards yet.',
+    // NEVER flip this on while `own` is empty: `activeSet()` is first-enabled-wins in declaration order, so
+    // enabling an empty set ahead of a real one would put every NEW run on an empty pool. Play it in the
+    // Scene Builder instead — its set picker offers disabled sets on purpose, precisely for this.
+    enabled: false,
+    // Empty until the roster is decided. `selectRunTribes` picks a run's active tribes from this list, so
+    // an empty roster means "neutral glue only" — consistent with a set that has no cards.
+    tribes: [],
+    // Starts EMPTY and opts cards IN, the same manifest pattern set 2 uses. Add `inherits: 'set2'` (+
+    // `excludes`) instead if set 3 should start from set 2's pool and trim; both compose, and `own` always
+    // appends last so adding cards never disturbs an inherited prefix.
+    // Celestial test units first, then the shared neutral spell toolkit — spells appended LAST so growing
+    // the minion roster never disturbs spell positions (the same ordering discipline as the other sets).
+    own: [...SET3_CARDS, ...SET3_SHARED_SPELLS], // → packages/content/src/cards/set3/*.ts
   },
 };
 

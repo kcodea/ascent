@@ -232,6 +232,13 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+### Henchmen — the roster + real presentation (system shipped 2026-08-03)
+The mechanic is wired end-to-end (hero link, win/loss cost decay, once-per-run recruit, placeholder chip in
+the status bar, playable via the Warden in the Scene Builder). What remains is CONTENT + DESIGN: author the
+per-hero roster (a henchman per hero, each with its own effects), replace the placeholder Test Squire, design
+the real recruit surface (Mike's seam), teach the bots to consider `buyHenchman`, and decide the set-3 /
+cross-set hero interactions.
+
 ### The gild's remaining setup tail (opened 2026-07-30)
 The gild's own opening cost is down 24% (see the devlog), but the **worst single frame** in the first 120ms of
 a triple is unchanged at ~16.7ms. What is left is not the effect: it is the triple's React commit plus the

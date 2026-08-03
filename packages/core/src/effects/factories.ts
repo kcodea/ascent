@@ -1871,6 +1871,28 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Mirrorhide Rhino — Start of Combat: summon a copy of THIS minion's current body (stats + granted
    *  keywords). Golden summons two. Combat-summoned copies don't re-fire Start of Combat, so it never chains. */
+  /** Celestial — Daybreak Acolyte: Start of Combat, THIS minion gains stats. Written as two align-gated
+   *  halves on the card (Dawn +attack / Dusk +health); an Eclipsed body runs both. × golden. */
+  scBuffSelf: (ctx, self, params) => {
+    ctx.buff(self, num(params.attack, 0) * mul(self), num(params.health, 0) * mul(self), self.uid);
+  },
+
+  /** Celestial — Equinox Duelist (Dawn Rally): buff every friendly CELESTIAL (flagged card, not a tribe).
+   *  Includes self — the Duelist is a Celestial too. × golden. */
+  rallyBuffCelestials: (ctx, self, params) => {
+    for (const m of ctx.living(self.side)) {
+      if (ctx.getCard(m.cardId)?.celestial) ctx.buff(m, num(params.attack, 0) * mul(self), num(params.health, 0) * mul(self), self.uid);
+    }
+  },
+
+  /** Celestial — Equinox Duelist (Dusk Echo): the Echo twin of `rallyBuffCelestials` — the dying Duelist
+   *  buffs the OTHER Celestials it leaves behind. × golden. */
+  deathrattleBuffCelestials: (ctx, self, params) => {
+    for (const m of ctx.living(self.side)) {
+      if (m !== self && ctx.getCard(m.cardId)?.celestial) ctx.buff(m, num(params.attack, 0) * mul(self), num(params.health, 0) * mul(self), self.uid);
+    }
+  },
+
   scSummonCopy: (ctx, self) => {
     const card = ctx.getCard(self.cardId);
     for (let i = 0; i < mul(self); i++) {

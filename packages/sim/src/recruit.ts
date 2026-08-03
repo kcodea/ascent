@@ -1,5 +1,6 @@
-import { ALE_IDS, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { alignmentOf } from './alignment';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
@@ -1261,6 +1262,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Embermouth Whelp (recruit half): each Shout you trigger grows this body. Most Shouts fire in the
    *  SHOP, so without this half the card would only grow off combat re-fires — the same recruit/combat seam
    *  that has bitten Karwind and Scalechanter. */
+  /** CELESTIAL ORBIT (arriver half): buff the minion that was just played next to this one. The payload's
+   *  `minion` is the ARRIVER; `self` is the watcher whose Orbit fired. × golden. */
+  orbitBuffArriver: (ctx, self, params, payload) => {
+    const { minion } = payload as { minion?: BoardCard };
+    if (!minion) return;
+    addBuff(minion, nameOf(self), num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self));
+  },
+
+  /** CELESTIAL ORBIT (self half): this minion grows each time something lands beside it. × golden. */
+  orbitBuffSelf: (ctx, self, params) => {
+    addBuff(self, nameOf(self), num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self));
+  },
+
   onBattlecryBuffSelf: (ctx, self, params) => {
     addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
   },
@@ -5669,11 +5683,14 @@ export function applyEndOfTurn(state: RunState): void {
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
+    const eotAlign = alignmentOf(state.board, card.uid); // CELESTIAL: gate End-of-Turn halves by alignment
     for (const effect of def.effects) {
       if (effect.on !== 'endOfTurn') continue;
+      if (!alignAllows(effect, eotAlign)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
       for (let r = 0; r < repeats; r++) { fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }); fires++; }
+      if (effect.align) noteAlignSpark(state, effect.align); // an aligned EoT half firing sparks its side
     }
   }
   // Quest-granted recurring End-of-Turn effects (Echoing Roar → re-fire your leftmost Shout; The Hoard Wakes →
@@ -5961,10 +5978,12 @@ export function projectEndOfTurnSteps(state: RunState): {
   for (const card of [...clone.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
+    const projAlign = alignmentOf(clone.board, card.uid); // CELESTIAL: the projection must gate exactly as applyEndOfTurn
     for (let r = 0; r < repeats; r++) {
       beat(card, () => {
         for (const effect of def.effects) {
           if (effect.on !== 'endOfTurn') continue;
+          if (!alignAllows(effect, projAlign)) continue;
           const fn = RECRUIT_FACTORIES[effect.do];
           if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
         }
@@ -6011,10 +6030,64 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
  * (the played card has just entered), then its own Battlecry — whose summoned
  * tokens in turn fire their own summon-buffs.
  */
+/**
+ * CELESTIAL ORBIT — wake the Orbit effects of the minions immediately either side of `played`.
+ *
+ * Adjacency is read AFTER the play, on the settled board, so the neighbours are the ones the arriving card
+ * actually landed between. Each watcher is gated by its OWN alignment (`alignAllows`), which is what makes
+ * "Dawn Orbit: … / Dusk Orbit: …" one card with two behaviours — and an Eclipsed watcher run both.
+ *
+ * The played card rides in the payload as `minion` so an Orbit effect can buff the ARRIVER ("give the minion
+ * +2/+2"); `self` is the watcher, so it can equally buff ITSELF ("this minion gains +2/+2").
+ */
+/**
+ * CELESTIAL HUD SPARKS — note that an aligned thing just happened, so the alignment strip can flash that
+ * side (owner ask 2026-08-03: "if I play a minion on Dusk or a Dusk effect triggers, the Dusk side should
+ * spark"). Same UI-fx channel pattern as `karwindFlash`: the sim records WHAT happened, the HUD animates it.
+ * Eclipse sparks BOTH sides (it is both). Presentation-only — rules never read it.
+ */
+export function noteAlignSpark(state: RunState, align: 'dawn' | 'dusk' | 'eclipse' | undefined): void {
+  if (!align) return;
+  const sides: ('dawn' | 'dusk')[] = align === 'eclipse' ? ['dawn', 'dusk'] : [align];
+  const cur = state.alignSpark?.sides ?? [];
+  state.alignSpark = { seq: (state.alignSpark?.seq ?? 0) + 1, sides: [...new Set([...cur, ...sides])] };
+}
+
+export function fireOrbit(state: RunState, played: BoardCard): void {
+  const idx = state.board.findIndex((c) => c.uid === played.uid);
+  if (idx < 0) return; // the play didn't land on the board (overflow) — nothing to orbit
+  const ctx = makeContext(state);
+  for (const nb of [state.board[idx - 1], state.board[idx + 1]]) {
+    if (!nb) continue;
+    const def = CARD_INDEX[nb.cardId];
+    if (!def) continue;
+    const nbAlign = alignmentOf(state.board, nb.uid);
+    for (const effect of def.effects) {
+      if (effect.on !== 'orbit') continue;
+      if (!alignAllows(effect, nbAlign)) continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) {
+        captureBuffFx(state, nb, 'minion', () => fn(ctx, nb, effect.params ?? {}, { minion: played }));
+        // A GATED half sparks its own side; an ungated Orbit sparks the watcher's live side (it fired there).
+        noteAlignSpark(state, effect.align ?? nbAlign);
+      }
+    }
+  }
+}
+
 export function playCard(state: RunState, played: BoardCard): void {
   state.karwindFlash = []; // Karwind's battlecry-triggered buff repopulates this for the flame flash
   const ctx = makeContext(state);
   fire(ctx, 'onSummon', { minion: played });
+  // CELESTIAL ORBIT: the card just played FROM HAND wakes its immediate neighbours' Orbit effects (owner
+  // ruling 2026-08-03 — from hand only, so a summoned token or a reorder that slides someone next to you
+  // does NOT trigger it). Each orbiting watcher reads its OWN alignment, so the same card pays differently
+  // depending which half of the sky it sits in; an Eclipsed watcher fires both halves.
+  //
+  // Fired HERE, above the battlecry early-returns below, on purpose: a card with a TARGETED Shout, a Choose
+  // One, or a taught aimed spell defers its own battlecry to a later action — but it has already LANDED on
+  // the board, so its neighbours' Orbit must not be skipped just because its own text is still pending.
+  fireOrbit(state, played);
   const def = CARD_INDEX[played.cardId];
   if (!def) return;
   // Choose One: the Battlecry is whichever option the player picks — deferred to `applyChooseOne`
@@ -6030,11 +6103,20 @@ export function playCard(state: RunState, played: BoardCard): void {
   if (taughtAimSpell(played)) return;
   // Drakko the Drummer makes Battlecries fire extra times; Warm Embers doubles the next few played Shouts.
   const repeats = playedShoutRepeats(state, def);
-  const hasBattlecry = def.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do));
+  // CELESTIAL: a Shout half gated on `align` only fires for the matching alignment (Eclipse fires both).
+  // Read AFTER the card has entered the board, because entering re-centres the board and therefore decides
+  // its own alignment — a Celestial's Shout reads the alignment it just landed in, not the one before.
+  const myAlign = alignmentOf(state.board, played.uid);
+  // The PLAY itself sparks the side it landed on — any minion (the owner's "play a minion on Dusk" case).
+  // Harmless without the HUD: a board with no Celestial renders no strip, so the note goes unseen.
+  noteAlignSpark(state, myAlign);
+  const hasBattlecry = def.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do) && alignAllows(e, myAlign));
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
+    if (!alignAllows(effect, myAlign)) continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
+    if (effect.align) noteAlignSpark(state, effect.align); // an aligned Shout half firing sparks its side
     captureBuffFx(ctx.state, played, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played }); });
   }
   // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)

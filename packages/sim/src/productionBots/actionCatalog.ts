@@ -40,6 +40,7 @@ export const ACTION_CATALOG = {
   chooseOne: { generation: 'mandatory', reveal: false, note: 'both modes are printed on the card' },
   battlecryTarget: { generation: 'mandatory', reveal: false, note: 'legal targets are all on the board' },
   buyQuest: { generation: 'mandatory', reveal: true, note: 'the reward can generate cards the bot has not seen' },
+  buyHenchman: { generation: 'recruit', reveal: false, note: 'a known hero-bound minion at a known decayed cost' },
   buyRune: { generation: 'mandatory', reveal: true, note: 'forging can grant randomly and re-opens the offer' },
   skipRuneforge: { generation: 'mandatory', reveal: false, note: 'declining is deterministic' },
   rerollRuneforge: { generation: 'mandatory', reveal: true, note: 'draws runes the bot has not seen' },

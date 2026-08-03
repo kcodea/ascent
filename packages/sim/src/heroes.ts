@@ -75,6 +75,11 @@ export interface HeroDef {
   /** Work-in-progress: kept in the registry (so the engine + saves resolve it) but withheld from the hero
    *  picker until it's fully wired. Cleared once the hero ships (Runesmith → when the Runeforge UI lands). */
   wip?: boolean;
+  /** This hero's HENCHMAN (owner spec 2026-08-03): a hero-bound minion recruitable once per run for `cost`
+   *  Gold, where the effective price falls every round — WIN −3, LOSS −2 — floored at 0 (`henchmanCostOf`).
+   *  The card lives in the global henchman registry (`@game/content` cards/henchmen.ts), never in a shop
+   *  pool. Optional while the roster is authored; every hero is meant to carry one eventually. */
+  henchman?: { cardId: string; cost: number };
 }
 
 export const HEROES: HeroDef[] = [
@@ -85,6 +90,9 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 17,
     wip: true, // temporarily withheld from the picker (owner 2026-07-13)
+    // PLACEHOLDER henchman on a WIP hero: proves the whole loop in the Scene Builder (and pins it in tests)
+    // without touching a live hero. The real per-hero roster replaces this as it is designed.
+    henchman: { cardId: 'hm_test_squire', cost: 10 },
     power: {
       name: 'Aegis',
       kind: 'grantWard',

@@ -5229,7 +5229,12 @@ svg { width: 18px; height: 18px; }
    stacking on top of each other). */
 /* `--book-zoom` (owner ask 2026-08-02) scales the ONE metric the rest derive from, so a zoom step resizes
    the card, its drawer and the column width together — and `auto-fill` re-flows the columns for free. */
-.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 18.4px), 1fr)); gap: 72px 25.3px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, 28.6vh, 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+/* A PLATED card's stone slab is fully opaque and larger than the card, so on the book's pale surface it read
+   as a grey rectangle sticking out on all four sides (owner report 2026-08-02: "what are these card
+   shadows"). In hand the same plate reads as carved framing because the board behind it is dark — so the
+   GRID gets a dark surface of its own rather than the plates being dropped. Scoped to the grid: the rail,
+   header and glossary keep the book's light treatment. */
+.book-grid { background: linear-gradient(180deg, #1b1a21 0%, #141319 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 18.4px), 1fr)); gap: 72px 25.3px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, 28.6vh, 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
 /* A PLATED card is wider than its frame (the plate overhangs), so the cell has to allow for it or the grid
    clips the carved edge — the same allowance `.cardref .card.plated` makes for the hover preview. */
 .book-grid .card.plated {

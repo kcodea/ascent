@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-02 — The Compendium's "card shadows" were the plates; the grid gets a dark surface
+
+Owner question: grey rectangles behind every Compendium card. Diagnosed, not guessed — the plate `<img>`s
+load fine (800x1244) and a pixel sample of the art comes back FULLY OPAQUE brown-grey at every edge
+(rgba(126,108,96,1)). So the "shadows" are the card PLATES themselves, added in #819 for "card backs shown
+just like in game": an opaque stone slab 170x264 behind a 113x198 card. In hand that reads as carved framing
+because the board behind it is dark; on the book's pale surface the same slab reads as a grey rectangle
+sticking out on all four sides.
+
+Fixed by giving the card GRID a dark surface of its own rather than dropping the plates — the owner's ask was
+"like in game", and the plate only misreads because of the backdrop. Scoped to `.book-grid`, so the rail,
+header and glossary keep the book's light treatment.
+
 ## 2026-08-02 — Bane's Presence art wired — quest coverage is now 103/103
 
 The owner supplied `BanesPresence.png`, the one quest the previous pass reported as missing (the folder had

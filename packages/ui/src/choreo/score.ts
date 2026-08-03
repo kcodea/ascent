@@ -5,7 +5,7 @@ import { playMomentSfx } from './channels/sfx';
 import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
-import { rubiedUidsIn, RUBY_STAGGER_MS } from './channels/rubyLanded';
+import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
@@ -345,18 +345,24 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // The stagger divides by `combatSpeed` like every other scheduled offset here, so a 4× replay sweeps
         // 4× faster and the run still lands inside its beat instead of trailing past the next one.
         const speed = ctx.combatSpeed > 0 ? ctx.combatSpeed : 1;
-        rubiedUidsIn(moment, ctx.events).forEach((uid, i) => {
+        // A CASCADE of N-STACKS: `gap` walks between recipients, `beat` repeats within one. Nested, not
+        // flattened — two Rubies on a minion play as two hits on THAT minion before the sweep moves on, which
+        // is what says "each unit got two" rather than "everyone got hit twice".
+        rubiedLandsIn(moment, ctx.events).forEach((land, i) => {
           // Both ends are the same unit: a Ruby lands ON a minion, there is no pair to travel between.
           // Anchors resolve INSIDE the timer rather than up front, so a unit that dies mid-sweep is skipped
           // instead of detonating over an empty slot.
           const fire = (): void => {
-            const rubyAnchors = anchorsForUnits(uid, uid);
+            const rubyAnchors = anchorsForUnits(land.uid, land.uid);
             if (rubyAnchors) playDef('ruby-gem-apply', rubyAnchors); // literal, not the constant — see RUBY_LANDED_DEF
             // One play per GEM, not per moment — the ear carries the same count the eye does.
             sfx.gemApply();
           };
-          if (i === 0) fire();
-          else timers.push(setTimeout(fire, (RUBY_STAGGER_MS * i) / speed));
+          for (let r = 0; r < land.count; r++) {
+            const at = (RUBY_GAP_MS * i + RUBY_BEAT_MS * r) / speed;
+            if (at <= 0) fire();
+            else timers.push(setTimeout(fire, at));
+          }
         });
       });
     }

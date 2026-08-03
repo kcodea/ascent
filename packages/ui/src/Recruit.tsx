@@ -48,7 +48,7 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
-import { RUBY_STAGGER_MS } from './choreo/channels/rubyLanded';
+import { RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -835,17 +835,17 @@ export function Recruit() {
     const seq = run.rubyLandedFxSeq;
     if (seq === undefined || seq === prevRubyLandedSeq.current) return;
     prevRubyLandedSeq.current = seq;
-    const uids = run.rubyLandedFxUids ?? [];
-    if (uids.length === 0) return;
+    const lands = run.rubyLandedFx ?? [];
+    if (lands.length === 0) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
     // One rAF first, for the same reason the cues above take one: the buffed cards re-render this commit, and
     // measuring before the browser has laid them out reads the PREVIOUS geometry.
     const raf = requestAnimationFrame(() => {
-      uids.forEach((uid, i) => {
+      lands.forEach((land, i) => {
         // Measured inside the timer so a stagger that outlives a re-render (a triple collapsing three bodies
         // into one) misses cleanly instead of firing at a stale rect.
         const fire = (): void => {
-          const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+          const el = document.querySelector<HTMLElement>(`[data-uid="${land.uid}"]`);
           if (!el) return;
           const p = restingCenterOf(el);
           if (!p) return;
@@ -853,12 +853,18 @@ export function Recruit() {
           playDef('ruby-gem-apply', { source: p, target: p }); // literal — see RUBY_LANDED_DEF
           sfx.gemApply(); // one play per gem, matching the cascade the eye sees
         };
-        if (i === 0) fire();
-        else timers.push(setTimeout(fire, RUBY_STAGGER_MS * i));
+        // A CASCADE of N-STACKS: `gap` between recipients, `beat` within one. Nested rather than flattened —
+        // two Rubies on a minion play as two hits on THAT minion before the sweep moves on, which is what
+        // says "each unit got two" instead of "everyone got hit twice".
+        for (let r = 0; r < land.count; r++) {
+          const at = RUBY_GAP_MS * i + RUBY_BEAT_MS * r;
+          if (at <= 0) fire();
+          else timers.push(setTimeout(fire, at));
+        }
       });
     });
     return () => { cancelAnimationFrame(raf); for (const t of timers) clearTimeout(t); };
-  }, [run.rubyLandedFxSeq, run.rubyLandedFxUids]);
+  }, [run.rubyLandedFxSeq, run.rubyLandedFx]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -2724,7 +2730,7 @@ export function Recruit() {
     // and neither read survives (owner ask 2026-08-02). Correlated by uid rather than by tagging the buff
     // event, because "was this stat gain a Ruby" is already answered by the Ruby signal the same action
     // computes; a second source of that truth could disagree with the first.
-    const rubyOwned = new Set(run.rubyLandedFxUids ?? []);
+    const rubyOwned = new Set((run.rubyLandedFx ?? []).map((l) => l.uid));
     const events = rubyOwned.size > 0
       ? run.recruitBuffFx.filter((e) => !rubyOwned.has(e.targetUid))
       : run.recruitBuffFx;

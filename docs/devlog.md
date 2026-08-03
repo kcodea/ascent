@@ -12,6 +12,32 @@ sticking out on all four sides.
 Fixed by giving the card GRID a dark surface of its own rather than dropping the plates — the owner's ask was
 "like in game", and the plate only misreads because of the backdrop. Scoped to `.book-grid`, so the rail,
 header and glossary keep the book's light treatment.
+## 2026-08-02 — Card-played Rubies notify their target; Brisbane / Mineral Master investigation; Karwind art
+
+- **Investigated the owner's two reports; both mechanics resolve correctly, and the trace is in the PR.**
+  - *Alchemist Brisbane's End of Turn* fires: `endOfTurnPlayRuby` is registered in all three places and
+    `applyEndOfTurn` reaches it. A probe board (Brisbane + 2 Kobolds) shows the Ruby landing, and the
+    recruit-screen step projection carries a beat for it.
+  - *Mineral Master's Rally ordering* is already the beat the owner described. Every on-attack effect runs
+    inside `bus.emit('onAttack')`, which is **above** the damage phase, and the damage phase reads
+    `attacker.attack` live — so a rallying Kobold hits with its POST-Ruby Attack. A seeded trace confirms it:
+    the rallying body's swing lands for 7 (5 base + a 2/2 Ruby) in the same step the Ruby buff is emitted.
+    The replay agrees — `buildBeats` absorbs `buff` into the attack's WIND-UP beat, so the Ruby pops during
+    the lunge and the impact is the next beat.
+- **The real defect the investigation turned up: three card-played Ruby paths never notified their target.**
+  `fireOnRubyPlayed` is what makes a Ruby a *play* rather than a stat bump — it bumps the target's
+  `rubiesOnThisTurn` and fires that target's own `onRubyPlayed` effects (Ruby Broker's Gold, Resonance Idol's
+  bounce). Three factories skipped it, so their Rubies were invisible to the whole Ruby engine:
+  **Alchemist Brisbane** (End of Turn), **Frenzied Excavator** (Shout: a Ruby on every friendly) and
+  **Candle Conduit** (when you get a Ruby, cast one). All three now fire it. This is almost certainly what
+  read as "Brisbane's End of Turn isn't working" on a Ruby-engine board. `rubyPlayedBounce` (Resonance Idol)
+  deliberately still skips it — that guard is what stops a bounce cascading into itself.
+- **Verified** — new `packages/sim/src/rubyPlayWatchers.test.ts` pins all three, using Ruby Broker's Gold as
+  the probe ("did the target hear about it"). Confirmed as a negative control: all three fail on the pre-fix
+  code. Gates: typecheck ✓, lint ✓ (7 pre-existing warnings), 3640 tests ✓, `build:web` ✓, harness
+  determinism ✓.
+- **Art** — re-wired Karwind's refreshed portrait from the Dragons folder (the only file that changed).
+
 ## 2026-08-02 — Free-refresh count on the coin; Rune of Quick Study bounded to 2 turns
 
 - **Free refreshes left** (owner ask): the Refresh crystal's green 0 coin now carries the BANKED count as a

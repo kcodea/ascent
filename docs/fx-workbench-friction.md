@@ -82,6 +82,19 @@ manual FLIP in `Recruit.tsx` already relies on for its baseline capture.
 rediscover this. Combat has `anchorsForUnits`; the shop has nothing, so there is no single place to fix it
 once. Folds into the recruit-moment work above.
 
+### `fxScale` is not threaded into the primitives
+A def tuned on a large monitor renders at the same pixel size on a small one, so sizes cannot be tuned to the
+edge of what fits. (Carried over from `fx-requests.md`'s limits section, which is where it had been recorded.)
+
+### Anchors are points, not rectangles
+An effect can be placed AT a unit but cannot size itself TO that unit's card. Directly in the way of the CSS
+card layer, whose whole job is to move a card — and of any effect that should frame or outline one.
+
+### Four migrated effects have never been looked at
+`damage-burst`, `click-puff`, `landing-dust`, `impact-dust` were moved out of hand-written `pixiFx` methods
+into defs and have shipped ever since on the assumption the migration was faithful. Nobody has judged them by
+eye. Cheap to check, and the kind of thing that stays wrong indefinitely once it stops being new.
+
 ### The direct-call scanner reads comments
 **Hit:** 2026-08-01. A doc comment that *showed* the `playDef('<id>'` pattern registered a phantom def and
 failed CI. Deliberate (the scanner doesn't strip comments, so a commented-out call is still visible) and

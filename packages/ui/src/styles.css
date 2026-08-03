@@ -1439,11 +1439,20 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    of them so the larger text never slips under a badge */
 .cfoot { display: flex; align-items: center; justify-content: center; padding: 5px 52px; background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 0 0 11px 11px; }
 /* Attack / Health — 2x badges that overhang the card's bottom corners (like the cost ember). */
-.atk, .hp { position: absolute; bottom: -12px; z-index: 6; flex: none; width: 60px; height: 60px; border-radius: 16px; border: 3px solid var(--card); font-family: var(--font-ui); font-weight: 800; font-size: 30px; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
-.atk { left: -8px; background: var(--atk); } .hp { right: -8px; background: var(--hpc); }
+/* Each badge is THREE nodes so an FX can address them separately (docs/fx-vocabulary.md):
+     .badge  — seats the pair (position + size). Animate this and plate + value move together.
+     .plate  — the shape: fill, border, radius, drop shadow. Absolute inset:0, so scaling it
+               leaves the number where it is.
+     .value  — the digit. A grid item, centred by the wrapper; paints over the plate (DOM order).
+   Plate and value are SIBLINGS, never nested — that's what makes "one without the other" possible. */
+.atk, .hp { position: absolute; bottom: -12px; z-index: 6; flex: none; width: 60px; height: 60px; display: grid; place-items: center; }
+.atk { left: -8px; } .hp { right: -8px; }
+.badge > .plate { position: absolute; inset: 0; border-radius: 16px; border: 3px solid var(--card); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+.atk > .plate { background: var(--atk); } .hp > .plate { background: var(--hpc); }
+.badge > .value { position: relative; font-family: var(--font-ui); font-weight: 800; font-size: 30px; color: #fff; }
 /* stats above base read green, below base read red */
-.atk.up, .hp.up { background: #1aa86f; }
-.atk.down, .hp.down { background: #d23b2b; }
+.atk.up > .plate, .hp.up > .plate { background: #1aa86f; }
+.atk.down > .plate, .hp.down > .plate { background: #d23b2b; }
 /* A buff just landed here → the changed stat badge pops once (transform/opacity only — no paint props, per the
    60fps rule). The combat replay adds `.statflash` for one strike, then removes it. The badges are positioned
    via absolute left/right/bottom (no base transform), so a scale animation composes cleanly without shifting them. */
@@ -1678,10 +1687,13 @@ img.tierbadge.tierstars,
 /* Border + ring track the badge size (were fixed 3px/2px — on a ~16px phone-scale badge that read as a huge
    goofy outline, owner's mobile test). Ratios = the tuned px at the desktop badge (~141px --ccw). */
 .card.compact .atk, .card.compact .hp {
-  width: calc(var(--ccw) * 0.29); height: calc(var(--ccw) * 0.29); font-size: calc(var(--ccw) * 0.15);
-  border-radius: 50%; border: calc(var(--ccw) * 0.021) solid #f6e3ad; bottom: calc(var(--ccw) * -0.065);
+  width: calc(var(--ccw) * 0.29); height: calc(var(--ccw) * 0.29); bottom: calc(var(--ccw) * -0.065);
+}
+.card.compact .badge > .plate {
+  border-radius: 50%; border: calc(var(--ccw) * 0.021) solid #f6e3ad;
   box-shadow: 0 0 0 calc(var(--ccw) * 0.014) #9c6f24, 0 calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.4);
 }
+.card.compact .badge > .value { font-size: calc(var(--ccw) * 0.15); }
 .card.compact .atk { left: calc(var(--ccw) * -0.02); }
 .card.compact .hp { right: calc(var(--ccw) * -0.02); }
 /* mechanic medallion — eclipses the arch's bottom-centre, between the attack/health badges */
@@ -3419,8 +3431,13 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -82%) scale(0.92); }
 }
 /* the struck minion's HP badge flares when it takes damage */
+/* Split across the two badge nodes now that the shape lives on `.plate`: the wrapper still owns the
+   scale + brightness (so the number rides along, as before), the plate owns the threat glow — a
+   box-shadow has to sit on the node that has the radius or the flare would square off. */
 .unit.struck .hp { animation: hpflash 0.45s ease; }
-@keyframes hpflash { 0%, 100% { transform: none; box-shadow: none; } 40% { transform: scale(1.45); box-shadow: 0 0 14px 3px var(--threat); filter: brightness(1.25); } }
+.unit.struck .hp > .plate { animation: hpflashplate 0.45s ease; }
+@keyframes hpflash { 0%, 100% { transform: none; } 40% { transform: scale(1.45); filter: brightness(1.25); } }
+@keyframes hpflashplate { 0%, 100% { box-shadow: none; } 40% { box-shadow: 0 0 14px 3px var(--threat); } }
 @keyframes floatup { 0% { opacity: 0; transform: translateY(var(--float-in-y, 14px)) scale(var(--float-in-scale, 0.5)); } 10% { opacity: 1; transform: translateY(0) scale(var(--float-pop, 1.18)); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(var(--float-rise, -30px)) scale(0.96); } }
 /* Centred variant for the in-unit damage number — same pop/rise as `floatup` (and the same Damage-Float
    tuner vars), but with the card-centring translate(-50%,-50%) baked into every frame. */

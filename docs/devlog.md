@@ -1,5 +1,42 @@
 # ASCENT — development log
 
+## 2026-08-03 — the stat badge splits into three targetable nodes
+
+Groundwork for badge-level `react` effects, and nothing else: the attack/health badge was a single `<span>`
+carrying the shape *and* the digit, so nothing could touch one without dragging the other. "Pop the circle
+while the number counts up" was not expressible.
+
+It is now three nodes (`packages/ui/src/Card.tsx`):
+
+    <span class="badge atk">        <- seats the pair: position + size
+      <span class="plate" />        <- the shape: fill, border, radius, drop shadow
+      <span class="value">4</span>  <- the digit
+    </span>
+
+`plate` and `value` are **siblings**, never nested — that is the whole point. Nesting would have meant
+scaling the plate scales the number, which is the problem we started with. The wrapper composes them for
+free when an effect wants to move both. The names come from `docs/fx-vocabulary.md`; `plate` reuses the
+word the codebase already uses for a card-backing shape.
+
+**No behaviour change — deliberately.** Splitting and animating in one PR would make "did the badge move
+because of the new effect, or because I broke the layout?" unanswerable. The CSS split three ways along the
+same seam: the wrapper keeps position/size, `.plate` takes fill/border/radius/box-shadow, `.value` takes
+typography. `.up`/`.down` now colour the plate. `.card.compact` overrides split the same way. `hpflash`
+(the struck-minion flare) needed splitting too — the wrapper keeps the scale + brightness so the number
+still rides along, the plate takes the threat glow, because a `box-shadow` has to live on the node that
+owns the border radius or the flare would square off.
+
+**Verified** by a headless-Chrome A/B harness rendering the old markup+CSS and the new one side by side
+across 12 cases (full and compact cards × resting/buffed/damaged × one- and two-digit values), comparing:
+the badge's box on the card, the digit's inked box, the digit's offset from the badge centre (this is what
+would drift if grid centring differed from the old flex centring), and 16 computed paint properties per
+badge. **Verdict: IDENTICAL, all 12.** A first pass used a `mix-blend-mode: difference` overlay instead;
+headless Chrome here doesn't composite blend modes, so identical content rendered as full colour and the
+image proved nothing — the numeric comparison replaced it. Gate green: typecheck (pkgs + web), lint (0
+errors), 3715 tests, `build:web`.
+
+Follow-up: the badge react layer itself, and retiring `statflash` in favour of it rather than running both.
+
 ## 2026-08-02 — `scheduleLands`: the traversal arithmetic lives once
 
 "Walk an effect across N recipients with an offset" had been hand-written five times — the shop Ruby cue, the

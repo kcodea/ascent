@@ -1313,7 +1313,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = (1 + rb.attack) * per;
     const h = (1 + rb.health) * per;
     if (a <= 0 && h <= 0) return;
-    for (const c of ctx.state.board) addBuff(c, 'Ruby', a, h);
+    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
+    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
+    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
+    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
+    for (const c of [...ctx.state.board]) {
+      addBuff(c, 'Ruby', a, h);
+      fireOnRubyPlayed(ctx.state, c, a, h);
+    }
   },
 
   /** Set 2 — Ruby Broker: when a Ruby is played on THIS minion, gain `gold` Gold — capped `cap` times per turn
@@ -1343,6 +1350,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const target = pool[rng.int(pool.length)]!;
       state.rngCursor = rng.state();
       addBuff(target, 'Ruby', ra, rh);
+    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
+    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
+    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
+    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
+      fireOnRubyPlayed(state, target, ra, rh);
     }
   },
 
@@ -1361,6 +1373,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const target = pool[rng.int(pool.length)]!;
       state.rngCursor = rng.state();
       addBuff(target, 'Ruby', ra, rh);
+    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
+    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
+    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
+    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
+      fireOnRubyPlayed(state, target, ra, rh);
     }
   },
 

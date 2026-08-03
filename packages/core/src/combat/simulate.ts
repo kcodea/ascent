@@ -2243,7 +2243,7 @@ export function simulate(
     });
   };
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.
-  runeAvenge(3, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // Avenge (3): summon 2 Imps with Taunt (owner sheet 2026-07-31)
+  runeAvenge(4, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // Avenge (4): summon 2 Imps with Taunt (owner rebalance 2026-08-03, was 3)
     const imp = cards['impscrap'];
     if (imp) { nextStep(); for (let i = 0; i < 2; i++) summonMinion(side, imp, undefined, ['T']); }
   });

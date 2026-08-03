@@ -1,6 +1,7 @@
 import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { alignmentOf } from './alignment';
+import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
@@ -3620,15 +3621,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     st.spellBonus = { attack: (st.spellBonus?.attack ?? 0) + num(params.attack, 1), health: (st.spellBonus?.health ?? 0) + num(params.health, 1) };
   },
 
-  /** Farseer's Report — cast: reveal `count` random minions from your NEXT opponent's warband
-   *  (`servedBoards[wave]`, the preview pinned at turn start) onto the OpponentFrame. Their actual stats are
-   *  captured. No next opponent (procedural threat) → fizzles. Cleared at turn start (the opponent changes). */
+  /** Farseer's Report — cast: reveal `count` random minions from your NEXT opponent's warband, onto the
+   *  OpponentFrame. Their actual stats are captured. No next opponent (procedural threat) → fizzles. Cleared at
+   *  turn start (the opponent changes).
+   *
+   *  WHICH board is "next" depends on the MODE, and getting that wrong is what made the spell lie: a LOBBY run
+   *  fights the seat the pairing gave it (`lobbyOpponentBoard`, exactly what `faceOmen` serves), NOT the
+   *  course pool pick in `servedBoards[wave]`. Reading only the latter scouted a real board the run would
+   *  never face (owner report 2026-08-03: "showed me the wrong minions"). Lobby first, course pin as the
+   *  fallback — the same precedence `faceOmen` uses, so the scout and the fight can't disagree. */
   spellScoutNextOpponent: (ctx, _self, params) => {
     const state = ctx.state;
-    const next = state.servedBoards?.[state.wave];
-    if (!next || next.minions.length === 0) return;
+    const lobbyFoe = state.lobby ? lobbyOpponentBoard(state.lobby) : null;
+    const minions = lobbyFoe ? lobbyFoe.minions : state.servedBoards?.[state.wave]?.minions;
+    if (!minions || minions.length === 0) return;
     const rng = makeRng(state.rngCursor);
-    const avail = [...next.minions];
+    const avail = [...minions];
     const picks: NonNullable<RunState['scoutedNextOpponent']> = [];
     for (let i = 0; i < num(params.count, 3) && avail.length > 0; i++) {
       const m = avail.splice(rng.int(avail.length), 1)[0]!;

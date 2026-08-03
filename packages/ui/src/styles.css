@@ -7163,3 +7163,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .ah-tick.ah-dawn { color: #ffcf7a; }
 .ah-tick.ah-dusk { color: #aab0ff; }
 .ah-tick.ah-eclipse { color: #ffffff; font-weight: 700; }
+
+/* Scout-card reward badges — the hovered seat's active runes + completed quests (owner ask 2026-08-03).
+   Left-aligned inside the card (the opponent-frame row justifies right, against the frame's edge). */
+.lobbyscout-badges { justify-content: flex-start; margin-top: calc(7 * var(--u)); }

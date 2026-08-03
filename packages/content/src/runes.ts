@@ -536,7 +536,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Broodpit',
     cost: 3,
     epic: true,
-    text: '**Avenge (3):** summon **2 Imps with Taunt**.',
+    text: '**Avenge (4):** summon **2 Imps with Taunt**.', // owner rebalance 2026-08-03 (was 3)
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeBroodpit' },
   },

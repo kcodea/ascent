@@ -1224,7 +1224,7 @@ export interface QuestDef {
    * the set-1 and set-2 quest lists are DIFFERENT (owner 2026-07-29), and a quest whose objective names another
    * set's mechanics — Fodder, Attachments, Rubies, Ales — can never be completed in this run.
    */
-  sets?: readonly ('set1' | 'set2')[];
+  sets?: readonly ('set1' | 'set2' | 'set3')[];
   reward: QuestReward;
   /** Which quest turn this quest is offered on (owner's two-bucket table). Absent = derived from `tier`
    *  (Capstone → turn 11, else → turn 5); set explicitly only when a quest's bucket differs from that default
@@ -1264,7 +1264,7 @@ export interface RuneDef {
    * one of the forge's few offer slots on something the run can never use (owner report 2026-07-29).
    */
   /** Mirrors `SetId` in `@game/content`, spelled out because content depends on core and not the reverse. */
-  sets?: readonly ('set1' | 'set2')[];
+  sets?: readonly ('set1' | 'set2' | 'set3')[];
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown

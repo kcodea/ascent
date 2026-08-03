@@ -19,6 +19,12 @@ the right question when starting a new run. Everything else wants `poolOf(state)
 
 ## Adding a set
 
+> **Set 3 already exists as an empty scaffold** (`enabled: false`, `own: []`, `cards/set3/index.ts`) so it can
+> be selected in the Scene Builder and filled in later — owner ask 2026-08-03. So for set 3 specifically, steps
+> 1–2 below are done: add sibling files under `cards/set3/` and opt them into `SETS.set3.own`. Do **not** flip
+> its `enabled` while it's empty — `activeSet()` is first-enabled-wins in declaration order, so an enabled empty
+> set ahead of a real one would put every new run on an empty pool.
+
 1. Put its cards in `packages/content/src/cards/set3/*.ts`. **Its own directory** — that's what keeps two
    people authoring different sets out of the same file. (Before sets, everyone appended to the tail of the
    same tribe array, which is the worst possible shape for git.)

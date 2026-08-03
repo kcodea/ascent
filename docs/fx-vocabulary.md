@@ -64,6 +64,7 @@ chain says "watch this happen, one at a time". Reach for chain sparingly — it 
 
 | term | meaning |
 |---|---|
+| **land** | the instant one recipient RECEIVES the payload — the atom a traversal walks over |
 | **tell** | the subject's own "I am doing this" beat, before the payload leaves it |
 | **lead** | delay before the first recipient |
 | **gap** | between recipients in a cascade |
@@ -73,6 +74,25 @@ chain says "watch this happen, one at a time". Reach for chain sparingly — it 
 **Rule: `beat` must be clearly shorter than `gap`.** If they are close, a cascade of 2-stacks reads as one
 long cascade of eight unrelated hits and the count is lost. That ratio IS the information — it is what makes
 the eye group hits into per-unit bundles.
+
+### What a land commits
+
+A land is not just "the effect plays". It is the instant **everything about that recipient changes at once**:
+
+| | |
+|---|---|
+| the visual | fires |
+| the sound | fires |
+| the **stat numbers** | change |
+| the float (`+2/+2`) | pops |
+
+Stated as a rule because the failure is easy and invisible: *if any of those four is not part of the land, it
+desynchronises from the other three.* That is the shape of the open number-timing bug — the stats update in a
+**volley** the moment the action resolves, while the effect **cascades** afterwards, so the player is shown
+the answer and then watches the explanation.
+
+A traversal is therefore a schedule of lands, and `gap` / `beat` are the spacing between them. Everything the
+UI does for a recipient hangs off its land rather than off the action that caused it.
 
 ---
 

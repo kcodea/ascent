@@ -6,7 +6,7 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
-import { scheduleLands } from '../fx/land';
+import { cascade, scheduleLands } from '../fx/land';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
@@ -349,7 +349,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // `combatSpeed` inside `scheduleLands`, so a 4× replay sweeps 4× faster and still lands inside its beat.
         // The traversal arithmetic lives in `scheduleLands`, not here — see `fx/land.ts`. This site only says
         // WHAT a land does; the schedule says WHEN.
-        for (const land of scheduleLands(rubiedLandsIn(moment, ctx.events), {
+        for (const land of scheduleLands(cascade(rubiedLandsIn(moment, ctx.events)), {
           gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS, speed: ctx.combatSpeed,
         })) {
           // Both ends are the same unit: a Ruby lands ON a minion, there is no pair to travel between.

@@ -31,7 +31,7 @@ import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
-import { waveGapFor, coalesceWaves, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
+import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { playPlateDissolve } from './plateDissolve';
@@ -49,7 +49,7 @@ import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
 import { RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
-import { scheduleLands } from './fx/land';
+import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -842,7 +842,7 @@ export function Recruit() {
     // One rAF first, for the same reason the cues above take one: the buffed cards re-render this commit, and
     // measuring before the browser has laid them out reads the PREVIOUS geometry.
     const raf = requestAnimationFrame(() => {
-      for (const land of scheduleLands(lands, { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS })) {
+      for (const land of scheduleLands(cascade(lands), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS })) {
         // Measured inside the timer so a stagger that outlives a re-render (a triple collapsing three bodies
         // into one) misses cleanly instead of firing at a stale rect.
         const fire = (): void => {
@@ -2708,13 +2708,23 @@ export function Recruit() {
       waves.set(key, list);
     });
     // Cap the wave COUNT, not just the total duration — an Attachment build can produce ~30 waves, at which
-    // point the per-wave gap collapses to a strobe (see coalesceWaves).
-    const ordered = coalesceWaves([...waves.keys()].sort((a, b) => a - b).map((k) => waves.get(k)!));
-    ordered.forEach((wave, w) => {
-      const go = (): void => { for (const ev of wave) fireOne(ev); };
-      if (staggerMs > 0 && w > 0) window.setTimeout(go, w * staggerMs);
-      else go();
-    });
+    // point the per-wave gap collapses to a strobe.
+    // Scheduled by `scheduleLands` like every other traversal — the tendrils are WAVES in the vocabulary's
+    // terms: members of a wave land together, and `gap` spaces wave from wave. The group CAP that used to be
+    // used to be a separate `coalesceWaves` is now `maxGroups`, so an Attachment build's ~30 waves collapse rather than
+    // strobing. Events are indexed so a land can find the event it belongs to (a land carries a uid, and a
+    // wave can hold several events for different targets).
+    const ordered = [...waves.keys()].sort((a, b) => a - b).map((k) => waves.get(k)!);
+    const byUid = new Map(coalesced.map((ev) => [ev.targetUid, ev]));
+    for (const land of scheduleLands(
+      asWaves(ordered.map((wave) => wave.map((ev) => ({ uid: ev.targetUid })))),
+      { gap: staggerMs, maxGroups: getBuffFxConfig().waveMaxCount },
+    )) {
+      const ev = byUid.get(land.uid);
+      if (!ev) continue;
+      if (land.at <= 0) fireOne(ev);
+      else window.setTimeout(() => fireOne(ev), land.at);
+    }
   }, [findEl]);
 
   // Shop-phase buff FX: when the sim captured buff-others this action (recruitFxSeq bumped), replay them.

@@ -135,6 +135,9 @@ export const EffectFactoryIdSchema = z.enum([
   'onBattlecryBuffSelf',
   'orbitBuffArriver', // Celestial Orbit — buff the arriving minion
   'orbitBuffSelf', //    Celestial Orbit — buff this minion
+  'scBuffSelf', //       Celestial — SC self-gain (align-gated halves)
+  'rallyBuffCelestials', //     Celestial — Rally: buff your Celestials
+  'deathrattleBuffCelestials', // Celestial — Echo: buff your Celestials
   'battlecryGetRubies',
   'battlecryPlayRubiesAll',
   'spellCastBuffAll',

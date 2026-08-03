@@ -1,5 +1,43 @@
 # ASCENT — development log
 
+## 2026-08-03 — Alignment HUD tuner + sparks; four more Celestials; set 3's shared spells; glass henchman button
+
+Four owner asks in one pass, stacked on the Celestials branch.
+
+- **Alignment HUD tuner** (`alignHudConfig.ts` + `AlignHudTuner`, registered in the dev menu 🌗 + `tunerAll`):
+  length, width, opacity, Dawn/Dusk colour pickers, vibrance (a saturation dial applied at var-write time so
+  the CSS stays a plain gradient — no filter on the strip), seam colour + glow radius/opacity, and the
+  **play spark** (on/off, duration, peak opacity). All `--ah-*` vars with CSS fallbacks mirroring DEFAULTS.
+- **Play sparks** — "if I play a minion on Dusk, or a Dusk effect triggers, the Dusk side should spark."
+  A transient sim-fx channel (`RunState.alignSpark`, the `karwindFlash` pattern): the sim notes the side on
+  every play (the landed card's alignment) and on every ALIGNED effect that fires (Shout / Orbit / End of
+  Turn halves); the HUD renders a one-shot, opacity-only flash over that half. Eclipse sparks both sides.
+- **Four new Celestials** (set 3): **Daybreak Acolyte** (T1 1/2 — SC Dawn +2 Attack / Dusk +2 Health, via a
+  new `scBuffSelf`), **Starweft Familiar** (T1 2/2 — an UNGATED Orbit: +1/+1 to the played card),
+  **Equinox Duelist** (T2 3/3 — Dawn Rally +2 Attack to your Celestials / Dusk Echo +2 Health, via new
+  `rallyBuffCelestials` / `deathrattleBuffCelestials` — "Celestial" is the flag, not a tribe), and
+  **Starbroker Nym** (T3 3/5 — EoT Dawn: 2 Gold next turn / Dusk: a random spell, existing factories).
+  Nym is why **`applyEndOfTurn` and its projection twin both gained the align gate** — End of Turn had no
+  alignment awareness before. The repo's own audit test also caught `deathrattleBuffCelestials` missing from
+  the descend-FX list and forced the entry — exactly what that pin exists for.
+- **Set 3's shared spell pool** — the owner's 62-row sheet, resolved BY ID against the set-1 + set-2 spell
+  lists (a rename breaks loudly). 58 drawable spells opted in; the four reward/gift rows (Copycat, Bloodlust,
+  Implosion, Goldcrafter) stay OUT by token doctrine — they're global and arrive through their grantors.
+  Spells appended after the minions so growing the roster never disturbs spell positions.
+- **Henchman button → glass, detached** — and the fix uncovered a real miss: the #832 styling was written
+  against `.hero .hmn-btn`, but the chip actually renders inside `.heropanel`, so the button had been
+  BROWSER-DEFAULT since it shipped. Now `.statusbar .heropanel .hmn-btn`: frosted glass (translucent
+  gradient + backdrop blur + lit top edge, all static paint) and absolutely positioned below the power
+  diamond, so it never nudges the hero power again.
+- **Verified live** (Scene Builder): Set 3 board of Celestials → HUD up, orbit chains compound, sparks fire
+  on both sides (2 live spark elements mid-flash); `--ah-*` vars live on :root; the 🌗 row present in the dev
+  menu; Warden's chip reads position:absolute + blur(6px) + the lit top edge, sitting below the power.
+  Console clean.
+- **Verified** — `celestial.test.ts` grew to 18 (the four new units: Acolyte's three alignments, the ungated
+  Orbit, the Duelist's Rally/Echo halves in combat, Nym's three alignments with half-exclusivity pinned).
+  Set-3 pin updated (7 Celestial minions + 58 spells, gift spells excluded). Gates: typecheck ✓, lint ✓
+  (7 pre-existing), 3683 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-03 — Celestials: Alignment + Orbit, with three test units and an alignment HUD
 
 Owner spec + clarifications. Two new mechanics, built as ENGINE PRIMITIVES with three throwaway test cards

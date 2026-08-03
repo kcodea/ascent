@@ -10,7 +10,8 @@ export const DEATHRATTLE_BUFF_FACTORIES: ReadonlySet<string> = new Set([
   'deathrattleBuffTribe', 'deathrattleBuffTribeByTally', 'deathrattleBuffAll', 'deathrattleBuffAllHealth',
   'deathrattleBuffImps', 'deathrattleBuffRandom', 'deathrattleBuffAllRandomStat',
   'deathrattleGiveHealth', 'deathrattleSummonOverflowBuff',
-  'deathrattleBuffFodder', 'deathrattleBuffAllByImpAura', // Burial Imp / Chef Raag — buff OTHERS on death (their
+  'deathrattleBuffFodder', 'deathrattleBuffAllByImpAura',
+  'deathrattleBuffCelestials', // Equinox Duelist (Dusk Echo) — buffs the OTHER Celestials it leaves behind // Burial Imp / Chef Raag — buff OTHERS on death (their
   // source is gone by strike time, so a living-source tendril is dropped → they need the sourceless descend).
   // SET 2 (owner report 2026-07-26: "the in-combat animations are not working for the ruby buffing"):
   //   • `deathrattlePlayRubiesAdjacent` — Geode Guardian plays Rubies on each neighbour as it dies.

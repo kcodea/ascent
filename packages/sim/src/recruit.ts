@@ -5683,11 +5683,14 @@ export function applyEndOfTurn(state: RunState): void {
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
+    const eotAlign = alignmentOf(state.board, card.uid); // CELESTIAL: gate End-of-Turn halves by alignment
     for (const effect of def.effects) {
       if (effect.on !== 'endOfTurn') continue;
+      if (!alignAllows(effect, eotAlign)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
       for (let r = 0; r < repeats; r++) { fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }); fires++; }
+      if (effect.align) noteAlignSpark(state, effect.align); // an aligned EoT half firing sparks its side
     }
   }
   // Quest-granted recurring End-of-Turn effects (Echoing Roar → re-fire your leftmost Shout; The Hoard Wakes →
@@ -5975,10 +5978,12 @@ export function projectEndOfTurnSteps(state: RunState): {
   for (const card of [...clone.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
+    const projAlign = alignmentOf(clone.board, card.uid); // CELESTIAL: the projection must gate exactly as applyEndOfTurn
     for (let r = 0; r < repeats; r++) {
       beat(card, () => {
         for (const effect of def.effects) {
           if (effect.on !== 'endOfTurn') continue;
+          if (!alignAllows(effect, projAlign)) continue;
           const fn = RECRUIT_FACTORIES[effect.do];
           if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
         }
@@ -6035,6 +6040,19 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
  * The played card rides in the payload as `minion` so an Orbit effect can buff the ARRIVER ("give the minion
  * +2/+2"); `self` is the watcher, so it can equally buff ITSELF ("this minion gains +2/+2").
  */
+/**
+ * CELESTIAL HUD SPARKS — note that an aligned thing just happened, so the alignment strip can flash that
+ * side (owner ask 2026-08-03: "if I play a minion on Dusk or a Dusk effect triggers, the Dusk side should
+ * spark"). Same UI-fx channel pattern as `karwindFlash`: the sim records WHAT happened, the HUD animates it.
+ * Eclipse sparks BOTH sides (it is both). Presentation-only — rules never read it.
+ */
+export function noteAlignSpark(state: RunState, align: 'dawn' | 'dusk' | 'eclipse' | undefined): void {
+  if (!align) return;
+  const sides: ('dawn' | 'dusk')[] = align === 'eclipse' ? ['dawn', 'dusk'] : [align];
+  const cur = state.alignSpark?.sides ?? [];
+  state.alignSpark = { seq: (state.alignSpark?.seq ?? 0) + 1, sides: [...new Set([...cur, ...sides])] };
+}
+
 export function fireOrbit(state: RunState, played: BoardCard): void {
   const idx = state.board.findIndex((c) => c.uid === played.uid);
   if (idx < 0) return; // the play didn't land on the board (overflow) — nothing to orbit
@@ -6048,7 +6066,11 @@ export function fireOrbit(state: RunState, played: BoardCard): void {
       if (effect.on !== 'orbit') continue;
       if (!alignAllows(effect, nbAlign)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) captureBuffFx(state, nb, 'minion', () => fn(ctx, nb, effect.params ?? {}, { minion: played }));
+      if (fn) {
+        captureBuffFx(state, nb, 'minion', () => fn(ctx, nb, effect.params ?? {}, { minion: played }));
+        // A GATED half sparks its own side; an ungated Orbit sparks the watcher's live side (it fired there).
+        noteAlignSpark(state, effect.align ?? nbAlign);
+      }
     }
   }
 }
@@ -6085,12 +6107,16 @@ export function playCard(state: RunState, played: BoardCard): void {
   // Read AFTER the card has entered the board, because entering re-centres the board and therefore decides
   // its own alignment — a Celestial's Shout reads the alignment it just landed in, not the one before.
   const myAlign = alignmentOf(state.board, played.uid);
+  // The PLAY itself sparks the side it landed on — any minion (the owner's "play a minion on Dusk" case).
+  // Harmless without the HUD: a board with no Celestial renders no strip, so the note goes unseen.
+  noteAlignSpark(state, myAlign);
   const hasBattlecry = def.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do) && alignAllows(e, myAlign));
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     if (!alignAllows(effect, myAlign)) continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
+    if (effect.align) noteAlignSpark(state, effect.align); // an aligned Shout half firing sparks its side
     captureBuffFx(ctx.state, played, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played }); });
   }
   // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)

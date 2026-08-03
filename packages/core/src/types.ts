@@ -235,6 +235,9 @@ export type EffectFactoryId =
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
   | 'orbitBuffArriver' // Celestial ORBIT: buff the minion that just landed next to this one
   | 'orbitBuffSelf' // Celestial ORBIT: this minion grows when something lands next to it
+  | 'scBuffSelf' // Celestial — Daybreak Acolyte: Start of Combat, this minion gains stats (align-gated halves)
+  | 'rallyBuffCelestials' // Celestial — Equinox Duelist (Dawn Rally): buff your Celestials
+  | 'deathrattleBuffCelestials' // Celestial — Equinox Duelist (Dusk Echo): buff your Celestials
   | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
   | 'battlecryPlayRubiesAll' // Set 2 — Frenzied Excavator: play a Ruby on every friendly minion
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack

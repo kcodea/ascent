@@ -6,15 +6,22 @@ import { SETS, poolFor, activeSet } from './sets';
  * in later. These pins guard the two ways a scaffold set can go wrong.
  */
 describe('set 3 scaffold', () => {
-  it('is registered and holds only the Celestial test units', () => {
-    // Was "resolves to an empty pool" when set 3 was pure scaffold; the Celestial test units (owner ask
-    // 2026-08-03) are its first content, so this now pins WHAT is in it rather than that it's empty.
+  it('holds the Celestial test units + the shared neutral spell toolkit', () => {
+    // Grew twice from the empty scaffold: the Celestial test units, then the owner's shared spell pool
+    // (2026-08-03, "they will be there no matter what"). Minions stay all-Celestial; the spell count pins
+    // the 58 DRAWABLE shared spells (the sheet's reward/gift rows — Copycat, Bloodlust, Implosion,
+    // Goldcrafter — are tokens, global by doctrine, and deliberately not set members).
     expect(SETS.set3).toBeDefined();
     const p = poolFor('set3');
     expect(p.setId).toBe('set3');
-    expect(p.spells).toEqual([]); // still no spells
-    expect(p.buyable.every((c) => c.celestial), 'set 3 holds only Celestials for now').toBe(true);
-    expect(p.buyable.map((c) => c.id)).toEqual(['c3_orbiter', 'c3_herald', 'c3_sentinel']);
+    expect(p.buyable.every((c) => c.celestial), 'set 3 minions are all Celestials for now').toBe(true);
+    expect(p.buyable.map((c) => c.id)).toEqual(
+      ['c3_orbiter', 'c3_herald', 'c3_sentinel', 'c3_acolyte', 'c3_starweft', 'c3_equinox', 'c3_nym'],
+    );
+    expect(p.spells.length).toBe(58);
+    expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
+    expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift
+    expect(p.spells.some((c) => c.id === 'copycat'), 'gift spells stay out of the pool').toBe(false);
   });
 
   it('is DISABLED, so no real run can land on an empty pool', () => {

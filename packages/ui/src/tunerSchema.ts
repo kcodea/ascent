@@ -55,6 +55,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   drag: '🎴',
   flip: '🔀',
   glow: '🔆',
+  alignhud: '🌗',
   shield: '🛡',
   lunge: '🗡️',
   critfx: '⚡',

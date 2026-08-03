@@ -73,4 +73,76 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     text: '**Dawn:** Start of Combat — deal **3** to the left-most enemy. **Dusk:** deal **3** to ALL enemies.',
     goldenText: '**Dawn:** Start of Combat — deal **6** to the left-most enemy. **Dusk:** deal **6** to ALL enemies.',
   },
+
+  {
+    // Start of Combat with BOTH halves align-gated: the simplest "my text depends on where I stand" body.
+    id: 'c3_acolyte',
+    name: 'Daybreak Acolyte',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 2,
+    keywords: [],
+    celestial: true,
+    effects: [
+      { on: 'startOfCombat', do: 'scBuffSelf', params: { attack: 2 }, align: 'dawn' },
+      { on: 'startOfCombat', do: 'scBuffSelf', params: { health: 2 }, align: 'dusk' },
+    ],
+    text: 'Start of Combat — **Dawn:** gain **+2 Attack**. **Dusk:** gain **+2 Health**.',
+    goldenText: 'Start of Combat — **Dawn:** gain **+4 Attack**. **Dusk:** gain **+4 Health**.',
+  },
+  {
+    // An UNGATED Orbit — fires whatever the Familiar's alignment. The contrast case to the Twinlight
+    // Orbiter, whose halves are both gated.
+    id: 'c3_starweft',
+    name: 'Starweft Familiar',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    celestial: true,
+    effects: [
+      { on: 'orbit', do: 'orbitBuffArriver', params: { attack: 1, health: 1 } },
+    ],
+    text: '**Orbit:** give the played card **+1/+1**.',
+    goldenText: '**Orbit:** give the played card **+2/+2**.',
+  },
+  {
+    // Alignment across TWO different combat triggers on one card: a Dawn Rally and a Dusk Echo. Eclipsed it
+    // carries both, which is the intended payoff for centring it.
+    id: 'c3_equinox',
+    name: 'Equinox Duelist',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 3,
+    health: 3,
+    keywords: ['RL'],
+    celestial: true,
+    effects: [
+      { on: 'onAttack', do: 'rallyBuffCelestials', params: { attack: 2 }, align: 'dawn' },
+      { on: 'onDeath', do: 'deathrattleBuffCelestials', params: { health: 2 }, align: 'dusk' },
+    ],
+    text: '**Dawn — Rally:** give your Celestials **+2 Attack**. **Dusk — Echo:** give them **+2 Health**.',
+    goldenText: '**Dawn — Rally:** give your Celestials **+4 Attack**. **Dusk — Echo:** give them **+4 Health**.',
+  },
+  {
+    // Alignment on END OF TURN — the recruit-phase economy shape (and the reason applyEndOfTurn + its
+    // projection twin both gained the align gate in this PR).
+    id: 'c3_nym',
+    name: 'Starbroker Nym',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 3,
+    health: 5,
+    keywords: [],
+    celestial: true,
+    effects: [
+      { on: 'endOfTurn', do: 'endOfTurnBonusGold', params: { amount: 2 }, align: 'dawn' },
+      { on: 'endOfTurn', do: 'endOfTurnGetRandomSpells', params: { count: 1 }, align: 'dusk' },
+    ],
+    text: 'End of Turn — **Dawn:** gain **2 Gold** next turn. **Dusk:** get a **random spell**.',
+    goldenText: 'End of Turn — **Dawn:** gain **4 Gold** next turn. **Dusk:** get **2 random spells**.',
+  },
 ];
+

@@ -17,6 +17,32 @@ import { SET2_SPELLS } from './cards/set2/spells';
 import { SET3_CARDS } from './cards/set3';
 
 /**
+ * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
+ * toolkit both prior sets draw on, resolved BY ID against the set-1 + set-2 spell lists so a rename there
+ * breaks loudly here (the manifest names what it takes, as always). Reward/gift-only spells on the owner's
+ * sheet (Copycat, Bloodlust, Implosion, Goldcrafter) are deliberately NOT opted in: they are `token`/`gift`
+ * cards, never drawable, and already resolve globally through whatever grants them — set membership would be
+ * meaningless for them (the drawable views filter tokens out anyway).
+ */
+const SET3_SHARED_SPELL_IDS: readonly string[] = [
+  'apples', 'bulwark', 'crestclimb', 'emberpouch', 'lanternlight', 'quicksale', 'depositbox', 'sprout',
+  'summonstone', 'fieldmaneuvers', 'manafont', 'growth', 'hourglassreserve', 'laststand', 'mend',
+  'refreshtexts', 'spiritfire', 'tribeschoice', 'commonground', 'executionersedge', 'fleetingvigor',
+  'funeralonloan', 'lasso', 'layaway', 'patchjob', 'rallyoffensive', 'riftsunkcodex', 'shatter',
+  'staffofguel', 'tribeportal', 'turnabout', 'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch',
+  'helpwanted', 'hoardflame', 'insurancepolicy', 'preemptive', 'quickstudy', 'seconddraft', 'devour',
+  'chronostaff', 'corpseboard', 'displacement', 'farseersreport', 'invitationabove', 'markedtarget',
+  'resonance', 'rivalsreflection', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken',
+  'elevationritual', 'aresmar', 'perfectvision', 'sparkplug',
+];
+const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
+const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) => {
+  const def = SET3_SPELL_SOURCES.find((c) => c.id === id);
+  if (!def) throw new Error(`SET3_SHARED_SPELL_IDS names '${id}', which no spell list provides`);
+  return def;
+});
+
+/**
  * Set 2 reuses Set 1's whole neutral spell toolkit — the same drawable spells (Discover, buffs, economy,
  * tempo) that made Set 1's shop interesting — MINUS the handful whose payoff is tied to a tribe Set 2 doesn't
  * field. Every Discover / get-a-minion spell resolves its candidates through `poolOf(state)` filtered by the
@@ -176,7 +202,9 @@ export const SETS: Record<SetId, SetDef> = {
     // Starts EMPTY and opts cards IN, the same manifest pattern set 2 uses. Add `inherits: 'set2'` (+
     // `excludes`) instead if set 3 should start from set 2's pool and trim; both compose, and `own` always
     // appends last so adding cards never disturbs an inherited prefix.
-    own: [...SET3_CARDS], // → packages/content/src/cards/set3/*.ts
+    // Celestial test units first, then the shared neutral spell toolkit — spells appended LAST so growing
+    // the minion roster never disturbs spell positions (the same ordering discipline as the other sets).
+    own: [...SET3_CARDS, ...SET3_SHARED_SPELLS], // → packages/content/src/cards/set3/*.ts
   },
 };
 

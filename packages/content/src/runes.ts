@@ -1078,8 +1078,10 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Wild Hunt',
     cost: 3,
     epic: true,
-    text: 'When a **Beast** attacks, give your minions **+3 Health** and improve this by **3** permanently.',
-    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 3 },
+    // Owner rebalance 2026-08-02: 3 -> 1 Health per attack. `amount` is BOTH the grant and the escalation
+    // step (see the wildHunt block in simulate), so one number moves both halves together.
+    text: 'When a **Beast** attacks, give your minions **+1 Health** and improve this by **1** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 1 },
   },
   {
     // Grafts Exgalloper's exact-copy Echo (NOT Rise — Rise resummons the printed body, so a grown shard came

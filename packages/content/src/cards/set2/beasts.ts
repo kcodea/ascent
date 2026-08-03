@@ -101,12 +101,13 @@ export const SET2_BEASTS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [
-      // Owner rebalance 2026-08-02: +1/+2, and each Avenge improves by +1/+2 (the per-stat steps).
-      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 1, health: 2, stepAttack: 1, stepHealth: 2 } },
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
+      // Owner rebalance 2026-08-02 (final): the flat buff and the Avenge improve are CUT — the card is purely
+      // the multiply now. `attack: 0, health: 0` keeps the shared factory's grant half silent (it guards on
+      // `a > 0 || h > 0`), so only the stat-doubling runs; golden still triples via `mul(self)`.
+      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 0, health: 0 } },
     ],
-    text: 'When you summon a Beast in combat, give it **+1/+2**, then **double** its stats. **Avenge (4):** improve this.',
-    goldenText: 'When you summon a Beast in combat, give it **+2/+4**, then **triple** its stats. **Avenge (4):** improve this.',
+    text: 'When you summon a Beast in combat, **double** its stats.',
+    goldenText: 'When you summon a Beast in combat, **triple** its stats.',
   },
   {
     // Owner rework 2026-08-02 (from the Avenge tribe-buff): a token engine — every 4 friendly deaths summons

@@ -13,6 +13,37 @@ const row = (o: Partial<RunTelemetry>): RunTelemetry => ({
   offeredCards: [], boughtCards: [], tierByWave: [], ...o,
 });
 
+describe('a lobby WIN is placement 1 — not the replay phase', () => {
+  // Owner report 2026-08-02: the shop curve showed every run as a LOSS. `reconstructRunTelemetry` derives
+  // `won` from phase 'victory', which a lobby never reaches, so every lobby row uploaded with won:false —
+  // the same root cause as the Hall of Champions bug. The store now overrides `won` at upload, and the
+  // aggregate treats PLACEMENT as authoritative so rows already in Supabase self-heal.
+  it('reads placement 1 as a win even when the stored flag says otherwise', () => {
+    const r = aggregatePlayerReport([
+      row({ tierByWave: [0, 1, 2], placement: 1, won: false }), // a real lobby win, mis-flagged at upload
+      row({ tierByWave: [0, 1, 1], placement: 5, won: false }),
+    ]);
+    expect(r.shopCurve.wonRuns, 'the placement-1 run must count as won').toBe(1);
+    expect(r.shopCurve.lostRuns).toBe(1);
+    expect(r.shopCurve.won[2], "the winner's curve must be built from that run").toBe(2);
+  });
+
+  it('a course-era row with NO placement still trusts its stored flag', () => {
+    const r = aggregatePlayerReport([row({ tierByWave: [0, 1, 3], won: true })]);
+    expect(r.shopCurve.wonRuns).toBe(1);
+  });
+
+  it('win RATES use the same rule, so the tables and the curve agree', () => {
+    // Heroes / quests / runes credit wins; CARD rows deliberately do not (their table has no Win column —
+    // per-card win impact lives in the CSV export, which reads the same `runWon` helper).
+    const r = aggregatePlayerReport([
+      row({ heroId: 'drakko', heroOffer: ['drakko'], pickedRunes: ['rune_warpath'], placement: 1, won: false }),
+    ]);
+    expect(r.heroes.find((h) => h.id === 'drakko')!.winRate, 'hero win rate').toBe(100);
+    expect(r.runes.find((x) => x.id === 'rune_warpath')!.winRate, 'rune win rate').toBe(100);
+  });
+});
+
 describe('placement analytics', () => {
   it('averages placement per card, and counts 1sts and 8ths', () => {
     const r = aggregatePlayerReport([

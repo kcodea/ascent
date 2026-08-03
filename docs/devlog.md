@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-02 — The shop curve called every lobby run a LOSS (the 'victory' phase trap, third time)
+
+Owner report: the Balance Report's curve showed only losing runs. Same root cause as the Hall of Champions
+bug (2026-07-31): `reconstructRunTelemetry` derives `won` from `phase === 'victory'`, and **a lobby never
+reaches that phase** — so every lobby row uploaded with `won: false`, and the curve's won/lost split had
+nothing in the won bucket. Fixed on both sides:
+
+- **At upload**: the store overrides `won` with `lobbyWon` (placement 1) — the value it already computes for
+  the Hall gate. The reconstruction keeps the course default and now says in a comment why it cannot know.
+- **At aggregation**: a new `runWon` helper treats PLACEMENT as authoritative when present, so the rows
+  ALREADY in Supabase with the wrong flag self-heal on the next report load rather than needing a wipe. Every
+  win reader routes through it — the curve, hero/quest/rune win rates, and the CSV's win-impact columns — so
+  the tables and the chart can't disagree.
+
+Also: **Rune of the Wild Hunt 3 → 1 Health** per Beast attack (owner). `amount` is both the grant and the
+escalation step, so one number moves both halves; a new test pins the shipped def value, since the engine
+tests pass an explicit mod and could never catch a def drift.
+
+Tests: placement-1-is-a-win (even with `won: false` stored), course-era rows still trusting their flag, and
+win rates agreeing with the curve. Full gates + harness green (3625).
+
+## 2026-08-02 — King Oona is the multiply, nothing else
+
+Owner call: cut the flat buff AND the Avenge improve — Oona now only doubles a summoned Beast's stats (triples
+gilded). Implemented as `attack: 0, health: 0` on the shared `onSummonTribeBuffThenDouble` (its grant half
+already guards on `a > 0 || h > 0`, so only the multiply runs) plus dropping the `avenge` effect outright.
+Texts follow. `avengeImproveSummon` stays — Kennelmaster still uses it — and `improvingSummonText` stays for
+Broodwright; with no accrual Oona simply never reaches it, so her card prints its base text.
+
+Tests: the three Oona pins rewritten — the wiring test now expects ONE effect and no Avenge; the order test
+becomes "exactly one buff event, and it is the multiply" (a lingering +0/+0 grant would mean the cut half
+still fires); gilded reads +2/+2 on a 1/1 Pup (two extra copies of its own stats), not the old grant-then-
+multiply pair. Full gates + harness green (3621).
 ## 2026-08-02 — Four new runes: Distillation, Liquidation, the Warpath, Gemspam
 
 Owner batch. Each reuses an existing primitive where one fit and adds the narrowest new hook where none did:

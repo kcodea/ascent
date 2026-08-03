@@ -620,7 +620,10 @@ export const useGame = create<GameStore>((set, get) => ({
           // real ladder, and course/rift rows would dilute it.
           if (next.mode === 'lobby') {
             try {
-              const telemetry = { ...reconstructRunTelemetry(replay, heroOffer), mode: 'lobby', placement: lobbyPlacement ?? undefined };
+              // `won` MUST be overridden here: the reconstruction reads phase 'victory', which a lobby never
+              // reaches, so every lobby row uploaded as a loss (owner report 2026-08-02 — the shop curve was
+              // all "lost runs"). A lobby win is placement 1, exactly as the Hall of Champions gate reads it.
+              const telemetry = { ...reconstructRunTelemetry(replay, heroOffer), mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined };
               void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
             } catch { /* best-effort — telemetry must never disrupt the end screen */ }
           }

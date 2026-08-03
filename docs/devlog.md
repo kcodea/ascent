@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-02 — Compendium vertical room (the plate overhang), and the report table fits its columns
+
+Two owner reports on the same pass:
+
+**Compendium rows collided.** The +15% gap wasn't enough because a PLATED card's plate is absolutely
+positioned — it overflows the cell the grid measures (37px above via `--plate-top`, ~0.1 x `--ccw` below), so
+consecutive rows' plates OVERLAPPED by a measured 6px however large the gap got. Fixed by reserving the
+overhang as `margin-block` (the same doctrine as the existing `margin-inline`), with the BOTTOM reservation
+proportional to `--ccw` so it scales with zoom — a fixed value collapsed to a 1px gap at 160%. Row gap also
+raised 48.3 → 72px. Measured across every zoom step: plate-to-plate gap is now 70–94px, never negative.
+
+**Balance Report table clipped.** The placement columns pushed it past the old fixed `width: min(960px, …)`,
+cutting Name off the left and the last column off the right. The width now derives from `--balcols` (already
+set per section) and the numeric columns shrink to a floor instead of sitting at a fixed 6rem. Verified with a
+10-column probe: container 1248px, every cell inside, zero overflow.
+
+## 2026-08-02 — Compendium: +15% breathing room between cards and rows
+
+Owner ask. Row gap 42 → 48.3px, column gap 22 → 25.3px. The auto-fill column MINIMUM grows by the same 15%
+(`--cw + 16px` → `+ 18.4px`) — without it the grid simply packs one more column per row and the added column
+gap is immediately eaten, which is the opposite of the ask. Live-verified: gaps read 48.3/25.3 and the column
+count holds (6 at 60% zoom, unchanged).
+
 ## 2026-08-02 — Compendium: in-game plates + zoom; Balance Report: placement capture, hero slice, placement views
 
 **Compendium (owner asks).** Every card now renders with the same carved PLATE it wears in hand (`plated` —

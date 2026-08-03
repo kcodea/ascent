@@ -4941,10 +4941,15 @@ svg { width: 18px; height: 18px; }
 .balwin.cold { color: #f07a6a; }
 
 /* Solo report table (owner 2026-07-14): fixed-width, centred, LARGE text, sticky sortable header. */
-.balsolo { width: min(960px, 100%); background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 4px 22px 16px; }
+/* The table WIDTH follows its column count (owner report 2026-08-02: the placement columns pushed the grid
+   past the old fixed 960px, clipping Name on the left and the last column on the right). `--balcols` is
+   already set per section on this element, so the width can be derived from it and capped at the viewport. */
+.balsolo { width: min(calc(9rem + var(--balcols, 4) * 6.9rem), 100%); background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 4px 22px 16px; }
 /* Number columns are a FIXED rem width (not em/minmax) so every row — including the smaller-font header — resolves
    IDENTICAL tracks and the columns line up perfectly across Heroes/Quests/Runes/Minions/Spells. Name fills the rest. */
-.balgrid-solo .balrow { grid-template-columns: minmax(0, 1fr) repeat(var(--balcols, 4), 6rem); gap: 14px; padding: 10px 2px; font-size: 17px; }
+/* Numeric columns SHRINK to a floor rather than sitting at a fixed 6rem — with ten columns a fixed width
+   overflows any container, and an overflowing grid clips instead of scrolling here. */
+.balgrid-solo .balrow { grid-template-columns: minmax(7rem, 1.4fr) repeat(var(--balcols, 4), minmax(3.6rem, 1fr)); gap: 14px; padding: 10px 2px; font-size: 17px; }
 .balgrid-solo .balrow.balhead { position: sticky; top: 0; z-index: 1; background: #0b1524; font-size: 13px; padding-top: 12px; padding-bottom: 10px; }
 .balgrid-solo .balrow:not(.balhead):hover { background: rgba(255, 255, 255, 0.04); }
 /* Column headers double as sort buttons — reset the button chrome, keep the header look, hint the active one. */
@@ -5224,10 +5229,18 @@ svg { width: 18px; height: 18px; }
    stacking on top of each other). */
 /* `--book-zoom` (owner ask 2026-08-02) scales the ONE metric the rest derive from, so a zoom step resizes
    the card, its drawer and the column width together — and `auto-fill` re-flows the columns for free. */
-.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 16px), 1fr)); gap: 42px 22px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, 28.6vh, 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 18.4px), 1fr)); gap: 72px 25.3px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, 28.6vh, 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
 /* A PLATED card is wider than its frame (the plate overhangs), so the cell has to allow for it or the grid
    clips the carved edge — the same allowance `.cardref .card.plated` makes for the hover preview. */
-.book-grid .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
+.book-grid .card.plated {
+  margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2);
+  /* The plate is ABSOLUTELY positioned, so it overflows the cell the grid measures: 37px above (`--plate-top`)
+     and ~0.1 x --ccw below. Measured 2026-08-02 at the shipped row gap: consecutive rows' plates OVERLAPPED by
+     6px — a bigger gap alone can never fix that, because the grid is still sizing rows to the un-plated card.
+     Reserve the overhang as margin (the same doctrine as `margin-inline` above), THEN let the row gap be pure
+     breathing room. */
+  margin-block: calc(-1 * var(--plate-top, -37px)) calc(var(--ccw) * 0.34);
+}
 /* The Compendium is a BROWSING grid, so the text drawer must sit IN FLOW here: rows then size to the real
    panel height and can never collide, however long a card's text runs (Uron and Amun Rab overflowed the old
    fixed `--ch * 0.45` row gap and crashed into the row below). Everywhere else the drawer stays absolutely

@@ -12,6 +12,25 @@ sticking out on all four sides.
 Fixed by giving the card GRID a dark surface of its own rather than dropping the plates — the owner's ask was
 "like in game", and the plate only misreads because of the backdrop. Scoped to `.book-grid`, so the rail,
 header and glossary keep the book's light treatment.
+## 2026-08-02 — Two Dwarf renames + a Dragon/Dwarf art pass
+
+- **Quartermaster Dorrin → Baby Gastrid** and **Closing-Time Foreman → Kringle** (owner). Ids unchanged
+  (`dw_dorrin`, `dw_foreman`) — saved runs and pool boards store ids, so a rename must never touch them. Both
+  new portraits wired by strict name match. The retired names are gone from the code's COMMENTS too (recruit
+  factories, the reducer's Ruby-count note, two cardText helpers, instView) so nothing reads as a stale card.
+- **Dragon art re-wired** as it stands in the folder — the changed files landed (Runefire, Spell Warden) plus
+  `Karwind2.png` as the `karwind2` variant slot.
+- Two aliases added for attributed files whose names don't match their card: `JensenAndFi.png` (the card is
+  "Jensen & Fi" — the `&` normalises away, and the old alias only covered the pre-rename "Jenkins" filename)
+  and `Sylus.png` (the card is "Sylus the Reaper"). Both had silently NOT been landing.
+- Audited the five alias-routed Dragon files against the CURRENT card names before applying — Commander
+  Warpath, Earthbreaker, Mushy, Scalefeather and Water Dragon all still resolve to the right cards (their ids
+  simply predate renames). Worth doing: a stale alias mis-assigns art silently.
+
+Still unwired on purpose: `Blu.png`, `Bucky.png` and `content1544.png` (no matching card), plus files for
+removed/renamed cards (Lancel, Tamer, Hoardmaster Krik, EchohornStag, QuartermasterDorrin).
+
+Full gates green (3634).
 
 ## 2026-08-02 — Bane's Presence art wired — quest coverage is now 103/103
 

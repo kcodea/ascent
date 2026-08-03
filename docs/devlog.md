@@ -50,6 +50,32 @@ different animation and not the one chosen; see docs/fx-vocabulary.md.)
 Verified: 5 new tests (ungilded 1×, gilded 2×, stat total exactly double, targets notified per Ruby, run
 `rubyBonus` applied per Ruby). Full gate: typecheck clean, lint 0 errors, **3639 tests**, `build:web` OK.
 Un-skips the gilded test in #816 once both are on main.
+## 2026-08-03 — Set 3 scaffolded (empty) and selectable in the Scene Builder
+
+Owner ask: "set up set 3 in the scene builder — leave it empty for now, just wire it up."
+
+- **`SETS.set3` registered**, `enabled: false`, `own: []`, `tribes: []`, with `cards/set3/index.ts` exporting an
+  empty `SET3_CARDS`. Cards land in sibling files there and get opted into `own` in declaration order, exactly
+  as set 2 does — never appended to a set-1/set-2 tribe file, since a set's pool ORDER and SIZE are load-bearing
+  (shop draws are `rng.int(pool.length)` over it).
+- **No UI work was needed.** The Scene Builder's set picker already maps over every `SETS` entry, prints each
+  one's pool counts, and carries an "this set has no cards yet — the shop will be empty" warning for exactly
+  this case. Registering the set was the whole job.
+- `SetId` gained `'set3'`, which required extending the two mirrored `sets?: ('set1' | 'set2')[]` unions in
+  `core/types.ts` (quest + rune set-scoping). Quests/runes with no `sets` field remain offerable in set 3 —
+  that's the documented "absent = every set" default; quests and runes are not otherwise set-scoped yet.
+- **Guard rail**: `enabled` stays `false` and a test pins it. `activeSet()` is first-enabled-wins in
+  declaration order, so enabling an empty set ahead of a real one would silently put every NEW run on an empty
+  pool. The Scene Builder is the intended way to play it — its picker offers disabled sets on purpose.
+- **Verified live in the browser** (dev server, Scene Builder open): the picker reads
+  `Set 1 — 128 minions, 62 spells` / `Set 2 (live) — 130 minions, 72 spells` / `Set 3 — 0 minions, 0 spells`;
+  selecting Set 3 shows the empty-set warning, empties the card list, and logs no console errors. The residual
+  "Add …" buttons under Set 3 are QUESTS, which aren't set-scoped yet — not a regression. (Screenshots were
+  unavailable — the browser pane wasn't compositing — so this is DOM-measured rather than visual.)
+- **Verified** — new `set3Scaffold.test.ts` (3 tests: registered + resolves empty; disabled so no real run can
+  land on it; doesn't perturb set 1/set 2's pools). Gates: typecheck ✓, lint ✓ (7 pre-existing warnings),
+  3649 tests ✓, `build:web` ✓, harness determinism ✓. `docs/card-sets.md` updated — it used `set3` as its
+  hypothetical worked example, which would now mislead.
 
 ## 2026-08-03 — Brisbane hits every Kobold; Bane is Imps-only; Balance Report buys captured live
 

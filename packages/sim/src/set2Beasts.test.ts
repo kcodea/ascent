@@ -93,11 +93,11 @@ describe('set 2 — Beast summon + aura cards', () => {
   it('Denkeeper Oona / Solaris / T-Rex are wired with the expected stats + effects (Lancel removed 2026-08-02)', () => {
     // These reuse combat primitives already covered elsewhere (avengeShieldAttack, addTribeAura, the
     // fixed+goldenTokens summon shape), so the new surface is the card wiring.
-    // Oona reworked 2026-07-25 (owner): an onSummon watcher that grants +1/+1 and THEN doubles, with an
-    // Avenge(4) improving the flat half. No longer a Start-of-Combat aura, so `SC` came off her keywords too.
+    // Oona, final owner rebalance 2026-08-02: the flat buff AND the Avenge improve are cut — she is purely
+    // the stat multiply now (one effect, no Avenge). Still an onSummon watcher, so no `SC` keyword.
     const oona = CARD_INDEX['b2_oona']!;
     expect([oona.tier, oona.attack, oona.health]).toEqual([5, 4, 6]);
-    expect(oona.effects.map((e) => e.do)).toEqual(['onSummonTribeBuffThenDouble', 'avengeImproveSummon']);
+    expect(oona.effects.map((e) => e.do)).toEqual(['onSummonTribeBuffThenDouble']);
     expect(oona.keywords).not.toContain('SC');
 
     const solaris = CARD_INDEX['b2_solaris']!;
@@ -471,9 +471,9 @@ describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
 });
 
 describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
-  it('a summoned Beast gets +1/+2 and THEN doubles — order matters (owner rebalance 2026-08-02)', () => {
-    // Mama Pup's 1/1 Pups: +1/+2 → 2/3, then doubled → 4/6. If the doubling ran FIRST the numbers differ,
-    // so this pins the printed order rather than merely "it got bigger".
+  it('a summoned Beast is DOUBLED, with no flat buff first (owner rebalance 2026-08-02, final)', () => {
+    // Mama Pup's 1/1 Pups: no grant, then doubled → 2/2. Exactly ONE buff event, and it is the multiply —
+    // a lingering +0/+0 grant event would mean the cut half is still firing.
     const r = simulate(
       [{ cardId: 'b2_oona', attack: 4, health: 40, sourceUid: 'O', keywords: [] },
        { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
@@ -485,8 +485,8 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
     const uid = summoned[0]!.minion.uid;
     const gained = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
       .filter((b) => b.target === uid);
-    expect(gained.map((b) => [b.attack, b.health]), 'flat grant first, then a double of the NEW stats')
-      .toEqual([[1, 2], [2, 3]]);
+    expect(gained.map((b) => [b.attack, b.health]), 'the multiply only — the 1/1 Pup doubles to 2/2')
+      .toEqual([[1, 1]]);
   });
 
   it('does not touch a non-Beast summon', () => {
@@ -495,9 +495,8 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
   });
 
   it('GILDED triples instead of doubling (owner 2026-07-27)', () => {
-    // Golden already doubles the flat grant (+2/+4 since the 2026-08-02 rebalance). The rework is the second
-    // half: one extra copy of the minion's own stats per `mul`, so a golden Oona turns a 1/1 Pup into 3× the
-    // post-grant 3/5 — the multiply reads +6/+10, not +3/+5.
+    // With the flat grant cut, GILDED is purely the bigger multiply: two extra copies of the Pup's own 1/1
+    // rather than one, so the buff event reads +2/+2 (a 1/1 tripling to 3/3), not +1/+1.
     const r = simulate(
       [{ cardId: 'b2_oona', attack: 4, health: 40, sourceUid: 'O', keywords: [], golden: true },
        { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
@@ -509,8 +508,8 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
     const uid = summoned[0]!.minion.uid;
     const gained = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
       .filter((b) => b.target === uid);
-    expect(gained.map((b) => [b.attack, b.health]), 'gilded should TRIPLE: +2/+4 then 2× the new 3/5')
-      .toEqual([[2, 4], [6, 10]]);
+    expect(gained.map((b) => [b.attack, b.health]), "gilded TRIPLES: 2x the Pup's own 1/1 on top of itself")
+      .toEqual([[2, 2]]);
   });
 });
 

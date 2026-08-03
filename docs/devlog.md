@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-02 — King Oona is the multiply, nothing else
+
+Owner call: cut the flat buff AND the Avenge improve — Oona now only doubles a summoned Beast's stats (triples
+gilded). Implemented as `attack: 0, health: 0` on the shared `onSummonTribeBuffThenDouble` (its grant half
+already guards on `a > 0 || h > 0`, so only the multiply runs) plus dropping the `avenge` effect outright.
+Texts follow. `avengeImproveSummon` stays — Kennelmaster still uses it — and `improvingSummonText` stays for
+Broodwright; with no accrual Oona simply never reaches it, so her card prints its base text.
+
+Tests: the three Oona pins rewritten — the wiring test now expects ONE effect and no Avenge; the order test
+becomes "exactly one buff event, and it is the multiply" (a lingering +0/+0 grant would mean the cut half
+still fires); gilded reads +2/+2 on a 1/1 Pup (two extra copies of its own stats), not the old grant-then-
+multiply pair. Full gates + harness green (3621).
+
 ## 2026-08-02 — Compendium vertical room (the plate overhang), and the report table fits its columns
 
 Two owner reports on the same pass:

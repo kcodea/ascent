@@ -946,7 +946,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
           const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
-          else if (offer) for (let n = 0; n < casts; n++) castSpellOnOffer(s, def, offer);
+          else if (offer) {
+            for (let n = 0; n < casts; n++) castSpellOnOffer(s, def, offer);
+            // Rune of Distillation: a spell that landed on a SHOP minion also casts on your left-most board
+            // minion. A real second cast (same `castSpell` path), so the target's own on-spell watchers see it.
+            const lead = s.runeDistillation ? s.board[0] : undefined;
+            if (lead) for (let n = 0; n < casts; n++) castSpell(s, def, lead);
+          }
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
         } else {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
@@ -1273,6 +1279,20 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
         // floated can't drift (they did: the bonus used to be added inline here only).
         gainGold(s, sellValueWithBonus(sold, s));
+        // Rune of Liquidation: the sold minion's BONUS stats (everything above its printed base — buffs,
+        // Rubies, improvements) transfer to the right-most Shop minion. Read off the def rather than tracked
+        // separately, so every source of growth counts. A golden body's base is doubled, so its bonus is
+        // measured against that. No shop minion (all spells/Rubies, or an empty tavern) → nothing to give.
+        if (s.runeLiquidation) {
+          const soldDef = CARD_INDEX[sold.cardId];
+          if (soldDef) {
+            const g = sold.golden ? 2 : 1;
+            const bonusA = Math.max(0, sold.attack - soldDef.attack * g);
+            const bonusH = Math.max(0, sold.health - soldDef.health * g);
+            const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+            if (target && (bonusA > 0 || bonusH > 0)) addOfferBuff(target, 'Rune of Liquidation', bonusA, bonusH);
+          }
+        }
         // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
         if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
         if (s.nextSellBonus) s.nextSellBonus = 0;
@@ -3186,6 +3206,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeSharedTable':
       s.runeSharedTable = { attack: r.attack, health: r.health };
       break;
+    case 'runeDistillation':
+      s.runeDistillation = true;
+      break;
+    case 'runeLiquidation':
+      s.runeLiquidation = true;
+      break;
     case 'runeRedirection':
       s.runeRedirection = true;
       break;
@@ -3200,7 +3226,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeThreshold':
       // An ARRAY: several threshold runes can be held at once, each banking its own remainder.
-      (s.runeThresholds ??= []).push({ meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, oncePerTurn: r.oncePerTurn });
+      (s.runeThresholds ??= []).push({ meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn });
       break;
     case 'motherlode':
       s.motherlode = { count: r.count, tribe: r.tribe };
@@ -3601,6 +3627,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     oldHuntStep: f?.oldHunt,
     runeMatriarch: s.runeMatriarch || undefined, // the combat half of Runebloom's proc doubles too
     runeMammoth: s.questFlags?.runeMammoth || undefined, // Mammoths give Health 1:1
+    runeWarpath: s.questFlags?.runeWarpath || undefined, // left-most's attack chains into the right-most's
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,
     boneThroneStep: s.boneThroneStep || undefined,

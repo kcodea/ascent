@@ -278,12 +278,24 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeWarChorus' },
   },
   {
+    // Owner add 2026-08-02. A cheap tempo rune for spell builds: the shop-buff cast pays twice.
+    id: 'rune_distillation',
+    name: 'Rune of Distillation',
+    cost: 2,
+    text: 'Spells cast on **Shop minions** also cast on your **left-most** minion.',
+    sets: ['set2'], // casting on shop offers is a set-2 pattern (Rubies / offer-targeted spells)
+    reward: { kind: 'runeDistillation' },
+  },
+  {
     id: 'rune_facetwright',
     name: 'Rune of Facetwright',
     cost: 4,
-    text: "Get a **Facetwright's Choice**. Repeat at the **start of every turn**. They give **both** effects.",
+    // Owner fix 2026-08-02: the FIRST copy lands the moment the rune is bought (the plain `grant` up front) —
+    // it used to arrive only at the first recurring payout. And the recurring grant fires at END of turn
+    // (`recurringEndOfTurn`), which the old text mis-stated as "start of every turn".
+    text: "Get a **Facetwright's Choice**. Repeats at **end of turn**. They give **both** effects.",
     previewCards: ['facetwright'], // text names it — the forge hover shows the card
-    reward: { kind: 'multi', rewards: [{ kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['facetwright'] }, { kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
     sets: ['set2'], // Facetwright's Choice is a set-2 spell
   },
   {
@@ -362,7 +374,7 @@ export const RUNES: RuneDef[] = [
     // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
     id: 'rune_gemcutting',
     name: 'Rune of Gemcutting',
-    cost: 4,
+    cost: 1, // 4 → 1 (owner 2026-08-02)
     // Owner sheet 2026-07-31: SEVEN Rubies minted at a fixed 3/3, not the run's 1/1+bonus line.
     text: 'Get **7 Rubies** that give **+3/+3**.',
     reward: { kind: 'mintRubies', count: 7, attack: 3, health: 3 },
@@ -377,14 +389,14 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'gainGold', amount: 7, immediate: true },
   },
   {
-    // Owner clarification 2026-07-31: ALL of it recurs — a Gold Font (the set-1 max-Gold spell, id
-    // `manafont`) plus 2 random Shop spells, every turn.
+    // Owner rebalance 2026-08-02: BOUNDED to 2 turns (it recurred for the whole run). `turns` on the reward
+    // is the general mechanism — see `questRecurringLimited`.
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
     cost: 5,
-    text: '**End of Turn:** get a **Gold Font** and **2 random Shop spells**.',
+    text: 'Get a **Gold Font** and **2 random spells** at End of Turn, for the **next 2 turns**.',
     previewCards: ['manafont'], // text names it — the forge hover shows the card
-    reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy' },
+    reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy', turns: 2 },
   },
   {
     // The BASIC route to Tier 7 (Summit is parked, so no rift grants it). Every 2nd shop, Discover a Tier 7
@@ -804,6 +816,67 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Set 2 rune batch (owner roster 2026-07-29) — "get a named minion" runes. Each names a card that now
   // exists, so they are pure grants; the rest of the roster needs new reward kinds and is not shipped yet.
   {
+    // Owner add 2026-08-02: sell-to-invest. The bonus stats are everything above the printed base, so a
+    // heavily-buffed body cashes out into the tavern rather than being lost.
+    id: 'rune_liquidation',
+    name: 'Rune of Liquidation',
+    cost: 4,
+    epic: true,
+    text: 'When you **sell** a minion, give its **bonus stats** to the **right-most Shop** minion.',
+    reward: { kind: 'runeLiquidation' },
+  },
+  {
+    // Owner add 2026-08-02: an extra attack every round, paid for by board ORDER — the two ends of your line.
+    id: 'rune_warpath',
+    name: 'Rune of the Warpath',
+    cost: 5,
+    epic: true,
+    text: 'After your **left-most** minion attacks, your **right-most** minion attacks.',
+    reward: { kind: 'combatFlag', flag: 'runeWarpath' },
+  },
+  {
+    // Owner add 2026-08-02: the Gold sink for a Ruby board — 10 Gold spent showers the whole line.
+    id: 'rune_gemspam',
+    name: 'Rune of Gemspam',
+    cost: 5,
+    epic: true,
+    text: 'When you spend **10 Gold**, play a **Ruby** on all of your minions.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 10, rubyAll: true },
+    sets: ['set2'], // Rubies are a set-2 mechanic
+  },
+  {
+    // Owner add 2026-08-02: a GIFT spell (not a Shop spell — see the token-gift branch in the reducer) that
+    // copies a friendly minion EXACTLY: stats, buffs, keywords, gilding, per-instance improvements.
+    id: 'rune_copycat',
+    name: 'Rune of Copycat',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Copycat**.',
+    reward: { kind: 'grant', cards: ['copycat'] },
+  },
+  {
+    // Owner add 2026-08-02: the Mammoth's Attack-only grant becomes 1:1 symmetric (+3/+3, +6/+6, …).
+    id: 'rune_mammoth',
+    name: 'Rune of the Mammoth',
+    cost: 4,
+    epic: true,
+    text: 'Your **Menagerie Mammoths** also give **Health**, 1:1 with their Attack.',
+    previewCards: ['b2_mammoth'], // text names it — the forge hover shows the card
+    reward: { kind: 'combatFlag', flag: 'runeMammoth' },
+    sets: ['set2'], // the Mammoth is a set-2 Beast
+  },
+  {
+    // Owner add 2026-08-02: the set-1 Taurus (T6, Engraves its neighbors), rune-granted — same named-minion
+    // shape as Rune of Yazzus. Grants from CARD_INDEX, so it works regardless of the run's pinned set.
+    id: 'rune_taurus',
+    name: 'Rune of Taurus',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Taurus**.',
+    reward: { kind: 'grant', cards: ['taurus'] },
+  },
+  {
     id: 'rune_yazzus',
     name: 'Rune of Yazzus',
     cost: 6,
@@ -1005,8 +1078,10 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Wild Hunt',
     cost: 3,
     epic: true,
-    text: 'When a **Beast** attacks, give your minions **+3 Health** and improve this by **3** permanently.',
-    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 3 },
+    // Owner rebalance 2026-08-02: 3 -> 1 Health per attack. `amount` is BOTH the grant and the escalation
+    // step (see the wildHunt block in simulate), so one number moves both halves together.
+    text: 'When a **Beast** attacks, give your minions **+1 Health** and improve this by **1** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 1 },
   },
   {
     // Grafts Exgalloper's exact-copy Echo (NOT Rise — Rise resummons the printed body, so a grown shard came

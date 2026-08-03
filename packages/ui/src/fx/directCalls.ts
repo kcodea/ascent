@@ -33,6 +33,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'death-dissolve': ['useCombatReplay.ts'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'TavernUpButton.tsx', 'choreo/channels/impact.ts'],
   'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
+  'ruby-gem-apply': ['Recruit.tsx', 'choreo/score.ts'],
   'strike-impact': ['choreo/channels/impact.ts'],
 };
 

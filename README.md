@@ -44,6 +44,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rubies now detonate on the minion they land on.** A gemshard burst over a twin shockwave, authored in the
+  effects workbench, plays on the target every time a Ruby is played on it — your own drag from hand, a card
+  that plays Rubies across the whole board, or one landing mid-fight. Board-wide plays sweep down the line
+  60 ms apart rather than all flashing at once, which reads better and keeps the frame budget. Separate from
+  the existing "your Rubies got stronger" cue, so a card that does both shows both.
 - **Saving an effect no longer wipes its name and tags.** Effects carry a display name and a few tags used to
   search and group them in the effects library, and every Save was silently deleting them — the melee hit
   effect lost its own name that way, and it was only spotted by eye. Saving over an effect now keeps them.

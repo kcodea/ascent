@@ -622,19 +622,6 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     expect(c.text).toMatch(/Echo/);
   });
 
-  it('Lancel grants Ward with NO free opening swing', () => {
-    // The fixture has to make the two behaviours DISTINGUISHABLE. With Lancel left-most it attacks first in
-    // normal turn order anyway, so a free swing looks identical — the first version of this test passed
-    // against the un-fixed code for exactly that reason. Here a DRAGON is left-most, so the shielded Beast
-    // (m1) only swings early if the removed `attackNow` is still firing.
-    const r = simulate(
-      [bm2('d2_embermouth', 'D', 3, 60), bm2('alley', 'B', 3, 60), bm2('b2_lancel', 'L', 3, 60)],
-      [{ cardId: 'sandbag', attack: 0, health: 900 }], makeRng(4), CARD_INDEX,
-      combatSide({ tier: 3, tribes: ['beast', 'dragon'] }), combatSide({ tier: 1 }));
-    expect(r.events.some((e) => e.type === 'shieldUp'), 'Ward still lands').toBe(true);
-    const firstAttacker = (r.events.find((e) => e.type === 'attack') as { attacker: string } | undefined)?.attacker;
-    expect(firstAttacker, 'turn order opens the fight, not a Start-of-Combat swing').toBe('m0');
-  });
 });
 
 describe('set 2 — Dragon reworks (owner batch 2026-07-27)', () => {

@@ -15,7 +15,8 @@
 import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import { CARD_INDEX, EPIC_RUNES, RUNES, poolFor } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, poolFor } from '@game/content';
+import { HEROES } from '@game/sim';
 
 const APPLY = process.argv.includes('--apply');
 /** Every art file already in the repo is 512x512 — the card frame never shows more. */
@@ -29,6 +30,16 @@ const ART_PX = 512;
  * which stays unwired on purpose. Every entry here is a case with exactly one plausible card, listed so it can
  * be reviewed rather than buried in matching logic.
  */
+/** RETIRED source files — attributed to a card that no longer exists, whose name now collides with a
+ *  DIFFERENT card. Skipped outright: re-owning attributed art by name-accident is exactly the guessing the
+ *  strict matcher exists to prevent. */
+const RETIRED = new Set<string>([
+  // Whelp.png was drawn for set 2's Whelp (Tamer's token, removed with Tamer 2026-08-02). Set 1's `whelpling`
+  // token is ALSO named "Whelp", so the file exact-matches a card it was never made for — and overwrote its
+  // existing art on the first run after the removal. The owner can re-attribute it deliberately if wanted.
+  'whelp',
+]);
+
 const ALIASES: Record<string, string> = {
   // misspelled in the source
   // (`chiurgeon` alias retired 2026-07-31: the card is Ayves now, so Ayves.png matches by NAME and the old
@@ -41,6 +52,8 @@ const ALIASES: Record<string, string> = {
   babyrex: 'trexbaby',                    // token is T-Rex Baby
   zyffbetrayer: 'zyff',
   jenkinsandfi: 'jensenfi',               // renamed Jenkins -> Jensen
+  jensenandfi: 'jensenfi',                // the CURRENT filename; the card is 'Jensen & Fi' (the & normalises away)
+  sylus: 'sylus',                         // card is 'Sylus the Reaper'; the file carries the short name
   malphas: 'dm_malphas',
   orivax: 'd2_orivax',
   // art still under a card's PRE-RENAME name (all renamed 2026-07-29).
@@ -112,8 +125,33 @@ for (const r of [...RUNES, ...EPIC_RUNES]) {
   if (theless !== norm(r.name) && !runesByName.has(theless)) runesByName.set(theless, r.id);
 }
 
-interface Job { label: string; src: string; dirs: string[]; dest: string; index: Map<string, string>; aliases: Record<string, string> }
+interface Job { label: string; src: string; dirs: string[]; dest: string; index: Map<string, string>; aliases: Record<string, string>; skip?: Set<string> }
+// Heroes wire by NAME and by ID both: several source files still carry a hero's PRE-RENAME name
+// (BaggerBen.png → the hero now displayed as Rascal), and the filename happens to be the ID exactly.
+const heroesByName = new Map<string, string>();
+for (const h of HEROES) { heroesByName.set(norm(h.name), h.id); heroesByName.set(norm(h.id), h.id); }
+
+/** Quest-art aliases — same doctrine as the card ones: only files that ARE attributed but whose name does
+ *  not match. One entry, a straight misspelling. (The other 13 unmatched named files are quests that no
+ *  longer exist in the roster — retired set-1 designs — so they stay unwired ON PURPOSE.) */
+const QUEST_ALIASES: Record<string, string> = {
+  trohpyden: 'q_trophy_den', // 'Trohpy' — transposed letters in the source filename
+};
+
+// Quests index by NAME (the authored files are the quest's display name in PascalCase).
+const questsByName = new Map<string, string>();
+for (const q of QUEST_DEFS) { questsByName.set(norm(q.name), q.id); questsByName.set(noThe(q.name), q.id); }
+
 const JOBS: Job[] = [
+  {
+    // SET-1 minions (owner ask 2026-08-03: "I refreshed some set 1 demons"). This folder had never been a
+    // job, so set-1 portraits were only ever hand-dropped. Deliberately FIRST so that if a name exists in
+    // both folders the SET-2 job below wins the slot — set 2 is the live set, and a set-1 file must never
+    // silently take a set-2 card's art. Scoped to Demons for now: the other set-1 dirs are unaudited against
+    // the current roster, and wiring them blind is exactly the silent-overwrite failure `RETIRED` exists for.
+    label: 'set-1 minions', src: 'C:/Game Assets/Ascent Art/Set 1 Minions',
+    dirs: ['Demons'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
   {
     label: 'minions', src: 'C:/Game Assets/Ascent Art/Set 2 Minions',
     dirs: ['Beasts', 'Demons', 'Dragons', 'Dwarves', 'Kobolds', 'Neutral'],
@@ -123,6 +161,22 @@ const JOBS: Job[] = [
     // Quest-reward minions are authored in their own folder but are still MINION art — same destination.
     label: 'quest-reward minions', src: 'C:/Game Assets/Ascent Art/Quests/Quest Reward Related Things',
     dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+    // This folder's Lazarus.png is the OLD portrait; the CURRENT one lives in Set 2 Minions/Neutral and this
+    // job runs later, so without the skip the stale file silently wins the slot (owner re-wire 2026-08-02).
+    skip: new Set(['lazarus']),
+  },
+  {
+    // Subfolders ("Hero Powers", "Old Artstyle") are deliberately NOT listed — powers have their own dest
+    // and the old style must never overwrite the current portraits.
+    label: 'heroes', src: 'C:/Game Assets/Ascent Art/Heroes',
+    dirs: ['.'], dest: 'packages/ui/src/art/heroes', index: heroesByName, aliases: {},
+  },
+  {
+    // QUEST art (owner ask 2026-08-02) — the folder was only mined for its "Quest Reward Related Things"
+    // sub-folder before, so the quest cards themselves were never wired. `dirs: ['.']` deliberately does not
+    // recurse: the sub-folder is its own job above, with a different destination.
+    label: 'quests', src: 'C:/Game Assets/Ascent Art/Quests',
+    dirs: ['.'], dest: 'packages/ui/src/art/quests', index: questsByName, aliases: QUEST_ALIASES,
   },
   {
     label: 'runes', src: 'C:/Game Assets/Ascent Art/Runes',
@@ -143,7 +197,12 @@ for (const job of JOBS) {
     const full = dir === '.' ? job.src : join(job.src, dir);
     if (!existsSync(full)) { console.log(`missing source dir: ${job.label}/${dir}`); continue; }
     for (const file of readdirSync(full).filter((f) => /\.(png|webp|jpe?g)$/i.test(f))) {
-      const stem = file.replace(/\.(png|webp|jpe?g)$/i, '');
+      // Strip a trailing GENERATOR INDEX (`Motherlode_00001_.png`): it is an export artifact of the art tool,
+      // not part of the name, so removing it is normalisation rather than the guessing the matcher forbids —
+      // the remaining stem still has to match a name EXACTLY (owner ask 2026-08-02: wire the quest folder).
+      const stem = file.replace(/\.(png|webp|jpe?g)$/i, '').replace(/_\d+_$/, '');
+      if (RETIRED.has(norm(stem))) continue; // attributed to a removed card — never re-owned by name-accident
+      if (job.skip?.has(norm(stem))) continue; // per-job skip: a stale duplicate in THIS folder loses to the current source
       // A FULL-STEM alias wins before the variant convention: some trailing digits are part of a distinct
       // id's name (RuneOTheMenagerie2 = the set-2 twin), not "second art for the same id".
       const fullAlias = job.aliases[norm(stem)];

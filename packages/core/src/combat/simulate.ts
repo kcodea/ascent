@@ -103,7 +103,15 @@ export function simulate(
   let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
-  const rubyBonusGain = { attack: 0, health: 0 };
+  // Per SIDE, and read LIVE (owner rule 2026-08-02): a mid-combat Ruby buff (Crownvein Vanguard's Rally)
+  // must reach the Rubies played LATER in the same fight (Gemstorm Instigator's Avenge, Mineral Master's
+  // Rally, Rune of Attacking Gems) — it used to be a settle-time carry-back only, so every in-combat Ruby
+  // minted at the pre-combat snapshot. `rubyBonusFor` folds this in on every read; the player half still
+  // carries back via `playerRubyBonusGain` (enemies have no run to persist to).
+  const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
+    player: { attack: 0, health: 0 },
+    enemy: { attack: 0, health: 0 },
+  };
   const boardBuffGain = { attack: 0, health: 0 }; // Rune of Overflow — permanent, carried back to the warband
   const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
@@ -452,7 +460,13 @@ export function simulate(
     spellPower,
     enemySpellPower,
     spellPowerFor: (side) => (side === 'player' ? spellPower : enemySpellPower),
-    rubyBonusFor: (side) => (side === 'player' ? playerState.rubyBonus : enemyState.rubyBonus),
+    rubyBonusFor: (side) => {
+      // Base (the run's Ruby strength at combat start) + everything gained SO FAR this fight — so a Rally
+      // that buffs Rubies raises the very next in-combat Ruby play (owner rule 2026-08-02).
+      const base = (side === 'player' ? playerState.rubyBonus : enemyState.rubyBonus) ?? { attack: 0, health: 0 };
+      const live = rubyBonusGain[side];
+      return { attack: base.attack + live.attack, health: base.health + live.health };
+    },
     leftmostHandSpellFor: (side) => (side === 'player' ? playerState.handSpellIds : enemyState.handSpellIds)?.[0],
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
@@ -480,14 +494,16 @@ export function simulate(
       const allow = new Set(ids);
       return Object.values(cards).filter((c) => allow.has(c.id));
     },
-    buff: (target, attack, health, source) => {
+    buff: (target, attack, health, source, ruby) => {
       // Golden Taurus doubles every combat stat-gain its engraved neighbors receive (`gainMult`).
       const gm = target.gainMult ?? 1;
       if (gm !== 1) { attack *= gm; health *= gm; }
       target.attack = Math.max(0, target.attack + attack); // Attack never drops below 0
       target.health += health;
       if (health > 0) target.maxHealth += health;
-      emit({ type: 'buff', target: target.uid, attack, health, source });
+      // Spread the flag in only when set, so a non-Ruby buff event keeps its EXACT previous shape — an explicit
+      // `ruby: undefined` key would show up in the golden logs and in any deep-equality assertion over events.
+      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}) });
       // "Give <tribe> N total stats" (Skybound Pact / Taragosa's Inheritance): every positive combat stat gain on
       // a PLAYER minion counts toward its tribe(s), so combat buffs advance the `tribeStats` quest like recruit
       // ones (owner: Skybound Pact stats in combat should count). Uses the post-gainMult value actually applied.
@@ -608,11 +624,11 @@ export function simulate(
       if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
     },
     gainRubyBonus: (attack, health, side, sourceUid) => {
-      // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
-      // `playerRubyBonusGain`; grows held + future Rubies at settle).
-      if (side !== 'player') return;
-      rubyBonusGain.attack += attack;
-      rubyBonusGain.health += health;
+      // Set 2 (Veinbreaker / Crownvein) — BOTH sides accumulate, because the value is read live mid-fight
+      // (see `rubyBonusFor`): an enemy Crownvein's Rally must grow the enemy's own later Ruby plays too.
+      // Only the player half carries back to the run at settle (enemies have no run).
+      rubyBonusGain[side].attack += attack;
+      rubyBonusGain[side].health += health;
       // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain, and so the
       // UI has something to hang the Ruby Power FX on at the moment the Echo/Avenge fires rather than at settle.
       // Same channel + text shape as `grantSpellPower` above, so the replay parses both the same way.
@@ -754,6 +770,8 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
+    matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
+    mammothHealthFor: (side) => !!modsFor(side).runeMammoth,
   };
 
   /**
@@ -982,6 +1000,9 @@ export function simulate(
   const echoesSpent: Record<Side, number> = { player: 0, enemy: 0 };
   /** Rune of the War Chorus' once-per-combat latch, per side. */
   const warChorusSpent: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of the Warpath re-entrancy latch: the chained attack must not chain again (the right-most could
+   *  BE the left-most on a one-minion board, and a chain-of-chains is an infinite loop). */
+  const warpathChaining: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of the Food Chain: the left-most Demon's stats, captured at Start of Combat and spent on the first
    *  summon. Captured rather than read live, so a Demon that dies before the summon still pays out — the rune
    *  reads as a Start-of-Combat promise, not a lookup at an arbitrary later moment. */
@@ -1507,6 +1528,20 @@ export function simulate(
         for (const m of boards[attacker.side]) {
           if (m.dead || m.health <= 0) continue;
           for (let i = 0; i < gems; i++) ctx.buff(m, 1 + rb.attack, 1 + rb.health, 'Rune of Attacking Gems');
+        }
+      }
+      // Rune of the Warpath: after your LEFT-most minion attacks, your RIGHT-most attacks too — out of turn
+      // order, via the same immediate-attack queue the Whelp/Spear Warden use. Guards, each load-bearing: the
+      // attacker must BE the left-most living body; the right-most must be a DIFFERENT minion (else a
+      // one-minion board chains into itself); and `warpathChaining` stops the chained attack chaining again.
+      if (modsFor(attacker.side).runeWarpath && !warpathChaining[attacker.side]) {
+        const living = boards[attacker.side].filter((m) => !m.dead && m.health > 0);
+        const tail = living[living.length - 1];
+        if (living[0] === attacker && tail && tail !== attacker) {
+          warpathChaining[attacker.side] = true;
+          nextStep(); fireTrigger('runeWarpath', attacker.side);
+          ctx.attackNow?.(tail, false);
+          warpathChaining[attacker.side] = false;
         }
       }
       // Rune of the War Chorus: your FIRST Rally each combat also triggers your left-most Shout. Gated on the
@@ -2511,7 +2546,7 @@ export function simulate(
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
-    playerRubyBonusGain: (rubyBonusGain.attack > 0 || rubyBonusGain.health > 0) ? { ...rubyBonusGain } : undefined,
+    playerRubyBonusGain: (rubyBonusGain.player.attack > 0 || rubyBonusGain.player.health > 0) ? { ...rubyBonusGain.player } : undefined,
     playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
     playerWildHuntGrown: wildHuntGrown.player > 0 ? wildHuntGrown.player : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,

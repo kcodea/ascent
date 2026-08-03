@@ -53,7 +53,7 @@ describe('computeFrame — Kennelmaster aura on multi-summon Deathrattles', () =
     const pups = player.filter((u) => pupUids.includes(u.uid));
     expect(pups.length).toBe(2);
     for (const pup of pups) {
-      expect(pup.attack).toBe(3); // base 1 + Kennelmaster +2 Attack (owner rebalance 2026-07-25)
+      expect(pup.attack).toBe(2); // base 1 + Kennelmaster +1 Attack (owner rebalance 2026-08-02)
       expect(pup.health).toBe(1); // Health untouched — the aura is Attack-only
     }
   });

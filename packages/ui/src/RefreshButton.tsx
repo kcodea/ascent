@@ -31,11 +31,15 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  */
 export function RefreshButton({
   cost,
+  freeRolls = 0,
   disabled,
   onRefresh,
 }: {
   /** Live roll cost (`refreshCostOf(run)` — free rolls make this 0), shown on the coin badge. */
   cost: number;
+  /** Free rolls BANKED (`run.freeRolls`). Shown as a `x2` beside the green 0 so the player can see how many
+   *  are left rather than only that the next one is free (owner ask 2026-08-02). */
+  freeRolls?: number;
   disabled: boolean;
   onRefresh: () => void;
 }) {
@@ -74,7 +78,9 @@ export function RefreshButton({
       className={`rfbwrap${disabled ? ' off' : ''}`}
       disabled={disabled}
       onClick={click}
-      aria-label={cost > 0 ? `Refresh the shop for ${cost} Gold` : 'Refresh the shop (free)'}
+      aria-label={cost > 0
+        ? `Refresh the shop for ${cost} Gold`
+        : `Refresh the shop (free${freeRolls > 1 ? ` — ${freeRolls} free rolls left` : ''})`}
     >
       {/* Glass "Refresh" pill, floating above the crystal. */}
       <span className="rfb-label" aria-hidden="true">Refresh</span>
@@ -94,8 +100,13 @@ export function RefreshButton({
       <span className={`rfb-cost${cost > 0 ? '' : ' free'}`} aria-hidden="true">
         <Icon name="mana" />
         <b>{cost}</b>
+        {/* The BANKED count, only past the first: at exactly one free roll the green 0 already says "this one
+            is free", so a `x1` would be noise. From two up, the number is the thing you can't otherwise see. */}
+        {cost === 0 && freeRolls > 1 && <i className="rfb-freen">{`×${freeRolls}`}</i>}
       </span>
-      <span className="rfb-tip">{cost > 0 ? `Refresh — ${cost} Gold` : 'Refresh — free'}</span>
+      <span className="rfb-tip">
+        {cost > 0 ? `Refresh — ${cost} Gold` : `Refresh — free${freeRolls > 1 ? ` (${freeRolls} left)` : ''}`}
+      </span>
     </button>
   );
 }

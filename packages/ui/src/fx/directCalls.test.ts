@@ -124,9 +124,13 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     expect(Object.keys(DYNAMIC_CALL_SITES)).toEqual(['choreo/score.ts']);
   });
 
-  it('finds the seven migrated effects the library used to call inert', () => {
+  // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the
+  // workbench and wired to the Ruby-landed cue rather than migrated out of a `pixiFx` method, but reaching the
+  // game the same way (two literal call sites: the shop cue in Recruit and the combat channel in score.ts).
+  it('finds every effect the game plays from code', () => {
     expect(directCallDefIds()).toEqual([
-      'click-puff', 'coins', 'damage-burst', 'death-dissolve', 'impact-dust', 'landing-dust', 'strike-impact',
+      'click-puff', 'coins', 'damage-burst', 'death-dissolve', 'impact-dust', 'landing-dust',
+      'ruby-gem-apply', 'strike-impact',
     ]);
   });
 

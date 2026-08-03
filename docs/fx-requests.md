@@ -5,8 +5,9 @@ A queue of effects to build, and the format for asking for one.
 **Why this exists.** Building a def and judging a def are different jobs, done best by different people.
 Claude can write a def's JSON directly and prove it *loads* — `defs.test.ts` checks every param name and
 value range against the primitives' own specs — but cannot judge whether it *looks* right; the headless
-preview runs at a degenerate viewport, so every def in `packages/ui/src/fx/defs/` has been shipped without a
-visual check. The owner can judge a look in one second and shouldn't have to dial thirty params from
+preview runs at a degenerate viewport, so a def is shipped without a visual check unless the owner has tuned
+it. Several now have been — `coins`, `strike-impact`, `death-dissolve`, `ruby-gem-apply`. Four migrated from
+`pixiFx` still have NOT been looked at by anyone: `damage-burst`, `click-puff`, `landing-dust`, `impact-dust`. The owner can judge a look in one second and shouldn't have to dial thirty params from
 defaults. So:
 
 | Step | Who | What |
@@ -81,8 +82,10 @@ Three that would show the most:
 
 - **`fxScale` is not threaded into the primitives.** A def tuned on a large monitor renders the same pixel
   size on a small one. Don't tune sizes to the edge of what fits.
-- **Params are fixed per def.** `playDef(id, anchors)` takes no per-call params yet, so one def = one look;
-  a "same effect but bigger for a bigger hit" needs two defs until exposed params land.
+- ~~**Params are fixed per def.**~~ **Fixed 2026-08-01.** `playDef(id, anchors, { scale, intensity, time })`
+  takes per-call axes, so one def covers "same effect but bigger for a bigger hit" — see `strike-impact`,
+  which scales off a swing's `power`. **Caution when using `time`:** 13 of 22 defs declare layer windows
+  (`at`/`life`), and scaling time can truncate them.
 - **Anchors are points, not rectangles.** An effect can be placed at a unit but cannot yet size itself to
   that unit's card.
 - **Save is dev-server only.** The write endpoint is a Vite dev plugin (`apps/web/fxDefsPlugin.ts`); there

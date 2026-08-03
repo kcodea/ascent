@@ -5,7 +5,9 @@ import { playMomentSfx } from './channels/sfx';
 import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
+import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
 import { canPlayDefs, playDef } from '../fx/playDef';
+import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingFor } from './bindings';
@@ -20,7 +22,7 @@ import { bindingFor } from './bindings';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -87,6 +89,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // of their own — a Target Dummy growing as it is hit is exactly this case, which is why `attackExchange`
     // carries an fxDef row at all. (The binding itself is in `bindings.json`.)
     { ch: 'fxDef', at: 'start', offset: 0 },
+    { ch: 'rubyFx', at: 'start', offset: 0 },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
@@ -105,7 +108,13 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
   summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }],
-  buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }],
+  // `rubyFx` = the Ruby-landed detonation, on every kind a Ruby buff can surface in. It is a CHANNEL and not
+  // an `fxDef` binding because `kinds` holds one binding per kind and both of these already spend theirs on
+  // the self-buff cue — and because a Ruby is a game event with its own meaning, like `summonFx`, rather than
+  // a per-card authored flourish. `attackExchange` is on the list for the same reason it carries `fxDef`:
+  // `absorbIntoWindup` folds a Ruby played mid-swing (Crownvein's Rally) into the exchange, where a
+  // `buffWave`-only cue would never see it.
+  buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'rubyFx', at: 'start', offset: 0 }],
   reborn: withReform(),
   ascend: [...BASE, { ch: 'ascendFx', at: 'start', offset: 0 }],
   rally: [...BASE], toHand: [...BASE],
@@ -327,6 +336,36 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       if (ctx.meleePair) { uids.delete(ctx.meleePair.attacker); uids.delete(ctx.meleePair.defender); }
       if (uids.size) ctx.onDamageFx([...uids]);
     });
+    // A RUBY landed on one or more units in this moment (set 2 Kobolds) — one detonation each, walked down the
+    // board rather than fired together. Guarded before `at()` exactly like `fxDef`: with no defs ready this
+    // costs two property reads and allocates nothing.
+    else if (cue.ch === 'rubyFx') {
+      if (!canPlayDefs()) continue;
+      at(cue, () => {
+        // The stagger divides by `combatSpeed` like every other scheduled offset here, so a 4× replay sweeps
+        // 4× faster and the run still lands inside its beat instead of trailing past the next one.
+        const speed = ctx.combatSpeed > 0 ? ctx.combatSpeed : 1;
+        // A CASCADE of N-STACKS: `gap` walks between recipients, `beat` repeats within one. Nested, not
+        // flattened — two Rubies on a minion play as two hits on THAT minion before the sweep moves on, which
+        // is what says "each unit got two" rather than "everyone got hit twice".
+        rubiedLandsIn(moment, ctx.events).forEach((land, i) => {
+          // Both ends are the same unit: a Ruby lands ON a minion, there is no pair to travel between.
+          // Anchors resolve INSIDE the timer rather than up front, so a unit that dies mid-sweep is skipped
+          // instead of detonating over an empty slot.
+          const fire = (): void => {
+            const rubyAnchors = anchorsForUnits(land.uid, land.uid);
+            if (rubyAnchors) playDef('ruby-gem-apply', rubyAnchors); // literal, not the constant — see RUBY_LANDED_DEF
+            // One play per GEM, not per moment — the ear carries the same count the eye does.
+            sfx.gemApply();
+          };
+          for (let r = 0; r < land.count; r++) {
+            const at = (RUBY_GAP_MS * i + RUBY_BEAT_MS * r) / speed;
+            if (at <= 0) fire();
+            else timers.push(setTimeout(fire, at));
+          }
+        });
+      });
+    }
     else if (cue.ch === 'summonFx') at(cue, () => {
       const uids: string[] = [];
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'summon') uids.push(e.minion.uid); }

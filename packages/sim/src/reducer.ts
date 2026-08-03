@@ -11,8 +11,8 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -368,6 +368,42 @@ export function reduce(state: RunState, action: Action): RunState {
       next.rubyPowerFxAtk = Math.max(0, rpDeltaA);
       next.rubyPowerFxHp = Math.max(0, rpDeltaH);
       next.rubyPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
+    }
+    // RUBY LANDED FX: which minions had a Ruby played ON them this action, for the per-cast cue. Read as a delta
+    // of `rubiesOnThisTurn` (bumped by `fireOnRubyPlayed` on every recruit Ruby, whatever played it) so no play
+    // site has to remember to stamp anything, and so React batching can't swallow it — the same reasoning as the
+    // two power cues above. A minion SUMMONED with Rubies already on it (Geode Guardian's golems) is absent from
+    // the before-map and so counts from 0, which is correct: those are Rubies that just landed.
+    // Measured off the 'Ruby' BUFF COUNT, on board minions and tavern offers alike (a Ruby targets `any`, so it
+    // lands on both). `addBuff`/`addOfferBuff` keep a per-source `count`, and every path that applies a Ruby goes
+    // through one of them — which is precisely why the count is the right probe and `rubiesOnThisTurn` was not:
+    // that counter only moves via `fireOnRubyPlayed`, and two live paths skip it. The offer path skips it
+    // deliberately (firing an offer's on-Ruby watchers would pay out a Ruby Broker sitting in the shop);
+    // `battlecryPlayRubiesAll` (Frenzied Excavator) skips it apparently by oversight — see the note on
+    // `cardsPlayedPlayRubies`, which describes mirroring it and does make the call. Keying off the buff means the
+    // cue is right either way, and stays right if that engine question is settled in either direction.
+    const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number =>
+      c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
+    // `settleCombat` carries mid-fight Ruby gains back onto the board as 'Ruby' buffs. That is BOOKKEEPING for
+    // something the combat replay already played this cue for, not a landing — counting it would detonate every
+    // carried-back minion the instant the shop reopens. Same double-play the Ruby POWER cue guards against.
+    if (action.type !== 'settleCombat' && action.type !== 'resolveCombat') {
+      const before = new Map<string, number>();
+      for (const c of state.board) before.set(c.uid, rubyCountOf(c));
+      for (const o of state.shop) before.set(o.uid, rubyCountOf(o));
+      const rubyLanded: RubyLandedFx[] = [];
+      // The DELTA, not the total — a minion already carrying Rubies from earlier this turn must report only
+      // the ones that just arrived.
+      const landed = (c: { uid: string; buffs?: { source: string; count: number }[] }): void => {
+        const n = rubyCountOf(c) - (before.get(c.uid) ?? 0);
+        if (n > 0) rubyLanded.push({ uid: c.uid, count: n });
+      };
+      for (const c of next.board) landed(c);
+      for (const o of next.shop) landed(o);
+      if (rubyLanded.length > 0) {
+        next.rubyLandedFxSeq = (next.rubyLandedFxSeq ?? 0) + 1;
+        next.rubyLandedFx = rubyLanded;
+      }
     }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
@@ -826,7 +862,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.hand.splice(i, 1);
         // A Ruby is a card played (owner ruling 2026-07-31: EVERYTHING you literally play or cast counts —
         // minions, Shop spells, Rubies, tokens). This was the one hand-consuming branch that never pushed,
-        // so Closing-Time Foreman and Rune of Action undercounted on every Ruby.
+        // so Kringle (the ex-Closing-Time Foreman) and Rune of Action undercounted on every Ruby.
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
         // Rune of Contraband: the FIRST Ruby cast each turn smuggles back a random Dwarven Ale.
         if (s.runeContraband && !s.contrabandRubyUsed) {
@@ -874,6 +910,20 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.chooseOne = { uid: card.uid, cardId: def.id, spell: true };
           return s;
         }
+        // A GIFT (Copycat — owner spec 2026-08-02): NOT a Shop spell. It resolves its effect exactly ONCE —
+        // no Yazzus/Nimbus/Ancient-Runes multipliers, and none of the cast bookkeeping
+        // (`castSpell`/`noteSpellCast`): no tallies, no first/last-spell memory the copy effects read, no
+        // spellCast watchers, no Gemscript/Cadence/Contraband riders. It still counts as a card played.
+        // Gated on `gift`, NOT `token` — Implosion is a token that IS a real Shop spell (test-caught).
+        if (def.gift) {
+          const giftTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
+          if (def.target && !giftTarget) return state; // aimed gift with no valid friendly target → fizzle, kept
+          applyCastEffects(makeContext(s), def, giftTarget);
+          s.hand.splice(i, 1);
+          s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
+          checkTriples(s); // the copy can complete a triple
+          return s;
+        }
         // Yazzus: while it's on the board, an *aimed* spell's effect resolves N times (2, or 3 if golden)
         // — the card is still consumed once. Untargeted economy/utility spells and `singleCast` spells
         // (Channeling the Devourer) never multi-fire (see `spellCasts`). The Discover-spells returned early
@@ -902,7 +952,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
           const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
-          else if (offer) for (let n = 0; n < casts; n++) castSpellOnOffer(s, def, offer);
+          else if (offer) {
+            for (let n = 0; n < casts; n++) castSpellOnOffer(s, def, offer);
+            // Rune of Distillation: a spell that landed on a SHOP minion also casts on your left-most board
+            // minion. A real second cast (same `castSpell` path), so the target's own on-spell watchers see it.
+            const lead = s.runeDistillation ? s.board[0] : undefined;
+            if (lead) for (let n = 0; n < casts; n++) castSpell(s, def, lead);
+          }
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
         } else {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
@@ -1229,6 +1285,20 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
         // floated can't drift (they did: the bonus used to be added inline here only).
         gainGold(s, sellValueWithBonus(sold, s));
+        // Rune of Liquidation: the sold minion's BONUS stats (everything above its printed base — buffs,
+        // Rubies, improvements) transfer to the right-most Shop minion. Read off the def rather than tracked
+        // separately, so every source of growth counts. A golden body's base is doubled, so its bonus is
+        // measured against that. No shop minion (all spells/Rubies, or an empty tavern) → nothing to give.
+        if (s.runeLiquidation) {
+          const soldDef = CARD_INDEX[sold.cardId];
+          if (soldDef) {
+            const g = sold.golden ? 2 : 1;
+            const bonusA = Math.max(0, sold.attack - soldDef.attack * g);
+            const bonusH = Math.max(0, sold.health - soldDef.health * g);
+            const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+            if (target && (bonusA > 0 || bonusH > 0)) addOfferBuff(target, 'Rune of Liquidation', bonusA, bonusH);
+          }
+        }
         // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
         if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
         if (s.nextSellBonus) s.nextSellBonus = 0;
@@ -1957,20 +2027,10 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // bonuses combined, so the granted magnitude (base + summonBonus) is the SUM of the
   // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
   // a fresh triple just doubles the base (the golden doubling falls out of the combine).
-  // Every factory that accrues into `self.summonBonus`. Kept here beside the merge because the merge's job is
-  // to preserve exactly these — if an effect writes `summonBonus` and is absent from this list, gilding resets
-  // it to base, silently, and only on the cards a player invested in growing.
-  const ACCRUES_SUMMON_BONUS = [
-    'buffOnSummon', 'scBeastAura', 'summonBuffTribeImprove', 'countTribeSummon', 'onGainAttackBuffImproving',
-    'onKillBuffUndeadAttack', 'onAllyAttackBuffAll',
-    // ...and the ones that had no branch at all until 2026-07-31:
-    'buffShopPermanent', 'summonBuffTribeAsym', 'onSpellCastImproveSummon', 'onGainAttackBuffAll',
-    'battlecryBuffTribeImproving', 'onBattlecryImproveSelf',
-    // DELIBERATELY ABSENT: `overflowBuffRandom` (Flowing Monk) and `spellCastImproveSelf` (Runescale Drake)
-    // also accrue into `summonBonus`, but each already has its OWN merge below — `overflowBonus` and
-    // `spellProgress` respectively. Listing them here made the fallback set `summonBonus` as well, which
-    // double-counted the accrual and broke Flowing Monk's "countdown starts fresh" rule.
-  ];
+  // Effects whose accrual has its OWN merge below — the universal fallback must not ALSO write `summonBonus`
+  // for them, or the accrual double-counts (measured 2026-07-31: it broke Flowing Monk's "countdown starts
+  // fresh" rule). Runescale merges via `spellProgress`, the Monk via `overflowBonus`.
+  const OWN_MERGE = ['overflowBuffRandom', 'spellCastImproveSelf'];
   const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
   const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon' || e.do === 'onGainAttackBuffImproving');
   let summonBonus: number | undefined;
@@ -1991,17 +2051,16 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
     const sum = (sbs[0] ?? 0) + (sbs[1] ?? 0);
     summonBonus = sum > 0 ? sum : undefined;
-  } else if (ACCRUES_SUMMON_BONUS.some((id) => def.effects.some((e) => e.do === id))) {
-    // EVERYTHING ELSE THAT ACCRUES (owner ruling 2026-07-31: "it's just not supposed to reset back to base").
+  } else if (!def.effects.some((e) => OWN_MERGE.includes(e.do))) {
+    // THE UNIVERSAL RULE (owner, restated 2026-08-02: "the buff is not supposed to reset when tripled" — ever).
     //
-    // The three branches above are per-card rulings, each keyed to its own whitelist. Any card that accrued
-    // into `summonBonus` but appeared on NONE of those lists fell through to `undefined` — so gilding it threw
-    // the accrual away and the golden started from base. That is how a Soul Defiler grown to +4/+4 gilded into
-    // +2/+2. It hit six effects, and because the lists are opt-in, every NEW accruing effect inherited the bug.
-    //
-    // Combines the two highest copies, matching the Karthus / Crypt Drake branch directly above — the closest
-    // existing precedent, and the owner's instruction was to follow the lead already set rather than invent a
-    // fourth rule. The golden's own doubling comes from `gold(self)` inside each factory, as it does there.
+    // The 2026-07-31 fix was an opt-in registry (`ACCRUES_SUMMON_BONUS`), and every accruing effect added
+    // AFTER it silently inherited the reset bug — Menagerie Mammoth (the owner's report), King Oona,
+    // Broodwright and Trophy Stalker had all fallen through it. There is no registry now: ANY copy carrying a
+    // nonzero `summonBonus` keeps it through gilding, combining the two highest copies (the Karthus / Crypt
+    // Drake precedent — the golden's own doubling comes from `gold(self)`/`mul(self)` inside each factory).
+    // A card with no accrual sums to 0 and stays `undefined`, exactly as before. The only exclusions are the
+    // OWN_MERGE effects above, whose accruals are merged through their own fields below.
     const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
     const sum = (sbs[0] ?? 0) + (sbs[1] ?? 0);
     summonBonus = sum > 0 ? sum : undefined;
@@ -3153,6 +3212,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeSharedTable':
       s.runeSharedTable = { attack: r.attack, health: r.health };
       break;
+    case 'runeDistillation':
+      s.runeDistillation = true;
+      break;
+    case 'runeLiquidation':
+      s.runeLiquidation = true;
+      break;
     case 'runeRedirection':
       s.runeRedirection = true;
       break;
@@ -3167,7 +3232,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeThreshold':
       // An ARRAY: several threshold runes can be held at once, each banking its own remainder.
-      (s.runeThresholds ??= []).push({ meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, oncePerTurn: r.oncePerTurn });
+      (s.runeThresholds ??= []).push({ meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn });
       break;
     case 'motherlode':
       s.motherlode = { count: r.count, tribe: r.tribe };
@@ -3210,7 +3275,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'recurringEndOfTurn':
       // Echoing Roar / The Hoard Wakes: a recurring End-of-Turn effect fired every turn for the rest of the run.
-      (s.questRecurringEndOfTurn ??= []).push(r.effect);
+      // `turns` bounds the recurrence (Quick Study); without it the effect lasts the run, as before.
+      if (r.turns) (s.questRecurringLimited ??= []).push({ effect: r.effect, turnsLeft: r.turns });
+      else (s.questRecurringEndOfTurn ??= []).push(r.effect);
       break;
     case 'gainGold':
       // `immediate` → spend it THIS shop (Rune of Small Fortune: "Get N Gold immediately"). Otherwise bank it
@@ -3566,6 +3633,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     lawOfTeeth: f?.lawOfTeeth,
     tribeRallySlaughterExtra: s.questTribeRallySlaughter, // War Council: the tribe-scoped twin
     oldHuntStep: f?.oldHunt,
+    runeMatriarch: s.runeMatriarch || undefined, // the combat half of Runebloom's proc doubles too
+    runeMammoth: s.questFlags?.runeMammoth || undefined, // Mammoths give Health 1:1
+    runeWarpath: s.questFlags?.runeWarpath || undefined, // left-most's attack chains into the right-most's
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,
     boneThroneStep: s.boneThroneStep || undefined,

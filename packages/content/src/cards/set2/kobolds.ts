@@ -258,8 +258,8 @@ export const SET2_KOBOLDS: CardDef[] = [
       { on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 1 } },
       { on: 'endOfTurn', do: 'endOfTurnPlayRuby', params: { tribe: 'kobold', count: 1 } },
     ],
-    text: '**Shout and Echo:** Your Rubies gain **+1/+1**. **End of Turn:** Play a Ruby on your Kobold.',
-    goldenText: '**Shout and Echo:** Your Rubies gain **+2/+2**. **End of Turn:** Play **2 Rubies** on your Kobold.',
+    text: '**Shout and Echo:** Your Rubies gain **+1/+1**. **End of Turn:** Play a Ruby on **each** of your Kobolds.',
+    goldenText: '**Shout and Echo:** Your Rubies gain **+2/+2**. **End of Turn:** Play **2 Rubies** on **each** of your Kobolds.',
   },
   {
     // A cheap Ruby-build enabler: hands you the tribe's shop-wide Ruby spell instead of a body. Same
@@ -267,7 +267,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_stormchaser',
     name: 'Storm Chaser',
     tribe: 'kobold',
-    tier: 2,
+    tier: 3, // T2 -> T3 (owner 2026-08-02)
     attack: 2,
     health: 2,
     keywords: [],

@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-02 — Frenzied Excavator plays REAL Rubies, not one of double size
+
+`battlecryPlayRubiesAll` folded its multiplier into the AMOUNT and called `addBuff` once, so a gilded
+Excavator applied ONE Ruby of 2× magnitude. Everything that COUNTS Rubies rather than measuring them saw one:
+the targets' `onRubyPlayed` watchers (which a bare `addBuff` skips entirely, so Ruby Broker paid nothing and a
+Resonance Idol never bounced), `rubiesOnThisTurn`, and the board cue — which is how the gilded case was
+discovered, trying to animate a count that did not exist.
+
+Its sibling `spellPlayRubiesAll` (Ruby Excavation) already looped. Two implementations of the same sentence,
+disagreeing, and only one of them matched its printed text.
+
+Now loops `per` times per minion, applying `1 + rubyBonus` each and firing `fireOnRubyPlayed` each time.
+
+**Stats are deliberately unchanged** — `per × (1 + rb)` is the same total either way — and a test pins that,
+so this cannot ride in as a silent buff. What changes is the TRIGGER COUNT: a gilded Excavator now pays a Ruby
+Broker twice, bounces a Resonance Idol twice, and reports two Rubies per minion. The loop nests card-outer /
+repeat-inner, so the engine's own order matches the cascade-of-2-stacks the UI plays.
+
+Card text needs no change: "play **2 Rubies** on all of your minions" was already the accurate reading and is
+now also the true one. ("…a Ruby, twice" would describe a REPLAY — the whole sweep again — which is a
+different animation and not the one chosen; see docs/fx-vocabulary.md.)
+
+Verified: 5 new tests (ungilded 1×, gilded 2×, stat total exactly double, targets notified per Ruby, run
+`rubyBonus` applied per Ruby). Full gate: typecheck clean, lint 0 errors, **3639 tests**, `build:web` OK.
+Un-skips the gilded test in #816 once both are on main.
+
 ## 2026-08-03 — Brisbane hits every Kobold; Bane is Imps-only; Balance Report buys captured live
 
 - **Alchemist Brisbane — End of Turn now plays a Ruby on EVERY friendly Kobold** (owner ruling). It used to

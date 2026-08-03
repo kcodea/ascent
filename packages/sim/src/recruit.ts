@@ -1310,16 +1310,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecryPlayRubiesAll: (ctx, self, params) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const per = num(params.rubies, 1) * gold(self);
-    const a = (1 + rb.attack) * per;
-    const h = (1 + rb.health) * per;
-    if (a <= 0 && h <= 0) return;
-    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
-    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
-    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
-    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
+    const a = 1 + rb.attack;
+    const h = 1 + rb.health;
+    if (per <= 0 || (a <= 0 && h <= 0)) return;
+    // N SEPARATE Rubies, not one Ruby of N× magnitude. The stats are identical either way (per × (1+rb) is
+    // the same total), but the trigger count is not, and "play 2 Rubies" has to mean two: a gilded Excavator
+    // pays a Ruby Broker twice, bounces a Resonance Idol twice, and the board can show two gems.
+    //
+    // `fireOnRubyPlayed` tells the target its own `onRubyPlayed` effects fired and moves its `rubiesOnThisTurn`
+    // counter. `main` added that call here independently (owner report 2026-08-02, via Alchemist Brisbane —
+    // three card-played paths landed the stats and nothing else, so a Ruby-engine board read them as no-ops);
+    // this keeps it and makes it fire once PER RUBY rather than once per card.
+    //
+    // `spellPlayRubiesAll` (Ruby Excavation) already looped — the two implementations of the same sentence had
+    // drifted apart, and only one matched its printed text.
     for (const c of [...ctx.state.board]) {
-      addBuff(c, 'Ruby', a, h);
-      fireOnRubyPlayed(ctx.state, c, a, h);
+      for (let r = 0; r < per; r++) {
+        addBuff(c, 'Ruby', a, h);
+        fireOnRubyPlayed(ctx.state, c, a, h);
+      }
     }
   },
 

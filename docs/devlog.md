@@ -19,6 +19,10 @@
   row was a normal flex child of the statusbar column, so its height fed the hero's position; it is now
   absolutely anchored above the bar (same out-of-flow doctrine as the alignment strip), so badge count/size
   can never move the portrait. Verified live: adding a badge node moves the hero (0, 0)px.
+- **Follow-up in the same PR**: taking the row out of flow FOLDED IT VERTICAL — an absolutely-positioned box
+  shrink-wraps to its containing block, and the statusbar is only as wide as the hero box, so the flex-wrap
+  row broke after every badge. `width: max-content` restores the horizontal run (`max-width` still wraps a
+  genuinely long one). Verified live: two badges render side by side at the same y, hero untouched.
 - **Verified** — new `ownerBatch0803.test.ts` (5 tests): Cupcakes fizzle + still-casts-on-Demon, the Idol
   no-chain pin, Lastlight's borrowed-Echo grant + golden cap. Gates: typecheck ✓, lint ✓ (7 pre-existing),
   3688 tests ✓, `build:web` ✓, harness determinism ✓.

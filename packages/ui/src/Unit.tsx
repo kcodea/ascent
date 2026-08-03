@@ -83,6 +83,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, statHold, statFlash }
         // same as lastSpellName (an enemy carries no run, so it falls back to its printed text).
         firstSpellThisTurnName: foe ? undefined : (run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined),
         lastSpellThisTurnName: foe ? undefined : (run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined),
+        // Rune-modified card rules read live in COMBAT too (owner audit 2026-08-02) — player-side only.
+        runeMammoth: foe ? undefined : !!run.questFlags?.runeMammoth,
+        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

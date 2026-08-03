@@ -9,7 +9,7 @@
  * Order is EVENT ORDER, de-duplicated: a card that plays Rubies board-wide (Frenzied Excavator, Ruby
  * Excavation) emits one event per recipient, left to right, and the caller staggers the cue down that list so
  * the play reads as a sweep. A unit hit twice in one moment (a Resonance Idol bounce landing back on it) fires
- * ONCE — two detonations on the same card at the same instant is noise, not information.
+ * COUNT times: a unit that took two Rubies gets two gems, played as a STACK before the sweep moves on.
  *
  * Pure, and deliberately so: it is the whole testable surface of this channel. `score.ts` holds the
  * scheduling, which needs a live Pixi renderer and cannot be tested here (no jsdom in this repo).
@@ -17,32 +17,42 @@
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 
-export function rubiedUidsIn(moment: Moment, events: CombatEvent[]): string[] {
-  const seen = new Set<string>();
+export interface RubyLand { uid: string; count: number; }
+
+export function rubiedLandsIn(moment: Moment, events: CombatEvent[]): RubyLand[] {
+  const byUid = new Map<string, RubyLand>();
   const order: string[] = [];
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (!e || e.type !== 'buff' || e.ruby !== true) continue;
-    if (seen.has(e.target)) continue;
-    seen.add(e.target);
-    order.push(e.target);
+    const cur = byUid.get(e.target);
+    // COUNTED, not collapsed. This used to fire once per unit however many Rubies landed, which made a gilded
+    // Frenzied Excavator (two per minion) look identical to an ungilded one — the doubling silently erased at
+    // the signal, two layers before the animation. Two Rubies on a body is two gems: see docs/fx-vocabulary.md,
+    // a multiplier is a STACK. (A Resonance Idol bounce lands a genuine second Ruby too, and equally deserves
+    // its second gem — the old comment here called that noise, and it was wrong.)
+    if (cur) cur.count += 1;
+    else { byUid.set(e.target, { uid: e.target, count: 1 }); order.push(e.target); }
   }
-  return order;
+  return order.map((k) => byUid.get(k)!);
 }
 
 /**
- * Milliseconds between successive detonations in a board-wide play. Owner ruling 2026-08-01: mass Ruby plays
- * read as a sweep, not a single flash.
+ * Between RECIPIENTS in a cascade — the `gap`. Owner-set 100ms (2026-08-02), raised from 60 to leave room for
+ * a legible `beat` beneath it: at 60 there was no separation left to spend on the stack.
  *
- * Briefly raised to 130ms when the sweep didn't read, then returned to 60 on the owner's call (2026-08-02)
- * once the def's own layer timings moved — the separation the eye wants depends on how front-loaded the
- * effect is, so this number belongs to the composition, not to the code. If it ever needs to differ per
- * effect it should become a `stagger` field on the binding rather than a constant edited here.
- *
- * 60ms still does the job the stagger exists for at minimum: it keeps a seven-minion play from landing seven
+ * It also does the job the stagger existed for at minimum — keeping a seven-minion play from landing seven
  * 220-particle bursts inside one frame.
+ *
+ * Both numbers belong to the COMPOSITION rather than to the code: how much separation the eye needs depends on
+ * how front-loaded the def is. If they ever need to differ per effect they should become binding fields.
  */
-export const RUBY_STAGGER_MS = 60;
+export const RUBY_GAP_MS = 100;
+
+/** Between hits WITHIN one recipient's stack — the `beat`. Must stay clearly shorter than `gap`, or a cascade
+ *  of 2-stacks reads as one long cascade of unrelated hits and the count is lost; that 2:1 ratio IS the
+ *  information (docs/fx-vocabulary.md). Owner-set 2026-08-02: gap 100, beat 50. */
+export const RUBY_BEAT_MS = 50;
 
 /**
  * The def both call sites play — deliberately duplicated as a STRING LITERAL at each one rather than imported

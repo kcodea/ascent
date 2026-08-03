@@ -116,16 +116,17 @@ export const SET2_TOKENS: CardDef[] = [
     goldenText: '**Shout:** give a friendly **Dragon +10 Attack**.',
   },
   {
-    id: 'n2_whelp',
-    name: 'Whelp',
-    tribe: 'dragon',
+    // Moonlit Scavenger's Avenge token (owner rework 2026-08-02) — summoned mid-combat, strikes immediately
+    // via `avengeSummonAttack`'s out-of-turn queue.
+    id: 'b2_ninjapal',
+    name: 'Ninja Pal',
+    tribe: 'beast',
     tier: 1,
-    attack: 3,
-    health: 3,
+    attack: 4,
+    health: 1,
     keywords: [],
     effects: [],
-    attackOnSummon: true,
     token: true,
-    text: 'A 3/3 Dragon that attacks immediately when summoned.',
+    text: 'A 4/1 Beast that attacks immediately when summoned.',
   },
 ];

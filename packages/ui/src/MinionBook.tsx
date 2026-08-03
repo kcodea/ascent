@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, activeSet, poolFor } from '@game/content';
@@ -221,6 +221,12 @@ const GLOSSARY: { title: string; items: GlossItem[] }[] = [
   },
 ];
 
+/** Zoom steps for the card grid — the multiplier applied to the grid's `--ch` (card height), which the CSS
+ *  derives width + drawer geometry from. 0.6 fits roughly twice the cards per row; 1.6 is a reading size. */
+const ZOOM_MIN = 0.6;
+const ZOOM_MAX = 1.6;
+const ZOOM_STEP = 0.2;
+
 /** A book card def → the view object `Card` renders. Base (printed) stats only — the book is a static
  *  reference, not a live board, so no run buffs. `gilded` shows the tripled/golden form: doubled stats, the
  *  golden frame, and the card's golden text (Card falls back to doubling the printed numbers when a card has
@@ -270,6 +276,13 @@ export function MinionBook() {
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
   const [search, setSearch] = useState(''); // free-text search over card/quest/rune name + text ("Imp", "Ward", …)
   const [gilded, setGilded] = useState(false); // show every card's tripled/golden form
+  // ZOOM (owner ask 2026-08-02): scales the grid's card size so more/fewer cards fit. Persisted, because a
+  // browsing preference that resets every open is one the player has to re-set every time. Clamped to the
+  // steps the grid actually reads (the CSS derives --cw/--ccw from --ch, so one variable drives all three).
+  const [zoom, setZoom] = useState<number>(() => {
+    try { const v = Number(localStorage.getItem('ascent.bookzoom')); return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 1; } catch { return 1; }
+  });
+  useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
   const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
   const [kw, setKw] = useState<{ term: string; icon: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
 
@@ -448,6 +461,25 @@ export function MinionBook() {
               <Icon name="crown" /> Gilded
             </button>
           )}
+          {!glossary && (
+            <div className="book-zoom" role="group" aria-label="Card size">
+              <button
+                className="book-zoom-btn pressable"
+                onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 10) / 10))}
+                disabled={zoom <= ZOOM_MIN}
+                aria-label="Smaller cards (more per screen)"
+                title="Smaller cards — more per screen"
+              >−</button>
+              <span className="book-zoom-val">{Math.round(zoom * 100)}%</span>
+              <button
+                className="book-zoom-btn pressable"
+                onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10))}
+                disabled={zoom >= ZOOM_MAX}
+                aria-label="Bigger cards (fewer per screen)"
+                title="Bigger cards — fewer per screen"
+              >+</button>
+            </div>
+          )}
           <button className="book-close pressable" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
         </div>
 
@@ -573,10 +605,12 @@ export function MinionBook() {
               <div className="book-empty">No quests for these tribes.</div>
             )
           ) : filtered.length > 0 ? (
-            <div className="book-grid">
+            // `--book-zoom` scales the grid's card metrics (see styles.css); `plated` gives every card the
+            // same carved PLATE it wears in hand, so the Compendium reads as the game does (owner 2026-08-02).
+            <div className="book-grid" style={{ '--book-zoom': zoom } as CSSProperties}>
               {filtered.map((c) => (
                 <div className="book-cell" key={c.id}>
-                  <Card card={toView(c, gilded)} forceFull suppressPop />
+                  <Card card={toView(c, gilded)} forceFull suppressPop plated />
                 </div>
               ))}
             </div>

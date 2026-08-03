@@ -712,7 +712,7 @@ describe('run loop (@game/sim)', () => {
     // Kennelmaster's Beast buff is now a Start-of-Combat aura (+(1 + summonBonus)/+(same)); the recruit
     // triple still carries the accrual, so the golden's summonBonus = base + the two highest copies'
     // bonuses. Three copies (bonuses 2 / 1 / 0) → golden summonBonus 2 + 2 + 1 = 5.
-    // Kennelmaster rebalance 2026-07-25 (owner): base +2 Attack, and each Avenge improves by +2 as well.
+    // Kennelmaster rebalance 2026-08-02 (owner): back to base +1 Attack improving +1 per Avenge.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [
@@ -723,7 +723,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'k3' }); // 3 Kennelmasters → triple → one golden in hand
     const golden = [...s.board, ...s.hand].find((c) => c.cardId === 'kennel' && c.golden);
-    expect(golden?.summonBonus).toBe(5); // base 2 + top-two bonuses (2 + 1)
+    expect(golden?.summonBonus).toBe(4); // base 1 + top-two bonuses (2 + 1)
   });
 
   it("persists a Kennelmaster's Avenge improvement across combat (whole-run)", () => {
@@ -779,7 +779,7 @@ describe('run loop (@game/sim)', () => {
 
   it('tripling a Kennelmaster combines its accrued Avenge buffs', () => {
     // Two Kennelmasters at summonBonus 5 and 3 + a fresh one → the golden folds the two highest
-    // (summonBonus 10 = base 2 + top-two 5 + 3).
+    // (summonBonus 9 = base 1 + top-two 5 + 3).
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -791,7 +791,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
     const golden = s.hand.find((c) => c.cardId === 'kennel' && c.golden);
-    expect(golden?.summonBonus).toBe(10); // base 2 + (5 + 3)
+    expect(golden?.summonBonus).toBe(9); // base 1 + (5 + 3)
   });
 
   it("tripling a Flowing Monk combines the two highest copies' CURRENT grants into the golden's start", () => {
@@ -4418,25 +4418,27 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(card.buffs?.some((b) => b.source === 'Flowing Monk' && b.attack === 3)).toBe(true);
   });
 
-  it('Bane: each Battlecry you trigger gives Fodder +2/+2 run-wide (+4/+4 golden)', () => {
-    // Bane subscribes to `battlecryTriggered` (Karwind's hook). Playing Soulfeeder (a Battlecry) fires once
-    // → Bane enchants the Fodder card type +2/+2. A golden Bane does +4/+4.
+  it('Bane: each Shout you trigger gives your Imps +3/+3 run-wide (+6/+6 golden)', () => {
+    // Bane subscribes to `battlecryTriggered` (Karwind's hook). Playing Soulfeeder (a Shout) fires once
+    // → Bane enchants IMPS +3/+3. A golden Bane does +6/+6. Owner rework 2026-08-03: Fodder is no longer
+    // touched at all — the factory's fodder half is opt-in and Bane doesn't ask for it.
     const setup = (golden: boolean): RunState => ({
       ...createRun(1), embers: 0, shop: [], pendingTavern: [],
       board: [{ uid: 'b', cardId: 'bane', tribe: 'dragon', attack: 12, health: 12, keywords: [], golden }],
       hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
     });
     const s = reduce(setup(false), { type: 'play', uid: 'sf' });
-    expect(s.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // one battlecry → +2/+2
-    expect(s.karwindFlash).toContain('b'); // Bane flashes itself so the proc reads even with no Fodder out
+    expect(s.impBuff).toEqual({ attack: 3, health: 3 }); // one Shout → Imps +3/+3
+    expect(s.cardBuffs.fred, 'Bane must no longer touch Fodder').toBeUndefined();
+    expect(s.karwindFlash).toContain('b'); // Bane flashes itself so the proc reads even with no Imps out
     const g = reduce(setup(true), { type: 'play', uid: 'sf' });
-    expect(g.cardBuffs.fred).toEqual({ attack: 4, health: 4 }); // golden → +4/+4
+    expect(g.impBuff).toEqual({ attack: 6, health: 6 }); // golden → +6/+6
   });
 
-  it('Bane: triggering N Battlecries buffs Fodder +N/+N (and respects Drakko doubling)', () => {
-    // Play three *distinct* Battlecry minions (distinct ids → no triple combine) → Bane procs three times
-    // → Fodder +3/+3. Then with a Drakko the Drummer on board, a single Battlecry fires twice → Bane procs
-    // per fire → +2/+2 from one play.
+  it('Bane: triggering N Shouts buffs your Imps N×+3/+3 (and respects Drakko doubling)', () => {
+    // Play three *distinct* Shout minions (distinct ids → no triple combine) → Bane procs three times
+    // → Imps +9/+9. Then with a Drakko the Drummer on board, a single Shout fires twice → Bane procs
+    // per fire → +6/+6 from one play.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], pendingTavern: [],
       board: [{ uid: 'b', cardId: 'bane', tribe: 'dragon', attack: 12, health: 12, keywords: [], golden: false }],
@@ -4449,7 +4451,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'f1' });
     s = reduce(s, { type: 'play', uid: 'f2' });
     s = reduce(s, { type: 'play', uid: 'f3' });
-    expect(s.cardBuffs.fred).toEqual({ attack: 6, health: 6 }); // N=3 battlecries × +2/+2 → +6/+6
+    expect(s.impBuff).toEqual({ attack: 9, health: 9 }); // N=3 Shouts × +3/+3 → +9/+9
 
     // Drakko doubling: one Battlecry fire becomes two → Bane procs twice for a single play.
     let d: RunState = {
@@ -4461,7 +4463,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
       hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false }],
     };
     d = reduce(d, { type: 'play', uid: 'sf' });
-    expect(d.cardBuffs.fred).toEqual({ attack: 4, health: 4 }); // 1 play × 2 fires (Drakko) × +2/+2 → +4/+4
+    expect(d.impBuff).toEqual({ attack: 6, health: 6 }); // 1 play × 2 fires (Drakko) × +3/+3 → +6/+6
   });
 });
 

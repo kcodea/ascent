@@ -9,20 +9,6 @@ import type { CardDef } from '@game/core';
  */
 export const SET2_NEUTRAL: CardDef[] = [
   {
-    // A Tier-1 Echo that trades its own small body for a bigger one that swings immediately — so it wants to
-    // die early, which is the opposite of most T1 bodies.
-    id: 'n2_tamer',
-    name: 'Tamer',
-    tribe: 'neutral',
-    tier: 1,
-    attack: 1,
-    health: 1,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'n2_whelp', count: 1 } }],
-    text: '**Echo:** summon a **3/3 Whelp** that attacks immediately.',
-    goldenText: '**Echo:** summon two **3/3 Whelps** that attack immediately.',
-  },
-  {
     // The spell-power enabler for a spell build, as a Choose One so you commit to the axis you need. Both
     // options are the same factory with mirrored params.
     id: 'n2_spellsword',

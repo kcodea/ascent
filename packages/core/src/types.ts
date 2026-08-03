@@ -177,9 +177,7 @@ export type EffectFactoryId =
   | 'battlecryGrantBeastHunt' // Elderhorn (Hunt): your Beast Rallies + Slaughters fire an extra time
   | 'battlecryGrantBeastRitual' // Elderhorn (Ritual): your Beast Echoes fire an extra time
   | 'rallySpreadTribeBuff' // Sunmane Herald: Rally — buff your tribe AND graft this rally onto them
-  | 'scShieldAttackLeftmostTribe' // Lancel: SC — left-most Beasts gain Ward and attack immediately
   | 'scSummonOnlyTribeAura' // Denkeeper Oona: minions you summon in combat enter buffed
-  | 'avengeBuffTribeLasting' // Moonlit Scavenger: Avenge — buff your tribe for the rest of the fight
   | 'rallyProcLeftmostEcho' // Echohorn Stag: Rally — trigger your left-most friendly Echo
   | 'deathrattleSummonRandomTribe' // Menagerie Mammoth: Echo — summon N random minions of a tribe
   | 'battlecryGrantSpellPowerRun' // Set 2 — Coppercoat Spellsword (Choose One): permanently raise run-wide spell power
@@ -202,6 +200,7 @@ export type EffectFactoryId =
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
   | 'buffRightmostSlotPermanent' // Set 2 — Market Tormentor (Shout): the right-most Shop SLOT is buffed for the run
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
+  | 'spellCopyTargetExact' // Copycat (rune gift): an EXACT copy of the target friendly minion, to hand
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
@@ -290,7 +289,6 @@ export type EffectFactoryId =
   | 'deathrattleBuffFodder' // Burial Imp: Deathrattle permanently buffs your Fodder +atk/+hp, carried back (Demon)
   | 'avengeAddFodder' // Pit Supplier: Avenge (N) queues a Fodder into your next shop, carried back (Demon)
   | 'avengeGrantSpellPower' // Spell Appraiser: Avenge (N) permanently raises run-wide spell power, carried back
-  | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
   | 'scConsumeWeakestBuffDemons' // (retired from Speed Demon) Start of Combat — consume your weakest minion, Demons gain % of its stats
@@ -457,7 +455,6 @@ export type EffectFactoryId =
   | 'deathrattleCastTribeAttack' // Anubis: Echo casts Lantern of Souls
   | 'onSellDiscover' // Salvatore McKlusky: selling this opens Discovers
   | 'deathrattleGainRandomMinion' // Lab Experiment: Echo conjures a random minion of a tier
-  | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc;
   | 'getRubies' // Set 2 — Shout/Rally: mint N Rubies into hand
   | 'endOfTurnGetRubies' // Set 2 — Wardstone Jeweler: End of Turn, mint Rubies (Warding Ruby)
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
@@ -541,6 +538,10 @@ export interface CardDef {
    *  of them are three different cards wearing one id, and a triple would have to silently pick one spell and
    *  bin the other two (owner ruling 2026-07-24: Mage-Pups cannot be tripled in any circumstance). */
   noTriple?: boolean;
+  /** A GIFT spell (Copycat): a token that is NOT a Shop spell — the reducer resolves it once, with no cast
+   *  bookkeeping and no multipliers. Narrower than `token` on purpose: Implosion is a token AND a real
+   *  Shop spell, so gating on `token` alone silenced its Nimbus doubling (caught by test 2026-08-02). */
+  gift?: boolean;
   /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
    *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
   ascendAt?: number;
@@ -799,6 +800,8 @@ export type QuestReward =
   | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
+      /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
+      rubyAll?: boolean;
       oncePerTurn?: boolean }
   /** Rune of the Brokerage: your Ruby Brokers lose their per-turn cap. */
   | { kind: 'runeBrokerage' }
@@ -806,6 +809,10 @@ export type QuestReward =
   | { kind: 'runeSharedTable'; attack: number; health: number }
   /** Rune of Redirection: a Ruby played on your left-most minion also casts on your right-most. */
   | { kind: 'runeRedirection' }
+  /** Rune of Distillation: a spell cast on a SHOP minion also casts on your left-most board minion. */
+  | { kind: 'runeDistillation' }
+  /** Rune of Liquidation: selling a minion gives its BONUS stats to the right-most Shop minion. */
+  | { kind: 'runeLiquidation' }
   /** Rune of Facetwright: your Facetwright's Choice casts give BOTH halves instead of one. */
   | { kind: 'runeFacetwright' }
   /** Rune of Duplication: after you forge your Epic Rune, this becomes a copy of it — its reward applies a
@@ -841,7 +848,9 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
+  /** `turns` (optional) BOUNDS the recurrence: it fires that many End-of-Turns and then stops, instead of
+   *  lasting the run. Absent = forever, which is what every effect but Quick Study wants. */
+  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -1003,6 +1012,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // with a Sunmane Herald that strikes on arrival; warChorus = your first Rally each combat fires your
   // left-most Shout.
   | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus'
+  // Rune of the Warpath: the left-most minion's attack chains into the right-most's.
+  | 'runeWarpath'
+  // Rune of the Mammoth: Menagerie Mammoths give Health too (1:1 with the Attack grant).
+  | 'runeMammoth'
   // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
   // plays a Ruby on your whole board.
   | 'runeFoodChain' | 'runeAttackingGems'
@@ -1129,6 +1142,13 @@ export interface QuestCombatMods {
   runeFoodChain?: boolean;
   /** Rune of Attacking Gems: how many Rubies land on your whole board per friendly attack. */
   runeAttackingGems?: number;
+  /** Rune of the Matriarch: Runebloom Matriarchs trigger twice — threaded so the COMBAT half of her
+   *  per-spell proc doubles exactly like the shop half (owner audit 2026-08-02). */
+  runeMatriarch?: boolean;
+  /** Rune of the Mammoth: Menagerie Mammoths' grant is 1:1 symmetric (+3/+3 instead of +3 Attack). */
+  runeMammoth?: boolean;
+  /** Rune of the Warpath: after your LEFT-most minion attacks, your RIGHT-most attacks too. */
+  runeWarpath?: boolean;
   /** Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit. */
   runeOverflow?: number;
   /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
@@ -1530,7 +1550,7 @@ export type CombatEvent = (
   // leaving a Ruby indistinguishable in the log; the UI needs to tell them apart to play the Ruby cue on the
   // minion that received it (`ruby-gem-apply`) without firing on all 40-odd other buff sources.
   | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true }
-  | { type: 'improve'; target: string; amount: number } // Kennelmaster's Avenge strengthens its summon aura
+  | { type: 'improve'; target: string; amount: number; display?: number } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
@@ -1865,6 +1885,11 @@ export interface CombatContext {
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat
    *  factory whose card text says **Improve** multiplies its improvement increment by this. */
   improveRepsFor(side: Side): number;
+  /** Rune of the Matriarch reps for this side (2 with the rune, else 1) — the combat mirror of the
+   *  recruit engine's `state.runeMatriarch` wrapper. */
+  matriarchRepsFor(side: Side): number;
+  /** Rune of the Mammoth for this side — the Mammoth grant gives Health 1:1 with its Attack. */
+  mammothHealthFor(side: Side): boolean;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
   beastsPlayedFor(side: Side): number;
   /** Per-side cards bought this recruit turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */

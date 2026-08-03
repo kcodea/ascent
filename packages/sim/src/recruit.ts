@@ -708,6 +708,16 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
   if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
   if (t.grantRuby) mintRubies(state, t.grantRuby);
+  // Rune of Gemspam: a Ruby PLAYED on every friendly minion (not minted to hand) — the same live 1/1 + the
+  // run's Ruby strength a hand-cast Ruby lands, and it fires each target's on-Ruby watchers so the play is
+  // real (Ruby Broker's Gold, Resonance's bounce) rather than a silent stat bump.
+  if (t.rubyAll) {
+    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    for (const c of [...state.board]) {
+      addBuff(c, 'Ruby', 1 + rb.attack, 1 + rb.health);
+      fireOnRubyPlayed(state, c, 1 + rb.attack, 1 + rb.health);
+    }
+  }
   const b = t.buff;
   if (!b) return;
   if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
@@ -1300,10 +1310,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecryPlayRubiesAll: (ctx, self, params) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const per = num(params.rubies, 1) * gold(self);
-    const a = (1 + rb.attack) * per;
-    const h = (1 + rb.health) * per;
-    if (a <= 0 && h <= 0) return;
-    for (const c of ctx.state.board) addBuff(c, 'Ruby', a, h);
+    const a = 1 + rb.attack;
+    const h = 1 + rb.health;
+    if (per <= 0 || (a <= 0 && h <= 0)) return;
+    // N SEPARATE Rubies, not one Ruby of N× magnitude. The stats are identical either way (per × (1+rb) is
+    // the same total), but the trigger count is not, and "play 2 Rubies" has to mean two: a gilded Excavator
+    // pays a Ruby Broker twice, bounces a Resonance Idol twice, and the board can show two gems.
+    //
+    // `fireOnRubyPlayed` tells the target its own `onRubyPlayed` effects fired and moves its `rubiesOnThisTurn`
+    // counter. `main` added that call here independently (owner report 2026-08-02, via Alchemist Brisbane —
+    // three card-played paths landed the stats and nothing else, so a Ruby-engine board read them as no-ops);
+    // this keeps it and makes it fire once PER RUBY rather than once per card.
+    //
+    // `spellPlayRubiesAll` (Ruby Excavation) already looped — the two implementations of the same sentence had
+    // drifted apart, and only one matched its printed text.
+    for (const c of [...ctx.state.board]) {
+      for (let r = 0; r < per; r++) {
+        addBuff(c, 'Ruby', a, h);
+        fireOnRubyPlayed(ctx.state, c, a, h);
+      }
+    }
   },
 
   /** Set 2 — Ruby Broker: when a Ruby is played on THIS minion, gain `gold` Gold — capped `cap` times per turn
@@ -1333,24 +1359,34 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const target = pool[rng.int(pool.length)]!;
       state.rngCursor = rng.state();
       addBuff(target, 'Ruby', ra, rh);
+    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
+    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
+    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
+    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
+      fireOnRubyPlayed(state, target, ra, rh);
     }
   },
 
-  /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on a
-   *  random friendly `tribe` minion (× golden). Deterministic (run rngCursor). */
+  /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on
+   *  EVERY friendly `tribe` minion (× golden). Owner ruling 2026-08-03: it hits ALL your Kobolds — it used to
+   *  pick ONE at random, which is why it read as "not working" on a wide board (a single silent +2/+2
+   *  somewhere in a line of seven). No RNG at all now, so it also stops consuming the run cursor. */
   endOfTurnPlayRuby: (ctx, self, params) => {
     const state = ctx.state;
     const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
     const ra = 1 + bonus.attack;
     const rh = 1 + bonus.health;
     const tribe = str(params.tribe);
+    const targets = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
     for (let c = 0; c < num(params.count, 1) * gold(self); c++) {
-      const pool = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
-      if (pool.length === 0) return;
-      const rng = makeRng(state.rngCursor);
-      const target = pool[rng.int(pool.length)]!;
-      state.rngCursor = rng.state();
-      addBuff(target, 'Ruby', ra, rh);
+      for (const target of targets) {
+        addBuff(target, 'Ruby', ra, rh);
+    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
+    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
+    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
+    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
+        fireOnRubyPlayed(state, target, ra, rh);
+      }
     }
   },
 
@@ -1460,7 +1496,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Quartermaster Dorrin (Shout, targeted): +Health per Gold spent THIS TURN — a tempo reward for shopping
+  /** Baby Gastrid (Shout, targeted; ex-Quartermaster Dorrin): +Health per Gold spent THIS TURN — a tempo reward for shopping
    *  before you play it, and it reads its live value on the card via `cardText`. */
   battlecryBuffTargetPerGoldSpent: (ctx, self, params, payload) => {
     const target = (payload as { target?: BoardCard } | undefined)?.target;
@@ -1470,7 +1506,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (h > 0) addBuff(target, nameOf(self), 0, h);
   },
 
-  /** Closing-Time Foreman (End of Turn): your LEFT-most minion of `tribe` gains +attack per card played this
+  /** Kringle (End of Turn; ex-Closing-Time Foreman): your LEFT-most minion of `tribe` gains +attack per card played this
    *  turn. Left-most rather than targeted, so you choose the recipient by arranging your line. */
   endOfTurnBuffLeftmostTribePerCard: (ctx, self, params) => {
     const tribe = str(params.tribe);
@@ -2700,8 +2736,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onBattlecryBuffFodder: (ctx, self, params) => {
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 1) * gold(self);
-    buffFodderRunWide(ctx.state, a, h, nameOf(self));
-    buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Bane now buffs Imps too
+    // `fodder` is OPT-IN (owner 2026-08-03: Bane buffs Imps only now). Left as a param rather than deleted
+    // so the Fodder half stays available to anything that wants both.
+    if (params.fodder) buffFodderRunWide(ctx.state, a, h, nameOf(self));
+    buffImpsRunWide(ctx.state, a, h, nameOf(self));
     // Bane's Existence (quest): the widen — also buff every Demon you have (board + hand) by the flag amount.
     const dem = ctx.state.baneBuffsDemons;
     if (dem && (dem.attack !== 0 || dem.health !== 0)) {
@@ -3146,6 +3184,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       for (const t of tribes) seen.add(t);
       addBuff(c, nameOf(self), a, h);
     }
+  },
+
+  /** Copycat (rune gift — owner spec 2026-08-02): an EXACT copy of the target friendly minion into hand.
+   *  A spread of the live BoardCard — stats, keywords, gilding, enchants and every per-instance accrual
+   *  (summonBonus, spellProgress, eotTick, …) — with only the uid re-minted. Deliberately NOT `conjuredStats`
+   *  or a fresh-from-def conjure: "exactly" is the whole card. Hand-cap guarded like every conjure. */
+  spellCopyTargetExact: (ctx, self, params, { minion }) => {
+    // Spell factories receive the target as `minion` (see applyCastEffects) — `self` is the same object here.
+    const target = minion;
+    if (!target) return;
+    if (ctx.state.hand.length >= CONFIG.handMax) return; // full hand — the gift fizzles into nothing, like a full-hand conjure
+    const clone = structuredClone(target);
+    clone.uid = `b${ctx.state.uidSeq++}`;
+    ctx.state.hand.push(clone);
   },
 
   onSpellCastBuffRandomTribe: (ctx, self, params) => {
@@ -3916,7 +3968,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffLeftmost: (ctx, _self, params) => {
     const target = ctx.state.board[0];
     if (!target) return; // empty board → fizzles (the spell is still spent, like every untargeted cast)
-    addBuff(target, 'Ale', num(params.attack, 0), num(params.health, 0));
+    // Spell power folds in, same rule as `spellBuffTarget` (spell-power audit 2026-08-02).
+    let attack = num(params.attack, 0);
+    let health = num(params.health, 0);
+    if (attack > 0 || health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    addBuff(target, 'Ale', attack, health);
   },
 
   /** Set 2 — Defensive / Bloody Ale. Buff `count` DISTINCT random friendly minions by +atk/+hp.
@@ -3931,7 +3990,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const picks: BoardCard[] = [];
     for (let i = 0; i < want && pool.length > 0; i++) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
     ctx.state.rngCursor = rng.state();
-    for (const t of picks) addBuff(t, 'Ale', num(params.attack, 0), num(params.health, 0));
+    // Spell power folds in, same rule as `spellBuffTarget` (owner report 2026-08-02: a +1/+1-power Defensive
+    // Ale landed its printed +0/+4 — this factory never read the bonus at all).
+    let attack = num(params.attack, 0);
+    let health = num(params.health, 0);
+    if (attack > 0 || health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    for (const t of picks) addBuff(t, 'Ale', attack, health);
   },
 
   /** Set 2 — Reinforcing Ale. Get a minion of your most common tribe, into hand. Reuses the same
@@ -4615,6 +4682,20 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     return `${stepText} {{Now +${baseA + bonusA + (a + bonusA) * ticks}/+${baseH + bonusH + (h + bonusH) * ticks}.}}`;
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
+  // Champion's / Defensive / Bloody Ale (spell-power audit 2026-08-02): their factories fold spell power, so
+  // the printed magnitude goes live too. Champion's is a symmetric "+A/+H"; the other two print a single-stat
+  // token ("+4 Health" / "+4 Attack") that becomes the full live "+A/+H" pair, like Lantern of Souls below.
+  const aleLeft = def.effects.find((e) => e.do === 'spellBuffLeftmost');
+  const aleRand = def.effects.find((e) => e.do === 'spellBuffRandomFriendlies');
+  const ale = aleLeft ?? aleRand;
+  if (ale) {
+    const pa = Number((ale.params as { attack?: number } | undefined)?.attack ?? 0);
+    const ph = Number((ale.params as { health?: number } | undefined)?.health ?? 0);
+    if (pa > 0 && ph > 0) return def.text.replace(`+${pa}/+${ph}`, `{{+${pa + bonusA}/+${ph + bonusH}}}`);
+    if (pa > 0) return def.text.replace(`+${pa} Attack`, `{{+${pa + bonusA}/+${bonusH}}}`);
+    if (ph > 0) return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
+    return def.text;
+  }
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
   if (tribeBuff) {
@@ -4653,7 +4734,7 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
 
 /** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`
  *  so target buffs (Spirit Fire) record it for the inspect breakdown. */
-function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard): void {
+export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard): void {
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
@@ -4788,6 +4869,7 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
   }
 }
 
+export
 function makeContext(state: RunState): RecruitContext {
   const ctx: RecruitContext = {
     state,
@@ -5598,6 +5680,16 @@ export function applyEndOfTurn(state: RunState): void {
   // conjure a random Shout minion). They're End-of-Turn effects too — repeated by Chronos/Parliament + counted.
   for (const eff of state.questRecurringEndOfTurn ?? []) {
     for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
+  }
+  // TURN-LIMITED recurrences (Rune of Quick Study: 2 turns). Fired the same way, then ticked down ONCE for
+  // the turn — not once per Chronos repeat, or a doubled End of Turn would burn the limit twice as fast.
+  const limited = state.questRecurringLimited;
+  if (limited?.length) {
+    for (const entry of limited) {
+      for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, entry.effect); fires++; }
+      entry.turnsLeft -= 1;
+    }
+    state.questRecurringLimited = limited.filter((e) => e.turnsLeft > 0);
   }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).

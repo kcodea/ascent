@@ -1,5 +1,507 @@
 # ASCENT — development log
 
+## 2026-08-02 — A Ruby is told by the gem, not also by the generic buff cues
+
+The one-channel rule from [`fx-vocabulary.md`](fx-vocabulary.md), applied in combat. `applyRubyStats` routes
+through `ctx.buff`, so a Ruby is a buff like any other to the two generic channels: `groupSelfBuffs` fired
+`self-buff-gold` on it and `groupBuffCasts` drew a tendril for it — on top of the gem detonation that already
+says the same thing. A gilded Frenzied Excavator buffing itself was the visible case (owner report): one
+event, two tellings, looking like two different things happened.
+
+Both channels now skip a `ruby`-flagged buff event. Suppressed for the generic cues, never dropped —
+`rubiedUidsIn` still claims it, which the third test pins. This is what the `ruby` flag added in #812 was
+for; the shop half was already handled there by uid correlation, since the shop has no event log to flag.
+
+Verified: typecheck (pkgs + web) clean, lint 0 errors, **3591 tests**, `build:web` OK.
+
+**Same day — the gem gets a voice.** Owner-recorded clip added as `audio/gemapply.mp3`, wired through the
+usual `playSample` + synth-fallback pattern and fired from BOTH Ruby cues, **once per gem** rather than once
+per moment: a gilded Excavator is a cascade of 2-stacks, so the ear has to carry the same count the eye does.
+Throttled at 20ms rather than the 60ms `shieldBreak` uses — 60 would swallow the second hit of a stack, the
+stack `beat` being 60 itself, so the floor only collapses gems landing in the same frame.
+
+**Not done, and visible:** a GILDED Excavator still plays a cascade of singles. The sweep offset is
+`recipientIndex × gap`, and a stack needs `+ repeatIndex × beat` — so the board currently under-reports 2
+Rubies as 1. That is the first task of the clarity phase, and the fourth place "walk an effect across N
+things with an offset" has been hand-rolled.
+
+## 2026-08-02 — Frenzied Excavator plays REAL Rubies, not one of double size
+
+`battlecryPlayRubiesAll` folded its multiplier into the AMOUNT and called `addBuff` once, so a gilded
+Excavator applied ONE Ruby of 2× magnitude. Everything that COUNTS Rubies rather than measuring them saw one:
+the targets' `onRubyPlayed` watchers (which a bare `addBuff` skips entirely, so Ruby Broker paid nothing and a
+Resonance Idol never bounced), `rubiesOnThisTurn`, and the board cue — which is how the gilded case was
+discovered, trying to animate a count that did not exist.
+
+Its sibling `spellPlayRubiesAll` (Ruby Excavation) already looped. Two implementations of the same sentence,
+disagreeing, and only one of them matched its printed text.
+
+Now loops `per` times per minion, applying `1 + rubyBonus` each and firing `fireOnRubyPlayed` each time.
+
+**Stats are deliberately unchanged** — `per × (1 + rb)` is the same total either way — and a test pins that,
+so this cannot ride in as a silent buff. What changes is the TRIGGER COUNT: a gilded Excavator now pays a Ruby
+Broker twice, bounces a Resonance Idol twice, and reports two Rubies per minion. The loop nests card-outer /
+repeat-inner, so the engine's own order matches the cascade-of-2-stacks the UI plays.
+
+Card text needs no change: "play **2 Rubies** on all of your minions" was already the accurate reading and is
+now also the true one. ("…a Ruby, twice" would describe a REPLAY — the whole sweep again — which is a
+different animation and not the one chosen; see docs/fx-vocabulary.md.)
+
+Verified: 5 new tests (ungilded 1×, gilded 2×, stat total exactly double, targets notified per Ruby, run
+`rubyBonus` applied per Ruby). Full gate: typecheck clean, lint 0 errors, **3639 tests**, `build:web` OK.
+Un-skips the gilded test in #816 once both are on main.
+
+## 2026-08-03 — Brisbane hits every Kobold; Bane is Imps-only; Balance Report buys captured live
+
+- **Alchemist Brisbane — End of Turn now plays a Ruby on EVERY friendly Kobold** (owner ruling). It used to
+  pick ONE at random, which is why it read as "not working": on a wide board the whole effect was a single
+  silent +2/+2 somewhere in a line of seven. The factory drops its RNG entirely, so it also stops consuming
+  the run cursor. Text updated on both faces ("on **each** of your Kobolds").
+- **Bane reworked** (owner): +3/+3 to your **Imps** on each triggered Shout, and it no longer touches Fodder
+  (was +2/+2 to Fodder *and* Imps). Implemented by making the Fodder half an **opt-in `fodder` param** on
+  `onBattlecryBuffFodder` in BOTH halves (recruit + combat) rather than deleting it, so the primitive stays
+  available; Bane simply stops asking for it. The combat carry-back follows — `playerFodderBuffGain` is now
+  absent for Bane, `playerImpBuffGain` carries the +3/+3.
+- **Set-1 Demon art wired.** `wire-art` had **no job for `Set 1 Minions` at all** — those portraits had only
+  ever been hand-dropped. Added one scoped to `Demons` (the owner's ask), placed FIRST in the job list so a
+  set-2 file always wins a name collision; the other set-1 dirs stay unwired until audited, because wiring
+  them blind is exactly the silent-overwrite failure `RETIRED` exists to prevent. 20 of 21 files matched by
+  strict name; 18 portraits changed. `Fodder.png` is unmatched and reported, never guessed.
+- **Balance Report — two confirmed defects + one removed failure class** (owner: "I literally just played a
+  game where I bought Sunmanes"):
+  1. **`fetchRunTelemetry` never selected `placement`.** It was written by the insert but not read back, so
+     every placement column (Avg Place, 1st %, 8th %, placed n) was empty no matter how many lobby runs were
+     recorded — and `runWon` lost its authoritative signal. Added to the select, with the pre-migration
+     fallback ladder extended to strip it.
+  2. **The insert fallback ladder could never reach the ground.** `placement` was added to `base`, which
+     every fallback spreads — so on a DB without that column all three attempts failed identically and the
+     row was silently lost entirely. The final rung now drops it.
+  3. **Acquisitions are now captured LIVE** (`TelemetryLog` / `recordTelemetryAction` / `withLiveTelemetry`)
+     instead of re-derived by replaying the run. This is the same doctrine `saveCapturedBoards` already
+     applies to boards: `saveRunBoards` REFUSES to replay a lobby run because it diverges from the first
+     combat, yet telemetry was replaying one anyway. A divergence there is silent and **asymmetric** —
+     sightings are recorded before `reduce`, so they survive, while a buy is only recorded if the replay's
+     `reduce` accepts it — which produces exactly "every card seen, nothing ever bought". The log mutates in
+     place (zero allocation per action, and nothing subscribes to it) and rides in the save file beside
+     `boards`, so a quit-and-resume doesn't lose the buys made before the reload.
+
+  Honest scope note: I could NOT reproduce the empty-buys condition — `reconstructRunTelemetry` matched a real
+  lobby run's buys exactly in every probe I ran (6 waves, natural gold, seeds 777/12345). Defects 1 and 2 are
+  proven by reading; defect 3 removes the class rather than a confirmed instance, and is the right design here
+  regardless.
+- **Verified** — new `liveTelemetry.test.ts` (6 tests: live buy capture, a rejected buy recording the sighting
+  but not the purchase, lingering-offer dedupe, and the live log overriding a reconstruction that lost the
+  buys) plus Brisbane's all-Kobolds pin. Four existing pins updated to the new rulings (3 Bane, 1 Brisbane).
+  Gates: typecheck ✓, lint ✓ (7 pre-existing warnings), 3646 tests ✓, `build:web` ✓, harness determinism ✓.
+
+## 2026-08-02 — The Compendium's "card shadows" were the plates; the grid gets a dark surface
+
+Owner question: grey rectangles behind every Compendium card. Diagnosed, not guessed — the plate `<img>`s
+load fine (800x1244) and a pixel sample of the art comes back FULLY OPAQUE brown-grey at every edge
+(rgba(126,108,96,1)). So the "shadows" are the card PLATES themselves, added in #819 for "card backs shown
+just like in game": an opaque stone slab 170x264 behind a 113x198 card. In hand that reads as carved framing
+because the board behind it is dark; on the book's pale surface the same slab reads as a grey rectangle
+sticking out on all four sides.
+
+Fixed by giving the card GRID a dark surface of its own rather than dropping the plates — the owner's ask was
+"like in game", and the plate only misreads because of the backdrop. Scoped to `.book-grid`, so the rail,
+header and glossary keep the book's light treatment.
+## 2026-08-02 — Card-played Rubies notify their target; Brisbane / Mineral Master investigation; Karwind art
+
+- **Investigated the owner's two reports; both mechanics resolve correctly, and the trace is in the PR.**
+  - *Alchemist Brisbane's End of Turn* fires: `endOfTurnPlayRuby` is registered in all three places and
+    `applyEndOfTurn` reaches it. A probe board (Brisbane + 2 Kobolds) shows the Ruby landing, and the
+    recruit-screen step projection carries a beat for it.
+  - *Mineral Master's Rally ordering* is already the beat the owner described. Every on-attack effect runs
+    inside `bus.emit('onAttack')`, which is **above** the damage phase, and the damage phase reads
+    `attacker.attack` live — so a rallying Kobold hits with its POST-Ruby Attack. A seeded trace confirms it:
+    the rallying body's swing lands for 7 (5 base + a 2/2 Ruby) in the same step the Ruby buff is emitted.
+    The replay agrees — `buildBeats` absorbs `buff` into the attack's WIND-UP beat, so the Ruby pops during
+    the lunge and the impact is the next beat.
+- **The real defect the investigation turned up: three card-played Ruby paths never notified their target.**
+  `fireOnRubyPlayed` is what makes a Ruby a *play* rather than a stat bump — it bumps the target's
+  `rubiesOnThisTurn` and fires that target's own `onRubyPlayed` effects (Ruby Broker's Gold, Resonance Idol's
+  bounce). Three factories skipped it, so their Rubies were invisible to the whole Ruby engine:
+  **Alchemist Brisbane** (End of Turn), **Frenzied Excavator** (Shout: a Ruby on every friendly) and
+  **Candle Conduit** (when you get a Ruby, cast one). All three now fire it. This is almost certainly what
+  read as "Brisbane's End of Turn isn't working" on a Ruby-engine board. `rubyPlayedBounce` (Resonance Idol)
+  deliberately still skips it — that guard is what stops a bounce cascading into itself.
+- **Verified** — new `packages/sim/src/rubyPlayWatchers.test.ts` pins all three, using Ruby Broker's Gold as
+  the probe ("did the target hear about it"). Confirmed as a negative control: all three fail on the pre-fix
+  code. Gates: typecheck ✓, lint ✓ (7 pre-existing warnings), 3640 tests ✓, `build:web` ✓, harness
+  determinism ✓.
+- **Art** — re-wired Karwind's refreshed portrait from the Dragons folder (the only file that changed).
+
+## 2026-08-02 — Free-refresh count on the coin; Rune of Quick Study bounded to 2 turns
+
+- **Free refreshes left** (owner ask): the Refresh crystal's green 0 coin now carries the BANKED count as a
+  small `x2` beside it. Shown only from TWO up — at exactly one free roll the green 0 already says "this one
+  is free", so a `x1` would be noise. The count rides inside the coin so the badge keeps one shape (the same
+  reason the coin never disappears on a free roll — owner call 2026-07-21). Tooltip + aria-label carry it too.
+- **Rune of Quick Study** (owner rebalance): "Get a Gold Font and 2 random spells at End of Turn, for the next
+  **2 turns**" — it used to recur for the whole run. Implemented generally rather than as a special case: a
+  `recurringEndOfTurn` reward may now carry `turns`, which routes it into a new `questRecurringLimited` list
+  that ticks down per End of Turn and drops out at 0. Every other recurrence keeps the simple unbounded list
+  untouched. The tick is ONCE PER TURN, not once per Chronos repeat — a doubled End of Turn would otherwise
+  burn the limit twice as fast.
+
+Tests: `quickStudyTurns.test.ts` — grants on turns 1 and 2 then never again, an unbounded rune still uses the
+run-long list, and the def ships `turns: 2` with the new text. The pre-existing Quick Study pin updated to the
+new shape. Full gates + harness green (3637).
+
+## 2026-08-02 — Two Dwarf renames + a Dragon/Dwarf art pass
+
+- **Quartermaster Dorrin → Baby Gastrid** and **Closing-Time Foreman → Kringle** (owner). Ids unchanged
+  (`dw_dorrin`, `dw_foreman`) — saved runs and pool boards store ids, so a rename must never touch them. Both
+  new portraits wired by strict name match. The retired names are gone from the code's COMMENTS too (recruit
+  factories, the reducer's Ruby-count note, two cardText helpers, instView) so nothing reads as a stale card.
+- **Dragon art re-wired** as it stands in the folder — the changed files landed (Runefire, Spell Warden) plus
+  `Karwind2.png` as the `karwind2` variant slot.
+- Two aliases added for attributed files whose names don't match their card: `JensenAndFi.png` (the card is
+  "Jensen & Fi" — the `&` normalises away, and the old alias only covered the pre-rename "Jenkins" filename)
+  and `Sylus.png` (the card is "Sylus the Reaper"). Both had silently NOT been landing.
+- Audited the five alias-routed Dragon files against the CURRENT card names before applying — Commander
+  Warpath, Earthbreaker, Mushy, Scalefeather and Water Dragon all still resolve to the right cards (their ids
+  simply predate renames). Worth doing: a stale alias mis-assigns art silently.
+
+Still unwired on purpose: `Blu.png`, `Bucky.png` and `content1544.png` (no matching card), plus files for
+removed/renamed cards (Lancel, Tamer, Hoardmaster Krik, EchohornStag, QuartermasterDorrin).
+
+Full gates green (3634).
+
+## 2026-08-02 — Bane's Presence art wired — quest coverage is now 103/103
+
+The owner supplied `BanesPresence.png`, the one quest the previous pass reported as missing (the folder had
+only BanesExistence.png, a different quest). Wired by strict name match. **Every quest in the roster now has
+art.**
+
+## 2026-08-02 — Quest art wired (the folder was never mined for the quests themselves)
+
+Owner ask. `wire-art` only ever read the Quests folder's "Quest Reward Related Things" SUB-folder, so the
+quest cards' own art had never been wired — 80 files sat in `art/quests` from earlier hand-drops while 126
+authored files waited in the source. Added a `quests` job (indexed by quest NAME, `dirs: ['.']` so it does
+not recurse into the reward sub-folder, which is its own job with a different destination).
+
+Two normalisations, both principled rather than guesses:
+- **Generator index stripped** (`Motherlode_00001_.png`): an export artifact of the art tool, not part of the
+  name — the remaining stem still has to match a name EXACTLY. Took the match from 74 to 103.
+- **One alias**: `TrohpyDen.png` → `q_trophy_den` (transposed letters). 104 matched.
+
+**Result: 102 of 103 quests now have art.** Deliberately still unwired: 5 UUID-named files (unattributed — the
+matcher never guesses) and 13 named files for quests that no longer exist in the roster (retired set-1
+designs). **The one quest still without art is `q_banes_presence` ("Bane's Presence", set 2)** — the folder
+holds BanesExistence.png, which is a different quest and correctly went to it.
+
+Full gates green (3634).
+
+## 2026-08-02 — The shop curve called every lobby run a LOSS (the 'victory' phase trap, third time)
+
+Owner report: the Balance Report's curve showed only losing runs. Same root cause as the Hall of Champions
+bug (2026-07-31): `reconstructRunTelemetry` derives `won` from `phase === 'victory'`, and **a lobby never
+reaches that phase** — so every lobby row uploaded with `won: false`, and the curve's won/lost split had
+nothing in the won bucket. Fixed on both sides:
+
+- **At upload**: the store overrides `won` with `lobbyWon` (placement 1) — the value it already computes for
+  the Hall gate. The reconstruction keeps the course default and now says in a comment why it cannot know.
+- **At aggregation**: a new `runWon` helper treats PLACEMENT as authoritative when present, so the rows
+  ALREADY in Supabase with the wrong flag self-heal on the next report load rather than needing a wipe. Every
+  win reader routes through it — the curve, hero/quest/rune win rates, and the CSV's win-impact columns — so
+  the tables and the chart can't disagree.
+
+Also: **Rune of the Wild Hunt 3 → 1 Health** per Beast attack (owner). `amount` is both the grant and the
+escalation step, so one number moves both halves; a new test pins the shipped def value, since the engine
+tests pass an explicit mod and could never catch a def drift.
+
+Tests: placement-1-is-a-win (even with `won: false` stored), course-era rows still trusting their flag, and
+win rates agreeing with the curve. Full gates + harness green (3625).
+
+## 2026-08-02 — King Oona is the multiply, nothing else
+
+Owner call: cut the flat buff AND the Avenge improve — Oona now only doubles a summoned Beast's stats (triples
+gilded). Implemented as `attack: 0, health: 0` on the shared `onSummonTribeBuffThenDouble` (its grant half
+already guards on `a > 0 || h > 0`, so only the multiply runs) plus dropping the `avenge` effect outright.
+Texts follow. `avengeImproveSummon` stays — Kennelmaster still uses it — and `improvingSummonText` stays for
+Broodwright; with no accrual Oona simply never reaches it, so her card prints its base text.
+
+Tests: the three Oona pins rewritten — the wiring test now expects ONE effect and no Avenge; the order test
+becomes "exactly one buff event, and it is the multiply" (a lingering +0/+0 grant would mean the cut half
+still fires); gilded reads +2/+2 on a 1/1 Pup (two extra copies of its own stats), not the old grant-then-
+multiply pair. Full gates + harness green (3621).
+## 2026-08-02 — Four new runes: Distillation, Liquidation, the Warpath, Gemspam
+
+Owner batch. Each reuses an existing primitive where one fit and adds the narrowest new hook where none did:
+
+- **Rune of Distillation** (basic, 2) — "Spells cast on Shop minions also cast on your left-most minion."
+  A REAL second cast through `castSpell`, so the left-most's own on-spell watchers (Mirrorwing, Runefire) see
+  it. Set-2 scoped: casting on shop offers is a set-2 pattern.
+- **Rune of Liquidation** (epic, 4) — "When you sell a minion, give its bonus stats to the right-most Shop
+  minion." Bonus = everything above the printed base, measured off the def (so buffs, Rubies and per-instance
+  improvements all count) and doubled-base-aware for a golden body. Nothing to give → nothing happens.
+- **Rune of the Warpath** (epic, 5) — "After your left-most minion attacks, your right-most minion attacks."
+  Combat flag + the existing immediate-attack queue. THREE guards, each load-bearing: the attacker must BE the
+  left-most living body; the right-most must be a different minion (a one-minion board would chain into
+  itself); and a re-entrancy latch stops the chained attack chaining again — without any of the three it is an
+  infinite loop.
+- **Rune of Gemspam** (epic, 5) — "When you spend 10 Gold, play a Ruby on all of your minions." A new
+  `rubyAll` payout on the existing `runeThreshold` meter, so it banks its remainder like every other threshold
+  rune. Plays a REAL Ruby (live 1/1 + the run's Ruby strength, firing each target's on-Ruby watchers), not a
+  silent stat bump.
+
+Art wired for all four (`RuneOf{Distillation,Liquidation,TheWarpath,Gemspam}.png`); the full rune folder was
+re-wired in the same pass. Rune of Copycat is now the only rune without art.
+
+Tests (`fourRunes.test.ts`, 9): Distillation spills to the left-most ONLY and is inert without the rune;
+Liquidation transfers the bonus (not the whole stat line) to the right-most offer only, and nothing from a
+base-stat body; Warpath chains the right-most ahead of turn order and a one-minion board resolves rather than
+hanging; Gemspam pays the live Ruby value on everyone and banks 9 Gold until the 10th. Plus the four defs'
+costs/forge tiers. Full gates + harness green (3630).
+
+## 2026-08-02 — Compendium vertical room (the plate overhang), and the report table fits its columns
+
+Two owner reports on the same pass:
+
+**Compendium rows collided.** The +15% gap wasn't enough because a PLATED card's plate is absolutely
+positioned — it overflows the cell the grid measures (37px above via `--plate-top`, ~0.1 x `--ccw` below), so
+consecutive rows' plates OVERLAPPED by a measured 6px however large the gap got. Fixed by reserving the
+overhang as `margin-block` (the same doctrine as the existing `margin-inline`), with the BOTTOM reservation
+proportional to `--ccw` so it scales with zoom — a fixed value collapsed to a 1px gap at 160%. Row gap also
+raised 48.3 → 72px. Measured across every zoom step: plate-to-plate gap is now 70–94px, never negative.
+
+**Balance Report table clipped.** The placement columns pushed it past the old fixed `width: min(960px, …)`,
+cutting Name off the left and the last column off the right. The width now derives from `--balcols` (already
+set per section) and the numeric columns shrink to a floor instead of sitting at a fixed 6rem. Verified with a
+10-column probe: container 1248px, every cell inside, zero overflow.
+
+## 2026-08-02 — Compendium: +15% breathing room between cards and rows
+
+Owner ask. Row gap 42 → 48.3px, column gap 22 → 25.3px. The auto-fill column MINIMUM grows by the same 15%
+(`--cw + 16px` → `+ 18.4px`) — without it the grid simply packs one more column per row and the added column
+gap is immediately eaten, which is the opposite of the ask. Live-verified: gaps read 48.3/25.3 and the column
+count holds (6 at 60% zoom, unchanged).
+
+## 2026-08-02 — Compendium: in-game plates + zoom; Balance Report: placement capture, hero slice, placement views
+
+**Compendium (owner asks).** Every card now renders with the same carved PLATE it wears in hand (`plated` —
+the Compendium was the one surface passing the un-plated frame), and a **zoom control** (60%–160%, persisted
+to localStorage) scales the grid: `--book-zoom` multiplies the single `--ch` metric the CSS derives card
+width + drawer geometry from, so `auto-fill` re-flows the columns for free. Verified live: 60% fits 6 cards
+per row against 4 at 100%, plates intact.
+
+**Balance Report.** Answering the owner's data questions, in order:
+
+- **Placement was never captured** — the row carried `won`/`wins` (course-era) but not the lobby finish, even
+  though MMR already reads it. Added: `RunTelemetry.placement`, the `placement` column (idempotent ALTER in
+  `schema.sql`), and the store passes the placement it already computes. **Forward-only** — every existing
+  Supabase row lacks it, which the aggregate handles explicitly (see below).
+- **Placement analytics**: per-entry `avgPlace` / `1st %` / `8th %` / `placed n`, credited on the PICKED side
+  only and accumulated ONLY over rows carrying a placement — a legacy row contributes nothing rather than
+  being coerced to some finish. Shown as columns on every table (avg place heats INVERTED: low is good).
+- **Avg shop curve by placement**: `ShopCurve.byPlacement` — one mean tier-by-wave series per finish, with a
+  legend toggle on the chart (hidden entirely until placed rows exist, rather than a toggle revealing nothing).
+- **Hero slice**: a hero dropdown that RE-AGGREGATES from the raw rows rather than filtering finished tables —
+  a hero's card stats are only meaningful when the denominators (offer counts, run totals, the curve) are that
+  hero's too. Needs no new capture; works on existing data today.
+
+Tests: `placementReport.test.ts` — per-card averages + 1st/8th rates, legacy rows contributing nothing (the
+drift guard), null-not-zero with no sample, hero credit on the pick only, and the per-placement curve series.
+Full gates green (3621).
+
+## 2026-08-02 — Runefire names its recast; Lazarus + Copycat art; Copycat pinned unfindable
+
+- **Runefire** now names the spell it will recast at End of Turn ("cast **{{Spirit Fire}}** — the last Shop
+  spell you cast this turn — again"), joining the Recaller/Spellvault helper family (`copyCastSpellText`,
+  reading the already-threaded `lastSpellThisTurnName`). Printed text stands until a spell exists to name.
+- **Lazarus re-wired to the NEW portrait** (Set 2 Minions/Neutral). Hazard closed on the way: the quest-reward
+  folder still holds the OLD `Lazarus.png`, and that job runs later — so the stale file silently won the slot.
+  `wire-art` jobs gain a per-job `skip` set; the quest-reward job skips `lazarus`.
+- **Copycat art re-wired** (updated `Spells/Copycat.png`).
+- **Copycat is rune-granted ONLY** (owner rule): verified every drawable path — shop pools, the spell
+  Discover, every "random Shop spell" grant, Quick Study, the Codex — all route through `poolOf().spells`,
+  which filters `!token`. Pinned by test on both sets' `buyable` + `spells` pools, so a future pool builder
+  that forgets the token filter fails before a Copycat leaks.
+
+Full gates green (3610).
+## 2026-08-02 — Ales ignored spell power (owner board report) — the last two stat-spell factories fold it now
+
+Owner report with screenshots: at +1/+1 spell power, a Defensive Ale landed its printed +0/+4. Not
+retroactivity — `spellBuffRandomFriendlies` (Defensive / Bloody Ale) simply never read the run's spell bonus.
+The audit swept every stat-granting spell factory: exactly TWO skipped the fold — that one and
+`spellBuffLeftmost` (Champion's Ale). Both now fold spell power under `spellBuffTarget`'s rule (either
+component > 0 → both halves fold), and `spellDisplayText` gains their display branches so the printed number
+goes live too (Defensive Ale at +1/+1 power reads "{{+1/+5}}"; Bloody "{{+5/+1}}"; Champion's "{{+7/+7}}").
+`spellBuffTavern` (an Apples Choose-One branch) stays flat deliberately — the Crest of the Climb precedent
+(Choose-One option text isn't greened). Everything else already folded: Growth, Spirit Fire, Shatter, Patch
+Job, Front to Back, Hoardflame, Lantern Light/of Souls, Staff of Guel, Fleeting Vigor, Implosion.
+
+Tests: cast-side (+1/+5 landing on the owner's exact shape, +7/+7 leftmost) + display-side (all three live
+pairs, un-greened at zero power). A fixture lesson pinned in a comment: three identical board minions TRIPLE
+after the cast and eat the uids. Full gates + harness green (3615).
+
+## 2026-08-02 — Copycat spell art wired
+
+`Spells/Copycat.png` → the Copycat gift spell, strict name match. (The rune TABLETS for Rune of Copycat and
+Rune of the Mammoth still use the fallback emblem — no art files yet; next art pass.)
+
+## 2026-08-02 — Two audits: rune-modified card text goes live everywhere; combat accruals tick in real time
+
+**Audit A — runes that modify a card's RULE (owner ask, generalizing the Rune of the Mammoth pattern).**
+Swept all 96+ runes for ones that change how a SPECIFIC card behaves. Found four whose card kept printing the
+un-modified rule; each now carries a green live note on every surface (a `runeModifiedNote` post-pass over the
+shared text chain, so it composes with every value-injecting helper and reaches shop, board, hand AND combat):
+
+- **Runebloom Matriarch** + Rune of the Matriarch → "Triggers twice."
+- **Ruby Broker** + Rune of Brokerage → "No per-turn limit" (the printed "(three times per turn)" was wrong).
+- **Gemheart Golem** + Rune of Living Treasure → the granted Echo is now printed on the token.
+- **Facetwright's Choice** + Rune of Facetwright → "Gives BOTH effects."
+
+Already-live and verified in passing: Rune of the Mammoth (yesterday's pattern), Rune of Pillaging (Gold
+Pouch value), Rune of Mastery's accrual doubling (folds through the accrued values). Quests: none currently
+modify a specific card's printed rule (they grant cards or arm combat flags) — nothing to do there.
+
+**Audit B — combat accruals must tick the card text in real time (owner report: Mammoth frozen mid-fight).**
+The replay folds `improve` events into the unit's live `summonBonus`; a factory that mutates the accrual
+WITHOUT logging freezes its printed value. Enumerated every accrual-writing combat factory against its logs:
+
+- **Silent accruers, FIXED** (now log `improve`; the event gains an optional `display` for cards whose
+  narrated step differs from the folded delta — Mammoth logs amount 1 proc / display +3):
+  **Menagerie Mammoth** (the report), **Broodwright**, **Rouge Rogue**, **Thundeer**, **Hunter**.
+- **Mammoth also now honours Rune of Mastery** (its Improve doubles like Kennelmaster's — it silently didn't).
+- **Already correct**: Kennelmaster/Oona/Sovereign/Karthus/Crypt Drake/Trophy Stalker/Monk (improve),
+  Guel/Runescale/Tara (spellProgress), Sergeant (hpGrant), Thundering Abomination (EG permaGain fold).
+- **Two more ORPHANED factories deleted** (schema-registered, zero cards — the Rouge-Rogue hazard class):
+  `rallyImproveSummonAura`, `deathrattleBuffImpsImproving`.
+- Replay narration now reads "X's effect improves (+N)" off `display` and stays quiet on 0-display ticks.
+
+Tests: `improveEvents.test.ts` (Mammoth proc+display, Thundeer, Hunter through real fights),
+`runeNotes.test.ts` (all four notes + no-leak). Full gates + harness green (3606).
+
+## 2026-08-02 — Mammoth back to +3 Attack; Rune of Copycat (the first GIFT spell); Rune of the Mammoth
+
+- **Menagerie Mammoth** (owner, third pass today): back to ATTACK-only — +3 Attack, improving by +3 per
+  summon (gilded +6 / +6). The factory keeps the procs shape; the live-text helper returns to the
+  "+N Attack" form.
+- **Rune of Copycat** (epic, 5): "Get a **Copycat**" — the first GIFT spell. A targeted token that copies a
+  friendly minion EXACTLY (stats, buffs, keywords, gilding, every per-instance accrual — a `structuredClone`
+  with a fresh uid). Deliberately NOT a Shop spell: a new reducer gift branch resolves it once — no
+  Yazzus/Nimbus/Ancient-Runes multipliers, no cast bookkeeping, no spellCast watchers, no
+  Gemscript/Cadence/Contraband riders — and it still counts as a card played. **Design note:** the gate is a
+  new `CardDef.gift` flag, NOT `token` — the first draft gated on `token` and silenced Implosion's Nimbus
+  doubling (Implosion is a token that IS a real Shop spell; the existing test caught it).
+- **Rune of the Mammoth** (epic, 4): Menagerie Mammoths also give Health, 1:1 — +3/+3 improving +3/+3
+  (gilded +6/+6). A `runeMammoth` combat flag threaded like the Matriarch's (`mammothHealthFor` ctx accessor),
+  and the Mammoth's live text goes symmetric on every surface the moment the rune is owned — including at
+  zero procs, where the printed "+3 Attack" would under-sell the real +3/+3.
+
+Both runes marked epic (they live in the Epic forge roster) — flag if either should be basic. Tests: Mammoth
+Attack-only + the rune's 1:1 in combat; a 5-test Copycat suite (exact copy incl. gilding + accruals, the
+not-a-Shop-spell contract with a surviving Nimbus charge, fizzle, full-hand, def shape). Full gates + harness
+green (3602).
+
+## 2026-08-02 — Mid-combat casts feed every spell-cast watcher (the Fatecarver audit)
+
+Owner report + audit ask: Fatecarver's Growth casts should proc Runebloom Matriarch, stack Thunderous
+Sovereign, etc. The audit enumerated every `on: 'spellCast'` effect and checked which had a COMBAT half:
+
+- **Already worked** (combat halves existed): Guel, Scalechanter's combat half, Spirit Worgen/Runescale's own
+  channels, Undead spell-attack, `spellCastBuffAll`, and — notably — **Thunderous Sovereign's accrual**
+  (`onSpellCastImproveSummon` has a core half + the per-uid carry-back); now pinned by test.
+- **Missing combat halves, FIXED**: **Runebloom Matriarch / Runekeg** (`onSpellCastBuffRandomTribe` — the
+  owner's board; combat casts now buff N random living tribe members, Rune of the Matriarch doubling threaded
+  into combat via a new `runeMatriarch` mod + `matriarchRepsFor` ctx accessor) and **Fatecarver's own branch
+  A** (`onSpellCastBuffOnePerTribe` — one living minion of each type per cast, board-order deterministic).
+- **Deliberately recruit-only** (shop-bound semantics, reported to the owner rather than forced): Ashscribe
+  ("first Shop spell each TURN" — turn bookkeeping), Spell Warden ("second spell RECASTS the first" — replaying
+  a shop spell mid-fight has no meaning for most shop spells), High King Mykel (threshold triggers adjacent
+  SHOUTS — a recruit mechanic; a combat half could ride the War Chorus machinery if ever wanted).
+
+Tests (`core/combat/spellCastWatchers.test.ts`): Runebloom procs per cast, Sovereign accrues + carries back,
+branch A procs off another caster's spell — the two new halves fail without the fix (stash-verified). Full
+gates + harness green (3596). Also this session: PR #791 (accounts spec) closed per owner — multiplayer scope
+shifting, to be re-evaluated.
+
+## 2026-08-02 — Facetwright grants immediately, Gemcutting 1 Gold, all 27 hero portraits re-wired
+
+- **Rune of Facetwright** (owner fix): the first Facetwright's Choice lands the moment the rune is bought — it
+  used to arrive only at the first recurring payout. Text corrected too: the recurring grant fires at **end**
+  of turn (`recurringEndOfTurn`), not "start of every turn" as printed. New text: "Get a Facetwright's
+  Choice. Repeats at end of turn. They give both effects."
+- **Rune of Gemcutting** 4 → **1 Gold**.
+- **Hero portraits**: `wire-art` gains a HEROES job (indexed by hero name AND id, so pre-rename files —
+  BaggerBen.png → Rascal, Tradesman.png → hermithank, Yirin.png → rohan — land without aliases; the "Hero
+  Powers" / "Old Artstyle" subfolders are deliberately unlisted). All 27 portraits matched, 0 unmatched,
+  re-wired at the standard 512² png+webp pair.
+
+## 2026-08-02 — Gilding never resets an accrual again: the registry becomes a universal rule
+
+Owner report: Menagerie Mammoth's buff reset when tripled — "I thought we put a global rule fixing this."
+We did, on 2026-07-31 — but it was an OPT-IN registry (`ACCRUES_SUMMON_BONUS`), so every accruing effect
+added after it silently inherited the reset bug. The requested parse of the card base found **four leakers**:
+
+- **Menagerie Mammoth** (`onSummonTribeBuffImproveSelf`) — the report,
+- **King Oona** (`onSummonTribeBuffThenDouble` + `avengeImproveSummon`),
+- **Broodwright** (`onSummonImpBuff` + `avengeImproveSummonBuff`),
+- **Trophy Stalker** (`rallyTribeAuraGrowing`).
+
+The registry is deleted. The merge's fallback is now UNIVERSAL: any copy carrying a nonzero `summonBonus`
+keeps it through gilding (top-two combined, the Karthus / Crypt Drake precedent), with exactly two exclusions
+— Flowing Monk and Runescale Drake, whose accruals merge through their own fields (`overflowBonus` /
+`spellProgress`; the 07-31 double-count bug is why). A future accruing card is covered the day it ships.
+`tripleAccrual.test.ts` pins all four leakers (each FAILS on the old registry, stash-verified) + the
+no-accrual-stays-unset case.
+
+Also: **Rune of Taurus** (epic, 3 Gold — get the set-1 Taurus, same named-minion shape as Rune of Yazzus;
+grants from `CARD_INDEX` so it works in a set-2 run, and the forge hover shows the card via the existing
+preview audit). And **Lastlight's new art** wired (`Neutral/Lastlight.png`, strict name match).
+
+## 2026-08-02 — Beast/Kobold balance batch: Mammoth, Oona, Scavenger rework, two removals
+
+**Follow-ups (same day):** Mammoth reduced again to **+1/+1 improving +1/+1** (gilded +2/+2). Ninja Pal's art
+wired (`NinjaPal.png` → `b2_ninjapal`, strict name match). And a wiring hazard found + closed: with set-2's
+Whelp deleted, its attributed `Whelp.png` exact-matched set-1's token (ALSO named "Whelp") and overwrote that
+token's existing art on the next `art:wire --apply`. Reverted, and `wire-art` gained a RETIRED set — source
+files attributed to a removed card are skipped outright rather than re-owned by name-accident.
+
+Owner batch:
+
+- **Menagerie Mammoth** — asymmetric now: +2/+1, improving by **+2/+1 per summon** (gilded +4/+2 both ways).
+  The factory (`onSummonTribeBuffImproveSelf`) moves to the procs-and-per-stat-steps shape Oona already used;
+  `summonBonus` counts procs (still carried back per body). The live-text helper follows.
+- **King Oona** — the flat grant is **+1/+2** and each Avenge improves by **+1/+2** (per-stat steps in the
+  existing factory; data-only). `improvingSummonText` reads the steps (Broodwright's defaults unchanged).
+- **Moonlit Scavenger** — reworked from the Avenge tribe-buff to **T4 4/5, Avenge (4): summon a 4/1 Ninja Pal
+  that attacks immediately** (reuses Steadfast Champion's `avengeSummonAttack` verbatim; GOLDEN summons a
+  gilded Pal). New `b2_ninjapal` token. The old `avengeBuffTribeLasting` factory became orphaned → deleted
+  (id, schema entry and all — the Rouge-Rogue rule).
+- **Tamer removed** (and its now-orphaned `n2_whelp` token with it). **Lancel removed** (and its orphaned
+  `scShieldAttackLeftmostTribe` factory).
+- **Storm Chaser** T2 → T3.
+- **Kennelmaster** — back to base **+1 Attack improving +1** per Avenge (gilded reads +2 improving +2 via the
+  doubling); the 07-25 "+2 improving +2" plain values were too much.
+
+16 stale test pins updated across six files; a new Scavenger/Ninja-Pal test pins the summon + the immediate
+strike. Process note for the log's honesty: a broad-regex factory deletion briefly gutted `factories.ts`
+(caught by the 252-test failure wall, restored from git, re-applied with exact anchors — the diff ends at the
+intended −42 lines). Full gates + harness green (3588 tests).
+## 2026-08-02 — Ruby strength is read LIVE mid-combat (Crownvein → Gemstorm/Mineral Master)
+
+Owner report, from a test board: Crownvein Vanguard's Rally buffs your Rubies, but the Rubies played later in
+the SAME combat (Gemstorm Instigator's Avenge, Mineral Master's Rally, Rune of Attacking Gems) minted at the
+pre-combat snapshot. The disconnect: `gainRubyBonus` accumulated into a settle-time carry-back only, while
+`rubyBonusFor` — the value every in-combat Ruby mints at — read the static side state.
+
+Fix (`simulate.ts`): the gain accumulates PER SIDE and `rubyBonusFor` folds it in on every read — base (the
+run's Ruby strength at combat start) + everything gained so far this fight. Consequences, all deliberate:
+
+- A Rally that buffs Rubies raises the very next in-combat Ruby play — including the Ruby played on the SAME
+  swing (Rally fires on onAttack before the ruby-play blocks read the value).
+- An ENEMY Crownvein now grows the enemy's own later Rubies too (its gains used to be dropped entirely at the
+  player-only early return); only the player half carries back via `playerRubyBonusGain`, as before.
+- The Ruby Power telegraph now also shows on enemy gains.
+
+Tests: new `core/combat/liveRubyPower.test.ts` — same-swing mint at the just-buffed value, climbing per swing,
+base+live folding, enemy-side growth with no player carry-back. All three FAIL on the old code (stash-verified).
+Full gates + harness green (3591 tests).
+
 ## 2026-08-01 — Rubies detonate on the minion they land on (`ruby-gem-apply`, wired shop + combat)
 
 The owner's own workbench authoring, wired to the moment it was made for. `ruby-gem-apply` is two gemshard

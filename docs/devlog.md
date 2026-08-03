@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-08-03 — Alignment strip taken out of layout flow (it was nudging the warband)
+
+Owner report: "the eclipse bar is moving minions around in shop phase." The strip was a normal-flow child of
+the warband zone, so mounting it (the first Celestial hitting the board) pushed the card row down — every
+minion nudged, and again in reverse when the last Celestial left. Now absolutely anchored to the zone's
+bottom-padding band (the zone is `position: relative`), half-proud of the row's underside — appearing and
+disappearing occupies ZERO layout space.
+
+Verified live by measurement: the warband row's top is IDENTICAL to the sub-pixel (342.828125 → 342.828125,
+delta 0) with the strip mounted and after selling the Celestial away; the strip sits below the card line.
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3683 tests ✓, `build:web` ✓.
+
 ## 2026-08-03 — Alignment HUD tuner + sparks; four more Celestials; set 3's shared spells; glass henchman button
 
 Four owner asks in one pass, stacked on the Celestials branch.

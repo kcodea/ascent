@@ -7068,9 +7068,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    STATIC paint that repaints solely when the board or a tuner dial changes — never a looping paint animation
    (see docs/performance.md). */
 .alignhud {
-  position: relative;
+  /* OUT OF FLOW (owner report 2026-08-03: "the eclipse bar is moving minions around") — the strip used to be
+     a normal-flow child of the warband zone, so mounting it pushed the card row down and every minion nudged
+     the moment a Celestial appeared. Absolutely anchored to the zone's bottom edge instead (the zone is
+     position:relative), so appearing/disappearing occupies ZERO layout space and the row never moves. The
+     zone's own padding-bottom (~13% of a card) is the band it floats in. */
+  position: absolute;
+  bottom: calc(var(--ah-width, 12px) * -0.5); /* rides the zone's bottom-padding band, half-proud of it */
+  left: 50%;
+  transform: translateX(-50%);
   width: var(--ah-length, 100%);
-  margin: 6px auto 0;
   height: calc(var(--ah-width, 12px) + 10px);
   opacity: var(--ah-opacity, 1);
   pointer-events: none;

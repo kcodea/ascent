@@ -128,8 +128,10 @@ Reads as: *card acts → wave crosses the board → everyone got two.*
 
 ## Implementation note
 
-The sweep offset is `recipientIndex × gap + repeatIndex × beat`. The current code has only the first half.
+The sweep offset is `recipientIndex × gap + repeatIndex × beat`. **Shipped for the Ruby cue** (#816, with
+#828 supplying the count the engine had been discarding): gap 100, beat 50, in both the shop cue and the
+combat channel.
 
-"Walk an effect across N things with an offset" has now been hand-rolled three times — the shop Ruby cue,
-the combat `rubied` fan-out, and now stacks — and the CSS card layer would be a fourth. It should be one
+Still owed: "walk an effect across N things with an offset" has been hand-rolled three times — the shop Ruby
+cue, the combat `rubied` fan-out, and stacks — and the CSS card layer would be a fourth. It should be one
 parameterised primitive. See [`fx-workbench-friction.md`](fx-workbench-friction.md).

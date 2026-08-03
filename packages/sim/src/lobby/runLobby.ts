@@ -186,8 +186,16 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // a restored or replayed lobby is identical.
   const available = playerRunsFrom(undefined, undefined, setId);
   const maxSnapshotSeats = Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
+  // The walk below strides through the ordered run list so consecutive seats aren't adjacent entries. A stride
+  // only enumerates the WHOLE list when it is COPRIME with the list length — and 7 shares a factor with every
+  // multiple of 7, so `(seed + i * 7) % 7n` folded onto just n distinct runs: a pool of exactly 7 reached ONE
+  // run, 14 reached two, and so on. Since the pool grows by a run per finished upload, a table that had been
+  // seating plenty of real players would suddenly seat one or none the moment the pool size crossed a multiple
+  // of 7 — which reads as "this lobby randomly has no player snapshots" (owner report 2026-08-03). Falling back
+  // to a stride of 1 there keeps the walk a true permutation; every other size keeps the decorrelated stride.
+  const stride = available.length % 7 === 0 ? 1 : 7;
   for (let i = 0; i < available.length && picked < r.seatCount - 1 && seats.filter((x) => x.kind === 'snapshot').length < maxSnapshotSeats; i++) {
-    const run = available[(seed + i * 7) % available.length]!;
+    const run = available[(seed + i * stride) % available.length]!;
     if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
     // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
     // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author

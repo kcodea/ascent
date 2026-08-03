@@ -1686,7 +1686,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length).toBe(8);
   });
 
-  it("Bane reacting to Ryme's battlecry trigger carries the Fodder enchant back to the run", () => {
+  it("Bane reacting to Ryme's battlecry trigger carries the IMP enchant back to the run", () => {
     const board = (baneGolden: boolean) => [
       { cardId: 'ryme', attack: 5, health: 1 },        // dies → triggers the neighbour's Battlecry
       { cardId: 'alley', attack: 0, health: 100 },     // battlecry neighbour (Alleycat)
@@ -1694,9 +1694,11 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'fred', attack: 1, health: 100 },      // a living Fodder body (also buffed this combat)
     ];
     const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
-    // One trigger → Bane fires once → the run-wide Fodder enchant carries back (like the Imp buff does).
-    expect(run(board(false), omen, 1).playerFodderBuffGain).toEqual({ attack: 2, health: 2 });
-    expect(run(board(true), omen, 1).playerFodderBuffGain).toEqual({ attack: 4, health: 4 }); // golden Bane doubles
+    // One trigger → Bane fires once → the run-wide IMP enchant carries back. Owner rework 2026-08-03: Bane
+    // is Imps-only, so the Fodder carry-back must now be ABSENT (the factory's fodder half is opt-in).
+    expect(run(board(false), omen, 1).playerImpBuffGain).toEqual({ attack: 3, health: 3 });
+    expect(run(board(true), omen, 1).playerImpBuffGain).toEqual({ attack: 6, health: 6 }); // golden Bane doubles
+    expect(run(board(false), omen, 1).playerFodderBuffGain ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 });
   });
 
   it('Ryme re-firing a Discover Battlecry grants the ACTUAL card — a toHand event + a playerHandGrant', () => {

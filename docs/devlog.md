@@ -26,6 +26,123 @@ Verified: 5 new tests (ungilded 1×, gilded 2×, stat total exactly double, targ
 `rubyBonus` applied per Ruby). Full gate: typecheck clean, lint 0 errors, **3639 tests**, `build:web` OK.
 Un-skips the gilded test in #816 once both are on main.
 
+## 2026-08-03 — Brisbane hits every Kobold; Bane is Imps-only; Balance Report buys captured live
+
+- **Alchemist Brisbane — End of Turn now plays a Ruby on EVERY friendly Kobold** (owner ruling). It used to
+  pick ONE at random, which is why it read as "not working": on a wide board the whole effect was a single
+  silent +2/+2 somewhere in a line of seven. The factory drops its RNG entirely, so it also stops consuming
+  the run cursor. Text updated on both faces ("on **each** of your Kobolds").
+- **Bane reworked** (owner): +3/+3 to your **Imps** on each triggered Shout, and it no longer touches Fodder
+  (was +2/+2 to Fodder *and* Imps). Implemented by making the Fodder half an **opt-in `fodder` param** on
+  `onBattlecryBuffFodder` in BOTH halves (recruit + combat) rather than deleting it, so the primitive stays
+  available; Bane simply stops asking for it. The combat carry-back follows — `playerFodderBuffGain` is now
+  absent for Bane, `playerImpBuffGain` carries the +3/+3.
+- **Set-1 Demon art wired.** `wire-art` had **no job for `Set 1 Minions` at all** — those portraits had only
+  ever been hand-dropped. Added one scoped to `Demons` (the owner's ask), placed FIRST in the job list so a
+  set-2 file always wins a name collision; the other set-1 dirs stay unwired until audited, because wiring
+  them blind is exactly the silent-overwrite failure `RETIRED` exists to prevent. 20 of 21 files matched by
+  strict name; 18 portraits changed. `Fodder.png` is unmatched and reported, never guessed.
+- **Balance Report — two confirmed defects + one removed failure class** (owner: "I literally just played a
+  game where I bought Sunmanes"):
+  1. **`fetchRunTelemetry` never selected `placement`.** It was written by the insert but not read back, so
+     every placement column (Avg Place, 1st %, 8th %, placed n) was empty no matter how many lobby runs were
+     recorded — and `runWon` lost its authoritative signal. Added to the select, with the pre-migration
+     fallback ladder extended to strip it.
+  2. **The insert fallback ladder could never reach the ground.** `placement` was added to `base`, which
+     every fallback spreads — so on a DB without that column all three attempts failed identically and the
+     row was silently lost entirely. The final rung now drops it.
+  3. **Acquisitions are now captured LIVE** (`TelemetryLog` / `recordTelemetryAction` / `withLiveTelemetry`)
+     instead of re-derived by replaying the run. This is the same doctrine `saveCapturedBoards` already
+     applies to boards: `saveRunBoards` REFUSES to replay a lobby run because it diverges from the first
+     combat, yet telemetry was replaying one anyway. A divergence there is silent and **asymmetric** —
+     sightings are recorded before `reduce`, so they survive, while a buy is only recorded if the replay's
+     `reduce` accepts it — which produces exactly "every card seen, nothing ever bought". The log mutates in
+     place (zero allocation per action, and nothing subscribes to it) and rides in the save file beside
+     `boards`, so a quit-and-resume doesn't lose the buys made before the reload.
+
+  Honest scope note: I could NOT reproduce the empty-buys condition — `reconstructRunTelemetry` matched a real
+  lobby run's buys exactly in every probe I ran (6 waves, natural gold, seeds 777/12345). Defects 1 and 2 are
+  proven by reading; defect 3 removes the class rather than a confirmed instance, and is the right design here
+  regardless.
+- **Verified** — new `liveTelemetry.test.ts` (6 tests: live buy capture, a rejected buy recording the sighting
+  but not the purchase, lingering-offer dedupe, and the live log overriding a reconstruction that lost the
+  buys) plus Brisbane's all-Kobolds pin. Four existing pins updated to the new rulings (3 Bane, 1 Brisbane).
+  Gates: typecheck ✓, lint ✓ (7 pre-existing warnings), 3646 tests ✓, `build:web` ✓, harness determinism ✓.
+
+## 2026-08-02 — The Compendium's "card shadows" were the plates; the grid gets a dark surface
+
+Owner question: grey rectangles behind every Compendium card. Diagnosed, not guessed — the plate `<img>`s
+load fine (800x1244) and a pixel sample of the art comes back FULLY OPAQUE brown-grey at every edge
+(rgba(126,108,96,1)). So the "shadows" are the card PLATES themselves, added in #819 for "card backs shown
+just like in game": an opaque stone slab 170x264 behind a 113x198 card. In hand that reads as carved framing
+because the board behind it is dark; on the book's pale surface the same slab reads as a grey rectangle
+sticking out on all four sides.
+
+Fixed by giving the card GRID a dark surface of its own rather than dropping the plates — the owner's ask was
+"like in game", and the plate only misreads because of the backdrop. Scoped to `.book-grid`, so the rail,
+header and glossary keep the book's light treatment.
+## 2026-08-02 — Card-played Rubies notify their target; Brisbane / Mineral Master investigation; Karwind art
+
+- **Investigated the owner's two reports; both mechanics resolve correctly, and the trace is in the PR.**
+  - *Alchemist Brisbane's End of Turn* fires: `endOfTurnPlayRuby` is registered in all three places and
+    `applyEndOfTurn` reaches it. A probe board (Brisbane + 2 Kobolds) shows the Ruby landing, and the
+    recruit-screen step projection carries a beat for it.
+  - *Mineral Master's Rally ordering* is already the beat the owner described. Every on-attack effect runs
+    inside `bus.emit('onAttack')`, which is **above** the damage phase, and the damage phase reads
+    `attacker.attack` live — so a rallying Kobold hits with its POST-Ruby Attack. A seeded trace confirms it:
+    the rallying body's swing lands for 7 (5 base + a 2/2 Ruby) in the same step the Ruby buff is emitted.
+    The replay agrees — `buildBeats` absorbs `buff` into the attack's WIND-UP beat, so the Ruby pops during
+    the lunge and the impact is the next beat.
+- **The real defect the investigation turned up: three card-played Ruby paths never notified their target.**
+  `fireOnRubyPlayed` is what makes a Ruby a *play* rather than a stat bump — it bumps the target's
+  `rubiesOnThisTurn` and fires that target's own `onRubyPlayed` effects (Ruby Broker's Gold, Resonance Idol's
+  bounce). Three factories skipped it, so their Rubies were invisible to the whole Ruby engine:
+  **Alchemist Brisbane** (End of Turn), **Frenzied Excavator** (Shout: a Ruby on every friendly) and
+  **Candle Conduit** (when you get a Ruby, cast one). All three now fire it. This is almost certainly what
+  read as "Brisbane's End of Turn isn't working" on a Ruby-engine board. `rubyPlayedBounce` (Resonance Idol)
+  deliberately still skips it — that guard is what stops a bounce cascading into itself.
+- **Verified** — new `packages/sim/src/rubyPlayWatchers.test.ts` pins all three, using Ruby Broker's Gold as
+  the probe ("did the target hear about it"). Confirmed as a negative control: all three fail on the pre-fix
+  code. Gates: typecheck ✓, lint ✓ (7 pre-existing warnings), 3640 tests ✓, `build:web` ✓, harness
+  determinism ✓.
+- **Art** — re-wired Karwind's refreshed portrait from the Dragons folder (the only file that changed).
+
+## 2026-08-02 — Free-refresh count on the coin; Rune of Quick Study bounded to 2 turns
+
+- **Free refreshes left** (owner ask): the Refresh crystal's green 0 coin now carries the BANKED count as a
+  small `x2` beside it. Shown only from TWO up — at exactly one free roll the green 0 already says "this one
+  is free", so a `x1` would be noise. The count rides inside the coin so the badge keeps one shape (the same
+  reason the coin never disappears on a free roll — owner call 2026-07-21). Tooltip + aria-label carry it too.
+- **Rune of Quick Study** (owner rebalance): "Get a Gold Font and 2 random spells at End of Turn, for the next
+  **2 turns**" — it used to recur for the whole run. Implemented generally rather than as a special case: a
+  `recurringEndOfTurn` reward may now carry `turns`, which routes it into a new `questRecurringLimited` list
+  that ticks down per End of Turn and drops out at 0. Every other recurrence keeps the simple unbounded list
+  untouched. The tick is ONCE PER TURN, not once per Chronos repeat — a doubled End of Turn would otherwise
+  burn the limit twice as fast.
+
+Tests: `quickStudyTurns.test.ts` — grants on turns 1 and 2 then never again, an unbounded rune still uses the
+run-long list, and the def ships `turns: 2` with the new text. The pre-existing Quick Study pin updated to the
+new shape. Full gates + harness green (3637).
+
+## 2026-08-02 — Two Dwarf renames + a Dragon/Dwarf art pass
+
+- **Quartermaster Dorrin → Baby Gastrid** and **Closing-Time Foreman → Kringle** (owner). Ids unchanged
+  (`dw_dorrin`, `dw_foreman`) — saved runs and pool boards store ids, so a rename must never touch them. Both
+  new portraits wired by strict name match. The retired names are gone from the code's COMMENTS too (recruit
+  factories, the reducer's Ruby-count note, two cardText helpers, instView) so nothing reads as a stale card.
+- **Dragon art re-wired** as it stands in the folder — the changed files landed (Runefire, Spell Warden) plus
+  `Karwind2.png` as the `karwind2` variant slot.
+- Two aliases added for attributed files whose names don't match their card: `JensenAndFi.png` (the card is
+  "Jensen & Fi" — the `&` normalises away, and the old alias only covered the pre-rename "Jenkins" filename)
+  and `Sylus.png` (the card is "Sylus the Reaper"). Both had silently NOT been landing.
+- Audited the five alias-routed Dragon files against the CURRENT card names before applying — Commander
+  Warpath, Earthbreaker, Mushy, Scalefeather and Water Dragon all still resolve to the right cards (their ids
+  simply predate renames). Worth doing: a stale alias mis-assigns art silently.
+
+Still unwired on purpose: `Blu.png`, `Bucky.png` and `content1544.png` (no matching card), plus files for
+removed/renamed cards (Lancel, Tamer, Hoardmaster Krik, EchohornStag, QuartermasterDorrin).
+
+Full gates green (3634).
 
 ## 2026-08-02 — Bane's Presence art wired — quest coverage is now 103/103
 

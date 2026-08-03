@@ -1315,10 +1315,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (per <= 0 || (a <= 0 && h <= 0)) return;
     // N SEPARATE Rubies, not one Ruby of N× magnitude. The stats are identical either way (per × (1+rb) is
     // the same total), but the trigger count is not, and "play 2 Rubies" has to mean two: a gilded Excavator
-    // now pays a Ruby Broker twice and bounces a Resonance Idol twice, and the board can show two gems.
-    // This is what `spellPlayRubiesAll` (Ruby Excavation) already does — the two implementations of the same
-    // sentence had drifted apart, and this one also skipped `fireOnRubyPlayed` entirely, so the targets'
-    // on-Ruby effects never fired at all.
+    // pays a Ruby Broker twice, bounces a Resonance Idol twice, and the board can show two gems.
+    //
+    // `fireOnRubyPlayed` tells the target its own `onRubyPlayed` effects fired and moves its `rubiesOnThisTurn`
+    // counter. `main` added that call here independently (owner report 2026-08-02, via Alchemist Brisbane —
+    // three card-played paths landed the stats and nothing else, so a Ruby-engine board read them as no-ops);
+    // this keeps it and makes it fire once PER RUBY rather than once per card.
+    //
+    // `spellPlayRubiesAll` (Ruby Excavation) already looped — the two implementations of the same sentence had
+    // drifted apart, and only one matched its printed text.
     for (const c of [...ctx.state.board]) {
       for (let r = 0; r < per; r++) {
         addBuff(c, 'Ruby', a, h);
@@ -1354,24 +1359,34 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const target = pool[rng.int(pool.length)]!;
       state.rngCursor = rng.state();
       addBuff(target, 'Ruby', ra, rh);
+    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
+    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
+    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
+    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
+      fireOnRubyPlayed(state, target, ra, rh);
     }
   },
 
-  /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on a
-   *  random friendly `tribe` minion (× golden). Deterministic (run rngCursor). */
+  /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on
+   *  EVERY friendly `tribe` minion (× golden). Owner ruling 2026-08-03: it hits ALL your Kobolds — it used to
+   *  pick ONE at random, which is why it read as "not working" on a wide board (a single silent +2/+2
+   *  somewhere in a line of seven). No RNG at all now, so it also stops consuming the run cursor. */
   endOfTurnPlayRuby: (ctx, self, params) => {
     const state = ctx.state;
     const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
     const ra = 1 + bonus.attack;
     const rh = 1 + bonus.health;
     const tribe = str(params.tribe);
+    const targets = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
     for (let c = 0; c < num(params.count, 1) * gold(self); c++) {
-      const pool = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
-      if (pool.length === 0) return;
-      const rng = makeRng(state.rngCursor);
-      const target = pool[rng.int(pool.length)]!;
-      state.rngCursor = rng.state();
-      addBuff(target, 'Ruby', ra, rh);
+      for (const target of targets) {
+        addBuff(target, 'Ruby', ra, rh);
+    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
+    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
+    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
+    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
+        fireOnRubyPlayed(state, target, ra, rh);
+      }
     }
   },
 
@@ -1481,7 +1496,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Quartermaster Dorrin (Shout, targeted): +Health per Gold spent THIS TURN — a tempo reward for shopping
+  /** Baby Gastrid (Shout, targeted; ex-Quartermaster Dorrin): +Health per Gold spent THIS TURN — a tempo reward for shopping
    *  before you play it, and it reads its live value on the card via `cardText`. */
   battlecryBuffTargetPerGoldSpent: (ctx, self, params, payload) => {
     const target = (payload as { target?: BoardCard } | undefined)?.target;
@@ -1491,7 +1506,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (h > 0) addBuff(target, nameOf(self), 0, h);
   },
 
-  /** Closing-Time Foreman (End of Turn): your LEFT-most minion of `tribe` gains +attack per card played this
+  /** Kringle (End of Turn; ex-Closing-Time Foreman): your LEFT-most minion of `tribe` gains +attack per card played this
    *  turn. Left-most rather than targeted, so you choose the recipient by arranging your line. */
   endOfTurnBuffLeftmostTribePerCard: (ctx, self, params) => {
     const tribe = str(params.tribe);
@@ -2721,8 +2736,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onBattlecryBuffFodder: (ctx, self, params) => {
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 1) * gold(self);
-    buffFodderRunWide(ctx.state, a, h, nameOf(self));
-    buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Bane now buffs Imps too
+    // `fodder` is OPT-IN (owner 2026-08-03: Bane buffs Imps only now). Left as a param rather than deleted
+    // so the Fodder half stays available to anything that wants both.
+    if (params.fodder) buffFodderRunWide(ctx.state, a, h, nameOf(self));
+    buffImpsRunWide(ctx.state, a, h, nameOf(self));
     // Bane's Existence (quest): the widen — also buff every Demon you have (board + hand) by the flag amount.
     const dem = ctx.state.baneBuffsDemons;
     if (dem && (dem.attack !== 0 || dem.health !== 0)) {
@@ -5663,6 +5680,16 @@ export function applyEndOfTurn(state: RunState): void {
   // conjure a random Shout minion). They're End-of-Turn effects too — repeated by Chronos/Parliament + counted.
   for (const eff of state.questRecurringEndOfTurn ?? []) {
     for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
+  }
+  // TURN-LIMITED recurrences (Rune of Quick Study: 2 turns). Fired the same way, then ticked down ONCE for
+  // the turn — not once per Chronos repeat, or a doubled End of Turn would burn the limit twice as fast.
+  const limited = state.questRecurringLimited;
+  if (limited?.length) {
+    for (const entry of limited) {
+      for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, entry.effect); fires++; }
+      entry.turnsLeft -= 1;
+    }
+    state.questRecurringLimited = limited.filter((e) => e.turnsLeft > 0);
   }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).

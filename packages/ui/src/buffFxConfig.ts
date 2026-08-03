@@ -19,7 +19,7 @@ import { DESCEND_PRESETS } from './descendPresets';
 export interface BuffFxConfig {
   waveGapMs: number;       // ms — MINIMUM gap between itemized waves (the readability floor)
   waveMaxTotalMs: number;  // ms — cap on the whole wave run; past this, the rest land together
-  waveMaxCount: number;    // MAX distinct waves; beyond this they coalesce (see coalesceWaves)
+  waveMaxCount: number;    // MAX distinct waves; beyond this they merge (fx/land.ts `maxGroups`)
   startHeight: number;     // px — how far above the card the descend ribbon starts
   dropMs: number;          // ms — the fall
   retractMs: number;       // ms — the ribbon withdrawing after it lands
@@ -113,30 +113,6 @@ export function waveGapFor(waveCount: number): number {
   return Math.min(c.waveGapMs, Math.floor(c.waveMaxTotalMs / (waveCount - 1)));
 }
 
-/**
- * Collapse a wave list down to at most `waveMaxCount` groups.
- *
- * Capping the total DURATION was not enough. `waveGapFor` divides the budget by the wave count, so the gap
- * collapses as the count climbs — and an Attachment build reaches counts nobody designed for: a Beatbot
- * mirrors every weld onto itself, so it can carry ~28 attachments while its neighbours have 4, and
- * "+2/+2 per Attachment" then emits one wave per attachment level:
- *
- * ```
- * waves=4  -> gap 150ms   (designed for)
- * waves=30 -> gap  31ms   (a strobe — the exact smear the pacing was added to fix)
- * ```
- *
- * So the COUNT is capped too: beyond `waveMaxCount` the remaining waves are merged into the last group and
- * land together. The totals are identical (this is presentation only) — you just stop seeing 30 separate
- * pulses on one card. Returns groups of the original wave indices, in order.
- */
-export function coalesceWaves<T>(waves: T[][]): T[][] {
-  const max = Math.max(1, Math.round(cfg.waveMaxCount));
-  if (waves.length <= max) return waves;
-  const out = waves.slice(0, max - 1);
-  out.push(waves.slice(max - 1).flat()); // everything past the cap pulses as one final wave
-  return out;
-}
 
 /**
  * Collapse buff-FX events to ONE per (wave, target). K Brightwing Brokers each capture a source→target tendril

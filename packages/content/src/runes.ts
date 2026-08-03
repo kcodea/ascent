@@ -278,6 +278,15 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeWarChorus' },
   },
   {
+    // Owner add 2026-08-02. A cheap tempo rune for spell builds: the shop-buff cast pays twice.
+    id: 'rune_distillation',
+    name: 'Rune of Distillation',
+    cost: 2,
+    text: 'Spells cast on **Shop minions** also cast on your **left-most** minion.',
+    sets: ['set2'], // casting on shop offers is a set-2 pattern (Rubies / offer-targeted spells)
+    reward: { kind: 'runeDistillation' },
+  },
+  {
     id: 'rune_facetwright',
     name: 'Rune of Facetwright',
     cost: 4,
@@ -806,6 +815,36 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   // ── Set 2 rune batch (owner roster 2026-07-29) — "get a named minion" runes. Each names a card that now
   // exists, so they are pure grants; the rest of the roster needs new reward kinds and is not shipped yet.
+  {
+    // Owner add 2026-08-02: sell-to-invest. The bonus stats are everything above the printed base, so a
+    // heavily-buffed body cashes out into the tavern rather than being lost.
+    id: 'rune_liquidation',
+    name: 'Rune of Liquidation',
+    cost: 4,
+    epic: true,
+    text: 'When you **sell** a minion, give its **bonus stats** to the **right-most Shop** minion.',
+    reward: { kind: 'runeLiquidation' },
+  },
+  {
+    // Owner add 2026-08-02: an extra attack every round, paid for by board ORDER — the two ends of your line.
+    id: 'rune_warpath',
+    name: 'Rune of the Warpath',
+    cost: 5,
+    epic: true,
+    text: 'After your **left-most** minion attacks, your **right-most** minion attacks.',
+    reward: { kind: 'combatFlag', flag: 'runeWarpath' },
+  },
+  {
+    // Owner add 2026-08-02: the Gold sink for a Ruby board — 10 Gold spent showers the whole line.
+    id: 'rune_gemspam',
+    name: 'Rune of Gemspam',
+    cost: 5,
+    epic: true,
+    text: 'When you spend **10 Gold**, play a **Ruby** on all of your minions.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 10, rubyAll: true },
+    sets: ['set2'], // Rubies are a set-2 mechanic
+  },
   {
     // Owner add 2026-08-02: a GIFT spell (not a Shop spell — see the token-gift branch in the reducer) that
     // copies a friendly minion EXACTLY: stats, buffs, keywords, gilding, per-instance improvements.

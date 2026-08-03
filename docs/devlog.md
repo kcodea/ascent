@@ -33,6 +33,34 @@ Tests: the three Oona pins rewritten — the wiring test now expects ONE effect 
 becomes "exactly one buff event, and it is the multiply" (a lingering +0/+0 grant would mean the cut half
 still fires); gilded reads +2/+2 on a 1/1 Pup (two extra copies of its own stats), not the old grant-then-
 multiply pair. Full gates + harness green (3621).
+## 2026-08-02 — Four new runes: Distillation, Liquidation, the Warpath, Gemspam
+
+Owner batch. Each reuses an existing primitive where one fit and adds the narrowest new hook where none did:
+
+- **Rune of Distillation** (basic, 2) — "Spells cast on Shop minions also cast on your left-most minion."
+  A REAL second cast through `castSpell`, so the left-most's own on-spell watchers (Mirrorwing, Runefire) see
+  it. Set-2 scoped: casting on shop offers is a set-2 pattern.
+- **Rune of Liquidation** (epic, 4) — "When you sell a minion, give its bonus stats to the right-most Shop
+  minion." Bonus = everything above the printed base, measured off the def (so buffs, Rubies and per-instance
+  improvements all count) and doubled-base-aware for a golden body. Nothing to give → nothing happens.
+- **Rune of the Warpath** (epic, 5) — "After your left-most minion attacks, your right-most minion attacks."
+  Combat flag + the existing immediate-attack queue. THREE guards, each load-bearing: the attacker must BE the
+  left-most living body; the right-most must be a different minion (a one-minion board would chain into
+  itself); and a re-entrancy latch stops the chained attack chaining again — without any of the three it is an
+  infinite loop.
+- **Rune of Gemspam** (epic, 5) — "When you spend 10 Gold, play a Ruby on all of your minions." A new
+  `rubyAll` payout on the existing `runeThreshold` meter, so it banks its remainder like every other threshold
+  rune. Plays a REAL Ruby (live 1/1 + the run's Ruby strength, firing each target's on-Ruby watchers), not a
+  silent stat bump.
+
+Art wired for all four (`RuneOf{Distillation,Liquidation,TheWarpath,Gemspam}.png`); the full rune folder was
+re-wired in the same pass. Rune of Copycat is now the only rune without art.
+
+Tests (`fourRunes.test.ts`, 9): Distillation spills to the left-most ONLY and is inert without the rune;
+Liquidation transfers the bonus (not the whole stat line) to the right-most offer only, and nothing from a
+base-stat body; Warpath chains the right-most ahead of turn order and a one-minion board resolves rather than
+hanging; Gemspam pays the live Ruby value on everyone and banks 9 Gold until the 10th. Plus the four defs'
+costs/forge tiers. Full gates + harness green (3630).
 
 ## 2026-08-02 — Compendium vertical room (the plate overhang), and the report table fits its columns
 

@@ -708,6 +708,16 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
   if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
   if (t.grantRuby) mintRubies(state, t.grantRuby);
+  // Rune of Gemspam: a Ruby PLAYED on every friendly minion (not minted to hand) — the same live 1/1 + the
+  // run's Ruby strength a hand-cast Ruby lands, and it fires each target's on-Ruby watchers so the play is
+  // real (Ruby Broker's Gold, Resonance's bounce) rather than a silent stat bump.
+  if (t.rubyAll) {
+    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    for (const c of [...state.board]) {
+      addBuff(c, 'Ruby', 1 + rb.attack, 1 + rb.health);
+      fireOnRubyPlayed(state, c, 1 + rb.attack, 1 + rb.health);
+    }
+  }
   const b = t.buff;
   if (!b) return;
   if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');

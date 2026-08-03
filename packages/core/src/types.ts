@@ -800,6 +800,8 @@ export type QuestReward =
   | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
+      /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
+      rubyAll?: boolean;
       oncePerTurn?: boolean }
   /** Rune of the Brokerage: your Ruby Brokers lose their per-turn cap. */
   | { kind: 'runeBrokerage' }
@@ -807,6 +809,10 @@ export type QuestReward =
   | { kind: 'runeSharedTable'; attack: number; health: number }
   /** Rune of Redirection: a Ruby played on your left-most minion also casts on your right-most. */
   | { kind: 'runeRedirection' }
+  /** Rune of Distillation: a spell cast on a SHOP minion also casts on your left-most board minion. */
+  | { kind: 'runeDistillation' }
+  /** Rune of Liquidation: selling a minion gives its BONUS stats to the right-most Shop minion. */
+  | { kind: 'runeLiquidation' }
   /** Rune of Facetwright: your Facetwright's Choice casts give BOTH halves instead of one. */
   | { kind: 'runeFacetwright' }
   /** Rune of Duplication: after you forge your Epic Rune, this becomes a copy of it — its reward applies a
@@ -1004,6 +1010,8 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // with a Sunmane Herald that strikes on arrival; warChorus = your first Rally each combat fires your
   // left-most Shout.
   | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus'
+  // Rune of the Warpath: the left-most minion's attack chains into the right-most's.
+  | 'runeWarpath'
   // Rune of the Mammoth: Menagerie Mammoths give Health too (1:1 with the Attack grant).
   | 'runeMammoth'
   // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
@@ -1137,6 +1145,8 @@ export interface QuestCombatMods {
   runeMatriarch?: boolean;
   /** Rune of the Mammoth: Menagerie Mammoths' grant is 1:1 symmetric (+3/+3 instead of +3 Attack). */
   runeMammoth?: boolean;
+  /** Rune of the Warpath: after your LEFT-most minion attacks, your RIGHT-most attacks too. */
+  runeWarpath?: boolean;
   /** Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit. */
   runeOverflow?: number;
   /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */

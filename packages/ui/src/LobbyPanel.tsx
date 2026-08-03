@@ -3,8 +3,10 @@ import {
   boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, playerOpponent, seatResults,
   type LobbySeatState, type RunLobby, type SeatIntel,
 } from '@game/sim';
+import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { floatLobbyDamageOnSeat } from './lobbyDamageFx';
-import { heroArt } from './art';
+import { heroArt, questArt, runeArt } from './art';
+import { mdBold } from './Card';
 import { Icon } from './Icon';
 
 /**
@@ -161,6 +163,45 @@ function ScoutCard({ lobby, seat, intel, at }: {
       ) : (
         // Honest about not knowing, rather than printing zeroes that look like a read.
         <div className="lobbyscout-empty">No intel yet</div>
+      )}
+      {/* ACTIVE QUESTS + RUNES (owner ask 2026-08-03) — what the seat is actually RUNNING, which is the part of
+          scouting that changes how you build against them. Same badge language as the opponent frame and your
+          own row, so one visual vocabulary covers every place a reward is shown; each carries its own hover. */}
+      {intel && ((intel.runes?.length ?? 0) > 0 || (intel.quests?.length ?? 0) > 0) && (
+        <div className="oppbadges lobbyscout-badges">
+          {(intel.runes ?? []).filter((id) => RUNE_INDEX[id]).map((id) => {
+            const rune = RUNE_INDEX[id]!;
+            const rart = runeArt(rune.id);
+            return (
+              <div className="questbadge runebadge" key={`r:${id}`}>
+                {rart
+                  ? <img className="questbadge-art" src={rart} alt="" aria-hidden />
+                  : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+                <div className="questbadge-tip" role="tooltip">
+                  <b>{rune.name}</b>
+                  <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+                  <span className="questbadge-tip-state">Rune · active</span>
+                </div>
+              </div>
+            );
+          })}
+          {(intel.quests ?? []).filter((id) => QUEST_INDEX[id]).map((id) => {
+            const def = QUEST_INDEX[id]!;
+            const qart = questArt(def.id);
+            const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
+            return (
+              <div className="questbadge" style={{ '--c': c } as React.CSSProperties} key={`q:${id}`}>
+                {qart
+                  ? <img className="questbadge-art" src={qart} alt="" aria-hidden />
+                  : <span className="questbadge-emblem" aria-hidden><Icon name="star" /></span>}
+                <div className="questbadge-tip" role="tooltip">
+                  <b>{def.name}</b>
+                  <span className="questbadge-tip-state">Quest · complete</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
       {/* A stale read is labelled instead of being passed off as current — the seat has not fought since. */}
       {stale && <div className="lobbyscout-stale">as of round {intel!.round}</div>}

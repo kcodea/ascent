@@ -59,6 +59,12 @@ export interface SeatIntel {
   topTribe?: Tribe;
   /** Round the intel is from, so a stale read is visible rather than presented as current. */
   round: number;
+  /** COMPLETED quest ids on that board's run — the same set the seat's owner sees in their own badges.
+   *  Surfaced on the rail hover (owner ask 2026-08-03) so scouting tells you what an opponent is actually
+   *  running, not just its shape. Omitted when empty. */
+  quests?: string[];
+  /** OWNED rune ids on that board's run. Same contract as `quests`. */
+  runes?: string[];
 }
 
 export interface RunLobby {
@@ -399,7 +405,15 @@ export function boardIntel(board: PreparedBoard, round: number): SeatIntel {
   let topTribe: Tribe | undefined;
   let best = 0;
   for (const [t, n] of counts) if (n > best) { best = n; topTribe = t; }
-  return { tier: board.tier, triples: board.snapshot?.triples ?? 0, topTribe, round };
+  // Quests/runes ride on the captured snapshot already (they are what makes a served board reproduce its
+  // modifiers in combat) — surfacing them costs nothing but the passthrough.
+  const quests = board.snapshot?.quests ?? [];
+  const runes = board.snapshot?.runes ?? [];
+  return {
+    tier: board.tier, triples: board.snapshot?.triples ?? 0, topTribe, round,
+    ...(quests.length ? { quests } : {}),
+    ...(runes.length ? { runes } : {}),
+  };
 }
 
 /** One past fight from a seat's point of view — the rail's "last 3 results" list. */

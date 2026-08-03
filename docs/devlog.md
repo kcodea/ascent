@@ -49,6 +49,30 @@ schedule is better off not knowing what a `targetUid` is.
 
 Next on this thread: the withheld-number release subscribes to the same schedule, which is what puts the stat
 numbers and floats on the same clock as the effect (see `land` in `fx-vocabulary.md`).
+## 2026-08-03 — Farseer's Report scouted the wrong board in lobby runs; rail hover shows quests/runes; Broodpit → Avenge (4)
+
+- **Farseer's Report showed the wrong minions** (owner report). Root cause: `spellScoutNextOpponent` read
+  `servedBoards[wave]` — the COURSE/Ascent matchmaking pin — but a LOBBY run fights
+  `lobbyOpponentBoard(lobby)`, the seat the pairing gave it, which is what `faceOmen` actually serves. Both
+  are real boards, so the spell confidently scouted a warband the run would never face. Now reads the lobby
+  seat first and falls back to the course pin — the SAME precedence `faceOmen` uses, so the scout and the
+  fight cannot disagree. Course runs are unchanged.
+- **The opponent rail's hover now shows the seat's active runes + completed quests** (owner ask). The data
+  already rode on the captured snapshot (it is what makes a served board reproduce its modifiers in combat),
+  so `SeatIntel` just passes it through and the scout card renders it in the SAME badge language as the
+  opponent frame and your own row — each badge carrying its own hover text. Omitted entirely when a seat has
+  none, so a bare seat shows no empty row.
+- **Rune of the Broodpit → Avenge (4)** (owner rebalance, was 3). Worth noting: the text, the engine and the
+  reducer's comment had ALREADY drifted — the comment claimed "Avenge 6" while the code ran 3. All three are
+  now aligned and a test pins the printed text against the threshold so it can't drift again silently.
+- **Verified live** (throwaway lobby run, never the player's Continue save): hovering a seat opens the scout
+  card and renders both badges with full hover text — and the rune tip reads "**Avenge (4):** summon **2 Imps
+  with Taunt**", confirming the rebalance end-to-end.
+- **Verified** — new `ownerBatch0803c.test.ts` (5 tests): the lobby scout ignores a planted decoy course pin,
+  a course run still reads its pin, `boardIntel` passes quests/runes through and omits them when empty, and
+  the Broodpit text pin. Confirmed as a NEGATIVE CONTROL: reverting the scout fix makes the lobby test fail.
+  Gates: typecheck ✓, lint ✓ (7 pre-existing), 3693 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-03 — Owner batch: Cupcakes tribe gate, Lastlight's shop Echo, badge row unlinked from the hero
 
 - **Cupcakes fizzles on non-Demons** (owner report: it was landing on anything). The `targetTribe` guard

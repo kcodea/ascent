@@ -3722,7 +3722,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
     runeForthcoming: f?.runeForthcoming, // Rune of Forthcoming: SoC left-most gains Ward + attacks immediately (2026-07-31 rework)
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise
-    runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 6 → 2 Taunt Imps
+    runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 4 → 2 Taunt Imps (the '6' here was stale)
     runeSpearline: f?.runeSpearline, // Rune of the Spearline: Avenge 4 → Spear Warden attacks now
     runeAppraisal: f?.runeAppraisal, // Rune of Appraisal: Avenge 4 → spells +1/+1
     runeSoulTaxes: f?.runeSoulTaxes, // Rune of Soul Taxes: Avenge 4 → +1 max Gold

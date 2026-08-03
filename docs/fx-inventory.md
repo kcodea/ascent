@@ -7,6 +7,23 @@ This is the map that makes that a **list** rather than a discovery each time. Tw
 has been built without knowing a better one already existed — most recently `scheduleLands`, whose first cut
 was less capable than the buff-tendril scheduler nobody had read.
 
+## Scope: EVENTS, not states — owner ruling 2026-08-02
+
+**Only moments are in scope.** A persistent state indicator is explicitly left alone.
+
+The def model is event-shaped to its core — `duration`, `at`, `life`. A state has no end: the Ward dome, the
+Reborn wisps, the taunt border, `kwglow`'s breathing all run until the thing they describe stops being true.
+There is no honest way to write "forever, until a condition changes" as a def, and forcing it would be a
+category error that makes both models worse.
+
+So of the ~113 CSS keyframes, only the ONE-SHOTS are candidates — the buff pop, the quest bounce, the card
+landing. The persistent ones are not a backlog item; they are correctly where they are.
+
+The same test applies everywhere: **does this fire, or does this persist?** Fire → in scope. Persist → leave
+it alone.
+
+---
+
 Three questions per system, because they are independent and each one is a different kind of work:
 
 - **Renders with** — Pixi, DOM/CSS, GSAP, WAAPI. Determines whether it *can* become a def layer.
@@ -26,7 +43,8 @@ Three questions per system, because they are independent and each one is a diffe
 | 2 | **Legacy `pixiFx` methods** (~25 effect methods) | Pixi | ❌ code only | each method's own internals | The biggest block. Some have been migrated to defs; the rest have not. |
 | 3 | **Buff tendrils / waves** (`buffFxConfig` + `replayBuffFxEvents`) | Pixi (ribbons) | ❌ code + a tuner panel | **now `fx/land.ts`** | Aligned 2026-08-02. Coalescing stays local — see below. |
 | 4 | **Floats** (`choreo/channels/float.ts`) | DOM, portalled to `<body>` | ❌ code | own timing | The damage/buff numbers. Named in the vocabulary as part of a `land`, not yet driven by one. |
-| 5 | **Card CSS animations** (~113 `@keyframes`) | CSS | ❌ code | CSS timing | Ward/Reborn domes, buff pops, quest bounce, glow. The `card` layer design pass would make some authorable. |
+| 5 | **Card CSS — one-shots** (buff pop, quest bounce, landing) | CSS | ❌ code | CSS timing | IN SCOPE. The `card` layer would make these authorable. |
+| 5b | **Card CSS — persistent state** (Ward/Reborn domes, taunt, `kwglow`) | CSS | ❌ code | n/a | **OUT OF SCOPE** by the ruling above. Not a backlog item. |
 | 6 | **Layout motion** (GSAP Flip, 8 files) | GSAP → transforms | ❌ code | GSAP timelines | Board reorder, drag, lunge. Structural rather than decorative. |
 | 7 | **WAAPI one-shots** (7 files) | Web Animations | ❌ code | own timing | The route the CSS `card` layer would take. |
 | 8 | **SFX** (`sfx.ts` + `audio/`) | Web Audio | ⚠️ levels only, via the mixing desk | per-call throttles | Levels/buses authorable; *when* a sound fires is code. |
@@ -34,6 +52,8 @@ Three questions per system, because they are independent and each one is a diffe
 ---
 
 ## What "aligned" means, per column
+
+**Is it an event?** asked first — a state is out entirely, whatever it renders with.
 
 **Renders with** is the hard constraint. A Pixi effect can become a def layer today. A CSS/DOM one needs the
 `card` layer primitive first (see `fx-workbench-friction.md`). GSAP layout motion probably should NOT move —

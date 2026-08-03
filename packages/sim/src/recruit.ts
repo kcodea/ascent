@@ -1310,10 +1310,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecryPlayRubiesAll: (ctx, self, params) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const per = num(params.rubies, 1) * gold(self);
-    const a = (1 + rb.attack) * per;
-    const h = (1 + rb.health) * per;
-    if (a <= 0 && h <= 0) return;
-    for (const c of ctx.state.board) addBuff(c, 'Ruby', a, h);
+    const a = 1 + rb.attack;
+    const h = 1 + rb.health;
+    if (per <= 0 || (a <= 0 && h <= 0)) return;
+    // N SEPARATE Rubies, not one Ruby of N× magnitude. The stats are identical either way (per × (1+rb) is
+    // the same total), but the trigger count is not, and "play 2 Rubies" has to mean two: a gilded Excavator
+    // now pays a Ruby Broker twice and bounces a Resonance Idol twice, and the board can show two gems.
+    // This is what `spellPlayRubiesAll` (Ruby Excavation) already does — the two implementations of the same
+    // sentence had drifted apart, and this one also skipped `fireOnRubyPlayed` entirely, so the targets'
+    // on-Ruby effects never fired at all.
+    for (const c of [...ctx.state.board]) {
+      for (let r = 0; r < per; r++) {
+        addBuff(c, 'Ruby', a, h);
+        fireOnRubyPlayed(ctx.state, c, a, h);
+      }
+    }
   },
 
   /** Set 2 — Ruby Broker: when a Ruby is played on THIS minion, gain `gold` Gold — capped `cap` times per turn

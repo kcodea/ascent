@@ -16,7 +16,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, extraTriggerFires } from '../types';
+import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES } from '../effects/factories';
@@ -1049,6 +1049,10 @@ export function simulate(
   function registerEffect(minion: Minion, effect: EffectDef): void {
     const fn = FACTORIES[effect.do];
     if (!fn) return; // recruit-phase effects without a combat factory are inert here
+    // CELESTIAL: an alignment-gated half is inert for a body on the wrong side of the sky. Checked ONCE at
+    // registration rather than per fire, because alignment locked at combat setup and cannot change mid-fight
+    // (owner ruling 2026-08-03) — so a gate that fails here can never start passing later.
+    if (!alignAllows(effect, minion.align)) return;
     bus.on(effect.on, (payload) => {
       // A mid-combat ascension swaps a minion's effects; the CombatBus can't unregister, so a handler whose
       // effect is no longer in the minion's current set self-disables — the old form's abilities stop firing.
@@ -1984,6 +1988,9 @@ export function simulate(
     for (const minion of [...boards[side]]) {
       if (minion.dead || minion.health <= 0) continue;
       for (const effect of minion.effects) {
+        // CELESTIAL: skip a half gated to the other alignment (see `registerEffect` — SC is dispatched
+        // directly, so it needs its own gate).
+        if (!alignAllows(effect, minion.align)) continue;
         if (effect.on === 'startOfCombat' && effect.do === 'scEngraveAll') { nextStep(); FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, {}); }
       }
     }
@@ -1997,6 +2004,10 @@ export function simulate(
         for (const effect of minion.effects) {
           if (effect.do === 'scEngraveAll') continue; // already ran in the priority pass above
           if (effect.on !== 'startOfCombat') continue;
+          // CELESTIAL: an alignment-gated half is inert for a body on the wrong side of the sky. Start of
+          // Combat is dispatched by direct iteration (not through the bus), so the registration-time gate
+          // in `registerEffect` does NOT cover it — this is the second half of the same rule.
+          if (!alignAllows(effect, minion.align)) continue;
           const fn = FACTORIES[effect.do];
           if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
         }
@@ -2033,6 +2044,7 @@ export function simulate(
         if (minion.dead || minion.health <= 0) continue;
         for (const effect of minion.effects) {
           if (effect.on !== 'startOfCombat') continue;
+          if (!alignAllows(effect, minion.align)) continue; // CELESTIAL gate (see above)
           const fn = FACTORIES[effect.do];
           if (fn) {
             nextStep();

@@ -37,6 +37,7 @@ import { FreezeTuner } from './FreezeTuner';
 import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
+import { AlignHudTuner } from './AlignHudTuner';
 import { CardPlateTuner } from './CardPlateTuner';
 import { CardTextTuner } from './CardTextTuner';
 import { PlateDissolveTuner } from './PlateDissolveTuner';
@@ -122,6 +123,7 @@ const GROUPS: Group[] = [
       { key: 'drag', icon: '🎴', label: 'Drag Feel', C: DragTuner, hint: 'Weight, tilt and lag while dragging a card' },
       { key: 'flip', icon: '🔀', label: 'Reposition', C: FlipTuner, hint: 'The slide when cards make room or close a gap', alt: 'flip slide reorder' },
       { key: 'glow', icon: '🔆', label: 'Hover Glow', C: GlowTuner, hint: 'The bright rim when you hover or select a card' },
+      { key: 'alignhud', icon: '🌗', label: 'Alignment HUD', C: AlignHudTuner, hint: 'The Celestial Dawn/Dusk horizon strip under the warband' },
     ],
   },
   {

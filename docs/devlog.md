@@ -1,5 +1,120 @@
 # ASCENT — development log
 
+## 2026-08-03 — Alignment HUD tuner gains X/Y position dials
+
+Owner ask. Two new dials at the top of the Alignment HUD tuner's Strip group — `X position` (−300…300px,
+positive = right) and `Y position` (−120…120px, positive = down) — persisted with the rest of the panel and
+reflected as `--ah-x` / `--ah-y`.
+
+The nudge rides the strip's TRANSFORM (`translate(calc(-50% + var(--ah-x)), var(--ah-y))`), compositor-only,
+so repositioning can never re-enter layout — the tuner's position dials keep the "never moves the warband"
+guarantee the absolute anchoring bought in the previous fix. Verified live by measurement: dialling
+x=80/y=30 moved the strip exactly (80, 30)px while the warband row moved (0, 0). Gates: typecheck ✓, lint ✓
+(7 pre-existing), 3683 tests ✓, `build:web` ✓.
+
+## 2026-08-03 — Alignment strip taken out of layout flow (it was nudging the warband)
+
+Owner report: "the eclipse bar is moving minions around in shop phase." The strip was a normal-flow child of
+the warband zone, so mounting it (the first Celestial hitting the board) pushed the card row down — every
+minion nudged, and again in reverse when the last Celestial left. Now absolutely anchored to the zone's
+bottom-padding band (the zone is `position: relative`), half-proud of the row's underside — appearing and
+disappearing occupies ZERO layout space.
+
+Verified live by measurement: the warband row's top is IDENTICAL to the sub-pixel (342.828125 → 342.828125,
+delta 0) with the strip mounted and after selling the Celestial away; the strip sits below the card line.
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3683 tests ✓, `build:web` ✓.
+
+## 2026-08-03 — Alignment HUD tuner + sparks; four more Celestials; set 3's shared spells; glass henchman button
+
+Four owner asks in one pass, stacked on the Celestials branch.
+
+- **Alignment HUD tuner** (`alignHudConfig.ts` + `AlignHudTuner`, registered in the dev menu 🌗 + `tunerAll`):
+  length, width, opacity, Dawn/Dusk colour pickers, vibrance (a saturation dial applied at var-write time so
+  the CSS stays a plain gradient — no filter on the strip), seam colour + glow radius/opacity, and the
+  **play spark** (on/off, duration, peak opacity). All `--ah-*` vars with CSS fallbacks mirroring DEFAULTS.
+- **Play sparks** — "if I play a minion on Dusk, or a Dusk effect triggers, the Dusk side should spark."
+  A transient sim-fx channel (`RunState.alignSpark`, the `karwindFlash` pattern): the sim notes the side on
+  every play (the landed card's alignment) and on every ALIGNED effect that fires (Shout / Orbit / End of
+  Turn halves); the HUD renders a one-shot, opacity-only flash over that half. Eclipse sparks both sides.
+- **Four new Celestials** (set 3): **Daybreak Acolyte** (T1 1/2 — SC Dawn +2 Attack / Dusk +2 Health, via a
+  new `scBuffSelf`), **Starweft Familiar** (T1 2/2 — an UNGATED Orbit: +1/+1 to the played card),
+  **Equinox Duelist** (T2 3/3 — Dawn Rally +2 Attack to your Celestials / Dusk Echo +2 Health, via new
+  `rallyBuffCelestials` / `deathrattleBuffCelestials` — "Celestial" is the flag, not a tribe), and
+  **Starbroker Nym** (T3 3/5 — EoT Dawn: 2 Gold next turn / Dusk: a random spell, existing factories).
+  Nym is why **`applyEndOfTurn` and its projection twin both gained the align gate** — End of Turn had no
+  alignment awareness before. The repo's own audit test also caught `deathrattleBuffCelestials` missing from
+  the descend-FX list and forced the entry — exactly what that pin exists for.
+- **Set 3's shared spell pool** — the owner's 62-row sheet, resolved BY ID against the set-1 + set-2 spell
+  lists (a rename breaks loudly). 58 drawable spells opted in; the four reward/gift rows (Copycat, Bloodlust,
+  Implosion, Goldcrafter) stay OUT by token doctrine — they're global and arrive through their grantors.
+  Spells appended after the minions so growing the roster never disturbs spell positions.
+- **Henchman button → glass, detached** — and the fix uncovered a real miss: the #832 styling was written
+  against `.hero .hmn-btn`, but the chip actually renders inside `.heropanel`, so the button had been
+  BROWSER-DEFAULT since it shipped. Now `.statusbar .heropanel .hmn-btn`: frosted glass (translucent
+  gradient + backdrop blur + lit top edge, all static paint) and absolutely positioned below the power
+  diamond, so it never nudges the hero power again.
+- **Verified live** (Scene Builder): Set 3 board of Celestials → HUD up, orbit chains compound, sparks fire
+  on both sides (2 live spark elements mid-flash); `--ah-*` vars live on :root; the 🌗 row present in the dev
+  menu; Warden's chip reads position:absolute + blur(6px) + the lit top edge, sitting below the power.
+  Console clean.
+- **Verified** — `celestial.test.ts` grew to 18 (the four new units: Acolyte's three alignments, the ungated
+  Orbit, the Duelist's Rally/Echo halves in combat, Nym's three alignments with half-exclusivity pinned).
+  Set-3 pin updated (7 Celestial minions + 58 spells, gift spells excluded). Gates: typecheck ✓, lint ✓
+  (7 pre-existing), 3683 tests ✓, `build:web` ✓, harness determinism ✓.
+
+## 2026-08-03 — Celestials: Alignment + Orbit, with three test units and an alignment HUD
+
+Owner spec + clarifications. Two new mechanics, built as ENGINE PRIMITIVES with three throwaway test cards
+proving them — the real Celestial roster comes later.
+
+- **ALIGNMENT** — the board splits around its CENTRE: Dawn left, Dusk right, **Eclipse** the exact middle
+  body, which counts as BOTH. Derived from board SIZE (`alignmentAt` in the new `sim/alignment.ts`), so the
+  board re-centres as minions come and go: a lone minion is Eclipsed, and an **EVEN board has no Eclipse** —
+  everything pairs off. The owner's "left 3 / middle / right 3" is the full-board (7) case of that rule.
+- **The gate lives on the EFFECT, not the card**: `EffectDef.align?: 'dawn' | 'dusk'`. `alignAllows` fires a
+  `'dawn'` half for a Dawn **or Eclipse** body and a `'dusk'` half for Dusk **or Eclipse** — so "Eclipse gets
+  both" falls out of the rule instead of needing a third branch, and it composes with EVERY existing trigger
+  (Shout, Start of Combat, Echo, …) rather than only the new one.
+- **Alignment LOCKS at combat** (owner ruling): the reducer stamps the recruit board's live centring onto
+  each `BoardMinion.align` at combat setup, `instantiate` carries it onto the combat body, and combat never
+  recomputes it — deaths don't re-centre the line.
+- **ORBIT** — a new `orbit` GameEvent that fires when a card is **played from hand** into an adjacent slot
+  (owner ruling: from hand only — not a summoned token, not a reorder that slides someone next to you). The
+  watcher reads its OWN alignment, so one card behaves differently by where it sits. Two factories:
+  `orbitBuffArriver` (pay the newcomer) and `orbitBuffSelf` (feed yourself).
+- **Test units** (set 3): **Twinlight Orbiter** (Dawn Orbit pays the arriver / Dusk Orbit feeds itself),
+  **Herald of the Divide** (alignment on an ordinary Shout), **Horizon Sentinel** (alignment on Start of
+  Combat — the lock proof).
+- **The alignment HUD** — a gradient horizon under the warband line: Dawn gold → Dusk indigo, with a bright
+  Eclipse seam positioned by a single CSS variable (`--seam`) at the centre body. It appears ONLY when a
+  Celestial is on the board, so a normal board is visually unchanged; on an EVEN board the seam hides and the
+  halves meet hard in the middle — the rule made visible. Per-slot Dawn/Eclipse/Dusk labels sit underneath so
+  a specific minion's side reads without counting. Perf: the fade animates OPACITY only; the gradient is
+  static paint that repaints solely when the board changes — no looping paint animation.
+
+Two REAL bugs the tests caught while building, both worth recording:
+- **Start of Combat bypasses the bus.** It is dispatched by direct iteration in three places, so the
+  alignment gate registered in `registerEffect` never covered it and both halves fired regardless of
+  alignment. Gated all three dispatch sites.
+- **Orbit was firing too late.** It sat after `playCard`'s battlecry early-returns, so a card with a TARGETED
+  Shout / Choose One / taught aimed spell — which defer to a later action — never woke its neighbours' Orbit,
+  even though it had already landed on the board. Moved above those returns.
+
+One non-bug worth writing down: a lone Sentinel through the real `faceOmen` path logs only its Dawn half,
+because that half KILLS wave 1's only procedural enemy and the Dusk half then correctly finds no targets. The
+eclipse case is therefore pinned against durable 20-HP dummies, and the reducer path against the unambiguous
+Dawn case.
+
+- **Verified live** (Scene Builder → Set 3): all three Celestials appear in the shop; three on board renders
+  the HUD as Dawn / Eclipse / Dusk with the seam at 50%; selling down to two flips it to Dawn / Dusk with the
+  seam hidden. Console clean. (Screenshots unavailable — the browser pane wasn't compositing — so this is
+  DOM-measured.)
+- **Verified** — new `celestial.test.ts` (14 tests): every worked centring case incl. the full board and the
+  odd/even Eclipse invariant; Orbit for Dawn / Dusk / Eclipse watchers plus a non-adjacent negative; the gate
+  on an ordinary Shout; and four lock tests (stamp through the real reducer, Dawn-only, Eclipse-both, and an
+  UNALIGNED body firing neither half — so non-Celestial boards are provably untouched). Gates: typecheck ✓,
+  lint ✓ (7 pre-existing), 3679 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-02 — A Ruby is told by the gem, not also by the generic buff cues
 
 The one-channel rule from [`fx-vocabulary.md`](fx-vocabulary.md), applied in combat. `applyRubyStats` routes

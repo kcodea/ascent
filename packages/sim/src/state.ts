@@ -753,6 +753,10 @@ export interface RunState {
   henchmanDiscount?: number;
   /** The henchman is once per run — set by `buyHenchman`, read by the UI to retire the recruit button. */
   henchmanBought?: boolean;
+  /** CELESTIAL HUD sparks (transient UI-fx channel, same pattern as `karwindFlash`): bumped when a play
+   *  lands on a side or an aligned effect fires, so the alignment strip can flash that side. `sides` is
+   *  which halves spark this beat (eclipse = both). Presentation-only — never read by rules. */
+  alignSpark?: { seq: number; sides: ('dawn' | 'dusk')[] };
   /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the
    *  sub-`per` Gold remainder. Absent = not owned. */
   spellDripPer?: number;

@@ -902,21 +902,36 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    2026-07-16): recharge progress (12/40g), quest tallies (3/5), cadence countdowns (2t), scaling values
    (7g), Jenkins's "Tier 3". Same white-with-grounding-shadow treatment as .stepcounter; keyed on its text
    in StatusBar so each change replays the compositor-only stepbump. */
-/* HENCHMAN recruit chip — PLACEHOLDER presentation (owner spec 2026-08-03; real design is Mike's). A plain
-   pill under the power label: static colors, compositor-safe (no looping paint animation). */
-.hero .hmn-btn {
-  margin-top: 4px;
-  padding: 2px 10px;
+/* HENCHMAN recruit button — GLASS style (owner ask 2026-08-03), DETACHED from the hero panel's flow:
+   absolutely positioned below the panel so it never nudges the hero power up. Frosted glass = translucent
+   fill + backdrop blur + a light top edge; static paint, no looping animation (the blur is only repainted
+   when what's behind it changes, and nothing under this button animates in the shop). */
+.statusbar .heropanel .hmn-btn {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 14px;
   font: inherit;
-  font-size: 11px;
-  color: #e8dcc0;
-  background: rgba(30, 24, 16, 0.85);
-  border: 1px solid rgba(200, 170, 90, 0.55);
-  border-radius: 10px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: #f2ead6;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 45%, rgba(20, 16, 10, 0.35));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-top-color: rgba(255, 255, 255, 0.5); /* the lit top edge that sells the glass */
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18); /* static */
   cursor: pointer;
 }
-.hero .hmn-btn:disabled { opacity: 0.45; cursor: default; }
-.hero .hmn-btn:not(:disabled):hover { border-color: rgba(240, 210, 120, 0.9); }
+.statusbar .heropanel .hmn-btn:disabled { opacity: 0.45; cursor: default; }
+.statusbar .heropanel .hmn-btn:not(:disabled):hover {
+  border-color: rgba(255, 235, 170, 0.75);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08) 45%, rgba(20, 16, 10, 0.3));
+}
+.statusbar .heropanel .hmn-btn:not(:disabled):active { transform: translateX(-50%) translateY(1px); }
 
 .hpwrap .hpb-tally {
   position: absolute; left: 50%; top: calc(-14 * var(--u)); transform: translateX(-50%);
@@ -7039,3 +7054,102 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   .modecard:active, .modecard:hover:active,
   .book-kwchip:hover, .book-kwchip:active { transform: none; }
 }
+
+/* ── CELESTIAL ALIGNMENT HUD (owner ask 2026-08-03) ────────────────────────────────────────────────────
+   A gradient horizon under the warband: Dawn (warm gold) → Dusk (cool indigo), with a bright Eclipse seam at
+   the centre BODY — positioned by `--seam` (per-board, set inline) so re-centring is one CSS variable change.
+   On an even board there is no Eclipse: `.has-eclipse` is absent, the seam hides, and the halves meet hard at
+   the middle — the rule made visible.
+
+   Every `--ah-*` var is a TUNER dial (alignHudConfig.ts / the Alignment HUD tuner); the fallbacks here mirror
+   its DEFAULTS, so production renders correctly without the config module.
+
+   Perf: the fade + the play spark animate OPACITY only (compositor-safe). The gradient and the seam glow are
+   STATIC paint that repaints solely when the board or a tuner dial changes — never a looping paint animation
+   (see docs/performance.md). */
+.alignhud {
+  /* OUT OF FLOW (owner report 2026-08-03: "the eclipse bar is moving minions around") — the strip used to be
+     a normal-flow child of the warband zone, so mounting it pushed the card row down and every minion nudged
+     the moment a Celestial appeared. Absolutely anchored to the zone's bottom edge instead (the zone is
+     position:relative), so appearing/disappearing occupies ZERO layout space and the row never moves. The
+     zone's own padding-bottom (~13% of a card) is the band it floats in. */
+  position: absolute;
+  bottom: calc(var(--ah-width, 12px) * -0.5); /* rides the zone's bottom-padding band, half-proud of it */
+  left: 50%;
+  /* x/y nudge rides the TRANSFORM (compositor-only) — repositioning can never re-enter layout, so the
+     tuner's position dials keep the "never moves the warband" guarantee the absolute anchoring bought. */
+  transform: translate(calc(-50% + var(--ah-x, 0px)), var(--ah-y, 0px));
+  width: var(--ah-length, 100%);
+  height: calc(var(--ah-width, 12px) + 10px);
+  opacity: var(--ah-opacity, 1);
+  pointer-events: none;
+  animation: alignhud-in 180ms ease-out both;
+}
+@keyframes alignhud-in { from { opacity: 0; } to { opacity: var(--ah-opacity, 1); } }
+
+.alignhud-sky {
+  position: absolute;
+  inset: 0 0 10px 0;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--ah-dawn, #ffc45c) 0%,
+    color-mix(in srgb, var(--ah-dawn, #ffc45c) 70%, transparent) calc(var(--seam, 50%) - 12%),
+    rgba(228, 226, 236, 0.5) var(--seam, 50%),
+    color-mix(in srgb, var(--ah-dusk, #4a4ea8) 70%, transparent) calc(var(--seam, 50%) + 12%),
+    var(--ah-dusk, #4a4ea8) 100%
+  );
+}
+
+/* PLAY SPARK — a one-shot flash over the half that just did something (a play landed there / an aligned
+   effect fired). Remounted per spark, so the animation is a fresh one-shot each time; opacity-only. */
+.alignhud-spark {
+  position: absolute;
+  top: 0;
+  bottom: 10px;
+  border-radius: 3px;
+  opacity: 0;
+  animation: ah-spark var(--ah-spark-ms, 450ms) ease-out both;
+}
+.alignhud-spark.as-dawn { left: 0; right: calc(100% - var(--seam, 50%)); background: linear-gradient(90deg, var(--ah-dawn, #ffc45c), transparent); }
+.alignhud-spark.as-dusk { left: var(--seam, 50%); right: 0; background: linear-gradient(270deg, var(--ah-dusk, #4a4ea8), transparent); }
+@keyframes ah-spark {
+  0% { opacity: 0; }
+  18% { opacity: var(--ah-spark-alpha, 0.85); }
+  100% { opacity: 0; }
+}
+
+/* The Eclipse marker — a bright vertical band at the centre body. Hidden when the board is even. */
+.alignhud-seam { display: none; }
+.alignhud.has-eclipse .alignhud-seam {
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 10px;
+  left: var(--seam, 50%);
+  width: 3px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: var(--ah-seam, rgba(255, 255, 255, 0.9));
+  box-shadow: var(--ah-seam-glow, 0 0 6px 1px rgba(255, 255, 255, 0.55)); /* static shadow — set once, never animated */
+}
+
+/* Per-slot labels, one per occupied slot, so a specific minion's side reads without counting. */
+.alignhud-ticks {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  height: 10px;
+}
+.alignhud-ticks .ah-tick {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 8px;
+  line-height: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.ah-tick.ah-dawn { color: #ffcf7a; }
+.ah-tick.ah-dusk { color: #aab0ff; }
+.ah-tick.ah-eclipse { color: #ffffff; font-weight: 700; }

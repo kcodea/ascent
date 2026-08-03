@@ -15,6 +15,7 @@
  * an audio mixing desk, not a look tuner, and wiping someone's levels is not what "reset the tuners" means to
  * anyone). Any panel added to the schema should be added here too.
  */
+import { SPEC as AlignHudSpec } from './AlignHudTuner';
 import { SPEC as AimFxSpec } from './AimFxTuner';
 import { SPEC as AuraFxSpec } from './AuraFxTuner';
 import { SPEC as BookSpec } from './BookTuner';
@@ -86,6 +87,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   FrameSpec,
   FreezeSpec,
   GlowSpec,
+  AlignHudSpec,
   GustFxSpec,
   HeroBuffFxSpec,
   HeroPanelSpec,

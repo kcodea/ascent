@@ -932,6 +932,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         const casts = spellCasts(s, def);
         if (def.target === 'friendly' || def.target === 'any') {
           const boardTarget = s.board.find((c) => c.uid === action.targetUid);
+          // A tribe-restricted spell (Cupcakes: `targetTribe: 'demon'`) FIZZLES on any other tribe — kept in
+          // hand, no cast, no partial state. The aim UI mirrors this, but the reducer is what actually decides
+          // (owner report 2026-08-03: Cupcakes was landing on non-Demons — this guard simply didn't exist on
+          // the SPELL path; only the minion-Battlecry paths checked `targetTribe`).
+          if (boardTarget && def.targetTribe && !isTribe(boardTarget, def.targetTribe)) return state;
           // Resonance only fires on a Battlecry minion — a non-Battlecry target fizzles (spell kept in hand).
           if (boardTarget && def.effects.some((e) => e.do === 'spellReplayBattlecry') &&
               !CARD_INDEX[boardTarget.cardId]?.effects.some((e) => e.on === 'onPlay')) return state;

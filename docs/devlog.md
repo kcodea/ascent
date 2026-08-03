@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-03 — Owner batch: Cupcakes tribe gate, Lastlight's shop Echo, badge row unlinked from the hero
+
+- **Cupcakes fizzles on non-Demons** (owner report: it was landing on anything). The `targetTribe` guard
+  existed on the minion-Battlecry paths but simply did not exist on the SPELL path — a tribe-restricted spell
+  aimed at the wrong tribe now fizzles outright (kept in hand, no cast, no partial state), the same contract
+  as the other fizzle guards beside it.
+- **Resonance Idol chain ruling, pinned**: a Ruby played on Idol A bounces to Idol B **as a plain `addBuff`
+  — B does NOT re-bounce**. That was already the code's deliberate design (the bounce skips
+  `fireOnRubyPlayed` precisely so it can't cascade); it is now pinned by an exact-total test (one Ruby + two
+  bounces = +6, no more) so any future chain regresses loudly.
+- **Lastlight's Echo now works in the shop** (owner report via Funeral on Loan). `deathrattleGrantWardRandom`
+  only ever had a COMBAT factory, so a borrowed Lastlight destroyed on play fired an Echo that did nothing —
+  the recruit/combat seam class again. Added the recruit half: `count` (× golden) DISTINCT random friendly
+  minions gain Ward, preferring unshielded bodies, seeded on the run cursor.
+- **Quest + rune badges are the same node size, and the row can't nudge the hero** (owner report). Rune
+  badges were 98u vs quests' 53u — the override is gone, only the stone colouring differs now. And the badge
+  row was a normal flex child of the statusbar column, so its height fed the hero's position; it is now
+  absolutely anchored above the bar (same out-of-flow doctrine as the alignment strip), so badge count/size
+  can never move the portrait. Verified live: adding a badge node moves the hero (0, 0)px.
+- **Verified** — new `ownerBatch0803.test.ts` (5 tests): Cupcakes fizzle + still-casts-on-Demon, the Idol
+  no-chain pin, Lastlight's borrowed-Echo grant + golden cap. Gates: typecheck ✓, lint ✓ (7 pre-existing),
+  3688 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-03 — Alignment HUD tuner gains X/Y position dials
 
 Owner ask. Two new dials at the top of the Alignment HUD tuner's Strip group — `X position` (−300…300px,

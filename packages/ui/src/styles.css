@@ -2066,7 +2066,9 @@ body.modalup .statusbar .questbadges {
    rune badge gets real presence: ~1.85× the quest size + a brighter rim and a STATIC soft glow (a shadow,
    not a looping paint animation — perf rule). The opponent-frame override below (.oppbadges .questbadge,
    34u) is later in the file and still wins there, so enemy-rune chips stay small. */
-.questbadge.runebadge { width: calc(98 * var(--u)); height: calc(98 * var(--u)); border-color: #9fb4c8; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+/* Same NODE SIZE as a quest badge (owner 2026-08-03 — runes were 98u vs quests' 53u, so the rows read as
+   two different systems and the taller nodes fattened the row). Only the stone colouring differs now. */
+.questbadge.runebadge { border-color: #9fb4c8; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.runebadge .questbadge-emblem { color: #cfe4ea; }
 .questbadge-tip-reward b { color: var(--acc); }
 /* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline).
@@ -2508,7 +2510,11 @@ body.modalup .statusbar .questbadges {
    escape the circle (the art is clipped to the circle on its own element). */
 /* Active-quest / rune nodes — dev-movable (scale / x / y / separation), pinned to the stage via px × --scale so
    they don't drift with resolution. `transform-origin: left center` grows the row rightward from its left anchor. */
-.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -256px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
+/* OUT OF FLOW (owner 2026-08-03: runes were nudging the hero portrait): the row used to be a normal flex
+   child of the statusbar column, so its height fed the hero's position — more/taller badges pushed the
+   portrait. Absolutely anchored to the statusbar instead (same doctrine as the alignment strip): the
+   `--qb-*` translate vars keep positioning it, but its size can no longer move anything else. */
+.questbadges { position: absolute; left: 0; bottom: calc(100% - 7px); margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -256px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 /* ---- PENDING quest node — taken but not yet activated (QuestBadges).
    The owner rework (2026-07-21) replaced the QuestPanel text window with nodes: a quest appears as a bubble the

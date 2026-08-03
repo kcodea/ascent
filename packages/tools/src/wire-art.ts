@@ -15,7 +15,7 @@
 import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import { CARD_INDEX, EPIC_RUNES, RUNES, poolFor } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, poolFor } from '@game/content';
 import { HEROES } from '@game/sim';
 
 const APPLY = process.argv.includes('--apply');
@@ -129,6 +129,17 @@ interface Job { label: string; src: string; dirs: string[]; dest: string; index:
 const heroesByName = new Map<string, string>();
 for (const h of HEROES) { heroesByName.set(norm(h.name), h.id); heroesByName.set(norm(h.id), h.id); }
 
+/** Quest-art aliases — same doctrine as the card ones: only files that ARE attributed but whose name does
+ *  not match. One entry, a straight misspelling. (The other 13 unmatched named files are quests that no
+ *  longer exist in the roster — retired set-1 designs — so they stay unwired ON PURPOSE.) */
+const QUEST_ALIASES: Record<string, string> = {
+  trohpyden: 'q_trophy_den', // 'Trohpy' — transposed letters in the source filename
+};
+
+// Quests index by NAME (the authored files are the quest's display name in PascalCase).
+const questsByName = new Map<string, string>();
+for (const q of QUEST_DEFS) { questsByName.set(norm(q.name), q.id); questsByName.set(noThe(q.name), q.id); }
+
 const JOBS: Job[] = [
   {
     label: 'minions', src: 'C:/Game Assets/Ascent Art/Set 2 Minions',
@@ -150,6 +161,13 @@ const JOBS: Job[] = [
     dirs: ['.'], dest: 'packages/ui/src/art/heroes', index: heroesByName, aliases: {},
   },
   {
+    // QUEST art (owner ask 2026-08-02) — the folder was only mined for its "Quest Reward Related Things"
+    // sub-folder before, so the quest cards themselves were never wired. `dirs: ['.']` deliberately does not
+    // recurse: the sub-folder is its own job above, with a different destination.
+    label: 'quests', src: 'C:/Game Assets/Ascent Art/Quests',
+    dirs: ['.'], dest: 'packages/ui/src/art/quests', index: questsByName, aliases: QUEST_ALIASES,
+  },
+  {
     label: 'runes', src: 'C:/Game Assets/Ascent Art/Runes',
     dirs: ['.'], dest: 'packages/ui/src/art/runes', index: runesByName, aliases: RUNE_ALIASES,
   },
@@ -168,7 +186,10 @@ for (const job of JOBS) {
     const full = dir === '.' ? job.src : join(job.src, dir);
     if (!existsSync(full)) { console.log(`missing source dir: ${job.label}/${dir}`); continue; }
     for (const file of readdirSync(full).filter((f) => /\.(png|webp|jpe?g)$/i.test(f))) {
-      const stem = file.replace(/\.(png|webp|jpe?g)$/i, '');
+      // Strip a trailing GENERATOR INDEX (`Motherlode_00001_.png`): it is an export artifact of the art tool,
+      // not part of the name, so removing it is normalisation rather than the guessing the matcher forbids —
+      // the remaining stem still has to match a name EXACTLY (owner ask 2026-08-02: wire the quest folder).
+      const stem = file.replace(/\.(png|webp|jpe?g)$/i, '').replace(/_\d+_$/, '');
       if (RETIRED.has(norm(stem))) continue; // attributed to a removed card — never re-owned by name-accident
       if (job.skip?.has(norm(stem))) continue; // per-job skip: a stale duplicate in THIS folder loses to the current source
       // A FULL-STEM alias wins before the variant convention: some trailing digits are part of a distinct

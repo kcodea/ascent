@@ -5649,6 +5649,9 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
   pointer-events: none;
 }
 .rfb-cost svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: #241a08; }
+/* Banked free-roll count (`x2`) — rides INSIDE the coin so the badge stays one shape, slightly smaller and
+   lighter than the 0 it follows: the 0 is the headline (this roll is free), the count is the detail. */
+.rfb-freen { font-style: normal; font-size: calc(13 * var(--u)); font-weight: 800; opacity: 0.72; margin-left: calc(-1 * var(--u)); }
 /* FREE roll — the coin stays put and goes GREEN with a 0 (owner 2026-07-21). Same geometry as the paid coin,
    so the button never changes shape; only the fill reads differently. Its own colour var so the ✨ tuner's
    cost picker still drives the PAID state independently. */

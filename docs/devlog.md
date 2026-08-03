@@ -12,6 +12,23 @@ sticking out on all four sides.
 Fixed by giving the card GRID a dark surface of its own rather than dropping the plates — the owner's ask was
 "like in game", and the plate only misreads because of the backdrop. Scoped to `.book-grid`, so the rail,
 header and glossary keep the book's light treatment.
+## 2026-08-02 — Free-refresh count on the coin; Rune of Quick Study bounded to 2 turns
+
+- **Free refreshes left** (owner ask): the Refresh crystal's green 0 coin now carries the BANKED count as a
+  small `x2` beside it. Shown only from TWO up — at exactly one free roll the green 0 already says "this one
+  is free", so a `x1` would be noise. The count rides inside the coin so the badge keeps one shape (the same
+  reason the coin never disappears on a free roll — owner call 2026-07-21). Tooltip + aria-label carry it too.
+- **Rune of Quick Study** (owner rebalance): "Get a Gold Font and 2 random spells at End of Turn, for the next
+  **2 turns**" — it used to recur for the whole run. Implemented generally rather than as a special case: a
+  `recurringEndOfTurn` reward may now carry `turns`, which routes it into a new `questRecurringLimited` list
+  that ticks down per End of Turn and drops out at 0. Every other recurrence keeps the simple unbounded list
+  untouched. The tick is ONCE PER TURN, not once per Chronos repeat — a doubled End of Turn would otherwise
+  burn the limit twice as fast.
+
+Tests: `quickStudyTurns.test.ts` — grants on turns 1 and 2 then never again, an unbounded rune still uses the
+run-long list, and the def ships `turns: 2` with the new text. The pre-existing Quick Study pin updated to the
+new shape. Full gates + harness green (3637).
+
 ## 2026-08-02 — Two Dwarf renames + a Dragon/Dwarf art pass
 
 - **Quartermaster Dorrin → Baby Gastrid** and **Closing-Time Foreman → Kringle** (owner). Ids unchanged

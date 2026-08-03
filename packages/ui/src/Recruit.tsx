@@ -3903,6 +3903,7 @@ export function Recruit() {
       {!inCombat && (
         <RefreshButton
           cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
+          freeRolls={run.freeRolls}
           disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
           onRefresh={() => dispatch({ type: 'roll' })}
         />

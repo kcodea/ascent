@@ -586,12 +586,37 @@ the fight now looks different.
 The `Committed → <def> · <path>` confirmation survives the reload the write itself forces, and appears the next
 time you open the workbench — see §7 for exactly how and for the timing caveat.
 
+### The one-liner
+
+```bash
+npm run fx:publish -- "content(fx): the new death dissolve"
+```
+
+Fetches, branches off the **real** `origin/main`, stages everything under `fx/defs/`, commits, pushes, and
+prints the PR link. Run it from the same tree the dev server is serving — that is where Save wrote your file.
+
+Three things it does that hand-rolling the git tends not to:
+
+- **Timestamped branch name**, so publishing twice in a session doesn't collide.
+- **Branches off `origin/main`, freshly fetched.** `main` moves several times an hour here; a branch cut from
+  a stale local `main` is BEHIND before CI starts and GitHub refuses the merge until you take `main` in again.
+- **Stages `defs/art/` too** (it is under `defs/`). A def referencing `art:my-coin` whose PNG never got
+  committed falls back to a procedural shape for everyone else — right in your session, wrong in the game.
+
+It stops at "PR is open" on purpose. `main` is PR-protected, the repo's rule is that the owner merges, and
+that is the last point where you can still change your mind. It also skips the local gate — CI runs
+typecheck + lint + test + build on the PR anyway, and running them first only widens the window for `main`
+to move under you.
+
+**Batch it.** Nothing forces one def per PR. Author several, publish once — same CI cost, more payload.
+
 ---
 
 ## Known rough edges
 
-- **`fxScale` isn't threaded into the primitives**, and `playDef` takes no per-call params — an effect can't
-  yet be scaled or varied per invocation.
+- **`fxScale` isn't threaded into the primitives.** `playDef` itself now takes per-call `scale`, `intensity`
+  and `time` (params declare which axis they ride — see `params.ts`'s `axis`), so an effect CAN be varied per
+  invocation; it is the global `fxScale` that still doesn't reach them.
 - **Anchors are a fire-time snapshot**, so an effect doesn't follow a unit that moves. Deliberate — per-frame
   layout reads are banned — but revisit if a follow-the-unit effect is ever wanted.
 - **~30 legacy `pixiFx` effects** predate defs and aren't authorable here.

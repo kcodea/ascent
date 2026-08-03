@@ -12,7 +12,7 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
+import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -391,12 +391,18 @@ export function reduce(state: RunState, action: Action): RunState {
       const before = new Map<string, number>();
       for (const c of state.board) before.set(c.uid, rubyCountOf(c));
       for (const o of state.shop) before.set(o.uid, rubyCountOf(o));
-      const rubyLanded: string[] = [];
-      for (const c of next.board) if (rubyCountOf(c) > (before.get(c.uid) ?? 0)) rubyLanded.push(c.uid);
-      for (const o of next.shop) if (rubyCountOf(o) > (before.get(o.uid) ?? 0)) rubyLanded.push(o.uid);
+      const rubyLanded: RubyLandedFx[] = [];
+      // The DELTA, not the total — a minion already carrying Rubies from earlier this turn must report only
+      // the ones that just arrived.
+      const landed = (c: { uid: string; buffs?: { source: string; count: number }[] }): void => {
+        const n = rubyCountOf(c) - (before.get(c.uid) ?? 0);
+        if (n > 0) rubyLanded.push({ uid: c.uid, count: n });
+      };
+      for (const c of next.board) landed(c);
+      for (const o of next.shop) landed(o);
       if (rubyLanded.length > 0) {
         next.rubyLandedFxSeq = (next.rubyLandedFxSeq ?? 0) + 1;
-        next.rubyLandedFxUids = rubyLanded;
+        next.rubyLandedFx = rubyLanded;
       }
     }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver

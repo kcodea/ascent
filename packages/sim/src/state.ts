@@ -309,6 +309,12 @@ export interface BuffFxEvent {
   fxWave?: number;
 }
 
+/** One card a Ruby landed on this action, and HOW MANY landed on it. The count is the information: a gilded
+ *  Frenzied Excavator plays two per minion, and collapsing that to a uid list (which this was) made the board
+ *  under-report a doubled effect as a single one. The UI renders it as a CASCADE of N-STACKS — see
+ *  docs/fx-vocabulary.md. */
+export interface RubyLandedFx { uid: string; count: number; }
+
 export interface RunState {
   seed: number;
   /** Game mode — see `RunMode`.
@@ -842,7 +848,7 @@ export interface RunState {
    *  `addBuff`/`addOfferBuff`, so their per-source count is the one probe that sees all of them. Not stamped on
    *  the combat-settle actions: the carry-back re-labels mid-fight Ruby gains as 'Ruby' buffs, and the replay
    *  already played this cue for those. */
-  rubyLandedFxUids?: string[];
+  rubyLandedFx?: RubyLandedFx[];
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too

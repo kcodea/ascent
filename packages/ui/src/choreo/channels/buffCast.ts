@@ -14,6 +14,7 @@ export function groupBuffCasts(moment: Moment, events: CombatEvent[]): BuffCast[
     const e = events[i];
     if (!e || e.type !== 'buff') continue;
     if (e.source === e.target) continue; // self-buff: keeps its +N float, no tendril
+    if (e.ruby) continue; // a Ruby is TOLD BY THE GEM — see the note above `groupSelfBuffs`
     const key = `${e.source} ${e.target}`;
     const cur = byKey.get(key);
     if (cur) { cur.attack += e.attack; cur.health += e.health; }

@@ -183,3 +183,34 @@ target model anchors do not have today:
 
 **Open question for that pass:** whether scope belongs to the LAYER (one def mixes a self-jiggle with a
 board-wide ripple) or to the BINDING. Layer is the guess — it keeps a def self-contained and previewable.
+
+
+---
+
+## The numbers arrive as a volley while the effect cascades (owner, 2026-08-02)
+
+**The ask:** stat values and floats should change in step with the animation, not before it.
+
+**Why it happens.** Both phases commit the whole change at once and play the FX afterwards. In the shop the
+reducer returns new state and React re-renders every buffed card in one commit — `Card` reads the already-new
+`attack`/`health` off its view object. In combat `computeFrame` folds the log to the current beat, so a
+`buffWave` carrying seven Ruby buffs applies all seven at the MOMENT boundary. Either way the player is shown
+the answer and then watches the explanation.
+
+**The fix (sketch).** A presentation-only WITHHOLD layer: a `Map<uid, {atk, hp}>` of what the display is not
+showing yet, subtracted from the card view object before `<Card>` (shop) and from the frame before `Unit`
+(combat), and DECREMENTED at each land — one stack's worth per hit, so a 2-stack releases half then half.
+Engine and event log untouched; this is the same discipline the replay already runs on.
+
+**The dangerous part, and where to start.** Withheld deltas must ALWAYS converge. An interrupted sweep (skip
+combat, phase change, unmount, a card removed, a triple collapsing three bodies) has to flush immediately, or
+a card displays a permanently wrong stat — which will read as an engine bug, not a presentation one. Explicit
+flush plus a test, before anything else in this piece.
+
+**Alternative considered, for combat only:** advance the replay CURSOR per land instead of per moment — finer
+beat granularity rather than a withhold layer. Arguably more correct there, but it touches the timing engine
+that drives all of combat, and it does nothing for the shop. Start with the withhold layer; revisit if it
+starts feeling like a shadow copy of state.
+
+**Fifth caller.** The release schedule is "walk across N recipients with an offset" again — after the shop
+cue, the combat fan-out, stacks, and the CSS card layer. See `land` in `fx-vocabulary.md`.

@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Henchmen wired** — every hero can carry a hero-bound minion, never shop-offered, recruitable once per run
+  at a Gold cost that falls every round (win −3, loss −2). System + placeholder shipped; the per-hero roster
+  and real presentation come next. **Set 3 scaffolded** — registered and selectable in the Scene Builder,
+  empty until its cards land.
 - **Rubies now detonate on the minion they land on.** A gemshard burst over a twin shockwave, authored in the
   effects workbench, plays on the target every time a Ruby is played on it — your own drag from hand, a card
   that plays Rubies across the whole board, or one landing mid-fight. Board-wide plays sweep down the line

@@ -12,7 +12,7 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
+import { mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -1394,6 +1394,24 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'buyHenchman': {
+      // Recruit your hero's HENCHMAN (owner spec 2026-08-03): a hero-bound minion, once per run, for its
+      // decayed cost (win −3 / loss −2 per round, floored at 0 — `henchmanOffer`). Granted to HAND like a
+      // conjured reward, NOT bought from the shop: no shop slot is consumed and no on-buy watchers fire
+      // (`applyCardsBought` is deliberately absent — recruiting your henchman is not a tavern purchase).
+      if (s.phase !== 'recruit') return state;
+      const offer = henchmanOffer(s);
+      if (!offer) return state; // no henchman on this hero, or already recruited
+      const def = CARD_INDEX[offer.cardId];
+      if (!def) return state; // unresolvable card — refuse rather than crash (same doctrine as loadSave)
+      if (s.embers < offer.cost) return state; // can't afford — no-op (the UI greys it out)
+      spendGold(s, offer.cost);
+      s.henchmanBought = true;
+      grantMinionToHandOrBoard(s, def, false, true);
+      checkTriples(s); // future-proof: an explicitly-shop-offered henchman copy could complete a triple
+      return s;
+    }
+
     case 'buyRune': {
       // Runeforge (turn 6): buy ONE offered rune for its Gold cost. Its reward applies for the run (via the
       // shared quest-reward engine), it joins `ownedRunes` (shown as a run-buff badge), and the forge closes.
@@ -2209,6 +2227,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // once-per-streak softener. A draw neither extends nor breaks — it just doesn't stop the bleeding.
   if (result.result === 'lose') s.lossStreak = (s.lossStreak ?? 0) + 1;
   else if (result.result === 'win') { s.lossStreak = 0; s.streakSoftened = undefined; }
+  // HENCHMAN decay (owner spec 2026-08-03): the hero's henchman gets cheaper every round — WIN −3 Gold,
+  // LOSS −2. A draw decays −2 as well (assumption: the spec keys the two named outcomes, and "every round"
+  // means the price always moves; a draw is a non-win). Accrued even before any hero carries a henchman —
+  // the counter is inert until `henchmanOffer` reads it, and this keeps the decay retroactively correct for
+  // heroes that gain one mid-development. Settle runs once per combat (combatSettled guards), so no double tick.
+  s.henchmanDiscount = (s.henchmanDiscount ?? 0) + (result.result === 'win' ? 3 : 2);
   // Dupes: "Win N rounds" advances on a won combat.
   if (result.result === 'win') advanceQuests(s, (o) => o.event === 'winRound');
   // The Author's Hand compound objective: its Echo + Rally halves accrue from this combat's tallies (its Shout

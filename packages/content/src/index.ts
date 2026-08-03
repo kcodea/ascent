@@ -1,11 +1,13 @@
 import type { CardDef } from '@game/core';
 import { CardDefSchema } from './schema';
 import { TOKENS } from './cards/set1/tokens';
+import { HENCHMEN } from './cards/henchmen';
 import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
 import { SETS, poolFor } from './sets';
 
 export * from './sets';
+export { HENCHMEN } from './cards/henchmen';
 
 /**
  * Every card that has ever existed, across every set — the union, NOT the playable pool.
@@ -16,12 +18,14 @@ export * from './sets';
  * `poolFor(setId)` / sim's `poolOf(state)`.
  *
  * Tokens and enemy filler live here and in no set: they are never drawn, only reached through a card that
- * names them, so they can't leak across sets.
+ * names them, so they can't leak across sets. HENCHMEN follow the same doctrine — reachable only through
+ * the HERO that names them (`HeroDef.henchman`), never from a pool.
  */
 export const ALL_CARDS: CardDef[] = [
   ...Object.values(SETS).flatMap((s) => s.own),
   ...TOKENS,
   ...SET2_TOKENS,
+  ...HENCHMEN,
   ...ENEMY,
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
 

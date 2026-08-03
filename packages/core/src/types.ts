@@ -82,8 +82,25 @@ export type Tier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type Side = 'player' | 'enemy';
 
 /** Trigger names the effect system can subscribe to. */
+/**
+ * CELESTIAL ALIGNMENT (owner spec 2026-08-03) — the board splits into two halves around its CENTRE:
+ * **Dawn** on the left, **Dusk** on the right, and the exact middle body is **Eclipse**, which counts as
+ * BOTH. Derived from the board's SIZE and a minion's index, not from fixed slot numbers, so it re-centres as
+ * minions arrive and leave: one minion alone is Eclipsed; an EVEN board has no Eclipse at all (everything
+ * pairs off to a side). See `alignmentAt` in @game/sim.
+ *
+ * Alignment is a RECRUIT-PHASE property. It moves freely while you rearrange the shop board, then LOCKS at
+ * the moment combat starts (frozen onto `BoardMinion.align`) — combat deaths never re-centre the board, so a
+ * minion fights the alignment you built it with (owner ruling 2026-08-03).
+ */
+export type Alignment = 'dawn' | 'dusk' | 'eclipse';
+
 export type GameEvent =
   | 'onPlay'
+  /** CELESTIAL ORBIT: a card was PLAYED FROM HAND into a slot adjacent to this minion (owner ruling
+   *  2026-08-03 — from hand only; not a summoned token, not a reorder that slides someone next to you).
+   *  The arriving minion rides in the payload as `minion`; the orbiting watcher is `self`. */
+  | 'orbit'
   | 'onSummon'
   | 'onDeath'
   | 'onAttack'
@@ -216,6 +233,8 @@ export type EffectFactoryId =
   | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
+  | 'orbitBuffArriver' // Celestial ORBIT: buff the minion that just landed next to this one
+  | 'orbitBuffSelf' // Celestial ORBIT: this minion grows when something lands next to it
   | 'battlecryGetRubies' // Set 2 — Veinbreaker (Choose One): mint N Rubies
   | 'battlecryPlayRubiesAll' // Set 2 — Frenzied Excavator: play a Ruby on every friendly minion
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
@@ -502,6 +521,21 @@ export interface EffectDef {
   on: GameEvent;
   do: EffectFactoryId;
   params?: Record<string, unknown>;
+  /**
+   * CELESTIAL gate — this effect only fires while its owner holds the named alignment. `'dawn'` fires for a
+   * Dawn or ECLIPSE minion, `'dusk'` for a Dusk or Eclipse one; absent means "always", so every existing card
+   * is unaffected. Eclipse getting BOTH halves falls straight out of that rule rather than needing a third
+   * branch — which is the whole reason the gate lives on the effect instead of on a pair of card fields.
+   */
+  align?: 'dawn' | 'dusk';
+}
+
+/** Does an effect gated on `align` fire for a minion currently holding `have`? Eclipse counts as both sides;
+ *  an ungated effect always fires; a gated effect on a board with no alignment context does not. */
+export function alignAllows(effect: EffectDef, have: Alignment | undefined): boolean {
+  if (!effect.align) return true;
+  if (!have) return false;
+  return have === 'eclipse' || have === effect.align;
 }
 
 /** Immutable card definition (data). Never mutated — cloned into Minions. */
@@ -533,6 +567,9 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** CELESTIAL — this card's text changes with its board ALIGNMENT (Dawn / Dusk / Eclipse). Drives the
+   *  alignment HUD: the strip appears once any Celestial is on the board. See `Alignment`. */
+  celestial?: boolean;
   /** HENCHMAN — a hero-bound recruit (owner spec 2026-08-03). A minion like any other, but never offered
    *  in shops: it is reachable only through the hero that names it (`HeroDef.henchman` in @game/sim), at a
    *  Gold cost that falls each round (win −3 / loss −2). Global-registry doctrine, same as tokens. */
@@ -1292,6 +1329,10 @@ export interface BoardMinion {
   cardId: string;
   attack: number;
   health: number;
+  /** CELESTIAL: the alignment this minion LOCKED IN when combat started. Stamped by the reducer at combat
+   *  setup from the recruit board's live centring, then never recomputed — combat deaths don't re-centre
+   *  (owner ruling 2026-08-03). Absent for every non-Celestial board. */
+  align?: Alignment;
   /** Overrides the card's keywords if present (e.g. a granted Poison). */
   keywords?: Keyword[];
   golden?: boolean;
@@ -1373,6 +1414,9 @@ export interface BoardMinion {
 
 /** A live combat instance. Mutable for the duration of one `simulate()` call. */
 export interface Minion {
+  /** CELESTIAL: the alignment this body LOCKED IN when combat began (see `Alignment`). Never recomputed
+   *  mid-fight — deaths don't re-centre the board. Absent for non-Celestial boards. */
+  align?: Alignment;
   uid: string;
   cardId: string;
   name: string;

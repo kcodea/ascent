@@ -13,6 +13,7 @@ import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
+import { alignmentsOf } from './alignment';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -1739,10 +1740,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       const pinned = s.servedBoards ? Object.prototype.hasOwnProperty.call(s.servedBoards, s.wave) : false;
       const served = pinned ? (s.servedBoards![s.wave] ?? null) : nextOpponent(s);
       if (!pinned) s.servedBoards = { ...(s.servedBoards ?? {}), [s.wave]: served };
-      const player: BoardMinion[] = s.board.map((b) => ({
+      // CELESTIAL: alignment LOCKS here. The recruit board's live centring is stamped onto each body as it
+      // enters combat, and combat never recomputes it — deaths don't re-centre the line, so a Celestial
+      // fights the half of the sky you built it into (owner ruling 2026-08-03). Computed once for the whole
+      // board rather than per-minion, so it costs one pass regardless of board size.
+      const playerAligns = alignmentsOf(s.board);
+      const player: BoardMinion[] = s.board.map((b, bi) => ({
         cardId: b.cardId,
         attack: b.attack,
         health: b.health,
+        align: playerAligns[bi],
         keywords: [...b.keywords],
         golden: b.golden,
         ...(b.addedTribes && b.addedTribes.length ? { addedTribes: [...b.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (→ combat tribe2) — was dropped, so the tribe stopped counting in the player's own fights

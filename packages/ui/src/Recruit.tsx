@@ -52,6 +52,7 @@ import { RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
+import { AlignmentHud } from './AlignmentHud';
 import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
@@ -4012,6 +4013,9 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
+        {/* CELESTIAL alignment strip — sits directly under the warband line; renders only when a Celestial
+            is on the board (see AlignmentHud). */}
+        <AlignmentHud />
         <div className="row warband">
           {inCombat ? (
             replay.frame.player.map((u) => (

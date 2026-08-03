@@ -39,6 +39,7 @@ export const GameEventSchema = z.enum([
   'passive', // never dispatched — a marker another system reads (Deepdelve Paragon)
   'spellBought',
   'shopRefreshed',
+  'orbit', // Celestial ORBIT — a card was played from hand adjacent to this minion
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -132,6 +133,8 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffImps',
   'rallyGrantSpellPower',
   'onBattlecryBuffSelf',
+  'orbitBuffArriver', // Celestial Orbit — buff the arriving minion
+  'orbitBuffSelf', //    Celestial Orbit — buff this minion
   'battlecryGetRubies',
   'battlecryPlayRubiesAll',
   'spellCastBuffAll',
@@ -397,6 +400,8 @@ export const EffectDefSchema = z.object({
   on: GameEventSchema,
   do: EffectFactoryIdSchema,
   params: z.record(z.unknown()).optional(),
+  // CELESTIAL alignment gate — this half only fires while its owner is Dawn / Dusk (Eclipse fires both).
+  align: z.enum(['dawn', 'dusk']).optional(),
 }).strict();
 
 // `.strict()`: a typo'd optional key (`goldentext`, `targetTribes`) would otherwise validate silently and
@@ -433,6 +438,7 @@ export const CardDefSchema = z.object({
   }).strict().optional(),
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
+  celestial: z.boolean().optional(), // alignment-bearing (Dawn/Dusk/Eclipse) — drives the alignment HUD
   henchman: z.boolean().optional(), // hero-bound recruit — never shop-offered (see cards/henchmen.ts)
   noTriple: z.boolean().optional(),
   gift: z.boolean().optional(),

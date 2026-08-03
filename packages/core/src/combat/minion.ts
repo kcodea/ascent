@@ -47,6 +47,9 @@ export function instantiate(
     divineShield: keywords.includes('DS'),
     rebornAvailable: keywords.includes('R'),
     golden: board.golden ?? false,
+    // CELESTIAL: the alignment locked in at combat setup (recruit-phase centring). Carried onto the combat
+    // instance so alignment-gated effects can read it; combat never recomputes it.
+    align: board.align,
     reAttackOnKill: cardReAttacksOnKill(card),
     critChance: board.critChance ?? card.critChance, // Commander Impala: per-swing double-damage chance (constant per CardDef); a spell (Executioner's Edge) can seed one onto the combat board for one fight
 

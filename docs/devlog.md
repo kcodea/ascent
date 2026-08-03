@@ -1,5 +1,58 @@
 # ASCENT — development log
 
+## 2026-08-03 — Celestials: Alignment + Orbit, with three test units and an alignment HUD
+
+Owner spec + clarifications. Two new mechanics, built as ENGINE PRIMITIVES with three throwaway test cards
+proving them — the real Celestial roster comes later.
+
+- **ALIGNMENT** — the board splits around its CENTRE: Dawn left, Dusk right, **Eclipse** the exact middle
+  body, which counts as BOTH. Derived from board SIZE (`alignmentAt` in the new `sim/alignment.ts`), so the
+  board re-centres as minions come and go: a lone minion is Eclipsed, and an **EVEN board has no Eclipse** —
+  everything pairs off. The owner's "left 3 / middle / right 3" is the full-board (7) case of that rule.
+- **The gate lives on the EFFECT, not the card**: `EffectDef.align?: 'dawn' | 'dusk'`. `alignAllows` fires a
+  `'dawn'` half for a Dawn **or Eclipse** body and a `'dusk'` half for Dusk **or Eclipse** — so "Eclipse gets
+  both" falls out of the rule instead of needing a third branch, and it composes with EVERY existing trigger
+  (Shout, Start of Combat, Echo, …) rather than only the new one.
+- **Alignment LOCKS at combat** (owner ruling): the reducer stamps the recruit board's live centring onto
+  each `BoardMinion.align` at combat setup, `instantiate` carries it onto the combat body, and combat never
+  recomputes it — deaths don't re-centre the line.
+- **ORBIT** — a new `orbit` GameEvent that fires when a card is **played from hand** into an adjacent slot
+  (owner ruling: from hand only — not a summoned token, not a reorder that slides someone next to you). The
+  watcher reads its OWN alignment, so one card behaves differently by where it sits. Two factories:
+  `orbitBuffArriver` (pay the newcomer) and `orbitBuffSelf` (feed yourself).
+- **Test units** (set 3): **Twinlight Orbiter** (Dawn Orbit pays the arriver / Dusk Orbit feeds itself),
+  **Herald of the Divide** (alignment on an ordinary Shout), **Horizon Sentinel** (alignment on Start of
+  Combat — the lock proof).
+- **The alignment HUD** — a gradient horizon under the warband line: Dawn gold → Dusk indigo, with a bright
+  Eclipse seam positioned by a single CSS variable (`--seam`) at the centre body. It appears ONLY when a
+  Celestial is on the board, so a normal board is visually unchanged; on an EVEN board the seam hides and the
+  halves meet hard in the middle — the rule made visible. Per-slot Dawn/Eclipse/Dusk labels sit underneath so
+  a specific minion's side reads without counting. Perf: the fade animates OPACITY only; the gradient is
+  static paint that repaints solely when the board changes — no looping paint animation.
+
+Two REAL bugs the tests caught while building, both worth recording:
+- **Start of Combat bypasses the bus.** It is dispatched by direct iteration in three places, so the
+  alignment gate registered in `registerEffect` never covered it and both halves fired regardless of
+  alignment. Gated all three dispatch sites.
+- **Orbit was firing too late.** It sat after `playCard`'s battlecry early-returns, so a card with a TARGETED
+  Shout / Choose One / taught aimed spell — which defer to a later action — never woke its neighbours' Orbit,
+  even though it had already landed on the board. Moved above those returns.
+
+One non-bug worth writing down: a lone Sentinel through the real `faceOmen` path logs only its Dawn half,
+because that half KILLS wave 1's only procedural enemy and the Dusk half then correctly finds no targets. The
+eclipse case is therefore pinned against durable 20-HP dummies, and the reducer path against the unambiguous
+Dawn case.
+
+- **Verified live** (Scene Builder → Set 3): all three Celestials appear in the shop; three on board renders
+  the HUD as Dawn / Eclipse / Dusk with the seam at 50%; selling down to two flips it to Dawn / Dusk with the
+  seam hidden. Console clean. (Screenshots unavailable — the browser pane wasn't compositing — so this is
+  DOM-measured.)
+- **Verified** — new `celestial.test.ts` (14 tests): every worked centring case incl. the full board and the
+  odd/even Eclipse invariant; Orbit for Dawn / Dusk / Eclipse watchers plus a non-adjacent negative; the gate
+  on an ordinary Shout; and four lock tests (stamp through the real reducer, Dawn-only, Eclipse-both, and an
+  UNALIGNED body firing neither half — so non-Celestial boards are provably untouched). Gates: typecheck ✓,
+  lint ✓ (7 pre-existing), 3679 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-02 — A Ruby is told by the gem, not also by the generic buff cues
 
 The one-channel rule from [`fx-vocabulary.md`](fx-vocabulary.md), applied in combat. `applyRubyStats` routes

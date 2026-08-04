@@ -63,7 +63,15 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
     // that the Execution Strike reads the kill on its own — the skull was a third signifier on the same beat,
     // stacked on top of the crescent and the victim's red flash. (`rally` keeps its own ☠, in purple.)
     case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
-    case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
+    // CUT (owner, 2026-08-04): the stat badge now carries its own change — it withholds the new number and
+    // rolls to it on the effect's clock (`fx/statHold.ts`). A `+2/+2` float rising off the card at the same
+    // moment competes with that: two things asking for the eye, in the same place, saying the same thing.
+    //
+    // Only the STAT float goes. `improve` and `keyword` below stay: an effect improving or a minion gaining
+    // Taunt is information no badge shows, so cutting those would remove a channel rather than de-duplicate
+    // one. The combat LOG still narrates every buff in full (`useCombatReplay`), so the history is intact —
+    // this removes a redundant on-card readout, not the record of what happened.
+    case 'buff': return null;
     case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };
     case 'keyword': return { uid: e.target, text: KW_FLOAT[e.keyword] ?? e.keyword, kind: 'buff' };
     case 'maxGold': return { uid: e.target, text: `+${e.amount} max gold`, kind: 'gold' };

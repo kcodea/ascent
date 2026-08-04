@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-03 — Appetite Agent is Demons-only, and the tribe gate was never enforced by the reducer
+
+- **Appetite Agent** (owner): `targetTribe: 'demon'`, and the text says so — "Shout: target a friendly
+  **Demon**. It Consumes a minion in the Shop" (was the generic "target a minion").
+- **The change exposed a real engine hole.** A tribe-restricted Battlecry was filtered by the AIM UI but not
+  by the reducer: `battlecryTarget` accepted whatever uid it was handed, so an off-tribe target resolved in
+  full — an Appetite Agent could feed a Beast. Probed and confirmed before fixing (shop 3 → 2 on an illegal
+  pick). This is the Battlecry twin of the Cupcakes bug fixed on the SPELL path earlier today, and it affected
+  **all five `targetTribe` cards**, not just the reported one. The reducer now refuses outright.
+- **The production bot was already correct** — `visibleState` filters `legalTargets` by `targetTribe`, so bots
+  never generated an illegal pick. Only the OLD greedy loop in `runTelemetry.test.ts` grabbed `board[0]`
+  blindly; once the reducer started refusing, that loop stalled (a refused action returns the same state, so
+  `pendingTarget` never cleared and the run spun to its step cap). Fixed to pick a legal target, mirroring
+  what the production bot already does.
+- **Verified** — new `targetTribeGuard.test.ts` (5 tests): the declared tribe + text, a legal Demon target
+  eating from the Shop, an off-tribe target handed straight to the reducer being refused, no prompt at all
+  when no legal target exists, and a sweep asserting **every** `targetTribe` card refuses a wrong-tribe pick.
+  Confirmed as a negative control: both guard tests fail against the old reducer.
+
+One consequence worth flagging: Appetite Agent is itself a Demon, but `targetTribe` also engages the engine's
+existing no-self-target rule — so with no OTHER friendly Demon on board it does not prompt and plays as a
+plain 3/2. That is the pre-existing convention for tribe-restricted Battlecries, not something this change
+introduced; say the word if the Agent should be allowed to feed itself.
+
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3790 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-03 — Rune of the Hatchery covers every combat summon; six cards weren't previewing what they name
 
 - **Rune of the Hatchery: "minions summoned by an Echo" → "minions summoned in combat"** (owner rework). It

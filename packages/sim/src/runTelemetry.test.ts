@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { CARD_INDEX } from '@game/content';
 import { aggregatePlayerReport, buildCardCsv, reconstructRunTelemetry, type RunTelemetry } from './runTelemetry';
 import { createRun, type Action } from './state';
 import { reduce } from './reducer';
@@ -106,7 +107,18 @@ describe('reconstructRunTelemetry', () => {
       if (s.runeforgeOffer) { dispatch({ type: 'buyRune', index: 0 }); continue; }
       if (s.discover) { dispatch({ type: 'discover', index: 0 }); continue; }
       if (s.chooseOne) { dispatch({ type: 'chooseOne', index: 0 }); continue; }
-      if (s.pendingTarget) { dispatch({ type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }); continue; }
+      if (s.pendingTarget) {
+        // Pick a LEGAL target. This used to grab `board[0]` blindly, which stalled the loop once the reducer
+        // began refusing off-tribe picks (2026-08-03): a refused action returns the same state, so the
+        // `pendingTarget` never cleared and the run spun to the step cap. Mirrors what the production bot's
+        // `visibleState` already does.
+        const srcDef = CARD_INDEX[s.pendingTarget.cardId];
+        const legal = srcDef?.targetTribe
+          ? s.board.find((c) => c.uid !== s.pendingTarget!.uid && (c.tribe === srcDef.targetTribe || CARD_INDEX[c.cardId]?.tribe2 === srcDef.targetTribe))
+          : s.board[0];
+        dispatch({ type: 'battlecryTarget', targetUid: legal?.uid ?? s.pendingTarget.uid });
+        continue;
+      }
       if (s.phase === 'combat') { dispatch({ type: 'resolveCombat' }); continue; }
       if (s.embers >= CONFIG.minionCost && s.shop.length > 0 && s.board.length + s.hand.length < CONFIG.boardMax) { dispatch({ type: 'buy', uid: s.shop[0]!.uid }); continue; }
       if (s.hand.length > 0 && s.board.length < CONFIG.boardMax) { dispatch({ type: 'play', uid: s.hand[0]!.uid }); continue; }

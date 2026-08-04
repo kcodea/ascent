@@ -14,7 +14,7 @@ const span = (start: number, end: number): Moment => ({ start, end } as unknown 
 describe('rubiedUidsIn', () => {
   it('picks out ONLY the ruby-flagged buffs', () => {
     const events = [buff('a'), buff('b', true), buff('c')];
-    expect(rubiedLandsIn(span(0, 3), events)).toEqual([{ uid: 'b', count: 1 }]);
+    expect(rubiedLandsIn(span(0, 3), events)).toEqual([{ uid: 'b', count: 1, attack: 1, health: 1 }]);
   });
 
   /** The whole reason the engine flag exists: without it a Ruby cue bound to buff events fires on all
@@ -32,17 +32,17 @@ describe('rubiedUidsIn', () => {
    *  it is also a Resonance Idol bounce, which lands a genuine second Ruby and deserves its second gem. */
   it('COUNTS a unit hit twice in the same moment, keeping first-seen order', () => {
     const events = [buff('a', true), buff('b', true), buff('a', true)];
-    expect(rubiedLandsIn(span(0, 3), events)).toEqual([{ uid: 'a', count: 2 }, { uid: 'b', count: 1 }]);
+    expect(rubiedLandsIn(span(0, 3), events)).toEqual([{ uid: 'a', count: 2, attack: 2, health: 2 }, { uid: 'b', count: 1, attack: 1, health: 1 }]);
   });
 
   it('respects the moment window and never reads outside it', () => {
     const events = [buff('before', true), buff('inside', true), buff('after', true)];
-    expect(rubiedLandsIn(span(1, 2), events)).toEqual([{ uid: 'inside', count: 1 }]);
+    expect(rubiedLandsIn(span(1, 2), events)).toEqual([{ uid: 'inside', count: 1, attack: 1, health: 1 }]);
   });
 
   /** `end` may run past the array when a moment is the last one compiled; a hole must not throw. */
   it('tolerates an end index past the event array', () => {
-    expect(rubiedLandsIn(span(0, 99), [buff('a', true)])).toEqual([{ uid: 'a', count: 1 }]);
+    expect(rubiedLandsIn(span(0, 99), [buff('a', true)])).toEqual([{ uid: 'a', count: 1, attack: 1, health: 1 }]);
   });
 });
 
@@ -71,6 +71,15 @@ describe('a Ruby buff is claimed by the gem, not the generic buff cues', () => {
   /** The gem still claims it — the event is suppressed for the generic cues, never dropped outright. */
   it('the same ruby buff is still picked up by rubiedUidsIn', () => {
     const e = { type: 'buff', target: 'rubied', attack: 1, health: 1, source: 'src', ruby: true } as CombatEvent;
-    expect(rubiedLandsIn(moment, [e])).toEqual([{ uid: 'rubied', count: 1 }]);
+    expect(rubiedLandsIn(moment, [e])).toEqual([{ uid: 'rubied', count: 1, attack: 1, health: 1 }]);
   });
 });
+
+  it('carries the STAT DELTA, summed across a stack', () => {
+    // The badge withholds this number until the effect delivers it (`fx/statHold.ts`), and the cue is the
+    // only place that knows it — so losing it here would silently make every hold a no-op.
+    const big = (target: string): CombatEvent =>
+      ({ type: 'buff', target, attack: 3, health: 2, source: 's', ruby: true } as CombatEvent);
+    expect(rubiedLandsIn(span(0, 2), [big('a'), big('a')]))
+      .toEqual([{ uid: 'a', count: 2, attack: 6, health: 4 }]);
+  });

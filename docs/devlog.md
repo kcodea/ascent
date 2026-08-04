@@ -1,5 +1,44 @@
 # ASCENT — development log
 
+## 2026-08-04 — the number lands when the effect says so (`statHold`)
+
+Owner: *"I want the number update to follow that same timing."* Until now it couldn't. A badge's digits
+come from React state, so they snapped to the new value the instant the reducer committed — the plate could
+pop, but the number had already changed, so the pop decorated a number rather than delivering it.
+
+`packages/ui/src/fx/statHold.ts` withholds a stat change until an effect delivers it. Three decisions carry
+the design:
+
+**A hold is a DELTA, not an absolute.** "Show two less than you currently are", not "show 4". An absolute
+goes stale the moment anything else touches the unit — a second buff, a trade, an unrelated re-render — and
+a stale absolute is a badge showing a number that was never true. A delta stays correct under all of them.
+
+**The cue holds, the def releases.** Only the cue knows the number (it reads the delta off the buff event);
+only the author knows the moment. So `score.ts` holds at cue time with no authoring required, and a `react`
+layer with the new **"Carries the number"** toggle releases it at that layer's peak — per recipient, so a
+cascade delivers each unit's number in turn rather than all of them on the first pop.
+
+**An unclaimed hold must not be permanent.** Every def authored before this exists, and every def that
+simply doesn't opt in, would otherwise leave a badge wrong forever. So a hold carries its own TTL and reads
+as absent once expired, `destroy()` delivers anything still owed if an effect is cut short, and the whole
+thing fails OPEN. A stat badge is load-bearing information; the rule this codebase keeps re-learning is that
+a silent wrong answer costs more than a loud absence.
+
+Render side: `Card.tsx` subscribes per-uid (`statHoldKey`, a primitive, mirroring `getSpellBuffSeq`) so a
+card with nothing held reads 0 and never re-renders when some other card is gemmed — this is the render
+path the performance rules are about. The withheld value drives the digits AND the up/down colouring, so a
+badge is never internally inconsistent.
+
+Known simplification, deliberately shipped: a STACK (two Rubies on one body) is held as one total and
+delivered whole by the first gem's release, so the badge steps once rather than twice. Splitting it needs a
+partial release, which needs the def to know the per-gem amount. Also combat-only so far — the shop path
+needs the delta on `RubyLandedFx`, which is a sim-side field (Kevin's ownership).
+
+Verified: 18 unit tests over the store, including the TTL fail-open and the per-uid snapshot stability that
+keeps `useSyncExternalStore` from looping. `rubiedLandsIn` now carries the summed delta, with a test pinning
+it — losing it would silently make every hold a no-op. Full gate: typecheck (pkgs + web), lint (0 errors),
+3837 tests, `build:web`.
+
 ## 2026-08-04 — Stall pressure REMOVED; a ghost is only for the bottom three
 
 **Stall pressure is gone** (owner: *"this was never something I wanted in the game at all. Players should only

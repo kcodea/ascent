@@ -7,6 +7,7 @@ import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
 import { cascade, scheduleLands } from '../fx/land';
+import { holdStat } from '../fx/statHold';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
@@ -349,7 +350,18 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // `combatSpeed` inside `scheduleLands`, so a 4× replay sweeps 4× faster and still lands inside its beat.
         // The traversal arithmetic lives in `scheduleLands`, not here — see `fx/land.ts`. This site only says
         // WHAT a land does; the schedule says WHEN.
-        for (const land of scheduleLands(cascade(rubiedLandsIn(moment, ctx.events)), {
+        const rubyLands = rubiedLandsIn(moment, ctx.events);
+        // WITHHOLD the stat change so the effect can deliver it. Done here, at cue time, because the cue is
+        // the only place that knows the number; a `react` layer with "carries the number" releases it at its
+        // peak (see `fx/statHold.ts`). If the bound def has no such layer the hold expires on its own and the
+        // badge simply tells the truth — opting in is authoring, not plumbing.
+        //
+        // Known simplification: a STACK (two Rubies on one body) is held as one total and delivered whole by
+        // the first gem's release, so the badge steps once rather than twice. Correct, just less expressive
+        // than the gems themselves; splitting it needs a partial release, which needs the def to know the
+        // per-gem amount.
+        for (const l of rubyLands) holdStat(l.uid, { attack: l.attack, health: l.health });
+        for (const land of scheduleLands(cascade(rubyLands), {
           gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS, speed: ctx.combatSpeed,
         })) {
           // Both ends are the same unit: a Ruby lands ON a minion, there is no pair to travel between.

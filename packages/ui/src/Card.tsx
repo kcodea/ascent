@@ -5,6 +5,7 @@ import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
+import { heldFor, statHoldKey, subscribeStatHolds } from './fx/statHold';
 // Side-effect import: `cardPillsConfig` applies the pill layout vars (`--cpl-*-t`) to :root at module
 // load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
 // without this, any non-identity default baked into that file would silently never apply to players.
@@ -374,6 +375,18 @@ export const Card = memo(function Card({
   // retrigger so a buff landing mid-burst restarts the cue instead of being swallowed (owner 2026-07-24: each
   // trigger must read as its own hit, and cutting the previous one off is fine).
   const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => (uid ? getSpellBuffSeq(uid) : undefined), () => undefined);
+  // A stat change can be WITHHELD from the badge until an effect delivers it (see `fx/statHold.ts`): the
+  // cue holds the delta, a `react` layer with "carries the number" releases it at its peak, so the digits
+  // change on the effect's clock instead of the reducer's. Subscribed per-uid so a card with nothing held
+  // reads 0 and never re-renders when some other card is gemmed.
+  const statHoldSeq = useSyncExternalStore(subscribeStatHolds, () => (uid ? statHoldKey(uid) : 0), () => 0);
+  // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
+  // that primitive back into the pair of numbers. `uid` alone would never invalidate.
+  const held = useMemo(() => (uid && statHoldSeq !== 0 ? heldFor(uid) : null), [uid, statHoldSeq]);
+  // What the badges actually print. Live value MINUS whatever hasn't been shown yet, so the number stays
+  // correct under anything else that touches the unit mid-hold (see statHold.ts on why it is a delta).
+  const shownAttack = held ? card.attack - held.attack : card.attack;
+  const shownHealth = held ? card.health - held.health : card.health;
   const spellSparks = useMemo(() => (spellBuffSeq !== undefined ? makeSpellBuffSparks() : []), [spellBuffSeq]);
   const spellBuffed = spellBuffSeq !== undefined;
   const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;
@@ -861,13 +874,13 @@ export const Card = memo(function Card({
             {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
                 the `.badge` wrapper seats the pair, `.plate` is the shape, `.value` is the digit. Plate and
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
-            <span className={`badge atk${statCls(card.attack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>
+            <span className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>
               <span className="plate" aria-hidden="true" />
-              <span className="value">{card.attack}</span>
+              <span className="value">{shownAttack}</span>
             </span>
-            <span className={`badge hp${statCls(card.health, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>
+            <span className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>
               <span className="plate" aria-hidden="true" />
-              <span className="value">{card.health}</span>
+              <span className="value">{shownHealth}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
             <span key={`cgem-${pulseRally ?? 0}`} className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>

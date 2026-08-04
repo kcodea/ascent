@@ -386,6 +386,9 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
 
 /** One ranked player, shaped for the leaderboard UI. */
 export interface PlayerRow {
+  /** `auth.users.id` — the key their run history is stored under. Needed to open ANOTHER player's Career from
+   *  the leaderboard; `author` is a mutable display name and must never be used to look anything up. */
+  userId: string;
   author: string;
   rating: number;
   gamesPlayed: number;
@@ -438,14 +441,14 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   if (!c) return [];
   try {
     const request = Promise.resolve(
-      c.from('profiles').select('author, rating, games_played, favorite_hero')
+      c.from('profiles').select('user_id, author, rating, games_played, favorite_hero')
         .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Array<{ author: string; rating: number; games_played: number; favorite_hero: string | null }>)
-      .map((r) => ({ author: r.author, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
+    return (result.data as Array<{ user_id: string; author: string; rating: number; games_played: number; favorite_hero: string | null }>)
+      .map((r) => ({ userId: r.user_id, author: r.author, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
   } catch {
     return [];
   }
@@ -480,14 +483,22 @@ export async function uploadRunHistory(entry: {
 }
 
 /**
- * Fetch this player's career, newest first. Returns null (NOT []) when there is no identity or the request
- * fails — the caller must be able to tell "you have no runs yet" from "we couldn't ask", because writing a
- * profile's games-played from a failed read would clobber it with a zero.
+ * Fetch a career, newest first. Defaults to YOUR runs; pass `forUserId` to read another player's (opening a
+ * Career from the leaderboard).
+ *
+ * Returns null (NOT []) when there is no identity or the request fails — the caller must be able to tell "no
+ * runs yet" from "we couldn't ask", because writing a profile's games-played from a failed read would clobber
+ * it with a zero.
+ *
+ * NOTE: reading someone ELSE's rows needs the `run_history` select policy to allow it. Until that migration is
+ * run this returns [] for other players — an empty career, not an error — which is the correct degradation
+ * (the feature simply shows nothing rather than breaking the page).
  */
-export async function fetchRunHistory<T>(limit = 50): Promise<T[] | null> {
+export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promise<T[] | null> {
   const c = client();
-  const userId = currentUserId();
-  if (!c || !userId) return null;
+  const userId = forUserId ?? currentUserId();
+  // Your OWN fetch still requires a session; a foreign fetch only needs the id we were handed.
+  if (!c || !userId || (!forUserId && !currentUserId())) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([

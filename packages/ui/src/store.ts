@@ -2,6 +2,16 @@ import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
 import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
 import type { BoardMinion, Tribe } from '@game/core';
+/** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
+ *  `userId` is what the run history is fetched by, and `author` is display-only. */
+export interface CareerView {
+  userId: string;
+  author: string;
+  rating: number;
+  gamesPlayed: number;
+  favoriteHero?: string;
+}
+
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 
@@ -273,9 +283,13 @@ interface GameStore {
   showRankings: boolean;
   openRankings: () => void;
   closeRankings: () => void;
-  /** The Career overlay (your local match history + per-hero stats) is open. */
+  /** The Career overlay (match history + per-hero stats) is open. */
   showCareer: boolean;
-  openCareer: () => void;
+  /** WHOSE career is on screen. `null` = your own. Set when opening another player's from the leaderboard
+   *  (owner ask 2026-08-04) — carries the leaderboard row itself, because the numbers on the profile card
+   *  (rating, games) come from `profiles` and are NOT derivable from someone else's run history alone. */
+  careerOf: CareerView | null;
+  openCareer: (of?: CareerView) => void;
   closeCareer: () => void;
   /** The Minion Book codex overlay (Tab) is open — a filterable reference of every minion + spell
    *  findable this run. UI-only; reads the run's pool + active tribes. */
@@ -784,8 +798,10 @@ export const useGame = create<GameStore>((set, get) => ({
   openRankings: () => set({ showRankings: true }),
   closeRankings: () => set({ showRankings: false }),
   showCareer: false,
-  openCareer: () => set({ showCareer: true }),
-  closeCareer: () => set({ showCareer: false }),
+  careerOf: null,
+  openCareer: (of) => set({ showCareer: true, careerOf: of ?? null }),
+  // Clear WHOSE career on close, so reopening your own from the title never inherits the last player viewed.
+  closeCareer: () => set({ showCareer: false, careerOf: null }),
   showBook: false,
   toggleBook: () => set((s) => ({ showBook: !s.showBook })),
   closeBook: () => set({ showBook: false }),

@@ -293,6 +293,17 @@ create index if not exists run_history_user on public.run_history (user_id, crea
 
 alter table public.run_history enable row level security;
 drop policy if exists "read own run_history"   on public.run_history;
+drop policy if exists "read run_history"       on public.run_history;
 drop policy if exists "insert own run_history" on public.run_history;
-create policy "read own run_history"   on public.run_history for select to authenticated using (auth.uid() = user_id);
+-- READS ARE PUBLIC (2026-08-04): clicking a player on the leaderboard opens their Career, which means reading
+-- run_history rows that are not yours. Writes stay owner-only — a client can still only insert its own runs.
+--
+-- This is a deliberate privacy decision, not an oversight: a career is a match history the leaderboard already
+-- advertises (name, rating, games, favourite hero), and the rows hold nothing beyond how the run went. If that
+-- ever stops being true, narrow this policy rather than the client — the client asking politely is not a
+-- security boundary.
+--
+-- ⚠️ UNTIL THIS IS RUN, the feature degrades to an EMPTY career for other players (the select returns no rows
+-- rather than erroring). Your own career is unaffected either way.
+create policy "read run_history"       on public.run_history for select to authenticated using (true);
 create policy "insert own run_history" on public.run_history for insert to authenticated with check (auth.uid() = user_id);

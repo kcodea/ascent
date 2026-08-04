@@ -8,7 +8,7 @@ import { avatarSrc, heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { careerStats, ordinal, runWon, type RunHistoryEntry } from './runHistory';
+import { careerStats, ordinal, runVerdict, VERDICT_CLASS, VERDICT_LABEL, type RunHistoryEntry } from './runHistory';
 import { fetchRunHistory } from './remoteBoards';
 
 /** Read-only card view from a stored snapshot minion — mirrors the leaderboard / end screen. */
@@ -162,7 +162,8 @@ export function Career() {
                   <div className="carsec carsec-ico"><Icon name="crown" />Recent Match History</div>
                   {(entries ?? []).slice(0, 25).map((e, i) => {
                     const expanded = open.has(i);
-                    const wonRun = runWon(e);
+                    const verdict = runVerdict(e);
+                    const wonRun = verdict !== 'defeat'; // the SCORE reads green for a top-4 too
                     const delta = e.ratingDelta;
                     return (
                       <div className={`lbentry carmatch${expanded ? ' open' : ''}`} key={i}>
@@ -185,7 +186,7 @@ export function Career() {
                             {e.placement !== undefined && (
                               <span className={`carplace${e.placement === 1 ? ' first' : ''}`}>{ordinal(e.placement)}</span>
                             )}
-                            <span className={`carwl ${wonRun ? 'won' : 'lost'}`}>{wonRun ? 'Victory' : 'Defeat'}</span>
+                            <span className={`carwl ${VERDICT_CLASS[verdict]}`}>{VERDICT_LABEL[verdict]}</span>
                             {/* The MMR move, beside the verdict. `0` is a real, meaningful value (a lobby that
                                 rated you flat) so this tests for undefined rather than truthiness. */}
                             {delta !== undefined && (

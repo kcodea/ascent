@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRun, type RunState } from '@game/sim';
-import { buildRunHistoryEntry, careerStats, ordinal, runWon, type RunHistoryEntry } from './runHistory';
+import { buildRunHistoryEntry, careerStats, ordinal, runVerdict, type RunHistoryEntry } from './runHistory';
 
 const scored = 15;
 const finishedRun = (over: Partial<RunState> = {}): RunState => ({
@@ -120,27 +120,37 @@ describe('careerStats (A7)', () => {
 });
 
 /**
- * WIN/LOSS no longer comes from the Oath verdict (owner 2026-08-04: "we dont have oath anymore or 'fallen'
- * as a word — it's just win or lose"). A lobby's placement is the answer; older entries predate lobbies and
- * would ALL read as losses if the fallback were dropped, which is why it is kept.
+ * The verdict no longer comes from the Oath (owner 2026-08-04), and it is no longer BINARY: an eight-seat
+ * lobby grades Victory / Top 4 / Defeat, because 2nd–4th score positive Rating and calling them defeats
+ * contradicted the number printed beside them. Older entries predate lobbies, have no placement to grade,
+ * and would ALL read as losses if the Line fallback were dropped — which is why it is kept.
  */
-describe('runWon', () => {
+describe('runVerdict', () => {
   const e = (over: Partial<RunHistoryEntry>): RunHistoryEntry =>
     ({ v: 1, date: '2026-08-04', seed: 1, heroId: 'warden', wins: 5, losses: 4, draws: 0, line: 9,
        lineStatus: 'failed', completed: false, wave: 12, tags: [], tribes: [], boardsContributed: 0,
        board: null, ...over }) as RunHistoryEntry;
 
-  it('placement 1 is a win even when the Line was missed', () => {
-    expect(runWon(e({ placement: 1, lineStatus: 'failed' }))).toBe(true);
+  it('placement 1 is a victory even when the Line was missed', () => {
+    expect(runVerdict(e({ placement: 1, lineStatus: 'failed' }))).toBe('victory');
   });
 
-  it('any other placement is a loss even when the Line was covered', () => {
-    expect(runWon(e({ placement: 4, lineStatus: 'flawless' }))).toBe(false);
+  it('2nd through 4th are Top 4, not defeats — they score positive Rating', () => {
+    for (const placement of [2, 3, 4]) {
+      expect(runVerdict(e({ placement, lineStatus: 'failed' })), `${placement} should be top4`).toBe('top4');
+    }
   });
 
-  it('an entry with NO placement falls back to the Line, so old runs still read sensibly', () => {
-    expect(runWon(e({ lineStatus: 'covered' }))).toBe(true);
-    expect(runWon(e({ lineStatus: 'failed' }))).toBe(false);
+  it('5th and below are defeats', () => {
+    for (const placement of [5, 6, 7, 8]) {
+      expect(runVerdict(e({ placement, lineStatus: 'flawless' })), `${placement} should be a defeat`).toBe('defeat');
+    }
+  });
+
+  it('an entry with NO placement falls back to the Line and stays BINARY', () => {
+    // A course run has no finish position, so there is no honest way to infer a top-4 from one.
+    expect(runVerdict(e({ lineStatus: 'covered' }))).toBe('victory');
+    expect(runVerdict(e({ lineStatus: 'failed' }))).toBe('defeat');
   });
 });
 

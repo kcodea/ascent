@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-04 — Career verdicts: Victory / Top 4 / Defeat
+
+Owner: *"the results should be Victory, Defeat, Top 4, and Top 4 should be a green value as well."*
+
+The row was binary — 1st was a Victory and everything else a Defeat. That contradicted the number printed
+beside it: the screenshot that prompted this had **2nd at +71 and 4th at +13, both labelled DEFEAT**. An
+eight-seat lobby is not win-or-lose, and the Rating already knew it.
+
+`runWon` becomes `runVerdict`, returning `victory` (1st) / `top4` (2nd–4th) / `defeat` (5th+), with
+`VERDICT_LABEL` and `VERDICT_CLASS` beside it so the label and the colour can't drift apart. `top4` renders in
+the SAME green as a victory (owner ask) — the placement chip next to it is what separates 1st from 3rd, so the
+colour only has to say "this went well". The row's W–L score also reads green for a top-4 now, since it is no
+longer a loss.
+
+Entries with NO placement predate lobbies and stay BINARY on the Line fallback: a course run has no finish
+position, so there is no honest way to infer a top-4 from one.
+
+**Verified** — `runVerdict` unit-tested across all eight placements plus the no-placement fallback (16 in
+`runHistory.test.ts`). The colour checked live: `.carwl.top4` computes to `rgb(111, 224, 160)`, the same green
+as `.carwl.won`. The row ITSELF is still not visually confirmable in dev — Career reads from `fetchRunHistory`,
+which needs a Supabase identity this instance doesn't have, the same limit flagged on the Career trim. Gates:
+typecheck ✓, lint ✓ (7 pre-existing), 3880 tests ✓, `build:web` ✓.
+
 ## 2026-08-04 — Rune of Slaying's counter, and the tally audit behind it
 
 Owner: *"Rune of Slaying needs a counter. Please parse all quest/runes to make sure they have counters where

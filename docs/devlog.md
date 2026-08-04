@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-04 — Scoped the effect cross-phase gap (spec only, no code)
+
+Owner ask after the Dawnclaw batch: *"all effects should be wired to work in combat and shop as a baseline up
+front."* Written up as [`effect-arena-spec.md`](effect-arena-spec.md) and queued under **Next** — starting
+when the weekly resets.
+
+Measured rather than estimated: **285 effect ids in content, only 40 with both halves.** That split overstates
+things (most single-half effects are correctly single-half), so the spec counts exposure per TRIGGER instead —
+which families actually fire in the phase their factory wasn't written for. `onPlay` is the big one at 45
+missing halves, `onDeath` 9, `onSummon` 5; five more families (`startOfCombat`, `onAttack`, `avenge`, `onKill`,
+`onDamaged`) have no shop dispatcher at all, which is the "currently impossible" half of the ask.
+
+The recommendation **declines the literal reading**. Writing the ~240 missing halves means ~240 new functions,
+each a fresh instance of the drift bug the 40 both-halves ids already have — `battlecryPlayRubiesAll` and
+`spellPlayRubiesAll` are the same sentence written twice, they diverged, and only one matched its printed
+text. The two sides also aren't merely duplicated: 36-method `CombatContext` over `Minion` vs a 2-field
+`RecruitContext` mutating `BoardCard`, different buff models, different RNG discipline, 9,371 lines.
+
+Proposed instead: an `EffectArena` each effect is written against ONCE, with `CombatArena` / `ShopArena`
+adapters and phase-specific verbs behind capability probes. Phased 0–3, with Phase 0 (a build-time
+declaration test, so no NEW instance can ship) worth doing on its own. Gated on a one-day RNG spike —
+recruit advances `state.rngCursor`, combat threads a forked `Rng`, and abstracting that without changing draw
+order is the one risk that could sink the plan.
+
+No engine change in this commit.
 ## 2026-08-04 — react: the workbench NAMES its subject, and the fallback is gone
 
 Third report on the same symptom, and the one that found the actual cause: *"when i add the react effect

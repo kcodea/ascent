@@ -239,6 +239,21 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+### Effect Arena — one implementation per effect, both phases (spec written 2026-08-04)
+Scoped in [`effect-arena-spec.md`](effect-arena-spec.md); **starting when the weekly resets.** Every few
+sessions a card turns out to do nothing in one phase — Lastlight from a Funeral on Loan, Geode Guardian's
+Echo, Imp Overseer under Ryme, Frenzied Excavator beside Dawnclaw. That is one defect with ~59 live instances
+and an unbounded supply of future ones, because nothing in the build knows an effect is missing a phase.
+Measured: 285 effect ids in content, only **40 with both halves**.
+
+The plan is NOT to write the ~240 missing halves — that industrialises the drift bug the 40 both-halves ids
+already have (two implementations of "play N Rubies" had silently diverged). It is an `EffectArena` interface
+each effect is written against ONCE, with a `CombatArena` and a `ShopArena` adapter, phase-specific verbs
+behind capability probes. Phase 0 (a build-time declaration test, so no NEW instance can ship) is worth doing
+on its own. **Gate: a one-day RNG spike before Phase 1** — recruit advances `state.rngCursor`, combat threads
+a forked `Rng`, and abstracting that without changing draw order is the one thing that could sink the plan.
+Also unlocks what is currently impossible: firing Start of Combat / Rally / Avenge during the shop phase.
+
 ### Henchmen — the roster + real presentation (system shipped 2026-08-03)
 The mechanic is wired end-to-end (hero link, win/loss cost decay, once-per-run recruit, placeholder chip in
 the status bar, playable via the Warden in the Scene Builder). What remains is CONTENT + DESIGN: author the

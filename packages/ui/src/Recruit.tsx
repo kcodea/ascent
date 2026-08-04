@@ -50,6 +50,7 @@ import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
 import { RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
+import { holdStat } from './fx/statHold';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -836,6 +837,38 @@ export function Recruit() {
   // `rubyLandedFxUids` is derived in the reducer from a `rubiesOnThisTurn` delta rather than stamped per play
   // site. The combat half is the `rubyFx` cue channel, off the `ruby` flag on the buff event.
   const prevRubyLandedSeq = useRef(run.rubyLandedFxSeq);
+  /**
+   * WITHHOLD the stat change so the gem's effect can deliver it (`fx/statHold.ts`) — the shop half of what
+   * `score.ts` does for combat.
+   *
+   * `useLayoutEffect`, not `useEffect`, and that is the entire reason this is its own effect rather than two
+   * lines inside the cue below. A layout effect runs after the commit but BEFORE the browser paints; a
+   * normal effect runs after. Holding in a normal effect would let the new number paint for one frame and
+   * then jump backwards to the old one before rolling — visibly worse than not withholding at all.
+   *
+   * The per-gem amount is derived rather than carried: `RubyLandedFx` reports `{uid, count}` only, but each
+   * minion's `Ruby` CardBuff records the TOTAL that source contributed and how many times, so
+   * `total / count` is the per-gem value. Derived UI-side deliberately — the alternative is a new field on
+   * `RubyLandedFx`, which is `packages/sim` and the other side of the ownership seam.
+   *
+   * Anything unusable (no board entry, no Ruby buff yet, a zero count) simply does not hold: the badge shows
+   * the truth immediately, which is exactly today's behaviour and the safe direction.
+   */
+  useLayoutEffect(() => {
+    const seq = run.rubyLandedFxSeq;
+    if (seq === undefined || seq === prevRubyLandedSeq.current) return;
+    for (const land of run.rubyLandedFx ?? []) {
+      const buff = run.board.find((c) => c.uid === land.uid)?.buffs?.find((b) => b.source === 'Ruby');
+      if (!buff || buff.count <= 0) continue;
+      holdStat(land.uid, {
+        attack: Math.round((buff.attack / buff.count) * land.count),
+        health: Math.round((buff.health / buff.count) * land.count),
+      });
+    }
+    // `prevRubyLandedSeq` is deliberately NOT advanced here — the cue effect below owns that bookkeeping, and
+    // moving it would make this effect silently swallow the cue.
+  }, [run.rubyLandedFxSeq, run.rubyLandedFx, run.board]);
+
   useEffect(() => {
     const seq = run.rubyLandedFxSeq;
     if (seq === undefined || seq === prevRubyLandedSeq.current) return;

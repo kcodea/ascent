@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+## 2026-08-04 — Shop-triggered Echoes were inert for Geode Guardian + Faultline Scrapper (and 20 more)
+
+Owner report: a Geode Guardian played from Funeral on Loan summoned nothing, and Faultline Scrapper "looks
+like it probably worked but we need the Ruby buff animation".
+
+**Both were doing nothing at all.** An Echo triggered in the SHOP — Funeral on Loan, Ossuary Rite,
+Deathsayer, Rune of the Reliquary, a Gravetwin copy — runs through `RECRUIT_FACTORIES`. An `onDeath` effect
+that only has a COMBAT factory is therefore silently inert: the card is destroyed and nothing happens. Same
+class as Lastlight (fixed 2026-08-03). Faultline's Ruby-strength gain never fired either — confirmed by a
+negative control, so the "probably worked" read was optimistic.
+
+**And the animation needed no work.** Both Ruby cues are derived by the reducer from DELTAS — `rubyLandedFx`
+off the `'Ruby'` buff-count on every board minion and shop offer, `rubyPowerFx` off the `rubyBonus` change —
+so neither needs a play site to stamp anything. They were silent purely because the effects never ran. Adding
+the recruit halves lit both automatically; the tests pin the cues rather than assuming that.
+
+- `deathrattleRubyStatGain` (Faultline Scrapper, Alchemist Brisbane) — delegates to the existing
+  `rubyStatGain` so the two halves stay identical by construction rather than by someone remembering.
+- `deathrattleSummonGolemsWithRuby` (Geode Guardian) — summons the Golems with Taunt and plays the Rubies
+  through `addBuff` + `fireOnRubyPlayed`, exactly like a hand-cast Ruby, so the Golems' own on-Ruby watchers
+  see them. Golden doubles the RUBIES, never the count (owner was explicit).
+
+**The audit found this is a class of 19 factories across 22 cards**, all inert when their Echo fires in the
+shop. Fixed the Ruby family the owner is playing; the rest are listed below for a ruling, because several are
+genuinely combat-only and SHOULD stay inert (there are no enemies to damage in a shop, and no killer to
+destroy):
+
+```
+plausibly shop-valid, not yet done   deathrattleGrantSpell, deathrattleMaxGold, deathrattleBuffCelestials,
+                                     deathrattleBuffAllByImpAura, deathrattleReplayAdjacentBattlecry (Ryme),
+                                     deathrattleCastTribeAttack, summonImps, echoSummonCopyNoEcho,
+                                     echoSummonInheritAttackAndCharge, deathrattleSummonRubyStats,
+                                     deathrattleSummonOverflowBuff, deathrattleImpsOverflowGrant, combatGrantAle
+correctly combat-only                deathrattleDamageAll, deathrattleDestroyKiller, deathrattleGrantRebornAll,
+                                     onFriendDeathSummon
+```
+
+**Verified** — new `shopEchoRuby.test.ts` (5 tests): the Golems summon with Taunt and Rubies, Faultline raises
+Ruby Attack, a golden borrowed Scrapper doubles it, and BOTH FX cues reach their channels. Confirmed as a
+negative control: all five fail without the recruit halves. Gates: typecheck ✓, lint ✓ (7 pre-existing),
+3795 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-04 — Dawnclaw, second pass: the full Shout audit
 
 The first pass fixed ONE factory off a probe fixture. The owner's screenshot was the actual case — two gilded

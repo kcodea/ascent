@@ -37,9 +37,23 @@ two"* — which is what the card does. Same events, different claim.
 |---|---|
 | **subject** | the unit the moment is *about* — the card that acted (the Excavator) |
 | **recipient** | a unit the effect plays on |
-| **scope** | which units are recipients: `self` · `neighbours` · `allies` · `board` |
+| **reach** | which units are recipients, *positionally*: `self` · `neighbours` · `allies` · `board` |
+| **fan-out** | which units are recipients, *from the combat data*: `primary` · `damaged` · `selfBuffed` |
 
 A unit can be BOTH. See "the subject is an ordinary recipient" below.
+
+**reach vs fan-out** — two different questions, and they compose. Fan-out asks *"who did this moment
+happen to?"* and only the combat log knows: "every unit damaged in this step" can't be answered while
+authoring. Reach asks *"how far does the look spread from each of those?"* and only the author knows — it's
+a choice about how the effect reads, not about what happened.
+
+So fan-out lives on the **binding** (`FxBinding.fanOut` — a property of the moment) and reach lives in the
+**def**, set in the effect editor (a property of the look). The editor is where reach belongs because reach
+and timing are coupled: spreading across units needs a `gap` between them or they fire as one blur, so "the
+same effect at a wider reach" is really a differently-timed composition, not a setting.
+
+> **Not `scope`.** That word is already taken in this system: the commit panel's `scope` is `card` vs
+> `global` — *where a def gets written*. Two meanings of one word in one UI is a trap; reach is the word.
 
 ## Order — how recipients are traversed
 

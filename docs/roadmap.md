@@ -26,7 +26,15 @@ The five buckets below are ordered by when we intend to act, not by size:
   is still missing is the layer kind that animates them: a DOM/WAAPI `react`, transform/opacity only,
   scoped self / neighbours / allies / board with falloff and delay by distance. First real use: a gem
   landing pops the plate while the number counts to its new value. Retire `statflash` into it rather than
-  running both. Open question to settle first: does `scope` belong to the layer or to the binding?
+  running both.
+
+  **Reach settled (2026-08-03):** it lives in the effect editor, not the binding — reach and timing are
+  coupled, so "the same look, wider" is really a differently-timed composition. It does NOT replace
+  `FxBinding.fanOut`, which answers a different question (`primary`/`damaged`/`selfBuffed` — who the *moment*
+  happened to, readable only from the combat log). The two compose: fan-out picks the recipients, reach
+  spreads from each. Open: a `react` layer targets DOM elements, but `FxContext` is Pixi-only
+  (`container` + `renderer`) and anchors resolve to screen *coordinates*, not elements — so the layer
+  pipeline needs an element channel before a react layer can exist. Decide that seam first.
 
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and

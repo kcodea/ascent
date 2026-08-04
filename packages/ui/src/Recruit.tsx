@@ -1080,9 +1080,6 @@ export function Recruit() {
   const [lossCount, setLossCount] = useState(0);   // the damage tally as it climbs
   const [lossDmg, setLossDmg] = useState(0);       // final (capped) damage
   const [lossCapped, setLossCapped] = useState(false); // raw total exceeded the round cap
-  // How much of the hit is STALL PRESSURE rather than the fight. Named on the counter so the extra damage is
-  // explained rather than looking like the tally is wrong — it is not paid by any minion on screen.
-  const [lossPressure, setLossPressure] = useState(0);
   const [lossPos, setLossPos] = useState<{ x: number; y: number } | null>(null); // counter screen pos
   const [lossFlyers, setLossFlyers] = useState<{ id: number; tier: number; x: number; y: number; tx: number; ty: number; delay: number; isOpp?: boolean }[]>([]);
   const [lossShake, setLossShake] = useState(false); // screen shake on the blast impact
@@ -1349,16 +1346,11 @@ export function Recruit() {
 
     const survivors = replay.frame.enemy;
     const cap = lossDamageCap(run0.wave);
-    const fightDmg = Math.min(run0.lastCombat?.playerDamage ?? 0, cap);
-    // The counter must state the hit the player ACTUALLY takes, which in a lobby is the fight's damage PLUS
-    // stall pressure. Showing only `playerDamage` meant the number was silently short whenever pressure was
-    // live: "I had 13 hp and it said I took 11 but I died" (owner report 2026-08-04) — 11 + 2 pressure = 13.
-    // `playerLossDamage` is the same function the settle uses, called with the same PRE-settle lobby (the
-    // sequence runs while `combatSettled` is still false), so the two cannot drift.
+    // `playerLossDamage` is the same function the settle uses — the player takes COMBAT DAMAGE ONLY (owner
+    // ruling 2026-08-04), and sharing one definition is what stops the counter drifting from the hit again.
     const finalDmg = run0.lobby && run0.mode !== 'practice' && run0.lastCombat
       ? playerLossDamage(run0.lobby, run0.lastCombat)
-      : fightDmg;
-    const pressureDmg = finalDmg - fightDmg;
+      : Math.min(run0.lastCombat?.playerDamage ?? 0, cap);
     const oppTier = nextOpponent(run0)?.tier ?? run0.tier; // the just-fought board (wave advances only on Climb On)
 
     // Counter sits centered above the surviving enemy cards.
@@ -1381,8 +1373,7 @@ export function Recruit() {
     setLossPhase('tally');
     setLossCount(0);
     setLossDmg(finalDmg);
-    setLossCapped(rawTotal > cap); // the cap applies to the FIGHT's tiers; stall pressure is added on top of it
-    setLossPressure(pressureDmg);
+    setLossCapped(rawTotal > cap);
     setLossFlyers(contribs.map((c, i) => ({
       id: i, tier: c.tier,
       x: c.r ? c.r.left + c.r.width / 2 : cx,
@@ -4162,9 +4153,6 @@ export function Recruit() {
         >
           <div className="lossdmg-n">{lossCount}</div>
           <div className="lossdmg-l">{lossCapped && lossCount >= lossDmg ? 'Max Damage' : 'Damage'}</div>
-          {lossPressure > 0 && lossCount >= lossDmg && (
-            <div className="lossdmg-p">incl. +{lossPressure} stall</div>
-          )}
         </div>
       )}
       {fighting && lossFlyers.map((f) => (

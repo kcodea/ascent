@@ -21,7 +21,7 @@ const seat = (id: string): LobbySeatState => ({
 });
 
 const lobbyOf = (seats: LobbySeatState[], seed = 9): RunLobby => ({
-  version: 1, seed, round: 1, seats, encounters: [], quietRounds: 0, finished: false,
+  version: 1, seed, round: 1, seats, encounters: [], finished: false,
   rules: { ...DEFAULT_LOBBY_RULES },
 });
 

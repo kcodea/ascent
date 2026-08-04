@@ -54,7 +54,7 @@ describe('boardIntel — what a board reads as', () => {
 
 describe('seatResults — the last fights, from one seat\'s side', () => {
   const lobby = (encounters: RunLobby['encounters']): RunLobby => ({
-    version: 1, seed: 1, round: 9, quietRounds: 0, finished: false,
+    version: 1, seed: 1, round: 9, finished: false,
     seats: [
       { id: 'a', label: 'Orange' }, { id: 'b', label: 'Lemon' }, { id: 'c', label: 'Plum' },
     ] as RunLobby['seats'],

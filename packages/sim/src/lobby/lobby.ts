@@ -1,7 +1,6 @@
 import { combatSide, makeRng, simulate, type Rng } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { lossDamageCap } from '../reducer';
-import { stallPressure } from './runLobby';
 import type { LobbyRules, LobbySeat, LobbyState, SeatDriver } from './types';
 
 export const DEFAULT_LOBBY_RULES: LobbyRules = {
@@ -11,7 +10,6 @@ export const DEFAULT_LOBBY_RULES: LobbyRules = {
   // `repeatFinal` by default: a recorded run is finite and the lobby is not, and eliminating a seat the moment
   // its recording ends would make lobby length depend on how long its owner survived rather than on play.
   exhaustion: 'repeatFinal',
-  pressureAfterQuietRounds: 4,
   maxRounds: 60,
   // No snapshotSeats cap (owner call 2026-07-31): player runs fill EVERY non-player seat the pool can cover,
   // bots only take what's left. The old "minority on purpose" cap of 3 predates the pure-snapshot direction --
@@ -34,7 +32,6 @@ export function createLobby(seed: number, drivers: readonly SeatDriver[], rules:
       alive: true,
     })),
     encounters: [],
-    quietRounds: 0,
     finished: false,
   };
 }
@@ -110,7 +107,6 @@ export function resolveRound(state: LobbyState): LobbyState {
   const eliminatedThisRound: LobbySeat[] = [];
   // Effective HP entering the round — the tiebreak for the wipeout guard below.
   const hpBefore = new Map(state.seats.map((s) => [s.id, s.armor + s.resolve]));
-  const pressure = stallPressure(state); // see runLobby.ts — one definition, two lobby flavours
 
   for (const [a, b] of pairs) {
     // `repeatFinal` lives HERE, not in the driver: a driver reports what it has, the lobby decides what
@@ -138,12 +134,11 @@ export function resolveRound(state: LobbyState): LobbyState {
       combatSide({ tier: boardA.tier }), combatSide({ tier: boardB.tier }),
     );
     const cap = lossDamageCap(state.round);
-    // Pressure hits the loser — and BOTH sides on a draw, which is the case that actually matters: eight
-    // mirrored boards draw forever, so pressure that only punished a loser never fired and the lobby ran to
-    // its hard stop with all eight alive.
-    const drawn = r.result === 'draw';
-    const dmgA = Math.min(cap, r.playerDamage) + (drawn || r.result === 'lose' ? pressure : 0);
-    const dmgB = Math.min(cap, r.enemyDamage ?? 0) + (drawn || r.result === 'win' ? pressure : 0);
+    // COMBAT DAMAGE ONLY (owner ruling 2026-08-04). Stall pressure — an extra per-round hit on losers and on
+    // both sides of a draw — used to be added here; `maxRounds` is now the only stalemate backstop, which does
+    // mean a table of mirrored boards can run to that hard stop with everyone still alive.
+    const dmgA = Math.min(cap, r.playerDamage);
+    const dmgB = Math.min(cap, r.enemyDamage ?? 0);
 
     applyDamage(a, dmgA);
     applyDamage(b, dmgB);
@@ -175,10 +170,10 @@ export function resolveRound(state: LobbyState): LobbyState {
   }
   if (bye) state.encounters.push({ round: state.round, a: bye.id, b: bye.id, outcome: 'draw', damageToA: 0, damageToB: 0, bye: bye.id, fought: false });
 
-  // WIPEOUT GUARD. Stall pressure hits both sides of a draw, so a lobby of mirrored boards can take every
-  // remaining seat to zero in the SAME round and leave no winner at all — "last one standing" with nobody
-  // standing. When that happens the seat(s) that entered the round healthiest survive it; a genuine tie at the
-  // top shares the win. Found by the mirror-lobby test, which wiped all eight at once.
+  // WIPEOUT GUARD. A round can still take every remaining seat to zero at once — two seats trading lethal
+  // combat damage in the same round leaves no winner at all, "last one standing" with nobody standing. (Stall
+  // pressure used to be the common way in, via both sides of a draw; the guard outlives it because mutual
+  // lethal combat damage does the same thing.) The seat that entered the round healthiest survives it.
   if (eliminatedThisRound.length > 0 && state.seats.every((s) => !s.alive)) {
     // Exactly ONE survivor, never "everyone who tied". Perfectly mirrored seats all enter the round on the
     // same HP, so reviving every seat on the best score resurrected all eight — every round, forever. The
@@ -197,7 +192,6 @@ export function resolveRound(state: LobbyState): LobbyState {
   const remaining = state.seats.filter((s) => s.alive).length;
   for (const seat of eliminatedThisRound) seat.placement = remaining + eliminatedThisRound.length;
 
-  state.quietRounds = eliminatedThisRound.length > 0 ? 0 : state.quietRounds + 1;
   state.round += 1;
 
   const living = state.seats.filter((s) => s.alive);

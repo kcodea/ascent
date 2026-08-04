@@ -101,8 +101,6 @@ export interface LobbyRules {
   startingResolve: number;
   startingArmor: number;
   exhaustion: ExhaustionPolicy;
-  /** Rounds with no elimination before stall pressure starts adding damage to every loser. */
-  pressureAfterQuietRounds: number;
   /** Hard stop, so a prototype can never hang. */
   maxRounds: number;
   /** How many seats may be driven by REAL player runs from the registered pool. Absent = NO cap (owner call
@@ -133,6 +131,5 @@ export interface LobbyState {
   round: number;
   seats: LobbySeat[];
   encounters: LobbyEncounter[];
-  quietRounds: number;
   finished: boolean;
 }

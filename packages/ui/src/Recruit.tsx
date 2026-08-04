@@ -855,7 +855,9 @@ export function Recruit() {
           const p = restingCenterOf(el);
           if (!p) return;
           // Both anchors are the minion itself: the Ruby lands ON it, with nothing to travel between.
-          playDef('ruby-gem-apply', { source: p, target: p }); // literal — see RUBY_LANDED_DEF
+          // `uids` names the minion the gem landed on. Without it a `react` layer has no subject and plays
+          // on nobody — this SHOP path was the one that had no uid to give (owner report, 2026-08-04).
+          playDef('ruby-gem-apply', { source: p, target: p }, { uids: { source: land.uid, target: land.uid } }); // literal — see RUBY_LANDED_DEF
           sfx.gemApply(); // one play per gem, matching the cascade the eye sees
         };
         // The traversal arithmetic lives in `scheduleLands` (see `fx/land.ts`); this site only says what a
@@ -3630,7 +3632,8 @@ export function Recruit() {
       // The authored `landing-dust` def: sized to this card (`scale`) and, as the hand-written call did with
       // its `density` argument, +50% denser here than the combat-summon poof (`intensity`).
       const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      playDef('landing-dust', { source: c, target: c }, { scale: cardFxScale(r.width), intensity: 1.5 });
+      playDef('landing-dust', { source: c, target: c },
+        { scale: cardFxScale(r.width), intensity: 1.5, uids: { source: uid, target: uid } });
     }, 200); // after the Flip settles, so the rect is the resting slot, not mid-slide
   };
 

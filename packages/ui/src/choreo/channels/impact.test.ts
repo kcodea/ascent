@@ -21,9 +21,18 @@ afterEach(() => {
 // Tests run in the node environment (no jsdom in this repo), so — like the sibling `float.test.ts` — we
 // hand `playContactImpact` a fake Element whose getBoundingClientRect is stubbed rather than a real DOM
 // node. A 0×0 rect at (0,0) keeps the impact-FX center at (0,0), so the anchor assertions are exact.
+// Carries a `data-uid` because the impact channel now reads one off the defender and hands it to `playDef`
+// as the react subject — a strike is something that happens TO a unit. A stub without `getAttribute` would
+// throw rather than fail an assertion, which is its own kind of unhelpful.
+const DEFENDER_UID = 'defender-1';
 const fakeDefender = (): Element => ({
   getBoundingClientRect: () => ({ left: 0, top: 0, width: 0, height: 0 }),
+  getAttribute: (name: string) => (name === 'data-uid' ? DEFENDER_UID : null),
 } as unknown as Element);
+
+/** The uids every impact def is fired with: no source (the `source` anchor is a synthetic point behind the
+ *  blow, not a unit), and the defender as the subject. */
+const IMPACT_UIDS = { uids: { source: null, target: DEFENDER_UID } };
 
 describe('hitPower', () => {
   it('maps swing damage to a power scale clamped to [0.9, 2]', () => {
@@ -51,7 +60,7 @@ describe('playContactImpact', () => {
     expect(playDefMock).toHaveBeenCalledWith(
       'strike-impact',
       { source: { x: -10, y: 0 }, target: { x: 0, y: 0 } },
-      { scale: strikeScale(1.5), intensity: strikeIntensity(1.5) },
+      { scale: strikeScale(1.5), intensity: strikeIntensity(1.5), ...IMPACT_UIDS },
     );
     expect(gsap.getTweensOf(el).length).toBeGreaterThan(0);
   });
@@ -63,7 +72,7 @@ describe('playContactImpact', () => {
     expect(playDefMock).toHaveBeenCalledWith(
       'strike-impact',
       { source: { x: 42, y: 109 }, target: { x: 42, y: 99 } }, // the passed contact point, not the rect centre
-      { scale: 1, intensity: 1 },
+      { scale: 1, intensity: 1, ...IMPACT_UIDS },
     );
   });
 
@@ -150,7 +159,7 @@ describe('playContactImpact — the impact-dust def', () => {
     expect(playDefMock).toHaveBeenCalledWith(
       'impact-dust',
       { source: { x: 12, y: 34 }, target: { x: 12, y: 34 } },
-      { intensity: dustIntensity(2) },
+      { intensity: dustIntensity(2), ...IMPACT_UIDS },
     );
   });
 
@@ -199,7 +208,7 @@ describe('playContactImpact — the strike-impact def', () => {
   it('splits power across the two magnitude axes', () => {
     normalHit(10, 0, 2);
     expect(playDefMock.mock.calls.find((c) => c[0] === 'strike-impact')?.[2])
-      .toEqual({ scale: 2, intensity: strikeIntensity(2) });
+      .toEqual({ scale: 2, intensity: strikeIntensity(2), ...IMPACT_UIDS });
   });
 
   it('maps power the way the hand-written method did', () => {

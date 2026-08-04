@@ -25,6 +25,23 @@ the moment), else to the first minion — a starting pick the author can now SEE
 precisely what the silent version never allowed. The picked uid rides the same `FxContext.uids` channel the
 real cue path uses, so preview and production differ in who is named, not in how.
 
+**And removing the fallback immediately exposed what it had been hiding.** Owner: *"i am not seeing the
+effect being played."* The SHOP Ruby path (`Recruit.tsx`) called `playDef('ruby-gem-apply', …)` with no
+uids at all — so with the guess gone, the react layer correctly had no subject and played on nobody. The
+fallback had been masking a real gap at every call site that never passed a uid, not just in the workbench.
+
+Wired uids at every site that knows its unit: the shop gem land, the board landing puff, the combat replay's
+coins / damage-burst / landing-dust / death-dissolve, the melee impact channel (which now reads the
+defender's uid off the element it already holds — a strike is something that happens TO a unit), and the
+workbench's library/preset previews.
+
+**The scan is now a test** (`playDefUids.test.ts`). This defect shipped three times in one day and hand
+grepping missed `Recruit.tsx` twice — once to a truncated `head -10`. Every `playDef` call must either pass
+`uids` or appear in a `UNIT_LESS` allowlist WITH a reason (the cursor puff, the button dusts, the HP-box
+burst). A second test fails on a stale allowlist entry, so an exemption can't outlive the call it excuses —
+it caught one on its first run, an entry for a `coins` call that had just been wired.
+
+Full gate green: typecheck (pkgs + web), lint (0 errors), 3764 tests, `build:web`.
 Full gate green: typecheck (pkgs + web), lint (0 errors), 3762 tests, `build:web`.
 ## 2026-08-04 — Shop-triggered Echoes were inert for Geode Guardian + Faultline Scrapper (and 20 more)
 

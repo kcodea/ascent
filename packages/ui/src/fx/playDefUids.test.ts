@@ -1,0 +1,93 @@
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+/**
+ * Every `playDef(...)` call that fires AT A UNIT must hand over that unit's uid.
+ *
+ * This guard exists because the same defect shipped three times in one day. A `react` layer animates a
+ * card's DOM, so it needs `uids` — but a Pixi layer doesn't, so a call site that forgets them looks
+ * completely fine and keeps working. The effect still plays; it just plays on nobody (or, before the
+ * fallback was removed, on the leftmost minion). Nothing throws, nothing fails, and the symptom shows up
+ * as "the wrong card reacted" three modules away from the cause.
+ *
+ * Grepping by hand missed `Recruit.tsx` twice — once to a truncated `head -10`. So the scan is a test.
+ *
+ * The rule: a call passing `uids` is fine, and a call in `UNIT_LESS` is fine. Anything else fails, and the
+ * fix is either to pass the uid or to add the site here WITH a reason. Adding a line to `UNIT_LESS` is
+ * deliberately a reviewable diff — that is the whole mechanism.
+ */
+
+const UI_SRC = join(__dirname, '..');
+
+/** Call sites that genuinely have no unit — the FX plays at a cursor, a button, or a HUD box. A react layer
+ *  bound into one of these defs would correctly do nothing, because there is no card for it to be about. */
+const UNIT_LESS: { file: string; id: string; why: string }[] = [
+  { file: 'Recruit.tsx', id: 'damage-burst', why: 'fires at the HP box in the status bar, not at a unit' },
+  { file: 'Recruit.tsx', id: 'click-puff', why: 'fires at the cursor' },
+  { file: 'Recruit.tsx', id: 'coins', why: 'fires at the gold counter' },
+  { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },
+  { file: 'RefreshButton.tsx', id: 'impact-dust', why: 'fires at the button' },
+  { file: 'TavernUpButton.tsx', id: 'impact-dust', why: 'fires at the button' },
+];
+
+function sourceFiles(dir: string, out: string[] = []): string[] {
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) {
+      if (name !== 'node_modules') sourceFiles(full, out);
+    } else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+/** `playDef(` … matching parens, so a multi-line call is one match rather than a truncated first line. */
+function callsIn(src: string): string[] {
+  const calls: string[] = [];
+  for (let i = src.indexOf('playDef('); i !== -1; i = src.indexOf('playDef(', i + 1)) {
+    // Skip mentions inside comments and strings — `directCallScan.ts` documents the pattern in prose.
+    const lineStart = src.lastIndexOf('\n', i) + 1;
+    const line = src.slice(lineStart, i);
+    if (line.includes('//') || line.includes('*') || line.includes("'") || line.includes('`')) continue;
+    let depth = 0;
+    let j = src.indexOf('(', i);
+    for (; j < src.length; j++) {
+      if (src[j] === '(') depth++;
+      else if (src[j] === ')' && --depth === 0) break;
+    }
+    calls.push(src.slice(i, j + 1));
+  }
+  return calls;
+}
+
+describe('every playDef call at a unit passes its uid', () => {
+  it('has no unit-aimed call missing `uids`', () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(UI_SRC)) {
+      // The bridge itself defines playDef; its own doc comments name the pattern.
+      if (file.endsWith('playDef.ts') || file.includes('directCallScan')) continue;
+      const short = file.split(/[\\/]/).pop() ?? file;
+      for (const call of callsIn(readFileSync(file, 'utf8'))) {
+        if (call.includes('uids')) continue;
+        const id = /playDef\(\s*'([^']+)'/.exec(call)?.[1] ?? '<dynamic>';
+        if (UNIT_LESS.some((u) => u.file === short && u.id === id)) continue;
+        offenders.push(`${short}: playDef('${id}') — pass uids, or add it to UNIT_LESS with a reason`);
+      }
+    }
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+
+  it('has no stale UNIT_LESS entry', () => {
+    // An exemption that no longer matches a real call is a lie in a list whose whole job is to be trusted.
+    const all = sourceFiles(UI_SRC).flatMap((f) => {
+      const short = f.split(/[\\/]/).pop() ?? f;
+      return callsIn(readFileSync(f, 'utf8')).map((c) => ({ short, call: c }));
+    });
+    const stale = UNIT_LESS.filter(
+      (u) => !all.some(({ short, call }) => short === u.file && call.includes(`'${u.id}'`) && !call.includes('uids')),
+    );
+    expect(stale.map((s) => `${s.file}: ${s.id}`), 'UNIT_LESS entries matching nothing').toEqual([]);
+  });
+});

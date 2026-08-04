@@ -1185,7 +1185,7 @@ export function useCombatReplay(
           const el = findEl(uid);
           if (!el) continue;
           const { cx, cy } = layoutRectOf(el);
-          playDef('coins', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
+          playDef('coins', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { uids: { source: uid, target: uid } });
         }
       },
       // A NON-melee hit (SC nuke / split damage / Blaster AoE) → a damage burst + impact ring at each target, so a
@@ -1200,7 +1200,7 @@ export function useCombatReplay(
           const { cx, cy } = layoutRectOf(el);
           // The crimson hit burst is the authored `damage-burst` def (migrated out of `pixiFx`); the impact
           // ring beside it is still hand-written — it takes a per-call size, which `playDef` cannot pass yet.
-          playDef('damage-burst', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
+          playDef('damage-burst', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { uids: { source: uid, target: uid } });
           pixiFx.impactPulse(cx, cy);
         }
       },
@@ -1214,7 +1214,7 @@ export function useCombatReplay(
           if (w < 1 || h < 1) continue; // not laid out yet → no valid spawn rect
           // The authored `landing-dust` def, sized to THIS card via `playDef`'s per-call `scale` (which is
           // what the hand-written `pixiFx.dust(cx, cy, w, h)` used its w/h for).
-          playDef('landing-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { scale: cardFxScale(w) });
+          playDef('landing-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { scale: cardFxScale(w), uids: { source: uid, target: uid } });
         }
       },
       // A transform (Tara→Taragosa, Spirit Pup→Worgen) → bloom a flash over the unit, masking the card swap
@@ -1258,7 +1258,7 @@ export function useCombatReplay(
         // returns null for an unknown id).
         if (!e.rise && canPlayDefs()) {
           const a = anchorsForUnits(null, e.target); // no source: the anchors fold onto the dying unit
-          if (a) playDef('death-dissolve', a);
+          if (a) playDef('death-dissolve', a, { uids: { source: null, target: e.target } });
         }
         continue;
       }

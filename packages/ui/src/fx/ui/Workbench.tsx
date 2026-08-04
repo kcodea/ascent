@@ -2554,7 +2554,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             // A PREVIEW, deliberately not `loadDef`: hovering a list must never replace the author's
             // in-progress composition. `playDef` mounts its own container, plays once and self-retires, so
             // the editor's own layers, duration, seed, name and undo history are all untouched.
-            playDef(id, anchors);
+            // Same subject the editor previews against, so a def with a react layer shows what it does.
+            playDef(id, anchors, { uids: { source: subjectUid, target: subjectUid } });
           }}
           onClose={() => setBrowsing(false)}
         />
@@ -2570,7 +2571,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             // never touches the author's in-progress composition.
             const made = materialiseVariant(archetypeId, variantId);
             if (made === null) return;
-            playDef(made.stored.id, anchors);
+            playDef(made.stored.id, anchors, { uids: { source: subjectUid, target: subjectUid } });
           }}
           onPick={(archetypeId, variantId) => {
             const made = materialiseVariant(archetypeId, variantId);

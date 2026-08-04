@@ -1164,6 +1164,20 @@ export function handCap(state: Pick<RunState, 'runeforgeOffer'>): number {
   return state.runeforgeOffer ? CONFIG.handMaxRuneTurn : CONFIG.handMax;
 }
 
+/**
+ * Hand slots RESERVED for Discover picks that are open or queued but not yet chosen.
+ *
+ * A Discover is a card the player is actively being asked to choose; a passive grant that fills the last
+ * slot in the meantime silently destroys that choice. Owner ruling 2026-08-04: "Spell Warden's duplicated
+ * spell should have lower priority than a card discovered — if the player has a golden Spell Warden and 10
+ * cards in hand and their 2nd spell is a Discover, the discovered card takes precedence."
+ *
+ * Counts the OPEN prompt plus everything still queued behind it, so a chain of Discovers each keeps a slot.
+ */
+export function reservedHandSlots(state: Pick<RunState, 'discover' | 'discoverQueue'>): number {
+  return (state.discover ? 1 : 0) + (state.discoverQueue?.length ?? 0);
+}
+
 export function runRecord(state: RunState): { wins: number; losses: number; draws: number } {
   let wins = 0, losses = 0, draws = 0;
   for (const r of state.history.slice(CONFIG.calibrationRounds)) {

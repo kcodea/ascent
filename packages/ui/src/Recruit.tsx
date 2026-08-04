@@ -374,7 +374,10 @@ function tokenRefView(
 function conjuredView(cardId: string, run: RunState): CardView | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
-  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff);
+  // `run.rubyBonus` is load-bearing here: `tokenRefView`'s Ruby branch prints base 1/1 without it, so a Ruby
+  // granted DURING combat flew to hand reading 1/1 and then snapped to its real value at settle (owner report
+  // 2026-08-04). The hover path at the `refViewsByUid` call site always passed it; these preview paths didn't.
+  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, undefined, run.rubyBonus);
   // Spells have no stats to aura — tokenRefView's view is already right for them.
   if (def.spell) return base;
   return { ...base, ...conjuredStats(run, def) };
@@ -4128,7 +4131,7 @@ export function Recruit() {
           {handPreviews.map((cardId, i) => (
             /* `plated` to match the real hand cards exactly — the preview is swapped for the committed card,
                and an unplated preview made that swap read as a flicker. */
-            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff)} suppressPop forceFull plated />
+            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus)} suppressPop forceFull plated />
           ))}
         </div>
       </div>

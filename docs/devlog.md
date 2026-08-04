@@ -1,5 +1,42 @@
 # ASCENT — development log
 
+## 2026-08-04 — Owner batch: rune-turn hand grace, Discover priority, combat Ruby values, Dawnclaw, shop Echoes
+
+- **Rune-turn hand grace.** The hand cap rises to 20 (`CONFIG.handMaxRuneTurn`) while the RUNEFORGE IS OPEN,
+  so a rune's rewards all land on a full hand — Edward Keg Hands gives you the Ales *and* Edward, and Rune of
+  Duplication's second application has room too. Keyed on the forge being open rather than a flag with its own
+  lifecycle: `buyRune` applies rewards while the offer is still set and only then closes, which makes the
+  grace naturally once-per-rune-turn, impossible to leak into an ordinary shop turn, and needs nothing to
+  remember to clear it. The extra cards are KEPT afterwards — the cap only governs adding.
+- **A pending Discover outranks a passive grant.** `conjureToHand` now reserves a slot per open/queued
+  Discover, so a golden Spell Warden's copies yield to the card you are being asked to choose. Previously the
+  Warden filled the last slot and the discovered card was silently destroyed.
+- **Rubies granted mid-combat now show their real value.** `tokenRefView`'s Ruby branch already prints
+  `1/1 + rubyBonus`, but the two GRANT-PREVIEW call sites never passed `rubyBonus` (the hover path always
+  did) — so a Ruby flew to hand reading 1/1 and snapped to its true value at settle.
+- **Baby Gastrid targets Dwarves only**, text included. It joins the sweep in `targetTribeGuard.test.ts`,
+  which covers the reducer-level refusal for every tribe-restricted card.
+- **Dawnclaw: `battlecryBuffTarget` now resolves IN COMBAT.** Dawnclaw itself was fine — an early probe that
+  said otherwise turned out to be a bad fixture (the neighbour died first, so there was correctly nobody to
+  trigger). The real gap: only 7 Shouts were combat-replayable, and everything else deferred to settle. Brood
+  Whelp's `battlecryBuffTarget` BUFFS A LIVING BODY, so deferring it meant Dawnclaw narrated a trigger and the
+  buff landed *after* the fight it was meant to win. `battlecryBuffImps` was already handled (a prior report);
+  the rest of the deferred set really is economy and correctly stays.
+- **Shop-triggered Echoes: 19 inert factories → 9.** Wired `deathrattleGrantSpell`, `deathrattleMaxGold`,
+  `deathrattleBuffCelestials`, `deathrattleBuffAllByImpAura`, `summonImps`, `echoSummonCopyNoEcho`,
+  `deathrattleSummonRubyStats`, `deathrattleReplayAdjacentBattlecry`, `combatGrantAle`,
+  `echoSummonInheritAttackAndCharge`. Two more (`deathrattleRubyStatGain`, `deathrattleSummonGolemsWithRuby`)
+  are in the still-open PR #850. Each mirrors its combat twin's SEMANTICS, not its implementation.
+
+  Still combat-only ON PURPOSE, because a shop has no enemies, no killer and no attack order:
+  `deathrattleDamageAll`, `deathrattleDestroyKiller`, `deathrattleGrantRebornAll`, `onFriendDeathSummon`, and
+  the overflow pair. Also worth recording: a BORROWED Dawnclaw (Funeral on Loan) never reaches the board, so a
+  positional Echo genuinely has no neighbours — a property of the card, not a gap.
+
+**Verified** — new `ownerBatch0804.test.ts` (12) + `dawnclawShouts.test.ts` (4). The Dawnclaw buff test is
+pinned on a buff SOURCED FROM THE NEIGHBOUR: a loose "any buff happened" assertion passed without the fix,
+because the enemy dummy buffs itself every swing. Both files confirmed as negative controls. Gates: typecheck
+✓, lint ✓ (7 pre-existing), 3801 tests ✓, `build:web` ✓, harness determinism ✓.
 ## 2026-08-03 — Appetite Agent is Demons-only, and the tribe gate was never enforced by the reducer
 
 - **Appetite Agent** (owner): `targetTribe: 'demon'`, and the text says so — "Shout: target a friendly

@@ -59,11 +59,11 @@ const SPECS = {
     help: 'Milliseconds between each step outward (ripple) or each unit (cascade). Ignored by volley.',
   },
   carries: {
-    kind: 'toggle', label: 'Carries the number', group: 'Target', default: false,
+    kind: 'toggle', label: 'Carries the number', group: 'Target', default: false, essential: true,
     help: "This layer DELIVERS the stat change: the badge holds the old number until this layer peaks, then shows the new one. Tick it on exactly one layer — the one whose motion should read as the number landing.",
   },
   roll: {
-    kind: 'slider', label: 'Roll', group: 'Target', min: 0, max: 800, step: 10, default: 0,
+    kind: 'slider', label: 'Roll', group: 'Target', min: 0, max: 800, step: 10, default: 0, essential: true,
     help: "How long the number takes to count to its new value, once this layer delivers it — an odometer roll rather than a snap. 0 snaps. Only does anything with 'Carries the number' on. (Not to be confused with Spin, which rotates the element.)",
   },
   falloff: {

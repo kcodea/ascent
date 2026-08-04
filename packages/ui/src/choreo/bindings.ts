@@ -34,9 +34,36 @@ export interface FxBinding {
    *   between and a moment can carry several at once.
    */
   fanOut?: 'primary' | 'damaged' | 'selfBuffed';
+  /**
+   * How this moment's recipients are traversed, and how far apart. The MOMENT's traversal — not to be
+   * confused with a react layer's `order`/`gap`, which spreads a single play across a unit's neighbours.
+   * One vocabulary at two scales: this one says "the gems sweep the board", that one says "and each gem's
+   * shockwave nudges the units either side".
+   *
+   * These were hardcoded constants (`RUBY_GAP_MS`, `RUBY_BEAT_MS`) duplicated across `score.ts` and
+   * `Recruit.tsx` — two copies that could drift, neither reachable from the workshop. Omitted keeps the
+   * behaviour every binding had before the fields existed: `cascade`, and the channel's own defaults.
+   *
+   * `beat` spaces a STACK — N applications on the SAME unit (two Rubies on one body). It has nothing to
+   * bite on where the engine reports one application per unit, which is everywhere except Rubies today.
+   */
+  order?: 'cascade' | 'ripple' | 'volley';
+  /** ms between one recipient and the next. */
+  gap?: number;
+  /** ms between repeats on the SAME recipient (a stack). */
+  beat?: number;
 }
 
 const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed'];
+
+/** How the recipients of ONE moment are traversed. Same words as `docs/fx-vocabulary.md` and as the react
+ *  layer's own `order`, deliberately — one vocabulary, two scales. */
+const TRAVERSALS: readonly string[] = ['cascade', 'ripple', 'volley'];
+
+/** Sanity ceiling on the traversal offsets. A gap past this is a pause, not a sweep, and a hand-edited
+ *  10_000 would hold a moment's effects off screen long past the moment itself. Clamped, not rejected — a
+ *  fat-fingered number is a typo, not an instruction. */
+const MAX_TRAVERSAL_MS = 1_000;
 
 /**
  * A reserved def id for LIVE PREVIEWS. A binding to it applies in memory — that is what makes the authoring
@@ -116,7 +143,31 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.fanOut must be one of ${FAN_OUTS.join(', ')} — dropped.`);
     return null;
   }
-  return v.fanOut === undefined ? { def: v.def } : { def: v.def, fanOut: v.fanOut as FxBinding['fanOut'] };
+  if (v.order !== undefined && (typeof v.order !== 'string' || !TRAVERSALS.includes(v.order))) {
+    devError(`[fx] bindings.json: ${where}.order must be one of ${TRAVERSALS.join(', ')} — dropped.`);
+    return null;
+  }
+  const out: FxBinding = { def: v.def };
+  if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
+  if (v.order !== undefined) out.order = v.order as FxBinding['order'];
+  // Timings are CLAMPED rather than dropped: unlike an unknown enum (which means the author meant something
+  // this build cannot do), an out-of-range number has an obvious nearest intent. A negative offset would
+  // schedule backwards, so it floors at 0 — which is a volley, the honest reading of "no separation".
+  const gap = msField(v.gap, `${where}.gap`);
+  if (gap !== null) out.gap = gap;
+  const beat = msField(v.beat, `${where}.beat`);
+  if (beat !== null) out.beat = beat;
+  return out;
+}
+
+/** A traversal offset in ms: finite, clamped to [0, MAX_TRAVERSAL_MS]. `null` = absent or unusable. */
+function msField(v: unknown, where: string): number | null {
+  if (v === undefined) return null;
+  if (typeof v !== 'number' || !Number.isFinite(v)) {
+    devError(`[fx] bindings.json: ${where} must be a finite number — ignored.`);
+    return null;
+  }
+  return Math.max(0, Math.min(MAX_TRAVERSAL_MS, v));
 }
 
 /**

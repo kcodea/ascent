@@ -2402,19 +2402,39 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  Hooked on `onConsume`, so it counts any source — the tribe's eight consumers, a Fodder eat, Feastmaster's
    *  neighbours. `rubyRecvTick` is the per-turn counter (already reset each wave with the other per-turn state). */
-  /** Set 2 — Baal (on-consume): buff Shop minions by +N/+N (× golden) FOR THE REST OF THE SHOP PHASE.
+  /** Set 2 — Baal (owner rework 2026-08-03): every `every` spells you cast, a friendly DEMON consumes a
+   *  minion in the Shop (× golden — a gilded Baal eats two).
    *
-   *  Feeds `shopTurnBonus`, the turn-scoped twin of `tavernBuyBonus`, rather than stamping the offers that
-   *  happen to be on screen. That distinction is the whole ruling (owner 2026-08-03): "if I consume 2 minions
-   *  and roll, the shop retains the +4/+4 until the shop phase ends" — a per-offer stamp would be wiped by
-   *  the very next reroll, because a roll mints brand-new offers. Accumulates, so two consumes give +4/+4.
-   *  Cleared at turn start, so it never leaks into a later shop the way the run-wide channel would. */
-  onConsumeBuffShopOffers: (ctx, self, params) => {
-    const a = num(params.attack, 2) * gold(self);
-    const h = num(params.health, 2) * gold(self);
-    if (a <= 0 && h <= 0) return;
-    const cur = ctx.state.shopTurnBonus ?? { atk: 0, hp: 0 };
-    ctx.state.shopTurnBonus = { atk: cur.atk + a, hp: cur.hp + h };
+   *  The EATER matters, which is why this doesn't just call `consumeShopMinion(state, self, …)`: the consume
+   *  pays out on whoever ate it (its own on-consume effects, its stat gain, Broodlord's tally), so a random
+   *  friendly Demon is picked and credited. Baal is a Demon itself, so it can be its own eater.
+   *
+   *  Per-instance `spellProgress` meter, the same shape every other "every N spells" card uses — so two Baals
+   *  each keep their own count, and the tally survives a triple through the universal accrual rule. */
+  spellCastDemonConsumesShop: (ctx, self, params) => {
+    const state = ctx.state;
+    const every = Math.max(1, num(params.every, 2));
+    const me = state.board.find((c) => c.uid === self.uid);
+    if (!me) return;
+    me.spellProgress = (me.spellProgress ?? 0) + 1;
+    while ((me.spellProgress ?? 0) >= every) {
+      me.spellProgress = (me.spellProgress ?? 0) - every;
+      const rng = makeRng(state.rngCursor);
+      for (let n = 0; n < gold(self); n++) {
+        // Eligibility MUST match `consumeShopMinion`'s own (minion, not spell, not Ruby) or we'd hand it an
+        // index it refuses, silently wasting the trigger — the bug the Gemgorge factory above documents.
+        const idxs = state.shop
+          .map((o, i) => { const d = CARD_INDEX[o.cardId]; return !d || d.spell || d.ruby ? -1 : i; })
+          .filter((i) => i >= 0);
+        if (idxs.length === 0) break;
+        // A friendly DEMON does the eating. No Demon on board → nothing happens (the text names the eater).
+        const demons = state.board.filter((c) => isTribe(c, 'demon'));
+        if (demons.length === 0) break;
+        const eater = demons[rng.int(demons.length)]!;
+        consumeShopMinion(state, eater, idxs[rng.int(idxs.length)]!);
+      }
+      state.rngCursor = rng.state();
+    }
   },
 
   onConsumeGoldFlat: (ctx, self, params) => {
@@ -5344,13 +5364,8 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
   const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
-  // Baal's THIS-TURN shop buff. Unlike the Staff's run-wide bonus this one is NOT Fodder-excluded: that
-  // exclusion exists because Fodder receives the Staff through a run-wide enchant instead, and Baal has no
-  // such enchant — so skipping Fodder here would just silently drop the buff.
-  const turnA = state.shopTurnBonus?.atk ?? 0;
-  const turnH = state.shopTurnBonus?.hp ?? 0;
-  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA + turnA;
-  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def) + turnH;
+  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
+  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
 }

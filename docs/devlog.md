@@ -51,17 +51,18 @@ tests, `build:web`.
 ## 2026-08-03 — Baal + Rune of Baal, live rune meters, and an art batch
 
 - **Baal** (`dw_baal`) — Dwarf/Demon **8/7 at Tier 6**, forge-only (`token: true`, reachable only through
-  Rune of Baal, same shape as Brill and Mykel). "When you **consume** a minion, give Shop minions **+2/+2**
-  this turn and get an **Ale**." Two effects on one `onConsume` trigger; the Ale half needed no new factory
-  because `grantRandomAle` is deliberately trigger-agnostic.
-- **The shop buff lasts the SHOP PHASE, not the current offers** (owner clarification mid-build: "if I
-  consume 2 minions and roll, the shop retains the +4/+4 until the shop phase ends"). The first cut stamped
-  each offer with `addOfferBuff`, which a single reroll would have wiped — a roll mints brand-new offers.
-  Rebuilt as `shopTurnBonus`, a TURN-SCOPED twin of `tavernBuyBonus`: applied at BUY time by `offerBuyStats`,
-  so it automatically covers offers that didn't exist when the buff was granted, accumulates across consumes,
-  and is cleared at turn start so it can never leak into a later shop the way the run-wide channel would.
-  Not Fodder-excluded, unlike the Staff's bonus — that exclusion exists only because Fodder takes the Staff
-  through a run-wide enchant Baal doesn't have.
+  Rune of Baal, same shape as Brill and Mykel). Final effect after the owner's rework: "Whenever you cast
+  **2 spells**, a friendly **Demon** consumes a minion in the **Shop**" (gilded: two minions).
+  - The EATER is chosen and credited rather than passing `self`, because a consume pays out on whoever ate
+    it — its own on-consume effects, its stat gain, Broodlord's tally. Baal is a Demon, so it can eat its own.
+  - Per-instance `spellProgress` meter, the same shape every other "every N spells" card uses, so two Baals
+    each keep their own count and the tally survives a triple under the universal accrual rule.
+  - Shop eligibility mirrors `consumeShopMinion`'s own (minion, not spell, not Ruby) — the Gemgorge factory
+    documents what happens otherwise: hand it an index it refuses and the trigger is silently wasted.
+- **Removed the machinery the earlier draft added.** The first cut of Baal was an on-consume shop buff, which
+  needed `shopTurnBonus` (a turn-scoped twin of `tavernBuyBonus`, applied at buy time so it survived rerolls).
+  The rework left that channel with no writer, so it is deleted rather than left registered — this repo has
+  been bitten repeatedly by primitives that outlive their last consumer.
 - **Rune of Baal** — Epic, cost 6, set-2 only, `Get a Baal`, with `previewCards` so the forge hover shows it.
 - **Live rune meters** (owner ask: "make sure our runes/quests all have tally trackers like the avenge
   tracker — this should always show x/10g"). A rune that fires on a threshold was previously silent about
@@ -73,15 +74,14 @@ tests, `build:web`.
   rendered on the pending badge.
 - **Art** — Baal, Training Dummy (the Decoy Sigil body), Rune of Baal, and the re-wired Copycat spell.
 
-**One art file could not be wired, and I did not guess.** `Quests/CopyCat.png` matches no quest — there is no
-Copycat quest in the roster; the only art-less Copycat entity is the RUNE of Copycat. Wiring a rune from a
-file sitting in the Quests folder is exactly the silent mis-assignment the strict-name-match rule exists to
-prevent, so it stays unwired pending the owner's call (see the PR).
+**The Copycat rune art landed.** `Quests/CopyCat.png` matched no quest, and rather than guess it across
+folders I asked; the owner dropped `RuneOfCopycat.png` into `Runes/` and it wired by strict name match on the
+next pass. **RUNES WITH NO ART is now 0** — every rune in the roster has art.
 
 **Verified live**: a badge with an armed Gemspam meter renders `4/10g`. New `baalAndTally.test.ts` (6 tests)
-covers Baal's stat line + forge-only flag, the rune's shape, the consume paying both halves, **the buff
-surviving a reroll and stacking to +4/+4**, the run-wide channel staying untouched, and the buff expiring
-with the turn. The Dwarf roster pin moved 24 → 25. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3753 tests ✓,
+covers Baal's stat line + forge-only flag, the rune's shape, the **every-2 meter** (one cast does nothing, the
+second feeds a Demon), a **gilded Baal eating two**, an empty shop being a safe no-op, and the rune meter's
+`sourceId` stamp. The Dwarf roster pin moved 24 → 25. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3753 tests ✓,
 `build:web` ✓, harness determinism ✓.
 
 ## 2026-08-03 — the `react` layer: the card itself moves

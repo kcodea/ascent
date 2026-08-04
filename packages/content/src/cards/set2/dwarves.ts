@@ -325,14 +325,9 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     health: 7,
     keywords: [],
     token: true, // forge-only: Source = Rune of Baal
-    effects: [
-      { on: 'onConsume', do: 'onConsumeBuffShopOffers', params: { attack: 2, health: 2 } },
-      // `grantRandomAle` is deliberately trigger-agnostic (it already serves Shout / End of Turn / thresholds),
-      // so the consume moment needs no new factory for the Ale half.
-      { on: 'onConsume', do: 'grantRandomAle', params: { count: 1 } },
-    ],
-    text: 'When you **consume** a minion, give **Shop** minions **+2/+2** this turn and get an **Ale**.',
-    goldenText: 'When you **consume** a minion, give **Shop** minions **+4/+4** this turn and get **2 Ales**.',
+    effects: [{ on: 'spellCast', do: 'spellCastDemonConsumesShop', params: { every: 2 } }],
+    text: 'Whenever you cast **2 spells**, a friendly **Demon** consumes a minion in the **Shop**.',
+    goldenText: 'Whenever you cast **2 spells**, a friendly **Demon** consumes **2 minions** in the **Shop**.',
   },
   {
     id: 'dw_brill',

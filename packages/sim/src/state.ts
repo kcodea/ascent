@@ -451,11 +451,6 @@ export interface RunState {
     buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
     oncePerTurn?: boolean; usedThisTurn?: boolean;
   }[];
-  /** Baal — a THIS-TURN shop buff. The run-wide twin is `tavernBuyBonus`; this one is wiped at the start of
-   *  every turn, so the buff lasts the whole shop phase (surviving rerolls, which mint fresh offers) and
-   *  expires when the phase does. Applied at BUY time by `offerBuyStats`, exactly like the run-wide bonus —
-   *  which is what makes it cover offers that didn't exist when the buff was granted. */
-  shopTurnBonus?: { atk: number; hp: number };
   /** Rune of the Brokerage: Ruby Brokers ignore their per-turn cap. */
   runeBrokerage?: boolean;
   /** Rune of the Shared Table: each Ale cast buffs one friendly minion of every type. */

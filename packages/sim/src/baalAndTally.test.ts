@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
-import { ALE_IDS } from '@game/core';
 import { createRun, type BoardCard, type RunState } from './state';
 import { reduce } from './reducer';
-import { consumeShopMinion, offerBuyStats } from './recruit';
+import { noteSpellCast } from './recruit';
 
 /** Owner batch 2026-08-03: Baal + Rune of Baal, and the rune meter's `sourceId` stamp. */
 
@@ -28,54 +27,38 @@ describe('Baal', () => {
     expect(rune.reward).toMatchObject({ kind: 'grant', cards: ['dw_baal'] });
   });
 
-  it('a consume buffs Shop minions and grants an Ale', () => {
+  it('every 2 spells, a friendly Demon eats a Shop minion', () => {
     const s: RunState = { ...createRun(1), board: [baal('b')], hand: [], embers: 30 };
-    const idx = s.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-    expect(idx, 'the fixture needs a minion offer to eat').toBeGreaterThanOrEqual(0);
-    const survivor = s.shop.find((o, i) => i !== idx && !CARD_INDEX[o.cardId]?.spell && !CARD_INDEX[o.cardId]?.ruby);
-    const before = survivor ? offerBuyStats(s, survivor) : null;
+    const minionOffers = (st: RunState): number =>
+      st.shop.filter((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; }).length;
+    const before = minionOffers(s);
+    expect(before, 'the fixture needs minion offers to eat').toBeGreaterThan(0);
 
-    consumeShopMinion(s, s.board[0]!, idx);
+    // ONE spell is not enough — the meter is every TWO.
+    noteSpellCast(s, CARD_INDEX['growth']!);
+    expect(minionOffers(s), 'a single cast must not trigger it').toBe(before);
 
-    expect(s.shopTurnBonus).toEqual({ atk: 2, hp: 2 });
-    if (survivor && before) {
-      const after = offerBuyStats(s, survivor);
-      expect([after.attack - before.attack, after.health - before.health]).toEqual([2, 2]);
-    }
-    expect(s.hand.some((c) => ALE_IDS.includes(c.cardId)), 'the Ale half must fire too').toBe(true);
+    noteSpellCast(s, CARD_INDEX['growth']!);
+    expect(minionOffers(s), 'the second cast should feed a Demon').toBe(before - 1);
   });
 
-  it('the buff SURVIVES a reroll and accumulates — it lasts the whole shop phase', () => {
-    // The owner's exact case (2026-08-03): consume two minions, then roll. The freshly-rolled offers must
-    // still carry +4/+4 — which a per-offer stamp could never do, since a roll mints brand-new offers.
-    let s: RunState = { ...createRun(1), board: [baal('b')], hand: [], embers: 60 };
-    const eat = (): void => {
-      const i = s.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-      if (i >= 0) consumeShopMinion(s, s.board[0]!, i);
-    };
-    eat();
-    eat();
-    expect(s.shopTurnBonus, 'two consumes stack').toEqual({ atk: 4, hp: 4 });
-
-    s = reduce(s, { type: 'roll' });
-    const fresh = s.shop.find((o) => !CARD_INDEX[o.cardId]?.spell && !CARD_INDEX[o.cardId]?.ruby);
-    expect(fresh, 'the roll should mint minion offers').toBeTruthy();
-    const def = CARD_INDEX[fresh!.cardId]!;
-    const stats = offerBuyStats(s, fresh!);
-    expect([stats.attack - def.attack, stats.health - def.health], 'a rerolled offer keeps the buff')
-      .toEqual([4, 4]);
+  it('a GILDED Baal eats two', () => {
+    const s: RunState = { ...createRun(1), board: [{ ...baal('b'), golden: true }], hand: [], embers: 30 };
+    const minionOffers = (st: RunState): number =>
+      st.shop.filter((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; }).length;
+    const before = minionOffers(s);
+    if (before < 2) return; // not enough to prove the doubling in this shop roll
+    noteSpellCast(s, CARD_INDEX['growth']!);
+    noteSpellCast(s, CARD_INDEX['growth']!);
+    expect(minionOffers(s)).toBe(before - 2);
   });
 
-  it('does NOT touch the run-wide tavern bonus, and expires with the turn', () => {
-    const s: RunState = { ...createRun(1), board: [baal('b')], hand: [], embers: 30 };
-    const before = { ...s.tavernBuyBonus };
-    const idx = s.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-    consumeShopMinion(s, s.board[0]!, idx);
-    // The run-wide channel would leak onto EVERY future shop — Baal must stay turn-scoped.
-    expect(s.tavernBuyBonus).toEqual(before);
-
-    const after = reduce({ ...s, phase: 'combat', combatSettled: false, lastCombat: { result: 'win', events: [], playerDamage: 0, initial: { player: [], enemy: [] } } as never }, { type: 'resolveCombat' });
-    expect(after.shopTurnBonus, 'the buff must not survive into the next shop').toBeFalsy();
+  it('an EMPTY shop is a safe no-op (the trigger is spent, nothing is invented)', () => {
+    const s: RunState = { ...createRun(1), board: [baal('b')], hand: [], shop: [], embers: 30 };
+    noteSpellCast(s, CARD_INDEX['growth']!);
+    noteSpellCast(s, CARD_INDEX['growth']!);
+    expect(s.shop).toEqual([]);
+    expect(s.board.length, 'the board is untouched too').toBe(1);
   });
 
 });

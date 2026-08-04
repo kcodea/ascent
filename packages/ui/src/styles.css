@@ -5131,6 +5131,9 @@ svg { width: 18px; height: 18px; }
 .carresult { flex: none; display: flex; align-items: center; gap: 14px; margin-left: auto; }
 .carwl { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; }
 .carwl.won { color: #6fe0a0; }
+/* A top-4 finish is a GOOD result and scores positive Rating, so it reads in the same green as a win — the
+   placement chip beside it (1st / 3rd) is what separates them. */
+.carwl.top4 { color: #6fe0a0; }
 .carwl.lost { color: #ff9a9a; }
 /* The MMR move on a match row. Tabular figures so a column of them lines up, and a fixed min-width so
    "+6" and "-124" don't shuffle the chevron sideways. */

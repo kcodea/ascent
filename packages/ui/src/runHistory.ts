@@ -55,12 +55,32 @@ export function ordinal(n: number): string {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 }
 
-/** Did this run WIN? `placement === 1` for a lobby; otherwise the old Line verdict, so entries recorded before
- *  lobbies still read sensibly instead of all flipping to losses. */
-export function runWon(e: Pick<RunHistoryEntry, 'placement' | 'lineStatus'>): boolean {
-  if (e.placement !== undefined) return e.placement === 1;
-  return metLine(e.lineStatus);
+/** How a finished run reads on the Career: won it, made the top half, or fell out. */
+export type RunVerdict = 'victory' | 'top4' | 'defeat';
+
+/** Placements 2–4 read as a good result, not a loss. */
+const TOP_CUT = 4;
+
+/**
+ * The run's verdict (owner 2026-08-04: *"the results should be Victory, Defeat, Top 4"*).
+ *
+ * An eight-seat lobby is not win-or-lose: finishing 2nd–4th is a good run and the Rating agrees — those
+ * placements score POSITIVE (the screenshot that prompted this had 2nd at +71 and 4th at +13, both labelled
+ * DEFEAT). Calling them defeats contradicted the number printed beside them.
+ *
+ * Entries with NO placement predate lobbies and have no finish position to grade, so they fall back to the
+ * old Line verdict and stay binary — there is no honest way to infer a top-4 from a course run.
+ */
+export function runVerdict(e: Pick<RunHistoryEntry, 'placement' | 'lineStatus'>): RunVerdict {
+  if (e.placement === undefined) return metLine(e.lineStatus) ? 'victory' : 'defeat';
+  if (e.placement === 1) return 'victory';
+  return e.placement <= TOP_CUT ? 'top4' : 'defeat';
 }
+
+/** Label + colour class for a verdict. `top4` is GREEN like a victory (owner ask) — the placement chip beside
+ *  it is what distinguishes 1st from 3rd, so the colour only has to say "this went well". */
+export const VERDICT_LABEL: Record<RunVerdict, string> = { victory: 'Victory', top4: 'Top 4', defeat: 'Defeat' };
+export const VERDICT_CLASS: Record<RunVerdict, string> = { victory: 'won', top4: 'top4', defeat: 'lost' };
 
 /** The final board's top non-neutral tribe (both tribes counted), or null for an empty/all-neutral board. */
 function dominantTribeOf(run: RunState): Tribe | null {

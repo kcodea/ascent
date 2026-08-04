@@ -47,6 +47,22 @@ export interface FxLayer {
    * expressible. Negative bows the other way (the arc mirrors across the line).
    */
   bow?: number;
+  /**
+   * Milliseconds this layer's `at` shifts PER RECIPIENT, when a moment plays the def on several units.
+   *
+   * This is the axis that lets ONE effect move at two rhythms. Traversal used to live only above the def —
+   * the cue staggered whole PLAYS, so every layer of every copy shared one schedule, and "the gems land
+   * together but the badges pop in sequence" was not expressible at any setting (owner, 2026-08-04).
+   *
+   * With a per-layer stagger the cue can volley (all copies at once) while a layer inside them cascades:
+   * recipient `i` starts this layer at `at + stagger × i`. Omitted or 0 = the layer fires with its copy,
+   * which is what every def written before this did.
+   *
+   * It composes with, rather than replaces, the cue's own gap: a cue that already staggers plays by 100ms
+   * and a layer that staggers by 40 gives that layer 140ms of separation. Usually you want one or the
+   * other.
+   */
+  stagger?: number;
   params: Record<string, unknown>;
 }
 

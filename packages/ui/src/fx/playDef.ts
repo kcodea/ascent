@@ -91,6 +91,11 @@ export interface PlayDefOptions extends FxScaleAxes {
    * for a real moment.
    */
   uids?: { source?: string | null; target?: string | null };
+  /**
+   * Which recipient this copy is, when a moment plays the def on several units. Drives `FxLayer.stagger` —
+   * see that field. Omitted = 0, so a single-target fire is unaffected.
+   */
+  index?: number;
 }
 
 /**
@@ -290,6 +295,24 @@ function schedulePrewarm(prewarm: (renderer: Renderer | null) => void): void {
  *
  * `anchors` is a snapshot held for the effect's life — see the module header for why.
  */
+/**
+ * Shift every layer that declares a `stagger` by `stagger × index`.
+ *
+ * Returns the def BY IDENTITY when there is nothing to do — index 0, or no layer staggering — so the common
+ * single-target fire allocates nothing, matching `scaleDef`'s exact-no-op contract.
+ *
+ * The shift lands on `at` rather than on the player's clock because `at` is what every other part of the
+ * system already means by "when this layer starts": the timeline, the inspector's At slider, and
+ * `layerStateOf` all read it. A parallel offset would be a second source of truth for one number.
+ */
+function staggerLayers<T extends { layers: readonly { at: number; stagger?: number }[] }>(def: T, index: number): T {
+  if (index === 0 || !def.layers.some((l) => (l.stagger ?? 0) !== 0)) return def;
+  return {
+    ...def,
+    layers: def.layers.map((l) => ((l.stagger ?? 0) === 0 ? l : { ...l, at: l.at + (l.stagger ?? 0) * index })),
+  };
+}
+
 export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {}): (() => void) | null {
   const stored = getDef(id);
   if (!stored) {
@@ -319,7 +342,7 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
   // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
-  const def = scaleDef(playableDef(stored), opts);
+  const def = staggerLayers(scaleDef(playableDef(stored), opts), opts.index ?? 0);
   const layers = def.layers;
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.

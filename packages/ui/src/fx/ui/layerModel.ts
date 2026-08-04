@@ -38,6 +38,8 @@ export interface EditorLayer {
    *  fraction of the span (mirrors `FxLayer.bow`). `0` = dead-straight; omitted = the default `TRAVEL_BOW`.
    *  Set/cleared via `setLayerBow`, which deletes the key on `null` to keep "omitted" distinct from `0`. */
   bow?: number;
+  /** ms this layer shifts per recipient when a moment plays the def on several units. See `FxLayer.stagger`. */
+  stagger?: number;
   params: Record<string, unknown>;
 }
 
@@ -190,6 +192,22 @@ export function setLayerBow(layers: EditorLayer[], index: number, bow: number | 
     const next = { ...l };
     if (bow === null) delete next.bow;
     else next.bow = bow;
+    return next;
+  });
+}
+
+/**
+ * Set the per-recipient stagger of the layer at `index`. Returns a NEW array.
+ *
+ * `null` (and 0) DELETE the field rather than storing a zero: 0 is the default, and a def carrying an
+ * explicit `stagger: 0` on every layer is noise in a diff that reviewers read.
+ */
+export function setLayerStagger(layers: EditorLayer[], index: number, stagger: number | null): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    const next = { ...l };
+    if (stagger === null || stagger <= 0) delete next.stagger;
+    else next.stagger = stagger;
     return next;
   });
 }

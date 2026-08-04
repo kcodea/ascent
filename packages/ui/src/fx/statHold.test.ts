@@ -215,3 +215,45 @@ describe('rolling the counter', () => {
     expect(heldFor('nobody')).toBeNull();
   });
 });
+
+describe('the reel', () => {
+  it('gives a +1 change something to spin through', () => {
+    // The case that made the honest roll invisible: nothing sits between 4 and 5, so the counter had two
+    // states however long it ran. With a reel it moves.
+    holdStat('a', { attack: 1, health: 0 });
+    const seen = new Set<number>();
+    for (let i = 1; i < 20; i++) {
+      revealStat('a', i / 20, 6);
+      seen.add(heldFor('a')?.attack ?? 0);
+    }
+    expect(seen.size).toBeGreaterThan(2);
+  });
+
+  it('still STARTS on the old number — the wobble is zero at t=0', () => {
+    holdStat('a', { attack: 3, health: 0 });
+    revealStat('a', 0.0001, 8);
+    expect(heldFor('a')).toEqual({ attack: 3, health: 0 });
+  });
+
+  it('still LANDS on the new number, however wild the reel', () => {
+    holdStat('a', { attack: 3, health: 0 });
+    revealStat('a', 1, 12);
+    expect(heldFor('a')).toBeNull();
+  });
+
+  it('reel 0 is the honest odometer — only values between old and new', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    for (let i = 1; i < 10; i++) {
+      revealStat('a', i / 10, 0);
+      const r = heldFor('a')?.attack ?? 0;
+      expect(r).toBeGreaterThanOrEqual(0);
+      expect(r).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('a negative reel is treated as none rather than inverting the swing', () => {
+    holdStat('a', { attack: 3, health: 0 });
+    revealStat('a', 0.5, -9);
+    expect(heldFor('a')?.attack).toBe(2); // the plain odometer value at halfway
+  });
+});

@@ -41,6 +41,21 @@ interface Hold extends StatDelta {
    * This is what turns a hold from a switch into a dial. A release is just `reveal(1)`; a spin walks it.
    */
   revealed: number;
+  /**
+   * REEL amplitude: how far the counter overshoots either side of its true path while rolling, in points.
+   *
+   * 0 is the honest odometer — it only ever prints values between the old number and the new one. That is
+   * correct and, for a +1 buff, invisible: there is nothing between 4 and 5, so the roll has two states and
+   * reads as a snap however long it runs. A gem is +1/+1, which made the feature do nothing in the most
+   * common case in the game.
+   *
+   * A non-zero reel adds a DECAYING wobble around the interpolated value, so a 1-point change still has
+   * something to spin through. It is deliberately a wobble rather than "start N below and climb": the
+   * wobble is zero at both ends by construction (see `heldFor`), so the counter still begins on exactly the
+   * old number and lands on exactly the new one. No frame shows a value outside the spin, and the landing
+   * is never approximate.
+   */
+  reel: number;
   /** `performance.now()` past which this hold is ignored. See the header: an unclaimed hold must not be
    *  permanent, so every hold expires on its own. */
   until: number;
@@ -99,6 +114,7 @@ export function holdStat(uid: string, delta: Partial<StatDelta>, ttlMs = HOLD_TT
     // The reveal restarts against the new total: keeping the old fraction would silently reveal part of a
     // change nobody animated.
     revealed: 0,
+    reel: 0,
     until: now() + ttlMs,
   });
   emit();
@@ -129,15 +145,23 @@ function now(): number {
  * would read as a bug in the game's arithmetic rather than as an animation. Reaching 1 releases outright,
  * so a completed spin leaves no entry behind.
  */
-export function revealStat(uid: string, progress: number): void {
+export function revealStat(uid: string, progress: number, reel = 0): void {
   const h = holds.get(uid);
   if (h === undefined) return;
   const p = Math.max(0, Math.min(1, progress));
   if (p <= h.revealed) return;
   if (p >= 1) { releaseStat(uid); return; }
   h.revealed = p;
+  h.reel = Math.max(0, reel);
   emit();
 }
+
+/**
+ * How many times a reeling counter swings either way across the roll. Fixed rather than authored: it is the
+ * difference between "a counter settling" and "a number flickering", and there is one right answer for a
+ * 200-400ms roll. The AMPLITUDE is the expressive knob; the rate is not.
+ */
+export const REEL_TURNS = 3;
 
 /**
  * What is currently withheld for a unit, or `null`.
@@ -156,8 +180,12 @@ export function heldFor(uid: string): StatDelta | null {
   // What is STILL withheld: the part not yet revealed, rounded so the badge only ever prints whole numbers
   // and steps through them one at a time. A hold fully revealed by rounding reads as absent, which is what
   // stops a 1-point buff from sitting visibly stuck at 0.4 revealed.
-  const attack = Math.round(h.attack * (1 - h.revealed));
-  const health = Math.round(h.health * (1 - h.revealed));
+  const t = 1 - h.revealed;
+  // The wobble is scaled by `t`, so it is exactly 0 at both ends: the counter starts on the old number and
+  // lands on the new one no matter how wild the reel. Everything in between is motion, not a readout.
+  const wobble = h.reel * t * Math.sin(2 * Math.PI * REEL_TURNS * h.revealed);
+  const attack = Math.round(h.attack * t + wobble * Math.sign(h.attack || 1));
+  const health = Math.round(h.health * t + wobble * Math.sign(h.health || 1));
   return attack === 0 && health === 0 ? null : { attack, health };
 }
 

@@ -66,6 +66,10 @@ const SPECS = {
     kind: 'slider', label: 'Roll', group: 'Target', min: 0, max: 800, step: 10, default: 0, essential: true,
     help: "How long the number takes to count to its new value, once this layer delivers it — an odometer roll rather than a snap. 0 snaps. Only does anything with 'Carries the number' on. (Not to be confused with Spin, which rotates the element.)",
   },
+  reel: {
+    kind: 'slider', label: 'Reel', group: 'Target', min: 0, max: 12, step: 1, default: 0, essential: true,
+    help: 'How far the counter overshoots either side while rolling. 0 counts only through real values — invisible on a +1, since nothing sits between 4 and 5. Raise it to give a small change something to spin through. Always lands on the true number.',
+  },
   falloff: {
     kind: 'slider', label: 'Falloff', group: 'Target', min: 0, max: 1, step: 0.01, default: 0.4,
     help: 'How much weaker each further unit reacts. 0 = all equal, 1 = the furthest barely moves.',
@@ -123,6 +127,8 @@ interface Release {
   /** ms the counter takes to roll from the old value to the new one. 0 snaps, which is what a release was
    *  before spinning existed. */
   spinMs: number;
+  /** Overshoot amplitude while rolling — what makes a 1-point change visible. See `Hold.reel`. */
+  reel: number;
   done: boolean;
 }
 
@@ -199,7 +205,7 @@ class ReactInstance implements FxInstance<ReactParams> {
         this.beats.push({ anim, at: land.at, duration: p.hold });
       }
       if (p.carries) {
-        this.releases.push({ uid: land.uid, at: land.at + p.hold * p.peak, spinMs: p.roll, done: false });
+        this.releases.push({ uid: land.uid, at: land.at + p.hold * p.peak, spinMs: p.roll, reel: p.reel, done: false });
       }
       // A spin that outlasts the motion still has to finish, or `isComplete` retires the player mid-roll and
       // the badge is rescued by the TTL instead of by the effect.
@@ -224,7 +230,7 @@ class ReactInstance implements FxInstance<ReactParams> {
       if (r.done || this.localMs < r.at) continue;
       if (r.spinMs <= 0) { r.done = true; releaseStat(r.uid); continue; }
       const t = (this.localMs - r.at) / r.spinMs;
-      revealStat(r.uid, t);
+      revealStat(r.uid, t, r.reel);
       if (t >= 1) r.done = true;
     }
   }

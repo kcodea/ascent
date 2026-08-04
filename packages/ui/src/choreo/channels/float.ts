@@ -72,8 +72,12 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
     // one. The combat LOG still narrates every buff in full (`useCombatReplay`), so the history is intact —
     // this removes a redundant on-card readout, not the record of what happened.
     case 'buff': return null;
-    case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };
-    case 'keyword': return { uid: e.target, text: KW_FLOAT[e.keyword] ?? e.keyword, kind: 'buff' };
+    // Cut with the stat float (owner, 2026-08-04). The card's medallion already pulses on an improve and the
+    // combat log narrates it; a bare ✦ rising off the card added a third telling of the same beat.
+    case 'improve': return null;
+    // Cut likewise. A gained keyword SHOWS on the card — the dome, the badge chrome, the keyword row — so
+    // the float was announcing a change the card itself already makes visible and keeps visible.
+    case 'keyword': return null;
     case 'maxGold': return { uid: e.target, text: `+${e.amount} max gold`, kind: 'gold' };
     case 'rally': return { uid: e.target, text: '☠', kind: 'rally' };
     default: return null;

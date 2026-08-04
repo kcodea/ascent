@@ -29,6 +29,10 @@ export const PRIMITIVE_COPY: Record<string, FxCopy> = {
     label: 'Stream',
     blurb: 'Keeps emitting particles for as long as the layer runs. Fire, smoke trails, channelled effects.',
   },
+  react: {
+    label: 'React',
+    blurb: 'The card itself moves — a swell, a flinch, a nudge. Target the whole card or one stat badge.',
+  },
   ribbon: {
     label: 'Trail',
     blurb: 'A tapering band that follows the moving head — a motion trail. Needs a scenario that MOVES.',

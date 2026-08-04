@@ -180,7 +180,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     const container = new Container();
     ctx.container.addChild(container);
     const merged = { ...layer.params, ...overrides.get(index) };
-    const primCtx: FxContext = { container, renderer: ctx.renderer, oneShot, seed: seedFor(index) };
+    const primCtx: FxContext = { container, renderer: ctx.renderer, oneShot, seed: seedFor(index), uids: ctx.uids };
     const inst = prim.spawn(primCtx, coerceParams(prim.params, merged));
     live.set(index, { inst, container });
   };

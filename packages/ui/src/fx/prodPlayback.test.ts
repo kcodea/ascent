@@ -104,6 +104,7 @@ describe('the primitives ship (gates 2 and 3: ensureDefsReady + its caller)', ()
     expect(listPrimitives().map((p) => p.id).sort()).toEqual([
       'burst',
       'emitter',
+      'react',
       'ribbon',
       'shockwave',
       'smoke',

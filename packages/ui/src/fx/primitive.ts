@@ -14,6 +14,18 @@ export interface FxContext {
    *  the same seed replays the same roll, so a good-looking variant can be held still while you tune around
    *  it, screenshotted, or A/B'd against another tuning with the randomness controlled. See `fx/rng.ts`. */
   seed?: number;
+  /**
+   * The units this fire is ABOUT, when the caller knows them. Pixi primitives never need this — they draw
+   * at the screen points in `FxAnchors` and don't care which card was there — but a `react` layer animates
+   * the card DOM itself, and an element is found by uid (`combatAnchors.ts`'s `unitSelector`), not by
+   * coordinate. Carrying the uid rather than a resolved element is deliberate: reach can expand one subject
+   * into its neighbours or the whole board, so the recipient set isn't knowable until the primitive's own
+   * params are read.
+   *
+   * Absent for a workbench preview, which stages anchors without a real moment behind them; `react` falls
+   * back to the first player unit so a def is still previewable.
+   */
+  uids?: { source?: string | null; target?: string | null };
 }
 
 /**

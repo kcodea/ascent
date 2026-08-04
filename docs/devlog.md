@@ -1,5 +1,59 @@
 # ASCENT — development log
 
+## 2026-08-03 — the `react` layer: the card itself moves
+
+Until now every FX primitive drew into a Pixi container floating over the board. Right for sparks and
+trails, wrong for "this card flinched": a burst drawn on top of a badge is a decoration NEAR the badge,
+while a badge that actually swells is the game reacting. `react` (`packages/ui/src/fx/primitives/react.ts`)
+animates the real DOM — the card, a stat badge, the badge's `plate` (circle) or its `value` (digit), each
+addressable on its own since the badge split earlier today.
+
+**The seam turned out to be one field, not a subsystem.** The roadmap had this blocked on "FxContext is
+Pixi-only and anchors resolve to coordinates, not elements". Reading the anchor code dissolved it:
+`combatAnchors.ts` already finds cards by `[data-uid]`, and `playDef`'s callers already hold the uid pair
+they pass to `anchorsForUnits`. So the layer needs the **uid**, not an element channel — `FxContext.uids`
+and `PlayDefOptions.uids`, threaded through `player.ts`'s per-layer context and the four `score.ts` call
+sites. No change to the def format at all: `part` and `reach` are ordinary primitive params, so they get
+the workbench's picker, sliders and live tuning for free.
+
+`reactTargets.ts` owns WHO and WHICH PART, with the pure/impure split `boardAnchors.ts` uses (this repo has
+no jsdom, so anything touching an element can only be checked by playing). `orderByReach` is pure: the
+subject is always first and always included, everything after ripples outward by distance with the left
+side first on a tie, and a subject that isn't in the row degrades to itself alone rather than turning a
+missing unit into a board-wide effect. `reactMotion.ts` owns the keyframe math. Traversal offsets come from
+`scheduleLands` — the arithmetic still lives once.
+
+**Two decisions that are load-bearing rather than stylistic:**
+
+*It rides the player's clock.* Every animation is created PAUSED and its `currentTime` written each frame
+from the accumulated `update(dtMs)`. WAAPI would happily run these itself, which is exactly what must not
+happen: the player's dt is already scaled by combat speed and the workbench transport, so a self-driven
+animation keeps wall-clock time while the effect around it stretches — the fixed-CSS-vs-scaled-hold split
+that makes an effect look right at 1x and wrong everywhere else.
+
+*Additive composition.* Every animation composites with `add`, not replace. Cards already carry transforms
+from drag and the reorder slide, and a replacing animation would snap a mid-slide card to the origin for its
+duration. Opacity is expressed as a negative DELTA for the same reason. This is why both resting keyframes
+must be identity — a non-identity rest would permanently offset every card the effect ever touched.
+
+**A real bug, caught by probing rather than by eye.** The first cut put the ease on the effect's TIMING.
+Measured in headless Chrome: with an overshoot curve, a clock at 35% of the duration reported
+`progress: 0.978` — already in the tail, rendering ~3% of the intended peak. The reaction would have
+shipped very nearly invisible, and it looks fine in code. Moving the ease onto the KEYFRAMES (each governs
+the interval starting at it) restored `progress: 0.35` and the exact predicted peak matrix. The same probe
+confirmed the other three assumptions hold in a real engine: a paused animation is seekable by writing
+`currentTime`, additive composition preserves a base `translateX(200px) scale(2)`, and `cancel()` fully
+restores the element (which `destroy()` relies on).
+
+Verified: 21 new unit tests over the pure halves, plus the Chrome probe above. Full gate green — typecheck
+(pkgs + web), lint (0 errors), 3737 tests, `build:web`. `score.test.ts`'s `playDef` assertions now pin the
+uid pair rather than wildcarding it, so a call site that forgets to pass uids fails a test instead of
+silently degrading a react layer to the first player unit.
+
+Not done: nothing is BOUND to a react layer yet — the primitive is available in the workbench picker and
+the first authored def is the next step. `statflash` (the 0.34s CSS badge pop) still runs; it should be
+retired INTO a react rather than alongside one, or a buffed badge pops twice.
+
 ## 2026-08-03 — `scope` → `reach` in the FX vocabulary, and it is not `fanOut`
 
 Owner preference, with a concrete justification found while checking: **`scope` was already taken.** The

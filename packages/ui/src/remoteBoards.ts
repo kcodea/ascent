@@ -441,6 +441,59 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   }
 }
 
+// ── Career (run_history) ───────────────────────────────────────────────────────────────────────────────────
+// The career moved off `localStorage` (owner call 2026-08-03) so it follows the PLAYER rather than the
+// browser. The whole `RunHistoryEntry` rides in the `entry` jsonb, so `careerStats()` consumes what comes
+// back unchanged; the scalar columns exist only to sort and index.
+
+/** Post one finished run to the career log. Fire-and-forget, like every other write here. */
+export async function uploadRunHistory(entry: {
+  heroId: string; wave: number; wins: number; placement?: number; mode?: string; patch?: string;
+} & Record<string, unknown>): Promise<void> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return;
+  try {
+    await c.from('run_history').insert([{
+      user_id: userId,
+      patch: entry.patch ?? null,
+      hero_id: entry.heroId,
+      wave: entry.wave,
+      wins: entry.wins,
+      placement: entry.placement ?? null,
+      mode: entry.mode ?? null,
+      entry,
+    }]);
+  } catch {
+    /* best-effort — career logging must never disrupt the end screen */
+  }
+}
+
+/**
+ * Fetch this player's career, newest first. Returns null (NOT []) when there is no identity or the request
+ * fails — the caller must be able to tell "you have no runs yet" from "we couldn't ask", because writing a
+ * profile's games-played from a failed read would clobber it with a zero.
+ */
+export async function fetchRunHistory<T>(limit = 50): Promise<T[] | null> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(
+        c.from('run_history').select('entry').eq('user_id', userId)
+          .order('created_at', { ascending: false }).limit(limit),
+      ),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data) return null;
+    return (result.data as Array<{ entry: T }>).map((r) => r.entry).filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
 // ── Fight-result ledger (win-tracking) ─────────────────────────────────────────────────────────────────────
 // One row per combat fought against a served board; the leaderboard + Career per-round log aggregate it. Same
 // fire-and-forget / no-op-when-unconfigured / never-throws contract as the rest of this seam.

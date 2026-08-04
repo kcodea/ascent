@@ -253,3 +253,39 @@ create policy "read profiles"      on public.profiles      for select using (tru
 create index if not exists boards_user        on public.boards (user_id);
 create index if not exists runs_user          on public.runs (user_id);
 create index if not exists run_telemetry_user on public.run_telemetry (user_id);
+
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- run_history — the CAREER, server-side  (2026-08-03, owner call: "careers should be from the Supabase layer")
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+--
+-- Career used to be `localStorage['ascent.history']`, which made it device-bound: a different browser, a
+-- cleared cache or a new machine meant a blank career. Now every finished run posts one row here and the
+-- Career screen reads them back.
+--
+-- The full `RunHistoryEntry` rides in the `entry` jsonb — the same object the local log stored — so
+-- `careerStats()` consumes it unchanged and the shape can grow without a migration. The scalar columns
+-- alongside it exist only to sort, filter and index.
+--
+-- READ IS OWN-ONLY. A career is personal: `using (auth.uid() = user_id)` means nobody can enumerate anyone
+-- else's run log. (Public per-player careers, if ever wanted, are a policy widening — not a reshape.)
+-- Deliberately NOT back-filled from local history: the owner chose to start fresh (2026-08-03).
+create table if not exists public.run_history (
+  id          bigint generated always as identity primary key,
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  patch       text,
+  hero_id     text,
+  wave        int,                        -- round reached
+  wins        int,                        -- scored wins
+  placement   int,                        -- lobby finish 1-8; null for course/rift runs
+  mode        text,
+  entry       jsonb not null,             -- the whole RunHistoryEntry
+  created_at  timestamptz not null default now()
+);
+create index if not exists run_history_user on public.run_history (user_id, created_at desc);
+
+alter table public.run_history enable row level security;
+drop policy if exists "read own run_history"   on public.run_history;
+drop policy if exists "insert own run_history" on public.run_history;
+create policy "read own run_history"   on public.run_history for select to authenticated using (auth.uid() = user_id);
+create policy "insert own run_history" on public.run_history for insert to authenticated with check (auth.uid() = user_id);

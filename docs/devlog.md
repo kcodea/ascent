@@ -114,6 +114,44 @@ image proved nothing — the numeric comparison replaced it. Gate green: typeche
 errors), 3715 tests, `build:web`.
 
 Follow-up: the badge react layer itself, and retiring `statflash` in favour of it rather than running both.
+## 2026-08-03 — Opponents are server-or-bots only; the career moves to Supabase
+
+Owner calls, both riding on the C1 identity work: "can we make local boards never an option for opponents? I
+ONLY want it to be bots or online opponents" and "careers should also not be local and should be from the
+Supabase layer."
+
+- **Local boards are no longer an opponent source.** `store.ts` used to register this browser's
+  `loadStoredBoards()` into `OPPONENT_POOL`, so your own captured runs could be seated against you. Now only
+  the committed `OPPONENT_POOL_DATA` is registered locally, and every board in it is `origin: 'synthetic'` —
+  which `playerRunsFrom` already excludes from lobby seats. So the ONLY player-run source is the shared
+  Supabase pool; anything unfilled becomes a bot.
+  - Local capture still happens: it is the buffer `uploadBoards` sends and the export path reads. It simply
+    no longer feeds matchmaking.
+  - **Accepted consequence:** an OFFLINE lobby now has no player seats at all and fills entirely with bots.
+    That is the literal shape asked for. Imported friend boards (`origin: 'friend'`) likewise no longer seat —
+    they'd need to go through Supabase.
+- **The career is server-backed.** New `run_history` table: the whole `RunHistoryEntry` rides in an `entry`
+  jsonb (so `careerStats()` consumes it unchanged and the shape can grow without a migration) with scalar
+  columns beside it for sorting. **Read is own-only** (`using (auth.uid() = user_id)`) — a career is personal
+  and nobody can enumerate anyone else's. Started FRESH per the owner's call: local history is not migrated.
+  - The Career screen fetches instead of reading localStorage, keyed on `careerVersion` so it refreshes after
+    a finished run or a reset. `null` distinguishes "loading / couldn't ask" from "no runs yet".
+  - **The profile write now depends on a successful read.** `games_played` / `favorite_hero` used to come
+    from the local log; they now come from the server history. A FAILED fetch returns `null` and the profile
+    upsert is SKIPPED entirely rather than upserting a zero over a real total — the failure mode that would
+    otherwise quietly erase a player's games-played.
+
+**Verified live, and the negative case is the one that matters.** Planted 8 fake local boards under one
+author into `localStorage`, reloaded, and created a lobby: the library was still present (8 boards) and **not
+one seat drew from it** — the table filled with server/bot seats instead. A prior run against the real
+Supabase pool seated 7 snapshots, so server sourcing works end-to-end. New `poolSourceRule.test.ts` pins that
+the committed pool can never supply a player seat (every board synthetic → `playerRunsFrom` yields nothing,
+for either set), so a future `npm run pool` bake that emitted a non-synthetic board fails loudly instead of
+silently seating a house board as a player. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3725 tests ✓,
+`build:web` ✓, harness determinism ✓.
+
+**Owner action:** the `run_history` block at the bottom of `schema.sql` must be run alongside the C1 block.
+
 ## 2026-08-03 — Accounts C1: real identity, and RLS that enforces ownership
 
 The first checkpoint of the accounts plan (`docs/accounts-spec.md`, revived from the closed #791). Identity

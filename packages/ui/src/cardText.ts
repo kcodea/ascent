@@ -800,7 +800,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; grimoireCharged?: boolean },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -865,6 +865,19 @@ export function stepProgress(
     const every = Math.max(1, n((refreshed.params as { every?: number })?.every, 4));
     const toNext = every - (p.eotTick % every);
     return { current: toNext, total: every, label: `${toNext} Refresh${toNext === 1 ? '' : 'es'}` };
+  }
+  // Runic Archivist: the minions-SOLD meter. Its tally already rides the card as `soldProgress`, and the
+  // printed text already counts down — but with no counter the card gave no at-a-glance read of how close the
+  // payoff was, which every other every-N card on the board has (owner ask 2026-08-04).
+  //
+  // Unlike the meters above, `soldProgress` is stored ALREADY REDUCED (`% every`, see `minionSoldGrantSpell`),
+  // so it is used directly rather than through `cyc` — wrapping a pre-wrapped value would turn a fresh 0 into
+  // a phantom reading. A shop-phase accrual, so no counter in combat, matching the gold/buy/play meters.
+  const sold = def.effects.find((e) => e.on === 'minionSold' && (e.params as { count?: number } | undefined)?.count !== undefined);
+  if (sold) {
+    if (p.soldProgress === undefined) return null; // combat: you cannot sell mid-fight
+    const total = Math.max(1, n((sold.params as { count?: number })?.count, 5));
+    return { current: p.soldProgress % total, total };
   }
   // Mountainbond: the cards-PLAYED meter (`playTick`), the twin of the buy meter above. Added with the
   // `cardsPlayed` event (2026-07-29) — without this branch its "after you play 8 cards" printed a static 8 with

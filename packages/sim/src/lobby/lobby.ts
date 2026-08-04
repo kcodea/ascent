@@ -1,6 +1,7 @@
 import { combatSide, makeRng, simulate, type Rng } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { lossDamageCap } from '../reducer';
+import { stallPressure } from './runLobby';
 import type { LobbyRules, LobbySeat, LobbyState, SeatDriver } from './types';
 
 export const DEFAULT_LOBBY_RULES: LobbyRules = {
@@ -109,11 +110,7 @@ export function resolveRound(state: LobbyState): LobbyState {
   const eliminatedThisRound: LobbySeat[] = [];
   // Effective HP entering the round — the tiebreak for the wipeout guard below.
   const hpBefore = new Map(state.seats.map((s) => [s.id, s.armor + s.resolve]));
-  // Stall pressure: after enough rounds with nobody knocked out, every loser takes a growing extra hit, so a
-  // lobby with no fixed round count can't sit in a stalemate forever.
-  const pressure = state.quietRounds >= state.rules.pressureAfterQuietRounds
-    ? state.quietRounds - state.rules.pressureAfterQuietRounds + 1
-    : 0;
+  const pressure = stallPressure(state); // see runLobby.ts — one definition, two lobby flavours
 
   for (const [a, b] of pairs) {
     // `repeatFinal` lives HERE, not in the driver: a driver reports what it has, the lobby decides what

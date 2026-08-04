@@ -459,15 +459,43 @@ export function seatResults(lobby: RunLobby, seatId: string, n = 3): SeatResult[
   return out;
 }
 
+/**
+ * Stall pressure: after enough rounds with nobody knocked out, every loser takes a growing EXTRA hit on top of
+ * the fight's own damage, so a lobby with no fixed round count can't sit in a stalemate forever.
+ *
+ * Exported because it is not only a settle-time detail — it is part of the damage the player actually takes,
+ * so the UI has to be able to state it. The formula used to be written out twice (here and in `lobby.ts`) and
+ * nowhere the presentation layer could reach, which is how the loss counter came to report a number smaller
+ * than the hit that killed you (owner report 2026-08-04: "I had 13 hp and it said I took 11 but I died").
+ */
+export function stallPressure(state: { quietRounds: number; rules: { pressureAfterQuietRounds: number } }): number {
+  return state.quietRounds >= state.rules.pressureAfterQuietRounds
+    ? state.quietRounds - state.rules.pressureAfterQuietRounds + 1
+    : 0;
+}
+
+/**
+ * How much Resolve+Armor the PLAYER's seat loses this round — the fight's damage (capped) PLUS stall pressure
+ * on a loss or a draw. This is the number the HUD must show: `CombatResult.playerDamage` alone is only part of
+ * it, and showing that part was indistinguishable from a health bug.
+ *
+ * Deliberately shares `stallPressure` and `lossDamageCap` with `settleRunLobbyRound` rather than restating
+ * them, so the displayed figure cannot drift from the applied one. Call it BEFORE settling — it reads the
+ * round's pre-settle `quietRounds`, exactly as the settle does.
+ */
+export function playerLossDamage(lobby: Pick<RunLobby, 'quietRounds' | 'rules' | 'round'>, result: CombatResult): number {
+  if (result.result === 'win') return 0;
+  const fight = Math.min(lossDamageCap(lobby.round), result.playerDamage);
+  return fight + stallPressure(lobby);
+}
+
 export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult): RunLobby {
   if (lobby.finished) return lobby;
   const { pairs, bye } = pairRunLobby(lobby);
   const rng = makeRng(lobby.seed ^ (lobby.round * 0x51ed270b));
   const eliminated: LobbySeatState[] = [];
   const hpBefore = new Map(lobby.seats.map((s) => [s.id, s.armor + s.resolve]));
-  const pressure = lobby.quietRounds >= lobby.rules.pressureAfterQuietRounds
-    ? lobby.quietRounds - lobby.rules.pressureAfterQuietRounds + 1
-    : 0;
+  const pressure = stallPressure(lobby);
   const cap = lossDamageCap(lobby.round);
 
   for (const [a, b] of pairs) {

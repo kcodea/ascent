@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import type { BoardMinion, Tribe } from '@game/core';
-import { getHero, metLine, TAG_INFO, type LineStatus } from '@game/sim';
+import { getHero, TAG_INFO } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { RunTrophies } from './RunTrophies';
 import { avatarSrc, heroArt } from './art';
-import { BoardLog } from './BoardLog';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { careerStats, type RunHistoryEntry } from './runHistory';
+import { careerStats, ordinal, runWon, type RunHistoryEntry } from './runHistory';
 import { fetchRunHistory } from './remoteBoards';
 
 /** Read-only card view from a stored snapshot minion — mirrors the leaderboard / end screen. */
@@ -25,9 +24,6 @@ function cardViewOf(m: BoardMinion): CardView {
   };
 }
 
-const VERDICT: Record<LineStatus, string> = {
-  flawless: 'Flawless', exceeded: 'Surpassed', covered: 'Fulfilled', missed: 'Fell Short', failed: 'Fallen',
-};
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
 };
@@ -102,10 +98,8 @@ export function Career() {
       <div className="lbscroll">
         {(entries ?? []).length === 0 ? (
           <>
-            {/* No runs yet (or still loading) — still show the remote board log full-width. */}
-            <BoardLog />
             <div className="lbempty">
-              <div className="carempty-rating">Renown {profile.rating} · Oath {profile.currentLine}</div>
+              <div className="carempty-rating">Rating {profile.rating} · Oath {profile.currentLine}</div>
               No runs yet — play a run to start your career.
             </div>
           </>
@@ -121,8 +115,8 @@ export function Career() {
                   <div className="caravatar-badge" title={`Oath ${profile.currentLine}`}>{profile.currentLine}</div>
                 </div>
                 <div className="carpname">{playerName || 'Unnamed Climber'}</div>
-                <div className="carrank">Renown {profile.rating} · Oath {profile.currentLine}</div>
-                <div className="carranksub">Highest: Renown {profile.highestRating} · Oath {profile.highestLine}</div>
+                <div className="carrank">Rating {profile.rating} · Oath {profile.currentLine}</div>
+                <div className="carranksub">Highest: Rating {profile.highestRating} · Oath {profile.highestLine}</div>
                 <div className="carprofmeta">
                   <div><Icon name="sword" /><b>{stats.completions}</b><span>Completed</span></div>
                   <div><Icon name="shield" /><b>{stats.flawless}</b><span>Flawless</span></div>
@@ -161,14 +155,15 @@ export function Career() {
                 )}
               </aside>
 
-              {/* RIGHT — Winning Boards (remote fight records) over Recent Match History */}
+              {/* RIGHT — Recent Match History (the Board Log's per-round "winningest board" panel was
+                  removed 2026-08-04, owner ask) */}
               <div className="carright">
-                <BoardLog />
                 <section className="carcenter">
                   <div className="carsec carsec-ico"><Icon name="crown" />Recent Match History</div>
                   {(entries ?? []).slice(0, 25).map((e, i) => {
                     const expanded = open.has(i);
-                    const wonRun = metLine(e.lineStatus);
+                    const wonRun = runWon(e);
+                    const delta = e.ratingDelta;
                     return (
                       <div className={`lbentry carmatch${expanded ? ' open' : ''}`} key={i}>
                         <button className="carmatch-head" onClick={() => toggle(i)}>
@@ -180,16 +175,22 @@ export function Career() {
                               {getHero(e.heroId).name}
                               <span className={`carrec ${wonRun ? 'won' : 'lost'}`}>{e.wins}–{e.losses}</span>
                             </div>
-                            <div className={`carverdict ${e.lineStatus}`}>Oath {e.line} · {VERDICT[e.lineStatus]}</div>
-                            <div className="lbmeta">
-                              {e.completed ? 'Ascended' : `Fallen on round ${e.wave}`}{e.date ? ` · ${e.date}` : ''}
-                            </div>
                           </div>
                           {e.tags.length > 0 && (
                             <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}{TAG_INFO[t] && <span className="tagtip">{TAG_INFO[t]}</span>}</span>)}</div>
                           )}
                           <div className="carresult">
+                            {/* Where you finished the lobby. Absent on pre-lobby entries, which have no
+                                placement to report — those rows simply omit it rather than inventing one. */}
+                            {e.placement !== undefined && (
+                              <span className={`carplace${e.placement === 1 ? ' first' : ''}`}>{ordinal(e.placement)}</span>
+                            )}
                             <span className={`carwl ${wonRun ? 'won' : 'lost'}`}>{wonRun ? 'Victory' : 'Defeat'}</span>
+                            {/* The MMR move, beside the verdict. `0` is a real, meaningful value (a lobby that
+                                rated you flat) so this tests for undefined rather than truthiness. */}
+                            {delta !== undefined && (
+                              <span className={`carmmr ${delta >= 0 ? 'up' : 'down'}`}>{delta >= 0 ? '+' : ''}{delta}</span>
+                            )}
                             <span className={`carchev${expanded ? ' open' : ''}`} aria-hidden="true">▾</span>
                           </div>
                         </button>
@@ -216,7 +217,7 @@ export function Career() {
                                   <div className="cso-h">Standout Stats</div>
                                   {e.strongest && <div className="cso-row"><span className="cso-l">Strongest</span><span className="cso-v">{e.strongest.name} {e.strongest.attack}/{e.strongest.health}</span></div>}
                                   {e.topMechanic && <div className="cso-row"><span className="cso-l">Most</span><span className="cso-v">{e.topMechanic.name} ×{e.topMechanic.count}</span></div>}
-                                  {e.ratingDelta !== undefined && <div className="cso-row"><span className="cso-l">Renown</span><span className={`cso-v ${e.ratingDelta >= 0 ? 'up' : 'down'}`}>{e.ratingDelta >= 0 ? '+' : ''}{e.ratingDelta}</span></div>}
+                                  {e.ratingDelta !== undefined && <div className="cso-row"><span className="cso-l">Rating</span><span className={`cso-v ${e.ratingDelta >= 0 ? 'up' : 'down'}`}>{e.ratingDelta >= 0 ? '+' : ''}{e.ratingDelta}</span></div>}
                                 </aside>
                               )}
                             </div>

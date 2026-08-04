@@ -405,17 +405,27 @@ export async function uploadPlayerProfile(p: {
     // ACCOUNTS C1: the profile is keyed on `user_id`, NOT on the display name. Before this, renaming yourself
     // to someone else's name inherited their leaderboard slot — the name WAS the primary key.
     //
-    // `rating` is still written from here in C1. C3 moves it behind an Edge Function and locks the column to
-    // the service role; the RLS policy shipped alongside this change already forbids CHANGING your own rating,
-    // so this upsert only establishes it on first write and re-sends the same value afterwards.
-    await c.from('profiles').upsert(
-      {
-        user_id: userId,
-        author: p.author ?? null, rating: p.rating, games_played: p.gamesPlayed,
-        favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' },
-    );
+    // ── WHY THIS IS TWO STATEMENTS AND NOT ONE UPSERT ────────────────────────────────────────────────────
+    // The C1 RLS policy makes `rating` WRITE-ONCE from the client: its `with check` requires the incoming
+    // rating to equal the row's currently stored value. A single upsert sends every column, so as soon as the
+    // player's rating moved, the incoming rating no longer matched and Postgres rejected THE WHOLE ROW — not
+    // just the rating. `games_played`, `author` and `favorite_hero` all silently froze at whatever they were
+    // on the first insert, and the failure was swallowed by the best-effort catch below.
+    //
+    // That is the leaderboard reading "1 game" for a player with four runs in their Career (owner report
+    // 2026-08-04): the count was never wrong, it was never written after run one.
+    //
+    // So: UPDATE the mutable columns WITHOUT touching rating (leaving it equal to itself, which the policy
+    // permits), and fall back to an INSERT — which may set rating — only when no row exists yet. `select()`
+    // is what tells the two apart: an UPDATE matching nothing is a success with zero rows, not an error.
+    const now = new Date().toISOString();
+    const mutable = {
+      author: p.author ?? null, games_played: p.gamesPlayed,
+      favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: now,
+    };
+    const updated = await c.from('profiles').update(mutable).eq('user_id', userId).select('user_id');
+    if (!updated.error && updated.data && updated.data.length > 0) return;
+    await c.from('profiles').insert({ user_id: userId, rating: p.rating, ...mutable });
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */
   }

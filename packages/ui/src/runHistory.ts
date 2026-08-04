@@ -40,6 +40,26 @@ export interface RunHistoryEntry {
   ratingAfter?: number;
   ratingDelta?: number;
   lineDelta?: number;
+  /** Lobby finish position (1 = won the lobby). Already written by `uploadRunHistory`, which spreads it onto
+   *  the entry; declared here so the Career can read it. It is the WIN/LOSS answer now that the Oath verdict
+   *  is no longer shown (owner 2026-08-04) — absent on pre-lobby entries, which fall back to the Line. */
+  placement?: number;
+  mode?: string;
+}
+
+/** 1st / 2nd / 3rd / 4th … — English ordinals, including the 11th/12th/13th exceptions that a naive
+ *  last-digit rule gets wrong. A lobby only ever seats 8, but the rule is cheap and correct for any N. */
+export function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+}
+
+/** Did this run WIN? `placement === 1` for a lobby; otherwise the old Line verdict, so entries recorded before
+ *  lobbies still read sensibly instead of all flipping to losses. */
+export function runWon(e: Pick<RunHistoryEntry, 'placement' | 'lineStatus'>): boolean {
+  if (e.placement !== undefined) return e.placement === 1;
+  return metLine(e.lineStatus);
 }
 
 /** The final board's top non-neutral tribe (both tribes counted), or null for an empty/all-neutral board. */

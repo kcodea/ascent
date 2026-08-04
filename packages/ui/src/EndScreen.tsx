@@ -38,7 +38,7 @@ function ordinal(n: number): string {
 /**
  * The LOBBY end screen (owner ask 2026-07-29: "literally only show your placement and final board").
  *
- * The ordinary end screen is built entirely around the scored climb — Oath verdict, Renown delta, W–L record,
+ * The ordinary end screen is built entirely around the scored climb — Oath verdict, Rating delta, W–L record,
  * per-round pips, build tags, run stats. None of that exists in a lobby: there is no Oath, no course record and
  * no rating, and a per-round pip strip implies a fixed length the mode doesn't have. Rather than hide nine
  * sections one by one and leave the reader guessing which numbers still mean something, a lobby gets its own
@@ -174,7 +174,7 @@ export function EndScreen({ won }: { won: boolean }) {
         )}
 
         {!practice && lastRating && (
-          <div className={`endrating${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Renown change">
+          <div className={`endrating${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Rating change">
             {lastRating.completionBonus > 0 && (
               <span className="endrating-bonus">Summit Bonus +{lastRating.completionBonus}</span>
             )}
@@ -184,7 +184,7 @@ export function EndScreen({ won }: { won: boolean }) {
             {lastRating.finalWinBonus > 0 && (
               <span className="endrating-bonus win">Final Win +{lastRating.finalWinBonus}</span>
             )}
-            <span className="endrating-delta">Renown {ratingSign}{lastRating.ratingDelta}</span>
+            <span className="endrating-delta">Rating {ratingSign}{lastRating.ratingDelta}</span>
             <span className="endrating-now">{lastRating.ratingAfter}</span>
             {lastRating.promoted && <span className="endrating-move promo">Promoted → Oath {lastRating.lineAfter}</span>}
             {lastRating.demoted && <span className="endrating-move demo">Demoted → Oath {lastRating.lineAfter}</span>}

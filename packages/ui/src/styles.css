@@ -5127,14 +5127,20 @@ svg { width: 18px; height: 18px; }
 .carrec.won { color: #6fe0a0; }
 .carrec.lost { color: #ff9a9a; }
 /* Verdict reads as plain colored small-caps under the name (mockup: "OATH 7 • SURPASSED" in green). */
-.carverdict { font-family: var(--font-ui); font-weight: 900; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 1px; color: rgba(255, 255, 255, 0.7); }
-.carverdict.flawless, .carverdict.exceeded, .carverdict.covered { color: #6fe0a0; }
-.carverdict.missed, .carverdict.failed { color: #ff9a9a; }
 /* Right edge of a match row: VICTORY/DEFEAT word + expand chevron. */
 .carresult { flex: none; display: flex; align-items: center; gap: 14px; margin-left: auto; }
 .carwl { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; }
 .carwl.won { color: #6fe0a0; }
 .carwl.lost { color: #ff9a9a; }
+/* The MMR move on a match row. Tabular figures so a column of them lines up, and a fixed min-width so
+   "+6" and "-124" don't shuffle the chevron sideways. */
+.carmmr { font-family: var(--font-ui); font-weight: 900; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
+.carmmr.up { color: #6fe0a0; }
+.carmmr.down { color: #ff9a9a; }
+/* Lobby finish position. Tabular + fixed width for the same reason as .carmmr — "1st" and "8th" must not
+   move the verdict beside them. Gold only for the win; the rest read as neutral detail. */
+.carplace { font-family: var(--font-ui); font-weight: 900; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; color: rgba(255, 255, 255, 0.62); }
+.carplace.first { color: var(--acc); }
 .cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
 /* Career layout (redesign) — two columns: a combined Profile+Insights+Record panel · Match History. */
@@ -5143,36 +5149,6 @@ svg { width: 18px; height: 18px; }
 /* Ornate gold-framed panel (mockup 2026-07-16): deep navy fill + double gold frame (border + inset hairline). */
 .carcard { background: linear-gradient(180deg, rgba(13, 22, 40, 0.78), rgba(9, 15, 29, 0.85)); border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.55); border-radius: 16px; padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 .carcard .carsec { margin: 8px 0 2px; }
-
-/* Board Log — the per-round "winningest board" panel (a full-width carcard above the columns). */
-.boardlog { margin-bottom: 4px; }
-/* Winning Boards header row: title left, aggregate record right (mockup 2026-07-16). */
-.bl-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.bl-head .carsec { margin: 8px 0 2px; }
-.bl-agg { display: flex; align-items: center; gap: 16px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: rgba(255, 255, 255, 0.82); }
-.bl-agg span { display: inline-flex; align-items: center; gap: 6px; }
-.bl-agg svg { width: 15px; height: 15px; }
-.bl-agg-w svg { color: #e8c877; }
-.bl-agg-t svg { color: #8fb7e0; }
-.bl-rounds { display: flex; flex-wrap: wrap; gap: 6px; }
-.bl-round { position: relative; width: 36px; height: 36px; border-radius: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.3); border: 1.5px solid rgba(196, 160, 92, 0.3); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.bl-round:hover { border-color: var(--acc); color: var(--acc); }
-.bl-round.has { color: #fff; border-color: rgba(196, 160, 92, 0.6); }
-.bl-round.has::after { content: ''; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--acc); }
-/* Selected round: solid gold chip with dark numeral, like the mockup's "8". */
-.bl-round.on { background: linear-gradient(180deg, #f0d089, #c99d4e); border-color: #8a6428; color: #241705; }
-.bl-round.on::after { background: #8a6428; }
-.bl-detail { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
-.bl-record { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.82); }
-.bl-record .bl-stat b { font-weight: 900; font-size: 20px; color: #fff; margin-right: 4px; }
-.bl-record .bl-stat.w b { color: #7ee0a0; }
-.bl-record .bl-stat.t b { color: #e9d58a; }
-.bl-record .bl-stat.l b { color: #f08a8a; }
-.bl-record .bl-wr { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-weight: 900; font-size: 17px; color: var(--acc); }
-.bl-record .bl-wr svg { width: 17px; height: 17px; color: var(--acc); }
-.bl-warband { display: flex; flex-wrap: wrap; gap: 10px; }
-.bl-note { font-family: var(--font-ui); font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
-.bl-empty { padding: 14px 2px; color: rgba(255, 255, 255, 0.6); font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
 
 /* Left — Profile + Insights + hero record (one panel). Header block centered; the lists below full-width. */
 .carprofilecard { align-items: center; text-align: center; }
@@ -5189,7 +5165,7 @@ svg { width: 18px; height: 18px; }
 .caravatar svg { width: 42px; height: 42px; color: #1a1208; }
 .caravatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .carpname { font-family: var(--font-ui); font-weight: 900; font-size: 20px; color: #fff; }
-/* Gold renown pill under the name — the mockup's "RENOWN 188 • OATH 7" ribbon. */
+/* Gold rating pill under the name — the mockup's "RATING 188 • OATH 7" ribbon. */
 .carrank { align-self: center; margin-top: 6px; padding: 5px 18px; border-radius: 999px; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35); font-family: var(--font-ui); font-weight: 900; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #241705; }
 .carranksub { align-self: center; margin-top: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.65); }
 .carprofmeta { display: flex; width: 100%; gap: 8px; margin-top: 12px; }
@@ -6989,7 +6965,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* ── LOBBY END SCREEN ────────────────────────────────────────────────────────
    A lobby result is one number — where you finished — so it gets the whole headline, with the final warband
-   underneath as the only supporting detail. No Oath verdict, Renown delta, record, pips, tags or run stats:
+   underneath as the only supporting detail. No Oath verdict, Rating delta, record, pips, tags or run stats:
    none of them exist in a mode with no course and no rating (owner ask 2026-07-29). */
 .endscreen.lobbyend .endbox { gap: calc(14 * var(--u-base)); }
 /* Lobby post-game rating — the BIG number (current rating) with the placement's ± delta beside it. Static

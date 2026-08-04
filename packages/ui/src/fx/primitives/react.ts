@@ -37,7 +37,6 @@ import {
   FX_ORDERS, FX_PARTS, FX_REACHES, partElements, recipientsFor, unitElement,
   type FxOrder, type FxPart, type FxReach,
 } from '../reactTargets';
-import { PLAYER_UNIT_SELECTOR } from '../boardAnchors';
 import { EASES, EASE_IDS, amplitudeAt, keyframesFor } from '../reactMotion';
 
 
@@ -117,14 +116,18 @@ interface Beat {
 /**
  * The subject this fire is about. `target` first: a reaction is something happening TO a unit, and for the
  * one-ended moments that dominate (a buff, a gem landing) `combatAnchors` has already folded the single
- * unit onto both ends, so either would do. Falling back to the first player unit is what makes the layer
- * previewable in the workbench, which stages anchors but no uids.
+ * unit onto both ends, so either would do.
+ *
+ * **No uid means the layer plays on NOTHING, deliberately.** The first cut fell back to the first player
+ * unit so the layer would be previewable in a workbench that stages anchors but no uids. That fallback was
+ * a mistake and cost three rounds of live debugging: the effect ran, animated the LEFTMOST minion, and
+ * looked for all the world like a targeting bug in the reach code. A silent wrong answer is worse than no
+ * answer — an effect that does nothing is immediately legible as "nothing told me who this is about",
+ * which is the truth. The workbench now names a subject explicitly (see its "React on" picker), so the
+ * fallback bought nothing anyway.
  */
 function subjectUid(ctx: FxContext): string | null {
-  const explicit = ctx.uids?.target ?? ctx.uids?.source ?? null;
-  if (explicit !== null) return explicit;
-  if (typeof document === 'undefined') return null;
-  return document.querySelector(PLAYER_UNIT_SELECTOR)?.getAttribute('data-uid') ?? null;
+  return ctx.uids?.target ?? ctx.uids?.source ?? null;
 }
 
 class ReactInstance implements FxInstance<ReactParams> {

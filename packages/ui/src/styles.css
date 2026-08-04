@@ -6251,6 +6251,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-curve-handle { fill: #f0a0ff; stroke: #7a17bd; stroke-width: 1.5; cursor: grab; }
 .fxwb-curve-handle:active { cursor: grabbing; }
 .fxwb-row input[type='checkbox'] { justify-self: start; accent-color: #c936ef; width: 15px; height: 15px; cursor: pointer; }
+/* The "React on" picker in the toolbar — which minion a `react` layer animates in the preview. Same
+   treatment as the inspector's selects; it just isn't inside a `.fxwb-row` grid. */
+.fxwb-select {
+  background: #2b2739; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;
+  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer; max-width: 190px;
+}
+.fxwb-select:disabled { opacity: 0.5; cursor: default; }
 .fxwb-row select {
   grid-column: 2 / span 2; background: #2b2739; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;
   padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;

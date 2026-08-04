@@ -5,7 +5,7 @@ import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
-import { runeTally } from './runeTally';
+import { questTally, runeTally } from './runeTally';
 import { useGame, type CombatQuestDelta } from './store';
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
@@ -190,11 +190,20 @@ export function QuestBadges() {
             {stepTotal > 0 && (
               <span className="stepcounter questbadge-step" aria-label={`Quest progress ${stepCur} of ${stepTotal}`}>{stepCur}/{stepTotal}</span>
             )}
+            {/* A completed quest whose REWARD is an ongoing meter (Food for Gold's "every 7 Gold", Bane's
+                Presence's "every 3 Shouts") shows how close the next payout is — the same `x/N` the runes and
+                the Avenge counters use. Only when `stepTotal` is absent: that slot already holds a REPEATABLE
+                quest's objective progress, and two different numbers in one place is worse than neither.
+                Keyed on the text so each change replays the compositor-only bump. */}
+            {stepTotal === 0 && questTally(run, aq.questId) && (
+              <span key={questTally(run, aq.questId)!} className="qb-tally">{questTally(run, aq.questId)}</span>
+            )}
             <div className="questbadge-tip" role="tooltip">
               <b>{def.name}</b>
               <span className="questbadge-tip-reward">{rewardTxt}{def.repeatable ? ' · Repeatable' : ''}</span>
               {liveTxt && <span className="questbadge-tip-state">{liveTxt}</span>}
               {chip && <span className="questbadge-tip-state">{ongoing ? 'Active' : 'Done'} · {chip}</span>}
+              {questTally(run, aq.questId) && <span className="questbadge-tip-state">Next in {questTally(run, aq.questId)}</span>}
             </div>
           </div>
         );

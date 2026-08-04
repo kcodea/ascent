@@ -1708,6 +1708,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const def = CARD_INDEX[nb.cardId];
       if (!def || !hasBattlecry(def)) continue;
       for (let r = 0; r < reps; r++) replayBattlecry(ctx.state, nb);
+    }
+  },
 
   /** Set 2 — Faultline Scrapper / Alchemist Brisbane (Echo, RECRUIT half): raise the run's Ruby strength.
    *

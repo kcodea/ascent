@@ -72,6 +72,11 @@ tests, `build:web`.
   outside that list (Spellslinging's Gold drip, the Summit's shop count). A `oncePerTurn` rune that already
   paid shows full rather than a misleading fresh 0. Quests are untouched: their objective progress is already
   rendered on the pending badge.
+- **Every-N-SPELLS cards now carry a counter** (owner ask: "Baal needs a counter under him, x/2"). There was
+  no generic branch for it in `stepProgress` — so Baal printed "cast 2 spells" with no sign of progress, and
+  **High King Mykel had the same gap** at 8. Written keyed on the trigger + an `every` param rather than on a
+  card id, so the next every-N-spells card gets its counter for free. Guel is untouched: its own
+  `spellCastBuffOthers` branch matches earlier.
 - **Art** — Baal, Training Dummy (the Decoy Sigil body), Rune of Baal, and the re-wired Copycat spell.
 
 **The Copycat rune art landed.** `Quests/CopyCat.png` matched no quest, and rather than guess it across

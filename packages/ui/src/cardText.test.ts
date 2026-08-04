@@ -268,3 +268,23 @@ describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () =
     expect(perCardPlayedText('dw_foreman', 4, true)!).toContain('{{+8 Attack}}');
   });
 });
+
+describe('every-N-spells counters (owner ask 2026-08-03: "Baal needs a counter under him, x/2")', () => {
+  it('Baal shows a cyclic x/2 driven by its spellProgress meter', () => {
+    expect(stepProgress('dw_baal', { spellProgress: 0 })).toEqual({ current: 0, total: 2 });
+    expect(stepProgress('dw_baal', { spellProgress: 1 })).toEqual({ current: 1, total: 2 });
+    expect(stepProgress('dw_baal', { spellProgress: 2 })).toEqual({ current: 2, total: 2 });
+    // The factory subtracts `every` on fire, so a live instance wraps rather than climbing — but a raw 3
+    // must still read as 1/2 rather than 3/2, matching every other cyclic meter.
+    expect(stepProgress('dw_baal', { spellProgress: 3 })).toEqual({ current: 1, total: 2 });
+  });
+
+  it('the branch is generic — High King Mykel gets its x/8 too', () => {
+    // Both were printing a static threshold with no progress before this branch existed.
+    expect(stepProgress('dw_brisbane', { spellProgress: 3 })).toEqual({ current: 3, total: 8 });
+  });
+
+  it('does not hijack Guel, which has its own meter', () => {
+    expect(stepProgress('guel', { spellProgress: 5 })?.total).toBe(4);
+  });
+});

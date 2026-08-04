@@ -871,6 +871,14 @@ export function stepProgress(
   // no indication of progress, which is exactly what the live-value rule forbids.
   const played = def.effects.find((e) => e.on === 'cardsPlayed' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (played) return p.playTick === undefined ? null : cyc(p.playTick, Math.max(1, n((played.params as { every?: number })?.every, 8)));
+  // Any "every N SPELLS" card — Baal's Demon consume (every 2), High King Mykel's adjacent-Shout trigger
+  // (every 8). Rides the per-instance `spellProgress` meter the factories tick. Written GENERICALLY, keyed on
+  // the trigger + an `every` param rather than on a card id, so the next every-N-spells card gets its counter
+  // for free; before this branch existed BOTH of these printed a static threshold with no sign of progress,
+  // which is exactly what the live-value rule forbids. Guel is unaffected — its own `spellCastBuffOthers`
+  // branch is matched earlier.
+  const perSpell = def.effects.find((e) => e.on === 'spellCast' && (e.params as { every?: number } | undefined)?.every !== undefined);
+  if (perSpell) return cyc(p.spellProgress ?? 0, Math.max(1, n((perSpell.params as { every?: number })?.every, 2)));
   const pup = def.effects.find((e) => e.do === 'spellCastTransform');
   if (pup) { const at = Math.max(1, n((pup.params as { at?: number })?.at, 10)); return { current: Math.min(p.spellProgress ?? 0, at), total: at }; }
   if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }

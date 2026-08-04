@@ -16,6 +16,7 @@ export function Rankings() {
   const show = useGame((s) => s.showRankings);
   const close = useGame((s) => s.closeRankings);
   const me = useGame((s) => s.playerName);
+  const openCareer = useGame((s) => s.openCareer);
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
 
   useEffect(() => {
@@ -63,8 +64,20 @@ export function Rankings() {
               const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
               const art = r.favoriteHero ? heroArt(r.favoriteHero) : null;
               const mine = !!me && r.author === me;
+              // The row OPENS THEIR CAREER. Rankings stays mounted underneath, so Back returns here rather
+              // than to the title — the Career overlay renders after it and simply covers it.
+              const openTheirs = (): void => {
+                sfx.pulse();
+                openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero });
+              };
               return (
-                <div className={`rankrow${mine ? ' me' : ''}`} key={r.author}>
+                <button
+                  type="button"
+                  className={`rankrow rankrow-btn${mine ? ' me' : ''}`}
+                  key={r.userId || r.author}
+                  onClick={openTheirs}
+                  title={`View ${r.author}'s career`}
+                >
                   <span className={`rankrank r${i + 1}`}>{i + 1}</span>
                   <span className="rankname">{r.author}{mine && <span className="rankyou">you</span>}</span>
                   <span className="ranknum rankrating">{r.rating}</span>
@@ -77,7 +90,7 @@ export function Rankings() {
                       </>
                     ) : <span className="baldim">—</span>}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>

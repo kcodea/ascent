@@ -1,5 +1,42 @@
 # ASCENT — development log
 
+## 2026-08-04 — Click a player on the leaderboard to open their Career
+
+Owner ask. Rows are buttons now; clicking one opens that player's Career over the leaderboard.
+
+**Keyed on `user_id`, never on `author`.** `fetchTopPlayers` now carries `user_id` through onto `PlayerRow`,
+and `fetchRunHistory(limit, forUserId?)` targets it. The display name is mutable and not unique — looking
+anything up by it is the exact mistake accounts C1 existed to fix (renaming yourself to someone else's name
+used to inherit their leaderboard slot).
+
+**Own-vs-foreign fetch differ deliberately:** a foreign career needs only the id it was handed, so it works
+without a session of your own; but asking for YOUR career with no session still returns `null` (couldn't ask)
+rather than `[]` (no runs). Conflating those once clobbered a profile's games-played with a zero.
+
+**What another player's card can and can't show.** Rating and games come from the leaderboard row — they live
+in `profiles` and are not derivable from run history. Oath is a local run-profile value and is OMITTED rather
+than shown as yours or faked as 0. "Highest" is derived from their entries' `ratingAfter`, and reads
+"unknown" when there is nothing to derive from. The avatar falls back to their initial, since avatars are
+local — showing YOUR avatar over THEIR name would be actively misleading. The picker becomes a plain div, so
+it is unreachable rather than merely hidden.
+
+**Navigation needed no new state:** `<Career />` already renders after `<Rankings />`, so it covers it and
+Back reveals the leaderboard underneath. `closeCareer` clears `careerOf`, so reopening your own from the title
+never inherits the last player viewed.
+
+**⚠️ NEEDS A SQL RUN.** `run_history` reads were owner-only (`using (auth.uid() = user_id)`). `schema.sql` now
+makes SELECT public while writes stay owner-only. **Until that runs, another player's career renders EMPTY** —
+the select returns no rows rather than erroring — which is the correct degradation and exactly what the live
+check showed. Recorded in the schema as a deliberate privacy decision, not an oversight: a career is a match
+history the leaderboard already advertises.
+
+**Verified** — `careerView.test.ts` (5), negative-controlled (ignoring the target / dropping `user_id` from the
+SELECT fails 3). Checked live against the real leaderboard: both rows render as buttons, clicking LazerLemon
+opens "LazerLemon's Career · Rating 455 · No runs to show", and Back returns to the Leaderboard with
+`careerOf` cleared. One verification step was my own error first — a bare `.lbback` selector hit Rankings'
+button rather than Career's, since direct `.click()` bypasses hit-testing; re-checked with `elementFromPoint`
+that a real click lands on the top overlay's button. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3885 tests ✓,
+`build:web` ✓.
 ## 2026-08-04 — Effect Arena: scoped into tickets, and two headline risks retired
 
 Owner: *"let's really scope this out so when our weekly lifts we can go to work."* The spec from #852 now

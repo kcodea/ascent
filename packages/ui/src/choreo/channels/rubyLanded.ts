@@ -17,7 +17,15 @@
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 
-export interface RubyLand { uid: string; count: number; }
+export interface RubyLand {
+  uid: string;
+  count: number;
+  /** Total attack these Rubies added to this unit. Carried so the badge can WITHHOLD the change until the
+   *  effect delivers it (`fx/statHold.ts`) — the cue is the only place that knows the number. */
+  attack: number;
+  /** Total health these Rubies added. */
+  health: number;
+}
 
 export function rubiedLandsIn(moment: Moment, events: CombatEvent[]): RubyLand[] {
   const byUid = new Map<string, RubyLand>();
@@ -31,8 +39,8 @@ export function rubiedLandsIn(moment: Moment, events: CombatEvent[]): RubyLand[]
     // the signal, two layers before the animation. Two Rubies on a body is two gems: see docs/fx-vocabulary.md,
     // a multiplier is a STACK. (A Resonance Idol bounce lands a genuine second Ruby too, and equally deserves
     // its second gem — the old comment here called that noise, and it was wrong.)
-    if (cur) cur.count += 1;
-    else { byUid.set(e.target, { uid: e.target, count: 1 }); order.push(e.target); }
+    if (cur) { cur.count += 1; cur.attack += e.attack; cur.health += e.health; }
+    else { byUid.set(e.target, { uid: e.target, count: 1, attack: e.attack, health: e.health }); order.push(e.target); }
   }
   return order.map((k) => byUid.get(k)!);
 }

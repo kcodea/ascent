@@ -38,6 +38,7 @@ import {
   type FxOrder, type FxPart, type FxReach,
 } from '../reactTargets';
 import { EASES, EASE_IDS, amplitudeAt, keyframesFor } from '../reactMotion';
+import { releaseStat } from '../statHold';
 
 
 const SPECS = {
@@ -56,6 +57,10 @@ const SPECS = {
   gap: {
     kind: 'slider', label: 'Gap', group: 'Target', min: 0, max: 400, step: 5, default: 60,
     help: 'Milliseconds between each step outward (ripple) or each unit (cascade). Ignored by volley.',
+  },
+  carries: {
+    kind: 'toggle', label: 'Carries the number', group: 'Target', default: false,
+    help: "This layer DELIVERS the stat change: the badge holds the old number until this layer peaks, then shows the new one. Tick it on exactly one layer — the one whose motion should read as the number landing.",
   },
   falloff: {
     kind: 'slider', label: 'Falloff', group: 'Target', min: 0, max: 1, step: 0.01, default: 0.4,
@@ -105,6 +110,15 @@ const SPECS = {
 
 type ReactParams = ParamsOf<typeof SPECS>;
 
+/** A withheld stat change this layer will deliver, and when. */
+interface Release {
+  uid: string;
+  /** ms from the effect's start — the layer's own peak for THIS recipient, so a cascade delivers each
+   *  unit's number in turn rather than all of them on the first pop. */
+  at: number;
+  done: boolean;
+}
+
 /** One element's scheduled reaction. */
 interface Beat {
   anim: Animation;
@@ -132,6 +146,7 @@ function subjectUid(ctx: FxContext): string | null {
 
 class ReactInstance implements FxInstance<ReactParams> {
   private beats: Beat[] = [];
+  private releases: Release[] = [];
   private localMs = 0;
   private totalMs = 0;
   private readonly subject: string | null;
@@ -146,6 +161,9 @@ class ReactInstance implements FxInstance<ReactParams> {
   private build(p: ReactParams): void {
     this.cancelAll();
     this.beats = [];
+    // Releases are NOT carried across a rebuild: a param edit re-derives them, and a number that was
+    // already delivered stays delivered (the hold is gone, so a stale release is a harmless no-op).
+    this.releases = [];
     this.totalMs = 0;
     if (this.subject === null || typeof document === 'undefined') return;
 
@@ -173,15 +191,24 @@ class ReactInstance implements FxInstance<ReactParams> {
         anim.pause(); // the player owns the clock — see the module header
         this.beats.push({ anim, at: land.at, duration: p.hold });
       }
+      if (p.carries) this.releases.push({ uid: land.uid, at: land.at + p.hold * p.peak, done: false });
       this.totalMs = Math.max(this.totalMs, land.at + p.hold);
     }
     this.seek();
   }
 
-  /** Write every animation's playhead from the effect's own clock. */
+  /** Write every animation's playhead from the effect's own clock, and deliver any number due by now. */
   private seek(): void {
     for (const b of this.beats) {
       b.anim.currentTime = Math.min(Math.max(this.localMs - b.at, 0), b.duration);
+    }
+    // Once-guarded: `seek` runs every frame, and `releaseStat` notifies subscribers, so firing it repeatedly
+    // would wake every held card's render path for the rest of the effect.
+    for (const r of this.releases) {
+      if (!r.done && this.localMs >= r.at) {
+        r.done = true;
+        releaseStat(r.uid);
+      }
     }
   }
 
@@ -205,6 +232,12 @@ class ReactInstance implements FxInstance<ReactParams> {
   destroy(): void {
     this.cancelAll();
     this.beats = [];
+    // Deliver anything still owed. An effect cut short (combat ends, the player skips, the player is torn
+    // down mid-play) must not leave a badge showing the old number — the TTL would eventually rescue it,
+    // but a visibly stale stat for a second is exactly the kind of quiet wrongness this system keeps
+    // producing. Failing OPEN is the rule.
+    for (const r of this.releases) if (!r.done) releaseStat(r.uid);
+    this.releases = [];
   }
 }
 

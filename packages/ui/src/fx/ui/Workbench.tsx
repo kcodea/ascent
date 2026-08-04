@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from 'pixi.js';
+import { CARD_INDEX } from '@game/content';
 import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, hasPrimitives, listPrimitives } from '../registry';
@@ -391,13 +392,30 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [railMode, setRailMode] = useState(false);
   // The harness's selection, lifted here so the commit panel can address it (see ProcHarnessProps).
   const [harnessCard, setHarnessCard] = useState('');
-  // WHICH UNIT the preview is about. Pixi layers never needed this — they draw at the scenario's screen
-  // points — but a `react` layer animates a specific card's DOM, and with no uid it falls back to the first
-  // player unit: the effect played on the LEFTMOST minion no matter which card you staged (owner report,
-  // 2026-08-03). The harness picks a CARD, so resolve it to the board minion actually carrying it.
-  // A primitive (string | null), so a fresh read per render settles under Zustand's Object.is — unlike the
-  // board array itself, which needs the memo above it in `ProcHarness`.
+  // WHICH UNIT the preview is about. Pixi layers never need this — they draw at the scenario's screen
+  // points and don't care which card was there — but a `react` layer animates a specific card's DOM.
+  //
+  // This is EXPLICIT rather than inferred, and that is the whole lesson of the bug it fixes: the primitive
+  // used to fall back to the first player unit when nobody told it, so a workbench preview silently
+  // animated the LEFTMOST minion and read as a targeting bug in the reach code (owner report, three rounds,
+  // 2026-08-03). The author now says who, the primitive plays on nobody when nobody is named, and neither
+  // side guesses.
+  //
+  // Default: whatever the harness staged, else the first minion — a sensible starting pick, but one the
+  // author can see in the picker and change, which is what the silent version never allowed.
+  const [previewUid, setPreviewUid] = useState<string | null>(null);
   const harnessUid = useGame((s) => s.run?.board.find((m) => m.cardId === harnessCard)?.uid ?? null);
+  // The board as (uid, label) pairs for the picker. Memoised on the board's own stable reference: building
+  // a fresh array inside the selector never settles under Zustand's reference equality (see `ProcHarness`).
+  const previewBoard = useGame((s) => s.run?.board);
+  const previewOptions = useMemo(
+    () => (previewBoard ?? []).map((m, i) => ({ uid: m.uid, label: `${i + 1}. ${CARD_INDEX[m.cardId]?.name ?? m.cardId}` })),
+    [previewBoard],
+  );
+  // Keep the pick valid: a staged card wins, and a subject that left the board falls back to the first one
+  // rather than leaving the preview pointed at a unit that no longer exists.
+  const subjectUid = harnessUid
+    ?? (previewOptions.some((o) => o.uid === previewUid) ? previewUid : previewOptions[0]?.uid ?? null);
   const [harnessKind, setHarnessKind] = useState<MomentKind | null>(null);
   const [commitScope, setCommitScope] = useState<'card' | 'global'>('card');
   const [commitFanOut, setCommitFanOut] = useState<FxBinding['fanOut']>('primary');
@@ -660,7 +678,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       // no moment to be about.
       player = createPlayer(
         def,
-        { container, renderer, uids: { source: harnessUid, target: harnessUid } },
+        { container, renderer, uids: { source: subjectUid, target: subjectUid } },
         { loop: loopOnRef.current, loopGapMs: loopGapRef.current },
       );
       player.setSpeed(speedRef.current);
@@ -753,7 +771,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       container?.destroy({ children: true });
       playerRef.current = null;
     };
-  }, [structKey, scenarioId, durationMs, slot, harnessUid]);
+  }, [structKey, scenarioId, durationMs, slot, subjectUid]);
 
   // Commit a new layers array to both the state and the ref mirror the build/updater closures read.
   // Arms the autosave: every caller (add/delete/reorder/primitive-swap/timing/load/prune) is real work.
@@ -1885,6 +1903,25 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             </button>
           ))}
         </div>
+        {/* WHICH card a `react` layer animates. Only react reads it, but it lives here next to the scenario
+            rather than in the layer inspector because it describes the PREVIEW's staging — "pretend this
+            moment was about that card" — not the effect being authored. */}
+        {previewOptions.length > 0 && (
+          <div className="fxwb-group">
+            <span className="fxwb-backdrop-label">React on</span>
+            <select
+              className="fxwb-select"
+              value={subjectUid ?? ''}
+              disabled={harnessUid !== null}
+              title={harnessUid !== null ? 'The harness has staged a card — it decides the subject.' : 'Which minion a react layer plays on'}
+              onChange={(e) => setPreviewUid(e.target.value)}
+            >
+              {previewOptions.map((o) => (
+                <option key={o.uid} value={o.uid}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="fxwb-group fxwb-backdrop-group">
           <span className="fxwb-backdrop-label">Backdrop</span>
           {BACKDROP_SWATCHES.map((sw) => (
@@ -2517,7 +2554,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             // A PREVIEW, deliberately not `loadDef`: hovering a list must never replace the author's
             // in-progress composition. `playDef` mounts its own container, plays once and self-retires, so
             // the editor's own layers, duration, seed, name and undo history are all untouched.
-            playDef(id, anchors);
+            // Same subject the editor previews against, so a def with a react layer shows what it does.
+            playDef(id, anchors, { uids: { source: subjectUid, target: subjectUid } });
           }}
           onClose={() => setBrowsing(false)}
         />
@@ -2533,7 +2571,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             // never touches the author's in-progress composition.
             const made = materialiseVariant(archetypeId, variantId);
             if (made === null) return;
-            playDef(made.stored.id, anchors);
+            playDef(made.stored.id, anchors, { uids: { source: subjectUid, target: subjectUid } });
           }}
           onPick={(archetypeId, variantId) => {
             const made = materialiseVariant(archetypeId, variantId);

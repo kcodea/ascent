@@ -41,8 +41,9 @@ export const strikeScale = (power: number): number => power;
 
 /** The tan billow at a strike point — the authored `impact-dust` def, migrated out of `pixiFx.impactDust`.
  *  Three of the four branches below fire it, so it is one call rather than three. */
-function strikeDust(x: number, y: number, power: number): void {
-  playDef('impact-dust', { source: { x, y }, target: { x, y } }, { intensity: dustIntensity(power) });
+function strikeDust(x: number, y: number, power: number, uid: string | null): void {
+  playDef('impact-dust', { source: { x, y }, target: { x, y } },
+    { intensity: dustIntensity(power), uids: { source: null, target: uid } });
 }
 
 /**
@@ -61,11 +62,13 @@ function strikeDust(x: number, y: number, power: number): void {
  * burst's 0 rad, i.e. fanning right). The hand-written method's own fallback there was "up"; the difference is
  * unobservable, because two units on the same pixel never happens on a real board.
  */
-function strikeBurst(x: number, y: number, dx: number, dy: number, power: number): void {
+function strikeBurst(x: number, y: number, dx: number, dy: number, power: number, uid: string | null): void {
   playDef(
     'strike-impact',
     { source: { x: x - dx, y: y - dy }, target: { x, y } },
-    { scale: strikeScale(power), intensity: strikeIntensity(power) },
+    // The DEFENDER is the react subject: a strike is something that happens TO it, and `source` here is a
+    // synthetic point behind the blow (see above), not a unit.
+    { scale: strikeScale(power), intensity: strikeIntensity(power), uids: { source: null, target: uid } },
   );
 }
 
@@ -82,6 +85,10 @@ function strikeBurst(x: number, y: number, dx: number, dy: number, power: number
  * heftier knockback. No-op FX/recoil when there's no defender (still fires the hit/crit sound).
  */
 export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, executeSlash = false, cleave = false): void {
+  // The defender's uid, for any `react` layer in these defs: an impact is something that happens TO a
+  // unit, and the element is already in hand. `null` when the caller had no defender element, which a
+  // react layer reads as "no subject" and skips.
+  const defenderUid = defender?.getAttribute('data-uid') ?? null;
   if (crit) sfx.critHit(); else sfx.hit();
   if (flurryHit) sfx.flurryHit(); // the Flurry hit layers OVER the smack on EVERY swing (owner note 2026-07-17)
   if (!defender) return;
@@ -110,7 +117,7 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
     // takes no direction — it plays the same left→right animation whichever way the attacker swung, because
     // mirroring it would flip the claws' hook (see cleaveSlash).
     pixiFx.cleaveSlash(r.left + r.width / 2, r.top + r.height / 2);
-    strikeDust(fx.x, fx.y, power);
+    strikeDust(fx.x, fx.y, power, defenderUid);
   } else if (flurrySlash) {
     // Flurry REPLACES the standard strike VFX with the wind-slash gust so a Flurry attacker's hits read as
     // wind — and it WINS even on a CRIT (a Flurry crit shows the wind-slash, not the crimson flourish; owner
@@ -120,10 +127,10 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   } else if (crit) {
     // The crit REPLACES the normal impact burst with its own amplified flourish; the dust billow still reads.
     pixiFx.critImpact(fx.x, fx.y, dx, dy, { x: r.left, y: r.top, w: r.width, h: r.height });
-    strikeDust(fx.x, fx.y, power);
+    strikeDust(fx.x, fx.y, power, defenderUid);
   } else {
-    strikeBurst(fx.x, fx.y, dx, dy, power);
-    strikeDust(fx.x, fx.y, power); // card-drop-style tan billow from the strike point
+    strikeBurst(fx.x, fx.y, dx, dy, power, defenderUid);
+    strikeDust(fx.x, fx.y, power, defenderUid); // card-drop-style tan billow from the strike point
     pixiFx.impactPulse(fx.x, fx.y, power); // expanding energy ring(s) from the strike point
   }
   gsap.killTweensOf(defender);

@@ -1,5 +1,48 @@
 # ASCENT — development log
 
+## 2026-08-04 — react: the workbench NAMES its subject, and the fallback is gone
+
+Third report on the same symptom, and the one that found the actual cause: *"when i add the react effect
+its only affecting the left most minion. though i do see the target lifting when its applied."* Two things
+animating — the correct card from the bound cue, and the leftmost minion from the workbench's own preview
+loop.
+
+**The fallback was the bug.** `subjectUid` fell back to `document.querySelector(PLAYER_UNIT_SELECTOR)` when
+nothing told it which unit a fire was about, so a workbench preview (which stages anchors but no moment)
+always animated the first player unit. Added so the layer would be previewable at all; it made the layer
+*look* previewable while quietly answering a different question, and it read exactly like a targeting bug
+in the reach code. Two earlier fixes went into `orderByReach` — one of them a real defect, one of them not
+the cause — before the fallback was the suspect.
+
+Removed. **No uid now means the layer plays on nothing.** An effect that does nothing is immediately
+legible as "nobody told me who this is about"; an effect that animates an arbitrary card is not legible as
+anything. This is the general rule the FX system keeps re-learning: a silent wrong answer costs more than a
+loud absence, because it is indistinguishable from a bug somewhere else entirely.
+
+In its place the workbench says who, explicitly: a **"React on"** picker in the toolbar listing the board's
+minions. It defaults to whatever the proc harness staged (and locks to it, since the harness's choice IS
+the moment), else to the first minion — a starting pick the author can now SEE and change, which is
+precisely what the silent version never allowed. The picked uid rides the same `FxContext.uids` channel the
+real cue path uses, so preview and production differ in who is named, not in how.
+
+**And removing the fallback immediately exposed what it had been hiding.** Owner: *"i am not seeing the
+effect being played."* The SHOP Ruby path (`Recruit.tsx`) called `playDef('ruby-gem-apply', …)` with no
+uids at all — so with the guess gone, the react layer correctly had no subject and played on nobody. The
+fallback had been masking a real gap at every call site that never passed a uid, not just in the workbench.
+
+Wired uids at every site that knows its unit: the shop gem land, the board landing puff, the combat replay's
+coins / damage-burst / landing-dust / death-dissolve, the melee impact channel (which now reads the
+defender's uid off the element it already holds — a strike is something that happens TO a unit), and the
+workbench's library/preset previews.
+
+**The scan is now a test** (`playDefUids.test.ts`). This defect shipped three times in one day and hand
+grepping missed `Recruit.tsx` twice — once to a truncated `head -10`. Every `playDef` call must either pass
+`uids` or appear in a `UNIT_LESS` allowlist WITH a reason (the cursor puff, the button dusts, the HP-box
+burst). A second test fails on a stale allowlist entry, so an exemption can't outlive the call it excuses —
+it caught one on its first run, an entry for a `coins` call that had just been wired.
+
+Full gate green: typecheck (pkgs + web), lint (0 errors), 3764 tests, `build:web`.
+Full gate green: typecheck (pkgs + web), lint (0 errors), 3762 tests, `build:web`.
 ## 2026-08-04 — Shop-triggered Echoes were inert for Geode Guardian + Faultline Scrapper (and 20 more)
 
 Owner report: a Geode Guardian played from Funeral on Loan summoned nothing, and Faultline Scrapper "looks

@@ -48,6 +48,58 @@ Verified: 37 unit tests over the two pure modules (up from 21), including a symm
 ripple group holds units at exactly ONE distance from the subject — the property the bug violated — and
 sign/decay tests over the shake extrema. Full gate green: typecheck (pkgs + web), lint (0 errors), 3752
 tests, `build:web`.
+## 2026-08-03 — Baal + Rune of Baal, live rune meters, and an art batch
+
+- **Baal** (`dw_baal`) — Dwarf/Demon **8/7 at Tier 6**, forge-only (`token: true`, reachable only through
+  Rune of Baal, same shape as Brill and Mykel). Final effect after the owner's rework: "Whenever you cast
+  **2 spells**, a friendly **Demon** consumes a minion in the **Shop**" (gilded: two minions).
+  - The EATER is chosen and credited rather than passing `self`, because a consume pays out on whoever ate
+    it — its own on-consume effects, its stat gain, Broodlord's tally. Baal is a Demon, so it can eat its own.
+  - Per-instance `spellProgress` meter, the same shape every other "every N spells" card uses, so two Baals
+    each keep their own count and the tally survives a triple under the universal accrual rule.
+  - Shop eligibility mirrors `consumeShopMinion`'s own (minion, not spell, not Ruby) — the Gemgorge factory
+    documents what happens otherwise: hand it an index it refuses and the trigger is silently wasted.
+- **Removed the machinery the earlier draft added.** The first cut of Baal was an on-consume shop buff, which
+  needed `shopTurnBonus` (a turn-scoped twin of `tavernBuyBonus`, applied at buy time so it survived rerolls).
+  The rework left that channel with no writer, so it is deleted rather than left registered — this repo has
+  been bitten repeatedly by primitives that outlive their last consumer.
+- **Rune of Baal** — Epic, cost 6, set-2 only, `Get a Baal`, with `previewCards` so the forge hover shows it.
+- **Live rune meters** (owner ask: "make sure our runes/quests all have tally trackers like the avenge
+  tracker — this should always show x/10g"). A rune that fires on a threshold was previously silent about
+  progress, so its payout read as random. `runeThresholds` entries now record the `sourceId` of the rune that
+  armed them (several can be held at once, so a flat list couldn't say which belonged to which), and
+  `runeTally()` turns that into `4/10g` on the badge — plus the two runes that keep their own counters
+  outside that list (Spellslinging's Gold drip, the Summit's shop count). A `oncePerTurn` rune that already
+  paid shows full rather than a misleading fresh 0. Quests are untouched: their objective progress is already
+  rendered on the pending badge.
+- **Every-N-SPELLS cards now carry a counter** (owner ask: "Baal needs a counter under him, x/2"). There was
+  no generic branch for it in `stepProgress` — so Baal printed "cast 2 spells" with no sign of progress, and
+  **High King Mykel had the same gap** at 8. Written keyed on the trigger + an `every` param rather than on a
+  card id, so the next every-N-spells card gets its counter for free. Guel is untouched: its own
+  `spellCastBuffOthers` branch matches earlier.
+- **Right-click a rail seat to PIN its scouting report** (owner ask). The hover card is `pointer-events: none`
+  — deliberately, so it can't eat clicks meant for the rail — which is exactly why its rune/quest badges were
+  unreachable: you couldn't travel to them without leaving the seat and dismissing the card you were aiming
+  at. Right-click now pins a copy that takes pointer events, so those badges can be hovered for their own
+  tooltips. Toggles on repeat right-click, closes on Escape, the backdrop-free × , or a right-click on itself;
+  mirrors the card inspect players already know. The transient hover copy is suppressed for a pinned seat so
+  the two can never stack.
+- **Rune badges never rendered LIVE reward text — only quests did.** So a rune whose payout depends on run
+  state could only restate its rule. **Rune of Recollection** is the case that exposed it: "get a copy of the
+  first spell you cast this turn" names no card until you've cast one. It now reads
+  **"Now: a copy of Growth"**, and "Now: nothing cast yet this turn" before that — the live-value rule applied
+  to rune rewards.
+- **Art** — Baal, Training Dummy (the Decoy Sigil body), Rune of Baal, and the re-wired Copycat spell.
+
+**The Copycat rune art landed.** `Quests/CopyCat.png` matched no quest, and rather than guess it across
+folders I asked; the owner dropped `RuneOfCopycat.png` into `Runes/` and it wired by strict name match on the
+next pass. **RUNES WITH NO ART is now 0** — every rune in the roster has art.
+
+**Verified live**: a badge with an armed Gemspam meter renders `4/10g`. New `baalAndTally.test.ts` (6 tests)
+covers Baal's stat line + forge-only flag, the rune's shape, the **every-2 meter** (one cast does nothing, the
+second feeds a Demon), a **gilded Baal eating two**, an empty shop being a safe no-op, and the rune meter's
+`sourceId` stamp. The Dwarf roster pin moved 24 → 25. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3753 tests ✓,
+`build:web` ✓, harness determinism ✓.
 
 ## 2026-08-03 — the `react` layer: the card itself moves
 

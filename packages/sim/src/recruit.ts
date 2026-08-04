@@ -2402,6 +2402,41 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  Hooked on `onConsume`, so it counts any source — the tribe's eight consumers, a Fodder eat, Feastmaster's
    *  neighbours. `rubyRecvTick` is the per-turn counter (already reset each wave with the other per-turn state). */
+  /** Set 2 — Baal (owner rework 2026-08-03): every `every` spells you cast, a friendly DEMON consumes a
+   *  minion in the Shop (× golden — a gilded Baal eats two).
+   *
+   *  The EATER matters, which is why this doesn't just call `consumeShopMinion(state, self, …)`: the consume
+   *  pays out on whoever ate it (its own on-consume effects, its stat gain, Broodlord's tally), so a random
+   *  friendly Demon is picked and credited. Baal is a Demon itself, so it can be its own eater.
+   *
+   *  Per-instance `spellProgress` meter, the same shape every other "every N spells" card uses — so two Baals
+   *  each keep their own count, and the tally survives a triple through the universal accrual rule. */
+  spellCastDemonConsumesShop: (ctx, self, params) => {
+    const state = ctx.state;
+    const every = Math.max(1, num(params.every, 2));
+    const me = state.board.find((c) => c.uid === self.uid);
+    if (!me) return;
+    me.spellProgress = (me.spellProgress ?? 0) + 1;
+    while ((me.spellProgress ?? 0) >= every) {
+      me.spellProgress = (me.spellProgress ?? 0) - every;
+      const rng = makeRng(state.rngCursor);
+      for (let n = 0; n < gold(self); n++) {
+        // Eligibility MUST match `consumeShopMinion`'s own (minion, not spell, not Ruby) or we'd hand it an
+        // index it refuses, silently wasting the trigger — the bug the Gemgorge factory above documents.
+        const idxs = state.shop
+          .map((o, i) => { const d = CARD_INDEX[o.cardId]; return !d || d.spell || d.ruby ? -1 : i; })
+          .filter((i) => i >= 0);
+        if (idxs.length === 0) break;
+        // A friendly DEMON does the eating. No Demon on board → nothing happens (the text names the eater).
+        const demons = state.board.filter((c) => isTribe(c, 'demon'));
+        if (demons.length === 0) break;
+        const eater = demons[rng.int(demons.length)]!;
+        consumeShopMinion(state, eater, idxs[rng.int(idxs.length)]!);
+      }
+      state.rngCursor = rng.state();
+    }
+  },
+
   onConsumeGoldFlat: (ctx, self, params) => {
     if ((self.rubyRecvTick ?? 0) >= 1) return; // "the first time" each turn
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;

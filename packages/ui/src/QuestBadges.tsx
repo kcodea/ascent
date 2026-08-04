@@ -5,6 +5,7 @@ import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
+import { runeTally } from './runeTally';
 import { useGame, type CombatQuestDelta } from './store';
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
@@ -70,10 +71,25 @@ export function QuestBadges() {
                 ? <img className="questbadge-art" src={art} alt="" aria-hidden />
                 : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
             </div>
+            {/* LIVE METER (owner ask 2026-08-03) — a rune that fires on a threshold shows how close it is,
+                in the same `x/N` language as the Avenge counters on units. Keyed on the text so every change
+                replays the compositor-only bump. Null for passive/one-shot runes, which show nothing. */}
+            {runeTally(run, rune.id) && (
+              <span key={runeTally(run, rune.id)!} className="qb-tally">{runeTally(run, rune.id)}</span>
+            )}
             <div className="questbadge-tip" role="tooltip">
               <b>{rune.name}</b>
               <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
-              <span className="questbadge-tip-state">Rune · active</span>
+              {/* Rune badges never showed LIVE reward text — only quests did — so a rune whose payout depends
+                  on run state could only ever restate its rule. Rune of Recollection is the case that made it
+                  visible: "a copy of the first spell you cast this turn" names no card until you've cast one. */}
+              {(() => {
+                const rlive = questRewardLiveText(rune.reward, { firstSpellId: run.firstSpellThisTurnId });
+                return rlive ? <span className="questbadge-tip-live">{rlive}</span> : null;
+              })()}
+              <span className="questbadge-tip-state">
+                Rune · active{runeTally(run, rune.id) ? ` · ${runeTally(run, rune.id)}` : ''}
+              </span>
             </div>
           </div>
         );
@@ -155,6 +171,7 @@ export function QuestBadges() {
           scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
           denMarkerCount: run.denMarker?.count ?? 0,
           shopRefresh: run.shopBuffOnRefresh ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick } : undefined,
+          firstSpellId: run.firstSpellThisTurnId,
         };
         const liveTxt = questRewardLiveText(r, live);
         return (

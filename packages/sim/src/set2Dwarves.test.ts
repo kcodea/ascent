@@ -344,9 +344,12 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'the adjacent Shout never fired').toBeGreaterThan(0);
   });
 
-  it('the whole Dwarf roster is in set 2 — 20 minions + token + 3 rune minions', () => {
+  it('the whole Dwarf roster is in set 2 — 20 minions + token + 4 rune minions', () => {
+    // 24 → 25 on 2026-08-03: Baal (`dw_baal`) joined the FORGE-ONLY rune minions (Rune of Baal). Like Brill
+    // and Mykel it is `token: true`, so it rides in the set's pool for resolution but can never be drawn.
     const dwarfIds = poolFor('set2').all.filter((c) => c.id.startsWith('dw_')).map((c) => c.id);
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(24);
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(25);
+    expect(dwarfIds).toContain('dw_baal');
   });
 });
 

@@ -133,6 +133,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffImps',
   'rallyGrantSpellPower',
   'onBattlecryBuffSelf',
+  'spellCastDemonConsumesShop', // Baal — every N spells, a friendly Demon eats a Shop minion
   'orbitBuffArriver', // Celestial Orbit — buff the arriving minion
   'orbitBuffSelf', //    Celestial Orbit — buff this minion
   'scBuffSelf', //       Celestial — SC self-gain (align-gated halves)

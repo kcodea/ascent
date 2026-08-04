@@ -50,7 +50,7 @@ export function HeroSelect() {
           </div>
         ) : mode !== 'practice' && (
           <div className="hsline" aria-label="Your Oath for this run">
-            <span className="hsline-rat">Renown {profile.rating}</span>
+            <span className="hsline-rat">Rating {profile.rating}</span>
             <span className="hsline-line">Oath {profile.currentLine}</span>
           </div>
         )}

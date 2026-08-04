@@ -47,6 +47,14 @@ export interface RunHistoryEntry {
   mode?: string;
 }
 
+/** 1st / 2nd / 3rd / 4th … — English ordinals, including the 11th/12th/13th exceptions that a naive
+ *  last-digit rule gets wrong. A lobby only ever seats 8, but the rule is cheap and correct for any N. */
+export function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+}
+
 /** Did this run WIN? `placement === 1` for a lobby; otherwise the old Line verdict, so entries recorded before
  *  lobbies still read sensibly instead of all flipping to losses. */
 export function runWon(e: Pick<RunHistoryEntry, 'placement' | 'lineStatus'>): boolean {

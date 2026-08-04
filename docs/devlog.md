@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-08-04 — Career: lobby placement on match rows; "Renown" reverted to "Rating"
+
+- **Placement chip on each match row** (owner): `1st` / `4th` / `8th`, beside the verdict. `ordinal()` moved to
+  `runHistory.ts` next to `runWon` so it is unit-testable — including the 11th/12th/13th cases a naive
+  last-digit rule gets wrong. A pre-lobby entry has no placement to report and simply omits the chip rather
+  than inventing one. Tabular figures + a fixed min-width, same as `.carmmr`, so "1st" and "8th" can't shove
+  the verdict sideways. Gold for the win, neutral for the rest.
+- **Renown → Rating** across every player-facing surface (owner): Career profile/empty state/standout row, the
+  end screen's delta, the ESC-menu career-wipe warning, hero select, the Leaderboard header + both "top players
+  by rating" tooltips, and two stale CSS comments. This REVERTS the 2026-07-16 rename; `docs/GAME-RULES.md`'s
+  vocabulary map is updated so it doesn't keep asserting the old mapping. Internal names were already `rating`
+  everywhere, so this is display-only.
+
+**Verified** — `ordinal` unit-tested (15 cases in `runHistory.test.ts`). The rename checked LIVE against the
+real Leaderboard: the header now reads RATING over the actual Supabase rows. Gates: typecheck ✓, lint ✓
+(7 pre-existing), 3827 tests ✓, `build:web` ✓.
+
 ## 2026-08-04 — Leaderboard froze at one game; Career trimmed to score / result / MMR
 
 **The leaderboard read "1 game" for a player with four runs in their Career** (owner report). The count was

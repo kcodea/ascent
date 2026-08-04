@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRun, type RunState } from '@game/sim';
-import { buildRunHistoryEntry, careerStats, runWon, type RunHistoryEntry } from './runHistory';
+import { buildRunHistoryEntry, careerStats, ordinal, runWon, type RunHistoryEntry } from './runHistory';
 
 const scored = 15;
 const finishedRun = (over: Partial<RunState> = {}): RunState => ({
@@ -141,5 +141,16 @@ describe('runWon', () => {
   it('an entry with NO placement falls back to the Line, so old runs still read sensibly', () => {
     expect(runWon(e({ lineStatus: 'covered' }))).toBe(true);
     expect(runWon(e({ lineStatus: 'failed' }))).toBe(false);
+  });
+});
+
+/** Ordinals for the Career's lobby-placement chip. The 11–13 cases are the ones a last-digit rule gets wrong. */
+describe('ordinal', () => {
+  it('handles the ordinary cases', () => {
+    expect([1, 2, 3, 4, 8].map(ordinal)).toEqual(['1st', '2nd', '3rd', '4th', '8th']);
+  });
+  it('handles the teens, which a naive last-digit rule gets wrong', () => {
+    expect([11, 12, 13].map(ordinal)).toEqual(['11th', '12th', '13th']);
+    expect([21, 22, 23, 111].map(ordinal)).toEqual(['21st', '22nd', '23rd', '111th']);
   });
 });

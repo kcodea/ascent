@@ -8,7 +8,7 @@ import { avatarSrc, heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { careerStats, runWon, type RunHistoryEntry } from './runHistory';
+import { careerStats, ordinal, runWon, type RunHistoryEntry } from './runHistory';
 import { fetchRunHistory } from './remoteBoards';
 
 /** Read-only card view from a stored snapshot minion — mirrors the leaderboard / end screen. */
@@ -99,7 +99,7 @@ export function Career() {
         {(entries ?? []).length === 0 ? (
           <>
             <div className="lbempty">
-              <div className="carempty-rating">Renown {profile.rating} · Oath {profile.currentLine}</div>
+              <div className="carempty-rating">Rating {profile.rating} · Oath {profile.currentLine}</div>
               No runs yet — play a run to start your career.
             </div>
           </>
@@ -115,8 +115,8 @@ export function Career() {
                   <div className="caravatar-badge" title={`Oath ${profile.currentLine}`}>{profile.currentLine}</div>
                 </div>
                 <div className="carpname">{playerName || 'Unnamed Climber'}</div>
-                <div className="carrank">Renown {profile.rating} · Oath {profile.currentLine}</div>
-                <div className="carranksub">Highest: Renown {profile.highestRating} · Oath {profile.highestLine}</div>
+                <div className="carrank">Rating {profile.rating} · Oath {profile.currentLine}</div>
+                <div className="carranksub">Highest: Rating {profile.highestRating} · Oath {profile.highestLine}</div>
                 <div className="carprofmeta">
                   <div><Icon name="sword" /><b>{stats.completions}</b><span>Completed</span></div>
                   <div><Icon name="shield" /><b>{stats.flawless}</b><span>Flawless</span></div>
@@ -180,6 +180,11 @@ export function Career() {
                             <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}{TAG_INFO[t] && <span className="tagtip">{TAG_INFO[t]}</span>}</span>)}</div>
                           )}
                           <div className="carresult">
+                            {/* Where you finished the lobby. Absent on pre-lobby entries, which have no
+                                placement to report — those rows simply omit it rather than inventing one. */}
+                            {e.placement !== undefined && (
+                              <span className={`carplace${e.placement === 1 ? ' first' : ''}`}>{ordinal(e.placement)}</span>
+                            )}
                             <span className={`carwl ${wonRun ? 'won' : 'lost'}`}>{wonRun ? 'Victory' : 'Defeat'}</span>
                             {/* The MMR move, beside the verdict. `0` is a real, meaningful value (a lobby that
                                 rated you flat) so this tests for undefined rather than truthiness. */}
@@ -212,7 +217,7 @@ export function Career() {
                                   <div className="cso-h">Standout Stats</div>
                                   {e.strongest && <div className="cso-row"><span className="cso-l">Strongest</span><span className="cso-v">{e.strongest.name} {e.strongest.attack}/{e.strongest.health}</span></div>}
                                   {e.topMechanic && <div className="cso-row"><span className="cso-l">Most</span><span className="cso-v">{e.topMechanic.name} ×{e.topMechanic.count}</span></div>}
-                                  {e.ratingDelta !== undefined && <div className="cso-row"><span className="cso-l">Renown</span><span className={`cso-v ${e.ratingDelta >= 0 ? 'up' : 'down'}`}>{e.ratingDelta >= 0 ? '+' : ''}{e.ratingDelta}</span></div>}
+                                  {e.ratingDelta !== undefined && <div className="cso-row"><span className="cso-l">Rating</span><span className={`cso-v ${e.ratingDelta >= 0 ? 'up' : 'down'}`}>{e.ratingDelta >= 0 ? '+' : ''}{e.ratingDelta}</span></div>}
                                 </aside>
                               )}
                             </div>

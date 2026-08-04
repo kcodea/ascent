@@ -827,6 +827,19 @@ export function simulate(
       minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
       if (!minion.keywords.includes('T')) minion.keywords.push('T');
     }
+    // Rune of Packcraft (owner rework 2026-08-04): bodies summoned IN COMBAT come in +6/+6. Applied here, next
+    // to the Hatchery grant, for the same two reasons: it lands before the summon snapshot (so the replay shows
+    // the real body rather than the base card), and it is in place before the token can attack — a Whelp or a
+    // Gemheart Golem that strikes the instant it lands would otherwise swing at its base Attack.
+    //
+    // It USED to be an `onSummon` bus listener that buffed your whole Beast line whenever a Beast was summoned.
+    // That shape can't express "the minion you summoned gets +6/+6": by the time `onSummon` fires the body is
+    // already on the board and already snapshotted, and the old version was tribe-gated besides.
+    if (modsFor(side).runePackcraft) {
+      minion.attack += 6;
+      minion.health += 6;
+      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+    }
     // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
     // the Whelp and Rune of the Undertow use — so the summon and its strike land as one beat.
     if (modsFor(side).gemheartCharge && card.id === 'gemheart-shard') attackNow = true;
@@ -2311,16 +2324,10 @@ export function simulate(
   // leftmost Demon gains Slaughter: add 3 Fodder". Player-only — a served enemy has no shop to stock.
   runeAvenge(3, 'deepHunger', (m, side) => side === 'player' && !!m.deepHunger, () => { fodderGrants += 2; });
 
-  // Rune of Packcraft (reworked 2026-07-21): whenever you summon a BEAST in combat, your Beasts gain +1/+1.
-  // A pure in-combat buff now — the old version fired on ANY summon for +1 Attack and carried the aura back.
-  if (playerState.questMods.runePackcraft || enemyState.questMods.runePackcraft) {
-    bus.on('onSummon', (payload) => {
-      const { minion, side } = payload as { minion: Minion; side: Side };
-      if (!modsFor(side).runePackcraft) return;
-      if (!isBeast(minion)) return; // Beast summons only
-      for (const m of boards[side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, 2, 2, 'Rune of Packcraft'); // +2/+2 (owner sheet 2026-07-31)
-    });
-  }
+  // Rune of Packcraft (owner rework 2026-08-04): the BODY YOU SUMMON comes in +6/+6. It used to be an
+  // `onSummon` listener that buffed your whole Beast line whenever a Beast was summoned; it is now applied at
+  // the summon SITE beside Rune of the Hatchery — see the grant there. Kept as an empty branch-free note so
+  // the rune reads in one place: nothing subscribes to the bus for Packcraft any more.
   // Rune of Inheritance: when your LEFT-MOST living minion dies, your right-most living minion gains its stats. Per side.
   if (playerState.questMods.runeInheritance || enemyState.questMods.runeInheritance) {
     bus.on('onDeath', (payload) => {

@@ -434,7 +434,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_packcraft',
     name: 'Rune of Packcraft',
     cost: 2,
-    text: 'Whenever you summon a **Beast** in combat, give your **Beasts +2/+2** this combat.',
+    text: 'Minions you summon in combat have **+6/+6**.',
     reward: { kind: 'combatFlag', flag: 'runePackcraft' },
   },
   {

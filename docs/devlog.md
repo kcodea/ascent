@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-08-04 — Dawnclaw, second pass: the full Shout audit
+
+The first pass fixed ONE factory off a probe fixture. The owner's screenshot was the actual case — two gilded
+**Frenzied Excavators** flanking Dawnclaw — and `battlecryPlayRubiesAll` was still absent from the replay
+chain, so the Echo narrated the trigger and no Ruby landed. This pass audits EVERY `onPlay` `do` id in content
+against `replayCombatBattlecry` instead of chasing one card.
+
+**Now resolve in combat** (they visibly change living bodies):
+- `battlecryPlayRubiesAll` — Frenzied Excavator. Routed through `playRubies`, the same primitive Avenge/Rally
+  use, so a re-fire gets the side's `rubyBonus`, the Deepdelve multiplier, and one `onRubyPlayed` notification
+  PER RUBY (a Resonance Idol still bounces). Combat Rubies are temporary unless the body is Engraved — the
+  standing ruling, which is why this needs no carry-back channel.
+- `battlecryBuffTribeOthersAttack` — Warhorn Captain.
+- `onBattlecryBuffSelf` — Herald of the Divide.
+- `battlecryGainKeyword` — Oathshield Orin (gains the keyword ITSELF, unlike `battlecryGrantKeyword`).
+
+**Also added `battlecryBuffImps` to `COMBAT_REPLAYABLE_BATTLECRIES`.** It has had a combat branch since the Imp
+Overseer fix but was never listed in the set — and the set is what `settleCombat` reads to skip
+already-resolved effects. No live card is affected today (Imp Overseer's only `onPlay` is combat-handled, so
+the card never defers at all), but the desync meant the set and the branches disagreed, and the first card to
+pair it with an economy effect would have applied the Imp buff twice. Closed so the set can be trusted.
+
+**Deliberately still deferred**, now recorded in the function's own doc comment so this doesn't get re-audited:
+- *No combat surface* — Gold next turn, cards to hand, Discover, shop consumption/buffs, run-flag grants. A
+  shop does not exist mid-fight. `battlecryGrantSpell` already announces itself during the replay.
+- *Run-wide auras with no carry-back channel* — `battlecryBuffFodder`, `battlecryBuffMagnetics`. These enchant
+  a CARD TYPE for the rest of the run, not the bodies in front of you; buffing the live board would be a
+  half-measure that then double-applies at settle. Doing them properly needs a `grantMagneticBuff`-style
+  channel alongside `grantImpBuff`/`grantUndeadBuyAtk`.
+- *Reads state combat doesn't carry* — `battlecryBuffTargetPerGoldSpent` (no `goldSpentThisTurn` on
+  `CombatContext`), `battlecryCopyEcho` (needs a chosen target a re-fire can't reproduce).
+
+Choose One cards came up during the audit and are **out of scope** — a Choose One is not a Shout (owner
+ruling 2026-08-04).
+
+**Verified** — 5 new cases in `dawnclawShouts.test.ts` (9 total). The Ruby test asserts a `ruby`-TAGGED buff
+event sourced from the neighbour, so it can't pass on an ordinary buff; the Warhorn test needed a THIRD body,
+because "your other Dwarves" has no recipient on a two-minion board and would otherwise have passed for the
+wrong reason. Negative control: reverting the four additions fails exactly those four tests. Gates: typecheck
+✓, lint ✓ (7 pre-existing), 3806 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-04 — Owner batch: rune-turn hand grace, Discover priority, combat Ruby values, Dawnclaw, shop Echoes
 
 - **Rune-turn hand grace.** The hand cap rises to 20 (`CONFIG.handMaxRuneTurn`) while the RUNEFORGE IS OPEN,

@@ -68,6 +68,15 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   onAllyAttackCastGrowth: 'spellId',
   rallyCastTribeAttack: 'spellId',
   battlecryGrantSpell: 'spellId',
+  // Added 2026-08-03 after an audit found six factories that NAME a card in their params but were absent
+  // here, so the card they promise never appeared on hover. Commander Warpath ("get a Brood Whelp") was the
+  // reported case; the sweep in `refPreview.test.ts` found the rest and now guards against a seventh.
+  battlecryGrantMinion: 'cardId',              // Commander Warpath -> Brood Whelp, Scrap Herald -> Money Bot
+  avengeSummonAttack: 'cardId',                // Moonlit Scavenger -> Ninja Pal, Steadfast -> Knit
+  deathrattleGrantSpell: 'cardId',             // Big Huggies -> Staff of Guel
+  deathrattleSummonRubyStats: 'tokenId',       // Gemheart -> Gemheart Shard
+  echoSummonInheritAttackAndCharge: 'token',   // Anvilshade Smith -> Dwarf Soldier (param is `token`, not `tokenId`)
+  endOfTurnGetRubies: 'rubyId',                // Wardstone Jeweler -> Warding Ruby
 };
 
 /** Every card id a card names in its effects — the tokens it summons (`tokenId`), the cards it grants /

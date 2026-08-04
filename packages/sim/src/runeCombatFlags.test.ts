@@ -57,6 +57,26 @@ describe('Rune of the Hatchery', () => {
     expect(hatched!.health).toBe(base!.health + 3);
     expect(hatched!.keywords ?? []).toContain('T');
   });
+
+  it('also covers a NON-Echo combat summon (owner rework 2026-08-03)', () => {
+    // It used to be gated on `echoDepth > 0`, so only Deathrattle summons qualified — every other summon
+    // line (Start of Combat fills, Rally summons, token generators) got nothing. A Start-of-Combat copy is
+    // the cleanest non-Echo summon: it lands with no Deathrattle resolving anywhere.
+    const sc = Object.values(CARD_INDEX).find((c) => c.effects.some((e) => e.on === 'startOfCombat' && e.do === 'scSummonCopy'))!;
+    const board: BoardMinion[] = [{ cardId: sc.id, attack: 2, health: 6 }];
+    const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 200 }];
+    const summonOf = (mods: object) => {
+      const r = sim(board, enemy, mods);
+      const ev = r.events.find((e) => e.type === 'summon' && e.side === 'player') as { minion?: { attack: number; health: number; keywords?: Keyword[] } } | undefined;
+      return ev?.minion;
+    };
+    const base = summonOf({});
+    const hatched = summonOf({ runeHatchery: { attack: 3, health: 3 } });
+    expect(base, 'the fixture never summoned anything').toBeDefined();
+    expect(hatched!.attack, 'a Start-of-Combat summon must get the buff too').toBe(base!.attack + 3);
+    expect(hatched!.health).toBe(base!.health + 3);
+    expect(hatched!.keywords ?? []).toContain('T');
+  });
 });
 
 describe('Rune of Warding — the sheet says TRIPLE', () => {

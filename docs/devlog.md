@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-03 — Rune of the Hatchery covers every combat summon; six cards weren't previewing what they name
+
+- **Rune of the Hatchery: "minions summoned by an Echo" → "minions summoned in combat"** (owner rework). It
+  was gated on `echoDepth > 0`, which made it dead weight for every summon line that isn't a Deathrattle —
+  Start-of-Combat fills, Rally summons, token generators. Now it matches Rune of the Undertow directly below
+  it, which grants Ward on the same "summoned in combat" scope.
+  - **Removed the `echoDepth` counter entirely.** It had no readers left: Aftershocks stopped consulting it in
+    the 2026-07-21 rework (it buffs on TRIGGER now, not on summon), Undertow moved to all combat summons, and
+    this change took its last one. Lint caught it as write-only. The `asEcho` wrapper stays for the
+    Aftershocks grant.
+  - Pinned by a NON-Echo case (a Start-of-Combat summon) as well as the existing Echo one — and confirmed as a
+    negative control: the new test fails against the old gate.
+
+- **Commander Warpath didn't show its Brood Whelp on hover** (owner report) — and the cause generalised. The
+  hover preview resolves referenced cards through `CARD_REF_EFFECTS`, a map keyed on effect id, so a factory
+  that names a card in its params but is missing from the map silently shows nothing. An audit found
+  **six such factories across eight cards**:
+
+```
+battlecryGrantMinion.cardId              Commander Warpath -> Brood Whelp, Scrap Herald -> Money Bot
+avengeSummonAttack.cardId                Moonlit Scavenger -> Ninja Pal, Steadfast -> Knit
+deathrattleGrantSpell.cardId             Big Huggies -> Staff of Guel
+deathrattleSummonRubyStats.tokenId       Gemheart -> Gemheart Shard
+echoSummonInheritAttackAndCharge.token   Anvilshade Smith -> Dwarf Soldier   (param is `token`)
+endOfTurnGetRubies.rubyId                Wardstone Jeweler -> Warding Ruby
+```
+
+  All six added. New `refPreview.test.ts` keeps the sweep as a regression guard: rather than pinning the six,
+  it re-derives the question — any effect param holding a REAL card id that the preview would miss is a
+  finding — so a seventh is caught in `npm test` instead of shipping a promise the card never shows.
+
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3785 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-03 — Spell fizzle audit: an unusable spell is now refused, not eaten
 
 Owner ask: "take a pass at spells that can be used in a way that fails — i.e. Deep Delve Writ with no dwarves

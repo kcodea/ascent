@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-03 — `scope` → `reach` in the FX vocabulary, and it is not `fanOut`
+
+Owner preference, with a concrete justification found while checking: **`scope` was already taken.** The
+commit panel has shipped a `scope` of `card` | `global` since the bindings work — *where a def gets
+written*. Using the same word for "which units does this play on" would have put two meanings of one word in
+one UI.
+
+Renamed in `docs/fx-vocabulary.md`, and the same pass documents a distinction that was about to be
+collapsed by mistake. `FxBinding.fanOut` (`primary` | `damaged` | `selfBuffed`) already exists and already
+answers a units question — so "add reach" looked at first like re-inventing it. They are different axes:
+
+- **fan-out** — who did this *moment* happen to. Read from the combat log; "every unit damaged in this step"
+  is unknowable while authoring. Belongs to the binding, and already does.
+- **reach** — how far the *look* spreads from each of those, positionally (`self`/`neighbours`/`allies`/
+  `board`). A choice about how the effect reads. Belongs in the effect editor.
+
+They compose rather than compete: fan-out picks recipients, reach spreads from each. Reach goes in the
+editor because reach and timing are coupled — spreading across units needs a `gap` or they fire as one
+blur, so "the same effect, wider" is really a differently-timed composition, not a setting.
+
+Docs only; no code touched. Reach itself is not implemented yet — see the roadmap's Now item, which now
+also records the blocker found while scoping it: a `react` layer acts on DOM elements, but `FxContext` is
+Pixi-only (`container` + `renderer`) and `anchors.ts` resolves to screen coordinates rather than elements.
+
 ## 2026-08-03 — the stat badge splits into three targetable nodes
 
 Groundwork for badge-level `react` effects, and nothing else: the attack/health badge was a single `<span>`

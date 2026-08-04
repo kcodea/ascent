@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-04 — one effect, two rhythms: per-layer `stagger`
+
+The second gap the owner's gem walkthrough exposed, and the sharpest: *"I want the volley effect to have a
+react layer where the value plates pop in a cascading order."* Gems landing together, badges popping in
+sequence — **not expressible at any setting**, because traversal lived only ABOVE the def. The cue staggered
+whole PLAYS, so every layer of every copy shared one schedule.
+
+The obvious workaround made it worse: setting the react layer's own `reach` to `allies`/`cascade` means each
+of the N simultaneous copies sweeps the whole board — N² animations, all overlapping.
+
+`FxLayer.stagger` shifts ONE layer per recipient: copy `i` starts that layer at `at + stagger × i`. So the
+cue volleys, the burst layers fire together, and a layer that wants a rhythm takes its own. `PlayDefOptions.
+index` carries which recipient a copy is; `score.ts` passes it from the traversal it already computes.
+
+Deliberate details:
+- **The shift lands on `at`**, not on a parallel offset in the player. `at` is what the timeline, the
+  inspector's slider and `layerStateOf` all already mean by "when this layer starts"; a second field would
+  be a second source of truth for one number.
+- **Exact no-op when unused.** `staggerLayers` returns the def BY IDENTITY at index 0 or with no staggering
+  layer, matching `scaleDef`'s contract, so the common single-target fire allocates nothing.
+- **0 serialises as an omission**, and negatives are refused. Otherwise every def written before this field
+  existed would gain a meaningless key on its next save, and "runs earlier on later units" is a schedule
+  nobody asked for.
+
+In the workshop it is a **Stagger** slider in the layer inspector, reading "With copy" at 0 and
+"+60ms/unit" otherwise — next to Arc, since it is timing.
+
+Verified: 7 tests over the editor model, pinning the delete-on-zero and refuse-negative rules that keep old
+defs byte-identical. Full gate: typecheck (pkgs + web), lint (0 errors), 3825 tests, `build:web`.
+
+Still open from that walkthrough: routing rubies through bindings so an avenge and a battlecry can differ
+(gap #3).
+
 ## 2026-08-04 — the number lands when the effect says so (`statHold`)
 
 Owner: *"I want the number update to follow that same timing."* Until now it couldn't. A badge's digits

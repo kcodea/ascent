@@ -68,6 +68,7 @@ import {
   removeLayer,
   setLayerAnchor,
   setLayerBow,
+  setLayerStagger,
   setLayerMuted,
   setLayerName,
   setLayerParam,
@@ -1177,6 +1178,16 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
    * constant with no way to reach it, so "travels in a straight line" simply could not be authored (owner
    * report 2026-07-27).
    */
+  /**
+   * How far this layer slides per RECIPIENT when a moment plays the def on several units — the axis that
+   * lets one effect move at two rhythms (gems landing together while badges pop in sequence). 0 removes the
+   * field entirely; see `setLayerStagger`.
+   */
+  const changeLayerStagger = (stagger: number | null): void => {
+    record('timing', `${selected}:stagger`);
+    commitLayers(setLayerStagger(layersRef.current, selected, stagger));
+  };
+
   const changeLayerBow = (bow: number | null): void => {
     record('timing', `${selected}:bow`);
     commitLayers(setLayerBow(layersRef.current, selected, bow));
@@ -2153,6 +2164,26 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
                   <span className="fxwb-val">{selLayer.travelMs} ms</span>
                 </>
               )}
+              {/* PER-RECIPIENT stagger. The cue schedules whole PLAYS; this schedules one LAYER inside them,
+                  which is what makes "the gems land together but the badges pop in sequence" expressible —
+                  it was not, at any setting, before this field (owner, 2026-08-04). Shown for every layer
+                  because any of them might want its own rhythm; inert on a single-target moment, where
+                  there is only ever recipient 0. */}
+              <label htmlFor="fxwb-layer-stagger" title="Milliseconds this layer slides for each further unit the moment hits. 0 = fires with its copy. Use it to cascade one layer while the rest volley.">
+                Stagger
+              </label>
+              <input
+                id="fxwb-layer-stagger"
+                type="range"
+                min={0}
+                max={400}
+                step={5}
+                value={selLayer.stagger ?? 0}
+                onChange={(e) => changeLayerStagger(Number(e.target.value))}
+              />
+              <span className="fxwb-val">
+                {(selLayer.stagger ?? 0) === 0 ? 'With copy' : `+${selLayer.stagger ?? 0}ms/unit`}
+              </span>
               {/* The arc's bow. Pinned at 0 this is a laser — a bolt, a beam, a thrown spear — which was
                   simply not authorable before: the bow was a module-private constant. The slider reads 0 as
                   "Straight" rather than a bare number, because that is the value people come here for. */}

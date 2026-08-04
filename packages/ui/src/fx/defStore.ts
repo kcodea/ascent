@@ -163,6 +163,12 @@ function coerceLayer(raw: unknown): StoredFxLayer | null {
   // rejected: a hand-edited 50 is a typo, not an instruction to fling the head off-screen.
   const bow = finite(raw.bow);
   if (bow !== null) layer.bow = Math.max(-BOW_LIMIT, Math.min(BOW_LIMIT, bow));
+  // Per-recipient stagger. Positive-only: 0 IS the default (fire with your copy), so a 0 must serialise as
+  // an omission rather than as an explicit "no stagger" — otherwise every def written before this field
+  // existed would gain a meaningless key on its next save. Negative is rejected the same way: a layer that
+  // runs EARLIER on later recipients is a schedule nobody asked for and reads as a bug.
+  const stagger = finite(raw.stagger);
+  if (stagger !== null && stagger > 0) layer.stagger = stagger;
   // Authoring state, kept ONLY when it is literally `true` — anything else (absent, false, 'yes', 1) means
   // "not muted", which is the default and must serialise as an omission.
   if (raw.muted === true) layer.muted = true;

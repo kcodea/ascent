@@ -369,7 +369,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // instead of detonating over an empty slot.
           const fire = (): void => {
             const rubyAnchors = anchorsForUnits(land.uid, land.uid);
-            if (rubyAnchors) playDef('ruby-gem-apply', rubyAnchors, { uids: { source: land.uid, target: land.uid } }); // literal, not the constant — see RUBY_LANDED_DEF
+            if (rubyAnchors) playDef('ruby-gem-apply', rubyAnchors, { uids: { source: land.uid, target: land.uid }, index: land.group }); // literal, not the constant — see RUBY_LANDED_DEF
             // One play per GEM, not per moment — the ear carries the same count the eye does.
             sfx.gemApply();
           };
@@ -431,10 +431,10 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         at(cue, () => {
           // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
           // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
-          for (const uid of claimed) {
+          claimed.forEach((uid, i) => {
             const fanAnchors = anchorsForUnits(source, uid);
-            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid } });
-          }
+            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i });
+          })
         });
       } else if (binding.fanOut === 'selfBuffed') {
         at(cue, () => {

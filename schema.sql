@@ -167,3 +167,125 @@ create policy "anon insert run_telemetry"  on public.run_telemetry for insert to
 -- degrades gracefully until these exist, so run at your convenience:
 --   alter table public.run_telemetry add column if not exists discover_offered_cards text[];
 --   alter table public.run_telemetry add column if not exists discover_bought_cards  text[];
+
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- ACCOUNTS — C1: real identity, and RLS that actually enforces ownership  (2026-08-03)
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+--
+-- WHAT THIS REPLACES. Identity used to be the display NAME: `profiles.author` was the primary key and the
+-- `author` column on every content table was the attribution. Two holes followed from that:
+--
+--   * `create policy "anon update profiles" ... for update to anon using (true) with check (true);`
+--     `using (true)` means ANY client may update ANY row — anyone with devtools could set any player's rating.
+--   * Renaming yourself to another player's name inherited their leaderboard slot, on both the read and the
+--     write side.
+--
+-- C1 makes `user_id` (auth.users.id) the identity. `author` survives as a DENORMALIZED display string —
+-- nothing joins on it and nothing trusts it.
+--
+-- PREREQUISITE: enable Anonymous sign-ins (Authentication → Providers → Anonymous). Every install signs in
+-- anonymously at boot, so there is no login screen and the board pool keeps growing. C2 upgrades those
+-- anonymous users to real accounts IN PLACE, keeping the same `user_id` — so nobody loses their history.
+--
+-- ORDER OF OPERATIONS: run this whole block, then deploy the matching client. Between the two, an OLD client
+-- writes rows with a null `user_id` and the new `to authenticated` policies reject them — uploads pause, play
+-- is unaffected. Run it while the tables are near-empty; re-keying is far more expensive once ladder history
+-- accumulates.
+
+-- ── 1. Ownership columns on every content table ───────────────────────────────────────────────────────────
+alter table public.boards        add column if not exists user_id uuid references auth.users(id) on delete set null;
+alter table public.runs          add column if not exists user_id uuid references auth.users(id) on delete set null;
+alter table public.run_telemetry add column if not exists user_id uuid references auth.users(id) on delete set null;
+alter table public.board_results add column if not exists user_id uuid references auth.users(id) on delete set null;
+
+-- ── 2. Profiles re-keyed on the account ───────────────────────────────────────────────────────────────────
+-- `author` stops being the primary key and becomes a plain display column (NOT unique — two players may share
+-- a display name; C2 adds the `#tag` discriminator that disambiguates them).
+alter table public.profiles add column if not exists user_id uuid references auth.users(id) on delete cascade;
+-- A pre-C1 project has name-keyed rows with no owner. They cannot be attributed to an account, and leaving
+-- them would let a new player inherit a slot by picking the same name — exactly the hole being closed.
+delete from public.profiles where user_id is null;
+alter table public.profiles drop constraint if exists profiles_pkey;
+alter table public.profiles add primary key (user_id);
+alter table public.profiles alter column author drop not null;
+
+-- ── 3. RLS: read is public, writes must be YOURS ──────────────────────────────────────────────────────────
+-- `to authenticated` + `auth.uid() = user_id` is the whole win: a client may only write rows it owns. The
+-- anonymous sign-in above is what keeps every real player `authenticated`.
+drop policy if exists "anon insert boards"        on public.boards;
+drop policy if exists "anon insert runs"          on public.runs;
+drop policy if exists "anon insert board_results" on public.board_results;
+drop policy if exists "anon insert run_telemetry" on public.run_telemetry;
+drop policy if exists "anon insert profiles"      on public.profiles;
+drop policy if exists "anon update profiles"      on public.profiles;
+
+create policy "insert own boards"        on public.boards        for insert to authenticated with check (auth.uid() = user_id);
+create policy "insert own runs"          on public.runs          for insert to authenticated with check (auth.uid() = user_id);
+create policy "insert own board_results" on public.board_results for insert to authenticated with check (auth.uid() = user_id);
+create policy "insert own run_telemetry" on public.run_telemetry for insert to authenticated with check (auth.uid() = user_id);
+create policy "insert own profile"       on public.profiles      for insert to authenticated with check (auth.uid() = user_id);
+
+-- Profiles UPDATE is the sharp one. A player may rename themselves and may NOT move their own rating by a
+-- single point: the `with check` compares the incoming rating to the row's CURRENT stored value. Rating is
+-- therefore write-once from the client (established on the first insert) until C3 moves it behind an Edge
+-- Function and the service role becomes its only writer.
+create policy "update own profile" on public.profiles for update to authenticated
+  using (auth.uid() = user_id)
+  with check (
+    auth.uid() = user_id
+    and rating = (select p.rating from public.profiles p where p.user_id = auth.uid())
+  );
+
+-- Reads stay open to everyone, including signed-out clients: the opponent pool, the leaderboard and the
+-- Balance Report are all public reads, and a guest must still be able to play against the pool.
+drop policy if exists "anon read boards"        on public.boards;
+drop policy if exists "anon read runs"          on public.runs;
+drop policy if exists "anon read board_results" on public.board_results;
+drop policy if exists "anon read run_telemetry" on public.run_telemetry;
+drop policy if exists "anon read profiles"      on public.profiles;
+create policy "read boards"        on public.boards        for select using (true);
+create policy "read runs"          on public.runs          for select using (true);
+create policy "read board_results" on public.board_results for select using (true);
+create policy "read run_telemetry" on public.run_telemetry for select using (true);
+create policy "read profiles"      on public.profiles      for select using (true);
+
+create index if not exists boards_user        on public.boards (user_id);
+create index if not exists runs_user          on public.runs (user_id);
+create index if not exists run_telemetry_user on public.run_telemetry (user_id);
+
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- run_history — the CAREER, server-side  (2026-08-03, owner call: "careers should be from the Supabase layer")
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+--
+-- Career used to be `localStorage['ascent.history']`, which made it device-bound: a different browser, a
+-- cleared cache or a new machine meant a blank career. Now every finished run posts one row here and the
+-- Career screen reads them back.
+--
+-- The full `RunHistoryEntry` rides in the `entry` jsonb — the same object the local log stored — so
+-- `careerStats()` consumes it unchanged and the shape can grow without a migration. The scalar columns
+-- alongside it exist only to sort, filter and index.
+--
+-- READ IS OWN-ONLY. A career is personal: `using (auth.uid() = user_id)` means nobody can enumerate anyone
+-- else's run log. (Public per-player careers, if ever wanted, are a policy widening — not a reshape.)
+-- Deliberately NOT back-filled from local history: the owner chose to start fresh (2026-08-03).
+create table if not exists public.run_history (
+  id          bigint generated always as identity primary key,
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  patch       text,
+  hero_id     text,
+  wave        int,                        -- round reached
+  wins        int,                        -- scored wins
+  placement   int,                        -- lobby finish 1-8; null for course/rift runs
+  mode        text,
+  entry       jsonb not null,             -- the whole RunHistoryEntry
+  created_at  timestamptz not null default now()
+);
+create index if not exists run_history_user on public.run_history (user_id, created_at desc);
+
+alter table public.run_history enable row level security;
+drop policy if exists "read own run_history"   on public.run_history;
+drop policy if exists "insert own run_history" on public.run_history;
+create policy "read own run_history"   on public.run_history for select to authenticated using (auth.uid() = user_id);
+create policy "insert own run_history" on public.run_history for insert to authenticated with check (auth.uid() = user_id);

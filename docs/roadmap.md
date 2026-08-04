@@ -804,9 +804,18 @@ and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
 
 The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 
-- **Authentication + accounts.** Today the remote seam is friend-scale trust (anon may upsert any row by
-  name). A public build needs real accounts (Supabase Auth) so ratings, leaderboards, and uploaded boards are
-  attributable and not spoofable. This is the load-bearing pre-public item — most hardening below assumes it.
+- **Authentication + accounts.** **C1 SHIPPED 2026-08-03** — identity is now a server-issued `user_id`
+  (anonymous sign-in, no login screen), every content row carries its owner, and RLS accepts a write only when
+  `auth.uid() = user_id`. The rating column is locked against self-edits. Remaining:
+  - **C2 — real accounts** (~2.5 d): sign-up/sign-in UI, `Kevin#4821` handles, anonymous→email upgrade in
+    place, offline queue + unrated tagging. Makes identity portable across devices and survivable past a
+    site-data wipe.
+  - **C3 — server-authoritative rating** (~1.5 d): an Edge Function becomes the ONLY writer of
+    `profiles.rating`, dedupes `runId`, rate-limits, and computes the delta with the shared
+    `resolveLobbyRating`. **This is the real gate before the ladder is visible to strangers.**
+  - **C4 — deferred replay audit** (~2 d): out-of-band re-simulation of the top of the ladder + a random
+    sample, patch-pinned, flagging for review. Catches the false-placement claim C3 leaves open.
+  - **C5 — Steam provider**: slots into the existing `AuthProvider` seam without touching C1–C4.
 - **Server-side replay validation.** A Worker re-derives boards (and rating) from the `{seed,heroId,actions}`
   replay before trusting the client → fabricated boards / inflated ratings aren't reproducible. DB-independent;
   opponent pinning (`servedBoards`) already makes a run's opponents reproducible regardless of pool drift.

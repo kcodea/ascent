@@ -15,6 +15,7 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
+import { currentIdentity, currentUserId, setIdentity, type AuthProvider } from './identity';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -31,15 +32,60 @@ function client(): SupabaseClient | null {
   if (cachedClient === undefined) {
     cachedClient =
       SUPABASE_URL && SUPABASE_KEY
-        ? createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+        // ACCOUNTS C1: the session is PERSISTED now. It used to be off (`persistSession: false`), which was
+        // correct while auth was unused — but an anonymous identity that doesn't survive a reload would mint a
+        // new `user_id` on every load, orphaning the player's boards and rating each time.
+        ? createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } })
         : null;
   }
   return cachedClient;
 }
 
+/**
+ * ACCOUNTS C1 — the Supabase implementation of the `AuthProvider` seam.
+ *
+ * `restore()` reuses a persisted session when there is one and otherwise signs in ANONYMOUSLY, so every
+ * install has a real `user_id` without a login screen. Anonymous sign-in must be enabled in the Supabase
+ * dashboard (Authentication → Providers → Anonymous); if it is not, this resolves null and the app simply
+ * uploads nothing — the same graceful degradation as an unconfigured backend.
+ */
+export const supabaseAuthProvider: AuthProvider = {
+  async restore() {
+    const c = client();
+    if (!c) return null;
+    try {
+      const existing = await c.auth.getSession();
+      const user = existing.data.session?.user;
+      if (user) return { userId: user.id, displayName: '', anonymous: user.is_anonymous ?? true };
+      const fresh = await c.auth.signInAnonymously();
+      if (fresh.error || !fresh.data.user) return null;
+      return { userId: fresh.data.user.id, displayName: '', anonymous: true };
+    } catch {
+      return null; // no session → uploads skip for the session; play is unaffected
+    }
+  },
+  async setDisplayName(name) {
+    // C1 keeps the display name LOCAL (it rides on rows as `author`, for rendering only). C2 moves it onto
+    // the profile with a server-assigned discriminator; this shape is here so callers don't change then.
+    const id = currentIdentity();
+    if (!id) return null;
+    const next = { ...id, displayName: name };
+    setIdentity(next);
+    return next;
+  },
+  async signOut() {
+    const c = client();
+    setIdentity(null);
+    try { await c?.auth.signOut(); } catch { /* best-effort */ }
+  },
+};
+
 /** A DB row: the full `BoardSnapshot` lives in the `snapshot` jsonb column; the rest are denormalized so the
  *  dashboard can index / sort / patch-prune (`delete from boards where patch <> '…'`). */
 const toRow = (b: BoardSnapshot) => ({
+  // ACCOUNTS C1: the row's OWNER. RLS accepts an insert only when this equals `auth.uid()`, so a client can
+  // no longer write rows attributed to anyone else. `author` below is now display-only — nothing joins on it.
+  user_id: currentUserId(),
   patch: b.patch ?? 'unknown',
   wave: b.wave,
   hero_id: b.heroId,
@@ -56,7 +102,9 @@ const toRow = (b: BoardSnapshot) => ({
 /** Upload a finished run's boards. Fire-and-forget — never throws, never blocks the game (offline → skipped). */
 export async function uploadBoards(boards: BoardSnapshot[]): Promise<void> {
   const c = client();
-  if (!c || boards.length === 0) return;
+  // No identity → skip. An unowned row would be rejected by RLS anyway; skipping keeps the failure quiet and
+  // local instead of burning a round-trip on every finished run while offline.
+  if (!c || !currentUserId() || boards.length === 0) return;
   try {
     await c.from(TABLE).insert(boards.map(toRow));
   } catch {
@@ -161,10 +209,11 @@ export async function uploadVictory(v: {
   mode?: string;
 }): Promise<void> {
   const c = client();
-  if (!c) return;
+  if (!c || !currentUserId()) return;
   try {
     const board = v.board ? { ...v.board, mode: v.mode } : v.board;
     await c.from('runs').insert([{
+      user_id: currentUserId(), // ACCOUNTS C1 — the row's owner (RLS checks it); `author` is display-only
       patch: v.patch, hero_id: v.heroId, author: v.author ?? null, wave: v.wave,
       wins: v.wins, result: 'victory', seed: v.seed, board, captured_at: v.capturedAt,
       history: v.history ?? null,
@@ -179,13 +228,19 @@ export async function uploadVictory(v: {
 /** Fetch THIS player's server-side rating from `profiles` (by author name) — null when absent/offline. The
  *  server value is authoritative (owner control 2026-07-31): the store adopts it over the local profile at
  *  launch, so editing the row in Supabase overrides any client. */
-export async function fetchPlayerRating(author: string): Promise<number | null> {
+// `_author` is deliberately UNUSED since C1 — the row is selected by `user_id`, not by name. Kept in the
+// signature so callers read unchanged and because C2's handle model wants it back.
+export async function fetchPlayerRating(_author: string): Promise<number | null> {
   const c = client();
-  if (!c || !author) return null;
+  const userId = currentUserId();
+  // ACCOUNTS C1: look the rating up by USER, not by display name. Looking it up by name meant renaming
+  // yourself to another player's name ADOPTED their rating — the read side of the same hole the write side
+  // had. With no identity there is no rating to adopt, so return null rather than guessing from a name.
+  if (!c || !userId) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([
-      Promise.resolve(c.from('profiles').select('rating').eq('author', author).limit(1)),
+      Promise.resolve(c.from('profiles').select('rating').eq('user_id', userId).limit(1)),
       timeout,
     ]);
     if (!result || result.error || !result.data?.length) return null;
@@ -237,8 +292,9 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
 /** Upload one finished run's telemetry. Fire-and-forget; never throws / blocks. */
 export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: string; patch: string }): Promise<void> {
   const c = client();
-  if (!c) return;
+  if (!c || !currentUserId()) return;
   const base = {
+    user_id: currentUserId(), // ACCOUNTS C1 — the row's owner (RLS checks it); `author` is display-only
     patch: meta.patch, author: meta.author ?? null,
     // `mode` rides INSIDE hero_offer's jsonb (as a tagged first entry) — no schema migration needed. The
     // reader strips it back out. Cleaner than a new column given the pre-migration fallback dance below.
@@ -343,14 +399,22 @@ export async function uploadPlayerProfile(p: {
   author?: string; rating: number; gamesPlayed: number; favoriteHero?: string; patch: string;
 }): Promise<void> {
   const c = client();
-  if (!c || !p.author) return;
+  const userId = currentUserId();
+  if (!c || !userId) return;
   try {
+    // ACCOUNTS C1: the profile is keyed on `user_id`, NOT on the display name. Before this, renaming yourself
+    // to someone else's name inherited their leaderboard slot — the name WAS the primary key.
+    //
+    // `rating` is still written from here in C1. C3 moves it behind an Edge Function and locks the column to
+    // the service role; the RLS policy shipped alongside this change already forbids CHANGING your own rating,
+    // so this upsert only establishes it on first write and re-sends the same value afterwards.
     await c.from('profiles').upsert(
       {
-        author: p.author, rating: p.rating, games_played: p.gamesPlayed,
+        user_id: userId,
+        author: p.author ?? null, rating: p.rating, games_played: p.gamesPlayed,
         favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: new Date().toISOString(),
       },
-      { onConflict: 'author' },
+      { onConflict: 'user_id' },
     );
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */
@@ -377,6 +441,59 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   }
 }
 
+// ── Career (run_history) ───────────────────────────────────────────────────────────────────────────────────
+// The career moved off `localStorage` (owner call 2026-08-03) so it follows the PLAYER rather than the
+// browser. The whole `RunHistoryEntry` rides in the `entry` jsonb, so `careerStats()` consumes what comes
+// back unchanged; the scalar columns exist only to sort and index.
+
+/** Post one finished run to the career log. Fire-and-forget, like every other write here. */
+export async function uploadRunHistory(entry: {
+  heroId: string; wave: number; wins: number; placement?: number; mode?: string; patch?: string;
+} & Record<string, unknown>): Promise<void> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return;
+  try {
+    await c.from('run_history').insert([{
+      user_id: userId,
+      patch: entry.patch ?? null,
+      hero_id: entry.heroId,
+      wave: entry.wave,
+      wins: entry.wins,
+      placement: entry.placement ?? null,
+      mode: entry.mode ?? null,
+      entry,
+    }]);
+  } catch {
+    /* best-effort — career logging must never disrupt the end screen */
+  }
+}
+
+/**
+ * Fetch this player's career, newest first. Returns null (NOT []) when there is no identity or the request
+ * fails — the caller must be able to tell "you have no runs yet" from "we couldn't ask", because writing a
+ * profile's games-played from a failed read would clobber it with a zero.
+ */
+export async function fetchRunHistory<T>(limit = 50): Promise<T[] | null> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(
+        c.from('run_history').select('entry').eq('user_id', userId)
+          .order('created_at', { ascending: false }).limit(limit),
+      ),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data) return null;
+    return (result.data as Array<{ entry: T }>).map((r) => r.entry).filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
 // ── Fight-result ledger (win-tracking) ─────────────────────────────────────────────────────────────────────
 // One row per combat fought against a served board; the leaderboard + Career per-round log aggregate it. Same
 // fire-and-forget / no-op-when-unconfigured / never-throws contract as the rest of this seam.
@@ -384,9 +501,9 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
 /** Record one fight against a served board, from the BOARD's perspective (you lose to it → 'win'). */
 export async function recordFightResult(r: { boardId: string; round: number; outcome: 'win' | 'loss' | 'tie'; patch: string }): Promise<void> {
   const c = client();
-  if (!c || !r.boardId) return;
+  if (!c || !currentUserId() || !r.boardId) return;
   try {
-    await c.from('board_results').insert([{ board_id: r.boardId, round: r.round, outcome: r.outcome, patch: r.patch }]);
+    await c.from('board_results').insert([{ user_id: currentUserId(), board_id: r.boardId, round: r.round, outcome: r.outcome, patch: r.patch }]);
   } catch {
     /* best-effort — win-tracking must never disrupt play */
   }

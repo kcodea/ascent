@@ -114,6 +114,94 @@ image proved nothing — the numeric comparison replaced it. Gate green: typeche
 errors), 3715 tests, `build:web`.
 
 Follow-up: the badge react layer itself, and retiring `statflash` in favour of it rather than running both.
+## 2026-08-03 — Opponents are server-or-bots only; the career moves to Supabase
+
+Owner calls, both riding on the C1 identity work: "can we make local boards never an option for opponents? I
+ONLY want it to be bots or online opponents" and "careers should also not be local and should be from the
+Supabase layer."
+
+- **Local boards are no longer an opponent source.** `store.ts` used to register this browser's
+  `loadStoredBoards()` into `OPPONENT_POOL`, so your own captured runs could be seated against you. Now only
+  the committed `OPPONENT_POOL_DATA` is registered locally, and every board in it is `origin: 'synthetic'` —
+  which `playerRunsFrom` already excludes from lobby seats. So the ONLY player-run source is the shared
+  Supabase pool; anything unfilled becomes a bot.
+  - Local capture still happens: it is the buffer `uploadBoards` sends and the export path reads. It simply
+    no longer feeds matchmaking.
+  - **Accepted consequence:** an OFFLINE lobby now has no player seats at all and fills entirely with bots.
+    That is the literal shape asked for. Imported friend boards (`origin: 'friend'`) likewise no longer seat —
+    they'd need to go through Supabase.
+- **The career is server-backed.** New `run_history` table: the whole `RunHistoryEntry` rides in an `entry`
+  jsonb (so `careerStats()` consumes it unchanged and the shape can grow without a migration) with scalar
+  columns beside it for sorting. **Read is own-only** (`using (auth.uid() = user_id)`) — a career is personal
+  and nobody can enumerate anyone else's. Started FRESH per the owner's call: local history is not migrated.
+  - The Career screen fetches instead of reading localStorage, keyed on `careerVersion` so it refreshes after
+    a finished run or a reset. `null` distinguishes "loading / couldn't ask" from "no runs yet".
+  - **The profile write now depends on a successful read.** `games_played` / `favorite_hero` used to come
+    from the local log; they now come from the server history. A FAILED fetch returns `null` and the profile
+    upsert is SKIPPED entirely rather than upserting a zero over a real total — the failure mode that would
+    otherwise quietly erase a player's games-played.
+
+**Verified live, and the negative case is the one that matters.** Planted 8 fake local boards under one
+author into `localStorage`, reloaded, and created a lobby: the library was still present (8 boards) and **not
+one seat drew from it** — the table filled with server/bot seats instead. A prior run against the real
+Supabase pool seated 7 snapshots, so server sourcing works end-to-end. New `poolSourceRule.test.ts` pins that
+the committed pool can never supply a player seat (every board synthetic → `playerRunsFrom` yields nothing,
+for either set), so a future `npm run pool` bake that emitted a non-synthetic board fails loudly instead of
+silently seating a house board as a player. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3725 tests ✓,
+`build:web` ✓, harness determinism ✓.
+
+**Owner action:** the `run_history` block at the bottom of `schema.sql` must be run alongside the C1 block.
+
+## 2026-08-03 — Accounts C1: real identity, and RLS that enforces ownership
+
+The first checkpoint of the accounts plan (`docs/accounts-spec.md`, revived from the closed #791). Identity
+stops being a display name and becomes a server-issued `user_id`.
+
+**What was wrong.** `profiles.author` (the display NAME) was the primary key, and `author` on every content
+table was the attribution. Two holes followed: the live policy
+`create policy "anon update profiles" ... using (true) with check (true)` let ANY client update ANY row — so
+anyone with devtools could set any player's rating — and renaming yourself to another player's name inherited
+their leaderboard slot on both the read and the write side.
+
+**A correction to the spec, made while building.** The spec said T1–T3 could ship before a login screen
+because "guests simply can't write". For THIS game that would starve the board pool — lobbies seat recorded
+player runs, so if uploads stop the pool stops growing and tables degrade to bots (the failure #838 just
+fixed). Also worth stating plainly: there is no cheaper tier below this one. Without an identity, Postgres
+cannot distinguish "me updating my row" from "a stranger updating mine" — both are `anon` — so a ladder
+requires identity; the hole is not patchable by policy alone.
+
+The bridge is **anonymous sign-in**: every install silently gets a real `user_id` at boot. No form, no
+friction, pool keeps growing — and Supabase converts an anonymous user to a real account IN PLACE later, so
+C2 costs nobody their history.
+
+- **`packages/ui/src/identity.ts`** — the provider-agnostic seam. `Identity` + `AuthProvider` (restore /
+  setDisplayName / signOut), a single sticky `initIdentity` so the session is established exactly once, and
+  `currentUserId()` for the upload paths. Never throws; a failure degrades to "no identity", which means
+  uploads skip — the same graceful degradation an unconfigured backend already gets.
+- **`supabaseAuthProvider`** in `remoteBoards.ts` reuses a persisted session or signs in anonymously. The
+  client flipped to `persistSession: true` — it was `false`, which was fine while auth was unused but would
+  have minted a NEW `user_id` on every reload, orphaning boards and rating each time.
+- **All 5 write paths re-keyed** (`uploadBoards`, `uploadVictory`, `uploadRunTelemetry`,
+  `uploadPlayerProfile`, `recordFightResult`): each now sends `user_id` and refuses to write without one.
+  `fetchPlayerRating` reads by `user_id` too — reading by name was the same hole on the read side.
+- **`schema.sql` — the C1 migration.** `user_id` columns on the four content tables; `profiles` re-keyed onto
+  `user_id` with `author` demoted to a nullable display column; every anon INSERT policy replaced with
+  `to authenticated with check (auth.uid() = user_id)`. The sharp one is the profiles UPDATE policy: you may
+  rename yourself and may NOT move your own rating, because the `with check` compares the incoming rating to
+  the row's current stored value. Reads stay public so guests can still play against the pool.
+- **Not yet fixed, on purpose**: a player can still inflate their OWN rating (C3 closes it by moving the
+  write behind an Edge Function), and identity is device-bound until C2 makes it portable.
+
+**Verified live** (dev server, no backend configured): a full lobby round — hero pick → buy → play → combat →
+settle — runs clean with 8 seats and no console errors, so the identity requirement degrades exactly as
+intended when Supabase is absent. New `identity.test.ts` (8 tests) pins single-session establishment, the
+server-name-wins rule, and both failure modes (provider throws / returns null) leaving `currentUserId()` null
+so uploads skip rather than writing an unowned row. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3723 tests ✓,
+`build:web` ✓, harness determinism ✓.
+
+**Owner action required before this helps:** enable Anonymous sign-ins (Authentication → Providers →
+Anonymous), then run the new C1 block at the bottom of `schema.sql`, then deploy. Between migration and
+deploy an old client writes null-owner rows that the new policies reject — uploads pause, play is unaffected.
 
 ## 2026-08-02 — `scheduleLands`: the traversal arithmetic lives once
 

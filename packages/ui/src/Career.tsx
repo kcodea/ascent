@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import type { BoardMinion, Tribe } from '@game/core';
 import { getHero, metLine, TAG_INFO, type LineStatus } from '@game/sim';
@@ -9,7 +9,8 @@ import { BoardLog } from './BoardLog';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { careerStats, loadRunHistory } from './runHistory';
+import { careerStats, type RunHistoryEntry } from './runHistory';
+import { fetchRunHistory } from './remoteBoards';
 
 /** Read-only card view from a stored snapshot minion — mirrors the leaderboard / end screen. */
 function cardViewOf(m: BoardMinion): CardView {
@@ -57,10 +58,19 @@ export function Career() {
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const profile = useGame((s) => s.profile);
   const careerVersion = useGame((s) => s.careerVersion);
-  // Load once per open (localStorage is synchronous + cheap; `show` gates the read). `careerVersion` re-reads
-  // it after a career reset, so an open view drops its stale past games / insights / hero stats immediately.
-  const entries = useMemo(() => (show ? loadRunHistory() : []), [show, careerVersion]);
-  const stats = useMemo(() => careerStats(entries), [entries]);
+  // The career lives on the SERVER now (owner call 2026-08-03), so this is a fetch rather than a synchronous
+  // localStorage read. `careerVersion` bumps after a finished run or a career reset, re-fetching so an open
+  // view never shows a stale log. `null` distinguishes "still loading / couldn't ask" from "no runs yet",
+  // which the empty state below reads.
+  const [entries, setEntries] = useState<RunHistoryEntry[] | null>(null);
+  useEffect(() => {
+    if (!show) return;
+    let live = true;
+    setEntries(null);
+    void fetchRunHistory<RunHistoryEntry>().then((rows) => { if (live) setEntries(rows ?? []); });
+    return () => { live = false; };
+  }, [show, careerVersion]);
+  const stats = useMemo(() => careerStats(entries ?? []), [entries]);
   const [open, setOpen] = useState<Set<number>>(() => new Set([0])); // newest run starts expanded
   if (!show) return null;
 
@@ -90,9 +100,9 @@ export function Career() {
       </div>
 
       <div className="lbscroll">
-        {entries.length === 0 ? (
+        {(entries ?? []).length === 0 ? (
           <>
-            {/* No local history yet — still show the remote board log full-width. */}
+            {/* No runs yet (or still loading) — still show the remote board log full-width. */}
             <BoardLog />
             <div className="lbempty">
               <div className="carempty-rating">Renown {profile.rating} · Oath {profile.currentLine}</div>
@@ -156,7 +166,7 @@ export function Career() {
                 <BoardLog />
                 <section className="carcenter">
                   <div className="carsec carsec-ico"><Icon name="crown" />Recent Match History</div>
-                  {entries.slice(0, 25).map((e, i) => {
+                  {(entries ?? []).slice(0, 25).map((e, i) => {
                     const expanded = open.has(i);
                     const wonRun = metLine(e.lineStatus);
                     return (

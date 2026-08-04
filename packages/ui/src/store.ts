@@ -15,10 +15,11 @@ export interface CombatQuestDelta {
 }
 import { sfx } from './sfx';
 import { liveBoardView } from './instView';
-import { loadStoredBoards, saveCapturedBoards, saveRunBoards } from './boardLibrary';
+import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
-import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
-import { buildRunHistoryEntry, careerStats, clearRunHistory, saveRunHistoryEntry } from './runHistory';
+import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory } from './remoteBoards';
+import { initIdentity } from './identity';
+import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
 
@@ -27,12 +28,27 @@ import { turnClock } from './turnClock';
 // captured boards, once at startup while OPPONENT_POOL is still empty. The headless harnesses + tests don't
 // load this module, so they keep their empty-pool procedural baseline. `registerOpponents` drops any board
 // referencing a card this build no longer has, so a stale committed/stored board can never crash combat.
-if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA, ...loadStoredBoards()]);
+// LOCAL BOARDS ARE NOT OPPONENTS (owner call 2026-08-03: "I ONLY want it to be bots or online opponents").
+// `loadStoredBoards()` used to be registered here, which meant this browser's own captured runs could be
+// seated against you. Now the ONLY player-run source is the shared Supabase pool below; the committed
+// `OPPONENT_POOL_DATA` stays as the procedural floor (every board in it is `origin: 'synthetic'`, which
+// `playerRunsFrom` already excludes from lobby seats, so it never competes for a player slot).
+//
+// Local capture still happens — it is the buffer that feeds `uploadBoards` and the export path — it simply
+// no longer feeds matchmaking. Consequence, accepted: an OFFLINE lobby has no player seats at all and fills
+// entirely with bots, which is the literal shape asked for.
+if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA]);
 
 // Additively fold in the live SHARED pool (Supabase) for this build's version — fetched ONCE at startup (now,
 // on the title screen, long before any run faces combat) and kept static for the session like the committed
 // pool, so replays stay faithful. Matches by version prefix (`<version>+`) so per-commit SHA churn doesn't hide
 // boards. No-ops entirely when no backend is configured; the committed OPPONENT_POOL_DATA is the offline floor.
+// ACCOUNTS C1: establish the player's identity FIRST — every upload path refuses to write an unowned row,
+// so the session has to exist before a run can finish. Anonymous, so there is no login screen and no
+// friction; it persists across reloads, and C2 upgrades it in place to a real account keeping the same
+// `user_id`. Never blocks boot: a failure just means this session uploads nothing, exactly as an
+// unconfigured backend already behaves.
+void initIdentity(supabaseAuthProvider, loadPlayerName());
 void fetchAndRegisterPool(`${__APP_VERSION__}+`);
 // Board win-rate records for matchmaking weighting — same startup moment, same session-static contract.
 void fetchAndRegisterBoardRecords();
@@ -485,7 +501,10 @@ export const useGame = create<GameStore>((set, get) => ({
     const playerName = name.slice(0, 24).trim();
     try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
     set({ playerName });
-    syncProfileFromServer(playerName); // the server row (if any) is authoritative for the new identity
+    // Keep the identity's display name in step. In C1 this is display-only (it rides on rows as `author`);
+    // C2 moves it onto the profile with a server-assigned discriminator, and this call is already the seam.
+    void supabaseAuthProvider.setDisplayName(playerName);
+    syncProfileFromServer(playerName); // the server row (if any) is authoritative — now keyed on user_id
   },
   playerAvatar: loadPlayerAvatar(),
   setPlayerAvatar: (id) => {
@@ -620,15 +639,22 @@ export const useGame = create<GameStore>((set, get) => ({
           } else {
             set({ lastRating: null });
           }
-          const history = saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined }));
-          // Player Leaderboard: upsert this named player's slot — rating (the "MMR") + total games + favorite
-          // hero, both derived from the just-updated local history (games = runs, favorite = most-played hero).
-          // Best-effort + skipped for anonymous players (see uploadPlayerProfile).
-          const career = careerStats(history);
-          void uploadPlayerProfile({
-            author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
-            favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-          });
+          // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
+          // a career follows the PLAYER instead of the browser.
+          const entry = buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined });
+          void uploadRunHistory({ ...entry, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
+            .then(() => fetchRunHistory<RunHistoryEntry>())
+            .then((remote) => {
+              // A FAILED read returns null, and we skip the profile write entirely rather than upserting
+              // games-played 0 over a real number — the read is the only source of those totals now.
+              if (!remote) return;
+              const career = careerStats(remote);
+              void uploadPlayerProfile({
+                author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
+                favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+              });
+              set((st) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
+            });
           // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
           // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
           // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the
@@ -788,7 +814,8 @@ if (typeof window !== 'undefined') {
  *  fresh season, a new player, offline) leaves the local profile alone. Best-effort and deferred — never
  *  blocks startup. */
 export function syncProfileFromServer(name: string): void {
-  if (!name) return;
+  // The NAME no longer selects the row — `fetchPlayerRating` reads this user's own profile. The parameter is
+  // kept so callers (and the rename path) read unchanged, and because C2's handle model will want it back.
   void fetchPlayerRating(name).then((serverRating) => {
     if (serverRating == null) return;
     const s = useGame.getState();

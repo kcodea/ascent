@@ -46,7 +46,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **Effects can now move the cards themselves.** A new `react` layer in the effects workshop animates the
   real card — the whole card, a stat badge, just the badge circle, or just the number — instead of drawing
-  something on top of it. It can spread to neighbours or the whole board, weakening with distance.
+  something on top of it. It can spread to neighbours or the whole board (rippling outward, sweeping across
+  the row, or all at once), weakening with distance, with squash-and-stretch and shake channels.
 - **Stat badges are now three pieces.** The attack/health badge used to be one element carrying both the
   circle and the number, so an effect couldn't touch one without dragging the other. It's now a wrapper, a
   `plate` (the circle) and a `value` (the number) — groundwork for badge-level effects like "pop the circle

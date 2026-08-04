@@ -1,5 +1,54 @@
 # ASCENT — development log
 
+## 2026-08-03 — react: the one-sided ripple, an `order` axis, and three more motion channels
+
+Owner report from live authoring: *"the neighbor effect seems to only be affecting the unit to the left of
+the target, not both."* Real bug, and the pure `orderByReach` tests all passed — because the defect was in
+the SHAPE of what it returned, not the contents.
+
+`reach` returned a flat list ordered by distance, and the primitive fed it to `cascade()`, which puts every
+recipient in its own group. So the two units either side of the subject — at the SAME distance — fired one
+after the other, and with the default falloff the right-hand one arrived both later AND weaker. It read as
+"only the left one reacted". `docs/fx-vocabulary.md` had already defined ripple as "outward from the
+subject in both directions, ordered by distance"; the code just wasn't honouring it.
+
+`orderByReach` now returns GROUPS, not a flat list: everything in a group fires together, and `gap` spaces
+the groups. Falloff keys off the group too, so both sides of a step are equally strong.
+
+**And the owner immediately found the axis underneath it** — asking for "a separate reach that goes outward
+from the target to all allies, both directions". That is what `allies` DOES now, post-fix; but the request
+exposed that WHO and IN WHAT ORDER had been collapsed into one control. The vocabulary already separates
+them ("Who" vs "Order"), so the primitive now does too: a new `order` param — `ripple` (outward, both ways,
+equal distance together), `cascade` (left→right across the row, ignoring where the subject stands), and
+`volley` (everyone at once). The same set of allies can now read as a ripple OR a sweep; one axis could
+express neither properly.
+
+Three motion channels added in the same pass, all transform-only:
+- **squash** (-1..1) — squash and stretch, X and Y moving opposite ways. Changes SHAPE where `scale` changes
+  size, and it is the channel that reads as weight rather than as a highlight.
+- **nudge** — horizontal shift. With `lift`, a directional recoil.
+- **shakes** (0..6) — extra swings past the first, alternating direction and decaying to nothing. This is
+  the difference between "the card acknowledged something" and "the card was HIT"; no amount of tuning a
+  one-way pop gets there. Opacity deliberately never brightens on a swing back — that reads as a flash
+  rather than as the same motion reversing. Both resting frames stay identity, so additive composition is
+  still a true no-op.
+
+Second report the same session: *"it looks to just target the left most minion"* — a different bug with the
+same smell. The workbench built its preview player as `{ container, renderer }` and nothing else, so a react
+layer got NO uids and fell back to `document.querySelector(PLAYER_UNIT_SELECTOR)`: the first player unit,
+i.e. the leftmost minion, whatever card you had staged. Pixi layers never noticed because they draw at the
+scenario's screen points and don't care which card was there — the fallback was invisible until a primitive
+actually needed to know.
+
+The harness selects a CARD, so the workbench now resolves it to the board minion carrying it and passes that
+uid into the player context (rebuilding when it changes, or the preview keeps animating the previous card).
+Nothing staged still falls back, which is the right preview when there is no moment to be about.
+
+Verified: 37 unit tests over the two pure modules (up from 21), including a symmetry test that asserts every
+ripple group holds units at exactly ONE distance from the subject — the property the bug violated — and
+sign/decay tests over the shake extrema. Full gate green: typecheck (pkgs + web), lint (0 errors), 3752
+tests, `build:web`.
+
 ## 2026-08-03 — the `react` layer: the card itself moves
 
 Until now every FX primitive drew into a Pixi container floating over the board. Right for sparks and

@@ -391,6 +391,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [railMode, setRailMode] = useState(false);
   // The harness's selection, lifted here so the commit panel can address it (see ProcHarnessProps).
   const [harnessCard, setHarnessCard] = useState('');
+  // WHICH UNIT the preview is about. Pixi layers never needed this — they draw at the scenario's screen
+  // points — but a `react` layer animates a specific card's DOM, and with no uid it falls back to the first
+  // player unit: the effect played on the LEFTMOST minion no matter which card you staged (owner report,
+  // 2026-08-03). The harness picks a CARD, so resolve it to the board minion actually carrying it.
+  // A primitive (string | null), so a fresh read per render settles under Zustand's Object.is — unlike the
+  // board array itself, which needs the memo above it in `ProcHarness`.
+  const harnessUid = useGame((s) => s.run?.board.find((m) => m.cardId === harnessCard)?.uid ?? null);
   const [harnessKind, setHarnessKind] = useState<MomentKind | null>(null);
   const [commitScope, setCommitScope] = useState<'card' | 'global'>('card');
   const [commitFanOut, setCommitFanOut] = useState<FxBinding['fanOut']>('primary');
@@ -648,7 +655,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       // against, and must not start one they turned off. Whichever mode is live, playback starts immediately
       // below -- `play()` for continuous, `fireOnce()` for a single pass -- so a rebuilt effect is always
       // visible without a click.
-      player = createPlayer(def, { container, renderer }, { loop: loopOnRef.current, loopGapMs: loopGapRef.current });
+      // `uids` is what lets a react layer animate the STAGED card rather than whichever minion happens to
+      // sit leftmost. Null (nothing staged) keeps the old fallback, which is the right preview when there is
+      // no moment to be about.
+      player = createPlayer(
+        def,
+        { container, renderer, uids: { source: harnessUid, target: harnessUid } },
+        { loop: loopOnRef.current, loopGapMs: loopGapRef.current },
+      );
       player.setSpeed(speedRef.current);
       // Re-apply the seed BEFORE the auto-fire below, so the very first pass of a rebuilt player already
       // replays the locked roll — this is what makes "swap a primitive / load a def / re-Fire" reproduce the
@@ -739,7 +753,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       container?.destroy({ children: true });
       playerRef.current = null;
     };
-  }, [structKey, scenarioId, durationMs, slot]);
+  }, [structKey, scenarioId, durationMs, slot, harnessUid]);
 
   // Commit a new layers array to both the state and the ref mirror the build/updater closures read.
   // Arms the autosave: every caller (add/delete/reorder/primitive-swap/timing/load/prune) is real work.

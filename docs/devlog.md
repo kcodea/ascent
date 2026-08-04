@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-08-04 — Ruby power in the Buffs window; the golden tribe aura printed double what it gave
+
+**"Thunderous Sovereign's buff is wrong — it must be splitting the stats amongst all dragons."** It was never
+splitting: every Dragon always got the full grant, and a probe confirmed that first. The real fault was that
+`scBeastAura` had NO golden multiplier, while `summonBuffText` — the number PRINTED on the card — has always
+doubled for golden. So a golden Sovereign advertised +6/+6 to your Dragons and handed out +3/+3, and "the
+stats are being split" is a very reasonable reading of that.
+
+The text matched the design; the factory was the liar. Pack Leader's `scTribeBuffImproving` doubles
+`(base + accrual)`, and BOTH affected cards carry a "golden doubles both" comment — Kennelmaster's says so
+verbatim. `scBeastAura` now applies `mul(self)` to the whole grant, matching all three. Affects **Kennelmaster**
+and **Thunderous Sovereign**; no other test moved, so nothing depended on the broken value.
+
+The test pins the CONTRACT rather than the constant: for both cards, across three accrual levels and both
+gildings, the number `summonBuffText` prints must equal the number the aura grants. A "golden gives 2×"
+assertion alone would have gone stale the next time the base moved.
+
+**"Ruby buffs aren't currently shown in the buff drawer."** `gatherRunBuffs` listed twelve run-wide auras —
+Spell power, Undead, Fodder, Imp, Cling Drones, Spear Warden, Attachment, Beast, Tavern buys, Max Gold, Den
+Mother, Guel — and **no Ruby row**, so `rubyBonus` was invisible in the one window built to show run-wide
+buffs. On a Ruby-engine board that is the single most important scaler. Added as **Ruby power**.
+
+Run value only, no live combat delta: combat CAN raise it (`rubyBonusGain` → `playerRubyBonusGain`), but that
+gain rides no event the panel can read, so the row ticks at settle. Every row here behaved that way until its
+own delta was wired; adding one for Rubies is a separate change, and is noted in the code rather than left as
+a silent gap.
+
+**Verified** — `goldenAuraAndRubyRow.test.ts` (6), negative-controlled (reverting either fix fails 4 of 6).
+Ruby row checked live in the Scene Builder: the drawer reads "Ruby power +2/+3". Gates: typecheck ✓, lint ✓
+(7 pre-existing), 3891 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-04 — Click a player on the leaderboard to open their Career
 
 Owner ask. Rows are buttons now; clicking one opens that player's Career over the leaderboard.

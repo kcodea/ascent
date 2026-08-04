@@ -74,6 +74,18 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   const spH = spellHealthBonus(run) + (combat?.spellHealth ?? 0);
   if (spA > 0 || spH > 0) rows.push({ key: 'spell', label: 'Spell power', value: `+${spA}/+${spH}` });
 
+  // Ruby power — the run-wide "your Rubies are worth more" bonus (Faultline Scrapper, Deepvein Tender,
+  // Alchemist Brisbane, Rune of the Cindergem…). It is a RUN buff in exactly the sense Spell power is: every
+  // Ruby you play from now on carries it. It was missing from this window entirely (owner report 2026-08-04),
+  // so a board built on the Ruby engine had its single most important scaler invisible.
+  //
+  // Run value only — no live combat delta. Combat CAN raise it (`rubyBonusGain` → `playerRubyBonusGain`), but
+  // that gain rides no event this panel can read, so the row ticks at settle rather than mid-fight. Every row
+  // here behaved that way until its own delta was wired; adding one for Rubies is a separate change.
+  const rbA = run.rubyBonus?.attack ?? 0;
+  const rbH = run.rubyBonus?.health ?? 0;
+  if (rbA > 0 || rbH > 0) rows.push({ key: 'ruby', label: 'Ruby power', value: `+${rbA}/+${rbH}` });
+
   // Permanent Undead buff everywhere: the "+Attack wherever they are" creation bonus (Deathswarmer / Forsaken
   // Weaver / Karthus) plus the run-wide Undead aura (Lantern of Souls).
   const undA = (run.undeadBuyAtk ?? 0) + (run.undeadAttackBonus ?? 0) + (combat?.auras.undead?.attack ?? 0);

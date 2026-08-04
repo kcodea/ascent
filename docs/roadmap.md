@@ -21,20 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **The badge `react` layer.** The stat badge is now three targetable nodes — `badge` (the pair),
-  `badge.plate` (the shape), `badge.value` (the digit) — shipped 2026-08-03 with no behaviour change. What
-  is still missing is the layer kind that animates them: a DOM/WAAPI `react`, transform/opacity only,
-  scoped self / neighbours / allies / board with falloff and delay by distance. First real use: a gem
-  landing pops the plate while the number counts to its new value. Retire `statflash` into it rather than
-  running both.
-
-  **Reach settled (2026-08-03):** it lives in the effect editor, not the binding — reach and timing are
-  coupled, so "the same look, wider" is really a differently-timed composition. It does NOT replace
-  `FxBinding.fanOut`, which answers a different question (`primary`/`damaged`/`selfBuffed` — who the *moment*
-  happened to, readable only from the combat log). The two compose: fan-out picks the recipients, reach
-  spreads from each. Open: a `react` layer targets DOM elements, but `FxContext` is Pixi-only
-  (`container` + `renderer`) and anchors resolve to screen *coordinates*, not elements — so the layer
-  pipeline needs an element channel before a react layer can exist. Decide that seam first.
+- **Author the first react effect, and retire `statflash` into it.** The `react` primitive shipped
+  2026-08-03 (card / badge / plate / value targets, reach with falloff, rides the player's clock,
+  additive so it composes with drag and the reorder slide). Nothing is bound to it yet. First use: a Ruby
+  landing pops `badge.plate` while `badge.value` counts to its new number. `statflash` — the 0.34s CSS badge
+  pop — must be REPLACED by that react, not left running alongside it, or a buffed badge pops twice.
+  Still open underneath: the number itself doesn't yet count (see the `eotAnimStats` generalisation).
 
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and

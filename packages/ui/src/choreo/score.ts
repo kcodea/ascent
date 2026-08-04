@@ -357,7 +357,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // instead of detonating over an empty slot.
           const fire = (): void => {
             const rubyAnchors = anchorsForUnits(land.uid, land.uid);
-            if (rubyAnchors) playDef('ruby-gem-apply', rubyAnchors); // literal, not the constant — see RUBY_LANDED_DEF
+            if (rubyAnchors) playDef('ruby-gem-apply', rubyAnchors, { uids: { source: land.uid, target: land.uid } }); // literal, not the constant — see RUBY_LANDED_DEF
             // One play per GEM, not per moment — the ear carries the same count the eye does.
             sfx.gemApply();
           };
@@ -421,7 +421,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
           for (const uid of claimed) {
             const fanAnchors = anchorsForUnits(source, uid);
-            if (fanAnchors) playDef(binding.def, fanAnchors);
+            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid } });
           }
         });
       } else if (binding.fanOut === 'selfBuffed') {
@@ -430,7 +430,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // resolve to the same card and a travelling layer simply stays put on it.
           for (const sb of groupSelfBuffs(moment, ctx.events)) {
             const selfAnchors = anchorsForUnits(sb.uid, sb.uid);
-            if (selfAnchors) playDef(binding.def, selfAnchors);
+            if (selfAnchors) playDef(binding.def, selfAnchors, { uids: { source: sb.uid, target: sb.uid } });
           }
         });
       } else {
@@ -442,7 +442,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // returned stop() is deliberately NOT wired into this runner's cleanup: every channel here is
           // fire-and-forget (an aura burst outlives its moment too), and cancelling on moment-change would cut
           // the effect off mid-play.
-          playDef(binding.def, anchors);
+          playDef(binding.def, anchors, { uids: { source, target } });
         });
       }
     }

@@ -26,6 +26,7 @@ import './burst';
 import './shockwave';
 import './emitter';
 import './smoke';
+import './react';
 
 /**
  * GL-link every FX shader source NOW, off the combat path.

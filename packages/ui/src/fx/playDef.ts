@@ -81,6 +81,16 @@ export interface PlayDefOptions extends FxScaleAxes {
   /** Called EXACTLY once when the effect retires — whether it played out naturally or was cancelled — and
    *  after teardown has finished, so the callback sees a fully cleaned-up world. */
   onDone?: () => void;
+  /**
+   * The units this moment is about. Optional, and only `react` layers read it (see `FxContext.uids`): a
+   * Pixi layer already has everything it needs in `anchors`, which is why this is a separate channel rather
+   * than something derived from them — a screen point cannot be turned back into the card that was there.
+   *
+   * A caller that already computed `anchorsForUnits(a, b)` should pass the same two uids here; omitting
+   * them leaves a react layer falling back to the first player unit, which is right for a preview and wrong
+   * for a real moment.
+   */
+  uids?: { source?: string | null; target?: string | null };
 }
 
 /**
@@ -317,7 +327,7 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
 
   const container = new Container();
   const unmountLayer = pixiFx.mountLayer(container, slot);
-  const player = createPlayer(def, { container, renderer }, { loop: false });
+  const player = createPlayer(def, { container, renderer, uids: opts.uids }, { loop: false });
   // A def that saved a LOCKED seed means "this exact roll" — honour it, or the composition the author
   // committed is not the one that plays. No seed (unlocked) hands over `null`: fresh roll per fire, which
   // is what an unlocked composition has always meant.

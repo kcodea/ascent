@@ -391,7 +391,9 @@ describe('fxDef channel', () => {
     // a shieldUp carries a target but no source → the missing side is passed as null
     expect(mockAnchors).toHaveBeenCalledWith(null, 'b');
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', { target: { x: 5, y: 7 } });
+    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', { target: { x: 5, y: 7 } },
+      // the uids ride alongside the anchors so a `react` layer can find the CARD, not just the point
+      { uids: { source: null, target: 'b' } });
   });
 
   it('no-ops when canPlayDefs() is false (production: defs do not ship)', () => {
@@ -421,7 +423,7 @@ describe('fxDef channel', () => {
     mockPlayDef.mockReturnValue(null);
     const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
     expect(() => runMomentCues(shieldUpMoment(), c)).not.toThrow();
-    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', expect.anything());
+    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', expect.anything(), expect.anything());
   });
 
   it('honours `enabled: false`', () => {
@@ -494,7 +496,7 @@ describe('fxDef channel', () => {
       runMomentCues(moment(kind, c.events), c);
       expect(mockAnchors).toHaveBeenCalledWith(source, target);
       expect(mockPlayDef).toHaveBeenCalledTimes(1);
-      expect(mockPlayDef).toHaveBeenCalledWith(def, { target: { x: 5, y: 7 } });
+      expect(mockPlayDef).toHaveBeenCalledWith(def, { target: { x: 5, y: 7 } }, { uids: { source, target } });
     },
   );
 
@@ -511,7 +513,7 @@ describe('fxDef channel', () => {
     const c = baseCtx([event]);
     runMomentCues(moment(kind, c.events), c);
     expect(mockAnchors).toHaveBeenCalledWith(null, null);
-    expect(mockPlayDef).toHaveBeenCalledWith(def, expect.anything());
+    expect(mockPlayDef).toHaveBeenCalledWith(def, expect.anything(), { uids: { source: null, target: null } });
   });
 
   // THE TRAP each split exists to close (the shieldGain/shieldPop template): the neighbouring kind — the one the
@@ -622,7 +624,7 @@ describe('fxDef channel — per-card bindings', () => {
 
     const events: CombatEvent[] = [{ type: 'sc', source: 'a', text: 'zap', cast: true } as CombatEvent];
     runMomentCues(moment('scCast', events), baseCtx(events, withCard('a', 'someothercard')));
-    expect(mockPlayDef).toHaveBeenCalledWith('spell-cast', expect.anything());
+    expect(mockPlayDef).toHaveBeenCalledWith('spell-cast', expect.anything(), expect.anything());
   });
 
   // A proc that damaged nobody (every mark already dead) must play nothing rather than collapsing onto the
@@ -694,7 +696,7 @@ describe('fxDef channel — self-buff fan-out', () => {
       selfBuff('b'),
     ];
     runMomentCues(moment('attackExchange', events), baseCtx(events));
-    expect(mockPlayDef).toHaveBeenCalledWith('self-buff-gold', expect.anything());
+    expect(mockPlayDef).toHaveBeenCalledWith('self-buff-gold', expect.anything(), { uids: { source: 'b', target: 'b' } });
     expect(mockAnchors).toHaveBeenCalledWith('b', 'b');
   });
 

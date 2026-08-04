@@ -165,11 +165,42 @@ const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
 export const COMBAT_REPLAYABLE_BATTLECRIES: ReadonlySet<string> = new Set([
   'battlecrySummon', 'battlecryBuffTribe', 'battlecryBuffUndeadAttack', 'battlecryGrantKeyword',
   'battlecryDiscoverSpell', 'battlecryDiscoverMinion', 'battlecryBuffSpellPower',
+  // Added 2026-08-04 (owner report: "this Dawnclaw/Shout interaction is not working"). It BUFFS A LIVING BODY,
+  // so deferring it to settle meant a Dawnclaw/Ryme trigger produced a narration and no visible effect — the
+  // buff landed after the fight it was supposed to win. Brood Whelp is the reported case. The rest of the
+  // deferred set really is economy (Gold, hand grants, shop) and correctly stays deferred.
+  'battlecryBuffTarget',
+  // ── Second pass, same owner report (the screenshot was Frenzied Excavator × Dawnclaw, not Brood Whelp) ──
+  // The first pass fixed one factory; these are the rest of the onPlay ids that visibly change LIVING BODIES.
+  // Everything still absent is genuinely economy (Gold, hand grants, shop consumption, run-wide auras) or has
+  // no combat data to read — see the notes on the branches below.
+  'battlecryPlayRubiesAll', 'battlecryBuffTribeOthersAttack', 'onBattlecryBuffSelf', 'battlecryGainKeyword',
+  // NOT new — `battlecryBuffImps` has had a combat branch since the Imp Overseer fix but was never listed
+  // HERE, and this set is what `settleCombat` reads to skip already-resolved effects. No live card is
+  // affected today (Imp Overseer's only onPlay is combat-handled, so it is never deferred at all), but the
+  // moment one pairs it with an economy effect the whole card defers and the Imp buff would land twice.
+  // Closing the desync so the set and the branches below can be trusted to say the same thing.
+  'battlecryBuffImps',
 ]);
 
 /** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Combat-meaningful
  *  battlecries resolve here; economy ones (Fodder/Gold/shop/gain-minion) are recorded via `ctx.deferBattlecry`
- *  and replayed through their recruit factory at settle. Magnitude respects the source's own golden. */
+ *  and replayed through their recruit factory at settle. Magnitude respects the source's own golden.
+ *
+ *  FULL AUDIT 2026-08-04 — every onPlay `do` id in content was checked against this chain. The three kinds that
+ *  are still deferred ON PURPOSE, so the next reader doesn't re-audit them:
+ *
+ *   • **No combat surface.** Gold next turn, cards to hand, Discover-to-hand, shop consumption/buffs, run-flag
+ *     grants (Beast Hunt, spell multipliers, Grimoire). A shop does not exist mid-fight; replaying at settle is
+ *     the correct and only behaviour. `battlecryGrantSpell` additionally ANNOUNCES itself during the replay.
+ *   • **Run-wide auras with no carry-back channel.** `battlecryBuffFodder` and `battlecryBuffMagnetics` enchant
+ *     a CARD TYPE for the rest of the run (board + hand + future copies), not the bodies in front of you.
+ *     Buffing the live board here would be a visible half-measure that then DOUBLE-applies at settle. Doing
+ *     them properly needs a `grantMagneticBuff`-style channel alongside `grantImpBuff`/`grantUndeadBuyAtk`;
+ *     until that exists, deferring is the honest behaviour.
+ *   • **Reads state combat doesn't carry.** `battlecryBuffTargetPerGoldSpent` (Baby Gastrid) scales off
+ *     `goldSpentThisTurn`, which is not on `CombatContext`; and `battlecryCopyEcho` (Gravetwin) needs the
+ *     CHOSEN target that a re-fire has no way to reproduce. */
 function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   const g = m.golden ? 2 : 1;
   const tribeOf = (t: Minion, tribe: string): boolean =>
@@ -193,6 +224,40 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       const a = num(p.amount, 1) * g;
       for (const t of ctx.living(m.side)) if (tribeOf(t, 'undead')) ctx.buff(t, a, 0, m.uid);
       ctx.grantUndeadBuyAtk(a, m.side);
+    } else if (eff.do === 'battlecryBuffTarget') {
+      // No chosen target in combat, so auto-pick the highest-Attack friend — the same convention
+      // `battlecryGrantKeyword` uses below, and the same fallback order the recruit factory uses (others
+      // first, else self). A `targetTribe` on the card restricts the pick exactly as it does in the shop.
+      const a2 = num(p.attack) * g, h2 = num(p.health) * g;
+      if (a2 > 0 || h2 > 0) {
+        const restrict = ctx.getCard(m.cardId)?.targetTribe;
+        const ok = (t: Minion): boolean => !restrict || tribeOf(t, restrict);
+        const others = ctx.living(m.side).filter((t) => t !== m && ok(t));
+        const pool = others.length > 0 ? others : ok(m) ? [m] : [];
+        if (pool.length > 0) ctx.buff(pool.reduce((x, y) => (y.attack > x.attack ? y : x)), a2, h2, m.uid);
+      }
+    } else if (eff.do === 'battlecryPlayRubiesAll') {
+      // Frenzied Excavator — the owner's screenshot: two gilded Excavators flanking Dawnclaw, whose Echo
+      // narrated the trigger while nothing landed. `playRubies` is the exact primitive Avenge/Rally already
+      // use, so a re-fired Excavator now plays its Rubies onto the living board with the side's rubyBonus, the
+      // Deepdelve multiplier, and one `onRubyPlayed` notification PER RUBY (a Resonance Idol still bounces).
+      // Combat Rubies are TEMPORARY unless the body is Engraved — the standing Ruby ruling, not a special case
+      // here, and the reason this needs no carry-back channel.
+      playRubies(ctx, m, num(p.rubies, 1) * g, '');
+    } else if (eff.do === 'battlecryBuffTribeOthersAttack') {
+      const tribe = str(p.tribe), a3 = num(p.attack, 1) * g;
+      if (a3 > 0) for (const t of ctx.living(m.side)) if (t !== m && tribeOf(t, tribe)) ctx.buff(t, a3, 0, m.uid);
+    } else if (eff.do === 'onBattlecryBuffSelf') {
+      ctx.buff(m, num(p.attack, 1) * g, num(p.health, 1) * g, m.uid);
+    } else if (eff.do === 'battlecryGainKeyword') {
+      // Oathshield Orin gains the keyword ITSELF (unlike `battlecryGrantKeyword`, which targets a friend).
+      const kw = str(p.keyword) as Keyword;
+      if (kw && !m.keywords.includes(kw)) {
+        m.keywords.push(kw);
+        if (kw === 'DS') m.divineShield = true;
+        if (kw === 'R') m.rebornAvailable = true;
+        ctx.log({ type: 'keyword', target: m.uid, keyword: kw, source: m.uid });
+      }
     } else if (eff.do === 'battlecryGrantKeyword') {
       const kws = Array.isArray(p.keywords) ? (p.keywords as Keyword[]) : [];
       const friends = ctx.living(m.side).filter((t) => t !== m); // auto-pick the highest-Attack friend (no chosen target in combat)

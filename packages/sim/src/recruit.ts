@@ -5,7 +5,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
@@ -750,7 +750,7 @@ export function teachMagePup(state: RunState, spellId: string): void {
   const cap = boardCap + (state.runeWhiteWolf ? 1 : 0);
   const used = state.moonhowlTeachesThisTurn ?? 0;
   if (used >= cap) return; // "once per turn" (twice for a golden Mentor, +1 for the rune)
-  if (state.hand.length >= CONFIG.handMax) return; // no room — don't burn the teach on a card that can't land
+  if (state.hand.length >= handCap(state)) return; // no room — don't burn the teach on a card that can't land
   const def = CARD_INDEX['b2_magepup'];
   if (!def) return;
   state.moonhowlTeachesThisTurn = used + 1;
@@ -1000,7 +1000,7 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
     keywords: [...def.keywords],
     golden: false,
   };
-  if (state.hand.length < CONFIG.handMax) state.hand.push(card);
+  if (state.hand.length < handCap(state)) state.hand.push(card);
   else if (state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → onto the board
   else if (overflow) state.hand.push(card); // quest / rune REWARD cards may over-cap the hand (owner ruling — never lose an earned reward)
   else return card; // otherwise the hand is a hard 10-card cap: hand + board both full → drop, never over-capped
@@ -1013,7 +1013,13 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   if (pool.length === 0) return;
   const rng = makeRng(state.rngCursor);
   // `overflow` (quest / rune reward grants) bypasses the hand cap so an earned reward is never dropped.
-  for (let i = 0; i < reps && (overflow || state.hand.length < CONFIG.handMax); i++) {
+  //
+  // A pending DISCOVER keeps its slot: the player is being asked to choose a card, and a passive grant that
+  // fills the last space in the meantime would silently destroy that choice (owner ruling 2026-08-04 — a
+  // golden Spell Warden's copies must yield to a card being discovered). `reservedHandSlots` counts the open
+  // prompt plus anything queued behind it, so a chain of Discovers each keeps one.
+  const cap = handCap(state) - reservedHandSlots(state);
+  for (let i = 0; i < reps && (overflow || state.hand.length < cap); i++) {
     const def = pool[rng.int(pool.length)]!;
     const cb = cardBuff(state, def.id);
     state.hand.push({
@@ -1045,7 +1051,7 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
   // Rune of Gemcutting mints at a FIXED line (3/3) instead of the run's 1/1 + rubyBonus.
   const bonus = statOverride ? { attack: statOverride.attack - def.attack, health: statOverride.health - def.health } : (state.rubyBonus ?? { attack: 0, health: 0 });
   let minted = 0;
-  for (let i = 0; i < count && state.hand.length < CONFIG.handMax; i++) {
+  for (let i = 0; i < count && state.hand.length < handCap(state); i++) {
     state.hand.push({
       uid: `b${state.uidSeq++}`,
       cardId: rubyId,
@@ -1579,6 +1585,132 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — "Your Rubies gain +X/+Y" (Deepvein Tender): raise the run's Ruby strength so every future Ruby
    *  is minted bigger, AND grow every Ruby you already HOLD in hand (they're "your Rubies" too). Rubies already
    *  CAST onto a minion are spent — their buff is baked in and doesn't grow (owner ruling 2026-07-23). */
+  // ── SHOP-TRIGGERED ECHOES ────────────────────────────────────────────────────────────────────────────
+  // An Echo fired in the SHOP (Funeral on Loan, Ossuary Rite, Deathsayer, Rune of the Reliquary, a Gravetwin
+  // copy) resolves through RECRUIT_FACTORIES. Every `onDeath` effect below had a COMBAT factory and no recruit
+  // one, so it was silently inert there — the card was destroyed and nothing happened (owner ask 2026-08-04:
+  // "all echoes should be wired to work in shop if triggered in any way"). Each mirrors its combat twin's
+  // SEMANTICS, not its implementation: there is no live enemy board or attack order in a shop, so the halves
+  // that only make sense mid-fight (damage, destroy-the-killer, granting Rise) stay combat-only by design.
+
+  /** Big Huggies / Scalefeather (Echo): put a named card in hand. */
+  deathrattleGrantSpell: (ctx, self, params) => {
+    const def = CARD_INDEX[str(params.cardId)];
+    if (!def) return;
+    conjureToHand(ctx.state, [def], gold(self));
+  },
+
+  /** Bone Taxer (Echo): raise MAX Gold for the run. */
+  deathrattleMaxGold: (ctx, self, params) => {
+    const gain = num(params.amount, 1) * gold(self);
+    ctx.state.maxEmbers += gain;
+  },
+
+  /** Equinox Duelist (Echo): buff your other Celestials. */
+  deathrattleBuffCelestials: (ctx, self, params) => {
+    const a = num(params.attack, 0) * gold(self);
+    const h = num(params.health, 0) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    for (const c of ctx.state.board) {
+      if (c.uid !== self.uid && CARD_INDEX[c.cardId]?.celestial) addBuff(c, nameOf(self), a, h);
+    }
+  },
+
+  /** Chef Raag (Echo): buff your whole board by the run's Imp aura, floored at +1/+1 — the same floor the
+   *  combat half applies, so the card reads the same in either phase. */
+  deathrattleBuffAllByImpAura: (ctx, self) => {
+    const imp = ctx.state.impBuff ?? { attack: 0, health: 0 };
+    const a = Math.max(1, imp.attack) * gold(self);
+    const h = Math.max(1, imp.health) * gold(self);
+    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
+  },
+
+  /** Errand Fiend / Legion pieces (Echo): summon Imps, optionally keyworded and buffed as they land. */
+  summonImps: (ctx, self, params) => {
+    const imp = CARD_INDEX['impscrap'];
+    if (!imp) return;
+    const kw = str(params.keyword);
+    const a = num(params.attack, 0), h = num(params.health, 0);
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      const before = ctx.state.board.length;
+      const body = ctx.summon(imp, self.uid);
+      if (ctx.state.board.length === before) break; // board full
+      const made = body ?? ctx.state.board[ctx.state.board.length - 1];
+      if (!made) break;
+      if (kw && !made.keywords.includes(kw as Keyword)) made.keywords = [...made.keywords, kw as Keyword];
+      if (a > 0 || h > 0) addBuff(made, nameOf(self), a, h);
+    }
+  },
+
+  /** Ex-Galloper (Echo): summon a copy of itself WITHOUT the Echo. In the shop the copy is a plain body of the
+   *  same card — the recruit board has no per-instance effect list to strip, so the Echo simply doesn't
+   *  re-trigger from a summoned token the way it can't in combat either. */
+  echoSummonCopyNoEcho: (ctx, self, params) => {
+    const card = CARD_INDEX[self.cardId];
+    if (!card) return;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      const before = ctx.state.board.length;
+      ctx.summon(card, self.uid);
+      if (ctx.state.board.length === before) break; // board full
+    }
+  },
+
+  /** Gemheart (Echo): summon a Shard carrying the Rubies that were on this body. */
+  deathrattleSummonRubyStats: (ctx, self, params) => {
+    const shard = CARD_INDEX[str(params.tokenId) || 'gemheart-shard'];
+    if (!shard) return;
+    // The Rubies ON this minion, read off its own buff breakdown — the recruit mirror of the combat half's
+    // per-instance ruby tally.
+    const ruby = self.buffs?.find((b) => b.source === 'Ruby');
+    const a = ruby?.attack ?? 0;
+    const h = ruby?.health ?? 0;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      const before = ctx.state.board.length;
+      const body = ctx.summon(shard, self.uid);
+      if (ctx.state.board.length === before) break;
+      const made = body ?? ctx.state.board[ctx.state.board.length - 1];
+      if (made && (a > 0 || h > 0)) { addBuff(made, 'Ruby', a, h); fireOnRubyPlayed(ctx.state, made, a, h); }
+    }
+  },
+
+  /** Brewer (Echo): get a Dwarven Ale. `grantRandomAle` is already trigger-agnostic, so this is a straight
+   *  delegation — the guard params only matter in combat, where the payload says who died. */
+  combatGrantAle: (ctx, self, params) => {
+    RECRUIT_FACTORIES.grantRandomAle?.(ctx, self, params, { minion: self });
+  },
+
+  /** Anvilshade Smith (Echo): summon a token that inherits this body's Attack. The combat half also makes it
+   *  swing immediately — meaningless in a shop, so only the summon half applies here. */
+  echoSummonInheritAttackAndCharge: (ctx, self, params) => {
+    const token = CARD_INDEX[str(params.token)];
+    if (!token) return;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      const before = ctx.state.board.length;
+      const body = ctx.summon(token, self.uid);
+      if (ctx.state.board.length === before) break; // board full
+      const made = body ?? ctx.state.board[ctx.state.board.length - 1];
+      // The token's printed Attack is a FLOOR, not the value — it takes the Smith's if that is higher, so
+      // buffing the Smith buffs what its death produces (same rule as the combat half).
+      if (made && self.attack > made.attack) made.attack = self.attack;
+    }
+  },
+
+  /** Ryme / Dawnclaw (Echo): re-fire both neighbours' Shouts. In the shop every Shout is simply its recruit
+   *  factory, so this needs no combat/economy split — `replayBattlecry` is the same path the Myra hero power
+   *  and the face-Omen re-fire already use. */
+  deathrattleReplayAdjacentBattlecry: (ctx, self) => {
+    const board = ctx.state.board;
+    const i = board.findIndex((c) => c.uid === self.uid);
+    if (i < 0) return;
+    const reps = gold(self) ; // golden triggers each neighbour twice
+    for (const nb of [board[i - 1], board[i + 1]]) {
+      if (!nb) continue;
+      const def = CARD_INDEX[nb.cardId];
+      if (!def || !hasBattlecry(def)) continue;
+      for (let r = 0; r < reps; r++) replayBattlecry(ctx.state, nb);
+    }
+  },
+
   rubyStatGain: (ctx, self, params) => {
     const a = num(params.attack) * gold(self);
     const h = num(params.health) * gold(self);
@@ -1840,7 +1972,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     );
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < reps && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < reps && ctx.state.hand.length < handCap(ctx.state); i++) {
       const def = pool[rng.int(pool.length)]!;
       const cb = cardBuff(ctx.state, def.id);
       ctx.state.hand.push({
@@ -2729,7 +2861,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (pool.length === 0) return;
     const count = num(params.count, 1) * gold(self);
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       const def = pool[rng.int(pool.length)]!;
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
@@ -2767,7 +2899,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const def = CARD_INDEX[str(params.spellId)];
     if (!def) return;
     const count = num(params.count, 1) * gold(self);
-    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
         cardId: def.id,
@@ -2853,7 +2985,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < gold(self) && ctx.state.hand.length < handCap(ctx.state); i++) {
       const spell = pool[rng.int(pool.length)]!;
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
@@ -2891,7 +3023,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onDeath'));
     if (pool.length === 0) return;
     for (let i = 0; i < gold(self); i++) {
-      if (ctx.state.hand.length >= CONFIG.handMax) break;
+      if (ctx.state.hand.length >= handCap(ctx.state)) break;
       conjureToHand(ctx.state, pool, 1); // seeded pick + hand-cap + run-buff bake
       const card = ctx.state.hand[ctx.state.hand.length - 1];
       if (card) fireRecruitDeathrattles(ctx, card); // trigger the Echo you just got
@@ -3261,7 +3393,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Spell factories receive the target as `minion` (see applyCastEffects) — `self` is the same object here.
     const target = minion;
     if (!target) return;
-    if (ctx.state.hand.length >= CONFIG.handMax) return; // full hand — the gift fizzles into nothing, like a full-hand conjure
+    if (ctx.state.hand.length >= handCap(ctx.state)) return; // full hand — the gift fizzles into nothing, like a full-hand conjure
     const clone = structuredClone(target);
     clone.uid = `b${ctx.state.uidSeq++}`;
     ctx.state.hand.push(clone);
@@ -3628,7 +3760,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = perTribe ? st.board.filter((c) => isTribe(c, perTribe as never)).length : num(params.count, 1);
     const rng = makeRng(st.rngCursor);
     for (let n = 0; n < count; n++) {
-      if (st.hand.length >= CONFIG.handMax) break;
+      if (st.hand.length >= handCap(st)) break;
       const pool = st.shop
         .map((o, idx) => ({ o, idx, def: CARD_INDEX[o.cardId] }))
         .filter(({ def }) => {
@@ -3786,7 +3918,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  mirroring a buy). Fizzles gracefully on an empty shop or a full hand. */
   stealTavernMinion: (ctx, _self) => {
     const state = ctx.state;
-    if (state.shop.length === 0 || state.hand.length >= CONFIG.handMax) return;
+    if (state.shop.length === 0 || state.hand.length >= handCap(state)) return;
     const rng = makeRng(state.rngCursor);
     const idx = rng.int(state.shop.length);
     state.rngCursor = rng.state();
@@ -4109,7 +4241,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!spellId || !self) return;
     const def = CARD_INDEX[spellId];
     if (!def) return;
-    for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < gold(self) && ctx.state.hand.length < handCap(ctx.state); i++) {
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
         cardId: spellId,
@@ -4161,7 +4293,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   endOfTurnGetRandomSpells: (ctx, self, params) => {
     const count = num(params.count, 2) * gold(self);
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       const def = poolOf(ctx.state).spells[rng.int(poolOf(ctx.state).spells.length)]!;
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
@@ -5591,6 +5723,13 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
     if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
   }
   fireRecruitDeathrattles(makeContext(state), card);
+}
+
+/** Fire a BOARD minion's Echo in the shop, as Ossuary Rite / Deathsayer / Rune of the Reliquary do.
+ *  Exported for tests: positional Echoes (Dawnclaw) need the minion to actually be on the board, which the
+ *  borrowed-card path can never provide. */
+export function fireRecruitDeathrattlesForTest(state: RunState, minion: BoardCard): void {
+  fireRecruitDeathrattles(makeContext(state), minion);
 }
 
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {

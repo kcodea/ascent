@@ -31,6 +31,9 @@ export const CONFIG = {
   refreshCost: 1,
   boardMax: 7,
   handMax: 10,
+  /** The RAISED hand cap while the Runeforge is open, so a rune's rewards can all land on a full hand
+   *  (owner ruling 2026-08-04). See `handCap` in state.ts. */
+  handMaxRuneTurn: 20,
 
   // Tiers — cost to reach a target tier (handoff A.2). Decreases by 1 each wave
   // the player doesn't upgrade, down to the floor.

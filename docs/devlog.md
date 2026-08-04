@@ -1,5 +1,83 @@
 # ASCENT — development log
 
+## 2026-08-04 — Dawnclaw, second pass: the full Shout audit
+
+The first pass fixed ONE factory off a probe fixture. The owner's screenshot was the actual case — two gilded
+**Frenzied Excavators** flanking Dawnclaw — and `battlecryPlayRubiesAll` was still absent from the replay
+chain, so the Echo narrated the trigger and no Ruby landed. This pass audits EVERY `onPlay` `do` id in content
+against `replayCombatBattlecry` instead of chasing one card.
+
+**Now resolve in combat** (they visibly change living bodies):
+- `battlecryPlayRubiesAll` — Frenzied Excavator. Routed through `playRubies`, the same primitive Avenge/Rally
+  use, so a re-fire gets the side's `rubyBonus`, the Deepdelve multiplier, and one `onRubyPlayed` notification
+  PER RUBY (a Resonance Idol still bounces). Combat Rubies are temporary unless the body is Engraved — the
+  standing ruling, which is why this needs no carry-back channel.
+- `battlecryBuffTribeOthersAttack` — Warhorn Captain.
+- `onBattlecryBuffSelf` — Herald of the Divide.
+- `battlecryGainKeyword` — Oathshield Orin (gains the keyword ITSELF, unlike `battlecryGrantKeyword`).
+
+**Also added `battlecryBuffImps` to `COMBAT_REPLAYABLE_BATTLECRIES`.** It has had a combat branch since the Imp
+Overseer fix but was never listed in the set — and the set is what `settleCombat` reads to skip
+already-resolved effects. No live card is affected today (Imp Overseer's only `onPlay` is combat-handled, so
+the card never defers at all), but the desync meant the set and the branches disagreed, and the first card to
+pair it with an economy effect would have applied the Imp buff twice. Closed so the set can be trusted.
+
+**Deliberately still deferred**, now recorded in the function's own doc comment so this doesn't get re-audited:
+- *No combat surface* — Gold next turn, cards to hand, Discover, shop consumption/buffs, run-flag grants. A
+  shop does not exist mid-fight. `battlecryGrantSpell` already announces itself during the replay.
+- *Run-wide auras with no carry-back channel* — `battlecryBuffFodder`, `battlecryBuffMagnetics`. These enchant
+  a CARD TYPE for the rest of the run, not the bodies in front of you; buffing the live board would be a
+  half-measure that then double-applies at settle. Doing them properly needs a `grantMagneticBuff`-style
+  channel alongside `grantImpBuff`/`grantUndeadBuyAtk`.
+- *Reads state combat doesn't carry* — `battlecryBuffTargetPerGoldSpent` (no `goldSpentThisTurn` on
+  `CombatContext`), `battlecryCopyEcho` (needs a chosen target a re-fire can't reproduce).
+
+Choose One cards came up during the audit and are **out of scope** — a Choose One is not a Shout (owner
+ruling 2026-08-04).
+
+**Verified** — 5 new cases in `dawnclawShouts.test.ts` (9 total). The Ruby test asserts a `ruby`-TAGGED buff
+event sourced from the neighbour, so it can't pass on an ordinary buff; the Warhorn test needed a THIRD body,
+because "your other Dwarves" has no recipient on a two-minion board and would otherwise have passed for the
+wrong reason. Negative control: reverting the four additions fails exactly those four tests. Gates: typecheck
+✓, lint ✓ (7 pre-existing), 3806 tests ✓, `build:web` ✓, harness determinism ✓.
+
+## 2026-08-04 — Owner batch: rune-turn hand grace, Discover priority, combat Ruby values, Dawnclaw, shop Echoes
+
+- **Rune-turn hand grace.** The hand cap rises to 20 (`CONFIG.handMaxRuneTurn`) while the RUNEFORGE IS OPEN,
+  so a rune's rewards all land on a full hand — Edward Keg Hands gives you the Ales *and* Edward, and Rune of
+  Duplication's second application has room too. Keyed on the forge being open rather than a flag with its own
+  lifecycle: `buyRune` applies rewards while the offer is still set and only then closes, which makes the
+  grace naturally once-per-rune-turn, impossible to leak into an ordinary shop turn, and needs nothing to
+  remember to clear it. The extra cards are KEPT afterwards — the cap only governs adding.
+- **A pending Discover outranks a passive grant.** `conjureToHand` now reserves a slot per open/queued
+  Discover, so a golden Spell Warden's copies yield to the card you are being asked to choose. Previously the
+  Warden filled the last slot and the discovered card was silently destroyed.
+- **Rubies granted mid-combat now show their real value.** `tokenRefView`'s Ruby branch already prints
+  `1/1 + rubyBonus`, but the two GRANT-PREVIEW call sites never passed `rubyBonus` (the hover path always
+  did) — so a Ruby flew to hand reading 1/1 and snapped to its true value at settle.
+- **Baby Gastrid targets Dwarves only**, text included. It joins the sweep in `targetTribeGuard.test.ts`,
+  which covers the reducer-level refusal for every tribe-restricted card.
+- **Dawnclaw: `battlecryBuffTarget` now resolves IN COMBAT.** Dawnclaw itself was fine — an early probe that
+  said otherwise turned out to be a bad fixture (the neighbour died first, so there was correctly nobody to
+  trigger). The real gap: only 7 Shouts were combat-replayable, and everything else deferred to settle. Brood
+  Whelp's `battlecryBuffTarget` BUFFS A LIVING BODY, so deferring it meant Dawnclaw narrated a trigger and the
+  buff landed *after* the fight it was meant to win. `battlecryBuffImps` was already handled (a prior report);
+  the rest of the deferred set really is economy and correctly stays.
+- **Shop-triggered Echoes: 19 inert factories → 9.** Wired `deathrattleGrantSpell`, `deathrattleMaxGold`,
+  `deathrattleBuffCelestials`, `deathrattleBuffAllByImpAura`, `summonImps`, `echoSummonCopyNoEcho`,
+  `deathrattleSummonRubyStats`, `deathrattleReplayAdjacentBattlecry`, `combatGrantAle`,
+  `echoSummonInheritAttackAndCharge`. Two more (`deathrattleRubyStatGain`, `deathrattleSummonGolemsWithRuby`)
+  are in the still-open PR #850. Each mirrors its combat twin's SEMANTICS, not its implementation.
+
+  Still combat-only ON PURPOSE, because a shop has no enemies, no killer and no attack order:
+  `deathrattleDamageAll`, `deathrattleDestroyKiller`, `deathrattleGrantRebornAll`, `onFriendDeathSummon`, and
+  the overflow pair. Also worth recording: a BORROWED Dawnclaw (Funeral on Loan) never reaches the board, so a
+  positional Echo genuinely has no neighbours — a property of the card, not a gap.
+
+**Verified** — new `ownerBatch0804.test.ts` (12) + `dawnclawShouts.test.ts` (4). The Dawnclaw buff test is
+pinned on a buff SOURCED FROM THE NEIGHBOUR: a loose "any buff happened" assertion passed without the fix,
+because the enemy dummy buffs itself every swing. Both files confirmed as negative controls. Gates: typecheck
+✓, lint ✓ (7 pre-existing), 3801 tests ✓, `build:web` ✓, harness determinism ✓.
 ## 2026-08-03 — Appetite Agent is Demons-only, and the tribe gate was never enforced by the reducer
 
 - **Appetite Agent** (owner): `targetTribe: 'demon'`, and the text says so — "Shout: target a friendly

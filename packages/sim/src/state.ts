@@ -1144,6 +1144,40 @@ export function henchmanOffer(state: RunState): { cardId: string; cost: number }
   return { cardId: h.cardId, cost: Math.max(0, h.cost - (state.henchmanDiscount ?? 0)) };
 }
 
+/**
+ * The hand's capacity RIGHT NOW.
+ *
+ * Normally `CONFIG.handMax` (10). While the RUNEFORGE IS OPEN it rises to `CONFIG.handMaxRuneTurn` (20), so a
+ * rune's rewards can all land even on a full hand (owner ruling 2026-08-04: "at the start of rune turns the
+ * player should be allowed to have up to 20 cards only one time — if they have a full hand and choose Edward
+ * Keg Hands, they should get the Ales and Edward").
+ *
+ * Keyed on the forge being OPEN rather than on a flag with its own lifecycle, which is what makes it
+ * naturally once-per-rune-turn: `buyRune` applies the reward (and Rune of Duplication's second application)
+ * while the offer is still set, and only then calls `closeRuneforge`. Nothing has to remember to clear it,
+ * and the raised cap cannot leak into an ordinary shop turn.
+ *
+ * The extra cards are KEPT afterwards — the normal cap only governs ADDING, so nothing is discarded when the
+ * forge closes; you simply can't grow past 10 again until you play down.
+ */
+export function handCap(state: Pick<RunState, 'runeforgeOffer'>): number {
+  return state.runeforgeOffer ? CONFIG.handMaxRuneTurn : CONFIG.handMax;
+}
+
+/**
+ * Hand slots RESERVED for Discover picks that are open or queued but not yet chosen.
+ *
+ * A Discover is a card the player is actively being asked to choose; a passive grant that fills the last
+ * slot in the meantime silently destroys that choice. Owner ruling 2026-08-04: "Spell Warden's duplicated
+ * spell should have lower priority than a card discovered — if the player has a golden Spell Warden and 10
+ * cards in hand and their 2nd spell is a Discover, the discovered card takes precedence."
+ *
+ * Counts the OPEN prompt plus everything still queued behind it, so a chain of Discovers each keeps a slot.
+ */
+export function reservedHandSlots(state: Pick<RunState, 'discover' | 'discoverQueue'>): number {
+  return (state.discover ? 1 : 0) + (state.discoverQueue?.length ?? 0);
+}
+
 export function runRecord(state: RunState): { wins: number; losses: number; draws: number } {
   let wins = 0, losses = 0, draws = 0;
   for (const r of state.history.slice(CONFIG.calibrationRounds)) {
@@ -1278,7 +1312,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 8; // hero forge, one turn ahead of the system's 9
   if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
-    if (def && state.hand.length < CONFIG.handMax) {
+    if (def && state.hand.length < handCap(state)) {
       state.hand.push({
         uid: `b${state.uidSeq++}`,
         cardId: 'symbioticattachment',

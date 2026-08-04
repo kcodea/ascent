@@ -118,9 +118,10 @@ export const SET2_DWARVES: CardDef[] = [
     health: 4,
     keywords: [],
     target: 'friendly',
+    targetTribe: 'dwarf', // owner ruling 2026-08-04: Dwarves only — enforced by the reducer, mirrored by the aim UI
     effects: [{ on: 'onPlay', do: 'battlecryBuffTargetPerGoldSpent', params: { health: 1 } }],
-    text: '**Shout:** give a friendly minion **+1 Health** per Gold spent this turn.',
-    goldenText: '**Shout:** give a friendly minion **+2 Health** per Gold spent this turn.',
+    text: '**Shout:** give a friendly **Dwarf** **+1 Health** per Gold spent this turn.',
+    goldenText: '**Shout:** give a friendly **Dwarf** **+2 Health** per Gold spent this turn.',
   },
   {
     // Left-most rather than targeted, so you pick the recipient by ARRANGING your line — deterministic, no RNG.

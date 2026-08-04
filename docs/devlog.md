@@ -1,6 +1,6 @@
 # ASCENT — development log
 
-## 2026-08-03 — react: the workbench NAMES its subject, and the fallback is gone
+## 2026-08-04 — react: the workbench NAMES its subject, and the fallback is gone
 
 Third report on the same symptom, and the one that found the actual cause: *"when i add the react effect
 its only affecting the left most minion. though i do see the target lifting when its applied."* Two things

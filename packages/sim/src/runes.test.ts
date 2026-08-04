@@ -611,7 +611,11 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
   it('Rune of Action: a spell played counts as a card played (playedThisTurn)', () => {
     // Regression (owner 2026-07-11): "each card you played" must include spells / Discover-on-play /
     // welded Magnetics, not just minions that take a board slot — those returned before the tracker.
+    // The board minion is REQUIRED as of 2026-08-03: Growth on an empty board is now refused outright (an
+    // unusable spell is kept in hand — see `spellFizzle.ts`), which would make this test vacuous. What it
+    // actually pins is unchanged: a cast spell counts toward `playedThisTurn`.
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
       hand: [{ uid: 'g1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     const next = reduce(s, { type: 'play', uid: 'g1' });
     expect(next.playedThisTurn).toContain('growth'); // the spell counted, even though it took no board slot

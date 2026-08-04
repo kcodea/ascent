@@ -62,10 +62,12 @@ describe("Champion's Ale", () => {
     expect(at('u2')).toEqual([1, 1]);
   });
 
-  it('fizzles cleanly on an empty board', () => {
+  it('is REFUSED on an empty board — nothing to buff, so the Ale is kept', () => {
+    // Flipped on 2026-08-03 (owner: "if a spell is unusable, it should fail to be used"). It used to be
+    // consumed for nothing. See `spellFizzle.ts`.
     let s: RunState = { ...createRun(1), phase: 'recruit', board: [], hand: [spell('w', 'wo_champion')] };
     s = reduce(s, { type: 'play', uid: 'w' });
-    expect(s.hand.some((c) => c.cardId === 'wo_champion')).toBe(false); // still consumed
+    expect(s.hand.some((c) => c.cardId === 'wo_champion')).toBe(true); // kept in hand
     expect(s.board).toEqual([]);
   });
 });

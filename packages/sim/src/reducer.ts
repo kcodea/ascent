@@ -14,6 +14,7 @@ import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
+import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -932,6 +933,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         const casts = spellCasts(s, def);
         if (def.target === 'friendly' || def.target === 'any') {
           const boardTarget = s.board.find((c) => c.uid === action.targetUid);
+          // A spell that cannot accomplish ANYTHING in this state is refused outright — kept in hand, no Gold
+          // spent (owner audit 2026-08-03). The specific guards below predate this and stay: they encode
+          // per-spell rules that aren't "would this do nothing" (Layaway wants a SHOP offer; Common Ground
+          // defers to a second pick). See `spellFizzle.ts` for the general rule + why it errs toward casting.
+          if (spellFizzles(s, def, boardTarget)) return state;
           // A tribe-restricted spell (Cupcakes: `targetTribe: 'demon'`) FIZZLES on any other tribe — kept in
           // hand, no cast, no partial state. The aim UI mirrors this, but the reducer is what actually decides
           // (owner report 2026-08-03: Cupcakes was landing on non-Demons — this guard simply didn't exist on
@@ -967,6 +973,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           }
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
         } else {
+          // Same rule for an UNTARGETED spell — Deep Delve Writ with no Dwarf in the tavern, Growth on an
+          // empty board, Mend at full Resolve. This is where most of the audit's findings landed.
+          if (spellFizzles(s, def)) return state;
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)

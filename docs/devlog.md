@@ -77,6 +77,18 @@ tests, `build:web`.
   **High King Mykel had the same gap** at 8. Written keyed on the trigger + an `every` param rather than on a
   card id, so the next every-N-spells card gets its counter for free. Guel is untouched: its own
   `spellCastBuffOthers` branch matches earlier.
+- **Right-click a rail seat to PIN its scouting report** (owner ask). The hover card is `pointer-events: none`
+  — deliberately, so it can't eat clicks meant for the rail — which is exactly why its rune/quest badges were
+  unreachable: you couldn't travel to them without leaving the seat and dismissing the card you were aiming
+  at. Right-click now pins a copy that takes pointer events, so those badges can be hovered for their own
+  tooltips. Toggles on repeat right-click, closes on Escape, the backdrop-free × , or a right-click on itself;
+  mirrors the card inspect players already know. The transient hover copy is suppressed for a pinned seat so
+  the two can never stack.
+- **Rune badges never rendered LIVE reward text — only quests did.** So a rune whose payout depends on run
+  state could only restate its rule. **Rune of Recollection** is the case that exposed it: "get a copy of the
+  first spell you cast this turn" names no card until you've cast one. It now reads
+  **"Now: a copy of Growth"**, and "Now: nothing cast yet this turn" before that — the live-value rule applied
+  to rune rewards.
 - **Art** — Baal, Training Dummy (the Decoy Sigil body), Rune of Baal, and the re-wired Copycat spell.
 
 **The Copycat rune art landed.** `Quests/CopyCat.png` matched no quest, and rather than guess it across

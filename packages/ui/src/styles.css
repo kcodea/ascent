@@ -7210,3 +7210,31 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   0% { transform: translateX(-50%) scale(1.35); }
   100% { transform: translateX(-50%) scale(1); }
 }
+
+/* Live reward line on a RUNE badge (Rune of Recollection naming the spell you're about to be handed). Same
+   slot the quest badge already uses for its live magnitude — dimmer than the rule, brighter than the state. */
+.questbadge-tip .questbadge-tip-live { color: #ffd98a; font-size: calc(11 * var(--u)); }
+
+/* PINNED scout card (right-click a rail seat). The hover copy is `pointer-events: none` — deliberately, so it
+   can't eat clicks meant for the rail — which is precisely why its rune/quest badges were unreachable. The
+   pinned copy takes pointer events so those badges can be hovered for their own tooltips, and it sits above
+   the hover layer with a brighter frame so the two are never confused. */
+.lobbyscout.pinned {
+  pointer-events: auto;
+  z-index: 84;
+  border-color: color-mix(in srgb, var(--gold) 85%, #000);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent),
+    0 calc(6 * var(--lu)) calc(18 * var(--lu)) -4px var(--shadow);
+}
+.lobbyscout-x {
+  margin-left: auto;
+  width: calc(14 * var(--lu)); height: calc(14 * var(--lu));
+  display: grid; place-items: center;
+  font-family: var(--font-ui); font-size: calc(12 * var(--lu)); line-height: 1;
+  color: #d9cbb4; background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(200, 170, 90, 0.4); border-radius: 50%;
+  cursor: pointer;
+}
+.lobbyscout-x:hover { color: #fff; border-color: var(--gold); }

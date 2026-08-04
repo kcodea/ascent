@@ -431,6 +431,10 @@ export interface QuestRewardLive {
   /** Endless Inventory (`shopBuffOnRefresh`): the accrued improvement and progress toward the next step —
    *  drives "Now: … +N/+N per refresh · +1/+1 in 2 more". */
   shopRefresh?: { grown: number; tick: number };
+  /** Rune of Recollection (`copyFirstSpell`): the id of the FIRST spell cast this turn, so the badge can
+   *  name the card you are actually about to be handed instead of describing the rule (owner ask
+   *  2026-08-03). Absent until something is cast. */
+  firstSpellId?: string;
 }
 
 /** The reward's LIVE ongoing magnitude for the badge tooltip — the CURRENT value a scaling/stat reward is
@@ -442,6 +446,13 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
     return a && (a.attack > 0 || a.health > 0) ? `Now: Beasts ${statPhrase(a.attack, a.health)}` : null;
   };
   switch (r.kind) {
+    case 'recurringEndOfTurn': {
+      // Rune of Recollection promises "a copy of the first spell you cast this turn" — which names no
+      // card, so until you cast something the badge cannot tell you WHAT you are getting. Resolve it live.
+      if (r.effect !== 'copyFirstSpell') return null;
+      const spell = live.firstSpellId ? CARD_INDEX[live.firstSpellId] : undefined;
+      return spell ? `Now: a copy of ${spell.name}` : 'Now: nothing cast yet this turn';
+    }
     case 'shopBuffOnRefresh': {
       // The magnitude compounds, so the badge must show what the NEXT refresh actually gives — printing the
       // base rate alone goes stale the moment the first step lands (card-text live-accuracy rule).

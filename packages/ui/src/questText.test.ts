@@ -152,3 +152,21 @@ describe('every quest reward renders text', () => {
     expect(questObjectiveText({ event: 'castSpell', count: 8 })).toBe('Cast 8 Shop spells');
   });
 });
+
+describe('Rune of Recollection names the spell you are getting (owner ask 2026-08-03)', () => {
+  const reward = { kind: 'recurringEndOfTurn', effect: 'copyFirstSpell' } as const;
+
+  it('names the first spell cast this turn', () => {
+    expect(questRewardLiveText(reward, { firstSpellId: 'growth' })).toBe('Now: a copy of Growth');
+  });
+
+  it('says so plainly before anything has been cast', () => {
+    // The authored text ("a copy of the first spell you cast this turn") names no card, which is the whole
+    // problem — so the empty state has to be explicit rather than silent.
+    expect(questRewardLiveText(reward, {})).toBe('Now: nothing cast yet this turn');
+  });
+
+  it('leaves OTHER recurring End-of-Turn rewards alone', () => {
+    expect(questRewardLiveText({ kind: 'recurringEndOfTurn', effect: 'grantAles' } as never, {})).toBeNull();
+  });
+});

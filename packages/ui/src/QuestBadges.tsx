@@ -80,6 +80,13 @@ export function QuestBadges() {
             <div className="questbadge-tip" role="tooltip">
               <b>{rune.name}</b>
               <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+              {/* Rune badges never showed LIVE reward text — only quests did — so a rune whose payout depends
+                  on run state could only ever restate its rule. Rune of Recollection is the case that made it
+                  visible: "a copy of the first spell you cast this turn" names no card until you've cast one. */}
+              {(() => {
+                const rlive = questRewardLiveText(rune.reward, { firstSpellId: run.firstSpellThisTurnId });
+                return rlive ? <span className="questbadge-tip-live">{rlive}</span> : null;
+              })()}
               <span className="questbadge-tip-state">
                 Rune · active{runeTally(run, rune.id) ? ` · ${runeTally(run, rune.id)}` : ''}
               </span>
@@ -164,6 +171,7 @@ export function QuestBadges() {
           scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
           denMarkerCount: run.denMarker?.count ?? 0,
           shopRefresh: run.shopBuffOnRefresh ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick } : undefined,
+          firstSpellId: run.firstSpellThisTurnId,
         };
         const liveTxt = questRewardLiveText(r, live);
         return (

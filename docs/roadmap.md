@@ -21,6 +21,13 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **The badge `react` layer.** The stat badge is now three targetable nodes — `badge` (the pair),
+  `badge.plate` (the shape), `badge.value` (the digit) — shipped 2026-08-03 with no behaviour change. What
+  is still missing is the layer kind that animates them: a DOM/WAAPI `react`, transform/opacity only,
+  scoped self / neighbours / allies / board with falloff and delay by distance. First real use: a gem
+  landing pops the plate while the number counts to its new value. Retire `statflash` into it rather than
+  running both. Open question to settle first: does `scope` belong to the layer or to the binding?
+
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and
   anything that should read as happening *on* the board rather than in front of it — each is a one-field

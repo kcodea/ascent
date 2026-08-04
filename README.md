@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Stat badges are now three pieces.** The attack/health badge used to be one element carrying both the
+  circle and the number, so an effect couldn't touch one without dragging the other. It's now a wrapper, a
+  `plate` (the circle) and a `value` (the number) — groundwork for badge-level effects like "pop the circle
+  while the number counts up." Pixel-identical to before, verified across 12 card states.
 - **Henchmen wired** — every hero can carry a hero-bound minion, never shop-offered, recruitable once per run
   at a Gold cost that falls every round (win −3, loss −2). System + placeholder shipped; the per-hero roster
   and real presentation come next. **Set 3 scaffolded** — registered and selectable in the Scene Builder,

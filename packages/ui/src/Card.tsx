@@ -858,8 +858,17 @@ export const Card = memo(function Card({
           <span className="ctype spell">{card.ruby ? '◆ Ruby' : '✦ Spell'}</span>
         ) : (
           <>
-            <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>{card.attack}</span>
-            <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>{card.health}</span>
+            {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
+                the `.badge` wrapper seats the pair, `.plate` is the shape, `.value` is the digit. Plate and
+                value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
+            <span className={`badge atk${statCls(card.attack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>
+              <span className="plate" aria-hidden="true" />
+              <span className="value">{card.attack}</span>
+            </span>
+            <span className={`badge hp${statCls(card.health, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>
+              <span className="plate" aria-hidden="true" />
+              <span className="value">{card.health}</span>
+            </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
             <span key={`cgem-${pulseRally ?? 0}`} className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
           </>

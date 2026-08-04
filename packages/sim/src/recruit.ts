@@ -2402,6 +2402,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  Hooked on `onConsume`, so it counts any source — the tribe's eight consumers, a Fodder eat, Feastmaster's
    *  neighbours. `rubyRecvTick` is the per-turn counter (already reset each wave with the other per-turn state). */
+  /** Set 2 — Baal (on-consume): buff Shop minions by +N/+N (× golden) FOR THE REST OF THE SHOP PHASE.
+   *
+   *  Feeds `shopTurnBonus`, the turn-scoped twin of `tavernBuyBonus`, rather than stamping the offers that
+   *  happen to be on screen. That distinction is the whole ruling (owner 2026-08-03): "if I consume 2 minions
+   *  and roll, the shop retains the +4/+4 until the shop phase ends" — a per-offer stamp would be wiped by
+   *  the very next reroll, because a roll mints brand-new offers. Accumulates, so two consumes give +4/+4.
+   *  Cleared at turn start, so it never leaks into a later shop the way the run-wide channel would. */
+  onConsumeBuffShopOffers: (ctx, self, params) => {
+    const a = num(params.attack, 2) * gold(self);
+    const h = num(params.health, 2) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    const cur = ctx.state.shopTurnBonus ?? { atk: 0, hp: 0 };
+    ctx.state.shopTurnBonus = { atk: cur.atk + a, hp: cur.hp + h };
+  },
+
   onConsumeGoldFlat: (ctx, self, params) => {
     if ((self.rubyRecvTick ?? 0) >= 1) return; // "the first time" each turn
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
@@ -5329,8 +5344,13 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
   const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
-  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
-  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
+  // Baal's THIS-TURN shop buff. Unlike the Staff's run-wide bonus this one is NOT Fodder-excluded: that
+  // exclusion exists because Fodder receives the Staff through a run-wide enchant instead, and Baal has no
+  // such enchant — so skipping Fodder here would just silently drop the buff.
+  const turnA = state.shopTurnBonus?.atk ?? 0;
+  const turnH = state.shopTurnBonus?.hp ?? 0;
+  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA + turnA;
+  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def) + turnH;
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
 }

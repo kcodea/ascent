@@ -2641,6 +2641,7 @@ function advanceCombat(s: RunState): void {
   for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
   if (s.runeOpenMarket) s.runeOpenMarket.usedThisTurn = false; // the Open Market re-arms each turn
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
+  s.shopTurnBonus = undefined; // Baal's shop buff lasts the SHOP PHASE — it expires with the turn
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
   // Funeral on Loan (owner 2026-07-31): the loan lasts ONE turn. A borrowed card that wasn't played stays in
   // hand (owner 2026-07-29 — it used to be discarded outright), and at the next turn the `borrowed` flag
@@ -3268,7 +3269,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeThreshold':
       // An ARRAY: several threshold runes can be held at once, each banking its own remainder.
-      (s.runeThresholds ??= []).push({ meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn });
       break;
     case 'motherlode':
       s.motherlode = { count: r.count, tribe: r.tribe };

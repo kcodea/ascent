@@ -7184,3 +7184,29 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Scout-card reward badges — the hovered seat's active runes + completed quests (owner ask 2026-08-03).
    Left-aligned inside the card (the opponent-frame row justifies right, against the frame's edge). */
 .lobbyscout-badges { justify-content: flex-start; margin-top: calc(7 * var(--u)); }
+
+/* Rune METER tally — the `4/10g` progress on a threshold rune's badge (owner ask 2026-08-03). Same visual
+   language as the hero-power tally: a small numeral riding the node's lower edge. Static paint; the remount
+   bump is compositor-only (transform), never an animated shadow. */
+.questbadge .qb-tally {
+  position: absolute;
+  left: 50%;
+  bottom: calc(-7 * var(--u));
+  transform: translateX(-50%);
+  padding: 0 calc(4 * var(--u));
+  font-family: var(--font-ui);
+  font-size: calc(11 * var(--u));
+  font-weight: 800;
+  line-height: 1.35;
+  color: #ffe9b8;
+  background: rgba(24, 18, 12, 0.92);
+  border: 1px solid rgba(200, 170, 90, 0.6);
+  border-radius: calc(7 * var(--u));
+  white-space: nowrap;
+  pointer-events: none;
+  animation: qb-tally-bump 220ms ease-out;
+}
+@keyframes qb-tally-bump {
+  0% { transform: translateX(-50%) scale(1.35); }
+  100% { transform: translateX(-50%) scale(1); }
+}

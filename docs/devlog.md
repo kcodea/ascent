@@ -48,6 +48,41 @@ Verified: 37 unit tests over the two pure modules (up from 21), including a symm
 ripple group holds units at exactly ONE distance from the subject — the property the bug violated — and
 sign/decay tests over the shake extrema. Full gate green: typecheck (pkgs + web), lint (0 errors), 3752
 tests, `build:web`.
+## 2026-08-03 — Baal + Rune of Baal, live rune meters, and an art batch
+
+- **Baal** (`dw_baal`) — Dwarf/Demon **8/7 at Tier 6**, forge-only (`token: true`, reachable only through
+  Rune of Baal, same shape as Brill and Mykel). "When you **consume** a minion, give Shop minions **+2/+2**
+  this turn and get an **Ale**." Two effects on one `onConsume` trigger; the Ale half needed no new factory
+  because `grantRandomAle` is deliberately trigger-agnostic.
+- **The shop buff lasts the SHOP PHASE, not the current offers** (owner clarification mid-build: "if I
+  consume 2 minions and roll, the shop retains the +4/+4 until the shop phase ends"). The first cut stamped
+  each offer with `addOfferBuff`, which a single reroll would have wiped — a roll mints brand-new offers.
+  Rebuilt as `shopTurnBonus`, a TURN-SCOPED twin of `tavernBuyBonus`: applied at BUY time by `offerBuyStats`,
+  so it automatically covers offers that didn't exist when the buff was granted, accumulates across consumes,
+  and is cleared at turn start so it can never leak into a later shop the way the run-wide channel would.
+  Not Fodder-excluded, unlike the Staff's bonus — that exclusion exists only because Fodder takes the Staff
+  through a run-wide enchant Baal doesn't have.
+- **Rune of Baal** — Epic, cost 6, set-2 only, `Get a Baal`, with `previewCards` so the forge hover shows it.
+- **Live rune meters** (owner ask: "make sure our runes/quests all have tally trackers like the avenge
+  tracker — this should always show x/10g"). A rune that fires on a threshold was previously silent about
+  progress, so its payout read as random. `runeThresholds` entries now record the `sourceId` of the rune that
+  armed them (several can be held at once, so a flat list couldn't say which belonged to which), and
+  `runeTally()` turns that into `4/10g` on the badge — plus the two runes that keep their own counters
+  outside that list (Spellslinging's Gold drip, the Summit's shop count). A `oncePerTurn` rune that already
+  paid shows full rather than a misleading fresh 0. Quests are untouched: their objective progress is already
+  rendered on the pending badge.
+- **Art** — Baal, Training Dummy (the Decoy Sigil body), Rune of Baal, and the re-wired Copycat spell.
+
+**One art file could not be wired, and I did not guess.** `Quests/CopyCat.png` matches no quest — there is no
+Copycat quest in the roster; the only art-less Copycat entity is the RUNE of Copycat. Wiring a rune from a
+file sitting in the Quests folder is exactly the silent mis-assignment the strict-name-match rule exists to
+prevent, so it stays unwired pending the owner's call (see the PR).
+
+**Verified live**: a badge with an armed Gemspam meter renders `4/10g`. New `baalAndTally.test.ts` (6 tests)
+covers Baal's stat line + forge-only flag, the rune's shape, the consume paying both halves, **the buff
+surviving a reroll and stacking to +4/+4**, the run-wide channel staying untouched, and the buff expiring
+with the turn. The Dwarf roster pin moved 24 → 25. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3753 tests ✓,
+`build:web` ✓, harness determinism ✓.
 
 ## 2026-08-03 — the `react` layer: the card itself moves
 

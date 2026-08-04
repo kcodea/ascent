@@ -311,6 +311,30 @@ export const SET2_DWARF_TOKENS: CardDef[] = [
  */
 export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
   {
+    // Dwarf/Demon — the two set-2 economies in one body: the Demon side eats, and each meal pays out on the
+    // DWARF side (a fatter shop row + an Ale). Forge-only, like High King Mykel above: reachable through
+    // Rune of Baal and nowhere else, so `token: true` keeps it out of the drawable pool.
+    //
+    // "for this turn" is the offer buff, not the run-wide tavern bonus — see `onConsumeBuffShopOffers`.
+    id: 'dw_baal',
+    name: 'Baal',
+    tribe: 'dwarf',
+    tribe2: 'demon',
+    tier: 6,
+    attack: 8,
+    health: 7,
+    keywords: [],
+    token: true, // forge-only: Source = Rune of Baal
+    effects: [
+      { on: 'onConsume', do: 'onConsumeBuffShopOffers', params: { attack: 2, health: 2 } },
+      // `grantRandomAle` is deliberately trigger-agnostic (it already serves Shout / End of Turn / thresholds),
+      // so the consume moment needs no new factory for the Ale half.
+      { on: 'onConsume', do: 'grantRandomAle', params: { count: 1 } },
+    ],
+    text: 'When you **consume** a minion, give **Shop** minions **+2/+2** this turn and get an **Ale**.',
+    goldenText: 'When you **consume** a minion, give **Shop** minions **+4/+4** this turn and get **2 Ales**.',
+  },
+  {
     id: 'dw_brill',
     name: 'Dwarf King, Brill',
     tribe: 'dwarf',

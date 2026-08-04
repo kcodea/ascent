@@ -440,6 +440,10 @@ export interface RunState {
    *  Merchant's Chorus). An ARRAY, so several can be held at once and each keeps its own banked remainder.
    *  `usedThisTurn` backs `oncePerTurn`; it resets with the other per-turn tallies. */
   runeThresholds?: {
+    /** The rune/quest id that armed this meter. Carried so the HUD can put a live `tick/per` tally on that
+     *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
+     *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
+    sourceId?: string;
     meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout'; per: number; tick: number;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -447,6 +451,11 @@ export interface RunState {
     buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
     oncePerTurn?: boolean; usedThisTurn?: boolean;
   }[];
+  /** Baal — a THIS-TURN shop buff. The run-wide twin is `tavernBuyBonus`; this one is wiped at the start of
+   *  every turn, so the buff lasts the whole shop phase (surviving rerolls, which mint fresh offers) and
+   *  expires when the phase does. Applied at BUY time by `offerBuyStats`, exactly like the run-wide bonus —
+   *  which is what makes it cover offers that didn't exist when the buff was granted. */
+  shopTurnBonus?: { atk: number; hp: number };
   /** Rune of the Brokerage: Ruby Brokers ignore their per-turn cap. */
   runeBrokerage?: boolean;
   /** Rune of the Shared Table: each Ale cast buffs one friendly minion of every type. */

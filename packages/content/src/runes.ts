@@ -917,6 +917,18 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
+    // Owner add 2026-08-03. Same shape as the other forge-only body grants (Brill, Mykel): the minion is
+    // `token: true` so it exists ONLY through this rune.
+    id: 'rune_baal',
+    name: 'Rune of Baal',
+    cost: 6,
+    epic: true,
+    text: 'Get a **Baal**.',
+    previewCards: ['dw_baal'], // text names it — the forge hover shows the card
+    reward: { kind: 'grant', cards: ['dw_baal'] },
+    sets: ['set2'], // Dwarf/Demon + Ales — set-2 mechanics
+  },
+  {
     id: 'rune_brisbane',
     name: 'Rune of Mykel',
     cost: 4,

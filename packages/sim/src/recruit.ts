@@ -1711,6 +1711,43 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Set 2 — Faultline Scrapper / Alchemist Brisbane (Echo, RECRUIT half): raise the run's Ruby strength.
+   *
+   *  The COMBAT half has always existed; this one was missing, so an Echo triggered in the SHOP — Funeral on
+   *  Loan, Ossuary Rite, Deathsayer, Rune of the Reliquary, a Gravetwin copy — silently did nothing (owner
+   *  report 2026-08-03). Delegates to `rubyStatGain` so the two stay identical by construction rather than by
+   *  someone remembering to keep them in step. The Ruby-power flourish needs no wiring: the reducer derives it
+   *  from the `rubyBonus` delta, so it fires the moment this does. */
+  deathrattleRubyStatGain: (ctx, self, params, payload) => {
+    RECRUIT_FACTORIES.rubyStatGain?.(ctx, self, params, payload);
+  },
+
+  /** Set 2 — Geode Guardian (Echo, RECRUIT half): summon `count` Gemheart Golems with Taunt and play `rubies`
+   *  Rubies on each (× golden on the RUBIES, never the count — owner was explicit that a Gilded copy still
+   *  summons two). Same missing-recruit-half class as above: a borrowed Geode Guardian summoned nothing.
+   *
+   *  The Rubies go through `addBuff` + `fireOnRubyPlayed`, exactly like a hand-cast Ruby, so the golems' own
+   *  on-Ruby watchers see them AND the reducer's Ruby-landed cue detonates on them (it measures the 'Ruby'
+   *  buff-count delta, and a freshly summoned body counts from 0 — which is correct, those Rubies just landed). */
+  deathrattleSummonGolemsWithRuby: (ctx, self, params) => {
+    const golem = CARD_INDEX['gemheart-shard'];
+    if (!golem) return;
+    const state = ctx.state;
+    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const per = num(params.rubies, 1) * gold(self);
+    const a = (1 + rb.attack) * per;
+    const h = (1 + rb.health) * per;
+    for (let i = 0; i < num(params.count, 2); i++) {
+      const before = state.board.length;
+      const summoned = ctx.summon(golem, self.uid);
+      if (state.board.length === before) break; // board full
+      const body = summoned ?? state.board[state.board.length - 1];
+      if (!body) break;
+      if (!body.keywords.includes('T')) body.keywords = [...body.keywords, 'T'];
+      if (a > 0 || h > 0) { addBuff(body, 'Ruby', a, h); fireOnRubyPlayed(state, body, a, h); }
+    }
+  },
+
   rubyStatGain: (ctx, self, params) => {
     const a = num(params.attack) * gold(self);
     const h = num(params.health) * gold(self);

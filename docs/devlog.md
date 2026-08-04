@@ -1,5 +1,51 @@
 # ASCENT — development log
 
+## 2026-08-03 — Spell fizzle audit: an unusable spell is now refused, not eaten
+
+Owner ask: "take a pass at spells that can be used in a way that fails — i.e. Deep Delve Writ with no dwarves
+in shop. If a spell is unusable, it should FAIL to be used."
+
+**The audit was empirical, not a read-through.** A sweep casts every spell into a deliberately barren state
+(no board, empty shop, no combat history) and compares the whole run state before/after, filtering only the
+bookkeeping that moves on EVERY cast (spell counters, `playedThisTurn`, FX seqs). Anything consumed whose
+state signature is unchanged did nothing. Two false-positive sources had to be fixed before the numbers meant
+anything: `hand` is only PARTLY noise (the cast card leaving is expected, but cards ARRIVING is the entire
+effect of the economy spells), and the first noise list was missing eight keys, which hid every finding.
+
+**Found: 13 untargeted + 2 targeted spells consumed for nothing.**
+
+```
+growth  mend  undeadarmy  lasso  goldentouch  sparkplug (Waking Rift)  insurancepolicy
+elevationritual  rivalsreflection  farseersreport  rubyexcavation  deepdelvewrit  ironcladreq
+wo_champion (Champion's Ale)        + ossuaryrite (no Echo)   tribeschoice (neutral target)
+```
+
+**The fix is one declarative module, not more `if`s.** `spellFizzle.ts` holds a table of per-effect "would
+this accomplish nothing?" predicates keyed on the effect's `do` id — the same lock-step-with-the-factories
+pattern `stepProgress` and the text helpers use. The reducer consults it once on each cast path. It errs
+toward CASTING: an effect with no rule, or any effect that would do something, allows the cast, so a missing
+rule degrades to today's behaviour rather than to a wrongly-refused spell. Scope is deliberately "unusable",
+never "unwise" — Growth on one minion instead of seven still casts.
+
+**Two of my own rules were wrong, caught by existing tests:**
+- **Ironclad Requisition** reads its tribe from the OPPOSITE side to Deep Delve Writ: `perTribe` means "one
+  steal per friendly Dwarf ON YOUR BOARD" (what it takes is unrestricted), while Writ's `tribe` means "steal a
+  Dwarf FROM THE SHOP". My first draft checked the shop for both, which would have refused Ironclad whenever
+  the tavern had no Dwarf — with three on your board.
+- **Feed the Alpha / Fodder Treatment** are NOT no-ops: with no recipient they still sell the target and pay
+  its Gold, and an existing ruling pins exactly that. Removed — bad play, not impossible play.
+
+**Two existing tests encoded the OLD contract** ("fizzles gracefully" meaning "consumed without crashing")
+and were flipped to the new ruling, with the date and reason recorded in place: Champion's Ale on an empty
+board and Lasso on an empty shop are both KEPT now. A third (Rune of Action) cast Growth on an empty board
+incidentally; it gained a board minion so it still pins what it was actually about.
+
+**Verified** — `spellFizzle.test.ts`: six named cases, each asserting BOTH halves (fizzles when it can't
+work, and still casts when it can — a guard that never lets the spell cast is worse than no guard), plus
+**the audit sweep itself retained as a regression guard**. It re-derives the finding rather than trusting a
+list, so a newly-added spell that can whiff fails there instead of shipping. Gates: typecheck ✓, lint ✓
+(7 pre-existing), 3782 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-03 — react: the one-sided ripple, an `order` axis, and three more motion channels
 
 Owner report from live authoring: *"the neighbor effect seems to only be affecting the unit to the left of

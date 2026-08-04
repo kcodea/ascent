@@ -3035,7 +3035,7 @@ describe('run loop (@game/sim)', () => {
     expect(def.tribe === 'undead' || def.tribe2 === 'undead').toBe(true); // an Undead
   });
 
-  it('Lasso steals a random minion from the tavern into the hand (fizzles on an empty shop)', () => {
+  it('Lasso steals a random minion from the tavern into the hand (KEPT on an empty shop)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, board: [],
       shop: [{ uid: 'o1', cardId: 'alley' }, { uid: 'o2', cardId: 'alley' }],
@@ -3045,13 +3045,15 @@ describe('run loop (@game/sim)', () => {
     expect(s.shop.length).toBe(1); // one offer was removed from the tavern
     expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true); // …and landed in the hand (free)
     expect(s.hand.some((c) => c.cardId === 'lasso')).toBe(false); // the spell is consumed
-    // Empty shop → the spell fizzles gracefully (consumed, nothing stolen).
+    // Empty shop → the spell is REFUSED and kept in hand. This flipped on 2026-08-03 (owner: "if a spell is
+    // unusable, it should fail to be used"): it used to be consumed for nothing, which is never a play anyone
+    // would choose. See `spellFizzle.ts`.
     let empty: RunState = {
       ...createRun(1), embers: 0, board: [], shop: [],
       hand: [{ uid: 'sp', cardId: 'lasso', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     empty = reduce(empty, { type: 'play', uid: 'sp' });
-    expect(empty.hand.some((c) => c.cardId === 'lasso')).toBe(false); // consumed, no crash
+    expect(empty.hand.some((c) => c.cardId === 'lasso')).toBe(true); // kept — nothing to steal
   });
 
   it("Warden's Aegis gives a board minion a permanent Ward for 4 Gold, spending the wave charge", () => {

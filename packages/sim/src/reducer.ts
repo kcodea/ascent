@@ -1266,6 +1266,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Authoritative — the aim UI mirrors it, but the reducer is what actually decides.
       const ptDef = CARD_INDEX[pt.cardId];
       if ((ptDef?.targetNotSelf || ptDef?.targetTribe) && target.uid === card.uid) return state;
+      // A tribe-restricted Battlecry may only resolve onto that tribe. This guard was MISSING: the aim UI
+      // filtered the pick, but the reducer accepted whatever uid it was handed — so an off-tribe target was
+      // fully resolved (an Appetite Agent could feed a Beast). Exactly the hole Cupcakes had on the SPELL
+      // path (fixed 2026-08-03); this is the Battlecry twin, and it covers all five `targetTribe` cards, not
+      // just the reported one. Refused outright: the card stays where it is and nothing resolves.
+      if (ptDef?.targetTribe && !isTribe(target, ptDef.targetTribe)) return state;
       // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target; a
       // normal targeted Battlecry (Toxin Tender) re-fires the card's own onPlay effects.
       const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;

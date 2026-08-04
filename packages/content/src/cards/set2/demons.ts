@@ -60,7 +60,9 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Flurry. Echo:** summon **2 Imps** and give them **+2/+4**.',
   },
   {
-    // The eater is the TARGET, not this card — so it can feed whichever body you want to grow.
+    // The eater is the TARGET, not this card — so it can feed whichever Demon you want to grow.
+    // Owner ruling 2026-08-03: DEMONS ONLY. `targetTribe` is enforced by the reducer on every Battlecry
+    // target path and mirrored by the aim UI, so an off-tribe pick is refused rather than silently eaten.
     id: 'dm_agent',
     name: 'Appetite Agent',
     tribe: 'demon',
@@ -69,9 +71,10 @@ export const SET2_DEMONS: CardDef[] = [
     health: 2,
     keywords: [],
     target: 'friendly',
+    targetTribe: 'demon',
     effects: [{ on: 'onPlay', do: 'battlecryTargetConsumesShop', params: { count: 1 } }],
-    text: '**Shout:** target a minion. It Consumes a minion in the Shop.',
-    goldenText: '**Shout:** target a minion. It Consumes **2** minions in the Shop.',
+    text: '**Shout:** target a friendly **Demon**. It Consumes a minion in the Shop.',
+    goldenText: '**Shout:** target a friendly **Demon**. It Consumes **2** minions in the Shop.',
   },
   {
     id: 'dm_hungerling',

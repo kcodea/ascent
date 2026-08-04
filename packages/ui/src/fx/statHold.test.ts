@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   HOLD_TTL_MS, anyStatHeld, heldFor, holdStat, releaseAllStats, releaseStat, statHoldKey,
-  subscribeStatHolds,
+  revealStat, subscribeStatHolds,
 } from './statHold';
 
 afterEach(() => {
@@ -145,5 +145,73 @@ describe('the render subscription', () => {
     releaseStat('never-held');
     expect(fn).not.toHaveBeenCalled();
     off();
+  });
+});
+
+describe('rolling the counter', () => {
+  it('shows the OLD number at 0 revealed', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 0);
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });
+  });
+
+  it('steps through whole numbers as it rolls', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 0.25);
+    expect(heldFor('a')).toEqual({ attack: 3, health: 0 });
+    revealStat('a', 0.5);
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+    revealStat('a', 0.75);
+    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });
+  });
+
+  it('shows the NEW number at 1, leaving no entry behind', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 1);
+    expect(heldFor('a')).toBeNull();
+    expect(anyStatHeld()).toBe(false);
+  });
+
+  it('is MONOTONIC — a counter never ticks backwards', () => {
+    // Two effects can be mid-flight on one unit. A number that went forward then back would read as a bug
+    // in the game's arithmetic, not as an animation.
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 0.75);
+    revealStat('a', 0.25);
+    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });
+  });
+
+  it('rolls a DEBUFF down as happily as a buff up', () => {
+    holdStat('a', { attack: -4, health: 0 });
+    revealStat('a', 0.5);
+    expect(heldFor('a')).toEqual({ attack: -2, health: 0 });
+  });
+
+  it('reads as fully revealed once rounding leaves nothing — a +1 never sticks mid-step', () => {
+    holdStat('a', { attack: 1, health: 0 });
+    revealStat('a', 0.6);
+    expect(heldFor('a')).toBeNull();
+  });
+
+  it('clamps out-of-range progress instead of inverting the roll', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', -5);
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });
+    revealStat('a', 99);
+    expect(heldFor('a')).toBeNull();
+  });
+
+  it('a NEW delta mid-roll restarts the reveal rather than carrying the fraction', () => {
+    // The badge is now behind by the full new total; keeping the old fraction would silently reveal part of
+    // a change nobody animated.
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 0.5);
+    holdStat('a', { attack: 4, health: 0 });
+    expect(heldFor('a')).toEqual({ attack: 6, health: 0 }); // 2 still owed + 4 new, none revealed
+  });
+
+  it('is a no-op for a unit with nothing held', () => {
+    expect(() => revealStat('nobody', 0.5)).not.toThrow();
+    expect(heldFor('nobody')).toBeNull();
   });
 });

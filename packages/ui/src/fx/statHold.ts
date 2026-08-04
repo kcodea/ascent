@@ -34,6 +34,13 @@ export interface StatDelta {
 }
 
 interface Hold extends StatDelta {
+  /**
+   * How much of the withheld change has been REVEALED, 0..1. 0 shows the old number, 1 shows the new one,
+   * and anything between is the counter mid-roll.
+   *
+   * This is what turns a hold from a switch into a dial. A release is just `reveal(1)`; a spin walks it.
+   */
+  revealed: number;
   /** `performance.now()` past which this hold is ignored. See the header: an unclaimed hold must not be
    *  permanent, so every hold expires on its own. */
   until: number;
@@ -81,9 +88,17 @@ export function holdStat(uid: string, delta: Partial<StatDelta>, ttlMs = HOLD_TT
   if (attack === 0 && health === 0) return;
   const prev = holds.get(uid);
   const live = prev !== undefined && prev.until > now();
+  // Carry the UNREVEALED remainder, not the whole previous delta. A hold half-way through its roll has
+  // already shown half its change; adding the full old delta back would put the badge further behind than
+  // it ever was — printing a number the unit never had. (Caught by test, not by eye.)
+  const owedAttack = live ? Math.round(prev.attack * (1 - prev.revealed)) : 0;
+  const owedHealth = live ? Math.round(prev.health * (1 - prev.revealed)) : 0;
   holds.set(uid, {
-    attack: (live ? prev.attack : 0) + attack,
-    health: (live ? prev.health : 0) + health,
+    attack: owedAttack + attack,
+    health: owedHealth + health,
+    // The reveal restarts against the new total: keeping the old fraction would silently reveal part of a
+    // change nobody animated.
+    revealed: 0,
     until: now() + ttlMs,
   });
   emit();
@@ -107,6 +122,24 @@ function now(): number {
 }
 
 /**
+ * Reveal `progress` (0..1) of a unit's withheld change — the counter mid-roll.
+ *
+ * MONOTONIC: a lower progress than the hold already has is ignored. Two effects can be mid-flight on one
+ * unit (a gem cascade overlapping a combat buff), and a counter that ticked forward and then jumped back
+ * would read as a bug in the game's arithmetic rather than as an animation. Reaching 1 releases outright,
+ * so a completed spin leaves no entry behind.
+ */
+export function revealStat(uid: string, progress: number): void {
+  const h = holds.get(uid);
+  if (h === undefined) return;
+  const p = Math.max(0, Math.min(1, progress));
+  if (p <= h.revealed) return;
+  if (p >= 1) { releaseStat(uid); return; }
+  h.revealed = p;
+  emit();
+}
+
+/**
  * What is currently withheld for a unit, or `null`.
  *
  * Expired holds read as absent AND are swept here, so a unit that scrolled off screen (or a def that never
@@ -120,7 +153,12 @@ export function heldFor(uid: string): StatDelta | null {
     holds.delete(uid);
     return null;
   }
-  return { attack: h.attack, health: h.health };
+  // What is STILL withheld: the part not yet revealed, rounded so the badge only ever prints whole numbers
+  // and steps through them one at a time. A hold fully revealed by rounding reads as absent, which is what
+  // stops a 1-point buff from sitting visibly stuck at 0.4 revealed.
+  const attack = Math.round(h.attack * (1 - h.revealed));
+  const health = Math.round(h.health * (1 - h.revealed));
+  return attack === 0 && health === 0 ? null : { attack, health };
 }
 
 /** True when anything at all is held — lets a render path skip the per-card lookup in the common case. */

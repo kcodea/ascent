@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-08-04 — the number ROLLS to its new value
+
+Owner, once the hold existed: *"a spinning counter that very quickly spins up or down to the new number
+rather than instantly displaying the new one."* The hold made the number land on the effect's clock; this
+makes it *travel*.
+
+A hold stops being a switch and becomes a dial. It gains `revealed` (0..1): 0 shows the old number, 1 shows
+the new one, and anything between is the counter mid-roll. A release is just `reveal(1)`. The react layer's
+new **Roll** slider walks it — from the moment the carrying layer delivers, over the roll's own duration, on
+the player's clock, so combat speed and scrubbing carry it for free exactly like the motion does.
+
+Named `roll`, not `spin`: `spin` was already the rotation param, and an odometer is the better metaphor
+anyway — it counts THROUGH the values between old and new rather than cycling arbitrary digits. Every number
+the badge prints during the roll is a number the unit genuinely passes through. Given the day this system
+has had, inventing digits that were never true is not a trade worth making for a slot-machine look.
+
+Three properties that matter more than the animation:
+
+- **Monotonic.** A lower progress than a hold already has is ignored. Two effects can be mid-flight on one
+  unit, and a counter that ticked forward then back reads as a bug in the game's arithmetic, not as an
+  animation.
+- **Rounded to whole numbers**, and a hold that rounds to nothing reads as absent — which is what stops a
+  +1 buff sitting visibly stuck at 0.4 revealed.
+- **Re-renders once per DIGIT, not per frame.** `statHoldKey` is derived from the rounded remainder, so
+  `useSyncExternalStore` bails out on the frames between steps. Driving the reveal every frame costs a
+  comparison, not a render.
+
+**A bug the tests caught and eyes would not have.** Accumulating a new delta onto a partly-revealed hold
+carried the FULL previous delta rather than the unrevealed remainder — so a second buff landing mid-roll
+would have put the badge further behind than it ever was, printing a number the unit never had. The test
+that found it asserts the arithmetic (2 owed + 4 new = 6, not 8); nothing about it is visible in a 300ms
+animation.
+
+Verified: 27 tests over the store (9 new for the roll), including monotonicity, debuffs rolling down, the
++1-never-sticks rounding case, and out-of-range progress clamping rather than inverting. Full gate:
+typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 ## 2026-08-04 — one effect, two rhythms: per-layer `stagger`
 
 The second gap the owner's gem walkthrough exposed, and the sharpest: *"I want the volley effect to have a

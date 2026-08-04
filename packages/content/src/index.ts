@@ -79,6 +79,25 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   endOfTurnGetRubies: 'rubyId',                // Wardstone Jeweler -> Warding Ruby
 };
 
+/**
+ * Effects that name a card **in their code** rather than in their params — the token id is a string literal
+ * inside the factory, so there is no param for `CARD_REF_EFFECTS` to read and the hover preview had no way to
+ * find it. A SECOND class from the same defect family, and invisible to the param-map sweep that caught the
+ * first (owner report 2026-08-04: Imp Wrangler's "summon an Imp" showed no Imp on hover).
+ *
+ * Declared rather than parsed out of the factory source: the map is the contract, and `refPreview.test.ts`
+ * checks it against the literals actually present in the factory bodies, so adding a hardcoded summon without
+ * listing it here fails the build.
+ */
+const IMPLICIT_REF_EFFECTS: Record<string, readonly string[]> = {
+  summonImps: ['impscrap'],                      // Imp Wrangler, Errand Fiend
+  deathrattleImpsOverflowGrant: ['impscrap'],    // Legion Shepherd
+  onImpDeathSummonImp: ['impscrap'],
+  onImpAttackSummonCopy: ['impscrap'],           // Malphas, Lord of Want
+  scFillWithImpsAndBuff: ['impscrap'],
+  deathrattleSummonGolemsWithRuby: ['gemheart-shard'], // Geode Guardian
+};
+
 /** Every card id a card names in its effects — the tokens it summons (`tokenId`), the cards it grants /
  *  transforms into (`spellCastTransform`, `avengeGrantSpell`, `deathrattleGrantCardToHand`, …), and its
  *  `ascendInto` target. Powers the UI's hover-preview of referenced cards so any card that mentions another card
@@ -93,6 +112,7 @@ export function referencedCardIds(card: CardDef): string[] {
     if (TOKEN_REF_EFFECTS.has(effect.do) && typeof params.tokenId === 'string') ids.add(params.tokenId);
     const cardKey = CARD_REF_EFFECTS[effect.do];
     if (cardKey && typeof params[cardKey] === 'string') ids.add(params[cardKey] as string);
+    for (const id of IMPLICIT_REF_EFFECTS[effect.do] ?? []) ids.add(id);
   }
   ids.delete(card.id);
   return [...ids];

@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-04 — Hover preview: the token named in CODE; Rune of Packcraft reworked
+
+**Imp Wrangler showed no Imp on hover** (owner report). A SECOND class of the preview defect, invisible to the
+sweep that caught the first: `referencedCardIds` finds a referenced card by reading a PARAM, and `summonImps`
+names its token as a string literal inside the factory (`CARD_INDEX['impscrap']`). There is no param to read,
+so the param sweep passed the whole time while the promise never rendered.
+
+Added `IMPLICIT_REF_EFFECTS` — factory id → the card ids it hardcodes — folded into `referencedCardIds`
+alongside the param map. Five cards were affected: **Imp Wrangler**, **Errand Fiend**, **Legion Shepherd**,
+**Malphas, Lord of Want**, **Geode Guardian**.
+
+The map is DECLARED, not parsed at runtime, and `refPreview.test.ts` now reads `factories.ts` and checks the
+declaration against the literals actually in the factory bodies — so a new hardcoded summon that isn't listed
+fails the build. The sweep asserts the file it reads is non-empty: if `factories.ts` moves, this must fail
+loudly rather than find nothing and go green.
+
+**Rune of Packcraft** (owner): *"should give +6/+6 to minions summoned in combat."* Was "whenever you summon a
+Beast in combat, give your Beasts +2/+2". Now the summoned BODY itself, any tribe. Moved off the `onSummon`
+bus and onto the summon SITE beside Rune of the Hatchery — the bus shape structurally cannot express it, since
+by the time `onSummon` fires the body is already snapshotted. At the summon site the grant lands before the
+snapshot (the replay shows the real body, not the base card) and before the token can attack, which matters
+for anything that strikes the instant it lands (a Whelp, a Gemheart Golem under Heart of the Mountain).
+
+**Verified** — the Packcraft test reads stats off the SUMMON event rather than a later buff, diffs against a
+no-rune baseline so it can't pass on a coincidence, and asserts the board is NOT blanket-buffed. The preview
+sweep, run against the un-fixed map, independently names all five cards. Both negative-controlled. Gates:
+typecheck ✓, lint ✓ (7 pre-existing), 3818 tests ✓, `build:web` ✓, harness determinism ✓.
+
 ## 2026-08-04 — Scoped the effect cross-phase gap (spec only, no code)
 
 Owner ask after the Dawnclaw batch: *"all effects should be wired to work in combat and shop as a baseline up

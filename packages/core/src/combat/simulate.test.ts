@@ -3812,18 +3812,39 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     expect(withFC.events.some((ev) => ev.type === 'attack')).toBe(true);
   });
 
-  it('Packcraft: summoning a BEAST buffs your Beasts +2/+2 — and a non-Beast summon does not', () => {
-    // Mama Pup dies → its Deathrattle summons 2 Pups (Beasts) → Packcraft fires → Beasts get +1/+1.
+  it('Packcraft: a body summoned in combat comes in +6/+6, whatever its tribe', () => {
+    // Owner rework 2026-08-04: was "summon a BEAST → your Beasts +2/+2"; it is now the summoned body itself,
+    // any tribe. Mama Pup dies → its Echo summons 2 Pups (base 1/1) → each must LAND at 7/7.
     const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, { cardId: 'pack', attack: 1, health: 1 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
+    const base = simMods(p, e, 1, {});
     const r = simMods(p, e, 1, { runePackcraft: true });
-    const packBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft');
-    expect(packBuffs.length).toBeGreaterThan(0);
-    expect(packBuffs.every((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true); // +2/+2 (owner sheet 2026-07-31)
-    // Spearline summons a Spear Warden (NOT a Beast) — that summon alone must not fire Packcraft.
+    const summons = (res: typeof r) => res.events.filter((ev) => ev.type === 'summon');
+    expect(summons(base).length, 'fixture must actually summon something').toBeGreaterThan(0);
+    expect(summons(r).length).toBe(summons(base).length);
+    // The stats are read off the SUMMON event, not a later buff — the grant has to be in place before the
+    // body is snapshotted, or the replay shows the base card and an instantly-attacking token swings small.
+    for (const [i, ev] of summons(r).entries()) {
+      const was = summons(base)[i]!;
+      if (ev.type !== 'summon' || was.type !== 'summon') continue;
+      expect(ev.minion.attack, 'summoned body did not enter with +6 Attack').toBe(was.minion.attack + 6);
+      expect(ev.minion.health, 'summoned body did not enter with +6 Health').toBe(was.minion.health + 6);
+    }
+
+    // A NON-Beast summon now qualifies too — Spearline's Spear Warden was excluded by the old tribe gate.
     const p2: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, ...Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }))];
+    const b2 = simMods(p2, e, 1, { runeSpearline: true });
     const r2 = simMods(p2, e, 1, { runeSpearline: true, runePackcraft: true });
-    expect(r2.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft')).toBe(false);
+    const s2 = r2.events.filter((ev) => ev.type === 'summon');
+    const sb2 = b2.events.filter((ev) => ev.type === 'summon');
+    expect(sb2.length, 'Spearline fixture must summon a Spear Warden').toBeGreaterThan(0);
+    const first = s2[0], firstBase = sb2[0];
+    if (first?.type === 'summon' && firstBase?.type === 'summon') {
+      expect(first.minion.attack).toBe(firstBase.minion.attack + 6);
+    }
+
+    // …and the board is NOT blanket-buffed: the pre-existing minions are untouched.
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft')).toBe(false);
   });
 
   it('Inheritance: when the leftmost minion dies, the rightmost gains its stats', () => {

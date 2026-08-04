@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena: scoped into tickets, and two headline risks retired
+
+Owner: *"let's really scope this out so when our weekly lifts we can go to work."* The spec from #852 now
+carries a full ticket breakdown — 0 declaration test → 1 RNG spike → 2 interface + adapters → 3 migrate the 42
+duals → 4 cross-phase dispatch → 5 long tail — each with dependencies, acceptance criteria and the order to
+work inside it.
+
+**Two risks the first draft called load-bearing turned out to be overstated, and I only found that by looking
+properly:**
+- **RNG.** Both phases already use the SAME generator (`makeRng`, mulberry32). The difference is purely how
+  the stream is carried — a cursor on the run vs a threaded instance — which is exactly what an adapter is
+  for. The residual risk narrows to preserving draw order/count per migrated effect: mechanical, and covered
+  by the determinism harness plus ~3,880 tests. The spike stays as Ticket 1, but as confirmation rather than
+  a coin flip.
+- **The buff models.** They differ in BOOKKEEPING, not semantics. Both clamp Attack at 0 and add Health; each
+  then records the event its own way (recruit: source-attributed `buffs[]` + Sergeant's `hpGrantBonus`;
+  combat: `gainMult`, a `buff` event, `statGainByTribe`, `permaGain` for Engraved). A neutral `arena.buff()`
+  is implementable without unifying the two ledgers — which was the expensive part I thought this needed.
+
+**Named the actual Phase-1 worklist:** the 42 effects that already have both halves, listed in full. They are
+almost entirely buff-N-bodies and summon-a-token — the arena's neutral core — which is the strongest evidence
+the abstraction fits.
+
+Also reconciled a number that had moved: both-halves was 40 at first measurement and is 42 now, because #850
+and #851 shipped recruit halves in between. The count goes UP as we hand-fix instances, which is the treadmill
+the document exists to get off; the spec now says to re-measure at Ticket 0 rather than trust the figures.
+
+What stays hard, unchanged: the `core` cannot import `RunState` boundary (the ~160 shop-only factories
+eventually change package, and `recruit.ts` is a 6,324-line collision chokepoint), and per-effect permanence
+becoming an explicit argument rather than a consequence of which file the code sits in.
+
+Docs only — no engine change.
+
 ## 2026-08-04 — Career verdicts: Victory / Top 4 / Defeat
 
 Owner: *"the results should be Victory, Defeat, Top 4, and Top 4 should be a green value as well."*

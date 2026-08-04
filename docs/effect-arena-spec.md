@@ -1,6 +1,6 @@
 # Effect Arena — one implementation per effect, two phases
 
-**Status:** proposed, not started. Scoped 2026-08-04 (owner ask: *"all effects should be wired to work in
+**Status:** scoped and ready to start — see [The build plan](#the-build-plan) for the tickets. Scoped 2026-08-04 (owner ask: *"all effects should be wired to work in
 combat and shop as a baseline up front so that we stop running into issues where something was not built to
 operate in combat"*).
 
@@ -22,7 +22,13 @@ because **nothing in the build knows an effect is missing a phase.**
 
 ## Measured today
 
-285 effect ids are referenced by content. **40 have both halves.** 83 are combat-only, 161 recruit-only.
+285 effect ids are referenced by content. **42 have both halves.** The rest are single-half — roughly 80
+combat-only and 160 recruit-only.
+
+> The both-halves count was **40** when this was first measured on 2026-08-04 and is **42** now. It moved
+> because we shipped recruit halves for the shop-Echo family in the meantime (#850, #851) — i.e. the number
+> goes UP as we hand-fix instances, which is exactly the treadmill this document exists to get off. Re-measure
+> at the start of Ticket 0 rather than trusting these figures.
 
 That split overstates the problem — most single-half effects are correctly single-half (`endOfTurnGetRubies`
 has no combat meaning and nothing will ever dispatch it there). The exposure that matters is per TRIGGER:
@@ -101,56 +107,215 @@ silently absent.
 
 ---
 
-## Phasing
+---
 
-### Phase 0 — make the gap unmergeable (~1 day)
+# The build plan
 
-A build-time test: every `(trigger, do)` pair reachable from content must carry an explicit declaration next
-to its factory — `both` / `combatOnly` / `shopOnly`, with a one-line reason for the narrow ones. Undeclared
-fails CI.
+Scoped in depth 2026-08-04, ready to start. Two risks from the first draft turned out to be **overstated once
+measured** — read "What changed after looking properly" before planning around them.
 
-This fixes nothing. It is still the highest-value day in the plan: **no new instance of this defect can ever
-ship**, and it replaces the estimates in this document with a true inventory. Worth doing whether or not the
-rest happens.
+## Ticket 0 — the declaration test (~1 day) · no dependencies
 
-### Phase 1 — the arena, proven on the drift-prone core (~3–5 days)
+Make the gap unmergeable before changing any behaviour.
 
-Build `EffectArena` + both adapters. Migrate **only** the ~12 effects we have already had to fix twice (the
-Ruby family, the buff family) and **delete** the duplicate implementations. Kills problem (1) where it
-actually bites, and proves the abstraction against the hardest cases before committing to it.
+Every `(trigger, do)` pair reachable from content must carry an explicit phase declaration next to its factory:
 
-### Phase 2 — cross-phase dispatch (~3–5 days)
+```ts
+// packages/core/src/effects/phases.ts   (new — the single registry)
+export type EffectPhase = 'both' | 'combatOnly' | 'shopOnly';
+export const EFFECT_PHASE: Record<string, { phase: EffectPhase; why?: string }> = {
+  deathrattleSummon:    { phase: 'both' },
+  deathrattleDamageAll: { phase: 'combatOnly', why: 'a shop has no enemies' },
+  endOfTurnGetRubies:   { phase: 'shopOnly',   why: 'no end of turn mid-fight' },
+  // …
+};
+```
 
-A shop-side dispatcher able to fire any trigger family against `ShopArena`. This is the design-space unlock:
-Start of Combat in the shop, a shop-phase Rally, Echo-in-shop for free rather than one-off wiring.
+`why` is REQUIRED for the two narrow phases and forbidden for `both` — a narrowing without a stated reason is
+the thing that rots.
 
-### Phase 3 — the long tail, opportunistically
+**Acceptance:**
 
-Migrate a factory when you are already touching its card. **Never big-bang.** There is no deadline on this
-phase and no requirement that it ever completes.
+- A test walks every `do` id used by content and fails on any that is undeclared.
+- A test asserts the declaration matches reality: a `both` id must appear in BOTH `FACTORIES` and
+  `RECRUIT_FACTORIES`; a `combatOnly` id must be absent from `RECRUIT_FACTORIES`, and vice versa. This is what
+  makes the registry a fact rather than a comment.
+- The test asserts **its own instrument is alive** (non-empty id list, non-empty registries). That is the
+  `tallyCoverage.test.ts` lesson: a sweep that reads the wrong field reports zero findings and looks like a
+  pass. It has now happened twice on this codebase.
+
+**This ticket pays for itself even if nothing below happens.** It converts "silently inert" into "cannot
+merge", and it replaces the estimates in this document with a true inventory.
 
 ---
 
-## Risks — read before committing
+## Ticket 1 — the RNG spike (~1 day) · gates Ticket 2
 
-- **Determinism is the real risk.** Recruit advances `state.rngCursor`; combat threads a forked `Rng`. The
-  arena must abstract RNG *without changing draw order*, or every golden test and every pinned replay breaks
-  at once. **Spike this for a day before starting Phase 1** — if it doesn't come back clean, the plan needs
-  rethinking, not pushing through.
-- **The buff models genuinely differ.** Recruit's `buffs[]` is source-attributed for the inspect-panel
-  breakdown; combat carries `permaGain` / `rubyGain` / temporary. A neutral `buff()` has to preserve both, and
-  that is the fiddly part of Phase 1.
-- **Package boundary churn.** `core` cannot import `RunState` (sim depends on core, not the reverse), so
-  effect bodies belong in core — meaning the ~160 shop-only factories now in `sim/src/recruit.ts` eventually
-  move packages. That is real churn on one of the two hottest files in the repo, and it argues hard for
-  Phase 3 staying opportunistic.
-- **`recruit.ts` is a declared collision chokepoint** (see CLAUDE.md). Any phase touching it needs the other
-  dev's sessions serialized around it.
+The one thing worth proving before building anything.
 
-## Recommendation
+Both phases already use the SAME generator (`makeRng`, mulberry32). They differ only in how the stream is
+carried:
 
-Phase 0 now, regardless of the rest. Then the one-day RNG spike; if it is clean, Phases 1 and 2 are worth it
-and deliver the design space asked for. Phase 3 stays permanently opportunistic.
+| | how the stream is carried |
+|---|---|
+| recruit | `makeRng(state.rngCursor)` → draw → `state.rngCursor = rng.state()` — a cursor on the run, so it survives save/restore |
+| combat | one `Rng` instance threaded through the simulation, `fork()`ed where a sub-stream is wanted |
 
-The literal reading of the ask — write both halves for all 285 — is **not** recommended, for the reasons in
-"why that is the wrong fix" above.
+So the abstraction is small: `arena.rng(): Rng`. The ShopArena adapter builds one from the cursor and writes it
+back; the CombatArena adapter hands over the live instance.
+
+**The real risk is not the algorithm — it is draw ORDER and draw COUNT.** A migrated effect that draws a
+different number of times, or in a different order, shifts every downstream pick, which breaks pinned replays,
+`servedBoards` and the golden tests.
+
+**Spike deliverable.** Migrate ONE effect that actually rolls (`overflowBuffRandom` or
+`deathrattleGrantWardRandom` — `deathrattleSummon` picks nothing) to a prototype arena, then prove all three:
+
+1. `npm run harness` determinism still passes;
+2. the full suite passes with NO golden-file updates;
+3. a replay exported BEFORE the change re-imports and replays identically after it.
+
+**If (3) fails, stop and reconsider.** The fallback is to keep RNG out of the arena entirely — effects take
+their picks through a callback the caller owns — which is uglier but preserves the streams exactly.
+
+---
+
+## Ticket 2 — the arena interface + two adapters (~2 days) · needs Ticket 1
+
+No migrations yet. Build the seam and prove it compiles against both worlds.
+
+```ts
+// packages/core/src/effects/arena.ts   (new)
+export interface EffectArena {
+  readonly phase: 'combat' | 'shop';
+  self: ArenaBody;
+  friends(): ArenaBody[];                    // living, in board order
+  buff(t: ArenaBody, atk: number, hp: number, source: string): void;
+  grantKeyword(t: ArenaBody, kw: Keyword): void;
+  summon(card: CardDef, near?: ArenaBody): ArenaBody | undefined;
+  destroy(t: ArenaBody): void;
+  getCard(id: string): CardDef | undefined;
+  rng(): Rng;
+  announce(ev: ArenaEvent): void;            // a log event in combat, a no-op in the shop
+
+  combat?: CombatOnlyVerbs;                  // damage, enemies, attack order, death
+  shop?: ShopOnlyVerbs;                      // gold, hand, shop offers, tier, run flags
+}
+```
+
+`ArenaBody` is the narrow view both `Minion` (72 fields) and `BoardCard` (51) already satisfy:
+`{ uid, cardId, tribe, tribe2, attack, health, keywords, golden }`. **Neither type changes** — the adapters
+wrap them.
+
+**The capability probes are the load-bearing design choice.** An effect that needs a shop mid-fight writes one
+explicit, greppable line — `if (!arena.shop) return arena.defer();` — instead of being silently absent from a
+registry, which is the entire defect this document exists for.
+
+**Acceptance:** both adapters implement the interface; one trivial effect (`deathrattleBuffAll`) is written
+once against it and passes its existing tests through BOTH adapters. Nothing else migrates here.
+
+---
+
+## Ticket 3 — migrate the 42 dual implementations (~3–4 days) · needs Ticket 2
+
+These are the effects that ALREADY have both halves — the class where two implementations of one sentence can
+drift, producing silently WRONG behaviour rather than merely missing behaviour. `battlecryPlayRubiesAll` and
+`spellPlayRubiesAll` were the same sentence written twice; they diverged, and only one matched its printed
+text.
+
+The full worklist, derived from the tree at `ff4b4cda`:
+
+```
+battlecryTriggeredOwnDeathrattle   combatGrantAle                     deathrattleBuffAll
+deathrattleBuffAllByImpAura        deathrattleBuffAllHealth           deathrattleBuffCardTypeRunWide
+deathrattleBuffCelestials          deathrattleBuffImps                deathrattleBuffTribeByTally
+deathrattleGiveHealth              deathrattleGrantCardToHand         deathrattleGrantMagnetic
+deathrattleGrantRandomSpell        deathrattleGrantReborn             deathrattleGrantShield
+deathrattleGrantSpell              deathrattleGrantWardRandom         deathrattleMaxGold
+deathrattleReplayAdjacentBattlecry deathrattleRubyStatGain            deathrattleSummon
+deathrattleSummonGolemsWithRuby    deathrattleSummonRubyStats         echoSummonCopyNoEcho
+echoSummonInheritAttackAndCharge   onBattlecryBuffFodder              onBattlecryBuffSelf
+onBattlecryBuffTribeAdjacentMore   onGainAttackBuffImproving          onSpellCastBuffOnePerTribe
+onSpellCastBuffRandomTribe         onSpellCastImproveSummon           overflowBuffRandom
+rubyPlayedBounce                   spellCastBuffAll                   spellCastBuffOthers
+spellCastBuffUndeadAttack          spellCastImproveSelf               spellCastTransform
+summonBuffSelfTribe                summonBuffTribeAsym                summonImps
+```
+
+They are almost entirely **buff-N-bodies** and **summon-a-token** — precisely the arena's neutral core. That is
+the strongest evidence the abstraction fits: the effects most worth unifying need almost nothing outside it.
+
+**Order within the ticket:** the Ruby family first (it has burned us twice), then the plain buff family, then
+the summons. Ship in small PRs of five or six effects, each PR **deleting** the duplicate it replaces. A PR
+that adds an arena version without deleting the old one has not done the job.
+
+**Acceptance per PR:** existing tests pass unchanged; the duplicate implementation is GONE, not deprecated;
+`EFFECT_PHASE` still agrees with reality (Ticket 0's test enforces that for free).
+
+---
+
+## Ticket 4 — cross-phase dispatch (~3–4 days) · needs Ticket 3
+
+The design unlock, and the half of the ask that is currently impossible at any price: five trigger families
+(`startOfCombat`, `onAttack`, `avenge`, `onKill`, `onDamaged`) have no shop dispatcher at all.
+
+Add a shop-side dispatcher able to fire any trigger family against `ShopArena`, so a card can say "trigger your
+board's Start of Combats during the shop phase" or "fire a Rally now".
+
+**Do NOT wire these up as always-on.** They are a capability, not a behaviour change — nothing fires in the
+shop unless a card explicitly asks. The first consumer should be one new card, so the dispatcher ships with a
+real user rather than as speculative machinery.
+
+**Acceptance:** a test card with a `startOfCombat` effect, triggered in the shop, produces the same board it
+would in combat, minus the combat-only parts (which decline through the capability probe rather than crashing).
+
+---
+
+## Ticket 5 — the long tail · no deadline, never big-bang
+
+Migrate a factory when you are ALREADY touching its card. There is no requirement that this ever completes: a
+half-migrated codebase is a fine steady state as long as `EFFECT_PHASE` stays honest, which Ticket 0
+guarantees.
+
+The ~160 shop-only factories in `sim/src/recruit.ts` eventually move to `core` (see the boundary note below).
+That is the most disruptive part of the whole plan, and the reason this ticket is opportunistic rather than
+scheduled.
+
+---
+
+# What changed after looking properly
+
+The first draft named RNG and the buff models as the two things that could sink this. **Both were overstated**,
+and the plan is more tractable than that draft implies:
+
+- **RNG.** I had not checked that both phases use the SAME generator. They do — `makeRng`, identical
+  algorithm. The difference is purely how the stream is carried (a cursor on the run vs a threaded instance),
+  which is exactly what an adapter is for. The residual risk narrows to preserving draw order and count per
+  migrated effect — mechanical, and fully covered by the determinism harness plus ~3,880 tests. Still worth
+  the Ticket 1 spike, but as confirmation rather than a coin flip.
+- **The buff models.** They differ in BOOKKEEPING, not in semantics. Both do the same core (clamp Attack at 0,
+  add Health); each then records the event the way its phase records things — recruit appends a
+  source-attributed `buffs[]` entry plus Sergeant's `hpGrantBonus`; combat applies `gainMult`, emits a `buff`
+  event, tallies `statGainByTribe`, and accrues `permaGain` on Engraved bodies. A neutral `arena.buff()` is
+  therefore genuinely implementable: the contract is "apply the change, and record it however this phase
+  records things". **No unification of the two ledgers is required** — that was the expensive thing I thought
+  this needed, and it doesn't.
+
+**What remains genuinely hard, unchanged:**
+
+- **The package boundary.** `core` cannot import `RunState` (sim depends on core, not the reverse), so effect
+  bodies belong in `core` — meaning the shop-only factories now in `sim/src/recruit.ts` eventually change
+  package. `recruit.ts` is 6,324 lines and a declared collision chokepoint (CLAUDE.md), so any ticket touching
+  it needs the other dev's sessions serialised around it. Hence Ticket 5 being opportunistic.
+- **Permanence semantics.** Shop buffs are permanent by definition; combat buffs are temporary unless carried
+  back. Written once, an effect must SAY which it means — an explicit argument rather than an implicit
+  consequence of which file it sits in. That is a real improvement (it is the confusion re-litigated twice over
+  Ruby permanence) but it is design work per effect, not a mechanical port.
+
+# Suggested first session
+
+1. **Ticket 0**, end to end. It is a day, it is independently valuable, and it produces the true inventory the
+   rest of the plan is estimated against.
+2. **Ticket 1**, the RNG spike. Report the replay result before starting Ticket 2.
+
+Do not start Ticket 2 until Ticket 1's replay check is green.

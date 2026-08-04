@@ -7,8 +7,9 @@
  * selectors are invented here — `unitSelector` comes from `combatAnchors.ts`, `.row` is the same row class
  * `boardAnchors.ts` anchors `slot` to. A react layer that lands somewhere a Pixi layer would not is a bug.
  *
- * Two independent questions, deliberately kept apart:
+ * Three independent questions, deliberately kept apart:
  *   • **reach** — which UNITS (`docs/fx-vocabulary.md`). Positional, chosen by the author.
+ *   • **order** — in what sequence those units are traversed: ripple / cascade / volley.
  *   • **part** — which piece of each unit's card. `card`, or the stat badges split into their
  *     `plate` (the circle) and `value` (the digit) — see `Card.tsx`.
  *
@@ -28,6 +29,23 @@ export type FxReach = 'self' | 'neighbours' | 'allies' | 'board';
 /** Runtime list for the param picker — kept next to the type so "what can be picked" and "what can resolve"
  *  can't drift apart (same pattern as `FX_ANCHOR_IDS`). */
 export const FX_REACHES: readonly FxReach[] = ['self', 'neighbours', 'allies', 'board'];
+
+/**
+ * In what ORDER the recipients are traversed — a separate axis from `reach`, which only says WHO.
+ *
+ * The two were collapsed at first, and the collapse was a real defect: a flat "ordered by distance" list
+ * made the units either side of the subject fire one after another, so a symmetric ripple read as
+ * one-sided. Splitting them also makes the two obvious looks both reachable, which one axis could not
+ * express — the same set of allies can ripple out from the subject OR sweep across the row.
+ *
+ * Terms are `docs/fx-vocabulary.md`'s, deliberately:
+ *  - `ripple`  — outward from the subject in both directions, by distance. Equal distance lands together.
+ *  - `cascade` — left → right across the row, ignoring where the subject stands.
+ *  - `volley`  — everyone at once, no offset.
+ */
+export type FxOrder = 'ripple' | 'cascade' | 'volley';
+
+export const FX_ORDERS: readonly FxOrder[] = ['ripple', 'cascade', 'volley'];
 
 /**
  * Which piece of a card a react layer animates.
@@ -79,14 +97,21 @@ export function partElements(unit: Element, part: FxPart): HTMLElement[] {
 }
 
 /**
- * PURE: which uids a reach selects, in the order the effect should traverse them.
+ * PURE: which uids a reach selects, GROUPED — everything in a group fires at the same moment, and groups
+ * are spaced by the layer's `gap`.
  *
- * **The subject is always first, and is always included** — see "the subject is an ordinary recipient" in
- * `docs/fx-vocabulary.md`. Everything after it is ordered by DISTANCE from the subject, so the effect
- * ripples outward rather than sweeping left-to-right; at equal distance the left side goes first, purely so
- * the order is deterministic (an effect that reordered itself between plays would be unreviewable).
+ * Groups, not a flat list, and for `ripple` that is the whole correctness of it. `docs/fx-vocabulary.md`
+ * defines ripple as "outward from the subject in both directions, ordered by distance" — so the units
+ * either side of the subject are at the SAME distance and must land TOGETHER. Returning them flat made the
+ * caller stagger them one after another, and with any falloff the right-hand neighbour then arrived both
+ * later and weaker: it read as "only the left one reacted". (Reported from live authoring, 2026-08-03.)
  *
- * A subject that isn't in `row` (an off-board caster, a unit that just died) degrades to `[subject]` for
+ * Under `ripple`, group 0 is always `[subject]` — see "the subject is an ordinary recipient". Within a ring
+ * the left side is listed first, purely so the order is deterministic; they fire simultaneously, so it is
+ * not a visual choice. The opposing row forms one final ring: it has no meaningful distance from a subject
+ * across the board, and spreading it by index would invent a sweep the geometry doesn't justify.
+ *
+ * A subject that isn't in `row` (an off-board caster, a unit that just died) degrades to `[[subject]]` for
  * every reach: there is no position to spread from, and firing at the whole board instead would turn a
  * missing unit into a board-wide effect.
  */
@@ -95,19 +120,38 @@ export function orderByReach(
   others: readonly string[],
   subject: string,
   reach: FxReach,
-): string[] {
-  if (reach === 'self') return [subject];
+  order: FxOrder = 'ripple',
+): string[][] {
+  if (reach === 'self') return [[subject]];
   const idx = row.indexOf(subject);
-  if (idx < 0) return [subject];
+  if (idx < 0) return [[subject]];
 
-  const byDistance = row
-    .map((uid, i) => ({ uid, d: Math.abs(i - idx), left: i < idx }))
-    .sort((a, b) => (a.d !== b.d ? a.d - b.d : Number(b.left) - Number(a.left)));
+  // ── who ──────────────────────────────────────────────────────────────────────────────────────────
+  // Distance from the subject is computed once here and drives BOTH the reach cut and the ripple
+  // grouping, so "which units" and "how far out" can never disagree.
+  const near = row
+    .map((uid, i) => ({ uid, d: Math.abs(i - idx), i }))
+    .filter((e) => (reach === 'neighbours' ? e.d <= 1 : true));
+  const opposing = others.filter((uid) => uid !== subject).map((uid, i) => ({ uid, d: Infinity, i }));
+  const chosen = reach === 'board' ? [...near, ...opposing] : near;
 
-  if (reach === 'neighbours') return byDistance.filter((e) => e.d <= 1).map((e) => e.uid);
-  const allies = byDistance.map((e) => e.uid);
-  if (reach === 'allies') return allies;
-  return [...allies, ...others.filter((uid) => uid !== subject)];
+  // ── in what order ────────────────────────────────────────────────────────────────────────────────
+  if (order === 'volley') return [chosen.map((e) => e.uid)];
+  if (order === 'cascade') {
+    // Board order, left to right, each unit its own group — a sweep ACROSS the row that ignores where the
+    // subject stands. The opposing row trails after, since its indices are its own.
+    const sorted = [...chosen].sort((a, b) => (a.d === Infinity ? 1 : b.d === Infinity ? -1 : 0) || a.i - b.i);
+    return sorted.map((e) => [e.uid]);
+  }
+  // ripple: one group per distance, so both sides of the subject land TOGETHER. The opposing row has no
+  // meaningful distance from a subject across the board, so it forms one final ring rather than a sweep.
+  const rings = new Map<number, string[]>();
+  for (const e of chosen) {
+    const ring = rings.get(e.d);
+    if (ring === undefined) rings.set(e.d, [e.uid]);
+    else ring.push(e.uid);
+  }
+  return [...rings.entries()].sort((a, b) => a[0] - b[0]).map(([, uids]) => uids);
 }
 
 /** A unit's uid, or `null` for an element that isn't a unit. */
@@ -139,14 +183,15 @@ export function unitElement(uid: string): HTMLElement | null {
 }
 
 /**
- * Subject uid → the ordered recipient uids for a reach, read off the live DOM.
+ * Subject uid → the recipient RINGS for a reach, read off the live DOM. Each ring fires together; rings are
+ * spaced by the layer's `gap`.
  *
- * `[subject]` (not `[]`) when the subject isn't on screen: the caller still gets a well-formed schedule,
+ * `[[subject]]` (not `[]`) when the subject isn't on screen: the caller still gets a well-formed schedule,
  * and the per-recipient element lookup is what drops it — one place decides "not on screen", not two.
  */
-export function recipientsFor(subject: string, reach: FxReach): string[] {
-  if (reach === 'self' || typeof document === 'undefined') return [subject];
+export function recipientsFor(subject: string, reach: FxReach, order: FxOrder = 'ripple'): string[][] {
+  if (reach === 'self' || typeof document === 'undefined') return [[subject]];
   const el = unitElement(subject);
-  if (el === null) return [subject];
-  return orderByReach(rowUids(el), otherRowUids(el), subject, reach);
+  if (el === null) return [[subject]];
+  return orderByReach(rowUids(el), otherRowUids(el), subject, reach, order);
 }

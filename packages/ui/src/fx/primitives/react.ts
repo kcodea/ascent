@@ -29,13 +29,13 @@
  * read here (CLAUDE.md).
  */
 
-import { cascade, scheduleLands } from '../land';
+import { scheduleLands, waves } from '../land';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import type { ParamsOf } from '../params';
 import { registerPrimitive } from '../registry';
 import {
-  FX_PARTS, FX_REACHES, partElements, recipientsFor, unitElement,
-  type FxPart, type FxReach,
+  FX_ORDERS, FX_PARTS, FX_REACHES, partElements, recipientsFor, unitElement,
+  type FxOrder, type FxPart, type FxReach,
 } from '../reactTargets';
 import { PLAYER_UNIT_SELECTOR } from '../boardAnchors';
 import { EASES, EASE_IDS, amplitudeAt, keyframesFor } from '../reactMotion';
@@ -50,9 +50,13 @@ const SPECS = {
     kind: 'enum', label: 'Reach', group: 'Target', options: FX_REACHES, default: 'self', essential: true,
     help: 'How far the reaction spreads from the unit the moment is about.',
   },
+  order: {
+    kind: 'enum', label: 'Order', group: 'Target', options: FX_ORDERS, default: 'ripple', essential: true,
+    help: 'Ripple spreads outward from the unit both ways at once; cascade sweeps left to right across the row; volley hits everyone together.',
+  },
   gap: {
     kind: 'slider', label: 'Gap', group: 'Target', min: 0, max: 400, step: 5, default: 60,
-    help: 'Milliseconds between each unit. 0 fires them together (a volley); raise it to sweep.',
+    help: 'Milliseconds between each step outward (ripple) or each unit (cascade). Ignored by volley.',
   },
   falloff: {
     kind: 'slider', label: 'Falloff', group: 'Target', min: 0, max: 1, step: 0.01, default: 0.4,
@@ -70,9 +74,21 @@ const SPECS = {
     kind: 'slider', label: 'Scale', group: 'Motion', min: 0.5, max: 2.5, step: 0.01, default: 1.35, essential: true,
     help: 'Peak size. 1 = no size change.',
   },
+  squash: {
+    kind: 'slider', label: 'Squash', group: 'Motion', min: -1, max: 1, step: 0.01, default: 0,
+    help: 'Squash and stretch. Positive = wider and shorter (an impact absorbed); negative = taller and thinner (a lunge). Changes shape where Scale changes size.',
+  },
   lift: {
     kind: 'slider', label: 'Lift', group: 'Motion', min: -60, max: 60, step: 1, default: 0,
     help: 'Peak vertical shift in pixels. Negative lifts, positive presses down.',
+  },
+  nudge: {
+    kind: 'slider', label: 'Nudge', group: 'Motion', min: -60, max: 60, step: 1, default: 0,
+    help: 'Peak horizontal shift in pixels. Negative goes left. With Lift, gives a directional recoil.',
+  },
+  shakes: {
+    kind: 'slider', label: 'Shakes', group: 'Motion', min: 0, max: 6, step: 1, default: 0,
+    help: 'Extra swings past the first, each reversing and weaker than the last. 0 is a single pop; 2+ reads as an impact the unit is recovering from.',
   },
   spin: {
     kind: 'slider', label: 'Spin', group: 'Motion', min: -90, max: 90, step: 1, default: 0,
@@ -130,17 +146,21 @@ class ReactInstance implements FxInstance<ReactParams> {
     this.totalMs = 0;
     if (this.subject === null || typeof document === 'undefined') return;
 
-    const recipients = recipientsFor(this.subject, p.reach as FxReach);
-    // `scheduleLands` owns the traversal arithmetic for the whole codebase (see `land.ts`) — speed is 1
-    // here because the player's dt is already scaled, and applying it twice would compound.
-    const lands = scheduleLands(cascade(recipients.map((uid) => ({ uid }))), { gap: p.gap, speed: 1 });
+    // RINGS, not a flat list: units the same distance from the subject fire TOGETHER. `waves` maps one ring
+    // to one group, so `gap` spaces the rings rather than the individual units — which is what makes this a
+    // ripple outward instead of a left-to-right sweep. `scheduleLands` owns the arithmetic for the whole
+    // codebase (see `land.ts`); speed is 1 here because the player's dt is already scaled, and applying it
+    // twice would compound.
+    const rings = recipientsFor(this.subject, p.reach as FxReach, p.order as FxOrder);
+    const lands = scheduleLands(waves(rings.map((r) => r.map((uid) => ({ uid })))), { gap: p.gap, speed: 1 });
 
     for (const land of lands) {
       const unit = unitElement(land.uid);
       if (unit === null) continue; // died, unmounted, or off-screen — skip it, don't fail the effect
-      // `cascade` puts each recipient in its own group, so the group index IS the distance rank that
-      // `recipientsFor` ordered them by — which is exactly what falloff wants.
-      const amp = amplitudeAt(land.group, lands.length, p.falloff);
+      // Falloff keys off the GROUP (a ripple ring, or a cascade step), so everything landing at the same
+      // moment is equally strong — weakening one side of a symmetric ripple was the bug that made
+      // `neighbours` look one-sided.
+      const amp = amplitudeAt(land.group, rings.length, p.falloff);
       const frames = keyframesFor(p, amp, EASES[p.ease] ?? EASES.out);
       for (const el of partElements(unit, p.part as FxPart)) {
         // NO `easing` here on purpose — it belongs on the keyframes (see `keyframesFor`). A timing-level

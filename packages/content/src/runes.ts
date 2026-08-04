@@ -193,7 +193,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_hatchery',
     name: 'Rune of the Hatchery',
     cost: 4,
-    text: 'Minions summoned by an **Echo** have **+3/+3** and **Taunt**.',
+    text: 'Minions summoned in **combat** have **+3/+3** and **Taunt**.', // owner rework 2026-08-03 (was Echo-only)
     reward: { kind: 'combatFlag', flag: 'runeHatchery' },
   },
   {

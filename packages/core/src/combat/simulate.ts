@@ -813,9 +813,14 @@ export function simulate(
     // longer touches the summon — as of 2026-07-21 it buffs your whole board when an Echo TRIGGERS (see asEcho).
     // (Rune of the Undertow's old echo-summons-attack-immediately behaviour lived here; the 2026-07-31
     // rework grants combat summons WARD instead — see the grant beside the Living Treasure graft below.)
-    // Rune of the Hatchery: bodies summoned BY an Echo come in +3/+3 with Taunt. Applied at the summon site so
+    // Rune of the Hatchery: bodies summoned IN COMBAT come in +3/+3 with Taunt. Applied at the summon site so
     // it lands before the summon snapshot — the replay shows the real body, not the base card.
-    const hatch = echoDepth > 0 ? modsFor(side).runeHatchery : undefined;
+    //
+    // Owner rework 2026-08-03: this used to be gated on `echoDepth > 0` (Echo summons only), which made it
+    // dead weight for every summon line that isn't a Deathrattle — Start-of-Combat fills, Rally summons,
+    // token generators. Now it covers every combat summon, matching Rune of the Undertow just below (which
+    // grants Ward on the same "summoned in combat" scope).
+    const hatch = modsFor(side).runeHatchery;
     if (hatch) {
       minion.attack += hatch.attack;
       minion.health += hatch.health;
@@ -941,13 +946,13 @@ export function simulate(
     return minion;
   }
 
-  // Depth counter marking "an Echo (Deathrattle) effect is currently resolving" — summons that originate
-  // inside it are Echo summons (Rune of Aftershocks buffs them +4/+4; Rune of the Undertow makes them attack
-  // immediately). A DEPTH (not a boolean) because a summoned token's own death mid-rattle can nest.
-  let echoDepth = 0;
+  // Runs `run()` as an ECHO (Deathrattle) trigger. The `echoDepth` counter that used to live here — marking
+  // "a Deathrattle is resolving right now" so summons inside it could be treated as Echo summons — is gone as
+  // of 2026-08-03: Aftershocks stopped reading it in the 2026-07-21 rework (it buffs on TRIGGER now, not on
+  // summon), Undertow moved to all combat summons, and the Hatchery rework removed its last reader. Rather
+  // than leave a counter nothing consults, it is deleted; the wrapper still exists for the Aftershocks grant.
   const asEcho = (side: Side, run: () => void): void => {
-    echoDepth++;
-    try {
+    {
       run();
       // Rune of Aftershocks (reworked 2026-07-21): TRIGGERING an Echo gives your minions +4/+4 (it used to
       // bake +4/+4 into Echo-summoned bodies instead). Fires after the Echo resolves, so a body it summoned is
@@ -955,7 +960,7 @@ export function simulate(
       if (modsFor(side).runeAftershocks) {
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 4, 'Rune of Aftershocks');
       }
-    } finally { echoDepth--; }
+    }
   };
 
   /** The Burning Legion's per-side use counter. */

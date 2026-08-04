@@ -230,6 +230,13 @@ create policy "insert own profile"       on public.profiles      for insert to a
 -- single point: the `with check` compares the incoming rating to the row's CURRENT stored value. Rating is
 -- therefore write-once from the client (established on the first insert) until C3 moves it behind an Edge
 -- Function and the service role becomes its only writer.
+--
+-- THE CLIENT MUST NOT SEND `rating` ON AN UPDATE. A statement that includes a rating different from the stored
+-- one is rejected in FULL — games_played, author and favorite_hero go down with it. `uploadPlayerProfile`
+-- originally used one `upsert()`, which sends every column, so as soon as a player's rating moved every later
+-- write silently failed and the leaderboard froze at that player's first-run values ("1 game" for a player
+-- with four runs — owner report 2026-08-04). It is now an UPDATE of the mutable columns only, with an INSERT
+-- fallback for the first write; `playerProfileWrite.test.ts` pins that shape.
 create policy "update own profile" on public.profiles for update to authenticated
   using (auth.uid() = user_id)
   with check (

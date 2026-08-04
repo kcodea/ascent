@@ -40,6 +40,18 @@ export interface RunHistoryEntry {
   ratingAfter?: number;
   ratingDelta?: number;
   lineDelta?: number;
+  /** Lobby finish position (1 = won the lobby). Already written by `uploadRunHistory`, which spreads it onto
+   *  the entry; declared here so the Career can read it. It is the WIN/LOSS answer now that the Oath verdict
+   *  is no longer shown (owner 2026-08-04) — absent on pre-lobby entries, which fall back to the Line. */
+  placement?: number;
+  mode?: string;
+}
+
+/** Did this run WIN? `placement === 1` for a lobby; otherwise the old Line verdict, so entries recorded before
+ *  lobbies still read sensibly instead of all flipping to losses. */
+export function runWon(e: Pick<RunHistoryEntry, 'placement' | 'lineStatus'>): boolean {
+  if (e.placement !== undefined) return e.placement === 1;
+  return metLine(e.lineStatus);
 }
 
 /** The final board's top non-neutral tribe (both tribes counted), or null for an empty/all-neutral board. */

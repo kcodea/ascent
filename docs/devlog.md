@@ -1,5 +1,44 @@
 # ASCENT — development log
 
+## 2026-08-04 — Leaderboard froze at one game; Career trimmed to score / result / MMR
+
+**The leaderboard read "1 game" for a player with four runs in their Career** (owner report). The count was
+never computed wrong — it was never WRITTEN after run one, and the cause is a flaw in the C1 RLS policy.
+
+`profiles` was written with a single `upsert()`. The C1 policy makes `rating` write-once from the client: its
+`with check` requires the incoming rating to equal the row's stored value. An upsert sends EVERY column, so the
+moment a player's rating moved, the incoming rating no longer matched and Postgres rejected THE WHOLE ROW —
+`games_played`, `author` and `favorite_hero` with it. The rejection went into the best-effort catch and
+vanished. Both players on the board were stuck at their first-run values.
+
+Fixed client-side, no migration: UPDATE the mutable columns WITHOUT rating (leaving it equal to itself, which
+the policy permits), with an INSERT fallback for the first write. `select()` distinguishes them — an UPDATE
+matching no row is a zero-row success, not an error. `schema.sql` now states the constraint next to the policy
+so the upsert can't be reintroduced.
+
+**Rating itself is still frozen after the first write** — that IS the policy's intent until C3 moves it behind
+an Edge Function, but it means the displayed Renown is stale. Owner decision pending; unfreezing needs a SQL
+run.
+
+**Career trim** (owner): removed the Board Log — the per-round "winningest board" panel — including its
+component, its CSS block, and both render sites. `fetchPlayerRoundBoards` / `RoundBoard` in `remoteBoards.ts`
+are now unreferenced; left in place beside the writer that still fills the ledger.
+
+**Recent Match History rows** now carry only the score, the verdict and the MMR move. Dropped the Oath verdict
+line and the "Fallen on round N · date" sub-text (owner: *"we dont have oath anymore or 'fallen' as a word —
+it's just win or lose"*). Win/loss moved off the Line and onto `runWon()`: a lobby's `placement === 1`, falling
+back to the Line only for entries recorded before lobbies, which would otherwise all flip to losses. The new
+`.carmmr` chip uses tabular figures and a fixed min-width so a column of deltas lines up and `+6` vs `-124`
+doesn't shuffle the chevron.
+
+**Verified** — new `playerProfileWrite.test.ts` (4) drives a fake Supabase client and pins the SHAPE of the
+write, since which columns are sent is exactly what Postgres accepts or rejects; negative-controlled against
+the old upsert (3 of 4 fail). `runWon` unit-tested including the legacy fallback. Career's empty state checked
+live in the browser (Board Log gone, no console errors — the two `BoardLog.tsx` HMR errors were stale entries
+from before the dev-server restart). The POPULATED match row was NOT visually confirmed: this dev instance has
+no Supabase identity, so `fetchRunHistory` returns null and the list is always empty. Gates: typecheck ✓,
+lint ✓ (7 pre-existing), 3825 tests ✓, `build:web` ✓.
+
 ## 2026-08-04 — Hover preview: the token named in CODE; Rune of Packcraft reworked
 
 **Imp Wrangler showed no Imp on hover** (owner report). A SECOND class of the preview defect, invisible to the

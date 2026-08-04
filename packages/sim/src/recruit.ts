@@ -5,7 +5,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
+import { handCap, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
@@ -750,7 +750,7 @@ export function teachMagePup(state: RunState, spellId: string): void {
   const cap = boardCap + (state.runeWhiteWolf ? 1 : 0);
   const used = state.moonhowlTeachesThisTurn ?? 0;
   if (used >= cap) return; // "once per turn" (twice for a golden Mentor, +1 for the rune)
-  if (state.hand.length >= CONFIG.handMax) return; // no room — don't burn the teach on a card that can't land
+  if (state.hand.length >= handCap(state)) return; // no room — don't burn the teach on a card that can't land
   const def = CARD_INDEX['b2_magepup'];
   if (!def) return;
   state.moonhowlTeachesThisTurn = used + 1;
@@ -1000,7 +1000,7 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
     keywords: [...def.keywords],
     golden: false,
   };
-  if (state.hand.length < CONFIG.handMax) state.hand.push(card);
+  if (state.hand.length < handCap(state)) state.hand.push(card);
   else if (state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → onto the board
   else if (overflow) state.hand.push(card); // quest / rune REWARD cards may over-cap the hand (owner ruling — never lose an earned reward)
   else return card; // otherwise the hand is a hard 10-card cap: hand + board both full → drop, never over-capped
@@ -1013,7 +1013,7 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   if (pool.length === 0) return;
   const rng = makeRng(state.rngCursor);
   // `overflow` (quest / rune reward grants) bypasses the hand cap so an earned reward is never dropped.
-  for (let i = 0; i < reps && (overflow || state.hand.length < CONFIG.handMax); i++) {
+  for (let i = 0; i < reps && (overflow || state.hand.length < handCap(state)); i++) {
     const def = pool[rng.int(pool.length)]!;
     const cb = cardBuff(state, def.id);
     state.hand.push({
@@ -1045,7 +1045,7 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
   // Rune of Gemcutting mints at a FIXED line (3/3) instead of the run's 1/1 + rubyBonus.
   const bonus = statOverride ? { attack: statOverride.attack - def.attack, health: statOverride.health - def.health } : (state.rubyBonus ?? { attack: 0, health: 0 });
   let minted = 0;
-  for (let i = 0; i < count && state.hand.length < CONFIG.handMax; i++) {
+  for (let i = 0; i < count && state.hand.length < handCap(state); i++) {
     state.hand.push({
       uid: `b${state.uidSeq++}`,
       cardId: rubyId,
@@ -1840,7 +1840,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     );
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < reps && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < reps && ctx.state.hand.length < handCap(ctx.state); i++) {
       const def = pool[rng.int(pool.length)]!;
       const cb = cardBuff(ctx.state, def.id);
       ctx.state.hand.push({
@@ -2729,7 +2729,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (pool.length === 0) return;
     const count = num(params.count, 1) * gold(self);
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       const def = pool[rng.int(pool.length)]!;
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
@@ -2767,7 +2767,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const def = CARD_INDEX[str(params.spellId)];
     if (!def) return;
     const count = num(params.count, 1) * gold(self);
-    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
         cardId: def.id,
@@ -2853,7 +2853,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < gold(self) && ctx.state.hand.length < handCap(ctx.state); i++) {
       const spell = pool[rng.int(pool.length)]!;
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
@@ -2891,7 +2891,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onDeath'));
     if (pool.length === 0) return;
     for (let i = 0; i < gold(self); i++) {
-      if (ctx.state.hand.length >= CONFIG.handMax) break;
+      if (ctx.state.hand.length >= handCap(ctx.state)) break;
       conjureToHand(ctx.state, pool, 1); // seeded pick + hand-cap + run-buff bake
       const card = ctx.state.hand[ctx.state.hand.length - 1];
       if (card) fireRecruitDeathrattles(ctx, card); // trigger the Echo you just got
@@ -3261,7 +3261,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Spell factories receive the target as `minion` (see applyCastEffects) — `self` is the same object here.
     const target = minion;
     if (!target) return;
-    if (ctx.state.hand.length >= CONFIG.handMax) return; // full hand — the gift fizzles into nothing, like a full-hand conjure
+    if (ctx.state.hand.length >= handCap(ctx.state)) return; // full hand — the gift fizzles into nothing, like a full-hand conjure
     const clone = structuredClone(target);
     clone.uid = `b${ctx.state.uidSeq++}`;
     ctx.state.hand.push(clone);
@@ -3628,7 +3628,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = perTribe ? st.board.filter((c) => isTribe(c, perTribe as never)).length : num(params.count, 1);
     const rng = makeRng(st.rngCursor);
     for (let n = 0; n < count; n++) {
-      if (st.hand.length >= CONFIG.handMax) break;
+      if (st.hand.length >= handCap(st)) break;
       const pool = st.shop
         .map((o, idx) => ({ o, idx, def: CARD_INDEX[o.cardId] }))
         .filter(({ def }) => {
@@ -3786,7 +3786,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  mirroring a buy). Fizzles gracefully on an empty shop or a full hand. */
   stealTavernMinion: (ctx, _self) => {
     const state = ctx.state;
-    if (state.shop.length === 0 || state.hand.length >= CONFIG.handMax) return;
+    if (state.shop.length === 0 || state.hand.length >= handCap(state)) return;
     const rng = makeRng(state.rngCursor);
     const idx = rng.int(state.shop.length);
     state.rngCursor = rng.state();
@@ -4109,7 +4109,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!spellId || !self) return;
     const def = CARD_INDEX[spellId];
     if (!def) return;
-    for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < gold(self) && ctx.state.hand.length < handCap(ctx.state); i++) {
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
         cardId: spellId,
@@ -4161,7 +4161,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   endOfTurnGetRandomSpells: (ctx, self, params) => {
     const count = num(params.count, 2) * gold(self);
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
+    for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       const def = poolOf(ctx.state).spells[rng.int(poolOf(ctx.state).spells.length)]!;
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,

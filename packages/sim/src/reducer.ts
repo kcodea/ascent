@@ -12,7 +12,7 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
+import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -102,7 +102,7 @@ function tiffBuyDiscount(s: RunState, card: CardDef): void {
  *  card: no per-instance buffs/golden/welds carried, and it does NOT take from the shared pool. Hand-cap-safe. */
 function conjurePlainCopy(s: RunState, cardId: string): void {
   const def = CARD_INDEX[cardId];
-  if (!def || s.hand.length >= CONFIG.handMax) return;
+  if (!def || s.hand.length >= handCap(s)) return;
   s.hand.push({ uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
 }
 
@@ -126,7 +126,7 @@ function drakkoQuestBuy(s: RunState, card: CardDef): void {
   if (s.heroId !== 'drakko' || s.heroPowerSpent || !hasBattlecry(card)) return;
   s.drakkoBuys += 1;
   if (s.drakkoBuys < 5) return;
-  if (s.hand.length < CONFIG.handMax) {
+  if (s.hand.length < handCap(s)) {
     s.hand.push({
       uid: `b${s.uidSeq++}`,
       cardId: 'drummer',
@@ -147,7 +147,7 @@ function chronosQuestBuy(s: RunState, card: CardDef): void {
   if (!card.effects.some((e) => e.on === 'endOfTurn')) return;
   s.eotMinionBuys = (s.eotMinionBuys ?? 0) + 1;
   if ((s.eotMinionBuys ?? 0) < 4) return;
-  if (s.hand.length < CONFIG.handMax) {
+  if (s.hand.length < handCap(s)) {
     s.hand.push({
       uid: `b${s.uidSeq++}`,
       cardId: 'chronos',
@@ -615,7 +615,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const spellDef = CARD_INDEX[s.spell.cardId];
         if (!spellDef) return state;
         const cost = Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s));
-        if (s.embers < cost || s.hand.length >= CONFIG.handMax) return state;
+        if (s.embers < cost || s.hand.length >= handCap(s)) return state;
         spendGold(s, cost);
         if (s.cadenceSpellOff) s.cadenceSpellOff = undefined; // Rune of Cadence: the armed spell discount is spent
         s.hand.push({
@@ -641,7 +641,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // exactly like the right-hand spell slot — no minion creation / triple.
       if (card.spell) {
         const sCost = Math.max(0, (card.cost ?? 0) - spellCostReduction(s));
-        if (s.embers < sCost || s.hand.length >= CONFIG.handMax) return state;
+        if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
         s.shop.splice(i, 1);
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
@@ -656,7 +656,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // (deliberately NO applyOnBuy: it's a restoration, not a fresh purchase, so Broker & co. don't re-bake).
       if (offer.held) {
         const heldCost = minionCostOf(s);
-        if (s.embers < heldCost || s.hand.length >= CONFIG.handMax) return state;
+        if (s.embers < heldCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
         // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
@@ -679,7 +679,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says.
       const cadenceOff = !freeBuy && s.cadenceMinionOff ? 1 : 0;
       const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff); // Moe's set price > Merchant's Mark override > Hank/default
-      if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
+      if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
@@ -731,7 +731,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
       // Dupes: the FIRST minion you buy each turn is copied into your hand (a fresh base copy, run buffs baked in).
-      if (s.dupeFirstBuyEachTurn && !s.dupeUsedThisTurn && s.hand.length < CONFIG.handMax) {
+      if (s.dupeFirstBuyEachTurn && !s.dupeUsedThisTurn && s.hand.length < handCap(s)) {
         s.dupeUsedThisTurn = true;
         conjureToHand(s, CARD_INDEX[card.id] ? [CARD_INDEX[card.id]!] : [], 1);
       }
@@ -1118,7 +1118,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const rrng = makeRng(s.rngCursor);
             const returns = rrng.int(100) < 20;
             s.rngCursor = rrng.state();
-            if (returns && s.hand.length < CONFIG.handMax) {
+            if (returns && s.hand.length < handCap(s)) {
               const idx = s.board.findIndex((c) => c.uid === card.uid);
               if (idx >= 0) {
                 const [ret] = s.board.splice(idx, 1);
@@ -1670,7 +1670,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
       // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
       // than over-capping). Only claim a pool copy when the card is actually taken.
-      if (s.hand.length < CONFIG.handMax) {
+      if (s.hand.length < handCap(s)) {
         const taken: BoardCard = {
           uid: `b${s.uidSeq++}`,
           cardId: def.id,
@@ -1986,7 +1986,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
 /** Playing a golden minion grants a Discover spell (peek one tier up) into the hand. */
 function grantGoldenDiscover(s: RunState): void {
-  if (s.hand.length >= CONFIG.handMax) return; // hard 10-card hand cap — no over-cap grant
+  if (s.hand.length >= handCap(s)) return; // the hand cap — raised while the Runeforge is open (see handCap)
   s.hand.push({
     uid: `b${s.uidSeq++}`,
     cardId: 'discoverspell',
@@ -2200,7 +2200,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   };
   // Respect the hard 10-card hand cap. A triple always frees board slots (it consumes ≥1 board copy), so if
   // the hand is full the golden goes onto the board rather than over-capping the hand — the reward is never lost.
-  if (s.hand.length < CONFIG.handMax) s.hand.push(goldenCard);
+  if (s.hand.length < handCap(s)) s.hand.push(goldenCard);
   else s.board.push(goldenCard);
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
 }
@@ -2374,7 +2374,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerHandGrants) {
     for (const cardId of result.playerHandGrants) {
       const def = CARD_INDEX[cardId];
-      if (!def || s.hand.length >= CONFIG.handMax) continue;
+      if (!def || s.hand.length >= handCap(s)) continue;
       const cb = cardBuff(s, cardId);
       s.hand.push({
         uid: `b${s.uidSeq++}`,
@@ -2392,7 +2392,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // tribe bonds apply; a full hand forfeits it).
   if (result.playerSlaughterCopy) {
     const def = CARD_INDEX[result.playerSlaughterCopy];
-    if (def && s.hand.length < CONFIG.handMax) {
+    if (def && s.hand.length < handCap(s)) {
       const cb = cardBuff(s, def.id);
       s.hand.push({
         uid: `b${s.uidSeq++}`,
@@ -2775,7 +2775,7 @@ function advanceCombat(s: RunState): void {
   // (createRun); this is the recurring grant — turns 5, 10, 15, …
   if (getHero(s.heroId).power.kind === 'chaos' && s.wave % 5 === 0) {
     const def = CARD_INDEX['symbioticattachment'];
-    if (def && s.hand.length < CONFIG.handMax) {
+    if (def && s.hand.length < handCap(s)) {
       const grantUid = `b${s.uidSeq++}`;
       // Same instantiation as settleCombat's hand grants: the run's per-card enchant + the tribe-gated
       // Undead buy bonus (the old inline version applied undeadBuyAtk raw, tribe-unchecked, and skipped

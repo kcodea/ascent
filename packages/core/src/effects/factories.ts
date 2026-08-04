@@ -165,6 +165,11 @@ const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
 export const COMBAT_REPLAYABLE_BATTLECRIES: ReadonlySet<string> = new Set([
   'battlecrySummon', 'battlecryBuffTribe', 'battlecryBuffUndeadAttack', 'battlecryGrantKeyword',
   'battlecryDiscoverSpell', 'battlecryDiscoverMinion', 'battlecryBuffSpellPower',
+  // Added 2026-08-04 (owner report: "this Dawnclaw/Shout interaction is not working"). It BUFFS A LIVING BODY,
+  // so deferring it to settle meant a Dawnclaw/Ryme trigger produced a narration and no visible effect — the
+  // buff landed after the fight it was supposed to win. Brood Whelp is the reported case. The rest of the
+  // deferred set really is economy (Gold, hand grants, shop) and correctly stays deferred.
+  'battlecryBuffTarget',
 ]);
 
 /** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Combat-meaningful
@@ -193,6 +198,18 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       const a = num(p.amount, 1) * g;
       for (const t of ctx.living(m.side)) if (tribeOf(t, 'undead')) ctx.buff(t, a, 0, m.uid);
       ctx.grantUndeadBuyAtk(a, m.side);
+    } else if (eff.do === 'battlecryBuffTarget') {
+      // No chosen target in combat, so auto-pick the highest-Attack friend — the same convention
+      // `battlecryGrantKeyword` uses below, and the same fallback order the recruit factory uses (others
+      // first, else self). A `targetTribe` on the card restricts the pick exactly as it does in the shop.
+      const a2 = num(p.attack) * g, h2 = num(p.health) * g;
+      if (a2 > 0 || h2 > 0) {
+        const restrict = ctx.getCard(m.cardId)?.targetTribe;
+        const ok = (t: Minion): boolean => !restrict || tribeOf(t, restrict);
+        const others = ctx.living(m.side).filter((t) => t !== m && ok(t));
+        const pool = others.length > 0 ? others : ok(m) ? [m] : [];
+        if (pool.length > 0) ctx.buff(pool.reduce((x, y) => (y.attack > x.attack ? y : x)), a2, h2, m.uid);
+      }
     } else if (eff.do === 'battlecryGrantKeyword') {
       const kws = Array.isArray(p.keywords) ? (p.keywords as Keyword[]) : [];
       const friends = ctx.living(m.side).filter((t) => t !== m); // auto-pick the highest-Attack friend (no chosen target in combat)

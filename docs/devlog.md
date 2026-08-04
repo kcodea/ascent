@@ -33,6 +33,17 @@ Three motion channels added in the same pass, all transform-only:
   rather than as the same motion reversing. Both resting frames stay identity, so additive composition is
   still a true no-op.
 
+Second report the same session: *"it looks to just target the left most minion"* — a different bug with the
+same smell. The workbench built its preview player as `{ container, renderer }` and nothing else, so a react
+layer got NO uids and fell back to `document.querySelector(PLAYER_UNIT_SELECTOR)`: the first player unit,
+i.e. the leftmost minion, whatever card you had staged. Pixi layers never noticed because they draw at the
+scenario's screen points and don't care which card was there — the fallback was invisible until a primitive
+actually needed to know.
+
+The harness selects a CARD, so the workbench now resolves it to the board minion carrying it and passes that
+uid into the player context (rebuilding when it changes, or the preview keeps animating the previous card).
+Nothing staged still falls back, which is the right preview when there is no moment to be about.
+
 Verified: 37 unit tests over the two pure modules (up from 21), including a symmetry test that asserts every
 ripple group holds units at exactly ONE distance from the subject — the property the bug violated — and
 sign/decay tests over the shake extrema. Full gate green: typecheck (pkgs + web), lint (0 errors), 3752

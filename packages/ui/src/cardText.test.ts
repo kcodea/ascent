@@ -288,3 +288,23 @@ describe('every-N-spells counters (owner ask 2026-08-03: "Baal needs a counter u
     expect(stepProgress('guel', { spellProgress: 5 })?.total).toBe(4);
   });
 });
+
+/**
+ * Runic Archivist's sell meter (owner ask 2026-08-04 — "runic archivist needs a tally counter below it").
+ *
+ * `soldProgress` is stored ALREADY reduced (`% every`), unlike every other meter here, so this branch must NOT
+ * run it through the cyclic helper — doing so would turn a fresh 0 into a phantom reading.
+ */
+describe('stepProgress — Runic Archivist sell meter', () => {
+  it('counts sales toward the threshold and resets after it fires', () => {
+    expect(stepProgress('d2_archivist', { soldProgress: 0 })).toEqual({ current: 0, total: 5 });
+    expect(stepProgress('d2_archivist', { soldProgress: 3 })).toEqual({ current: 3, total: 5 });
+    expect(stepProgress('d2_archivist', { soldProgress: 4 })).toEqual({ current: 4, total: 5 });
+    // The factory stores `progress % every`, so the fifth sale lands back on 0 — it just paid out.
+    expect(stepProgress('d2_archivist', { soldProgress: 0 })).toEqual({ current: 0, total: 5 });
+  });
+
+  it('shows no counter in combat — you cannot sell mid-fight', () => {
+    expect(stepProgress('d2_archivist', {})).toBeNull();
+  });
+});

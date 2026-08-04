@@ -1,5 +1,79 @@
 # ASCENT — development log
 
+## 2026-08-04 — Stall pressure REMOVED; a ghost is only for the bottom three
+
+**Stall pressure is gone** (owner: *"this was never something I wanted in the game at all. Players should only
+take dmg from combat dmg — I don't know why this was added."*). It was a per-round extra hit charged to every
+loser, and to BOTH sides of a draw, once the table went `pressureAfterQuietRounds` rounds with nobody knocked
+out. Removed from both lobby flavours along with the `quietRounds` counter and the rule field that fed it —
+all of it was dead once the damage stopped.
+
+`maxRounds` (60) is now the only stalemate backstop, and the honest consequence is recorded in
+`lobby.test.ts`: a table of LITERALLY mirrored boards draws forever, hits the round limit, and ends with the
+whole table alive sharing the win. That test used to assert one survivor and now asserts termination + the
+shared placement. Only reachable with identical boards — real seats diverge within a round or two.
+
+This also dissolves the readout bug from the entry below: with nothing added on top, `playerLossDamage` is
+simply the capped fight damage. It is KEPT as a function rather than inlined, because the HUD and the settle
+silently disagreeing is the failure mode worth keeping closed. The `incl. +N stall` footnote it needed is
+removed with the mechanic.
+
+**A ghost is a favour, so it goes to the seats that need it.** The bye (an odd table's ghost fight) now only
+falls to the BOTTOM THREE alive seats by Resolve+Armor — with 5 alive, 1st and 2nd can never face a ghost
+(owner rule). Standing is read the same way the lobby rail ranks seats, so "bottom 3" means on screen what it
+means in the pairing; ties break on seat id to keep a lobby replayable. At 3 or fewer alive every seat is in
+the bottom three and the rule simply stops binding — the honest reading, not a special case. The eligible set
+can never be empty (it is the last min(3, n) of a non-empty odd pool), so an odd table always has a bye.
+
+Bye-count fairness still orders the candidates WITHIN the eligible set, so the ghost keeps rotating among the
+seats that may take it.
+
+**Verified** — `lobbyDamageAndGhost.test.ts` (12), replacing the previous file. Damage: a win costs 0, a draw
+costs 0 (the assertion that fails first if pressure returns), the cap still binds, and settling the same round
+seven times costs the same 11 every time — the SHAPE of the old bug, since pressure grew with quiet rounds.
+The load-bearing case settles a real round at five different rounds and asserts the seat's actual HP drop
+equals the readout. Ghost: the owner's 5-alive example verbatim, plus standing-not-index, armor-counts,
+7-alive, the 3-alive non-binding case, even tables, and determinism. Negative-controlled — restoring attrition
+and dropping the filter fails 6 of 12. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3832 tests ✓,
+`build:web` ✓, harness ✓.
+
+## 2026-08-04 — "13 hp, took 11, died": the loss counter was short by the stall pressure
+
+Owner report. **Both numbers were correct in isolation**, which is why it read as a health bug.
+
+The loss counter showed `min(cap, playerDamage)` — the FIGHT's damage. In a lobby the seat is ALSO charged
+**stall pressure**: the growing extra hit every loser takes once the table goes several rounds without an
+elimination (`quietRounds - pressureAfterQuietRounds + 1`). So the real hit was 11 + 2 = 13, and the player
+died on exactly the health the HUD had told them they would survive on. Nothing on screen accounted for the
+extra 2, because no minion pays it.
+
+The formula was written out TWICE (`lobby.ts` and `runLobby.ts`) and in neither place the presentation layer
+could reach — that is the structural reason the readout could disagree with the hit. Now:
+
+- **`stallPressure()`** — one definition, exported, used by both lobby flavours.
+- **`playerLossDamage(lobby, result)`** — the single answer to "how much does the player lose this round":
+  capped fight damage plus pressure on a loss or a draw. The HUD calls the same function the settle does, with
+  the same pre-settle `quietRounds` (the loss sequence runs while `combatSettled` is still false), so the two
+  cannot drift.
+- The counter now **names the extra**: `incl. +N stall` under the total. Without it the tally still looks
+  wrong — the flying tier pips visibly sum to less than the number.
+
+Note the cap applies to the FIGHT damage only; pressure is added on top and is deliberately uncapped (it exists
+to break stalemates). The `Max Damage` pill still judges the raw tier total against the cap.
+
+**Runic Archivist now has its sell counter.** Its `soldProgress` tally already existed and its printed text
+already counted down, but there was no counter chip — the one at-a-glance read every other every-N card on the
+board has. Written generically on `on: 'minionSold'` + a `count` param. `soldProgress` is stored ALREADY
+reduced (`% every`), unlike every other meter here, so it is used directly rather than through the cyclic
+helper — wrapping a pre-wrapped value would turn a fresh 0 into a phantom reading.
+
+**Verified** — new `lossDamageReadout.test.ts` (8). The load-bearing case settles a REAL lobby round and
+asserts the seat's actual HP drop equals what the readout would print: a claim about the settle, not about
+arithmetic agreeing with itself. Negative-controlled (dropping pressure fails 4 of 8). One test fixture caught
+me out first: at round 5 the cap is 10, so 11 + 2 is 12, not 13 — the reported numbers only reconcile from
+round 8 up, which is where the cap stops binding. Archivist counter unit-tested AND checked live in the Scene
+Builder (renders `3/5`). Gates: typecheck ✓, lint ✓ (7 pre-existing), 3828 tests ✓, `build:web` ✓, harness ✓.
+
 ## 2026-08-04 — Career: lobby placement on match rows; "Renown" reverted to "Rating"
 
 - **Placement chip on each match row** (owner): `1st` / `4th` / `8th`, beside the verdict. `ordinal()` moved to

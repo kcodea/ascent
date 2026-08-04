@@ -99,12 +99,16 @@ describe('lobby — it terminates with exactly one winner', () => {
     expect(wins.strong, 'the two strongest seats never won').toBeGreaterThan(wins.weak);
   });
 
-  it('stall pressure prevents an unkillable stalemate', () => {
-    // Eight identical boards draw forever. Pressure is what guarantees the lobby still ends.
+  it('a perfect stalemate still TERMINATES — on the round limit, with nobody knocked out', () => {
+    // Eight identical boards draw forever and, since the owner removed stall pressure (2026-08-04), nothing
+    // whittles them down: the player takes COMBAT DAMAGE ONLY. `maxRounds` is the sole backstop now, so this
+    // pins the honest consequence rather than the old one — the lobby ends, but it can end with the whole
+    // table alive and sharing the win. Only reachable with literally mirrored boards; real seats diverge.
     const mirror = Array.from({ length: 8 }, (_, i) => stubSeat(`same${i}`, 6));
     const s = runLobby(createLobby(7, mirror));
-    expect(s.finished).toBe(true);
-    expect(s.seats.filter((x) => x.alive).length).toBe(1);
+    expect(s.finished, 'the lobby must always terminate').toBe(true);
+    expect(s.round, 'it should end on the round limit, not by elimination').toBeGreaterThan(s.rules.maxRounds);
+    for (const seat of s.seats.filter((x) => x.alive)) expect(seat.placement).toBe(1);
   });
 });
 

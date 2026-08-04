@@ -253,7 +253,7 @@ export function instView(
           const sp = stepProgress(inst.cardId, {
             spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
             ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick, playTick: inst.playTick,
-            shoutTick: inst.shoutTick, grimoireCharged: live?.grimoireCharged,
+            shoutTick: inst.shoutTick, soldProgress: inst.soldProgress, grimoireCharged: live?.grimoireCharged,
           });
           // Normally a fresh 0/N is hidden as noise (owner ruling). The Living Grimoire is the deliberate
           // exception: 0/3 is the whole point there — it's how you see the card is SPENT and how far the

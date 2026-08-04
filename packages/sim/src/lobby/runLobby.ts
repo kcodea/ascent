@@ -79,7 +79,6 @@ export interface RunLobby {
   /** `seats[0]` is always the live player. */
   seats: LobbySeatState[];
   encounters: LobbyEncounter[];
-  quietRounds: number;
   finished: boolean;
   rules: LobbyRules;
 }
@@ -243,7 +242,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // The probe above advanced live drivers to round 1; drop them so the lobby starts every seat clean. Every
   // PROBED seat, not just the seated ones — a rejected candidate's driver is cached too.
   resetLobbyDrivers(probed);
-  return { version: 1, seed, setId, round: 1, seats, encounters: [], quietRounds: 0, finished: false, rules: r };
+  return { version: 1, seed, setId, round: 1, seats, encounters: [], finished: false, rules: r };
 }
 
 /** Deterministic pairing over the living seats. Mirrors `pairSeats` but on the serializable shape. */
@@ -314,6 +313,21 @@ export function pairRunLobby(lobby: RunLobby): { pairs: [LobbySeatState, LobbySe
   // tried, its remaining field searched, and the combined score decides. Bye fairness stays in as a mid-weight
   // term: heavier than the meeting-count/recency preferences (100 / ≤99) so the ghost round still rotates when
   // pairings are equally fresh, far lighter than the no-repeat penalty (1e6) so it can never force a rematch.
+  // ── WHO MAY HOLD THE BYE (owner rule 2026-08-04) ─────────────────────────────────────────────────────
+  // The bye is a GHOST FIGHT, and a ghost is a dead seat's old board — usually softer than a live opponent at
+  // this stage of the climb, so it is a favour. Handing it to the leaders rewards the seats least in need of
+  // help. Only the BOTTOM THREE alive seats may take it: with 5 alive, 1st and 2nd never face a ghost.
+  //
+  // Standing is Resolve+Armor descending — the same order the lobby rail ranks seats by, so "bottom 3" means
+  // on screen what it means here. Ties break on seat id so the choice stays deterministic (a lobby must replay
+  // identically). At 3 or fewer alive every seat is in the bottom three and the rule stops binding, which is
+  // the honest reading of it rather than a special case.
+  const BYE_ELIGIBLE_FROM_BOTTOM = 3;
+  const standing = [...pool].sort(
+    (a, b) => (b.resolve + b.armor) - (a.resolve + a.armor) || a.id.localeCompare(b.id),
+  );
+  const byeEligible = new Set(standing.slice(-BYE_ELIGIBLE_FROM_BOTTOM).map((x) => x.id));
+
   const byeCount = new Map<string, number>();
   for (const e of lobby.encounters) if (e.bye) byeCount.set(e.bye, (byeCount.get(e.bye) ?? 0) + 1);
   if (pool.length % 2 === 1) {
@@ -321,7 +335,11 @@ export function pairRunLobby(lobby: RunLobby): { pairs: [LobbySeatState, LobbySe
     let byePairs: [LobbySeatState, LobbySeatState][] = [];
     let bye: LobbySeatState | null = null;
     // Candidates in fairness order + strict `<` below ⇒ exact ties still fall to the fairest candidate.
-    const candidates = [...pool].sort((a, b) => (byeCount.get(a.id) ?? 0) - (byeCount.get(b.id) ?? 0) || a.id.localeCompare(b.id));
+    // Fairness order, but only among the seats ALLOWED to take a bye. `byeEligible` can never be empty (it is
+    // the last min(3, pool.length) of a non-empty odd pool), so there is always a candidate.
+    const candidates = [...pool]
+      .filter((x) => byeEligible.has(x.id))
+      .sort((a, b) => (byeCount.get(a.id) ?? 0) - (byeCount.get(b.id) ?? 0) || a.id.localeCompare(b.id));
     for (const cand of candidates) {
       bestPairs = [];
       bestCost = Infinity;
@@ -459,15 +477,28 @@ export function seatResults(lobby: RunLobby, seatId: string, n = 3): SeatResult[
   return out;
 }
 
+/**
+ * How much Resolve+Armor the PLAYER's seat loses this round.
+ *
+ * COMBAT DAMAGE ONLY, capped by the round's `lossDamageCap` — nothing else touches the player's health (owner
+ * ruling 2026-08-04: "players should only take dmg from combat dmg"). Stall pressure, a per-round extra hit
+ * every loser used to take once the table went several rounds without an elimination, was REMOVED with that
+ * ruling; `maxRounds` remains the stalemate backstop.
+ *
+ * Kept as a function rather than inlined because it is the SINGLE answer the HUD and the settle both read —
+ * the two diverging is exactly what produced "I had 13 hp and it said I took 11 but I died".
+ */
+export function playerLossDamage(lobby: Pick<RunLobby, 'rules' | 'round'>, result: CombatResult): number {
+  if (result.result === 'win') return 0;
+  return Math.min(lossDamageCap(lobby.round), result.playerDamage);
+}
+
 export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult): RunLobby {
   if (lobby.finished) return lobby;
   const { pairs, bye } = pairRunLobby(lobby);
   const rng = makeRng(lobby.seed ^ (lobby.round * 0x51ed270b));
   const eliminated: LobbySeatState[] = [];
   const hpBefore = new Map(lobby.seats.map((s) => [s.id, s.armor + s.resolve]));
-  const pressure = lobby.quietRounds >= lobby.rules.pressureAfterQuietRounds
-    ? lobby.quietRounds - lobby.rules.pressureAfterQuietRounds + 1
-    : 0;
   const cap = lossDamageCap(lobby.round);
 
   for (const [a, b] of pairs) {
@@ -501,9 +532,6 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
       dmgToB = Math.min(cap, r.enemyDamage ?? 0);
     }
 
-    const drawn = outcome === 'draw';
-    dmgToA += drawn || outcome === 'lose' ? pressure : 0;
-    dmgToB += drawn || outcome === 'win' ? pressure : 0;
     hit(a, dmgToA);
     hit(b, dmgToB);
     for (const [seat, taken, dealt] of [[a, dmgToA, dmgToB], [b, dmgToB, dmgToA]] as const) {
@@ -531,8 +559,7 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     if (bye.id !== 's0' && board && mine) {
       const r = simulate(mine.minions, board.minions, rng, CARD_INDEX,
         combatSide({ tier: mine.tier }), combatSide({ tier: board.tier }));
-      const drawn = r.result === 'draw';
-      const dmg = Math.min(cap, r.playerDamage) + (drawn || r.result === 'lose' ? pressure : 0);
+      const dmg = Math.min(cap, r.playerDamage);
       hit(bye, dmg);
       driverFor(bye, lobby.setId)?.settle({
         round: lobby.round, outcome: r.result, damageTaken: dmg, damageDealt: 0,
@@ -548,8 +575,7 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
       // The PLAYER holds the bye: their ghost fight was already resolved by the reducer and is in
       // `playerResult`, so it settles from that rather than being re-simulated — the same one-fight-one-truth
       // rule as any other round. Without this the player took a free round whenever the count went odd.
-      const drawn = playerResult.result === 'draw';
-      const dmg = Math.min(cap, playerResult.playerDamage) + (drawn || playerResult.result === 'lose' ? pressure : 0);
+      const dmg = Math.min(cap, playerResult.playerDamage);
       hit(bye, dmg);
       if (bye.alive && bye.armor + bye.resolve <= 0) {
         bye.alive = false;
@@ -573,7 +599,6 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
 
   const remaining = lobby.seats.filter((s) => s.alive).length;
   for (const seat of eliminated) seat.placement = remaining + eliminated.length;
-  lobby.quietRounds = eliminated.length > 0 ? 0 : lobby.quietRounds + 1;
   lobby.round += 1;
 
   const living = lobby.seats.filter((s) => s.alive);

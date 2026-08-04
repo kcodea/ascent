@@ -280,6 +280,50 @@ export function usageOf(bindings: FxBindings, callSites: readonly string[]): FxU
  */
 export const PRESET_ID_PREFIX = 'preset-';
 
+/** Why a def cannot be deleted. Empty = safe to delete. */
+export interface FxDeleteBlocker {
+  /** `binding` — a bindings.json row still names it. `code` — UI source still calls playDef with its id. */
+  kind: 'binding' | 'code';
+  /** Human-readable: the exact row or file, so the answer to "why not?" is the fix. */
+  what: string;
+}
+
+/**
+ * Whether a def can be deleted, and if not, precisely what is still pointing at it.
+ *
+ * Deletion is REFUSED rather than cascaded, and that is the whole design. A dangling binding is not a
+ * cosmetic leftover: `bindings.test.ts` fails CI on one, and at runtime `playDef` returns null so the moment
+ * plays nothing with no error anywhere — the exact silent-absence failure this system has spent the week
+ * paying for. Deleting the file and quietly rewriting the binding table would trade a loud failure for a
+ * quiet one.
+ *
+ * A code call site is worse still: source would keep naming an id that no longer exists, and nothing but a
+ * missing effect would say so. That one is not even fixable from the workshop, which is why it is reported
+ * with the file path — the fix is a code edit, and the author needs to know that before they go looking.
+ *
+ * So the contract is: unbind it first (the commit panel already does that), then delete. Two deliberate
+ * steps, each reversible on its own.
+ */
+export function deleteBlockers(entry: FxCatalogEntry): FxDeleteBlocker[] {
+  const out: FxDeleteBlocker[] = [];
+  for (const k of entry.bindings.kinds) out.push({ kind: 'binding', what: `the ${k} row` });
+  for (const c of entry.bindings.cards) out.push({ kind: 'binding', what: c.name });
+  for (const f of entry.callSites) out.push({ kind: 'code', what: callSitePath(f) });
+  return out;
+}
+
+/** One sentence for the UI: why this def is not deletable, or `null` when it is. */
+export function deleteBlockedReason(entry: FxCatalogEntry): string | null {
+  const blockers = deleteBlockers(entry);
+  if (blockers.length === 0) return null;
+  const bound = blockers.filter((b) => b.kind === 'binding').map((b) => b.what);
+  const code = blockers.filter((b) => b.kind === 'code').map((b) => b.what);
+  const parts: string[] = [];
+  if (bound.length > 0) parts.push(`still bound to ${bound.join(', ')} — unbind it first`);
+  if (code.length > 0) parts.push(`still called from ${code.join(', ')} — that needs a code change`);
+  return parts.join('; ');
+}
+
 /**
  * The whole library, as one array. Every view in the browser reads THIS and nothing else — which is the
  * point: "which def fires on Bloodbinder" is computed once here rather than separately per lens, so the

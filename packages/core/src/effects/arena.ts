@@ -67,7 +67,7 @@ export interface EffectArena {
   /** Summon ONE token, optionally with a keyword and/or explicit stats. Returns the body (undefined = board
    *  full). Explicit stats: combat folds them into the summon snapshot; the shop labels the above-base share
    *  as a Ruby buff and fires its onRubyPlayed watchers — each phase's legacy bookkeeping. */
-  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string; golden?: boolean }): ArenaBody | undefined;
+  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string; golden?: boolean; charge?: boolean; rubyLabel?: boolean }): ArenaBody | undefined;
   /** Play `per` Rubies on a body — each phase's own ritual: combat routes through `playRubyOn` (rubyBonus +
    *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
    *  'Ruby' buff and fires its watchers. */
@@ -124,6 +124,13 @@ export interface EffectArena {
   logImprove(amount: number): void;
   /** Shop spells cast this turn, for THIS side (combat reads the side's captured value). */
   spellsThisTurn(): number;
+  /** Grant `count` copies of a NAMED card to hand. Combat rides `grantToHand` (announced + flown in the
+   *  replay); the shop conjures (run-buff bake + hand cap). */
+  grantNamedCard(cardId: string, count: number): void;
+  /** Grant `count` random Shop spells. Each phase's legacy pick: combat's `grantRandomSpell` channel resolves
+   *  at settle (≤ tavern tier; `exactTier` is not expressible there and keeps its legacy shop-only meaning);
+   *  the shop conjures from the pinned pool's spells. */
+  grantRandomSpells(count: number, exactTier?: number): void;
   /** Grant `count` random cards matching `pred` from the run's PINNED pool to the player's hand. Each phase's
    *  whole legacy ritual: combat picks one-per-grant off its threaded rng and rides `grantToHand` (the card
    *  flies to hand in the replay); the shop conjures via `conjureToHand` (cursor picks + run-buff bake +
@@ -204,7 +211,7 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const t = arena.rubyTallyOf(arena.self);
     const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
-    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g });
+    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g, rubyLabel: true });
   },
 
   /** Geode Guardian — Echo: summon `count` Golems (default 2, NOT golden-scaled — owner: a Gilded copy still
@@ -513,5 +520,41 @@ export const ARENA_EFFECTS = {
     arena.grantRandomFromPool(
       (c) => ALE_IDS.includes(c.id),
       (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Big Huggies — Echo: put a named spell in hand (golden grants two). */
+  deathrattleGrantSpell(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.cardId === 'string' ? params.cardId : '';
+    if (!id) return;
+    arena.grantNamedCard(id, arena.self.golden ? 2 : 1);
+  },
+
+  /** Echo: put `count` copies of a named card in hand (golden doubles). */
+  deathrattleGrantCardToHand(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.cardId === 'string' ? params.cardId : '';
+    if (!id) return;
+    arena.grantNamedCard(id, (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Echo: get `count` random Shop spells (golden doubles). `exactTier` pins the tier where the phase can
+   *  express it (the shop); combat's settle-time channel keeps its legacy ≤-tavern-tier pick. */
+  deathrattleGrantRandomSpell(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantRandomSpells(
+      (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1),
+      typeof params.exactTier === 'number' ? params.exactTier : undefined);
+  },
+
+  /** Anvilshade Smith — Echo: summon `count` tokens that INHERIT this body's Attack when higher than their
+   *  printed floor (buffing the Smith buffs what its death produces), swinging immediately in combat (the
+   *  charge is meaningless in a shop and the adapter ignores it there). Golden doubles the count. */
+  echoSummonInheritAttackAndCharge(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.token === 'string' ? params.token : '';
+    if (!id) return;
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    for (let i = 0; i < count; i++) {
+      const made = arena.summonToken(id, { charge: true });
+      if (!made) break; // board full
+      if (arena.self.attack > made.attack) made.attack = arena.self.attack;
+    }
   },
 } as const;

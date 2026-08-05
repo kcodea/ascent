@@ -153,8 +153,11 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       const kw = opts?.keyword ? [opts.keyword as Keyword] : undefined;
       const ov = opts?.attack !== undefined && opts.health !== undefined
         ? { attack: opts.attack, health: opts.health, maxHealth: opts.health } : undefined;
-      return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, opts?.golden ?? false, false, ov);
+      // arg6 is the immediate-attack ("charge") queue — the Smith's token swings the moment it lands.
+      return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, opts?.golden ?? false, opts?.charge ?? false, ov);
     },
+    grantNamedCard: (cardId, count) => { for (let i = 0; i < count; i++) ctx.grantToHand(cardId, self.side, self.uid); },
+    grantRandomSpells: (count) => ctx.grantRandomSpell(count, self.side, self.uid),
     playRubiesOn: (t, per) => playRubyOn(ctx, self, t as Minion, per),
     gainRubyStats: (t, a, h) => applyRubyStats(ctx, self, t as Minion, a, h),
     neighboursOf: (t) => livingNeighbours(ctx, t as Minion),
@@ -458,9 +461,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Sporebat — Deathrattle: grant N random tavern-tier spells to your hand after combat (golden 2). The
    *  tier-bounded pick happens at settle (where the tavern tier is known); combat just banks the count. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantRandomSpell: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side, self.uid);
+    ARENA_EFFECTS.deathrattleGrantRandomSpell(combatArena(ctx, self), params);
   },
 
   /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once PER HIT, capped at
@@ -871,24 +875,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    * buffing the Smith buffs what its death produces. `ctx.attackNow` is the same out-of-turn-order queue the
    * Whelp uses.
    */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases. The combat adapter folds the
+  // inherited Attack into the summon override so the event carries the real number from the first frame.
   echoSummonInheritAttackAndCharge: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const card = ctx.getCard(str(params.token));
-    if (!card) return;
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
-      // Both the inherited Attack and the immediate swing go through `ctx.summon`'s own parameters: the token
-      // must enter the fight already carrying them, and a post-summon mutation lands after the event is emitted.
-      const attack = Math.max(card.attack, self.attack);
-      ctx.summon(self.side, card, self.uid, undefined, false, true, {
-        attack, health: card.health, maxHealth: card.health,
-      });
-    }
+    ARENA_EFFECTS.echoSummonInheritAttackAndCharge(combatArena(ctx, self), params);
   },
 
   /** Deathrattle (Arcane Weaver): add a copy of a spell to your hand after combat. Golden grants two. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantSpell: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
+    ARENA_EFFECTS.deathrattleGrantSpell(combatArena(ctx, self), params);
   },
 
   /** Deathrattle (Sporeling): give ALL living friends +atk/+hp (golden doubles). On a true death the dying
@@ -2104,12 +2102,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Pillager — Deathrattle: add a specific card (e.g. Gold Pouch) to the player's hand after combat.
    *  Golden grants `count`×2 copies. Carried back via CombatResult.playerHandGrants. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantCardToHand: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const cardId = str(params.cardId);
-    if (!cardId) return;
-    const count = num(params.count, 1) * mul(self);
-    for (let i = 0; i < count; i++) ctx.grantToHand(cardId, self.side, self.uid);
+    ARENA_EFFECTS.deathrattleGrantCardToHand(combatArena(ctx, self), params);
   },
 
   /** Target Dummy — each time it takes damage (once per hit, regardless of amount), gain +`attack` Attack,

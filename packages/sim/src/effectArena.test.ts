@@ -55,6 +55,8 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     logImprove: () => {},
     spellsThisTurn: () => 0,
     grantRandomFromPool: () => {},
+    grantNamedCard: () => {},
+    grantRandomSpells: () => {},
     rng: () => rng,
   };
   return { arena, granted };
@@ -122,7 +124,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 31; // +deathrattleGrantMagnetic, combatGrantAle (grantRandomFromPool)
+  const MIGRATED_FLOOR = 35; // +GrantSpell/GrantCardToHand/GrantRandomSpell + Anvilshade Smith
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 32–35: the hand-grant family and Anvilshade Smith
+
+Four more — floor → 35 of 42. `deathrattleGrantSpell`, `deathrattleGrantCardToHand` and
+`deathrattleGrantRandomSpell` ride two new verbs (`grantNamedCard`, `grantRandomSpells`): combat rides
+`grantToHand` / the settle-time `grantRandomSpell` channel (the card flies to hand in the replay), the shop
+conjures with the run-buff bake and hand cap. One asymmetry stated rather than hidden: `exactTier` is only
+expressible in the shop (combat's settle channel picks ≤ tavern tier, its legacy) — noted in the verb's doc.
+
+**Anvilshade Smith** (`echoSummonInheritAttackAndCharge`) forced `summonToken` to its final shape:
+`charge` (combat arg-6 immediate-attack queue; a shop no-op) and `rubyLabel` — Gemheart's shop labelling
+(above-base share = Ruby buff + watcher notify) is now OPT-IN, because the Smith's inherited Attack is the
+body's value, not a buff entry, and labelling it Ruby would have been wrong. Gemheart's body passes
+`rubyLabel: true`; everyone else gets direct stats.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 30+31: the pool-grant family (Attachments + Ales)
 
 `deathrattleGrantMagnetic` and `combatGrantAle` migrate on the new `grantRandomFromPool(pred, count)` verb —

@@ -74,11 +74,16 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       if (!made) return undefined;
       if (opts?.keyword && !made.keywords.includes(opts.keyword as Keyword)) made.keywords = [...made.keywords, opts.keyword as Keyword];
       if (opts?.golden && !made.golden) { made.golden = true; made.attack *= 2; made.health *= 2; } // gilded token: doubled base + the flag
-      // Explicit stats: label the above-base share as a RUBY buff and notify watchers — the legacy shop
-      // bookkeeping, so a Resonance Idol still bounces and the inspect breakdown attributes correctly.
+      // Explicit stats. `rubyLabel` (Gemheart): the above-base share is a RUBY buff + watcher notify — the
+      // legacy shop bookkeeping, so a Resonance Idol bounces and the breakdown attributes. Otherwise the
+      // stats apply DIRECTLY (the Smith's inherited Attack is the body's value, not a buff entry).
       if (opts?.attack !== undefined && opts.health !== undefined) {
-        const ea = opts.attack - made.attack, eh = opts.health - made.health;
-        if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+        if (opts.rubyLabel) {
+          const ea = opts.attack - made.attack, eh = opts.health - made.health;
+          if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+        } else {
+          made.attack = opts.attack; made.health = opts.health;
+        }
       }
       return made;
     },
@@ -114,6 +119,16 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
     logImprove: () => {},
     spellsThisTurn: () => state.spellsThisTurn,
+    grantNamedCard: (cardId, count) => {
+      const def = CARD_INDEX[cardId];
+      if (def) conjureToHand(state, [def], count);
+    },
+    grantRandomSpells: (count, exactTier) => {
+      const ok = exactTier != null
+        ? (c: CardDef) => c.tier === exactTier
+        : (c: CardDef) => c.tier <= state.tier;
+      conjureToHand(state, poolOf(state).spells.filter(ok), count);
+    },
     grantRandomFromPool: (pred, count) => {
       // The FULL pool (buyable + spells): Ales are spells, Attachments are minions — the predicate decides.
       const pool = [...poolOf(state).buyable, ...poolOf(state).spells].filter(pred);
@@ -1662,10 +1677,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // that only make sense mid-fight (damage, destroy-the-killer, granting Rise) stay combat-only by design.
 
   /** Big Huggies / Scalefeather (Echo): put a named card in hand. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantSpell: (ctx, self, params) => {
-    const def = CARD_INDEX[str(params.cardId)];
-    if (!def) return;
-    conjureToHand(ctx.state, [def], gold(self));
+    ARENA_EFFECTS.deathrattleGrantSpell(shopArena(ctx.state, self), params);
   },
 
   /** Bone Taxer (Echo): raise MAX Gold for the run. */
@@ -1723,18 +1737,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Anvilshade Smith (Echo): summon a token that inherits this body's Attack. The combat half also makes it
    *  swing immediately — meaningless in a shop, so only the summon half applies here. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (the charge no-ops here — there is
+  // no attack queue in a shop).
   echoSummonInheritAttackAndCharge: (ctx, self, params) => {
-    const token = CARD_INDEX[str(params.token)];
-    if (!token) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const before = ctx.state.board.length;
-      const body = ctx.summon(token, self.uid);
-      if (ctx.state.board.length === before) break; // board full
-      const made = body ?? ctx.state.board[ctx.state.board.length - 1];
-      // The token's printed Attack is a FLOOR, not the value — it takes the Smith's if that is higher, so
-      // buffing the Smith buffs what its death produces (same rule as the combat half).
-      if (made && self.attack > made.attack) made.attack = self.attack;
-    }
+    ARENA_EFFECTS.echoSummonInheritAttackAndCharge(shopArena(ctx.state, self), params);
   },
 
   /** Ryme / Dawnclaw (Echo): re-fire both neighbours' Shouts. In the shop every Shout is simply its recruit
@@ -3151,10 +3157,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Burial Imp (recruit half) — add `count` copies of a specific card (a Gold Pouch) to hand; golden doubles. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantCardToHand: (ctx, self, params) => {
-    const def = CARD_INDEX[str(params.cardId)];
-    if (!def) return;
-    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+    ARENA_EFFECTS.deathrattleGrantCardToHand(shopArena(ctx.state, self), params);
   },
 
   /** Hoard Whelp — End of Turn: conjure a random Tier-`tier` card (a spell OR a minion) to hand; golden grants 2.
@@ -3170,12 +3175,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** (recruit half) — add `count` random Tavern spell(s) (≤ tavern tier) to hand; golden doubles. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantRandomSpell: (ctx, self, params) => {
-    // `exactTier` pins the spell to a specific tier; else any spell up to the tavern tier.
-    const ok = params.exactTier != null
-      ? (c: CardDef) => c.tier === num(params.exactTier)
-      : (c: CardDef) => c.tier <= ctx.state.tier;
-    conjureToHand(ctx.state, poolOf(ctx.state).spells.filter(ok), num(params.count, 1) * gold(self));
+    ARENA_EFFECTS.deathrattleGrantRandomSpell(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Hoard Chronicler (Shout): add `count` random Tavern spells to hand (golden doubles). The Shout

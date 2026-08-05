@@ -28,8 +28,9 @@
 | `packages/ui/src/fx/statHold.ts` | The hold store: what is withheld, when it is delivered, and the clock that delivers it | Modify — add `startAt`/`rollMs`, the origin rank, the shared ticker, schedule-aware TTL |
 | `packages/ui/src/fx/statHold.test.ts` | Headless coverage of the store | Modify — new describes for scheduling, the ticker, the rank |
 | `packages/ui/src/Card.tsx` | Detect an unauthored change, place a hold, pop the badge | Modify — delete its rAF loop and failsafe; keep detection and the pop |
-| `packages/ui/src/fx/land.ts` | Pure traversal arithmetic (`scheduleLands`, `cascade`, `waves`) | Modify — add `rubyLandSchedule`, the one pure helper both ruby consumers call |
-| `packages/ui/src/fx/land.test.ts` | Headless coverage of the traversal arithmetic | Modify — cover `rubyLandSchedule` |
+| `packages/ui/src/fx/land.ts` | Pure traversal arithmetic (`scheduleLands`, `cascade`, `waves`) | **Unchanged** — stays import-free; see Task 4's correction note |
+| `packages/ui/src/choreo/channels/rubyLanded.ts` | The Ruby-landed cue's constants and its schedule | Modify — add `rubyLandSchedule`, the one pure helper both ruby consumers call |
+| `packages/ui/src/choreo/channels/rubyLanded.test.ts` | Headless coverage of that channel | Modify — cover `rubyLandSchedule` |
 | `packages/ui/src/Recruit.tsx` | The shop's cues | Modify — ruby cascade and fodder tendrils publish their schedules; last `+X/+X` float cut |
 | `packages/ui/src/fx/primitives/react.ts` | The authored `react` layer | Modify — one-word origin rename at its `holdStat` call site (it has none today; see Task 3) |
 | `packages/ui/src/fx/playDef.ts` | `window.__fx.roll` dev handle | Modify — one-word origin rename |
@@ -552,17 +553,25 @@ The ruby cascade's hold lives in a layout effect and its fires live in a later `
 its own schedule they can drift. This extracts the arithmetic so both call one pure function — testable
 headlessly, which the React sites are not.
 
+> **CORRECTION (found before execution, 2026-08-04).** This task originally put `rubyLandSchedule` in
+> `fx/land.ts` and had that file import `RUBY_GAP_MS`/`RUBY_BEAT_MS` from `choreo/channels/rubyLanded`. That
+> inverts the dependency: `fx/land.ts` today has ZERO imports — it is generic traversal arithmetic — and
+> making it depend on one specific combat cue channel is backwards. The helper belongs in
+> `choreo/channels/rubyLanded.ts`, which already owns both constants and `RUBY_LANDED_DEF`, and which can
+> import the generic arithmetic rather than be imported by it. Paths below reflect the correction.
+
 **Files:**
-- Modify: `packages/ui/src/fx/land.ts`
-- Test: `packages/ui/src/fx/land.test.ts`
+- Modify: `packages/ui/src/choreo/channels/rubyLanded.ts`
+- Test: `packages/ui/src/choreo/channels/rubyLanded.test.ts`
+- Do NOT modify `packages/ui/src/fx/land.ts` — it stays import-free.
 
 **Interfaces:**
-- Consumes: `scheduleLands`, `cascade` (already in this file).
+- Consumes: `scheduleLands`, `cascade` and the `Land` type from `../../fx/land`; `RUBY_GAP_MS`/`RUBY_BEAT_MS` already local to this file.
 - Produces: `rubyLandSchedule(lands: readonly { uid: string; count: number }[]): Land[]` — the shop ruby cascade's schedule, derived once from the raw `RubyLandedFx` list.
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `packages/ui/src/fx/land.test.ts`:
+Append to `packages/ui/src/choreo/channels/rubyLanded.test.ts`:
 
 ```ts
 describe('rubyLandSchedule', () => {
@@ -585,21 +594,17 @@ describe('rubyLandSchedule', () => {
 });
 ```
 
-Add to the imports at the top of `land.test.ts`:
-
-```ts
-import { rubyLandSchedule } from './land';
-import { RUBY_BEAT_MS, RUBY_GAP_MS } from '../choreo/channels/rubyLanded';
-```
+Ensure `rubyLandSchedule`, `RUBY_BEAT_MS` and `RUBY_GAP_MS` are all imported from `./rubyLanded` at the top
+of the test file — extend the existing import rather than adding a second one from the same module.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npx vitest run packages/ui/src/fx/land.test.ts`
+Run: `npx vitest run packages/ui/src/choreo/channels/rubyLanded.test.ts`
 Expected: FAIL — `rubyLandSchedule is not a function`.
 
 - [ ] **Step 3: Implement the helper**
 
-Append to `packages/ui/src/fx/land.ts`:
+Append to `packages/ui/src/choreo/channels/rubyLanded.ts`:
 
 ```ts
 /**
@@ -615,22 +620,23 @@ export function rubyLandSchedule(lands: readonly { uid: string; count: number }[
 }
 ```
 
-Add the import at the top of `land.ts`:
+Add the import at the top of `rubyLanded.ts` (the generic arithmetic, imported by the specific channel —
+never the other way round):
 
 ```ts
-import { RUBY_BEAT_MS, RUBY_GAP_MS } from '../choreo/channels/rubyLanded';
+import { cascade, scheduleLands, type Land } from '../../fx/land';
 ```
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `npx vitest run packages/ui/src/fx/land.test.ts`
+Run: `npx vitest run packages/ui/src/choreo/channels/rubyLanded.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Full gates and commit**
 
 ```bash
 npx tsc -b && npx vitest run
-git add packages/ui/src/fx/land.ts packages/ui/src/fx/land.test.ts
+git add packages/ui/src/choreo/channels/rubyLanded.ts packages/ui/src/choreo/channels/rubyLanded.test.ts
 git commit -m "refactor(fx): rubyLandSchedule — one schedule for the hold and the fire"
 ```
 
@@ -707,9 +713,10 @@ with:
       for (const land of rubyLandSchedule(lands)) {
 ```
 
-Add `rubyLandSchedule` to the `./fx/land` import at `Recruit.tsx:52`. Remove `cascade` and `scheduleLands`
-from that import **only if** no other site in the file still uses them — the fodder effect at
-`Recruit.tsx:2758` does, so keep them.
+Add `rubyLandSchedule` to the EXISTING `./choreo/channels/rubyLanded` import at `Recruit.tsx:51` (which
+already brings in `RUBY_BEAT_MS`, `RUBY_GAP_MS` and `RUBY_LANDED_DEF`) — not from `./fx/land`, which no
+longer owns it. Leave the `./fx/land` import alone: the fodder effect at `Recruit.tsx:2758` still uses
+`cascade` and `scheduleLands` directly.
 
 - [ ] **Step 4: Verify in the browser**
 

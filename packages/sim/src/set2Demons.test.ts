@@ -306,9 +306,13 @@ describe('set 2 — the Imp line (combat)', () => {
 });
 
 describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
-  it('all 20 roster cards are in the set', () => {
+  it('all 19 roster cards are in the set', () => {
     // 20: Pit Drillmaster went 2026-07-26, the Captain 2026-07-27, Riot Caller 2026-07-29 (all owner cuts).
-    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(20);
+    // 20 → 19 on 2026-08-04: Rouge Rogue (dm_chancellor) moved to the MINION ARCHIVE (cards/archive.ts) —
+    // still in CARD_INDEX for saved runs, in no set.
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(19);
+    expect(poolFor('set2').all.some((c) => c.id === 'dm_chancellor'), 'archived — not in the set').toBe(false);
+    expect(CARD_INDEX['dm_chancellor'], 'archived — still resolvable by id').toBeTruthy();
   });
 
   it('Hellrider eats on every 4th REFRESH, counting from its own arrival', () => {

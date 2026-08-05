@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, poolFor, SETS } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
 import { createRun, type BoardCard, type RunState } from './state';
 import { reduce } from './reducer';
@@ -173,5 +173,22 @@ describe('Strange Revision can be cast on Shop minions', () => {
     expect(CARD_INDEX[offer.cardId]!.tier, 'same tier').toBe(CARD_INDEX[beforeId]!.tier);
     expect(offer.atk, 'the +2 bonus attack re-based onto the new form').toBe(2);
     expect(offer.hp, 'the +2 bonus health re-based onto the new form').toBe(2);
+  });
+});
+
+describe('the MINION ARCHIVE (owner 2026-08-04)', () => {
+  const ARCHIVED = ['d2_broodlord', 'd2_runefire', 'dm_chancellor', 'k_wardstone', 'k_rubybroker'];
+
+  it('archived cards are in NO set pool — they can never be drawn, offered or Discovered', () => {
+    for (const setId of Object.keys(SETS)) {
+      const pool = poolFor(setId as keyof typeof SETS);
+      for (const id of ARCHIVED) {
+        expect(pool.all.some((c) => c.id === id), `${id} leaked into ${setId}`).toBe(false);
+      }
+    }
+  });
+
+  it('…but every one still resolves through CARD_INDEX (saved runs / pinned boards / replays)', () => {
+    for (const id of ARCHIVED) expect(CARD_INDEX[id], `${id} fell out of the index`).toBeTruthy();
   });
 });

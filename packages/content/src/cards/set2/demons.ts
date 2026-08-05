@@ -238,23 +238,6 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**End of Turn:** this minion and adjacent **Demons** each Consume **2** random Shop minions.',
   },
   {
-    id: 'dm_chancellor',
-    name: 'Rouge Rogue',
-    tribe: 'demon',
-    tier: 6,
-    attack: 4,
-    health: 12,
-    keywords: [],
-    // AUDIT FIND 2026-07-31: the printed rule and the wired effect had come apart — the text has said "Imp
-    // attacks / improves" since the rename, but the card still carried `spellCastBuffImps` (a recruit-phase
-    // per-spell buff, +1/+1). The matching combat factory `onImpAttackBuffImps` existed, schema-registered,
-    // with NO card referencing it. Its escalation is per-combat (rides `summonBonus`, which `simulate` now
-    // excludes from the carry-back for this card so "this combat" stays true).
-    effects: [{ on: 'onAttack', do: 'onImpAttackBuffImps', params: { attack: 3, health: 3, improve: 1, improveEvery: 3 } }],
-    text: 'Whenever an **Imp** attacks, give your Imps **+3/+3** this combat. Improves by **+1/+1** every **3** Imp attacks.',
-    goldenText: 'Whenever an **Imp** attacks, give your Imps **+6/+6** this combat. Improves by **+2/+2** every **3** Imp attacks.',
-  },
-  {
     // Owner change 2026-07-25. Was "your Imps have an Echo this combat"; now a capped death trigger, which also
     // catches Imps summoned MID-combat (a graft can only reach bodies that already exist). The budget is what
     // bounds the chain — a replacement Imp dying can pay out, but only while it lasts.

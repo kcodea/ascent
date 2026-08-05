@@ -155,6 +155,21 @@ a live fight.
 Follow-ups: `rally-link` is now an authored def with nothing bound to it — either author it onto specific
 ralliers or delete it, but don't leave it looking wired. And the yellow pulse still fires once per SWING while
 the sparkle fires once per PROC, which is correct but worth watching on a gilded Echohorn.
+## 2026-08-04 — The MINION ARCHIVE + five cards archived out of Set 2
+
+New mechanism (owner ask): `packages/content/src/cards/archive.ts` — cards REMOVED from play but not from
+code. An archived card belongs to NO set (never drawn/offered/Discovered/granted; every generation path goes
+through a set pool and the archive is in none) but stays in `CARD_INDEX`, so saved runs, pinned opponent
+boards, replays and leaderboard entries that hold one keep resolving. To archive: move the def verbatim; to
+restore: move it back.
+
+Archived from Set 2: **Runefire** (d2_runefire), **Ashen Broodlord** (d2_broodlord), **Rouge Rogue**
+(dm_chancellor), **Wardstone Jeweler** (k_wardstone), **Ruby Broker** (k_rubybroker). Set counts drop
+accordingly (Demons 20 → 19 etc.). Pinned by tests: none of the five in any set pool, all five still in the
+index. NOTE for the owner: a rune's `previewCards` still names Ruby Broker (runes.ts) — the rune works, but
+its preview shows an unobtainable card; say the word if that rune should change.
+
+Verified: full gates green (3927 tests). (PR #876.)
 ## 2026-08-04 — Owner balance batch: 16 card/rune changes, Chicken Brawl, reward-card declassification, full Set-2 art re-wire
 
 **Balance (owner sheet 2026-08-04):** Spell Warden T3→T4 · Brunni T2→T3 + 2/1→3/1 · Appetite Agent T3→T2 ·

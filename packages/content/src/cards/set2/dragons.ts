@@ -152,22 +152,6 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout and Echo:** get **2 Growths**.',
   },
   {
-    // Dragon/DEMON. Owner rework 2026-07-31 (second pass): from the capped friendly-Demon consume payoff to a
-    // RALLY that casts a Staff of Guel — permanent (the tavern-buy enchant carries out of combat), scaled by
-    // the run's spell power, and a real spell cast that feeds Guel / Groveweaver / Runebloom.
-    id: 'd2_broodlord',
-    name: 'Ashen Broodlord',
-    tribe: 'dragon',
-    tribe2: 'demon',
-    tier: 5,
-    attack: 6,
-    health: 8,
-    keywords: ['RL'], // Rally — the badge has to match the trigger
-    effects: [{ on: 'onAttack', do: 'rallyCastShopBuffSpell', params: { attack: 2, health: 2 } }],
-    text: '**Rally:** cast a **Staff of Guel**.',
-    goldenText: '**Rally:** cast **2 Staves of Guel**.',
-  },
-  {
     // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the
     // tribe can cycle bodies without losing them. PLAIN copy — buffs and golden are deliberately not carried.
     id: 'd2_voicekeeper',
@@ -221,22 +205,6 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisRecast', params: { count: 1 } }],
     text: 'The first **Shop spell** you cast on this each turn **casts again**.',
     goldenText: 'The first **Shop spell** you cast on this each turn casts **2 additional** times.',
-  },
-  {
-    // The wide version of Mirrorwing: instead of doubling on itself, it copies the spell onto its Dragon
-    // neighbours — so seating matters, and it scales with a built board rather than with one big spell.
-    id: 'd2_runefire',
-    name: 'Runefire',
-    tribe: 'dragon',
-    tier: 6,
-    attack: 6,
-    health: 9,
-    keywords: [],
-    // Owner rework 2026-07-27 — reuses the same End-of-Turn recast Runic Archivist had (which now reads
-    // `lastSpellCastId`), so the two cards share one primitive rather than two near-identical ones.
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
-    text: '**End of Turn:** cast the last **Shop spell** you cast this turn again.',
-    goldenText: '**End of Turn:** cast the last **Shop spell** you cast this turn **2 additional** times.',
   },
   {
     // Two effects, one card: the Shout that pays out, and the cadence that grows it. Rides

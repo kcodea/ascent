@@ -114,19 +114,6 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Choose One:** give your Rubies **+2/+2**, or get **8 Rubies**.',
   },
   {
-    // End of Turn (recruit) → mint a Warding Ruby (a Ruby that also grants Ward) into hand.
-    id: 'k_wardstone',
-    name: 'Wardstone Jeweler',
-    tribe: 'kobold',
-    tier: 5,
-    attack: 4,
-    health: 7,
-    keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnGetRubies', params: { count: 1, rubyId: 'warding-ruby' } }],
-    text: '**End of Turn:** Get a **Warding Ruby**.',
-    goldenText: '**End of Turn:** Get **2 Warding Rubies**.',
-  },
-  {
     // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
     id: 'k_crownvein',
     name: 'Crownvein Vanguard',
@@ -301,19 +288,6 @@ export const SET2_KOBOLDS: CardDef[] = [
     effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { goldenReps: 2, random: 2 } }],
     text: '**Ward.** Rubies cast on this minion bounce to **2 random** friendly minions.',
     goldenText: '**Ward.** Rubies cast on this minion bounce to **2 random** friendly minions **twice**.',
-  },
-  {
-    // "When a Ruby is played on THIS minion" → Gold, capped per turn (per-instance `rubyRecvTick`).
-    id: 'k_rubybroker',
-    name: 'Ruby Broker',
-    tribe: 'kobold',
-    tier: 5,
-    attack: 2,
-    health: 6,
-    keywords: [],
-    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedGold', params: { gold: 2, cap: 3 } }],
-    text: 'Rubies played on this minion give you **2 Gold** (three times per turn).',
-    goldenText: 'Rubies played on this minion give you **3 Gold** (three times per turn).',
   },
   {
     // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally

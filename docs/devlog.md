@@ -1,5 +1,20 @@
 # ASCENT — development log
 
+## 2026-08-04 — The Shout family begins: FACTORIES-first dispatch is the switch's death sentence
+
+The structural move: `replayCombatBattlecry` now dispatches **FACTORIES-first** — an onPlay effect with a
+FACTORIES entry resolves LIVE in combat through it, and only then does the legacy inline switch get a look.
+Every Shout body migrated to the arena registers in FACTORIES and its inline branch is deleted; when the
+switch is empty it dies, and `COMBAT_REPLAYABLE_BATTLECRIES` dies with it (until then the set must grow in
+step per migration — it is what stops settle from double-applying a live-resolved Shout).
+
+First pair through the new path, both duals unified: `battlecrySummon` (Alleycat/Shaper) and
+`battlecryBuffTribe` — floor → 47. The terrain, mapped: 12 inline branches remain in the switch, and 32
+onPlay ids have no combat handling at all (the defer class — several of which can now resolve live for free
+on existing verbs: grant-a-card, random-spell, Rubies, Ales).
+
+Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Body 45: the Lantern Echo really casts in the shop; the ECHO FAMILY IS DONE
 
 `deathrattleCastTribeAttack` (the Soulsman-class Echo that casts Lantern of Souls) gains its ARENA-BORN shop

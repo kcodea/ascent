@@ -752,4 +752,30 @@ export const ARENA_EFFECTS = {
       arena.castTribeAttackSpell(tribe, amount, 'lanternofsouls');
     }
   },
+
+  // ────────────────────────────────── THE SHOUT FAMILY ──────────────────────────────────
+  // Every body added here + registered in FACTORIES shrinks replayCombatBattlecry's legacy switch, which now
+  // dispatches FACTORIES-FIRST. When the switch is empty it dies, and COMBAT_REPLAYABLE_BATTLECRIES with it.
+
+  /** Shout: summon `count` copies of a token (golden doubles — Alleycat 1 → 2, Shaper 2 → 4). */
+  battlecrySummon(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.tokenId === 'string' ? params.tokenId : '';
+    if (!id) return;
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    for (let i = 0; i < count; i++) arena.summonToken(id);
+  },
+
+  /** Shout: your `tribe` minions gain +atk/+hp (golden doubles; `includeSelf: false` for "other"). */
+  battlecryBuffTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    const includeSelf = params.includeSelf !== false;
+    for (const f of arena.friends()) {
+      if (!arena.isTribe(f, tribe)) continue;
+      if (!includeSelf && f.uid === arena.self.uid) continue;
+      arena.buff(f, a, h);
+    }
+  },
 } as const;

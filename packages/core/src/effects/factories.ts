@@ -337,14 +337,16 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   for (const eff of m.effects) {
     if (eff.on !== 'onPlay') continue;
     const p = eff.params ?? {};
-    if (eff.do === 'battlecrySummon') {
-      const token = ctx.getCard(str(p.tokenId));
-      if (token) for (let i = 0; i < num(p.count, 1) * g; i++) ctx.summon(m.side, token, m.uid);
-    } else if (eff.do === 'battlecryBuffTribe') {
-      const tribe = str(p.tribe), a = num(p.attack) * g, h = num(p.health) * g;
-      const includeSelf = p.includeSelf !== false;
-      for (const t of ctx.living(m.side)) if ((includeSelf || t !== m) && tribeOf(t, tribe)) ctx.buff(t, a, h, m.uid);
-    } else if (eff.do === 'battlecryBuffUndeadAttack') {
+    // ── SHOUT FAMILY dispatch (the switch's replacement): a FACTORIES entry resolves LIVE. Every Shout body
+    // migrated to the arena registers here and its inline branch below is deleted; when the switch below is
+    // empty, it dies — and COMBAT_REPLAYABLE_BATTLECRIES with it. Keep that set in step per migration: it is
+    // what stops settle from applying a live-resolved Shout a second time.
+    const live = FACTORIES[eff.do as EffectFactoryId];
+    if (live) {
+      live(ctx, m, p, { minion: m, side: m.side });
+      continue;
+    }
+    if (eff.do === 'battlecryBuffUndeadAttack') {
       // Deathswarmer's buff is an AURA ("your Undead +Attack WHEREVER they are"), so it must be PERMANENT
       // even when Ryme re-fires it in combat — not just this fight. Buff the live Undead now (visible in the
       // replay + affects this combat) AND carry the aura back via grantUndeadBuyAtk, exactly as the recruit
@@ -693,6 +695,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
+  // ── SHOUT FAMILY (arena-backed; dispatched by replayCombatBattlecry's FACTORIES-first pass) ──
+  battlecrySummon: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecrySummon(combatArena(ctx, self), params);
+  },
+  battlecryBuffTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffTribe(combatArena(ctx, self), params);
+  },
+
   // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN by ruling (a borrowed Blaster
   // damages YOUR board).
   deathrattleDamageAll: (ctx, self, params, payload) => {

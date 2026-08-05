@@ -1995,24 +1995,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffTribe: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const attack = num(params.attack) * gold(self);
-    const health = num(params.health) * gold(self);
-    const includeSelf = params.includeSelf !== false;
-    for (const card of ctx.state.board) {
-      if (!isTribe(card, tribe as Tribe)) continue;
-      if (!includeSelf && card === self) continue;
-      addBuff(card, nameOf(self), attack, health);
-    }
+    ARENA_EFFECTS.battlecryBuffTribe(shopArena(ctx.state, self), params);
   },
 
   /** Alleycur: Battlecry summon `count` copies of a token beside self. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecrySummon: (ctx, self, params) => {
-    const token = CARD_INDEX[str(params.tokenId)];
-    if (!token) return;
-    const count = num(params.count, 1) * gold(self); // golden doubles the count (Alleycat 1 → 2, Shaper 2 → 4)
-    for (let i = 0; i < count; i++) ctx.summon(token, self.uid);
+    ARENA_EFFECTS.battlecrySummon(shopArena(ctx.state, self), params);
   },
 
   /** Toxin Tender / Plaguebringer: grant keyword(s) to a friendly minion. Toxin Tender is

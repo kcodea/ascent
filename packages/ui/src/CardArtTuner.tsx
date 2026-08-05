@@ -2,7 +2,8 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { CARD_INDEX } from '@game/content';
 import {
   CARD_ART_RANGES, cardArtVersion, clearSelected, exportCardArt, getSelectedCard,
-  readSelected, resetCardArt, selectCard, setPickingCardArt, subscribeCardArt, tunedCardIds, writeSelected,
+  readSelected, resetCardArt, saveCardArtToFile, selectCard, setPickingCardArt, subscribeCardArt,
+  tunedCardIds, writeSelected,
   type CardArt,
 } from './cardArtConfig';
 import { TunerPanel } from './TunerPanel';
@@ -81,9 +82,20 @@ export const SPEC: TunerSpec<ArtRow> = {
   reset: resetCardArt,
   actions: [
     { label: 'Clear this card', hint: 'Drop just the selected card back to its frame family.', run: () => clearSelected() },
+    {
+      label: 'Save to file',
+      hint: 'Commit every override to cardArt.data.json, so it survives a reload and reviews as a diff.',
+      run: () => {
+        void saveCardArtToFile().then((r) => {
+          // A silent failure here would be the worst outcome: you would keep tuning believing the work was
+          // safe. Surfaced loudly, and the local edits are still intact either way.
+          if (!r.ok) window.alert(`Card art save FAILED — your edits are still here.\n\n${r.error ?? ''}`);
+        });
+      },
+    },
   ],
-  // "Copy values" emits the whole session as source for `SHIPPED`, not the one card's JSON: the artifact you
-  // paste back is the map, and copying a single card would silently drop every other card you tuned.
+  // "Copy values" emits the whole table as the FILE's contents — the fallback for when the dev endpoint
+  // isn't there (a static preview build). Copying a single card would silently drop everything else tuned.
   copy: exportCardArt,
   copyLabel: 'Copy overrides',
 };

@@ -113,6 +113,46 @@ shared body plays N separate Rubies with N watcher fires in both phases.
 
 Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
 
+## 2026-08-05 (card-art overrides become a real file)
+
+### feat(dev): Card Art saves to a git-tracked file, not just localStorage
+
+Follow-up to the Card Art tuner (#868). Overrides lived in localStorage until you copied them out by hand, so
+a cleared cache — or just forgetting — took a tuning session with it. They now write to a real file.
+
+**`packages/ui/src/cardArt.data.json`** is the committed table, statically imported by `cardArtConfig.ts` as
+`SHIPPED`. A **Save to file** action posts the whole table to a new dev-only `/__fx/cardart` endpoint, which is
+exactly how the FX workbench already commits its defs and bindings. Being a static import means a write
+invalidates through the normal import graph and HMR picks it up — no watcher needed, the same reasoning
+`bindings.json` documents.
+
+**The validation follows the plugin's own doctrine** rather than inventing a new one. `planCardArtWrite` is a
+pure function — no fs, no server, no globals — sitting beside `planWrite` and `planBindingsWrite`. The
+destination path is fixed by the plugin and never derived from the request, so there is no traversal question;
+what is left is shape, size and key safety:
+
+- **Unknown fields are rejected, not ignored.** A typo'd `zoomm` would otherwise be committed to a file and
+  silently do nothing forever.
+- **Every value must be a finite number.** This file is a *static import*, so a string or a null would not fail
+  at the endpoint — it would fail later as a card rendering with a broken transform, with nothing pointing back
+  at the write that caused it.
+- **Prototype-polluting keys are refused**, mirroring the bindings writer's `UNSAFE_KEYS` guard.
+
+Local edits are deliberately NOT cleared after a save: the file write and the running page are different
+things, and dropping the local layer first would briefly render every card unframed if the write failed. After
+a success the two agree, so the overlay is a no-op either way — and after a failure your work is still there.
+The failure path says so out loud rather than failing silently, which is the outcome that would actually cost
+you an afternoon.
+
+**Verified end-to-end, not just unit-tested.** Against a live dev server: a POST wrote real, stably formatted
+JSON to disk; a bad field (`zoomm`) and a `__proto__` key were both refused **400 with the file left
+untouched**. Seven new planner tests cover the empty table, unknown fields, non-finite values, prototype keys,
+malformed bodies and the size cap. An existing test asserting the exact route set failed on the new endpoint —
+it was right to, and is updated to four.
+
+`typecheck` clean (pkgs + web), `lint` 0 errors, **3907 tests** / 244 files, `build:web` green — and
+`__fx/cardart` appears **0 times** in the production bundle, so the writer never ships.
+
 ## 2026-08-04 — The Shout family begins: FACTORIES-first dispatch is the switch's death sentence
 
 The structural move: `replayCombatBattlecry` now dispatches **FACTORIES-first** — an onPlay effect with a

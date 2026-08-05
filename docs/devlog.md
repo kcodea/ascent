@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-04 — Pin: mid-combat triggers play LIVE (effect + choreography) — the Dawnclaw/Deepvein case
+
+Owner report: a Dawnclaw next to a Deepvein Tender — the Ruby buff didn't land until combat resolved and no
+animation played; triggers must fire effects AND animations mid-combat in real time, left to right.
+
+Diagnosis: the ENGINE half was exactly the defer-to-settle behaviour the Effect Arena eliminated — since PR
+#871 (merged today), Dawnclaw's Echo re-fires the adjacent Shouts live: Deepvein narrates and gains Ruby
+Power immediately, and a Frenzied Excavator firing after it plays 1/2 Rubies (base 1/1 + the just-granted
+Health), all mid-fight. The PRESENTATION pipeline already handles every event in that cascade: each trigger
+sc is its own scNarrate beat (720ms hold), the Rubies are a buffWave with the rubyLanded gem cue, and
+computeFrame folds the stats at that beat — verified by reading compile.ts/kinds.ts/choreoConfig.ts/
+rubyLanded.ts.
+
+New: packages/ui/src/choreo/liveMidCombatTriggers.test.ts pins the whole cascade on the real simulated log —
+death beat first, then Deepvein narration -> Ruby Power telegraph -> Excavator narration -> a Ruby wave at
+the LIVE 1/2 magnitude, every beat with a non-zero hold. A regression in either half (engine liveness or
+choreography grouping) now fails a named test instead of surfacing as "no animation played".
+
+Note for verification lore: the embedded dev-preview pane throttles requestAnimationFrame to ~2fps
+(visibility reports visible), so replay animation cannot be eyeballed there — same environment class as the
+exe triage rules. Pure choreography tests are the reliable check.
+
 ## 2026-08-04 — Effect Arena: PR #871 merged; Rally/EoT/SoC parked by ruling (goal met)
 
 PR #871 (the complete Shout family, floors 48-60) squash-merged. Owner ruling on the remaining families:

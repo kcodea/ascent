@@ -1232,15 +1232,17 @@ describe('run loop (@game/sim)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'combat', hand: [],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] },
-        // 3 economy battlecries Ryme re-fired in combat: 2 Soulfeeders (one golden) + 1 Hoarder.
+        // Economy battlecries Ryme re-fired in combat: 2 Soulfeeders (one golden) — plus a Hoarder entry a
+        // pre-2026-08-04 combat could have recorded (its Shout now resolves LIVE via grantBonusGold, so the
+        // settle replay must SKIP it — the live carry-back is the single source of truth, never doubled).
         playerDeferredBattlecries: [{ cardId: 'feed', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }] },
     };
     const goldBefore = s.bonusEmbersNextTurn ?? 0;
     s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so the queued Fodder isn't injected/cleared yet
     // Soulfeeder schedules Fodder for the next shop: 1 (non-golden) + 2 (golden) = 3 in that shop.
     expect(s.fodderSchedule).toEqual([3]);
-    // Hoarder grants +1 Gold next turn (its recruit factory ran with full RunState access).
-    expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(1);
+    // The stale Hoarder entry is skipped — its id is combat-replayable now, so settle applies NOTHING for it.
+    expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(0);
   });
 
   it('Soulfeeder feeds Fodder to the next shop (not every round after) — a Demon eats one per refresh', () => {

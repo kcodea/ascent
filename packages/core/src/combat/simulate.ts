@@ -108,6 +108,7 @@ export function simulate(
   // Rally, Rune of Attacking Gems) — it used to be a settle-time carry-back only, so every in-combat Ruby
   // minted at the pre-combat snapshot. `rubyBonusFor` folds this in on every read; the player half still
   // carries back via `playerRubyBonusGain` (enemies have no run to persist to).
+  let rubyMintCount = 0; // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
   const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
     player: { attack: 0, health: 0 },
     enemy: { attack: 0, health: 0 },
@@ -623,6 +624,13 @@ export function simulate(
       // Same telegraph as the Imp buff above — it otherwise applies to the NEXT shop with nothing shown here.
       if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
     },
+    mintRubies: (count, side, sourceUid) => {
+      if (side !== 'player' || count <= 0) return; // enemies have no hand
+      rubyMintCount += count;
+      // The replay sees each Ruby fly to hand on the trigger beat; the actual mint happens at settle through
+      // the run's real `mintRubies` (rubyBonus baked in, Candle Conduit fired, hand cap respected).
+      for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
+    },
     gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker / Crownvein) — BOTH sides accumulate, because the value is read live mid-fight
       // (see `rubyBonusFor`): an enemy Crownvein's Rally must grow the enemy's own later Ruby plays too.
@@ -682,7 +690,7 @@ export function simulate(
         emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
       }
     },
-    grantRandomMinion: (count, tribe, side, exclude, sourceUid) => {
+    grantRandomMinion: (count, tribe, side, exclude, sourceUid, fixedTier) => {
       if (side !== 'player') return; // enemies have no hand
       // Wayfinder's `tribe: 'uncontrolled'` is a SENTINEL, not a real tribe — "a minion from a tribe you don't
       // control". Resolve it here to the active tribes absent from your board, mirroring `uncontrolledTribes`
@@ -710,7 +718,7 @@ export function simulate(
       // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
       const pool = ctx.poolCards('player').filter(
         (c) =>
-          !c.token && !c.spell && c.tier <= playerState.tier && c.id !== exclude &&
+          !c.token && !c.spell && (fixedTier ? c.tier === fixedTier : c.tier <= playerState.tier) && c.id !== exclude &&
           (c.tribe === 'neutral' || playerState.tribes.includes(c.tribe)) &&
           inTribe(c),
       );
@@ -2573,6 +2581,7 @@ export function simulate(
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.player.attack > 0 || rubyBonusGain.player.health > 0) ? { ...rubyBonusGain.player } : undefined,
+    playerRubyMints: rubyMintCount > 0 ? rubyMintCount : undefined,
     playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
     playerWildHuntGrown: wildHuntGrown.player > 0 ? wildHuntGrown.player : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,

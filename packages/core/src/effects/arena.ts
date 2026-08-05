@@ -877,4 +877,13 @@ export const ARENA_EFFECTS = {
       (typeof params.attack === 'number' ? params.attack : 0) * g,
       (typeof params.health === 'number' ? params.health : 0) * g);
   },
+
+  /** Foam Reader's kin — Shout: permanently raise the run's spell power (golden doubles). The run-channel
+   *  twin of `battlecryBuffSpellPower`; kept as its own id because content names them separately. */
+  battlecryGrantSpellPowerRun(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantSpellPower(
+      (typeof params.attack === 'number' ? params.attack : 0) * g,
+      (typeof params.health === 'number' ? params.health : 0) * g);
+  },
 } as const;

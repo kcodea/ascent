@@ -138,7 +138,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 55; // THE SWITCH IS DEAD: +BuffTarget/GrantKeyword/GainKeyword/BuffSpellPower; set now DERIVED
+  const MIGRATED_FLOOR = 56; // +GrantSpellPowerRun; 8 economy Shouts now resolve LIVE via carry-back channels
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

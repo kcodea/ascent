@@ -2712,12 +2712,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Coppercoat Spellsword (Choose One Shout): permanently raise run-wide SPELL POWER by +atk/+hp.
    *  The two options are the same factory with different params (one all-Attack, one all-Health), which is why
    *  this takes both rather than being two factories. Golden doubles, matching the printed Gilded text. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryGrantSpellPowerRun: (ctx, self, params) => {
-    const cur = ctx.state.spellBonus ?? { attack: 0, health: 0 };
-    ctx.state.spellBonus = {
-      attack: cur.attack + num(params.attack, 0) * gold(self),
-      health: cur.health + num(params.health, 0) * gold(self),
-    };
+    ARENA_EFFECTS.battlecryGrantSpellPowerRun(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Bellringer Voss (End of Turn): every `every` turns, conjure a PLAIN copy of the board minion to

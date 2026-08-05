@@ -1740,9 +1740,11 @@ describe('simulate (handoff A.3)', () => {
     expect(feed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: false }]);
     const goldFeed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100, golden: true }], omen, 1);
     expect(goldFeed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: true }]);
-    // Hoarder = battlecryBonusGoldNextTurn (economy) → also deferred.
+    // Hoarder = battlecryBonusGoldNextTurn — used to defer; since 2026-08-04 it resolves LIVE through the
+    // `grantBonusGold` carry-back (settle adds it to bonusEmbersNextTurn), so nothing defers.
     const hoard = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'hoarder', attack: 0, health: 100 }], omen, 1);
-    expect(hoard.playerDeferredBattlecries).toEqual([{ cardId: 'hoarder', golden: false }]);
+    expect(hoard.playerBonusGold).toBe(1);
+    expect(hoard.playerDeferredBattlecries).toBeUndefined();
     // A combat-meaningful Battlecry (Sea Urchin's Discover) resolves IN the fight — never deferred.
     const urchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100 }], omen, 1);
     expect(urchin.playerDeferredBattlecries).toBeUndefined();

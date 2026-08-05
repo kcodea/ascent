@@ -26,12 +26,13 @@ describe('Dawnclaw re-fires a neighbour Shout', () => {
       .toBeGreaterThan(0);
   });
 
-  it('an ECONOMY Shout still defers to settle rather than doing nothing', () => {
+  it("a Gold-next-turn Shout resolves LIVE via the grantBonusGold carry-back (it used to defer)", () => {
     const r = simulate(
       [bm('dw_pimm', 1, 9999), bm('b2_dawnclaw', 1, 1)],
       [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 4 }));
-    expect(r.playerDeferredBattlecries, 'an economy Shout must be carried back to settle')
-      .toEqual(expect.arrayContaining([expect.objectContaining({ cardId: 'dw_pimm' })]));
+    expect(r.playerBonusGold, 'Pimm pays out through the live channel').toBeGreaterThanOrEqual(1);
+    expect(r.playerDeferredBattlecries ?? [], 'nothing left to defer')
+      .not.toEqual(expect.arrayContaining([expect.objectContaining({ cardId: 'dw_pimm' })]));
   });
 
   it('does nothing when the neighbour is already dead — not a bug, just no one to trigger', () => {

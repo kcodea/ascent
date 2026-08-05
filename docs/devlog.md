@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena: 8 economy Shouts resolve LIVE via carry-back channels (floor 56)
+
+The "defer to settle" class shrinks: every economy Shout whose result already had a carry-back channel now
+resolves live in combat — the replay shows the grant on the trigger beat, and settle just applies the carried
+value. New FACTORIES entries (shop halves keep their own rituals; the carry-back reproduces them at settle):
+
+- `battlecryGrantMinion`, `battlecryGrantRandomSpell`, `grantRandomAle` (the Rune of Last Call recipe —
+  pool-scoped Ales) → `grantToHand` / `grantRandomSpell`.
+- `battlecryGainRandomMinion` → `grantRandomMinion`, which gained an optional `fixedTier` argument so the
+  exact-tier finders (Recruiter's tier 1, the tier-7 card's tier 6) pin their pick in combat exactly as the
+  shop half does — a live combat re-fire used to be impossible, and a naive one would have granted ≤ tavern
+  tier.
+- `battlecryGetRubies` → NEW `ctx.mintRubies(count, side)` channel + `CombatResult.playerRubyMints`: the
+  replay sees each Ruby fly to hand (`toHand` events), settle mints through the run's REAL `mintRubies` —
+  rubyBonus baked in (the rubyBonusGain settle block lands first, deliberately), Candle Conduit fired, hand
+  cap respected.
+- `rubyStatGain` → `gainRubyBonus` (narrates "+a/+h Ruby Power", reads live for later Ruby plays this fight,
+  and settle also grows every Ruby still in hand — the shop half's other job).
+- `battlecryGainGoldNextTurn` (Paymaster Pimm) + `battlecryBonusGoldNextTurn` (Hoarder) → `grantBonusGold`
+  (settles into `bonusEmbersNextTurn`), each with an sc telegraph ("+N Gold next turn").
+- `battlecryGrantSpellPowerRun` became shared arena body 56 (the run-channel twin of `battlecryBuffSpellPower`).
+
+Because `COMBAT_REPLAYABLE_BATTLECRIES` is derived, settle automatically skips these ids in a deferred card's
+replay — pinned by an updated run.test: a stale pre-change Hoarder deferral entry applies NOTHING (the live
+carry-back is the single source of truth, never doubled). The three defer-pinning tests updated to the
+live-grant truth; Soulfeeder (`addTavernFodder`) stays the genuine-economy defer example.
+
+Verified: typecheck ✓, lint 7-warning baseline ✓, 3900 tests / 244 files ✓, harness determinism ✓,
+build:web ✓. (PR #871.)
+
 ## 2026-08-04 — Effect Arena: THE SWITCH IS DEAD — replayCombatBattlecry is FACTORIES-only (floor 55)
 
 The final Shout-family pass. `replayCombatBattlecry`'s legacy inline switch is **deleted**: the loop is now

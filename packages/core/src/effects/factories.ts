@@ -1,6 +1,6 @@
 import type { CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { ARENA_EFFECTS, type EffectArena } from './arena';
-import { extraTriggerFires } from '../types';
+import { ALE_IDS, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
  *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
@@ -613,6 +613,49 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   battlecryBuffSpellPower: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffSpellPower(combatArena(ctx, self), params);
+  },
+  battlecryGrantSpellPowerRun: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryGrantSpellPowerRun(combatArena(ctx, self), params);
+  },
+  // ── ECONOMY SHOUTS WITH CARRY-BACK CHANNELS (2026-08-04): these used to defer to settle; each now resolves
+  // LIVE through the channel that already carries its result back to the run, so the replay shows the grant on
+  // the trigger beat. Shop halves keep their own rituals (hand cap / board overflow / Candle Conduit) — the
+  // carry-back reproduces them at settle.
+  battlecryGrantMinion: (ctx, self, params) => {
+    const id = str(params.cardId);
+    if (!id) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
+  },
+  battlecryGrantRandomSpell: (ctx, self, params) => {
+    ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+  battlecryGainRandomMinion: (ctx, self, params) => {
+    // `tier` > 0 pins the pick to that exact tier (Recruiter / the tier-7 finder), else ≤ the tavern tier.
+    ctx.grantRandomMinion(num(params.count, 1) * mul(self), str(params.tribe) || undefined, self.side, undefined, self.uid, num(params.tier) || undefined);
+  },
+  battlecryGetRubies: (ctx, self, params) => {
+    ctx.mintRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+  grantRandomAle: (ctx, self, params) => {
+    // Same recipe as Rune of Last Call: only Ales actually in this run's pool (a set without them grants nothing).
+    const ales = ctx.poolCards(self.side).filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length === 0) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(ales).id, self.side, self.uid);
+  },
+  rubyStatGain: (ctx, self, params) => {
+    // gainRubyBonus narrates ("+a/+h Ruby Power"), reads live for this fight's later Ruby plays, and carries
+    // back — where settle also grows every Ruby still in hand, the shop half's other job.
+    ctx.gainRubyBonus(num(params.attack) * mul(self), num(params.health) * mul(self), self.side, self.uid);
+  },
+  battlecryGainGoldNextTurn: (ctx, self, params) => {
+    const n = num(params.amount, 1) * mul(self);
+    ctx.grantBonusGold(n, self.side);
+    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn` });
+  },
+  battlecryBonusGoldNextTurn: (ctx, self, params) => {
+    const n = num(params.gold, 1) * mul(self);
+    ctx.grantBonusGold(n, self.side);
+    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn` });
   },
   // ── PHASE-SPLIT BY RULING (Discover in combat = a random pool card, 2026-08-04): the interactive 1-of-3
   //    panel never opens mid-combat, so these combat halves grant randomly; the shop halves stay interactive.

@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 13+14: Imp Overseer's Echo and Herald of the Divide
+
+`deathrattleBuffImps` and `onBattlecryBuffSelf` migrate — floor → 14. The Imp one is the interesting shape:
+`grantImpAura(a, h)` hands EACH ADAPTER its whole legacy ritual (shop: `buffImpsRunWide` across board + hand +
+the persistent aura; combat: buff the living Imps AND carry back via `grantImpBuff`), so the body is just the
+sentence and the two rituals can never half-apply again — this factory is the one whose registry desync
+would have double-buffed under a Ryme re-fire (closed in #851). Gates: typecheck ✓, 3,898 tests ✓, harness ✓,
+`build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 11+12: Bone Taxer and Equinox Duelist
 
 `deathrattleMaxGold` and `deathrattleBuffCelestials` migrate — floor → 12. New verbs: `grantMaxGold` (combat

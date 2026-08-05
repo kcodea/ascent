@@ -97,6 +97,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     },
     grantMaxGold: (amount) => { state.maxEmbers += amount; },
     isCelestial: (t) => !!CARD_INDEX[t.cardId]?.celestial,
+    isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
+    grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
       // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
@@ -1340,8 +1342,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.deathrattleGrantWardRandom(shopArena(ctx.state, self), params);
   },
 
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onBattlecryBuffSelf: (ctx, self, params) => {
-    addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+    ARENA_EFFECTS.onBattlecryBuffSelf(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Feastmaster Vhal (End of Turn): THIS minion and each adjacent Demon consume a random Shop minion
@@ -3585,8 +3588,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** (recruit half) — permanently buff your Imps run-wide (board + hand + future copies). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffImps: (ctx, self, params) => {
-    buffImpsRunWide(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 3) * gold(self), nameOf(self));
+    ARENA_EFFECTS.deathrattleBuffImps(shopArena(ctx.state, self), params);
   },
 
   /** Burial Imp / Soulfeeder (recruit half) — queue `count` Fodder into your next tavern; golden doubles. */

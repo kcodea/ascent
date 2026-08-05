@@ -80,6 +80,12 @@ export interface EffectArena {
   grantMaxGold(amount: number): void;
   /** Is this body a Celestial? (A card-definition read; adapters own their card index access.) */
   isCelestial(t: ArenaBody): boolean;
+  /** Is this body an Imp? */
+  isImp(t: ArenaBody): boolean;
+  /** Raise the RUN-WIDE Imp aura (+atk/+hp on every Imp, present and future). Each adapter runs its whole
+   *  legacy ritual: the shop's `buffImpsRunWide` (board + hand + the persistent aura); combat buffs the
+   *  living Imps AND carries the aura back via `grantImpBuff` — so the body only states the amounts. */
+  grantImpAura(attack: number, health: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -237,5 +243,23 @@ export const ARENA_EFFECTS = {
     for (const f of arena.friends()) {
       if (f.uid !== arena.self.uid && arena.isCelestial(f)) arena.buff(f, a, h);
     }
+  },
+
+  /** Imp Overseer — Echo: your Imps gain +atk/+hp, run-wide and permanent (golden doubles). The adapters own
+   *  the two rituals entirely; the body is the sentence. */
+  deathrattleBuffImps(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantImpAura(
+      (typeof params.attack === 'number' ? params.attack : 2) * g,
+      (typeof params.health === 'number' ? params.health : 3) * g,
+    );
+  },
+
+  /** Herald of the Divide — whenever a Battlecry fires on your side, THIS body grows (golden doubles). */
+  onBattlecryBuffSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.buff(arena.self,
+      (typeof params.attack === 'number' ? params.attack : 1) * g,
+      (typeof params.health === 'number' ? params.health : 1) * g);
   },
 } as const;

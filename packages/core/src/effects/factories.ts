@@ -163,6 +163,11 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount });
     },
     isCelestial: (t) => !!ctx.getCard(t.cardId)?.celestial,
+    isImp: (t) => !!ctx.getCard(t.cardId)?.imp,
+    grantImpAura: (a, h) => {
+      for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
+      ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
+    },
     hasReborn: (t) => (t as Minion).rebornAvailable === true || t.keywords.includes('R'),
     grantReborn: (t) => {
       const m = t as Minion;
@@ -1172,9 +1177,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Set 2 — Embermouth Whelp: every Shout you trigger grows THIS body (× golden). Permanent-by-nature — it's
    *  a recruit-phase buff on the card itself, so it simply persists like any other stat gain. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onBattlecryBuffSelf: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
-    ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+    ARENA_EFFECTS.onBattlecryBuffSelf(combatArena(ctx, self), params);
   },
 
   rallyGrantSpell: (ctx, self, _params, payload) => {
@@ -2347,12 +2353,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
    *  Golden doubles the per-proc amount. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffImps: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const a = num(params.attack, 2) * mul(self);
-    const h = num(params.health, 3) * mul(self);
-    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
-    ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
+    ARENA_EFFECTS.deathrattleBuffImps(combatArena(ctx, self), params);
   },
 
 

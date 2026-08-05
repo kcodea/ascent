@@ -104,7 +104,7 @@ describe('Rune of Resonance — both halves', () => {
 describe('the five runes ship as specced', () => {
   it("exist at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Resonance', 1, false], ['Rune of Investment', 1, false],
+      ['Rune of Resonance', 1, false], ['Rune of Investment', 3, false], // Investment 1 → 3 (owner balance 2026-08-04)
       ['Rune of the Open Market', 2, true], ['Rune of Runic Exchange', 2, true], ['Rune of the Brokerage', 2, true],
     ];
     for (const [name, cost, epic] of want) {

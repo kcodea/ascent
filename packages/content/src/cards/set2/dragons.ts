@@ -50,7 +50,7 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_spellkeeper',
     name: 'Spell Warden',
     tribe: 'dragon',
-    tier: 3,
+    tier: 4, // owner balance 2026-08-04: T3 → T4
     attack: 3,
     health: 4,
     keywords: [],
@@ -124,10 +124,11 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 4,
     health: 6,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeGrantRandomSpell', params: { count: 4 } }],
-    text: '**Avenge (4):** get a random Shop spell.',
-    // The golden text was a leftover from the old Vault-Curator copy shape.
-    goldenText: '**Avenge (4):** get **2** random Shop spells.',
+    // Owner balance 2026-08-04: back to the Vault-Curator copy shape (the factory survived), at Avenge (3) —
+    // it copies the LEFT-MOST spell in the hand snapshot taken at combat start; no spell held = clean no-op.
+    effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 3 } }],
+    text: '**Avenge (3):** get a copy of the **left-most Spell** in your hand.',
+    goldenText: '**Avenge (3):** get **2** copies of the **left-most Spell** in your hand.',
   },
   {
     // Dragon/BEAST: a delayed spell-copier. Its Echo (dying in combat is the usual path) queues a copy of

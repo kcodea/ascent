@@ -155,6 +155,45 @@ a live fight.
 Follow-ups: `rally-link` is now an authored def with nothing bound to it — either author it onto specific
 ralliers or delete it, but don't leave it looking wired. And the yellow pulse still fires once per SWING while
 the sparkle fires once per PROC, which is correct but worth watching on a gilded Echohorn.
+## 2026-08-04 — Owner balance batch: 16 card/rune changes, Chicken Brawl, reward-card declassification, full Set-2 art re-wire
+
+**Balance (owner sheet 2026-08-04):** Spell Warden T3→T4 · Brunni T2→T3 + 2/1→3/1 · Appetite Agent T3→T2 ·
+Groveweaver base grant +2/+2→+3/+3 (improve step stays +2/+2; live text updated) · Runekeg +2/+2→+2/+1 ·
+Kringle +1 Attack→+1/+1 per card played (factory gained the Health half) · rune costs: Contraband 2→5,
+Fury 6→2, Hunger 2→5, Investment 1→3, Kindling 6→5.
+
+**Reworks:**
+- Water Dragon → **Avenge (3): copy of the left-most hand Spell** — the old Vault-Curator shape; the
+  `avengeCopyLeftmostHandSpell` factory + hand-spell snapshot had survived, so this was data-only.
+- Errand Fiend → **Flurry. Rally: summon an Imp + your Imps +1/+1** (new `rallySummonImpBuffImps` factory on
+  the Imp-enchant channel; the Echo is gone — a borrowed one correctly does nothing now).
+- Rope Wrangler → keeps EoT Lasso, gains **Echo: summon a random minion from your hand** — NEW machinery:
+  a `handMinions` snapshot on CombatSideState (live stats + gilding), `ctx.takeRandomHandMinion` (rng-picked,
+  per-fight dedup), summoned via `copyStats`, and the card is CONSUMED — `playerHandSummoned` carries the
+  uids back and settle removes them (it fought, it is spent). The shop half (Ryme/borrow-fired) moves the
+  actual hand card to the board and fires summon watchers.
+- Strange Revision `target: 'any'` — castable on SHOP minions. `castSpellOnOffer`'s fold-back generalised to
+  re-base on `temp.cardId` (a transform rewrites the offer's identity; bonus stats carry).
+- **Rune of Distillation now echoes RUBIES too** (it says "Spells") — a Ruby cast on a Shop minion also
+  lands on your left-most minion, watchers included.
+- **Goldcrafter / reward cards are not spells** (the 2026-08-01 Discover-path rule extended to every cast
+  path): `noteSpellCast` early-returns on `token: true` — no tallies, no first/last-spell memory (so no copy
+  effect can duplicate them), no watchers, no Grimoire spend. Still a CARD played; Nimbus-style cast
+  multipliers still apply to the card's own resolution (pinned Implosion behaviour, deliberately kept).
+- Candle Conduit + combat-gained Rubies: verified working by construction (every combat ruby carry-back
+  settles through the real `mintRubies`, which fires `onGetRuby`) and pinned by test.
+
+**New card:** Chicken Brawl — T2 Dwarf 3/1, Echo: summon a **Charging Soldier** (new 3/2 Dwarf token,
+`attackOnSummon`) that attacks immediately; golden summons a golden soldier.
+
+**Art:** full Set-2 minion re-wire from `C:\Game Assets\Ascent Art\Set 2 Minions` — 148 files wired by
+name-match (145 + 3 Choose-One alt variants: Elderhorn2/Orivax2/Fatecarver2), 12 verified aliases for
+drifted filenames (typos/renames), `optimize-art` run (in-repo webp only). NOT wired (no matching card —
+owner to clarify): Lancel, Blu, Bucky, Tamer, HoardmasterKrik, content1544; QuartermasterDorrin skipped
+(superseded by BabyGastrid.png).
+
+Verified: typecheck / lint (7-warning baseline) / 3925 tests (12 new pins in balanceBatch0804.test.ts) /
+harness determinism / build:web all green; art spot-checked live in the Scene Builder after a server restart.
 
 ## 2026-08-04 — Buffs drawer: Ruby power ticks up LIVE in combat (owner report)
 

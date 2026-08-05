@@ -47,7 +47,7 @@ export const RUNES: RuneDef[] = [
     // Cross-currency smuggling: each turn, the first Ruby pays an Ale and the first Ale pays a Ruby.
     id: 'rune_contraband',
     name: 'Rune of Contraband',
-    cost: 2,
+    cost: 5, // owner balance 2026-08-04
     text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeContraband' },
@@ -80,7 +80,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_fury',
     name: 'Rune of Fury',
-    cost: 6,
+    cost: 2, // owner balance 2026-08-04
     text: 'Your **Avenge** effects trigger twice.',
     reward: { kind: 'combatFlag', flag: 'runeFury' },
   },
@@ -209,7 +209,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_investment',
     name: 'Rune of Investment',
-    cost: 1,
+    cost: 3, // owner balance 2026-08-04
     text: 'Get **2 Rubies** when you **sell** a minion.',
     reward: { kind: 'runeSellRubies', count: 2 },
     sets: ['set2'], // Rubies
@@ -225,7 +225,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_hunger',
     name: 'Rune of Hunger',
-    cost: 2,
+    cost: 5, // owner balance 2026-08-04
     text: '**End of Turn:** your **left-most Demon** Consumes the **right-most Shop** minion.',
     reward: { kind: 'recurringEndOfTurn', effect: 'demonEatsRightmostShop' },
     sets: ['set2'], // Consuming Shop minions is a set-2 Demon mechanic
@@ -326,7 +326,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_kindling',
     name: 'Rune of Kindling',
-    cost: 6,
+    cost: 5, // owner balance 2026-08-04
     text: 'Whenever you cast a Shop spell, give your **left-most minion +3/+3**.',
     reward: { kind: 'runeKindling' },
   },

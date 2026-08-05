@@ -45,8 +45,8 @@ export const SET2_DWARVES: CardDef[] = [
     id: 'dw_brunni',
     name: 'Brunni',
     tribe: 'dwarf',
-    tier: 2,
-    attack: 2,
+    tier: 3, // owner balance 2026-08-04: T2 → T3, 2/1 → 3/1
+    attack: 3,
     health: 1,
     keywords: ['T'],
     effects: [{ on: 'endOfTurn', do: 'grantRandomAle', params: { count: 1 } }],
@@ -103,9 +103,9 @@ export const SET2_DWARVES: CardDef[] = [
     health: 4,
     keywords: [],
     // `excludeSelf` (owner 2026-07-31): "Other Dwarves" — the keg fuels the crew, never itself.
-    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'dwarf', count: 2, attack: 2, health: 2, excludeSelf: true } }],
-    text: 'When you cast a **Shop spell**, give **2 random other** friendly **Dwarves +2/+2**.',
-    goldenText: 'When you cast a **Shop spell**, give **2 random** friendly **Dwarves +4/+4**.',
+    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'dwarf', count: 2, attack: 2, health: 1, excludeSelf: true } }], // owner balance 2026-08-04: +2/+2 → +2/+1
+    text: 'When you cast a **Shop spell**, give **2 random other** friendly **Dwarves +2/+1**.',
+    goldenText: 'When you cast a **Shop spell**, give **2 random** friendly **Dwarves +4/+2**.',
   },
   {
     // Targeted Shout: the target arrives on the payload via `applyBattlecryTarget`. Its magnitude is live, so
@@ -132,9 +132,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 3,
     health: 7,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffLeftmostTribePerCard', params: { tribe: 'dwarf', attack: 1 } }],
-    text: '**End of Turn:** give your **left-most Dwarf +1 Attack** per card played this turn.',
-    goldenText: '**End of Turn:** give your **left-most Dwarf +2 Attack** per card played this turn.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffLeftmostTribePerCard', params: { tribe: 'dwarf', attack: 1, health: 1 } }], // owner balance 2026-08-04: +1 Attack → +1/+1
+    text: '**End of Turn:** give your **left-most Dwarf +1/+1** per card played this turn.',
+    goldenText: '**End of Turn:** give your **left-most Dwarf +2/+2** per card played this turn.',
   },
   {
     // The buy tally lives on the CARD (`buyTick`), like every other cards-bought effect, which is what makes
@@ -357,6 +357,20 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     token: true, // forge-only: Source = Rune
     text: '**Echo:** summon an exact copy of this **without Echo**.',
     goldenText: '**Echo:** summon **2** exact copies of this **without Echo**.',
+  },
+  {
+    // Owner add 2026-08-04. An aggressive Echo body for the tribe's early game: it dies forward — the
+    // soldier's immediate swing is the payoff (the Whelp/`attackOnSummon` mechanism).
+    id: 'dw_chickenbrawl',
+    name: 'Chicken Brawl',
+    tribe: 'dwarf',
+    tier: 2,
+    attack: 3,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'dw_soldier', count: 1, fixed: true, goldenTokens: true } }],
+    text: '**Echo:** summon a **Charging Soldier** that attacks immediately.',
+    goldenText: '**Echo:** summon a **Golden Charging Soldier** that attacks immediately.',
   },
   {
     // Dwarf/Dragon — the bridge between the Ale tribe and the spell tribe. Its meter is per-instance and carries

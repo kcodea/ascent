@@ -47,7 +47,8 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Shout:** give minions in the Shop **+2/+2**.',
   },
   {
-    // Flurry doubles the Rally, so this makes two Imps a turn on its own.
+    // Owner rework 2026-08-04: Echo → RALLY. Flurry doubles the Rally, so each combat round of attacks makes
+    // two Imps and stacks the enchant twice — the tribe's aggressive engine piece.
     id: 'dm_errand',
     name: 'Errand Fiend',
     tribe: 'demon',
@@ -55,9 +56,9 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 1,
     health: 3,
     keywords: ['W'],
-    effects: [{ on: 'onDeath', do: 'summonImps', params: { count: 1, attack: 1, health: 2 } }],
-    text: '**Flurry. Echo:** summon an **Imp** and give it **+1/+2**.',
-    goldenText: '**Flurry. Echo:** summon **2 Imps** and give them **+2/+4**.',
+    effects: [{ on: 'onAttack', do: 'rallySummonImpBuffImps', params: { amount: 1 } }],
+    text: '**Flurry. Rally:** summon an **Imp** and give your **Imps +1/+1**.',
+    goldenText: '**Flurry. Rally:** summon **2 Imps** and give your **Imps +2/+2**.',
   },
   {
     // The eater is the TARGET, not this card — so it can feed whichever Demon you want to grow.
@@ -66,7 +67,7 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_agent',
     name: 'Appetite Agent',
     tribe: 'demon',
-    tier: 3,
+    tier: 2, // owner balance 2026-08-04: T3 → T2
     attack: 3,
     health: 2,
     keywords: [],

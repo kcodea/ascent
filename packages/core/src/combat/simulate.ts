@@ -109,6 +109,8 @@ export function simulate(
   // minted at the pre-combat snapshot. `rubyBonusFor` folds this in on every read; the player half still
   // carries back via `playerRubyBonusGain` (enemies have no run to persist to).
   let rubyMintCount = 0; // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
+  const handSummonedUids = new Set<string>(); // hand minions taken by Rope Wrangler's Echo (per-fight, both sides)
+  const handSummoned: string[] = []; // the player half, carried back so settle removes them from the hand
   const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
     player: { attack: 0, health: 0 },
     enemy: { attack: 0, health: 0 },
@@ -627,6 +629,15 @@ export function simulate(
       tavernBuyGain.health += health;
       // Same telegraph as the Imp buff above — it otherwise applies to the NEXT shop with nothing shown here.
       if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
+    },
+    takeRandomHandMinion: (side) => {
+      const pool = (side === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
+      const left = pool.filter((h) => !handSummonedUids.has(h.uid));
+      if (left.length === 0) return undefined;
+      const pick = left[Math.floor(rng.next() * left.length)]!;
+      handSummonedUids.add(pick.uid);
+      if (side === 'player') handSummoned.push(pick.uid); // settle removes it from the run hand
+      return pick;
     },
     mintRubies: (count, side, sourceUid) => {
       if (side !== 'player' || count <= 0) return; // enemies have no hand
@@ -2598,6 +2609,7 @@ export function simulate(
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.player.attack > 0 || rubyBonusGain.player.health > 0) ? { ...rubyBonusGain.player } : undefined,
     playerRubyMints: rubyMintCount > 0 ? rubyMintCount : undefined,
+    playerHandSummoned: handSummoned.length > 0 ? handSummoned : undefined,
     playerBeastExtraGain: (beastExtraGain.player.hunt > 0 || beastExtraGain.player.ritual > 0) ? { ...beastExtraGain.player } : undefined,
     playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
     playerWildHuntGrown: wildHuntGrown.player > 0 ? wildHuntGrown.player : undefined,

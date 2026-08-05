@@ -254,20 +254,20 @@ describe('set 2 — the Imp line (combat)', () => {
     expect(imps.length).toBe(1);
   });
 
-  it('Errand Fiend (owner rework 2026-07-27): its ECHO summons a buffed Imp', () => {
-    // It used to be a Rally. The rework moved it to death, and the Imp now arrives at 2/3 rather than 1/1 —
-    // asserting the BUFF, not just the body, because `summonImps` ignored stat params until this change and a
-    // count-only assertion would pass against the un-buffed version.
-    const r = simulate([bm('dm_errand', 'E', 1, 1, ['W'])], [{ cardId: 'sandbag', attack: 50, health: 300 }],
+  it('Errand Fiend (owner rework 2026-08-04): its RALLY summons an Imp and enchants your Imps +1/+1', () => {
+    // 2026-07-27 moved it to an Echo; 2026-08-04 moved it back to attack — each swing makes an Imp and stacks
+    // the run-wide Imp enchant (Flurry doubles the whole Rally). Big body so it attacks without dying first.
+    const r = simulate([bm('dm_errand', 'E', 3, 40, ['W'])], [{ cardId: 'sandbag', attack: 0, health: 300 }],
       makeRng(3), CARD_INDEX, combatSide({ tier: 2 }), combatSide({ tier: 1 }));
     const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length).toBe(1);
-    // The base Imp is 1/1; +1/+2 lands as a buff right after the summon, so read the buff event.
-    const gift = r.events.find((e) => (e as { type: string; source?: string }).type === 'buff'
-      && (e as { source?: string }).source === 'm0');
-    expect(gift, 'the Imp got no buff — summonImps ignored its stat params').toBeTruthy();
-    expect((gift as { attack: number; health: number }).attack).toBe(1);
-    expect((gift as { attack: number; health: number }).health).toBe(2);
+    expect(imps.length, 'each attack rallies an Imp out').toBeGreaterThan(0);
+    // The enchant is the Imp aura channel — the tribeAura wash carries the +1/+1 and the run carry-back.
+    const aura = r.events.find((e) => (e as { type: string; aura?: string }).type === 'tribeAura'
+      && (e as { aura?: string }).aura === 'imp');
+    expect(aura, 'the Imp enchant never landed').toBeTruthy();
+    expect((aura as { attack?: number }).attack).toBe(1);
+    expect((aura as { health?: number }).health).toBe(1);
+    expect(r.playerImpBuffGain).toBeTruthy(); // permanent — carried back to the run's impBuff
   });
 
   it('Broodwright buffs each Imp summoned', () => {

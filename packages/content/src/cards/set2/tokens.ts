@@ -129,4 +129,19 @@ export const SET2_TOKENS: CardDef[] = [
     token: true,
     text: 'A 4/1 Beast that attacks immediately when summoned.',
   },
+  {
+    // Chicken Brawl's Echo token (owner add 2026-08-04). `attackOnSummon` is the Whelp mechanism — summoned
+    // mid-combat it takes an immediate out-of-turn swing.
+    id: 'dw_soldier',
+    name: 'Charging Soldier',
+    tribe: 'dwarf',
+    tier: 1,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    effects: [],
+    attackOnSummon: true,
+    token: true,
+    text: 'A 3/2 Dwarf that attacks immediately when summoned.',
+  },
 ];

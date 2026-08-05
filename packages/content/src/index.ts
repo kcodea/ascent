@@ -90,7 +90,8 @@ const CARD_REF_EFFECTS: Record<string, string> = {
  * listing it here fails the build.
  */
 const IMPLICIT_REF_EFFECTS: Record<string, readonly string[]> = {
-  summonImps: ['impscrap'],                      // Imp Wrangler, Errand Fiend
+  summonImps: ['impscrap'],                      // Imp Wrangler
+  rallySummonImpBuffImps: ['impscrap'],          // Errand Fiend (Rally rework 2026-08-04)
   deathrattleImpsOverflowGrant: ['impscrap'],    // Legion Shepherd
   onImpDeathSummonImp: ['impscrap'],
   onImpAttackSummonCopy: ['impscrap'],           // Malphas, Lord of Want

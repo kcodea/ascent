@@ -50,7 +50,12 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   Echohorn shows two bursts and delivers one litter each. Fixing this uncovered that Rally effects had never
   been able to play at all: a Rally is absorbed into its attacker's swing, so the binding that was supposed
   to drive it could never be reached.
-
+- **A 16-item balance batch + fresh Set 2 art.** Tier/stat/cost tuning across five cards and five runes,
+  Water Dragon back to its spell-copy shape, Errand Fiend to a Rally Imp engine, Rope Wrangler's Echo now
+  summons (and spends) a random minion from your hand, Strange Revision works on Shop minions, Rubies count
+  for Rune of Distillation, reward cards (Goldcrafter, Triple Reward…) no longer count as spells or get
+  copied by spell-copy effects, and a new Dwarf — Chicken Brawl, whose Echo sends out a Charging Soldier
+  that attacks immediately. Plus ~150 re-wired Set 2 minion illustrations.
 - **The Effect Arena's Shout family is done** — every Shout now fires in combat when a disruptor (Ryme,
   Dawnclaw, Funeral on Loan) re-triggers it: the legacy combat switch is deleted, 60 effects run one shared
   body in both phases, and economy Shouts (card grants, Rubies, Gold, run enchants) resolve live and carry

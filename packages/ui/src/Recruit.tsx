@@ -51,6 +51,7 @@ import { playDef } from './fx/playDef';
 import { rubyLandSchedule, rubyLandHolds } from './choreo/channels/rubyLanded';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
+import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -76,8 +77,15 @@ const AURA_MARKERS = ['dscard', 'reborncard'] as const;
 /** How far into a gem's own effect its number lands. `land.at` is when the effect STARTS; the dust takes a
  *  moment to look like it seated, and the number should arrive with the seating rather than the launch.
  *  Per-cue rather than per-def: a def that wants the number tied to a specific beat of its own motion says
- *  so with a `react` layer, which outranks this entirely. */
+ *  so with a `react` layer, which claims the hold (`claimStat`) and takes the clock over entirely. */
 const RUBY_DELIVER_OFFSET_MS = 120;
+
+/** When the Fodder ghost stops hovering and breaks into energy — the moment the tendril launches from it.
+ *  Module-scope because the eater's NUMBER is now scheduled off it from a different place than the
+ *  choreography that uses it (the hold goes in at the commit that raises the stat; the crumble is a timer
+ *  inside `playFodderEat`), and two copies of this number would drift the number off the tendril.
+ *  Syncs the `fodderpop` CSS keyframe's 65% mark. */
+const FODDER_CRUMBLE_MS = 620;
 
 /**
  * A card's RESTING centre in viewport coordinates — where it will BE once the layout settles, not where it
@@ -863,8 +871,9 @@ export function Recruit() {
    * No authored layer is required to release this hold. `fx/statHold.ts`'s shared rAF ticker drives every
    * hold whose origin is not `effect`, so a `cue` hold delivers itself on schedule whether or not a `react`
    * layer is armed for `ruby-gem-apply` — unlike the `effect`-origin holds `score.ts` places, which really
-   * do need their layer to fire. If a carrying `react` layer IS armed later, it places an `effect` hold,
-   * which outranks `cue`, so the authored timing still wins over the automatic floor.
+   * do need their layer to fire. If a carrying `react` layer IS armed later, it CLAIMS this hold
+   * (`claimStat`) as it spawns, which promotes it to `effect` and takes the ticker off it — so the authored
+   * timing wins over the automatic floor rather than racing it.
    *
    * Each RECIPIENT is withheld until its own gem, not until the reducer tick. `rubyLandHolds` groups the
    * same `rubyLandSchedule` the fire effect below reads back into one entry per uid, so the number and the
@@ -1214,8 +1223,8 @@ export function Recruit() {
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
   const [forgeMin, setForgeMin] = useState(false); // the Runeforge overlay is minimized (inspect the board behind it)
   const [logTab, setLogTab] = useState<'gains' | 'procs' | 'log'>('gains'); // Permanent gains · Procs · blow-by-blow log
-  // Per-card stat snapshot (attack + health) for the recruit-phase buff flash + the +X/+X float (declared
-  // up here so the combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
+  // Per-card stat snapshot (attack + health) for the recruit-phase buff flash (declared up here so the
+  // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
   const prevStatsRef = useRef<Map<string, { a: number; h: number }>>(new Map());
   const prevPhaseRef = useRef(run.phase);
   // Gold floats at the spot a minion was sold (the actual sell value) — fixed-screen, auto-cleared.
@@ -2644,7 +2653,8 @@ export function Recruit() {
     return () => window.clearTimeout(id);
   }, [run.phase, run.discover, run.questOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, run.wave]);
 
-  // Flash a card green AND float its +X/+X when its stats jump in the recruit phase (a buff landed).
+  // Flash a card green when its stats jump in the recruit phase (a buff landed). The readout itself is the
+  // badge's own job now — see the cut below.
   useEffect(() => {
     const prev = prevStatsRef.current;
     const next = new Map<string, { a: number; h: number }>();
@@ -2964,7 +2974,8 @@ export function Recruit() {
   // The Fodder-eat choreography (owner redesign 2026-07-16): the ghost card POPS IN hovering above the
   // shop line (fast in, easing to a stop), holds a beat, then CRUMBLES into purple energy (the CSS fade +
   // a source burst) while a tendril whips from it into each Demon that ate it (the Fodder-Infusion ribbon
-  // language + the 🍖 tuner's dials); the eater's +X/+X floats as the tendril lands. ~1.2s total.
+  // language + the 🍖 tuner's dials); the eater wiggles as the tendril lands, and its badge delivers the
+  // gain on that same arrival (the hold is placed elsewhere — see `holdFodderGains`). ~1.2s total.
   // Shared by the per-action watcher below AND the End-of-Turn beat sequence (Abyssal Feeder / Feasting
   // Bogrot consume during `faceOmen`, after the phase flips — the beats replay the projection's events
   // while the shop is still up). Returns a cancel fn (the watcher's effect cleanup).
@@ -2973,7 +2984,7 @@ export function Recruit() {
     let tries = 0;
     let t = 0;
     let crumbleT = 0;
-    let floatT = 0;
+    let wiggleT = 0;
     const seq = key;
     // Measure + play once the tavern row is actually in the DOM. If it isn't yet (a consume that procs
     // before the shop has laid out / mid-transition), RETRY on the next frames instead of bailing — the
@@ -2994,7 +3005,7 @@ export function Recruit() {
         return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0: gx - w / 2, y0: rr.top - h * 0.62, w, h, eaterUid: ev.eaterUid };
       });
       setFodderAnim({ key: seq, ghosts });
-      const CRUMBLE_MS = 620; // when the hover ends and the card breaks into energy (syncs the CSS keyframe's 65%)
+      const CRUMBLE_MS = FODDER_CRUMBLE_MS;
       const icfg = getInfuseFxConfig();
       // The crumble: a tendril whips from each ghost into ITS eater — the 🍖 ribbon look, with the source
       // pulse doubling as the card's burst-into-energy.
@@ -3016,26 +3027,17 @@ export function Recruit() {
           });
         }
       }, CRUMBLE_MS);
-      // Float the eater's +X/+X as the tendril LANDS — summed per eater (one Demon can eat several Fodder).
-      const gains = new Map<string, { a: number; h: number }>();
-      for (const ev of events) {
-        const g = gains.get(ev.eaterUid) ?? { a: 0, h: 0 };
-        g.a += ev.gainA;
-        g.h += ev.gainH;
-        gains.set(ev.eaterUid, g);
-      }
-      const keyed = [...gains].map(([uid, g]) => ({ uid, attack: g.a, health: g.h }));
-      // The eater's number lands WITH the tendril, not at the reducer tick. This is why the `+X/+X` float
-      // below could finally be cut: it existed because the badge changed too early for the beat to have a
-      // payoff, and scheduling the badge to the same arrival removes the reason for a second readout.
-      for (const k of keyed) {
-        holdStat(k.uid, { attack: k.attack, health: k.health },
-          { origin: 'cue', startAt: CRUMBLE_MS + icfg.travelMs });
-      }
-      floatT = window.setTimeout(() => {
-        // CUT (2026-08-04): the badge carries this now, scheduled to this same arrival — see the `holdStat`
-        // above. This was the LAST `+X/+X` float in the game; the combat one went in `choreo/channels/float.ts`
-        // and the generic recruit one went with the intrinsic roll.
+      // Who reacts as the tendril lands — summed per eater (one Demon can eat several Fodder).
+      //
+      // The eater's stat WITHHOLD is deliberately not placed here any more. It has to go in the same commit
+      // that raises the value (see `holdFodderGains`); this function is reached from a passive effect and
+      // from the End-of-Turn beat loop, and its retry loop above can run ~0.65s late — by which point the
+      // badge has long since printed the new number and a fresh hold would snap it BACKWARDS to pre-buff.
+      const keyed = fodderGainHolds(events);
+      wiggleT = window.setTimeout(() => {
+        // The `+X/+X` float was CUT (2026-08-04): the badge carries the readout now, scheduled to this same
+        // arrival. This was the LAST `+X/+X` float in the game; the combat one went in
+        // `choreo/channels/float.ts` and the generic recruit one went with the intrinsic roll.
         // Impact wiggle: the eater physically reacts as the tendril lands (owner ask 2026-07-16) — a quick
         // gulp-pop, WAAPI transform-only with composite: 'add' (stacks on the card's own transforms).
         for (const k of keyed) {
@@ -3053,8 +3055,65 @@ export function Recruit() {
       t = window.setTimeout(() => setFodderAnim(null), 1250); // the card is long gone by here (fodderpop is 0.95s)
     };
     tryShow();
-    return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(crumbleT); window.clearTimeout(floatT); };
+    return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(crumbleT); window.clearTimeout(wiggleT); };
   }, []);
+
+  /**
+   * WITHHOLD each eater's gain until the tendril reaches it (`fx/statHold.ts`) — the fodder sibling of the
+   * ruby cascade's hold above, and placed under the same rule: **in the commit that raises the value**.
+   *
+   * That rule is the whole reason this is a separate function called from layout effects rather than two
+   * lines inside `playFodderEat`. A hold is a DELTA subtracted from whatever the badge currently shows, so a
+   * commit that applies the hold without the raise prints `old − gain` — a number strictly below anything
+   * the minion has ever had, on the readout players buy and position from. `playFodderEat` is reached from a
+   * passive effect (after paint) and from the End-of-Turn beat loop (before its `setEotAnimStats`), and its
+   * DOM-retry loop can fire up to ~0.65s late — long enough that `Card`'s intrinsic roll for the same change
+   * has already finished and been deleted, so the hold would land fresh, with the full delta, on a badge
+   * already showing the new number, and snap it backwards for about a second.
+   *
+   * `startAt` is measured from THIS commit rather than from when the ghost happened to render. In the normal
+   * case those are the same frame and the number lands exactly on the tendril; in the rare late-layout case
+   * the number keeps its own honest schedule and the ribbon arrives after it. Losing the sync is the
+   * acceptable half of that trade — printing a wrong number is not.
+   */
+  const holdFodderGains = useCallback((gains: readonly FodderGain[]): void => {
+    const startAt = FODDER_CRUMBLE_MS + getInfuseFxConfig().travelMs; // the tendril's arrival
+    for (const g of gains) holdStat(g.uid, { attack: g.attack, health: g.health }, { origin: 'cue', startAt });
+  }, []);
+
+  // The mid-shop consume's raise arrives on `run.board` in the same commit as the seq bump, so the hold goes
+  // in from a LAYOUT effect keyed on that seq — before paint, and before the passive watcher below runs.
+  // Its own prev-seq ref, because the watcher's is bookkeeping for the choreography, not for this.
+  const prevFodderHoldSeq = useRef(run.fodderEatenSeq);
+  useLayoutEffect(() => {
+    if (run.fodderEatenSeq === prevFodderHoldSeq.current) return;
+    prevFodderHoldSeq.current = run.fodderEatenSeq;
+    holdFodderGains(fodderGainHolds(run.fodderEaten ?? []));
+  }, [run.fodderEatenSeq, run.fodderEaten, holdFodderGains]);
+
+  const prevShopEatHoldSeq = useRef(run.shopEatenSeq);
+  useLayoutEffect(() => {
+    if (run.shopEatenSeq === prevShopEatHoldSeq.current) return;
+    prevShopEatHoldSeq.current = run.shopEatenSeq;
+    holdFodderGains(fodderGainHolds(run.shopEaten ?? []));
+  }, [run.shopEatenSeq, run.shopEaten, holdFodderGains]);
+
+  /**
+   * The End-of-Turn beat loop's raise is `setEotAnimStats`, not `run.board`, so its hold cannot ride either
+   * seq above. The beat stashes what it is about to raise and this drains it in the commit that raises it.
+   *
+   * Stash-then-drain rather than holding beside `setEotAnimStats` directly, because the two updates travel
+   * different lanes: a hold reaches React through `useSyncExternalStore` (sync) and `eotAnimStats` through
+   * `useState` (default). React is free to commit the sync one alone, and that commit is the one that prints
+   * `old − gain`. A layout effect on `eotAnimStats` can only run in a commit that already carries the raise.
+   */
+  const pendingFodderHolds = useRef<FodderGain[] | null>(null);
+  useLayoutEffect(() => {
+    const pending = pendingFodderHolds.current;
+    if (pending === null) return;
+    pendingFodderHolds.current = null;
+    holdFodderGains(pending);
+  }, [eotAnimStats, holdFodderGains]);
 
   // Tavern Fodder was auto-eaten mid-shop (fodderEatenSeq bumped) — play the eat choreography.
   useEffect(() => {
@@ -3585,6 +3644,11 @@ export function Recruit() {
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];
       if (cur) {
+        // Withhold the eaters' gains for THIS raise, drained by the layout effect that watches
+        // `eotAnimStats` — see `pendingFodderHolds`. Inside the `if (cur)` deliberately: with no raise there
+        // is nothing to withhold, and a hold stashed against a raise that never comes would be applied by
+        // whatever beat raised next, against a number it has nothing to do with.
+        if (bfx && bfx.eaten.length > 0) pendingFodderHolds.current = fodderGainHolds(bfx.eaten);
         setEotAnimStats(cur);
         const prev = i > 0 ? steps[i - 1]! : baseStats;
         // The green burst is the GENERIC stat-gain cue — skip it for any minion this beat already animates

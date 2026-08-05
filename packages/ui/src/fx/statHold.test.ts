@@ -165,6 +165,50 @@ describe('a hold nobody claims must not be permanent', () => {
     holdStat('a', { attack: 2, health: 0 });
     expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
   });
+
+  /**
+   * The header promises "a hold nobody claims must not be permanent". Until now that was enforced only by
+   * `heldFor` sweeping on READ — and nothing re-reads a badge on a shop that isn't being touched, so a hold
+   * whose effect never released it froze the number until some unrelated re-render happened to sweep it.
+   *
+   * Reachable for real: pull the `carries` layer off a def in the workbench and the cue still holds, but
+   * nothing is left to deliver. The owner's report was a gem apply that didn't update until they clicked
+   * again. So expiry NOTIFIES on its own now, rather than waiting to be asked.
+   */
+  it('an unclaimed hold releases ITSELF at the TTL, and tells subscribers', async () => {
+    vi.useFakeTimers();
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    holdStat('a', { attack: 3, health: 3 }, { ttlMs: 50 });
+    expect(notified).toBe(1);          // the hold itself
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(60);
+    expect(anyStatHeld()).toBe(false); // gone WITHOUT anyone reading it
+    expect(notified).toBe(2);          // and the badge was told to re-render
+    stop();
+  });
+
+  it('a hold released on time does not also fire its expiry', async () => {
+    vi.useFakeTimers();
+    holdStat('a', { attack: 3, health: 0 }, { ttlMs: 50 });
+    releaseStat('a');
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    await vi.advanceTimersByTimeAsync(60);
+    expect(notified).toBe(0);          // no stray emit for a hold that is already gone
+    stop();
+  });
+
+  it('a re-hold restarts the clock rather than inheriting the old deadline', async () => {
+    vi.useFakeTimers();
+    holdStat('a', { attack: 2, health: 0 }, { ttlMs: 100 });
+    await vi.advanceTimersByTimeAsync(80);
+    holdStat('a', { attack: 2, health: 0 }, { ttlMs: 100 });
+    await vi.advanceTimersByTimeAsync(40);   // past the FIRST deadline, inside the second
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(70);
+    expect(anyStatHeld()).toBe(false);
+  });
 });
 
 describe('the render subscription', () => {

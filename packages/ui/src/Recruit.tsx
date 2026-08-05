@@ -1223,10 +1223,6 @@ export function Recruit() {
   // Gold floats at the spot a minion was sold (the actual sell value) — fixed-screen, auto-cleared.
   const [sellFloats, setSellFloats] = useState<{ id: number; x: number; y: number; amount: number }[]>([]);
   const sellFloatId = useRef(0);
-  // Recruit-phase +X/+X buff floats, keyed by card uid (latest wins; `key` bumps each buff so it remounts +
-  // replays its rise). Mirrors the combat buff float — the player reads the actual stat gain in the shop.
-  const [statFloats, setStatFloats] = useState<Record<string, { attack: number; health: number; key: number }>>({});
-  const statFloatKey = useRef(0);
   // True on the single render where we flip combat → recruit (prevPhaseRef is updated later, in the
   // layout effect). The warband cards mount on exactly this render, so passing it as `suppressPop`
   // makes them skip the mount-pop (no jiggle) while cards played later still pop normally.
@@ -3030,13 +3026,18 @@ export function Recruit() {
         g.h += ev.gainH;
         gains.set(ev.eaterUid, g);
       }
-      const keyed = [...gains].map(([uid, g]) => ({ uid, attack: g.a, health: g.h, key: ++statFloatKey.current }));
+      const keyed = [...gains].map(([uid, g]) => ({ uid, attack: g.a, health: g.h }));
+      // The eater's number lands WITH the tendril, not at the reducer tick. This is why the `+X/+X` float
+      // below could finally be cut: it existed because the badge changed too early for the beat to have a
+      // payoff, and scheduling the badge to the same arrival removes the reason for a second readout.
+      for (const k of keyed) {
+        holdStat(k.uid, { attack: k.attack, health: k.health },
+          { origin: 'cue', startAt: CRUMBLE_MS + icfg.travelMs });
+      }
       floatT = window.setTimeout(() => {
-        setStatFloats((m) => {
-          const n = { ...m };
-          for (const k of keyed) n[k.uid] = { attack: k.attack, health: k.health, key: k.key };
-          return n;
-        });
+        // CUT (2026-08-04): the badge carries this now, scheduled to this same arrival — see the `holdStat`
+        // above. This was the LAST `+X/+X` float in the game; the combat one went in `choreo/channels/float.ts`
+        // and the generic recruit one went with the intrinsic roll.
         // Impact wiggle: the eater physically reacts as the tendril lands (owner ask 2026-07-16) — a quick
         // gulp-pop, WAAPI transform-only with composite: 'add' (stacks on the card's own transforms).
         for (const k of keyed) {
@@ -3050,13 +3051,6 @@ export function Recruit() {
             ], { duration: 380, easing: 'ease-in-out', composite: 'add' });
           } catch { /* WAAPI composite unsupported: skip the wiggle rather than clobber the card transform */ }
         }
-        window.setTimeout(() => {
-          setStatFloats((m) => {
-            const n = { ...m };
-            for (const k of keyed) if (n[k.uid]?.key === k.key) delete n[k.uid];
-            return n;
-          });
-        }, 1500);
       }, CRUMBLE_MS + icfg.travelMs); // the tendril's arrival
       t = window.setTimeout(() => setFodderAnim(null), 1250); // the card is long gone by here (fodderpop is 0.95s)
     };
@@ -4117,7 +4111,6 @@ export function Recruit() {
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}
                     suppressPop={returningFromCombat}
-                    buffFloat={statFloats[m.uid] ?? null}
                     onPointerDown={heroArmed || pendingTarget ? undefined : onCardPointerDown}
                   />
                 </Fragment>
@@ -4166,7 +4159,6 @@ export function Recruit() {
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
                 buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
-                buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}

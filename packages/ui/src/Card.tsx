@@ -334,7 +334,6 @@ export const Card = memo(function Card({
   targeted,
   dimmed,
   buffed,
-  buffFloat,
   battlecry,
   electrify,
   karwind,
@@ -372,9 +371,6 @@ export const Card = memo(function Card({
   buffed?: boolean;
   /** Play the one-shot SPELL-buff cue — an in-place grow/shrink plus an outward spark blast. Fired
    *  when a hand spell's (or Ruby's) printed value just went UP, so the player sees which cards were affected. */
-  /** A recruit-phase stat buff just landed — float its `+atk/+hp` above the card (like combat). `key`
-   *  changes per buff so the float remounts and re-runs its rise animation. */
-  buffFloat?: { attack: number; health: number; key: number } | null;
   /** One-shot flourish beneath a just-played minion whose Battlecry fired. */
   battlecry?: boolean;
   /** Electric flash — a Mech being magnetized onto by Combinator's End-of-Turn. */
@@ -734,11 +730,6 @@ export const Card = memo(function Card({
             </div>
           )}
         </>
-      )}
-      {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).
-          Keyed so a fresh buff remounts it and replays the rise. */}
-      {buffFloat && (
-        <span key={buffFloat.key} className="float buff cardfloat">+{buffFloat.attack}/+{buffFloat.health}</span>
       )}
       {/* Step-progress counter below step-based scalers — either "X/N to next step" (Guel 1/4, Monk 2/5, …) or a
           `label` override for cadence cards ("2 Turns" until Money Maker fires). Keyed on the shown value so each

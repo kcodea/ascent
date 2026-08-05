@@ -95,6 +95,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       if (idx < 0) return [];
       return [state.board[idx - 1], state.board[idx + 1]].filter((c): c is BoardCard => !!c);
     },
+    grantMaxGold: (amount) => { state.maxEmbers += amount; },
+    isCelestial: (t) => !!CARD_INDEX[t.cardId]?.celestial,
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
       // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
@@ -1640,19 +1642,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Bone Taxer (Echo): raise MAX Gold for the run. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleMaxGold: (ctx, self, params) => {
-    const gain = num(params.amount, 1) * gold(self);
-    ctx.state.maxEmbers += gain;
+    ARENA_EFFECTS.deathrattleMaxGold(shopArena(ctx.state, self), params);
   },
 
   /** Equinox Duelist (Echo): buff your other Celestials. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffCelestials: (ctx, self, params) => {
-    const a = num(params.attack, 0) * gold(self);
-    const h = num(params.health, 0) * gold(self);
-    if (a <= 0 && h <= 0) return;
-    for (const c of ctx.state.board) {
-      if (c.uid !== self.uid && CARD_INDEX[c.cardId]?.celestial) addBuff(c, nameOf(self), a, h);
-    }
+    ARENA_EFFECTS.deathrattleBuffCelestials(shopArena(ctx.state, self), params);
   },
 
   /** Chef Raag (Echo): buff your whole board by the run's Imp aura, floored at +1/+1 — the same floor the

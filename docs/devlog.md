@@ -1,5 +1,13 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 11+12: Bone Taxer and Equinox Duelist
+
+`deathrattleMaxGold` and `deathrattleBuffCelestials` migrate — floor → 12. New verbs: `grantMaxGold` (combat
+routes through its carry-back channel and logs the replay's maxGold event; the shop raises `maxEmbers`) and
+`isCelestial` (a card-definition read, each adapter owning its index access). Bone Taxer's own-death guard —
+the every-friendly-death overpayment bug's fix — stays in the combat wrapper, where dispatch concerns live.
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Resonance Idol: the sweep finds its first SILENT drift; tenth arena body
 
 `rubyPlayedBounce` migrates, and unification FIXED a real divergence rather than just deduplicating: the

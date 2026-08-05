@@ -158,6 +158,11 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     playRubiesOn: (t, per) => playRubyOn(ctx, self, t as Minion, per),
     gainRubyStats: (t, a, h) => applyRubyStats(ctx, self, t as Minion, a, h),
     neighboursOf: (t) => livingNeighbours(ctx, t as Minion),
+    grantMaxGold: (amount) => {
+      ctx.grantMaxGold(amount, self.side);
+      if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount });
+    },
+    isCelestial: (t) => !!ctx.getCard(t.cardId)?.celestial,
     hasReborn: (t) => (t as Minion).rebornAvailable === true || t.keywords.includes('R'),
     grantReborn: (t) => {
       const m = t as Minion;
@@ -1788,14 +1793,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Bone Taxer): permanently raise your max Gold by `amount` (golden doubles). Player-side
    *  carry-back via `CombatResult.playerMaxGoldGain` → applied to maxEmbers in settleCombat. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts. The own-death guard (Bone Taxer once paid on EVERY
+  // friendly death) stays in the wrapper, where dispatch concerns live.
   deathrattleMaxGold: (ctx, self, params, payload) => {
-    // Fire ONLY on THIS minion's own death. The onDeath bus emits for every death, so without this guard Bone
-    // Taxer granted max Gold on EVERY friendly death (owner-reported: "far more gold per turn"). The echo-doubler
-    // re-fires pass `{ minion: self }`, so this still honors Sylus/Funeral Engine.
     if ((payload as MinionPayload).minion !== self) return;
-    const gain = num(params.amount, 1) * mul(self);
-    ctx.grantMaxGold(gain, self.side);
-    if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
+    ARENA_EFFECTS.deathrattleMaxGold(combatArena(ctx, self), params);
   },
 
   /** Avenge (X) — Stuntdrake: after every `count` friendly deaths, hand `targets` other living friends a
@@ -1963,10 +1965,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Celestial — Equinox Duelist (Dusk Echo): the Echo twin of `rallyBuffCelestials` — the dying Duelist
    *  buffs the OTHER Celestials it leaves behind. × golden. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffCelestials: (ctx, self, params) => {
-    for (const m of ctx.living(self.side)) {
-      if (m !== self && ctx.getCard(m.cardId)?.celestial) ctx.buff(m, num(params.attack, 0) * mul(self), num(params.health, 0) * mul(self), self.uid);
-    }
+    ARENA_EFFECTS.deathrattleBuffCelestials(combatArena(ctx, self), params);
   },
 
   scSummonCopy: (ctx, self) => {

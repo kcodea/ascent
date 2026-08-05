@@ -75,6 +75,11 @@ export interface EffectArena {
   gainRubyStats(t: ArenaBody, attack: number, health: number): void;
   /** The nearest living neighbours (left, right) of a body. */
   neighboursOf(t: ArenaBody): ArenaBody[];
+  /** Raise the run's MAXIMUM Gold. Combat routes through its carry-back channel (and logs the maxGold
+   *  event for the replay); the shop raises `maxEmbers` directly. */
+  grantMaxGold(amount: number): void;
+  /** Is this body a Celestial? (A card-definition read; adapters own their card index access.) */
+  isCelestial(t: ArenaBody): boolean;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -215,6 +220,22 @@ export const ARENA_EFFECTS = {
     }
     for (const adj of arena.neighboursOf(arena.self)) {
       for (let r = 0; r < reps; r++) arena.gainRubyStats(adj, a, h);
+    }
+  },
+
+  /** Bone Taxer — Echo: raise your maximum Gold by `amount` (golden doubles). */
+  deathrattleMaxGold(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantMaxGold((typeof params.amount === 'number' ? params.amount : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Equinox Duelist — Echo: buff your OTHER Celestials +atk/+hp (golden doubles). */
+  deathrattleBuffCelestials(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    if (a <= 0 && h <= 0) return;
+    for (const f of arena.friends()) {
+      if (f.uid !== arena.self.uid && arena.isCelestial(f)) arena.buff(f, a, h);
     }
   },
 } as const;

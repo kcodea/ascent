@@ -30,6 +30,8 @@ import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
+import { combatBuffDeltas } from './fx/combatBuffRoll';
+import { holdStat, releaseStat } from './fx/statHold';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -127,27 +129,25 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
  *
  * Pure so it can be tested directly — the bug it fixes (paint the new value, snap back, tick up again) was a
  * TIMING mistake around this arithmetic, not the arithmetic itself, and a regression here is silent on screen.
- * Sums the WHOLE beat per target: a target can take an incoming tendril and a self-buff in the same beat, and
- * subtracting only one leaves the badge on a number that was never real.
+ *
+ * Derives from `combatBuffDeltas` rather than re-summing: that function does the identical per-target walk over
+ * the beat's `buff` events (including the same on-frame drop), but hands back the DELTA the module store wants.
+ * This function still needs the pre-buff ABSOLUTE for the old wholesale `statHold` Map, so it's just
+ * `u.attack - delta.attack` on top. One copy of the summing loop, two shapes read off it — this bridge is
+ * temporary; it goes away with `preBuffHolds` once the install no longer needs a Map (Task 3).
  */
 export function preBuffHolds(
   beat: { start: number; end: number },
   events: CombatEvent[],
   frame: { player: UnitFrame[]; enemy: UnitFrame[] },
 ): Map<string, { atk: number; hp: number }> {
-  const totals = new Map<string, { atk: number; hp: number }>();
-  for (let i = beat.start; i < beat.end; i++) {
-    const e = events[i];
-    if (!e || e.type !== 'buff') continue;
-    const t = totals.get(e.target) ?? { atk: 0, hp: 0 };
-    totals.set(e.target, { atk: t.atk + e.attack, hp: t.hp + e.health });
-  }
   const out = new Map<string, { atk: number; hp: number }>();
-  for (const [uid, t] of totals) {
-    if (t.atk === 0 && t.hp === 0) continue;
-    const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
-    if (!u) continue; // not on the board this frame → nothing to hold
-    out.set(uid, { atk: u.attack - t.atk, hp: u.health - t.hp });
+  for (const d of combatBuffDeltas(beat, events, frame)) {
+    // `combatBuffDeltas` already dropped anything not on this frame, so the lookup below always hits —
+    // the `?? ` fallback + guard is just how the two-side (player/enemy) lookup already reads elsewhere here.
+    const u = frame.player.find((x) => x.uid === d.uid) ?? frame.enemy.find((x) => x.uid === d.uid);
+    if (!u) continue;
+    out.set(d.uid, { atk: u.attack - d.attack, hp: u.health - d.health });
   }
   return out;
 }
@@ -717,6 +717,10 @@ export function useCombatReplay(
   // PRE-buff value; on strike, release (delete → real value shows) and flash the changed badge(s). Keyed by uid.
   const [statHold, setStatHold] = useState<Map<string, { atk: number; hp: number }>>(new Map());
   const [statFlash, setStatFlash] = useState<Map<string, { atk: boolean; hp: boolean }>>(new Map());
+  // uids this instance currently holds in the module store (`fx/statHold`), so the install effect below can
+  // release exactly what THIS beat placed before placing the next — the per-uid equivalent of the wholesale
+  // `statHold` Map rebuild above. See that effect for why the release has to run on every pass, unconditionally.
+  const combatHeldRef = useRef<string[]>([]);
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
   const [critShake, setCritShake] = useState(0);   // bumped at a crit's contact → the punchier `.shaking-crit`
@@ -1488,12 +1492,38 @@ export function useCombatReplay(
   //
   // Rebuilt wholesale each beat rather than merged, which also means a hold whose release timer was lost
   // (a skip, a speed change mid-flight) can never outlive its beat and freeze a badge.
+  //
+  // Alongside the wholesale Map above, this also places the SAME beat's buffs into the shared module store
+  // (`fx/statHold`) at `effect` origin — its ticker skips `effect` holds outright, so combat's own strike
+  // timers stay the only clock driving delivery. Nothing reads these yet: combat's `Card` has no `uid` to key
+  // a lookup by (that's the next task), so this is proven by `combatBuffDeltas`'s own test plus tsc/lint/the
+  // suite staying green, not by a visible change. `combatHeldRef` tracks exactly what THIS instance placed so
+  // the release below only ever drops its own holds, never a hold some other beat or another surface placed
+  // on a uid that outlives this component.
   useLayoutEffect(() => {
+    // Release last beat's module-store holds BEFORE placing this beat's — on every pass through this effect,
+    // including the inactive/beat-0 early-out just below. Skipping the release on that path would leave a
+    // stale hold live into the next real beat, and `holdStat` ACCUMULATES same-origin deltas onto a live hold
+    // rather than replacing them — so the next install would land on top of an unreleased remainder instead
+    // of a clean placement, double-counting one beat's buff. This is also what makes a re-seek back to the
+    // SAME beat (`seekNonce` bump, same `beatIdx`) safe: the effect tears down and re-runs, and without a
+    // release-first the delta for that one beat would stack a second time on top of itself.
+    for (const uid of combatHeldRef.current) releaseStat(uid);
+    combatHeldRef.current = [];
     if (!active || beatIdx === 0) { setStatHold((m) => (m.size ? new Map() : m)); return; }
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     const next = preBuffHolds(beat, events, frame);
     setStatHold((m) => (m.size === 0 && next.size === 0 ? m : next));
+    for (const d of combatBuffDeltas(beat, events, frame)) {
+      // `effect` origin: the store's ticker leaves it alone, so the badge holds pre-buff until the STRIKE
+      // drives it — same contract an authored `react` layer gets from `carries`; combat's strike timers are
+      // that layer's hand-rolled equivalent here. A hold nobody claims still fails OPEN on its own TTL
+      // (`fx/statHold`), so a lost release (skip / speed change / unmount mid-beat) can't freeze a badge —
+      // same guarantee the wholesale Map above gets from being rebuilt every beat, just per-uid instead.
+      holdStat(d.uid, { attack: d.attack, health: d.health }, { origin: 'effect' });
+      combatHeldRef.current.push(d.uid);
+    }
     // `seekNonce`: this is the ONLY installer of `statHold` (every other write is a delete), and both
     // `resetTo` and the cue effect's teardown clear it. `frame` can't stand in — it is memoised on
     // `processedEnd`/`beatStart`, both derived from `beatIdx`, so it too is unchanged by a same-index

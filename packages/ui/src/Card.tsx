@@ -19,12 +19,14 @@ const BADGE_POP_MS = 180;
  * however long the roll runs. Popping the badge solves that without the counter ever inventing a value it
  * never had, which is the trade the reel made and the owner turned down.
  *
- * THE BADGE, not the digit alone. Combat already pops the badge on a buff (`.statflash`, scale 1.5), but
- * `flashAtk`/`flashHp` are only ever set by `Unit` — so the shop had no equivalent and a gem landing moved
- * the number with nothing marking it. Scaling `.value` on its own was too quiet next to the card's own
- * green burst; this targets the same element combat's cue does, so a shop buff and a combat buff read the
- * same. The badges are positioned by absolute left/right/bottom with no base transform (see `.statflash`
- * in styles.css), so a scale composes cleanly without shifting them.
+ * THE BADGE, not the digit alone. Scaling `.value` on its own was too quiet next to the card's own green
+ * burst, so this targets the same element (plate + number together). One pop path covers both surfaces now:
+ * combat used to run its own hand-set CSS flash cue for this, driven by a per-badge boolean prop `Unit` set
+ * by hand; that cue is retired (Task 3 of the combat/shop stat-hold unification) now that combat's `Card`
+ * carries a `uid` and reads the same shared hold store the shop does — its badge's printed value moves for
+ * the same reason a shop badge's does, so this ONE hook pops it, with nothing combat-specific to author. The
+ * badges are positioned by absolute left/right/bottom with no base transform, so a scale composes cleanly
+ * without shifting them.
  *
  * It pops on EVERY change, not just the last one, so there is no special case — and because a restart
  * cancels the one in flight, a fast multi-step roll doesn't read as N separate pops. Each step re-launches
@@ -53,11 +55,6 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
       painted.current = value;
       const el = ref.current;
       if (el === null) return;
-      // COMBAT already owns this badge on a buff: `.statflash` is a CSS animation scaling the same element
-      // to 1.5. Both animate `transform`, and a script animation composites ON TOP of a CSS one — so
-      // running both would multiply to ~2×, a badge lurching off the card. Combat's cue wins where it
-      // fires; this one exists for the shop, which has none.
-      if (el.classList.contains('statflash')) return;
       // Cancel before re-launching. WAAPI animations under `composite: 'add'` ACCUMULATE, and a roll
       // changes the number every few frames — a dozen live pops on one badge would scale it off the card.
       anim.current?.cancel();
@@ -286,9 +283,6 @@ export interface CardView {
    *  Left undefined outside combat — the shop colours against the printed base alone. */
   floorAttack?: number;
   floorHealth?: number;
-  /** Transient per-stat flash (a buff just landed on this unit this frame). Set by the combat replay. */
-  flashAtk?: boolean;
-  flashHp?: boolean;
   /** Per-source recruit buffs (for the inspect-panel breakdown). */
   buffs?: { source: string; attack: number; health: number; count: number }[];
 }
@@ -988,11 +982,11 @@ export const Card = memo(function Card({
             {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
                 the `.badge` wrapper seats the pair, `.plate` is the shape, `.value` is the digit. Plate and
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
-            <span ref={atkPopRef} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>
+            <span ref={atkPopRef} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
               <span className="plate" aria-hidden="true" />
               <span className="value">{shownAttack}</span>
             </span>
-            <span ref={hpPopRef} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>
+            <span ref={hpPopRef} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
               <span className="plate" aria-hidden="true" />
               <span className="value">{shownHealth}</span>
             </span>

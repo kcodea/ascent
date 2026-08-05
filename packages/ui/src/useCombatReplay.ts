@@ -30,11 +30,16 @@ import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
-import { combatBuffDeltas } from './fx/combatBuffRoll';
-import { holdStat, releaseStat } from './fx/statHold';
+import { combatBuffDeltas, driveRoll } from './fx/combatBuffRoll';
+import { DEFAULT_ROLL_MS, holdStat, releaseStat } from './fx/statHold';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
+
+/** How long a combat buff's strike-time badge roll takes, in ms (before the combat-speed divide). Starts
+ *  equal to the shop's roll (`DEFAULT_ROLL_MS`) so a gem and a combat buff count up at the same pace by
+ *  default — its own constant because a fight-paced roll is free to diverge if it ever needs its own tuning. */
+const COMBAT_ROLL_MS = DEFAULT_ROLL_MS;
 
 /** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
 export interface UnitFrame {
@@ -121,35 +126,6 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
   const e = buffs.find((b) => b.source === source);
   if (e) { e.attack += attack; e.health += health; e.count += 1; }
   else buffs.push({ source, attack, health, count: 1 });
-}
-
-/**
- * Each buff target's PRE-buff displayed stats for one beat: its post-beat value minus everything the beat granted
- * it. The badge holds this until the tendril lands, so the number ticks up when the FX says it should.
- *
- * Pure so it can be tested directly — the bug it fixes (paint the new value, snap back, tick up again) was a
- * TIMING mistake around this arithmetic, not the arithmetic itself, and a regression here is silent on screen.
- *
- * Derives from `combatBuffDeltas` rather than re-summing: that function does the identical per-target walk over
- * the beat's `buff` events (including the same on-frame drop), but hands back the DELTA the module store wants.
- * This function still needs the pre-buff ABSOLUTE for the old wholesale `statHold` Map, so it's just
- * `u.attack - delta.attack` on top. One copy of the summing loop, two shapes read off it — this bridge is
- * temporary; it goes away with `preBuffHolds` once the install no longer needs a Map (Task 3).
- */
-export function preBuffHolds(
-  beat: { start: number; end: number },
-  events: CombatEvent[],
-  frame: { player: UnitFrame[]; enemy: UnitFrame[] },
-): Map<string, { atk: number; hp: number }> {
-  const out = new Map<string, { atk: number; hp: number }>();
-  for (const d of combatBuffDeltas(beat, events, frame)) {
-    // `combatBuffDeltas` already dropped anything not on this frame, so the lookup below always hits —
-    // the `?? ` fallback + guard is just how the two-side (player/enemy) lookup already reads elsewhere here.
-    const u = frame.player.find((x) => x.uid === d.uid) ?? frame.enemy.find((x) => x.uid === d.uid);
-    if (!u) continue;
-    out.set(d.uid, { atk: u.attack - d.attack, hp: u.health - d.health });
-  }
-  return out;
 }
 
 /**
@@ -490,10 +466,6 @@ export interface CombatReplay {
   triggerUids: Set<string>;
   /** uid → a per-fire nonce for units mid-Rally (used as the medallion `key` so each pulse restarts). */
   rallyPulseUids: Map<string, number>;
-  /** While a buff tendril is in flight to this unit, its PRE-buff displayed stats (held until the strike). */
-  statHoldFor: (uid: string) => { atk: number; hp: number } | undefined;
-  /** On the strike, which badge(s) just changed → flash them. Cleared shortly after. */
-  statFlashFor: (uid: string) => { atk: boolean; hp: boolean } | undefined;
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -713,13 +685,9 @@ export function useCombatReplay(
   // re-add wouldn't replay the CSS animation (that's why the 2nd Rally in a combat pinged sound but no visual).
   const [rallyPulse, setRallyPulse] = useState<Map<string, number>>(new Map());
   const rallyNonceRef = useRef(0);
-  // Buff-tendril hold/flash: while a buff tendril flies to a target, HOLD its displayed Attack/Health at the
-  // PRE-buff value; on strike, release (delete → real value shows) and flash the changed badge(s). Keyed by uid.
-  const [statHold, setStatHold] = useState<Map<string, { atk: number; hp: number }>>(new Map());
-  const [statFlash, setStatFlash] = useState<Map<string, { atk: boolean; hp: boolean }>>(new Map());
-  // uids this instance currently holds in the module store (`fx/statHold`), so the install effect below can
-  // release exactly what THIS beat placed before placing the next — the per-uid equivalent of the wholesale
-  // `statHold` Map rebuild above. See that effect for why the release has to run on every pass, unconditionally.
+  // uids this instance currently holds in the module store (`fx/statHold`) — the install effect below
+  // releases exactly what THIS beat placed before placing the next, and the strike-time roll (`driveRoll`)
+  // drops a uid from this list once it takes over that uid's delivery. See that effect for the ordering.
   const combatHeldRef = useRef<string[]>([]);
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
@@ -796,8 +764,6 @@ export function useCombatReplay(
     setShaking(false);
     setCritShaking(false);
     setHandGrant(null);
-    setStatHold(new Map());
-    setStatFlash(new Map());
   }, []);
 
   // A fresh combat resets the replay to the top (the hook persists across fights).
@@ -816,12 +782,16 @@ export function useCombatReplay(
   }, [combat]);
 
   // Fire a moment's buff-OTHER casts: a source→target tendril per cast (or a rain-down descend when the source is
-  // a Deathrattle buffer), then HOLD each target's pre-buff badge value and flash it to the new value at the
+  // a Deathrattle buffer), then roll each target's badge from its pre-buff value to the new one at the
   // strike/landing. Shared by the `buffWave` path (`onBuffCasts`) and the attack-wind-up path (on-attack / Rally
   // buffers, launched from the lunge timeline so the beat reads pulse → tendril → lunge). `timers` collects the
-  // flash timeouts so the caller's effect can clear them on teardown.
+  // release timeouts so the caller's effect can clear them on teardown.
   const fireBuffCasts = useCallback((casts: BuffCast[], timers: number[]): void => {
-    const perTarget = new Map<string, { atk: number; hp: number; strikeMs: number }>();
+    // target uid → the first landing cast's tendril flight time. A target can take several casts in one
+    // moment, but they all release the SAME store hold together, so only the timing of the first is needed
+    // — later casts on the same target no longer aggregate atk/hp here (the store already holds the beat's
+    // full delta, installed by the layout effect below).
+    const perTarget = new Map<string, number>();
     for (const c of casts) {
       const tEl = findEl(c.target);
       if (!tEl) continue; // target not on screen → nothing to land on
@@ -839,34 +809,35 @@ export function useCombatReplay(
         cardId, tribe,
         sourceless,
       });
-      const agg = perTarget.get(c.target);
-      if (agg) { agg.atk += c.attack; agg.hp += c.health; }
-      else perTarget.set(c.target, { atk: c.attack, hp: c.health, strikeMs });
+      if (!perTarget.has(c.target)) perTarget.set(c.target, strikeMs);
     }
     const unitOf = (uid: string) =>
       frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
-    for (const [target, { atk: sumAtk, hp: sumHp, strikeMs }] of perTarget) {
+    for (const [target, strikeMs] of perTarget) {
       const tgt = unitOf(target);
       if (!tgt) continue;
       // The HOLD is installed pre-paint by the layout effect below — deliberately NOT here. Setting it from
       // this post-paint effect meant the browser painted the already-buffed number for one frame, then the
       // hold snapped it back to the pre-buff value, then the strike released it again: the "stat goes up,
-      // down, then up with the tendrils" the owner filmed (2026-07-25). This path now owns only the RELEASE.
+      // down, then up with the tendrils" the owner filmed (2026-07-25). This path now owns only the RELEASE
+      // — and the release is a ROLL (Task 3), not a snap: `driveRoll` walks the store's hold from 0 to 1 on
+      // the strike's own clock, and the badge pop fires off the value moving (`useBadgePop`), with nothing
+      // else to author here.
       const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
       timers.push(window.setTimeout(() => {
-        setStatHold((m) => { const n = new Map(m); n.delete(target); return n; });
-        setStatFlash((m) => new Map(m).set(target, { atk: sumAtk !== 0, hp: sumHp !== 0 }));
-        timers.push(window.setTimeout(() =>
-          setStatFlash((m) => { const n = new Map(m); n.delete(target); return n; }), 360));
+        driveRoll(target, COMBAT_ROLL_MS, combatSpeedRef.current);
+        // This uid now owns its own delivery clock — the next beat's install-effect release loop (below)
+        // must not yank the hold out from under the roll that was just started.
+        combatHeldRef.current = combatHeldRef.current.filter((u) => u !== target);
       }, ms));
     }
   }, [findEl, cardIds]);
 
-  // Fire a moment's SELF-buffs (a unit empowering ITSELF): one in-place pulse per unit, then HOLD its pre-buff
-  // badge value and, after holdMs, release the hold + flash the changed badge(s) to the new value — the blast
-  // "causes" the tick. Shared by the `buffWave` path (`onSelfBuffs`) and the attack-wind-up path (on-attack /
-  // on-ally-attack self-buffers absorbed into the exchange, which `groupBuffCasts` deliberately skips). `timers`
-  // collects the hold/flash timeouts so the caller's effect can clear them on teardown.
+  // Fire a moment's SELF-buffs (a unit empowering ITSELF): one in-place pulse per unit, then after its own
+  // hold time, roll its badge from the pre-buff value to the new one — the blast "causes" the tick. Shared by
+  // the `buffWave` path (`onSelfBuffs`) and the attack-wind-up path (on-attack / on-ally-attack self-buffers
+  // absorbed into the exchange, which `groupBuffCasts` deliberately skips). `timers` collects the release
+  // timeouts so the caller's effect can clear them on teardown.
   const fireSelfBuffs = useCallback((selfBuffs: SelfBuff[], timers: number[]): void => {
     const unitOf = (uid: string) =>
       frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
@@ -882,14 +853,13 @@ export function useCombatReplay(
 
       const tgt = unitOf(s.uid);
       if (!tgt) continue; // no frame entry → nothing to release
-      // Hold installed pre-paint by the layout effect below (see the note in `fireBuffCasts`); release only.
-      const holdMs = cfg.holdMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+      // Hold installed pre-paint by the layout effect below (see the note in `fireBuffCasts`); release only
+      // — and the release is a roll now (Task 3): `driveRoll` walks the store's hold on the pulse's clock.
+      const pulseHoldMs = cfg.holdMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
       timers.push(window.setTimeout(() => {
-        setStatHold((m) => { const n = new Map(m); n.delete(s.uid); return n; });
-        setStatFlash((m) => new Map(m).set(s.uid, { atk: s.attack !== 0, hp: s.health !== 0 }));
-        timers.push(window.setTimeout(() =>
-          setStatFlash((m) => { const n = new Map(m); n.delete(s.uid); return n; }), 360));
-      }, holdMs));
+        driveRoll(s.uid, COMBAT_ROLL_MS, combatSpeedRef.current);
+        combatHeldRef.current = combatHeldRef.current.filter((u) => u !== s.uid);
+      }, pulseHoldMs));
     }
   }, [findEl, cardIds]);
 
@@ -1271,13 +1241,11 @@ export function useCombatReplay(
     }
     return () => {
       timers.forEach((id) => window.clearTimeout(id));
-      // Release any statHold whose flash timer we just cancelled — otherwise a buff whose tendril hadn't
-      // "landed" when the beat advances (or the replay ends) leaves its target STUCK at its pre-buff value.
-      // Repro: Kennelmaster + a Deathrattle that summons several Beasts — only the first summon's hold released,
-      // the rest stayed at base (e.g. 2/2, 1/1, 1/1). The folded frame already carries the real stats, so
-      // dropping the holds simply shows them.
-      setStatHold((m) => (m.size ? new Map() : m));
-      setStatFlash((m) => (m.size ? new Map() : m));
+      // No module-store release needed here. A `driveRoll` whose setTimeout above got cancelled by this
+      // cleanup never removed its uid from `combatHeldRef` — so the install effect's own next pass (the same
+      // beatIdx/seekNonce change that tore this effect down) releases it at the top of its run, same as it
+      // always has. Repro this used to guard (Kennelmaster + a Deathrattle summoning several Beasts, only the
+      // first summon's hold releasing) is covered by that release-before-place ordering, not by anything here.
       stop();
     };
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
@@ -1488,18 +1456,14 @@ export function useCombatReplay(
   // A LAYOUT effect commits the hold in the same paint as the frame advance, so the intermediate value is
   // never shown. Cheap by construction — arithmetic over one beat's buff events, no DOM measurement — so it
   // doesn't put layout work on the beat boundary. The FX path (`fireBuffCasts` / `fireSelfBuffs`) still owns
-  // the RELEASE, which is what has to be timed to the animation.
+  // the RELEASE, which is what has to be timed to the animation — and, as of Task 3, the release is a ROLL
+  // (`driveRoll`), not a snap: combat's `Card` now carries a `uid`, so it reads this hold the same way a shop
+  // card reads a gem's.
   //
-  // Rebuilt wholesale each beat rather than merged, which also means a hold whose release timer was lost
-  // (a skip, a speed change mid-flight) can never outlive its beat and freeze a badge.
-  //
-  // Alongside the wholesale Map above, this also places the SAME beat's buffs into the shared module store
-  // (`fx/statHold`) at `effect` origin — its ticker skips `effect` holds outright, so combat's own strike
-  // timers stay the only clock driving delivery. Nothing reads these yet: combat's `Card` has no `uid` to key
-  // a lookup by (that's the next task), so this is proven by `combatBuffDeltas`'s own test plus tsc/lint/the
-  // suite staying green, not by a visible change. `combatHeldRef` tracks exactly what THIS instance placed so
-  // the release below only ever drops its own holds, never a hold some other beat or another surface placed
-  // on a uid that outlives this component.
+  // Places the beat's buffs into the shared module store (`fx/statHold`) at `effect` origin — its ticker
+  // skips `effect` holds outright, so combat's own strike timers stay the only clock driving delivery.
+  // `combatHeldRef` tracks exactly what THIS instance placed so the release below only ever drops its own
+  // holds, never a hold some other beat or another surface placed on a uid that outlives this component.
   useLayoutEffect(() => {
     // Release last beat's module-store holds BEFORE placing this beat's — on every pass through this effect,
     // including the inactive/beat-0 early-out just below. Skipping the release on that path would leave a
@@ -1507,29 +1471,28 @@ export function useCombatReplay(
     // rather than replacing them — so the next install would land on top of an unreleased remainder instead
     // of a clean placement, double-counting one beat's buff. This is also what makes a re-seek back to the
     // SAME beat (`seekNonce` bump, same `beatIdx`) safe: the effect tears down and re-runs, and without a
-    // release-first the delta for that one beat would stack a second time on top of itself.
+    // release-first the delta for that one beat would stack a second time on top of itself. It also covers a
+    // uid whose strike-time `driveRoll` never got to fire (the beat advanced before the release timeout did)
+    // — that uid is still in `combatHeldRef`, so it gets force-released here instead of sitting stuck.
     for (const uid of combatHeldRef.current) releaseStat(uid);
     combatHeldRef.current = [];
-    if (!active || beatIdx === 0) { setStatHold((m) => (m.size ? new Map() : m)); return; }
+    if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
     if (!beat) return;
-    const next = preBuffHolds(beat, events, frame);
-    setStatHold((m) => (m.size === 0 && next.size === 0 ? m : next));
     for (const d of combatBuffDeltas(beat, events, frame)) {
       // `effect` origin: the store's ticker leaves it alone, so the badge holds pre-buff until the STRIKE
       // drives it — same contract an authored `react` layer gets from `carries`; combat's strike timers are
       // that layer's hand-rolled equivalent here. A hold nobody claims still fails OPEN on its own TTL
-      // (`fx/statHold`), so a lost release (skip / speed change / unmount mid-beat) can't freeze a badge —
-      // same guarantee the wholesale Map above gets from being rebuilt every beat, just per-uid instead.
+      // (`fx/statHold`), so a lost release (skip / speed change / unmount mid-beat) can't freeze a badge.
       holdStat(d.uid, { attack: d.attack, health: d.health }, { origin: 'effect' });
       combatHeldRef.current.push(d.uid);
     }
-    // `seekNonce`: this is the ONLY installer of `statHold` (every other write is a delete), and both
-    // `resetTo` and the cue effect's teardown clear it. `frame` can't stand in — it is memoised on
-    // `processedEnd`/`beatStart`, both derived from `beatIdx`, so it too is unchanged by a same-index
-    // re-seek. Without this the badge shows the POST-buff number for the whole replayed beat instead of
-    // holding pre-buff and ticking up at the tendril — the up-then-down-then-up artifact this effect exists
-    // to kill.
+    // `seekNonce`: this is the ONLY installer of these holds, and both the release-first line above and the
+    // cue effect's cleanup interact with the same `combatHeldRef` list. `frame` can't stand in — it is
+    // memoised on `processedEnd`/`beatStart`, both derived from `beatIdx`, so it too is unchanged by a
+    // same-index re-seek. Without this the badge shows the POST-buff number for the whole replayed beat
+    // instead of holding pre-buff and rolling up at the tendril — the up-then-down-then-up artifact this
+    // effect exists to kill.
   }, [active, beatIdx, seekNonce, beats, events, frame]);
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
@@ -1685,8 +1648,6 @@ export function useCombatReplay(
     frame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
-    statHoldFor: (uid: string) => statHold.get(uid),
-    statFlashFor: (uid: string) => statFlash.get(uid),
     done, result: combat ? combat.result : null, shaking, critShaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight

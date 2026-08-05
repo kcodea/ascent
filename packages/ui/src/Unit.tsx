@@ -21,17 +21,13 @@ interface UnitProps {
    *  wind-up pause, so it's timed to the strike rather than the beat start). Takes precedence over `triggered`.
    *  A per-fire nonce (not a bool) so a repeat Rally in the same combat restarts the pulse (used as a `key`). */
   rallyPulse?: number;
-  /** While a buff tendril flies to this unit, hold its displayed stats at the PRE-buff value (released on strike). */
-  statHold?: { atk: number; hp: number };
-  /** On the strike, which badge(s) changed → flash them via the `.statflash` class. */
-  statFlash?: { atk: boolean; hp: boolean };
 }
 
 const sameKeywords = (a: string[], b: string[]): boolean =>
   a === b || (a.length === b.length && a.every((k, i) => k === b[i]));
 
 /** A combat unit — the same Card as recruit, wrapped for animations and the DS ring. */
-function UnitInner({ u, side, anim, triggered, rallyPulse, statHold, statFlash }: UnitProps) {
+function UnitInner({ u, side, anim, triggered, rallyPulse }: UnitProps) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
@@ -91,11 +87,8 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, statHold, statFlash }
   const view: CardView = {
     name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2,
     chosenOption: u.chosenOption, // the branch's ART rides into combat with it, same as its text
-    // Buff-tendril: hold the pre-buff value while the tendril flies; on strike, release + flash the changed badge(s).
-    attack: statHold?.atk ?? u.attack,
-    health: statHold ? statHold.hp : Math.max(0, u.health),
-    flashAtk: statFlash?.atk,
-    flashHp: statFlash?.hp,
+    attack: u.attack,
+    health: Math.max(0, u.health),
     keywords: u.keywords, golden: u.golden,
     text: liveText,
     // liveCardText already folds golden-awareness + the golden-variant fallback into its goldenText (Card renders
@@ -120,7 +113,11 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, statHold, statFlash }
   };
   return (
     <div className={cls} data-uid={u.uid} data-card={u.cardId}>
-      <Card card={view} pulse={triggered} pulseRally={rallyPulse} />
+      {/* `uid` connects this badge to the shared hold store (`fx/statHold`), so a combat buff rolls the same
+          way a shop gem does; `autoRoll={false}` keeps damage instant — damage is an unheld change, so the
+          number updates immediately and the pop still fires off it, while a buff (an `effect`-origin hold
+          the replay itself drives via `driveRoll`) is the only thing that rolls. See `useCombatReplay`. */}
+      <Card card={view} uid={u.uid} autoRoll={false} pulse={triggered} pulseRally={rallyPulse} />
     </div>
   );
 }
@@ -137,8 +134,6 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.anim === b.anim &&
   a.triggered === b.triggered &&
   a.rallyPulse === b.rallyPulse &&
-  a.statHold === b.statHold &&
-  a.statFlash === b.statFlash &&
   a.u.uid === b.u.uid &&
   a.u.attack === b.u.attack &&
   a.u.health === b.u.health &&

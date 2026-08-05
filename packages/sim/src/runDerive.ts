@@ -172,6 +172,64 @@ export interface DerivedRun {
 
 // ── Derivation ─────────────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The observer's accumulating state. Deliberately PLAIN JSON (arrays + index records, no Maps or closures):
+ * a lobby run is observed LIVE across a session the player can quit and resume, so this must survive a
+ * round-trip through the save file — the same reason `TelemetryLog.seenShopUids` is an array.
+ */
+export interface DeriveState {
+  offers: OfferEvent[];
+  acquisitions: AcquisitionEvent[];
+  gold: GoldEvent[];
+  upgrades: UpgradeEvent[];
+  combats: CombatEventSummary[];
+  triggers: TriggerDetail[];
+  boards: BoardSnapshotLite[];
+  playerActions: number;
+  /** shop-offer uid → index into `offers`, so a later BUY completes the row it belongs to. */
+  offerIdx: Record<string, number>;
+  /** card uid → index into `acquisitions`, so play/sell/final-board fill their fields in later. */
+  acqIdx: Record<string, number>;
+  boughtThisTurn: number;
+  goldSpentThisTurn: number;
+  lastResult?: 'win' | 'loss' | 'draw';
+  diverged: boolean;
+}
+
+export const emptyDeriveState = (): DeriveState => ({
+  offers: [], acquisitions: [], gold: [], upgrades: [], combats: [], triggers: [], boards: [],
+  playerActions: 0, offerIdx: {}, acqIdx: {}, boughtThisTurn: 0, goldSpentThisTurn: 0, diverged: false,
+});
+
+/**
+ * The observer's accumulating state. Deliberately PLAIN JSON (arrays + index records, no Maps or closures):
+ * a lobby run is observed LIVE across a session the player can quit and resume, so this must survive a
+ * round-trip through the save file — the same reason `TelemetryLog.seenShopUids` is an array.
+ */
+export interface DeriveState {
+  offers: OfferEvent[];
+  acquisitions: AcquisitionEvent[];
+  gold: GoldEvent[];
+  upgrades: UpgradeEvent[];
+  combats: CombatEventSummary[];
+  triggers: TriggerDetail[];
+  boards: BoardSnapshotLite[];
+  playerActions: number;
+  /** shop-offer uid → index into `offers`, so a later BUY completes the row it belongs to. */
+  offerIdx: Record<string, number>;
+  /** card uid → index into `acquisitions`, so play/sell/final-board fill their fields in later. */
+  acqIdx: Record<string, number>;
+  boughtThisTurn: number;
+  goldSpentThisTurn: number;
+  lastResult?: 'win' | 'loss' | 'draw';
+  diverged: boolean;
+}
+
+export const emptyDeriveState = (): DeriveState => ({
+  offers: [], acquisitions: [], gold: [], upgrades: [], combats: [], triggers: [], boards: [],
+  playerActions: 0, offerIdx: {}, acqIdx: {}, boughtThisTurn: 0, goldSpentThisTurn: 0, diverged: false,
+});
+
 const boardAttack = (b: readonly BoardCard[]): number => b.reduce((n, c) => n + c.attack, 0);
 const boardHealth = (b: readonly BoardCard[]): number => b.reduce((n, c) => n + c.health, 0);
 
@@ -284,185 +342,369 @@ function avengeDetails(state: RunState, wave: number, combat: CombatEventSummary
  * Never throws: telemetry must not be able to break a run-end. A replay that no longer reproduces (content
  * moved under it) stops early and is returned with `diverged: true` rather than half-silently pretending.
  */
-export function deriveRun(replay: Replay, initial?: RunState): DerivedRun {
-  let s = initial ?? createRun(replay.seed, replay.heroId, replay.mode);
-  const offers: OfferEvent[] = [];
-  const acquisitions: AcquisitionEvent[] = [];
-  const gold: GoldEvent[] = [];
-  const upgrades: UpgradeEvent[] = [];
-  const combats: CombatEventSummary[] = [];
-  const triggers: TriggerDetail[] = [];
-  const boards: BoardSnapshotLite[] = [];
-  let playerActions = 0;
-  let diverged = false;
-
-  /** Offer rows keyed by shop uid, so the BUY can come back and complete the row it belongs to. */
-  const offerByUid = new Map<string, OfferEvent>();
-  /** Acquisition rows keyed by the card's own uid, so play/sell/final-board can be filled in later. */
-  const acqByUid = new Map<string, AcquisitionEvent>();
-  let boughtThisTurn = 0;
-  let goldSpentThisTurn = 0;
-  let lastResult: 'win' | 'loss' | 'draw' | undefined;
-
-  /** Record the tavern as it stands right now; each uid is recorded once, on first sighting. */
-  const recordOffers = (st: RunState): void => {
-    const ctx = {
-      wave: st.wave, shopTier: st.tier, gold: st.embers, maxGold: st.maxEmbers,
-      upgradeCost: upgradeCostOf(st), resolve: st.resolve,
-      boardSize: st.board.length, boardAttack: boardAttack(st.board), boardHealth: boardHealth(st.board),
-      topTribe: topTribe(st.board),
-    };
-    const seen: [string, string, number | 'spell', boolean][] = [];
-    (st.shop ?? []).forEach((o, i) => { if (o.uid && o.cardId) seen.push([o.uid, o.cardId, i, !!st.frozen]); });
-    if (st.spell?.uid && st.spell.cardId) seen.push([st.spell.uid, st.spell.cardId, 'spell', !!st.frozen]);
-    for (const [uid, cardId, slot, frozen] of seen) {
-      if (offerByUid.has(uid)) continue;
-      const def = CARD_INDEX[cardId];
-      const row: OfferEvent = {
-        ...ctx, slot, cardId, rev: revisionOf(cardId), cardTier: def?.tier ?? 0,
-        cost: def?.cost ?? 3, bought: false, frozen,
-      };
-      offerByUid.set(uid, row);
-      offers.push(row);
-    }
+/** Record the tavern as it stands right now; each offer uid is recorded once, on first sighting. */
+function recordOffers(st: DeriveState, s: RunState): void {
+  const ctx = {
+    wave: s.wave, shopTier: s.tier, gold: s.embers, maxGold: s.maxEmbers,
+    upgradeCost: upgradeCostOf(s), resolve: s.resolve,
+    boardSize: s.board.length, boardAttack: boardAttack(s.board), boardHealth: boardHealth(s.board),
+    topTribe: topTribe(s.board),
   };
+  const seen: [string, string, number | 'spell'][] = [];
+  (s.shop ?? []).forEach((o, i) => { if (o.uid && o.cardId) seen.push([o.uid, o.cardId, i]); });
+  if (s.spell?.uid && s.spell.cardId) seen.push([s.spell.uid, s.spell.cardId, 'spell']);
+  for (const [uid, cardId, slot] of seen) {
+    if (st.offerIdx[uid] !== undefined) continue;
+    const def = CARD_INDEX[cardId];
+    st.offerIdx[uid] = st.offers.length;
+    st.offers.push({
+      ...ctx, slot, cardId, rev: revisionOf(cardId), cardTier: def?.tier ?? 0,
+      cost: def?.cost ?? 3, bought: false, frozen: !!s.frozen,
+    });
+  }
+}
 
-  /** A card entered the player's possession. */
-  const recordAcquisition = (card: BoardCard, wave: number, source: AcquisitionEvent['source'], goldPaid: number): void => {
-    if (acqByUid.has(card.uid)) return;
-    const row: AcquisitionEvent = {
-      cardId: card.cardId, rev: revisionOf(card.cardId), wave, source, goldPaid,
-      played: false, finalBoard: false, golden: card.golden,
-    };
-    acqByUid.set(card.uid, row);
-    acquisitions.push(row);
-  };
+/** A card entered the player's possession. */
+function recordAcquisition(st: DeriveState, card: BoardCard, wave: number, source: AcquisitionEvent['source'], goldPaid: number): void {
+  if (st.acqIdx[card.uid] !== undefined) return;
+  st.acqIdx[card.uid] = st.acquisitions.length;
+  st.acquisitions.push({
+    cardId: card.cardId, rev: revisionOf(card.cardId), wave, source, goldPaid,
+    played: false, finalBoard: false, golden: card.golden,
+  });
+}
 
-  /** Anything new in hand/board that we have not already attributed is a GENERATED card (a token, a conjure,
-   *  a quest/rune reward, a copy) — the class the old report had no name for at all. */
-  const sweepGenerated = (st: RunState, wave: number): void => {
-    for (const c of [...st.hand, ...st.board]) {
-      if (!acqByUid.has(c.uid)) recordAcquisition(c, wave, 'generated', 0);
-    }
-  };
+/** Anything new in hand/board we have not already attributed is a GENERATED card (a token, a conjure, a
+ *  quest/rune reward, a copy) — the class the old report had no name for at all. */
+function sweepGenerated(st: DeriveState, s: RunState): void {
+  for (const c of [...s.hand, ...s.board]) {
+    if (st.acqIdx[c.uid] === undefined) recordAcquisition(st, c, s.wave, 'generated', 0);
+  }
+}
 
-  recordOffers(s);
-  sweepGenerated(s, s.wave);
+/** Prime the observer against a run's STARTING state (the offers visible before the first action). */
+export function beginDerive(s: RunState): DeriveState {
+  const st = emptyDeriveState();
+  recordOffers(st, s);
+  sweepGenerated(st, s);
+  return st;
+}
 
-  for (const action of replay.actions) {
-    const before = s;
-    let after: RunState;
-    try {
-      after = reduce(before, action);
-    } catch {
-      diverged = true; // the log no longer applies to this build's content
-      break;
-    }
-    if (after === before) continue; // rejected action — no state change to observe
-    if (isPlayerAction(action)) playerActions++;
+/**
+ * Fold ONE dispatched action into the derivation — the single observation point, shared by both feeds.
+ *
+ * Shaped as `(before, action, after)` rather than as a replay loop because a LOBBY replay is not guaranteed
+ * faithful (the same reason `saveRunBoards` refuses to replay one, and the reason `recordTelemetryAction`
+ * had to exist at all). So a lobby run is observed LIVE from the real dispatch while a course run can be
+ * derived from its replay afterwards — ONE implementation either way, which is the point: the existing
+ * reconstruct/live pair has to be kept "in step" by hand, and a third copy of that hazard is not worth
+ * having.
+ */
+export function observeAction(st: DeriveState, before: RunState, action: Action, after: RunState): DeriveState {
+  if (after === before) { recordOffers(st, before); return st; } // rejected — but the player still saw the shop
+  if (isPlayerAction(action)) st.playerActions++;
 
-    // ── Gold ledger: diff, then attribute by what the player did.
-    const delta = after.embers - before.embers;
-    if (delta !== 0) {
-      const { category, sourceCard } = categorise(action, before);
-      gold.push({
-        wave: before.wave, amount: delta,
-        // A Gold GAIN on a spend action is income the action happened to trigger (a sell, a payout), so the
-        // sign decides between the two rather than the action name alone.
-        category: delta > 0 && category !== 'sell' ? 'income' : category,
-        sourceCard, goldAfter: after.embers, maxGoldAfter: after.maxEmbers,
-      });
-      if (delta < 0) goldSpentThisTurn += -delta;
-    }
-
-    // ── Upgrade taken.
-    if (action.type === 'upgrade') {
-      upgrades.push({
-        wave: before.wave, fromTier: before.tier, toTier: after.tier, cost: upgradeCostOf(before), taken: true,
-        goldBefore: before.embers, goldAfter: after.embers, resolve: before.resolve, prevResult: lastResult,
-        boardSize: before.board.length, boardAttack: boardAttack(before.board), boardHealth: boardHealth(before.board),
-        cardsBoughtThisTurn: boughtThisTurn,
-      });
-    }
-
-    // ── Acquisitions by explicit source.
-    if (action.type === 'buy') {
-      const offer = before.shop?.find((o) => o.uid === action.uid) ?? (before.spell?.uid === action.uid ? before.spell : undefined);
-      const row = offerByUid.get(action.uid);
-      if (row) { row.bought = true; row.goldAfter = after.embers; }
-      // The bought copy is whatever is in hand/board now that wasn't before.
-      const had = new Set([...before.hand, ...before.board].map((c) => c.uid));
-      const got = [...after.hand, ...after.board].find((c) => !had.has(c.uid) && c.cardId === offer?.cardId);
-      if (got) recordAcquisition(got, before.wave, 'shop', before.embers - after.embers);
-      boughtThisTurn++;
-    } else if (action.type === 'discover' || action.type === 'buyQuest' || action.type === 'buyRune' || action.type === 'buyHenchman' || action.type === 'heroPower') {
-      const src: AcquisitionEvent['source'] =
-        action.type === 'discover' ? 'discover' : action.type === 'buyQuest' ? 'quest'
-        : action.type === 'buyRune' ? 'rune' : action.type === 'buyHenchman' ? 'henchman' : 'heroPower';
-      const had = new Set([...before.hand, ...before.board].map((c) => c.uid));
-      for (const c of [...after.hand, ...after.board]) {
-        if (!had.has(c.uid)) recordAcquisition(c, before.wave, src, Math.max(0, before.embers - after.embers));
-      }
-    } else if (action.type === 'play') {
-      const row = acqByUid.get(action.uid);
-      if (row && !row.played) { row.played = true; row.playedWave = before.wave; }
-    } else if (action.type === 'sell') {
-      const row = acqByUid.get(action.uid);
-      if (row) { row.soldWave = before.wave; row.sellValue = Math.max(0, after.embers - before.embers); }
-    }
-
-    // ── Combat.
-    if (action.type === 'resolveCombat' || action.type === 'settleCombat') {
-      const summary = summariseCombat(after, before.wave);
-      if (summary && !combats.some((c) => c.wave === summary.wave)) {
-        combats.push(summary);
-        triggers.push(...avengeDetails(after, before.wave, summary));
-        lastResult = summary.result;
-      }
-    }
-
-    // ── Turn boundary: snapshot the board, log a DECLINED upgrade, reset the per-turn counters.
-    if (after.wave !== before.wave) {
-      const cost = upgradeCostOf(before);
-      if (before.tier < 7 && cost > 0 && before.embers >= cost && !upgrades.some((u) => u.wave === before.wave && u.taken)) {
-        upgrades.push({
-          wave: before.wave, fromTier: before.tier, toTier: before.tier + 1, cost, taken: false,
-          goldBefore: before.embers, goldAfter: before.embers, resolve: before.resolve, prevResult: lastResult,
-          boardSize: before.board.length, boardAttack: boardAttack(before.board), boardHealth: boardHealth(before.board),
-          cardsBoughtThisTurn: boughtThisTurn,
-        });
-      }
-      boards.push({
-        wave: before.wave, tier: before.tier,
-        cards: before.board.map((c, i) => ({ id: c.cardId, rev: revisionOf(c.cardId), pos: i, attack: c.attack, health: c.health, golden: c.golden })),
-        totalAttack: boardAttack(before.board), totalHealth: boardHealth(before.board),
-        goldSpentThisTurn,
-      });
-      boughtThisTurn = 0;
-      goldSpentThisTurn = 0;
-    }
-
-    s = after;
-    recordOffers(s);
-    sweepGenerated(s, s.wave);
+  // ── Gold ledger: diff, then attribute by what the player did.
+  const delta = after.embers - before.embers;
+  if (delta !== 0) {
+    const { category, sourceCard } = categorise(action, before);
+    st.gold.push({
+      wave: before.wave, amount: delta,
+      // A Gold GAIN on a spend action is income the action happened to trigger (a sell, a payout), so the
+      // sign decides between the two rather than the action name alone.
+      category: delta > 0 && category !== 'sell' ? 'income' : category,
+      sourceCard, goldAfter: after.embers, maxGoldAfter: after.maxEmbers,
+    });
+    if (delta < 0) st.goldSpentThisTurn += -delta;
   }
 
-  for (const c of s.board) {
-    const row = acqByUid.get(c.uid);
+  // ── Upgrade taken.
+  if (action.type === 'upgrade') {
+    st.upgrades.push({
+      wave: before.wave, fromTier: before.tier, toTier: after.tier, cost: upgradeCostOf(before), taken: true,
+      goldBefore: before.embers, goldAfter: after.embers, resolve: before.resolve, prevResult: st.lastResult,
+      boardSize: before.board.length, boardAttack: boardAttack(before.board), boardHealth: boardHealth(before.board),
+      cardsBoughtThisTurn: st.boughtThisTurn,
+    });
+  }
+
+  // ── Acquisitions by explicit source.
+  if (action.type === 'buy') {
+    const offer = before.shop?.find((o) => o.uid === action.uid) ?? (before.spell?.uid === action.uid ? before.spell : undefined);
+    const idx = st.offerIdx[action.uid];
+    const row = idx === undefined ? undefined : st.offers[idx];
+    if (row) { row.bought = true; row.goldAfter = after.embers; }
+    const had = new Set([...before.hand, ...before.board].map((c) => c.uid));
+    const got = [...after.hand, ...after.board].find((c) => !had.has(c.uid) && c.cardId === offer?.cardId);
+    if (got) recordAcquisition(st, got, before.wave, 'shop', before.embers - after.embers);
+    st.boughtThisTurn++;
+  } else if (action.type === 'discover' || action.type === 'buyQuest' || action.type === 'buyRune' || action.type === 'buyHenchman' || action.type === 'heroPower') {
+    const src: AcquisitionEvent['source'] =
+      action.type === 'discover' ? 'discover' : action.type === 'buyQuest' ? 'quest'
+      : action.type === 'buyRune' ? 'rune' : action.type === 'buyHenchman' ? 'henchman' : 'heroPower';
+    const had = new Set([...before.hand, ...before.board].map((c) => c.uid));
+    for (const c of [...after.hand, ...after.board]) {
+      if (!had.has(c.uid)) recordAcquisition(st, c, before.wave, src, Math.max(0, before.embers - after.embers));
+    }
+  } else if (action.type === 'play') {
+    const row = st.acquisitions[st.acqIdx[action.uid] ?? -1];
+    if (row && !row.played) { row.played = true; row.playedWave = before.wave; }
+  } else if (action.type === 'sell') {
+    const row = st.acquisitions[st.acqIdx[action.uid] ?? -1];
+    if (row) { row.soldWave = before.wave; row.sellValue = Math.max(0, after.embers - before.embers); }
+  }
+
+  // ── Combat.
+  if (action.type === 'resolveCombat' || action.type === 'settleCombat') {
+    const summary = summariseCombat(after, before.wave);
+    if (summary && !st.combats.some((c) => c.wave === summary.wave)) {
+      st.combats.push(summary);
+      st.triggers.push(...avengeDetails(after, before.wave, summary));
+      st.lastResult = summary.result;
+    }
+  }
+
+  // ── Turn boundary: snapshot the board, log a DECLINED upgrade, reset the per-turn counters.
+  if (after.wave !== before.wave) {
+    const cost = upgradeCostOf(before);
+    if (before.tier < 7 && cost > 0 && before.embers >= cost && !st.upgrades.some((u) => u.wave === before.wave && u.taken)) {
+      st.upgrades.push({
+        wave: before.wave, fromTier: before.tier, toTier: before.tier + 1, cost, taken: false,
+        goldBefore: before.embers, goldAfter: before.embers, resolve: before.resolve, prevResult: st.lastResult,
+        boardSize: before.board.length, boardAttack: boardAttack(before.board), boardHealth: boardHealth(before.board),
+        cardsBoughtThisTurn: st.boughtThisTurn,
+      });
+    }
+    st.boards.push({
+      wave: before.wave, tier: before.tier,
+      cards: before.board.map((c, i) => ({ id: c.cardId, rev: revisionOf(c.cardId), pos: i, attack: c.attack, health: c.health, golden: c.golden })),
+      totalAttack: boardAttack(before.board), totalHealth: boardHealth(before.board),
+      goldSpentThisTurn: st.goldSpentThisTurn,
+    });
+    st.boughtThisTurn = 0;
+    st.goldSpentThisTurn = 0;
+  }
+
+  recordOffers(st, after);
+  sweepGenerated(st, after);
+  return st;
+}
+
+/** Close the derivation against the run's final state. `won` is an override for LOBBY runs, which never
+ *  reach phase 'victory' — a lobby win is placement 1, which only the caller knows. */
+export function finishDerive(st: DeriveState, final: RunState, meta: { heroId: string; mode?: string; seed: number; won?: boolean }): DerivedRun {
+  for (const c of final.board) {
+    const row = st.acquisitions[st.acqIdx[c.uid] ?? -1];
     if (row) row.finalBoard = true;
   }
-
   return {
     contentRevision: contentRevision(),
-    heroId: replay.heroId,
-    mode: replay.mode ?? 'ascent',
-    seed: replay.seed,
-    finalWave: s.wave,
-    wins: runRecord(s).wins, // SCORED wins — runRecord excludes the calibration rounds, as the report must
-    won: s.phase === 'victory',
-    diverged,
-    offers, acquisitions, gold, upgrades, combats, triggers, boards, playerActions,
+    heroId: meta.heroId,
+    mode: meta.mode ?? 'ascent',
+    seed: meta.seed,
+    finalWave: final.wave,
+    wins: runRecord(final).wins, // SCORED wins — runRecord excludes the calibration rounds, as the report must
+    won: meta.won ?? final.phase === 'victory',
+    diverged: st.diverged,
+    offers: st.offers, acquisitions: st.acquisitions, gold: st.gold, upgrades: st.upgrades,
+    combats: st.combats, triggers: st.triggers, boards: st.boards, playerActions: st.playerActions,
   };
+}
+
+/**
+ * Derive a finished run from its REPLAY — for course runs and any log we trust to reproduce. A lobby run
+ * should be observed live instead (see `observeAction`). Never throws: telemetry must not be able to break a
+ * run-end, so a log that no longer applies stops early and returns `diverged: true`.
+ */
+/** Record the tavern as it stands right now; each offer uid is recorded once, on first sighting. */
+function recordOffers(st: DeriveState, s: RunState): void {
+  const ctx = {
+    wave: s.wave, shopTier: s.tier, gold: s.embers, maxGold: s.maxEmbers,
+    upgradeCost: upgradeCostOf(s), resolve: s.resolve,
+    boardSize: s.board.length, boardAttack: boardAttack(s.board), boardHealth: boardHealth(s.board),
+    topTribe: topTribe(s.board),
+  };
+  const seen: [string, string, number | 'spell'][] = [];
+  (s.shop ?? []).forEach((o, i) => { if (o.uid && o.cardId) seen.push([o.uid, o.cardId, i]); });
+  if (s.spell?.uid && s.spell.cardId) seen.push([s.spell.uid, s.spell.cardId, 'spell']);
+  for (const [uid, cardId, slot] of seen) {
+    if (st.offerIdx[uid] !== undefined) continue;
+    const def = CARD_INDEX[cardId];
+    st.offerIdx[uid] = st.offers.length;
+    st.offers.push({
+      ...ctx, slot, cardId, rev: revisionOf(cardId), cardTier: def?.tier ?? 0,
+      cost: def?.cost ?? 3, bought: false, frozen: !!s.frozen,
+    });
+  }
+}
+
+/** A card entered the player's possession. */
+function recordAcquisition(st: DeriveState, card: BoardCard, wave: number, source: AcquisitionEvent['source'], goldPaid: number): void {
+  if (st.acqIdx[card.uid] !== undefined) return;
+  st.acqIdx[card.uid] = st.acquisitions.length;
+  st.acquisitions.push({
+    cardId: card.cardId, rev: revisionOf(card.cardId), wave, source, goldPaid,
+    played: false, finalBoard: false, golden: card.golden,
+  });
+}
+
+/** Anything new in hand/board we have not already attributed is a GENERATED card (a token, a conjure, a
+ *  quest/rune reward, a copy) — the class the old report had no name for at all. */
+function sweepGenerated(st: DeriveState, s: RunState): void {
+  for (const c of [...s.hand, ...s.board]) {
+    if (st.acqIdx[c.uid] === undefined) recordAcquisition(st, c, s.wave, 'generated', 0);
+  }
+}
+
+/** Prime the observer against a run's STARTING state (the offers visible before the first action). */
+export function beginDerive(s: RunState): DeriveState {
+  const st = emptyDeriveState();
+  recordOffers(st, s);
+  sweepGenerated(st, s);
+  return st;
+}
+
+/**
+ * Fold ONE dispatched action into the derivation — the single observation point, shared by both feeds.
+ *
+ * Shaped as `(before, action, after)` rather than as a replay loop because a LOBBY replay is not guaranteed
+ * faithful (the same reason `saveRunBoards` refuses to replay one, and the reason `recordTelemetryAction`
+ * had to exist at all). So a lobby run is observed LIVE from the real dispatch while a course run can be
+ * derived from its replay afterwards — ONE implementation either way, which is the point: the existing
+ * reconstruct/live pair has to be kept "in step" by hand, and a third copy of that hazard is not worth
+ * having.
+ */
+export function observeAction(st: DeriveState, before: RunState, action: Action, after: RunState): DeriveState {
+  if (after === before) { recordOffers(st, before); return st; } // rejected — but the player still saw the shop
+  if (isPlayerAction(action)) st.playerActions++;
+
+  // ── Gold ledger: diff, then attribute by what the player did.
+  const delta = after.embers - before.embers;
+  if (delta !== 0) {
+    const { category, sourceCard } = categorise(action, before);
+    st.gold.push({
+      wave: before.wave, amount: delta,
+      // A Gold GAIN on a spend action is income the action happened to trigger (a sell, a payout), so the
+      // sign decides between the two rather than the action name alone.
+      category: delta > 0 && category !== 'sell' ? 'income' : category,
+      sourceCard, goldAfter: after.embers, maxGoldAfter: after.maxEmbers,
+    });
+    if (delta < 0) st.goldSpentThisTurn += -delta;
+  }
+
+  // ── Upgrade taken.
+  if (action.type === 'upgrade') {
+    st.upgrades.push({
+      wave: before.wave, fromTier: before.tier, toTier: after.tier, cost: upgradeCostOf(before), taken: true,
+      goldBefore: before.embers, goldAfter: after.embers, resolve: before.resolve, prevResult: st.lastResult,
+      boardSize: before.board.length, boardAttack: boardAttack(before.board), boardHealth: boardHealth(before.board),
+      cardsBoughtThisTurn: st.boughtThisTurn,
+    });
+  }
+
+  // ── Acquisitions by explicit source.
+  if (action.type === 'buy') {
+    const offer = before.shop?.find((o) => o.uid === action.uid) ?? (before.spell?.uid === action.uid ? before.spell : undefined);
+    const idx = st.offerIdx[action.uid];
+    const row = idx === undefined ? undefined : st.offers[idx];
+    if (row) { row.bought = true; row.goldAfter = after.embers; }
+    const had = new Set([...before.hand, ...before.board].map((c) => c.uid));
+    const got = [...after.hand, ...after.board].find((c) => !had.has(c.uid) && c.cardId === offer?.cardId);
+    if (got) recordAcquisition(st, got, before.wave, 'shop', before.embers - after.embers);
+    st.boughtThisTurn++;
+  } else if (action.type === 'discover' || action.type === 'buyQuest' || action.type === 'buyRune' || action.type === 'buyHenchman' || action.type === 'heroPower') {
+    const src: AcquisitionEvent['source'] =
+      action.type === 'discover' ? 'discover' : action.type === 'buyQuest' ? 'quest'
+      : action.type === 'buyRune' ? 'rune' : action.type === 'buyHenchman' ? 'henchman' : 'heroPower';
+    const had = new Set([...before.hand, ...before.board].map((c) => c.uid));
+    for (const c of [...after.hand, ...after.board]) {
+      if (!had.has(c.uid)) recordAcquisition(st, c, before.wave, src, Math.max(0, before.embers - after.embers));
+    }
+  } else if (action.type === 'play') {
+    const row = st.acquisitions[st.acqIdx[action.uid] ?? -1];
+    if (row && !row.played) { row.played = true; row.playedWave = before.wave; }
+  } else if (action.type === 'sell') {
+    const row = st.acquisitions[st.acqIdx[action.uid] ?? -1];
+    if (row) { row.soldWave = before.wave; row.sellValue = Math.max(0, after.embers - before.embers); }
+  }
+
+  // ── Combat.
+  if (action.type === 'resolveCombat' || action.type === 'settleCombat') {
+    const summary = summariseCombat(after, before.wave);
+    if (summary && !st.combats.some((c) => c.wave === summary.wave)) {
+      st.combats.push(summary);
+      st.triggers.push(...avengeDetails(after, before.wave, summary));
+      st.lastResult = summary.result;
+    }
+  }
+
+  // ── Turn boundary: snapshot the board, log a DECLINED upgrade, reset the per-turn counters.
+  if (after.wave !== before.wave) {
+    const cost = upgradeCostOf(before);
+    if (before.tier < 7 && cost > 0 && before.embers >= cost && !st.upgrades.some((u) => u.wave === before.wave && u.taken)) {
+      st.upgrades.push({
+        wave: before.wave, fromTier: before.tier, toTier: before.tier + 1, cost, taken: false,
+        goldBefore: before.embers, goldAfter: before.embers, resolve: before.resolve, prevResult: st.lastResult,
+        boardSize: before.board.length, boardAttack: boardAttack(before.board), boardHealth: boardHealth(before.board),
+        cardsBoughtThisTurn: st.boughtThisTurn,
+      });
+    }
+    st.boards.push({
+      wave: before.wave, tier: before.tier,
+      cards: before.board.map((c, i) => ({ id: c.cardId, rev: revisionOf(c.cardId), pos: i, attack: c.attack, health: c.health, golden: c.golden })),
+      totalAttack: boardAttack(before.board), totalHealth: boardHealth(before.board),
+      goldSpentThisTurn: st.goldSpentThisTurn,
+    });
+    st.boughtThisTurn = 0;
+    st.goldSpentThisTurn = 0;
+  }
+
+  recordOffers(st, after);
+  sweepGenerated(st, after);
+  return st;
+}
+
+/** Close the derivation against the run's final state. `won` is an override for LOBBY runs, which never
+ *  reach phase 'victory' — a lobby win is placement 1, which only the caller knows. */
+export function finishDerive(st: DeriveState, final: RunState, meta: { heroId: string; mode?: string; seed: number; won?: boolean }): DerivedRun {
+  for (const c of final.board) {
+    const row = st.acquisitions[st.acqIdx[c.uid] ?? -1];
+    if (row) row.finalBoard = true;
+  }
+  return {
+    contentRevision: contentRevision(),
+    heroId: meta.heroId,
+    mode: meta.mode ?? 'ascent',
+    seed: meta.seed,
+    finalWave: final.wave,
+    wins: runRecord(final).wins, // SCORED wins — runRecord excludes the calibration rounds, as the report must
+    won: meta.won ?? final.phase === 'victory',
+    diverged: st.diverged,
+    offers: st.offers, acquisitions: st.acquisitions, gold: st.gold, upgrades: st.upgrades,
+    combats: st.combats, triggers: st.triggers, boards: st.boards, playerActions: st.playerActions,
+  };
+}
+
+/**
+ * Derive a finished run from its REPLAY — for course runs and any log we trust to reproduce. A lobby run
+ * should be observed live instead (see `observeAction`). Never throws: telemetry must not be able to break a
+ * run-end, so a log that no longer applies stops early and returns `diverged: true`.
+ */
+export function deriveRun(replay: Replay, initial?: RunState): DerivedRun {
+  let s = initial ?? createRun(replay.seed, replay.heroId, replay.mode);
+  const st = beginDerive(s);
+  for (const action of replay.actions) {
+    let after: RunState;
+    try {
+      after = reduce(s, action);
+    } catch {
+      st.diverged = true; // the log no longer applies to this build's content
+      break;
+    }
+    observeAction(st, s, action, after);
+    s = after;
+  }
+  return finishDerive(st, s, { heroId: replay.heroId, mode: replay.mode, seed: replay.seed });
 }
 
 // ── Aggregation: the three conversion rates, separately named ──────────────────────────────────────────────

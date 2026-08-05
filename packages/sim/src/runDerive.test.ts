@@ -3,7 +3,7 @@ import { CARD_INDEX, contentRevision, cardRevision, revisionOf } from '@game/con
 import { createRun, type Action, type RunState } from './state';
 import { reduce } from './reducer';
 import { BOTS } from './bots';
-import { cardDemand, deriveRun, wilson, type DerivedRun } from './runDerive';
+import { beginDerive, cardDemand, deriveRun, finishDerive, observeAction, wilson, type DerivedRun } from './runDerive';
 
 /**
  * The derivation is exercised against REAL PLAY, not a fixture: a bot plays full runs, we keep its action
@@ -224,5 +224,44 @@ describe('statistical guardrails', () => {
     const edge = wilson(0, 10)!;
     expect(edge.lo).toBe(0);
     expect(edge.hi).toBeGreaterThan(0); // 0-of-10 is not proof of 0%
+  });
+});
+
+describe('the two feeds are ONE implementation', () => {
+  it('observing live and deriving from the replay produce identical rows', () => {
+    // This is the property the observer refactor exists for. The pre-existing telemetry has a reconstruct
+    // path AND a live path whose comment says they "must stay in step" — kept aligned by hand, which is a
+    // standing invitation to drift. Here both feeds run the same `observeAction`, so agreement is structural
+    // rather than maintained; this test would catch a future edit that broke that.
+    const heroId = 'warden';
+    const seed = 7;
+    let s: RunState = createRun(seed, heroId);
+    const actions: Action[] = [];
+    const live = beginDerive(s);
+    const bot = BOTS[0]!;
+    for (let i = 0; i < 4000 && s.phase !== 'gameover' && s.phase !== 'victory'; i++) {
+      const a = bot.act(s);
+      const next = reduce(s, a);
+      observeAction(live, s, a, next); // the LIVE feed — exactly what the store will do per dispatch
+      if (next !== s) actions.push(a);
+      else if (a.type === 'faceOmen') break;
+      s = next;
+    }
+    const fromLive = finishDerive(live, s, { heroId, seed });
+    const fromReplay = deriveRun({ seed, heroId, actions });
+    expect(fromReplay.offers).toEqual(fromLive.offers);
+    expect(fromReplay.acquisitions).toEqual(fromLive.acquisitions);
+    expect(fromReplay.gold).toEqual(fromLive.gold);
+    expect(fromReplay.upgrades).toEqual(fromLive.upgrades);
+    expect(fromReplay.combats).toEqual(fromLive.combats);
+    expect(fromReplay.boards).toEqual(fromLive.boards);
+  });
+
+  it('the observer state survives a JSON round-trip (quit and resume mid-run)', () => {
+    // A lobby run is observed across a session the player can close, so the state rides in the save file.
+    const s = createRun(3, 'warden');
+    const st = beginDerive(s);
+    const revived = JSON.parse(JSON.stringify(st));
+    expect(revived).toEqual(st);
   });
 });

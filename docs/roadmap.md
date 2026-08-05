@@ -856,6 +856,14 @@ and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
 
 The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 
+- **Decide whether `main` should actually be protected.** It is not, and apparently never has been: no
+  classic branch protection (the API 404s) and no rulesets — verified 2026-08-05, when a
+  `gh pr merge --squash` went straight through with no review, against a CLAUDE.md line asserting that was
+  impossible. The repo is already public, so a stray force-push or a merge of a red PR is a real exposure
+  rather than a hypothetical. A ruleset on `main` requiring a PR plus the `verify` check would close it in
+  about a minute. **Deliberately not configured unilaterally — repo settings are the owner's call**, and the
+  docs now describe the actual state either way (see CLAUDE.md, "`main` is always playable").
+
 - **Authentication + accounts.** **C1 SHIPPED 2026-08-03** — identity is now a server-issued `user_id`
   (anonymous sign-in, no login screen), every content row carries its owner, and RLS accepts a write only when
   `auth.uid() = user_id`. The rating column is locked against self-edits. Remaining:

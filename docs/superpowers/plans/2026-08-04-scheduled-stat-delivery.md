@@ -282,19 +282,33 @@ export function stepHolds(): void {
 ```
 
 `stepHolds` needs two supports. Add `placedAt: number` to the `Hold` interface (set to `now()` in
-`holdStat`), because `startAt` is an offset and the ticker needs the origin point. And add a non-emitting
-twin of `revealStat` beside it:
+`holdStat`), because `startAt` is an offset and the ticker needs the origin point.
+
+And split the reveal so the ticker can batch its notification. **Do not copy `revealStat`'s body** — move it
+into a non-emitting core and make `revealStat` delegate, so there is exactly one copy of the monotonic rule:
 
 ```ts
-/** `revealStat`'s body without the `emit` — the ticker batches its own. Returns whether anything moved. */
+/** The reveal itself, WITHOUT notifying. Returns whether anything actually moved.
+ *  Split out so `stepHolds` can advance many holds and emit once; `revealStat` is this plus an emit. */
 function revealQuiet(uid: string, progress: number): boolean {
   const h = holds.get(uid);
   if (h === undefined) return false;
   const p = Math.max(0, Math.min(1, progress));
-  if (p <= h.revealed) return false;
+  if (p <= h.revealed) return false;   // MONOTONIC — a counter that ticked back reads as an arithmetic bug
   if (p >= 1) { disarm(uid); holds.delete(uid); return true; }
   h.revealed = p;
   return true;
+}
+```
+
+Then rewrite `revealStat` to delegate rather than repeat it, preserving its existing `reel` behaviour and its
+doc comment:
+
+```ts
+export function revealStat(uid: string, progress: number, reel = 0): void {
+  const h = holds.get(uid);
+  if (h !== undefined) h.reel = Math.max(0, reel);
+  if (revealQuiet(uid, progress)) emit();
 }
 ```
 

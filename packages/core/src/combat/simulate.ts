@@ -772,6 +772,7 @@ export function simulate(
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
     matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
     baneDemonWidenFor: (side) => modsFor(side).baneDemonWiden,
+    activeTribesFor: (side) => (side === 'player' ? playerState : enemyState).tribes,
     mammothHealthFor: (side) => !!modsFor(side).runeMammoth,
   };
 

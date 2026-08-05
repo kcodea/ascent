@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-04 — The Echo family sweep begins: the first ARENA-BORN halves
+
+Bodies 40+41, and a milestone: these are the first effects to GAIN a phase rather than merely deduplicate one.
+
+- **`deathrattleGrantRebornAll`** was combat-only — a shop-fired trigger (Funeral on Loan, Ossuary Rite, a
+  Gravetwin copy) silently did nothing. The shared body works in the shop natively, no ruling needed: the
+  sentence is phase-blind. Its combat narration rides two new verbs (`nameOf`, `narrate` — an `sc` log line
+  in combat, a no-op in the shop).
+- **`deathrattleGainRandomMinion`** was SHOP-only — it had no combat half at all. A combat-fired trigger now
+  grants through the settle-time hand channel with the replay's toHand flight. Its tribe scoping needed
+  `activeTribes()` (a new `CombatContext.activeTribesFor` accessor reading the side's captured tribes).
+
+Only 6 single-half Echoes remain in content — the dual sweep had already covered the rest of the family. The
+remaining 6 are the genuinely combat-mechanical ones (damage-all, destroy-the-killer, the overflow pair,
+on-friend-death, cast-in-combat), which need the `combat?` probe group — the next slice.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 37–39: the last three rulings land; STEP 3 IS COMPLETE
 
 All three deferred divergences ruled and migrated — **floor → 39 of 42**, and every dual that CAN share a

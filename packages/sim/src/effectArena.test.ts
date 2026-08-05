@@ -48,6 +48,9 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     applyBaneDemonWiden: () => {},
     stampKarwindFlash: () => {},
     stripEchoes: () => {},
+    nameOf: (t: ArenaBody) => t.cardId,
+    narrate: () => {},
+    activeTribes: () => [],
     impAura: () => ({ attack: 0, health: 0 }),
     deathrattleTally: () => 0,
     addTribeAura: () => {},
@@ -130,7 +133,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 39; // +Ex-Galloper, Bane, Karwind - the three ruled divergences
+  const MIGRATED_FLOOR = 41; // ECHO FAMILY: +GrantRebornAll (shop half born), +GainRandomMinion (combat half born)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

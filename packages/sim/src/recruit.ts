@@ -150,6 +150,9 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       }
     },
     stripEchoes: (t) => { (t as BoardCard).echoStripped = true; },
+    nameOf: (t) => CARD_INDEX[t.cardId]?.name ?? t.cardId,
+    narrate: () => {}, // the shop has FX, not narration
+    activeTribes: () => state.tribes,
     stampKarwindFlash: (t) => {
       const flash = (state.karwindFlash ??= []);
       if (!flash.includes(t.uid)) flash.push(t.uid);
@@ -2348,12 +2351,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Lab Experiment (Tier 7) — the RECRUIT half of its Echo: conjure `count` random MINIONS of `tier` to
    *  hand (minions only — unlike `endOfTurnGrantRandomTierCard`, which also draws spells). Golden doubles. */
+  // ARENA-MIGRATED (Echo family): one body in arena.ts serves both phases.
   deathrattleGainRandomMinion: (ctx, self, params) => {
-    const tier = num(params.tier, 5);
-    const pool = poolOf(ctx.state).buyable.filter(
-      (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
-    );
-    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
+    ARENA_EFFECTS.deathrattleGainRandomMinion(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family): this had NO shop half at all — Funeral on Loan / Ossuary Rite / a Gravetwin
+  // copy silently did nothing. The shared body works here natively.
+  deathrattleGrantRebornAll: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGrantRebornAll(shopArena(ctx.state, self), params);
   },
 
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard

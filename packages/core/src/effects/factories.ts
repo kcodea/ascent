@@ -224,6 +224,9 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     },
     stampKarwindFlash: () => {}, // combat FX ride the buff events
     stripEchoes: (t) => { const m = t as Minion; m.effects = m.effects.filter((e) => e.on !== 'onDeath'); },
+    nameOf: (t) => (t as Minion).name,
+    narrate: (text) => ctx.log({ type: 'sc', source: self.uid, text }),
+    activeTribes: () => ctx.activeTribesFor(self.side),
     grantImpAura: (a, h) => {
       for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
       ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
@@ -2236,25 +2239,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Anubis (Tier 7) — Deathrattle: grant Rise to EVERY other living friendly minion that doesn't already
    *  have it. `deathrattleGrantReborn` picks ONE candidate per rep; this is the board-wide version. */
+  // ARENA-BORN (Echo family): this had NO combat half at all — a combat-fired trigger now grants via the
+  // settle-time hand channel, with the replay's toHand flight.
+  deathrattleGainRandomMinion: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.deathrattleGainRandomMinion(combatArena(ctx, self), params);
+  },
+
+  // ARENA-MIGRATED (Echo family): one body; the shop half now EXISTS (it was combat-only).
   deathrattleGrantRebornAll: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const tribe = str(params.tribe);
-    for (const m of ctx.living(self.side)) {
-      if (m === self || m.rebornAvailable || m.keywords.includes('R')) continue;
-      if (tribe) {
-        const def = ctx.getCard(m.cardId);
-        if (m.tribe !== tribe && m.tribe2 !== tribe && !def?.universalTribe) continue;
-      }
-      m.keywords = [...m.keywords, 'R'];
-      m.rebornAvailable = true;
-      // A `keyword` event, not just narration — that's what makes the Rise PILL appear on the unit. Every
-      // other Rise grant (Mumi, the Avenge grant) emits one; this logged `sc` text only, so the grant landed
-      // in sim state but was invisible on the board, and the owner reported "none of my minions got Rise"
-      // (2026-07-21). The narration stays for the combat log.
-      ctx.log({ type: 'keyword', target: m.uid, keyword: 'R', source: self.uid });
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} grants ${m.name} Rise` });
-    }
+    ARENA_EFFECTS.deathrattleGrantRebornAll(combatArena(ctx, self), params);
   },
+
 
   /** Anubis (Tier 7) — Deathrattle: cast Lantern of Souls (your `tribe` get +Attack everywhere, permanently).
    *  The Deathrattle mirror of Watcher's `rallyCastTribeAttack`: same spell-power folding, same permanent

@@ -155,6 +155,12 @@ export interface EffectArena {
   /** Stamp Karwind's pulse FX on a body — shop-side bookkeeping (`karwindFlash`); a combat no-op (combat FX
    *  ride the buff events). */
   stampKarwindFlash(t: ArenaBody): void;
+  /** A display name for a body (combat: the live minion's; shop: the card def's). */
+  nameOf(t: ArenaBody): string;
+  /** Narrate a beat into the combat log (`sc` text). A shop no-op — the shop has FX, not narration. */
+  narrate(text: string): void;
+  /** The run's active tribes — the generation-pool filter for tier/tribe-scoped random grants. */
+  activeTribes(): string[];
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -648,5 +654,31 @@ export const ARENA_EFFECTS = {
       arena.buff(f, adj ? adjA : a, adj ? adjH : h);
       arena.stampKarwindFlash(f);
     }
+  },
+
+  /** Echo: give ALL your minions (of `tribe`, if set) RISE. First body born from the ECHO FAMILY SWEEP — it
+   *  was combat-only, so a shop-fired trigger (Funeral on Loan et al.) silently did nothing. Now it works in
+   *  both phases with no ruling needed: the sentence is phase-blind. */
+  deathrattleGrantRebornAll(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    for (const f of arena.friends()) {
+      if (f.uid === arena.self.uid || arena.hasReborn(f)) continue;
+      if (tribe && !arena.isTribe(f, tribe)) continue;
+      arena.grantReborn(f);
+      arena.narrate(`${arena.nameOf(arena.self)} grants ${arena.nameOf(f)} Rise`);
+    }
+  },
+
+  /** Rune of the Summit's grant (and kin): get `count` random minions of EXACTLY `tier` from your active
+   *  tribes + neutral. Was shop-only; a combat-fired grant now lands via the replay's toHand flight. */
+  deathrattleGainRandomMinion(arena: EffectArena, params: Record<string, unknown>): void {
+    const tier = typeof params.tier === 'number' ? params.tier : 5;
+    const tribes = arena.activeTribes();
+    arena.grantRandomFromPool(
+      (c) => {
+        const d = c as { tier?: number; tribe?: string };
+        return d.tier === tier && (d.tribe === 'neutral' || tribes.includes(d.tribe ?? ''));
+      },
+      (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
   },
 } as const;

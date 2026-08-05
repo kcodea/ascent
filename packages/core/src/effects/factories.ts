@@ -144,6 +144,12 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     grantShield: (t) => grantShield(ctx, t as Minion),
     buff: (t, a, h) => ctx.buff(t as Minion, a, h, self.uid),
     grantRubyPower: (a, h) => ctx.gainRubyBonus(a, h, self.side, self.uid),
+    rubyTallyOf: (t) => {
+      const m = t as Minion;
+      const shopRuby = m.buffs?.find((b) => b.source === 'Ruby');
+      return { attack: (shopRuby?.attack ?? 0) + (m.rubyGain?.attack ?? 0), health: (shopRuby?.health ?? 0) + (m.rubyGain?.health ?? 0) };
+    },
+    summonToken: (id, a, h) => { ctx.summon(self.side, ctx.getCard(id), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h }); },
     rng: () => ctx.rng,
   };
 }
@@ -1378,16 +1384,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Set 2 — Gemheart Carver (Echo): on death, summon `tokenId` with stats equal to the Rubies on THIS minion
    *  (its `Ruby` buff; golden doubles those stats). No Rubies on it → no summon. */
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   deathrattleSummonRubyStats: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    // The Shard is a 1/1 PLUS the Rubies on this minion (owner 2026-07-24) — so it summons even with none,
-    // where it used to bail out entirely and give you nothing.
-    const shopRuby = self.buffs?.find((b) => b.source === 'Ruby'); // Rubies played in the shop
-    const gemA = (shopRuby?.attack ?? 0) + (self.rubyGain?.attack ?? 0); // + Rubies played mid-combat
-    const gemH = (shopRuby?.health ?? 0) + (self.rubyGain?.health ?? 0);
-    const a = (1 + gemA) * mul(self);
-    const h = (1 + gemH) * mul(self);
-    ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h });
+    ARENA_EFFECTS.deathrattleSummonRubyStats(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Deepdelve Paragon. A MARKER, not a trigger: it is never dispatched.

@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-08-04 — Gemheart's golden is ONE Shard at double stats (owner ruling); sixth arena body
+
+Divergent dual #2, ruled and migrated. `deathrattleSummonRubyStats` (Gemheart Carver) read its golden two
+ways: combat summoned ONE Shard at `(1 + rubies) × 2`; the shop summoned TWO at base. Owner: **"golden = a
+single shard with double stats"** — the combat reading wins, the shop's two-summon behaviour is retired.
+
+Two new arena verbs, each phase keeping its own ledger: `rubyTallyOf` (combat: the carried 'Ruby' buff
+snapshot + mid-fight `rubyGain`; shop: the 'Ruby' breakdown entry) and `summonToken(id, a, h)` (combat folds
+the stats into the summon; the shop labels the above-base share as a Ruby buff and fires `onRubyPlayed`, so a
+Resonance Idol still bounces off the landing Shard and the inspect breakdown attributes correctly). Both
+legacy halves deleted; ratchet floor → 6.
+
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3,898 tests ✓, `build:web` ✓, harness ✓.
+
 ## 2026-08-04 — Ruby family begins: deathrattleRubyStatGain is the fifth arena body
 
 First Ruby-family migration, and the first arena verb that touches RUN-WIDE state rather than a body:

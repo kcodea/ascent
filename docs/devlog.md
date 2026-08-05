@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-05 — `main` is not protected, and CLAUDE.md said the opposite
+
+Found while merging #877. CLAUDE.md asserted *"Branch protection requires a review that can't be satisfied
+solo, so Claude can't merge from the CLI — the owner merges."* `gh pr merge --squash` then merged it with no
+review requested. Checked properly afterwards: `repos/kcodea/ascent/branches/main/protection` **404s** and
+`repos/kcodea/ascent/rulesets` is **empty**. There is no protection on `main`, and no evidence there ever was.
+
+That made the line worse than merely stale — it described a machine guard that does not exist, which is the
+kind of claim a reader stops checking behind. A direct push to `main`, a force-push, or a merge of a red PR
+would all currently succeed.
+
+Rewritten to say what is true and why the rules still bind: the discipline IS the guard, CI is a signal
+rather than a required check (so read `gh pr checks` before merging), and Claude may merge once it is green.
+Two operational notes went in with it — anything `gh` does is attributed to the authenticated owner, so "a
+review from the other person" is a convention the repo cannot check; and `gh pr merge --delete-branch`
+reports failure AFTER a successful server-side merge when a worktree holds `main`
+(`fatal: 'main' is already used by worktree at …`), which reads exactly like the merge failed. Confirm with
+`gh pr view <n> --json state,mergedAt` before believing it.
+
+A ruleset would close all of it in about a minute, and is deliberately NOT configured here: repo settings
+are the owner's call, not something to fix silently. Logged in the roadmap's Public Release section — the
+repo is already public, so this is exposure rather than hygiene.
+
+Docs only; no source touched.
+
 ## 2026-08-05 — the sparkle DELIVERS the cubs (`summonHold`)
 
 Owner, watching Echohorn Rally a Manasaber: *"the cubs come out immediately, before the timing of the

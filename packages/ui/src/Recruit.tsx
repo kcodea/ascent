@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard, type CardBuff } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
 import { SYM_KINDS } from './choreo/channels/float';
@@ -48,7 +48,7 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
-import { RUBY_LANDED_DEF, rubyLandSchedule } from './choreo/channels/rubyLanded';
+import { RUBY_LANDED_DEF, rubyLandSchedule, rubyLandHolds } from './choreo/channels/rubyLanded';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
 import { defCarriesNumber } from './fx/fxDefs';
@@ -867,29 +867,24 @@ export function Recruit() {
    * re-render swept it (owner report — a gem apply that only updated on the next click). Declining to hold
    * hands the change to `Card`'s intrinsic roll instead, so the number still rolls with no authoring at all.
    *
-   * Each land is withheld until ITS OWN gem, not until the reducer tick. `rubyLandSchedule` is the single
-   * source of the rhythm and the fire effect below reads the same function, so the number and the dust
-   * cannot drift — alignment is structural rather than maintained. Without this, an Excavator dropping gems
-   * one at a time across the board moved all seven numbers simultaneously, which visibly proves to the
-   * player that the effect is not what is causing them.
+   * Each RECIPIENT is withheld until its own gem, not until the reducer tick. `rubyLandHolds` groups the
+   * same `rubyLandSchedule` the fire effect below reads back into one entry per uid, so the number and the
+   * dust cannot drift — alignment is structural rather than maintained. Without this, an Excavator dropping
+   * gems one at a time across the board moved all seven numbers simultaneously, which visibly proves to the
+   * player that the effect is not what is causing them. (Within one recipient's own stack the number still
+   * reveals as a single step, not gem by gem — `rubyLandHolds`'s doc comment explains why that's correct
+   * rather than a shortfall.)
    */
   useLayoutEffect(() => {
     const seq = run.rubyLandedFxSeq;
     if (seq === undefined || seq === prevRubyLandedSeq.current) return;
     if (!defCarriesNumber(RUBY_LANDED_DEF)) return;
     const lands = run.rubyLandedFx ?? [];
-    for (const land of rubyLandSchedule(lands)) {
-      const buff = run.board.find((c) => c.uid === land.uid)?.buffs?.find((b) => b.source === 'Ruby');
-      if (!buff || buff.count <= 0) continue;
-      // `rubyLandSchedule` expands a stacked recipient into one `Land` per gem (see `fx/land.ts`'s
-      // `cascade`), so this loop already runs once per gem — the per-gem share is the whole delta for THIS
-      // land, not a fraction of it to be re-multiplied. (The brief's draft carried a `* land.count`
-      // inherited from the old aggregate-per-uid loop; `Land` has no `count` field, and re-multiplying here
-      // would both fail to compile and overstate a stack's total.)
-      holdStat(land.uid, {
-        attack: Math.round(buff.attack / buff.count),
-        health: Math.round(buff.health / buff.count),
-      }, { origin: 'cue', startAt: land.at + RUBY_DELIVER_OFFSET_MS });
+    const buffOf = (uid: string): CardBuff | undefined =>
+      run.board.find((c) => c.uid === uid)?.buffs?.find((b) => b.source === 'Ruby');
+    for (const hold of rubyLandHolds(lands, buffOf)) {
+      holdStat(hold.uid, { attack: hold.attack, health: hold.health },
+        { origin: 'cue', startAt: hold.at + RUBY_DELIVER_OFFSET_MS });
     }
     // `prevRubyLandedSeq` is deliberately NOT advanced here — the cue effect below owns that bookkeeping, and
     // moving it would make this effect silently swallow the cue.

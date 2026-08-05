@@ -87,3 +87,63 @@ export const RUBY_LANDED_DEF = 'ruby-gem-apply';
 export function rubyLandSchedule(lands: readonly { uid: string; count: number }[]): Land[] {
   return scheduleLands(cascade(lands), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS });
 }
+
+/** One recipient's withheld stat delta and delivery moment — what `Recruit.tsx`'s hold effect needs, once
+ *  per uid rather than once per gem. See `rubyLandHolds` for why per-gem was wrong. */
+export interface RubyLandHold {
+  uid: string;
+  /** Rounded ONCE, over the recipient's whole event delta — never accumulated from a per-gem rounding. */
+  attack: number;
+  health: number;
+  /** This recipient's OWN delivery moment: the earliest of its lands. */
+  at: number;
+}
+
+/**
+ * The withheld PER-RECIPIENT delta + delivery moment for a shop Ruby cascade, derived from the identical
+ * `rubyLandSchedule` the fire effect walks — so the hold's uid list and timings can never be a second,
+ * independently-computed schedule that merely agrees with the fire effect today.
+ *
+ * ── why this rounds ONCE per recipient, not once per gem ─────────────────────────────────────────────
+ * `rubyLandSchedule` expands a stacked recipient into one `Land` per gem. Calling `holdStat` once per
+ * `Land` and rounding `(buff.attack / buff.count)` separately for each accumulates rounding error: a
+ * total of 3 across 2 gems rounds to `Math.round(1.5) = 2` twice, holding 4 against a true delta of 3 — a
+ * badge printing a number the minion never had. `mintRubies` stamps each gem with
+ * `def.attack + state.rubyBonus.attack` at mint time, and `rubyBonus` can differ between mints, so a
+ * source's total need not divide evenly by its count; this is reachable, not theoretical. Grouping first
+ * and rounding the whole-event delta once (as the pre-cascade code always did) makes the error impossible
+ * rather than merely unlikely.
+ *
+ * ── why `at` is the recipient's FIRST land, not a per-gem stagger ────────────────────────────────────
+ * `holdStat`'s accumulate path REPLACES a live hold's `startAt` outright when the same uid is held again
+ * (`fx/statHold.ts`) — both calls in a stack would happen synchronously in this same loop, so a second
+ * per-gem hold would silently overwrite the first's timing before anything ever read it. A within-stack
+ * stagger was never actually deliverable at the hold layer; only the cross-recipient stagger (this
+ * function's whole reason to exist) is. One hold per recipient says exactly that and nothing more.
+ *
+ * `buffOf` is injected rather than read from board state directly, so this stays pure and testable without
+ * a live `RunState` — the shop caller supplies it as a one-line board lookup.
+ */
+export function rubyLandHolds(
+  lands: readonly { uid: string; count: number }[],
+  buffOf: (uid: string) => { attack: number; health: number; count: number } | undefined,
+): RubyLandHold[] {
+  const byUid = new Map<string, { count: number; at: number }>();
+  for (const land of rubyLandSchedule(lands)) {
+    const existing = byUid.get(land.uid);
+    if (existing === undefined) byUid.set(land.uid, { count: 1, at: land.at });
+    else existing.count += 1;
+  }
+  const out: RubyLandHold[] = [];
+  for (const [uid, { count, at }] of byUid) {
+    const buff = buffOf(uid);
+    if (!buff || buff.count <= 0) continue;
+    out.push({
+      uid,
+      attack: Math.round((buff.attack / buff.count) * count),
+      health: Math.round((buff.health / buff.count) * count),
+      at,
+    });
+  }
+  return out;
+}

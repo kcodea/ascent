@@ -6,8 +6,10 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
-import { ralliesFiredIn, rallyLeadMs, RALLY_BEAT_MS, RALLY_GAP_MS } from './channels/rallyFired';
+import { ralliesFiredIn, rallyLeadMs, RALLY_BEAT_MS, RALLY_GAP_MS, type RallyFired } from './channels/rallyFired';
+import { releaseSummons } from '../fx/summonHold';
 import { getLungeConfig } from '../lungeConfig';
+import type { FxBinding } from './bindings';
 import { cascade, scheduleLands } from '../fx/land';
 import { holdStat } from '../fx/statHold';
 import { canPlayDefs, playDef } from '../fx/playDef';
@@ -261,6 +263,38 @@ function momentUnits(primary: CombatEvent): { source: string | null; target: str
   return { source, target };
 }
 
+/**
+ * Every rally in `moment` that has a def bound to it, with the units each proc summoned.
+ *
+ * THE ONE resolver for that question, because two callers ask it about the same moment and must not be able
+ * to disagree: the layout effect in `useCombatReplay` WITHHOLDS these units pre-paint, and the `rallyFx` cue
+ * RELEASES them as each sparkle lands. A set the holder computed and the releaser didn't would strand a live
+ * minion off the board until its TTL — the one failure this whole path has to be immune to.
+ *
+ * `canPlayDefs()` is part of the answer rather than a caller's separate check, for exactly the same reason:
+ * headless, or before `ensureDefsReady()` resolves, the cue schedules nothing, so nothing must be held.
+ */
+export function boundRalliesIn(moment: Moment, ctx: Pick<CueContext, 'events' | 'cardIds'>): BoundRally[] {
+  if (!canPlayDefs()) return [];
+  const out: BoundRally[] = [];
+  for (const r of ralliesFiredIn(moment, ctx.events)) {
+    const binding = bindingFor(ctx.cardIds?.get(r.source) ?? null, 'rally');
+    if (binding) out.push({ ...r, binding });
+  }
+  return out;
+}
+
+/** A rally whose card has a def bound at the `rally` kind — `RallyFired` plus the resolved binding. */
+export interface BoundRally extends RallyFired {
+  binding: FxBinding;
+}
+
+/** Every unit a bound Rally is about to deliver in this moment, flattened — what the layout effect
+ *  withholds. Flat because the holder doesn't care which proc owns which unit; only the releaser does. */
+export function rallyDeliveredUids(moment: Moment, ctx: Pick<CueContext, 'events' | 'cardIds'>): string[] {
+  return boundRalliesIn(moment, ctx).flatMap((r) => r.delivered.flat());
+}
+
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
  *  `start + offset`: an offset ≤0 fires synchronously; a positive offset schedules a timer (÷combatSpeed
  *  unless `scaled:false`, e.g. the reborn re-form's fixed wall-clock). Returns a cleanup that cancels any
@@ -395,13 +429,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     // `channels/rallyFired.ts` for the whole argument. Guarded before `at()` exactly like `fxDef`/`rubyFx`.
     else if (cue.ch === 'rallyFx') {
       if (!canPlayDefs()) continue;
-      // Bindings resolve UP FRONT, and unbound ralliers are dropped here rather than inside the timer, so the
-      // cascade's `gap` walks only the pairs that actually play — an unbound rallier must not leave a hole in
-      // the rhythm. `fanOut` is deliberately ignored on this row: a Rally's fan-out IS its pair, and the two
-      // ends come from the event rather than from a scan the binding chooses.
-      const fired = ralliesFiredIn(moment, ctx.events)
-        .map((r) => ({ ...r, binding: bindingFor(ctx.cardIds?.get(r.source) ?? null, 'rally') }))
-        .filter((r): r is typeof r & { binding: NonNullable<typeof r.binding> } => r.binding !== null);
+      // Bindings resolve UP FRONT (in `boundRalliesIn`), and unbound ralliers are dropped there rather than
+      // inside the timer, so the cascade's `gap` walks only the pairs that actually play — an unbound rallier
+      // must not leave a hole in the rhythm. `fanOut` is deliberately ignored on this row: a Rally's fan-out IS
+      // its pair, and the two ends come from the event rather than from a scan the binding chooses.
+      const fired = boundRalliesIn(moment, ctx);
       if (!fired.length) continue;
       // DEV-only, and modelled on the `fxDef` fan-out's log for the same reason it exists there: every miss in
       // this path is SILENT — the effect simply doesn't appear, which is indistinguishable from "the binding
@@ -409,7 +441,8 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // carried, which is the number the cascade's `beat` exists to make visible.
       if (import.meta.env.DEV) {
         for (const r of fired) {
-          console.info(`[fx] rally ${r.source}→${r.target} → '${r.binding.def}' ×${r.count}`);
+          const held = r.delivered.flat();
+          console.info(`[fx] rally ${r.source}→${r.target} → '${r.binding.def}' ×${r.count}${held.length ? ` (delivering ${held.join(', ')})` : ''}`);
         }
       }
       at(cue, () => {
@@ -428,11 +461,19 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         })) {
           const r = fired[land.group];
           if (!r) continue;
+          // THIS proc's litter — `land.member` is its index within the pair's stack, which is the same order
+          // `delivered` is built in. So a gilded Echohorn's first sparkle reveals the first pair of cubs and
+          // its second reveals the second, instead of both arriving on the first.
+          const litter = r.delivered[land.member] ?? [];
           // Anchors resolve INSIDE the timer, like the Ruby sweep: either end can die mid-cascade (the ally's
           // own Echo can kill it), and a dead unit should be skipped rather than played over an empty slot.
           const fire = (): void => {
             const rallyAnchors = anchorsForUnits(r.source, r.target);
             if (rallyAnchors) playDef(r.binding.def, rallyAnchors, { uids: { source: r.source, target: r.target }, index: land.group });
+            // Released whether or not the def could anchor. The hold is a PRESENTATION debt: if the effect
+            // can't play there is nothing left to deliver the unit, and leaving it withheld to time out would
+            // hide a live minion for the sake of an effect that never happened.
+            releaseSummons(litter);
           };
           if (land.at <= 0) fire();
           else timers.push(setTimeout(fire, land.at));

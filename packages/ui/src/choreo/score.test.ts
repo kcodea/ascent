@@ -4,7 +4,8 @@ import { compileMoments, type Moment } from './compile';
 import { rallyLeadMs, RALLY_BEAT_MS, RALLY_GAP_MS } from './channels/rallyFired';
 import { getLungeConfig } from '../lungeConfig';
 import { sfx } from '../sfx';
-import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues, type Channel } from './score';
+import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues, rallyDeliveredUids, type Channel } from './score';
+import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons } from '../fx/summonHold';
 import { momentKind, type MomentKind } from './kinds';
 import { holdMsForKind } from './choreoConfig';
 import { canPlayDefs, playDef } from '../fx/playDef';
@@ -843,5 +844,104 @@ describe('rallyFx channel', () => {
     runMomentCues(compileMoments(events)[0]!, baseCtx(events, withCard('ech', 'b2_echohorn')));
     expect(mockPlayDef).not.toHaveBeenCalled();
     expect(mockAnchors).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * SUMMON DELIVERY — the cue hands over the units its sparkle is carrying.
+ *
+ * A Rally's summon commits to the frame the instant the moment becomes current, so without this the cub is
+ * already on the board when the sparkle that procced it finally fires (owner report 2026-08-05, Echohorn
+ * Rallying a Manasaber). `useCombatReplay` withholds them pre-paint; this cue is the release half.
+ */
+describe('rallyFx channel — summon delivery', () => {
+  const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
+  const attack = (attacker: string, defender: string): CombatEvent =>
+    ({ type: 'attack', attacker, defender, swing: 0 } as CombatEvent);
+  const summon = (uid: string): CombatEvent =>
+    ({ type: 'summon', side: 'player', index: 0, minion: { uid, cardId: 'sabercub', name: 'Saber Cub', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } } as CombatEvent);
+  const LEAD = (): number => rallyLeadMs(getLungeConfig().windupDur);
+
+  beforeEach(() => {
+    mockPlayDef.mockClear(); mockAnchors.mockClear();
+    mockCanPlayDefs.mockReturnValue(true);
+    mockAnchors.mockReturnValue({ target: { x: 5, y: 7 } });
+    releaseAllSummons();
+  });
+  afterEach(() => releaseAllSummons());
+
+  /** What the layout effect withholds. Same resolver the cue releases from, so the two cannot disagree —
+   *  a set the holder computed and the releaser didn't would strand a live minion off the board. */
+  it('rallyDeliveredUids names exactly the units a BOUND rally will deliver', () => {
+    const events = [attack('ech', 'foe'), rally('ech', 'saber'), summon('c1'), summon('c2')];
+    const moment = compileMoments(events)[0]!;
+    expect(rallyDeliveredUids(moment, { events, cardIds: new Map([['ech', 'b2_echohorn']]) })).toEqual(['c1', 'c2']);
+  });
+
+  /** An UNBOUND rallier plays no effect, so nothing would ever release its summons — they must never be
+   *  held in the first place. This is the guard that keeps the tombstoned global `rally` row safe. */
+  it('names nothing for an unbound rallier', () => {
+    const events = [attack('ds', 'foe'), rally('ds', 'ally'), summon('c1')];
+    const moment = compileMoments(events)[0]!;
+    expect(rallyDeliveredUids(moment, { events, cardIds: new Map([['ds', 'deathsayer']]) })).toEqual([]);
+  });
+
+  /** …and likewise when defs can't play at all (headless, or before `ensureDefsReady`): the cue schedules
+   *  nothing, so the holder must be told to hold nothing. The check lives in the shared resolver for exactly
+   *  this reason — a caller that forgot it would hide a minion for the full TTL. */
+  it('names nothing when defs cannot play', () => {
+    mockCanPlayDefs.mockReturnValue(false);
+    const events = [attack('ech', 'foe'), rally('ech', 'saber'), summon('c1')];
+    const moment = compileMoments(events)[0]!;
+    expect(rallyDeliveredUids(moment, { events, cardIds: new Map([['ech', 'b2_echohorn']]) })).toEqual([]);
+  });
+
+  it('releases the litter when its sparkle lands, not before', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'saber'), summon('c1'), summon('c2')];
+    const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
+    holdSummon('c1'); holdSummon('c2');           // what the layout effect does, pre-paint
+    runMomentCues(compileMoments(events)[0]!, c);
+    vi.advanceTimersByTime(LEAD() - 1);
+    expect(isSummonHeld('c1')).toBe(true);        // still withheld through the wind-up
+    vi.advanceTimersByTime(2);
+    expect(isSummonHeld('c1')).toBe(false);       // …delivered by the sparkle
+    expect(isSummonHeld('c2')).toBe(false);
+    vi.useRealTimers();
+  });
+
+  /** THE gilded case end to end: one litter per sparkle. Both arriving on the first land would leave the
+   *  second detonation delivering nothing, which is the bug this whole attribution exists to avoid. */
+  it('delivers one proc litter per sparkle, not all of them on the first', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'saber'), summon('c1'), rally('ech', 'saber'), summon('c2')];
+    const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
+    holdSummon('c1'); holdSummon('c2');
+    runMomentCues(compileMoments(events)[0]!, c);
+    vi.advanceTimersByTime(LEAD());
+    expect(isSummonHeld('c1')).toBe(false);       // first proc's cub is out…
+    expect(isSummonHeld('c2')).toBe(true);        // …the second's is still held
+    vi.advanceTimersByTime(RALLY_BEAT_MS);
+    expect(isSummonHeld('c2')).toBe(false);
+    vi.useRealTimers();
+  });
+
+  /**
+   * A hold is a PRESENTATION debt. If the effect cannot anchor (the ally died mid-cascade, the unit left the
+   * screen) the def never plays — and leaving the summon withheld to time out would hide a live minion for
+   * the sake of an effect that never happened. Release is unconditional.
+   */
+  it('still releases when the def cannot anchor', () => {
+    vi.useFakeTimers();
+    mockAnchors.mockReturnValue(null);
+    const events = [attack('ech', 'foe'), rally('ech', 'saber'), summon('c1')];
+    const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
+    holdSummon('c1');
+    runMomentCues(compileMoments(events)[0]!, c);
+    vi.advanceTimersByTime(LEAD());
+    expect(mockPlayDef).not.toHaveBeenCalled();   // nothing played…
+    expect(isSummonHeld('c1')).toBe(false);       // …and the cub is on the board anyway
+    expect(anySummonHeld()).toBe(false);
+    vi.useRealTimers();
   });
 });

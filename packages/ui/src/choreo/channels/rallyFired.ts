@@ -31,6 +31,18 @@ export interface RallyFired {
   target: string;
   /** How many times this exact pair fired in this moment (gilded / Elderhorn multipliers). */
   count: number;
+  /**
+   * The uids each proc SUMMONED, indexed by proc order within this pair (so `delivered.length === count`).
+   *
+   * Carried so the sparkle can deliver them rather than trail them: the frame commits a summon the instant
+   * the moment becomes current, which puts the cub on the board ahead of the effect that procced it (owner
+   * report 2026-08-05). `fx/summonHold.ts` withholds these; the cue releases each proc's own litter on its
+   * own land, so a gilded double proc shows one set per sparkle instead of both on the first.
+   *
+   * Empty for a proc that summoned nothing — most Echoes don't (a stat grant, a card to hand). An empty
+   * array is not the same as "no proc", which is why this is per-proc rather than one flat list.
+   */
+  delivered: string[][];
 }
 
 /**
@@ -47,11 +59,22 @@ export function ralliesFiredIn(moment: Moment, events: CombatEvent[]): RallyFire
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (!e || e.type !== 'rally') continue;
+    // What THIS proc summoned: the CONTIGUOUS run of `summon` events immediately after it. `deathrattleSummon`
+    // runs synchronously inside the proc loop, so a proc's summons are adjacent to it in the log — and the
+    // contiguity is what keeps the attribution honest. Anything else intervening ENDS the run, so an unrelated
+    // on-attack summon later in the same wind-up is left unattributed rather than guessed onto this proc (it
+    // would be withheld, and nothing would be scheduled to release it).
+    const delivered: string[] = [];
+    for (let j = i + 1; j < moment.end; j++) {
+      const n = events[j];
+      if (!n || n.type !== 'summon') break;
+      delivered.push(n.minion.uid);
+    }
     const key = pairKey(e.source, e.target);
     const cur = byPair.get(key);
-    if (cur) cur.count += 1;
+    if (cur) { cur.count += 1; cur.delivered.push(delivered); }
     else {
-      byPair.set(key, { source: e.source, target: e.target, count: 1 });
+      byPair.set(key, { source: e.source, target: e.target, count: 1, delivered: [delivered] });
       order.push(key);
     }
   }

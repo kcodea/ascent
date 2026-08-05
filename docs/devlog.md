@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+## 2026-08-05 — the sparkle DELIVERS the cubs (`summonHold`)
+
+Owner, watching Echohorn Rally a Manasaber: *"the cubs come out immediately, before the timing of the
+effect takes place."* Correct, and the previous entry's 740ms lead is what exposed it — the effect now
+waits for the pulse, so anything that didn't wait with it reads as arriving early.
+
+**Nothing can delay the Deathrattle, and that is not the bug.** By replay time `combat.events` is a
+finished log and `computeFrame` is a pure fold over it; the summon has already happened. What is early is
+the FRAME COMMIT: the frame deliberately shows the current beat's OUTCOME while that beat's FX plays, so
+the cub is spliced onto the board the instant the wind-up moment becomes current. Exactly the situation
+`statHold` was built for one layer down — the badge snapped to the new number before the effect delivered
+it — so this is that pattern applied to a whole unit.
+
+`fx/summonHold.ts` withholds a summoned uid from the RENDERED board; the `rallyFx` cue releases each proc's
+litter as its own sparkle lands. Deliberate details:
+
+- **The layout effect holds, the cue releases.** Not stylistic: `runMomentCues` runs post-paint, so holding
+  there would paint the cub, remove it, and bring it back — the up-then-down-then-up artifact the buff holds
+  were moved to a layout effect to kill. Same effect, same window, one layer over.
+- **`frame` stays the truth; `visibleFrame` is what gets drawn.** The loss-damage tally counts survivors off
+  `frame`, and a withheld cub is a live minion that hasn't been revealed yet, not a missing one. Filtering
+  in place would have made the tally wrong on any fight that ended mid-hold.
+- **ONE resolver decides the set.** `boundRalliesIn` answers "which rallies here have a def bound, and what
+  did each proc summon" for both the holder and the releaser, `canPlayDefs()` included. A set the holder
+  computed and the releaser didn't would strand a live minion off the board — the single failure this path
+  must be immune to.
+- **Per-proc attribution.** A proc's summons are the CONTIGUOUS run right after its `rally` event, because
+  `deathrattleSummon` runs synchronously inside the proc loop. Contiguity is what keeps it honest: anything
+  intervening ends the run, so an unrelated on-attack summon is left unattributed rather than withheld with
+  nothing scheduled to reveal it. A gilded Echohorn therefore delivers one litter per sparkle rather than
+  all of them on the first.
+- **Failing open, three ways.** Release is unconditional even when the def can't anchor (a dead ally, a unit
+  off screen) — a presentation debt must not outlive the effect that owed it. The layout effect clears
+  wholesale each beat, so a hold can never outlive its own beat. And the module's TTL (2500ms) is the
+  backstop for a replay that stops re-rendering. Showing a unit slightly early is the only acceptable
+  direction; hiding a live minion is not.
+
+Verified: typecheck (pkgs + web), `build:web`, lint (0 errors in the changed files), 3911 tests — 9 over
+the module (including the expiry sweep and the silent-release-of-nothing case), 7 over the attribution, and
+6 over the cue's delivery, three of which compile a real event log. The retuned look and this delivery have
+NOT been eyeballed together yet (see roadmap).
+
 ## 2026-08-05 — Rally FX retune: pulse first, then the link
 
 The owner watched the previous entry's channel live and called three changes. All three are tuning, not

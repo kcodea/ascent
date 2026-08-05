@@ -14,7 +14,7 @@ const span = (start: number, end: number): Moment => ({ start, end } as unknown 
 describe('ralliesFiredIn', () => {
   it('picks out ONLY the rally events', () => {
     expect(ralliesFiredIn(span(0, 3), [buff('a'), rally('r', 'e'), buff('c')]))
-      .toEqual([{ source: 'r', target: 'e', count: 1 }]);
+      .toEqual([{ source: 'r', target: 'e', count: 1, delivered: [[]] }]);
   });
 
   it('returns nothing for a moment with no Rally in it', () => {
@@ -25,7 +25,7 @@ describe('ralliesFiredIn', () => {
    *  path: what plays is decided by the rallier's card, and where it plays is the ally it procced. */
   it('carries both ends of the pair', () => {
     const [fired] = ralliesFiredIn(span(0, 1), [rally('echohorn', 'sporeling')]);
-    expect(fired).toEqual({ source: 'echohorn', target: 'sporeling', count: 1 });
+    expect(fired).toEqual({ source: 'echohorn', target: 'sporeling', count: 1, delivered: [[]] });
   });
 
   it('keeps event order across distinct pairs', () => {
@@ -38,16 +38,16 @@ describe('ralliesFiredIn', () => {
   it('COUNTS a pair that fires twice in one moment, keeping first-seen order', () => {
     const events = [rally('r1', 'e1'), rally('r2', 'e2'), rally('r1', 'e1')];
     expect(ralliesFiredIn(span(0, 3), events)).toEqual([
-      { source: 'r1', target: 'e1', count: 2 },
-      { source: 'r2', target: 'e2', count: 1 },
+      { source: 'r1', target: 'e1', count: 2, delivered: [[], []] },
+      { source: 'r2', target: 'e2', count: 1, delivered: [[]] },
     ]);
   });
 
   /** Same rallier, DIFFERENT ally is two lands, not a 2-stack: the walk has to visit both units. */
   it('separates one rallier proccing two different allies', () => {
     expect(ralliesFiredIn(span(0, 2), [rally('r', 'e1'), rally('r', 'e2')])).toEqual([
-      { source: 'r', target: 'e1', count: 1 },
-      { source: 'r', target: 'e2', count: 1 },
+      { source: 'r', target: 'e1', count: 1, delivered: [[]] },
+      { source: 'r', target: 'e2', count: 1, delivered: [[]] },
     ]);
   });
 
@@ -58,7 +58,7 @@ describe('ralliesFiredIn', () => {
 
   /** `end` may run past the array when a moment is the last one compiled; a hole must not throw. */
   it('tolerates an end index past the event array', () => {
-    expect(ralliesFiredIn(span(0, 99), [rally('r', 'e')])).toEqual([{ source: 'r', target: 'e', count: 1 }]);
+    expect(ralliesFiredIn(span(0, 99), [rally('r', 'e')])).toEqual([{ source: 'r', target: 'e', count: 1, delivered: [[]] }]);
   });
 });
 
@@ -83,7 +83,7 @@ describe('a real Rally is absorbed into its attacker wind-up', () => {
 
   it('still finds the Rally inside that moment, with its own pair', () => {
     const [windup] = compileMoments(events);
-    expect(ralliesFiredIn(windup!, events)).toEqual([{ source: 'echohorn', target: 'sporeling', count: 1 }]);
+    expect(ralliesFiredIn(windup!, events)).toEqual([{ source: 'echohorn', target: 'sporeling', count: 1, delivered: [[]] }]);
   });
 });
 
@@ -91,5 +91,57 @@ describe('a real Rally is absorbed into its attacker wind-up', () => {
 describe('cascade timing', () => {
   it('beats a stack clearly faster than it walks between pairs', () => {
     expect(RALLY_BEAT_MS).toBeLessThan(RALLY_GAP_MS);
+  });
+});
+
+/**
+ * WHAT EACH PROC DELIVERED — the attribution that lets a sparkle carry its own summons rather than trail
+ * them. A Rally's summon commits to the frame the instant the moment becomes current, so the cub is on the
+ * board ahead of the effect that procced it; `fx/summonHold.ts` withholds these and the cue releases each
+ * proc's litter on its own land.
+ */
+describe('ralliesFiredIn — delivered summons', () => {
+  const summon = (uid: string): CombatEvent =>
+    ({ type: 'summon', side: 'player', index: 0, minion: { uid, cardId: 'sabercub', name: 'Saber Cub', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } } as CombatEvent);
+
+  it('attributes the summons that immediately follow a proc', () => {
+    const events = [rally('ech', 'saber'), summon('c1'), summon('c2')];
+    expect(ralliesFiredIn(span(0, 3), events)[0]).toEqual({
+      source: 'ech', target: 'saber', count: 1, delivered: [['c1', 'c2']],
+    });
+  });
+
+  /** THE gilded case: two procs, two litters, kept SEPARATE so the second sparkle has something to deliver.
+   *  Flattening them would put all four cubs on the first land and leave the second detonating over nothing. */
+  it('keeps each proc litter separate, in proc order', () => {
+    const events = [rally('ech', 'saber'), summon('c1'), summon('c2'), rally('ech', 'saber'), summon('c3'), summon('c4')];
+    const [fired] = ralliesFiredIn(span(0, 6), events);
+    expect(fired?.count).toBe(2);
+    expect(fired?.delivered).toEqual([['c1', 'c2'], ['c3', 'c4']]);
+  });
+
+  /** Most Echoes summon nothing (a stat grant, a card to hand). An empty litter is a real proc with nothing
+   *  to deliver — not a missing one — which is why `delivered` is per-proc rather than one flat list. */
+  it('records an empty litter for a proc that summoned nothing', () => {
+    expect(ralliesFiredIn(span(0, 1), [rally('ds', 'ally')])[0]?.delivered).toEqual([[]]);
+  });
+
+  /**
+   * Contiguity is what keeps the attribution honest. A summon that is NOT adjacent to the proc could be any
+   * other on-attack effect's, and withholding it would hide a minion nothing is scheduled to release.
+   */
+  it('stops at the first non-summon, leaving a later summon unattributed', () => {
+    const events = [rally('ech', 'saber'), summon('c1'), buff('x'), summon('unrelated')];
+    expect(ralliesFiredIn(span(0, 4), events)[0]?.delivered).toEqual([['c1']]);
+  });
+
+  it('does not attribute a summon that precedes the proc', () => {
+    const events = [summon('before'), rally('ech', 'saber')];
+    expect(ralliesFiredIn(span(0, 2), events)[0]?.delivered).toEqual([[]]);
+  });
+
+  it('never reads past the moment window for a litter', () => {
+    const events = [rally('ech', 'saber'), summon('inside'), summon('next-moment')];
+    expect(ralliesFiredIn(span(0, 2), events)[0]?.delivered).toEqual([['inside']]);
   });
 });

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
+import { cardArtVars, cardArtVersion, isPickingCardArt, selectCard, subscribeCardArt } from './cardArtConfig';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
 import { heldFor, statHoldKey, subscribeStatHolds } from './fx/statHold';
@@ -412,6 +413,10 @@ export const Card = memo(function Card({
   const showText = forceFull || !compactCards;
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
   const [popin, setPopin] = useState(() => !suppressPop);
+  /* Re-render when this card's art framing is dialled in the tuner. `useSyncExternalStore` rather than a
+     store subscription: this module must not pull in Zustand, and the counter never moves in production
+     (nothing there can write an override), so a shipped card subscribes to something permanently silent. */
+  useSyncExternalStore(subscribeCardArt, cardArtVersion, cardArtVersion);
   // Drop the `popin` class once the mount-pop has played. It must not linger: `.card.popin` carries the
   // `cardpop` animation, and when a board REORDER physically moves a card's DOM node the browser RE-TRIGGERS
   // that animation — so an untouched neighbour "popped" as if it were just played (most obvious on a Battlecry
@@ -558,12 +563,24 @@ export const Card = memo(function Card({
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
+        /* PER-CARD art framing (🖼️ Card Art tuner). Spread inline so it beats the frame family's own
+           `--artY`/`--artZoom` on specificity; a card with no override contributes nothing at all here. */
+        ...(cardArtVars(card.cardId) ?? {}),
         // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
         ...(sbCfg ? { '--sb-grow': sbCfg.growScale, '--sb-grow-ms': `${sbCfg.growMs}ms`, '--sb-grow-ease': growEaseCss(sbCfg), '--sb-shrink-ms': `${sbCfg.shrinkMs}ms`, '--sb-shrink-ease': shrinkEaseCss(sbCfg), '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-oy': `${sbCfg.blastOriginY}%`, '--sb-ease': sparkEaseCss(sbCfg) } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
       onClick={onClick}
+      /* Card Art tuner: double-click targets this card. Only while that panel is open (`isPickingCardArt`),
+         so normal play never has a hidden double-click meaning. `onDoubleClick` rather than `onClick`
+         deliberately - a single click is already play/drag, and stealing it would break the board. */
+      onDoubleClick={card.cardId ? (e) => {
+        if (!isPickingCardArt()) return;
+        e.preventDefault();
+        e.stopPropagation();
+        selectCard(card.cardId!);
+      } : undefined}
       onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
       onMouseLeave={hasPopup ? hideRefTip : undefined}
       onContextMenu={(e) => {

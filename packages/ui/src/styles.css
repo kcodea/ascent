@@ -1060,7 +1060,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .art canvas { max-width: 84%; max-height: 86%; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
-.artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
+.artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; filter: var(--ca-filter, none); display: block; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
 /* Ward (Divine Shield) — the energy shell. The old INNER dome (a `.ward` stack inside `.art`, trimmed to the
    portrait window) was REMOVED 2026-07-21: with the frame-wide `.wardglass` shell below, the two stacked into
    a doubled honeycomb and two competing blues (owner). The card-level outer aura + breathing bloom stay (they
@@ -1314,7 +1314,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* cover = art fills the window edge-to-edge (meets the gold, no gaps). Square art in a portrait window means
    the sides crop a little; object-position keeps the subject centred. Real fix = portrait-authored art. */
 .card.compact.taunt .art .artimg,
-.card.compact.taunt .art canvas { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.card.compact.taunt .art canvas { width: 100%; height: 100%; object-fit: cover; object-position: center var(--artY, center); transform: translate(var(--ca-tx, 0%), var(--ca-ty, 0%)) scale(var(--artZoom, 1)); }
 /* FRAME — the authored shield PNG (`.tframe-img`), sized/placed so its window lands dead-on the portrait; falls
    back to the SVG placeholder when the asset is absent. z 3 = above the portrait (z1), below the badges (z6). */
 .card.compact.taunt .tframe {
@@ -3015,7 +3015,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    subject reads smaller and you see more of the art), `--artZoom` scales it from there (>1 fills more / mild crop,
    <1 shrinks it), `--artY` sets the vertical framing. The `.art` tribe-tinted background shows as the matte. */
 .card.compact.stdframe .art .artimg,
-.card.compact.stdframe .art canvas { object-fit: contain; object-position: center var(--artY); transform: scale(var(--artZoom)); }
+.card.compact.stdframe .art canvas { object-fit: contain; object-position: center var(--artY); transform: translate(var(--ca-tx, 0%), var(--ca-ty, 0%)) scale(var(--artZoom)); }
 .card.compact.stdframe .cframe-img {
   position: absolute; inset: auto; height: auto;
   width: calc(var(--ccw) * 1.481 * var(--sh));                     /* 1.481 = 1/0.675 (window is 67.5% of canvas W) */
@@ -3047,7 +3047,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* spells COVER the window (fill the shape you set with --artW/--artAR/--artRound, cropping overflow) so every
    spell frames identically. --artY sets the vertical crop framing; --artZoom fine-tunes the fill (1 = exact fill). */
 .card.compact.spellframe .art .artimg,
-.card.compact.spellframe .art canvas { object-fit: cover; object-position: center var(--artY); transform: scale(var(--artZoom)); }
+.card.compact.spellframe .art canvas { object-fit: cover; object-position: center var(--artY); transform: translate(var(--ca-tx, 0%), var(--ca-ty, 0%)) scale(var(--artZoom)); }
 .card.compact.spellframe .cframe-img {
   position: absolute; inset: auto; height: auto;
   width: calc(var(--ccw) * 1.387 * var(--sh));                     /* 1.387 = 1/0.721 */

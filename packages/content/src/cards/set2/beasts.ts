@@ -81,13 +81,12 @@ export const SET2_BEASTS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [
-      // Owner change 2026-07-25: the grant is symmetric +2/+2 and each spell improves it by a further +2/+2
-      // (was +2/+4 improving by +1/+1).
-      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 2, health: 2, step: 2 } },
+      // Owner balance 2026-08-04: the base grant is +3/+3 (was +2/+2); each spell still improves it +2/+2.
+      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 3, health: 3, step: 2 } },
       { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 2 } },
     ],
-    text: 'When you summon a Beast, give it **+2/+2**. Improve this by **+2/+2** when you cast a Shop spell.',
-    goldenText: 'When you summon a Beast, give it **+4/+4**. Improve this by **+4/+4** when you cast a Shop spell.',
+    text: 'When you summon a Beast, give it **+3/+3**. Improve this by **+2/+2** when you cast a Shop spell.',
+    goldenText: 'When you summon a Beast, give it **+6/+6**. Improve this by **+4/+4** when you cast a Shop spell.',
   },
   {
     // A summon payoff: everything you summon mid-fight lands bigger. Reworked 2026-07-25 (owner) from a flat

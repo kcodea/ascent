@@ -73,9 +73,11 @@ describe('Echoes triggered in the SHOP', () => {
     expect(borrowedEcho('bonetaxer').maxEmbers).toBeGreaterThan(before);
   });
 
-  it('Errand Fiend summons Imps', () => {
+  it('Errand Fiend has no Echo any more — a borrowed one summons nothing (Rally rework 2026-08-04)', () => {
+    // Its Imp engine moved to RALLY (fires in combat when it attacks); a Funeral-on-Loan borrow fires only
+    // Echoes, so the correct outcome here is now a clean nothing.
     const s = borrowedEcho('dm_errand');
-    expect(s.board.filter((c) => c.cardId === 'impscrap').length).toBeGreaterThan(0);
+    expect(s.board.filter((c) => c.cardId === 'impscrap').length).toBe(0);
   });
 
   it("Dawnclaw re-fires a neighbour's Shout when its Echo fires ON THE BOARD", () => {

@@ -2577,6 +2577,33 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.summonImps(combatArena(ctx, self), params);
   },
 
+  /** Errand Fiend (owner rework 2026-08-04) — Rally: summon an Imp AND enchant your Imps +1/+1 run-wide
+   *  (the Imp aura channel — live board Imps buff now, the gain carries back; golden doubles both). Flurry
+   *  doubles the Rally itself, so the gilded ceiling is 2 Imps + a +2/+2 enchant per attack round. */
+  rallySummonImpBuffImps: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const imp = ctx.getCard('impscrap');
+    if (imp) for (let i = 0; i < mul(self); i++) ctx.summon(self.side, imp, self.uid);
+    const n = num(params.amount, 1) * mul(self);
+    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, n, n, self.uid);
+    ctx.grantImpBuff(n, n, self.side);
+  },
+
+  /** Rope Wrangler (owner add 2026-08-04) — Echo: summon a random MINION from your hand, with the stats it
+   *  held (buffs + golden intact). The card is CONSUMED — it fought, so settle removes it from the hand
+   *  whether it lived or died. A spell-only or empty hand is a clean no-op; golden summons 2. */
+  deathrattleSummonRandomHandMinion: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    for (let i = 0; i < mul(self); i++) {
+      const pick = ctx.takeRandomHandMinion(self.side);
+      if (!pick) return;
+      const def = ctx.getCard(pick.cardId);
+      if (!def) continue;
+      ctx.summon(self.side, def, self.uid, [...pick.keywords], pick.golden, false,
+        { attack: pick.attack, health: pick.health, maxHealth: pick.health });
+    }
+  },
+
   /** Set 2 — Legion Shepherd (owner rework 2026-07-27): Echo — summon `count` Imps; every one that can't fit
    *  gives your Imps +atk/+hp EVERYWHERE, permanently.
    *

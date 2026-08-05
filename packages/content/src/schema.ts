@@ -101,6 +101,8 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnCopyNeighbour',
   'deathrattleSummonRandomTier',
   'summonImps',
+  'rallySummonImpBuffImps',
+  'deathrattleSummonRandomHandMinion',
   'rallyImpsAttackNow',
   'onTribePlayedConsumeShop',
   'avengeImproveSummonBuff',

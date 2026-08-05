@@ -303,9 +303,14 @@ export const NEUTRAL: CardDef[] = [
     attack: 5,
     health: 4,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } }],
-    text: '**End of Turn:** Cast **Lasso**.',
-    goldenText: '**End of Turn:** Cast **Lasso** twice.',
+    effects: [
+      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } },
+      // Owner add 2026-08-04: the wrangled stock stampedes out when it dies. The summoned minion LEAVES the
+      // hand (consumed) — combat reads the hand snapshot and settle removes the card; golden summons 2.
+      { on: 'onDeath', do: 'deathrattleSummonRandomHandMinion', params: {} },
+    ],
+    text: '**End of Turn:** Cast **Lasso**. **Echo:** summon a random minion from your hand.',
+    goldenText: '**End of Turn:** Cast **Lasso** twice. **Echo:** summon **2** random minions from your hand.',
   },
   {
     // Avenge (4): every 4 friendly deaths, permanently raise your spell power +1 Attack (stat spells give +1

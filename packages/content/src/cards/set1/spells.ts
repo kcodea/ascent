@@ -950,9 +950,11 @@ export const SPELLS: CardDef[] = [
     spell: true,
     singleCast: true,
     cost: 3,
-    target: 'friendly',
+    // `any` (owner 2026-08-04): it can also land on a SHOP minion — the offer transforms pre-buy (the
+    // castSpellOnOffer fold-back carries the new cardId, see recruit.ts).
+    target: 'any',
     effects: [{ on: 'cast', do: 'spellTransformSameTier' }],
-    text: 'Transform a friendly minion into a random minion of the **same tier**. It keeps its **bonus stats**.',
+    text: 'Transform a friendly or **Shop** minion into a random minion of the **same tier**. It keeps its **bonus stats**.',
   },
   {
     // At the start of next combat, the enemy's right-most minion gains Taunt (funnels your attacks into it).

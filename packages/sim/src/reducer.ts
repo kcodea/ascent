@@ -871,7 +871,17 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Ward if it is a Kobold"). The stat half lands on anyone; the keyword is the tribe payoff.
           const kw = def.rubyGrantKeyword;
           if (kw && isTribe(boardTarget, 'kobold') && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
-        } else if (offer) { for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health); }
+        } else if (offer) {
+          for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+          // Rune of Distillation says "Spells", not "Shop Spells" (owner 2026-08-04) — a RUBY cast on a Shop
+          // minion also casts on your left-most minion: a real Ruby landing (stat buff + the target's own
+          // on-Ruby watchers), mirroring the spell path's Distillation echo below.
+          const lead = s.runeDistillation ? s.board[0] : undefined;
+          if (lead) for (let n = 0; n < casts; n++) {
+            addBuff(lead, 'Ruby', card.attack, card.health);
+            fireOnRubyPlayed(s, lead, card.attack, card.health);
+          }
+        }
         else return state;
         s.hand.splice(i, 1);
         // A Ruby is a card played (owner ruling 2026-07-31: EVERYTHING you literally play or cast counts —
@@ -1894,6 +1904,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         cardBuffs: s.cardBuffs ?? {},
         // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
         handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
+        // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
+        handMinions: s.hand
+          .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
+          .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: c.keywords, golden: c.golden })),
         // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
         beastHuntExtra: s.beastHuntExtra ?? 0,
         beastRitualExtra: s.beastRitualExtra ?? 0,
@@ -2381,6 +2395,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // A combat-refired "get N Rubies" Shout: the REAL mint (rubyBonus baked in — the bonus gain above lands
   // first deliberately — Candle Conduit fired, hand cap respected), not a plain hand grant.
   if (result.playerRubyMints) mintRubies(s, result.playerRubyMints);
+  // Rope Wrangler's Echo summoned these OUT of the hand mid-fight — the card fought, so it is spent
+  // (win or lose, alive or dead; the survivors' fates settle like any other combat body).
+  if (result.playerHandSummoned) {
+    s.hand = s.hand.filter((c) => !result.playerHandSummoned!.includes(c.uid));
+  }
   // Cards a combat effect added to the hand land in the hand for the next recruit, win or lose — capped by
   // the hand limit. This is the single channel for ALL in-combat card grants: a SPECIFIC card (Arcane Weaver →
   // a Spirit Fire copy) AND a RANDOM card already picked in combat (Sporebat's spell, Ryme re-firing Sea Urchin

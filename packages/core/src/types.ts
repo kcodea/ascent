@@ -200,7 +200,9 @@ export type EffectFactoryId =
   | 'battlecryGrantSpellPowerRun' // Set 2 — Coppercoat Spellsword (Choose One): permanently raise run-wide spell power
   | 'endOfTurnCopyNeighbour' // Set 2 — Bellringer Voss: every N turns, a plain copy of the board neighbour(s) to hand
   | 'deathrattleSummonRandomTier' // Set 2 — Gravelight Acolyte (Echo): summon N random minions of an exact tier
-  | 'summonImps' // Set 2 — Imp Wrangler / Errand Fiend: summon N Imps
+  | 'summonImps' // Set 2 — Imp Wrangler: summon N Imps
+  | 'rallySummonImpBuffImps' // Errand Fiend (2026-08-04): Rally — summon an Imp AND enchant your Imps +1/+1
+  | 'deathrattleSummonRandomHandMinion' // Rope Wrangler (2026-08-04): Echo — summon a random minion FROM YOUR HAND (consumed)
   | 'rallyImpsAttackNow' // Set 2 — Riot Caller (Rally): your N left-most Imps attack immediately
   | 'onTribePlayedConsumeShop' // Set 2 — Chipper: playing a Demon makes a friendly Demon eat a Shop minion
   | 'onImpDeathSummonImp' // Set 2 — Endless Overseer: your first N Imp deaths each summon an Imp
@@ -1677,6 +1679,10 @@ export interface CombatSideState {
    *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
    *  the sim never mutates the run hand. */
   handSpellIds?: readonly string[];
+  /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
+   *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
+   *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */
+  handMinions?: readonly { uid: string; cardId: string; attack: number; health: number; keywords: readonly Keyword[]; golden: boolean }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for this side's BEAST triggers. `beastHuntExtra` applies
    *  to Rally + Slaughter, `beastRitualExtra` to Echo (Deathrattle). Tribe-scoped by design — unlike the
    *  card-level `triggerMultiplier` (Drakko/Uron), which is board-wide. */
@@ -1837,6 +1843,9 @@ export interface CombatResult {
   playerRubyBonusGain?: { attack: number; health: number };
   /** Set 2 — Rubies a combat-refired "get N Rubies" Shout minted; settle runs the run's real `mintRubies`. */
   playerRubyMints?: number;
+  /** Hand-card uids a combat effect SUMMONED out of the hand (Rope Wrangler's Echo) — settle removes them
+   *  from the run hand: the minion fought, so it is spent whether it lived or died. */
+  playerHandSummoned?: readonly string[];
   /** Set 2 — Demon Horse: a Rally that permanently buffs SHOP minions. A Rally fires in COMBAT, but the tavern
    *  buff is run state, so it can only reach the run through a carry-back like every other combat→run effect
    *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
@@ -2016,6 +2025,10 @@ export interface CombatContext {
    *  settle mints them through the run's REAL `mintRubies` — rubyBonus baked in, Candle Conduit fired, hand
    *  cap respected. Player-only (enemies have no hand). Carried back via `CombatResult.playerRubyMints`. */
   mintRubies(count: number, side: Side, sourceUid?: string): void;
+  /** Rope Wrangler's Echo: draw one not-yet-taken MINION from this side's hand snapshot (uniform via the
+   *  combat rng), marking it consumed for this fight AND recording its uid for settle removal. Undefined when
+   *  the snapshot has no minion left (a spell-only or empty hand — clean no-op). */
+  takeRandomHandMinion(side: Side): { uid: string; cardId: string; attack: number; health: number; keywords: readonly Keyword[]; golden: boolean } | undefined;
   /** Permanently buff every future Shop minion (Demon Horse's Rally) — carried back via `playerTavernBuyGain`. */
   /** `sourceUid` is what lets the gain be TELEGRAPHED mid-combat. Without it the buff applies silently at
    *  settle and the player sees nothing happen (owner report 2026-07-31). */

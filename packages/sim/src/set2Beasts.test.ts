@@ -73,7 +73,7 @@ describe('set 2 — Dawnclaw', () => {
 });
 
 describe('set 2 — Beast summon + aura cards', () => {
-  it('Groveweaver: buffs a summoned Beast +2/+2, and a spell cast improves that grant by +2/+2', () => {
+  it('Groveweaver: buffs a summoned Beast +3/+3, and a spell cast improves that grant by +2/+2', () => {
     // Summon path: play a Beast while Groveweaver is out → it lands with the grant folded in.
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
@@ -82,12 +82,12 @@ describe('set 2 — Beast summon + aura cards', () => {
     };
     s = reduce(s, { type: 'play', uid: 'n1' });
     const first = s.board.find((c) => c.uid === 'n1')!;
-    expect([first.attack - 1, first.health - 1]).toEqual([2, 2]); // base grant (owner change 2026-07-25)
+    expect([first.attack - 1, first.health - 1]).toEqual([3, 3]); // base grant (owner balance 2026-08-04: +3/+3)
 
     s = reduce(s, { type: 'play', uid: 'sp' }); // a cast improves the grant by +2/+2
     s = reduce(s, { type: 'play', uid: 'n2' });
     const second = s.board.find((c) => c.uid === 'n2')!;
-    expect([second.attack - 1, second.health - 1]).toEqual([4, 4]); // improved by +2 on each stat
+    expect([second.attack - 1, second.health - 1]).toEqual([5, 5]); // improved by +2 on each stat
   });
 
   it('Denkeeper Oona / Solaris / T-Rex are wired with the expected stats + effects (Lancel removed 2026-08-02)', () => {
@@ -630,7 +630,7 @@ describe('set 2 — Groveweaver (owner report 2026-07-25)', () => {
     expect(pups.length, 'the Pups spawned').toBeGreaterThan(0);
     const got = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
       .filter((b) => b.target === pups[0]!.minion.uid);
-    expect(got.some((b) => b.attack === 2 && b.health === 2), 'the summoned Pup got +2/+2').toBe(true);
+    expect(got.some((b) => b.attack === 3 && b.health === 3), 'the summoned Pup got +3/+3').toBe(true);
   });
 
   it('the grant grows with the accrual it has banked', () => {
@@ -642,6 +642,6 @@ describe('set 2 — Groveweaver (owner report 2026-07-25)', () => {
     const pups = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string } }[]);
     const got = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
       .filter((b) => pups.some((p) => p.minion.uid === b.target));
-    expect(got.some((b) => b.attack === 6 && b.health === 6), 'base +2/+2 plus two spells of accrual').toBe(true);
+    expect(got.some((b) => b.attack === 7 && b.health === 7), 'base +3/+3 plus two spells of accrual').toBe(true);
   });
 });

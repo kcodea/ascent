@@ -1,4 +1,5 @@
 import type { CardDef } from '@game/core';
+import { ARCHIVED_CARDS } from './cards/archive';
 import { CardDefSchema } from './schema';
 import { TOKENS } from './cards/set1/tokens';
 import { HENCHMEN } from './cards/henchmen';
@@ -27,6 +28,7 @@ export const ALL_CARDS: CardDef[] = [
   ...SET2_TOKENS,
   ...HENCHMEN,
   ...ENEMY,
+  ...ARCHIVED_CARDS, // resolvable by id (saved runs / replays), member of NO set — never drawable
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
 
 export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
@@ -90,7 +92,8 @@ const CARD_REF_EFFECTS: Record<string, string> = {
  * listing it here fails the build.
  */
 const IMPLICIT_REF_EFFECTS: Record<string, readonly string[]> = {
-  summonImps: ['impscrap'],                      // Imp Wrangler, Errand Fiend
+  summonImps: ['impscrap'],                      // Imp Wrangler
+  rallySummonImpBuffImps: ['impscrap'],          // Errand Fiend (Rally rework 2026-08-04)
   deathrattleImpsOverflowGrant: ['impscrap'],    // Legion Shepherd
   onImpDeathSummonImp: ['impscrap'],
   onImpAttackSummonCopy: ['impscrap'],           // Malphas, Lord of Want

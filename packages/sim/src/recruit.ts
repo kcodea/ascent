@@ -1652,8 +1652,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     const target = ctx.state.board.find((c) => !tribe || isTribe(c, tribe as never));
     if (!target) return;
-    const a = num(params.attack, 1) * gold(self) * (ctx.state.playedThisTurn?.length ?? 0);
-    if (a > 0) addBuff(target, nameOf(self), a, 0);
+    const played = ctx.state.playedThisTurn?.length ?? 0;
+    const a = num(params.attack, 1) * gold(self) * played;
+    const h = num(params.health, 0) * gold(self) * played; // Kringle +1/+1 (owner balance 2026-08-04)
+    if (a > 0 || h > 0) addBuff(target, nameOf(self), a, h);
   },
 
   /** Chirurgeon: every `every` cards bought, get a random Shop spell. The buy tally lives on the CARD
@@ -2966,6 +2968,33 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.onBattlecryBuffFodder(shopArena(ctx.state, self), params);
   },
 
+
+  /** Errand Fiend (owner rework 2026-08-04), recruit half — a shop-fired Rally (future disruptors): summon
+   *  an Imp and enchant your Imps +1/+1 run-wide, exactly the combat half's ritual. */
+  rallySummonImpBuffImps: (ctx, self, params) => {
+    const imp = CARD_INDEX['impscrap'];
+    if (imp) for (let i = 0; i < gold(self); i++) ctx.summon(imp, self.uid);
+    const n = num(params.amount, 1) * gold(self);
+    buffImpsRunWide(ctx.state, n, n, nameOf(self));
+  },
+
+  /** Rope Wrangler (owner add 2026-08-04), recruit half — a shop-fired Echo (Ryme / Funeral on Loan): a
+   *  random minion moves HAND → BOARD (it keeps its uid, buffs and gilding — the same card, summoned).
+   *  Board full or no minion in hand → clean no-op; golden summons 2. */
+  deathrattleSummonRandomHandMinion: (ctx, self) => {
+    const state = ctx.state;
+    for (let i = 0; i < gold(self); i++) {
+      if (state.board.length >= CONFIG.boardMax) return;
+      const minions = state.hand.filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (minions.length === 0) return;
+      const rng = makeRng(state.rngCursor);
+      const pick = minions[rng.int(minions.length)]!;
+      state.rngCursor = rng.state();
+      state.hand.splice(state.hand.indexOf(pick), 1);
+      state.board.push(pick);
+      fireSummonBuffs(state, pick);
+    }
+  },
 
   /** Sporeling (recruit half) — every Battlecry you trigger procs this minion's OWN Deathrattle (its
    *  `deathrattleBuffAll` bakes +1/+1, golden +2/+2, into every board minion) and counts toward the run's
@@ -5726,6 +5755,15 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
  * Call this from any path that resolves a spell WITHOUT running `effects[]`.
  */
 export function noteSpellCast(state: RunState, spellDef: CardDef): void {
+  // A REWARD card (`token: true` — Goldcrafter, Implosion, Copycat, the Triple Reward…) is NOT a Shop spell
+  // (owner rule 2026-08-01, extended to every cast path 2026-08-04): it resolves its own effect and nothing
+  // else. No cast tallies or thresholds, no first/last-spell memory — so no copy effect (Spell Warden,
+  // Steward, Recaller, Recurrence, Mushy) can ever duplicate it — no spellCast watchers, no Grimoire spend,
+  // no spell runes. The ONLY way to copy one is a hand-card copy (Re-Pete's Second Hand), which ignores
+  // classification entirely. It still counts as a CARD played (`playedThisTurn`, stamped by the reducer),
+  // and cast MULTIPLIERS still apply to its own resolution (Nimbus doubling Implosion is pinned behaviour —
+  // the charge concerns what the cast DOES, not what it counts as).
+  if (spellDef.token) return;
   const ctx = makeContext(state);
   // Rune of Recurrence: remember the FIRST spell cast each turn (recast at End of Turn). Recorded before the
   // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
@@ -5826,9 +5864,15 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
     golden: false,
   };
   castSpell(state, spellDef, temp);
-  offer.atk = temp.attack - card.attack;
-  offer.hp = temp.health - card.health;
-  offer.keywords = temp.keywords.filter((k) => !base.includes(k)); // keep only the keywords the spell added
+  // Fold the result back against what the card IS NOW — a transform (Strange Revision, owner 2026-08-04)
+  // rewrites `temp.cardId`, so the offer becomes the new minion and the deltas re-base on ITS printed stats
+  // (the factory already re-based the bonus stats onto the new form). For every ordinary spell
+  // `after === card` and this is byte-identical to the old fold.
+  const after = CARD_INDEX[temp.cardId] ?? card;
+  offer.cardId = temp.cardId;
+  offer.atk = temp.attack - after.attack;
+  offer.hp = temp.health - after.health;
+  offer.keywords = temp.keywords.filter((k) => !after.keywords.includes(k)); // keep only the keywords the spell added
 }
 
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),

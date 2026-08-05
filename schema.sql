@@ -307,3 +307,25 @@ drop policy if exists "insert own run_history" on public.run_history;
 -- rather than erroring). Your own career is unaffected either way.
 create policy "read run_history"       on public.run_history for select to authenticated using (true);
 create policy "insert own run_history" on public.run_history for insert to authenticated with check (auth.uid() = user_id);
+
+-- ── 2026-08-05: REPLAY PERSISTENCE + derived balance streams ───────────────────────────────────────────────
+-- The Codex telemetry spec asked for eight event tables (offers, acquisitions, an economy ledger, upgrades,
+-- combat summaries, trigger details, board snapshots). We store ONE thing instead: the replay.
+--
+-- A run in this game is a pure function of (seed, hero, action log, content) — the reducer and `simulate()`
+-- are deterministic — so replaying the log reproduces every one of those streams losslessly (see
+-- `packages/sim/src/runDerive.ts`). That buys the property a table-per-event design cannot: a metric nobody
+-- thought of yet is a new FUNCTION, computed retroactively over runs already banked, instead of a migration
+-- plus a client release plus a fresh collection window. It is also ~1% of the bytes.
+--
+-- `content_revision` is the load-bearing companion (see `packages/content/src/revisions.ts`): a replay is
+-- only faithful against the content it was played on, so a derivation run against a later build must be able
+-- to tell that the ground moved. Never pool rows across different content revisions.
+--
+-- `derived` holds the streams computed AT RUN END (the client already has the log in memory), so the Balance
+-- Report can render without replaying hundreds of runs in the browser. It is a CACHE — the replay is the
+-- source of truth, and `derived` can be rebuilt from it at any time.
+alter table public.run_telemetry add column if not exists replay           jsonb;
+alter table public.run_telemetry add column if not exists content_revision text;
+alter table public.run_telemetry add column if not exists derived          jsonb;
+create index if not exists run_telemetry_content_rev on public.run_telemetry (content_revision);

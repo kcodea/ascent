@@ -60,6 +60,53 @@ buried buttons and the invisible ring, which is exactly the class of thing the a
 
 *Note: `packages/ui/src/fx/directCalls.test.ts` is a slow test (1.3s alone, 4.2s under full-suite load) that
 intermittently trips its timeout. Unrelated to this change; it passed on re-run and in isolation.*
+## 2026-08-05 — Balance telemetry, phase 1: card revisions + the run derivation
+
+Answering the Codex telemetry spec ("our balance report is not detailed enough" — 8 event tables, dashboards,
+statistical guardrails). Owner call: **persist replays and derive everything**, rather than instrument the
+game into eight Supabase tables.
+
+**Why that shape.** A run is already a pure function of `(seed, hero, action log, content)` — the reducer and
+`simulate()` are deterministic — so replaying the log reproduces every stream the spec asks for, losslessly.
+That buys the property a table-per-event design cannot: a metric nobody thought of yet is a new FUNCTION,
+computed retroactively over runs already banked, instead of a migration + a client release + a fresh
+collection window. It is also ~1% of the bytes, and it cannot drift from the game (same reducer). Practical
+clincher: schema SQL is run by hand here (the `board_results` migration is still dormant), so a design
+needing a migration per metric would stall.
+
+**Shipped:**
+- `content/src/revisions.ts` — a content-hash identity per card (FNV-1a over a canonical serialisation, key
+  order irrelevant), plus a run-level `contentRevision()` folding in runes and quests. The existing `patch`
+  string is wrong in BOTH directions: too coarse (every card's samples reset each build, so a card nobody
+  touched can never reach a usable N) and too blunt (can't say WHICH cards moved). Also a correctness guard:
+  replaying an old log against changed content diverges, and 16 cards moved yesterday.
+- `sim/src/runDerive.ts` — the derivation. One replay pass emits offers (per individual copy, with the full
+  decision context: Gold, tier, upgrade cost, board state, top tribe, frozen), acquisitions (by SOURCE —
+  shop / discover / quest / rune / heroPower / henchman / generated), a categorised Gold ledger, upgrades
+  TAKEN and DECLINED, combat summaries with keyword trigger counts, Avenge trigger details with a failure
+  reason (`insufficientDeaths` vs `diedEarly`), and per-turn board snapshots.
+- The three conversion rates are now **separately named** — `copyConversion` (copies bought / copies
+  offered), `shopConversion` (shops that converted / shops containing it), `runAcquisitionRate` — and the
+  ambiguous `runs_bought` is renamed `runsAcquired`, counting ANY source, which is what it always measured.
+- `wilson()` + `SAMPLE_GATES` for the statistical guardrails.
+- schema.sql: `replay`, `content_revision`, `derived` columns on `run_telemetry` (additive, dormant until run).
+
+**Verified against real play, not fixtures:** a bot plays full runs and we derive from its log, so the
+deriver is checked against the reducer rather than against my idea of a run. The load-bearing test is the
+ledger reconciliation — replaying every Gold delta from the starting purse must land exactly on the run's own
+final Gold, which is what makes "no source can silently go unrecorded" a proof rather than a hope.
+
+Caught by the gates: computing the revision maps at module scope threw under plain Node ESM (a cycle —
+`revisions` reads `ALL_CARDS` from `index`, which re-exports `revisions`). Vitest tolerated it; `npm run
+harness` did not. Now lazily memoised, which sidesteps initialisation order entirely.
+
+**Known gap, flagged rather than hidden:** the bot used in tests dies around wave 9 with 0 wins, so it proves
+correctness but produces no balance signal. Real findings need mass generation from the tuned pilots at a
+pinned revision — and at friend scale, human runs will answer DEMAND questions (conversion, pick rate, buy
+turn) while only bots will ever reach the 100-acquisition bar for per-card performance. The report must label
+which is which rather than blending them.
+
+Next: upload wiring (replay + derived payload at run end) and the in-app Balance Report views.
 
 ## 2026-08-05 — `main` is not protected, and CLAUDE.md said the opposite
 

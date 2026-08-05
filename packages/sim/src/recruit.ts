@@ -3169,15 +3169,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Trickster (recruit half) — give the carry (highest-Attack friend) this minion's Health; golden picks twice. */
-  deathrattleGiveHealth: (ctx, self) => {
-    const hp = self.health;
-    if (hp <= 0) return;
-    for (let i = 0; i < gold(self); i++) {
-      const friends = ctx.state.board.filter((c) => c !== self);
-      if (friends.length === 0) break;
-      const t = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
-      addBuff(t, nameOf(self), 0, hp);
-    }
+  // ── ARENA-MIGRATED (Step 3): one body; RANDOM in both phases (owner ruling 2026-08-04 — the old
+  //    highest-Attack carry pick predated the cursor RNG and is retired).
+  deathrattleGiveHealth: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGiveHealth(shopArena(ctx.state, self), params);
   },
 
   /** Burial Imp (recruit half) — add `count` copies of a specific card (a Gold Pouch) to hand; golden doubles. */

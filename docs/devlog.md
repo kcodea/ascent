@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-08-04 — Trickster's Echo: random in BOTH phases (owner ruling), fourth body migrates
+
+The sweep's first DIVERGENT dual, resolved by ruling rather than migration mechanics.
+`deathrattleGiveHealth` (Trickster) behaved differently by phase on purpose: combat gave its Health to a
+RANDOM friend per grant; the shop gave it to the highest-Attack carry — a workaround from before the cursor
+RNG existed ("out of combat there's no RNG"), long stale. Owner: **"random = random in both shop and in
+combat."** The carry pick is retired; the shop Echo now rolls on the run's cursor like everything else.
+
+One body serves both phases: `maxHealth ?? health` (combat carries a separate max; the shop's printed health
+IS its max — `maxHealth` joins `ArenaBody` as optional), `count × golden` grants (the shop half also gains the
+`count` param it previously ignored; identical for all existing content), targets may repeat across grants
+(the legacy combat behaviour — the pool is re-drawn per grant, not spliced). Ratchet floor → 4.
+
+This is the pattern for the rest of the divergent duals the sweep will surface: log the divergence, get a
+one-line ruling, migrate to the ruled behaviour. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3,898 tests ✓,
+`build:web` ✓, harness ✓.
+
 ## 2026-08-04 — Effect Arena Step 3 begins: Sergeant's Echo migrates
 
 Third shared body: `deathrattleBuffAllHealth` (Sergeant). Both legacy halves deleted; the ratchet floor rises

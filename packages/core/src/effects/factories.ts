@@ -2078,16 +2078,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.
    *  Golden picks a target twice (independently). */
+  // ── ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGiveHealth: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const hp = self.maxHealth;
-    if (hp <= 0) return;
-    // Give `count` random other friends this minion's Health (golden doubles the number of grants).
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
-      const targets = ctx.living(self.side).filter((m) => m !== self);
-      if (targets.length === 0) break;
-      ctx.buff(ctx.rng.pick(targets), 0, hp, self.uid);
-    }
+    ARENA_EFFECTS.deathrattleGiveHealth(combatArena(ctx, self), params);
   },
 
   /** Abhorrent Horror — Start of Combat: gain +Attack/+Health equal to all Fodder consumed this turn (read from

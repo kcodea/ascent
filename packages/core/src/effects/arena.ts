@@ -31,6 +31,8 @@ export interface ArenaBody {
   golden?: boolean;
   /** Sergeant's per-instance HP-grant accrual — carried on both phases' bodies already. */
   hpGrantBonus?: number;
+  /** Combat carries a separate max; the shop's printed health IS its max. Bodies read `maxHealth ?? health`. */
+  maxHealth?: number;
 }
 
 export interface EffectArena {
@@ -89,5 +91,21 @@ export const ARENA_EFFECTS = {
       + (arena.self.hpGrantBonus ?? 0);
     if (hp <= 0) return;
     for (const f of arena.friends()) arena.buff(f, 0, hp);
+  },
+
+  /** Trickster — Echo: give `count` random OTHER friends this minion's Health (golden doubles the grants).
+   *  RANDOM IN BOTH PHASES (owner ruling 2026-08-04) — the shop half used to pick the highest-Attack carry,
+   *  a workaround from before the cursor RNG existed; "random = random in both shop and in combat". Targets
+   *  may repeat across grants (the legacy combat behaviour: the pool is re-drawn per grant, not spliced). */
+  deathrattleGiveHealth(arena: EffectArena, params: Record<string, unknown>): void {
+    const hp = arena.self.maxHealth ?? arena.self.health;
+    if (hp <= 0) return;
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    const rng = arena.rng();
+    for (let i = 0; i < count; i++) {
+      const pool = arena.friends().filter((m) => m.uid !== arena.self.uid);
+      if (pool.length === 0) break;
+      arena.buff(pool[rng.int(pool.length)]!, 0, hp);
+    }
   },
 } as const;

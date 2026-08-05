@@ -96,7 +96,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 3; // +deathrattleBuffAllHealth (Step 3 begins) — raise as migrations land
+  const MIGRATED_FLOOR = 4; // +deathrattleGiveHealth (random in both phases, owner ruling) — raise as migrations land
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

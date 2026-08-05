@@ -21,7 +21,15 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Stat readout choreography — implement the approved design.** Design written and approved 2026-08-04:
+- **Stat readout choreography — implement the approved design.** Split into two plans. The SHOP half is
+  planned and ready to execute:
+  [`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md)
+  (7 tasks: schedule fields → origin rank → shared ticker → the `rubyLandSchedule` helper → shop cascade →
+  fodder tendril + the last `+X/+X` float → `releaseAllStats` + browser proof with a negative control). The
+  COMBAT half is deliberately unplanned until the shop half lands: the hold is installed by a wholesale
+  per-beat rebuild in a layout effect (`useCombatReplay.ts:1491`) while the release lives in two post-paint
+  callbacks keyed on a `strikeMs` computed only there, so `startAt` forces those into one decision — a
+  restructure of the beat pipeline, not a field addition. Design doc for both:
   [`superpowers/specs/2026-08-04-stat-readout-choreography-design.md`](superpowers/specs/2026-08-04-stat-readout-choreography-design.md).
   Makes *when a number lands* a first-class property of a stat change, so a cascade's numbers follow the
   cascade instead of all landing on the reducer tick. Four parts: `startAt`/`rollMs` + an origin RANK on the

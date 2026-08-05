@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-04 — Plan: scheduled stat delivery, the shop half (plan only, no code)
+
+Implementation plan for the shop half of the choreography design:
+[`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md).
+Seven TDD tasks: the hold gains `startAt`/`rollMs` with a schedule-aware TTL → `origin` becomes an
+`intrinsic < cue < effect` rank → one shared rAF ticker in `statHold` replaces the per-card loop and `Card`'s
+failsafe → a pure `rubyLandSchedule` helper so the hold and the fire cannot compute different schedules →
+the shop gem cascade delivers each number with its own gem → the fodder tendril does the same and the LAST
+`+X/+X` float in the game goes → `releaseAllStats` finally gets called on a phase change, plus a committed
+browser harness with a negative control.
+
+**Split from combat deliberately, and the reason is structural rather than caution.** Combat's hold is
+installed by a wholesale per-beat rebuild in a layout effect (`useCombatReplay.ts:1491`, via `preBuffHolds`)
+while its RELEASE lives in two post-paint callbacks (`fireBuffCasts`, `fireSelfBuffs`) as timers keyed on a
+`strikeMs` computed only in that post-paint effect. `startAt` requires the hold to know its delivery time at
+install, so those have to become one decision — a restructure of the beat pipeline on top of the
+absolute-to-delta conversion, the wholesale-rebuild semantics the accumulating store lacks, `.statflash`'s
+retirement and `autoRoll` on `Card`. Each half is working software alone, and mixing a low-risk mechanism
+change into the most tuned surface in the game is how the risk gets hidden. The combat plan gets written
+against the shared ticker's real behaviour once this lands.
+
 ## 2026-08-04 — The badge carries every stat change: intrinsic roll, the authored gate, and a badge pop
 
 The roll now fires on ANY stat change in the shop with no authoring at all, yields correctly to an authored

@@ -29,6 +29,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     hasShield: (t: ArenaBody) => shielded.has(t.uid),
     grantShield: (t: ArenaBody) => { shielded.add(t.uid); granted.push(t.uid); },
     buff: () => {},
+    grantRubyPower: () => {},
     rng: () => rng,
   };
   return { arena, granted };
@@ -96,7 +97,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 4; // +deathrattleGiveHealth (random in both phases, owner ruling) — raise as migrations land
+  const MIGRATED_FLOOR = 5; // +deathrattleRubyStatGain (Ruby family begins) — raise as migrations land
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

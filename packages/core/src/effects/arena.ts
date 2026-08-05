@@ -50,6 +50,10 @@ export interface EffectArena {
   /** Buff a body. The SOURCE label is the adapter's job — combat attributes by uid (the event log's format),
    *  the shop by display name (the inspect-breakdown's format) — so one body serves both ledgers unchanged. */
   buff(t: ArenaBody, attack: number, health: number): void;
+  /** Raise the run's Ruby power (+atk/+hp per future Ruby). Adapters own the ledger: combat routes through
+   *  its carry-back channel (`gainRubyBonus`), the shop raises `rubyBonus` AND buffs Rubies already in hand —
+   *  each phase's legacy bookkeeping, unchanged. The body passes GOLDEN-MULTIPLIED amounts; adapters add none. */
+  grantRubyPower(attack: number, health: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -107,5 +111,14 @@ export const ARENA_EFFECTS = {
       if (pool.length === 0) break;
       arena.buff(pool[rng.int(pool.length)]!, 0, hp);
     }
+  },
+
+  /** Faultline Scrapper / Alchemist Brisbane — Echo: your Rubies gain +atk/+hp (golden doubles). */
+  deathrattleRubyStatGain(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantRubyPower(
+      (typeof params.attack === 'number' ? params.attack : 1) * g,
+      (typeof params.health === 'number' ? params.health : 1) * g,
+    );
   },
 } as const;

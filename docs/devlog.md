@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-08-04 — Ruby family begins: deathrattleRubyStatGain is the fifth arena body
+
+First Ruby-family migration, and the first arena verb that touches RUN-WIDE state rather than a body:
+`grantRubyPower(a, h)`. The adapters own their ledgers — combat routes through its carry-back channel
+(`ctx.gainRubyBonus`), the shop raises `rubyBonus` and keeps hand Rubies current (the `rubyStatGain` core
+WITHOUT its golden multiplier, since the shared body already applies golden — the double-count trap the
+delegate-to-rubyStatGain shape would have walked into). Both legacy halves deleted; floor → 5. Gates:
+typecheck ✓, 3,898 tests ✓, `build:web` ✓, harness ✓.
+
 ## 2026-08-04 — Trickster's Echo: random in BOTH phases (owner ruling), fourth body migrates
 
 The sweep's first DIVERGENT dual, resolved by ruling rather than migration mechanics.

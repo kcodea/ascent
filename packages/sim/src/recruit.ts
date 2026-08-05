@@ -60,6 +60,15 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     hasShield: (t) => t.keywords.includes('DS'),
     grantShield: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'DS']; },
     buff: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h),
+    grantRubyPower: (a, h) => {
+      // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
+      // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
+      const b = state.rubyBonus ?? { attack: 0, health: 0 };
+      state.rubyBonus = { attack: b.attack + a, health: b.health + h };
+      for (const card of state.hand) {
+        if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
+      }
+    },
     rng: () => cursorRng,
   };
 }
@@ -1734,8 +1743,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  report 2026-08-03). Delegates to `rubyStatGain` so the two stay identical by construction rather than by
    *  someone remembering to keep them in step. The Ruby-power flourish needs no wiring: the reducer derives it
    *  from the `rubyBonus` delta, so it fires the moment this does. */
-  deathrattleRubyStatGain: (ctx, self, params, payload) => {
-    RECRUIT_FACTORIES.rubyStatGain?.(ctx, self, params, payload);
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
+  deathrattleRubyStatGain: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleRubyStatGain(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Geode Guardian (Echo, RECRUIT half): summon `count` Gemheart Golems with Taunt and play `rubies`

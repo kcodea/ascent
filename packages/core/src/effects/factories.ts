@@ -143,6 +143,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     hasShield: (t) => (t as Minion).divineShield === true,
     grantShield: (t) => grantShield(ctx, t as Minion),
     buff: (t, a, h) => ctx.buff(t as Minion, a, h, self.uid),
+    grantRubyPower: (a, h) => ctx.gainRubyBonus(a, h, self.side, self.uid),
     rng: () => ctx.rng,
   };
 }
@@ -1401,9 +1402,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rubyStatMultiplier: () => {},
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   deathrattleRubyStatGain: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
+    ARENA_EFFECTS.deathrattleRubyStatGain(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Resonance Idol, the COMBAT half: a Ruby played on this bounces the same stats to BOTH adjacent

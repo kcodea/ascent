@@ -54,6 +54,12 @@ export interface EffectArena {
    *  its carry-back channel (`gainRubyBonus`), the shop raises `rubyBonus` AND buffs Rubies already in hand —
    *  each phase's legacy bookkeeping, unchanged. The body passes GOLDEN-MULTIPLIED amounts; adapters add none. */
   grantRubyPower(attack: number, health: number): void;
+  /** The Rubies sitting ON a body — each phase's own per-instance ledger (combat: the carried 'Ruby' buff
+   *  snapshot plus mid-fight `rubyGain`; shop: the 'Ruby' entry in the buff breakdown). */
+  rubyTallyOf(t: ArenaBody): { attack: number; health: number };
+  /** Summon ONE token at explicit stats. The shop adapter labels the above-base share as a Ruby buff and
+   *  fires its onRubyPlayed watchers (the legacy shop bookkeeping); combat folds stats into the summon. */
+  summonToken(tokenId: string, attack: number, health: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -120,5 +126,14 @@ export const ARENA_EFFECTS = {
       (typeof params.attack === 'number' ? params.attack : 1) * g,
       (typeof params.health === 'number' ? params.health : 1) * g,
     );
+  },
+
+  /** Gemheart Carver — Echo: summon a Shard at 1/1 PLUS the Rubies on this minion. GOLDEN = ONE Shard at
+   *  double stats (owner ruling 2026-08-04) — the shop half used to summon two at base instead; retired. */
+  deathrattleSummonRubyStats(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const t = arena.rubyTallyOf(arena.self);
+    const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
+    arena.summonToken(id, (1 + t.attack) * g, (1 + t.health) * g);
   },
 } as const;

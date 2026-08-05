@@ -60,6 +60,23 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     hasShield: (t) => t.keywords.includes('DS'),
     grantShield: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'DS']; },
     buff: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h),
+    rubyTallyOf: (t) => {
+      const ruby = (t as BoardCard).buffs?.find((b) => b.source === 'Ruby');
+      return { attack: ruby?.attack ?? 0, health: ruby?.health ?? 0 };
+    },
+    summonToken: (id, a, h) => {
+      const token = CARD_INDEX[id];
+      if (!token) return;
+      const before = state.board.length;
+      const made0 = makeContext(state).summon(token, self.uid);
+      if (state.board.length === before) return; // board full
+      const made = made0 ?? state.board[state.board.length - 1];
+      if (!made) return;
+      // Label the above-base share as a RUBY buff and notify watchers — the legacy shop bookkeeping, so a
+      // Resonance Idol still bounces off the landing Shard and the inspect breakdown attributes correctly.
+      const ea = a - made.attack, eh = h - made.health;
+      if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+    },
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
       // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
@@ -1681,21 +1698,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Gemheart (Echo): summon a Shard carrying the Rubies that were on this body. */
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body; GOLDEN = one Shard at double stats (owner ruling
+  //    2026-08-04 — the two-Shards-at-base golden is retired).
   deathrattleSummonRubyStats: (ctx, self, params) => {
-    const shard = CARD_INDEX[str(params.tokenId) || 'gemheart-shard'];
-    if (!shard) return;
-    // The Rubies ON this minion, read off its own buff breakdown — the recruit mirror of the combat half's
-    // per-instance ruby tally.
-    const ruby = self.buffs?.find((b) => b.source === 'Ruby');
-    const a = ruby?.attack ?? 0;
-    const h = ruby?.health ?? 0;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const before = ctx.state.board.length;
-      const body = ctx.summon(shard, self.uid);
-      if (ctx.state.board.length === before) break;
-      const made = body ?? ctx.state.board[ctx.state.board.length - 1];
-      if (made && (a > 0 || h > 0)) { addBuff(made, 'Ruby', a, h); fireOnRubyPlayed(ctx.state, made, a, h); }
-    }
+    ARENA_EFFECTS.deathrattleSummonRubyStats(shopArena(ctx.state, self), params);
   },
 
   /** Brewer (Echo): get a Dwarven Ale. `grantRandomAle` is already trigger-agnostic, so this is a straight

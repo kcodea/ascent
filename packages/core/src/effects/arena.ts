@@ -98,6 +98,10 @@ export interface EffectArena {
    *  legacy ritual — combat: the carry-back channel PLUS live-buffing copies on the board this fight; shop:
    *  `buffCardTypeRunWide` (which already covers board + hand itself — the body must NOT re-loop). */
   grantCardTypeBuff(cardId: string, attack: number, health: number): void;
+  /** Permanently raise the Undead ATTACK aura, everywhere (board + hand + future copies). Whole-ritual per
+   *  adapter: combat live-buffs the Undead on board AND carries back via `grantUndeadBuyAtk`; the shop runs
+   *  `buffUndeadAttackEverywhere`. The body only states the amount. */
+  grantUndeadAttackAura(attack: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -323,5 +327,19 @@ export const ARENA_EFFECTS = {
       if (!made) break; // board full
       if (a > 0 || h > 0) arena.buff(made, a, h);
     }
+  },
+
+  /** Whenever you cast a Shop spell: your minions gain +atk/+hp (golden doubles). */
+  spellCastBuffAll(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 1) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    if (a === 0 && h === 0) return;
+    for (const f of arena.friends()) arena.buff(f, a, h);
+  },
+
+  /** Deathswarmer's spell-cast twin: your Undead gain +Attack EVERYWHERE, permanently (golden doubles). */
+  spellCastBuffUndeadAttack(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantUndeadAttackAura((typeof params.attack === 'number' ? params.attack : 2) * (arena.self.golden ? 2 : 1));
   },
 } as const;

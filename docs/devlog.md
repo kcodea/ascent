@@ -1,5 +1,13 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 19+20: the spellCast family begins
+
+`spellCastBuffAll` and `spellCastBuffUndeadAttack` migrate — floor → 20, and the sweep is at the halfway
+mark's edge (20 of 42). `grantUndeadAttackAura` is the third whole-ritual aura verb (combat: live-buff the
+board's Undead + `grantUndeadBuyAtk` carry-back; shop: `buffUndeadAttackEverywhere`), joining the Imp and
+card-type ones — the aura pattern is now settled vocabulary. Gates: typecheck ✓, 3,898 tests ✓, harness ✓,
+`build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 17+18: card-type enchants and Imp summons; a second silent drift fixed
 
 `deathrattleBuffCardTypeRunWide` and `summonImps` migrate — floor → 18.

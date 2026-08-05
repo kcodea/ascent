@@ -167,6 +167,13 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     impAura: () => ctx.impAura(self.side),
     deathrattleTally: () => ctx.deathrattleTally(self.side),
     addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
+    grantUndeadAttackAura: (a) => {
+      for (const m of ctx.living(self.side)) {
+        if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
+        ctx.buff(m, a, 0, self.uid);
+      }
+      ctx.grantUndeadBuyAtk(a, self.side);
+    },
     grantCardTypeBuff: (cardId, a, h) => {
       ctx.grantCardBuff(cardId, a, h, self.side); // carry-back: run board / hand / future copies
       for (const m of ctx.living(self.side)) if (m.cardId === cardId) ctx.buff(m, a, h, self.uid);
@@ -2143,15 +2150,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  living friendly Undead (+ universalTribe minions) +`attack` Attack this fight AND carry the bonus back
    *  permanently (like Karthus / its own recruit half) — `grantUndeadBuyAtk` stacks it into `undeadBuyAtk`
    *  and applies it to the run-board Undead at settle, so an in-combat cast procs it permanently. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   spellCastBuffUndeadAttack: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
-    const a = num(params.attack, 2) * mul(self);
-    for (const m of ctx.living(self.side)) {
-      if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
-      ctx.buff(m, a, 0, self.uid);
-    }
-    ctx.grantUndeadBuyAtk(a, self.side);
+    ARENA_EFFECTS.spellCastBuffUndeadAttack(combatArena(ctx, self), params);
   },
 
   /** Pillager — Deathrattle: add a specific card (e.g. Gold Pouch) to the player's hand after combat.
@@ -2868,12 +2871,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Set 2 — Scalechanter (combat half): a spell cast mid-fight gives the whole side +atk. Mirrors the recruit
    *  factory so the card behaves the same whichever phase the cast happens in. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   spellCastBuffAll: (ctx, self, params) => {
     if (self.dead) return;
-    const a = num(params.attack, 1) * mul(self);
-    const h = num(params.health, 0) * mul(self);
-    if (a === 0 && h === 0) return;
-    for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+    ARENA_EFFECTS.spellCastBuffAll(combatArena(ctx, self), params);
   },
 
   /** Karwind (owner rework 2026-07-25): whenever a Shout triggers, give your `tribe` +atk/+hp — except this

@@ -102,6 +102,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     deathrattleTally: () => state.deathrattlesTriggered ?? 0,
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
     grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
+    grantUndeadAttackAura: (a) => buffUndeadAttackEverywhere(state, a, nameOf(self)),
 
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
     grantRubyPower: (a, h) => {
@@ -2697,11 +2698,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Scalechanter: every SHOP spell you cast gives your whole board +atk. The `spellCast` event is
    *  already shop-spell-only (Rubies don't route through `castSpell`), so the printed "Shop spell" wording
    *  needs no explicit Ruby check. Golden doubles the grant. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   spellCastBuffAll: (ctx, self, params) => {
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 0) * gold(self);
-    if (a === 0 && h === 0) return;
-    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
+    ARENA_EFFECTS.spellCastBuffAll(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Commander Warpath (Shout): get a random Dragon that HAS a Shout.
@@ -4439,8 +4438,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Forsaken Weaver (recruit half) — when a spell is cast, give your Undead +N Attack wherever they are
    *  (board + hand), and stack the bonus into undeadBuyAtk for future undead buys. Golden doubles N. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   spellCastBuffUndeadAttack: (ctx, self, params) => {
-    buffUndeadAttackEverywhere(ctx.state, num(params.attack, 2) * gold(self), nameOf(self));
+    ARENA_EFFECTS.spellCastBuffUndeadAttack(shopArena(ctx.state, self), params);
   },
 };
 

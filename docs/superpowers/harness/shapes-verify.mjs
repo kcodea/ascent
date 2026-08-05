@@ -25,6 +25,23 @@ const URL = process.env.URL ?? 'http://localhost:5205';
 const REPO = 'C:/Users/micha/Desktop/ascent/.claude/worktrees/ruby-fx';
 const RECRUIT_TSX = `${REPO}/packages/ui/src/Recruit.tsx`;
 const RUBY_DEF = `${REPO}/packages/ui/src/fx/defs/ruby-gem-apply.json`;
+const STAT_HOLD_TS = `${REPO}/packages/ui/src/fx/statHold.ts`;
+
+// A few frames of rAF/setTimeout jitter, applied at BOTH edges of the fodder gap window below.
+const GAP_SLACK_MS = 120;
+
+// The badge's roll duration for a 'cue'-ranked hold that doesn't specify its own `rollMs` (fodder's holds
+// don't) — read from the SOURCE rather than hardcoded, because it's `fx/statHold.ts`'s own constant, shared
+// by every stat hold in the game. This is deliberately NOT one of the fodder-specific tendril constants
+// (`CRUMBLE_MS`/`travelMs`) the owner is about to retune — it's the generic odometer-roll length, needed to
+// size how long AFTER the wiggle starts a fully-synced badge is still allowed to still be mid-roll.
+function readDefaultRollMs() {
+  const src = readFileSync(STAT_HOLD_TS, 'utf8');
+  const m = src.match(/export const DEFAULT_ROLL_MS = (\d+);/);
+  if (!m) throw new Error('DEFAULT_ROLL_MS not found in fx/statHold.ts — harness needs updating, not the product code');
+  return Number(m[1]);
+}
+const FODDER_ROLL_MS = readDefaultRollMs();
 
 let failures = 0;
 function report(name, pass, lines) {
@@ -67,8 +84,19 @@ async function withFreshPage(fn) {
 // CASE 1 — FODDER TENDRIL ADOPTER
 //
 // DESIGN CHOICE (do not hardcode CRUMBLE_MS/travelMs): the owner intends to retune the fodder consume
-// effect's timing, so this asserts the RELATIONSHIP — withheld early, delivered before a generous ceiling,
-// never out of bounds — not today's constants. A retune of the tendril's flight time cannot break this.
+// effect's timing, so this anchors to the EFFECT ITSELF rather than to a clock value. `playFodderEat`
+// (Recruit.tsx) plays an impact-WIGGLE — a WAAPI `element.animate(...)` on the eater's own `.card` element —
+// the instant the tendril lands, on the SAME `startAt` schedule (`CRUMBLE_MS + icfg.travelMs`, measured from
+// the commit) that `holdFodderGains` uses to release the badge. The wiggle's actual on-screen start is
+// measured live via `getAnimations()` (a fresh animation appearing on that element, diffed against whatever
+// was already running on it), never read from source — so a retune of the tendril's flight time moves BOTH
+// the wiggle and this test's anchor together, and the assertion cannot go stale.
+//
+// What's asserted is the RELATIONSHIP: the badge must reach its true post-consume value at or shortly after
+// the wiggle starts — never before it (that would be some OTHER clock delivering the number, not the
+// tendril), and never so long after that it reads as unrelated. "Shortly after" is bounded by the badge's
+// own roll length (`FODDER_ROLL_MS`, read from `fx/statHold.ts` above — see the badge-odometer note in
+// `analyzeFodder` for why the badge can't literally land in the same frame the wiggle starts).
 //
 // Real path, found by reading Recruit.tsx (holdFodderGains, the `fodderEatenSeq` layout effect) and
 // packages/sim/src/reducer.ts (`injectPendingTavern` → `consumeTavernFodder`): Demons only ever eat Fodder
@@ -105,11 +133,28 @@ async function runFodderCase(page) {
     };
     const before = { attack: readAtk(), health: readHp() };
 
+    // The eater's OWN card element — this is exactly what `playFodderEat`'s impact-wiggle calls
+    // `.animate(...)` on (Recruit.tsx: `[data-zone="warband"] .row .card[data-uid=...]`), the observable
+    // DOM signature of "the tendril landed". Snapshot whatever WAAPI animations are already running on it
+    // (expected: none, at this point in the scenario) so a NEW one appearing is unambiguous.
+    const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${eaterUid}"]`);
+    const baselineAnims = new Set(eaterEl ? eaterEl.getAnimations() : []);
+
     const samples = [];
+    let wiggleAtMs = null;      // rAF-detection frame (~1 frame of quantization)
+    let wiggleStartAbs = null;  // resolved 1+ frame later: the animation's own WAAPI `startTime`, sub-frame precise
+    let freshAnim = null;
     const t0 = performance.now();
     const tick = () => {
-      samples.push([Math.round(performance.now() - t0), readAtk(), readHp()]);
-      if (performance.now() - t0 < 3000) requestAnimationFrame(tick);
+      const now = performance.now();
+      samples.push([Math.round(now - t0), readAtk(), readHp()]);
+      if (wiggleAtMs === null && eaterEl) {
+        const fresh = eaterEl.getAnimations().find((a) => !baselineAnims.has(a));
+        if (fresh) { wiggleAtMs = Math.round(now - t0); freshAnim = fresh; }
+      } else if (freshAnim && wiggleStartAbs === null && freshAnim.startTime != null) {
+        wiggleStartAbs = freshAnim.startTime;
+      }
+      if (now - t0 < 3000) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
 
@@ -123,40 +168,56 @@ async function runFodderCase(page) {
     const gain = eaten.find((e) => e.eaterUid === eaterUid);
     const finalCard = G().run.board.find((c) => c.uid === eaterUid);
 
+    // Prefer the WAAPI-resolved absolute start time (sub-frame precise) once it's available; both it and
+    // the rAF-detection frame are measured against the same `t0`, so they agree to within ~1 frame.
+    const wiggleMs = wiggleStartAbs !== null ? Math.round(wiggleStartAbs - t0) : wiggleAtMs;
+
     return {
       eaterUid,
       before,
       gain: gain ?? null,
       final: finalCard ? { attack: finalCard.attack, health: finalCard.health } : null,
       samples,
+      wiggleMs,
+      hasEaterEl: !!eaterEl,
     };
   });
 }
 
 function analyzeFodder(data) {
-  const { before, gain, final, samples } = data;
+  const { before, gain, final, samples, wiggleMs, hasEaterEl } = data;
   if (!gain || !final) {
     return { ok: false, reason: 'no shop consume was recorded (fodderEaten never fired)' };
+  }
+  if (!hasEaterEl) {
+    return { ok: false, reason: "eater's card element not found in the DOM — cannot anchor to the wiggle" };
   }
   const trueFinalAtk = before.attack + gain.gainA;
   const trueFinalHp = before.health + gain.gainH;
   // sim-state cross-check: the board's authoritative post-consume value must equal before + recorded gain.
   const stateConsistent = final.attack === trueFinalAtk && final.health === trueFinalHp;
 
-  // 1) withheld: no sample under 150ms differs from `before`.
-  const early = samples.filter(([t]) => t <= 150);
-  const withheld = early.every(([, a, h]) => a === before.attack && h === before.health);
+  const wiggleFound = wiggleMs !== null;
+  const landedSample = samples.find(([, a, h]) => a === trueFinalAtk && h === trueFinalHp);
+  const landed = landedSample ? landedSample[0] : null;
 
-  // 2) delivered: some sample before the 3s ceiling reaches the true final value.
-  const landed = samples.find(([, a, h]) => a === trueFinalAtk && h === trueFinalHp);
+  // THE ANCHOR CHECK. The badge is a rounding odometer (`fx/statHold.ts` `heldFor`): with `reel:0` (fodder's
+  // holds carry no wobble) and an integer delta, the displayed value is `round(delta * (1 - revealed))` —
+  // it physically cannot move until the continuous `revealed` ramp crosses the 0.5 threshold, so a
+  // genuinely-synced badge lands somewhat AFTER the wiggle starts, not in the same frame — by up to one full
+  // roll (`FODDER_ROLL_MS`). What must NEVER happen is the badge reaching its final value BEFORE the wiggle
+  // has even started (that's a different, unrelated clock — see the negative control below) or so long
+  // after that the two are no longer plausibly the same event.
+  const gap = landed !== null && wiggleFound ? landed - wiggleMs : null;
+  const gapOk = gap !== null && gap >= -GAP_SLACK_MS && gap <= FODDER_ROLL_MS + GAP_SLACK_MS;
 
-  // 3) invariant: never below `before`, never above true final, at every sampled frame.
+  // invariant: never below `before`, never above true final, at every sampled frame.
   const invariant = samples.every(([, a, h]) =>
     a >= before.attack && a <= trueFinalAtk && h >= before.health && h <= trueFinalHp);
 
   return {
-    ok: stateConsistent && withheld && !!landed && invariant,
-    stateConsistent, withheld, landed: landed ? landed[0] : null, invariant,
+    ok: stateConsistent && wiggleFound && landed !== null && gapOk && invariant,
+    stateConsistent, wiggleFound, wiggleMs, landed, gap, gapOk, invariant,
     before, trueFinalAtk, trueFinalHp, gain,
   };
 }
@@ -318,12 +379,13 @@ console.log('══ CASE 1 — fodder tendril adopter ══');
 {
   const primary = await withFreshPage((page) => runFodderCase(page));
   const a = analyzeFodder(primary);
-  report('fodder: shop-consume withheld then delivered, invariant held', a.ok, [
+  report('fodder: badge lands in sync with the impact-wiggle (tendril arrival), invariant held', a.ok, [
     `eater ${primary.eaterUid}: before ${JSON.stringify(a.before)}, true final atk=${a.trueFinalAtk} hp=${a.trueFinalHp}`,
     `gain recorded by sim: ${JSON.stringify(a.gain)}`,
     `state-consistent (final == before+gain): ${a.stateConsistent}`,
-    `withheld through 150ms: ${a.withheld}`,
-    `landed at: ${a.landed}ms (ceiling 3000ms)`,
+    `impact-wiggle observed (getAnimations() diff) at: ${a.wiggleMs}ms`,
+    `badge reached true final value at: ${a.landed}ms`,
+    `gap (badge − wiggle): ${a.gap}ms — required window [${-GAP_SLACK_MS}, ${FODDER_ROLL_MS + GAP_SLACK_MS}]ms`,
     `invariant (never below before, never above final) held: ${a.invariant}`,
   ]);
 
@@ -340,21 +402,28 @@ console.log('══ CASE 1 — fodder tendril adopter ══');
     try {
       const negative = await withFreshPage((page) => runFodderCase(page));
       const na = analyzeFodder(negative);
-      // HARNESS CORRECTION (not a product fix — see the report): the first version of this control asserted
-      // `!withheld-through-150ms`, expecting the badge to snap instantly once `holdFodderGains` was disabled.
-      // It didn't — `withheld` stayed true and the control read as a false FAIL. Investigating showed why:
-      // `Card.tsx` places its OWN unconditional `intrinsic`-rank hold on ANY attack/health change (see its
-      // "ANY stat change rolls the badge" comment), so disabling only the fodder-specific `cue` hold does not
-      // remove withholding — it falls back to that universal safety net, which starts revealing at commit
-      // (startAt 0) on its own DEFAULT_ROLL_MS (420ms) instead of the tendril-synced schedule. That fallback
-      // is real, intentional product behaviour (statHold.ts's "fail OPEN" design), not a bug, so the fix is
-      // to the CONTROL's assertion, not the product: the actual signature of "the fodder hold stopped being
-      // placed" is that the number arrives on the generic ~400ms fallback clock instead of the tendril-synced
-      // one seen in the primary run — a large, measurable desync, not an instant snap.
-      const controlWorks = na.stateConsistent && a.landed !== null && na.landed !== null && na.landed < a.landed * 0.5;
-      report('fodder negative control correctly FAILS (arrives on the generic fallback clock, not the tendril-synced one)', controlWorks, [
-        `primary (hold enabled) landed at: ${a.landed}ms`,
-        `control (hold disabled) landed at: ${na.landed}ms — expected well under half of the primary's, i.e. the generic intrinsic fallback rather than the tendril-synced delivery`,
+      // PRIOR HARNESS CORRECTION (kept for history — not a product fix, see the report): the FIRST version of
+      // this control asserted `!withheld-through-150ms`, expecting the badge to snap instantly once
+      // `holdFodderGains` was disabled. It didn't, because `Card.tsx` places its OWN unconditional
+      // `intrinsic`-rank hold on ANY attack/health change (see its "ANY stat change rolls the badge"
+      // comment) — disabling only the fodder-specific `cue` hold doesn't remove withholding, it falls back
+      // to that universal safety net, which starts revealing at COMMIT (startAt 0) on `DEFAULT_ROLL_MS`
+      // instead of the tendril-synced schedule. Real, intentional product behaviour (statHold.ts's "fail
+      // OPEN" design), not a bug — so the correction was to the assertion, not the product.
+      //
+      // WIGGLE-ANCHORED VERSION: disabling `holdFodderGains`'s hold call does NOT touch the wiggle — that's
+      // still scheduled by `playFodderEat`'s own `wiggleT` timeout, unrelated code. So the wiggle fires at
+      // roughly the SAME time as in the primary run, but the badge is now delivered by the generic fallback
+      // on its OWN clock (from commit, not from the tendril's arrival) — which lands the badge LONG BEFORE
+      // the wiggle even starts. The correct failure signature here is `gap` deeply NEGATIVE (badge finished
+      // well before the wiggle fired) — a full `FODDER_ROLL_MS` more negative than the passing window's own
+      // floor, so it can't be mistaken for ordinary jitter around a borderline-passing gap.
+      const controlFailsForRightReason =
+        na.wiggleFound && na.landed !== null && na.gap !== null && na.gap < -FODDER_ROLL_MS;
+      const controlWorks = !na.ok && controlFailsForRightReason;
+      report('fodder negative control correctly FAILS (badge lands well BEFORE the wiggle — the generic fallback clock, not the tendril-synced one)', controlWorks, [
+        `primary (hold enabled): wiggle at ${a.wiggleMs}ms, badge landed at ${a.landed}ms, gap ${a.gap}ms`,
+        `control (hold disabled): wiggle at ${na.wiggleMs}ms, badge landed at ${na.landed}ms, gap ${na.gap}ms — expected well under -${FODDER_ROLL_MS}ms (badge finishes before the wiggle even starts)`,
       ]);
     } finally {
       writeFileSync(RECRUIT_TSX, originalTsx);

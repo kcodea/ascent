@@ -970,3 +970,128 @@ assertion that no badge shows a wrong number mid-fight.
 
 **Write the combat plan after this one lands**, against the real behaviour of the shared ticker rather than
 against a prediction of it.
+
+---
+
+## Task 8: Drop the `defCarriesNumber` gate — the automatic floor actually works
+
+**Why this exists.** Task 7's harness proved the cascade syncs, then FAILED against the real shipped
+`ruby-gem-apply.json` — spread 0, every number landing together. Root cause: `defCarriesNumber` returns false
+(the owner removed both `react` layers in `f219d122`), so the cue returns early and never publishes its
+schedule at all.
+
+That gate was added earlier the same day to fix a real bug — a cue held with nothing to release it, so the
+badge froze until an unrelated re-render. **Task 2 removed the reason for it.** The store's ticker now drives
+every hold that is not `effect`-owned, so a `cue` hold is self-delivering. And if a carrying `react` layer is
+ever re-added, it holds at `effect` rank and outranks the cue anyway. Keeping the gate defeats spec decision
+1 — the automatic floor that is supposed to need no authoring.
+
+**Files:**
+- Modify: `packages/ui/src/Recruit.tsx` (the ruby hold `useLayoutEffect`)
+- Modify: `packages/ui/src/fx/fxDefs.ts` (delete `defCarriesNumber` if it becomes unused)
+
+- [ ] **Step 1: Remove the gate**
+
+Delete this line from the hold effect:
+
+```tsx
+    if (!defCarriesNumber(RUBY_LANDED_DEF)) return;
+```
+
+- [ ] **Step 2: Correct the doc comment**
+
+The block comment above that effect contains a paragraph beginning "And it only withholds at all if the def
+STILL CARRIES THE NUMBER." It is now false. Replace that paragraph with an explanation of why the gate is no
+longer needed: the store's ticker delivers a `cue` hold on its own, so withholding without an authored layer
+is safe; and an authored `react` layer outranks `cue`, so arming one still takes the timing over. Keep the
+codebase's WHY-not-what voice.
+
+- [ ] **Step 3: Delete `defCarriesNumber` if nothing else uses it**
+
+Grep first. At the time of writing it has exactly one caller — the gate you just deleted. If that holds,
+delete the function from `packages/ui/src/fx/fxDefs.ts` and remove the import from `Recruit.tsx`. Also check
+whether `RUBY_LANDED_DEF`'s import in `Recruit.tsx` is now unused (the `playDef` call deliberately uses a
+string literal); trim it if so, but LEAVE the literal and its comment alone — `directCalls.test.ts` scans for
+the quoted id and will fail if it becomes a constant.
+
+- [ ] **Step 4: Prove it with the harness — this is the acceptance criterion**
+
+Run `docs/superpowers/harness/cascade-verify.mjs` against the **unmodified, committed**
+`ruby-gem-apply.json` — no diagnostic `react` layer armed. It must now PASS with a real spread.
+
+This is the whole point of the task. If it still fails, stop and report rather than arming content.
+
+- [ ] **Step 5: Negative control**
+
+Strip `startAt` from the hold's options, confirm the harness FAILs with spread ~0, then revert and confirm it
+passes again.
+
+- [ ] **Step 6: Gates and commit**
+
+```bash
+npx tsc -b && npx vitest run && npx eslint .
+git add packages/ui/src/Recruit.tsx packages/ui/src/fx/fxDefs.ts
+git commit -m "fix(fx): the cue schedules its cascade whether or not a def carries the number"
+```
+
+---
+
+## Task 9: Hoist the per-recipient hold maths into `fx/land.ts`
+
+**Why this exists.** `rubyLandHolds` contains logic every staggered cue needs — group lands by recipient,
+round the delta ONCE over that recipient's whole share, take the FIRST land's time — and it is where the
+Critical rounding bug of Task 5 lived. Left in the ruby channel, the next cue reimplements it and can
+reintroduce the same defect. The rounding discipline belongs in one generic, tested place.
+
+**Files:**
+- Modify: `packages/ui/src/fx/land.ts`
+- Test: `packages/ui/src/fx/land.test.ts`
+- Modify: `packages/ui/src/choreo/channels/rubyLanded.ts`
+- Modify: `packages/ui/src/choreo/channels/rubyLanded.test.ts`
+
+**Interfaces:**
+- Produces: `landHolds(lands: readonly Land[], perGemFor: (uid: string) => { attack: number; health: number } | null): LandHold[]`, and `interface LandHold { uid: string; attack: number; health: number; at: number }`.
+- `perGemFor` returns the PER-GEM share, which may be fractional. `landHolds` multiplies by the recipient's gem count in this event and rounds ONCE. That split is the point: the cue supplies its own semantics, the generic function owns the arithmetic that had the bug.
+- `fx/land.ts` must remain import-free.
+
+- [ ] **Step 1: Move the tests**
+
+Move the rounding-regression cases from `rubyLanded.test.ts` onto `landHolds` in `land.test.ts`, expressed
+generically. The one that must survive verbatim in behaviour is the Task 5 Critical: a recipient with a
+per-gem share of `1.5` receiving 2 gems must withhold exactly `3`, never `4`. Keep a smaller ruby-level test
+that the wrapper still passes the right per-gem share through.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `npx vitest run packages/ui/src/fx/land.test.ts`
+Expected: FAIL — `landHolds is not a function`.
+
+- [ ] **Step 3: Implement `landHolds` in `fx/land.ts`**
+
+Group by uid taking the FIRST land's `at`, count the lands per uid, then per recipient call `perGemFor(uid)`,
+skip a `null`, and round once: `Math.round(share.attack * count)`. Document WHY the rounding happens once
+here rather than per land, naming the failure it prevents — a badge printing a number below its own pre-buff
+value.
+
+- [ ] **Step 4: Reduce `rubyLandHolds` to a wrapper**
+
+It keeps the ruby semantics only — build the schedule with `rubyLandSchedule`, and pass a `perGemFor` that
+returns `{ attack: buff.attack / buff.count, health: buff.health / buff.count }`, or `null` when the buff is
+missing or its count is zero. All grouping, counting and rounding moves out.
+
+- [ ] **Step 5: Verify, then run the harness**
+
+`npx tsc -b`, `npx vitest run`, `npx eslint .`, then re-run the cascade harness to confirm the refactor did
+not change behaviour.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/ui/src/fx/land.ts packages/ui/src/fx/land.test.ts packages/ui/src/choreo/channels/rubyLanded.ts packages/ui/src/choreo/channels/rubyLanded.test.ts
+git commit -m "refactor(fx): landHolds — the round-once rule lives in one generic place"
+```
+
+**Deliberately NOT in this task:** adopting `choreo/score.ts:363`. It computes a schedule one line below the
+hold it ignores, so it looks like a two-line win — but `Unit` renders `Card` without a `uid`, so that hold
+reaches no badge and the change could not be verified by any means available today. Plan 2 makes it live and
+correct in the same change, which is where it belongs.

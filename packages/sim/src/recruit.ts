@@ -1468,30 +1468,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Frenzied Excavator (Shout): play `rubies` Rubies on EVERY friendly minion (× golden).
    *  A Ruby is base 1/1 plus the run's `rubyBonus`, the same value `playRubyOn` uses in combat — and it lands
    *  under the `Ruby` source so Deepdelve Paragon and a future transfer spell can still recognise it. */
+  // ARENA-MIGRATED (Shout family): one body — N SEPARATE Rubies, N watcher fires, both phases.
   battlecryPlayRubiesAll: (ctx, self, params) => {
-    const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
-    const per = num(params.rubies, 1) * gold(self);
-    const a = 1 + rb.attack;
-    const h = 1 + rb.health;
-    if (per <= 0 || (a <= 0 && h <= 0)) return;
-    // N SEPARATE Rubies, not one Ruby of N× magnitude. The stats are identical either way (per × (1+rb) is
-    // the same total), but the trigger count is not, and "play 2 Rubies" has to mean two: a gilded Excavator
-    // pays a Ruby Broker twice, bounces a Resonance Idol twice, and the board can show two gems.
-    //
-    // `fireOnRubyPlayed` tells the target its own `onRubyPlayed` effects fired and moves its `rubiesOnThisTurn`
-    // counter. `main` added that call here independently (owner report 2026-08-02, via Alchemist Brisbane —
-    // three card-played paths landed the stats and nothing else, so a Ruby-engine board read them as no-ops);
-    // this keeps it and makes it fire once PER RUBY rather than once per card.
-    //
-    // `spellPlayRubiesAll` (Ruby Excavation) already looped — the two implementations of the same sentence had
-    // drifted apart, and only one matched its printed text.
-    for (const c of [...ctx.state.board]) {
-      for (let r = 0; r < per; r++) {
-        addBuff(c, 'Ruby', a, h);
-        fireOnRubyPlayed(ctx.state, c, a, h);
-      }
-    }
+    ARENA_EFFECTS.battlecryPlayRubiesAll(shopArena(ctx.state, self), params);
   },
+
 
   /** Set 2 — Ruby Broker: when a Ruby is played on THIS minion, gain `gold` Gold — capped `cap` times per turn
    *  (golden raises the cap by 1). `rubyRecvTick` is a per-instance counter reset each wave. */
@@ -1624,15 +1605,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Warhorn Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
    *  is why it can't reuse `battlecryBuffTribeImproving` (symmetric, and includes self). */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffTribeOthersAttack: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const a = num(params.attack, 1) * gold(self);
-    if (a <= 0) return;
-    for (const c of ctx.state.board) {
-      if (c.uid === self.uid) continue;
-      if (tribe && !isTribe(c, tribe as never)) continue;
-      addBuff(c, nameOf(self), a, 0);
-    }
+    ARENA_EFFECTS.battlecryBuffTribeOthersAttack(shopArena(ctx.state, self), params);
   },
 
   /** Oathshield Orin (Shout): gain a keyword. Golden re-grants the same keyword — a keyword doesn't stack, so
@@ -1990,8 +1965,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Imp Overseer — Battlecry: give your Imps a persistent +atk/+hp run-wide (board + hand + future copies)
    *  via the shared imp enchant (`impBuff`). Golden doubles. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffImps: (ctx, self, params) => {
-    buffImpsRunWide(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+    ARENA_EFFECTS.battlecryBuffImps(shopArena(ctx.state, self), params);
   },
 
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
@@ -4320,12 +4296,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Deathswarmer — Battlecry: give your Undead +N Attack wherever they are (board + hand), and stack the
    *  bonus into undeadBuyAtk so future undead buys carry it too. Golden doubles N. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffUndeadAttack: (ctx, self, params) => {
-    const amount = num(params.amount, 1) * gold(self);
-    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
-      if (isTribe(card, 'undead')) addBuff(card, nameOf(self), amount, 0);
-    }
-    ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
+    ARENA_EFFECTS.battlecryBuffUndeadAttack(shopArena(ctx.state, self), params);
   },
 
   /** Squirl Scout — Battlecry: your Beasts get +amount Attack "wherever they are". Buffs every current Beast

@@ -135,7 +135,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 47; // SHOUT FAMILY begins: +battlecrySummon, battlecryBuffTribe; generic dispatch in
+  const MIGRATED_FLOOR = 51; // +BuffImps/BuffUndeadAttack/BuffTribeOthersAttack/PlayRubiesAll (4 inline branches deleted)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

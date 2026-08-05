@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-04 — Shout bodies 48–51: four inline branches deleted; the Excavator trigger-count drift fixed
+
+`battlecryBuffImps`, `battlecryBuffUndeadAttack`, `battlecryBuffTribeOthersAttack` and
+`battlecryPlayRubiesAll` migrate onto existing verbs — floor → 51, four more inline branches gone from
+`replayCombatBattlecry`'s shrinking switch.
+
+The Excavator one fixed the sweep's FOURTH silent drift: "play 2 Rubies has to mean two" is the shop half's
+documented design (a gilded Excavator pays a Ruby Broker twice, bounces an Idol twice) — but combat folded
+`per` into ONE application with ONE onRubyPlayed notification, so mid-fight trigger counts under-fired. The
+shared body plays N separate Rubies with N watcher fires in both phases.
+
+Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — The Shout family begins: FACTORIES-first dispatch is the switch's death sentence
 
 The structural move: `replayCombatBattlecry` now dispatches **FACTORIES-first** — an onPlay effect with a

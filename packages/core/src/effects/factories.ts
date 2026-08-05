@@ -346,15 +346,7 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       live(ctx, m, p, { minion: m, side: m.side });
       continue;
     }
-    if (eff.do === 'battlecryBuffUndeadAttack') {
-      // Deathswarmer's buff is an AURA ("your Undead +Attack WHEREVER they are"), so it must be PERMANENT
-      // even when Ryme re-fires it in combat — not just this fight. Buff the live Undead now (visible in the
-      // replay + affects this combat) AND carry the aura back via grantUndeadBuyAtk, exactly as the recruit
-      // factory stacks undeadBuyAtk. (Plain tribe Shouts above stay combat-only — only auras persist.)
-      const a = num(p.amount, 1) * g;
-      for (const t of ctx.living(m.side)) if (tribeOf(t, 'undead')) ctx.buff(t, a, 0, m.uid);
-      ctx.grantUndeadBuyAtk(a, m.side);
-    } else if (eff.do === 'battlecryBuffTarget') {
+    if (eff.do === 'battlecryBuffTarget') {
       // No chosen target in combat, so auto-pick the highest-Attack friend — the same convention
       // `battlecryGrantKeyword` uses below, and the same fallback order the recruit factory uses (others
       // first, else self). A `targetTribe` on the card restricts the pick exactly as it does in the shop.
@@ -366,19 +358,6 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
         const pool = others.length > 0 ? others : ok(m) ? [m] : [];
         if (pool.length > 0) ctx.buff(pool.reduce((x, y) => (y.attack > x.attack ? y : x)), a2, h2, m.uid);
       }
-    } else if (eff.do === 'battlecryPlayRubiesAll') {
-      // Frenzied Excavator — the owner's screenshot: two gilded Excavators flanking Dawnclaw, whose Echo
-      // narrated the trigger while nothing landed. `playRubies` is the exact primitive Avenge/Rally already
-      // use, so a re-fired Excavator now plays its Rubies onto the living board with the side's rubyBonus, the
-      // Deepdelve multiplier, and one `onRubyPlayed` notification PER RUBY (a Resonance Idol still bounces).
-      // Combat Rubies are TEMPORARY unless the body is Engraved — the standing Ruby ruling, not a special case
-      // here, and the reason this needs no carry-back channel.
-      playRubies(ctx, m, num(p.rubies, 1) * g, '');
-    } else if (eff.do === 'battlecryBuffTribeOthersAttack') {
-      const tribe = str(p.tribe), a3 = num(p.attack, 1) * g;
-      if (a3 > 0) for (const t of ctx.living(m.side)) if (t !== m && tribeOf(t, tribe)) ctx.buff(t, a3, 0, m.uid);
-    } else if (eff.do === 'onBattlecryBuffSelf') {
-      ctx.buff(m, num(p.attack, 1) * g, num(p.health, 1) * g, m.uid);
     } else if (eff.do === 'battlecryGainKeyword') {
       // Oathshield Orin gains the keyword ITSELF (unlike `battlecryGrantKeyword`, which targets a friend).
       const kw = str(p.keyword) as Keyword;
@@ -410,14 +389,6 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
       // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
       ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side, m.uid);
-    } else if (eff.do === 'battlecryBuffImps') {
-      // Imp Overseer — the run-wide Imp buff is an AURA, so a combat re-fire (Ryme/Drakko) must grant it IN
-      // combat (not defer to settle): buff the live Imps now AND carry it back via grantImpBuff, which also
-      // emits the tribeAura wash. Without this branch it fell to `economy` → deferred → no combat buff/wash,
-      // the owner-reported "Imp Overseer + Ryme needs Bane" gap (Bane's own effect calls grantImpBuff).
-      const a = num(p.attack) * g, h = num(p.health) * g;
-      for (const t of ctx.living(m.side)) if (ctx.getCard(t.cardId)?.imp) ctx.buff(t, a, h, m.uid);
-      ctx.grantImpBuff(a, h, m.side);
     } else {
       economy = true; // Fodder / Gold / shop / gain-minion — no combat surface; replayed at settle
       /* …but if the deferred Battlecry hands you a NAMED card, ANNOUNCE it now. The card really is yours —
@@ -701,6 +672,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   battlecryBuffTribe: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffTribe(combatArena(ctx, self), params);
+  },
+  battlecryBuffImps: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffImps(combatArena(ctx, self), params);
+  },
+  battlecryBuffUndeadAttack: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffUndeadAttack(combatArena(ctx, self), params);
+  },
+  battlecryBuffTribeOthersAttack: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffTribeOthersAttack(combatArena(ctx, self), params);
+  },
+  // Unification FIXED the combat trigger count: N separate Rubies, N onRubyPlayed notifications ("play 2
+  // Rubies has to mean two" — the shop half's documented design; combat used to fold per into one notify).
+  battlecryPlayRubiesAll: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryPlayRubiesAll(combatArena(ctx, self), params);
   },
 
   // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN by ruling (a borrowed Blaster

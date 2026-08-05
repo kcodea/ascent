@@ -778,4 +778,41 @@ export const ARENA_EFFECTS = {
       arena.buff(f, a, h);
     }
   },
+
+  /** Imp Overseer's Shout: your Imps gain +atk/+hp, run-wide and permanent (golden doubles). */
+  battlecryBuffImps(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantImpAura(
+      (typeof params.attack === 'number' ? params.attack : 2) * g,
+      (typeof params.health === 'number' ? params.health : 2) * g);
+  },
+
+  /** Deathswarmer's Shout: your Undead gain +Attack EVERYWHERE, permanently (golden doubles). */
+  battlecryBuffUndeadAttack(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantUndeadAttackAura((typeof params.amount === 'number' ? params.amount : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Warhorn Captain's Shout: your OTHER `tribe` minions gain +Attack (golden doubles). */
+  battlecryBuffTribeOthersAttack(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const a = (typeof params.attack === 'number' ? params.attack : 1) * (arena.self.golden ? 2 : 1);
+    if (a <= 0) return;
+    for (const f of arena.friends()) {
+      if (f.uid === arena.self.uid) continue;
+      if (tribe && !arena.isTribe(f, tribe)) continue;
+      arena.buff(f, a, 0);
+    }
+  },
+
+  /** Frenzied Excavator's Shout: play `rubies` Rubies on ALL your minions (golden doubles). N SEPARATE
+   *  Rubies, not one of N× magnitude — "play 2 Rubies has to mean two" (the shop half's documented design:
+   *  a gilded Excavator pays a Ruby Broker twice and bounces an Idol twice). Unification FIXES the combat
+   *  half to that per-Ruby trigger count — it used to fold `per` into one notification. */
+  battlecryPlayRubiesAll(arena: EffectArena, params: Record<string, unknown>): void {
+    const per = (typeof params.rubies === 'number' ? params.rubies : 1) * (arena.self.golden ? 2 : 1);
+    if (per <= 0) return;
+    for (const f of arena.friends()) {
+      for (let r = 0; r < per; r++) arena.playRubiesOn(f, 1);
+    }
+  },
 } as const;

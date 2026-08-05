@@ -227,6 +227,14 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     nameOf: (t) => (t as Minion).name,
     narrate: (text) => ctx.log({ type: 'sc', source: self.uid, text }),
     activeTribes: () => ctx.activeTribesFor(self.side),
+    castTribeAttackSpell: (tribe, amount) => {
+      ctx.castSpell(self.side); // a real cast — Spirit Pup / Guel / Forsaken Weaver all see it
+      const sp = ctx.spellPowerFor(self.side);
+      const a = amount + sp.attack;
+      const h = sp.health;
+      ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid);
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
+    },
     damageAll: (amount) => {
       for (const sideKey of ['player', 'enemy'] as Side[]) {
         for (const m of [...ctx.living(sideKey)]) ctx.damage(m, amount);
@@ -2248,29 +2256,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Anubis (Tier 7) — Deathrattle: cast Lantern of Souls (your `tribe` get +Attack everywhere, permanently).
    *  The Deathrattle mirror of Watcher's `rallyCastTribeAttack`: same spell-power folding, same permanent
    *  grant channel, same "counts as a real spell cast". Golden casts it twice. */
+  // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN (it really casts the spell).
   deathrattleCastTribeAttack: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const tribe = (str(params.tribe) || 'undead') as Tribe;
-    const sp = ctx.spellPowerFor(self.side);
-    const a = num(params.amount, 3) + sp.attack;
-    const h = sp.health;
-    for (let i = 0; i < mul(self); i++) {
-      ctx.castSpell(self.side); // a real cast — Spirit Pup / Guel / Forsaken Weaver all see it
-      ctx.addTribeAura(self.side, tribe, a, h, self.uid);
-      // Narrate the cast. The buffs alone read as "some numbers moved"; the owner couldn't tell Lantern of
-      // Souls had fired at all (2026-07-21). Names the spell and its live value, spell power folded in.
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
-      for (const m of ctx.living(self.side)) {
-        if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-      }
-      // PERMANENT, like every other Lantern cast (owner 2026-07-27: "all lantern casts should be permanent
-      // stats; Watcher uses the right utility"). `addTribeAura` above only lasts the fight, so Anubis's
-      // Deathrattle Lantern evaporated at settle while the Watcher's Rally cast persisted — the same spell
-      // behaving differently depending on which card cast it. `grantUndeadAura` is the run-wide Lantern
-      // channel that carries back.
-      if (tribe === 'undead') ctx.grantUndeadAura(a, h, self.side);
-    }
+    ARENA_EFFECTS.deathrattleCastTribeAttack(combatArena(ctx, self), params);
   },
+
 
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).

@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-08-04 — Body 45: the Lantern Echo really casts in the shop; the ECHO FAMILY IS DONE
+
+`deathrattleCastTribeAttack` (the Soulsman-class Echo that casts Lantern of Souls) gains its ARENA-BORN shop
+half — floor → 45. The shop ritual is the honest one: `castTribeAttackSpell` casts the ACTUAL `lanternofsouls`
+card through the full shop pipeline, so the permanent Undead aura lands via the spell's own factory (its
+params staying the single source of truth) and every per-spell watcher — Guel, Spirit Pup, the rune meters —
+sees a real cast, because it is one. Combat keeps its legacy ritual (count the cast, rest-of-fight aura with
+spell power folded, narrate); the shop-permanent vs combat-fight-long asymmetry is each half's PRE-EXISTING
+behaviour, preserved and stated rather than invented.
+
+**The Echo family is COMPLETE.** Every `onDeath` effect in content is now either a shared arena body (45 of
+them) or classified: `deathrattleDestroyKiller` (correctly inert in a shop — no killer exists) and
+`onFriendDeathSummon` (a watcher, not a payload) — both documented, neither a gap. Funeral on Loan, Ossuary
+Rite, Deathsayer, Rune of the Reliquary and Gravetwin now reach EVERY Echo in the game.
+
+Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Bodies 43+44: Blaster hits YOUR board (ruling); Nanon joins Shepherd
 
 - **Blaster** (`deathrattleDamageAll`, shop half ARENA-BORN by ruling — "Blaster should still deal dmg to your

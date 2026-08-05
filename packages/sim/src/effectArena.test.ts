@@ -52,6 +52,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     narrate: () => {},
     activeTribes: () => [],
     damageAll: () => {},
+    castTribeAttackSpell: () => {},
     impAura: () => ({ attack: 0, health: 0 }),
     deathrattleTally: () => 0,
     addTribeAura: () => {},
@@ -134,7 +135,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 44; // +DamageAll (Blaster hits YOUR board, by ruling), +SummonOverflowBuff (Nanon)
+  const MIGRATED_FLOOR = 45; // +CastTribeAttack (the Lantern Echo really casts in the shop)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

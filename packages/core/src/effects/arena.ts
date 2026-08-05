@@ -165,6 +165,12 @@ export interface EffectArena {
    *  body taken to 0 dies there too — removed, its own Echo firing (owner ruling 2026-08-04: "Blaster should
    *  still deal dmg to your board if borrowed and played"). */
   damageAll(amount: number): void;
+  /** Cast the named tribe-aura spell as a REAL cast — it counts for every per-spell watcher. Whole-ritual per
+   *  phase: the shop casts the actual card through its full pipeline (`castSpell` — permanent aura + cast
+   *  bookkeeping); combat counts the cast, applies the rest-of-fight tribe aura with spell power folded in,
+   *  and narrates (the pre-existing phase asymmetry — shop permanent, combat fight-long — is each half's
+   *  legacy behaviour, preserved, not invented here). */
+  castTribeAttackSpell(tribe: string, amount: number, spellId: string): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -733,6 +739,17 @@ export const ARENA_EFFECTS = {
     const h = (typeof params.health === 'number' ? params.health : 2) * g * overflowed;
     for (const f of arena.friends()) {
       if (!tribe || arena.isTribe(f, tribe)) arena.buff(f, a, h);
+    }
+  },
+
+  /** Soulsman's kin — Echo: cast Lantern of Souls (golden casts twice). ARENA-BORN shop half: a shop-fired
+   *  trigger now really casts the spell — the permanent Undead aura lands, and Guel / Spirit Pup / the rune
+   *  meters all see a cast, because it IS one. */
+  deathrattleCastTribeAttack(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' && params.tribe ? params.tribe : 'undead';
+    const amount = typeof params.amount === 'number' ? params.amount : 3;
+    for (let i = 0; i < (arena.self.golden ? 2 : 1); i++) {
+      arena.castTribeAttackSpell(tribe, amount, 'lanternofsouls');
     }
   },
 } as const;

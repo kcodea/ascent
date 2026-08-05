@@ -153,6 +153,13 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     nameOf: (t) => CARD_INDEX[t.cardId]?.name ?? t.cardId,
     narrate: () => {}, // the shop has FX, not narration
     activeTribes: () => state.tribes,
+    castTribeAttackSpell: (_tribe, _amount, spellId) => {
+      // The shop casts the ACTUAL card through its full pipeline: `spellGrantTribeAttack` applies the
+      // permanent aura (tribe + amount come from the spell's own params — the single source of truth), and
+      // `noteSpellCast` runs every per-spell watcher. The Echo's own params are the combat half's concern.
+      const def = CARD_INDEX[spellId];
+      if (def) castSpell(state, def);
+    },
     damageAll: (amount) => {
       // The shop has no enemy: YOUR board takes it (owner ruling 2026-08-04). A body taken to 0 dies here
       // too — removed, its own Echo firing, the same cascade combat runs.
@@ -2382,6 +2389,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // ARENA-BORN (Echo family): Nanon, Legion Shepherd's class.
   deathrattleSummonOverflowBuff: (ctx, self, params) => {
     ARENA_EFFECTS.deathrattleSummonOverflowBuff(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family): the Lantern Echo really casts the spell in the shop.
+  deathrattleCastTribeAttack: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleCastTribeAttack(shopArena(ctx.state, self), params);
   },
 
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard

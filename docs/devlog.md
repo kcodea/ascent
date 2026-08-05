@@ -24,6 +24,47 @@ authored rather than silently stripped; worth a sweep if the colour knobs stay u
 **Verified:** valid JSON, 38 entries, no unknown fields and no non-numeric values (the same checks the write
 endpoint enforces, re-run against the committed file); `typecheck` clean, `lint` 0 errors, **3992 tests** /
 249 files, `build:web` green.
+## 2026-08-05 — Set 3: CELESTIAL becomes a real tribe (12 of the owner roster built)
+
+The owner's 22-card Celestial roster, scoped and then built as far as the open rulings allow.
+
+**Celestial is now a TRIBE**, not a flag. The seven 2026-08-03 test units were `tribe: 'neutral'` +
+`celestial: true`; the roster says Tribe = Celestial, and 22 cards is a tribe. Adding it to the union made
+the compiler enumerate every place a tribe must be dressed — eight `Record<Tribe, …>` maps across the UI,
+each now carrying a Celestial entry. The emblem is a PLACEHOLDER (`clock`, since `star` belongs to neutral);
+a real glyph, cardplate and tribe colour are presentation work, exactly as Dwarves and Kobolds needed.
+
+**The seven test units are ARCHIVED, not deleted** — they predate the tribe, so they stay resolvable for any
+saved run, replay or captured board from that fortnight (and they are why the `celestial` flag is still
+honoured alongside the tribe).
+
+**Three shared Orbit primitives**, which is what most of the roster actually needed:
+- **Orbit (N)** — a cadence notation, the same shape as Avenge (N): an `every` param plus a per-instance
+  `orbitTick`. Ticked once per arrival even when the payout multiplies, so a multiplier accelerates the
+  PAYOUT and not the countdown.
+- **`orbitFired`** — the BOARD-WIDE watcher ("whenever an Orbit triggers"), deliberately a separate trigger
+  from `orbit` ("something landed next to ME"). `params.others` excludes your own, which is what lets a card
+  say "whenever ANOTHER Orbit triggers".
+- **An Orbit trigger multiplier**, read at fire time so re-arranging re-prices it: adjacency-scoped for
+  Binary Star, board-wide-while-Eclipsed for Astraeus.
+
+Also generalised `sellValueOf` to honour `sellBonus` for ANY card — the field existed but was read only for
+Trail Forager, so Starpath Vendor would have accrued a bonus that nothing ever paid out.
+
+**Built (12):** Horizon Courier, Orbiting Familiar, Starpath Vendor, Twilight Sentinel, Star Cartographer,
+Constellation Tender, Astral Shopkeeper, Worldseed Gardener, Equinox Channeler, Binary Star, Worldline
+Weaver, Horizon Collector.
+
+**Not built (10)** — six await owner rulings, four need the parked cross-phase dispatcher. The blocking one:
+Orbit is a SHOP trigger that expects an arriving minion, and Comet Conductor / Astral Relay / Astral
+Spellcore / Astral Harbinger all ask to fire Orbits when nothing has arrived.
+
+Tests drive the real reducer through `play` actions rather than calling factories, because the tribe hangs on
+where a card LANDS. Two behaviours the first draft got wrong, now documented in the suite: three same-id
+cards TRIPLE (so filler must use distinct ids), and alignment is read AFTER the arriver re-centres the board
+— a lone Eclipsed watcher becomes Dawn the moment something lands beside it.
+
+Verified: typecheck / lint (7-warning baseline) / 4002 tests / harness determinism / build:web.
 
 ## 2026-08-05 (card-art tuning pass)
 

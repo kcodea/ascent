@@ -1801,6 +1801,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) grantShield(ctx, m);
   },
 
+  /** Twilight Sentinel (Celestial) — Start of Combat: THIS minion gains a keyword. The align-gated halves
+   *  live in the card data, so a Dawn seat takes Flurry, a Dusk seat Ward, and an Eclipsed one takes both.
+   *  Arms the live flags the way every other in-combat keyword grant does, and logs so the pill appears. */
+  scGainKeyword: (ctx, self, params) => {
+    const kw = str(params.keyword) as Keyword;
+    if (!kw || self.keywords.includes(kw)) return;
+    self.keywords.push(kw);
+    if (kw === 'DS') self.divineShield = true;
+    if (kw === 'R') self.rebornAvailable = true;
+    ctx.log({ type: 'keyword', target: self.uid, keyword: kw, source: self.uid });
+  },
+
   /** Gravewarden — Start of Combat: give a friendly (optionally `tribe`) minion, other than self, Rise. Golden
    *  grants it to two. Mirrors the Deathrattle grant but fires at combat start; skips minions that already
    *  have — or have already spent — Rise. */

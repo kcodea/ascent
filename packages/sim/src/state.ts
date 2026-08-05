@@ -238,6 +238,10 @@ export interface BoardCard {
    *  Shout twin of `eotTick`). Rolls back to 0 each time it improves, so the "every 3" is a cadence rather
    *  than a running total. Absent = 0. */
   shoutTick?: number;
+  /** CELESTIAL "Orbit (N)": this instance's orbit counter. An Orbit effect carrying an `every` param fires
+   *  only on each Nth trigger — the same per-instance cadence shape as `shoutTick` / `buyTick`, so it
+   *  carries across combat exactly as those do. */
+  orbitTick?: number;
   /** Tara: accumulated stat-grants across combats (from `CombatResult.playerAscendCount`). At the card's
    *  `ascendAt` threshold it ascends to `ascendInto` in settleCombat, keeping its stats. */
   ascendProgress?: number;

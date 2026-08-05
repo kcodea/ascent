@@ -143,10 +143,15 @@ const KW_ICON: Record<Keyword, string> = {
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
+  celestial: 'Celestial',
 };
 /** Each tribe's own footer glyph (handoff: the symbol matches the type — paw = Beast, etc.). */
 const TRIBE_ICON: Record<Tribe, string> = {
   beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil',
+  // PLACEHOLDER glyph: `star` already belongs to neutral, so Celestial borrows `clock` — it at least reads as
+  // the Dawn/Dusk cycle. A proper emblem (and the cardplate + tribe colour the other tribes got) is
+  // presentation work, not content work.
+  celestial: 'clock',
 };
 
 /** Render rules text to HTML: fold the player-facing keyword rename (Battlecry→Shout, …) in FIRST, then bold

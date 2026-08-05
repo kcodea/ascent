@@ -245,8 +245,14 @@ steps 1–2 shipped; the dual family, the Echo family, and the SHOUT family are 
 arena bodies, `replayCombatBattlecry`'s legacy switch is DELETED (FACTORIES-first dispatch only), and
 `COMBAT_REPLAYABLE_BATTLECRIES` is derived from FACTORIES so it can never drift. Every economy Shout with a
 carry-back channel resolves live (two new channels added: `mintRubies`, `gainBeastExtra`); the remaining
-defer class is pure tavern work (consume/gild/shop-enchant/run-charge arms — no combat meaning). **Left:**
-Rally / End of Turn / Start of Combat family sweeps, then step 4 cross-phase dispatchers. The owner's
+defer class is pure tavern work (consume/gild/shop-enchant/run-charge arms — no combat meaning).
+
+**PARKED by owner ruling 2026-08-04** (*"we don't need to design any cards yet, I just wanted this
+future-proofed… and to make sure our shout/echo combat/shop triggering is clean, cause that happens a lot"*):
+the goal is met — Shout/Echo cross-phase triggering is clean and the arena pattern exists for anything new.
+The Rally / End of Turn / Start of Combat body migrations + step 4 dispatchers resume ON DEMAND, i.e. when a
+card/mechanic actually triggers one of those families cross-phase; migrate that family (or just the bodies
+involved) using the established motion at that moment, not speculatively. The owner's
 goal verbatim: *"all keywords to function in combat and shop… I do not want to have to hand select these
 methods and then wire the methods to every shout."* The load-bearing case is the DISRUPTOR class — Funeral on
 Loan / Dawnclaw today, Rally/EoT/SoC disruptors and brand-new mechanics next — which must reach every effect

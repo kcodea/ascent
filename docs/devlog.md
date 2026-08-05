@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena: PR #871 merged; Rally/EoT/SoC parked by ruling (goal met)
+
+PR #871 (the complete Shout family, floors 48-60) squash-merged. Owner ruling on the remaining families:
+no consumer cards are getting designed yet — the arena's purpose was future-proofing plus CLEAN Shout/Echo
+cross-phase triggering (the case that actually happens, via Ryme / Dawnclaw / Funeral on Loan), and that goal
+is met. The Rally / End of Turn / Start of Combat body migrations and step-4 dispatchers are PARKED: resume
+on demand when something actually triggers one of those families cross-phase, using the established
+migration motion at that moment. Roadmap updated to match.
+
 ## 2026-08-04 — Effect Arena: the aura Shouts finish graduating — BuffMagnetics + the Elderhorn pair (floor 60)
 
 The last three channel-blocked Shouts go live; the defer class is now PURE tavern work.

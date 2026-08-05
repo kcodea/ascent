@@ -64,19 +64,45 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const ruby = (t as BoardCard).buffs?.find((b) => b.source === 'Ruby');
       return { attack: ruby?.attack ?? 0, health: ruby?.health ?? 0 };
     },
-    summonToken: (id, a, h) => {
+    summonToken: (id, opts) => {
       const token = CARD_INDEX[id];
-      if (!token) return;
+      if (!token) return undefined;
       const before = state.board.length;
       const made0 = makeContext(state).summon(token, self.uid);
-      if (state.board.length === before) return; // board full
+      if (state.board.length === before) return undefined; // board full
       const made = made0 ?? state.board[state.board.length - 1];
-      if (!made) return;
-      // Label the above-base share as a RUBY buff and notify watchers — the legacy shop bookkeeping, so a
-      // Resonance Idol still bounces off the landing Shard and the inspect breakdown attributes correctly.
-      const ea = a - made.attack, eh = h - made.health;
-      if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+      if (!made) return undefined;
+      if (opts?.keyword && !made.keywords.includes(opts.keyword as Keyword)) made.keywords = [...made.keywords, opts.keyword as Keyword];
+      // Explicit stats: label the above-base share as a RUBY buff and notify watchers — the legacy shop
+      // bookkeeping, so a Resonance Idol still bounces and the inspect breakdown attributes correctly.
+      if (opts?.attack !== undefined && opts.health !== undefined) {
+        const ea = opts.attack - made.attack, eh = opts.health - made.health;
+        if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+      }
+      return made;
     },
+    playRubiesOn: (t, per) => {
+      const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+      const a = (1 + rb.attack) * per, h = (1 + rb.health) * per;
+      if (a > 0 || h > 0) { addBuff(t as BoardCard, 'Ruby', a, h); fireOnRubyPlayed(state, t as BoardCard, a, h); }
+    },
+    hasReborn: (t) => t.keywords.includes('R'),
+    grantReborn: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'R']; },
+    isTribe: (t, tribe) => isTribe(t as BoardCard, tribe as Tribe),
+    gainRubyStats: (t, a, h) => addBuff(t as BoardCard, 'Ruby', a, h), // NO fireOnRubyPlayed - the no-rebounce guard
+    neighboursOf: (t) => {
+      const idx = state.board.findIndex((c) => c.uid === t.uid);
+      if (idx < 0) return [];
+      return [state.board[idx - 1], state.board[idx + 1]].filter((c): c is BoardCard => !!c);
+    },
+    grantMaxGold: (amount) => { state.maxEmbers += amount; },
+    isCelestial: (t) => !!CARD_INDEX[t.cardId]?.celestial,
+    isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
+    impAura: () => state.impBuff ?? { attack: 0, health: 0 },
+    deathrattleTally: () => state.deathrattlesTriggered ?? 0,
+    addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
+
+    grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
       // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
@@ -1289,30 +1315,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Set 2 — Resonance Idol: when a Ruby is played on THIS minion, bounce the same buff to BOTH adjacent
    *  minions (golden: bounce twice). Uses `addBuff` directly, so a bounce can't re-trigger onRubyPlayed. */
+  // ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   rubyPlayedBounce: (ctx, self, params, payload) => {
-    const rubyAttack = payload.rubyAttack ?? 0;
-    const rubyHealth = payload.rubyHealth ?? 0;
-    const board = ctx.state.board;
-    const idx = board.indexOf(self);
-    if (idx < 0) return;
-    const reps = self.golden ? num(params.goldenReps, 2) : 1;
-    // `random: N` bounces to N RANDOM other friends instead of the two neighbours (Resonance Idol, owner
-    // rework 2026-07-27) — position no longer gates the payoff. Seeded, and picks are DISTINCT so one body
-    // can't soak both bounces.
-    const randomN = num(params.random, 0);
-    if (randomN > 0) {
-      const pool = board.filter((c) => c !== self);
-      const rng = makeRng(ctx.state.rngCursor);
-      for (let i = 0; i < randomN && pool.length > 0; i++) {
-        const t = pool.splice(rng.int(pool.length), 1)[0]!;
-        for (let r = 0; r < reps; r++) addBuff(t, 'Ruby', rubyAttack, rubyHealth);
-      }
-      ctx.state.rngCursor = rng.state();
-      return;
-    }
-    for (const adj of [board[idx - 1], board[idx + 1]]) {
-      if (adj) for (let r = 0; r < reps; r++) addBuff(adj, 'Ruby', rubyAttack, rubyHealth);
-    }
+    ARENA_EFFECTS.rubyPlayedBounce(shopArena(ctx.state, self), { ...params, rubyAttack: payload.rubyAttack ?? 0, rubyHealth: payload.rubyHealth ?? 0 });
   },
 
   /** Set 2 — Embermouth Whelp (recruit half): each Shout you trigger grows this body. Most Shouts fire in the
@@ -1341,8 +1346,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.deathrattleGrantWardRandom(shopArena(ctx.state, self), params);
   },
 
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onBattlecryBuffSelf: (ctx, self, params) => {
-    addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+    ARENA_EFFECTS.onBattlecryBuffSelf(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Feastmaster Vhal (End of Turn): THIS minion and each adjacent Demon consume a random Shop minion
@@ -1643,28 +1649,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Bone Taxer (Echo): raise MAX Gold for the run. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleMaxGold: (ctx, self, params) => {
-    const gain = num(params.amount, 1) * gold(self);
-    ctx.state.maxEmbers += gain;
+    ARENA_EFFECTS.deathrattleMaxGold(shopArena(ctx.state, self), params);
   },
 
   /** Equinox Duelist (Echo): buff your other Celestials. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffCelestials: (ctx, self, params) => {
-    const a = num(params.attack, 0) * gold(self);
-    const h = num(params.health, 0) * gold(self);
-    if (a <= 0 && h <= 0) return;
-    for (const c of ctx.state.board) {
-      if (c.uid !== self.uid && CARD_INDEX[c.cardId]?.celestial) addBuff(c, nameOf(self), a, h);
-    }
+    ARENA_EFFECTS.deathrattleBuffCelestials(shopArena(ctx.state, self), params);
   },
 
   /** Chef Raag (Echo): buff your whole board by the run's Imp aura, floored at +1/+1 — the same floor the
    *  combat half applies, so the card reads the same in either phase. */
-  deathrattleBuffAllByImpAura: (ctx, self) => {
-    const imp = ctx.state.impBuff ?? { attack: 0, health: 0 };
-    const a = Math.max(1, imp.attack) * gold(self);
-    const h = Math.max(1, imp.health) * gold(self);
-    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  deathrattleBuffAllByImpAura: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleBuffAllByImpAura(shopArena(ctx.state, self), params);
   },
 
   /** Errand Fiend / Legion pieces (Echo): summon Imps, optionally keyworded and buffed as they land. */
@@ -1761,23 +1761,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  The Rubies go through `addBuff` + `fireOnRubyPlayed`, exactly like a hand-cast Ruby, so the golems' own
    *  on-Ruby watchers see them AND the reducer's Ruby-landed cue detonates on them (it measures the 'Ruby'
    *  buff-count delta, and a freshly summoned body counts from 0 — which is correct, those Rubies just landed). */
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   deathrattleSummonGolemsWithRuby: (ctx, self, params) => {
-    const golem = CARD_INDEX['gemheart-shard'];
-    if (!golem) return;
-    const state = ctx.state;
-    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
-    const per = num(params.rubies, 1) * gold(self);
-    const a = (1 + rb.attack) * per;
-    const h = (1 + rb.health) * per;
-    for (let i = 0; i < num(params.count, 2); i++) {
-      const before = state.board.length;
-      const summoned = ctx.summon(golem, self.uid);
-      if (state.board.length === before) break; // board full
-      const body = summoned ?? state.board[state.board.length - 1];
-      if (!body) break;
-      if (!body.keywords.includes('T')) body.keywords = [...body.keywords, 'T'];
-      if (a > 0 || h > 0) { addBuff(body, 'Ruby', a, h); fireOnRubyPlayed(state, body, a, h); }
-    }
+    ARENA_EFFECTS.deathrattleSummonGolemsWithRuby(shopArena(ctx.state, self), params);
   },
 
   rubyStatGain: (ctx, self, params) => {
@@ -3142,25 +3128,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Deathrattle: give the carry a Divine Shield. */
-  deathrattleGrantShield: (ctx, self) => {
-    const pool = ctx.state.board.filter((c) => c !== self && !c.keywords.includes('DS'));
-    if (pool.length === 0) return;
-    const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
-    t.keywords.push('DS');
+  // ARENA-MIGRATED (Step 3): random in both phases + golden grants twice (standing ruling); one body.
+  deathrattleGrantShield: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGrantShield(shopArena(ctx.state, self), params);
   },
 
   /** Deathrattle (Mumi): give a friendly minion of `tribe` (default any) **Rise** out of combat — fired when
    *  Mumi is destroyed by Graverobber or Consumed. Mirrors the combat version: skips minions that already have
    *  Rise; the "random" pick becomes the highest-Attack carry out of combat. Granting the `R` keyword is enough —
    *  combat's `instantiate` re-arms `rebornAvailable` from it. Golden grants Rise to two friends. */
+  // ARENA-MIGRATED (Step 3): random in both phases (standing owner ruling); one body.
   deathrattleGrantReborn: (ctx, self, params) => {
-    const tribe = str(params.tribe) as Tribe | '';
-    for (let i = 0; i < gold(self); i++) {
-      const pool = ctx.state.board.filter((c) => c !== self && !c.keywords.includes('R') && (!tribe || isTribe(c, tribe)));
-      if (pool.length === 0) return;
-      const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
-      t.keywords.push('R');
-    }
+    ARENA_EFFECTS.deathrattleGrantReborn(shopArena(ctx.state, self), params);
   },
 
   // --- More Deathrattle recruit halves (owner ruling 2026-07-08: ANY Deathrattle should be able to resolve out
@@ -3169,13 +3148,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Grim (recruit half) — give your `tribe` (Beasts) +N/+N where N = the run's Deathrattle tally × `per`
    *  (golden doubles `per`), baked into the board. Out of combat there's no aura — just the current tally. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffTribeByTally: (ctx, self, params) => {
-    const tribe = str(params.tribe) as Tribe | 'any';
-    const amount = (ctx.state.deathrattlesTriggered ?? 0) * num(params.per, 1) * gold(self);
-    if (amount <= 0) return;
-    for (const c of ctx.state.board) {
-      if (c !== self && (tribe === 'any' || isTribe(c, tribe as Tribe))) addBuff(c, nameOf(self), amount, amount);
-    }
+    ARENA_EFFECTS.deathrattleBuffTribeByTally(shopArena(ctx.state, self), params);
   },
 
   /** Sergeant (recruit half) — give every board minion +Health (base × golden + its combat-accrued hpGrantBonus). */
@@ -3611,8 +3586,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** (recruit half) — permanently buff your Imps run-wide (board + hand + future copies). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffImps: (ctx, self, params) => {
-    buffImpsRunWide(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 3) * gold(self), nameOf(self));
+    ARENA_EFFECTS.deathrattleBuffImps(shopArena(ctx.state, self), params);
   },
 
   /** Burial Imp / Soulfeeder (recruit half) — queue `count` Fodder into your next tavern; golden doubles. */

@@ -62,7 +62,8 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
 
   // ── Conditional / stateful ───────────────────────────────────────────────────────────────────────────
   healHero: (s) => s.resolve >= s.maxResolve,                        // Mend can't overheal
-  spellGoldIfLostLast: (s) => s.lastCombat?.result !== 'lose',       // Insurance Policy pays only on a loss
+  // Insurance Policy is DELIBERATELY absent (owner ruling 2026-08-04): "you should be able to play it, it
+  // just gives 0 Gold if you did not lose." Casting into a win is a legal, informed dud — not a fizzle.
   spellScoutNextOpponent: (s) => {
     // Mirrors the factory's own sources (lobby seat first, else the course pin) — if neither can name a
     // board there is nothing to scout.

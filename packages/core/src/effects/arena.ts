@@ -57,9 +57,43 @@ export interface EffectArena {
   /** The Rubies sitting ON a body — each phase's own per-instance ledger (combat: the carried 'Ruby' buff
    *  snapshot plus mid-fight `rubyGain`; shop: the 'Ruby' entry in the buff breakdown). */
   rubyTallyOf(t: ArenaBody): { attack: number; health: number };
-  /** Summon ONE token at explicit stats. The shop adapter labels the above-base share as a Ruby buff and
-   *  fires its onRubyPlayed watchers (the legacy shop bookkeeping); combat folds stats into the summon. */
-  summonToken(tokenId: string, attack: number, health: number): void;
+  /** Summon ONE token, optionally with a keyword and/or explicit stats. Returns the body (undefined = board
+   *  full). Explicit stats: combat folds them into the summon snapshot; the shop labels the above-base share
+   *  as a Ruby buff and fires its onRubyPlayed watchers — each phase's legacy bookkeeping. */
+  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string }): ArenaBody | undefined;
+  /** Play `per` Rubies on a body — each phase's own ritual: combat routes through `playRubyOn` (rubyBonus +
+   *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
+   *  'Ruby' buff and fires its watchers. */
+  playRubiesOn(t: ArenaBody, per: number): void;
+  /** Rise (Reborn). Combat also reads the live `rebornAvailable` flag; the shop reads the keyword. */
+  hasReborn(t: ArenaBody): boolean;
+  grantReborn(t: ArenaBody): void;
+  /** Does `t` belong to `tribe`? Adapters fold in tribe2 + universalTribe, each phase's own way. */
+  isTribe(t: ArenaBody, tribe: string): boolean;
+  /** Ruby STATS without the onRubyPlayed notification — the bounce primitive. The missing notification is
+   *  the load-bearing no-rebounce guard: two adjacent Resonance Idols must not ping a Ruby forever. */
+  gainRubyStats(t: ArenaBody, attack: number, health: number): void;
+  /** The nearest living neighbours (left, right) of a body. */
+  neighboursOf(t: ArenaBody): ArenaBody[];
+  /** Raise the run's MAXIMUM Gold. Combat routes through its carry-back channel (and logs the maxGold
+   *  event for the replay); the shop raises `maxEmbers` directly. */
+  grantMaxGold(amount: number): void;
+  /** Is this body a Celestial? (A card-definition read; adapters own their card index access.) */
+  isCelestial(t: ArenaBody): boolean;
+  /** Is this body an Imp? */
+  isImp(t: ArenaBody): boolean;
+  /** Raise the RUN-WIDE Imp aura (+atk/+hp on every Imp, present and future). Each adapter runs its whole
+   *  legacy ritual: the shop's `buffImpsRunWide` (board + hand + the persistent aura); combat buffs the
+   *  living Imps AND carries the aura back via `grantImpBuff` — so the body only states the amounts. */
+  grantImpAura(attack: number, health: number): void;
+  /** The current Imp aura (combat: the side's live aura; shop: `RunState.impBuff`). */
+  impAura(): { attack: number; health: number };
+  /** Echoes (Deathrattles) triggered so far — combat: the side's run-wide base + this fight's; shop: the
+   *  run tally. Grim scales off this. */
+  deathrattleTally(): number;
+  /** Register a rest-of-combat tribe aura (friends of `tribe` summoned LATER also gain it). A shop no-op:
+   *  there is no rest-of-combat in a shop, and the legacy shop half never registered one. */
+  addTribeAura(tribe: string, attack: number, health: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -134,6 +168,130 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const t = arena.rubyTallyOf(arena.self);
     const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
-    arena.summonToken(id, (1 + t.attack) * g, (1 + t.health) * g);
+    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g });
+  },
+
+  /** Geode Guardian — Echo: summon `count` Golems (default 2, NOT golden-scaled — owner: a Gilded copy still
+   *  summons two) with Taunt, and play `rubies × golden` Rubies on each as it lands. */
+  deathrattleSummonGolemsWithRuby(arena: EffectArena, params: Record<string, unknown>): void {
+    const per = (typeof params.rubies === 'number' ? params.rubies : 1) * (arena.self.golden ? 2 : 1);
+    const count = typeof params.count === 'number' ? params.count : 2;
+    for (let i = 0; i < count; i++) {
+      const golem = arena.summonToken('gemheart-shard', { keyword: 'T' });
+      if (!golem) break; // board full
+      arena.playRubiesOn(golem, per);
+    }
+  },
+
+  /** Mumi — Echo: give a friendly minion (of `tribe`, if set) RISE; golden grants twice. RANDOM in both
+   *  phases (standing owner ruling 2026-08-04, from Trickster: the shop's highest-Attack pick was a
+   *  pre-cursor-RNG workaround and is retired across the class). */
+  deathrattleGrantReborn(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const rng = arena.rng();
+    for (let i = 0; i < (arena.self.golden ? 2 : 1); i++) {
+      const pool = arena.friends().filter((m) =>
+        m.uid !== arena.self.uid && !arena.hasReborn(m) && (!tribe || arena.isTribe(m, tribe)));
+      if (pool.length === 0) return;
+      arena.grantReborn(pool[rng.int(pool.length)]!);
+    }
+  },
+
+  /** Echo: give a friendly minion WARD; golden grants twice (the shop half used to grant once AND pick the
+   *  carry — both retired under the same standing ruling; golden parity follows the combat reading). */
+  deathrattleGrantShield(arena: EffectArena, _params: Record<string, unknown>): void {
+    const rng = arena.rng();
+    for (let i = 0; i < (arena.self.golden ? 2 : 1); i++) {
+      const pool = arena.friends().filter((m) => m.uid !== arena.self.uid && !arena.hasShield(m));
+      if (pool.length === 0) return;
+      arena.grantShield(pool[rng.int(pool.length)]!);
+    }
+  },
+
+  /** Resonance Idol — a Ruby played on this bounces the same stats onward (golden: `goldenReps` per target).
+   *  `random: N` (the 2026-07-27 rework — position no longer gates the payoff) bounces to N DISTINCT random
+   *  friends; without it, to the two neighbours. The bounce uses `gainRubyStats` (no watcher notification) so
+   *  a bounce can never re-trigger a bounce.
+   *
+   *  UNIFICATION FIXED REAL DRIFT: the rework only ever landed in the shop half — combat ignored `random` and
+   *  kept bouncing to neighbours, so the same card behaved differently by phase. One body now implements the
+   *  reworked design everywhere. The Ruby amounts arrive via params (`rubyAttack`/`rubyHealth`, merged from
+   *  the dispatch payload by the wrappers). */
+  rubyPlayedBounce(arena: EffectArena, params: Record<string, unknown>): void {
+    const a = typeof params.rubyAttack === 'number' ? params.rubyAttack : 0;
+    const h = typeof params.rubyHealth === 'number' ? params.rubyHealth : 0;
+    if (a <= 0 && h <= 0) return;
+    const reps = arena.self.golden ? (typeof params.goldenReps === 'number' ? params.goldenReps : 2) : 1;
+    const randomN = typeof params.random === 'number' ? params.random : 0;
+    if (randomN > 0) {
+      const rng = arena.rng();
+      const pool = arena.friends().filter((m) => m.uid !== arena.self.uid);
+      for (let i = 0; i < randomN && pool.length > 0; i++) {
+        const t = pool.splice(rng.int(pool.length), 1)[0]!;
+        for (let r = 0; r < reps; r++) arena.gainRubyStats(t, a, h);
+      }
+      return;
+    }
+    for (const adj of arena.neighboursOf(arena.self)) {
+      for (let r = 0; r < reps; r++) arena.gainRubyStats(adj, a, h);
+    }
+  },
+
+  /** Bone Taxer — Echo: raise your maximum Gold by `amount` (golden doubles). */
+  deathrattleMaxGold(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantMaxGold((typeof params.amount === 'number' ? params.amount : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Equinox Duelist — Echo: buff your OTHER Celestials +atk/+hp (golden doubles). */
+  deathrattleBuffCelestials(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    if (a <= 0 && h <= 0) return;
+    for (const f of arena.friends()) {
+      if (f.uid !== arena.self.uid && arena.isCelestial(f)) arena.buff(f, a, h);
+    }
+  },
+
+  /** Imp Overseer — Echo: your Imps gain +atk/+hp, run-wide and permanent (golden doubles). The adapters own
+   *  the two rituals entirely; the body is the sentence. */
+  deathrattleBuffImps(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantImpAura(
+      (typeof params.attack === 'number' ? params.attack : 2) * g,
+      (typeof params.health === 'number' ? params.health : 3) * g,
+    );
+  },
+
+  /** Herald of the Divide — whenever a Battlecry fires on your side, THIS body grows (golden doubles). */
+  onBattlecryBuffSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.buff(arena.self,
+      (typeof params.attack === 'number' ? params.attack : 1) * g,
+      (typeof params.health === 'number' ? params.health : 1) * g);
+  },
+
+  /** Chef Raag — Echo: buff your whole board by the run's Imp aura, FLOORED at +1/+1 (owner 2026-07-21: with
+   *  no aura built up it still pays a baseline). Golden doubles. */
+  deathrattleBuffAllByImpAura(arena: EffectArena, _params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const imp = arena.impAura();
+    const a = Math.max(1, imp.attack) * g;
+    const h = Math.max(1, imp.health) * g;
+    for (const f of arena.friends()) arena.buff(f, a, h);
+  },
+
+  /** Grim — Echo: your minions of `tribe` gain +N/+N where N = Echoes triggered × `per` (golden doubles),
+   *  plus a rest-of-combat aura so later summons inherit it (a shop no-op by design). */
+  deathrattleBuffTribeByTally(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' && params.tribe ? params.tribe : 'any';
+    const amount = arena.deathrattleTally()
+      * (typeof params.per === 'number' ? params.per : 1)
+      * (arena.self.golden ? 2 : 1);
+    if (amount <= 0) return;
+    arena.addTribeAura(tribe, amount, amount);
+    for (const f of arena.friends()) {
+      if (f.uid !== arena.self.uid && (tribe === 'any' || arena.isTribe(f, tribe))) arena.buff(f, amount, amount);
+    }
   },
 } as const;

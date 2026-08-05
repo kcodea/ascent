@@ -1,5 +1,81 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 15+16: Chef Raag and Grim
+
+`deathrattleBuffAllByImpAura` (the +1/+1 floor now lives in ONE place) and `deathrattleBuffTribeByTally`
+migrate — floor → 16. Grim brought three verbs: `impAura`, `deathrattleTally` (per-side in combat, so an
+ENEMY Grim still scales off the opponent's tally via the adapter), and `addTribeAura` — a deliberate shop
+NO-OP, since there is no rest-of-combat in a shop and the legacy shop half never registered one. One
+behavioural harmonisation: combat now shares the shop's `amount <= 0` skip, so a zero-tally Grim no longer
+emits empty 0/0 buff events into the replay. Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena bodies 13+14: Imp Overseer's Echo and Herald of the Divide
+
+`deathrattleBuffImps` and `onBattlecryBuffSelf` migrate — floor → 14. The Imp one is the interesting shape:
+`grantImpAura(a, h)` hands EACH ADAPTER its whole legacy ritual (shop: `buffImpsRunWide` across board + hand +
+the persistent aura; combat: buff the living Imps AND carry back via `grantImpBuff`), so the body is just the
+sentence and the two rituals can never half-apply again — this factory is the one whose registry desync
+would have double-buffed under a Ryme re-fire (closed in #851). Gates: typecheck ✓, 3,898 tests ✓, harness ✓,
+`build:web` ✓.
+
+## 2026-08-04 — Arena bodies 11+12: Bone Taxer and Equinox Duelist
+
+`deathrattleMaxGold` and `deathrattleBuffCelestials` migrate — floor → 12. New verbs: `grantMaxGold` (combat
+routes through its carry-back channel and logs the replay's maxGold event; the shop raises `maxEmbers`) and
+`isCelestial` (a card-definition read, each adapter owning its index access). Bone Taxer's own-death guard —
+the every-friendly-death overpayment bug's fix — stays in the combat wrapper, where dispatch concerns live.
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Resonance Idol: the sweep finds its first SILENT drift; tenth arena body
+
+`rubyPlayedBounce` migrates, and unification FIXED a real divergence rather than just deduplicating: the
+2026-07-27 rework ("`random: N` bounces to N distinct random friends — position no longer gates the payoff")
+had only ever landed in the SHOP half. Combat ignored the param entirely and kept bouncing to the two
+neighbours, so the same card behaved differently by phase and nothing on any surface said so. This is the
+exact defect class the arena exists for, found by the sweep as predicted.
+
+One body now implements the reworked design everywhere. Two new verbs: `gainRubyStats` (ruby stats WITHOUT
+the onRubyPlayed notification — the load-bearing no-rebounce guard, so two Idols can never ping a Ruby
+forever) and `neighboursOf` (combat: `livingNeighbours`; shop: board-index ±1). The Ruby amounts ride the
+params (merged from the dispatch payload by the wrappers). Floor → 10.
+
+No test moved — the drift was silent precisely BECAUSE nothing covered the combat path under `random`.
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Insurance Policy is a legal dud (owner ruling); Ward golden parity confirmed
+
+Two rulings from the discernment list:
+- **Insurance Policy always casts** — *"you should be able to play it, it just gives 0 gold if you did not
+  lose."* The fizzle audit's refusal is reversed: the `spellGoldIfLostLast` rule is removed from
+  `spellFizzle.ts`, and the audit sweep gains a `LEGAL_DUDS` exclusion table (id → the ruling), so a ruled
+  informed dud is recorded rather than re-flagged.
+- **Ward grant golden parity** (shop grants twice, matching combat) — confirmed good.
+- Also confirmed: **no targeted Shout may target itself** (Appetite Agent, Runic Beetle, the whole class).
+  Already the enforced behaviour where `targetTribe` is set; sweeping the NON-tribe-gated targeted Shouts for
+  the same guarantee is queued for the sweep.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena bodies 8+9: Rise and Ward grants go random-in-both under the standing ruling
+
+`deathrattleGrantReborn` (Mumi) and `deathrattleGrantShield` migrate — floor → 9. Both were Trickster-class
+divergences: combat picked RANDOM, the shop picked the highest-Attack carry (the same pre-cursor-RNG
+workaround, per the shop halves' own comments). Applied the standing ruling — "random = random in both shop
+and in combat" — rather than re-asking per card. Two behaviour notes folded in: the shop GrantShield used to
+grant ONCE regardless of golden (now twice, the combat reading), and combat's extra `rebornAvailable` check
+rides the `hasReborn` adapter verb. New verbs: `hasReborn`/`grantReborn`/`isTribe`. Gates: typecheck ✓,
+3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Geode Guardian is the seventh arena body; summonToken grows keyword + return
+
+`deathrattleSummonGolemsWithRuby` (Geode Guardian's Echo) migrates — both legacy halves deleted, ratchet
+floor → 7. `summonToken` matured into its general shape: optional keyword + explicit stats, returning the
+summoned body (undefined = board full) so bodies can chain. New verb `playRubiesOn(t, per)` — combat routes
+through `playRubyOn` (rubyBonus + Deepdelve multiplier + the target's own onRubyPlayed listeners), the shop
+applies `(1+rubyBonus)×per` as a 'Ruby' buff and fires its watchers. The owner's standing count ruling is
+preserved in the body: a Gilded Geode still summons TWO Golems — golden scales the RUBIES, never the count.
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3,898 tests ✓, `build:web` ✓, harness ✓.
+
 ## 2026-08-04 — Gemheart's golden is ONE Shard at double stats (owner ruling); sixth arena body
 
 Divergent dual #2, ruled and migrated. `deathrattleSummonRubyStats` (Gemheart Carver) read its golden two

@@ -149,7 +149,39 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       const shopRuby = m.buffs?.find((b) => b.source === 'Ruby');
       return { attack: (shopRuby?.attack ?? 0) + (m.rubyGain?.attack ?? 0), health: (shopRuby?.health ?? 0) + (m.rubyGain?.health ?? 0) };
     },
-    summonToken: (id, a, h) => { ctx.summon(self.side, ctx.getCard(id), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h }); },
+    summonToken: (id, opts) => {
+      const kw = opts?.keyword ? [opts.keyword as Keyword] : undefined;
+      const ov = opts?.attack !== undefined && opts.health !== undefined
+        ? { attack: opts.attack, health: opts.health, maxHealth: opts.health } : undefined;
+      return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, false, false, ov);
+    },
+    playRubiesOn: (t, per) => playRubyOn(ctx, self, t as Minion, per),
+    gainRubyStats: (t, a, h) => applyRubyStats(ctx, self, t as Minion, a, h),
+    neighboursOf: (t) => livingNeighbours(ctx, t as Minion),
+    grantMaxGold: (amount) => {
+      ctx.grantMaxGold(amount, self.side);
+      if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount });
+    },
+    isCelestial: (t) => !!ctx.getCard(t.cardId)?.celestial,
+    isImp: (t) => !!ctx.getCard(t.cardId)?.imp,
+    impAura: () => ctx.impAura(self.side),
+    deathrattleTally: () => ctx.deathrattleTally(self.side),
+    addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
+    grantImpAura: (a, h) => {
+      for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
+      ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
+    },
+    hasReborn: (t) => (t as Minion).rebornAvailable === true || t.keywords.includes('R'),
+    grantReborn: (t) => {
+      const m = t as Minion;
+      m.keywords.push('R');
+      m.rebornAvailable = true;
+      ctx.log({ type: 'keyword', target: m.uid, keyword: 'R', source: self.uid });
+    },
+    isTribe: (t, tribe) => {
+      const m = t as Minion;
+      return m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe;
+    },
     rng: () => ctx.rng,
   };
 }
@@ -495,14 +527,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  run-wide base + this combat's player Deathrattles, snapshotted now — Grim's own death is counted).
    *  Registers a rest-of-combat aura at that magnitude, then buffs the friends already on the board.
    *  Golden doubles `per`. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (per-side tally via the adapter).
   deathrattleBuffTribeByTally: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const tribe = str(params.tribe) as Tribe | 'any';
-    const amount = ctx.deathrattleTally(self.side) * num(params.per, 1) * mul(self); // per-side: enemy Grim uses the OPPONENT's tally
-    ctx.addTribeAura(self.side, tribe, amount, amount, self.uid);
-    for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, amount, amount, self.uid);
-    }
+    ARENA_EFFECTS.deathrattleBuffTribeByTally(combatArena(ctx, self), params);
   },
 
   /** On kill (Gnasher): buff self by +atk/+hp. Pairs with Engraved so the gain is permanent. The onKill
@@ -822,15 +850,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Geode Guardian (owner rework 2026-07-31) — Echo: summon `count` Gemheart Golems with Taunt and play
    *  `rubies` Rubies on each. The COUNT is deliberately NOT golden-doubled (a Gilded copy still summons 2 —
    *  owner's explicit call); the Rubies are, via `playRubyOn`'s per-cast stacking. */
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   deathrattleSummonGolemsWithRuby: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const golem = ctx.getCard('gemheart-shard');
-    if (!golem) return;
-    for (let i = 0; i < num(params.count, 2); i++) {
-      const summoned = ctx.summon(self.side, golem, self.uid, ['T']);
-      if (!summoned) break; // board full
-      playRubyOn(ctx, self, summoned, num(params.rubies, 1) * mul(self));
-    }
+    ARENA_EFFECTS.deathrattleSummonGolemsWithRuby(combatArena(ctx, self), params);
   },
 
   /**
@@ -888,22 +911,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  spent effects re-arm — the same rule as a resummoned body's Deathrattle). Golden grants it to two friends.
    *  Logs a `keyword` event so the target's card gains the Rise pill in the replay the moment it's granted
    *  (the Rise itself then replays through the normal `reborn` event when it procs). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantReborn: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const tribe = str(params.tribe);
-    for (let i = 0; i < mul(self); i++) {
-      const candidates = ctx.living(self.side).filter((m) => {
-        if (m === self || m.rebornAvailable || m.keywords.includes('R')) return false;
-        if (!tribe) return true;
-        const def = ctx.getCard(m.cardId);
-        return m.tribe === tribe || m.tribe2 === tribe || !!def.universalTribe;
-      });
-      if (candidates.length === 0) return;
-      const target = ctx.rng.pick(candidates);
-      target.keywords.push('R');
-      target.rebornAvailable = true;
-      ctx.log({ type: 'keyword', target: target.uid, keyword: 'R', source: self.uid });
-    }
+    ARENA_EFFECTS.deathrattleGrantReborn(combatArena(ctx, self), params);
   },
 
   /** Avenge (X) — Arcane Weaver: after every `count` friendly deaths, add a copy of a spell to your hand
@@ -1022,14 +1033,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Chef Raag): give every living friendly minion +A/+H equal to your live Imp Aura this fight
    *  (golden doubles). Fires on death. */
-  deathrattleBuffAllByImpAura: (ctx, self, _params, payload) => {
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (the +1/+1 floor lives there).
+  deathrattleBuffAllByImpAura: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const imp = ctx.impAura(self.side);
-    // FLOORED at +1/+1 (owner 2026-07-21): with no Imp Aura built up yet it still pays a baseline rather than
-    // nothing. `impAuraGrant` mirrors this exactly for the card text — keep the two in step.
-    const a = Math.max(1, imp.attack) * mul(self);
-    const h = Math.max(1, imp.health) * mul(self);
-    for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+    ARENA_EFFECTS.deathrattleBuffAllByImpAura(combatArena(ctx, self), params);
   },
 
   /** Rally (The Godfodder): on each of its own attacks, permanently buff your Fodder +atk/+hp (golden ×2) —
@@ -1165,9 +1172,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Set 2 — Embermouth Whelp: every Shout you trigger grows THIS body (× golden). Permanent-by-nature — it's
    *  a recruit-phase buff on the card itself, so it simply persists like any other stat gain. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onBattlecryBuffSelf: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
-    ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+    ARENA_EFFECTS.onBattlecryBuffSelf(combatArena(ctx, self), params);
   },
 
   rallyGrantSpell: (ctx, self, _params, payload) => {
@@ -1415,15 +1423,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *
    *  Bounces via `applyRubyStats`, NOT `playRubyOn`, so the bounced Ruby does not itself count as "a Ruby played
    *  on" the neighbour — two adjacent Idols would otherwise bounce forever. Same reasoning as the recruit half. */
+  // ARENA-MIGRATED (Step 3, Ruby family). This unification FIXED drift: the 2026-07-27 random-N rework had
+  // only ever landed in the shop half, so combat still bounced to neighbours while the shop went random.
   rubyPlayedBounce: (ctx, self, params, payload) => {
     const { rubyAttack, rubyHealth } = payload as { rubyAttack?: number; rubyHealth?: number };
-    const a = rubyAttack ?? 0;
-    const h = rubyHealth ?? 0;
-    if (a <= 0 && h <= 0) return;
-    const reps = self.golden ? num(params.goldenReps, 2) : 1;
-    for (const adj of livingNeighbours(ctx, self)) {
-      for (let r = 0; r < reps; r++) applyRubyStats(ctx, self, adj, a, h);
-    }
+    ARENA_EFFECTS.rubyPlayedBounce(combatArena(ctx, self), { ...params, rubyAttack, rubyHealth });
   },
 
   /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */
@@ -1790,14 +1794,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Bone Taxer): permanently raise your max Gold by `amount` (golden doubles). Player-side
    *  carry-back via `CombatResult.playerMaxGoldGain` → applied to maxEmbers in settleCombat. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts. The own-death guard (Bone Taxer once paid on EVERY
+  // friendly death) stays in the wrapper, where dispatch concerns live.
   deathrattleMaxGold: (ctx, self, params, payload) => {
-    // Fire ONLY on THIS minion's own death. The onDeath bus emits for every death, so without this guard Bone
-    // Taxer granted max Gold on EVERY friendly death (owner-reported: "far more gold per turn"). The echo-doubler
-    // re-fires pass `{ minion: self }`, so this still honors Sylus/Funeral Engine.
     if ((payload as MinionPayload).minion !== self) return;
-    const gain = num(params.amount, 1) * mul(self);
-    ctx.grantMaxGold(gain, self.side);
-    if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
+    ARENA_EFFECTS.deathrattleMaxGold(combatArena(ctx, self), params);
   },
 
   /** Avenge (X) — Stuntdrake: after every `count` friendly deaths, hand `targets` other living friends a
@@ -1866,14 +1867,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield (golden: TWO friends). */
-  deathrattleGrantShield: (ctx, self, _params, payload) => {
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  deathrattleGrantShield: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const count = self.golden ? 2 : 1;
-    for (let i = 0; i < count; i++) {
-      const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
-      if (pool.length === 0) return;
-      grantShield(ctx, ctx.rng.pick(pool));
-    }
+    ARENA_EFFECTS.deathrattleGrantShield(combatArena(ctx, self), params);
   },
 
   /** Shield Capacitor — when a friendly Shield breaks, give another friend a Shield. */
@@ -1969,10 +1966,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Celestial — Equinox Duelist (Dusk Echo): the Echo twin of `rallyBuffCelestials` — the dying Duelist
    *  buffs the OTHER Celestials it leaves behind. × golden. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffCelestials: (ctx, self, params) => {
-    for (const m of ctx.living(self.side)) {
-      if (m !== self && ctx.getCard(m.cardId)?.celestial) ctx.buff(m, num(params.attack, 0) * mul(self), num(params.health, 0) * mul(self), self.uid);
-    }
+    ARENA_EFFECTS.deathrattleBuffCelestials(combatArena(ctx, self), params);
   },
 
   scSummonCopy: (ctx, self) => {
@@ -2352,12 +2348,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
    *  Golden doubles the per-proc amount. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffImps: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const a = num(params.attack, 2) * mul(self);
-    const h = num(params.health, 3) * mul(self);
-    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
-    ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
+    ARENA_EFFECTS.deathrattleBuffImps(combatArena(ctx, self), params);
   },
 
 

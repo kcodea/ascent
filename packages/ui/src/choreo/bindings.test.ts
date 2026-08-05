@@ -148,9 +148,20 @@ describe('effectiveTables', () => {
 const BINDINGS: Record<string, { def: string }> = {
   shieldGain: { def: 'ward-gained' }, venomSpent: { def: 'venom-spent' }, scCast: { def: 'spell-cast' },
   reveal: { def: 'stealth-break' }, keyword: { def: 'keyword-gain' }, keywordLost: { def: 'keyword-lost' },
-  rally: { def: 'rally-link' }, toHand: { def: 'to-hand' }, hpGrant: { def: 'hp-grant' },
+  toHand: { def: 'to-hand' }, hpGrant: { def: 'hp-grant' },
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
+  // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.
+};
+
+/**
+ * The CARD layer's golden copy, for the same reason the kind table has one. A card row is the narrower key
+ * and the easier one to add without telling anyone, and it SHADOWS the kind beneath it — so an unnoticed
+ * entry here silences a global effect for one card rather than merely adding to it.
+ */
+const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string }>> = {
+  b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
+  bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
 };
 
 /** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a
@@ -165,6 +176,27 @@ describe('the bound kinds', () => {
   it('binds exactly the intended kind → def pairs, and nothing else', () => {
     const expected: Record<string, { def: string; fanOut?: string }> = { ...BINDINGS, ...FANOUT_BINDINGS };
     expect(effectiveTables().kinds).toEqual(expected);
+  });
+
+  it('binds exactly the intended card → kind → def entries, and nothing else', () => {
+    expect(effectiveTables().cards).toEqual(CARD_BINDINGS);
+  });
+
+  /**
+   * `rally` is deliberately SILENT at the kind layer, and it has to be a tombstone rather than an omission.
+   *
+   * The channel that plays a Rally (`rallyFx`) resolves a binding per rally EVENT, which is what finally made
+   * the `rally` row reachable at all — it had been authored and unplayable for as long as it existed, because
+   * every Rally is absorbed into its attacker's wind-up. Leaving `rally-link` bound globally at the moment it
+   * became reachable would have started playing it on every Rally in the game, which is a change nobody asked
+   * for dressed up as a bug fix (owner decision 2026-08-04: Echohorn only).
+   *
+   * The tombstone says that out loud, where an absent key would read as "nobody got round to it".
+   */
+  it('keeps `rally` globally silent as an explicit tombstone, with the card row still live beneath it', () => {
+    expect(bindingFor(null, 'rally')).toBeNull();
+    expect(bindingAt(null, 'rally')).toEqual({ binding: null, source: 'file' });
+    expect(bindingFor('b2_echohorn', 'rally')).toEqual({ def: 'echohorn-target-sparkle' });
   });
 
   // Kinds that already existed and already had FX must be untouched — a def on a NEIGHBOURING kind must never
@@ -368,7 +400,8 @@ describe('bindingsJson', () => {
     const parsed = parseTable(JSON.parse(bindingsJson()));
     expect(parsed.kinds.scCast).toEqual({ def: 'test-red-blast' });
     expect(parsed.cards.bloodbinder?.scCast).toBeNull();
-    expect(parsed.kinds.rally).toEqual({ def: 'rally-link' });
+    // …and a tombstone already IN the committed file survives the round trip the same way a session one does.
+    expect(parsed.kinds.rally).toBeNull();
   });
 
   it('emits version 1, sorted keys, and a trailing newline', () => {
@@ -586,7 +619,7 @@ describe('unbindJson', () => {
   it('clearing a kind row removes it and leaves every other kind alone', () => {
     const parsed = parseTable(JSON.parse(unbindJson(null, 'scCast', 'clear')));
     expect(parsed.kinds.scCast).toBeUndefined();
-    expect(parsed.kinds.rally).toEqual({ def: 'rally-link' });
+    expect(parsed.kinds.toHand).toEqual({ def: 'to-hand' });
     // The card override is NOT collateral: it still names its own def.
     expect(parsed.cards.bloodbinder?.scCast).toEqual({ def: 'ruby-lance', fanOut: 'damaged' });
   });

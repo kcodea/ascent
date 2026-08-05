@@ -40,12 +40,14 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
 /**
  * `playDef` calls whose def id is an expression — the scan's blind spot, counted per file on purpose.
  *
- * All three are `score.ts` firing `binding.def`, which is how a BINDING plays; they are not direct calls and
- * must never be counted as one. Counts rather than line numbers: a line pin would go red every time anything
- * above it moved, which trains people to update it without reading — the opposite of what a guard is for.
+ * All four are `score.ts` firing a resolved binding's `def`, which is how a BINDING plays; they are not direct
+ * calls and must never be counted as one. (Three are the `fxDef` cue's fan-out branches; the fourth is the
+ * `rallyFx` cue, which resolves a binding per rally event rather than per moment — see `channels/rallyFired.ts`.)
+ * Counts rather than line numbers: a line pin would go red every time anything above it moved, which trains
+ * people to update it without reading — the opposite of what a guard is for.
  */
 export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
-  'choreo/score.ts': 3,
+  'choreo/score.ts': 4,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

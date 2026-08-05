@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
-import type { Moment } from './compile';
+import { compileMoments, type Moment } from './compile';
+import { RALLY_BEAT_MS, RALLY_GAP_MS } from './channels/rallyFired';
 import { sfx } from '../sfx';
 import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues, type Channel } from './score';
 import { momentKind, type MomentKind } from './kinds';
@@ -484,8 +485,9 @@ describe('fxDef channel', () => {
     [{ type: 'reveal', target: 'b' }, 'reveal', 'stealth-break', [null, 'b']],
     [{ type: 'keyword', target: 'b', keyword: 'DS' }, 'keyword', 'keyword-gain', [null, 'b']],
     [{ type: 'keywordLost', target: 'b', keyword: 'T' }, 'keywordLost', 'keyword-lost', [null, 'b']],
-    // the ONE genuinely two-ended binding — Deathsayer (source) firing an ally's Deathrattle (target)
-    [{ type: 'rally', source: 'a', target: 'b' }, 'rally', 'rally-link', ['a', 'b']],
+    // NB: `rally` is deliberately NOT a row here. It is the one genuinely two-ended beat, and it belongs to
+    // the `rallyFx` channel rather than to this one — see the `rallyFx channel` describe below for why, and
+    // for the assertion that this channel stands down on the `rally` kind so the two can never both fire.
     [{ type: 'toHand', cardId: 'z', side: 'player', source: 'a' }, 'toHand', 'to-hand', ['a', null]],
     [{ type: 'hpGrant', target: 'b', amount: 2 }, 'hpGrant', 'hp-grant', [null, 'b']],
     [{ type: 'spellProgress', target: 'b', amount: 3 }, 'spellProgress', 'spell-progress', [null, 'b']],
@@ -704,5 +706,106 @@ describe('fxDef channel — self-buff fan-out', () => {
     const events: CombatEvent[] = [{ type: 'attack', attacker: 'a', defender: 'b' } as CombatEvent];
     runMomentCues(moment('attackExchange', events), baseCtx(events));
     expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The `rallyFx` channel — a Rally's authored flourish, resolved PER RALLY EVENT.
+ *
+ * Why it is not just an `fxDef` binding is the whole point of these tests: every Rally is an `onAttack`
+ * trigger, so `absorbIntoWindup` folds its event into the attacker's exchange and the `rally` KIND never
+ * occurs in a real fight. `fxDef` resolves one binding off the moment's PRIMARY event, so for a real Rally it
+ * would have asked for `attackExchange` at the attacker and anchored the def to the DEFENDER — the wrong
+ * question and the wrong unit. That is why `kinds.rally` sat authored and unplayed for as long as it existed.
+ */
+describe('rallyFx channel', () => {
+  const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
+  const attack = (attacker: string, defender: string): CombatEvent =>
+    ({ type: 'attack', attacker, defender, swing: 0 } as CombatEvent);
+  const SPARKLE = 'echohorn-target-sparkle';
+
+  beforeEach(() => { mockPlayDef.mockClear(); mockAnchors.mockClear(); mockCanPlayDefs.mockReturnValue(true); });
+
+  // THE case. A real log, compiled the real way, so the absorption is exercised rather than assumed.
+  it('plays the rallier CARD def at the ally it procced, inside the absorbed wind-up', () => {
+    const events = [attack('ech', 'foe'), rally('ech', 'ally'), { type: 'dmg', target: 'foe', amount: 3, remainingHp: 0 } as CombatEvent];
+    const [windup] = compileMoments(events);
+    expect(windup?.kind).toBe('attackExchange'); // the absorption itself — if this ever changes, so must the channel
+    const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
+    runMomentCues(windup!, c);
+    expect(mockAnchors).toHaveBeenCalledWith('ech', 'ally');
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    expect(mockPlayDef).toHaveBeenCalledWith(SPARKLE, { target: { x: 5, y: 7 } }, { uids: { source: 'ech', target: 'ally' }, index: 0 });
+  });
+
+  /** "Any instance of it triggering" — a gilded Echohorn loops twice, and both procs get their own play,
+   *  spaced by the stack `beat` so the eye can count them. */
+  it('fires once per PROC, spaced by the stack beat', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
+    const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
+    runMomentCues(compileMoments(events)[0]!, c);
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);           // the first lands immediately…
+    vi.advanceTimersByTime(RALLY_BEAT_MS - 1);
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(2);
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);           // …the second a beat later
+    vi.useRealTimers();
+  });
+
+  /** Two ralliers in one exchange walk pair to pair on the wider `gap`, so "two different minions rallied"
+   *  never reads as one minion rallying twice. */
+  it('walks distinct pairs on the cascade gap, not the stack beat', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'ally1'), rally('ech2', 'ally2')];
+    const c = baseCtx(events, { cardIds: new Map([['ech', 'b2_echohorn'], ['ech2', 'b2_echohorn']]) });
+    runMomentCues(compileMoments(events)[0]!, c);
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(RALLY_BEAT_MS);                  // a beat is NOT enough — these are separate pairs
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(RALLY_GAP_MS - RALLY_BEAT_MS);
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
+    expect(mockAnchors).toHaveBeenCalledWith('ech2', 'ally2');
+    vi.useRealTimers();
+  });
+
+  /** The owner's scoping decision, in code: `kinds.rally` is a tombstone, so a rallier with no card binding
+   *  plays NOTHING. Making the channel work must not switch on FX for every Rally in the game. */
+  it('plays nothing for a rallier with no card binding', () => {
+    const events = [attack('ds', 'foe'), rally('ds', 'ally')];
+    runMomentCues(compileMoments(events)[0]!, baseCtx(events, withCard('ds', 'deathsayer')));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  /** …and with no uid→card map at all (older saved replays / synthetic fixtures) it resolves the kind layer,
+   *  which is the same tombstone. Silence, never a crash. */
+  it('plays nothing when the moment carries no card map', () => {
+    const events = [attack('ech', 'foe'), rally('ech', 'ally')];
+    runMomentCues(compileMoments(events)[0]!, baseCtx(events));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  /**
+   * THE ONE-CHANNEL RULE. A moment that really is `rally`-kind (a synthetic fixture, or a saved replay from
+   * before the absorption) must still play exactly ONCE: `fxDef` stands down there so the two channels cannot
+   * both resolve the same binding and double the effect.
+   */
+  it('owns the rally kind outright — fxDef stands down, so nothing plays twice', () => {
+    const events = [rally('ech', 'ally')];
+    expect(momentKind(events[0]!)).toBe('rally');
+    const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
+    runMomentCues(moment('rally', events), c);
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    expect(mockPlayDef).toHaveBeenCalledWith(SPARKLE, expect.anything(), { uids: { source: 'ech', target: 'ally' }, index: 0 });
+  });
+
+  /** Guarded before anything is allocated, exactly like `fxDef`/`rubyFx`: headless and pre-`ensureDefsReady`
+   *  this path must cost two property reads and schedule no timer. */
+  it('schedules nothing when defs cannot play', () => {
+    mockCanPlayDefs.mockReturnValue(false);
+    const events = [attack('ech', 'foe'), rally('ech', 'ally')];
+    runMomentCues(compileMoments(events)[0]!, baseCtx(events, withCard('ech', 'b2_echohorn')));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+    expect(mockAnchors).not.toHaveBeenCalled();
   });
 });

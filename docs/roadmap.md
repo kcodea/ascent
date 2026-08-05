@@ -51,6 +51,14 @@ The five buckets below are ordered by when we intend to act, not by size:
   floats, deliberately left alone because the sprinkle reading *around* the pill is arguably correct. Decide
   whether it should be portalled too, or leave it.
 
+- **Eyeball Echohorn's Rally sparkle on a real fight, then decide what `rally-link` is for.** The `rallyFx`
+  channel shipped 2026-08-04 and made per-rallier Rally FX reachable for the first time (see the devlog for
+  why the `rally` binding had never fired). `echohorn-target-sparkle` is bound to `b2_echohorn` alone and the
+  wiring is unit-tested against a real compiled event log, but it has not been watched in a live combat —
+  in particular a GILDED Echohorn, whose double proc is the case the cascade `beat` exists for. `rally-link`
+  is now an authored def with nothing bound to it: either author it onto specific ralliers (Deathsayer and
+  Broodlord are the obvious candidates) or delete it, but don't leave it looking wired.
+
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
   Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
   onto **Bug** Huggies (one letter apart) — confirm that is the intended art, and confirm the card name.

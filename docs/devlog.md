@@ -1,5 +1,58 @@
 # ASCENT — development log
 
+## 2026-08-04 — Echohorn's Rally lands on the minion it procs (and the `rally` binding was never reachable)
+
+Owner: *"echohorn-target-sparkle should occur when Echohorn's Rally triggers — any instance of it triggering."*
+Wiring it up turned out to need a new channel, because the binding it obviously wanted had never been able to
+fire at all.
+
+**The defect underneath.** Every Rally in the game is an `onAttack` trigger, and `simulate.ts` emits the
+`rally` event immediately after the `attack` that provoked it. `compileMoments` then ABSORBS that run into the
+attacker's wind-up (`absorbIntoWindup`), so a Rally reaches the choreographer inside an `attackExchange`
+moment whose primary event is the attack — the `rally` KIND does not occur in a real fight. The `fxDef` cue
+resolves ONE binding per moment off that primary, so for a real Rally it asked for `attackExchange` at the
+attacker and would have anchored the def to the DEFENDER. `kinds.rally → rally-link` had therefore been
+committed, correct-looking and completely unplayed for as long as it existed. Exactly the failure mode this
+subsystem keeps producing: a binding that silently doesn't fire is indistinguishable from one nobody wired.
+
+**`rallyFx`, a channel rather than a binding row.** It scans the moment's own events instead of its primary,
+and resolves a binding PER RALLY EVENT at that event's own `source → target` pair. That is what makes "any
+instance of it triggering" literal: a gilded Echohorn loops `mul(self)` times and Elderhorn's Hunt grant
+stacks more procs on top, and each proc gets its own play. Same cascade-of-N-stacks shape the Ruby sweep
+uses — `gap` (100 ms) walks between distinct rallier→ally pairs, `beat` (50 ms) repeats within one — so two
+ralliers in one exchange never read as one rallier rallying twice, and a doubled proc reads as two.
+
+Deliberate details:
+- **Bindings resolve up front and unbound ralliers are dropped there**, not inside the timer, so the cascade's
+  gap walks only the pairs that actually play. An unbound rallier must not leave a hole in the rhythm.
+- **Anchors resolve INSIDE the timer**, like the Ruby sweep: either end can die mid-cascade (the ally's own
+  Echo can kill it), and a dead unit should be skipped rather than played over an empty slot.
+- **`fanOut` is ignored on this row.** A Rally's fan-out IS its pair, and both ends come from the event rather
+  than from a scan the binding chooses.
+- **The one-channel rule.** `fxDef` now stands down on the `rally` kind. A synthetic or pre-absorption moment
+  that really is `rally`-kind would otherwise have both channels resolve the same binding and play it twice.
+
+**Scoped to Echohorn, on purpose (owner decision).** Making the row reachable would have switched `rally-link`
+on for every Rally in the game — Deathsayer, Broodlord, Sunmane, Crownvein — which is a game-wide visual
+change dressed up as a bug fix. `kinds.rally` is now an explicit TOMBSTONE (`null`) rather than an omission,
+so the file says "deliberately silent" where an absent key would read as "nobody got round to it", and
+`cards.b2_echohorn.rally` carries the sparkle alone.
+
+The attacker's existing yellow Rally pulse is untouched: it is keyword-driven (`RL` off the live frame or the
+card index) and fires once at the top of the wind-up, so the beat reads *Echohorn rallies → that ally's Echo
+detonates*. Note the whole feature is combat-only by construction — a Rally is an `onAttack` trigger and
+nothing outside `simulate.ts` emits one, so there is no shop instance to hook.
+
+Verified: typecheck (pkgs + web), `build:web`, 3888 tests — including 10 new ones over the pure scan
+(`channels/rallyFired.ts`) and 7 over the channel's dispatch/timing/guard wiring, several of which compile a
+REAL event log so the absorption is exercised rather than assumed. Lint reports nothing in `packages/` (the
+errors it does report are all in the untracked `.agents/`/`.codex/` tooling directories). Not yet eyeballed in
+a live fight.
+
+Follow-ups: `rally-link` is now an authored def with nothing bound to it — either author it onto specific
+ralliers or delete it, but don't leave it looking wired. And the yellow pulse still fires once per SWING while
+the sparkle fires once per PROC, which is correct but worth watching on a gilded Echohorn.
+
 ## 2026-08-04 — Buffs drawer: Ruby power ticks up LIVE in combat (owner report)
 
 Owner report: the Dawnclaw -> Deepvein Tender cascade now animates in real time and applies mechanically,

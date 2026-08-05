@@ -48,8 +48,8 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
-import { RUBY_BEAT_MS, RUBY_GAP_MS, RUBY_LANDED_DEF } from './choreo/channels/rubyLanded';
-import { cascade, scheduleLands, waves as asWaves } from './fx/land';
+import { RUBY_LANDED_DEF, rubyLandSchedule } from './choreo/channels/rubyLanded';
+import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
 import { defCarriesNumber } from './fx/fxDefs';
 import { applyFloatSpeed } from './floatConfig';
@@ -73,6 +73,12 @@ const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="wa
 // Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts, fired off the event log). (Taunt is
 // signified by a static grey card border, not an aura — see `.card.taunt` in styles.css — so it's not here.)
 const AURA_MARKERS = ['dscard', 'reborncard'] as const;
+
+/** How far into a gem's own effect its number lands. `land.at` is when the effect STARTS; the dust takes a
+ *  moment to look like it seated, and the number should arrive with the seating rather than the launch.
+ *  Per-cue rather than per-def: a def that wants the number tied to a specific beat of its own motion says
+ *  so with a `react` layer, which outranks this entirely. */
+const RUBY_DELIVER_OFFSET_MS = 120;
 
 /**
  * A card's RESTING centre in viewport coordinates — where it will BE once the layout settles, not where it
@@ -860,18 +866,30 @@ export function Recruit() {
    * this hold would be placed with nothing left to release it, freezing the badge until an unrelated
    * re-render swept it (owner report — a gem apply that only updated on the next click). Declining to hold
    * hands the change to `Card`'s intrinsic roll instead, so the number still rolls with no authoring at all.
+   *
+   * Each land is withheld until ITS OWN gem, not until the reducer tick. `rubyLandSchedule` is the single
+   * source of the rhythm and the fire effect below reads the same function, so the number and the dust
+   * cannot drift — alignment is structural rather than maintained. Without this, an Excavator dropping gems
+   * one at a time across the board moved all seven numbers simultaneously, which visibly proves to the
+   * player that the effect is not what is causing them.
    */
   useLayoutEffect(() => {
     const seq = run.rubyLandedFxSeq;
     if (seq === undefined || seq === prevRubyLandedSeq.current) return;
     if (!defCarriesNumber(RUBY_LANDED_DEF)) return;
-    for (const land of run.rubyLandedFx ?? []) {
+    const lands = run.rubyLandedFx ?? [];
+    for (const land of rubyLandSchedule(lands)) {
       const buff = run.board.find((c) => c.uid === land.uid)?.buffs?.find((b) => b.source === 'Ruby');
       if (!buff || buff.count <= 0) continue;
+      // `rubyLandSchedule` expands a stacked recipient into one `Land` per gem (see `fx/land.ts`'s
+      // `cascade`), so this loop already runs once per gem — the per-gem share is the whole delta for THIS
+      // land, not a fraction of it to be re-multiplied. (The brief's draft carried a `* land.count`
+      // inherited from the old aggregate-per-uid loop; `Land` has no `count` field, and re-multiplying here
+      // would both fail to compile and overstate a stack's total.)
       holdStat(land.uid, {
-        attack: Math.round((buff.attack / buff.count) * land.count),
-        health: Math.round((buff.health / buff.count) * land.count),
-      });
+        attack: Math.round(buff.attack / buff.count),
+        health: Math.round(buff.health / buff.count),
+      }, { origin: 'cue', startAt: land.at + RUBY_DELIVER_OFFSET_MS });
     }
     // `prevRubyLandedSeq` is deliberately NOT advanced here — the cue effect below owns that bookkeeping, and
     // moving it would make this effect silently swallow the cue.
@@ -887,7 +905,9 @@ export function Recruit() {
     // One rAF first, for the same reason the cues above take one: the buffed cards re-render this commit, and
     // measuring before the browser has laid them out reads the PREVIOUS geometry.
     const raf = requestAnimationFrame(() => {
-      for (const land of scheduleLands(cascade(lands), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS })) {
+      // The SAME schedule the hold above used — see `rubyLandSchedule`. Two `scheduleLands` calls would be
+      // two schedules that merely agree today.
+      for (const land of rubyLandSchedule(lands)) {
         // Measured inside the timer so a stagger that outlives a re-render (a triple collapsing three bodies
         // into one) misses cleanly instead of firing at a stale rect.
         const fire = (): void => {
